@@ -108,7 +108,7 @@ func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
 	}
 	for _, d := range gws {
-		label := "Router or firewall " + oneLine(d.Name, 60)
+		label := "Router or firewall " + truncRunes(cleanLine(d.Name), 60)
 		if ip, ok := CheckValue(PIP, d.IP); ok {
 			l = append(l, AllowEntry{Value: ip, Label: label})
 		}

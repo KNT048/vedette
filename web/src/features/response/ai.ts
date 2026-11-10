@@ -1,15 +1,21 @@
 // AI-sent requests (D-51): the AI names a catalog action and typed values; the SERVER decides whether the request exists at all.
 // Gates, in order: breaker and maintenance, quality pause, allowed trigger, action flagged for AI, typed values and never-touch, real evidence,
 // confidence, one open request per target and action, 7 days after a rejection, budget (over budget goes to a digest), second check for high risk.
+// Evidence counts only when it is about the target of the action (typed comparison) or, for a device action, a read through that action's own connection (D-119).
 import { collection, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore } from '@/mocks/stores'
+import { isOpen } from '@/features/findings/basis'
 import { AI_MIN_CONFIDENCE, AI_REPEAT_DAYS } from './contract'
+import { AI_PROOF } from './data'
 import { events, openKeys, planAction, plannedKey } from './engine'
 import { oneLine } from './logic'
 import { actionsStore, appendLog, breakerOpen, BREAKER_MSG, catById, connById, HOUR, isObj, maintenanceNow, newRequest, refuse, settings, settingsStore, step, str } from './state'
+import type { ParamType } from './logic'
 import type { ActionRequest, AiNote, AiState, Evidence, Metrics, ProposeResult, Stat, Trigger } from './types'
 
 export interface Hint { id: string; ts: string; kind: 'rule' | 'memory'; text: string; from_request: string }
+/** The newest 50 of each kind (D-119): a flood of suggestions cannot push the digest out, and the other way round. */
+const capNotes = (l: AiNote[]) => [...l.filter((n) => n.kind === 'suggestion').slice(0, NOTES_PER_KIND), ...l.filter((n) => n.kind === 'digest').slice(0, NOTES_PER_KIND)].sort((a, b) => b.ts.localeCompare(a.ts))
 export const notesStore = collection<AiNote[]>('resp_ai_notes', () => [{
   id: 'note-seed-1', ts: new Date(Date.now() - 50 * 60e3).toISOString(), kind: 'suggestion', title: 'Consider blocking 91.92.240.12', confidence: 0.6, action_id: 'blocklist_add', target: '91.92.240.12',
   why: 'PC-HR-01 connected to an address that one feed lists (URLhaus). Confidence 0.6 is below 0.8, so this is a note, not an approval request.', evidence: [{ kind: 'ioc_hit', id: 'det-s-ioc-2', summary: 'PC-HR-01 connected to 91.92.240.12 (URLhaus, confidence 60)' }],
@@ -19,10 +25,14 @@ export const hintsStore = collection<Hint[]>('resp_hints', () => [{ id: 'hint-se
 const FORBIDDEN = ['cli', 'rest', 'change', 'command', 'template', 'run', 'rollback', 'method', 'path', 'url', 'body', 'headers', 'script']
 const aiRequests = () => actionsStore.get().filter((a) => a.source === 'ai' && a.ai)
 const DECIDED = ['approved', 'executed', 'rejected', 'failed', 'rolled_back']
+/** A rejection by a person. A cancellation (action edited, emergency stop) is rejected too but is not a verdict on the AI: it counts for neither the 7-day repeat rule nor the quality breaker (D-119). */
+const byPerson = (a: ActionRequest) => a.status !== 'rejected' || /^Rejected by /.test(a.note ?? '')
+const CALLS_PER_HOUR = 60
+const NOTES_PER_KIND = 50
 const keyOf = (i: ActionRequest['items'][number]) => `${i.action_id}|${i.change.cli}|${i.change.rest ? `${i.change.rest.method} ${i.change.rest.url} ${i.change.rest.body ?? ''}` : ''}`
 
 export function quality() {
-  const last = aiRequests().filter((a) => DECIDED.includes(a.status) && a.decided_at).sort((x, y) => y.decided_at!.localeCompare(x.decided_at!)).slice(0, 10)
+  const last = aiRequests().filter((a) => DECIDED.includes(a.status) && a.decided_at && byPerson(a)).sort((x, y) => y.decided_at!.localeCompare(x.decided_at!)).slice(0, 10)
   const rejected = last.filter((a) => a.status === 'rejected').length
   return { decided: last.length, rejected, paused: settings().ai.paused_at !== null }
 }
@@ -45,29 +55,60 @@ export function usage() {
 }
 export const aiState = (): AiState => ({ gates: settings().ai, min_confidence: AI_MIN_CONFIDENCE, repeat_days: AI_REPEAT_DAYS, usage: usage(), quality: quality(), notes: [...notesStore.get()].sort((a, b) => b.ts.localeCompare(a.ts)), hints: [...hintsStore.get()].sort((a, b) => b.ts.localeCompare(a.ts)) })
 
-/** Evidence must be real objects the server can find. null = not found. */
-function lookup(e: { kind: string; id: string }): { summary: string; relates: string[] } | null {
+/** What a lookup found: the canonical id, one line, the addresses and ports it is about, the host names it is about, and for a read the connection it went through. */
+interface Found { id: string; summary: string; relates: string[]; names: string[]; conn?: string; asset?: { id: string; ip: string; name: string } }
+/** Evidence must be real objects the server can find. null = not found. A closed, false-positive or resolved finding is not evidence. */
+function lookup(e: { kind: string; id: string }): Found | null {
   if (e.kind === 'finding') {
-    const f = findingsStore.get().find((x) => x.id === e.id); if (!f) return null
+    const f = findingsStore.get().find((x) => x.id === e.id); if (!f || !isOpen(f.status)) return null
     const a = assetsStore.get().find((x) => x.id === f.asset_id)
-    return { summary: `Finding ${f.cve} on ${a?.hostname ?? a?.ip ?? f.asset_id} (${f.severity})`, relates: [a?.ip ?? '', a?.hostname ?? ''] }
+    return { id: f.id, summary: `Finding ${f.cve} on ${a?.hostname ?? a?.ip ?? f.asset_id} (${f.severity})`, relates: a?.ip ? [a.ip] : [], names: a?.hostname ? [a.hostname] : [], asset: a ? { id: a.id, ip: a.ip, name: a.hostname ?? a.ip } : undefined }
   }
   if (e.kind === 'ioc_hit') {
     const hits = peek<unknown>('logs_ioc_hits')
     const h = Array.isArray(hits) ? hits.filter(isObj).find((x) => str(x.id) === e.id) : undefined
-    if (h) return { summary: `Known-bad connection ${str(h.src_ip)} to ${str(h.dest)}`, relates: [str(h.dest), str(h.src_ip)] }
+    if (h) return { id: e.id, summary: `Known-bad connection ${str(h.src_ip)} to ${str(h.dest)}`, relates: [str(h.dest), str(h.src_ip), str(h.switch_port)].filter(Boolean), names: [] }
     const ev = events().find((x) => x.id === e.id && x.trigger === 'ioc_connection')
-    return ev ? { summary: ev.summary, relates: [ev.fields.dest ?? '', ev.fields.src_ip ?? ''] } : null
+    return ev ? { id: e.id, summary: ev.summary, relates: [ev.fields.dest ?? '', ev.fields.src_ip ?? '', ev.fields.switch_port ?? ''].filter(Boolean), names: [] } : null
   }
   if (e.kind === 'config_read') {
-    const [cid, tool] = e.id.split('/'); const c = connById(cid)
+    const parts = e.id.split('/'); if (parts.length !== 2) return null
+    const [cid, tool] = parts as [string, string]; const c = connById(cid)
     const t = c?.tools.find((x) => x.name === tool && x.access === 'read' && x.enabled)
-    return c && c.enabled && t ? { summary: `Read ${t.name} on ${c.name}`, relates: [] } : null
+    return c && c.enabled && t ? { id: e.id, summary: `Read ${t.name} on ${c.name}`, relates: [], names: [], conn: c.id } : null
   }
   return null
 }
 
+const canon = (t: ParamType, v: string) => (t === 'domain' ? v.trim().toLowerCase() : t === 'mac' ? v.trim().toLowerCase().replace(/-/g, ':') : v.trim())
+/** Does this evidence relate to the action? Typed: an address only to an address of the same type, a host name only to a name, a read only through the action's own connection (D-119). */
+function relatesTo(f: Found, values: Partial<Record<ParamType, string>>, cat: { kind: string; connection_id: string | null }): boolean {
+  if (f.conn) return cat.kind === 'device' && cat.connection_id === f.conn
+  return Object.entries(values).some(([t, v]) => {
+    const type = t as ParamType
+    if (v === undefined) return false
+    if (type === 'ip' || type === 'cidr' || type === 'domain' || type === 'mac') return f.relates.some((r) => canon(type, r) === canon(type, v))
+    return f.relates.includes(v) || ((type === 'name' || type === 'text') && f.names.some((n) => n.toLowerCase() === v.toLowerCase()))
+  })
+}
+
+/** Calls of the AI in the last hour, whatever the outcome (D-119): a runaway model cannot fill the log or the database. */
+const callsStore = collection<{ at: number[]; logged_at: number; skipped: number }>('resp_ai_calls', () => ({ at: [], logged_at: 0, skipped: 0 }))
+function tooManyCalls(): Response | null {
+  const now = Date.now(), c = callsStore.get(), at = c.at.filter((t) => now - t < HOUR)
+  if (at.length >= CALLS_PER_HOUR) {
+    const due = now - c.logged_at >= 60e3
+    callsStore.set({ at, logged_at: due ? now : c.logged_at, skipped: due ? 0 : c.skipped + 1 })
+    if (due) step('response.refused', 'response.ai', 'refused', `rate_limited: AI request: more than ${CALLS_PER_HOUR} proposals in one hour (${c.skipped + 1} refused since the last line).`, 'ai:response')
+    const retry = Math.max(1, Math.ceil((Math.min(...at) + HOUR - now) / 1000))
+    return new Response(JSON.stringify({ error: { code: 'rate_limited', message: `AI request: more than ${CALLS_PER_HOUR} proposals in one hour. Try again later.` } }), { status: 429, headers: { 'content-type': 'application/json', 'retry-after': String(retry) } })
+  }
+  callsStore.set({ ...c, at: [...at, now] })
+  return null
+}
+
 export function propose(b: Record<string, unknown>): Response | ProposeResult {
+  const limited = tooManyCalls(); if (limited) return limited
   const bad = (code: string, msg: string, status = 400) => refuse(status, code, `AI request: ${msg}`, 'response.ai')
   const sent = FORBIDDEN.filter((k) => k in b)
   if (sent.length) return bad('no_commands', `the AI never writes commands. Refused field: ${sent.join(', ')}. It may only name a catalog action and typed values.`)
@@ -84,49 +125,64 @@ export function propose(b: Record<string, unknown>): Response | ProposeResult {
   if (breakerOpen()) return bad('circuit_open', BREAKER_MSG, 409)
   if (s.ai.paused_at) return bad('ai_paused', `AI proposals are paused (${s.ai.paused_reason ?? 'quality breaker'}). An admin can resume them.`, 409)
   if (!s.ai.triggers.includes(trigger)) return bad('trigger_not_allowed', 'the admin has not allowed the AI to send requests for this trigger.', 403)
+  const proof = AI_PROOF[trigger] ?? []
+  if (!proof.length) return bad('trigger_not_allowed', 'no kind of evidence can prove this trigger, so the AI cannot send requests for it. Only triggers backed by a finding or a known-bad connection are open to the AI.', 403)
   if (!cat.enabled || !cat.ai_may_propose) return bad('action_not_ai_allowed', `the action "${cat.name}" is not enabled for AI proposals in the action catalog.`, 403)
   const literal: Record<string, string> = {}
   for (const [k, v] of Object.entries(params)) literal[k] = typeof v === 'string' ? v : ''
   const undoable = !!(cat.rollback.cli || cat.rollback.path || cat.rollback.body)
-  const planned = planAction({ action_id: cat.id, params: literal, ttl_min: undoable ? 1440 : null }, { id: 'ai', trigger, ts: nowIso(), summary: why, fields: {}, device_kind: null, asset_id: null }, why)
-  if (!planned.ok) return bad(planned.code, planned.error, 409)
+  // The devices the cited findings are about are the subjects of the never-touch check: every one of them, not only the first. Looked up before the evidence gate, which still answers first about the evidence itself.
+  const found = evIn.map((e) => ({ e, f: lookup(e) }))
+  const subjects = [...new Set(found.flatMap(({ f }) => (f?.asset?.ip ? [f.asset.ip] : [])))]
+  let planned: ReturnType<typeof planAction> | null = null
+  for (const ip of subjects.length ? subjects : ['']) {
+    const r = planAction({ action_id: cat.id, params: literal, ttl_min: undoable ? 1440 : null }, { id: 'ai', trigger: 'finding', ts: nowIso(), summary: why, fields: ip ? { ip } : {}, device_kind: null, asset_id: null }, why)
+    if (!r.ok) return bad(r.code, r.error, 409)
+    planned ??= r
+  }
+  if (!planned || !planned.ok) return bad('invalid', 'nothing to plan.')
+  const vals = planned.p.values
+  const acts = Object.keys(vals)
   const ev: Evidence[] = []
   if (!evIn.length) return bad('evidence_missing', 'a request must reference at least one real object: a finding id, a known-bad connection id or a connection read.')
-  const found = evIn.map((e) => ({ e, f: lookup(e) }))
   for (const { e, f } of found) {
-    if (!f) return bad('evidence_invalid', `the evidence ${e.kind} "${oneLine(e.id, 40)}" does not exist. The AI cannot invent evidence.`, 422)
-    ev.push({ kind: e.kind as Evidence['kind'], id: e.id, summary: f.summary })
+    if (!f) return bad('evidence_invalid', `the evidence ${e.kind} "${oneLine(e.id, 40)}" does not exist, or is a finding that is no longer open. The AI cannot invent evidence.`, 422)
+    ev.push({ kind: e.kind as Evidence['kind'], id: f.id, summary: f.summary })
   }
-  const targets = Object.values(planned.p.values).filter(Boolean) as string[]
-  if (!found.some(({ f }) => f!.relates.some((r) => r && targets.includes(r))) && !evIn.every((e) => e.kind === 'config_read')) return bad('evidence_mismatch', 'none of the evidence is about the target of this action.', 422)
+  // An action that names a device part or no address acts on "the device the finding is about": without a finding the never-touch list cannot be checked.
+  if ((!acts.some((t) => ['ip', 'cidr', 'domain'].includes(t)) || acts.some((t) => ['interface', 'mac', 'vlan', 'port'].includes(t))) && !subjects.length) return bad('never_touch', 'no finding gives the device this action acts on, so the never-touch list cannot be checked. Nothing was requested.', 409)
+  if (!ev.some((e) => proof.includes(e.kind))) return bad('evidence_mismatch', `none of the evidence proves the trigger "${trigger}": it needs ${proof.join(' or ')}.`, 422)
+  const related = new Set(found.filter(({ f }) => relatesTo(f!, vals, cat)).map(({ f }) => f!.id))
+  if (!related.size) return bad('evidence_mismatch', 'none of the evidence is about the target of this action.', 422)
+  const targets = Object.values(vals).filter(Boolean) as string[]
   const target = targets.join(', ')
   if (conf < AI_MIN_CONFIDENCE) {
     const note: AiNote = { id: newId('note'), ts: nowIso(), kind: 'suggestion', title: `Consider: ${planned.p.item.title}`, why, confidence: conf, action_id: cat.id, target, evidence: ev }
-    notesStore.update((l) => [note, ...l].slice(0, 50))
+    notesStore.update((l) => capNotes([note, ...l]))
     step('response.ai_note', 'response.ai', 'ai_note', `Suggestion only, no approval request: ${planned.p.item.title} (confidence ${conf} is below ${AI_MIN_CONFIDENCE})`, 'ai:response')
     return { outcome: 'suggestion', request: null, note: `Confidence ${conf} is below ${AI_MIN_CONFIDENCE}: saved as a suggestion note, no approval request was sent.` }
   }
   const key = plannedKey(planned.p)
   if (openKeys().has(key)) return bad('already_open', `there is already an open request or active change for ${target} with this action.`, 409)
   const cutoff = Date.now() - AI_REPEAT_DAYS * 24 * HOUR
-  const prior = aiRequests().filter((a) => a.status === 'rejected' && a.decided_at && Date.parse(a.decided_at) >= cutoff && a.items.some((i) => keyOf(i) === key))
+  const prior = aiRequests().filter((a) => a.status === 'rejected' && byPerson(a) && a.decided_at && Date.parse(a.decided_at) >= cutoff && a.items.some((i) => keyOf(i) === key))
   if (prior.length) {
     const known = new Set(prior.flatMap((a) => a.ai!.evidence.map((e) => e.id)))
-    if (!ev.some((e) => !known.has(e.id))) return bad('repeat_blocked', `this was rejected within the last ${AI_REPEAT_DAYS} days and there is no new evidence, so it is not asked again.`, 409)
+    if (!ev.some((e) => related.has(e.id) && !known.has(e.id))) return bad('repeat_blocked', `this was rejected within the last ${AI_REPEAT_DAYS} days and there is no new evidence, so it is not asked again.`, 409)
   }
   const u = usage()
   if (u.hour >= s.ai.budget_hour || u.day >= s.ai.budget_day) {
     const note: AiNote = { id: newId('note'), ts: nowIso(), kind: 'digest', title: planned.p.item.title, why, confidence: conf, action_id: cat.id, target, evidence: ev }
-    notesStore.update((l) => [note, ...l].slice(0, 50))
+    notesStore.update((l) => capNotes([note, ...l]))
     step('response.ai_note', 'response.ai', 'ai_note', `Over budget (${s.ai.budget_hour} per hour, ${s.ai.budget_day} per day): moved to the digest instead of asking now: ${planned.p.item.title}`, 'ai:response')
     return { outcome: 'digest', request: null, note: `Budget reached (${s.ai.budget_hour} per hour, ${s.ai.budget_day} per day): added to the digest.` }
   }
   const high = planned.p.item.risk === 'high'
   let second: { ok: boolean; notes: string } | null = null
   if (high) {
-    // Deterministic second checker: high-risk actions need at least 2 pieces of evidence and a confidence of 0.9 or more.
-    const ok = ev.length >= 2 && conf >= 0.9
-    second = { ok, notes: ok ? 'Second check passed: 2 or more pieces of evidence and confidence of 0.9 or more.' : `Second check failed: a high-risk action needs at least 2 pieces of evidence (got ${ev.length}) and confidence of 0.9 or more (got ${conf}).` }
+    // Deterministic second checker: high-risk actions need at least 2 pieces of evidence about the target and a confidence of 0.9 or more.
+    const ok = related.size >= 2 && conf >= 0.9
+    second = { ok, notes: ok ? 'Second check passed: 2 or more pieces of evidence about the target and confidence of 0.9 or more.' : `Second check failed: a high-risk action needs at least 2 pieces of evidence about the target (got ${related.size}) and confidence of 0.9 or more (got ${conf}).` }
     if (!ok) return bad('second_check_failed', second.notes, 422)
   }
   const dev = assetsStore.get().find((a) => targets.includes(a.ip))

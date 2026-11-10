@@ -52,25 +52,15 @@ func linesParser() *Parser {
 	return &p
 }
 
-// sslblParser reads abuse.ch SSLBL: "# Listingdate,DstIP,DstPort" comment, then rows.
-func sslblParser() *Parser {
-	p := DefaultParser(KindIOC, FormatCSV)
-	p.HasHeader = false
-	p.Fields["indicator"] = fm("2")
-	p.Fields["first_seen"] = fm("1")
-	return &p
-}
-
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 24, Decoder: DecoderKEV},
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
-	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo", "abusech-sslbl"}},
+	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
 	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
-	{ID: "abusech-sslbl", Name: "abuse.ch SSLBL", Kind: KindIOC, Format: FormatCSV, URL: "https://sslbl.abuse.ch/blacklist/sslipblacklist.csv", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: sslblParser()},
 	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true},
 	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true},
 }

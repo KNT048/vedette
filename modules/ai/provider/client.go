@@ -399,7 +399,7 @@ func newTransport(internal bool, base *url.URL) *http.Transport {
 // IPv4 address before any check, so they are judged as that address.
 var embeddedV4 = []netip.Prefix{
 	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"), netip.MustParsePrefix("2002::/16"),
-	netip.MustParsePrefix("::/96"), netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("::/96"), netip.MustParsePrefix("::ffff:0:0:0/96"), netip.MustParsePrefix("2001::/32"),
 }
 
 func carriesIPv4(ip netip.Addr) bool {

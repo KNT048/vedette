@@ -566,6 +566,15 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		}
 		return rows, ""
 	}
+	if errors.Is(err, context.DeadlineExceeded) { // review L5: the device did not finish in time, which is not "did not respond"
+		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
+		mins := int(deviceTimeout.Minutes())
+		if st.StopOnUnresponsive {
+			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; scanning stopped so the device is not hung.", mins)})
+			return rows, fmt.Sprintf("%s (%s) did not finish within %d minutes. Vedette stopped so the device is not hung.", d.Label, d.IP, mins)
+		}
+		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; skipped.", mins)}), ""
+	}
 	if unresponsive(res) {
 		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
 		if st.StopOnUnresponsive {

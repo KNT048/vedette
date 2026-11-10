@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
 	"sort"
 	"time"
 
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -286,4 +288,19 @@ func joinMax(parts []string, n int) string {
 		out += p
 	}
 	return out
+}
+
+// ExportHits is the "honeypot" source of GET /core/logs/export (core INV-13): the hits from through to, oldest first, as JSON
+// lines with the columns of hp_hits (events as JSON, conn_count; not conn_key, which only dedupes). The source device is not looked up:
+// a download carries what was stored (INV-8). A zero time is open.
+func (s *Service) ExportHits(ctx context.Context, from, to time.Time, w io.Writer) error {
+	lo, hi := "", ""
+	if !from.IsZero() {
+		lo = store.FormatTS(from)
+	}
+	if !to.IsZero() {
+		hi = store.FormatTS(to)
+	}
+	return logexport.Rows{SQL: `SELECT ` + hitCols + `, conn_count FROM hp_hits WHERE (? = '' OR ts >= ?) AND (? = '' OR ts <= ?) ORDER BY ts, id`,
+		Args: []any{lo, lo, hi, hi}, JSON: []string{"events"}}.Write(ctx, s.db.Reader(), w)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -48,6 +49,7 @@ type deps struct {
 	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
 	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader
+	Logs       *logexport.Registry   // the sources of /core/logs/export (INV-13): core adds "audit", registerLogSources the rest
 	Core       *core.APIHandlers     // core's own operations (sign-in, account, users, setup, audit, general settings)
 	OS         *core.OSHandlers      // operating system updates and the backup download, on top of vedette-host
 	Network    *core.NetworkHandlers // Box network (S-CORE-8, routes of the host module) on top of vedette-host

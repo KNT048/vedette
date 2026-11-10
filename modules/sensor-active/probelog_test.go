@@ -1,6 +1,8 @@
 package sensoractive_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/netip"
 	"slices"
 	"strings"
@@ -110,5 +112,45 @@ func TestProbeLogFitsSixtyFourScatteredTargets(t *testing.T) {
 	}
 	if p[0].Result == "" || strings.HasPrefix(p[0].Result, "failed") {
 		t.Errorf("result = %q", p[0].Result)
+	}
+}
+
+// ExportProbes is the "scan_probes" source of GET /core/logs/export: the probe rows as stored, oldest first, in range,
+// without a Service (it must work on a box where nmap is missing).
+func TestExportProbesIsTheStoredRowsInRange(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{})
+	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	if err != nil || len(stored) == 0 {
+		t.Fatalf("Probes = %d rows, %v", len(stored), err)
+	}
+	var out bytes.Buffer
+	if err := sa.ExportProbes(e.ctx(), e.db, time.Time{}, time.Time{}, &out); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != len(stored) {
+		t.Fatalf("%d lines, %d stored", len(lines), len(stored))
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["time"] != stored[0].Time || got["targets"] != stored[0].Target || got["result"] != stored[0].Result || got["job_id"] != stored[0].JobID || got["rate"] != float64(stored[0].Rate) {
+		t.Fatalf("line = %v, stored = %+v", got, stored[0])
+	}
+	if !strings.Contains(got["flags"].(string), strings.Join(stored[0].Argv[:len(stored[0].Argv)-2], " ")) {
+		t.Fatalf("flags = %v, argv = %v", got["flags"], stored[0].Argv)
+	}
+	out.Reset()
+	if err := sa.ExportProbes(e.ctx(), e.db, e.base.Add(time.Hour), time.Time{}, &out); err != nil || out.Len() != 0 {
+		t.Fatalf("after the run: %v %q", err, out.String())
+	}
+	out.Reset()
+	if err := sa.ExportProbes(e.ctx(), e.db, time.Time{}, e.base.Add(-time.Hour), &out); err != nil || out.Len() != 0 {
+		t.Fatalf("before the run: %v %q", err, out.String())
 	}
 }

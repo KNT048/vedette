@@ -217,7 +217,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_org` | 400 | The organization name is 2 to 80 characters. | `POST /core/setup`; `PUT /core/general` |
 | `invalid_phone` | 400 | The phone number starts with 0 or +84 and has 10 to 11 digits. | module reports (validator dùng chung) |
 | `invalid_question` | 400 | The question must be 3 to 500 characters. For example: "Which machines still expose RDP?" | `POST /ai/ask` |
-| `invalid_range` | 400 | The start date is after the end date. | `GET /core/logs/export` |
+| `invalid_range` | 400 | The start date is after the end date. / Dates are written YYYY-MM-DD, for example 2026-11-09, between 2000 and 2100. (backend, `GET /core/logs/export`: a date that is not a day, or outside 2000..2100) | `GET /core/logs/export` |
 | `invalid_recipients` | 400 | The recipient list holds 20 emails at most. | module reports (validator dùng chung) |
 | `invalid_retention` | 400 | Keep the AI activity log for at least ${MIN_RETENTION} days (up to 3650). | `PUT /ai/activity/settings` |
 | `invalid_role` | 400 | Choose a role: view only, operator or administrator. | `PATCH /core/users/{id}`; `POST /core/users`; `PUT /core/oidc` |
@@ -365,7 +365,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
-| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy) |
+| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
@@ -434,6 +434,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
 
+#### HTTP 413 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
+|---|---|---|---|
+| `logs_too_large` | 413 | These logs are over 128 MB. Choose a shorter date range or fewer categories. (backend only, D-132: the mock has no size limit) | `GET /core/logs/export` |
+
 #### HTTP 421 (1 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
@@ -451,7 +457,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`) |
+| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 

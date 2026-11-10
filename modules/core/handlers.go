@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"sync"
 	"time"
 
 	// The zone list of the box must not depend on the host (a slim container has none): PUT /core/general
@@ -16,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
@@ -36,6 +38,15 @@ type APIHandlers struct {
 	now     func() time.Time
 	facts   PrivacyFacts  // nil: the answers of today (see PrivacyFacts)
 	conns   *conn.Service // nil: the connection routes answer 501
+	logs    *logexport.Registry
+	logsDir string // where /core/logs/export spools its file ("" = os.TempDir())
+	logsCap int64  // test hook: the size cap of /core/logs/export (0 = logExportMaxBytes)
+	// One log download at a time, from the busy check until the response is closed, and at most one start per
+	// logsGap (like /core/data/backup, INV-19): each one reads the logs into a spool of up to 128 MiB.
+	logsMu   sync.Mutex
+	logsBusy bool
+	logsLast time.Time
+	logsGap  time.Duration // 0 = logExportGap; a test sets a negative value to turn the limit off
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -46,9 +57,13 @@ type HandlersConfig struct {
 	Audit   *audit.Log
 	Secrets *secrets.Store
 	Log     *slog.Logger
-	Facts   PrivacyFacts     // optional
-	Conns   *conn.Service    // optional: without it /core/connections answers 501 not_implemented
-	Clock   func() time.Time // nil: time.Now
+	Facts   PrivacyFacts  // optional
+	Conns   *conn.Service // optional: without it /core/connections answers 501 not_implemented
+	// SpoolDir is where /core/logs/export writes its temporary file: a directory on the data volume (cmd/vedette gives
+	// <data>/tmp/logs-export), created 0700 and swept of leftovers at startup. "" = os.TempDir() (tests).
+	SpoolDir string
+	Logs     *logexport.Registry // optional: where the modules register their log sources (INV-13); core adds "audit"; nil = a registry of its own
+	Clock    func() time.Time    // nil: time.Now
 }
 
 // NewAPIHandlers returns the handlers.
@@ -59,7 +74,17 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	return &APIHandlers{db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns}, nil
+	if c.Logs == nil {
+		c.Logs = logexport.New()
+	}
+	if c.SpoolDir != "" {
+		if err := prepareSpoolDir(c.SpoolDir); err != nil {
+			return nil, err
+		}
+	}
+	h := &APIHandlers{logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	c.Logs.Register("audit", h.exportAudit)
+	return h, nil
 }
 
 // caller is who a signed-in request acts as.

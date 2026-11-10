@@ -5,7 +5,7 @@
 ## Modifying: `Hits(ctx, HitFilter) ([]Hit, error)` — 3 người gọi
 - **response** (`engine`: sự kiện trigger `honeypot`): đọc `source_ip`, `kind`, `label`; đổi tên trường/kiểu → trigger vỡ, quy tắc đang chạy khô/chạy thật ngừng khớp. Phải giữ `is_test` để loại hit thử.
 - **ai** (công cụ chỉ-đọc `ask-my-data`): đổi cột → câu trả lời sai chứ không lỗi.
-- **core/logs export** (`/core/logs/export?categories=honeypot`): đổi trường → file tải về thay đổi, kiểm tra offline hash không ảnh hưởng (hit không có hash chain).
+- **core/logs export** (`/core/logs/export?categories=honeypot`, D-132): `Service.ExportHits` đọc thẳng cột của `hp_hits` (`hitCols`, `events` là JSON, không `conn_key`), đăng ký ở `cmd/vedette/logexport.go`; đổi cột → file tải về thay đổi, kiểm tra offline hash không ảnh hưởng (hit không có hash chain).
 
 ## Modifying: event `honeypot.hit.created` (`HitEventData`) — 3 người nhận
 - **notify**: nội dung cảnh báo (IP nguồn, thiết bị nguồn, 1 giờ sự kiện).

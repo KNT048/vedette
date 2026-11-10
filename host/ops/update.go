@@ -238,8 +238,11 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 			return err
 		}
 		defer cleanup()
+		if err := o.swap(ex); err != nil {
+			return err
+		}
 		o.note(api.CmdBackupRestore, "backup_restored", map[string]any{"backup_id": t.BackupID, "service": t.Service, "run_id": t.RunID})
-		return o.swap(ex)
+		return nil
 	}
 	return nil
 }
@@ -313,7 +316,9 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 	}
 	if rerr != nil {
 		o.log.ErrorContext(ctx, "could not put the previous release back", "service", svc, "error", rerr.Error())
-		// The journal stays (pending): the next start of the host puts the bytes back, and after READY the database too.
+		// The journal stays (pending): the retry loop (started once this run has released the lock) puts the bytes
+		// back and then the database; a restart of the host does the same.
+		o.kickRestore(ctx)
 		return nil, &server.Failure{Code: api.CodeUnitFailed, Message: "The new version did not become healthy and the previous release could not be put back.", Result: res}
 	}
 	o.finishJournal(tr)
@@ -398,7 +403,11 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 		if err != nil {
 			return nil, err
 		}
+		err = t.checkAsidable() // before core is stopped: a directory or link where a database file belongs is a refusal (N1)
 		t.close()
+		if err != nil {
+			return nil, refuse412(api.CodeCoreDataInvalid, "Core's data directory holds something that is not a regular file where the database, its key or a leftover of an earlier rollback belongs. An operator must look at it; nothing was changed.")
+		}
 	}
 	ref, err := pullRef(service, p.prev.Digest)
 	if err != nil || !o.imageIs(ctx, ref, service, p.prev.Digest) {
@@ -477,9 +486,11 @@ func (o *Ops) runContainerRollback(ctx context.Context, rc *server.RunContext, a
 		rerr = o.revertUnit(ctx, svc, p.oldUnit, wasActive)
 	}
 	if rerr != nil {
-		// No loop: the host stops here and says so. The journal stays (pending), so the next start of the
-		// host puts the unit bytes and, after READY, core's database back.
+		// This run does not loop: it ends here and says so. The journal stays (pending); the retry loop (started
+		// once this run has released the lock) and, failing that, the next start of the host put the unit bytes
+		// and core's database back.
 		o.log.ErrorContext(ctx, "could not put the running release back after a failed rollback", "service", svc, "error", rerr.Error())
+		o.kickRestore(ctx)
 		return nil, &server.Failure{Code: api.CodeRollbackRevertFailed, Message: "The rollback failed and the running release could not be put back. The host stopped; look at the service and the audit log.", Result: res}
 	}
 	o.finishJournal(tr)

@@ -390,10 +390,10 @@ func (t *coreTree) install(in io.Reader, name string) error {
 	if err := out.Close(); err != nil {
 		return fmt.Errorf("ops: close %s: %w", name, err)
 	}
-	if st, err := t.root.Lstat(name); err == nil && st.IsDir() {
-		if err := t.root.RemoveAll(name); err != nil {
-			return fmt.Errorf("ops: clear %s: %w", name, err)
-		}
+	// Something that is not a regular file at the target (a directory core planted) is renamed away, never
+	// walked or removed (D-138 H2): rename over a directory would fail, and RemoveAll could be held forever.
+	if err := t.quarantineIfNotRegular(name); err != nil {
+		return err
 	}
 	if err := t.root.Rename(tmp, name); err != nil {
 		return fmt.Errorf("ops: replace %s: %w", name, err)
@@ -405,10 +405,69 @@ func (t *coreTree) install(in io.Reader, name string) error {
 
 // removeSidecars deletes the -wal, -shm and -journal files of a database that is about to be
 // replaced: a stale WAL applied to a different database file would corrupt it.
+// A sidecar that is not a regular file is renamed away like any other hostile entry (never walked).
 func (t *coreTree) removeSidecars() error {
 	for _, suffix := range sidecars {
-		if err := t.root.RemoveAll(coreDBFile + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("ops: remove %s: %w", coreDBFile+suffix, err)
+		if err := t.removeOrQuarantine(coreDBFile + suffix); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// errUnrecoverable marks a failure that trying again cannot cure: an entry of core's tree that the host
+// cannot put right by itself. The caller stops retrying, leaves core as it is, and audits it (D-138 N1).
+var errUnrecoverable = errors.New("ops: core's data cannot be put back automatically")
+
+// errCoreDataInvalid is a name in core's tree that is not what the host may move or replace (a directory,
+// a link or a device where a database file belongs): refused before anything is stopped.
+var errCoreDataInvalid = errors.New("ops: an entry of core's data directory is not a regular file")
+
+// quarantineIfNotRegular renames name to <name>.quarantine-<unix nano> when it exists and is not a regular file: one
+// rename (O(1), nothing walked), the entry stays for an operator, the name is free.
+func (t *coreTree) quarantineIfNotRegular(name string) error {
+	st, err := t.root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%w: look at %s: %w", errUnrecoverable, name, err)
+	}
+	if st.Mode().IsRegular() {
+		return nil
+	}
+	q := fmt.Sprintf("%s.quarantine-%d", name, time.Now().UnixNano())
+	if err := t.root.Rename(name, q); err != nil {
+		return fmt.Errorf("%w: set %s aside: %w", errUnrecoverable, name, err)
+	}
+	return nil
+}
+
+// removeOrQuarantine removes a regular file (or a link), and renames anything else away (quarantineIfNotRegular).
+// A symbolic link is removed as itself (Root.Remove never follows it): that is what a restore always did.
+func (t *coreTree) removeOrQuarantine(name string) error {
+	if st, err := t.root.Lstat(name); err == nil && !st.Mode().IsRegular() && st.Mode()&os.ModeSymlink == 0 {
+		return t.quarantineIfNotRegular(name)
+	}
+	if err := t.root.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("ops: remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// checkAsidable refuses (errCoreDataInvalid) when any file a rollback would move, or any aside name it would
+// clear, exists and is not a regular file. It runs before core is stopped, so a hostile tree is a refusal
+// and not a half-done rollback.
+func (t *coreTree) checkAsidable() error {
+	for _, name := range asideCandidates(true) {
+		for _, n := range []string{name, name + asideSuffix} {
+			st, err := t.root.Lstat(n)
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if err != nil || !st.Mode().IsRegular() {
+				return errCoreDataInvalid
+			}
 		}
 	}
 	return nil
@@ -529,7 +588,7 @@ func (t *coreTree) putAsideBack(names []string) error {
 		if _, err := t.root.Lstat(coreDBFile + asideSuffix); err == nil {
 			for _, sfx := range sidecars {
 				if !slices.Contains(names, coreDBFile+sfx) { // a sidecar that was moved is restored below
-					if err := t.removeRegular(coreDBFile + sfx); err != nil {
+					if err := t.removeOrQuarantine(coreDBFile + sfx); err != nil {
 						return err
 					}
 				}
@@ -545,10 +604,16 @@ func (t *coreTree) putAsideBack(names []string) error {
 			continue
 		}
 		if err != nil || !st.Mode().IsRegular() {
-			return fmt.Errorf("ops: the aside copy of %s is not usable", name)
+			// The copy the host kept is gone or swapped for something else: nothing can bring the file back.
+			_ = t.quarantineIfNotRegular(name + asideSuffix)
+			return fmt.Errorf("%w: the aside copy of %s is not usable", errUnrecoverable, name)
+		}
+		// Whatever core put at the live name meanwhile (a directory) is renamed away, not walked, and the put-back goes on.
+		if err := t.quarantineIfNotRegular(name); err != nil {
+			return err
 		}
 		if err := t.root.Rename(name+asideSuffix, name); err != nil {
-			return fmt.Errorf("ops: put %s back: %w", name, err)
+			return fmt.Errorf("%w: put %s back: %w", errUnrecoverable, name, err)
 		}
 	}
 	t.syncDir()

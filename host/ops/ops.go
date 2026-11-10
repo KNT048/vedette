@@ -102,6 +102,10 @@ type Deps struct {
 	// Keys is the root of trust of container.pull (D-107, D-130): default release.Embedded, the keys
 	// compiled into the binary. A build without real keys refuses every pull. Only tests replace it.
 	Keys func() (release.Trust, error)
+	// JournalFault, when set, is asked before every write of a transition journal with the service and the
+	// phase about to be written, and a non-nil answer makes that write fail (a test seam for the durability of
+	// the verified phase, D-138 N3). Nil in production.
+	JournalFault func(service, phase string) error
 	// Arch is the architecture container.pull asks the manifest for, as in "linux/<Arch>" (default
 	// runtime.GOARCH).
 	Arch string
@@ -136,6 +140,15 @@ type Ops struct {
 	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still
 	// restores; Start sets it before the server listens, AfterReady reads it afterwards.
 	restorePending []string
+
+	// afterCtx and afterL are what AfterReady was given (guarded by mu): a run that fails to put core's data
+	// back restarts the retry loop with them once it has released the write lock (D-138 N2). kicking keeps it
+	// to one loop; recNote is when each service last audited a recovery failure (guarded by mu), so a loop
+	// that fails again and again writes one line, then at most one an hour (N5).
+	afterCtx context.Context //nolint:containedctx // the process's own context, kept to restart a retry loop
+	afterL   Locker
+	kicking  atomic.Bool
+	recNote  map[string]time.Time
 
 	// Container commands run one at a time under the server's write lock; Start runs before the
 	// server listens. Nothing else touches containers/ (no mutex of its own).

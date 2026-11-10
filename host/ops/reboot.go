@@ -32,16 +32,7 @@ type rebootGate struct {
 
 // WriteGate is the server's Options.WriteGate: a refusal while a reboot is under way, nil otherwise.
 // It reads an atomic and the boot id, takes no lock, and never blocks.
-//
-// It also refuses every write command with transition_pending while core's database waits to be put
-// back after an interrupted or failed change (D-138 M2): no command may run on a half-swapped core. A
-// request that arrives while the change itself is still running gets this too instead of "busy" (it is
-// not asked whether a write is active: the gate runs under the server's own locks). The run that makes
-// the change is not a request and never passes here.
 func (o *Ops) WriteGate() *server.Refusal {
-	if o.dbRevertPending() {
-		return refuse412(api.CodeTransitionPending, "Core's database is waiting to be put back after an interrupted change; the host does that and then accepts commands again.")
-	}
 	g := o.gate.Load()
 	if g == nil {
 		return nil

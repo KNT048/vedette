@@ -113,7 +113,13 @@ func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	i := slices.Index(args, "-etags")
-	if i < 0 || args[i+1] != strings.Join(ForbiddenTags, ",") {
-		t.Fatalf("-etags %q, pack refuses %v", args, ForbiddenTags)
+	if i < 0 || args[i+1] != strings.Join(nucleiargv.ForbiddenTags(), ",") {
+		t.Fatalf("-etags %q, pack refuses %v", args, nucleiargv.ForbiddenTags())
+	}
+	// the list cannot be changed from outside: a caller gets a copy
+	got := nucleiargv.ForbiddenTags()
+	got[0] = "kev"
+	if nucleiargv.ForbiddenTags()[0] != "dos" {
+		t.Fatal("ForbiddenTags hands out the shared slice")
 	}
 }

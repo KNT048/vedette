@@ -42,8 +42,11 @@ type Binary struct {
 	Path      string                    // absolute path; PATH is never searched
 	Validate  func(args []string) error // must accept the whole argv before the process starts
 	MaxOutput int64                     // per-stream capture limit in bytes; 0 = DefaultMaxOutput
+	// MaxStderr, when > 0, is a capture limit for stderr alone, and stderr then never sets Result.Truncated (Truncated means
+	// stdout). 0 keeps the one MaxOutput limit for both streams, and either of them sets Truncated.
+	MaxStderr int64
 	// Env adds KEY=value entries after the fixed PATH and LANG. Only keys on the allowlist
-	// (DEBIAN_FRONTEND) are accepted; the parent environment is never inherited.
+	// (DEBIAN_FRONTEND, and HOME with an absolute path) are accepted; the parent environment is never inherited.
 	Env []string
 }
 
@@ -88,8 +91,8 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 			return nil, fmt.Errorf("exec: binary %q: path %q must be absolute", b.Name, b.Path)
 		case b.Validate == nil:
 			return nil, fmt.Errorf("exec: binary %q: Validate is required", b.Name)
-		case b.MaxOutput < 0:
-			return nil, fmt.Errorf("exec: binary %q: negative MaxOutput", b.Name)
+		case b.MaxOutput < 0 || b.MaxStderr < 0:
+			return nil, fmt.Errorf("exec: binary %q: negative MaxOutput or MaxStderr", b.Name)
 		}
 		if err := checkEnv(b.Env); err != nil {
 			return nil, fmt.Errorf("exec: binary %q: %w", b.Name, err)
@@ -105,10 +108,11 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 	return r, nil
 }
 
-// allowedEnv is the whole list of keys a binary may add to the fixed environment: only what
-// vedette-host needs. Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
+// allowedEnv is the whole list of keys a binary may add to the fixed environment: what vedette-host needs, and HOME for the
+// scan container's nuclei (an absolute path on a tmpfs, so that no ~/.config of the image is read: D-125 (2), D-136 (5)).
+// Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
 // so a typo or a hostile caller cannot reshape how the child loads code or localises output.
-var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true}
+var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true, "HOME": true}
 
 // checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.
 func checkEnv(env []string) error {
@@ -120,6 +124,8 @@ func checkEnv(env []string) error {
 			return fmt.Errorf("env key %q is not allowed", k)
 		case strings.ContainsRune(v, 0):
 			return fmt.Errorf("env value of %s contains NUL", k)
+		case k == "HOME" && (!filepath.IsAbs(v) || v == "/" || filepath.Clean(v) != v):
+			return fmt.Errorf("env value of HOME must be a clean absolute path other than /")
 		case seen[k]:
 			return fmt.Errorf("env key %s listed twice", k)
 		}
@@ -169,6 +175,9 @@ func (r *Runner) Run(ctx context.Context, name string, args []string, stdin io.R
 	cmd.Dir = "/"
 	cmd.Stdin = stdin
 	stdout, stderr := &capped{max: bin.MaxOutput}, &capped{max: bin.MaxOutput}
+	if bin.MaxStderr > 0 {
+		stderr.max = bin.MaxStderr
+	}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	cmd.WaitDelay = waitDelay
 	if err := isolate(cmd); err != nil {
@@ -189,7 +198,7 @@ func (r *Runner) Run(ctx context.Context, name string, args []string, stdin io.R
 	}
 	res := Result{
 		Stdout: stdout.buf.Bytes(), Stderr: stderr.buf.Bytes(),
-		ExitCode: -1, Truncated: stdout.truncated || stderr.truncated, Duration: time.Since(start),
+		ExitCode: -1, Truncated: stdout.truncated || stderr.truncated && bin.MaxStderr == 0, Duration: time.Since(start),
 	}
 	if cmd.ProcessState != nil {
 		res.ExitCode = cmd.ProcessState.ExitCode()

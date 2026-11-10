@@ -198,7 +198,7 @@ type fakeBackend struct {
 
 	config func(ctx context.Context, wait time.Duration, inm string) (sensorlink.ConfigReply, error)
 	obs    func(ctx context.Context, r *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error)
-	jobs   func(ctx context.Context, wait time.Duration, running string) (sensorlink.JobsReply, error)
+	jobs   func(ctx context.Context, wait time.Duration, running []string) (sensorlink.JobsReply, error)
 	result func(ctx context.Context, id string, r *sensorlink.JobResult) error
 	// running says which jobs are running; nil means every job is.
 	running func(id string) bool
@@ -249,7 +249,7 @@ func (b *fakeBackend) ActiveHeartbeat(context.Context, *sensorlink.ActiveHeartbe
 	b.called("heartbeat.active")
 	return instanceID, nil
 }
-func (b *fakeBackend) Jobs(ctx context.Context, wait time.Duration, running string) (sensorlink.JobsReply, error) {
+func (b *fakeBackend) Jobs(ctx context.Context, wait time.Duration, running []string) (sensorlink.JobsReply, error) {
 	b.called("jobs")
 	if b.jobs != nil {
 		return b.jobs(ctx, wait, running)

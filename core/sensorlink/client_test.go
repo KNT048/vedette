@@ -200,7 +200,7 @@ func TestClientRequestShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, h := range core.hdr {
-		if h.Get(sensorlink.ProtoHeader) != "1" || h.Get("Accept-Encoding") != "" || h.Get("Content-Encoding") != "" {
+		if h.Get(sensorlink.ProtoHeader) != "2" || h.Get("Accept-Encoding") != "" || h.Get("Content-Encoding") != "" {
 			t.Errorf("request %d headers: %v", i, h)
 		}
 	}
@@ -398,7 +398,7 @@ func TestClientLongPollCancel(t *testing.T) {
 	cr := newClientRig(t, ca, ts.URL)
 	for name, poll := range map[string]func(context.Context) error{
 		"config": func(ctx context.Context) error { _, err := cr.c.Config(ctx, "", 30*time.Second); return err },
-		"jobs":   func(ctx context.Context) error { _, err := cr.c.Jobs(ctx, "", 30*time.Second); return err },
+		"jobs":   func(ctx context.Context) error { _, err := cr.c.Jobs(ctx, nil, 30*time.Second); return err },
 	} {
 		ctx, cancel := context.WithCancel(t.Context())
 		done := make(chan error, 1)

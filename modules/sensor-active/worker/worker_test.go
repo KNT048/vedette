@@ -80,7 +80,8 @@ func (c *fakeCore) runningNow() string {
 	return c.running
 }
 
-func (c *fakeCore) Jobs(ctx context.Context, wait time.Duration, running string) (sensorlink.JobsReply, error) {
+func (c *fakeCore) Jobs(ctx context.Context, wait time.Duration, ids []string) (sensorlink.JobsReply, error) {
+	running := strings.Join(ids, ",")
 	deadline := time.Now().Add(wait)
 	for {
 		c.mu.Lock()
@@ -316,7 +317,7 @@ type rig struct {
 }
 
 // start runs a worker against a fresh link with the nmap script.
-func start(t *testing.T, nm *fakeNmap) *rig {
+func start(t *testing.T, nm *fakeNmap, mut ...func(*worker.Config)) *rig {
 	t.Helper()
 	c := newCore()
 	link := linktest.New(t, c)
@@ -332,6 +333,9 @@ func start(t *testing.T, nm *fakeNmap) *rig {
 				return ctx.Err()
 			}
 		},
+	}
+	for _, m := range mut {
+		m(&cfg)
 	}
 	w, err := worker.New(cfg)
 	if err != nil {

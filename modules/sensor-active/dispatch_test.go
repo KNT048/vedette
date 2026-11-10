@@ -93,9 +93,17 @@ func probe(ctx context.Context, d *sa.Dispatcher, argv []string) <-chan probeRes
 	return ch
 }
 
+// runningIDs turns "a,b" into what the client sends; "" is a worker that runs nothing.
+func runningIDs(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, ",")
+}
+
 func (r *drig) poll(t *testing.T, running string, wait time.Duration) sensorlink.JobsReply {
 	t.Helper()
-	rep, err := r.worker.Jobs(t.Context(), running, wait)
+	rep, err := r.worker.Jobs(t.Context(), runningIDs(running), wait)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +428,7 @@ func TestPassiveRoleCannotFetchOrAnswerJobs(t *testing.T) {
 	r.beat(t, true)
 	ch := probe(t.Context(), r.d, argvOf(t, nmapargv.Sweep, 10, "10.0.0.1"))
 	j := r.poll(t, "", 5*time.Second).Jobs[0]
-	if _, err := r.passive.Jobs(t.Context(), "", 0); !isCode(err, sensorlink.CodeForbiddenRoute) {
+	if _, err := r.passive.Jobs(t.Context(), nil, 0); !isCode(err, sensorlink.CodeForbiddenRoute) {
 		t.Fatalf("passive Jobs: %v", err)
 	}
 	if err := r.passive.PostResult(t.Context(), j.ID, okResult("<evil/>")); !isCode(err, sensorlink.CodeForbiddenRoute) {
@@ -439,7 +447,7 @@ func TestModuleOffAnswersTheWorker(t *testing.T) {
 	r := newDRig(t, func(o *sensorlink.Options) {
 		o.ModuleOn = func(role sensorlink.Role) bool { return role != sensorlink.Active }
 	})
-	if _, err := r.worker.Jobs(t.Context(), "", 0); !isCode(err, sensorlink.CodeModuleOff) {
+	if _, err := r.worker.Jobs(t.Context(), nil, 0); !isCode(err, sensorlink.CodeModuleOff) {
 		t.Fatalf("Jobs: %v", err)
 	}
 }
@@ -702,7 +710,7 @@ func serve(t *testing.T, r *drig, xml []byte) (stop func() [][]string) {
 				return
 			default:
 			}
-			rep, err := r.worker.Jobs(context.Background(), "", time.Second)
+			rep, err := r.worker.Jobs(context.Background(), nil, time.Second)
 			if err != nil || len(rep.Jobs) == 0 {
 				continue
 			}

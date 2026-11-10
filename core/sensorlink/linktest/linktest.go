@@ -102,7 +102,7 @@ func (passiveOnly) ActiveHeartbeat(context.Context, *sensorlink.ActiveHeartbeat)
 	return "", sensorlink.NewError(sensorlink.CodeForbiddenRoute)
 }
 
-func (passiveOnly) Jobs(context.Context, time.Duration, string) (sensorlink.JobsReply, error) {
+func (passiveOnly) Jobs(context.Context, time.Duration, []string) (sensorlink.JobsReply, error) {
 	return sensorlink.JobsReply{}, sensorlink.NewError(sensorlink.CodeForbiddenRoute)
 }
 

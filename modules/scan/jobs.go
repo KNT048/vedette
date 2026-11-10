@@ -201,6 +201,14 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		}
 		return nil
 	}
+	// No automated run starts while the organization zone is unknown, the rescan too (it is not windowed, but it is
+	// automated like the schedule): the event waits, and is dropped after 7 days like one whose scanner never came.
+	if _, ok := s.loc(ctx); !ok {
+		if expired {
+			return s.dropEvent(ctx, ev, "the organization time zone could not be read for 7 days")
+		}
+		return nil
+	}
 	ids, names, pickOnly, first, err := s.affected(ctx, st, ev.cve)
 	if err != nil {
 		return err
@@ -329,7 +337,11 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return err
 	}
 	now := s.now()
-	slot := st.lastSlot(now, s.loc(ctx))
+	loc, ok := s.loc(ctx)
+	if !ok { // the zone unknown: the tick is skipped, the slot stays open (fail closed)
+		return nil
+	}
+	slot := st.lastSlot(now, loc)
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
 		return nil
 	}

@@ -41,7 +41,7 @@ type Config struct {
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
-	Location  func(ctx context.Context) *time.Location // the organization's time zone, the one the window and the schedule are read in (review H1); nil, or a nil result, means UTC
+	Location  func(ctx context.Context) *time.Location // the organization's time zone, the one the window and the schedule are read in (review H1); nil: UTC; a nil result: unknown, nothing automated starts
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
 }
@@ -74,14 +74,18 @@ func NewService(cfg Config) (*Service, error) {
 }
 
 // loc is the organization's time zone, read at each use so a change in Settings applies at once (review H1). Never
-// the process's zone: that is UTC in the container, and a 02:00 run of a UTC+7 office would start at 09:00.
-func (s *Service) loc(ctx context.Context) *time.Location {
-	if s.cfg.Location != nil {
-		if l := s.cfg.Location(ctx); l != nil {
-			return l
-		}
+// the process's zone: that is UTC in the container, and a 02:00 run of a UTC+7 office would start at 09:00. No
+// Location wired means UTC. A wired Location that answers nil (the read failed or timed out, or the name is not a
+// zone) means the zone is unknown: ok is false, and no automated run starts until it is back (fail closed, #164 review).
+func (s *Service) loc(ctx context.Context) (*time.Location, bool) {
+	if s.cfg.Location == nil {
+		return time.UTC, true
 	}
-	return time.UTC
+	if l := s.cfg.Location(ctx); l != nil {
+		return l, true
+	}
+	s.cfg.Log.WarnContext(ctx, "scan: the organization time zone could not be read; no scheduled scan or KEV rescan starts until it can")
+	return nil, false
 }
 
 // Commitment is who ticked the scope commitment and when (contract.ts ScanScope.commitment).
@@ -142,9 +146,11 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 			v.Scope.Commitment.By = "—" // the mock's placeholder for an unknown name
 		}
 	}
-	if t := c.NextRun(s.now(), s.loc(ctx)); t != nil {
-		ts := store.FormatTS(*t)
-		v.NextRun = &ts
+	if loc, ok := s.loc(ctx); ok { // the zone unknown: no next run is shown, as none would start
+		if t := c.NextRun(s.now(), loc); t != nil {
+			ts := store.FormatTS(*t)
+			v.NextRun = &ts
+		}
 	}
 	switch {
 	case v.Scope.Commitment == nil:

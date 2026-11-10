@@ -31,9 +31,19 @@ func TestReview4_H1_TheScheduleIsInTheOrgZone(t *testing.T) {
 	if got := r.nextRun(); got != "2026-11-17T19:00:00.000Z" {
 		t.Errorf("next run %s, want Wednesday 02:00 in the office (19:00 UTC)", got)
 	}
-	// nil zone (or a nil answer): UTC, not the machine's zone
+	// no zone wired: UTC, not the machine's zone; a wired zone that answers nil is unknown (review4_zone_test.go)
+	cfg.Location = nil
+	if svc, err = NewService(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if l, ok := svc.loc(t.Context()); !ok || l != time.UTC {
+		t.Fatalf("no zone wired: %v %v", l, ok)
+	}
 	cfg.Location = func(context.Context) *time.Location { return nil }
-	if svc, err = NewService(cfg); err != nil || svc.loc(t.Context()) != time.UTC {
-		t.Fatalf("a nil zone: %v %v", svc.loc(t.Context()), err)
+	if svc, err = NewService(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := svc.loc(t.Context()); ok {
+		t.Fatal("a zone that could not be read counted as known")
 	}
 }

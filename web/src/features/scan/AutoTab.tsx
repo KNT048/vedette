@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -13,8 +13,23 @@ import { useEvents, useSaveConfig } from './api'
 import { errMsg } from './errors'
 import type { RescanEvent } from './types'
 
-// clear is only "no match reported" (D-133 (5)): neutral, never green
-const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off' } as const
+// clear is only "no match reported" (D-133 (5)): neutral, never green; pick_only and stopped are neutral too (D-145 (7))
+const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off' } as const
+const linkClass = 'font-medium text-accent underline underline-offset-4'
+
+// The result of a rescan. pick_only says how many devices need a hand pick and links to Scan now (the device column names
+// them; Scan now never ticks them for you, D-126 (2)); stopped links to the run, whose results show what was not checked.
+function ResultCell({ r }: { r: RescanEvent }) {
+  const { t } = useTranslation('scan')
+  if (r.result === 'pick_only') {
+    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ link: <Link to="/scans?tab=runs" className={linkClass} /> }} /></Chip>
+  }
+  if (r.result === 'stopped') {
+    const link = r.run_id ? <Link to={`/scans?tab=runs&run=${encodeURIComponent(r.run_id)}`} className={linkClass} /> : <span />
+    return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ link }} /></Chip>
+  }
+  return <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip>
+}
 
 export function AutoTab() {
   const { t } = useTranslation('scan')
@@ -27,7 +42,7 @@ export function AutoTab() {
     { id: 'product', header: t('auto.col.product'), accessorFn: (r) => r.product, cell: ({ row: { original: r } }) => <span>{r.product}</span> },
     { id: 'devices', header: t('auto.col.devices'), accessorFn: (r) => r.devices.join(', '), cell: ({ row: { original: r } }) => (r.devices.length ? <span>{r.devices.join(', ')}</span> : <span className="text-muted">{t('auto.noDevices')}</span>) },
     { id: 'latency', header: t('auto.col.latency'), accessorFn: (r) => r.latency_min ?? -1, cell: ({ row: { original: r } }) => (r.latency_min === null ? <span className="text-muted">–</span> : <span>{t('auto.minutes', { count: r.latency_min })}</span>) },
-    { id: 'result', header: t('auto.col.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip> },
+    { id: 'result', header: t('auto.col.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <ResultCell r={r} /> },
   ]
   return (
     <Section id="auto" title={t('auto.title')} description={t('auto.description')} stories={['S-SCAN-2']}>

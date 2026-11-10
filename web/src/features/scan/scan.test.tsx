@@ -500,6 +500,25 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(within(table).queryByText('Not affected')).toBeNull()
   })
 
+  it('D-145 (7): devices that need a hand pick are named with a link to Scan now; a stopped rescan links to its run', async () => {
+    const base = { ts: new Date().toISOString(), product: 'Acme NAS', latency_min: null }
+    server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ auto_rescan: true, items: [
+      { ...base, id: 'ev-pick', cve: 'CVE-2026-0003', devices: ['NAS-PHOTOS', 'CAM-03'], run_id: null, result: 'pick_only' },
+      { ...base, id: 'ev-stop', cve: 'CVE-2026-0004', devices: ['WEB01'], latency_min: 4, run_id: 'run-seed-3', result: 'stopped' },
+    ] })))
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    const pick = await within(table).findByText(/^Not scanned automatically: 2 devices need a hand pick in/)
+    expect(pick.className).toContain('text-off')
+    expect(within(table).getByText('NAS-PHOTOS, CAM-03')).toBeInTheDocument()
+    expect(within(table).getByRole('link', { name: 'Scan now' })).toHaveAttribute('href', '/scans?tab=runs')
+    expect(within(table).getByText(/^Stopped before the end:/).className).toContain('text-off')
+    await expectNoA11yViolations()
+    await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))
+    const dlg = await screen.findByRole('dialog')
+    expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
+  })
+
   it('quản trị tắt được, có ghi chú giải thích; vận hành thì không', async () => {
     const view = renderApp('/scans?tab=auto')
     await userEvent.click(await screen.findByRole('switch', { name: 'Rescan automatically when a new KEV has a scan template' }))

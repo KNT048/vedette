@@ -115,7 +115,11 @@ function seedEvents(): RescanEvent[] {
     out.push({ id: `ev-${v.cve}`, ts: new Date(`${v.date_added}T09:00:00Z`).toISOString(), cve: v.cve, product: `${v.vendor} ${v.product}`, devices, latency_min: 14 + out.length * 9, run_id: null, result: 'matched' })
     if (out.length >= 4) break
   }
-  out.push({ id: 'ev-nomatch', ts: daysAgo(2), cve: vulns.find((v) => v.has_template && !out.some((o) => o.cve === v.cve))?.cve ?? 'CVE-2026-0001', product: 'A product you do not use', devices: [], latency_min: null, run_id: null, result: 'no_match' })
+  const unused = () => vulns.find((v) => v.has_template && !out.some((o) => o.cve === v.cve))?.cve
+  out.push({ id: 'ev-nomatch', ts: daysAgo(2), cve: unused() ?? 'CVE-2026-0001', product: 'A product you do not use', devices: [], latency_min: null, run_id: null, result: 'no_match' })
+  // D-145 (7): every matching device may only be scanned by a hand pick (fragile, unclassified, hand-declared; D-126 (2))
+  const pick = targets().filter((x) => x.pick_only).map((x) => x.label).slice(0, 2)
+  if (pick.length) out.push({ id: 'ev-pick', ts: daysAgo(4), cve: unused() ?? 'CVE-2026-0002', product: 'A product only on devices that need a hand pick', devices: pick, latency_min: null, run_id: null, result: 'pick_only' })
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
 

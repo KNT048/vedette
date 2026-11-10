@@ -65,6 +65,7 @@ var skipNote = map[string]string{ //nolint:gosec // G101: notes shown to the use
 	"fragile_passive_only":      "Fragile device: scanned only when you pick it in Scan now.",
 	"unclassified_passive_only": "Device type unknown: scanned only when you pick it in Scan now.",
 	"gone":                      "No longer in the inventory; not scanned.",
+	"moved":                     "The device's address changed since the scan started; not scanned.",
 }
 
 // excluded says whether ip is on the scan module's own exclusion list (INV-1).
@@ -102,6 +103,8 @@ func (s *Service) consent(ctx context.Context, st Settings, d Device, explicit b
 		return "excluded", false, nil
 	case !dec.Allowed:
 		return dec.Reason, false, nil
+	case dec.IP != "" && dec.IP != d.IP: // review L1: the inventory decided on another address than the one the job would use
+		return "moved", false, nil
 	}
 	return "", dec.Careful, nil
 }

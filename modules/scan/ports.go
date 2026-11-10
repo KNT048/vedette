@@ -29,7 +29,8 @@ type Decision struct {
 	Allowed bool
 	Reason  string // inventory's reason: ok, box, no_ip, scope_not_confirmed, out_of_scope, regular_scan_never,
 	// declared_by_hand, fragile_passive_only, unclassified_passive_only
-	Careful bool // fragile or unclassified: a quarter of the rate (D-126 (2))
+	Careful bool   // fragile or unclassified: a quarter of the rate (D-126 (2))
+	IP      string // the address the decision was made for
 }
 
 // Policy reasons of the inventory that scan maps to its own (contract.ts ScanTarget.reason).

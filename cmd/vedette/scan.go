@@ -107,6 +107,7 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 			return scan.Decision{}, err
 		}
 		out.Careful = d.Fragile || d.Kind == "unknown"
+		out.IP = d.IP // read right after the decision; ponytail: inventory could return the address it decided on (deferred)
 	}
 	return out, nil
 }

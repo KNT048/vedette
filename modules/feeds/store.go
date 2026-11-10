@@ -199,8 +199,47 @@ ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format
 				return fmt.Errorf("feeds: seed %s: %w", b.ID, err)
 			}
 		}
-		return nil
+		return retireBuiltins(ctx, tx)
 	})
+}
+
+// retireBuiltins deletes the built-in rows the code no longer lists (D-92, INV-16), with their listings, vulnerabilities
+// and pull history. Custom feeds are never touched.
+func retireBuiltins(ctx context.Context, tx *sql.Tx) error {
+	keep := map[string]bool{}
+	for _, b := range BuiltinSources() {
+		keep[b.ID] = true
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM feeds_source WHERE builtin = 1`)
+	if err != nil {
+		return fmt.Errorf("feeds: list built-in rows: %w", err)
+	}
+	var gone []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("feeds: scan built-in row: %w", err)
+		}
+		if !keep[id] {
+			gone = append(gone, id)
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("feeds: list built-in rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("feeds: list built-in rows: %w", err)
+	}
+	for _, id := range gone {
+		if err := purgeLoaded(ctx, tx, id); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_source WHERE id = ? AND builtin = 1`, id); err != nil {
+			return fmt.Errorf("feeds: retire built-in %s: %w", id, err)
+		}
+	}
+	return nil
 }
 
 func boolInt(b bool) int {

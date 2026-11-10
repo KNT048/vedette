@@ -42,6 +42,10 @@ export const FeedStatus = z.object({
   kev_catalog_version: z.string(),
   sources: z.array(z.object({ name: z.string(), url: z.url(), license: z.string(), fetched_at: z.iso.datetime() })),
   inventory_on: z.boolean(),
+  kev: z.object({
+    state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
+    error: z.string().nullable().describe('One line, cleaned: why the last pull failed; null when it has not failed or has not been tried'),
+  }),
 })
 
 export const WeeklyItem = z.object({ id: z.string(), key: z.string(), text: z.string(), date_added: isoDate, cve: cveId, answer: z.enum(['have', 'not_relevant']).nullable() })

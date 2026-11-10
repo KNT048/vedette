@@ -22765,13 +22765,40 @@
                     },
                     "inventory_on": {
                       "type": "boolean"
+                    },
+                    "kev": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "loaded",
+                            "never_loaded",
+                            "off"
+                          ],
+                          "description": "The CISA list (cisa-kev) for the Home count (D-92): \"off\" when an admin turned it off, else \"loaded\" once a pull has ever succeeded (even if a later pull failed), else \"never_loaded\""
+                        },
+                        "error": {
+                          "description": "One line, cleaned: why the last pull failed; null when it has not failed or has not been tried",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "error"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "generated_at",
                     "kev_catalog_version",
                     "sources",
-                    "inventory_on"
+                    "inventory_on",
+                    "kev"
                   ],
                   "additionalProperties": false
                 }
@@ -53399,7 +53426,8 @@
                       "additionalProperties": false
                     },
                     "can_scan": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "description": "false without the scope commitment, or while the scanner in the scan container is not available"
                     },
                     "block_reason": {
                       "type": [
@@ -53711,7 +53739,8 @@
                       "additionalProperties": false
                     },
                     "can_scan": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "description": "false without the scope commitment, or while the scanner in the scan container is not available"
                     },
                     "block_reason": {
                       "type": [
@@ -54329,8 +54358,10 @@
                               "matched",
                               "not_matched",
                               "no_response",
-                              "banner"
-                            ]
+                              "banner",
+                              "stopped"
+                            ],
+                            "description": "stopped: the request was on its way when the scan was stopped"
                           }
                         },
                         "required": [
@@ -55115,7 +55146,8 @@
                             "type": "string"
                           },
                           "fragile": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)"
                           },
                           "findings": {
                             "type": "integer",
@@ -55133,15 +55165,18 @@
                                   "unapproved",
                                   "excluded",
                                   "out_of_scope",
+                                  "box",
+                                  "regular_scan_never",
                                   "unverified",
-                                  "expired"
+                                  "expired",
+                                  "not_supported"
                                 ]
                               },
                               {
                                 "type": "null"
                               }
                             ],
-                            "description": "null when the target can be scanned"
+                            "description": "null when the target can be scanned by picking it. box: the Vedette box itself is never scanned. regular_scan_never: a person set \"never scan\" on the device (D-126). not_supported: external targets are not scanned by this version yet"
                           }
                         },
                         "required": [

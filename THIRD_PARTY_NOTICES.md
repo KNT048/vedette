@@ -122,7 +122,7 @@ Release signing tools (maintainer's machine only, not in `tools/go.mod`, never s
 | ET Open | BSD | |
 | IPsum | Unlicense | |
 | hagezi | GPL-3.0 | license included, unmodified |
-| abuse.ch SSLBL / Feodo | CC0 | |
+| abuse.ch Feodo Tracker | CC0 | |
 | Tor exit list | — | attribution: torproject |
 | Team Cymru bogons | — | attribution |
 | Cisco Umbrella top-1M, Majestic Million | — / CC-BY 3.0 | allow-lists |

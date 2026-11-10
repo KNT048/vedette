@@ -238,6 +238,12 @@ Từ chối: `busy`; `snapshot_required` (`412`: không có thư mục/`snapshot
 
 Mọi tệp: tệp thường (không symlink, không FIFO, không thiết bị), thuộc `core_uid`, **đúng một liên kết**, trong giới hạn cỡ ở trên; thư mục `snapshots/<id>` nằm trong `core_data` (symlink trỏ ra ngoài bị `os.Root` chặn). `core` ghi `snapshot.json` **cuối cùng**; host đọc nó **đầu tiên** (thiếu = chưa có bản chụp = `snapshot_required`). Tuổi tối đa **10 phút** tính từ `created_at` (quá thì `snapshot_required`: hãy tạo bản mới; ghi trước đồng hồ của host hơn 1 phút thì `snapshot_invalid`). Mọi thứ khác sai hợp đồng → `snapshot_invalid`. `db_schema` và `includes_key` là lời khai của `core`: host chỉ ghi vào manifest và dùng làm cảnh báo sớm, **không kiểm lại bằng cách mở DB**. Host không xoá gì trong cây của `core`; `core` tự dọn thư mục bản chụp (sau lệnh, hoặc lúc `core` khởi động). Cùng một id có thể dùng cho nhiều lệnh trong 10 phút.
 
+### 6.11a `backup.purge`
+
+Args: `{}` (mọi trường → `400 invalid_args`). Hiệu ứng (D-156): **xoá (không ghi đè)** mọi bản sao lưu của kho (`backups/`, mọi `kind`) cùng chỉ mục `index.json` và tệp tạm `.tmp-*` do host ghi; cùng lượt, dưới khoá ghi, xoá phần còn lại của chính host: kho `exports/` với chỉ mục (`<hex32>.jsonl.gz`, `index.json`, `.tmp-*`) và tệp/thư mục tạm của các run trong `tmp/` (`ex-<số>`, `bk-`/`rs-`/`rb-`/`rv-`/`rl-<số>`), cùng luật tên đúng và `os.Root` bên dưới. **Nhật ký systemd (journal) nằm ngoài phạm vi**: không phải của host, host không xoá; bản xuất log đã bị lọc bí mật. Mục đích: để "Delete all data" (D-154) giữ lời hứa "không còn gì trên máy": bản `pre_*` và `manual` chứa DB cũ và có khi cả khoá, và `container.rollback`/`backup.restore` sau đó có thể khôi phục chúng. **Không có xoá từng bản** (D-85 hẹp lại thành "không xoá chọn lọc"). Chỉ xoá tệp thường do host ghi (tên `<32 hex>.tar.gz`, `index.json`, `.tmp-<số>`), qua `os.Root` mở trên kho (không đi theo đường dẫn, không theo symlink; symlink hay tên lạ nằm lại, đích của nó không bị chạm); xoá chỉ mục **trước**, rồi từng bản (một lần sập giữa chừng chỉ để lại tệp mồ côi, `sweepBackups` dọn lúc khởi động). Không bao giờ chạm `core_data`. Kho chưa có thư mục = `deleted: 0`.
+Là **một run** như mọi lệnh (khung không có lệnh đồng bộ), `Timeout` 1 phút, giữ khoá ghi: đang có run khác → `409 busy`. `Check` như `backup.create` (§6.11): nhật ký chuyển unit của `core` đang chờ hoặc `unrecoverable` → `412 transition_pending`, mọi bản còn nguyên (nhật ký có thể còn cần một bản; muốn xoá thì xử lý chuyển đó trước). Kết quả `{ "deleted": n }` (số bản đã xoá). Kiểm toán (`actor: system`): `backups_purged` `{deleted}`. Lỗi xoá → `failed` `purge_failed`.
+Hệ quả: sau purge, `container.rollback` của `core` với bản `rollback.safe=false` → `412 rollback_backup_missing` (không khôi phục gì); `os.install` vẫn tạo được bản `pre_os_update` nội bộ.
+
 ### 6.12 `backup.restore`
 
 Args: `{ "backup_id": hex, "snapshot": hex32 }`. `snapshot` là bản chụp **trạng thái hiện tại** của `core` (hợp đồng §6.11): host giữ nó làm bản `pre_restore`.
@@ -367,7 +373,7 @@ Các biện pháp "hậu quả giới hạn" khi `core` bị chiếm: nhịp l�
 5. ~~`decoy_ip.add`: giả OUI theo vai?~~ **Đã chốt (D-102):** có, tuỳ chọn: tham số `oui`; mặc định vẫn là MAC local-administered sinh bằng HMAC (§6.6). Việc `core` chọn OUI theo vai để sau.
 6. Cần chữ ký request ở tầng ứng dụng giữa `core` và host (HMAC theo khoá cài sẵn) ngoài `SO_PEERCRED` + cgroup, hay đủ?
 7. ~~Cửa sổ bảo trì không điều khiển được `unattended-upgrades`~~ **Đã chốt (D-85):** chấp nhận; unattended-upgrades chạy theo timer của apt (Ubuntu và Debian đều ship như vậy); GUI ghi trong trợ giúp.
-8. ~~`backup.delete` và lịch sao lưu định kỳ~~ **Đã chốt (D-85):** chưa có story, không làm; chỉ lưu giữ tự động (§6.11).
+8. ~~`backup.delete` và lịch sao lưu định kỳ~~ **Đã chốt (D-85):** chưa có story, không làm; chỉ lưu giữ tự động (§6.11). **Hẹp lại (D-156):** chỉ có `backup.purge` xoá toàn bộ (§6.11a), vẫn không xoá chọn lọc.
 9. Mọi con số giới hạn (§10) là điểm xuất phát, chưa đo.
 
 ## 15. Đã chốt khi cài khung (WP-07a)

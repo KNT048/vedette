@@ -186,6 +186,9 @@ func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
+			out[i].DateAdded = t
+		}
 		if v.EPSS != nil {
 			out[i].EPSS = *v.EPSS
 		}
@@ -267,7 +270,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	inv := findingsInventory{d.Inventory}
 	feed := findingsFeeds{fs.Store()}
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock}
+	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline}
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

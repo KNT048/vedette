@@ -50,7 +50,7 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 | `scan` | `localhost/vedette-scan-nmap:<version>` dựng trên hộp từ image nền `ghcr.io/knt048/vedette-scan` đã ký (D-113 (7)) | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-active` bật (sau: `scan`/`exposure`) |
 | `greenbone` | upstream Greenbone Community Containers, ghim digest | bridge `vedette-int` | theo upstream | khi `scan-credentialed` bật |
 
-Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 (3), D-104; câu hỏi A3 đã đóng); thêm `ghcr.io` vào `PRIVACY.md` luồng 6 ở lát 3-7.
+Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 (3), D-104; câu hỏi A3 đã đóng); `ghcr.io` đã có trong `PRIVACY.md` luồng 6 (lát 3-7). Hộp qua proxy HTTP(S): đặt `[engine] env = ["https_proxy=…", "no_proxy=…"]` trong `/etc/containers/containers.conf` (hoặc `containers.conf.d/`); `vedette-host` chạy `podman pull` với môi trường tối thiểu nên không thừa hưởng biến proxy của shell.
 
 ### 2.1 core
 
@@ -461,7 +461,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 | Cổng | Tới | Mục đích | PRIVACY |
 |---|---|---|---|
 | 443/tcp | nguồn feed (D-36) | kéo feed | luồng 1 |
-| 443/tcp | GitHub Releases (`core` tải index/manifest) + `ghcr.io` (`vedette-host` kéo image theo digest) | bản phát hành ký, image | luồng 6 (thêm `ghcr.io` và host blob của nó ở lát 3-7) |
+| 443/tcp | GitHub Releases (`core` tải index/manifest) + `ghcr.io` (`vedette-host` kéo image theo digest) | bản phát hành ký, image | luồng 6 (`ghcr.io` và host blob của nó, `pkg-containers.githubusercontent.com`, đã thêm ở lát 3-7) |
 | 443/tcp | provider AI, dịch vụ tra cứu cần key, Slack (Socket Mode), Telegram (long polling), Zalo, tín hiệu ẩn danh, CT log + điểm dò IP | theo cấu hình | luồng 2–5, 8, 9 |
 | 80,443/tcp | mirror apt (`archive.ubuntu.com`, `security.ubuntu.com`, `deb.debian.org`, `security.debian.org` hoặc mirror nội bộ) | cập nhật OS (D-53) | luồng 6 |
 | 53 UDP/TCP | DNS | phân giải | — |

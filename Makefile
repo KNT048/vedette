@@ -82,10 +82,11 @@ openapi-check:
 test:
 	pnpm --dir web test
 
-# test-go also runs internal/release with the throwaway release keys (-tags releasetestkeys, keys_testonly.go); production never passes that tag
+# test-go also runs internal/release, and the host's pull and embedded-keys tests (real minisign and cosign vectors, end to end), with the throwaway release keys (-tags releasetestkeys, keys_testonly.go); production never passes that tag
 test-go:
 	go test -race ./...
 	go test -race -tags releasetestkeys ./internal/release/...
+	go test -race -tags releasetestkeys -run 'Pull|Embedded' ./modules/host/
 
 # Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
 # Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".

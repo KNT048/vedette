@@ -77,6 +77,8 @@ type Service struct {
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
+	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
+	tgOffset telegramOffset
 }
 
 // changeNotifier is the part of core/modreg.Registry that tells when a module is switched (OnChange). Config.Modules

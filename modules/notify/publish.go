@@ -628,6 +628,6 @@ func (s *Service) prune(ctx context.Context, now time.Time) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_kev WHERE seen_at < ?`, cut); err != nil {
 			return fmt.Errorf("notify: prune exploited vulnerabilities: %w", err)
 		}
-		return nil
+		return pruneButtons(ctx, tx, now)
 	})
 }

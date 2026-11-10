@@ -239,14 +239,15 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 	return nil, fmt.Errorf("notify: unknown channel type %q", t)
 }
 
-// openSecret reads a stored secret; a failure means the saved key cannot be used, which callers show as "enter it again".
-func (s *Service) openSecret(ctx context.Context, q dbtx, id, purpose string) (string, error) {
+// openSecret reads the stored secret of a channel (purpose notify_channel.secret); a failure means the saved key cannot be
+// used, which callers show as "enter it again". The Slack app and bot tokens are never opened here.
+func (s *Service) openSecret(ctx context.Context, q dbtx, id string) (string, error) {
 	if id == "" {
 		return "", nil
 	}
-	pt, err := s.cfg.Secrets.Open(ctx, q, id, purpose)
+	pt, err := s.cfg.Secrets.Open(ctx, q, id, purposeSecret)
 	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "notify: a saved channel secret cannot be opened", "purpose", purpose, "error", err.Error())
+		s.cfg.Log.WarnContext(ctx, "notify: a saved channel secret cannot be opened", "purpose", purposeSecret, "error", err.Error())
 		return "", errSecretUnreadable
 	}
 	return string(pt), nil
@@ -263,7 +264,7 @@ func (s *Service) savedSender(ctx context.Context, c channelRow, toOverride []st
 			return cs.sender, nil
 		}
 	}
-	secret, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID, purposeSecret)
+	secret, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +358,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		secret := strings.TrimSpace(in.Secret)
 		effective := secret
 		if effective == "" {
-			if effective, err = s.openSecret(ctx, tx, cur.SecretID, purposeSecret); err != nil {
+			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {
 				return badRequest("secret_required", "The saved key cannot be read. Enter it again and save.")
 			}
 		}

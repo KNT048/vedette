@@ -43,7 +43,8 @@ const (
 // allows a link and a token recorder is wired (spec approval-tokens.md 4; the record of the token, with the
 // address, is stored by the TokenRecorder before the mail goes out), otherwise (high risk, D-57 item 20, or no
 // recorder) a message that says to open Vedette. Other channels with approvals on get one message without a
-// link that approves: buttons and reply codes are the in-channel transport, not built yet.
+// link that approves; on Telegram it carries Approve/Reject buttons (tglisten.go) unless the request is in-app only.
+// Slack buttons and Zalo reply codes are not built yet.
 //
 // A message with a link is sent at most once: nothing here is retried, and the request ending (ctx) stops the
 // messages not yet started. Each attempt that was made is recorded, also after ctx ended. It returns one
@@ -106,7 +107,13 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			if err != nil {
 				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
 			}
-			plan = append(plan, outgoing{snd: snd, msg: base})
+			m := base
+			if ac.Type == channel.Telegram { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
+				if m.Buttons, err = s.telegramButtons(ctx, req); err != nil {
+					return nil, err
+				}
+			}
+			plan = append(plan, outgoing{snd: snd, msg: m})
 			continue
 		}
 		var key []byte

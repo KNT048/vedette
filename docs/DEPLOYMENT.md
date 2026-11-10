@@ -247,7 +247,8 @@ Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
-Tmpfs=/tmp
+# tmpfs có cận 64 MiB (D-150): tệp tạm chạy lạc không ăn hết 2 GiB bộ nhớ của container
+Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
 DropCapability=ALL
 # core_uid:core_gid của /etc/vedette/host.conf; KHÔNG UserNS=auto (uid của peer phải cố định, D-105)
@@ -359,7 +360,8 @@ Thư mục trên hộp là hằng `/var/lib/vedette-honeypot` (D-123 (1)); `core
 [Unit]
 Description=Vedette host helper
 After=network-online.target
-# Restart=always with RestartSec=2s would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back (D-150)
+Wants=network-online.target
+# Restart=always would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back, so no limit, and RestartSteps below slows the loop (D-150)
 StartLimitIntervalSec=0
 
 [Service]
@@ -370,9 +372,14 @@ RuntimeDirectory=vedette
 RuntimeDirectoryMode=0750
 # the run directory survives a stop or restart of the host: core mounts the directory /run/vedette and reconnects to the new socket (D-123)
 RuntimeDirectoryPreserve=yes
-# the host exits 70 when a command ignores its deadline; always restart it, and kill the whole cgroup (a stray apt/podman child) first
+# the host exits 70 when a command ignores its deadline; always restart it
 Restart=always
+# crash-loop back-off: 2 s growing to 5 min over 8 steps (systemd 254 or newer: Ubuntu 24.04 has 255, Debian 13 has 257)
 RestartSec=2s
+RestartSteps=8
+RestartMaxDelaySec=5min
+# control-group is systemd's default, kept to state the intent: a restart kills the apt/podman client processes still in this cgroup.
+# Containers are not in it: each lives in its own libpod scope and keeps running
 KillMode=control-group
 # bounds the Start steps (D-121): startHP 120 s + startup rollback 180 s + decoy re-apply 120 s + core check 60 s
 # + interrupted restore 300 s + core stop/start 120 s + half-written unit reset 60 s (D-123) = 960 s = 16 minutes
@@ -392,6 +399,8 @@ SystemCallArchitectures=native
 [Install]
 WantedBy=multi-user.target
 ```
+
+Drop-in dưới `/etc/systemd/system/vedette-host.service.d/` **không** được test văn bản phủ tới: quản trị viên không được đặt tuỳ chọn namespace hệ tệp nào ở đó (D-121), vì làm vậy namespace `vedette-hp` biến mất khỏi podman.
 
 Thứ tự khởi động: `vedette-host` (sẵn sàng khi `READY=1`) → `core` → `sensor`/`scan`/`honeypot` → `greenbone`. Cả bộ dựng lại sau reboot nhờ `WantedBy=multi-user.target` (service có module tắt thì unit không có dòng này, D-105).
 

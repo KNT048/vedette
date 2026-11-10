@@ -1399,7 +1399,11 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if (svc == api.ServiceCore) != slices.Contains(u["Volume"], "/run/vedette:/run/vedette") {
 				t.Errorf("%s: the host socket directory is for core only", svc)
 			}
-			if !slices.Equal(u["Tmpfs"], []string{"/tmp"}) {
+			wantTmpfs := "/tmp"
+			if svc == api.ServiceCore {
+				wantTmpfs = "/tmp:size=64m" // D-150: a bounded tmpfs, so a runaway temp file cannot eat the 2 GiB container memory
+			}
+			if !slices.Equal(u["Tmpfs"], []string{wantTmpfs}) {
 				t.Errorf("%s: Tmpfs=%v", svc, u["Tmpfs"])
 			}
 			if w.exec == "" && len(u["Exec"]) != 0 || w.exec != "" && !slices.Equal(u["Exec"], []string{w.exec}) {

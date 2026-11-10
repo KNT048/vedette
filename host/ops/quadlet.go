@@ -115,7 +115,7 @@ Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
-Tmpfs=/tmp
+Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
 DropCapability=ALL
 User={{.CoreUID}}:{{.CoreGID}}

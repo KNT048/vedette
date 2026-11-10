@@ -59,7 +59,9 @@ type Config struct {
 	// known (tests, a box without vedette-host).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
 	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
-	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake.
+	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake. Its Timeout should be 0: the
+	// Telegram listener long-polls longer than any usual total timeout, so it clears Timeout on its own copy and gives every call a
+	// deadline of its own; the senders keep the client's Timeout.
 	HTTPClient *http.Client
 }
 

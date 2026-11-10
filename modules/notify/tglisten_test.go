@@ -32,6 +32,8 @@ type fakeTelegram struct {
 	wake    chan struct{}
 	waiting chan struct{} // signalled each time a getUpdates call starts to wait (the listener is in a long poll)
 	status  int           // non-zero: every call answers this HTTP status
+	// hangAnswers is how many answerCallbackQuery calls get no answer at all (they end with the caller's deadline).
+	hangAnswers int
 }
 
 func newFakeTelegram() *fakeTelegram {
@@ -82,10 +84,21 @@ func (f *fakeTelegram) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.mu.Unlock()
 		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":7}}`)
 	case "answerCallbackQuery":
+		f.mu.Lock()
+		hang := f.hangAnswers > 0
+		if hang {
+			f.hangAnswers--
+		}
+		f.mu.Unlock()
+		if hang { // Telegram does not answer this call: it ends with the caller's deadline
+			<-r.Context().Done()
+			return
+		}
 		f.answers <- body
 		_, _ = io.WriteString(w, `{"ok":true,"result":true}`)
 	case "getUpdates":
 		offset, _ := body["offset"].(float64)
+		timeout, _ := body["timeout"].(float64)
 		for {
 			f.mu.Lock()
 			f.polls++
@@ -96,7 +109,7 @@ func (f *fakeTelegram) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			f.mu.Unlock()
-			if len(out) > 0 {
+			if len(out) > 0 || timeout == 0 { // timeout 0 is a short poll: what is waiting now, maybe nothing
 				_, _ = io.WriteString(w, `{"ok":true,"result":[`+strings.Join(out, ",")+`]}`)
 				return
 			}
@@ -223,8 +236,17 @@ func (te *tgEnv) job() jobs.Job {
 	return jobs.Job{}
 }
 
-// listen runs the listener job until the test ends (or stop is called) and fails the test when it does not stop on ctx.
+// listen runs the listener job until the test ends (or stop is called) and fails the test when it does not stop on ctx. It returns once
+// the listener is in a long poll, so the presses a test makes after it are new (presses waiting from before are dropped, review L3).
 func (te *tgEnv) listen() (stop func() error) {
+	te.t.Helper()
+	stop = te.start()
+	te.tg.inPoll(te.t)
+	return stop
+}
+
+// start runs the listener job without waiting for its first long poll.
+func (te *tgEnv) start() (stop func() error) {
 	te.t.Helper()
 	ctx, cancel := context.WithCancel(te.ctx())
 	done := make(chan error, 1)
@@ -449,7 +471,7 @@ func TestContract_PRE8_TelegramListenerOnlyWhileReady(t *testing.T) {
 	// Approvals turned off while it runs: it stops by itself at the next poll.
 	te3 := newTGEnv(t)
 	stop := te3.listen()
-	te3.tg.inPoll(t) // turned off while a poll runs (before it, the listener would correctly stop without polling at all)
+	// listen returned in a long poll: approvals are turned off while it runs (before it, the listener would correctly stop without polling).
 	te3.save(channel.Telegram, notify.ChannelInput{Enabled: true, Fields: map[string]string{"chat_id": tgChat}, MinSeverity: notify.Low})
 	te3.tg.press("1", tgChat, "a:x:y") // ends the current long poll
 	te3.tg.answer(t)

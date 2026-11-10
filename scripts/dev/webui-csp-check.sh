@@ -30,6 +30,10 @@ done
 curl -fs --max-time 2 "http://127.0.0.1:$port/" | grep -q '<div id="root"></div>' || { echo "webui-csp-check: GET / is not the interface" >&2; exit 1; }
 code=$(grep -o '"setup_code":"[^"]*"' "$tmp/core.log" | head -1 | cut -d'"' -f4)
 [ -n "$code" ] || { cat "$tmp/core.log" >&2; echo "webui-csp-check: the core log has no setup code" >&2; exit 1; }
-setsid pnpm --dir web exec node scripts/csp-check.mjs "http://127.0.0.1:$port" "$code" &
+# Job control puts the background job in its own process group (Linux and macOS; setsid is Linux-only), so cleanup can
+# kill the node script and its Chromium together. The setup code goes in the environment, not argv (argv is visible in ps).
+set -m
+VEDETTE_SETUP_CODE="$code" pnpm --dir web exec node scripts/csp-check.mjs "http://127.0.0.1:$port" &
 chk=$!
+set +m
 wait "$chk"

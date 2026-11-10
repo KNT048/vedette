@@ -1,5 +1,6 @@
 // Real-browser CSP check of the interface served by the core binary (D-149).
-// Usage: node scripts/csp-check.mjs <base-url> [setup-code]
+// Usage: VEDETTE_SETUP_CODE=<code> node scripts/csp-check.mjs <base-url> (the code is optional; it is read from the
+// environment, not argv, so it does not show in ps)
 // Records console messages and securitypolicyviolation events in headless Chromium and fails on any violation, any CSP console error, a failed
 // request, or a first screen that does not render. Pre-login: "/", a client route and an approval link in the real token format.
 // With a setup code (the one the box prints in its log), it also does first-run setup through the real API (sample data), reloads (signed in),
@@ -7,8 +8,8 @@
 import { chromium } from '@playwright/test'
 
 const base = process.argv[2]
-const setupCode = process.argv[3]
-if (!base) throw new Error('usage: csp-check.mjs <base-url> [setup-code]')
+const setupCode = process.env.VEDETTE_SETUP_CODE
+if (!base) throw new Error('usage: VEDETTE_SETUP_CODE=<code> csp-check.mjs <base-url>')
 
 // v1.<22 base64url>.<22 base64url>: the format of the real approval links (web TOKEN_RE).
 const token = 'v1.AbCdEfGhIjKlMnOpQrStUv.0123456789_-abcdefghij'

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// The zone list of the box must not depend on the host (a slim container has none): PUT /core/general
@@ -47,6 +48,15 @@ type APIHandlers struct {
 	logsBusy bool
 	logsLast time.Time
 	logsGap  time.Duration // 0 = logExportGap; a test sets a negative value to turn the limit off
+
+	exporting atomic.Bool // one /core/data/export at a time, from the audit row until the body is closed
+	exportCap int64       // test hook: the size cap of /core/data/export (0 = exportMaxBytes)
+
+	// The factory reset (/core/data/purge, D-154).
+	dataDir   string      // core_data: where the module data files and snapshots/ are ("" = none to remove)
+	dataFiles []string    // plain names of the module data files in dataDir (logs.db)
+	schema    []SchemaSet // migrations of every module, to learn what a fresh install holds
+	restart   func()      // asked to restart the process after a purge; nil = no restart
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -64,6 +74,16 @@ type HandlersConfig struct {
 	SpoolDir string
 	Logs     *logexport.Registry // optional: where the modules register their log sources (INV-13); core adds "audit"; nil = a registry of its own
 	Clock    func() time.Time    // nil: time.Now
+
+	// The factory reset, POST /core/data/purge (D-154). DataDir is core_data (the directory of the database file); DataFiles are plain
+	// names of the data files the modules keep there besides vedette.db (today logs.db, D-151), checked against dataFileRE; both
+	// optional (no DataDir: no files are removed). Schema is the migrations of every module in order and is required for the purge.
+	// Restart, when not nil, is called shortly after a purge has answered: the process must start again, because what its modules
+	// hold in memory (the sensor CA, caches) belongs to the data that is gone; the supervisor (Quadlet, Restart=always) brings it back.
+	DataDir   string
+	DataFiles []string
+	Schema    []SchemaSet
+	Restart   func()
 }
 
 // NewAPIHandlers returns the handlers.
@@ -82,7 +102,10 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 			return nil, err
 		}
 	}
-	h := &APIHandlers{logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	if err := checkDataFiles(c.DataFiles); err != nil {
+		return nil, err
+	}
+	h := &APIHandlers{dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

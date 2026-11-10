@@ -9,6 +9,7 @@ import (
 	"github.com/go-faster/jx"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -27,9 +28,13 @@ type PrivacyFacts interface {
 	ConnectionsConfigured(ctx context.Context) bool
 }
 
-// The two switches are on when absent from the stored setting.
+// The update check is on when absent from the stored setting. The anonymous signal is never on (D-82, D-154): nothing sends
+// it, so whatever an older box stored, the answer is off, and a request to turn it on is refused (CodeTelemetryUnavailable).
 func (p privacySetting) updateCheck() bool { return p.UpdateCheck == nil || *p.UpdateCheck }
-func (p privacySetting) telemetry() bool   { return p.Telemetry == nil || *p.Telemetry }
+func (p privacySetting) telemetry() bool   { return false }
+
+// CodeTelemetryUnavailable is the 400 of a PATCH /core/privacy that turns the anonymous signal on (API_CONVENTIONS 3.3).
+const CodeTelemetryUnavailable = "telemetry_unavailable"
 
 func (h *APIHandlers) privacySetting(ctx context.Context, q *coredb.Queries) (privacySetting, error) {
 	var p privacySetting
@@ -112,6 +117,9 @@ func (h *APIHandlers) CorePatchCorePrivacy(ctx context.Context, req *oas.CorePat
 		return nil, err
 	}
 	var p privacySetting
+	if v, ok := req.Telemetry.Get(); ok && v { // refused before anything is read or written
+		return nil, apierr.New(400, CodeTelemetryUnavailable, "This version of Vedette does not send an anonymous signal, so it cannot be turned on.")
+	}
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
 			return err

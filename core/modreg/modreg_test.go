@@ -413,3 +413,81 @@ func TestNewRejectsBadConfig(t *testing.T) {
 		t.Error("empty config accepted")
 	}
 }
+
+// Reset (the factory reset, D-154) puts every module at its manifest default inside the caller's transaction, whether the table was
+// emptied first or still holds the admin's choices; the cache and the subscribers follow only after Publish, and a rolled-back reset
+// changes neither the database nor the cache.
+func TestResetBringsBackTheDefaults(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	if _, err := r.enable("d", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.disable("a"); err != nil {
+		t.Fatal(err)
+	}
+	var flipped []string
+	r.reg.OnChange(func(id string, enabled bool) {
+		flipped = append(flipped, id+"="+map[bool]string{true: "on", false: "off"}[enabled])
+	})
+
+	// A reset that rolls back leaves everything as it was.
+	errRollback := errors.New("rollback")
+	err := r.db.Write(t.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(t.Context(), "DELETE FROM core_module"); err != nil {
+			return err
+		}
+		if _, err := r.reg.Reset(t.Context(), tx); err != nil {
+			return err
+		}
+		return errRollback
+	})
+	if !errors.Is(err, errRollback) || r.reg.Enabled("a") || !r.reg.Enabled("d") || r.dbEnabled("a") || len(flipped) != 0 {
+		t.Fatalf("a rolled-back reset changed something: %v a=%v d=%v", err, r.reg.Enabled("a"), r.reg.Enabled("d"))
+	}
+
+	// Emptied table: the rows come back, the cache follows Publish.
+	var ch modreg.Change
+	err = r.db.Write(t.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(t.Context(), "DELETE FROM core_module"); err != nil {
+			return err
+		}
+		var err error
+		ch, err = r.reg.Reset(t.Context(), tx)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.reg.Enabled("a") || !r.reg.Enabled("d") {
+		t.Fatal("the cache changed before Publish")
+	}
+	r.reg.Publish(ch)
+	want := map[string]bool{"core": true, "a": true, "b": false, "c": false, "d": false}
+	for _, s := range r.reg.List() {
+		if s.Enabled != want[s.ID] || r.dbEnabled(s.ID) != want[s.ID] {
+			t.Errorf("%s after reset: cache %v, database %v, want %v", s.ID, s.Enabled, r.dbEnabled(s.ID), want[s.ID])
+		}
+	}
+	slices.Sort(flipped)
+	if !slices.Equal(flipped, []string{"a=on", "d=off"}) {
+		t.Errorf("subscribers heard %v, want a=on and d=off (only the modules that flipped)", flipped)
+	}
+	var n int
+	if err := r.db.Reader().QueryRowContext(t.Context(), "SELECT count(*) FROM core_module").Scan(&n); err != nil || n != 5 {
+		t.Errorf("core_module rows = %d, %v", n, err)
+	}
+
+	// Not emptied first: the rows are rewritten, not duplicated.
+	if _, err := r.enable("b", true); err != nil {
+		t.Fatal(err)
+	}
+	err = r.db.Write(t.Context(), func(tx *sql.Tx) error { var err error; ch, err = r.reg.Reset(t.Context(), tx); return err })
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.reg.Publish(ch)
+	if r.reg.Enabled("b") || r.dbEnabled("b") {
+		t.Error("reset over existing rows left b on")
+	}
+}

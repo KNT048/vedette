@@ -56,6 +56,12 @@ const (
 
 func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	t.Helper()
+	return newWorldWith(t, nil, modify...)
+}
+
+// newWorldWith is newWorld with a say in the handlers' config (the purge tests give it a data directory and the schema).
+func newWorldWith(t *testing.T, tune func(*core.HandlersConfig), modify ...func(*auth.Config)) *world {
+	t.Helper()
 	env := authtest.New(t, modify...)
 	logs := &bytes.Buffer{}
 	log := slog.New(slog.NewTextHandler(logs, nil))
@@ -72,7 +78,11 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := core.NewAPIHandlers(core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now, Conns: conns})
+	hc := core.HandlersConfig{DB: env.DB, Auth: env.Svc, Reg: reg, Audit: env.Audit, Secrets: env.Secrets, Log: log, Clock: env.Clock.Now, Conns: conns}
+	if tune != nil {
+		tune(&hc)
+	}
+	h, err := core.NewAPIHandlers(hc)
 	if err != nil {
 		t.Fatal(err)
 	}

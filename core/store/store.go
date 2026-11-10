@@ -235,6 +235,20 @@ func (db *DB) SnapshotTo(ctx context.Context, path string) error {
 	return nil
 }
 
+// Compact rewrites the database file without its free pages and truncates the write-ahead log, so rows that were
+// deleted are no longer in the bytes on disk (the factory reset, D-154). It is VACUUM on the writer connection, outside
+// a transaction, so it waits for the writer like any write. A reader that is still open holds the truncate back: the log
+// is then shortened at its next checkpoint, and that is not an error.
+func (db *DB) Compact(ctx context.Context) error {
+	if _, err := db.w.ExecContext(ctx, "VACUUM"); err != nil {
+		return fmt.Errorf("store: compact: %w", err)
+	}
+	if _, err := db.w.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		return fmt.Errorf("store: compact: %w", err)
+	}
+	return nil
+}
+
 // Size is the space the database takes on disk: the main file and the write-ahead log. A VACUUM INTO copy is
 // never bigger than this.
 func (db *DB) Size() (int64, error) {

@@ -76,3 +76,9 @@ func TestDownloadReadErrorBeforeTheFirstByteIsAnError(t *testing.T) {
 	}
 	_ = d.Close()
 }
+
+// SetExportCapForTest lowers the size cap of /core/data/export.
+func (h *APIHandlers) SetExportCapForTest(n int64) { h.exportCap = n }
+
+// CheckDataFilesForTest runs the check NewAPIHandlers makes on HandlersConfig.DataFiles.
+func CheckDataFilesForTest(names []string) error { return checkDataFiles(names) }

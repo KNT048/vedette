@@ -190,6 +190,10 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
 // scheduler (running jobs are cancelled and waited for), database.
 func serve(ctx context.Context, log *slog.Logger, o options) error {
+	// A purge ends the process the same way SIGTERM does (graceful stop, exit 0): Quadlet's Restart=always, or the restart policy of
+	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -232,7 +236,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
-		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
+		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
+		Restart: func() {
+			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
+			cancel()
+		}}
 	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}

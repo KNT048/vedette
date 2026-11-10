@@ -39,7 +39,9 @@ func TestDecoyArgvBuildersAreExactlyTheSpecGrammar(t *testing.T) {
 		{"flush", argvRouteFlush(100), "-n vedette-hp route flush table 100"},
 		{"rule add", argvRule("add", ip1, 100), "-n vedette-hp rule add from 192.168.1.50 lookup 100"},
 		{"rule del", argvRule("del", ip1, 100), "-n vedette-hp rule del from 192.168.1.50 lookup 100"},
-		{"sysctl", argvSysctl(), "netns exec vedette-hp /usr/sbin/sysctl -w net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2 net.ipv4.conf.all.rp_filter=2 net.ipv4.ip_unprivileged_port_start=0"},
+		{"sysctl", argvSysctl(), "netns exec vedette-hp /usr/sbin/sysctl -w net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2 net.ipv4.conf.all.rp_filter=2 net.ipv4.ip_unprivileged_port_start=0 net.ipv4.conf.all.forwarding=0 net.ipv4.conf.default.forwarding=0 net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1"},
+		{"sysctl read", argvSysctlRead(), "netns exec vedette-hp /usr/sbin/sysctl -n net.ipv4.conf.all.arp_ignore net.ipv4.conf.all.arp_announce net.ipv4.conf.all.rp_filter net.ipv4.ip_unprivileged_port_start net.ipv4.conf.all.forwarding net.ipv4.conf.default.forwarding net.ipv6.conf.all.disable_ipv6 net.ipv6.conf.default.disable_ipv6"},
+		{"lo up", argvLoUp(), "-n vedette-hp link set lo up"},
 		{"nft load", argvNftLoad(), "netns exec vedette-hp /usr/sbin/nft -f -"},
 		{"nft list", argvNftList(), "netns exec vedette-hp /usr/sbin/nft list ruleset"},
 	} {
@@ -73,7 +75,7 @@ func TestValidateIPRefusesEverythingElse(t *testing.T) {
 		{"-n", "vedette-hp", "addr", "add", "192.168.1.50/33", "dev", name}, {"-n", "vedette-hp", "addr", "add", "192.168.1.50/31", "dev", name},
 		{"-n", "vedette-hp", "addr", "add", "::1/64", "dev", name}, {"-n", "vedette-hp", "addr", "add", "192.168.1.050/24", "dev", name},
 		{"-n", "vedette-hp", "addr", "add", "192.168.1.50/24", "dev", "eth0"}, {"-n", "vedette-hp", "addr", "add", "-6", "192.168.1.50/24", "dev", name},
-		{"-n", "vedette-hp", "link", "set", name, "down"}, {"-n", "vedette-hp", "link", "set", "lo", "up"}, {"-n", "vedette-hp", "link", "del", "lo"},
+		{"-n", "vedette-hp", "link", "set", name, "down"}, {"-n", "vedette-hp", "link", "set", "lo", "down"}, {"-n", "vedette-hp", "link", "set", "eth0", "up"}, append(argvSysctlRead(), "net.ipv4.ip_forward"), {"-n", "vedette-hp", "link", "del", "lo"},
 		{"-n", "vedette-hp", "route", "replace", "192.168.1.50/24", "dev", name, "src", "192.168.1.50", "table", "100"}, // host bits set
 		{"-n", "vedette-hp", "route", "replace", "192.168.1.0/24", "dev", name, "src", "192.168.1.50", "table", "99"},
 		{"-n", "vedette-hp", "route", "replace", "192.168.1.0/24", "dev", name, "src", "192.168.1.50", "table", "132"},
@@ -217,4 +219,31 @@ func FuzzDecoyBuilders(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
+	t.Parallel()
+	// The text sent to nft, as nft prints it back (quoted interface, priority name), must pass the check.
+	printed := strings.NewReplacer("priority 0", "priority filter", "oif lo", `oif "lo"`, "flush ruleset\n", "").Replace(hpRulesetText)
+	if !hasEgressDrop([]byte(printed)) {
+		t.Fatalf("the ruleset the host loads is not what its own check accepts:\n%s", printed)
+	}
+	lines := strings.Split(hpRulesetText, "\n")
+	acc, lo, drop := -1, -1, -1
+	for i, l := range lines {
+		switch strings.TrimSpace(l) {
+		case "ct state established,related accept":
+			acc = i
+		case "oif lo accept":
+			lo = i
+		case "ct state new drop":
+			drop = i
+		}
+	}
+	if !(acc >= 0 && acc < lo && lo < drop) {
+		t.Fatalf("order: established %d, lo %d, drop %d", acc, lo, drop)
+	}
+	if !strings.HasPrefix(hpRulesetText, "flush ruleset\n") || !strings.Contains(hpRulesetText, "hook forward priority 0; policy drop;") {
+		t.Fatal("the load must replace what was there and drop forwarding")
+	}
 }

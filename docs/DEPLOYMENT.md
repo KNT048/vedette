@@ -355,6 +355,10 @@ ExecStart=/usr/lib/vedette/vedette-host
 RuntimeDirectory=vedette
 RuntimeDirectoryMode=0750
 Restart=on-failure
+# Bao quanh các bước Start có cận (D-121): startHP 120 s + hoàn tác lúc khởi động 180 s + áp lại decoy 120 s
+# + kiểm core 60 s + khôi phục restore dở 300 s + dừng/khởi động core 120 s = 900 s = 15 phút.
+TimeoutStartSec=15min
+# KHÔNG đặt bất kỳ tuỳ chọn namespace hệ tệp nào ở đây (D-121, §12): PrivateTmp, ProtectHome, ProtectSystem, ...
 
 [Install]
 WantedBy=multi-user.target
@@ -541,7 +545,8 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 ## 12. Hardening
 
 **Host.**
-- `vedette-host.service`: `Type=notify` (host báo `READY=1` sau khi tạo namespace `vedette-hp`, áp lại decoy và khôi phục run dở, D-102); hạn chế mức có thể mà vẫn chạy apt/netplan/podman (nên không dùng `ProtectSystem=strict`): `ProtectHome=yes`, `PrivateTmp=yes`, `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET` (`AF_PACKET` cho ARP probe và kiểm gateway, D-101; root chỉ gửi/đọc khung ARP 42 byte, không đọc lưu lượng khác), `LockPersonality=yes`, `RestrictRealtime=yes`, `SystemCallArchitectures=native`, `MemoryDenyWriteExecute=yes`, `RuntimeDirectoryMode=0750`. Giới hạn thiệt hại chủ yếu dựa vào **danh sách lệnh cố định**, không dựa vào sandbox.
+- `vedette-host.service`: `Type=notify` (host báo `READY=1` sau khi tạo namespace `vedette-hp`, áp lại decoy và khôi phục run dở, D-102); hạn chế mức có thể mà vẫn chạy apt/netplan/podman và vẫn để namespace `vedette-hp` hiện ra cho podman (**không** có tuỳ chọn namespace hệ tệp nào, D-121): `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET` (`AF_PACKET` cho ARP probe và kiểm gateway, D-101; root chỉ gửi/đọc khung ARP 42 byte, không đọc lưu lượng khác), `LockPersonality=yes`, `RestrictRealtime=yes`, `SystemCallArchitectures=native`, `MemoryDenyWriteExecute=yes`, `RuntimeDirectoryMode=0750`. Giới hạn thiệt hại chủ yếu dựa vào **danh sách lệnh cố định**, không dựa vào sandbox. `TimeoutStartSec=15min` (cận của các bước `Ops.Start`, D-121).
+- **`vedette-host.service` không được đặt tuỳ chọn namespace hệ tệp nào (D-121).** `ip netns add vedette-hp` bind-mount lên `/run/netns/vedette-hp` và container `honeypot` (podman, ngoài unit) phải thấy mount đó. `systemd.exec(5)`: các tuỳ chọn namespace hệ tệp đặt lan truyền mount ở chế độ `slave` (mount của host hiện vào unit, mount của unit không ra host), và "Setting this option to `shared` does not reestablish propagation in that case" nên `MountFlags=shared` không cứu được. Cấm: `PrivateTmp=`, `PrivateDevices=`, `ProtectSystem=`, `ProtectHome=`, `ProtectKernelTunables=`, `ProtectKernelModules=`, `ProtectKernelLogs=`, `ProtectControlGroups=`, `ProtectProc=`, `ProcSubset=`, `ReadOnlyPaths=`, `ReadWritePaths=`, `InaccessiblePaths=`, `ExecPaths=`, `NoExecPaths=`, `BindPaths=`, `BindReadOnlyPaths=`, `TemporaryFileSystem=`, `PrivateMounts=`, `MountAPIVFS=`, `MountImages=`, `RootDirectory=`, `RootImage=`. `RestrictNamespaces=` phải để trống hoặc cho phép `net` và `mnt` (`ip netns` gọi `unshare`/`setns`). Giữ các tuỳ chọn không đụng mount ở trên (`RestrictAddressFamilies`, `LockPersonality`, `RestrictRealtime`, `SystemCallArchitectures`, `MemoryDenyWriteExecute`).
 - UFW/nftables mặc định chặn vào, mở theo module bật (8443; 514 khi `logs` bật). `vedette-host` quản lý luật; kiểm bằng hiệu ứng (§7.3).
 - Không gắn `podman.sock`/`docker.sock` vào bất kỳ container nào; không `--privileged`.
 - SSH quản trị host nằm ngoài Vedette; khuyến nghị chỉ cho phép từ dải quản trị.

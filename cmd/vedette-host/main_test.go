@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -112,6 +113,10 @@ func writeOpen(t *testing.T, dir string) string {
 
 func TestServesAndStopsOnSignal(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "linux" && os.Geteuid() == 0 {
+		// run builds the real Ops, whose Start would create the real namespace vedette-hp on this machine.
+		t.Skip("not as root on Linux: Start would make a real network namespace")
+	}
 	dir, err := os.MkdirTemp("", "vm")
 	if err != nil {
 		t.Fatal(err)

@@ -228,8 +228,8 @@ func TestReadDecoysRefusesALinkAndSetsAnInvalidFileAside(t *testing.T) {
 	if err != nil || !q || len(l) != 0 {
 		t.Fatalf("%v %v %v", l, q, err)
 	}
-	if _, err := os.Stat(o.decoysPath() + ".invalid"); err != nil {
-		t.Fatalf("not set aside: %v", err)
+	if got, _ := filepath.Glob(o.decoysPath() + ".invalid-*"); len(got) != 1 {
+		t.Fatalf("not set aside: %v", got)
 	}
 	// a symlink in place of the file is not followed
 	target := filepath.Join(o.cfg.StateDir, "x.json")
@@ -294,25 +294,35 @@ func TestRefusalFor(t *testing.T) {
 
 func TestHasEgressDrop(t *testing.T) {
 	t.Parallel()
-	good := "table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\tct state new drop\n\t}\n}\n"
+	good := "table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\toif \"lo\" accept\n\t\tct state new drop\n\t}\n\tchain forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t}\n}\n"
 	if !hasEgressDrop([]byte(good)) {
 		t.Fatal("the real listing is not recognised")
 	}
 	if !hasEgressDrop([]byte(strings.Replace(good, "established,related", "{ established, related }", 1))) {
 		t.Fatal("the braces form is not recognised")
 	}
+	if !hasEgressDrop([]byte(strings.Replace(good, `oif "lo"`, "oif lo", 1))) {
+		t.Fatal("the unquoted form is not recognised")
+	}
 	for name, in := range map[string]string{
 		"empty":                 "",
 		"no drop":               strings.Replace(good, "\t\tct state new drop\n", "", 1),
 		"accept only":           strings.Replace(good, "ct state new drop", "ct state new accept", 1),
-		"drop first":            "table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state new drop\n\t\tct state established,related accept\n\t}\n}\n",
+		"drop first":            strings.Replace(strings.Replace(good, "\t\tct state established,related accept\n", "", 1), "\t\tct state new drop\n", "\t\tct state new drop\n\t\tct state established,related accept\n", 1),
 		"other table":           strings.Replace(good, "vedette_hp", "other", 1),
 		"other family":          strings.Replace(good, "inet", "ip", 1),
 		"not output":            strings.Replace(good, "hook output", "hook input", 1),
 		"no hook":               strings.Replace(good, "\t\ttype filter hook output priority filter; policy accept;\n", "", 1),
-		"drop in a later table": strings.Replace(good, "\t\tct state new drop\n\t}\n}\n", "\t}\n}\ntable inet other {\n\tchain output {\n\t\tct state new drop\n\t}\n}\n", 1),
+		"dormant":               strings.Replace(good, "table inet vedette_hp {\n", "table inet vedette_hp {\n\tflags dormant\n", 1),
+		"broad accept first":    strings.Replace(good, "\t\tct state established,related accept\n", "\t\taccept\n\t\tct state established,related accept\n", 1),
+		"tcp accept first":      strings.Replace(good, "\t\toif \"lo\" accept\n", "\t\toif \"lo\" accept\n\t\ttcp dport 22 accept\n", 1),
+		"saddr accept first":    strings.Replace(good, "\t\tct state new drop\n", "\t\tip daddr 0.0.0.0/0 accept\n\t\tct state new drop\n", 1),
+		"output policy drop":    strings.Replace(good, "policy accept", "policy drop", 1),
+		"no forward chain":      good[:strings.Index(good, "\tchain forward")] + "}\n",
+		"forward policy accept": strings.Replace(good, "policy drop", "policy accept", 1),
+		"forward has a rule":    strings.Replace(good, "policy drop;\n", "policy drop;\n\t\taccept\n", 1),
+		"drop in a later table": strings.Replace(good, "\t\tct state new drop\n\t}\n", "\t}\n", 1) + "table inet other {\n\tchain output {\n\t\tct state new drop\n\t}\n}\n",
 	} {
-		// "drop first": the drop before the accept would kill the replies, so the order counts
 		if hasEgressDrop([]byte(in)) {
 			t.Errorf("%s accepted", name)
 		}
@@ -323,7 +333,7 @@ func TestCheckNSFile(t *testing.T) {
 	t.Parallel()
 	setup := func(t *testing.T) (*Ops, string) {
 		o, root := newNetOps(t)
-		o.d.IsNsfs = func(*os.File) (bool, error) { return true, nil }
+		o.d.IsNetNS = func(*os.File) (bool, error) { return true, nil }
 		return o, filepath.Join(root, "run/netns")
 	}
 	t.Run("absent", func(t *testing.T) {
@@ -348,12 +358,37 @@ func TestCheckNSFile(t *testing.T) {
 			t.Fatalf("%v %v", p, err)
 		}
 	})
-	t.Run("not nsfs", func(t *testing.T) {
+	t.Run("not a namespace but not empty", func(t *testing.T) {
 		o, dir := setup(t)
-		o.d.IsNsfs = func(*os.File) (bool, error) { return false, nil }
-		mustWrite(t, dir, "vedette-hp")
+		o.d.IsNetNS = func(*os.File) (bool, error) { return false, nil }
+		mustWriteBytes(t, dir, "vedette-hp", "x")
 		if _, err := o.checkNSFile(); err == nil {
-			t.Fatal("an ordinary file was accepted")
+			t.Fatal("a file with content was accepted or removed")
+		}
+		if _, err := os.Stat(filepath.Join(dir, "vedette-hp")); err != nil {
+			t.Fatalf("a file that is not a leftover was removed: %v", err)
+		}
+	})
+	t.Run("an empty leftover is removed and the namespace is absent", func(t *testing.T) {
+		o, dir := setup(t)
+		o.d.IsNetNS = func(*os.File) (bool, error) { return false, nil }
+		mustWrite(t, dir, "vedette-hp")
+		p, err := o.checkNSFile()
+		if p || err != nil {
+			t.Fatalf("%v %v", p, err)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, "vedette-hp")); !os.IsNotExist(err) {
+			t.Fatalf("the leftover is still there: %v", err)
+		}
+	})
+	t.Run("an empty file that is a namespace by the seam stays", func(t *testing.T) {
+		o, dir := setup(t)
+		mustWrite(t, dir, "vedette-hp")
+		if p, err := o.checkNSFile(); !p || err != nil {
+			t.Fatalf("%v %v", p, err)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, "vedette-hp")); err != nil {
+			t.Fatal(err)
 		}
 	})
 	t.Run("a symlink at the name", func(t *testing.T) {
@@ -422,6 +457,16 @@ func TestCheckNSFile(t *testing.T) {
 	})
 }
 
+func mustWriteBytes(t *testing.T, dir, name, content string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func mustWrite(t *testing.T, dir, name string) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -463,4 +508,50 @@ func FuzzParseDecoys(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestOnlyCorruptionIsSetAsideAndOnlyTheLastFewAreKept(t *testing.T) {
+	t.Parallel()
+	o, _ := newNetOps(t)
+	if err := o.saveDecoys(nil); err != nil {
+		t.Fatal(err)
+	}
+	// A failure that is not about the content (no permission to read) removes nothing.
+	if os.Geteuid() != 0 {
+		if err := os.Chmod(o.decoysPath(), 0o000); err != nil {
+			t.Fatal(err)
+		}
+		if _, q, err := o.loadDecoys(); err == nil || q {
+			t.Fatalf("an unreadable file: %v %v", q, err)
+		}
+		if _, err := os.Lstat(o.decoysPath()); err != nil {
+			t.Fatalf("an unreadable file was moved: %v", err)
+		}
+		if err := os.Chmod(o.decoysPath(), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Corruption each time: a new name each time, never overwritten, only the last three stay.
+	for i := range 5 {
+		if err := os.WriteFile(o.decoysPath(), []byte("{"+strings.Repeat("x", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, q, err := o.loadDecoys(); err != nil || !q {
+			t.Fatalf("round %d: %v %v", i, q, err)
+		}
+	}
+	got, _ := filepath.Glob(o.decoysPath() + ".invalid-*")
+	if len(got) != invalidKeep {
+		t.Fatalf("%d set-aside files: %v", len(got), got)
+	}
+	// the newest content (round 4) is among them
+	found := false
+	for _, f := range got {
+		if b, _ := os.ReadFile(f); string(b) == "{xxxx" { //nolint:gosec // a file the test made
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("the newest corrupt file was not kept")
+	}
 }

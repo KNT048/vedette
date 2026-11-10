@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"syscall"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 )
@@ -74,30 +75,43 @@ func parseDecoys(b []byte) ([]decoyEntry, error) {
 func (o *Ops) decoysPath() string { return o.stateFile("hp", "decoys.json") }
 
 // readDecoys loads the state. A missing file is no decoys. A file that is a symlink, not a regular
-// file, too large or invalid is errDecoysInvalid (never followed, never trusted).
+// file, too large or invalid is errDecoysInvalid (never followed, never trusted: that is corruption).
+// Any other failure (an I/O error, no permission, no descriptors) is returned as it is: it says
+// nothing about the file, and nothing is set aside for it.
 func (o *Ops) readDecoys() ([]decoyEntry, error) {
 	f, err := os.OpenFile(o.decoysPath(), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
-	if err != nil {
+	if errors.Is(err, syscall.ELOOP) || errors.Is(err, syscall.ENXIO) {
 		return nil, errDecoysInvalid
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ops: open hp/decoys.json: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() || st.Size() > maxDecoysFile {
+	if err != nil {
+		return nil, fmt.Errorf("ops: stat hp/decoys.json: %w", err)
+	}
+	if !st.Mode().IsRegular() || st.Size() > maxDecoysFile {
 		return nil, errDecoysInvalid
 	}
 	b, err := io.ReadAll(io.LimitReader(f, maxDecoysFile+1))
 	if err != nil {
-		return nil, errDecoysInvalid
+		return nil, fmt.Errorf("ops: read hp/decoys.json: %w", err)
 	}
 	return parseDecoys(b)
 }
 
-// loadDecoys is readDecoys for the writers: an invalid file is set aside as decoys.json.invalid (the
-// evidence stays, nothing is destroyed) and the state starts empty; the links of the namespace that
-// no entry owns are then removed by the next reconcile. The second result says it happened.
+// invalidKeep is how many set-aside files decoys.json.invalid-<time> are kept.
+const invalidKeep = 3
+
+// loadDecoys is readDecoys for the writers: a corrupt file (and only a corrupt one, see readDecoys)
+// is set aside as decoys.json.invalid-<unix time> (the evidence stays, an earlier one is not
+// overwritten, the oldest beyond the last three go) and the state starts empty; the links of the
+// namespace that no entry owns are then removed by the next reconcile. The second result says it
+// happened. Any other error is returned and nothing is touched.
 func (o *Ops) loadDecoys() (list []decoyEntry, quarantined bool, err error) {
 	list, err = o.readDecoys()
 	if err == nil {
@@ -106,8 +120,14 @@ func (o *Ops) loadDecoys() (list []decoyEntry, quarantined bool, err error) {
 	if !errors.Is(err, errDecoysInvalid) {
 		return nil, false, err
 	}
-	if rerr := os.Rename(o.decoysPath(), o.decoysPath()+".invalid"); rerr != nil {
+	if rerr := os.Rename(o.decoysPath(), fmt.Sprintf("%s.invalid-%d", o.decoysPath(), time.Now().UnixNano())); rerr != nil {
 		return nil, false, fmt.Errorf("ops: set aside hp/decoys.json: %w", rerr)
+	}
+	if old, _ := filepath.Glob(o.decoysPath() + ".invalid-*"); len(old) > invalidKeep {
+		slices.Sort(old) // the names sort by time: same length
+		for _, f := range old[:len(old)-invalidKeep] {
+			_ = os.Remove(f)
+		}
 	}
 	return nil, true, nil
 }

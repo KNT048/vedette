@@ -370,7 +370,7 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		// The machine has no network cards unless a test says so: never the real ones of the developer's computer.
 		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
 		// The fake namespace file is a plain file; there is no nsfs in a test.
-		IsNsfs: func(*os.File) (bool, error) { return true, nil },
+		IsNetNS: func(*os.File) (bool, error) { return true, nil },
 	}
 }
 
@@ -392,7 +392,7 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 // host namespace, links moved into vedette-hp with their MAC, address and up flag, the rules, the
 // sysctls and the nft ruleset. "ip netns add" creates /run/netns/vedette-hp under the root,
 // "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
-// egress ruleset once "nft -f -" loaded it (unless the marker "nft-noload" is set: the load then
+// egress ruleset once "nft -f -" loaded it, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
 func (m *Machine) StatefulIP() {
 	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
@@ -406,6 +406,14 @@ setfield() { # file key value
 case "$mode:$args" in
   "host:netns add vedette-hp")
     mkdir -p "$ROOT/run/netns"; : > "$ROOT/run/netns/vedette-hp"; exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/sysctl -n "*)
+    set -- $args; shift 5
+    for k in "$@"; do
+      v=$(grep -o " $k=[^ ]*" "$S/sysctl" 2>/dev/null | tail -1 | sed 's/.*=//')
+      [ -e "$REC/mark.sysctl-wrong" ] && v=9
+      echo "$v"
+    done
+    exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/sysctl -w "*)
     echo "$args" >> "$S/sysctl"; exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft -f -")
@@ -414,7 +422,7 @@ case "$mode:$args" in
     exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft list ruleset")
     if [ -e "$S/ruleset" ]; then
-      printf 'table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\tct state new drop\n\t}\n}\n'
+      printf 'table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\toif "lo" accept\n\t\tct state new drop\n\t}\n\tchain forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t}\n}\n'
     fi
     exit 0 ;;
   "host:link add link "*)
@@ -431,6 +439,7 @@ case "$mode:$args" in
     set -- $args; rm -f "$S/host/$3" "$S/host/$3.parent"; exit 0 ;;
   "ns:addr add "*)
     set -- $args; [ -e "$S/ns/$5" ] || exit 1; echo "addr=$3" >> "$S/ns/$5"; exit 0 ;;
+  "ns:link set lo up") exit 0 ;;
   "ns:link set "*" up")
     set -- $args; [ -e "$S/ns/$3" ] || exit 1; setfield "$S/ns/$3" up 1; exit 0 ;;
   "ns:link del "*)

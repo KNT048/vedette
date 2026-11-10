@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // The argv of the decoy commands (spec 18, "Tiến trình con"): fixed grammars for ip, with sysctl and
@@ -16,29 +17,40 @@ import (
 // argv, so a value cannot escape its slot (there is no shell) nor start with "-".
 
 const (
-	hpNS          = "vedette-hp" // the namespace
-	hpTableFirst  = 100          // first per-IP routing table
-	hpSysctlPath  = "/usr/sbin/sysctl"
-	hpNftPath     = "/usr/sbin/nft"
-	linkNamePre   = "vdh"
-	maxMgmtBits   = 30
-	minMgmtBits   = 1
+	hpNS         = "vedette-hp" // the namespace
+	hpTableFirst = 100          // first per-IP routing table
+	hpSysctlPath = "/usr/sbin/sysctl"
+	hpNftPath    = "/usr/sbin/nft"
+	linkNamePre  = "vdh"
+	maxMgmtBits  = 30
+	minMgmtBits  = 1
+	// The ruleset (D-102 (4), D-121): replies and loopback go out, every new connection is dropped,
+	// and nothing is forwarded.
 	hpRulesetText = "flush ruleset\n" +
 		"table inet vedette_hp {\n" +
 		"\tchain output {\n" +
 		"\t\ttype filter hook output priority 0; policy accept;\n" +
 		"\t\tct state established,related accept\n" +
+		"\t\toif lo accept\n" +
 		"\t\tct state new drop\n" +
+		"\t}\n" +
+		"\tchain forward {\n" +
+		"\t\ttype filter hook forward priority 0; policy drop;\n" +
 		"\t}\n" +
 		"}\n"
 )
 
-// hpSysctls are the four settings of the namespace (D-102 (3)), one "sysctl -w" call.
+// hpSysctls are the settings of the namespace: the four of D-102 (3) and the hygiene of D-121
+// (the namespace forwards nothing and has no IPv6), one "sysctl -w" call and one "sysctl -n" to read them back.
 var hpSysctls = []string{
 	"net.ipv4.conf.all.arp_ignore=1",
 	"net.ipv4.conf.all.arp_announce=2",
 	"net.ipv4.conf.all.rp_filter=2",
 	"net.ipv4.ip_unprivileged_port_start=0",
+	"net.ipv4.conf.all.forwarding=0",
+	"net.ipv4.conf.default.forwarding=0",
+	"net.ipv6.conf.all.disable_ipv6=1",
+	"net.ipv6.conf.default.disable_ipv6=1",
 }
 
 var (
@@ -90,6 +102,15 @@ func argvRule(verb string, src netip.Addr, table int) []string {
 func argvSysctl() []string {
 	return append([]string{"netns", "exec", hpNS, hpSysctlPath, "-w"}, hpSysctls...)
 }
+func argvSysctlRead() []string {
+	a := []string{"netns", "exec", hpNS, hpSysctlPath, "-n"}
+	for _, kv := range hpSysctls {
+		k, _, _ := strings.Cut(kv, "=")
+		a = append(a, k)
+	}
+	return a
+}
+func argvLoUp() []string    { return inNS("link", "set", "lo", "up") }
 func argvNftLoad() []string { return []string{"netns", "exec", hpNS, hpNftPath, "-f", "-"} }
 func argvNftList() []string { return []string{"netns", "exec", hpNS, hpNftPath, "list", "ruleset"} }
 
@@ -165,6 +186,7 @@ func validateIP(args []string) error {
 		shape(args, "-n", hpNS, "-j", "addr", "show"),
 		shape(args, "-n", hpNS, "addr", "add", "%addr", "dev", "%name"),
 		shape(args, "-n", hpNS, "link", "set", "%name", "up"),
+		shape(args, "-n", hpNS, "link", "set", "lo", "up"),
 		shape(args, "-n", hpNS, "link", "del", "%name"),
 		shape(args, "-n", hpNS, "route", "replace", "%subnet", "dev", "%name", "src", "%ip", "table", "%table"),
 		shape(args, "-n", hpNS, "route", "replace", "default", "via", "%ip", "dev", "%name", "table", "%table"),
@@ -172,6 +194,7 @@ func validateIP(args []string) error {
 		shape(args, "-n", hpNS, "rule", "add", "from", "%ip", "lookup", "%table"),
 		shape(args, "-n", hpNS, "rule", "del", "from", "%ip", "lookup", "%table"),
 		slices.Equal(args, argvSysctl()),
+		slices.Equal(args, argvSysctlRead()),
 		slices.Equal(args, argvNftLoad()),
 		slices.Equal(args, argvNftList()):
 		return nil

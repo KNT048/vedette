@@ -29,6 +29,7 @@ const (
 	CodeMACKeyInvalid          = "mac_key_invalid"
 	CodeDecoysStateInvalid     = "decoys_state_invalid"
 	CodeDecoyFailed            = "decoy_failed"
+	CodeHPStateUnusable        = "hp_state_unusable"
 
 	// MaxDecoys is the limit of decoy addresses (spec 6.6).
 	MaxDecoys = 32

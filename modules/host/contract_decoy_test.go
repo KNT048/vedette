@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,10 @@ const (
 	decoyIP1 = "192.168.1.100"
 	decoyIP2 = "192.168.1.101"
 	// The kernel's /proc/net/route for a default route via 192.168.1.1 on eth0.
+	sysctlKV = "net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2 net.ipv4.conf.all.rp_filter=2 net.ipv4.ip_unprivileged_port_start=0 " +
+		"net.ipv4.conf.all.forwarding=0 net.ipv4.conf.default.forwarding=0 net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1"
+	sysctlKeys = "net.ipv4.conf.all.arp_ignore net.ipv4.conf.all.arp_announce net.ipv4.conf.all.rp_filter net.ipv4.ip_unprivileged_port_start " +
+		"net.ipv4.conf.all.forwarding net.ipv4.conf.default.forwarding net.ipv6.conf.all.disable_ipv6 net.ipv6.conf.default.disable_ipv6"
 	routeVia1 = "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\neth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n"
 )
 
@@ -45,7 +50,16 @@ type decoyEnv struct {
 // host has not configured the network itself). before runs on the machine before Start.
 func startDecoy(t *testing.T, before ...func(*opstest.Machine)) *decoyEnv {
 	t.Helper()
+	return startDecoyWith(t, nil, before...)
+}
+
+// startDecoyWith is startDecoy with a change to the fake network before the host starts.
+func startDecoyWith(t *testing.T, boxMut func(*netBox), before ...func(*opstest.Machine)) *decoyEnv {
+	t.Helper()
 	box, probe := &netBox{}, &fakeProber{}
+	if boxMut != nil {
+		boxMut(box)
+	}
 	e := startSys(t, netMut(box, probe))
 	box.m = e.m
 	physicalCards(e.m)
@@ -163,7 +177,9 @@ func TestContract_Decoy_StartMakesTheNamespaceSetsTheSysctlsLoadsTheRulesetAndCh
 	d := startDecoy(t)
 	want := []string{
 		"netns add vedette-hp",
-		"netns exec vedette-hp /usr/sbin/sysctl -w net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2 net.ipv4.conf.all.rp_filter=2 net.ipv4.ip_unprivileged_port_start=0",
+		"netns exec vedette-hp /usr/sbin/sysctl -w " + sysctlKV,
+		"netns exec vedette-hp /usr/sbin/sysctl -n " + sysctlKeys, // the effect check of the sysctls
+		"-n vedette-hp link set lo up",
 		"netns exec vedette-hp /usr/sbin/nft -f -",
 		"netns exec vedette-hp /usr/sbin/nft list ruleset", // the effect check
 		"-n vedette-hp -j addr show",                       // the start re-apply: no decoys, only leftovers are looked for
@@ -203,7 +219,7 @@ func TestContract_Decoy_ANamespaceThatIsMissingIsMadeAgainAtStart(t *testing.T) 
 	n := len(d.ipCalls())
 	d2 := restartHost(t, d.netEnv)
 	got := d2.ipCalls()[n:]
-	if len(got) < 3 || got[0] != "netns add vedette-hp" || !strings.Contains(got[1], "sysctl -w") || got[2] != "netns exec vedette-hp /usr/sbin/nft -f -" {
+	if len(got) < 5 || got[0] != "netns add vedette-hp" || !strings.Contains(got[1], "sysctl -w") || got[4] != "netns exec vedette-hp /usr/sbin/nft -f -" {
 		t.Fatalf("calls at the second start: %q", got)
 	}
 	if !strings.Contains(d2.m.IPState("ruleset"), "ct state new drop") {
@@ -797,8 +813,8 @@ func TestContract_Decoy_AHostileStateFileIsSetAsideAndLeftoverLinksAreRemoved(t 
 		_ = os.MkdirAll(filepath.Join(m.Rec, ops.BinIP, "ns"), 0o750)
 		_ = os.WriteFile(filepath.Join(m.Rec, ops.BinIP, "ns", "vdhc0a80164"), []byte("mac=02:00:00:00:00:01\nup=1\n"), 0o600)
 	})
-	if _, err := os.Stat(filepath.Join(d.m.State, "hp", "decoys.json.invalid")); err != nil {
-		t.Fatalf("not set aside: %v", err)
+	if got, _ := filepath.Glob(filepath.Join(d.m.State, "hp", "decoys.json.invalid-*")); len(got) != 1 {
+		t.Fatalf("not set aside: %v", got)
 	}
 	if _, err := os.Stat(filepath.Join(d.m.State, "hp", "decoys.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("the hostile file is still the state: %v", err)
@@ -881,4 +897,241 @@ func restartHost(t *testing.T, n *netEnv) *decoyEnv {
 	o2.Start(context.Background(), h2.Server)
 	t.Cleanup(o2.Close)
 	return &decoyEnv{&netEnv{sysEnv: &sysEnv{m: n.m, o: o2, h: h2, clock: n.clock, timers: timers}, box: n.box, probe: n.probe}}
+}
+
+// --- review of slice 3-5 (D-121) --------------------------------------------------------------------
+
+// deriveFrom is the spec's MAC for ip under key (and an optional oui).
+func deriveFrom(key []byte, ip string, oui string) string {
+	a := netip.MustParseAddr(ip).As4()
+	h := hmac.New(sha256.New, key)
+	h.Write(a[:])
+	s := h.Sum(nil)
+	mac := make([]byte, 6)
+	if oui == "" {
+		copy(mac, s[:6])
+		mac[0] = mac[0]&^0x01 | 0x02
+	} else {
+		for i := range 3 {
+			mac[i] = hexByte(oui[2*i : 2*i+2])
+		}
+		copy(mac[3:], s[:3])
+	}
+	parts := make([]string, 6)
+	for i, x := range mac {
+		parts[i] = fmt.Sprintf("%02x", x)
+	}
+	return strings.Join(parts, ":")
+}
+
+func TestContract_Decoy_AnEgressDropThatCannotBeProvenDeletesTheLinksAndKeepsTheIntent(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.add(t, decoyIP1)
+	d.add(t, decoyIP2)
+	if len(d.state(t).Decoys) != 2 {
+		t.Fatalf("%+v", d.state(t).Decoys)
+	}
+	before := d.decoysFile()
+	// The ruleset is gone from the namespace and nft does not take it again.
+	_ = os.Remove(filepath.Join(d.m.Rec, ops.BinIP, "ruleset"))
+	d.m.Mark("nft-noload", true)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := d.o.ReapplyDecoys(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// No decoy answers without the egress drop: the links are gone, the intent is kept, and state/net
+	// lists nothing that is not live.
+	if got := d.m.IPLinks("ns"); len(got) != 0 {
+		t.Fatalf("links still in a namespace without a proven egress drop: %v", got)
+	}
+	if d.decoysFile() != before {
+		t.Fatalf("decoys.json changed:\n%s\nwas\n%s", d.decoysFile(), before)
+	}
+	if got := d.state(t).Decoys; len(got) != 0 {
+		t.Fatalf("state/net lists decoys that are not live: %+v", got)
+	}
+	if codes := d.auditCodes(t); !slices.Contains(codes, "decoy_ip/decoys_closed") {
+		t.Fatalf("no audit line: %v", codes)
+	}
+	// A new add is refused the same way and builds nothing.
+	n := len(d.ipCalls())
+	if r, err := d.call(t, "decoy_ip.add", api.DecoyAddArgs{IP: "192.168.1.102"}); err != nil || r.Status != api.StatusFailed || r.Error.Code != api.CodeHPNamespaceUnavailable {
+		t.Fatalf("%+v %v", r, err)
+	}
+	for _, c := range d.since(n) {
+		if strings.HasPrefix(c, "link add") {
+			t.Fatalf("built: %q", c)
+		}
+	}
+	// Once the ruleset can be loaded and proven, the next reconcile rebuilds both from the kept intent.
+	d.m.Mark("nft-noload", false)
+	if err := d.o.ReapplyDecoys(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := d.m.IPLinks("ns"); len(got) != 2 {
+		t.Fatalf("links after recovery: %v", got)
+	}
+	if got := d.state(t).Decoys; len(got) != 2 {
+		t.Fatalf("state/net after recovery: %+v", got)
+	}
+}
+
+func TestContract_Decoy_ASysctlThatDoesNotReadBackFailsTheNamespace(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t, func(m *opstest.Machine) { m.Mark("sysctl-wrong", true) })
+	if got := d.auditCodes(t); !slices.Contains(got, "decoy_ip/hp_namespace_failed") {
+		t.Fatalf("audit: %v", got)
+	}
+	n := len(d.ipCalls())
+	if r, err := d.call(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1}); err != nil || r.Status != api.StatusFailed || r.Error.Code != api.CodeHPNamespaceUnavailable {
+		t.Fatalf("%+v %v", r, err)
+	}
+	for _, c := range d.since(n) {
+		if strings.HasPrefix(c, "link add") {
+			t.Fatalf("built: %q", c)
+		}
+	}
+}
+
+// cancelAfter is a context whose Err turns into Canceled after n calls.
+type cancelAfter struct {
+	context.Context
+	mu sync.Mutex
+	n  int
+}
+
+func (c *cancelAfter) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.n--
+	if c.n < 0 {
+		return context.Canceled
+	}
+	return c.Context.Err()
+}
+
+func TestContract_Decoy_ACancelledReapplyKeepsEveryEntryAndReportsNothing(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.add(t, decoyIP1)
+	d.add(t, decoyIP2)
+	d.add(t, "192.168.1.102")
+	before := d.decoysFile()
+	// Every link is gone and none can be made: an uncancelled reapply drops all three as apply_failed.
+	_ = os.RemoveAll(filepath.Join(d.m.Rec, ops.BinIP, "ns"))
+	d.m.Rule(ops.BinIP, "link add link", "", 1, "", "")
+	base, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := d.o.ReapplyDecoys(&cancelAfter{Context: base, n: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if d.decoysFile() != before {
+		t.Fatalf("a cancelled reapply changed the entries:\n%s", d.decoysFile())
+	}
+	if codes := d.auditCodes(t); slices.Contains(codes, "decoy_ip/decoy_dropped") {
+		t.Fatalf("a cancelled reapply reported a drop: %v", codes)
+	}
+	// The same reapply that runs to the end is what drops them (the test above would otherwise prove nothing).
+	if err := d.o.ReapplyDecoys(base); err != nil {
+		t.Fatal(err)
+	}
+	if len(strings.Fields(strings.ReplaceAll(d.decoysFile(), `"ip"`, "\n"))) > 3 && strings.Contains(d.decoysFile(), decoyIP1) {
+		t.Fatalf("an uncancelled reapply that cannot rebuild kept them: %s", d.decoysFile())
+	}
+}
+
+func TestContract_Decoy_AHostLinkOfOursLeftByACrashIsDeletedAtStartAndOthersAreNot(t *testing.T) {
+	t.Parallel()
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i + 1)
+	}
+	withKey := func(m *opstest.Machine) {
+		hp := filepath.Join(m.State, "hp")
+		if err := os.MkdirAll(hp, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(hp, "mac.key"), key, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []struct {
+		name    string
+		link    string
+		mac     string
+		deleted bool
+	}{
+		{"the default MAC of that IP", "vdhc0a80164", deriveFrom(key, "192.168.1.100", ""), true},
+		{"an OUI MAC of that IP (the HMAC tail)", "vdhc0a80165", deriveFrom(key, "192.168.1.101", "001a2b"), true},
+		{"another device's MAC", "vdhc0a80166", "02:aa:bb:cc:dd:ee", false},
+		{"the MAC of another IP", "vdhc0a80167", deriveFrom(key, "192.168.1.100", ""), false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			d := startDecoyWith(t, func(b *netBox) { b.extra = []ops.HostIface{{Name: c.link, MAC: c.mac}} }, withKey)
+			del := "link del " + c.link
+			got := slices.Contains(d.ipCalls(), del)
+			if got != c.deleted {
+				t.Fatalf("%q called: %v, want %v (calls %q)", del, got, c.deleted, d.ipCalls())
+			}
+			if c.deleted != slices.Contains(d.auditCodes(t), "decoy_ip/host_link_reclaimed") {
+				t.Fatalf("audit: %v", d.auditCodes(t))
+			}
+		})
+	}
+}
+
+func TestContract_Decoy_ABadHPDirectoryTurnsDecoysOffAndTheHostKeepsServing(t *testing.T) {
+	t.Parallel()
+	m := opstest.NewMachine(t)
+	hp := filepath.Join(m.State, "hp")
+	if err := os.MkdirAll(hp, 0o755); err != nil { //nolint:gosec // the test makes the directory open to others on purpose
+		t.Fatal(err)
+	}
+	if err := os.Chmod(hp, 0o755); err != nil { //nolint:gosec // see above
+		t.Fatal(err)
+	}
+	box, probe := &netBox{m: m}, &fakeProber{}
+	m.WriteRoot("proc/net/route", routeVia1)
+	clock := servertest.NewClock(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC))
+	o := m.Ops(clock.Now, netMut(box, probe)) // must not fail
+	h := servertest.Start(t, o.Commands(), func(so *server.Options) {
+		so.StateDir, so.Readers, so.Now, so.WriteGate, so.Resume = m.State, o.Readers(), clock.Now, o.WriteGate, o.Resume
+	})
+	o.Start(context.Background(), h.Server)
+	t.Cleanup(o.Close)
+	if calls := m.Calls(ops.BinIP); len(calls) != 0 {
+		t.Fatalf("ip ran with decoys off: %q", calls)
+	}
+	var codes []string
+	for _, a := range audit(t, h) {
+		if a.Actor == "system" && a.Code != nil {
+			codes = append(codes, a.Command+"/"+*a.Code)
+		}
+	}
+	if !slices.Contains(codes, "decoy_ip/hp_namespace_failed") {
+		t.Fatalf("audit: %v", codes)
+	}
+	for _, command := range []string{"decoy_ip.add", "decoy_ip.remove"} {
+		var args any = api.DecoyAddArgs{IP: decoyIP1}
+		if command == "decoy_ip.remove" {
+			args = api.DecoyRemoveArgs{IP: decoyIP1}
+		}
+		run, err := h.Client.Run(context.Background(), command, args, fmt.Sprintf("%08d-5555-4555-8555-555555555555", len(command)), "admin@example.com")
+		if err != nil {
+			t.Fatalf("%s: %v", command, err)
+		}
+		if r := waitDone(t, h.Client, run.RunID); r.Status != api.StatusFailed || r.Error == nil || r.Error.Code != api.CodeHPStateUnusable {
+			t.Fatalf("%s: %+v", command, r)
+		}
+		if command == "decoy_ip.add" {
+			continue
+		}
+	}
+	// The host still serves the rest.
+	if st, err := h.Client.StateNet(context.Background()); err != nil || len(st.Decoys) != 0 {
+		t.Fatalf("state/net: %+v %v", st, err)
+	}
 }

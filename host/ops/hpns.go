@@ -8,26 +8,31 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 )
 
-// The honeypot namespace vedette-hp (D-102 (1), (3), (4)). The host creates it in Ops.Start, before
-// it says READY, and again whenever it finds it missing (/run/netns is a tmpfs). It sets the
-// sysctls and loads the egress ruleset whenever it creates the namespace and at every start, and it
-// checks the effect: the ruleset listed from inside the namespace must contain the drop rule,
-// otherwise the namespace is not usable and nothing is added to it.
+// The honeypot namespace vedette-hp (D-102 (1), (3), (4), D-121). The host creates it in Ops.Start,
+// before it says READY, and again whenever it finds it missing (/run/netns is a tmpfs). It sets the
+// sysctls, brings lo up and loads the egress ruleset whenever it creates the namespace and at every
+// start, and it checks the effect: the sysctls read back, and the ruleset listed from inside the
+// namespace has the drop rule. A namespace whose egress drop cannot be proven is not usable: nothing
+// is added to it and the decoy links already in it are deleted (they would answer with no egress
+// control), to be rebuilt by the next reconcile that proves it.
 
 const hpNSDir = "run/netns"
 
 var errNotOurNS = errors.New("ops: /run/netns/vedette-hp is not a namespace the host can trust")
 
 // checkNSFile looks at /run/netns/vedette-hp. It is absent (false, nil), a good namespace
-// (true, nil), or something the host refuses to use (a symlink, a directory, a FIFO, a file that
-// is not an nsfs mount, another owner, a writable /run/netns): errNotOurNS, and nothing is changed.
+// (true, nil), or something the host refuses to use: errNotOurNS, and nothing is changed.
 //
 // How: lstat of the directory and of the name (no symlink at either, owner and mode), then the file
-// is opened with O_NOFOLLOW|O_NONBLOCK and the descriptor is asked: a regular file whose
-// filesystem is nsfs (statfs magic 0x6e736673). A bind-mounted namespace shows up as a regular
-// file on nsfs; an empty file, a copy or a link planted at the name is none of that.
+// is opened with O_NOFOLLOW|O_NONBLOCK and the descriptor is asked (Deps.IsNetNS): a regular file on
+// nsfs whose NS_GET_NSTYPE is CLONE_NEWNET and that is not this process's own network namespace.
+// One thing that is not a namespace is removed instead of refused: the empty regular file that a
+// crashed "ip netns add" leaves before it mounts (size 0, the host's owner, and on the same device
+// as the directory, so it is not a mount point); it is unlinked with unlinkat on the directory's
+// descriptor (os.Root) and the namespace is made again.
 func (o *Ops) checkNSFile() (present bool, err error) {
 	dir := o.path(hpNSDir)
 	dst, err := os.Lstat(dir)
@@ -59,11 +64,34 @@ func (o *Ops) checkNSFile() (present bool, err error) {
 	if st, err := f.Stat(); err != nil || !st.Mode().IsRegular() || !os.SameFile(st, lst) {
 		return false, errNotOurNS
 	}
-	ok, err := o.d.IsNsfs(f)
-	if err != nil || !ok {
-		return false, errNotOurNS
+	if ok, err := o.d.IsNetNS(f); err == nil && ok {
+		return true, nil
 	}
-	return true, nil
+	if lst.Size() == 0 && sameDevice(lst, dst) {
+		return false, o.removeStaleNS(dir, lst)
+	}
+	return false, errNotOurNS
+}
+
+func sameDevice(a, b os.FileInfo) bool {
+	x, ok1 := a.Sys().(*syscall.Stat_t)
+	y, ok2 := b.Sys().(*syscall.Stat_t)
+	return ok1 && ok2 && uint64(x.Dev) == uint64(y.Dev) //nolint:unconvert,gosec // Dev is int32 or uint64 by OS; only equality matters
+}
+
+// removeStaleNS unlinks the leftover file through the directory's descriptor, once it is seen to be
+// still the same file that was inspected.
+func (o *Ops) removeStaleNS(dir string, was os.FileInfo) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = r.Close() }()
+	if now, err := r.Lstat(hpNS); err != nil || !os.SameFile(now, was) {
+		return errNotOurNS
+	}
+	o.log.Warn("removing the empty leftover /run/netns/vedette-hp of an interrupted namespace creation")
+	return r.Remove(hpNS)
 }
 
 func (o *Ops) ownedByHost(fi os.FileInfo) bool {
@@ -71,16 +99,27 @@ func (o *Ops) ownedByHost(fi os.FileInfo) bool {
 	return ok && int(sys.Uid) == o.cfg.OwnerUID
 }
 
-// ensureHP makes the namespace usable: it exists and is ours, its sysctls are set and its ruleset
-// drops new outgoing connections. configure forces the sysctls and the ruleset (Start); they are
-// also set whenever the namespace had to be created. Otherwise one "nft list ruleset" proves the
-// ruleset is still there, and a missing one is loaded again.
-func (o *Ops) ensureHP(ctx context.Context, configure bool) error {
+// ensureHP makes the namespace usable: it exists and is ours, its sysctls are set and read back, lo is up
+// and its ruleset drops new outgoing connections. configure forces the settings (Start); they are
+// also made whenever the namespace had to be created. Otherwise one "nft list ruleset" proves the
+// ruleset is still there, and a missing one is loaded again. On any failure the decoy links in a
+// namespace that is ours are deleted (failClosed) and hpOK is false until a later call succeeds.
+func (o *Ops) ensureHP(ctx context.Context, configure bool) (err error) {
+	defer func() {
+		o.hpOK.Store(err == nil)
+		if err != nil {
+			o.failClosed(ctx)
+		}
+	}()
 	present, err := o.checkNSFile()
 	if err != nil {
 		return err
 	}
+	if !o.hpConfigured.Load() {
+		configure = true // never proven since this host started: set and read back
+	}
 	if !present {
+		o.hpConfigured.Store(false)
 		if _, code, err := o.exec(ctx, binIP, argvNetnsAdd()...); err != nil || code != 0 {
 			return fmt.Errorf("ops: ip netns add failed (exit %d)", code)
 		}
@@ -113,11 +152,68 @@ func (o *Ops) ensureHP(ctx context.Context, configure bool) error {
 	return nil
 }
 
+// failClosed deletes every decoy link of the namespace when the namespace is the host's own and its
+// egress control is not proven. hp/decoys.json is kept, so the next proven reconcile rebuilds them.
+// A namespace that is absent or not trusted is not touched. It runs with a context of its own: the
+// caller's may be the reason for the failure.
+func (o *Ops) failClosed(ctx context.Context) {
+	if present, err := o.checkNSFile(); err != nil || !present {
+		return
+	}
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+	defer cancel()
+	links, err := o.listNS(cctx)
+	if err != nil {
+		o.log.ErrorContext(ctx, "the egress control of vedette-hp is not proven and its links could not be listed")
+		return
+	}
+	n := 0
+	for _, l := range links {
+		if linkNameRE.MatchString(l.Name) {
+			n++
+		}
+	}
+	o.dropOrphans(cctx, links, nil)
+	if n > 0 {
+		o.log.ErrorContext(ctx, "the egress control of vedette-hp is not proven: its decoy links were deleted", "links", n)
+		o.note("decoy_ip", "decoys_closed", map[string]any{"links": n})
+	}
+}
+
 func (o *Ops) configureHP(ctx context.Context) error {
+	o.hpConfigured.Store(false)
 	if _, code, err := o.exec(ctx, binIP, argvSysctl()...); err != nil || code != 0 {
 		return fmt.Errorf("ops: setting the sysctls of vedette-hp failed (exit %d)", code)
 	}
-	return o.loadRuleset(ctx)
+	if err := o.verifySysctls(ctx); err != nil {
+		return err
+	}
+	if err := o.ipRun(ctx, argvLoUp()); err != nil {
+		return err
+	}
+	if err := o.loadRuleset(ctx); err != nil {
+		return err
+	}
+	o.hpConfigured.Store(true)
+	return nil
+}
+
+// verifySysctls reads the settings back from inside the namespace and compares the values.
+func (o *Ops) verifySysctls(ctx context.Context) error {
+	res, code, err := o.exec(ctx, binIP, argvSysctlRead()...)
+	if err != nil || code != 0 {
+		return fmt.Errorf("ops: reading the sysctls of vedette-hp failed (exit %d)", code)
+	}
+	got := strings.Fields(string(res.Stdout))
+	if len(got) != len(hpSysctls) {
+		return errors.New("ops: the sysctls of vedette-hp read back in an unexpected form")
+	}
+	for i, kv := range hpSysctls {
+		if _, want, _ := strings.Cut(kv, "="); got[i] != want {
+			return fmt.Errorf("ops: a sysctl of vedette-hp is %s, not %s", got[i], want)
+		}
+	}
+	return nil
 }
 
 func (o *Ops) loadRuleset(ctx context.Context) error {
@@ -137,32 +233,61 @@ func (o *Ops) egressDropLoaded(ctx context.Context) (bool, error) {
 	return hasEgressDrop(res.Stdout), nil
 }
 
-// hasEgressDrop reads the text of "nft list ruleset": inside table inet vedette_hp, a chain of
-// the output hook holds "ct state established,related accept" and then "ct state new drop". The
-// text is compared without spaces and braces, so "ct state { established, related }" counts too.
+// hasEgressDrop reads the text of "nft list ruleset" and accepts only the ruleset of the host: a table
+// inet vedette_hp that is not dormant, whose chain of the output hook (policy accept) holds exactly
+// "ct state established,related accept", "oif lo accept", "ct state new drop" in that order (so no
+// broader accept comes before the drop), and whose forward chain has policy drop and no rule. The
+// text is compared without spaces, braces and quotes ("oif "lo"" is how nft prints the interface).
 func hasEgressDrop(out []byte) bool {
 	norm := func(s string) string {
-		return strings.NewReplacer(" ", "", "\t", "", "{", "", "}", "").Replace(s)
+		return strings.NewReplacer(" ", "", "\t", "", "{", "", "}", "", `"`, "").Replace(s)
 	}
-	inTable, inChain, hook, accept := false, false, false, false
+	var (
+		inTable, outHdr, fwdHdr, sawOut, sawFwd bool
+		chain                                   string
+		outRules, fwdRules                      []string
+	)
 	for _, raw := range bytes.Split(out, []byte("\n")) {
-		line := norm(string(raw))
+		t := strings.TrimSpace(string(raw))
+		line := norm(t)
 		switch {
-		case strings.HasPrefix(line, "table"):
-			inTable, inChain, hook, accept = line == "tableinetvedette_hp", false, false, false
+		case strings.HasPrefix(t, "table ") && strings.HasSuffix(t, "{"):
+			inTable, chain = line == "tableinetvedette_hp", ""
 		case !inTable:
-		case strings.HasPrefix(line, "chain"):
-			inChain, hook, accept = true, false, false
-		case !inChain:
-		case strings.HasPrefix(line, "typefilterhookoutput"):
-			hook = true
-		case line == "ctstateestablished,relatedaccept":
-			accept = hook
-		case line == "ctstatenewdrop":
-			if hook && accept {
-				return true
+		case strings.HasPrefix(t, "chain ") && strings.HasSuffix(t, "{"):
+			chain = strings.TrimPrefix(line, "chain")
+		case t == "}":
+			if chain != "" {
+				chain = ""
+			} else {
+				inTable = false
 			}
+		case line == "flagsdormant" || strings.HasPrefix(line, "flagsdormant"):
+			return false
+		case chain == "output" && strings.HasPrefix(line, "type"):
+			sawOut = true
+			outHdr = strings.HasPrefix(line, "typefilterhookoutput") && strings.Contains(line, "policyaccept")
+		case chain == "forward" && strings.HasPrefix(line, "type"):
+			sawFwd = true
+			fwdHdr = strings.HasPrefix(line, "typefilterhookforward") && strings.Contains(line, "policydrop")
+		case chain == "output":
+			outRules = append(outRules, line)
+		case chain == "forward":
+			fwdRules = append(fwdRules, line)
 		}
 	}
-	return false
+	want := []string{"ctstateestablished,relatedaccept", "oifloaccept", "ctstatenewdrop"}
+	return sawOut && sawFwd && outHdr && fwdHdr && len(fwdRules) == 0 && equalStrings(outRules, want)
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

@@ -49,12 +49,26 @@ func parseOUI(s string) (oui [3]byte, ok bool, err error) {
 	return v, true, nil
 }
 
-// deriveMAC computes the MAC of ip (an IPv4 address) under key.
-func deriveMAC(key []byte, ip netip.Addr, oui *[3]byte) net.HardwareAddr {
+func macSum(key []byte, ip netip.Addr) []byte {
 	b := ip.As4()
 	h := hmac.New(sha256.New, key)
 	h.Write(b[:])
-	sum := h.Sum(nil)
+	return h.Sum(nil)
+}
+
+// ownMAC reports whether hw is a MAC the key gives ip: the default one, or an OUI one (its last
+// three bytes are the first three of the HMAC).
+func ownMAC(key []byte, ip netip.Addr, hw net.HardwareAddr) bool {
+	if len(hw) != 6 {
+		return false
+	}
+	sum := macSum(key, ip)
+	return hmac.Equal(hw[3:], sum[:3]) || hmac.Equal(hw, deriveMAC(key, ip, nil))
+}
+
+// deriveMAC computes the MAC of ip (an IPv4 address) under key.
+func deriveMAC(key []byte, ip netip.Addr, oui *[3]byte) net.HardwareAddr {
+	sum := macSum(key, ip)
 	mac := make(net.HardwareAddr, 6)
 	if oui != nil {
 		copy(mac, oui[:])

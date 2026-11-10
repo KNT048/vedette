@@ -79,9 +79,10 @@ type Deps struct {
 	// NetRetryGap is the pause between the three tries of a revert's netplan apply (default 30 s, so
 	// about 60 s in all, D-100 (8)).
 	NetRetryGap time.Duration
-	// IsNsfs says whether an open file lives on nsfs, the filesystem of a bind-mounted network
-	// namespace (default: fstatfs, Linux only). Tests, which have no namespaces, answer for it.
-	IsNsfs func(*os.File) (bool, error)
+	// IsNetNS says whether an open file is a bind-mounted network namespace other than the host's own
+	// (default: nsfs, NS_GET_NSTYPE and the identity of /proc/self/ns/net; Linux only). Tests, which
+	// have no namespaces, answer for it.
+	IsNetNS func(*os.File) (bool, error)
 }
 
 // Ops holds the state of the system commands.
@@ -105,7 +106,10 @@ type Ops struct {
 	netStop func() bool
 	resumed string // the net.apply run Resume kept; Start reads and clears it
 
-	hpMu sync.Mutex // guards hp/decoys.json and the contents of the honeypot namespace
+	hpMu         sync.Mutex  // guards hp/decoys.json and the contents of the honeypot namespace
+	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
+	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
+	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
@@ -187,18 +191,24 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.NetRetryGap <= 0 {
 		d.NetRetryGap = 30 * time.Second
 	}
-	if d.IsNsfs == nil {
-		d.IsNsfs = isNsfs
+	if d.IsNetNS == nil {
+		d.IsNetNS = isNetNS
 	}
 	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
 	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
-	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "hp"} {
+	for _, dir := range []string{"os", "backups", "exports", "tmp", "net"} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
 			return nil, err
 		}
+	}
+	// A bad hp directory (a link, another owner, open to others) turns the decoys off and nothing else:
+	// the host must still serve the network commands (D-121).
+	if err := privDir(filepath.Join(cfg.StateDir, "hp"), cfg.OwnerUID); err != nil {
+		o.hpDirErr = err
+		cfg.Logger.Error("the hp state directory is not usable; decoys are off", "error", err.Error())
 	}
 	return o, nil
 }

@@ -2,10 +2,13 @@ package ops
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -233,6 +236,9 @@ func (o *Ops) checkDecoyAdd(ctx context.Context, a api.DecoyAddArgs) error {
 	if err != nil {
 		return err
 	}
+	if o.hpDirErr != nil {
+		return nil // the run answers with hp_state_unusable
+	}
 	list, _ := o.readDecoys() // an invalid file is set aside by the run
 	_, err = o.addRefusal(ctx, ip, list)
 	return err
@@ -242,6 +248,9 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 	ip, oui, err := decoyArgs(a)
 	if err != nil {
 		return nil, err
+	}
+	if o.hpDirErr != nil {
+		return nil, fail(api.CodeHPStateUnusable, hpUnusableMsg)
 	}
 	o.hpMu.Lock()
 	defer o.hpMu.Unlock()
@@ -314,6 +323,9 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 	ip, err := parseDecoyIP(a.IP)
 	if err != nil {
 		return nil, server.Invalid(fieldIP, err.Error())
+	}
+	if o.hpDirErr != nil {
+		return nil, fail(api.CodeHPStateUnusable, hpUnusableMsg)
 	}
 	o.hpMu.Lock()
 	defer o.hpMu.Unlock()
@@ -526,6 +538,9 @@ func (o *Ops) dropOrphans(ctx context.Context, links []nsLink, list []decoyEntry
 // (log and an audit line; it is missing from GET /v1/state/net, so core sees it and the honeypot
 // shows "conflict"). It returns an error only when the state itself cannot be kept true.
 func (o *Ops) reapplyDecoys(ctx context.Context, hint *NetplanConfig) error {
+	if o.hpDirErr != nil {
+		return nil
+	}
 	o.hpMu.Lock()
 	defer o.hpMu.Unlock()
 	if _, ok := ctx.Deadline(); !ok {
@@ -582,7 +597,19 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 	host := o.hostAddrs()
 	var keep []decoyEntry
 	var dropped []droppedDecoy
+	cancelled := func() bool {
+		if ctx.Err() == nil {
+			return false
+		}
+		// A cancelled context is not a verdict on any decoy: stop, keep every entry and report nothing;
+		// the next reconcile starts from the same state (D-121).
+		o.log.WarnContext(context.WithoutCancel(ctx), "the re-apply of the decoys was cancelled; the entries were kept")
+		return true
+	}
 	for _, d := range list {
+		if cancelled() {
+			return nil
+		}
 		if code, _ := m.refusalFor(d.addr(), host); code != "" {
 			o.removeDecoyNS(ctx, d)
 			dropped = append(dropped, droppedDecoy{d, code})
@@ -603,11 +630,17 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 		}
 		d.Iface = m.Iface
 		if err := o.buildDecoy(ctx, d, m); err != nil {
+			if cancelled() {
+				return nil
+			}
 			o.log.ErrorContext(ctx, "could not rebuild a decoy", fieldIP, d.IP, "error", err.Error())
 			dropped = append(dropped, droppedDecoy{d, "apply_failed"})
 			continue
 		}
 		keep = append(keep, d)
+	}
+	if cancelled() {
+		return nil
 	}
 	if len(dropped) > 0 || !slices.Equal(keep, list) {
 		if err := o.saveDecoys(keep); err != nil {
@@ -625,6 +658,10 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 // need it); it reports whether it worked. A failure is logged and audited and the host serves
 // anyway: the network commands must still work, and decoy_ip.add tries again.
 func (o *Ops) startHP(ctx context.Context) bool {
+	if o.hpDirErr != nil {
+		o.note("decoy_ip", "hp_namespace_failed", map[string]any{"why": "hp_state_unusable"})
+		return false
+	}
 	hctx, cancel := context.WithTimeout(ctx, decoyReapplyTime)
 	defer cancel()
 	if err := o.ensureHP(hctx, true); err != nil {
@@ -637,18 +674,68 @@ func (o *Ops) startHP(ctx context.Context) bool {
 
 // reconcileAtStart is the re-apply of Start, once the network is final.
 func (o *Ops) reconcileAtStart(ctx context.Context, ensured bool) {
+	if o.hpDirErr != nil {
+		return
+	}
 	o.hpMu.Lock()
 	defer o.hpMu.Unlock()
 	rctx, cancel := context.WithTimeout(ctx, decoyReapplyTime)
 	defer cancel()
+	o.reclaimHostLinks(rctx)
 	if err := o.reconcile(rctx, nil, ensured); err != nil {
 		o.log.ErrorContext(ctx, "the decoys could not be re-applied", "error", err.Error())
+	}
+}
+
+const hpUnusableMsg = "The decoy state directory is not usable (not a plain directory of the host, or open to others), so decoys are off."
+
+// reclaimHostLinks deletes, at Start, a link vdh<8 hex> that a crash left in the host's own namespace
+// (between "link add" and "link set netns") when it is provably the host's: its MAC is the one the
+// key gives the IP in its name, or carries the HMAC tail an OUI-based MAC has. Any other link of that
+// name is somebody else's and stays (decoy_ip.add then refuses it as link_name_in_use).
+func (o *Ops) reclaimHostLinks(ctx context.Context) {
+	ifaces, err := o.d.Interfaces()
+	if err != nil {
+		return
+	}
+	var key []byte
+	for _, h := range ifaces {
+		if !linkNameRE.MatchString(h.Name) {
+			continue
+		}
+		raw, err := hex.DecodeString(h.Name[len(linkNamePre):])
+		hw, merr := net.ParseMAC(h.MAC)
+		if err != nil || len(raw) != 4 || merr != nil || len(hw) != 6 {
+			continue
+		}
+		if key == nil {
+			if _, err := os.Lstat(o.stateFile("hp", "mac.key")); err != nil {
+				return // no key was ever made: the host never made a decoy
+			}
+			if key, err = o.loadMACKey(); err != nil {
+				return
+			}
+		}
+		ip := netip.AddrFrom4([4]byte(raw))
+		if !ownMAC(key, ip, hw) {
+			continue
+		}
+		if err := o.ipRun(ctx, argvHostLinkDel(h.Name)); err != nil {
+			o.log.WarnContext(ctx, "could not delete a leftover link of the host", "link", h.Name)
+			continue
+		}
+		o.note("decoy_ip", "host_link_reclaimed", map[string]any{"link": h.Name})
 	}
 }
 
 // readDecoyState is the decoys of GET /v1/state/net, by address.
 func (o *Ops) readDecoyState() []api.NetDecoy {
 	out := []api.NetDecoy{}
+	if o.hpDirErr != nil || !o.hpOK.Load() {
+		// Only decoys that are live after a namespace that was proven are listed: when egress is not
+		// proven the links are deleted (failClosed), and hp/decoys.json keeps the intent.
+		return out
+	}
 	list, err := o.readDecoys()
 	if err != nil {
 		o.log.Error("hp/decoys.json is not valid; state/net lists no decoys")

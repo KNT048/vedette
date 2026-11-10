@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -126,6 +127,23 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	}
 	return out, nil
 }
+
+// AssetIDs lists every device id for findings' reconcile job. DevicesOfKind has no row cap and returns a read error as an
+// error, which is what reconcile needs (a short list would make it remove findings of devices that still exist).
+func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
+	devs, err := a.inv.DevicesOfKind(ctx, inventory.Kinds)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(devs))
+	for i, d := range devs {
+		ids[i] = d.ID
+	}
+	return ids, nil
+}
+
+// findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind.
+func findingsJobs(d deps) []jobs.Job { return findings.Jobs(d.Findings) }
 
 func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (findings.Asset, bool, error) {
 	d, ok, err := a.inv.MatchInput(ctx, assetID)

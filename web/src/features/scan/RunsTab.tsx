@@ -52,6 +52,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
       </label>
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
       {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
+      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
       {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
     </li>
   )
@@ -95,12 +96,14 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
   const can = useCan('operator')
   const start = useStartRun()
   const [params] = useSearchParams()
+  const bulk = targets.filter((x) => x.selectable && !x.pick_only)
   const [sel, setSel] = useState<Set<string>>(() => {
     const want = params.get('target')
-    const hit = want ? targets.find((x) => x.id === want && x.selectable) : undefined
-    return new Set(hit ? [hit.id] : targets.filter((x) => x.selectable && x.findings > 0).map((x) => x.id))
+    // D-126 (2): only a person's own tick picks a fragile, unclassified or hand-declared device; the page never ticks one for them.
+    const hit = want ? targets.find((x) => x.id === want && x.selectable && !x.pick_only) : undefined
+    if (want) return new Set(hit ? [hit.id] : []) // came for one device: tick nothing else
+    return new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id))
   })
-  const ok = targets.filter((x) => x.selectable)
   const internal = targets.filter((x) => x.kind === 'internal')
   const external = targets.filter((x) => x.kind === 'external')
   const toggle = (id: string, v: boolean) => setSel((s) => { const n = new Set(s); if (v) n.add(id); else n.delete(id); return n })
@@ -119,8 +122,8 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
         <p className="text-muted">{t('start.safeNote')}</p>
       </Panel>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setSel(new Set(ok.map((x) => x.id)))}>{t('start.selectAll')}</Button>
-        <Button size="sm" onClick={() => setSel(new Set(ok.filter((x) => x.findings > 0).map((x) => x.id)))}>{t('start.selectFindings')}</Button>
+        <Button size="sm" onClick={() => setSel(new Set(bulk.map((x) => x.id)))}>{t('start.selectAll')}</Button>
+        <Button size="sm" onClick={() => setSel(new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id)))}>{t('start.selectFindings')}</Button>
         <Button size="sm" onClick={() => setSel(new Set())}>{t('start.selectNone')}</Button>
         <span className="text-[13px] text-muted" aria-live="polite">{t('start.selected', { count: sel.size })}</span>
       </div>

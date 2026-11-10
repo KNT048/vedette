@@ -154,10 +154,10 @@ function targets(): ScanTarget[] {
   const meta = peek<Record<string, { regular_scan?: string }>>('inv_meta') ?? {}
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
     const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, reason }
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length, selectable: reason === null, pick_only: reason === null && (a.fragile || a.kind === 'unknown' || a.origin === 'manual'), reason }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
-  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported' }))
+  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported' }))
   return [...internal, ...ext]
 }
 

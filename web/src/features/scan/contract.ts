@@ -10,6 +10,7 @@ export const ScanTarget = z.object({
   id: z.string().describe('device id (a-nas02) or ext:<target id> for a verified external target'),
   kind: z.enum(['internal', 'external']), device_kind: z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
   fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)'), findings: z.number().int(),
+  pick_only: z.boolean().describe('Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)). The page never ticks it for you: not by default, not with Select all, not from a link'),
   selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'box', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
     .describe('null when the target can be scanned by picking it. box: the Vedette box itself is never scanned. regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
 })

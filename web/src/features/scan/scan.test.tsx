@@ -31,14 +31,14 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     await expectNoA11yViolations()
   })
 
-  it('mặc định chọn thiết bị có phát hiện; thiết bị chưa duyệt, bị loại trừ, tên miền chưa xác thực bị khoá kèm lý do', async () => {
+  it('mặc định chọn thiết bị có phát hiện (trừ thiết bị chỉ quét khi tự tick, D-126); thiết bị chưa duyệt, bị loại trừ, tên miền chưa xác thực bị khoá kèm lý do', async () => {
     renderApp('/scans')
     const nas = await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })
-    expect(nas).toBeChecked()
+    expect(nas).not.toBeChecked() // fragile: only the person's own tick picks it
     expect(screen.getByRole('checkbox', { name: /WEB01/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /FW-HQ/ })).not.toBeChecked()
-    expect(screen.getByText('3 selected')).toBeInTheDocument()
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
     const unapproved = screen.getByRole('checkbox', { name: /BROTHER-STORE/ })
     expect(unapproved).toBeDisabled()
     expect(screen.getAllByText('Not approved in the inventory, so not scanned').length).toBeGreaterThan(0)
@@ -52,6 +52,35 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /203\.0\.113\.55/ })).toBeDisabled()
     expect(screen.getAllByText('Verification expired, verify again, so not scanned').length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'Open External exposure' })).toHaveAttribute('href', '/exposure')
+  })
+
+  it('D-126: chọn sẵn và nút chọn hàng loạt không bao giờ tick thiết bị mong manh, chưa phân loại, khai tay; người dùng tự tick mới là chọn', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
+    renderApp('/scans')
+    const nas = await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })
+    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; pick_only: boolean; selectable: boolean }[]
+    const pick = (id: string) => items.find((x) => x.id === id)!.pick_only
+    expect([pick('a-nas02'), pick('a-web01'), pick('a-unk01'), pick('a-srvad')]).toEqual([true, true, true, false])
+    expect(nas).toBeEnabled()
+    expect(nas).not.toBeChecked() // it has a finding, but a preselection is not a pick
+    expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
+    expect(screen.getAllByText('Fragile: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Added by hand: pick it to scan').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Type unknown: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(nas).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }))
+    await userEvent.click(nas) // the person's own tick is the pick
+    expect(nas).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Scan now (1)' })).toBeEnabled()
+  })
+
+  it('?target= của một thiết bị mong manh không tick sẵn nó', async () => {
+    renderApp('/scans?target=a-nas02')
+    expect(await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })).not.toBeChecked()
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
   })
 
   it('loại trừ trong cấu hình khoá thiết bị tương ứng', async () => {
@@ -213,7 +242,8 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     timing.stepMs = 30
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'mitigated' as const } : f)))
     renderApp('/scans?target=a-nas02')
-    await userEvent.click(await screen.findByRole('button', { name: 'Scan now (1)' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })) // fragile: the link does not tick it, the person does
+    await userEvent.click(screen.getByRole('button', { name: 'Scan now (1)' }))
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('done'), { timeout: 4000 })
     expect((await getRuns())[0]!.results[0]!.result).toBe('not_matched')
     const f = findingsStore.get().find((x) => x.id === 'f-1')!
@@ -225,16 +255,16 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     timing.stepMs = 60_000
     timing.stopMs = 300
     renderApp('/scans')
-    await userEvent.click(await screen.findByRole('button', { name: 'Scan now (3)' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan now (2)' }))
     const bar = await screen.findByRole('progressbar', { name: 'Scan progress' })
     expect(bar).toHaveAttribute('aria-valuenow', '0')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Scanning: 0/3 devices done' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Scanning: 0/2 devices done' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getByText(/Scanning NAS-PHOTOS|Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))
     expect(await screen.findByRole('button', { name: 'Stopping' })).toBeDisabled()
     const t0 = Date.now()
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /Last scan was stopped .*: 0\/3 devices done/ })).toBeInTheDocument(), { timeout: 5000 })
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /Last scan was stopped .*: 0\/2 devices done/ })).toBeInTheDocument(), { timeout: 5000 })
     expect(Date.now() - t0).toBeLessThan(5000)
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getAllByText('You pressed Stop now.').length).toBeGreaterThan(0)

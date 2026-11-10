@@ -232333,6 +232333,10 @@ func (s *ScanGetScansTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Label)
 	}
 	{
+		e.FieldStart("pick_only")
+		e.Bool(s.PickOnly)
+	}
+	{
 		e.FieldStart("reason")
 		s.Reason.Encode(e)
 	}
@@ -232342,7 +232346,7 @@ func (s *ScanGetScansTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansTargetsOKItemsItem = [9]string{
+var jsonFieldsNameOfScanGetScansTargetsOKItemsItem = [10]string{
 	0: "device_kind",
 	1: "findings",
 	2: "fragile",
@@ -232350,8 +232354,9 @@ var jsonFieldsNameOfScanGetScansTargetsOKItemsItem = [9]string{
 	4: "ip",
 	5: "kind",
 	6: "label",
-	7: "reason",
-	8: "selectable",
+	7: "pick_only",
+	8: "reason",
+	9: "selectable",
 }
 
 // Decode decodes ScanGetScansTargetsOKItemsItem from json.
@@ -232443,8 +232448,20 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"label\"")
 			}
-		case "reason":
+		case "pick_only":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Bool()
+				s.PickOnly = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pick_only\"")
+			}
+		case "reason":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -232454,7 +232471,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "selectable":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Selectable = bool(v)
@@ -232476,7 +232493,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

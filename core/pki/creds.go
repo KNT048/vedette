@@ -27,7 +27,8 @@ var ErrCredsPath = errors.New("pki: credentials path is not a plain directory an
 //
 // It refuses a dir or a role directory that is a symlink, and a name that is a symlink, a FIFO or a directory: the volume is
 // shared with a container that is being attacked, and a rename over a planted link would be a write through it. Ownership
-// (core's uid, the sensor group) comes from the volume (a setgid directory made by the host unit, SP-6), not from a chown here.
+// is core's uid (the volume's owner) and the group of the role folder (the sensor group: the file is chowned to it before the rename,
+// SP-6 L3, because core's new files would otherwise carry core's own group); the mode is 0640.
 func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
 	root, sub, err := openRole(dir, role, true)
 	if err != nil {
@@ -56,6 +57,20 @@ func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
 	if err := f.Chmod(0o640); err != nil { // the umask may have taken bits off
 		_ = f.Close()
 		return fmt.Errorf("pki: write %s: %w", BundleName, err)
+	}
+	// The file gets the group of the role folder (the sensor group, SP-6 L3): a file core creates has core's own group unless the
+	// folder is setgid, and the unit that makes the volume cannot set that bit. core is in the folder's group (the unit adds it), so
+	// the chown is allowed; the mode stays 0640.
+	st, err := sub.Stat(".")
+	if err != nil {
+		_ = f.Close()
+		return fmt.Errorf("pki: look at the folder of %s: %w", BundleName, err)
+	}
+	if sys, ok := st.Sys().(*syscall.Stat_t); ok {
+		if err := f.Chown(-1, int(sys.Gid)); err != nil {
+			_ = f.Close()
+			return fmt.Errorf("pki: give %s the group of its folder: %w", BundleName, err)
+		}
 	}
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()

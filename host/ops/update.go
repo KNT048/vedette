@@ -115,10 +115,10 @@ func (o *Ops) verifyRecord(rec pulledRecord, trust release.Trust, idx *release.I
 		return nil, err
 	}
 	im, ok := man.Image(rec.Service)
-	if man.Version != rec.Version || !ok || im.Digest != rec.Digest {
+	if man.Version != rec.Version || !ok || im.Digest != rec.manifestDigest() {
 		return nil, errRecord
 	}
-	if err := release.VerifyImage(man, rec.Service, rec.Digest, trust); err != nil {
+	if err := release.VerifyImage(man, rec.Service, rec.manifestDigest(), trust); err != nil {
 		return nil, err
 	}
 	return man, nil
@@ -160,7 +160,7 @@ func (o *Ops) planStartVersion(ctx context.Context, a api.ContainerStartArgs) (*
 	if !p.change {
 		return p, nil
 	}
-	ref, err := pullRef(a.Service, rec.Digest)
+	ref, err := localRef(a.Service, rec.Digest)
 	if err != nil || !o.imageIs(ctx, ref, a.Service, rec.Digest) {
 		return nil, refuse412(api.CodeNotPulled, "The image of that version is no longer on this machine. Pull it again.")
 	}
@@ -289,7 +289,7 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 		id := bk.BackupID
 		res.BackupID = &id
 	}
-	if err := o.writeUnit(svc, want, true); err != nil {
+	if err := o.writeUnitForStart(svc, want); err != nil {
 		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}
@@ -409,7 +409,7 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 			return nil, refuse412(api.CodeCoreDataInvalid, "Core's data directory holds something that is not a regular file where the database, its key or a leftover of an earlier rollback belongs. An operator must look at it; nothing was changed.")
 		}
 	}
-	ref, err := pullRef(service, p.prev.Digest)
+	ref, err := localRef(service, p.prev.Digest)
 	if err != nil || !o.imageIs(ctx, ref, service, p.prev.Digest) {
 		return nil, refuse412(api.CodeNoPrevious, "The image of the previous version is no longer on this machine.")
 	}

@@ -89,6 +89,9 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	if len(m.Buttons) > 0 {
 		args["reply_markup"] = telegramKeyboard(m.Buttons)
 	}
+	if m.Kind == "approval" {
+		args["protect_content"] = true // an approval request cannot be forwarded or saved out of the chat
+	}
 	body, err := json.Marshal(args)
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: telegram: encode message: %w", err)

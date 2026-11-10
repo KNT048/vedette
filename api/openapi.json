@@ -54259,8 +54259,11 @@
                               "matched",
                               "clear",
                               "skipped_off",
-                              "no_match"
-                            ]
+                              "no_match",
+                              "pick_only",
+                              "stopped"
+                            ],
+                            "description": "clear: no match reported, never \"not affected\" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7))"
                           }
                         },
                         "required": [

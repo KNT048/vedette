@@ -1,10 +1,21 @@
+import { rmSync } from 'node:fs'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+// Vite copies public/ verbatim; the release build (VITE_API_MOCK=off) must not ship the MSW worker script.
+const dropMockWorker: Plugin = {
+  name: 'drop-mock-worker',
+  apply: 'build',
+  closeBundle() {
+    if (process.env.VITE_API_MOCK === 'off') rmSync(path.resolve(import.meta.dirname, 'dist/mockServiceWorker.js'), { force: true })
+  },
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), dropMockWorker],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: { chunkSizeWarningLimit: 900 },
   // Ảnh chụp/kết quả Playwright ghi trong web/ không được kích hoạt HMR (gây tải lại CSS liên tục khi đang chạy E2E).

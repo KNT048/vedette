@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"time"
@@ -63,20 +64,23 @@ func validCoreData(p string) bool {
 	return len(p) <= 200 && coreDataRE.MatchString(p)
 }
 
+// ID is the 64 hex digits of the digest: the image ID of a scan image, which the unit names instead of repository@digest (D-147).
+func (f unitFill) ID() string { return strings.TrimPrefix(f.Digest, "sha256:") }
+
 type serviceUnit struct {
-	repo        string // the image repository, without the digest
+	repo        string // the image repository, without the digest ("" when byID)
 	tmpl        *template.Template
 	needsCore   bool // uses core_uid and core_gid
 	needsSensor bool // uses sensor_uid and sensor_gid
+	// byID: the image is built on the box and has no registry digest, so Image= is the bare 64-hex image ID and the "digest" the host
+	// keeps for the service is "sha256:" + that ID (D-147). Podman looks an image up by its full ID like by a name.
+	byID bool
 }
 
 const (
 	repoCore     = "ghcr.io/knt048/vedette-core"
 	repoSensor   = "ghcr.io/knt048/vedette-sensor"
 	repoHoneypot = "ghcr.io/knt048/vedette-honeypot"
-	// repoScan is the image built on the box from the signed base image (D-113 (7)); how a locally built
-	// image is pinned is settled with the build in slice SP-6 (D-123 (4)).
-	repoScan = "localhost/vedette-scan-nmap"
 )
 
 func mustTemplate(name, text string) *template.Template {
@@ -89,7 +93,7 @@ var services = map[string]serviceUnit{
 	api.ServiceCore:     {repo: repoCore, tmpl: mustTemplate("core", coreUnitText), needsCore: true, needsSensor: true},
 	api.ServiceSensor:   {repo: repoSensor, tmpl: mustTemplate("sensor", sensorUnitText), needsSensor: true},
 	api.ServiceHoneypot: {repo: repoHoneypot, tmpl: mustTemplate("honeypot", honeypotUnitText)},
-	api.ServiceScan:     {repo: repoScan, tmpl: mustTemplate("scan", scanUnitText), needsSensor: true},
+	api.ServiceScan:     {tmpl: mustTemplate("scan", scanUnitText), needsSensor: true, byID: true},
 }
 
 const coreUnitText = `[Unit]
@@ -121,7 +125,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds
 
 [Service]
 Restart=always
@@ -192,7 +196,7 @@ Wants=vedette-core.service
 
 [Container]
 ContainerName=vedette-scan
-Image=` + repoScan + `@{{.Digest}}
+Image={{.ID}}
 Pull=never
 Network=host
 User={{.SensorUID}}:{{.SensorGID}}
@@ -214,6 +218,39 @@ Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.
 [Service]
 Restart=always
 `
+
+// The two credential volumes (D-110 (4), D-114 (4), D-147): one per sensor role, each a Quadlet .volume unit that the host writes from
+// the constant text below, with the same safe writer as the service units. core mounts both read-write; sensor mounts only passive and
+// scan only active, read-only (the unit texts above), so a container sees the bundle of its own role and no other. Quadlet creates the
+// volume on first use with User= as owner and Group= as group (Podman's .volume keys): core_uid, which writes the bundles, and
+// sensor_gid, which reads them. The setgid bit (mode 2750) that makes every file core creates there belong to sensor_gid is core's to
+// set on its own role folders at start: an owner keeps the bit on chmod only when it is in the file's group, which is why core's unit
+// carries --group-add=<sensor_gid> and nothing else of that kind.
+var credsRoles = []string{"passive", "active"}
+
+const volumeUnitText = `[Unit]
+Description=Vedette sensor credentials (%s role)
+
+[Volume]
+VolumeName=vedette-creds-%s
+User=%d
+Group=%d
+`
+
+func volumeFileName(role string) string { return "vedette-creds-" + role + ".volume" }
+
+// renderVolume builds the .volume unit of a role. The role is from the closed list and the ids are checked like a unit's.
+func renderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
+	if !slices.Contains(credsRoles, role) || !validID(coreUID) || !validID(sensorGID) {
+		return nil, fmt.Errorf("%w: volume", errBadFill)
+	}
+	return fmt.Appendf(nil, volumeUnitText, role, role, coreUID, sensorGID), nil
+}
+
+// RenderVolume builds the .volume unit of a role ("passive" or "active"). Exported for the contract tests.
+func RenderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
+	return renderVolume(role, coreUID, sensorGID)
+}
 
 // validID is a uid or gid a unit may carry: 1 up to what host.conf accepts (31 bits). Never 0.
 func validID(n int) bool { return n >= 1 && n <= 1<<31-1 }
@@ -262,7 +299,11 @@ func renderUnit(service string, f unitFill) ([]byte, error) {
 		b.WriteString(installSection)
 	}
 	out := b.Bytes()
-	if len(out) > maxUnitSize || bytes.ContainsAny(out, "\r\x00") || !utf8.Valid(out) || strings.Count(string(out), "@"+f.Digest) != 1 {
+	pin := "@" + f.Digest
+	if s.byID {
+		pin = "\nImage=" + f.ID() + "\n"
+	}
+	if len(out) > maxUnitSize || bytes.ContainsAny(out, "\r\x00") || !utf8.Valid(out) || strings.Count(string(out), pin) != 1 {
 		return nil, fmt.Errorf("%w: the unit came out wrong", errBadFill)
 	}
 	return out, nil
@@ -286,6 +327,14 @@ func parseUnit(service string, text []byte) (digest string, install bool, err er
 	}
 	for line := range strings.SplitSeq(string(text), "\n") {
 		if !strings.HasPrefix(line, "Image=") {
+			continue
+		}
+		if s.byID {
+			id, ok := strings.CutPrefix(line, "Image=")
+			if !ok || !imageIDRE.MatchString(id) || digest != "" {
+				return "", false, errors.New("ops: the unit has no single Image= line of this service")
+			}
+			digest = "sha256:" + id
 			continue
 		}
 		m := imageLineRE.FindStringSubmatch(line)

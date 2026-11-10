@@ -25,7 +25,8 @@ async function onlyTarget(label: RegExp) {
 describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
   it('câu đầu nêu lần quét gần nhất, có phạm vi, không lỗi a11y', async () => {
     renderApp('/scans')
-    expect(await screen.findByRole('heading', { level: 1, name: /Last scan .*: \d+ devices checked, 1 device matches a vulnerability/ })).toBeInTheDocument()
+    // the seeded scheduled run checks only devices allowed without a pick (D-126 (2)), so its match count follows the seed
+    expect(await screen.findByRole('heading', { level: 1, name: /Last scan .*: \d+ devices checked/ })).toBeInTheDocument()
     expect(await screen.findByText(/Only scans inside the confirmed scope: 192\.168\.10\.0\/24, 192\.168\.20\.0\/24/)).toBeInTheDocument()
     expect(await screen.findByText(/Scan scope commitment ticked on/)).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -347,6 +348,19 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(res.status).toBe(403)
   })
 
+  it('D-126 (2): the seeded scheduled and KEV runs, and the seeded rescan matches, never touch a device that needs a hand pick', async () => {
+    renderApp('/scans')
+    await screen.findByRole('table', { name: 'History of scans' })
+    const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; pick_only: boolean }[]
+    const pick = targets.filter((x) => x.pick_only)
+    expect(pick.length).toBeGreaterThan(0)
+    const auto = (await getRuns()).filter((r) => r.trigger !== 'manual')
+    expect(auto.map((r) => r.trigger).sort()).toEqual(['new_kev', 'schedule'])
+    for (const r of auto) expect(r.results.map((x) => x.target_id).filter((id) => pick.some((p) => p.id === id)), r.id).toEqual([])
+    const events = ((await (await fetch(`${base()}/scans/events`)).json()) as { items: { result: string; devices: string[] }[] }).items
+    for (const e of events.filter((x) => x.result === 'matched')) expect(e.devices.filter((d) => pick.some((p) => p.label === d))).toEqual([])
+  })
+
   it('lịch sử liệt kê lần quét theo lịch, theo KEV mới và lần đã dừng', async () => {
     renderApp('/scans')
     const table = await screen.findByRole('table', { name: 'History of scans' })
@@ -469,6 +483,14 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
   })
+
+  it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164 review M1)', () => {
+    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 1, at: '02:00' } }
+    const fri = new Date(nextRun(c, new Date(2026, 10, 20, 12, 0))!) // Friday noon: Saturday 02:00 is Friday's window
+    expect([fri.getDate(), fri.getHours()]).toEqual([21, 2])
+    const sun = new Date(nextRun(c, new Date(2026, 10, 22, 12, 0))!) // Sunday noon: Monday 02:00 is Sunday's window, so Tuesday
+    expect(sun.getDate()).toBe(24)
+  })
 })
 
 describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
@@ -480,6 +502,35 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(within(table).getByText('Not scanned: no matching device')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Rescan automatically when a new KEV has a scan template' })).toBeChecked()
     await expectNoA11yViolations()
+  })
+
+  it('a rescan with no match says "No match reported" in a neutral tone, never "Not affected" (D-133 (5))', async () => {
+    const ev = { id: 'ev-clear', ts: new Date().toISOString(), cve: 'CVE-2026-0002', product: 'Acme NAS', devices: ['nas02'], latency_min: 12, run_id: 'run-1', result: 'clear' }
+    server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ items: [ev], auto_rescan: true })))
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    const chip = await within(table).findByText('No match reported')
+    expect(chip.className).toContain('text-off')
+    expect(within(table).queryByText('Not affected')).toBeNull()
+  })
+
+  it('D-145 (7): devices that need a hand pick are named with a link to Scan now; a stopped rescan links to its run', async () => {
+    const base = { ts: new Date().toISOString(), product: 'Acme NAS', latency_min: null }
+    server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ auto_rescan: true, items: [
+      { ...base, id: 'ev-pick', cve: 'CVE-2026-0003', devices: ['NAS-PHOTOS', 'CAM-03'], run_id: null, result: 'pick_only' },
+      { ...base, id: 'ev-stop', cve: 'CVE-2026-0004', devices: ['WEB01'], latency_min: 4, run_id: 'run-seed-3', result: 'stopped' },
+    ] })))
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    const pick = await within(table).findByText(/^Not scanned automatically: 2 devices need a hand pick in/)
+    expect(pick.className).toContain('text-off')
+    expect(within(table).getByText('NAS-PHOTOS, CAM-03')).toBeInTheDocument()
+    expect(within(table).getByRole('link', { name: 'Scan now' })).toHaveAttribute('href', '/scans?tab=runs')
+    expect(within(table).getByText(/^Stopped before the end:/).className).toContain('text-off')
+    await expectNoA11yViolations()
+    await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))
+    const dlg = await screen.findByRole('dialog')
+    expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
   })
 
   it('quản trị tắt được, có ghi chú giải thích; vận hành thì không', async () => {

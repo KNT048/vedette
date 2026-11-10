@@ -1,9 +1,9 @@
 # The constant Containerfile that vedette-host builds ON THE BOX (D-113 (7), D-4): the signed scan-base plus nmap from the OS package
-# repository. The project never builds or publishes an image with nmap in it (the Nmap licence, docs/LEGAL.md). Slice SP-6 makes
-# vedette-host embed this text and run `podman build` with fixed argv (--build-arg BASE_IMAGE=<scan-base digest> --build-arg
-# NMAP_MIN_VERSION=<pins.env>, tag localhost/vedette-scan-nmap:<version>); nothing in the host reads this file yet.
+# repository. The project never builds or publishes an image with nmap in it (the Nmap licence, docs/LEGAL.md). vedette-host carries a
+# copy of this text (host/ops/scanbuild.go, a test keeps the two equal) and runs `podman build` with fixed argv (--build-arg
+# BASE_IMAGE=<the verified scan-base reference> --build-arg NMAP_MIN_VERSION=<pins.env>, tag localhost/vedette-scan-nmap:<version>), D-147.
 # nmap is the CURRENT trixie package, not an exact version (D-146 (11)): security fixes of nmap must flow in, and an image built on the
-# box need not be reproducible. The floor check is by effect: `nmap --version` must report at least NMAP_MIN_VERSION. SP-6 records the
+# box need not be reproducible. The floor check is by effect: `nmap --version` must report at least NMAP_MIN_VERSION. The host records the
 # exact version that was installed in the pulled record.
 # `make scan-image` builds the same file from a local scan-base for development and for the check of the effect.
 ARG BASE_IMAGE

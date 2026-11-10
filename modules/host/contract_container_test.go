@@ -1,6 +1,7 @@
 package host_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -1302,7 +1303,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	const keys = "vedette-creds-"
 	table := map[string]want{
 		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444"},
-			exec: "-listen :8443",
+			exec: "-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds",
 			volumes: []string{
 				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
@@ -1371,7 +1372,12 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 				t.Errorf("%s: PublishPort=%v", svc, u["PublishPort"])
 			}
 			// Image: a pinned digest of the service's repository.
-			if !regexp.MustCompile(`^(ghcr\.io/knt048/vedette-` + svc + `|localhost/vedette-scan-nmap)@` + digA + `$`).MatchString(one("Image")) {
+			// The scan image is built on the box and has no registry digest: its unit pins the image ID (D-147).
+			imageRE := `^ghcr\.io/knt048/vedette-` + svc + `@` + digA + `$`
+			if svc == api.ServiceScan {
+				imageRE = `^` + strings.TrimPrefix(digA, "sha256:") + `$`
+			}
+			if !regexp.MustCompile(imageRE).MatchString(one("Image")) {
 				t.Errorf("%s: Image=%v", svc, u["Image"])
 			}
 			if one("ContainerName") != "vedette-"+svc {
@@ -1462,9 +1468,105 @@ func TestContract_INV17_TheHostWritesNoDropIns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, en := range entries {
-		if en.IsDir() || !strings.HasSuffix(en.Name(), ".container") || strings.HasPrefix(en.Name(), ".") {
+		isUnit := strings.HasSuffix(en.Name(), ".container") || slices.Contains([]string{"vedette-creds-passive.volume", "vedette-creds-active.volume"}, en.Name())
+		if en.IsDir() || !isUnit || strings.HasPrefix(en.Name(), ".") {
 			t.Errorf("the host left %q in the Quadlet directory", en.Name())
 		}
+	}
+}
+
+// TestContract_INV17_CredentialVolumes: the two .volume units are written by the host from constant text with the host.conf ids, beside
+// the first unit that mounts them; each is mounted read-write by core only and read-only by exactly one sensor role (passive in
+// sensor, active in scan), and the honeypot mounts none (D-110 (4), D-114 (4), D-147).
+func TestContract_INV17_CredentialVolumes(t *testing.T) {
+	t.Parallel()
+	const cuid, cgid, suid, sgid = 10001, 10002, 10003, 10004
+	roleOf := map[string]string{api.ServiceSensor: "passive", api.ServiceScan: "active"}
+	for _, svc := range []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan} {
+		b, err := ops.RenderUnitIn(svc, digA, true, cuid, cgid, suid, sgid, "/var/lib/vedette")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var vols []string
+		for _, v := range parseBuilt(t, string(b))["Volume"] {
+			if strings.Contains(v, "vedette-creds-") {
+				vols = append(vols, v)
+			}
+		}
+		switch svc {
+		case api.ServiceCore:
+			// Read-write, and each role's folder separately: never one volume over the whole directory.
+			if !slices.Equal(vols, []string{"vedette-creds-passive.volume:/var/lib/vedette-creds/passive", "vedette-creds-active.volume:/var/lib/vedette-creds/active"}) {
+				t.Errorf("core mounts %v", vols)
+			}
+		case api.ServiceHoneypot:
+			if len(vols) != 0 {
+				t.Errorf("the honeypot mounts %v", vols)
+			}
+		default:
+			if !slices.Equal(vols, []string{"vedette-creds-" + roleOf[svc] + ".volume:/var/lib/vedette-creds:ro"}) {
+				t.Errorf("%s mounts %v, want only the %s volume, read-only", svc, vols, roleOf[svc])
+			}
+		}
+	}
+	for role, want := range map[string]string{ //nolint:gosec // "credentials" in a description is text, not a secret
+		"passive": "[Unit]\nDescription=Vedette sensor credentials (passive role)\n\n[Volume]\nVolumeName=vedette-creds-passive\nUser=10001\nGroup=10004\n",
+		"active":  "[Unit]\nDescription=Vedette sensor credentials (active role)\n\n[Volume]\nVolumeName=vedette-creds-active\nUser=10001\nGroup=10004\n",
+	} {
+		b, err := ops.RenderVolume(role, cuid, sgid)
+		if err != nil || string(b) != want {
+			t.Errorf("%s volume: %q, %v", role, b, err)
+		}
+		u := parseBuilt(t, string(b))
+		for k := range u {
+			if !slices.Contains([]string{"Description", "VolumeName", "User", "Group"}, k) {
+				t.Errorf("the %s volume has the key %s", role, k)
+			}
+		}
+	}
+	for _, c := range []struct {
+		role     string
+		uid, gid int
+	}{{"core", 1, 1}, {"passive", 0, 1}, {"passive", 1, 0}, {"active", 1, -1}} {
+		if _, err := ops.RenderVolume(c.role, c.uid, c.gid); err == nil {
+			t.Errorf("a volume for %+v was made", c)
+		}
+	}
+	// Written by the host beside the first unit that is written, root-safe like the units, and idempotent.
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceSensor, digA, false)
+	e.start(t, api.ServiceSensor, false)
+	cfg := e.m.Config()
+	for _, role := range []string{"passive", "active"} {
+		p := filepath.Join(e.m.UnitsDir(), "vedette-creds-"+role+".volume")
+		want, _ := ops.RenderVolume(role, cfg.CoreUID, cfg.SensorGID)
+		b, err := os.ReadFile(p) //nolint:gosec // test: a path under the fake root
+		if err != nil || !bytes.Equal(b, want) {
+			t.Errorf("%s: %q, %v; want %q", p, b, err, want)
+		}
+		if st, err := os.Lstat(p); err != nil || st.Mode().Perm() != 0o644 || !st.Mode().IsRegular() {
+			t.Errorf("%s: %v %v", p, st, err)
+		}
+	}
+	// A link planted at the name is refused, not followed (the writer of the units).
+	e2 := startCtr(t)
+	e2.m.MakeUnitsDir()
+	target := filepath.Join(e2.m.Root, "elsewhere")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(e2.m.UnitsDir(), "vedette-creds-active.volume")); err != nil {
+		t.Fatal(err)
+	}
+	e2.m.InstallUnit(api.ServiceSensor, digA, false)
+	if _, err := e2.call(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceSensor}); err == nil {
+		// the start must not have followed the link
+		if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
+			t.Errorf("the host wrote through a link: %q", b)
+		}
+	}
+	if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
+		t.Errorf("the host wrote through a link: %q", b)
 	}
 }
 

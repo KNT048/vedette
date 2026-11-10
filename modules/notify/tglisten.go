@@ -36,8 +36,14 @@ const (
 	nonceLen            = 11
 	maxButtonRequestID  = 64 - len("a:") - len(":") - nonceLen // callback_data is at most 64 bytes
 	buttonKeep          = 7 * 24 * time.Hour
+	// staleGap: when the listener starts again after more than this without a poll (or for the first time in the process), the presses
+	// waiting at Telegram may be old (review of #172, L3), so they are answered and dropped, never decided.
+	staleGap    = 60 * time.Second
+	drainRounds = 10              // short polls to drop what waits (10 updates each); what is left after them is taken as new
+	answerWait  = 3 * time.Second // one answerCallbackQuery: answers on the receive loop run one after the other (L6)
 
 	answerInvalid = "This button is not valid. Open Vedette to decide."
+	answerStale   = "This button was pressed while Vedette was not listening. Press it again."
 	answerFailed  = "Vedette could not record your decision. Try again, or open Vedette to decide."
 	answerBusy    = "Vedette is busy. Press the button again in a minute."
 	answerRefused = "Vedette did not take this decision. Open Vedette to see why."
@@ -47,7 +53,17 @@ const (
 	EventApprovalDecided = "notify.approval.decided"
 )
 
-var nonceRE = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+var (
+	nonceRE = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+	// numericChatRE is a Telegram chat as a number (the form the channel adapter accepts). Approvals need it (review of #172, L1): a
+	// public @name can be joined by anyone, and a released name can be taken by someone else, who would then get approval requests.
+	numericChatRE = regexp.MustCompile(`^-?[0-9]{5,20}$`)
+)
+
+// approvalChat says whether the configured chat_id can take approvals.
+func approvalChat(fields map[string]string) bool {
+	return numericChatRE.MatchString(strings.TrimSpace(fields["chat_id"]))
+}
 
 // recordedDecision says whether a Status of the response module is a decision that was recorded (POST-8); every other value
 // is the code of a refusal.
@@ -62,9 +78,10 @@ func hashNonce(n string) string {
 
 // telegramButtons makes the Approve and Reject buttons of a request and keeps the hash of their nonce before the message is sent.
 // None when no one can take the decision (no Decisions port), when the request is in-app only (INV-16 of response: no button),
-// or when the request id does not fit the 64 bytes of callback_data: the message then only says to open Vedette.
-func (s *Service) telegramButtons(ctx context.Context, req ApprovalRequest) ([]channel.Button, error) {
-	if s.cfg.Decisions == nil || req.InAppOnly || len(req.ID) > maxButtonRequestID {
+// when the request id does not fit the 64 bytes of callback_data, or when the chat is not a number (a @name saved before approvals
+// needed one): the message then only says to open Vedette.
+func (s *Service) telegramButtons(ctx context.Context, req ApprovalRequest, fields map[string]string) ([]channel.Button, error) {
+	if s.cfg.Decisions == nil || req.InAppOnly || len(req.ID) > maxButtonRequestID || !approvalChat(fields) {
 		return nil, nil
 	}
 	b := make([]byte, nonceBytes)
@@ -123,27 +140,49 @@ func pruneButtons(ctx context.Context, tx *sql.Tx, now time.Time) error {
 	return nil
 }
 
-// telegramOffset is the next update to read, per bot (the number before ":" of its token, which is public: the bot's user id).
-// It lives as long as the process, so a listener that stopped and starts again confirms what it already read.
+// telegramOffset is the next update to read, per bot (the number before ":" of its token, which is public: the bot's user id), and
+// when the last poll ended. It lives as long as the process, so a listener that stopped and starts again confirms what it already read.
 type telegramOffset struct {
 	mu     sync.Mutex
 	bot    string
 	offset int64
+	at     time.Time // when the last poll of this bot returned; zero = none in this process
 }
 
-func (o *telegramOffset) get(bot string) int64 {
+func (o *telegramOffset) get(bot string) (int64, time.Time) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.bot != bot {
-		return 0 // another bot: its update ids are its own
+		return 0, time.Time{} // another bot: its update ids are its own
 	}
-	return o.offset
+	return o.offset, o.at
 }
 
-func (o *telegramOffset) set(bot string, offset int64) {
+func (o *telegramOffset) set(bot string, offset int64, at time.Time) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.bot, o.offset = bot, offset
+	o.bot, o.offset, o.at = bot, offset, at
+}
+
+// dropWaiting answers and drops the presses waiting at Telegram (short polls, no wait), so none of them is decided (L3). Each round
+// confirms the one before; it stops at an answer with nothing new, or after drainRounds.
+func (s *Service) dropWaiting(ctx context.Context, bot *channel.TelegramBot, botID string, offset int64) error {
+	for range drainRounds {
+		presses, next, err := bot.Updates(ctx, offset, 0)
+		if err != nil {
+			return err
+		}
+		for _, p := range presses {
+			s.answerPress(ctx, bot, p.QueryID, answerStale)
+		}
+		done := len(presses) == 0 && next == offset
+		offset = next
+		s.tgOffset.set(botID, offset, s.now())
+		if done {
+			break
+		}
+	}
+	return nil
 }
 
 // listenTelegram is the Run of the job "telegram-listen". It returns nil when the channel is not ready (the scheduler starts it
@@ -164,11 +203,14 @@ func (s *Service) listenTelegram(ctx context.Context) error {
 			}
 			return fmt.Errorf("notify: telegram listener: %w", err)
 		}
-		if !c.Configured || !c.Enabled || !c.Approvals {
+		if !c.Configured || !c.Enabled || !c.Approvals || !approvalChat(c.Fields) {
 			return nil
 		}
 		token, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 		if err != nil {
+			if ctx.Err() != nil { // stopped while reading the key (it reads the database): a stop, not an unreadable key
+				return nil
+			}
 			return fmt.Errorf("notify: telegram listener: %w", err)
 		}
 		bot, err := channel.NewTelegramBot(secrets.NewValue(token), s.cfg.HTTPClient)
@@ -176,14 +218,24 @@ func (s *Service) listenTelegram(ctx context.Context) error {
 			return fmt.Errorf("notify: telegram listener: %s", userText(err))
 		}
 		botID, _, _ := strings.Cut(strings.TrimSpace(token), ":")
-		presses, next, err := bot.Updates(ctx, s.tgOffset.get(botID), telegramPollWait)
+		offset, at := s.tgOffset.get(botID)
+		if at.IsZero() || s.now().Sub(at) > staleGap {
+			if err := s.dropWaiting(ctx, bot, botID, offset); err != nil {
+				if ctx.Err() != nil {
+					return nil
+				}
+				return fmt.Errorf("notify: telegram listener: %w", err)
+			}
+			continue
+		}
+		presses, next, err := bot.Updates(ctx, offset, telegramPollWait)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
 			return fmt.Errorf("notify: telegram listener: %w", err)
 		}
-		s.tgOffset.set(botID, next)
+		s.tgOffset.set(botID, next, s.now())
 		chat := strings.TrimSpace(c.Fields["chat_id"])
 		for _, p := range presses {
 			s.takePress(ctx, bot, chat, p, sem, &wg)
@@ -192,13 +244,8 @@ func (s *Service) listenTelegram(ctx context.Context) error {
 	return nil
 }
 
-// chatMatches checks the press came from the configured chat (spec 6): by number, or by public name for a chat configured as @name.
-func chatMatches(chat string, p channel.Callback) bool {
-	if name, ok := strings.CutPrefix(chat, "@"); ok {
-		return p.ChatUsername != "" && strings.EqualFold(p.ChatUsername, name)
-	}
-	return p.ChatID == chat
-}
+// chatMatches checks the press came from the configured chat (spec 6), by number: approvals need a numeric chat (L1).
+func chatMatches(chat string, p channel.Callback) bool { return p.ChatID == chat }
 
 // takePress checks one press on the receive loop (chat, then the nonce) and hands the decision to a worker, so a slow Decide never
 // holds the loop. A press that is not ours to decide is answered at once and never reaches Decide.
@@ -256,9 +303,10 @@ func (s *Service) decidePress(ctx context.Context, bot *channel.TelegramBot, p c
 	}
 }
 
-// answerPress answers a press; it still runs when ctx ended (the module was turned off after the press was taken), with a short deadline.
+// answerPress answers a press; it still runs when ctx ended (the module was turned off after the press was taken). Its deadline is
+// short (answerWait): answers made on the receive loop run one after the other, and one Telegram does not answer must not hold the next.
 func (s *Service) answerPress(ctx context.Context, bot *channel.TelegramBot, queryID, text string) {
-	actx, stop := detached(ctx)
+	actx, stop := context.WithTimeout(context.WithoutCancel(ctx), answerWait)
 	defer stop()
 	if err := bot.Answer(actx, queryID, text); err != nil {
 		s.cfg.Log.DebugContext(ctx, "notify: telegram: a button press could not be answered", "error", err.Error())

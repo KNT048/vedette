@@ -128,18 +128,10 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	return out, nil
 }
 
-// AssetIDs lists every device id for findings' reconcile job. DevicesOfKind has no row cap and returns a read error as an
-// error, which is what reconcile needs (a short list would make it remove findings of devices that still exist).
+// AssetIDs lists every device id for findings' reconcile job: inventory's unfiltered read (no kind filter, no row cap) returns a
+// read error as an error, which is what reconcile needs (a short list would make it remove findings of devices that still exist).
 func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
-	devs, err := a.inv.DevicesOfKind(ctx, inventory.Kinds)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]string, len(devs))
-	for i, d := range devs {
-		ids[i] = d.ID
-	}
-	return ids, nil
+	return a.inv.AssetIDs(ctx)
 }
 
 // findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind.
@@ -342,6 +334,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()

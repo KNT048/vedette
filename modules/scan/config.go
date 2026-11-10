@@ -181,7 +181,7 @@ func isoDay(t time.Time) int {
 }
 
 // NextRun is the next scheduled run after now in loc, or nil when the schedule is off (POST-3; the mock's nextRun):
-// the first day within two weeks that is a window day (and the weekday for a weekly schedule), at the schedule time.
+// the first slot within two weeks that slotOK accepts.
 func (c Settings) NextRun(now time.Time, loc *time.Location) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
@@ -190,14 +190,40 @@ func (c Settings) NextRun(now time.Time, loc *time.Location) *time.Time {
 	local := now.In(loc)
 	for i := range nextRunSearchDay {
 		d := time.Date(local.Year(), local.Month(), local.Day()+i, at/60, at%60, 0, 0, loc)
-		if !d.After(now) || !slices.Contains(c.Window.Days, isoDay(d)) {
-			continue
-		}
-		if c.Schedule.Frequency == "daily" || isoDay(d) == c.Schedule.Weekday {
+		if d.After(now) && c.slotOK(d) {
 			return &d
 		}
 	}
 	return nil
+}
+
+// slotOK says whether the schedule runs at slot (a day at the schedule time): the window the slot falls in starts on
+// a window day, and a weekly schedule runs on its weekday (the slot's own calendar day). A window that crosses
+// midnight counts by its start day (the GUI's words), so a slot after midnight belongs to the window of the day
+// before: Monday 02:00 is in Sunday's 22:00 to 05:00 window (#164 review M1).
+func (c Settings) slotOK(slot time.Time) bool {
+	if _, ok := c.slotWindowEnd(slot); !ok {
+		return false
+	}
+	return c.Schedule.Frequency == "daily" || isoDay(slot) == c.Schedule.Weekday
+}
+
+// slotWindowEnd is when the window of slot closes; ok is false when that window does not start on a window day. The
+// schedule time is inside the window (INV-5), so the slot is never before its window starts.
+func (c Settings) slotWindowEnd(slot time.Time) (time.Time, bool) {
+	from, to := minutes(c.Window.From), minutes(c.Window.To)
+	start := slot
+	if from > to && minutes(c.Schedule.At) < to { // after midnight: the window began the day before
+		start = slot.AddDate(0, 0, -1)
+	}
+	if !slices.Contains(c.Window.Days, isoDay(start)) {
+		return time.Time{}, false
+	}
+	end := time.Date(start.Year(), start.Month(), start.Day(), to/60, to%60, 0, 0, slot.Location())
+	if from > to {
+		end = end.AddDate(0, 0, 1)
+	}
+	return end, true
 }
 
 // ---- storage ----

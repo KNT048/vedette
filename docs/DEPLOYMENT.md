@@ -102,7 +102,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 |---|---|
 | Nội dung | `vedette-sensor active` (D-113): worker nmap của `sensor-active`; long-poll job `{shape, rate, targets, timeout_s}`, dựng argv bằng `nmapargv` + `ValidateNmapArgs`, chạy `/usr/bin/nmap` qua `core/exec`, trả XML; một job một lúc; lease 60 s. Job nuclei (D-125) chạy `/usr/local/bin/nuclei` ghim, với gói mẫu an toàn trong image |
 | Image nền (đã ký, phát hành) | `deploy/containers/scan-base/Containerfile` (D-146): Debian 13 slim ghim digest + `vedette-sensor` tĩnh ở `/vedette-sensor` + **nuclei v3.11.1** ghim theo phiên bản và SHA-256 (kiểm zip trước khi giải nén và binary sau đó; sai thì build đỏ) ở `/usr/local/bin/nuclei` + gói mẫu (`make scan-pack`, `scripts/scanpack`) ở `/usr/share/vedette/nuclei-templates` và chỉ mục ở `/usr/local/share/vedette/nuclei-pack/index.json`. **Không có nmap** (test giữ). Unit `scan` chạy với `RunInit=true` (podman `--init`, catatonit gặt tiến trình mồ côi; `vedette-sensor` không là subreaper) |
-| Image | **dựng trên hộp** bởi `vedette-host` (D-57 (2), D-113 (7), lát SP-6): Containerfile hằng (`deploy/containers/scan/Containerfile.onbox`, đã có; host nhúng nó ở SP-6) `FROM` digest image nền `ghcr.io/knt048/vedette-scan` đã ký (Debian slim + `vedette-sensor` + nuclei + gói mẫu) + `apt-get install --no-install-recommends nmap` (kho gói OS, PRIVACY luồng 6); tag `localhost/vedette-scan-nmap:<version>`; `container.pull scan` kéo image nền theo digest (kiểm minisign, cosign như mọi service) rồi chạy `podman build` với argv cố định; kiểm hiệu ứng `nmap --version` trong image; dựng hỏng thì giữ image trước. Dự án không phân phối nmap (D-4, `LEGAL.md`) |
+| Image | **dựng trên hộp** bởi `vedette-host` (D-57 (2), D-113 (7), lát SP-6): Containerfile hằng (`deploy/containers/scan/Containerfile.onbox`; `vedette-host` mang bản sao trong binary, `host/ops/scanbuild.go`, test giữ hai bản bằng nhau; D-147) `FROM` digest image nền `ghcr.io/knt048/vedette-scan` đã ký (Debian slim + `vedette-sensor` + nuclei + gói mẫu) + `apt-get install --no-install-recommends nmap` (kho gói **Debian** `deb.debian.org` từ trong container dựng, cả trên hộp Ubuntu; apt mirror của host không áp dụng; PRIVACY luồng 6); tag `localhost/vedette-scan-nmap:<version>`; `container.pull scan` kéo image nền theo digest (kiểm minisign, cosign như mọi service) rồi chạy `podman build` với argv cố định (`--pull=never --no-cache`, không build arg từ đầu vào) và kiểm hiệu ứng `podman run --network none … nmap --version` (≥ `NMAP_MIN_VERSION`, ghi phiên bản đã cài vào bản ghi pull); dựng hỏng thì giữ image trước, run `failed` mã `scan_build_failed`. **Unit `scan` ghim image bằng ID** (`Image=<64 hex>`; không có digest registry): "digest" của `scan` trong host là `sha256:<ID>` và kiểm hiệu ứng đọc `Image` của `container inspect` (D-147). Hộp không tới được `deb.debian.org` thì không có quét chủ động (không có image, không có worker, `sensor-active` báo `unavailable`): `-bootstrap` bỏ qua `scan` (dòng `skipped scan`, thoát 0, `core`/`sensor`/`honeypot` vẫn được cài) và `container.pull scan` sau đó thử dựng lại (D-147 (9)). Dự án không phân phối nmap (D-4, `LEGAL.md`) |
 | Người dùng, capability | như `sensor` (§2.2): `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (nmap `--privileged`, D-84 (8)), `NoNewPrivileges`, rootfs chỉ đọc + tmpfs |
 | Mạng | host |
 | Ràng buộc | worker không giữ phạm vi: `core` là bên đồng ý duy nhất (D-26, D-84) và chỉ giao IPv4 riêng trong ba mẫu; mỗi probe ghi `sa_probe` trước khi giao job (INV-9) |
@@ -210,12 +210,17 @@ Gateway=172.30.77.1
 `/etc/containers/systemd/vedette-creds-passive.volume` (và `vedette-creds-active.volume` như vậy; D-114 (4))
 
 ```ini
+[Unit]
+Description=Vedette sensor credentials (passive role)
+
 [Volume]
 VolumeName=vedette-creds-passive
 # chủ phía host: core ghi, nhóm của sensor đọc (Quadlet 4.9 có User=/Group= cho .volume)
 User=<core_uid>
 Group=<sensor_gid>
 ```
+
+Hai tệp `.volume` do `vedette-host` ghi từ văn bản hằng (D-147), bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core`/`sensor`/`scan` (bootstrap, start, switch, rollback); không có khoá nào khác. Setgid của thư mục mỗi vai không đặt được bằng `.volume`, nên không dựa vào nó: `pki.WriteBundle` của `core` (thành viên `sensor_gid` nhờ `--group-add`) `fchown` tệp bó khoá sang nhóm của thư mục vai trước khi đổi tên (tệp 0640, D-147 (9)); lab xác nhận. Volume chỉ được ghi ở bootstrap và `container.start`, không ở rollback; đổi `core_uid` về sau không chown lại volume đã có.
 
 `/etc/containers/systemd/vedette-core.container`
 
@@ -248,13 +253,14 @@ DropCapability=ALL
 # core_uid:core_gid của /etc/vedette/host.conf; KHÔNG UserNS=auto (uid của peer phải cố định, D-105)
 User=<core_uid>:<core_gid>
 LogDriver=journald
-# --group-add hằng: Quadlet 4.9 không có GroupAdd=; để core ghi tệp khoá 0640 core_uid:sensor_gid (D-114 (4))
+# --group-add hằng, nhóm bổ sung duy nhất của core: Quadlet 4.9 không có GroupAdd=; để core chown tệp bó khoá 0640 sang nhóm sensor_gid của thư mục vai (chỉ thành viên của nhóm mới được, D-114 (4), D-147 (9))
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=<sensor_gid>
 HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443
+# :8444 trong container; phía host chỉ PublishPort=127.0.0.1:8444 (D-113, D-147 (5))
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds
 
 [Service]
 Restart=always
@@ -343,7 +349,7 @@ WantedBy=multi-user.target
 
 Thư mục trên hộp là hằng `/var/lib/vedette-honeypot` (D-123 (1)); `core` gắn cả thư mục vào `/var/lib/vedette/honeypot`, mặc định của `-honeypot-dir` (D-89); `config/` và `log/` gắn ở **cùng đường dẫn tuyệt đối** trong container vì `opencanary.conf` ghi đường dẫn log. Đường dẫn thật và quyền của `log/` khi dùng `UserNS=auto` chốt ở WP-08.
 
-`/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `Image=` là image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); cách ghim image dựng tại chỗ trong unit chốt ở lát SP-6), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
+`/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `RunInit=true` và `Image=<ID 64 hex>` của image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); ghim theo ID, D-147), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
 
 `/etc/systemd/system/vedette-host.service` (khung; thông số hardening ở §12)
 
@@ -465,6 +471,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 | 443/tcp | GitHub Releases (`core` tải index/manifest) + `ghcr.io` (`vedette-host` kéo image theo digest) | bản phát hành ký, image | luồng 6 (`ghcr.io` và host blob của nó, `pkg-containers.githubusercontent.com`, đã thêm ở lát 3-7) |
 | 443/tcp | provider AI, dịch vụ tra cứu cần key, Slack (Socket Mode), Telegram (long polling), Zalo, tín hiệu ẩn danh, CT log + điểm dò IP | theo cấu hình | luồng 2–5, 8, 9 |
 | 80,443/tcp | mirror apt (`archive.ubuntu.com`, `security.ubuntu.com`, `deb.debian.org`, `security.debian.org` hoặc mirror nội bộ) | cập nhật OS (D-53) | luồng 6 |
+| 80,443/tcp | `deb.debian.org` **từ trong container dựng** `scan` (cả trên hộp Ubuntu; mirror nội bộ của apt trên host không áp dụng) | cài nmap vào image `scan` khi `container.pull scan` (D-147) | luồng 6 |
 | 53 UDP/TCP | DNS | phân giải | — |
 | 123/udp | NTP: `pool.ntp.org` mặc định hoặc máy chủ admin nhập (chrony, D-106) | đồng hồ (D-56) | luồng 10 |
 | 25/465/587 | SMTP của khách | email cảnh báo, mã đăng nhập | luồng 5 |
@@ -568,6 +575,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 - Secret qua file mount ro, không qua biến môi trường.
 - Non-root ở mọi container; `core` chạy `User=<core_uid>:<core_gid>` cố định, **không** `UserNS=auto` (kiểm peer của socket host và kiểm chủ sở hữu của D-87 cần uid ổn định); `sensor`/`scan` chạy `User=<sensor_uid>:<sensor_gid>` cố định, **không** `UserNS` (capability của user namespace con không phủ namespace mạng của host; D-114 sửa D-105 (5)); các container khác `UserNS=auto` (D-105). Unit là unit hệ thống, Podman rootful (đóng câu hỏi hệ thống/người dùng).
 - Image: ghim digest, SBOM CycloneDX, quét `trivy`/`govulncheck` trong CI, cosign.
+- **Dựng `scan` trên hộp (D-147)** là chỗ duy nhất root của host chạy mã do kho gói bên thứ ba cung cấp (bước `RUN` chạy bằng root của container dựng, có mạng, tin khoá apt của image nền đã ký). Giữ: văn bản `Containerfile` hằng trong binary; argv `podman build` cố định (`--pull=never`, không build arg từ đầu vào, ngữ cảnh là thư mục riêng của host chỉ chứa `Containerfile`); kiểm hiệu ứng bằng `podman run --network none --cap-drop ALL --read-only` `nmap --version` ≥ sàn; image hỏng bị gỡ và tag trả về image trước; unit `scan` ghim ID image, không tên; image chạy dưới `User=<sensor_uid>` chỉ có `NET_RAW`.
 
 **Rootless.** Appliance dùng Podman **rootful** có hardening trên, vì: macvlan, mạng host + raw socket và mạng nội bộ chung giữa các container đều cần quyền thật; thử rootless sẽ buộc thêm lớp shim làm tăng bề mặt. Rootless dùng được ở dev/CI (profile `dev`) và ở kiểu Chỉ container cho phần `core`/`scan` không cần raw. Xác nhận bằng PoC ở M2 (B4).
 
@@ -589,6 +597,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 | Tích hợp mạng thật | profile `lab` trên VM Linux có card thật | **không quét/probe IP ngoài lab** (`agent-safety.md`); dùng fixture pcap/syslog |
 | Nối GUI vào backend (từng module) | `make dev-api` (mặc định `REAL=core`; `make dev-api REAL=core,inventory`) | Go chạy ở `127.0.0.1:8080` (`.dev/vedette.db`, `.dev/vedette.key`, tạo khi chạy lần đầu), Vite `localhost:5173` proxy `/api` → backend; module trong `REAL` đi tới backend, module khác vẫn do MSW trả lời. Ctrl-C dừng cả hai |
 | Nối GUI vào backend (toàn bộ) | build SPA với `VITE_API_MOCK=off` (hoặc `VITE_API_REAL=all`) | hợp đồng `api/openapi.json` |
+| SPA phát hành | `make web-release`: build `VITE_API_MOCK=off`, không chép `mockServiceWorker.js`, rồi `web/scripts/check-release.mjs` fail nếu `web/dist` còn dấu vết MSW; để lại `web/dist` cho bước nhúng vào core, `make clean` xoá | WP-08a |
 | Dọn | `make clean` (gồm image `vedette-*:dev` build tại chỗ, đề xuất) | không xoá `node_modules`, module cache |
 
 **`make dev-api` chi tiết.** `VITE_API_REAL` (danh sách id module hoặc `all`) quyết định handler MSW nào được đăng ký: `web/src/lib/apiModules.ts` ánh xạ đường dẫn → module đúng như `core/server/modules.go`, và `api/route-modules.json` (Go test `core/server/routemodules_test.go` giữ bằng bảng Go, vitest đối chiếu với `apiModules.ts`) ngăn lệch. Origin: Vite proxy với `changeOrigin: false` nên `Host` giữ `localhost:5173` đúng bằng `Origin` của trình duyệt, và `checkOrigin` của backend so `Origin` với `Host` của chính request đó nên chấp nhận; POST/PUT/PATCH/DELETE gửi thêm `X-CSRF-Token` lấy từ cookie `__Host-vedette_csrf`. Cookie của hộp mang tiền tố `__Host-`/`__Secure-` và thuộc tính `Secure`: Chrome và Firefox chấp nhận chúng từ `http://localhost` (coi localhost là ngữ cảnh an toàn) nên `make dev-api` chạy bình thường qua `http://localhost:5173`; Safari thì không, hãy dùng Chrome hoặc Firefox (hoặc TLS) khi thử với backend thật. Chưa có đăng nhập ở backend (WP-04b phần 2) thì `GET /api/v1/modules` trả 401: đúng như mong đợi. **Module mock khi `core` là thật (issue #78).** Đăng nhập thật không điền phiên của mock, nên handler MSW của module mock (feeds, kiểm kê…) sẽ trả 401. Khi `core` ∈ `VITE_API_REAL` mà còn module mock, `web/src/mocks/realSession.ts` đăng ký một handler đứng đầu: trước khi module mock trả lời, nó đọc `GET /api/v1/me` của backend thật (qua `bypass()` của MSW), giữ kết quả 3 giây và bỏ khi có yêu cầu ghi tới module thật (đăng nhập, đăng xuất, setup, đổi vai); `guard()` và `currentUser()` của mock dùng người dùng và vai đó, không cấp quyền admin. Chưa đăng nhập thật = 401 như thường. Docker Compose cả bộ container chờ image (WP-08).

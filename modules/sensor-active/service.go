@@ -40,7 +40,8 @@ type Config struct {
 	Events    Publisher
 	NmapPath  string // absolute path of the OS package's nmap; Health reads it, and the local Prober runs it
 	// Prober runs the nmap command the module has already checked. Nil means the local one, core/exec around
-	// NmapPath (NewLocalProber); SP-3 adds the one that hands the job to a worker.
+	// NmapPath (NewLocalProber). The Dispatcher hands the job to the worker in the scan container (SP-3); then
+	// NmapPath is not used and Health comes from the worker's heartbeat.
 	Prober Prober
 	Clock  func() time.Time
 	Log    *slog.Logger
@@ -128,12 +129,19 @@ func (s *Service) publish(ctx context.Context, name string, data any) {
 // the time zone of the windows, and warns while a full sweep cannot fit in one window.
 func (s *Service) Health(ctx context.Context) Health {
 	h := Health{Status: "ok", Zone: s.zone().String()}
-	fi, err := os.Stat(s.path)
-	switch {
-	case err != nil:
-		h.Status, h.Message = "unavailable", "nmap is not installed at "+s.path+"; active discovery cannot run until it is installed"
-	case !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0:
-		h.Status, h.Message = "unavailable", s.path+" is not an executable file; active discovery cannot run"
+	if hp, remote := s.prober.(nmapHealther); remote {
+		// nmap lives in the scan container: its worker's heartbeat says whether it can run (D-113 (6)).
+		if msg := hp.NmapHealth(); msg != "" {
+			h.Status, h.Message = "unavailable", msg
+		}
+	} else {
+		fi, err := os.Stat(s.path)
+		switch {
+		case err != nil:
+			h.Status, h.Message = "unavailable", "nmap is not installed at "+s.path+"; active discovery cannot run until it is installed"
+		case !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0:
+			h.Status, h.Message = "unavailable", s.path+" is not an executable file; active discovery cannot run"
+		}
 	}
 	if st, err := s.inv.Settings(ctx); err == nil {
 		h.Warning = st.sweepWarning()
@@ -327,9 +335,22 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		}
 	case runErr != nil:
 		var ee *exec.ExitError
-		if errors.As(runErr, &ee) {
+		switch {
+		case errors.As(runErr, &ee):
 			result = fmt.Sprintf("failed: nmap exited with code %d", ee.ExitCode)
-		} else {
+		case errors.Is(runErr, errXMLTooBig):
+			result = "failed: output over the size limit, discarded"
+		case errors.Is(runErr, ErrWorkerUnavailable):
+			result = "failed: worker_unavailable"
+		case errors.Is(runErr, ErrNmapMissing):
+			result = "failed: nmap_missing"
+		case errors.Is(runErr, ErrWorkerLost):
+			result = "failed: worker_lost"
+		case errors.Is(runErr, ErrWorkerRefused):
+			result = "failed: the worker refused the job"
+		case errors.Is(runErr, ErrResultRejected):
+			result = "failed: the worker's result was rejected"
+		default:
 			result = "failed: nmap could not run"
 		}
 		err = fmt.Errorf("sensoractive: %w", runErr)
@@ -628,6 +649,11 @@ loop:
 		switch {
 		case errors.Is(err, ErrStopped):
 			status, firstErr = StatusStopped, stoppedText
+			break loop
+		case errors.Is(err, ErrUnavailable):
+			// The worker is gone (or nmap is): the batches that are left would each fail the same way and burn a probe row.
+			// Stop without moving the cursor; a stopped sweep is run again by a later Tick, from the cursor.
+			status, firstErr = StatusStopped, "stopped: "+err.Error()
 			break loop
 		case err == nil:
 			var n int

@@ -42,3 +42,7 @@ func (p localProber) Probe(ctx context.Context, argv []string) (Output, error) {
 	res, err := p.runner.Run(ctx, nmapName, argv, nil)
 	return Output{XML: res.Stdout, Truncated: res.Truncated}, err
 }
+
+// nmapHealther is implemented by a Prober that does not run nmap in this process: NmapHealth is "" when nmap can run,
+// otherwise the message of Health (INV-6).
+type nmapHealther interface{ NmapHealth() string }

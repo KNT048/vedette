@@ -213,14 +213,15 @@ type Config struct {
 	Users   Users
 	Log     *slog.Logger
 
-	Modules     ModuleGate  // nil = on (tests)
-	Bus         Bus         // nil = events are dropped
-	Directory   Directory   // nil = trigger events are logged and skipped
-	Notifier    Notifier    // nil = no alert channel
-	Connections Connections // nil = no connection
-	Executor    Executor    // nil = no device can be changed
-	Webhooks    Webhooks    // nil = no webhook
-	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
+	Modules     ModuleGate    // nil = on (tests)
+	Bus         Bus           // nil = events are dropped
+	Directory   Directory     // nil = trigger events are logged and skipped
+	Notifier    Notifier      // nil = no alert channel
+	Connections Connections   // nil = no connection
+	Executor    Executor      // nil = no device can be changed
+	Webhooks    Webhooks      // nil = no webhook
+	TwoStep     TwoStep       // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
+	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets.
@@ -255,8 +256,11 @@ type Service struct {
 	seedMu sync.Mutex
 	seeded bool
 
-	limitMu    sync.Mutex
-	fetchTimes map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
+	limitMu         sync.Mutex
+	proposeTimes    []time.Time // Propose calls of the last hour, any outcome (D-119)
+	proposeSkipped  int         // calls refused since the last log line
+	proposeLoggedAt time.Time
+	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it

@@ -309,7 +309,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 		item := pl.rec
 		item.ID = newID("it")
 		meta := &AiMeta{Evidence: []Evidence{}, Why: oneLine(why, 300), InAppOnly: item.Risk == RiskHigh}
-		out, err = s.createRequest(ctx, tx, st, reqInit{Source: "ai", ProposalID: pid, Trigger: "finding", TriggerSummary: oneLine(why, 300), FindingID: plan.FindingID, CVE: plan.CVE,
+		out, err = s.createRequest(ctx, tx, st, reqInit{Source: "ai", Actor: who.Email + " (app)", ProposalID: pid, Trigger: "finding", TriggerSummary: oneLine(why, 300), FindingID: plan.FindingID, CVE: plan.CVE,
 			AssetID: assetID, AssetName: oneLine(plan.AssetName, 120), Title: item.Title, Recs: []itemRec{item}, AI: meta}, &fx)
 		return err
 	})

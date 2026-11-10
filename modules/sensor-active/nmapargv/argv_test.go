@@ -244,3 +244,61 @@ func FuzzValidate(f *testing.F) {
 		}
 	})
 }
+
+func TestParseInvertsBuild(t *testing.T) {
+	t.Parallel()
+	ts := addrs(t, "192.168.10.1", "10.0.0.7")
+	for _, c := range []struct {
+		kind Kind
+		rate int
+		want int
+	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}} {
+		argv, err := Build(c.kind, c.rate, ts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		k, r, got, err := Parse(argv)
+		if err != nil || k != c.kind || r != c.want || !reflect.DeepEqual(got, ts) {
+			t.Errorf("%s: Parse = %v %d %v %v", c.kind.Name(), k, r, got, err)
+		}
+		if kk, ok := KindOf(c.kind.Name()); !ok || kk != c.kind {
+			t.Errorf("KindOf(%q) = %v %v", c.kind.Name(), kk, ok)
+		}
+	}
+	if _, _, _, err := Parse([]string{"-A", "-oX", "-", "10.0.0.1"}); err == nil {
+		t.Error("Parse accepted an argv Validate refuses")
+	}
+	if _, ok := KindOf("aggressive"); ok {
+		t.Error("KindOf accepted an unknown shape")
+	}
+}
+
+// FuzzParseBuild: for every argv Validate accepts, Parse finds the kind, rate and targets it was built from, and Build makes the
+// same argv again. The dispatcher turns the argv core checked into a job and the worker builds it back: this is the guarantee
+// that nothing is lost or invented on the way (L8).
+func FuzzParseBuild(f *testing.F) {
+	for _, s := range [][]string{
+		shapeSweep, shapeNormal, shapeGentle,
+		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
+		{"--privileged", "-sn", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
+	} {
+		f.Add(strings.Join(s, "\n"))
+	}
+	f.Fuzz(func(t *testing.T, joined string) {
+		argv := strings.Split(joined, "\n")
+		if Validate(argv) != nil {
+			return
+		}
+		kind, rate, targets, err := Parse(argv)
+		if err != nil {
+			t.Fatalf("Parse refuses an argv Validate accepts: %q: %v", argv, err)
+		}
+		got, err := Build(kind, rate, targets)
+		if err != nil || !slices.Equal(got, argv) {
+			t.Fatalf("Build(Parse(a)) != a:\n a = %q\n b = %q (%v)", argv, got, err)
+		}
+		if _, ok := KindOf(kind.Name()); !ok {
+			t.Fatalf("kind %v has no name", kind)
+		}
+	})
+}

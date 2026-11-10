@@ -152,10 +152,12 @@ func (s *Server) enterAwaiting(lr *liveRun, cmd Command, aw Awaiting, rc *RunCon
 		// line, so the run still waits. A broken chain refuses every later write anyway.
 		s.log.Error("could not audit awaiting_confirm", "run_id", run.RunID)
 	}
-	lr.ev.add(api.Event{Kind: api.KindState, Status: api.StatusAwaitingConfirm})
+	// Stored before the event goes out, as finish does: a client that sees awaiting_confirm on the stream and then
+	// asks GetRun (which reads the store without s.mu) must find the run awaiting, not still running.
 	if err := s.runs.put(lr.sr); err != nil {
 		s.log.Error("could not save an awaiting run", "run_id", run.RunID)
 	}
+	lr.ev.add(api.Event{Kind: api.KindState, Status: api.StatusAwaitingConfirm})
 	s.persistEvents(lr)
 	s.mu.Unlock()
 	for _, fn := range rc.parked {

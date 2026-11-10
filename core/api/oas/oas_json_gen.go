@@ -84276,6 +84276,10 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsGetFeedsSourcesOKItemsItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("answered_by")
+		s.AnsweredBy.Encode(e)
+	}
+	{
 		e.FieldStart("auth")
 		s.Auth.Encode(e)
 	}
@@ -84341,23 +84345,24 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsGetFeedsSourcesOKItemsItem = [16]string{
-	0:  "auth",
-	1:  "builtin",
-	2:  "default_url",
-	3:  "enabled",
-	4:  "error",
-	5:  "format",
-	6:  "id",
-	7:  "interval_hours",
-	8:  "kind",
-	9:  "last_fetch",
-	10: "license",
-	11: "name",
-	12: "parser",
-	13: "records",
-	14: "status",
-	15: "url",
+var jsonFieldsNameOfFeedsGetFeedsSourcesOKItemsItem = [17]string{
+	0:  "answered_by",
+	1:  "auth",
+	2:  "builtin",
+	3:  "default_url",
+	4:  "enabled",
+	5:  "error",
+	6:  "format",
+	7:  "id",
+	8:  "interval_hours",
+	9:  "kind",
+	10: "last_fetch",
+	11: "license",
+	12: "name",
+	13: "parser",
+	14: "records",
+	15: "status",
+	16: "url",
 }
 
 // Decode decodes FeedsGetFeedsSourcesOKItemsItem from json.
@@ -84365,12 +84370,22 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsGetFeedsSourcesOKItemsItem to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "auth":
+		case "answered_by":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AnsweredBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered_by\"")
+			}
+		case "auth":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Auth.Decode(d); err != nil {
 					return err
@@ -84380,7 +84395,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"auth\"")
 			}
 		case "builtin":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Builtin = bool(v)
@@ -84392,7 +84407,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"builtin\"")
 			}
 		case "default_url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultURL.Decode(d); err != nil {
 					return err
@@ -84402,7 +84417,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_url\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -84414,7 +84429,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "error":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Error.Decode(d); err != nil {
 					return err
@@ -84424,7 +84439,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Format.Decode(d); err != nil {
 					return err
@@ -84434,7 +84449,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -84446,7 +84461,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interval_hours":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.IntervalHours = int(v)
@@ -84458,7 +84473,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -84468,7 +84483,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_fetch":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastFetch.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -84478,7 +84493,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_fetch\"")
 			}
 		case "license":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.License.Decode(d); err != nil {
 					return err
@@ -84488,7 +84503,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"license\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -84500,7 +84515,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -84510,7 +84525,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "records":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Records.Decode(d); err != nil {
 					return err
@@ -84520,7 +84535,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"records\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -84530,7 +84545,7 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -84550,9 +84565,10 @@ func (s *FeedsGetFeedsSourcesOKItemsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -86014,6 +86030,10 @@ func (s *FeedsPostFeedsCustomCreated) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPostFeedsCustomCreated) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("answered_by")
+		s.AnsweredBy.Encode(e)
+	}
+	{
 		e.FieldStart("auth")
 		s.Auth.Encode(e)
 	}
@@ -86079,23 +86099,24 @@ func (s *FeedsPostFeedsCustomCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPostFeedsCustomCreated = [16]string{
-	0:  "auth",
-	1:  "builtin",
-	2:  "default_url",
-	3:  "enabled",
-	4:  "error",
-	5:  "format",
-	6:  "id",
-	7:  "interval_hours",
-	8:  "kind",
-	9:  "last_fetch",
-	10: "license",
-	11: "name",
-	12: "parser",
-	13: "records",
-	14: "status",
-	15: "url",
+var jsonFieldsNameOfFeedsPostFeedsCustomCreated = [17]string{
+	0:  "answered_by",
+	1:  "auth",
+	2:  "builtin",
+	3:  "default_url",
+	4:  "enabled",
+	5:  "error",
+	6:  "format",
+	7:  "id",
+	8:  "interval_hours",
+	9:  "kind",
+	10: "last_fetch",
+	11: "license",
+	12: "name",
+	13: "parser",
+	14: "records",
+	15: "status",
+	16: "url",
 }
 
 // Decode decodes FeedsPostFeedsCustomCreated from json.
@@ -86103,12 +86124,22 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsPostFeedsCustomCreated to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "auth":
+		case "answered_by":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AnsweredBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered_by\"")
+			}
+		case "auth":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Auth.Decode(d); err != nil {
 					return err
@@ -86118,7 +86149,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"auth\"")
 			}
 		case "builtin":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Builtin = bool(v)
@@ -86130,7 +86161,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"builtin\"")
 			}
 		case "default_url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultURL.Decode(d); err != nil {
 					return err
@@ -86140,7 +86171,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_url\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -86152,7 +86183,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "error":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Error.Decode(d); err != nil {
 					return err
@@ -86162,7 +86193,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Format.Decode(d); err != nil {
 					return err
@@ -86172,7 +86203,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -86184,7 +86215,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interval_hours":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.IntervalHours = int(v)
@@ -86196,7 +86227,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -86206,7 +86237,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_fetch":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastFetch.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -86216,7 +86247,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_fetch\"")
 			}
 		case "license":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.License.Decode(d); err != nil {
 					return err
@@ -86226,7 +86257,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"license\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -86238,7 +86269,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -86248,7 +86279,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "records":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Records.Decode(d); err != nil {
 					return err
@@ -86258,7 +86289,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"records\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -86268,7 +86299,7 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -86288,9 +86319,10 @@ func (s *FeedsPostFeedsCustomCreated) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -89251,6 +89283,10 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPostFeedsSourcesIDFetchOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("answered_by")
+		s.AnsweredBy.Encode(e)
+	}
+	{
 		e.FieldStart("auth")
 		s.Auth.Encode(e)
 	}
@@ -89316,23 +89352,24 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPostFeedsSourcesIDFetchOK = [16]string{
-	0:  "auth",
-	1:  "builtin",
-	2:  "default_url",
-	3:  "enabled",
-	4:  "error",
-	5:  "format",
-	6:  "id",
-	7:  "interval_hours",
-	8:  "kind",
-	9:  "last_fetch",
-	10: "license",
-	11: "name",
-	12: "parser",
-	13: "records",
-	14: "status",
-	15: "url",
+var jsonFieldsNameOfFeedsPostFeedsSourcesIDFetchOK = [17]string{
+	0:  "answered_by",
+	1:  "auth",
+	2:  "builtin",
+	3:  "default_url",
+	4:  "enabled",
+	5:  "error",
+	6:  "format",
+	7:  "id",
+	8:  "interval_hours",
+	9:  "kind",
+	10: "last_fetch",
+	11: "license",
+	12: "name",
+	13: "parser",
+	14: "records",
+	15: "status",
+	16: "url",
 }
 
 // Decode decodes FeedsPostFeedsSourcesIDFetchOK from json.
@@ -89340,12 +89377,22 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsPostFeedsSourcesIDFetchOK to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "auth":
+		case "answered_by":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AnsweredBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered_by\"")
+			}
+		case "auth":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Auth.Decode(d); err != nil {
 					return err
@@ -89355,7 +89402,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"auth\"")
 			}
 		case "builtin":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Builtin = bool(v)
@@ -89367,7 +89414,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"builtin\"")
 			}
 		case "default_url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultURL.Decode(d); err != nil {
 					return err
@@ -89377,7 +89424,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_url\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -89389,7 +89436,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "error":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Error.Decode(d); err != nil {
 					return err
@@ -89399,7 +89446,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Format.Decode(d); err != nil {
 					return err
@@ -89409,7 +89456,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -89421,7 +89468,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interval_hours":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.IntervalHours = int(v)
@@ -89433,7 +89480,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -89443,7 +89490,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_fetch":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastFetch.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -89453,7 +89500,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_fetch\"")
 			}
 		case "license":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.License.Decode(d); err != nil {
 					return err
@@ -89463,7 +89510,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"license\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -89475,7 +89522,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -89485,7 +89532,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "records":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Records.Decode(d); err != nil {
 					return err
@@ -89495,7 +89542,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"records\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -89505,7 +89552,7 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -89525,9 +89572,10 @@ func (s *FeedsPostFeedsSourcesIDFetchOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -90819,6 +90867,10 @@ func (s *FeedsPutFeedsCustomIDOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPutFeedsCustomIDOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("answered_by")
+		s.AnsweredBy.Encode(e)
+	}
+	{
 		e.FieldStart("auth")
 		s.Auth.Encode(e)
 	}
@@ -90884,23 +90936,24 @@ func (s *FeedsPutFeedsCustomIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsCustomIDOK = [16]string{
-	0:  "auth",
-	1:  "builtin",
-	2:  "default_url",
-	3:  "enabled",
-	4:  "error",
-	5:  "format",
-	6:  "id",
-	7:  "interval_hours",
-	8:  "kind",
-	9:  "last_fetch",
-	10: "license",
-	11: "name",
-	12: "parser",
-	13: "records",
-	14: "status",
-	15: "url",
+var jsonFieldsNameOfFeedsPutFeedsCustomIDOK = [17]string{
+	0:  "answered_by",
+	1:  "auth",
+	2:  "builtin",
+	3:  "default_url",
+	4:  "enabled",
+	5:  "error",
+	6:  "format",
+	7:  "id",
+	8:  "interval_hours",
+	9:  "kind",
+	10: "last_fetch",
+	11: "license",
+	12: "name",
+	13: "parser",
+	14: "records",
+	15: "status",
+	16: "url",
 }
 
 // Decode decodes FeedsPutFeedsCustomIDOK from json.
@@ -90908,12 +90961,22 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsPutFeedsCustomIDOK to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "auth":
+		case "answered_by":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AnsweredBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered_by\"")
+			}
+		case "auth":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Auth.Decode(d); err != nil {
 					return err
@@ -90923,7 +90986,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"auth\"")
 			}
 		case "builtin":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Builtin = bool(v)
@@ -90935,7 +90998,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"builtin\"")
 			}
 		case "default_url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultURL.Decode(d); err != nil {
 					return err
@@ -90945,7 +91008,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_url\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -90957,7 +91020,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "error":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Error.Decode(d); err != nil {
 					return err
@@ -90967,7 +91030,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Format.Decode(d); err != nil {
 					return err
@@ -90977,7 +91040,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -90989,7 +91052,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interval_hours":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.IntervalHours = int(v)
@@ -91001,7 +91064,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -91011,7 +91074,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_fetch":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastFetch.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -91021,7 +91084,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_fetch\"")
 			}
 		case "license":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.License.Decode(d); err != nil {
 					return err
@@ -91031,7 +91094,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"license\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -91043,7 +91106,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -91053,7 +91116,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "records":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Records.Decode(d); err != nil {
 					return err
@@ -91063,7 +91126,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"records\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -91073,7 +91136,7 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -91093,9 +91156,10 @@ func (s *FeedsPutFeedsCustomIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -92811,6 +92875,10 @@ func (s *FeedsPutFeedsSourcesIDOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPutFeedsSourcesIDOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("answered_by")
+		s.AnsweredBy.Encode(e)
+	}
+	{
 		e.FieldStart("auth")
 		s.Auth.Encode(e)
 	}
@@ -92876,23 +92944,24 @@ func (s *FeedsPutFeedsSourcesIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsSourcesIDOK = [16]string{
-	0:  "auth",
-	1:  "builtin",
-	2:  "default_url",
-	3:  "enabled",
-	4:  "error",
-	5:  "format",
-	6:  "id",
-	7:  "interval_hours",
-	8:  "kind",
-	9:  "last_fetch",
-	10: "license",
-	11: "name",
-	12: "parser",
-	13: "records",
-	14: "status",
-	15: "url",
+var jsonFieldsNameOfFeedsPutFeedsSourcesIDOK = [17]string{
+	0:  "answered_by",
+	1:  "auth",
+	2:  "builtin",
+	3:  "default_url",
+	4:  "enabled",
+	5:  "error",
+	6:  "format",
+	7:  "id",
+	8:  "interval_hours",
+	9:  "kind",
+	10: "last_fetch",
+	11: "license",
+	12: "name",
+	13: "parser",
+	14: "records",
+	15: "status",
+	16: "url",
 }
 
 // Decode decodes FeedsPutFeedsSourcesIDOK from json.
@@ -92900,12 +92969,22 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsPutFeedsSourcesIDOK to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "auth":
+		case "answered_by":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AnsweredBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered_by\"")
+			}
+		case "auth":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Auth.Decode(d); err != nil {
 					return err
@@ -92915,7 +92994,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"auth\"")
 			}
 		case "builtin":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Builtin = bool(v)
@@ -92927,7 +93006,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"builtin\"")
 			}
 		case "default_url":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultURL.Decode(d); err != nil {
 					return err
@@ -92937,7 +93016,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_url\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -92949,7 +93028,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "error":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Error.Decode(d); err != nil {
 					return err
@@ -92959,7 +93038,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Format.Decode(d); err != nil {
 					return err
@@ -92969,7 +93048,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"format\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -92981,7 +93060,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interval_hours":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.IntervalHours = int(v)
@@ -92993,7 +93072,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -93003,7 +93082,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_fetch":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.LastFetch.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -93013,7 +93092,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_fetch\"")
 			}
 		case "license":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.License.Decode(d); err != nil {
 					return err
@@ -93023,7 +93102,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"license\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -93035,7 +93114,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -93045,7 +93124,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "records":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Records.Decode(d); err != nil {
 					return err
@@ -93055,7 +93134,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"records\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -93065,7 +93144,7 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -93085,9 +93164,10 @@ func (s *FeedsPutFeedsSourcesIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

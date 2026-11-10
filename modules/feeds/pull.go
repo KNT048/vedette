@@ -6,8 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -197,8 +200,10 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if err != nil {
 		return p, err
 	}
+	viaCISA := src.ID == "cisa-kev" && src.URL == s.kevPrimary() // the built-in address of the CISA list: D-91 applies
 	req := Request{URL: src.URL, Auth: auth}
-	if src.Status == "ok" { // conditional only after a good pull, and only for the address the validators came from
+	mirrorHeldIt := src.AnsweredBy != nil && *src.AnsweredBy == AnsweredMirror
+	if src.Status == "ok" && !mirrorHeldIt { // conditional only after a good pull, and only for the address the validators came from
 		if src.ETag != nil {
 			req.ETag = *src.ETag
 		}
@@ -207,14 +212,25 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		}
 	}
 	resp, err := s.get(ctx, req)
+	answered := ""
+	if viaCISA {
+		answered = AnsweredCISA
+		if err != nil && fallbackWorthy(err) {
+			mresp, merr := s.get(ctx, Request{URL: s.kevFallback()}) // no validators, no credentials: a plain GET
+			if merr != nil {
+				return p, &Error{Err: merr, Detail: userError(err, src.URL) + " The CISA GitHub mirror failed too: " + userError(merr, s.kevFallback())}
+			}
+			resp, err, answered = mresp, nil, AnsweredMirror
+		}
+	}
 	if err != nil {
 		return p, err
 	}
 	if resp.NotModified {
-		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified}
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered}
 		return p, nil
 	}
-	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered}
 	switch dec {
 	case DecoderKEV:
 		cat, err := ParseKEV(resp.Body)
@@ -223,6 +239,10 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		}
 		if err := accepted(cat.Stats); err != nil {
 			return p, err
+		}
+		if answered == AnsweredMirror && src.CatalogVersion != nil && kevOlder(cat.Version, *src.CatalogVersion) { // never roll back (D-91)
+			p.out = outcome{OK: true, NotModified: true, Note: fmt.Sprintf("The CISA GitHub mirror has an older list (%s) than this box (%s), so the list on the box was kept.", cat.Version, *src.CatalogVersion)}
+			return p, nil
 		}
 		p.vulns, p.hasVulns = cat.Vulns, true
 		p.out.fill(cat.Stats, cat.Accepted)
@@ -519,4 +539,56 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 		}
 	}
 	return row, nil
+}
+
+// fallbackWorthy says whether a failed pull of the CISA address is one the GitHub mirror can answer (D-91): the address
+// is blocked for this box (403), the server is sick (5xx) or nothing came back in time.
+func fallbackWorthy(err error) bool {
+	var se *StatusError
+	switch {
+	case errors.As(err, &se):
+		return se.Code == http.StatusForbidden || se.Code >= 500
+	case errors.Is(err, context.DeadlineExceeded):
+		return true
+	}
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
+}
+
+// kevOlder reports whether catalog version a (such as "2026.11.04") is older than b. A version that is not dotted numbers is
+// never older: unknown is taken, not refused.
+func kevOlder(a, b string) bool {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < max(len(pa), len(pb)); i++ {
+		x, y := 0, 0
+		var e1, e2 error
+		if i < len(pa) {
+			x, e1 = strconv.Atoi(pa[i])
+		}
+		if i < len(pb) {
+			y, e2 = strconv.Atoi(pb[i])
+		}
+		if e1 != nil || e2 != nil || a == "" || b == "" {
+			return false
+		}
+		if x != y {
+			return x < y
+		}
+	}
+	return false
+}
+
+func (s *Service) kevPrimary() string {
+	if s.KEVPrimary != "" {
+		return s.KEVPrimary
+	}
+	b, _ := BuiltinByID("cisa-kev")
+	return b.URL
+}
+
+func (s *Service) kevFallback() string {
+	if s.KEVFallback != "" {
+		return s.KEVFallback
+	}
+	return KEVMirrorURL
 }

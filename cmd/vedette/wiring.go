@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -127,6 +128,23 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	return out, nil
 }
 
+// AssetIDs lists every device id for findings' reconcile job. DevicesOfKind has no row cap and returns a read error as an
+// error, which is what reconcile needs (a short list would make it remove findings of devices that still exist).
+func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
+	devs, err := a.inv.DevicesOfKind(ctx, inventory.Kinds)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(devs))
+	for i, d := range devs {
+		ids[i] = d.ID
+	}
+	return ids, nil
+}
+
+// findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind.
+func findingsJobs(d deps) []jobs.Job { return findings.Jobs(d.Findings) }
+
 func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (findings.Asset, bool, error) {
 	d, ok, err := a.inv.MatchInput(ctx, assetID)
 	if err != nil || !ok {
@@ -168,6 +186,9 @@ func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
+			out[i].DateAdded = t
+		}
 		if v.EPSS != nil {
 			out[i].EPSS = *v.EPSS
 		}
@@ -249,7 +270,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	inv := findingsInventory{d.Inventory}
 	feed := findingsFeeds{fs.Store()}
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock}
+	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline}
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

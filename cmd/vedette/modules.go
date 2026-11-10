@@ -103,7 +103,7 @@ func wiredModules() []moduleWiring {
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs},
-		{ID: "findings", Migrations: findings.Migrations},
+		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},          // no capture job: packets are read in the sensor container only (D-141)

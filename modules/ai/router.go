@@ -259,11 +259,12 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 			} else {
 				hold.Cancel()
 			}
+			// The request was handed to the provider, so the attempt counts, also when the caller has gone: the caller records it.
+			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: err})
 			if ctx.Err() != nil { // the caller gave up or ran out of time: do not burn the fallback
 				return res, ctx.Err()
 			}
 			reasons = append(reasons, p.Name+": "+err.Error())
-			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: err})
 			continue
 		}
 		res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name})

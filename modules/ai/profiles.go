@@ -419,9 +419,18 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	defer acancel()
 	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
 		if down != nil {
-			if err := s.auditTx(actx, tx, who, "ai.downgrade", string(down.From)+"->"+string(down.To), clipRunes(down.Reason, 300)); err != nil {
+			if err := s.writeDowngrade(actx, tx, who, down); err != nil {
 				return err
 			}
+		}
+		// The test is a call to the provider like any other: it is in the activity log and so in the day's usage after a restart.
+		e := ActivityEntry{Job: "connection-test", Profile: name, ProfileID: exceptID, Model: p.Model, Trigger: "user:" + who, InputHash: HashContent("ping"), OutputHash: HashContent(""),
+			Summary: "Connection test of " + name, Result: ResultError}
+		if probeErr == nil {
+			e.Result, e.OutputHash, e.TokensIn, e.TokensOut = ResultOK, HashContent("pong"), res.TokensIn, res.TokensOut
+		}
+		if _, err := s.appendActivity(actx, tx, e); err != nil {
+			return err
 		}
 		return s.auditTx(actx, tx, who, "ai.test", name, fmt.Sprintf("model=%s, host=%s, result=%s", p.Model, hostOf(p.BaseURL), outcome))
 	}); err != nil {

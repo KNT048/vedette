@@ -292,7 +292,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if !fileExists(logsDB) {
 		t.Fatal("a refused purge removed logs.db")
 	}
-	keyBefore, err := os.ReadFile(key)
+	keyBefore, err := os.ReadFile(key) //nolint:gosec // a path of this test's own temp directory
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		t.Fatalf("purge = %d %s (a box without a helper says so in kept)", c, b)
 	}
 	// H1 (a): the key file is replaced (same mode, nothing staged left), so any old copy opens nothing this box holds.
-	if keyAfter, err := os.ReadFile(key); err != nil || len(keyAfter) != len(keyBefore) || bytes.Equal(keyAfter, keyBefore) {
+	if keyAfter, err := os.ReadFile(key); err != nil || len(keyAfter) != len(keyBefore) || bytes.Equal(keyAfter, keyBefore) { //nolint:gosec // a path of this test's own temp directory
 		t.Errorf("the key was not replaced: %v", err)
 	}
 	if info, err := os.Stat(key); err != nil || info.Mode().Perm() != 0o600 || fileExists(key+".new") {

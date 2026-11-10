@@ -104,7 +104,7 @@ func newDataWorldIn(t *testing.T, dir string, withHost bool) *dataWorld {
 		}
 		hc.OSBusy = func(context.Context) bool { return dw.osBusy }
 		hc.BeforeWipe = func(context.Context) error {
-			dw.wipeSeen <- w.tableCounts()
+			dw.wipeSeen <- w.tableCounts() //nolint:contextcheck // a test helper that reads with the test's own context
 			return dw.hookErr
 		}
 	})
@@ -242,7 +242,7 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 		t.Errorf("BeforeWipe saw %v: it must run before the wipe", seen)
 	}
 	// M5: nothing can write between the commit and the restart.
-	if err := w.env.DB.Write(t.Context(), func(tx *sql.Tx) error { return nil }); !errors.Is(err, store.ErrFrozen) {
+	if err := w.env.DB.Write(t.Context(), func(*sql.Tx) error { return nil }); !errors.Is(err, store.ErrFrozen) {
 		t.Errorf("a write after the purge = %v, want ErrFrozen", err)
 	}
 	select { // the restart hook plays the new process: it thaws the database

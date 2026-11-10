@@ -34,8 +34,22 @@ function SearchBox() {
   )
 }
 
+/** D-92/D-134: the sentence that replaces a count or an empty table while the CISA list is off or has never loaded; null when there is nothing to say. */
+function useKevNotice() {
+  const { t } = useTranslation('feeds')
+  const status = useFeedStatus()
+  // A box that has never fetched answers generated_at = 1970-01-01 (the contract has no null there): Home says "no data yet" instead.
+  const never = !!status.data && new Date(status.data.generated_at).getFullYear() < 2000
+  const kev = status.data?.kev
+  const link = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
+  const notice = kev?.state === 'off' ? <>{t('home.kevOff')} {link}</>
+    : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {link}</> : null
+  return { never, notice }
+}
+
 function HotBoard() {
   const { t } = useTranslation('feeds')
+  const { notice } = useKevNotice()
   const navigate = useNavigate()
   const [win, setWin] = useState<'24h' | '7d'>('7d')
   const hot = useHot(win)
@@ -86,9 +100,13 @@ function HotBoard() {
               </div>
             )} />
         ) : (
-          <EmptyState title={t('hot.empty', { window: win === '24h' ? t('hot.24h') : t('hot.7d') })}>
-            {d.latest ? t('hot.emptyLatest', { date: fmtDay(d.latest.date_added), product: d.latest.display }) : null}
-          </EmptyState>
+          notice ? (
+            <div className="rounded-md border border-dashed border-rule bg-surface px-6 py-8"><p className="font-medium">{notice}</p></div>
+          ) : (
+            <EmptyState title={t('hot.empty', { window: win === '24h' ? t('hot.24h') : t('hot.7d') })}>
+              {d.latest ? t('hot.emptyLatest', { date: fmtDay(d.latest.date_added), product: d.latest.display }) : null}
+            </EmptyState>
+          )
         )}
       </QueryState>
     </Section>
@@ -139,13 +157,7 @@ export default function HomePage() {
   const rows = hot.data?.rows ?? []
   const cves = rows.reduce((n, r) => n + r.cves.length, 0)
   const matched = rows.filter((r) => r.you_have === 'yes').length
-  // A box that has never fetched answers generated_at = 1970-01-01 (the contract has no null there): say so instead of showing that date.
-  const never = !!status.data && new Date(status.data.generated_at).getFullYear() < 2000
-  // D-92: never say "0 newly exploited" when the CISA list is off or has never loaded; say why and where to fix it.
-  const kev = status.data?.kev
-  const kevLink = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
-  const kevTitle = kev?.state === 'off' ? <>{t('home.kevOff')} {kevLink}</>
-    : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {kevLink}</> : null
+  const { never, notice: kevTitle } = useKevNotice()
   const title = !hot.data ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (
     <>

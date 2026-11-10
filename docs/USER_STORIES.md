@@ -117,6 +117,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 ## NOTIFY / CORE / FLEET
 
 **S-NOT-1** (P1, P2) `[đạt]` — Cấu hình kênh Zalo OA/Telegram/email/webhook, thử gửi, lịch im lặng.
+- Chấp nhận (rà soát bảo mật #172, L1): khi bật "Approve actions from this channel" cho Telegram, Chat ID phải là **số** của chat (nhóm dạng -1001234567890); `@tên` công khai bị từ chối ở trường Chat ID (400 `bad_chat_id`) với thông điệp nói vì sao: "To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else." `@tên` vẫn dùng được khi chỉ gửi cảnh báo.
 **S-NOT-2** (P1, P2) `[đạt]` (D-38) — Thêm kênh Slack (Incoming Webhook; Socket Mode nếu muốn duyệt hành động trong Slack), thử gửi.
 **S-CORE-1** (P2) `[đạt]` — Bật/tắt từng module trong Cài đặt; tắt giữ dữ liệu; màn hình nói rõ module nào đang tắt và vì sao thiếu dữ liệu.
 **S-CORE-2** (P2) `[đạt]` — Trang Cập nhật: phiên bản phần mềm, dữ liệu, gói nội dung; cập nhật tự động hay tay; rollback 1 bấm; bundle offline.

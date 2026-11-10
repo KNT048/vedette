@@ -298,6 +298,10 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	if len(in.Approvers) == 0 {
 		return badRequest("approvers_required", `Add at least one approver, or turn off "Approve actions from this channel".`)
 	}
+	if t == channel.Telegram && !approvalChat(in.Fields) { // review of #172, L1
+		return badRequest("bad_chat_id", "To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), "+
+			"not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.")
+	}
 	seen := map[string]bool{}
 	for _, a := range in.Approvers {
 		u, found, err := s.cfg.Users.Lookup(ctx, a.UserID)

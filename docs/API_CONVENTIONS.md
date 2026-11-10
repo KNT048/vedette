@@ -355,7 +355,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `ai_paused` | 409 | AI request: AI proposals are paused (${reason}). An admin can resume them. | cổng của đề xuất AI (13b-10 gọi `checkAIPaused`; đặt bởi cầu dao chất lượng, gỡ bởi `POST /response/ai/resume`, 13b-9) |
-| `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai` |
+| `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai`; `POST /ai/cve/{id}/explain` (cũng khi hook chặn yêu cầu hay câu trả lời sai định dạng, lý do trong thông điệp, D-148 (2)) |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
 | `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request` |

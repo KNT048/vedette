@@ -357,10 +357,11 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	}
 
 	// A listener failing is shut down after exactly like a stop: the other listener and the scheduler are stopped in order, then the error is returned.
-	var failure error
+	var failure, serveRet error
+	served := false // serveErr has been read
 	select {
 	case err := <-serveErr:
-		failure = fmt.Errorf("serve: %w", err)
+		failure, served = fmt.Errorf("serve: %w", err), true
 	case err := <-linkErr:
 		failure = fmt.Errorf("serve sensor link: %w", err)
 	case <-ctx.Done():
@@ -374,11 +375,18 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	shutdownErr := srv.Shutdown(sctx)
+	// Shutdown closes only the listeners Serve has registered: when the other listener failed at once, the Serve goroutine may not
+	// have started yet, and the kernel would keep accepting into ln's backlog. Close ln here and wait for Serve to return, so the
+	// port is closed when this function returns, whatever the order.
+	_ = ln.Close()
+	if !served {
+		serveRet = <-serveErr
+	}
 	stopSched()
 	if failure != nil {
 		return failure
 	}
-	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := serveRet; err != nil && !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, net.ErrClosed) {
 		return fmt.Errorf("serve: %w", err)
 	}
 	if shutdownErr != nil {

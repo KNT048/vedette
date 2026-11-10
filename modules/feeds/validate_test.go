@@ -104,7 +104,7 @@ func TestContract_INV5_NameUniqueCaseInsensitive(t *testing.T) {
 	if err := CheckName("Third feed", others); err != nil {
 		t.Fatalf("fresh name rejected: %v", err)
 	}
-	for _, n := range []string{"partner LIST", "  Partner list ", "SECOND FEED", "cisa kev", "Ipsum", "ABUSE.CH SSLBL"} {
+	for _, n := range []string{"partner LIST", "  Partner list ", "SECOND FEED", "cisa kev", "Ipsum", "ABUSE.CH FEODO TRACKER"} {
 		if err := CheckName(n, others); !errors.Is(err, ErrDuplicateName) {
 			t.Errorf("CheckName(%q) = %v, want ErrDuplicateName", n, err)
 		}

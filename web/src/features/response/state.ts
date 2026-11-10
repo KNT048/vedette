@@ -403,6 +403,8 @@ export function approve(a: ActionRequest, w: Who, pick?: string[], code?: string
   if (chosen.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
   if (first && pick && pick.length && (pick.length !== first.items.length || !pick.every((p) => first.items.includes(p)))) return refuse(409, 'selection_differs', 'The second approver must approve the same actions as the first.', a.id)
   if (a.approvals.some((x) => x.user_id === w.id)) return refuse(409, 'same_approver', 'You already approved this request. A second, different person must approve it.', a.id)
+  // D-124: when two people must approve, at most one of them may come by email link, so one person with two forwarded mails or a shared mailbox cannot satisfy the two-person rule
+  if (w.via === 'email' && requiredApprovals(chosen).n > 1 && a.approvals.some((x) => x.via === 'email')) return refuse(403, 'in_app_required', 'This request needs two people, and only one of them may approve by email link. The second approval must be given in the app.', a.id)
   if (a.ai?.in_app_only && w.via !== 'auto') {
     if (w.via !== 'app') return refuse(403, 'in_app_required', 'A high-risk AI request can only be approved in the app with your two-step code, not from chat or email.', a.id)
     const bad = checkTwoStep(w.id, code); if (bad) return refuse(403, bad.code, bad.message, a.id)

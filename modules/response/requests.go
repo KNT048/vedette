@@ -33,6 +33,7 @@ type reqInit struct {
 	Recs                                                                                                            []itemRec
 	AI                                                                                                              *AiMeta
 	Held                                                                                                            string // why a pre-approval was not used, for the log line
+	Quiet                                                                                                           bool   // a pre-approved request: nobody is asked, so nothing is sent
 }
 
 // createRequest writes a pending request and its log line inside tx.
@@ -59,11 +60,14 @@ func (s *Service) createRequest(ctx context.Context, tx *sql.Tx, st Settings, in
 	} else if actor == "" {
 		actor = AIActor
 	}
-	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + "; sent to the app only" + in.Held
+	detail := in.Title + ": " + strings.Join(calls, " | ") + "; expires " + a.ExpiresAt + "; needs " + itoa(need) + " approver" + plural(need) + in.Held
 	if err := s.step(ctx, tx, "response.request", a.ID, LogRequest, detail, actor); err != nil {
 		return request{}, err
 	}
 	fx.ob.Add(events.Event{Name: EventRequestCreated, Data: RequestEvent{RequestID: a.ID, Source: a.Source, Title: a.Title, Risk: string(a.Risk), Items: len(in.Recs), ExpiresAt: a.ExpiresAt, Approvals: need}})
+	if !in.Quiet { // POST-5: tell the approvers once the request is committed, never inside this transaction
+		fx.later(func(ctx context.Context) { s.queueSend(ctx, a.ID) })
+	}
 	return r, nil
 }
 
@@ -100,10 +104,12 @@ func (s *Service) Actions(ctx context.Context) ([]ActionRequest, error) {
 // touches more targets than the limit, needs a second, different approver who approves the same actions.
 func (s *Service) Approve(ctx context.Context, who Actor, id string, pick []string, code string) (ActionRequest, error) {
 	who.Via = ViaApp
-	return s.approve(ctx, who, id, pick, code, false)
+	return s.approve(ctx, who, id, pick, code, false, nil)
 }
 
-func (s *Service) approve(ctx context.Context, who Actor, id string, pick []string, code string, auto bool) (ActionRequest, error) {
+// approve records one approval. lk is set when the decision came through an approval link (hash of the token, a check after the lock): the link is
+// checked first inside the transaction and burned right before the decision is recorded, so a refusal leaves it alive (D-96 (4)).
+func (s *Service) approve(ctx context.Context, who Actor, id string, pick []string, code string, auto bool, lk *linkOpt) (ActionRequest, error) {
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err
 	}
@@ -112,166 +118,189 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	if err != nil {
 		return ActionRequest{}, s.refuse(ctx, err, id, who.Email)
 	}
-	s.mu.Lock()
 	var refusal error
 	var final bool
 	var chosen []string
 	var fx effects
-	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		refusal, final, chosen = nil, false, nil
-		r, ok, err := loadReq(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			refusal = notFound()
-			return nil
-		}
-		now := s.now()
-		if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(now) { // INV-6: past its time and not yet swept
-			if err := s.expire(ctx, tx, &r, &fx); err != nil {
-				return err
-			}
-			r.Status = StatusExpired
-		}
-		a := &r.ActionRequest
-		first := (*Approval)(nil)
-		if len(a.Approvals) > 0 {
-			first = &a.Approvals[0]
-		}
-		ids := pick
-		switch {
-		case len(pick) > 0:
-		case first != nil:
-			ids = first.Items
-		default:
-			for _, i := range r.recs {
-				ids = append(ids, i.ID)
-			}
-		}
-		var chosenRecs []itemRec
-		for _, i := range r.recs {
-			if slices.Contains(ids, i.ID) {
-				chosenRecs = append(chosenRecs, i)
-			}
-		}
-		uniq := map[string]bool{}
-		for _, x := range ids {
-			uniq[x] = true
-		}
-		switch {
-		case a.Status == StatusExpired:
-			refusal = fail(http.StatusConflict, "expired", "This request has expired. Nothing was changed. Ask for a new one.")
-		case a.Status != StatusPending:
-			refusal = fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(a.Status), "_", " ")+". One approval covers one request.")
-		case len(chosenRecs) == 0 || len(chosenRecs) != len(uniq):
-			refusal = fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
-		}
-		if refusal != nil {
-			return nil
-		}
-		if a.AI != nil && a.AI.InAppOnly && !stepped { // L1: the code is not trusted to have been checked; no step-up for this request and person, no approval
-			refusal = errTwofaRequired()
-			return nil
-		}
-		if who.Via != ViaAuto { // the approver may have been demoted or disabled since the request was shown
-			if refusal, err = s.stillMayApprove(ctx, who); err != nil || refusal != nil {
-				return err
-			}
-		}
-		st, err := loadSettings(ctx, tx)
-		if err != nil {
-			return err
-		}
-		device := 0
-		for _, i := range chosenRecs {
-			if i.ConnectorID != nil {
-				device++
-			}
-		}
-		switch {
-		case device > 0 && !st.Execution:
-			refusal = fail(http.StatusConflict, "execution_off", offMsg)
-		case first != nil && len(pick) > 0 && !sameSet(pick, first.Items):
-			refusal = fail(http.StatusConflict, "selection_differs", "The second approver must approve the same actions as the first.")
-		case slices.ContainsFunc(a.Approvals, func(x Approval) bool { return x.UserID == who.ID }):
-			refusal = fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it.")
-		}
-		if refusal != nil {
-			return nil
-		}
-		if auto && preApprovedProblemItems(chosenRecs) != "" { // INV-5, checked again at run time
-			refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: only low-risk, reversible actions with an undo time of 24 hours or less qualify.")
-			return nil
-		}
-		if n, _ := requiredApprovals(chosenRecs, st); auto && n > 1 { // INV-2: a rule is not one of two people
-			refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: this request needs two different people to approve it.")
-			return nil
-		}
-		cats, err := s.cats(ctx, tx)
-		if err != nil {
-			return err
-		}
-		cs, err := s.loadConns(ctx)
-		if err != nil {
-			return err
-		}
-		for _, i := range chosenRecs {
-			if e := gateItem(i, st, cats, cs, nil); e != nil {
-				refusal = e
-				return nil
-			}
-		}
-		if device > 0 {
-			recent, err := deviceActionsLastHour(ctx, tx, now)
+	err = s.locked(ctx, lk, &refusal, func() error {
+		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			refusal, final, chosen = nil, false, nil
+			r, ok, err := loadReq(ctx, tx, id)
 			if err != nil {
 				return err
 			}
-			if recent+device > st.MaxPerHour {
-				refusal = fail(http.StatusTooManyRequests, "rate_limited", "Limit reached: "+itoa(st.MaxPerHour)+" approved device actions per hour. Try again later or raise the limit in Settings.").With("retry_after", 60)
+			if !ok {
+				refusal = notFound()
 				return nil
 			}
-		}
-		at := store2(now)
-		need, why := requiredApprovals(chosenRecs, st)
-		a.Approvals = append(a.Approvals, Approval{UserID: who.ID, Name: who.Name, Email: who.Email, Via: who.Via, At: at, Items: idsOf(chosenRecs)})
-		a.RequiresApprovals, a.TwoBecause = need, ptrOrNil(why)
-		var titles []string
-		for _, i := range chosenRecs {
-			titles = append(titles, i.Title)
-		}
-		if err := s.step(ctx, tx, "response.approve", a.ID, LogApproved,
-			a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.Email+" ("+string(who.Via)+")"); err != nil {
-			return err
-		}
-		humans := 0 // an automatic approval (via=auto) never counts towards two approvers (INV-2)
-		for _, x := range a.Approvals {
-			if x.Via != ViaAuto {
-				humans++
-			}
-		}
-		if len(a.Approvals) >= need && (need == 1 || humans >= need) {
-			final = true
-			a.Status, a.DecidedAt = StatusApproved, strp(at)
-			for k := range r.recs {
-				if !slices.Contains(ids, r.recs[k].ID) {
-					r.recs[k].Status = ItemSkipped
+			now := s.now()
+			if lk != nil {
+				e, err := tokenGate(ctx, tx, lk.hash, now)
+				if err != nil {
+					return err
+				}
+				if e != nil {
+					refusal = e
+					return nil
 				}
 			}
-			chosen = idsOf(chosenRecs)
-			fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: a.ID, Decision: "approved", By: who.Email, Final: true}})
-		} else {
-			fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: a.ID, Decision: "approved", By: who.Email}})
-		}
-		if err := updateReq(ctx, tx, r); err != nil {
-			return err
-		}
-		if final && a.AI != nil { // a decision on an AI request moves the quality window (INV-15 (8))
-			return s.checkAIQuality(ctx, tx, &fx)
-		}
-		return nil
+			if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(now) { // INV-6: past its time and not yet swept
+				if err := s.expire(ctx, tx, &r, &fx); err != nil {
+					return err
+				}
+				r.Status = StatusExpired
+			}
+			a := &r.ActionRequest
+			first := (*Approval)(nil)
+			if len(a.Approvals) > 0 {
+				first = &a.Approvals[0]
+			}
+			ids := pick
+			switch {
+			case len(pick) > 0:
+			case first != nil:
+				ids = first.Items
+			default:
+				for _, i := range r.recs {
+					ids = append(ids, i.ID)
+				}
+			}
+			var chosenRecs []itemRec
+			for _, i := range r.recs {
+				if slices.Contains(ids, i.ID) {
+					chosenRecs = append(chosenRecs, i)
+				}
+			}
+			uniq := map[string]bool{}
+			for _, x := range ids {
+				uniq[x] = true
+			}
+			switch {
+			case a.Status == StatusExpired:
+				refusal = fail(http.StatusConflict, "expired", "This request has expired. Nothing was changed. Ask for a new one.")
+			case a.Status != StatusPending:
+				refusal = fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(a.Status), "_", " ")+". One approval covers one request.")
+			case len(chosenRecs) == 0 || len(chosenRecs) != len(uniq):
+				refusal = fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
+			}
+			if refusal != nil {
+				return nil
+			}
+			if a.AI != nil && a.AI.InAppOnly && !stepped { // L1: the code is not trusted to have been checked; no step-up for this request and person, no approval
+				refusal = errTwofaRequired()
+				return nil
+			}
+			if who.Via != ViaAuto { // the approver may have been demoted or disabled since the request was shown
+				if refusal, err = s.stillMayApprove(ctx, who); err != nil || refusal != nil {
+					return err
+				}
+			}
+			st, err := loadSettings(ctx, tx)
+			if err != nil {
+				return err
+			}
+			device := 0
+			for _, i := range chosenRecs {
+				if i.ConnectorID != nil {
+					device++
+				}
+			}
+			switch {
+			case device > 0 && !st.Execution:
+				refusal = fail(http.StatusConflict, "execution_off", offMsg)
+			case first != nil && len(pick) > 0 && !sameSet(pick, first.Items):
+				refusal = fail(http.StatusConflict, "selection_differs", "The second approver must approve the same actions as the first.")
+			case slices.ContainsFunc(a.Approvals, func(x Approval) bool { return x.UserID == who.ID }):
+				refusal = fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it.")
+			case who.Via == ViaEmail && needTwo(chosenRecs, st) && slices.ContainsFunc(a.Approvals, func(x Approval) bool { return x.Via == ViaEmail }):
+				// D-124: one person with two forwarded mails or a shared mailbox must not satisfy the two-person rule
+				refusal = fail(http.StatusForbidden, "in_app_required", "This request needs two people, and only one of them may approve by email link. The second approval must be given in the app.")
+			}
+			if refusal != nil {
+				return nil
+			}
+			if auto && preApprovedProblemItems(chosenRecs) != "" { // INV-5, checked again at run time
+				refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: only low-risk, reversible actions with an undo time of 24 hours or less qualify.")
+				return nil
+			}
+			if n, _ := requiredApprovals(chosenRecs, st); auto && n > 1 { // INV-2: a rule is not one of two people
+				refusal = fail(http.StatusForbidden, "forbidden", "Pre-approval refused: this request needs two different people to approve it.")
+				return nil
+			}
+			cats, err := s.cats(ctx, tx)
+			if err != nil {
+				return err
+			}
+			cs, err := s.loadConns(ctx)
+			if err != nil {
+				return err
+			}
+			for _, i := range chosenRecs {
+				if e := gateItem(i, st, cats, cs, nil); e != nil {
+					refusal = e
+					return nil
+				}
+			}
+			if device > 0 {
+				recent, err := deviceActionsLastHour(ctx, tx, now)
+				if err != nil {
+					return err
+				}
+				if recent+device > st.MaxPerHour {
+					refusal = fail(http.StatusTooManyRequests, "rate_limited", "Limit reached: "+itoa(st.MaxPerHour)+" approved device actions per hour. Try again later or raise the limit in Settings.").With("retry_after", 60)
+					return nil
+				}
+			}
+			at := store2(now)
+			if lk != nil { // every gate passed: this is the decision, so the link is used up with it
+				e, err := burnToken(ctx, tx, lk.hash, at)
+				if err != nil {
+					return err
+				}
+				if e != nil {
+					refusal = e
+					return nil
+				}
+			}
+			need, why := requiredApprovals(chosenRecs, st)
+			a.Approvals = append(a.Approvals, Approval{UserID: who.ID, Name: who.Name, Email: who.Email, Via: who.Via, At: at, Items: idsOf(chosenRecs)})
+			a.RequiresApprovals, a.TwoBecause = need, ptrOrNil(why)
+			var titles []string
+			for _, i := range chosenRecs {
+				titles = append(titles, i.Title)
+			}
+			if err := s.step(ctx, tx, "response.approve", a.ID, LogApproved,
+				a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.Email+" ("+string(who.Via)+")"); err != nil {
+				return err
+			}
+			humans := 0 // an automatic approval (via=auto) never counts towards two approvers (INV-2)
+			for _, x := range a.Approvals {
+				if x.Via != ViaAuto {
+					humans++
+				}
+			}
+			if len(a.Approvals) >= need && (need == 1 || humans >= need) {
+				final = true
+				a.Status, a.DecidedAt = StatusApproved, strp(at)
+				for k := range r.recs {
+					if !slices.Contains(ids, r.recs[k].ID) {
+						r.recs[k].Status = ItemSkipped
+					}
+				}
+				chosen = idsOf(chosenRecs)
+				fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: a.ID, Decision: "approved", By: who.Email, Final: true}})
+			} else {
+				fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: a.ID, Decision: "approved", By: who.Email}})
+			}
+			if err := updateReq(ctx, tx, r); err != nil {
+				return err
+			}
+			if final && a.AI != nil { // a decision on an AI request moves the quality window (INV-15 (8))
+				return s.checkAIQuality(ctx, tx, &fx)
+			}
+			return nil
+		})
 	})
-	s.mu.Unlock()
 	if err != nil {
 		return ActionRequest{}, err
 	}
@@ -302,6 +331,29 @@ func (s *Service) get(ctx context.Context, id string) (ActionRequest, error) {
 		return ActionRequest{}, notFound()
 	}
 	return r.view(), nil
+}
+
+func needTwo(recs []itemRec, st Settings) bool { n, _ := requiredApprovals(recs, st); return n > 1 }
+
+// locked runs f with the service lock held and releases it when f returns, a panic included (a held lock would stop every request). A
+// decision through a link first runs its check again under the lock (M4): the approver may have been removed while this call waited.
+func (s *Service) locked(ctx context.Context, lk *linkOpt, refusal *error, f func() error) error {
+	if lk != nil && s.beforeLock != nil {
+		s.beforeLock()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if lk != nil {
+		e, err := lk.recheck(ctx)
+		if err != nil {
+			return err
+		}
+		if e != nil {
+			*refusal = e
+			return nil
+		}
+	}
+	return f()
 }
 
 func idsOf(l []itemRec) []string {
@@ -857,63 +909,93 @@ func (s *Service) stillMayApprove(ctx context.Context, who Actor) (refusal error
 // and the quality breaker looks at the decisions again (INV-15 (8)); a rule request has nothing to learn, so remember is ignored.
 func (s *Service) Reject(ctx context.Context, who Actor, id, reason, remember string) (ActionRequest, error) {
 	who.Via = ViaApp
+	return s.reject(ctx, who, id, reason, remember, nil)
+}
+
+// reject records a rejection; lk is set when it came through an approval link, as in approve.
+func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember string, lk *linkOpt) (ActionRequest, error) {
 	switch remember {
 	case "", RememberNone, RememberRule, RememberMemory:
 	default:
 		return ActionRequest{}, fail(http.StatusBadRequest, "invalid", "Remember must be none, rule or memory.")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	var refusal error
 	var fx effects
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		refusal = nil
-		r, ok, err := loadReq(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			refusal = notFound()
-			return nil
-		}
-		if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(s.now()) {
-			if err := s.expire(ctx, tx, &r, &fx); err != nil {
+	err := s.locked(ctx, lk, &refusal, func() error {
+		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			refusal = nil
+			r, ok, err := loadReq(ctx, tx, id)
+			if err != nil {
 				return err
 			}
-		}
-		switch r.Status {
-		case StatusPending:
-		case StatusExpired:
-			refusal = fail(http.StatusConflict, "expired", "This request has already expired.")
-			return nil
-		default:
-			refusal = fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+".")
-			return nil
-		}
-		note := "Rejected by " + truncRunes(cleanLine(who.Name), 80)
-		if reason = truncRunes(cleanLine(reason), 300); reason != "" {
-			note += ": " + reason
-		}
-		if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via app: "+reason, who.Email+" (app)"); err != nil {
-			return err
-		}
-		r.Status, r.DecidedAt, r.Note = StatusRejected, strp(s.ts()), &note
-		for i := range r.recs {
-			r.recs[i].Status = ItemSkipped
-		}
-		fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: r.ID, Decision: "rejected", By: who.Email, Final: true}})
-		if err := updateReq(ctx, tx, r); err != nil {
-			return err
-		}
-		if r.Source != "ai" || r.AI == nil {
-			return nil
-		}
-		if remember == RememberRule || remember == RememberMemory {
-			if err := s.keepHint(ctx, tx, r, remember, reason); err != nil {
+			if !ok {
+				refusal = notFound()
+				return nil
+			}
+			if lk != nil {
+				e, err := tokenGate(ctx, tx, lk.hash, s.now())
+				if err != nil {
+					return err
+				}
+				if e != nil {
+					refusal = e
+					return nil
+				}
+			}
+			if r.Status == StatusPending && !parseTS(r.ExpiresAt).After(s.now()) {
+				if err := s.expire(ctx, tx, &r, &fx); err != nil {
+					return err
+				}
+			}
+			switch r.Status {
+			case StatusPending:
+			case StatusExpired:
+				refusal = fail(http.StatusConflict, "expired", "This request has already expired.")
+				return nil
+			default:
+				refusal = fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+".")
+				return nil
+			}
+			if lk != nil { // the person may have been demoted or disabled since the link was opened (the app path reads the account the same way)
+				if refusal, err = s.stillMayApprove(ctx, who); err != nil || refusal != nil {
+					return err
+				}
+			}
+			note := "Rejected by " + truncRunes(cleanLine(who.Name), 80)
+			if reason = truncRunes(cleanLine(reason), 300); reason != "" {
+				note += ": " + reason
+			}
+			if lk != nil {
+				e, err := burnToken(ctx, tx, lk.hash, s.ts())
+				if err != nil {
+					return err
+				}
+				if e != nil {
+					refusal = e
+					return nil
+				}
+			}
+			if err := s.step(ctx, tx, "response.reject", r.ID, LogRejected, r.Title+", rejected by "+who.Email+" via "+string(who.Via)+": "+reason, who.Email+" ("+string(who.Via)+")"); err != nil {
 				return err
 			}
-		}
-		return s.checkAIQuality(ctx, tx, &fx)
+			r.Status, r.DecidedAt, r.Note = StatusRejected, strp(s.ts()), &note
+			for i := range r.recs {
+				r.recs[i].Status = ItemSkipped
+			}
+			fx.ob.Add(events.Event{Name: EventDecisionMade, Data: DecisionEvent{RequestID: r.ID, Decision: "rejected", By: who.Email, Final: true}})
+			if err := updateReq(ctx, tx, r); err != nil {
+				return err
+			}
+			if r.Source != "ai" || r.AI == nil {
+				return nil
+			}
+			if remember == RememberRule || remember == RememberMemory {
+				if err := s.keepHint(ctx, tx, r, remember, reason); err != nil {
+					return err
+				}
+			}
+			return s.checkAIQuality(ctx, tx, &fx)
+		})
 	})
 	if err != nil {
 		return ActionRequest{}, err
@@ -957,7 +1039,10 @@ func (s *Service) Sweep(ctx context.Context) error {
 	if err := s.resolveUnknown(ctx); err != nil {
 		return err
 	}
-	return s.sweepTTL(ctx)
+	if err := s.sweepTTL(ctx); err != nil {
+		return err
+	}
+	return s.sweepTokens(ctx)
 }
 
 func (s *Service) sweepExpired(ctx context.Context) error {

@@ -120,8 +120,8 @@ func (s *Service) SaveSettings(ctx context.Context, who Actor, in SettingsInput)
 		out = st
 		return s.step(ctx, tx, "response.settings", "response", LogSettings,
 			itoa(st.MaxPerHour)+"/hour; expiry "+itoa(st.ExpiryMin)+" min; breaker "+itoa(st.BreakerMaxPerHour)+"/hour; more than "+itoa(st.MultiTargetMax)+" targets needs 2 approvers; "+
-				itoa(len(wins))+" maintenance window(s); AI triggers: "+joinNonEmpty(", ", st.AI.Triggers...)+onEmpty(len(st.AI.Triggers), "none")+", budget "+itoa(st.AI.BudgetHour)+"/hour "+itoa(st.AI.BudgetDay)+
-				"/day; channels: "+joinNonEmpty(", ", st.ApprovalChannels...)+onEmpty(len(st.ApprovalChannels), "app only"), who.Email)
+				itoa(len(wins))+" maintenance window(s); AI triggers: "+joinNonEmpty(st.AI.Triggers...)+onEmpty(len(st.AI.Triggers), "none")+", budget "+itoa(st.AI.BudgetHour)+"/hour "+itoa(st.AI.BudgetDay)+
+				"/day; channels: "+joinNonEmpty(st.ApprovalChannels...)+onEmpty(len(st.ApprovalChannels), "app only"), who.Email)
 	})
 	if err != nil {
 		return SettingsView{}, err

@@ -498,7 +498,7 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 8, "id") != "hagezi-tif" || at(b, "items", 9) != nil {
+	if c != 200 || at(b, "items", 7, "id") != "hagezi-tif" || at(b, "items", 8) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)

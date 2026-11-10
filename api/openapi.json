@@ -22768,13 +22768,40 @@
                     },
                     "inventory_on": {
                       "type": "boolean"
+                    },
+                    "kev": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "loaded",
+                            "never_loaded",
+                            "off"
+                          ],
+                          "description": "The CISA list (cisa-kev) for the Home count (D-92): \"off\" when an admin turned it off, else \"loaded\" once a pull has ever succeeded (even if a later pull failed), else \"never_loaded\""
+                        },
+                        "error": {
+                          "description": "One line, cleaned: why the last pull failed; null when it has not failed or has not been tried",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "error"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "generated_at",
                     "kev_catalog_version",
                     "sources",
-                    "inventory_on"
+                    "inventory_on",
+                    "kev"
                   ],
                   "additionalProperties": false
                 }

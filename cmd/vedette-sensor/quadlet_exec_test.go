@@ -105,6 +105,19 @@ func TestSensorUnitExecParsesWithTheRealFlagsAndAgreesWithItsMountAndCore(t *tes
 	if len(volumes) != 1 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
 		t.Errorf("-creds %q is not under the read-only keys volume %v", *f.creds, volumes)
 	}
+	// D-146: --replay is for the compose dev stack only; no production unit may pass it (it would capture a recording, not the LAN)
+	for _, svc := range []string{"sensor", "scan", "core", "honeypot"} {
+		text, err := ops.RenderUnit(svc, "sha256:"+strings.Repeat("a", 64), true, 10001, 10002, 10003, 10004)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(text), "replay") {
+			t.Errorf("the %s unit mentions replay", svc)
+		}
+	}
+	if *f.replay != "" {
+		t.Errorf("-replay %q: no unit passes it", *f.replay)
+	}
 	u, err := url.Parse(*f.core)
 	if err != nil || u.Scheme != "https" {
 		t.Fatalf("-core %q is not an https address: %v", *f.core, err)

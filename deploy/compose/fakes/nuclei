@@ -1,0 +1,8 @@
+#!/bin/sh
+# A fake nuclei for the compose dev stack (D-146): it sends nothing. `-version -duc` answers like nuclei (to stderr, which the worker
+# reads); a run prints no result line.
+if [ "$1" = "-version" ]; then
+	echo "[INF] Nuclei Engine Version: v3.11.1" >&2
+	exit 0
+fi
+exit 0

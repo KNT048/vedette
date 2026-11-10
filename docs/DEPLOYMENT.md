@@ -71,6 +71,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Mục | Giá trị |
 |---|---|
 | Nội dung | `vedette-sensor passive` (D-114): nửa `capture` của `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, bộ phân tích SPAN metadata, D-43); nhận `config` bằng long-poll, gửi quan sát và heartbeat (`specs/sensor-protocol.md`). Không nmap (D-113), không syslog (để sau, `logs` chưa xây), không DB (binary không liên kết `database/sql`/SQLite) |
+| Image | `deploy/containers/sensor/Containerfile` (D-146): nhiều giai đoạn, `vedette-sensor` tĩnh (`CGO_ENABLED=0`: AF_PACKET thuần Go, không libpcap) trên `distroless/static` ghim theo digest (không shell, không apt), ở `/vedette-sensor` đúng đường dẫn `HealthCmd=`, `ENTRYPOINT` dạng exec, `USER 65532:65532` mặc định (unit đè bằng `User=`), `-X main.version=<SemVer không v>`. Mọi ghim ở `deploy/containers/pins.env`; `make sensor-image`, kiểm hiệu ứng `make images-check` |
 | Người dùng | `User=<sensor_uid>:<sensor_gid>` từ `host.conf`, **không `UserNS`** (capability của user namespace con không phủ namespace mạng của host, D-114 (3)); `NoNewPrivileges`; rootfs chỉ đọc + tmpfs `/tmp` |
 | Mạng | **host** (cần thấy LAN thật và card SPAN) |
 | Capability | `DropCapability=ALL`, **chỉ** `AddCapability=NET_RAW` (bắt gói AF_PACKET; Podman đặt vào tập ambient cho uid không root: **cổng lab**, đường lùi UID 0 + `NET_RAW`). Không `NET_BIND_SERVICE` tới khi có syslog; không bao giờ `NET_ADMIN` (card SPAN được `vedette-host` đặt promisc, không IP, D-56) |
@@ -99,8 +100,9 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 
 | Mục | Giá trị |
 |---|---|
-| Nội dung | `vedette-sensor active` (D-113): worker nmap của `sensor-active`; long-poll job `{shape, rate, targets, timeout_s}`, dựng argv bằng `nmapargv` + `ValidateNmapArgs`, chạy `/usr/bin/nmap` qua `core/exec`, trả XML; một job một lúc; lease 60 s. Job nuclei của `scan`/`exposure` để sau (loại job mới trên cùng kênh) |
-| Image | **dựng trên hộp** bởi `vedette-host` (D-57 (2), D-113 (7), lát SP-6): Containerfile hằng `FROM` digest image nền `ghcr.io/knt048/vedette-scan` đã ký (Debian slim + `vedette-sensor`) + `apt-get install --no-install-recommends nmap` (kho gói OS, PRIVACY luồng 6); tag `localhost/vedette-scan-nmap:<version>`; `container.pull scan` kéo image nền theo digest (kiểm minisign, cosign như mọi service) rồi chạy `podman build` với argv cố định; kiểm hiệu ứng `nmap --version` trong image; dựng hỏng thì giữ image trước. Dự án không phân phối nmap (D-4, `LEGAL.md`) |
+| Nội dung | `vedette-sensor active` (D-113): worker nmap của `sensor-active`; long-poll job `{shape, rate, targets, timeout_s}`, dựng argv bằng `nmapargv` + `ValidateNmapArgs`, chạy `/usr/bin/nmap` qua `core/exec`, trả XML; một job một lúc; lease 60 s. Job nuclei (D-125) chạy `/usr/local/bin/nuclei` ghim, với gói mẫu an toàn trong image |
+| Image nền (đã ký, phát hành) | `deploy/containers/scan-base/Containerfile` (D-146): Debian 13 slim ghim digest + `vedette-sensor` tĩnh ở `/vedette-sensor` + **nuclei v3.11.1** ghim theo phiên bản và SHA-256 (kiểm zip trước khi giải nén và binary sau đó; sai thì build đỏ) ở `/usr/local/bin/nuclei` + gói mẫu (`make scan-pack`, `scripts/scanpack`) ở `/usr/share/vedette/nuclei-templates` và chỉ mục ở `/usr/local/share/vedette/nuclei-pack/index.json`. **Không có nmap** (test giữ). Unit `scan` chạy với `RunInit=true` (podman `--init`, catatonit gặt tiến trình mồ côi; `vedette-sensor` không là subreaper) |
+| Image | **dựng trên hộp** bởi `vedette-host` (D-57 (2), D-113 (7), lát SP-6): Containerfile hằng (`deploy/containers/scan/Containerfile.onbox`, đã có; host nhúng nó ở SP-6) `FROM` digest image nền `ghcr.io/knt048/vedette-scan` đã ký (Debian slim + `vedette-sensor` + nuclei + gói mẫu) + `apt-get install --no-install-recommends nmap` (kho gói OS, PRIVACY luồng 6); tag `localhost/vedette-scan-nmap:<version>`; `container.pull scan` kéo image nền theo digest (kiểm minisign, cosign như mọi service) rồi chạy `podman build` với argv cố định; kiểm hiệu ứng `nmap --version` trong image; dựng hỏng thì giữ image trước. Dự án không phân phối nmap (D-4, `LEGAL.md`) |
 | Người dùng, capability | như `sensor` (§2.2): `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (nmap `--privileged`, D-84 (8)), `NoNewPrivileges`, rootfs chỉ đọc + tmpfs |
 | Mạng | host |
 | Ràng buộc | worker không giữ phạm vi: `core` là bên đồng ý duy nhất (D-26, D-84) và chỉ giao IPv4 riêng trong ba mẫu; mỗi probe ghi `sa_probe` trước khi giao job (INV-9) |
@@ -425,7 +427,10 @@ services:
     cap_add: [NET_RAW]
     volumes: ["vedette-creds-active:/var/lib/vedette-creds:ro"]
     command: ["active", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
-  # dev: thêm "scan" với nmap giả (exectest) để CI chạy core + sensor-replay + scan (lát SP-5)
+  # dev: tệp thật `deploy/compose/compose.yaml` (D-146) có profile `dev` với core + sensor (`passive --replay`) + scan (nmap giả và nuclei giả,
+  # `deploy/compose/fakes/`), một uid không đặc quyền, chỉ cổng UI/API trên 127.0.0.1; `make dev-sensors`, `make dev-sensors-smoke`. Khác minh hoạ này:
+  # mạng bridge riêng, `-sensor-listen 0.0.0.0:8444` trong bridge (không publish), mỗi vai một volume creds, build tại chỗ từ Containerfile.
+  # CI chưa chạy smoke (D-146 (9)).
   # greenbone: profile "greenbone", dùng compose upstream ghim digest (M7)
 networks:
   lan:
@@ -468,6 +473,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 ### 7.3 Mạng container
 
 - `vedette-int`: bridge nội bộ, subnet do `vedette-host` chọn không trùng LAN/VPN đã khai báo.
+- Compose `dev` (D-146): mạng bridge riêng của compose, `sensor` và `scan` tới `core` qua `https://core:8444` (SAN `core` của lá server); `8444` không publish, chỉ `127.0.0.1:18443` (UI/API) ra máy dev. Lúc **dựng** image (máy người duy trì/dev, không phải hộp): `github.com` (zip nuclei, tag archive nuclei-templates, kiểm SHA-256), kho Go module, `deb.debian.org` (công cụ dựng, và nmap trên hộp), registry của image nền; không có gì chạy lúc vận hành.
 - `sensor`, `scan`: host network, tới `core` qua `127.0.0.1:8444` (cổng publish của `core`; netavark chuyển tiếp tới `127.0.0.1` cho tiến trình ở namespace của host có thể cần `route_localnet`: kiểm ở lab).
 - `honeypot`: chỉ namespace `vedette-hp` do host giữ (D-102): mỗi IP phụ/decoy (ngoài dải DHCP) một link macvlan và MAC riêng; không chân `vedette-int`; nft trong namespace chặn kết nối mới đi ra. Lưu lượng macvlan không qua netfilter của host, nên luật nằm trong chính namespace.
 - Card SPAN: không IP, promisc, bật bởi `vedette-host`; sensor đọc bằng AF_PACKET; kiểm bằng hiệu ứng: gói/giây > 0 và thấy ≥1 MAC khác MAC của hộp (D-56).
@@ -578,7 +584,8 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 | E2E | `make e2e` (Playwright) | |
 | Fixture KEV/EPSS thật | `make fixtures` | |
 | Backend (từ M2) | `go test ./...`, `golangci-lint`; `go test ./modules/<id>/... -run Contract` | thêm vào `make verify` khi có Go |
-| Cả bộ container | `docker compose --profile dev up` (hoặc `podman compose`) | cùng image với appliance; host giả thay `vedette-host` |
+| Cả bộ container | `make dev-sensors` (compose profile `dev`: `core` + `sensor` phát lại pcap + `scan` với nmap/nuclei giả); `make dev-sensors-smoke` kiểm một thiết bị xuất hiện qua API rồi gỡ (D-146) | cùng Containerfile với appliance; không có `vedette-host` nên `/core/network/*` trả `409 not_appliance` |
+| Image | `make sensor-image scan-base-image scan-image core-image`; `make images-check` dựng từng cái và kiểm bằng hiệu ứng (`CONTAINER=podman`, mặc định) | ghim ở `deploy/containers/pins.env` |
 | Tích hợp mạng thật | profile `lab` trên VM Linux có card thật | **không quét/probe IP ngoài lab** (`agent-safety.md`); dùng fixture pcap/syslog |
 | Nối GUI vào backend (từng module) | `make dev-api` (mặc định `REAL=core`; `make dev-api REAL=core,inventory`) | Go chạy ở `127.0.0.1:8080` (`.dev/vedette.db`, `.dev/vedette.key`, tạo khi chạy lần đầu), Vite `localhost:5173` proxy `/api` → backend; module trong `REAL` đi tới backend, module khác vẫn do MSW trả lời. Ctrl-C dừng cả hai |
 | Nối GUI vào backend (toàn bộ) | build SPA với `VITE_API_MOCK=off` (hoặc `VITE_API_REAL=all`) | hợp đồng `api/openapi.json` |

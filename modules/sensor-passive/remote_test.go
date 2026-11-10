@@ -88,11 +88,11 @@ func TestSuiteThroughTheLink(t *testing.T) {
 		out string
 		err error
 	}
-	res := map[string]chan result{"local": make(chan result, 1), "remote": make(chan result, 1)}
-	for mode, ch := range res {
-		go func() { o, err := run(mode); ch <- result{o, err} }()
-	}
-	local, rem := <-res["local"], <-res["remote"]
+	// One after the other: each child already runs its tests in parallel on every core, so two at once only doubled the load
+	// (about 35 s of CPU each under -race) and starved the waits of both.
+	var local, rem result
+	local.out, local.err = run("local")
+	rem.out, rem.err = run("remote")
 	if local.err != nil {
 		t.Fatalf("the suite fails with the in-process capture: %v\n%s", local.err, tail([]byte(local.out), 4000))
 	}

@@ -38,14 +38,14 @@ function seedCustom(): Feed[] {
   const out = parseFeed(sampleFor('ioc', 'csv')!.text, 'ioc', parser)
   return [{
     id: 'cf-watchlist', builtin: false, name: 'Botnet C2 blocklist (partner)', kind: 'ioc', format: 'csv', url: 'https://threat-share.example.net/c2-blocklist.csv', default_url: null, enabled: true, interval_hours: 6,
-    auth: { type: 'bearer', header_name: null, username: null, secret_last4: 'x7Qk' }, parser, last_fetch: ago(2), records: out.accepted, status: 'ok', error: null, license: null,
+    auth: { type: 'bearer', header_name: null, username: null, secret_last4: 'x7Qk' }, parser, last_fetch: ago(2), records: out.accepted, status: 'ok', error: null, license: null, answered_by: null,
   }]
 }
 const config = collection<Config>('feeds_config', () => ({ builtin: seedBuiltin(false), custom: seedCustom() }), () => ({ builtin: seedBuiltin(true), custom: [] }))
 
 const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
   id: d.id, builtin: true, name: d.name, kind: d.kind, format: d.format, url: s.url, default_url: d.url, enabled: s.enabled, interval_hours: s.interval_hours,
-  auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license,
+  auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
 })
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]
 const hostOf = (u: string) => { try { return new URL(u).hostname } catch { return '' } }
@@ -77,7 +77,7 @@ function toCustom(i: ReturnType<typeof FeedInputSchema.parse>, prev: Feed | null
   return {
     id: prev?.id ?? newId('cf'), builtin: false, name: i.name.trim(), kind: i.kind, format: i.parser.format, url: i.url.trim(), default_url: null, enabled: i.enabled, interval_hours: i.interval_hours,
     auth: { type: i.auth.type, header_name: i.auth.type === 'header' ? i.auth.header_name : null, username: i.auth.type === 'basic' ? (i.auth.username ?? '').trim() : null, secret_last4: last4 },
-    parser: i.parser, last_fetch: prev?.last_fetch ?? null, records: prev?.records ?? null, status: prev?.status ?? 'never', error: prev?.error ?? null, license: null,
+    parser: i.parser, last_fetch: prev?.last_fetch ?? null, records: prev?.records ?? null, status: prev?.status ?? 'never', error: prev?.error ?? null, license: null, answered_by: null,
   }
 }
 

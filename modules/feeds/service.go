@@ -85,6 +85,9 @@ type Deps struct {
 	Events Publisher
 	// Fetcher does every pull; the zero value works (guarded client). Set Version for the User-Agent.
 	Fetcher Fetcher
+	// KEVPrimary and KEVFallback are the two addresses of the CISA list (D-91); empty means the built-in CISA address and
+	// KEVMirrorURL. Tests point them at fake servers. The fallback applies only while the feed still uses KEVPrimary.
+	KEVPrimary, KEVFallback string
 	// Clock is time.Now when nil; tests inject a fake.
 	Clock func() time.Time
 }

@@ -87,13 +87,14 @@ type feedDTO struct {
 	Status        string      `json:"status"`
 	Error         *string     `json:"error"`
 	License       *string     `json:"license"`
+	AnsweredBy    *string     `json:"answered_by"`
 }
 
 // toFeedDTO is the Feed of the API (contract.ts Feed). The secret never leaves core/secrets: only secret_last4.
 func toFeedDTO(r sourceRow) feedDTO {
 	d := feedDTO{ID: r.ID, Builtin: r.Builtin, Name: r.Name, Kind: r.Kind, Format: r.Format, URL: r.URL, DefaultURL: r.DefaultURL,
 		Enabled: r.Enabled, IntervalHours: r.IntervalHours, LastFetch: r.LastFetch, Records: r.Records, Status: r.Status, Error: r.Error,
-		License: r.License, Parser: r.Parser,
+		License: r.License, AnsweredBy: r.AnsweredBy, Parser: r.Parser,
 		Auth: feedAuthDTO{Type: string(r.Auth), HeaderName: r.HeaderName, Username: r.Username, SecretLast4: r.SecretLast4}}
 	if r.Builtin {
 		d.Parser = nil

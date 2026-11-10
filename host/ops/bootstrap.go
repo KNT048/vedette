@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
@@ -49,6 +50,11 @@ const (
 	BootstrapMixedVersions    = "mixed_versions" // a service outside -services runs another release than this one
 )
 
+const (
+	stateLockWait = 2 * time.Second
+	stateLockPoll = 25 * time.Millisecond
+)
+
 // ErrStateLocked is LockState's answer when another holder has the lock.
 var ErrStateLocked = errors.New("ops: the state directory is locked by another vedette-host")
 
@@ -64,12 +70,22 @@ func (o *Ops) LockState() (unlock func(), err error) {
 		_ = f.Close()
 		return nil, errors.New("ops: the state lock is not a regular file")
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = f.Close()
-		if errors.Is(err, syscall.EWOULDBLOCK) {
+	// Non-blocking, retried for a moment: a lock let go a little late (a child process forked by another
+	// holder keeps the descriptor until it execs) is not a second daemon.
+	for deadline := time.Now().Add(stateLockWait); ; {
+		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			_ = f.Close()
+			return nil, fmt.Errorf("ops: lock the state directory: %w", err)
+		}
+		if time.Now().After(deadline) {
+			_ = f.Close()
 			return nil, ErrStateLocked
 		}
-		return nil, fmt.Errorf("ops: lock the state directory: %w", err)
+		sleepCtx(context.Background(), stateLockPoll)
 	}
 	return func() { _ = f.Close() }, nil // closing the descriptor drops the flock
 }
@@ -119,6 +135,17 @@ type BootstrapArgs struct {
 	// on a box with no recorded release). Every file replaced is reported, and its old bytes are kept as
 	// containers/units/<service>.prev.
 	ForceUnits bool
+	// LockHeld says the caller already holds LockState (the command line takes it before it reads the head of
+	// the audit chain, so no other writer moves it in between).
+	LockHeld bool
+}
+
+// LockError turns an error of LockState into the bootstrap's refusal.
+func LockError(err error) error {
+	if errors.Is(err, ErrStateLocked) {
+		return bsErr(BootstrapDaemonRunning, "another vedette-host or bootstrap holds the state directory")
+	}
+	return bsErr(BootstrapFailed, "the state lock could not be taken")
 }
 
 type bsStep struct {
@@ -135,14 +162,13 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 	if logf == nil {
 		logf = func(string) {}
 	}
-	unlock, err := o.LockState()
-	switch {
-	case errors.Is(err, ErrStateLocked):
-		return bsErr(BootstrapDaemonRunning, "another vedette-host or bootstrap holds the state directory")
-	case err != nil:
-		return bsErr(BootstrapFailed, "the state lock could not be taken")
+	if !a.LockHeld {
+		unlock, err := o.LockState()
+		if err != nil {
+			return LockError(err)
+		}
+		defer unlock()
 	}
-	defer unlock()
 	// OS assumption: Debian or Ubuntu of the support table (as every container command).
 	if _, err := o.platform(); err != nil {
 		return err
@@ -281,7 +307,7 @@ func bootstrapServices(in []string) ([]string, error) {
 
 // bootstrapDecide settles, without writing, what the bootstrap does for one service.
 func (o *Ops) bootstrapDecide(svc string, plan *pullPlan, force bool) (*bsStep, error) {
-	want, err := o.renderFor(svc, plan.digest)
+	want, err := o.renderUnitFor(svc, plan.digest) // core_data itself is vetted (or made) by ensureCoreData next
 	if err != nil {
 		return nil, err // host_conf_incomplete or unit_unknown
 	}
@@ -364,6 +390,9 @@ func (o *Ops) ensureCoreData(logf func(string)) error {
 		logf("host.conf has no core_data: backups and restores will refuse until the installer writes it")
 		return nil
 	}
+	if o.coreDataForbidden(dir) {
+		return bsErr(api.CodeCoreDataInvalid, "core_data names a place the host keeps for itself (its state, the units, the audit log or a system directory)")
+	}
 	st, err := os.Lstat(dir)
 	switch {
 	case err == nil:
@@ -387,6 +416,26 @@ func (o *Ops) ensureCoreData(logf func(string)) error {
 	}
 	logf("made core_data (0700, owned by core)")
 	return nil
+}
+
+// systemDirs are places core_data may never be, hold or sit under: it is bound into core's unit and given to
+// core, which would then own part of the system.
+var systemDirs = []string{"/etc", "/run", "/proc", "/sys", "/dev", "/boot", "/usr"}
+
+// coreDataForbidden says p is, holds or sits under the Quadlet directory, the host's state directory, the
+// audit directory or one of systemDirs.
+func (o *Ops) coreDataForbidden(p string) bool {
+	places := append([]string{o.path(unitsRel), o.cfg.StateDir, o.cfg.AuditDir}, systemDirs...)
+	for _, f := range places {
+		if f == "" {
+			continue
+		}
+		f = filepath.Clean(f)
+		if p == f || strings.HasPrefix(p, f+"/") || strings.HasPrefix(f, p+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // vetCoreData looks at an existing core_data: checkChain (a real directory under root's closed parents, owned

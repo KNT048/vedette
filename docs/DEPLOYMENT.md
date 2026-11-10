@@ -529,7 +529,7 @@ Ngoại tuyến (mạng cách ly): bundle ký chứa index, manifest + image d�
 | Mục | Thiết kế |
 |---|---|
 | Nội dung | snapshot SQLite nhất quán + tài liệu RAG đã tải + cấu hình sinh ra từ DB. Chỉ mục RAG dựng lại được. Unit Quadlet **không** cần sao lưu (sinh lại) |
-| Khoá bí mật | **mặc định không** kèm `/etc/vedette/master.key` (bản sao lưu không tự mở được bí mật). Khôi phục thiếu khoá thì nhập lại khoá AI/feed/kênh (câu hỏi mở A6) |
+| Khoá bí mật | **mặc định không** kèm khoá chủ `<core_data>/vedette.key` (D-142; bản sao lưu không tự mở được bí mật). Khôi phục thiếu khoá thì nhập lại khoá AI/feed/kênh (câu hỏi mở A6) |
 | Lịch | hằng ngày + trước mỗi cập nhật; giữ 7 bản gần nhất (đề xuất); chỗ lưu `/var/backups/vedette`, tuỳ chọn thư mục ngoài (USB/NFS) do khách gắn. Không có đám mây (mọi luồng ra phải ở `PRIVACY.md`) |
 | Xuất/xoá | Cài đặt → Data: xuất toàn bộ (không có bí mật), xoá toàn bộ (S-CORE-6, D-22) |
 | Khôi phục | máy mới: `install.sh` → tải bản sao lưu ở trình hướng dẫn → `vedette-host` đưa vào volume → `core` khởi động, chạy migration → nhập lại bí mật nếu thiếu khoá |

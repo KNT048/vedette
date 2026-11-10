@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
@@ -95,6 +96,8 @@ func TestContract_Restore_RecoveryReconcilesTheVersionsWithTheUnit(t *testing.T)
 		}
 		if v := e.versionsFile(t, api.ServiceCore); v.Current == nil || v.Current.Version != v2 || v.Current.Digest != d5 {
 			t.Errorf("versions %+v", v)
+		} else if v.Previous == nil || v.Previous.Version != v1 {
+			t.Errorf("the release that was current is not kept as previous: %+v", v)
 		}
 	})
 	t.Run("the unit pins a release the host knows nothing of", func(t *testing.T) {
@@ -206,6 +209,88 @@ func TestContract_Bootstrap_OneHolderOfTheStateLockAtATime(t *testing.T) {
 		t.Errorf("the bootstrap kept the lock: %v", err)
 	} else {
 		u()
+	}
+}
+
+// core_data is never the host's own place, never inside one, never around one (it is chowned to core).
+func TestContract_Bootstrap_CoreDataNeverNamesTheHostsOwnPlaces(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	base := filepath.Dir(e.m.CoreData)
+	auditDir := filepath.Join(base, "auditdir")
+	for name, p := range map[string]string{
+		"the state directory": e.m.State, "inside the state directory": filepath.Join(e.m.State, "x"), "around the state directory": base,
+		"the Quadlet directory": e.m.UnitsDir(), "inside the Quadlet directory": filepath.Join(e.m.UnitsDir(), "x"),
+		"the audit directory": auditDir, "inside the audit directory": filepath.Join(auditDir, "x"),
+		"inside /etc": "/etc/vedette-data", "inside /run": "/run/vedette-data", "inside /proc": "/proc/x", "inside /sys": "/sys/x",
+		"inside /dev": "/dev/x", "inside /boot": "/boot/x", "inside /usr": "/usr/lib/vedette",
+	} {
+		o := e.bsOps(t, func(c *ops.Config) { c.CoreData, c.AuditDir = p, auditDir })
+		codeIs(t, name, e.bootstrapWith(o, e.bsDocs(t, 5, v1, bsDigest)), api.CodeCoreDataInvalid)
+		e.bsUntouched(t, name)
+	}
+}
+
+// Without core_data core's unit cannot be made, and the message says so (not "uid and gid").
+func TestContract_Bootstrap_ServicesCoreWithoutCoreDataSaysWhy(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	o := e.bsOps(t, func(c *ops.Config) { c.CoreData = "" })
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceCore}
+	err := e.bootstrapWith(o, a)
+	if code, msg := ops.BootstrapCode(err); code != api.CodeHostConfIncomplete || !strings.Contains(msg, "core_data") {
+		t.Fatalf("%v", err)
+	}
+}
+
+// The daemon vets core_data too before it renders core's unit.
+func TestContract_Update_CoresUnitIsNotRenderedForAnUnsafeCoreData(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.adopt(t, api.ServiceCore, relSpec{version: v1, core: d1, sensor: d2})
+	if err := os.Chmod(filepath.Dir(e.m.CoreData), 0o777); err != nil { //nolint:gosec // test: a parent that others can write
+		t.Fatal(err)
+	}
+	e.refused(t, api.CmdContainerStart, e.startArgs(api.ServiceCore, ""), 412, api.CodeCoreDataInvalid)
+}
+
+// A lock that is let go a moment late (a forked child still holds the descriptor until it execs) is waited for.
+func TestContract_Bootstrap_LockStateWaitsBrieflyForALateRelease(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	holder, other := e.bsOps(t, nil), e.bsOps(t, nil)
+	unlock, err := holder.LockState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		timer := time.NewTimer(300 * time.Millisecond)
+		<-timer.C
+		unlock()
+	}()
+	u, err := other.LockState()
+	if err != nil {
+		t.Fatalf("a lock released after 300 ms was not waited for: %v", err)
+	}
+	u()
+}
+
+// The command line takes the lock before it reads the audit chain's head and says so: the bootstrap then does not take it again.
+func TestContract_Bootstrap_ACallerThatHoldsTheLockSaysSo(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	o := e.bsOps(t, nil)
+	unlock, err := o.LockState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	codeIs(t, "without saying so", e.bootstrapWith(o, a), ops.BootstrapDaemonRunning)
+	a.LockHeld = true
+	if err := e.bootstrapWith(o, a); err != nil {
+		t.Fatal(err)
 	}
 }
 

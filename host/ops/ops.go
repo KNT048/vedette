@@ -56,7 +56,9 @@ type Config struct {
 	SensorUID int
 	SensorGID int
 	OwnerUID  int
-	Logger    *slog.Logger
+	// AuditDir is the directory of the audit log ("" in tests): core_data must not be, hold or sit under it.
+	AuditDir string
+	Logger   *slog.Logger
 }
 
 // Deps are the seams of tests. The binary calls New, which fills the production values; a request

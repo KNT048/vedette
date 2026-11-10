@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/knt048/vedette/host/api"
@@ -105,11 +106,18 @@ func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir,
 	}
 	a.Services, a.ForceUnits = ops.SplitServices(f.services), f.forceUnits
 
-	sys, err := ops.New(opsConfig(cfg, stateDir, env))
+	sys, err := ops.New(opsConfig(cfg, stateDir, auditLog, env))
 	if err != nil {
 		return newExit(exitFailed, ops.BootstrapFailed, "the host's state could not be opened: "+err.Error())
 	}
 	defer sys.Close()
+	// The state lock first: the audit chain is read (its head) only while nobody else can append to it.
+	unlock, err := sys.LockState()
+	if err != nil {
+		return exitFor(ops.LockError(err))
+	}
+	defer unlock()
+	a.LockHeld = true
 	// The lines the host writes on its own go to the audit chain the daemon uses (release_index_stored, installed).
 	notes, err := server.OpenNoteWriter(auditLog, env.configOwner)
 	if err != nil {
@@ -123,9 +131,9 @@ func runBootstrap(ctx context.Context, cfg config.Config, f bootFlags, stateDir,
 	return nil
 }
 
-func opsConfig(cfg config.Config, stateDir string, env environment) ops.Config {
+func opsConfig(cfg config.Config, stateDir, auditLog string, env environment) ops.Config {
 	return ops.Config{
-		StateDir: stateDir, CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
+		StateDir: stateDir, AuditDir: filepath.Dir(auditLog), CoreData: cfg.CoreData, CoreUnit: cfg.CoreUnit, Version: version,
 		CoreUID: cfg.CoreUID, CoreGID: cfg.CoreGID, SensorUID: cfg.SensorUID, SensorGID: cfg.SensorGID, OwnerUID: env.configOwner, Logger: env.logger,
 	}
 }

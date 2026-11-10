@@ -320,7 +320,8 @@ func (o *Ops) reconcileCoreVersion() bool {
 		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}) == nil
 	}
 	if rec, ok := o.loadPulled(api.ServiceCore); ok && rec.Digest == digest {
-		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}}) == nil
+		// The release that was recorded as current stays as previous, so a rollback has somewhere to go.
+		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}, Previous: vs.Current}) == nil
 	}
 	return vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
 }

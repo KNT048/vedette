@@ -113,7 +113,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	// The system commands (docs/specs/host-api.md section 6) live in host/ops. This is the one
 	// place the registry is built: a closed list, frozen here.
-	sys, err := ops.New(opsConfig(cfg, *stateDir, env))
+	sys, err := ops.New(opsConfig(cfg, *stateDir, *auditLog, env))
 	if err != nil {
 		return err
 	}

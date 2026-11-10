@@ -208,6 +208,7 @@ test.describe('ai: sample data', () => {
     await page.getByRole('button', { name: 'Edit Claude Sonnet' }).click() // hồ sơ chính của "Ask your data"
     const dlg = page.getByRole('dialog', { name: 'Edit Claude Sonnet' })
     await dlg.getByLabel('Server address').fill('https://timeout.example.com')
+    await dlg.getByLabel('API key').fill('sk-ant-demo-key-9z9z') // another address needs the key again (the stored key never follows it)
     await dlg.getByRole('checkbox', { name: /I understand/ }).check()
     await dlg.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('AI profile saved').first()).toBeVisible()
@@ -256,7 +257,7 @@ test.describe('ai: sample data', () => {
     await page.goto('/settings/ai')
     await page.getByLabel('Daily token cap for all profiles together').fill('1000')
     await page.getByRole('radio', { name: /Maximum/ }).check()
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('form', { name: 'Token level' }).getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Token level saved').first()).toBeVisible()
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()

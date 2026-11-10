@@ -136,7 +136,8 @@ func (s *Service) pendingEvents(ctx context.Context) ([]pendingEvent, error) {
 	return out, rows.Err()
 }
 
-func (s *Service) closeEvent(ctx context.Context, id, result string, devices []string, runID *string, latency *float64) error {
+// closeEvent writes the result of an event; its run, if any, was linked when the run started (runSpec.inTx).
+func (s *Service) closeEvent(ctx context.Context, id, result string, devices []string) error {
 	if devices == nil {
 		devices = []string{}
 	}
@@ -145,8 +146,7 @@ func (s *Service) closeEvent(ctx context.Context, id, result string, devices []s
 		return err
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET result = ?, devices = ?, run_id = coalesce(?, run_id), latency_min = coalesce(?, latency_min) WHERE id = ?`,
-			result, string(b), runID, latency, id)
+		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET result = ?, devices = ? WHERE id = ?`, result, string(b), id)
 		return err
 	})
 }
@@ -169,14 +169,14 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		case v.Status != "done":
 			result = "stopped"
 		}
-		return s.closeEvent(ctx, ev.id, result, labels(v.Results), nil, nil)
+		return s.closeEvent(ctx, ev.id, result, labels(v.Results))
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return err
 	}
 	if !st.AutoRescan {
-		return s.closeEvent(ctx, ev.id, "skipped_off", nil, nil, nil)
+		return s.closeEvent(ctx, ev.id, "skipped_off", nil)
 	}
 	now := s.now()
 	if now.Sub(ev.ts) < rescanSettle {
@@ -206,10 +206,10 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
 		return err
 	}
 	if len(ids) == 0 && len(pickOnly) > 0 { // matching devices, all of them a hand pick only (D-126 (2), D-145 (7))
-		return s.closeEvent(ctx, ev.id, "pick_only", pickOnly, nil, nil)
+		return s.closeEvent(ctx, ev.id, "pick_only", pickOnly)
 	}
 	if len(ids) == 0 {
-		return s.closeEvent(ctx, ev.id, "no_match", nil, nil, nil)
+		return s.closeEvent(ctx, ev.id, "no_match", nil)
 	}
 	latency := now.Sub(ev.ts).Minutes()
 	b, err := json.Marshal(names)

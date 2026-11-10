@@ -230943,6 +230943,10 @@ func (s *ScanGetScansEventsOKItemsItemResult) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansEventsOKItemsItemResultSkippedOff
 	case ScanGetScansEventsOKItemsItemResultNoMatch:
 		*s = ScanGetScansEventsOKItemsItemResultNoMatch
+	case ScanGetScansEventsOKItemsItemResultPickOnly:
+		*s = ScanGetScansEventsOKItemsItemResultPickOnly
+	case ScanGetScansEventsOKItemsItemResultStopped:
+		*s = ScanGetScansEventsOKItemsItemResultStopped
 	default:
 		*s = ScanGetScansEventsOKItemsItemResult(v)
 	}

@@ -123040,14 +123040,17 @@ func (s *ScanGetScansEventsOK) SetItems(val []ScanGetScansEventsOKItemsItem) {
 }
 
 type ScanGetScansEventsOKItemsItem struct {
-	Cve        string                              `json:"cve"`
-	Devices    []string                            `json:"devices"`
-	ID         string                              `json:"id"`
-	LatencyMin NilFloat64                          `json:"latency_min"`
-	Product    string                              `json:"product"`
-	Result     ScanGetScansEventsOKItemsItemResult `json:"result"`
-	RunID      NilString                           `json:"run_id"`
-	Ts         time.Time                           `json:"ts"`
+	Cve        string     `json:"cve"`
+	Devices    []string   `json:"devices"`
+	ID         string     `json:"id"`
+	LatencyMin NilFloat64 `json:"latency_min"`
+	Product    string     `json:"product"`
+	// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
+	// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
+	// every device was done (D-145 (7)).
+	Result ScanGetScansEventsOKItemsItemResult `json:"result"`
+	RunID  NilString                           `json:"run_id"`
+	Ts     time.Time                           `json:"ts"`
 }
 
 // GetCve returns the value of Cve.
@@ -123130,6 +123133,9 @@ func (s *ScanGetScansEventsOKItemsItem) SetTs(val time.Time) {
 	s.Ts = val
 }
 
+// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
+// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
+// every device was done (D-145 (7)).
 type ScanGetScansEventsOKItemsItemResult string
 
 const (
@@ -123137,6 +123143,8 @@ const (
 	ScanGetScansEventsOKItemsItemResultClear      ScanGetScansEventsOKItemsItemResult = "clear"
 	ScanGetScansEventsOKItemsItemResultSkippedOff ScanGetScansEventsOKItemsItemResult = "skipped_off"
 	ScanGetScansEventsOKItemsItemResultNoMatch    ScanGetScansEventsOKItemsItemResult = "no_match"
+	ScanGetScansEventsOKItemsItemResultPickOnly   ScanGetScansEventsOKItemsItemResult = "pick_only"
+	ScanGetScansEventsOKItemsItemResultStopped    ScanGetScansEventsOKItemsItemResult = "stopped"
 )
 
 // AllValues returns all ScanGetScansEventsOKItemsItemResult values.
@@ -123146,6 +123154,8 @@ func (ScanGetScansEventsOKItemsItemResult) AllValues() []ScanGetScansEventsOKIte
 		ScanGetScansEventsOKItemsItemResultClear,
 		ScanGetScansEventsOKItemsItemResultSkippedOff,
 		ScanGetScansEventsOKItemsItemResultNoMatch,
+		ScanGetScansEventsOKItemsItemResultPickOnly,
+		ScanGetScansEventsOKItemsItemResultStopped,
 	}
 }
 
@@ -123159,6 +123169,10 @@ func (s ScanGetScansEventsOKItemsItemResult) MarshalText() ([]byte, error) {
 	case ScanGetScansEventsOKItemsItemResultSkippedOff:
 		return []byte(s), nil
 	case ScanGetScansEventsOKItemsItemResultNoMatch:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultPickOnly:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultStopped:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -123179,6 +123193,12 @@ func (s *ScanGetScansEventsOKItemsItemResult) UnmarshalText(data []byte) error {
 		return nil
 	case ScanGetScansEventsOKItemsItemResultNoMatch:
 		*s = ScanGetScansEventsOKItemsItemResultNoMatch
+		return nil
+	case ScanGetScansEventsOKItemsItemResultPickOnly:
+		*s = ScanGetScansEventsOKItemsItemResultPickOnly
+		return nil
+	case ScanGetScansEventsOKItemsItemResultStopped:
+		*s = ScanGetScansEventsOKItemsItemResultStopped
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

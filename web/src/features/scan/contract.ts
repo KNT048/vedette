@@ -52,7 +52,7 @@ export const ProbeEntry = z.object({
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),
-  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match']),
+  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped']).describe('clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7))'),
 })
 export const CredTarget = z.object({
   id: z.string(), asset_id: z.string(), label: z.string(), host: z.string(), port: z.number().int(), username: z.string(),

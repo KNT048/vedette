@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/netip"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -71,5 +72,30 @@ func TestCloudDialRefusesPrivateAndLoopback(t *testing.T) {
 	}
 	if cloudControlFor(true)("tcp", "169.254.169.254:80", nil) == nil {
 		t.Error("a proxy at a metadata address must be refused")
+	}
+}
+
+// Review issue 2: IPv6 forms that carry an IPv4 address (NAT64, 6to4, IPv4-compatible, Teredo) must not get past the address
+// policy by writing 127.0.0.1 or 169.254.169.254 inside them, as D-94 says for connections.
+func TestForbiddenCarriesIPv4(t *testing.T) {
+	t.Parallel()
+	for s, want := range map[string]bool{
+		"64:ff9b::7f00:1": true, "64:ff9b::a9fe:a9fe": true, "64:ff9b::a00:1": true, "64:ff9b::808:808": true, "64:ff9b:1::1": true,
+		"2002:7f00:1::1": true, "2002:a9fe:a9fe::": true, "2002:808:808::1": true,
+		"::7f00:1": true, "::a9fe:a9fe": true, "::a00:1": true,
+		"2001:0:4136:e378:8000:63bf:3fff:fdd2": true, // Teredo
+		"::1":                                  false, "2606:4700::1111": false, "2001:db8::1": false, "fd12:3456::1": false, "::ffff:8.8.8.8": false,
+	} {
+		ip := netip.MustParseAddr(s)
+		if got := Forbidden(ip); got != want {
+			t.Errorf("Forbidden(%s) = %v, want %v", s, got, want)
+		}
+	}
+	for _, addr := range []string{"[64:ff9b::7f00:1]:443", "[2002:a9fe:a9fe::]:80", "[::7f00:1]:80"} {
+		for name, ctl := range map[string]func(string, string, syscall.RawConn) error{"internal": internalOnlyControl, "cloud": cloudOnlyControl, "proxied": forbiddenOnlyControl} {
+			if err := ctl("tcp", addr, nil); err == nil {
+				t.Errorf("%s dial of %s was allowed", name, addr)
+			}
+		}
 	}
 }

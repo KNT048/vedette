@@ -306,7 +306,7 @@ var cloudMayDialPrivate = false
 // metadata address fd00:ec2::254. IPv4-mapped IPv6 is treated as the IPv4 address.
 func Forbidden(ip netip.Addr) bool {
 	ip = ip.Unmap().WithZone("")
-	return ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip == v4Broadcast || ip == ec2v6Meta
+	return ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip == v4Broadcast || ip == ec2v6Meta || carriesIPv4(ip)
 }
 
 // IsInternalAddr reports whether ip is a private address a profile inside the network may use: loopback (a local Ollama), RFC 1918,
@@ -391,4 +391,25 @@ func newTransport(internal bool, base *url.URL) *http.Transport {
 	return &http.Transport{
 		Proxy: nil, DialContext: d.DialContext, MaxIdleConns: 4, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 10 * time.Second,
 	}
+}
+
+// embeddedV4 are the IPv6 forms that carry an IPv4 address: NAT64 (64:ff9b::/96 and the local-use 64:ff9b:1::/48), 6to4, the
+// deprecated IPv4-compatible form, and Teredo. Writing 127.0.0.1 or 169.254.169.254 inside one of them must not get past the
+// address policy, so no profile may use them (D-94 says the same for connections). IPv4-mapped addresses are unwrapped to the
+// IPv4 address before any check, so they are judged as that address.
+var embeddedV4 = []netip.Prefix{
+	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"), netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("::/96"), netip.MustParsePrefix("2001::/32"),
+}
+
+func carriesIPv4(ip netip.Addr) bool {
+	if !ip.Is6() || ip.IsLoopback() || ip.IsUnspecified() {
+		return false
+	}
+	for _, p := range embeddedV4 {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

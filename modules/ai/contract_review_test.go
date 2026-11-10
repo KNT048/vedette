@@ -294,9 +294,6 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		if list := h.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); len(list) != 0 {
 			t.Fatalf("profiles = %v", list)
 		}
-		if cfg := h.want("GET", "/ai/config", "viewer", "", 200, ""); cfg["configured"] != false {
-			t.Fatalf("config = %v", cfg)
-		}
 		// nothing can be changed on top of a state that was not loaded: the stored rows would be overwritten blind
 		m := h.want("POST", "/ai/profiles", "admin", cloudBody("New", keyA), 409, "ai_unavailable")
 		if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be loaded") {
@@ -330,4 +327,44 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 			t.Fatalf("degraded: %q", d)
 		}
 	})
+}
+
+func TestContract_INV3_IPv6FormsThatCarryIPv4AreRefused(t *testing.T) {
+	a := newAPI(t)
+	for _, host := range []string{"[64:ff9b::7f00:1]", "[64:ff9b::a9fe:a9fe]", "[2002:7f00:1::1]", "[2002:a9fe:a9fe::]", "[::7f00:1]", "[2001:0:4136:e378:8000:63bf:3fff:fdd2]"} {
+		for _, call := range []struct{ method, path string }{{"POST", "/ai/profiles"}, {"POST", "/ai/profiles/test"}} {
+			cloud := strings.Replace(cloudBody("c", keyA), "https://api.anthropic.com", "https://"+host+"/v1", 1)
+			internal := strings.Replace(internalBody("i"), "http://192.168.10.5:11434/v1", "http://"+host+":11434/v1", 1)
+			for name, body := range map[string]string{"cloud": cloud, "internal": internal} {
+				got, m, raw := a.do(call.method, call.path, "admin", body)
+				if got != 400 || errCode(m) != "invalid_base_url" {
+					t.Errorf("%s %s %s: %d %s", name, call.path, host, got, raw)
+				}
+			}
+		}
+	}
+	if a.fake.total() != 0 {
+		t.Fatal("a refused address reached the provider")
+	}
+	// a public IPv6 address and an IPv4-mapped public one stay what they were
+	a.want("POST", "/ai/profiles", "admin", strings.Replace(cloudBody("ok", keyA), "https://api.anthropic.com", "https://[2606:4700::1111]/v1", 1), 200, "")
+}
+
+func TestContract_L2_DegradedConfigDoesNotPretend(t *testing.T) {
+	a := newAPI(t)
+	if err := a.exec(`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, location, daily_cap, created_at, updated_at)
+		VALUES ('prof-old', 'Old', 'old', 'openai-compatible', 'openai', 'http://8.8.8.8:11434/v1', 'm-1', 'internal', 5000, '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	svc, err := a.newServiceWith(a.sec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.svc = svc
+	h := &api{env: a.env, h: a.handler(servertest.NewGate())}
+	// the default tier and cap are not the saved ones, so the config is not answered as if they were
+	m := h.want("GET", "/ai/config", "viewer", "", 409, "ai_unavailable")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be loaded") {
+		t.Fatalf("message = %q", msg)
+	}
 }

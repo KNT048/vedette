@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/response"
 )
@@ -48,17 +50,23 @@ const (
 	policy = "12" // the target of the high-risk action: a firewall policy number
 )
 
-// propEnv is an environment with execution on, a finding on a device at hostIP, a known-bad connection about hostIP and about policy 12
-// and a connection read, all behind the fake ports.
+// propEnv is an environment with execution on, findings on a device at hostIP, known-bad connections and reads of the AI, all behind the
+// fake ports.
 func propEnv(t *testing.T, withPorts bool) (*env, *fakeTwoStep, *evFake) {
 	t.Helper()
 	ev := &evFake{
 		ioc: map[string]response.EvidenceRef{
-			"ioc-1":    {Summary: "Known-bad connection to the firewall policy", Relates: []string{policy}},
-			"ioc-host": {Summary: "PC-HR-01 connected to a listed address", Relates: []string{hostIP}},
-			"ioc-else": {Summary: "Something about another address", Relates: []string{"203.0.113.9"}},
+			"ioc-host":   {Summary: "PC-HR-01 connected to a listed address", Relates: []string{hostIP}},
+			"ioc-else":   {Summary: "Something about another address", Relates: []string{"203.0.113.9"}},
+			"ioc-vlan30": {Summary: "A listed address seen on VLAN 30", Relates: []string{"30"}},
+			"ioc-mac":    {Summary: "A listed address seen from one MAC", Relates: []string{"AA-BB-CC-DD-EE-01"}},
 		},
-		cfg: map[string]response.EvidenceRef{"cn-fw/fetch_url": {Summary: "Read fetch_url on Office firewall"}},
+		// reads the AI made: two through the firewall connection of the action, one through another connection
+		cfg: map[string]response.EvidenceRef{
+			"read-1":     {Summary: "Read the policy list of Office firewall", Connection: "cn-fw"},
+			"read-2":     {Summary: "Read policy 12 of Office firewall", Connection: "cn-fw"},
+			"read-other": {Summary: "Read the rules of another firewall", Connection: "cn-other"},
+		},
 	}
 	f := &fakeTwoStep{off: map[string]bool{}}
 	e := newEnv(t, func(c *response.Config) {
@@ -79,10 +87,11 @@ func lowBody() response.ProposeBody {
 		Evidence: []response.ProposedEvidence{{Kind: "finding", ID: "f1"}}, Why: "The device runs a service with an exploited vulnerability."}
 }
 
-// highBody is the body of the high-risk action: two pieces of evidence, one of them about policy 12.
+// highBody is the body of the high-risk action on the firewall: a finding (it proves the trigger and names the device for the never-touch
+// check) and two reads the AI made through the connection of the action, which are about every target of that action.
 func highBody() response.ProposeBody {
 	return response.ProposeBody{Trigger: "finding", ActionID: "fgt_policy_disable", Params: map[string]string{"id": policy}, Confidence: 0.95,
-		Evidence: []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "ioc_hit", ID: "ioc-1"}}, Why: "A firewall policy lets the exploited service out."}
+		Evidence: []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-1"}, {Kind: "config_read", ID: "read-2"}}, Why: "A firewall policy lets the exploited service out."}
 }
 
 // allowHigh binds the high-risk action to the firewall and lets the AI propose it.
@@ -109,17 +118,43 @@ func (e *env) mustPropose(b response.ProposeBody) response.ProposeResult {
 
 func (e *env) notes() int { return e.count(`SELECT COUNT(*) FROM resp_ai_notes`) }
 
+// newest is the newest line of resp_log of the kind: who wrote it and what it says.
+func (e *env) newest(kind string) (actor, detail string) {
+	e.t.Helper()
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT actor, detail FROM resp_log WHERE kind = ? ORDER BY seq DESC LIMIT 1`, kind).Scan(&actor, &detail); err != nil {
+		e.t.Fatalf("no %s line: %v", kind, err)
+	}
+	return actor, detail
+}
+
+// full is the stored request a proposal made (the port itself answers a narrow view).
+func (e *env) full(id string) response.ActionRequest {
+	e.t.Helper()
+	for _, a := range e.actions() {
+		if a.ID == id {
+			return a
+		}
+	}
+	e.t.Fatalf("no request %s", id)
+	return response.ActionRequest{}
+}
+
 // ---- INV-15: the gates, in order ----
 
-// gate is one row of the INV-15 table. arm puts the box and the body in the state that makes this gate refuse; the test of row i arms
-// rows i..last at once (latest first, so an earlier gate's change wins where two change the same thing), which proves that gate i
-// refuses first while every later gate would have refused too. Row i-1, armed the same way, proves the earlier gate beats this one.
+// inv15Gate is one row of the INV-15 table. arm puts the box and the body in the state that makes this gate refuse; the test of row i arms
+// rows i..last at once, so gate i must refuse first while every later gate would have refused too; row i-1, armed the same way, proves the
+// earlier gate beats this one. Arms that build the world (a request made by a rule) run first, then the arms that change
+// settings or the body, latest gate first so that an earlier gate's change wins where two change the same thing. No row replaces the
+// evidence list: each evidence row breaks it in exactly one way.
 type inv15Gate struct {
 	name   string
+	world  bool // the arm builds the world (a request made by a rule) and runs before the arms that change settings or the body
 	arm    func(e *env, b *response.ProposeBody)
 	status int
 	code   string
-	outcom string // set for the two gates that answer a note instead of a refusal
+	msg    string                     // part of the refusal text, for the gates that share a code
+	outcom string                     // set for the gates that answer a note instead of a refusal
+	after  func(t *testing.T, e *env) // what else must be true after this gate answered
 }
 
 func (e *env) setting(path string, val any) {
@@ -129,7 +164,7 @@ func (e *env) setting(path string, val any) {
 	e.exec1(`UPDATE resp_settings SET value = json_set(value, ?, json(?))`, path, string(raw))
 }
 
-// priorRule makes a pending request for the high-risk action on policy 12, from a rule, and returns it.
+// priorRequest makes a pending request for the high-risk action on policy 12 from a rule, and returns it.
 func (e *env) priorRequest(event string) response.ActionRequest {
 	e.t.Helper()
 	if len(mustRules(e)) == 0 {
@@ -139,13 +174,14 @@ func (e *env) priorRequest(event string) response.ActionRequest {
 	for _, a := range e.actions() {
 		seen[a.ID] = true
 	}
-	e.fire(e.trap(event, "192.168.10.157"))
+	sum := e.fire(e.trap(event, "192.168.10.157"))
 	for _, a := range e.actions() {
 		if !seen[a.ID] {
 			return a
 		}
 	}
-	e.t.Fatal("the rule made no request")
+	_, d := e.newest("refused")
+	e.t.Fatalf("the rule made no request: %+v (%s)", sum, d)
 	return response.ActionRequest{}
 }
 
@@ -162,23 +198,32 @@ func inv15Gates() []inv15Gate {
 			e.setting("$.ai.paused_at", store.FormatTS(e.clock.Now()))
 			e.setting("$.ai.paused_reason", "3 of the last 5 AI requests were rejected")
 		}},
-		{name: "trigger", status: 403, code: "trigger_not_allowed", arm: func(_ *env, b *response.ProposeBody) { b.Trigger = "honeypot" }},
+		{name: "trigger the admin did not allow", status: 403, code: "trigger_not_allowed", msg: "has not allowed", arm: func(_ *env, b *response.ProposeBody) { b.Trigger = "unknown_device" }},
+		{name: "trigger no evidence can prove", status: 403, code: "trigger_not_allowed", msg: "no kind of evidence", arm: func(e *env, b *response.ProposeBody) {
+			e.setting("$.ai.triggers", []string{"finding", "honeypot"})
+			b.Trigger = "honeypot"
+		}},
 		{name: "action not for the AI", status: 403, code: "action_not_ai_allowed", arm: func(e *env, _ *response.ProposeBody) {
 			e.exec1(`UPDATE resp_catalog SET ai_may_propose = 0 WHERE id = 'fgt_policy_disable'`)
 		}},
 		{name: "plan", status: 409, code: "invalid_target", arm: func(_ *env, b *response.ProposeBody) { b.Params = map[string]string{"id": "not a number"} }},
 		{name: "evidence missing", status: 400, code: "evidence_missing", arm: func(_ *env, b *response.ProposeBody) { b.Evidence = nil }},
 		{name: "evidence invalid", status: 422, code: "evidence_invalid", arm: func(_ *env, b *response.ProposeBody) {
-			b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "ioc_hit", ID: "ioc-made-up"}}
+			b.Evidence = append(slices.Clone(b.Evidence), response.ProposedEvidence{Kind: "config_read", ID: "read-made-up"})
 		}},
-		{name: "evidence mismatch", status: 422, code: "evidence_mismatch", arm: func(_ *env, b *response.ProposeBody) {
-			b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "ioc_hit", ID: "ioc-else"}}
+		{name: "evidence mismatch", status: 422, code: "evidence_mismatch", msg: "about the target", arm: func(_ *env, b *response.ProposeBody) {
+			b.Evidence = slices.Clone(b.Evidence)
+			for i := range b.Evidence { // the reads went through another connection: about nothing this action touches
+				if b.Evidence[i].Kind == "config_read" {
+					b.Evidence[i].ID = "read-other"
+				}
+			}
 		}},
 		{name: "low confidence", outcom: "suggestion", arm: func(_ *env, b *response.ProposeBody) { b.Confidence = 0.5 }},
-		{name: "already open", status: 409, code: "already_open", arm: func(e *env, _ *response.ProposeBody) { e.priorRequest("h-open") }},
-		{name: "rejected within 7 days", status: 409, code: "repeat_blocked", arm: func(e *env, _ *response.ProposeBody) {
+		{name: "already open", world: true, status: 409, code: "already_open", arm: func(e *env, _ *response.ProposeBody) { e.priorRequest("h-open") }},
+		{name: "rejected within 7 days", world: true, status: 409, code: "repeat_blocked", arm: func(e *env, _ *response.ProposeBody) {
 			a := e.priorRequest("h-rej")
-			e.asAI(a.ID, `{"confidence":0.95,"evidence":[{"kind":"finding","id":"f1","summary":"s"},{"kind":"ioc_hit","id":"ioc-1","summary":"s"}],"why":"test","second_check":null,"in_app_only":true}`)
+			e.asAI(a.ID, `{"confidence":0.95,"evidence":[{"kind":"finding","id":"f1","summary":"s"},{"kind":"config_read","id":"read-1","summary":"s"},{"kind":"config_read","id":"read-2","summary":"s"}],"why":"test","second_check":null,"in_app_only":true}`)
 			e.reject(a, "Not now", "none")
 		}},
 		{name: "budget", outcom: "digest", arm: func(e *env, _ *response.ProposeBody) {
@@ -186,9 +231,13 @@ func inv15Gates() []inv15Gate {
 			e.exec1(`INSERT INTO resp_actions (id, source, proposal_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items)
 				VALUES ('act-usage', 'ai', 'ai:usage', 'X', 'Earlier AI request', 'low', 'expired', ?, ?, 1, '[]')`, store.FormatTS(e.clock.Now().Add(-time.Minute)), store.FormatTS(e.clock.Now().Add(time.Hour)))
 		}},
-		{name: "second check", status: 422, code: "second_check_failed", arm: func(_ *env, b *response.ProposeBody) {
-			b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-1"}}
-		}},
+		{name: "second check", status: 422, code: "second_check_failed", arm: func(_ *env, b *response.ProposeBody) { b.Confidence = 0.89 }},
+		{name: "global breaker trips", status: 409, code: "circuit_open", arm: func(e *env, _ *response.ProposeBody) { e.setting("$.breaker_max_per_hour", 0) },
+			after: func(t *testing.T, e *env) {
+				if e.settings().BreakerTrippedAt == nil || !e.logHas("breaker", "Circuit breaker tripped") {
+					t.Error("the trip was not committed: the breaker is still closed or has no log line")
+				}
+			}},
 		{name: "request", outcom: "request", arm: func(*env, *response.ProposeBody) {}},
 	}
 }
@@ -200,19 +249,26 @@ func TestContract_INV15_GatesRunInOrder(t *testing.T) {
 			e, _, _ := propEnv(t, true)
 			e.allowHigh()
 			b := highBody()
-			for j := len(all) - 1; j >= i; j-- { // the later gates are armed too: this one must still be the one that answers
-				all[j].arm(e, &b)
+			for _, world := range []bool{true, false} {
+				for j := len(all) - 1; j >= i; j-- { // the later gates are armed too: this one must still be the one that answers
+					if all[j].world == world {
+						all[j].arm(e, &b)
+					}
+				}
 			}
 			requests, notes, logs := e.requests(), e.notes(), e.count(`SELECT COUNT(*) FROM resp_log`)
 			res, err := e.propose(b)
 			switch {
 			case g.code != "":
 				wantCode(t, err, g.status, g.code)
+				if g.msg != "" && !contains(err.Error(), g.msg) {
+					t.Fatalf("the refusal says %q, want it to say %q", err, g.msg)
+				}
 				if e.requests() != requests || e.notes() != notes {
 					t.Fatalf("a refusal created something: requests %d -> %d, notes %d -> %d", requests, e.requests(), notes, e.notes())
 				}
-				if !e.logHas("refused", g.code) || e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND actor = 'ai:response'`) == 0 {
-					t.Fatal("the refusal is not in resp_log under ai:response")
+				if actor, detail := e.newest("refused"); actor != "ai:response" || !contains(detail, g.code) {
+					t.Fatalf("the newest refused line is %q by %q, want %s by ai:response", detail, actor, g.code)
 				}
 			default:
 				e.must(err)
@@ -223,9 +279,20 @@ func TestContract_INV15_GatesRunInOrder(t *testing.T) {
 					if e.requests() != requests+1 || res.Request == nil {
 						t.Fatalf("no request was created: %+v", res)
 					}
-				} else if e.requests() != requests || e.notes() != notes+1 || res.Request != nil || e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'ai_note' AND actor = 'ai:response'`) != 1 {
-					t.Fatalf("a %s note must be one note, one log line and no request (requests %d -> %d, notes %d -> %d)", g.outcom, requests, e.requests(), notes, e.notes())
+					if actor, detail := e.newest("proposal"); actor != "ai:response" || !contains(detail, "read-1") {
+						t.Fatalf("the newest proposal line is %q by %q", detail, actor)
+					}
+				} else {
+					if e.requests() != requests || e.notes() != notes+1 || res.Request != nil {
+						t.Fatalf("a %s note must be one note and no request (requests %d -> %d, notes %d -> %d)", g.outcom, requests, e.requests(), notes, e.notes())
+					}
+					if actor, _ := e.newest("ai_note"); actor != "ai:response" {
+						t.Fatalf("the newest ai_note line is by %q", actor)
+					}
 				}
+			}
+			if g.after != nil {
+				g.after(t, e)
 			}
 			if e.count(`SELECT COUNT(*) FROM resp_log`) <= logs {
 				t.Fatal("nothing was logged")
@@ -235,6 +302,17 @@ func TestContract_INV15_GatesRunInOrder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPropose_UnknownActionBeatsTheMaintenanceWindow(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	inv15Gates()[0].arm(e, nil)
+	b := lowBody()
+	b.ActionID = "no_such_action"
+	_, err := e.propose(b)
+	wantCode(t, err, 400, "invalid")
+	_, err = e.propose(lowBody())
+	wantCode(t, err, 409, "maintenance")
 }
 
 // ---- notes ----
@@ -278,7 +356,7 @@ func TestPropose_SuggestionAndDigestAreNotesWithNoRequest(t *testing.T) {
 	ev.add("ioc-8", "198.51.100.8")
 	over := lowBody()
 	over.Params = map[string]string{"ip": "198.51.100.8"}
-	over.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-8"}}
+	over.Trigger, over.Evidence = "ioc_connection", []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-8"}}
 	if r := e.mustPropose(over); r.Outcome != "digest" || r.Request != nil {
 		t.Fatalf("%+v", r)
 	}
@@ -300,16 +378,23 @@ func (f *evFake) add(id string, relates ...string) {
 
 // ---- evidence ----
 
+// iocBody is the low-risk body when a known-bad connection is the evidence: the trigger it proves is ioc_connection.
+func iocBody(id string) response.ProposeBody {
+	b := lowBody()
+	b.Trigger = "ioc_connection"
+	b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: id}}
+	return b
+}
+
 func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 	t.Run("a nil port refuses", func(t *testing.T) {
 		e, _, _ := propEnv(t, false)
-		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-host"}}
-		_, err := e.propose(b)
+		_, err := e.propose(iocBody("ioc-host"))
 		wantCode(t, err, 422, "evidence_invalid")
-		b.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: "cn-fw/fetch_url"}}
+		e.allowHigh()
+		b := highBody()
 		_, err = e.propose(b)
-		wantCode(t, err, 422, "evidence_invalid")
+		wantCode(t, err, 422, "evidence_invalid") // the reads of the AI cannot be looked up: nothing proves them
 		if e.requests() != 0 {
 			t.Fatal("created")
 		}
@@ -321,7 +406,7 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 	})
 	t.Run("a wrong id refuses", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
-		for _, ev := range []response.ProposedEvidence{{Kind: "finding", ID: "f-nope"}, {Kind: "ioc_hit", ID: "ioc-nope"}, {Kind: "config_read", ID: "cn-fw/nothing"}} {
+		for _, ev := range []response.ProposedEvidence{{Kind: "finding", ID: "f-nope"}, {Kind: "ioc_hit", ID: "ioc-nope"}, {Kind: "config_read", ID: "read-nope"}} {
 			b := lowBody()
 			b.Evidence = []response.ProposedEvidence{ev}
 			_, err := e.propose(b)
@@ -335,64 +420,287 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 		_, err := e.propose(b)
 		wantCode(t, err, 422, "evidence_invalid")
 	})
+	t.Run("closed, false-positive and resolved findings are not evidence", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		for _, st := range []string{"false_positive", "patched", "mitigated", "not_relevant", "resolved", ""} {
+			e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a1", CVE: "CVE-2024-0001", Severity: "high", Status: st}
+			_, err := e.propose(lowBody())
+			wantCode(t, err, 422, "evidence_invalid")
+		}
+		e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a1", CVE: "CVE-2024-0001", Severity: "high", Status: "suspected"}
+		e.mustPropose(lowBody())
+	})
 	t.Run("evidence about something else refuses", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
-		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-else"}}
-		_, err := e.propose(b)
+		_, err := e.propose(iocBody("ioc-else"))
 		wantCode(t, err, 422, "evidence_mismatch")
+	})
+	t.Run("a known-bad connection about the target is evidence", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		if r := e.mustPropose(iocBody("ioc-host")); r.Outcome != "request" {
+			t.Fatalf("%+v", r)
+		}
 	})
 	t.Run("a finding on the target device is about the target", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
 		r := e.mustPropose(lowBody())
-		if r.Request == nil || len(r.Request.AI.Evidence) != 1 || !contains(r.Request.AI.Evidence[0].Summary, "CVE-2024-0001") || r.Request.FindingID == nil || *r.Request.FindingID != "f1" {
-			t.Fatalf("%+v", r)
+		a := e.full(r.Request.ID)
+		if len(a.AI.Evidence) != 1 || !contains(a.AI.Evidence[0].Summary, "CVE-2024-0001") || a.FindingID == nil || *a.FindingID != "f1" || a.CVE == nil || *a.CVE != "CVE-2024-0001" {
+			t.Fatalf("%+v", a)
+		}
+		if a.AssetID == nil || *a.AssetID != "a1" || a.AssetName != "PC-HR-01" {
+			t.Fatalf("the device whose address is the target is shown: %+v %q", a.AssetID, a.AssetName)
 		}
 	})
-	t.Run("a set of connection reads alone is accepted", func(t *testing.T) {
+	t.Run("the device shown is the one whose address is the target, not the first finding's", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
+		e.dir.devices["a2"] = response.DeviceInfo{ID: "a2", Name: "NAS", IP: "198.51.100.9", Approved: true}
+		e.dir.findings["f3"] = response.FindingInfo{ID: "f3", AssetID: "a2", CVE: "CVE-2024-0003", Severity: "high", Status: "confirmed"}
 		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: "cn-fw/fetch_url"}}
-		r := e.mustPropose(b)
-		if r.Outcome != "request" || r.Request.AI.Evidence[0].Kind != "config_read" {
-			t.Fatalf("%+v", r)
+		b.Params = map[string]string{"ip": "198.51.100.9"}
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "finding", ID: "f3"}}
+		a := e.full(e.mustPropose(b).Request.ID)
+		if a.AssetID == nil || *a.AssetID != "a2" || a.AssetName != "NAS" {
+			t.Fatalf("asset %v %q", a.AssetID, a.AssetName)
 		}
 	})
-	t.Run("a connection read next to other evidence does not stand in for it", func(t *testing.T) {
+	t.Run("a host name that looks like an address never matches an address", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
+		e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "198.51.100.8", IP: hostIP, Approved: true} // a DHCP host name
 		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: "cn-fw/fetch_url"}, {Kind: "ioc_hit", ID: "ioc-else"}}
+		b.Params = map[string]string{"ip": "198.51.100.8"}
 		_, err := e.propose(b)
 		wantCode(t, err, 422, "evidence_mismatch")
 	})
-	t.Run("a port that fails creates nothing", func(t *testing.T) {
+	t.Run("addresses compare in their canonical spelling", func(t *testing.T) {
 		e, _, ev := propEnv(t, true)
-		ev.err = fmt.Errorf("logs are down")
-		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-host"}}
-		if _, err := e.propose(b); err == nil || e.requests() != 0 {
-			t.Fatalf("err %v, %d requests", err, e.requests())
+		ev.add("ioc-v6", "2001:DB8::0:1")
+		b := iocBody("ioc-v6")
+		b.Params = map[string]string{"ip": "2001:db8::1"}
+		if r := e.mustPropose(b); r.Outcome != "request" {
+			t.Fatalf("%+v", r)
 		}
 	})
 	t.Run("what a port says is cleaned before it is stored", func(t *testing.T) {
 		e, _, ev := propEnv(t, true)
 		ev.ioc["ioc-dirty"] = response.EvidenceRef{Summary: "bad\u202e\r\n\x00connection\u200b to\u3164 x", Relates: []string{hostIP}}
-		b := lowBody()
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-dirty"}}
-		r := e.mustPropose(b)
-		if got := r.Request.AI.Evidence[0].Summary; got != "bad connection to x" {
+		r := e.mustPropose(iocBody("ioc-dirty"))
+		if got := e.full(r.Request.ID).AI.Evidence[0].Summary; got != "bad connection to x" {
 			t.Fatalf("summary %q", got)
 		}
 	})
+	t.Run("a lookup that returns another canonical id is kept under that id", func(t *testing.T) {
+		e, _, ev := propEnv(t, true)
+		ev.ioc["alias"] = response.EvidenceRef{ID: "ioc-host", Summary: "same hit", Relates: []string{hostIP}}
+		b := iocBody("ioc-host")
+		b.Evidence = append(b.Evidence, response.ProposedEvidence{Kind: "ioc_hit", ID: "alias"})
+		if got := e.full(e.mustPropose(b).Request.ID).AI.Evidence; len(got) != 1 || got[0].ID != "ioc-host" {
+			t.Fatalf("one object under two ids counts once: %+v", got)
+		}
+	})
+}
+
+// A read of the AI relates to a device action through that same connection and to nothing else (D-119).
+func TestPropose_ConfigReadsAreEvidenceOnlyOfTheirOwnConnection(t *testing.T) {
+	t.Run("two reads through the connection of the action pass the second check", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		e.allowHigh()
+		r := e.mustPropose(highBody())
+		if r.Outcome != "request" || r.Request.Risk != response.RiskHigh {
+			t.Fatalf("%+v", r)
+		}
+	})
+	t.Run("a read through another connection says nothing about the action", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		e.allowHigh()
+		b := highBody()
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-other"}}
+		_, err := e.propose(b)
+		wantCode(t, err, 422, "evidence_mismatch")
+	})
+	t.Run("a box action can never be justified by reads", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		b := lowBody()
+		b.Params = map[string]string{"ip": "198.51.100.8"} // the finding is about another address
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-1"}, {Kind: "config_read", ID: "read-2"}}
+		_, err := e.propose(b)
+		wantCode(t, err, 422, "evidence_mismatch")
+	})
+	t.Run("reads alone never prove a trigger", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		b := lowBody()
+		b.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: "read-1"}, {Kind: "config_read", ID: "read-2"}}
+		_, err := e.propose(b)
+		wantCode(t, err, 422, "evidence_mismatch")
+		if !contains(err.Error(), "proves the trigger") {
+			t.Fatalf("%v", err)
+		}
+	})
+	t.Run("a read without a connection relates to nothing", func(t *testing.T) {
+		e, _, ev := propEnv(t, true)
+		e.allowHigh()
+		ev.cfg["read-bare"] = response.EvidenceRef{Summary: "a read"}
+		b := highBody()
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-bare"}}
+		_, err := e.propose(b)
+		wantCode(t, err, 422, "evidence_mismatch")
+	})
+}
+
+// A finding gives the trigger and the device; the trigger has to be proven by a kind of evidence that can prove it (D-119).
+func TestPropose_TriggerMustBeProvenByEvidence(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	b := iocBody("ioc-host")
+	b.Trigger = "finding" // a finding trigger with only a known-bad connection
+	_, err := e.propose(b)
+	wantCode(t, err, 422, "evidence_mismatch")
+	b = lowBody()
+	b.Trigger = "ioc_connection" // an ioc trigger with only a finding
+	_, err = e.propose(b)
+	wantCode(t, err, 422, "evidence_mismatch")
+	b.Evidence = append(b.Evidence, response.ProposedEvidence{Kind: "ioc_hit", ID: "ioc-host"})
+	if r := e.mustPropose(b); r.Outcome != "request" {
+		t.Fatalf("%+v", r)
+	}
+}
+
+// The trigger catalog says which kinds prove which trigger. Triggers with no kind cannot be used by the AI at all.
+func TestPropose_TriggerEvidenceMap(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	tl, err := e.svc.Triggers(e.ctx())
+	e.must(err)
+	want := map[string]bool{"finding": true, "ioc_connection": true}
+	for _, tr := range tl {
+		if want[tr.ID] {
+			continue
+		}
+		e.saveSettings(func(in *response.SettingsInput) { in.AI.Triggers = []string{tr.ID} })
+		b := lowBody()
+		b.Trigger = tr.ID
+		_, err := e.propose(b)
+		wantCode(t, err, 403, "trigger_not_allowed")
+		if !contains(err.Error(), "no kind of evidence") {
+			t.Errorf("%s: %v", tr.ID, err)
+		}
+	}
+}
+
+func TestPropose_OnlyRelatedEvidenceCounts(t *testing.T) {
+	t.Run("repeat: related plus unrelated evidence is not new evidence", func(t *testing.T) {
+		e, _, ev := propEnv(t, true)
+		r := e.mustPropose(lowBody())
+		e.clock.Advance(time.Minute)
+		e.reject(e.full(r.Request.ID), "Our scanner", "none")
+		e.clock.Advance(time.Minute)
+		b := lowBody()
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "ioc_hit", ID: "ioc-else"}} // ioc-else is new but about another address
+		_, err := e.propose(b)
+		wantCode(t, err, 409, "repeat_blocked")
+		ev.add("ioc-new", hostIP) // new and about the target
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "ioc_hit", ID: "ioc-new"}}
+		if r := e.mustPropose(b); r.Outcome != "request" {
+			t.Fatalf("%+v", r)
+		}
+	})
+	t.Run("high risk: one related plus one unrelated is not two", func(t *testing.T) {
+		e, _, _ := propEnv(t, true)
+		e.allowHigh()
+		b := highBody()
+		b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-1"}, {Kind: "config_read", ID: "read-other"}}
+		_, err := e.propose(b)
+		wantCode(t, err, 422, "second_check_failed")
+		if !contains(err.Error(), "about the target (got 1)") {
+			t.Fatalf("%v", err)
+		}
+	})
+}
+
+func TestPropose_AFailingLookupAnswersAtTheEvidenceGateAndIsLogged(t *testing.T) {
+	e, _, ev := propEnv(t, true)
+	ev.err = fmt.Errorf("logs are down")
+	// an earlier gate still answers first
+	inv15Gates()[0].arm(e, nil)
+	_, err := e.propose(iocBody("ioc-host"))
+	wantCode(t, err, 409, "maintenance")
+	e.setting("$.maintenance", []response.Window{})
+	_, err = e.propose(iocBody("ioc-host"))
+	wantCode(t, err, 503, "evidence_unavailable")
+	if actor, detail := e.newest("refused"); actor != "ai:response" || !contains(detail, "evidence_unavailable") {
+		t.Fatalf("not logged: %q by %q", detail, actor)
+	}
+	if e.requests() != 0 || e.notes() != 0 {
+		t.Fatal("created")
+	}
+	ev.err = nil
+	e.mustPropose(iocBody("ioc-host"))
 }
 
 func TestPropose_TheSameEvidenceTwiceCountsOnce(t *testing.T) {
 	e, _, _ := propEnv(t, true)
 	e.allowHigh()
 	b := highBody()
-	b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-1"}, {Kind: "ioc_hit", ID: "ioc-1"}}
+	b.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-1"}, {Kind: "config_read", ID: "read-1"}}
 	_, err := e.propose(b)
 	wantCode(t, err, 422, "second_check_failed")
+}
+
+// ---- never-touch needs a subject ----
+
+// deviceAction adds a custom action on the firewall connection that names one value of a device part, and lets the AI propose it.
+func (e *env) deviceAction(param string) string {
+	e.t.Helper()
+	e.firewall("fgt_policy_disable")
+	a, err := e.svc.AddAction(e.ctx(), admin, response.CatalogInput{Name: "Quarantine " + param, ConnectionID: "cn-fw", Risk: response.RiskLow, Enabled: true, AIMayPropose: true,
+		Run:      response.Tpl{Method: "POST", Path: "/q/{" + param + "}", Body: `{"q":"on"}`},
+		Rollback: response.Tpl{Method: "DELETE", Path: "/q/{" + param + "}"}})
+	e.must(err)
+	return a.ID
+}
+
+func TestPropose_PortMACAndVLANActionsNeedTheSubjectAndRespectNeverTouch(t *testing.T) {
+	for _, tc := range []struct{ param, value, hit string }{{"mac", "aa:bb:cc:dd:ee:01", "ioc-mac"}, {"vlan", "30", "ioc-vlan30"}} {
+		t.Run(tc.param, func(t *testing.T) {
+			e, _, _ := propEnv(t, true)
+			id := e.deviceAction(tc.param)
+			body := response.ProposeBody{Trigger: "ioc_connection", ActionID: id, Params: map[string]string{tc.param: tc.value}, Confidence: 0.9, Why: "A listed address came from here.",
+				Evidence: []response.ProposedEvidence{{Kind: "ioc_hit", ID: tc.hit}}}
+			// no finding, no subject: the never-touch list cannot be checked
+			_, err := e.propose(body)
+			wantCode(t, err, 409, "never_touch")
+			// with a finding on an ordinary device it is allowed
+			ok := body
+			ok.Evidence = append(slices.Clone(body.Evidence), response.ProposedEvidence{Kind: "finding", ID: "f1"})
+			// ... but not when any cited finding is about a protected device (every one is checked, not the first)
+			e.dir.devices["gw"] = response.DeviceInfo{ID: "gw", Name: "gateway", IP: "198.51.100.1", Kind: "router"}
+			e.dir.findings["f-gw"] = response.FindingInfo{ID: "f-gw", AssetID: "gw", CVE: "CVE-2024-0009", Severity: "high", Status: "confirmed"}
+			bad := body
+			bad.Evidence = append(slices.Clone(ok.Evidence), response.ProposedEvidence{Kind: "finding", ID: "f-gw"})
+			_, err = e.propose(bad)
+			wantCode(t, err, 409, "never_touch")
+			bad.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: tc.hit}, {Kind: "finding", ID: "f-gw"}, {Kind: "finding", ID: "f1"}}
+			_, err = e.propose(bad)
+			wantCode(t, err, 409, "never_touch")
+			if e.requests() != 0 {
+				t.Fatal("created")
+			}
+			if r := e.mustPropose(ok); r.Outcome != "request" {
+				t.Fatalf("%+v", r)
+			}
+		})
+	}
+}
+
+func TestPropose_NeverTouchRefusalDoesNotEchoBidi(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	e.dir.devices["gw"] = response.DeviceInfo{ID: "gw", Name: "gate\u202eway\u200b", IP: hostIP, Kind: "router"}
+	_, err := e.propose(lowBody())
+	wantCode(t, err, 409, "never_touch")
+	_, detail := e.newest("refused")
+	for _, s := range []string{err.Error(), detail} {
+		if strings.ContainsAny(s, "\u202e\u200b") || !contains(s, "gateway") {
+			t.Fatalf("hidden characters or the name is gone: %q", s)
+		}
+	}
 }
 
 // ---- the body at the boundary ----
@@ -441,8 +749,8 @@ func TestPropose_BodyIsValidatedAtTheBoundary(t *testing.T) {
 	b := lowBody()
 	b.Why = "line one\r\n\x00line\u202e two\u200b"
 	r := e.mustPropose(b)
-	if r.Request.AI.Why != "line one line two" || *r.Request.TriggerSummary != "line one line two" {
-		t.Fatalf("why %q", r.Request.AI.Why)
+	if a := e.full(r.Request.ID); a.AI.Why != "line one line two" || *a.TriggerSummary != "line one line two" {
+		t.Fatalf("why %q", a.AI.Why)
 	}
 }
 
@@ -490,7 +798,7 @@ func TestPropose_RepeatRule(t *testing.T) {
 		e, _, ev := propEnv(t, true)
 		r := e.mustPropose(lowBody())
 		e.clock.Advance(time.Minute)
-		e.reject(*r.Request, "Our scanner", "none")
+		e.reject(e.full(r.Request.ID), "Our scanner", "none")
 		e.clock.Advance(time.Minute)
 		return e, ev
 	}
@@ -522,7 +830,7 @@ func TestPropose_RepeatRule(t *testing.T) {
 		b := lowBody()
 		b.Params = map[string]string{"ip": "198.51.100.8"}
 		ev.add("ioc-8", "198.51.100.8")
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-8"}}
+		b.Trigger, b.Evidence = "ioc_connection", []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-8"}}
 		if r := e.mustPropose(b); r.Outcome != "request" {
 			t.Fatalf("%+v", r)
 		}
@@ -549,7 +857,7 @@ func TestPropose_BudgetDefaultsAreTwoAnHourAndFiveADay(t *testing.T) {
 		ev.add(fmt.Sprintf("ioc-b%d", i), fmt.Sprintf("198.51.100.%d", 20+i))
 		b := lowBody()
 		b.Params = map[string]string{"ip": fmt.Sprintf("198.51.100.%d", 20+i)}
-		b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: fmt.Sprintf("ioc-b%d", i)}}
+		b.Trigger, b.Evidence = "ioc_connection", []response.ProposedEvidence{{Kind: "ioc_hit", ID: fmt.Sprintf("ioc-b%d", i)}}
 		return b
 	}
 	steps := []struct {
@@ -581,7 +889,7 @@ func TestPropose_HighRiskSecondCheck(t *testing.T) {
 	e, f, _ := propEnv(t, true)
 	e.allowHigh()
 	one := highBody()
-	one.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: "ioc-1"}}
+	one.Evidence = []response.ProposedEvidence{{Kind: "finding", ID: "f1"}, {Kind: "config_read", ID: "read-1"}} // the finding is about the device, not about the policy
 	_, err := e.propose(one)
 	wantCode(t, err, 422, "second_check_failed")
 	low := highBody()
@@ -597,8 +905,8 @@ func TestPropose_HighRiskSecondCheck(t *testing.T) {
 	if r.Outcome != "request" || r.Request == nil || r.Request.Risk != response.RiskHigh || r.Request.RequiresApprovals != 2 {
 		t.Fatalf("%+v", r)
 	}
-	a := r.Request.AI
-	if !a.InAppOnly || a.SecondCheck == nil || !a.SecondCheck.OK || a.Confidence != 0.9 || len(a.Evidence) != 2 || !contains(r.Note, "two different people") {
+	a := e.full(r.Request.ID).AI
+	if !a.InAppOnly || !r.Request.InAppOnly || a.SecondCheck == nil || !a.SecondCheck.OK || a.Confidence != 0.9 || len(a.Evidence) != 3 || !contains(r.Note, "two different people") {
 		t.Fatalf("ai: %+v", a)
 	}
 	// one approval of the 13b-9 path is not enough: two people, each with their own code
@@ -622,8 +930,9 @@ func TestPropose_HighRiskSecondCheck(t *testing.T) {
 func TestPropose_LowRiskRequestIsNotInAppOnly(t *testing.T) {
 	e, _, _ := propEnv(t, true)
 	r := e.mustPropose(lowBody())
-	if r.Request.Risk != response.RiskLow || r.Request.AI.InAppOnly || r.Request.AI.SecondCheck != nil || r.Request.RequiresApprovals != 1 || r.Request.Items[0].TTLMin == nil || *r.Request.Items[0].TTLMin != 1440 {
-		t.Fatalf("%+v %+v", r.Request, r.Request.AI)
+	a := e.full(r.Request.ID)
+	if r.Request.Risk != response.RiskLow || r.Request.InAppOnly || a.AI.InAppOnly || a.AI.SecondCheck != nil || r.Request.RequiresApprovals != 1 || a.Items[0].TTLMin == nil || *a.Items[0].TTLMin != 1440 {
+		t.Fatalf("%+v %+v", r.Request, a.AI)
 	}
 }
 
@@ -677,7 +986,7 @@ func TestPropose_ConcurrentProposalsStayInsideTheBudget(t *testing.T) {
 			defer wg.Done()
 			b := lowBody()
 			b.Params = map[string]string{"ip": fmt.Sprintf("198.51.100.%d", 40+i)}
-			b.Evidence = []response.ProposedEvidence{{Kind: "ioc_hit", ID: fmt.Sprintf("ioc-c%d", i)}}
+			b.Trigger, b.Evidence = "ioc_connection", []response.ProposedEvidence{{Kind: "ioc_hit", ID: fmt.Sprintf("ioc-c%d", i)}}
 			res[i], errs[i] = e.svc.Propose(e.ctx(), b)
 		}()
 	}
@@ -823,6 +1132,11 @@ func TestAIActions_OnlyEnabledActionsTheAIMayPropose_NoTemplateText(t *testing.T
 		}
 	}
 	// a typed parameter carries its pattern or range
+	if i := slices.IndexFunc(l, func(a response.AIAction) bool { return a.ID == "fgt_policy_disable" }); i >= 0 {
+		if p := l[i].Params[0]; p.Type != "id" || p.Min != 1 || p.Max != 2147483647 {
+			t.Errorf("an id has the range 1..2147483647: %+v", p)
+		}
+	}
 	have := map[string]response.AIParam{}
 	for _, a := range l {
 		for _, p := range a.Params {
@@ -856,3 +1170,242 @@ func TestAIActions_UnavailableIsSaid(t *testing.T) {
 	_, err = e.propose(highBody())
 	wantCode(t, err, 409, "tool_unavailable")
 }
+
+// ---- what the AI gets back ----
+
+func TestPropose_ResultIsANarrowView(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	r := e.mustPropose(lowBody())
+	raw, err := json.Marshal(r)
+	e.must(err)
+	var top map[string]json.RawMessage
+	e.must(json.Unmarshal(raw, &top))
+	if len(top) != 3 || top["outcome"] == nil || top["note"] == nil || top["request"] == nil {
+		t.Fatalf("result keys: %s", raw)
+	}
+	var req map[string]any
+	e.must(json.Unmarshal(top["request"], &req))
+	keys := make([]string, 0, len(req))
+	for k := range req {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	if want := []string{"expires_at", "id", "in_app_only", "requires_approvals", "risk", "status", "title"}; !slices.Equal(keys, want) {
+		t.Fatalf("request keys %v, want %v", keys, want)
+	}
+	// nothing of the rendered change can leave the port: not in the JSON, not in the Go type
+	for _, bad := range []string{"blocklist add", "198.51.100.7\"", "cli", "rest", "url", "headers", "body", "change", "items"} {
+		if strings.Contains(string(top["request"]), `"`+bad+`"`) || (bad == "blocklist add" && strings.Contains(string(top["request"]), bad)) {
+			t.Errorf("the result carries %q: %s", bad, top["request"])
+		}
+	}
+	rt := reflect.TypeOf(response.ProposedRequest{})
+	for i := range rt.NumField() {
+		switch rt.Field(i).Type.String() {
+		case "string", "int", "bool", "response.Status", "response.Risk":
+		default:
+			t.Errorf("ProposedRequest.%s is a %s", rt.Field(i).Name, rt.Field(i).Type)
+		}
+	}
+	if r.Request.Status != response.StatusPending || r.Request.RequiresApprovals != 1 || r.Request.ExpiresAt == "" || r.Request.Title != "Add 198.51.100.7 to the block list" || r.Request.ID == "" {
+		t.Fatalf("%+v", r.Request)
+	}
+	n := lowBody()
+	n.Confidence = 0.5
+	n.Params = map[string]string{"ip": hostIP}
+	if r := e.mustPropose(n); r.Request != nil || r.Outcome != "suggestion" {
+		t.Fatalf("%+v", r)
+	}
+}
+
+// ---- the module switch ----
+
+func TestPropose_ModuleOffRefusesAndWritesNothing(t *testing.T) {
+	g := &gate{on: true}
+	e := newEnv(t, func(c *response.Config) { c.Modules = g })
+	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "PC-HR-01", IP: hostIP, Approved: true}
+	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a1", CVE: "CVE-2024-0001", Severity: "high", Status: "confirmed"}
+	e.turnOn()
+	if l, err := e.svc.AIActions(e.ctx()); err != nil || len(l) == 0 {
+		t.Fatalf("module on: %v %v", err, l)
+	}
+	g.on = false
+	logs, audits, events := e.count(`SELECT COUNT(*) FROM resp_log`), e.count(`SELECT COUNT(*) FROM core_audit`), e.seen.count(response.EventRequestCreated)
+	_, err := e.propose(lowBody())
+	wantCode(t, err, 404, "not_found")
+	if e.requests() != 0 || e.notes() != 0 || e.count(`SELECT COUNT(*) FROM resp_log`) != logs || e.count(`SELECT COUNT(*) FROM core_audit`) != audits || e.seen.count(response.EventRequestCreated) != events {
+		t.Fatal("a proposal with the module off wrote or published something")
+	}
+	l, err := e.svc.AIActions(e.ctx())
+	if err != nil || l == nil || len(l) != 0 {
+		t.Fatalf("AIActions with the module off: %v %v", l, err)
+	}
+	g.on = true
+	e.mustPropose(lowBody())
+}
+
+// ---- the lock ----
+
+// A subscriber of the request-created event calls back into the service (it takes the service lock). The events go out with the lock
+// released, so this must finish.
+func TestPropose_EventsGoOutWithTheLockReleased(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	e.bus.Subscribe(response.EventRequestCreated, func(ctx context.Context, _ events.Event) error {
+		_, err := e.svc.ResumeAI(ctx, admin) // takes the service lock
+		return err
+	})
+	done := make(chan error, 1)
+	go func() { _, err := e.propose(lowBody()); done <- err }()
+	select {
+	case err := <-done:
+		e.must(err)
+	case <-time.After(20 * time.Second):
+		t.Fatal("deadlock: Propose published its events while holding the service lock")
+	}
+}
+
+// ---- rate limits ----
+
+func TestPropose_SixtyCallsAnHour(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	bad := lowBody()
+	bad.Why = "" // the cheapest call there is: refused at the boundary, but counted
+	for range 60 {
+		_, err := e.propose(bad)
+		wantCode(t, err, 400, "invalid")
+	}
+	_, err := e.propose(lowBody())
+	wantCode(t, err, 429, "rate_limited")
+	if ae, _ := apierrAs(err); ae.Extra["retry_after"] == nil || ae.Extra["retry_after"].(int) < 1 || ae.Extra["retry_after"].(int) > 3600 {
+		t.Fatalf("Retry-After: %v", ae.Extra)
+	}
+	for range 5 { // refused again within the minute: one log line in all
+		_, err = e.propose(lowBody())
+		wantCode(t, err, 429, "rate_limited")
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'rate_limited%'`); n != 1 {
+		t.Fatalf("%d rate_limited lines, want 1 per minute", n)
+	}
+	if e.requests() != 0 {
+		t.Fatal("created")
+	}
+	e.clock.Advance(61 * time.Second)
+	_, err = e.propose(lowBody())
+	wantCode(t, err, 429, "rate_limited")
+	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'rate_limited%'`); n != 2 || !e.logHas("refused", "6 refused since the last line") {
+		t.Fatalf("%d lines; the second must carry the count of the first minute", n)
+	}
+	e.clock.Advance(time.Hour)
+	if r := e.mustPropose(lowBody()); r.Outcome != "request" {
+		t.Fatalf("an hour later: %+v", r)
+	}
+}
+
+func TestPropose_NotesOfEachKindHaveTheirOwnCapOfFifty(t *testing.T) {
+	e, _, ev := propEnv(t, true)
+	e.saveSettings(func(in *response.SettingsInput) { in.AI.BudgetHour = 1 })
+	e.mustPropose(lowBody()) // the one request of the hour
+	for i := range 3 {
+		ev.add(fmt.Sprintf("ioc-d%d", i), fmt.Sprintf("198.51.100.%d", 60+i))
+		b := iocBody(fmt.Sprintf("ioc-d%d", i))
+		b.Params = map[string]string{"ip": fmt.Sprintf("198.51.100.%d", 60+i)}
+		if r := e.mustPropose(b); r.Outcome != "digest" {
+			t.Fatalf("%+v", r)
+		}
+		e.clock.Advance(time.Second)
+	}
+	for i := range 54 { // 1 + 3 + 54 = 58 calls
+		b := lowBody()
+		b.Confidence = 0.5
+		b.Why = fmt.Sprintf("note %d", i)
+		e.mustPropose(b)
+		e.clock.Advance(time.Second)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_ai_notes WHERE kind = 'suggestion'`); n != 50 {
+		t.Fatalf("%d suggestions", n)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_ai_notes WHERE kind = 'digest'`); n != 3 {
+		t.Fatalf("%d digests: a flood of suggestions pushed them out", n)
+	}
+	st, err := e.svc.AIState(e.ctx())
+	e.must(err)
+	if len(st.Notes) != 53 {
+		t.Fatalf("the state shows %d notes", len(st.Notes))
+	}
+}
+
+// ---- cancellations ----
+
+// A cancellation (the emergency stop, an action edited) is status rejected too, but it is no verdict of a person: it does not block a
+// repeat for 7 days and does not count for the quality breaker.
+func TestPropose_ACancellationIsNotARejection(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	r := e.mustPropose(lowBody())
+	before, err := e.svc.AIState(e.ctx())
+	e.must(err)
+	n, err := e.svc.EmergencyStop(e.ctx(), oper)
+	e.must(err)
+	if n != 1 || e.full(r.Request.ID).Status != response.StatusRejected {
+		t.Fatalf("cancelled %d: %+v", n, e.full(r.Request.ID))
+	}
+	_, err = e.svc.ResetBreaker(e.ctx(), admin)
+	e.must(err)
+	e.turnOn()
+	e.clock.Advance(time.Minute)
+	st, err := e.svc.AIState(e.ctx())
+	e.must(err)
+	if st.Quality.Decided != before.Quality.Decided || st.Quality.Rejected != before.Quality.Rejected {
+		t.Fatalf("a cancellation counts for the quality breaker: %+v", st.Quality)
+	}
+	r2 := e.mustPropose(lowBody())
+	if r2.Outcome != "request" {
+		t.Fatalf("a cancellation blocked the repeat: %+v", r2)
+	}
+	// a rejection by a person still does both
+	e.reject(e.full(r2.Request.ID), "no", "none")
+	st, err = e.svc.AIState(e.ctx())
+	e.must(err)
+	if st.Quality.Rejected != before.Quality.Rejected+1 {
+		t.Fatalf("a rejection by a person is not counted: %+v", st.Quality)
+	}
+	_, err = e.propose(lowBody())
+	wantCode(t, err, 409, "repeat_blocked")
+}
+
+func TestPropose_AnActionEditCancelsWithoutCountingAsARejection(t *testing.T) {
+	e, _, _ := propEnv(t, true)
+	e.allowHigh()
+	e.mustPropose(highBody())
+	e.clock.Advance(time.Minute)
+	off := false
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_policy_disable", response.CatalogUpdate{Enabled: &off})
+	e.must(err)
+	on := true
+	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_policy_disable", response.CatalogUpdate{Enabled: &on})
+	e.must(err)
+	st, err := e.svc.AIState(e.ctx())
+	e.must(err)
+	if st.Quality.Rejected != 0 || st.Quality.Decided != 0 {
+		t.Fatalf("%+v", st.Quality)
+	}
+}
+
+// ---- RequestProposal is a person's action ----
+
+func TestRequestProposal_LogsThePersonNotTheAI(t *testing.T) {
+	e := planEnv(t)
+	on := true
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	e.must(err)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1")
+	e.must(err)
+	if actor, _ := e.newest("request"); actor != "it@acme.example (app)" {
+		t.Fatalf("the request line is by %q", actor)
+	}
+	if e.count(`SELECT COUNT(*) FROM resp_log WHERE actor = 'ai:response'`) != 0 || e.count(`SELECT COUNT(*) FROM core_audit WHERE user = 'ai:response' AND target = ?`, a.ID) != 0 {
+		t.Fatal("a person's request was logged as the AI's")
+	}
+}
+
+func apierrAs(err error) (*apierr.Error, bool) { return apierr.As(err) }

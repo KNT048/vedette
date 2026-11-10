@@ -143,13 +143,14 @@ export function propose(b: Record<string, unknown>): Response | ProposeResult {
   if (!planned || !planned.ok) return bad('invalid', 'nothing to plan.')
   const vals = planned.p.values
   const acts = Object.keys(vals)
-  if ((!acts.some((t) => ['ip', 'cidr', 'domain'].includes(t)) || acts.some((t) => ['interface', 'mac', 'vlan', 'port'].includes(t))) && !subjects.length) return bad('never_touch', 'no finding gives the device this action acts on, so the never-touch list cannot be checked. Nothing was requested.', 409)
   const ev: Evidence[] = []
   if (!evIn.length) return bad('evidence_missing', 'a request must reference at least one real object: a finding id, a known-bad connection id or a connection read.')
   for (const { e, f } of found) {
     if (!f) return bad('evidence_invalid', `the evidence ${e.kind} "${oneLine(e.id, 40)}" does not exist, or is a finding that is no longer open. The AI cannot invent evidence.`, 422)
     ev.push({ kind: e.kind as Evidence['kind'], id: f.id, summary: f.summary })
   }
+  // An action that names a device part or no address acts on "the device the finding is about": without a finding the never-touch list cannot be checked.
+  if ((!acts.some((t) => ['ip', 'cidr', 'domain'].includes(t)) || acts.some((t) => ['interface', 'mac', 'vlan', 'port'].includes(t))) && !subjects.length) return bad('never_touch', 'no finding gives the device this action acts on, so the never-touch list cannot be checked. Nothing was requested.', 409)
   if (!ev.some((e) => proof.includes(e.kind))) return bad('evidence_mismatch', `none of the evidence proves the trigger "${trigger}": it needs ${proof.join(' or ')}.`, 422)
   const related = new Set(found.filter(({ f }) => relatesTo(f!, vals, cat)).map(({ f }) => f!.id))
   if (!related.size) return bad('evidence_mismatch', 'none of the evidence is about the target of this action.', 422)

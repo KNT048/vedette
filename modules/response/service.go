@@ -256,8 +256,11 @@ type Service struct {
 	seedMu sync.Mutex
 	seeded bool
 
-	limitMu    sync.Mutex
-	fetchTimes map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
+	limitMu         sync.Mutex
+	proposeTimes    []time.Time // Propose calls of the last hour, any outcome (D-119)
+	proposeSkipped  int         // calls refused since the last log line
+	proposeLoggedAt time.Time
+	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it

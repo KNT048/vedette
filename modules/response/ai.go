@@ -234,12 +234,17 @@ func (s *Service) keepHint(ctx context.Context, tx *sql.Tx, r request, kind, rea
 	return s.step(ctx, tx, "response.ai_hint", r.ID, LogAINote, "Rejection reason saved as "+label+": "+truncRunes(text, 200), "system")
 }
 
+// byPersonSQL keeps a request out of the AI's record unless somebody really decided it: a rejection counts only when a person wrote it
+// (the server words that note "Rejected by <name>"). A cancellation (an action edited, the emergency stop) is also status rejected but is
+// no verdict on the AI: it counts for neither the quality breaker nor the 7-day repeat rule (D-119).
+const byPersonSQL = `(status <> 'rejected' OR note LIKE 'Rejected by %')`
+
 // decidedStatuses are the statuses of a request somebody decided (not pending, not expired).
 const decidedStatuses = `('approved', 'executed', 'failed', 'rolled_back', 'rejected')`
 
 // aiQuality looks at the last 10 decided AI requests.
 func aiQuality(ctx context.Context, q dbq, paused bool) (AiQuality, error) {
-	rs, err := loadReqs(ctx, q, `WHERE source = 'ai' AND decided_at IS NOT NULL AND status IN `+decidedStatuses+` ORDER BY decided_at DESC, seq DESC LIMIT ?`, qualityWindow)
+	rs, err := loadReqs(ctx, q, `WHERE source = 'ai' AND decided_at IS NOT NULL AND status IN `+decidedStatuses+` AND `+byPersonSQL+` ORDER BY decided_at DESC, seq DESC LIMIT ?`, qualityWindow)
 	if err != nil {
 		return AiQuality{}, err
 	}
@@ -316,7 +321,7 @@ func (s *Service) AIState(ctx context.Context) (AiState, error) {
 			return AiState{}, fmt.Errorf("response: count the AI requests: %w", err)
 		}
 	}
-	rows, err := rd.QueryContext(ctx, `SELECT id, ts, kind, title, why, confidence, action_id, target, evidence FROM resp_ai_notes ORDER BY ts DESC, rowid DESC LIMIT 50`)
+	rows, err := rd.QueryContext(ctx, `SELECT id, ts, kind, title, why, confidence, action_id, target, evidence FROM resp_ai_notes ORDER BY ts DESC, rowid DESC LIMIT 100`)
 	if err != nil {
 		return AiState{}, fmt.Errorf("response: read the AI notes: %w", err)
 	}

@@ -68,26 +68,44 @@ const (
 	OutcomeDigest     = "digest"
 )
 
-// ProposeResult is what Propose answers when the proposal was not refused.
-type ProposeResult struct {
-	Outcome string         `json:"outcome"`
-	Request *ActionRequest `json:"request"`
-	Note    string         `json:"note"`
+// ProposedRequest is all the AI gets back about the request it caused: where to find it and how risky it is, never the rendered change,
+// the address, the body or the headers (D-119). The people who approve see the rest in the app.
+type ProposedRequest struct {
+	ID                string `json:"id"`
+	Status            Status `json:"status"`
+	Risk              Risk   `json:"risk"`
+	Title             string `json:"title"`
+	RequiresApprovals int    `json:"requires_approvals"`
+	ExpiresAt         string `json:"expires_at"`
+	InAppOnly         bool   `json:"in_app_only"`
 }
 
-// EvidenceRef is a piece of evidence a port found: what it says in one line, and the addresses and names it is about (the
-// target of an action must be one of them).
+// ProposeResult is what Propose answers when the proposal was not refused.
+type ProposeResult struct {
+	Outcome string           `json:"outcome"`
+	Note    string           `json:"note"`
+	Request *ProposedRequest `json:"request"`
+}
+
+// EvidenceRef is a piece of evidence a port found: what it says in one line, and the addresses, ports and names it is about (the
+// target of an action must be one of them, compared by type).
 type EvidenceRef struct {
+	// ID is the canonical id of the object when it differs from the id asked for; "" = the id asked for.
+	ID      string
 	Summary string
 	Relates []string
+	// Connection is, for a connection read, the id of the connection it went through. A read relates to an action only when this is the
+	// connection of that action (D-119); "" = it relates to nothing.
+	Connection string
 }
 
 // EvidencePorts look up evidence the module does not own. A nil port, or a lookup that says not found, means the evidence does not
 // exist: the proposal is refused (422 evidence_invalid, D-97). A finding is looked up through Directory.
 type EvidencePorts struct {
-	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup.
+	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup (D-119).
 	IocHit func(ctx context.Context, id string) (EvidenceRef, bool, error)
-	// ConfigRead finds a read of a connection the AI made, by "<connection-id>/<tool>" (cmd/vedette over core/conn).
+	// ConfigRead finds a read the AI made, by its read record. Nil until the ai module offers a lookup of the reads it really made,
+	// at most 24 hours old (D-119): an existing read tool proves nothing.
 	ConfigRead func(ctx context.Context, id string) (EvidenceRef, bool, error)
 }
 
@@ -144,56 +162,65 @@ func checkProposal(in ProposeBody) (ProposeBody, error) {
 	return in, nil
 }
 
-// foundEvidence is the answer of the lookups for one piece of evidence.
+// foundEvidence is the answer of the lookups for one piece of evidence. id is the canonical id the lookup returned.
 type foundEvidence struct {
 	ProposedEvidence
+	id      string
 	ok      bool
+	err     error // the lookup failed: carried to the evidence gate, so the gates before it still answer first
 	summary string
-	relates []string
+	relates []string // addresses, ports and ids it is about
+	names   []string // host names it is about: they never match an address
+	conn    string   // for a connection read: the connection it went through
 	finding *FindingInfo
 	asset   *DeviceInfo
 }
 
-// lookupEvidence resolves every piece of evidence the proposal names. A missing port or object is "not found" (decided by the gate
-// that comes after the earlier ones); a port that fails is an error: nothing is created.
-func (s *Service) lookupEvidence(ctx context.Context, list []ProposedEvidence) ([]foundEvidence, error) {
-	out := make([]foundEvidence, len(list))
-	for i, e := range list {
-		f := foundEvidence{ProposedEvidence: e}
-		var err error
+// lookupEvidence resolves every piece of evidence the proposal names. Not found and a failing lookup are both left in the answer: the
+// evidence gate decides, after the gates before it. The same object cited twice is one piece.
+func (s *Service) lookupEvidence(ctx context.Context, list []ProposedEvidence) []foundEvidence {
+	var out []foundEvidence
+	for _, e := range list {
+		f := foundEvidence{ProposedEvidence: e, id: e.ID}
 		switch e.Kind {
 		case EvFinding:
-			err = s.lookupFinding(ctx, &f)
+			f.err = s.lookupFinding(ctx, &f)
 		case EvIocHit:
-			err = s.lookupPort(ctx, &f, s.cfg.Evidence.IocHit)
+			f.err = s.lookupPort(ctx, &f, s.cfg.Evidence.IocHit)
 		case EvConfigRead:
-			err = s.lookupPort(ctx, &f, s.cfg.Evidence.ConfigRead)
+			f.err = s.lookupPort(ctx, &f, s.cfg.Evidence.ConfigRead)
 		}
-		if err != nil {
-			return nil, err
+		if f.ok && slices.ContainsFunc(out, func(o foundEvidence) bool { return o.ok && o.id == f.id }) {
+			continue
 		}
-		out[i] = f
+		out = append(out, f)
 	}
-	return out, nil
+	return out
 }
 
+// lookupFinding finds a finding that is still open: a closed, false-positive or resolved finding is not evidence (as plans, openStatus).
 func (s *Service) lookupFinding(ctx context.Context, f *foundEvidence) error {
 	if s.cfg.Directory == nil {
 		return nil
 	}
 	fi, ok, err := s.cfg.Directory.Finding(ctx, f.ID)
-	if err != nil || !ok {
+	if err != nil || !ok || !openStatus(fi.Status) {
 		return err
 	}
-	f.ok, f.finding = true, &fi
 	name := fi.AssetID
 	if d, ok, err := s.cfg.Directory.Device(ctx, fi.AssetID); err != nil {
 		return err
 	} else if ok {
 		f.asset = &d
 		name = firstNonEmpty(d.Name, d.IP, fi.AssetID)
-		f.relates = []string{d.IP, d.Name}
+		if d.IP != "" {
+			f.relates = []string{d.IP}
+		}
+		if d.Name != "" {
+			f.names = []string{d.Name}
+		}
 	}
+	f.ok, f.finding, f.id = true, &fi, fi.ID
 	f.summary = truncRunes(cleanLine("Finding "+fi.CVE+" on "+name+" ("+fi.Severity+")"), 200)
 	return nil
 }
@@ -206,7 +233,10 @@ func (s *Service) lookupPort(ctx context.Context, f *foundEvidence, port func(co
 	if err != nil || !ok {
 		return err
 	}
-	f.ok, f.summary = true, truncRunes(cleanLine(ref.Summary), 200)
+	f.ok, f.summary, f.conn = true, truncRunes(cleanLine(ref.Summary), 200), cleanLine(ref.Connection)
+	if id := cleanLine(ref.ID); id != "" {
+		f.id = truncRunes(id, maxProposeEvID)
+	}
 	for _, r := range ref.Relates {
 		if r = cleanLine(r); r != "" && len(f.relates) < 20 {
 			f.relates = append(f.relates, r)
@@ -215,24 +245,93 @@ func (s *Service) lookupPort(ctx context.Context, f *foundEvidence, port func(co
 	return nil
 }
 
-// subject is the address of the device the finding evidence is about, for the never-touch check of an action that names a port, a MAC
-// or a VLAN (the same subject RequestProposal uses for a stored plan). "" when no finding names one.
-func subjectOfEvidence(ev []foundEvidence) string {
-	for _, e := range ev {
-		if e.ok && e.asset != nil {
-			if ip, ok := CheckValue(PIP, e.asset.IP); ok {
-				return ip
+// relatesTo says whether the evidence is about the action. Typed: an address, MAC or domain relates only to a target of the same type
+// (compared in its canonical spelling), a host name only to a name or text target, an id or port by exact text. A connection read relates
+// only to a device action through that same connection; a box action never has a connection, so no read can justify it (D-119).
+func (f foundEvidence) relatesTo(vals Values, cat catRow) bool {
+	if f.conn != "" {
+		return cat.device() && cat.ConnectionID == f.conn
+	}
+	for p, v := range vals {
+		switch p {
+		case PIP, PCIDR, PDomain, PMAC:
+			if slices.ContainsFunc(f.relates, func(r string) bool { c, ok := CheckValue(p, r); return ok && c == v }) {
+				return true
+			}
+		default:
+			if slices.Contains(f.relates, v) || (p == PName || p == PText) && slices.ContainsFunc(f.names, func(n string) bool { return strings.EqualFold(n, v) }) {
+				return true
 			}
 		}
 	}
-	return ""
+	return false
+}
+
+// subjectsOfEvidence are the addresses of the devices the cited findings are about, for the never-touch check of an action: every
+// one of them, not only the first.
+func subjectsOfEvidence(ev []foundEvidence) []string {
+	var out []string
+	for _, e := range ev {
+		if e.ok && e.asset != nil {
+			if ip, ok := CheckValue(PIP, e.asset.IP); ok && !slices.Contains(out, ip) {
+				out = append(out, ip)
+			}
+		}
+	}
+	return out
+}
+
+const (
+	maxProposalsPerHour = 60 // calls of any outcome (D-119)
+	proposalLogEvery    = time.Minute
+)
+
+// proposalRate counts a call and refuses the 61st in an hour (429 rate_limited with Retry-After). A refusal is logged once per minute
+// with the number refused since the last line, like the event backlog drops of StoreEvent, so a runaway caller cannot grow the log.
+func (s *Service) proposalRate(ctx context.Context) error {
+	now := s.now()
+	s.limitMu.Lock()
+	keep := s.proposeTimes[:0]
+	for _, t := range s.proposeTimes {
+		if now.Sub(t) < time.Hour {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) < maxProposalsPerHour {
+		s.proposeTimes = append(keep, now)
+		s.limitMu.Unlock()
+		return nil
+	}
+	s.proposeTimes = keep
+	s.proposeSkipped++
+	n, due := s.proposeSkipped, s.proposeLoggedAt.IsZero() || now.Sub(s.proposeLoggedAt) >= proposalLogEvery
+	if due {
+		s.proposeSkipped, s.proposeLoggedAt = 0, now
+	}
+	wait := int((keep[0].Add(time.Hour).Sub(now) + time.Second - 1) / time.Second)
+	s.limitMu.Unlock()
+	err := aiFail(http.StatusTooManyRequests, "rate_limited", "more than "+itoa(maxProposalsPerHour)+" proposals in one hour ("+itoa(n)+" refused since the last line). Try again later.")
+	if ae, ok := asAPI(err); ok {
+		err = ae.With("retry_after", wait)
+	}
+	if due {
+		return s.refuse(ctx, err, "response.ai", AIActor)
+	}
+	return err
 }
 
 // Propose is the one entry for an AI proposal. The gates run in the order of INV-15 (the mock web/src/features/response/ai.ts is the
 // reference) and the whole decision is one write transaction under the service lock, so two proposals at once cannot both pass "already
 // open" or the budget. A refusal is an error carrying the code and status of the mock and is recorded in resp_log; a note (suggestion
-// or digest) is a normal result. Nothing here approves anything: a request is created pending, never pre-approved.
+// or digest) is a normal result. Nothing here approves anything: a request is created pending, never pre-approved. With the module off
+// nothing is read, written or published.
 func (s *Service) Propose(ctx context.Context, in ProposeBody) (ProposeResult, error) {
+	if !s.on() {
+		return ProposeResult{}, aiFail(http.StatusNotFound, "not_found", "the response module is off.")
+	}
+	if err := s.proposalRate(ctx); err != nil {
+		return ProposeResult{}, err
+	}
 	b, err := checkProposal(in)
 	if err != nil {
 		return ProposeResult{}, s.refuse(ctx, err, "response.ai", AIActor)
@@ -240,20 +339,17 @@ func (s *Service) Propose(ctx context.Context, in ProposeBody) (ProposeResult, e
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ProposeResult{}, err
 	}
-	ev, err := s.lookupEvidence(ctx, b.Evidence)
-	if err != nil {
-		return ProposeResult{}, fmt.Errorf("response: look up the evidence: %w", err)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	ev := s.lookupEvidence(ctx, b.Evidence)
 	var refusal error
 	var out ProposeResult
 	var fx effects
+	s.mu.Lock()
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) (err error) {
 		fx = effects{}
 		out, refusal, err = s.proposeInTx(ctx, tx, b, ev, &fx)
 		return err
 	})
+	s.mu.Unlock() // events and the breaker notice go out with the lock released: a subscriber may call back into this service
 	if err != nil {
 		return ProposeResult{}, err
 	}
@@ -293,15 +389,23 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 	if e := checkAIPaused(st); e != nil {
 		return out, e, nil
 	}
-	// 4. trigger the admin allowed
+	// 4. trigger the admin allowed, and one that some kind of evidence can prove
 	if !slices.Contains(st.AI.Triggers, b.Trigger) {
 		return no(http.StatusForbidden, "trigger_not_allowed", "the admin has not allowed the AI to send requests for this trigger.")
+	}
+	var proof []string
+	if t := s.trigger(b.Trigger); t != nil {
+		proof = t.AIEvidence
+	}
+	if len(proof) == 0 {
+		return no(http.StatusForbidden, "trigger_not_allowed", "no kind of evidence can prove this trigger, so the AI cannot send requests for it. Only triggers backed by a finding or a known-bad connection are open to the AI.")
 	}
 	// 5. action flagged for the AI
 	if !cat.Enabled || !cat.AIMayPropose {
 		return no(http.StatusForbidden, "action_not_ai_allowed", "the action \""+oneLine(cat.Name, 80)+"\" is not enabled for AI proposals in the action catalog.")
 	}
 	// 6. plan it through the planner rules use: typed values, never-touch, available. Undoable actions get 24 hours, others no undo time.
+	// The devices of the cited findings are the subjects of the never-touch check, every one of them.
 	cs, err := s.loadConns(ctx)
 	if err != nil {
 		return out, nil, err
@@ -318,34 +422,54 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 		ttl := 1440
 		prop.TTLMin = &ttl
 	}
-	pl, pf := s.planProposal(prop, subjectOfEvidence(found), b.Why, cats, cs, never)
-	if pf != nil {
-		return no(http.StatusConflict, pf.code, pf.msg)
+	subjects := subjectsOfEvidence(found)
+	var pl planned
+	for i, subject := range append(subjects, "")[:max(len(subjects), 1)] {
+		p, pf := s.planProposal(prop, subject, b.Why, cats, cs, never)
+		if pf != nil {
+			return no(http.StatusConflict, pf.code, pf.msg)
+		}
+		if i == 0 {
+			pl = p
+		}
 	}
-	// 7. evidence: there is some, every piece exists, some of it is about the target (a set of connection reads alone is about the setup)
+	// 7. evidence: there is some, every piece exists, one of them proves the trigger, one is about the target
 	if len(found) == 0 {
 		return no(http.StatusBadRequest, "evidence_missing", "a request must reference at least one real object: a finding id, a known-bad connection id or a connection read.")
 	}
 	var evidence []Evidence
 	for _, f := range found {
-		if !f.ok {
-			return no(http.StatusUnprocessableEntity, "evidence_invalid", "the evidence "+f.Kind+" \""+truncRunes(f.ID, 40)+"\" does not exist. The AI cannot invent evidence.")
+		if f.err != nil {
+			s.cfg.Log.ErrorContext(ctx, "response: look up AI evidence", "kind", f.Kind, "error", f.err)
+			return no(http.StatusServiceUnavailable, "evidence_unavailable", "the evidence could not be looked up just now. Nothing was requested.")
 		}
-		evidence = append(evidence, Evidence{Kind: f.Kind, ID: f.ID, Summary: f.summary})
+		if !f.ok {
+			return no(http.StatusUnprocessableEntity, "evidence_invalid", "the evidence "+f.Kind+" \""+truncRunes(f.ID, 40)+"\" does not exist, or is a finding that is no longer open. The AI cannot invent evidence.")
+		}
+		evidence = append(evidence, Evidence{Kind: f.Kind, ID: f.id, Summary: f.summary})
+	}
+	// An action that names a device part or no address acts on "the device the finding is about": without a finding the never-touch list
+	// cannot be checked. (After the evidence exists, so a proposal with no evidence is told that first.)
+	if (!namesAnAddress(Values(pl.rec.Values)) || namesADevicePart(Values(pl.rec.Values))) && len(subjects) == 0 {
+		return no(http.StatusConflict, "never_touch", "no finding gives the device this action acts on, so the never-touch list cannot be checked. Nothing was requested.")
+	}
+	if !slices.ContainsFunc(evidence, func(e Evidence) bool { return slices.Contains(proof, e.Kind) }) {
+		return no(http.StatusUnprocessableEntity, "evidence_mismatch", "none of the evidence proves the trigger \""+b.Trigger+"\": it needs "+strings.Join(proof, " or ")+".")
+	}
+	related := map[string]bool{} // by canonical id: only these count for the repeat rule and the second check
+	for _, f := range found {
+		if f.relatesTo(pl.rec.Values, cats[cat.ID]) {
+			related[f.id] = true
+		}
+	}
+	if len(related) == 0 {
+		return no(http.StatusUnprocessableEntity, "evidence_mismatch", "none of the evidence is about the target of this action.")
 	}
 	var targets []string
 	for _, p := range cat.params() {
 		if v := pl.rec.Values[p]; v != "" {
 			targets = append(targets, v)
 		}
-	}
-	about := slices.ContainsFunc(found, func(f foundEvidence) bool {
-		return slices.ContainsFunc(f.relates, func(r string) bool {
-			return r != "" && slices.ContainsFunc(targets, func(t string) bool { return strings.EqualFold(r, t) })
-		})
-	})
-	if !about && slices.ContainsFunc(found, func(f foundEvidence) bool { return f.Kind != EvConfigRead }) {
-		return no(http.StatusUnprocessableEntity, "evidence_mismatch", "none of the evidence is about the target of this action.")
 	}
 	target := strings.Join(targets, ", ")
 	title := pl.rec.Title
@@ -365,8 +489,8 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 	if open[pl.key] {
 		return no(http.StatusConflict, "already_open", "there is already an open request or active change for "+truncRunes(cleanLine(target), 120)+" with this action.")
 	}
-	// 10. rejected in the last 7 days: not again, unless there is evidence the earlier request did not have
-	rejected, err := loadReqs(ctx, tx, `WHERE source = 'ai' AND status = 'rejected' AND decided_at >= ?`, store.FormatTS(s.now().AddDate(0, 0, -AIRepeatDays)))
+	// 10. rejected by a person in the last 7 days: not again, unless there is related evidence the earlier request did not have
+	rejected, err := loadReqs(ctx, tx, `WHERE source = 'ai' AND status = 'rejected' AND `+byPersonSQL+` AND decided_at >= ?`, store.FormatTS(s.now().AddDate(0, 0, -AIRepeatDays)))
 	if err != nil {
 		return out, nil, err
 	}
@@ -375,12 +499,18 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 		if r.AI != nil && slices.ContainsFunc(r.recs, func(i itemRec) bool { return planKey(i.RequestItem) == pl.key }) {
 			repeated = true
 			for _, e := range r.AI.Evidence {
-				known[e.Kind+"|"+e.ID] = true
+				known[e.ID] = true
 			}
 		}
 	}
-	if repeated && !slices.ContainsFunc(evidence, func(e Evidence) bool { return !known[e.Kind+"|"+e.ID] }) {
-		return no(http.StatusConflict, "repeat_blocked", "this was rejected within the last "+itoa(AIRepeatDays)+" days and there is no new evidence, so it is not asked again.")
+	if repeated {
+		fresh := false
+		for id := range related {
+			fresh = fresh || !known[id]
+		}
+		if !fresh {
+			return no(http.StatusConflict, "repeat_blocked", "this was rejected within the last "+itoa(AIRepeatDays)+" days and there is no new evidence about the target, so it is not asked again.")
+		}
 	}
 	// 11. budget: over it, the proposal goes to the digest
 	hourN, dayN, err := s.aiUsage(ctx, tx)
@@ -394,14 +524,14 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 		}
 		return ProposeResult{Outcome: OutcomeDigest, Note: "Budget reached (" + itoa(st.AI.BudgetHour) + " per hour, " + itoa(st.AI.BudgetDay) + " per day): added to the digest."}, nil, nil
 	}
-	// 12. high risk: the deterministic second check
+	// 12. high risk: the deterministic second check, on the evidence that is about the target
 	high := pl.rec.Risk == RiskHigh
 	var second *SecondCheck
 	if high {
-		ok := len(evidence) >= secondCheckMinEv && b.Confidence >= secondCheckMinConf
-		second = &SecondCheck{OK: ok, Notes: "Second check passed: 2 or more pieces of evidence and confidence of 0.9 or more."}
+		ok := len(related) >= secondCheckMinEv && b.Confidence >= secondCheckMinConf
+		second = &SecondCheck{OK: ok, Notes: "Second check passed: 2 or more pieces of evidence about the target and confidence of 0.9 or more."}
 		if !ok {
-			second.Notes = "Second check failed: a high-risk action needs at least 2 pieces of evidence (got " + itoa(len(evidence)) + ") and confidence of 0.9 or more (got " + fmtConf(b.Confidence) + ")."
+			second.Notes = "Second check failed: a high-risk action needs at least 2 pieces of evidence about the target (got " + itoa(len(related)) + ") and confidence of 0.9 or more (got " + fmtConf(b.Confidence) + ")."
 			return no(http.StatusUnprocessableEntity, "second_check_failed", second.Notes)
 		}
 	}
@@ -413,13 +543,15 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 	}
 	rec := pl.rec
 	rec.ID = newID("it")
-	init := reqInit{Source: "ai", ProposalID: "ai:" + newID("p"), Trigger: b.Trigger, TriggerSummary: b.Why, AssetName: target, Title: title, Recs: []itemRec{rec},
+	init := reqInit{Source: "ai", Actor: AIActor, ProposalID: "ai:" + newID("p"), Trigger: b.Trigger, TriggerSummary: b.Why, AssetName: target, Title: title, Recs: []itemRec{rec},
 		AI: &AiMeta{Confidence: b.Confidence, Evidence: evidence, Why: b.Why, SecondCheck: second, InAppOnly: high}}
 	if i := slices.IndexFunc(found, func(f foundEvidence) bool { return f.finding != nil }); i >= 0 {
 		init.FindingID, init.CVE = found[i].finding.ID, found[i].finding.CVE
-		init.AssetID = found[i].finding.AssetID
-		if a := found[i].asset; a != nil {
-			init.AssetName = truncRunes(cleanLine(firstNonEmpty(a.Name, a.IP, target)), 120)
+	}
+	for _, f := range found { // the device shown is the one whose address is the target, as in the mock
+		if f.asset != nil && slices.Contains(targets, f.asset.IP) {
+			init.AssetID, init.AssetName = f.asset.ID, truncRunes(cleanLine(firstNonEmpty(f.asset.Name, f.asset.IP)), 120)
+			break
 		}
 	}
 	r, err := s.createRequest(ctx, tx, st, init, fx)
@@ -437,8 +569,8 @@ func (s *Service) proposeInTx(ctx context.Context, tx *sql.Tx, b ProposeBody, fo
 	if high {
 		note = "Request sent. High risk: two different people must approve, in the app with the two-step code."
 	}
-	v := r.view()
-	return ProposeResult{Outcome: OutcomeRequest, Request: &v, Note: note}, nil, nil
+	return ProposeResult{Outcome: OutcomeRequest, Note: note, Request: &ProposedRequest{ID: r.ID, Status: r.Status, Risk: r.Risk, Title: r.Title,
+		RequiresApprovals: r.RequiresApprovals, ExpiresAt: r.ExpiresAt, InAppOnly: high}}, nil, nil
 }
 
 func evidenceLine(l []Evidence) string {
@@ -466,7 +598,7 @@ func (s *Service) aiUsage(ctx context.Context, q dbq) (hour, day int, err error)
 	return hour, day, nil
 }
 
-// saveNote stores a suggestion or digest note (the newest 50 are kept) and writes the log line, inside tx.
+// saveNote stores a suggestion or digest note (the newest 50 of each kind are kept) and writes the log line, inside tx.
 func (s *Service) saveNote(ctx context.Context, tx *sql.Tx, kind, title string, b ProposeBody, actionID, target string, ev []Evidence, detail string) error {
 	raw, err := json.Marshal(ev)
 	if err != nil {
@@ -476,7 +608,7 @@ func (s *Service) saveNote(ctx context.Context, tx *sql.Tx, kind, title string, 
 		newID("note"), s.ts(), kind, truncRunes(cleanLine(title), 200), b.Why, b.Confidence, actionID, truncRunes(cleanLine(target), 200), string(raw)); err != nil {
 		return fmt.Errorf("response: save an AI note: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_ai_notes WHERE rowid NOT IN (SELECT rowid FROM resp_ai_notes ORDER BY ts DESC, rowid DESC LIMIT ?)`, maxAINotes); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_ai_notes WHERE kind = ?1 AND rowid NOT IN (SELECT rowid FROM resp_ai_notes WHERE kind = ?1 ORDER BY ts DESC, rowid DESC LIMIT ?2)`, kind, maxAINotes); err != nil {
 		return fmt.Errorf("response: trim the AI notes: %w", err)
 	}
 	return s.step(ctx, tx, "response.ai_note", "response.ai", LogAINote, detail, AIActor)
@@ -509,10 +641,13 @@ type AIAction struct {
 }
 
 var paramPattern = map[ParamType]string{PDomain: domainRE.String(), PMAC: macRE.String(), PInterface: interfaceRE.String(), PName: nameRE.String(), PText: textRE.String(), PID: digitsRE.String()}
-var paramRange = map[ParamType][2]int{PPort: {1, 65535}, PVLAN: {1, 4094}}
+var paramRange = map[ParamType][2]int{PPort: {1, 65535}, PVLAN: {1, 4094}, PID: {1, 2147483647}}
 
 // AIActions lists what the AI may propose, in catalog order, for the ai module to build its tool schema from.
 func (s *Service) AIActions(ctx context.Context) ([]AIAction, error) {
+	if !s.on() {
+		return []AIAction{}, nil // the module is off: nothing to propose
+	}
 	if err := s.ensureSeeded(ctx); err != nil {
 		return nil, err
 	}

@@ -13,7 +13,9 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
+	"github.com/knt048/vedette/modules/scan/pack"
 )
 
 // Job timing.
@@ -99,20 +101,116 @@ func (s *Service) RunRescans(ctx context.Context) error {
 	if err := s.reapOrphan(ctx); err != nil {
 		return err
 	}
+	// The entries announced while scan was off or down are queued first (S4b, D-144); feeds unreadable does not hold up
+	// the queue: the bus events are there, and the next pass reads from the same point.
+	if err := s.catchUp(ctx); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.cfg.Log.WarnContext(ctx, "scan: catching up on announced KEV entries failed", "error", err)
+	}
 	evs, err := s.pendingEvents(ctx)
 	if err != nil {
 		return err
 	}
+	var batch []readyEvent
+	room := nucleiargv.MaxTemplates // the templates the run may still take: a device gets at most this many
 	for _, ev := range evs {
-		if err := s.rescan(ctx, ev); err != nil {
+		r, err := s.rescan(ctx, ev, room)
+		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			// One bad event does not hold up the queue (#164 review L2): it is logged and tried again next minute.
 			s.cfg.Log.ErrorContext(ctx, "scan: a KEV rescan event failed", "event", ev.id, "cve", ev.cve, "error", err)
+			continue
+		}
+		if r != nil {
+			batch = append(batch, *r)
+			room -= r.templates
 		}
 	}
+	if err := s.startRescan(ctx, batch); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.cfg.Log.ErrorContext(ctx, "scan: starting a KEV rescan failed", "events", len(batch), "error", err)
+	}
 	return nil
+}
+
+// readyEvent is a waiting KEV event whose devices may be scanned now; the ready events of a pass share one run.
+type readyEvent struct {
+	ev         pendingEvent
+	ids, names []string
+	first      Current
+	templates  int
+	latency    float64
+}
+
+// startRescan starts one new_kev run for the events of a pass (S4b: a backlog is not rescanned one CVE at a time):
+// their CVEs' templates only, at most MaxRunTargets devices (an event that would go over waits for the next run),
+// outside the time window (D-126 (3)). Each event is linked to the run in the transaction that writes it (#164 review
+// L4), with its own devices and latency.
+func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
+	var ids, cves []string
+	var take []readyEvent
+	for _, r := range batch {
+		u := ids
+		for _, id := range r.ids {
+			if !slices.Contains(u, id) {
+				u = append(u, id)
+			}
+		}
+		if len(take) > 0 && len(u) > MaxRunTargets {
+			continue
+		}
+		ids, cves, take = u, append(cves, r.ev.cve), append(take, r)
+	}
+	if len(take) == 0 {
+		return nil
+	}
+	link := func(ctx context.Context, tx *sql.Tx, runID string) error {
+		for _, r := range take {
+			b, err := json.Marshal(r.names)
+			if err != nil {
+				return fmt.Errorf("scan: encoding the devices of a rescan: %w", err)
+			}
+			res, err := tx.ExecContext(ctx, `UPDATE scan_event SET run_id = ?, latency_min = ?, devices = ? WHERE id = ? AND run_id IS NULL`, runID, r.latency, string(b), r.ev.id)
+			if err != nil {
+				return fmt.Errorf("scan: linking the rescan event: %w", err)
+			}
+			n, err := res.RowsAffected()
+			if err != nil {
+				return fmt.Errorf("scan: linking the rescan event: %w", err)
+			}
+			if n != 1 {
+				return fmt.Errorf("scan: the rescan event %s is gone or already has a run", r.ev.id)
+			}
+		}
+		return nil
+	}
+	note := rescanNote(cves)
+	if _, err := s.startAuto(ctx, "new_kev", &note, ids, take[0].first, cves, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
+		return err
+	}
+	return nil
+}
+
+// rescanNote is the trigger note of a rescan run: its CVEs, as many as fit the 300 characters of the column.
+func rescanNote(cves []string) string {
+	if len(cves) == 1 {
+		return "New KEV entry with a scan template: " + cves[0]
+	}
+	note := "New KEV entries with a scan template: " + cves[0]
+	for i, c := range cves[1:] {
+		more := fmt.Sprintf(" and %d more", len(cves)-1-i)
+		if len(note)+2+len(c)+len(more) > 300 {
+			return note + more
+		}
+		note += ", " + c
+	}
+	return note
 }
 
 func (s *Service) pendingEvents(ctx context.Context) ([]pendingEvent, error) {
@@ -138,113 +236,109 @@ func (s *Service) pendingEvents(ctx context.Context) ([]pendingEvent, error) {
 
 // closeEvent writes the result of an event; its run, if any, was linked when the run started (runSpec.inTx).
 func (s *Service) closeEvent(ctx context.Context, id, result string, devices []string) error {
-	if devices == nil {
-		devices = []string{}
-	}
-	b, err := json.Marshal(devices)
-	if err != nil {
-		return err
+	var arg any // nil: keep the devices written when the event was queued or linked to its run
+	if devices != nil {
+		b, err := json.Marshal(devices)
+		if err != nil {
+			return err
+		}
+		arg = string(b)
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET result = ?, devices = ? WHERE id = ?`, result, string(b), id)
+		_, err := tx.ExecContext(ctx, `UPDATE scan_event SET result = ?, devices = coalesce(?, devices) WHERE id = ?`, result, arg, id)
 		return err
 	})
 }
 
-func (s *Service) rescan(ctx context.Context, ev pendingEvent) error {
+// rescan moves one waiting event on. It returns the event when its devices may be scanned now and its templates fit in
+// room; RunRescans then scans the ready events of the pass in one run.
+func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*readyEvent, error) {
 	if ev.runID != "" { // the run is under way or over
 		v, err := s.Run(ctx, ev.runID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if v.Status == "running" || v.Status == "stopping" {
-			return nil
+			return nil, nil
 		}
 		// "clear" means only that no match was reported (D-133 (5)), never "not affected"; it changes no finding. A run
 		// stopped before every device was done is "stopped" (D-145 (7)): "clear" would hide what was not checked.
+		// A run may hold the CVEs of several events (S4b): each closes on the rows of its own CVE's templates, and keeps
+		// the devices it was linked with.
 		result := "clear"
 		switch {
-		case v.Matched > 0:
+		case s.matchedCVE(v, ev.cve):
 			result = "matched"
 		case v.Status != "done":
 			result = "stopped"
 		}
-		return s.closeEvent(ctx, ev.id, result, labels(v.Results))
+		return nil, s.closeEvent(ctx, ev.id, result, nil)
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !st.AutoRescan {
-		return s.closeEvent(ctx, ev.id, "skipped_off", nil)
+		return nil, s.closeEvent(ctx, ev.id, "skipped_off", nil)
 	}
 	now := s.now()
 	if now.Sub(ev.ts) < rescanSettle {
-		return nil
+		return nil, nil
 	}
 	expired := now.Sub(ev.ts) > pendingFor
 	if s.cfg.Pack == nil || len(s.cfg.Pack.ForCVE(ev.cve)) == 0 {
 		if expired {
-			return s.dropEvent(ctx, ev, "its scan template never reached the installed pack")
+			return nil, s.dropEvent(ctx, ev, "its scan template never reached the installed pack")
 		}
-		return nil
+		return nil, nil
 	}
 	// Wait first, before reading every finding and device (#164 review L1): try again at the next tick, still inside
 	// the 60 minutes, or when the scanner is back; a scanner that never comes back drops the event like a template
 	// that never comes (#164 review L3).
 	if s.liveRun() != "" {
-		return nil
+		return nil, nil
 	}
 	if !s.scannerReady(ctx) {
 		if expired {
-			return s.dropEvent(ctx, ev, "the scanner was not ready for 7 days")
+			return nil, s.dropEvent(ctx, ev, "the scanner was not ready for 7 days")
 		}
-		return nil
+		return nil, nil
 	}
 	// No automated run starts while the organization zone is unknown, the rescan too (it is not windowed, but it is
 	// automated like the schedule): the event waits, and is dropped after 7 days like one whose scanner never came.
 	if _, ok := s.loc(ctx); !ok {
 		if expired {
-			return s.dropEvent(ctx, ev, "the organization time zone could not be read for 7 days")
+			return nil, s.dropEvent(ctx, ev, "the organization time zone could not be read for 7 days")
 		}
-		return nil
+		return nil, nil
+	}
+	n := len(s.cfg.Pack.ForCVE(ev.cve))
+	if n > room { // this pass's run is full: the event waits for the next, before anything is read
+		return nil, nil
 	}
 	ids, names, pickOnly, first, err := s.affected(ctx, st, ev.cve)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(ids) == 0 && len(pickOnly) > 0 { // matching devices, all of them a hand pick only (D-126 (2), D-145 (7))
-		return s.closeEvent(ctx, ev.id, "pick_only", pickOnly)
+		return nil, s.closeEvent(ctx, ev.id, "pick_only", pickOnly)
 	}
 	if len(ids) == 0 {
-		return s.closeEvent(ctx, ev.id, "no_match", nil)
+		return nil, s.closeEvent(ctx, ev.id, "no_match", nil)
 	}
-	latency := now.Sub(ev.ts).Minutes()
-	b, err := json.Marshal(names)
-	if err != nil {
-		return fmt.Errorf("scan: encoding the devices of a rescan: %w", err)
+	return &readyEvent{ev: ev, ids: ids, names: names, first: first, templates: n, latency: now.Sub(ev.ts).Minutes()}, nil
+}
+
+// matchedCVE says whether the run confirmed cve on a device: a matched row of one of its templates. Without the pack
+// (it was removed) any match counts, as when a run held one CVE.
+func (s *Service) matchedCVE(v RunView, cve string) bool {
+	if s.cfg.Pack == nil {
+		return v.Matched > 0
 	}
-	// The event is linked in the transaction that writes the run (#164 review L4): no run the event does not know of,
-	// which the next pass would start again.
-	link := func(ctx context.Context, tx *sql.Tx, runID string) error {
-		res, err := tx.ExecContext(ctx, `UPDATE scan_event SET run_id = ?, latency_min = ?, devices = ? WHERE id = ? AND run_id IS NULL`, runID, latency, string(b), ev.id)
-		if err != nil {
-			return fmt.Errorf("scan: linking the rescan event: %w", err)
-		}
-		n, err := res.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("scan: linking the rescan event: %w", err)
-		}
-		if n != 1 {
-			return fmt.Errorf("scan: the rescan event %s is gone or already has a run", ev.id)
-		}
-		return nil
-	}
-	note := "New KEV entry with a scan template: " + ev.cve
-	if _, err := s.startAuto(ctx, "new_kev", &note, ids, first, ev.cve, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
-		return err
-	}
-	return nil
+	tpls := s.cfg.Pack.ForCVE(cve)
+	return slices.ContainsFunc(v.Results, func(r RunRow) bool {
+		return r.Result == "matched" && r.Template != nil && slices.ContainsFunc(tpls, func(t pack.Template) bool { return t.Path == *r.Template })
+	})
 }
 
 // dropEvent removes an event that waited pendingFor without a scan, and says why in the log. The scheduled scan still
@@ -304,22 +398,12 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 	return ids, names, pickOnly, first, nil
 }
 
-func labels(rows []RunRow) []string {
-	var out []string
-	for _, r := range rows {
-		if !slices.Contains(out, r.Label) {
-			out = append(out, r.Label)
-		}
-	}
-	return out
-}
-
 // startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false (D-126 (2)).
-// onlyCVE limits the run to one CVE (the KEV rescan); end, when set, is where the run stops by itself (the end of
+// onlyCVEs limits the run to those CVEs (the KEV rescan); end, when set, is where the run stops by itself (the end of
 // the window of a scheduled run); inTx records what the run is for in the transaction of its row (runSpec.inTx).
-func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVE string, end time.Time,
+func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs []string, end time.Time,
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error) (RunView, error) {
-	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVE: onlyCVE, end: end, inTx: inTx})
+	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVEs: onlyCVEs, end: end, inTx: inTx})
 }
 
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
@@ -380,7 +464,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	// never has a run and still looks open. A start refused because a run or the engine is busy leaves the slot open
 	// for the next tick while its window lasts.
 	mark := func(ctx context.Context, tx *sql.Tx, _ string) error { return markSlot(ctx, tx, *slot) }
-	if _, err := s.startAuto(ctx, "schedule", nil, ids, first, "", end, mark); err != nil && !errors.Is(err, errRunning) {
+	if _, err := s.startAuto(ctx, "schedule", nil, ids, first, nil, end, mark); err != nil && !errors.Is(err, errRunning) {
 		return err
 	}
 	return nil

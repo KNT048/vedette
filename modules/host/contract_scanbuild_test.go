@@ -343,7 +343,8 @@ func TestContract_Bootstrap_AScanRefusalComesBeforeTheFirstWrite(t *testing.T) {
 	e2.m.InstallUnit(api.ServiceScan, "sha256:"+opstest.BuiltID(99), true)
 	before := e2.unit(t, api.ServiceScan)
 	_, err = e2.bootstrap(e2.bsDocs(t, 5, v1, bsDigest))
-	if code, _ := ops.BootstrapCode(err); code != ops.BootstrapAlreadyInstalled {
+	// L-d: the rebuilt image has a new ID; the message says what to do, and does not send the operator to container.pull.
+	if code, msg := ops.BootstrapCode(err); code != ops.BootstrapAlreadyInstalled || !strings.Contains(msg, "-force-units") || !strings.Contains(msg, "container.start") || strings.Contains(msg, "container.pull") {
 		t.Fatalf("a scan unit pinning another image: %v", err)
 	}
 	e2.bsNothingButScan(t, "pins another image")
@@ -387,6 +388,90 @@ func TestContract_Bootstrap_AFailedScanBuildSkipsScanAndInstallsTheRest(t *testi
 	e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest))
 	if e.unit(t, api.ServiceScan) != e.render(t, api.ServiceScan, bsUnitDigest(api.ServiceScan)) || e.versionsFile(t, api.ServiceScan).Current == nil {
 		t.Error("scan was not installed by the rerun")
+	}
+}
+
+// L-a: when every requested service was skipped nothing was installed, which is a failure; and a skip is never reported as "nothing to do".
+func TestContract_Bootstrap_AllSkippedFailsAndASkipIsNeverNothingToDo(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.Mark("build-fails", true)
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceScan}
+	lines, err := e.bootstrap(a)
+	if code, _ := ops.BootstrapCode(err); code != api.CodeScanBuildFailed {
+		t.Fatalf("only scan requested and its build fails: %v", err)
+	}
+	if slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "nothing to do") }) {
+		t.Errorf("a failure said nothing to do:\n%s", strings.Join(lines, "\n"))
+	}
+	if _, err := e.m.Unit(api.ServiceScan); err == nil {
+		t.Error("a scan unit was written")
+	}
+
+	// The others are installed, scan is skipped again: exit 0, but the output says what was skipped and not "nothing to do".
+	e2 := startUpd(t)
+	e2.m.Mark("build-fails", true)
+	e2.bootstrapOK(t, e2.bsDocs(t, 5, v1, bsDigest))
+	lines = e2.bootstrapOK(t, e2.bsDocs(t, 5, v1, bsDigest))
+	if slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "nothing to do") }) ||
+		!slices.ContainsFunc(lines, func(l string) bool {
+			return strings.Contains(l, "nothing more to install") && strings.Contains(l, "scan was skipped")
+		}) {
+		t.Errorf("the rerun with scan skipped:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
+// L-b: a link at a credential volume unit name is refused in step 1, so no unit of any requested service is written first.
+func TestContract_Bootstrap_ABadVolumeFileIsRefusedBeforeAnyUnitIsWritten(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	target := filepath.Join(e.m.Root, "elsewhere")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(e.m.UnitsDir(), "vedette-creds-active.volume")); err != nil {
+		t.Fatal(err)
+	}
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceHoneypot, api.ServiceCore}
+	_, err := e.bootstrap(a)
+	if code, _ := ops.BootstrapCode(err); code != api.CodeUnitUnsafe {
+		t.Fatalf("%v", err)
+	}
+	e.bsNothingButScan(t, "bad volume file")
+	if w := e.writes(); len(w) != 0 {
+		t.Errorf("podman wrote before the refusal: %v", w)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
+		t.Error("the host wrote through the link")
+	}
+}
+
+// L6: the step that puts the tag back on the previous image is run (with that image's ID), fails, and the pull still ends as
+// scan_build_failed with the previous image kept and the record untouched.
+func TestContract_Scan_TheTagBackStepRunsAndItsFailureIsSurvived(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.pull(t, e.scanArgs(t, v1))
+	first := opstest.BuiltID(1)
+	before, _ := os.ReadFile(e.pulledFile(api.ServiceScan))
+	e.forget()
+	e.m.Mark("nmap-fails", true)
+	e.m.Mark("tag-id-fails", true)
+	r := e.final(t, api.CmdContainerPull, e.scanArgs(t, v1), api.StatusFailed, api.CodeScanBuildFailed)
+	if r.Error == nil {
+		t.Fatal("no error")
+	}
+	want := "tag " + first + " " + scanTag + v1
+	if !slices.ContainsFunc(e.podman(), func(c []string) bool { return strings.Join(c, " ") == want }) {
+		t.Errorf("the tag-back step did not run (%q): %v", want, e.podman())
+	}
+	if !e.m.ImagePresent("sha256:"+first) || !slices.Contains(e.m.ImageRemoved(), "sha256:"+opstest.BuiltID(2)) {
+		t.Errorf("previous image present %t, removed %v", e.m.ImagePresent("sha256:"+first), e.m.ImageRemoved())
+	}
+	if after, _ := os.ReadFile(e.pulledFile(api.ServiceScan)); string(before) != string(after) {
+		t.Error("the record changed")
 	}
 }
 

@@ -61,12 +61,15 @@ func WriteBundle(dir string, role sensorlink.Role, data []byte) error {
 	// The file gets the group of the role folder (the sensor group, SP-6 L3): a file core creates has core's own group unless the
 	// folder is setgid, and the unit that makes the volume cannot set that bit. core is in the folder's group (the unit adds it), so
 	// the chown is allowed; the mode stays 0640.
-	if st, err := sub.Stat("."); err == nil {
-		if sys, ok := st.Sys().(*syscall.Stat_t); ok {
-			if err := f.Chown(-1, int(sys.Gid)); err != nil {
-				_ = f.Close()
-				return fmt.Errorf("pki: give %s the group of its folder: %w", BundleName, err)
-			}
+	st, err := sub.Stat(".")
+	if err != nil {
+		_ = f.Close()
+		return fmt.Errorf("pki: look at the folder of %s: %w", BundleName, err)
+	}
+	if sys, ok := st.Sys().(*syscall.Stat_t); ok {
+		if err := f.Chown(-1, int(sys.Gid)); err != nil {
+			_ = f.Close()
+			return fmt.Errorf("pki: give %s the group of its folder: %w", BundleName, err)
 		}
 	}
 	if _, err := f.Write(data); err != nil {

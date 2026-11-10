@@ -16,13 +16,17 @@ import (
 // A box has no way yet to load packs (the Loader needs the update signature Verifier, core/updates), so the GUI checks on a
 // real box (make dev-api, web/e2e/qa/real-box.mjs) have no recommendation to show. This puts the packs of testdata/ into
 // mit_pack of a box database, as a developer's seed: it does not go through Loader and writes no audit row. It runs only when
-// VEDETTE_SEED_PACKS_DB names the database file of a box that has been started once (so its migrations ran):
+// VEDETTE_SEED_PACKS_DB names the database file of a box that has been started once (so its migrations ran), absolute or
+// relative to the repo root (go test itself runs in this directory):
 //
 //	VEDETTE_SEED_PACKS_DB=.dev/vedette.db go test ./modules/mitigation -run TestGUIReal_SeedBoxWithTestdataPacks
 func TestGUIReal_SeedBoxWithTestdataPacks(t *testing.T) {
 	path := os.Getenv("VEDETTE_SEED_PACKS_DB")
 	if path == "" {
 		t.Skip("set VEDETTE_SEED_PACKS_DB to a box database to seed it")
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join("..", "..", path) // go test runs in the package directory; a relative path is relative to the repo root
 	}
 	ctx := context.Background()
 	db, err := store.Open(ctx, path, slog.New(slog.DiscardHandler))

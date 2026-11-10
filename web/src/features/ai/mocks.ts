@@ -133,8 +133,10 @@ function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Respo
   if (!/^[\w.:/-]{1,80}$/.test(String(b.model ?? ''))) return fail(400, 'invalid_model', 'The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most), for example claude-haiku-5-5.')
   const key = b.api_key === undefined || b.api_key === '' ? null : String(b.api_key)
   if (key !== null && (key.length < 8 || /\s/.test(key))) return fail(400, 'invalid_key', 'The API key is too short or contains spaces. Copy the whole key again from the provider\'s console.')
-  const keepOld = !!existing && existing.key_last4 !== null && existing.kind === b.kind
-  if (key === null && location === 'cloud' && !keepOld) return fail(400, 'key_required', existing && existing.kind !== b.kind ? 'Changing the provider type needs the API key entered again.' : 'Enter the API key. It stays on this box and is encrypted.')
+  // The stored key goes only where it was saved for: the same kind and the same origin (scheme, host, port). Another address gets no key.
+  const moved = !!existing && existing.key_last4 !== null && new URL(existing.base_url).origin !== url.origin
+  const keepOld = !!existing && existing.key_last4 !== null && existing.kind === b.kind && !moved
+  if (key === null && location === 'cloud' && !keepOld) return fail(400, 'key_required', moved ? 'Changing the address needs the API key entered again.' : existing && existing.kind !== b.kind ? 'Changing the provider type needs the API key entered again.' : 'Enter the API key. It stays on this box and is encrypted.')
   return { name, url, key, keepOld, style }
 }
 function toStored(b: ProfileInput, ok: { name: string; url: URL; key: string | null; keepOld: boolean; style: ProfileInput['api_style'] }, id: string, existing?: StoredProfile): StoredProfile {

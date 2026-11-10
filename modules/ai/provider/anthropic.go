@@ -27,7 +27,7 @@ func (a *anthropic) Complete(ctx context.Context, r Request) (Response, error) {
 		"x-api-key": a.h.key.Reveal(), "anthropic-version": a.version,
 	}, body)
 	if err != nil {
-		return Response{}, err
+		return Response{}, noWorkspace(err)
 	}
 	return decodeAnthropic(data)
 }

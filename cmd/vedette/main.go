@@ -203,7 +203,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen),
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
-	if err := buildServices(&d); err != nil {
+	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}
 	defer d.OS.Close()

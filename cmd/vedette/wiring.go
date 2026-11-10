@@ -203,7 +203,7 @@ func (aiOff) Run(context.Context, mitigation.AIRequest) (mitigation.AIOutput, er
 // buildServices builds the module services that others reach through ports, once, in dependency order, and
 // subscribes the cross-module reactions. serve calls it after deps has its base fields; the handlers, jobs and
 // subscribers all share these instances.
-func buildServices(d *deps) error {
+func buildServices(ctx context.Context, d *deps) error {
 	// Order: inventory and notify first, then auth with notify's code mailer, then core. notify needs the user
 	// directory, the time zone and the device names, which come from auth, core and inventory: its adapters
 	// (notifyUsers, orgZone, notifyDevices) read d.Auth and d.Core when asked, so one instance of each service
@@ -271,6 +271,10 @@ func buildServices(d *deps) error {
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
+	d.AI, err = newAI(ctx, d)
+	if err != nil {
+		return fmt.Errorf("ai: %w", err)
+	}
 	subscribe(*d)
 	return nil
 }

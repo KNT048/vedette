@@ -43,7 +43,7 @@ test.describe('ai: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('add the first profile from scratch: empty, wrong key shape, rejected key, unreachable server, success; assigned to every task at once; ask with no devices', async ({ page }) => {
+  test('add the first profile from scratch: empty, wrong key shape, rejected key, unreachable server, success; assigned to every task at once; ask a box that knows only itself', async ({ page }) => {
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/settings/ai')
@@ -88,7 +88,9 @@ test.describe('ai: clean install', () => {
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used today')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
-    await expect(page.getByText(/The inventory has no devices yet/)).toBeVisible()
+    // a clean install already lists the box itself as its first device (inventory mock, 830c3ad), so the answer comes from one device; the empty-inventory answer is covered by vitest
+    await expect(page.getByText(/No device in the inventory has RDP/)).toBeVisible()
+    await expect(page.getByText('Sources: Inventory: 1 device')).toBeVisible()
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await shot(page, 'ai', `assistant-clean-asked-${device(page)}`)
     // trang Log chưa có nguồn log: không dựng khung AI (không có gì để tóm tắt)

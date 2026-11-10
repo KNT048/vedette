@@ -331,7 +331,7 @@ func (e *env) run() (stop func()) {
 				if err != nil {
 					e.t.Errorf("Run returned %v", err)
 				}
-			case <-time.After(5 * time.Second):
+			case <-time.After(waitBound):
 				e.t.Error("Run did not return after its context was cancelled")
 			}
 		})
@@ -369,14 +369,23 @@ func (e *env) sensorBeat() {
 	})
 }
 
+// waitBound is how long a test waits for a condition, and how long a stop may take before the test calls it stuck. A stop is
+// 5 ms when the machine is free (measured over 20 switches through the link); the bound is for a starved one.
+const waitBound = 30 * time.Second
+
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	// A passing wait returns the moment its condition holds, so this bound costs nothing when all is well; it only says how long a
+	// condition that never comes is waited for. What the waits need is CPU, not time: the inventory writes parse their SQL again on
+	// every call and -race makes that about ten times slower, and CI runs this suite three times over (in process, remote, and the
+	// parent) next to other packages. On a quiet machine the longest wait is under a second; 5 s failed on a loaded runner with
+	// nothing stuck (INV6, SP-4 store retry and the unknown-box test, three times in a week).
+	deadline := time.Now().Add(waitBound)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
 		}
-		pause(t, 5*time.Millisecond)
+		pause(t, 20*time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", what)
 }

@@ -469,6 +469,14 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
   })
+
+  it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164 review M1)', () => {
+    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 1, at: '02:00' } }
+    const fri = new Date(nextRun(c, new Date(2026, 10, 20, 12, 0))!) // Friday noon: Saturday 02:00 is Friday's window
+    expect([fri.getDate(), fri.getHours()]).toEqual([21, 2])
+    const sun = new Date(nextRun(c, new Date(2026, 10, 22, 12, 0))!) // Sunday noon: Monday 02:00 is Sunday's window, so Tuesday
+    expect(sun.getDate()).toBe(24)
+  })
 })
 
 describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {

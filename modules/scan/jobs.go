@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 )
@@ -253,13 +254,14 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVE: onlyCVE, end: end})
 }
 
-// RunSchedule starts the scheduled run when its slot has come and the window is open (S-SCAN-4, POST-3). The run
-// stops when the window ends. A slot that found a scan running is tried again at the next tick while the window
-// is still open; it starts at most one run.
+// RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
+// the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
+// the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
+// in a later window (#164 review M1). A slot starts at most one run.
 func (s *Service) RunSchedule(ctx context.Context) error {
-	var last sql.NullString
-	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last FROM scan_setting WHERE id = 1`)
-	if err := row.Scan(&last); err != nil {
+	var last, saved sql.NullString
+	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last, updated_at FROM scan_setting WHERE id = 1`)
+	if err := row.Scan(&last, &saved); err != nil {
 		return fmt.Errorf("scan: reading the schedule: %w", err)
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
@@ -271,9 +273,10 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
 		return nil
 	}
-	end, open := st.windowEnd(now, s.loc(ctx))
-	if !open {
-		return nil
+	end, _ := st.slotWindowEnd(*slot)
+	if !now.Before(end) {
+		// A slot from before the schedule was last saved (turned on, moved) was never due: it is passed over quietly.
+		return s.missSlot(ctx, *slot, !saved.Valid || saved.String < store.FormatTS(*slot))
 	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
 	if err != nil || sc.ConfirmedAt == "" || s.liveRun() != "" || !s.scannerReady(ctx) {
@@ -309,7 +312,22 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	})
 }
 
-// lastSlot is the latest schedule time at or before now (within eight days), or nil when the schedule is off.
+// missSlot records a slot whose window closed before its run could start, with an audit row when it was due.
+func (s *Service) missSlot(ctx context.Context, slot time.Time, due bool) error {
+	ts := store.FormatTS(slot)
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE scan_setting SET sched_last = ? WHERE id = 1`, ts); err != nil {
+			return err
+		}
+		if !due {
+			return nil
+		}
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: systemUser, Action: "scan.schedule.missed", Target: "scan",
+			Detail: "the scheduled run of " + ts + " did not start before its window closed; the next slot runs as planned"})
+	})
+}
+
+// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off.
 func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
@@ -318,34 +336,11 @@ func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
 	local := now.In(loc)
 	for i := range 8 {
 		d := time.Date(local.Year(), local.Month(), local.Day()-i, at/60, at%60, 0, 0, loc)
-		if d.After(now) || !slices.Contains(c.Window.Days, isoDay(d)) {
-			continue
-		}
-		if c.Schedule.Frequency == "daily" || isoDay(d) == c.Schedule.Weekday {
+		if !d.After(now) && c.slotOK(d) {
 			return &d
 		}
 	}
 	return nil
-}
-
-// windowEnd says whether the window is open at now, and when it closes. A window that crosses midnight counts by
-// its start day (the GUI's words): 22:00 to 05:00 on Monday runs until Tuesday 05:00.
-func (c Settings) windowEnd(now time.Time, loc *time.Location) (time.Time, bool) {
-	l := now.In(loc)
-	m := l.Hour()*60 + l.Minute()
-	from, to := minutes(c.Window.From), minutes(c.Window.To)
-	day := func(offset, mins int) time.Time {
-		return time.Date(l.Year(), l.Month(), l.Day()+offset, mins/60, mins%60, 0, 0, loc)
-	}
-	today := slices.Contains(c.Window.Days, isoDay(l))
-	if from < to {
-		return day(0, to), today && m >= from && m < to
-	}
-	if today && m >= from {
-		return day(1, to), true
-	}
-	yesterday := slices.Contains(c.Window.Days, isoDay(l.AddDate(0, 0, -1)))
-	return day(0, to), yesterday && m < to
 }
 
 // RunRetention deletes probe rows older than RetentionDays and rescan events older than a year (INV-7).

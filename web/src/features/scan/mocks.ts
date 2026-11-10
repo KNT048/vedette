@@ -133,13 +133,21 @@ const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to)
 /** ISO weekday: 1 = Monday … 7 = Sunday (D-57). */
 const isoDay = (d: Date) => d.getDay() || 7
 
+/** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
+ *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). */
+function slotOK(c: ScanConfig, d: Date): boolean {
+  const start = new Date(d)
+  if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
+  return c.window.days.includes(isoDay(start)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
+}
+
 export function nextRun(c: ScanConfig, now = new Date()): string | null {
   if (!c.schedule.enabled) return null
   for (let i = 0; i < 15; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && c.window.days.includes(isoDay(d)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)) return d.toISOString()
+    if (d.getTime() > now.getTime() && slotOK(c, d)) return d.toISOString()
   }
   return null
 }

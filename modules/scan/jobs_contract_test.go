@@ -204,16 +204,18 @@ func TestSchedule_Slots(t *testing.T) {
 	if s := c.lastSlot(mon, time.UTC); s == nil || !s.Equal(time.Date(2026, 11, 13, 23, 0, 0, 0, time.UTC)) {
 		t.Fatalf("last weekly slot: %v", s)
 	}
-	// Monday 01:00 is inside Sunday's window only if Sunday is a window day; it is not.
-	if _, open := c.windowEnd(mon, time.UTC); open {
-		t.Fatal("open on Monday 01:00 although Sunday is not a window day")
+	// the Friday 23:00 slot belongs to Friday's window, which closes on Saturday 05:00
+	if end, ok := c.slotWindowEnd(time.Date(2026, 11, 13, 23, 0, 0, 0, time.UTC)); !ok || !end.Equal(time.Date(2026, 11, 14, 5, 0, 0, 0, time.UTC)) {
+		t.Fatalf("Friday's window: %v %v", end, ok)
 	}
-	sat := time.Date(2026, 11, 14, 4, 0, 0, 0, time.UTC) // Saturday 04:00: Friday's window
-	if end, open := c.windowEnd(sat, time.UTC); !open || !end.Equal(time.Date(2026, 11, 14, 5, 0, 0, 0, time.UTC)) {
-		t.Fatalf("Friday's window on Saturday morning: %v %v", end, open)
+	// a 02:00 slot on Monday is in Sunday's window, and Sunday is not a window day
+	early := c
+	early.Schedule.At = "02:00"
+	if _, ok := early.slotWindowEnd(time.Date(2026, 11, 16, 2, 0, 0, 0, time.UTC)); ok {
+		t.Fatal("Monday 02:00 counted in a window although Sunday is not a window day")
 	}
-	day := Settings{Window: Window{Days: []int{2}, From: "09:00", To: "17:00"}}
-	if end, open := day.windowEnd(time.Date(2026, 11, 10, 16, 59, 0, 0, time.UTC), time.UTC); !open || end.Hour() != 17 {
+	day := Settings{Window: Window{Days: []int{2}, From: "09:00", To: "17:00"}, Schedule: Schedule{At: "16:00"}}
+	if end, ok := day.slotWindowEnd(time.Date(2026, 11, 10, 16, 0, 0, 0, time.UTC)); !ok || end.Hour() != 17 || end.Day() != 10 {
 		t.Fatal("same-day window")
 	}
 }

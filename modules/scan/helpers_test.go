@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
 // t0 is a Tuesday, 10:00 UTC.
@@ -46,6 +47,12 @@ func (f *fakeInventory) Scope(context.Context) (Scope, error) {
 
 func (f *fakeInventory) set(s Scope) { f.mu.Lock(); f.scope = s; f.mu.Unlock() }
 
+func (f *fakeInventory) Devices(context.Context) ([]Device, error) { return nil, nil }
+
+func (f *fakeInventory) VulnScanPolicy(context.Context, string, bool) (Decision, error) {
+	return Decision{Allowed: true, Reason: "ok"}, nil
+}
+
 // fakeEngine is the scanner seam: ready or not.
 type fakeEngine struct {
 	mu   sync.Mutex
@@ -54,6 +61,8 @@ type fakeEngine struct {
 
 func (f *fakeEngine) Ready(context.Context) error { f.mu.Lock(); defer f.mu.Unlock(); return f.down }
 func (f *fakeEngine) setDown(err error)           { f.mu.Lock(); f.down = err; f.mu.Unlock() }
+
+func (f *fakeEngine) Run(context.Context, nucleiargv.Job) (Output, error) { return Output{}, nil }
 
 var errNoHeartbeat = errors.New("no heartbeat from the scan worker for 90 s")
 
@@ -85,7 +94,7 @@ func newDB(t *testing.T) *store.DB {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	e := &env{t: t, db: newDB(t), clock: &fakeClock{now: t0}, inv: &fakeInventory{scope: confirmedScope()}, engine: &fakeEngine{}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Location: time.UTC, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
+	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Pack: testPack(t), Location: time.UTC, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,10 +104,10 @@ func newEnv(t *testing.T) *env {
 
 func (e *env) ctx() context.Context { return e.t.Context() }
 
-func (e *env) count(query string, args ...any) int {
+func (e *env) count(query string) int {
 	e.t.Helper()
 	var n int
-	if err := e.db.Reader().QueryRowContext(e.ctx(), query, args...).Scan(&n); err != nil {
+	if err := e.db.Reader().QueryRowContext(e.ctx(), query).Scan(&n); err != nil {
 		e.t.Fatal(err)
 	}
 	return n

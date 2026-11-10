@@ -27,9 +27,6 @@ const (
 // SafeTags are the tags a template must carry one of: the KEV sets (CISA KEV, VulnCheck KEV) (INV-4).
 var SafeTags = []string{"kev", "vkev"}
 
-// ForbiddenTags may never be on a template of the pack (INV-4, FORBID-2); nuclei is told to exclude the same list.
-var ForbiddenTags = nucleiargv.ForbiddenTags
-
 // Template is one entry of the index.
 type Template struct {
 	ID      string   `json:"id"`      // nuclei template id, the -id value
@@ -105,12 +102,16 @@ func (t Template) check() error {
 		return errors.New("request is not one printable request line")
 	}
 	safe := false
+	forbidden := nucleiargv.ForbiddenTags() // nuclei is told to exclude the same list (-etags)
 	for _, tag := range t.Tags {
 		if !tagRE.MatchString(tag) {
 			return fmt.Errorf("tag %.40q is not valid", tag)
 		}
-		if slices.Contains(ForbiddenTags, tag) {
+		if slices.Contains(forbidden, tag) {
 			return fmt.Errorf("tag %q is never allowed", tag)
+		}
+		if tag == "oast" { // L3: nuclei runs with -ni, so a check that needs an out-of-band answer would always say "not matched"
+			return errors.New("needs out-of-band interaction (oast), which nuclei runs without")
 		}
 		safe = safe || slices.Contains(SafeTags, tag)
 	}

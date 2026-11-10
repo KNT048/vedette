@@ -72,8 +72,8 @@ test.describe('scan: IT operator', () => {
     const errors = collectErrors(page)
     await page.goto('/scans')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Last scan')
-    await expect(page.getByRole('checkbox', { name: /NAS-PHOTOS/ })).toBeChecked()
-    await expect(page.getByText('3 selected')).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: /NAS-PHOTOS/ })).not.toBeChecked() // fragile: never preselected (D-126)
+    await expect(page.getByText('2 selected')).toBeVisible()
     await expect(page.getByText(/Not approved in the inventory, so not scanned/).first()).toBeVisible()
     await expect(page.getByRole('checkbox', { name: /203\.0\.113\.55/ })).toBeDisabled()
     await expect(page.getByText('Verification expired, verify again, so not scanned')).toBeVisible()
@@ -101,6 +101,14 @@ test.describe('scan: IT operator', () => {
 
   test('scan one device to the end: progress, per-device results, link to the finding, headline updates', async ({ page }) => {
     await page.goto('/scans?target=a-nas02')
+    // A fragile device is never ticked for you (D-126): not by the link, not by Select all. Your own tick is the pick.
+    const nas = page.getByRole('checkbox', { name: /NAS-PHOTOS/ })
+    await expect(nas).not.toBeChecked()
+    await expect(page.getByText('Fragile: pick it to scan at a quarter of the speed').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Select all' }).click()
+    await expect(nas).not.toBeChecked()
+    await page.getByRole('button', { name: 'Clear selection' }).click()
+    await nas.check()
     await page.getByRole('button', { name: /Scan now \(1\)/ }).click()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Scanning')
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()

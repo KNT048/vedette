@@ -78,6 +78,9 @@
     "findings_other": "{{count}} findings",
     "fragile": "Fragile",
     "fragileHint": "Fragile or of unknown type: scanned only when you pick it, at a quarter of the speed",
+    "pickFragile": "Fragile: pick it to scan at a quarter of the speed",
+    "pickUnknown": "Type unknown: pick it to scan at a quarter of the speed",
+    "pickManual": "Added by hand: pick it to scan",
     "go": "Scan now ({{count}})",
     "busy": "A scan is already running. Wait for it or press Stop now.",
     "none": "Select at least one device.",
@@ -102,7 +105,7 @@
   },
   "result": {
     "matched": "Matches, still vulnerable",
-    "not_matched": "No longer matches",
+    "not_matched": "No match reported",
     "not_applicable": "No template applies",
     "no_template": "No scan template",
     "no_response": "No response",
@@ -252,7 +255,7 @@
     },
     "result": {
       "matched": "Matched",
-      "not_matched": "Not matched",
+      "not_matched": "No match reported",
       "no_response": "No response",
       "banner": "Banner read",
       "stopped": "Stopped"

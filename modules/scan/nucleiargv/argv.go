@@ -36,9 +36,12 @@ const (
 	MaxOutput = 4 << 20
 )
 
-// ForbiddenTags are the template tags that may never run (INV-4, FORBID-2): the pack refuses them, and nuclei is told
-// to exclude them as a second fence. One list for both.
-var ForbiddenTags = []string{"dos", "intrusive", "fuzz"}
+// forbiddenTags are the template tags that may never run (INV-4, FORBID-2): the pack refuses them, and nuclei is told
+// to exclude them as a second fence. One list for both; unexported so nobody can change it after fixedFlags read it.
+var forbiddenTags = []string{"dos", "intrusive", "fuzz"}
+
+// ForbiddenTags returns a copy of the tags that may never run.
+func ForbiddenTags() []string { return slices.Clone(forbiddenTags) }
 
 // fixedFlags is the part of every line that never changes:
 //
@@ -56,7 +59,7 @@ var ForbiddenTags = []string{"dos", "intrusive", "fuzz"}
 var fixedFlags = []string{
 	"-jsonl", "-silent", "-nc",
 	"-duc", "-ni", "-ms", "-dr", "-nh",
-	"-etags", strings.Join(ForbiddenTags, ","),
+	"-etags", strings.Join(forbiddenTags, ","),
 	"-pt", "http,tcp,ssl",
 	"-c", "1", "-bs", "1",
 	"-timeout", "10", "-retries", "1",

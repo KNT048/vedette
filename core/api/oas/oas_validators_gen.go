@@ -67145,6 +67145,8 @@ func (s ScanGetScansProbesOKItemsItemResult) Validate() error {
 		return nil
 	case "banner":
 		return nil
+	case "stopped":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -67559,9 +67561,15 @@ func (s ScanGetScansTargetsOKItemsItemReason) Validate() error {
 		return nil
 	case "out_of_scope":
 		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
 	case "unverified":
 		return nil
 	case "expired":
+		return nil
+	case "not_supported":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

@@ -6,4 +6,5 @@ Modules `scan` và `scan-credentialed`. Story: S-SCAN-1 (quét xác nhận, ch�
 - Mock tính tiến độ theo đồng hồ (`timing.stepMs` mỗi thiết bị, `timing.stopMs` cho "Dừng ngay"); UI poll 1 giây khi có lần quét đang chạy. `a-cam03` là thiết bị mẫu không phản hồi để minh hoạ tự dừng.
 - Khoá SSH không được lưu hay trả lại; chỉ giữ 4 ký tự cuối.
 - Slot cung cấp/tiêu thụ: không. Đường dẫn: `/scans?tab=runs|safety|auto|probes|credentialed&target=<assetId>`.
-- Mục tiêu ngoài là IP: `POST /scans/runs` hỏi cùng cổng kiểm lúc quét như exposure (`exposureIpPaused`, INV-13 của exposure): hộp không còn ra bằng IP đó thì 409 `ip_not_current` (cửa sổ 5 phút dùng lại kết quả lượt dò đầy đủ).
+- Mục tiêu ngoài (exposure) được liệt kê nhưng bản này chưa quét (`reason: not_supported`, 400 `out_of_scope`); khi xây, `POST /scans/runs` hỏi `CheckScannable` của exposure (INV-13, 409 `ip_not_current`) ngay trước khi quét. Thiết bị khai tay không bao giờ bị quét (`declared_by_hand`, INV-5 của inventory); chọn tay một thiết bị là đồng ý cho thiết bị đó (mong manh: một phần tư tốc độ).
+- Máy quét của container `scan` không sẵn sàng: `can_scan=false` kèm `block_reason`, `POST /scans/runs` trả 503 `scanner_unavailable` (`scannerStore` để test). Probe đang bay khi bấm "Dừng ngay" ghi `stopped`. CSV chặn công thức bảng tính (tên thiết bị đến từ mạng).

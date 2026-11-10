@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -42,15 +41,8 @@ func deviceErrAuth(a Auth, format string, args ...any) *DeviceError {
 	return &DeviceError{Msg: CleanLine(fmt.Sprintf(format, args...), a.redactions()...)}
 }
 
-// redactions are the strings of this credential that must not appear in any text: the secret, the user name, and the Basic form
-// (base64 of user:secret). CleanLine adds the base64 of each of them alone.
-func (a Auth) redactions() []string {
-	r := []string{a.Secret.Reveal(), a.Username}
-	if a.Type == "basic" {
-		r = append(r, base64.StdEncoding.EncodeToString([]byte(a.Username+":"+a.Secret.Reveal())))
-	}
-	return r
-}
+// redactions are the strings of this credential that must not appear in any text (Secrets).
+func (a Auth) redactions() []string { return Secrets(a.Type, a.Username, a.Secret.Reveal()) }
 
 // Auth is how the box signs in to an HTTP server (D-94 (1)). The secret is read from the vault by the caller.
 type Auth struct {

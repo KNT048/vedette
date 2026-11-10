@@ -61,10 +61,10 @@ test.describe('findings: IT operator', () => {
   test('list: headline matches the rows, filters, ?cve=, open a row, Back, reload', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await page.goto('/findings')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('3 unresolved findings, 1 confirmed')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('4 unresolved findings, 1 confirmed')
     const rows = isMobile ? page.getByRole('list', { name: 'Findings list' }).getByRole('listitem') : page.getByRole('table', { name: 'Findings list' }).getByRole('row')
     const head = isMobile ? 0 : 1
-    await expect(rows).toHaveCount(3 + head)
+    await expect(rows).toHaveCount(4 + head)
     await page.getByRole('button', { name: 'Confirmed', exact: true }).click()
     await expect(rows).toHaveCount(1 + head)
     await page.getByRole('button', { name: 'Resolved', exact: true }).click()
@@ -72,7 +72,7 @@ test.describe('findings: IT operator', () => {
     await page.goto('/findings?cve=cve-2022-27593')
     await expect(rows).toHaveCount(1 + head)
     await page.getByRole('button', { name: /Clear CVE-2022-27593 filter/ }).click()
-    await expect(rows).toHaveCount(3 + head)
+    await expect(rows).toHaveCount(4 + head)
     await page.getByRole('link', { name: 'CVE-2022-27593' }).first().click()
     await expect(page).toHaveURL(/\/findings\/f-1$/)
     await page.goBack()
@@ -106,7 +106,7 @@ test.describe('findings: IT operator', () => {
     await page.reload()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('false positive')
     await page.goto('/findings')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('2 unresolved findings, 1 confirmed')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('3 unresolved findings, 1 confirmed')
     await page.goto('/findings/f-2')
     await page.getByRole('button', { name: 'Reopen finding' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('may be affected')
@@ -200,13 +200,20 @@ test.describe('findings: director (viewer)', () => {
 })
 
 test.describe('findings: clean install', () => {
-  test('no findings; the empty screen says what to do first; a detail link says it does not exist', async ({ page }) => {
+  test('only the box itself has a finding; once it is resolved the empty screen says what to do first; a detail link says it does not exist', async ({ page }) => {
     const errors = collectErrors(page)
     await clean(page)
     await page.goto('/findings')
+    // D-53: the box is the first device and its own packages match the exploited list, so a clean install is not empty
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('1 unresolved finding, 0 confirmed')
+    await expect(page.locator('body')).not.toContainText('NAS')
+    await page.locator('a[href^="/findings/"]:visible').first().click()
+    await page.getByRole('button', { name: 'Mark as handled' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save status' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.goto('/findings')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('No unresolved findings')
     await expect(page.locator('body')).not.toContainText('NAS')
-    await expect(page.locator('body')).not.toContainText('192.168')
     await expect(page.getByRole('link', { name: 'Open Devices' }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Vulnerability scans' }).first()).toBeVisible()
     await english(page, 'clean findings')

@@ -24,7 +24,7 @@ function Steps({ steps }: { steps: CodeStep[] }) {
     <div className="grid gap-3">
       {steps.map((s) => (
         <div key={s.title} className="grid gap-1.5">
-          {s.code ? <CodeBlock code={s.code} label={s.title} /> : <p className="text-[13px] font-medium">{s.title}</p>}
+          {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-[13px] font-medium">{s.title}</p>}
           {s.note ? <p className="text-[13px] text-muted">{s.note}</p> : null}
           {s.side_effect ? <SideEffect text={s.side_effect} /> : null}
         </div>
@@ -86,7 +86,7 @@ function Firewall({ finding }: { finding: FindingDetail }) {
   return (
     <div className="grid gap-3">
       <p className="text-[13px] text-muted">{any ? t('rec.fwDetected') : t('rec.fwNone')}</p>
-      <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={vendor} onChange={setVendor}
+      <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={vendor} onChange={setVendor} className="flex-wrap"
         options={guides.map((x) => ({ value: x.vendor, label: x.detected ? t('rec.fwDeclared', { name: x.label }) : x.label }))} />
       <Guide key={g.vendor} finding={finding} g={g} />
     </div>

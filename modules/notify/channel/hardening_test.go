@@ -96,6 +96,7 @@ func TestContract_SYS6_SMTPServerResponsesAreBounded(t *testing.T) {
 func TestBudgetConnStopsAtLimit(t *testing.T) {
 	t.Parallel()
 	a, b := net.Pipe()
+	t.Cleanup(func() { _ = a.Close() }) // the reader stops at 64 bytes: closing its end ends the writer's Write of the rest (no leaked goroutine)
 	go func() { _, _ = b.Write(make([]byte, 100)); _ = b.Close() }()
 	c := &budgetConn{Conn: a, left: 64}
 	buf := make([]byte, 1000)

@@ -611,7 +611,7 @@
     },
     "telemetry": {
       "title": "Anonymous signal",
-      "statement": "Anonymous signal: not sent. The box sends nothing to the Vedette project. The project runs no server that could receive it. The setting stays off and cannot be turned on in this version."
+      "statement": "Anonymous signal: not sent. The box sends nothing to the Vedette project. The project runs no server that could receive it, and this version has no code that sends it."
     },
     "cookie": {
       "title": "Cookies",

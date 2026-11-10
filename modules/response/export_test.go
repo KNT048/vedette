@@ -83,3 +83,17 @@ func (s *Service) LinkKeysForTest() int {
 
 // SetSendBudgetForTest sets how long sending one approval request may take.
 func (s *Service) SetSendBudgetForTest(d time.Duration) { s.budget = d }
+
+// SetChatKeysMaxForTest sets how many identities the chat rate table remembers.
+func (s *Service) SetChatKeysMaxForTest(n int) {
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	s.chatMax = n
+}
+
+// ChatKeysForTest is how many identities the chat rate table remembers.
+func (s *Service) ChatKeysForTest() int {
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	return len(s.chatTimes)
+}

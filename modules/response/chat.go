@@ -71,7 +71,7 @@ func replyCodeHash(requestID, userID, decision, code string) string {
 
 // normalizeReplyCode applies spec 7.1: no white space at the ends, ASCII letters upper case; the result must have the form of a code.
 func normalizeReplyCode(s string) (string, bool) {
-	s = strings.TrimSpace(s)
+	s = strings.Trim(s, " \t\r\n\v\f") // spec 7.1: ASCII white space only (not NBSP or the other Unicode spaces)
 	b := []byte(s)
 	for i, c := range b {
 		if c >= 'a' && c <= 'z' {
@@ -80,11 +80,6 @@ func normalizeReplyCode(s string) (string, bool) {
 	}
 	s = string(b)
 	return s, replyCodeRE.MatchString(s)
-}
-
-// chatActorText is the actor of a line about a sender that is not (yet) a known person: what they claim to be, cut and cleaned.
-func chatActorText(channel, ext string) string {
-	return truncRunes(cleanLine(ext), 64) + " via " + truncRunes(cleanLine(channel), 32)
 }
 
 // chatGate runs the first three checks of INV-3: the channel is an approval channel of this module and ready (403 channel_not_allowed),
@@ -100,7 +95,7 @@ func (s *Service) chatGate(ctx context.Context, st Settings, channel, ext string
 	} else if !ok {
 		return User{}, notAllowed, nil
 	}
-	notListed := fail(http.StatusForbidden, "approver_not_listed", "You are not an approver on this channel, or your Vedette account can no longer approve requests.")
+	notListed := errChatNotListed()
 	if !extIDRE.MatchString(ext) || s.cfg.Users == nil || s.cfg.Notifier == nil {
 		return User{}, notListed, nil
 	}
@@ -127,6 +122,36 @@ func (s *Service) chatGate(ctx context.Context, st Settings, channel, ext string
 	return u, nil, nil
 }
 
+func errChatNotListed() *apierr.Error {
+	return fail(http.StatusForbidden, "approver_not_listed", "You are not an approver on this channel, or your Vedette account can no longer approve requests.")
+}
+
+// runDetached runs the items of a completed approval in the background (M3, D-135 (9)): a decision from chat is recorded and answered at
+// once, the way a button must be answered, and the device steps (slow, up to 90 s an item) run on a goroutine the service tracks. Close
+// ends them; an item cut short that way is marked unknown by the same rules as one that timed out. The caller's cancellation does not
+// reach them (an approval that was committed runs to the end).
+func (s *Service) runDetached(ctx context.Context, id string, items []string) {
+	dctx, stop := context.WithCancel(context.WithoutCancel(ctx))
+	s.sendWG.Add(1)
+	go func() {
+		defer s.sendWG.Done()
+		defer stop()
+		go func() {
+			select {
+			case <-s.bg.Done():
+				stop()
+			case <-dctx.Done():
+			}
+		}()
+		for _, itemID := range items {
+			if err := s.runItem(dctx, id, itemID); err != nil {
+				s.cfg.Log.ErrorContext(dctx, "response: run an approved item", "request", id, "item", itemID, "error", err)
+				return
+			}
+		}
+	}()
+}
+
 // codeRow is a stored reply code record that matched what was typed.
 type codeRow struct {
 	hash, request, user string
@@ -147,7 +172,19 @@ func (s *Service) findCode(ctx context.Context, ext string, u User, code string,
 	if approve {
 		decision = "approve"
 	}
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT token_hash, action_id, user_id, expires_at, used_at FROM resp_tokens WHERE kind = 'code' AND channel = 'zalo-personal' AND address = ? AND decision = ? ORDER BY expires_at DESC LIMIT ?`, ext, decision, replyKeep)
+	// Unused codes first, so a person with many old, used codes cannot push the live one out of the window; used ones only to say "used".
+	for _, state := range []string{"IS NULL", "IS NOT NULL"} {
+		c, hit, err := s.matchCode(ctx, ext, u, decision, norm, state)
+		if err != nil || hit {
+			return c, hit, err
+		}
+	}
+	return codeRow{}, false, nil
+}
+
+// matchCode compares the typed code with the records of the sender that are unused (state "IS NULL") or used ("IS NOT NULL").
+func (s *Service) matchCode(ctx context.Context, ext string, u User, decision, norm, state string) (codeRow, bool, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT token_hash, action_id, user_id, expires_at, used_at FROM resp_tokens WHERE kind = 'code' AND channel = 'zalo-personal' AND address = ? AND decision = ? AND used_at `+state+` ORDER BY expires_at DESC LIMIT ?`, ext, decision, replyKeep)
 	if err != nil {
 		return codeRow{}, false, fmt.Errorf("response: read reply codes: %w", err)
 	}
@@ -183,26 +220,69 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	if extIDRE.MatchString(d.RequestID) {
 		target = d.RequestID
 	}
-	anon := chatActorText(d.Channel, d.ExternalID)
-	key := "chat:" + truncRunes(cleanLine(d.Channel), 32) + "|" + truncRunes(cleanLine(d.ExternalID), 64)
-	if !s.allowLink(key, chatPerMin, true) {
-		e := errRateLimited()
-		if s.allowLink("note:"+key, 1, true) { // one line per window: a flood must not fill the log
-			return ChatOutcome{}, s.refuse(ctx, e, target, anon)
+	// What a sender can make the box remember or write is bounded: an id or a channel that cannot be real shares one fixed name (D-135 (7), (8)).
+	chName, idName := "(invalid channel)", "(invalid id)"
+	if _, ok := chatVia(d.Channel); ok {
+		chName = d.Channel
+	}
+	if extIDRE.MatchString(d.ExternalID) {
+		idName = d.ExternalID
+	}
+	key := "chat:" + chName + "|" + idName
+	anon := idName + " via " + chName
+	// stranger refuses a sender that is not a known approver: one log line per window per sender, with the count of those held back.
+	stranger := func(e *apierr.Error) error {
+		if log, hidden := s.chatNoteDue("ref|" + key); log {
+			le := e
+			if hidden > 0 {
+				le = fail(e.Status, e.Code, fmt.Sprintf("%s (%d more refusals of this sender since the last line)", e.Message, hidden))
+			}
+			_ = s.refuse(ctx, le, target, anon)
 		}
-		return ChatOutcome{}, e
+		return e
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return ChatOutcome{}, err
 	}
-	u, gate, err := s.chatGate(ctx, st, d.Channel, d.ExternalID)
-	if err != nil {
-		return ChatOutcome{}, err
+	allowed, full := s.chatAllow(key, false)
+	var u User
+	var gate *apierr.Error
+	gated := false
+	if full { // the table is full and this sender is new: only a listed approver is let in
+		if u, gate, err = s.chatGate(ctx, st, d.Channel, d.ExternalID); err != nil {
+			return ChatOutcome{}, err
+		}
+		if gate != nil {
+			e := fail(http.StatusTooManyRequests, "rate_limited", "Too many senders at once. Try again in a minute.").With("retry_after", 60)
+			if s.chatFullDue() {
+				_ = s.refuse(ctx, fail(http.StatusTooManyRequests, "rate_limited", "chat rate table full: new senders that are not approvers are refused until it drains"), target, "system")
+			}
+			return ChatOutcome{}, e
+		}
+		allowed, _ = s.chatAllow(key, true)
+		gated = true
+	}
+	if !allowed {
+		e := errRateLimited()
+		if log, hidden := s.chatNoteDue("rl|" + key); log {
+			le := e
+			if hidden > 0 {
+				le = fail(e.Status, e.Code, fmt.Sprintf("%s (%d more since the last line)", e.Message, hidden))
+			}
+			_ = s.refuse(ctx, le, target, anon)
+		}
+		return ChatOutcome{}, e
+	}
+	if !gated {
+		if u, gate, err = s.chatGate(ctx, st, d.Channel, d.ExternalID); err != nil {
+			return ChatOutcome{}, err
+		}
 	}
 	if gate != nil {
-		return ChatOutcome{}, s.refuse(ctx, gate, target, anon)
+		return ChatOutcome{}, stranger(gate)
 	}
+	s.chatMarkListed(key)
 	via, _ := chatVia(d.Channel)
 	zalo := via == ViaZaloPersonal
 	name := u.Name
@@ -253,11 +333,15 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 		if err != nil {
 			return nil, err
 		}
-		if _, gate, err := s.chatGate(ctx, st, d.Channel, d.ExternalID); err != nil || gate != nil {
+		u2, gate, err := s.chatGate(ctx, st, d.Channel, d.ExternalID)
+		if err != nil || gate != nil {
 			return gate, err
 		}
+		if u2.ID != u.ID { // the id was given to someone else while this call waited: it is not the person who was checked
+			return errChatNotListed(), nil
+		}
 		return nil, nil
-	}}
+	}, detach: true}
 	if zalo { // used or ended: said after the policy; the transaction reads both again
 		now := s.now()
 		switch {
@@ -291,7 +375,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	case out.Status == StatusPending:
 		o.Status, o.Message = "pending", fmt.Sprintf("Approved. %d of %d approvals are in; a second, different person must approve it too.", o.Approvals, o.Required)
 	default:
-		o.Status, o.Message = "approved", "Approved. The action runs now; see Vedette for the result."
+		o.Status, o.Message = "approved", "Approved. The action is being run; see Vedette for the result."
 	}
 	return o, nil
 }

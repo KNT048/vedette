@@ -1,14 +1,18 @@
 package response_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/response"
 )
 
@@ -60,12 +64,29 @@ func newChatEnv(t *testing.T) *chatEnv {
 	return &chatEnv{l}
 }
 
+// button and typed wait for the items of a completing approval: they run in the background after the call returned (D-135 (9)).
 func (c *chatEnv) button(channel, ext, reqID string, approve bool) (response.ChatOutcome, error) {
-	return c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: channel, ExternalID: ext, RequestID: reqID, Approve: approve})
+	out, err := c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: channel, ExternalID: ext, RequestID: reqID, Approve: approve})
+	c.svc.WaitSendsForTest()
+	return out, err
 }
 
 func (c *chatEnv) typed(ext, code string, approve bool) (response.ChatOutcome, error) {
-	return c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: ext, Approve: approve, Code: code})
+	out, err := c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: ext, Approve: approve, Code: code})
+	c.svc.WaitSendsForTest()
+	return out, err
+}
+
+// mintCodeRaw stores a code record without the checks of RecordReplyCode (which refuses high-risk and in-app-only requests): what an old or
+// forged record would look like.
+func (c *chatEnv) mintCodeRaw(reqID, code string, approve bool) {
+	c.t.Helper()
+	decision := "reject"
+	if approve {
+		decision = "approve"
+	}
+	c.exec1(`INSERT INTO resp_tokens (token_hash, kind, decision, action_id, user_id, address, channel, key_id, expires_at, used_at) VALUES (?, 'code', ?, ?, ?, ?, 'zalo-personal', NULL, ?, NULL)`,
+		codeHashOf(reqID, "u-op", decision, code), decision, reqID, "u-op", zlOp, c.clock.Now().Add(10*time.Minute).UTC().Format("2006-01-02T15:04:05.000Z"))
 }
 
 // mintCode does what notify does for one approver and one decision: record the hash before the message goes out.
@@ -129,8 +150,8 @@ func TestChat_AnUnlistedExternalIDIsRefusedAndLogged(t *testing.T) {
 	if got := c.only(); got.Status != response.StatusPending || len(got.Approvals) != 0 || c.exec.count() != 0 {
 		t.Fatalf("a refused sender decided: %+v", got)
 	}
-	if c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused'`) != logs+8 {
-		t.Fatal("not every refusal is in the log")
+	if c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused'`) != logs+5 { // one line per sender per window: five different senders (the ids that cannot be real share one)
+		t.Fatal("the refusals are not in the log as one line per sender")
 	}
 	if c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND actor = 'U0ZZZ999 via slack' AND detail LIKE 'approver_not_listed:%'`) != 1 ||
 		c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.refused' AND "user" = 'U0ZZZ999 via slack'`) != 1 {
@@ -278,7 +299,8 @@ func (c *chatEnv) highRiskAIFor(ch string) response.ActionRequest {
 	c.t.Helper()
 	a := c.highRisk()
 	if ch == "zalo-personal" {
-		c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
+		c.mintCodeRaw(a.ID, "A-7KQ2MX", true)
+		c.mintCodeRaw(a.ID, "R-7KQ2MX", false)
 	}
 	c.asAI(a.ID, inAppAI)
 	return a
@@ -314,7 +336,8 @@ func TestChat_ZaloTakesLowAndMediumButNotHigh(t *testing.T) {
 	t.Run("high is refused", func(t *testing.T) {
 		c := newChatEnv(t)
 		a := c.highRisk()
-		c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
+		c.mintCodeRaw(a.ID, "A-7KQ2MX", true)
+		c.mintCodeRaw(a.ID, "R-7KQ2MX", false)
 		for _, d := range []struct {
 			code    string
 			approve bool
@@ -391,9 +414,12 @@ func TestChat_ACodeWorksOnceWhenSentTwiceAtOnce(t *testing.T) {
 	errs := make([]error, n)
 	var wg sync.WaitGroup
 	for i := range n {
-		wg.Go(func() { _, errs[i] = c.typed(zlOp, "A-7KQ2MX", true) })
+		wg.Go(func() {
+			_, errs[i] = c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Approve: true, Code: "A-7KQ2MX"})
+		})
 	}
 	wg.Wait()
+	c.svc.WaitSendsForTest()
 	won := 0
 	for _, err := range errs {
 		if err == nil {
@@ -494,11 +520,15 @@ func TestChat_AnEndedOrUsedCodeIsRefused(t *testing.T) {
 	t.Run("the request ended first", func(t *testing.T) {
 		c := newChatEnv(t)
 		a := c.pending()
-		c.mintCode(a.ID, "u-op", zlOp, "A-7KQ2MX", true, 10*time.Minute)
-		c.clock.Advance(20 * time.Minute) // the request lives 15 minutes
+		c.mintCode(a.ID, "u-op", zlOp, "A-7KQ2MX", true, 14*time.Minute) // as long as a code may live: up to the end of the request
+		c.clock.Advance(16 * time.Minute)                                // the request lives 15 minutes
+		c.must(c.svc.Sweep(c.ctx()))
+		if got := c.only(); got.Status != response.StatusExpired {
+			t.Fatalf("the request is %s, want expired before the code is used", got.Status)
+		}
 		_, err := c.typed(zlOp, "A-7KQ2MX", true)
 		c.mustCode(err, 409, "expired")
-		if len(c.only().Approvals) != 0 {
+		if len(c.only().Approvals) != 0 || c.only().Status != response.StatusExpired {
 			t.Fatal("an ended request was approved")
 		}
 	})
@@ -684,6 +714,18 @@ func TestChat_TheLogNamesThePersonTheChannelAndTheId(t *testing.T) {
 func TestChat_ADecisionIsPublishedAfterCommit(t *testing.T) {
 	c := newChatEnv(t)
 	a := c.twoPerson()
+	var mu sync.Mutex
+	var got []response.DecisionEvent
+	c.bus.Subscribe(response.EventDecisionMade, func(_ context.Context, ev events.Event) error {
+		raw, _ := json.Marshal(ev.Data)
+		var d response.DecisionEvent
+		if err := json.Unmarshal(raw, &d); err == nil {
+			mu.Lock()
+			got = append(got, d)
+			mu.Unlock()
+		}
+		return nil
+	})
 	before := c.seen.count(response.EventDecisionMade)
 	_, _ = c.button("slack", "U0ZZZ999", a.ID, true) // a refusal publishes nothing
 	if _, err := c.button("slack", slackOp, a.ID, true); err != nil {
@@ -692,9 +734,17 @@ func TestChat_ADecisionIsPublishedAfterCommit(t *testing.T) {
 	if _, err := c.button("telegram", tgOp2, a.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "two response.decision.made events", func() bool { return c.seen.count(response.EventDecisionMade) >= before+2 })
-	if n := c.seen.count(response.EventDecisionMade); n != before+2 {
+	eventually(t, "two response.decision.made events", func() bool { mu.Lock(); defer mu.Unlock(); return len(got) >= 2 })
+	mu.Lock()
+	defer mu.Unlock()
+	if n := c.seen.count(response.EventDecisionMade); n != before+2 || len(got) != 2 {
 		t.Fatalf("%d decision events, want 2 (the refusal must publish none)", n-before)
+	}
+	slices.SortFunc(got, func(x, y response.DecisionEvent) int {
+		return strings.Compare(fmt.Sprint(x.Final), fmt.Sprint(y.Final))
+	})
+	if got[0].Final || !got[1].Final || got[0].Decision != "approved" || got[1].Decision != "approved" || got[0].RequestID != a.ID || got[0].By != "it@acme.example" || got[1].By != "it2@acme.example" {
+		t.Fatalf("events: %+v (the first of two is not final, the second is)", got)
 	}
 }
 

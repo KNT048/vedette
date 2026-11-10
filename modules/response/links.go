@@ -123,8 +123,12 @@ func (s *Service) recordCheck(ctx context.Context, tx dbq, requestID string, exp
 		return errors.New("response: no such request for the token")
 	case r.Status != StatusPending:
 		return errors.New("response: the request is no longer pending")
-	case link && ((r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly)):
-		return errors.New("response: a high-risk or in-app-only request has no approval link (D-57 (20))")
+	case (r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly):
+		// a link is a bearer credential (D-57 (20)); a Zalo reply code is the weakest channel (D-96 (3)): neither is made for these
+		if link {
+			return errors.New("response: a high-risk or in-app-only request has no approval link (D-57 (20))")
+		}
+		return errors.New("response: a high-risk or in-app-only request has no Zalo reply code (D-96 (3))")
 	case !expires.After(now) || expires.After(now.Add(31*time.Minute)):
 		return errors.New("response: a token lives at most 30 minutes")
 	case expires.After(parseTS(r.ExpiresAt).Add(time.Second)):
@@ -418,6 +422,7 @@ type linkOpt struct {
 	kind      string // "" or "link" for an approval link, "code" for a reply code
 	requestID string // reply codes: the request and person whose other code is burned with this one
 	userID    string
+	detach    bool // chat: the items of a completing approval run in the background, the call returns at once (M3, D-135 (9))
 	recheck   func(ctx context.Context) (*apierr.Error, error)
 }
 

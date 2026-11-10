@@ -308,6 +308,10 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	if refusal != nil {
 		return ActionRequest{}, s.refuse(ctx, refusal, id, who.refuseActor())
 	}
+	if final && lk != nil && lk.detach {
+		s.runDetached(ctx, id, chosen)
+		return s.get(context.WithoutCancel(ctx), id)
+	}
 	if final {
 		// The approval is committed: the items run to the end whether or not the approver is still connected (a closed
 		// browser or a proxy timeout must not leave a bundle half run).
@@ -594,7 +598,9 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 		return nil
 	}
 	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
+	stopAF := context.AfterFunc(s.bg, cancel) //nolint:contextcheck // s.bg is the lifetime of the service, not of the caller; the box shutting down (Close) ends the step; the record of it is still written below
 	out := s.carryOut(xctx, r, it, cat, cs)
+	stopAF()
 	cancel()
 	out.fromRun = true
 	return s.finishItem(ctx, reqID, itemID, out)

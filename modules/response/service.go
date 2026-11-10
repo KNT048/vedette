@@ -268,6 +268,12 @@ type Service struct {
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit
+	chatTimes       map[string]*chatEntry  // chat decisions per channel identity, a table of its own (D-135 (7))
+	chatNotes       map[string]*chatNote   // refusals of chat senders: one log line per window per identity (D-135 (8))
+	chatMax         int                    // identities the chat table remembers (maxFetchKeys; only export_test.go changes it)
+	chatFullAt      time.Time              // when "chat rate table full" was last logged
+	chatNoteWin     time.Time              // start of the window of the global budget of refusal lines
+	chatNoteN       int
 
 	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
 	bg           context.Context
@@ -306,7 +312,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
+	s := &Service{cfg: c, fetchTimes: map[string][]time.Time{}, linkTimes: map[string][]time.Time{}, chatTimes: map[string]*chatEntry{}, chatNotes: map[string]*chatNote{}, chatMax: maxFetchKeys, maxBacklog: maxEventBacklog, stepLimit: stepTimeout, sendSem: make(chan struct{}, maxSends), budget: sendBudget}
 	s.bg, s.stopBG = context.WithCancel(context.Background())
 	if err := s.loadData(); err != nil {
 		return nil, err

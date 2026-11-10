@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/modules/notify"
@@ -56,6 +57,15 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	r, err = port.Decide(ctx, notify.Decision{Channel: channel.Telegram, ExternalID: "100200", RequestID: a.ID, Approve: true})
 	if err != nil || r.Status != "approved" || r.Message == "" {
 		t.Fatalf("decision: %+v %v", r, err)
+	}
+	for range 1000 { // the items run in the background after the decision was answered (D-135 (9))
+		if s.count(`SELECT count(*) FROM resp_block_entries WHERE value = '198.51.100.7'`) == 1 {
+			break
+		}
+		select {
+		case <-t.Context().Done():
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 	if s.count(`SELECT count(*) FROM resp_block_entries WHERE value = '198.51.100.7'`) != 1 {
 		t.Fatal("the approved action did not run")

@@ -34,11 +34,12 @@ type Config struct {
 	Users   Users
 	Log     *slog.Logger
 
-	Modules  ModuleGate       // nil = notify counts as on (tests); main passes modreg.Registry
-	Bus      Bus              // nil = events are dropped
-	Findings FindingDirectory // nil = finding events are logged and skipped
-	Devices  DeviceDirectory  // nil = device events show the asset id
-	Tokens   TokenRecorder    // nil = email approvers get a message that says to open Vedette instead of a link
+	Modules   ModuleGate       // nil = notify counts as on (tests); main passes modreg.Registry
+	Bus       Bus              // nil = events are dropped
+	Findings  FindingDirectory // nil = finding events are logged and skipped
+	Devices   DeviceDirectory  // nil = device events show the asset id
+	Tokens    TokenRecorder    // nil = email approvers get a message that says to open Vedette instead of a link
+	Decisions Decisions        // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
 
 	Clock func() time.Time // nil = time.Now
 	// Zone returns the IANA name of the box time zone (core_org.timezone), asked at every use so a change applies at

@@ -338,7 +338,7 @@ func TestContract_PRE4_ApprovalLinks(t *testing.T) {
 		in.Approvals = true
 		in.Approvers = []notify.Approver{{UserID: "u-op", Address: "it@acme.example"}, {UserID: "u-admin", Address: "admin@acme.example"}}
 	})
-	req := notify.ApprovalRequest{ID: "req-1", Title: "Block 185.220.101.47 on the firewall", What: "w", Action: "a", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute)}
+	req := notify.ApprovalRequest{ID: "req-1", Title: "Block 185.220.101.47 on the firewall", What: "w", Action: "a", Severity: notify.High, Risk: notify.RiskLow, Expires: e.clock.Now().Add(15 * time.Minute), Channels: allApprovalChannels}
 	sends, err := e.svc.SendApprovalRequest(e.ctx(), req)
 	if err != nil || len(sends) != 2 {
 		t.Fatalf("sends = %+v, %v", sends, err)

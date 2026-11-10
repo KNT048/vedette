@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release e2e fixtures clean
+.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -34,7 +34,8 @@ help:
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
 	@echo "make dev-sensors   core + sensor (pcap replay) + scan (fake nmap, fake nuclei) with docker compose, profile dev (D-146)"
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
-	@echo "make sensor-image scan-base-image scan-image core-image   build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
+	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
+	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
 
@@ -162,7 +163,7 @@ oui:
 	go run ./scripts/oui
 
 clean:
-	rm -rf bin .dev/bin coverage.out web/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
+	rm -rf bin .dev/bin coverage.out web/dist internal/webui/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
@@ -183,8 +184,21 @@ reaper-uninstall:
 sensor-image:
 	$(CONTAINER) build -f deploy/containers/sensor/Containerfile $(PIN_ARGS) -t localhost/vedette-sensor:$(IMAGE_TAG) .
 
-core-image:
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) .
+# The core image embeds the interface (D-149): build it on this machine (Node is pinned by devEngines), copy it where `-tags webui` embeds it from.
+webui-dist: web-release
+	rm -rf internal/webui/dist
+	mkdir -p internal/webui/dist
+	cp -R web/dist/. internal/webui/dist/
+
+# Real-browser CSP check of the embedded interface (D-149); heavy (Chromium), not part of check/verify.
+webui-csp-check: webui-dist
+	bash scripts/dev/webui-csp-check.sh || { $(MAKE) clean; exit 1; }
+	$(MAKE) clean
+
+# The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
+core-image: webui-dist
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
+	rm -rf web/dist internal/webui/dist
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json

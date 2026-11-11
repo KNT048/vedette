@@ -68,19 +68,22 @@ func (o *Ops) saveIndexLocked(ix backupIndex) error {
 	return writeJSONAtomic(filepath.Join(o.backupDir(), "index.json"), ix)
 }
 
-func (o *Ops) lookupBackup(id string) (backupRecord, bool) {
+// lookupBackup finds id in the index. found is false with a nil error when the index was read (or does not
+// exist yet) and has no such entry; an index that cannot be read or parsed is an error, never "not found":
+// a caller that gives up on a backup (revertDatabase) must not do so for an I/O error that may pass.
+func (o *Ops) lookupBackup(id string) (rec backupRecord, found bool, err error) {
 	o.bkMu.Lock()
 	defer o.bkMu.Unlock()
 	ix, err := o.loadIndexLocked()
 	if err != nil {
-		return backupRecord{}, false
+		return backupRecord{}, false, err
 	}
 	for _, r := range ix.Backups {
 		if r.ID == id {
-			return r, true
+			return r, true, nil
 		}
 	}
-	return backupRecord{}, false
+	return backupRecord{}, false, nil
 }
 
 // cmdBackupCreate is backup.create (spec 6.11).
@@ -252,7 +255,20 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	}
 	syncDir(o.backupDir())
 	ix.Backups = append(ix.Backups, rec)
-	dropped := retain(&ix)
+	keep, known := o.referencedBackups()
+	if !known {
+		// A record of what needs a backup cannot be read: fail closed (D-157). Only a pre_update backup is ever
+		// referenced (a version's backup_id, the rollback journal's), so every pre_update is kept this time and
+		// the other kinds age out as usual: the store does not grow without bound while the file stays damaged.
+		o.log.Warn("could not tell which backups are still needed; keeping every pre_update backup")
+		o.noteLimited("retention_unknown", api.CmdBackupCreate, "backup_retention_unknown", map[string]any{"backup_id": rec.ID, "kept": "every pre_update backup"})
+		for _, r := range ix.Backups {
+			if r.Kind == "pre_update" {
+				keep[r.ID] = true
+			}
+		}
+	}
+	dropped := retain(&ix, keep, rec.ID)
 	if err := o.saveIndexLocked(ix); err != nil {
 		_ = os.Remove(dst)
 		return err
@@ -265,10 +281,49 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	return nil
 }
 
+// referencedBackups is the set of backup ids that something still needs: the pre_update backup a service's
+// current or previous version was entered with (container.rollback restores it for rollback.safe=false), and
+// the backup of a transition journal (the revert after a failed or interrupted start). Retention never drops
+// these (D-157, WP-31 M4). known is false when a versions file or a journal exists but cannot be read or
+// parsed: then the set is incomplete and the caller must not drop anything.
+func (o *Ops) referencedBackups() (ref map[string]bool, known bool) {
+	ref, known = map[string]bool{}, true
+	for _, svc := range api.Services {
+		var s versionState
+		if exists, err := readStrict(o.stateFile("containers", versionsName(svc)), &s); exists && (err != nil || !s.valid(svc)) {
+			known = false
+		}
+		for _, r := range []*versionRecord{s.Current, s.Previous} {
+			if r != nil && r.BackupID != "" {
+				ref[r.BackupID] = true
+			}
+		}
+		switch t, st, _ := o.loadJournal(svc); st {
+		case jOK:
+			if t.BackupID != "" {
+				ref[t.BackupID] = true
+			}
+		case jInvalid, jUnreadable:
+			known = false
+		}
+	}
+	return ref, known
+}
+
 // retain applies the retention rule to the index and returns the ids to delete: the newest 3
-// pre_* backups, at most 10 manual ones (oldest dropped first).
-func retain(ix *backupIndex) []string {
+// pre_* backups, at most 10 manual ones (oldest dropped first). A backup in keep is never dropped and
+// does not count toward the quota; keep is bounded (three ids per service), so the total stays bounded.
+// The backup just made (newest) is always kept and does count, even when a clock stepped back makes it
+// look the oldest: it is sorted first, so it is the oldest other backup that ages out (D-157). Refusing
+// it instead would stop backup.restore, the way out of core_data_unrecoverable (D-142).
+func retain(ix *backupIndex, keep map[string]bool, newest string) []string {
 	byAge := func(a, b backupRecord) int {
+		if a.ID != b.ID && (a.ID == newest || b.ID == newest) {
+			if a.ID == newest {
+				return -1
+			}
+			return 1
+		}
 		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
 			return c
 		}
@@ -280,6 +335,7 @@ func retain(ix *backupIndex) []string {
 	pre, manual := 0, 0
 	for _, r := range ix.Backups {
 		switch {
+		case keep[r.ID]:
 		case isPreKind(r.Kind):
 			if pre++; pre > keepPre {
 				dropped = append(dropped, r.ID)
@@ -320,7 +376,10 @@ func downloadable(r backupRecord) bool { return !isPreKind(r.Kind) && !r.Include
 
 // backupContent is GET /v1/backups/{id}/content: only host-created, indexed, secret-free archives.
 func (o *Ops) backupContent(id string) (server.File, error) {
-	r, ok := o.lookupBackup(id)
+	r, ok, err := o.lookupBackup(id)
+	if err != nil {
+		return server.File{}, fmt.Errorf("read backup index: %w", err)
+	}
 	if !ok {
 		return server.File{}, server.NewReadError(404, api.CodeBackupUnknown, "There is no such backup.")
 	}

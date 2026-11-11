@@ -71,7 +71,7 @@ func TestEmptyAndCommentOnlyFilesHoldNoException(t *testing.T) {
 
 func TestUnknownKeysAreErrors(t *testing.T) {
 	for _, doc := range []string{
-		"vulnerabilites:\n  - id: A\n", // a typo hides nothing and would look fine
+		"vulnerability:\n  - id: A\n", // a misspelt key (singular) hides nothing and would look fine
 		"vulnerabilities:\n  - id: A\n    expires: 2026-12-01\n",
 	} {
 		if _, _, err := check([]byte(doc), now); err == nil {

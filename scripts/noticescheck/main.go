@@ -301,7 +301,7 @@ func checkWeb(rows []row, deps []string, lic map[string][]string) []string {
 	}
 	for _, d := range deps {
 		scope, _, scoped := strings.Cut(d, "/")
-		if !named[d] && !(scoped && named[scope+"/*"]) {
+		if !named[d] && (!scoped || !named[scope+"/*"]) {
 			probs = append(probs, fmt.Sprintf("web production dependency %s is not in the web table of the notices", d))
 		}
 	}

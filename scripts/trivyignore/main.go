@@ -48,7 +48,7 @@ func main() {
 			os.Exit(2)
 		}
 	}
-	b, err := os.ReadFile(*file) //nolint:gosec // the path is the repo's own ignore file, given on the command line
+	b, err := os.ReadFile(*file)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "trivyignore:", err)
 		os.Exit(1)

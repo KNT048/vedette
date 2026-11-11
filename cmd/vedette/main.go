@@ -25,6 +25,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/pdftext"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/server"
@@ -49,6 +50,9 @@ const (
 )
 
 func main() {
+	if pdftextCommand(os.Args[1:]) { // the PDF reader child (D-264): its own limits, no signals, no database
+		os.Exit(pdftext.ChildMain(os.Stdin, os.Stdout, os.Stderr))
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 	stop()

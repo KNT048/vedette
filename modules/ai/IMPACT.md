@@ -91,3 +91,12 @@
 - **Đổi hành vi của `RunJob`** (người gọi `RunJob`: `explain`, `brief`, `response-plan` của `cmd/vedette`, báo cáo): (a) mỗi lần gọi của việc có `CarriesInternalData()` thêm một khối dữ liệu `kind=memory` **đứng đầu** `JobSpec.Data` khi có memory đang bật, nên prompt dài thêm tối đa 100x300 ký tự và hook `before_ai` quét thêm khối đó (từng dòng qua hook; dòng bị chặn bị bỏ khỏi lần gọi và ghi id vào dòng `ai_activity`, không làm dừng lần gọi); (b) khoá cache của `explain` (`explain-v2`) gồm băm memory sẽ gửi và luật của việc; (c) `Ready`/`Available` trả lỗi khi skill của việc đang tắt. `PromptInput.Memory` và `MemoryEntry` đã **bị xoá** (memory không còn là chỉ dẫn); ai dùng `PromptBuilder` trực tiếp truyền memory bằng `DataBlock{Kind: DataMemory}` sau khi đã qua hook.
 - Đổi giới hạn memory (3..300, 100, 50 đề xuất) → migration (CHECK, trigger), `memory.go`, GUI mock, PRIVACY.md dòng 3. Đổi danh sách skill → `skills.go`, `SKILL_DEFS` (GUI) cùng lúc; thêm skill gắn việc mới → map việc ở `skillDefs`.
 - Không phát sự kiện. **Luồng dữ liệu 3 (PRIVACY.md) đã đổi**, không có luồng mới: memory đang bật được gửi tới nhà cung cấp ở mỗi lần gọi mang dữ liệu nội bộ (khối có rào, sau hook). PRIVACY.md luồng 3 và `privacy.flow.3.what` đã sửa cùng PR.
+
+## CVE news (WP-25 slice 6: `POST /ai/cve/{id}/news`, `news` of `/cached`) — chữ ký thật
+- `NewsCVE(ctx, actor, id) (NewsResult, error)`, `CachedNews(ctx, id) (*NewsResult, error)`; handler `AiPostAiCveIDNews`, và `AiGetAiCveIDCached` nay trả cả `news`. Dữ liệu CVE vẫn qua `Config.Facts.CVE` (không đọc bảng `feeds`); không import `modules/feeds`.
+- Bộ fetch của hộp (`news_fetch.go`): danh sách host (`newsFeeds`, `advisoryHosts`, NVD, GitHub API), dialer chỉ global unicast cổng 443 + Control hook, không proxy, chuyển hướng cùng host. **Thêm/bớt host = đổi luồng dữ liệu 8**: PRIVACY.md, `privacy.flow.8.*` (`web/src/locales/en/core.json`), THIRD_PARTY_NOTICES.md và một D-xx cùng commit (rules/legal.md).
+- Bộ đọc (`news_parse.go`): NVD JSON, GitHub search JSON, RSS/Atom (`encoding/xml`), HTML → text (`golang.org/x/net/html`); đổi giới hạn → chạy lại các fuzz `Fuzz*` của gói.
+- `RunJob` không đổi. Việc `cve-news` không mang memory (`CarriesInternalData`), không công cụ; đổi `CarriesInternalData` của nó → INV-3 và PRIVACY luồng 3.
+- Không bảng mới, không migration (dùng `ai_result` kind `news`), không sự kiện, không job nền. Tắt module: không route, không fetch.
+- **Luồng dữ liệu 8 (PRIVACY.md) viết rõ host**, luồng 3 thêm câu về văn bản công khai đã fetch gửi tới nhà cung cấp.
+

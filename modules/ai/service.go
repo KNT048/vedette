@@ -151,6 +151,7 @@ type Service struct {
 	mu        sync.Mutex                      // serialises changes
 	testSlot  chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
 	snap      atomic.Pointer[snapshot]
+	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -181,7 +182,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)

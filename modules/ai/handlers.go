@@ -187,10 +187,27 @@ func (h *AIHandlers) AiGetAiCveIDCached(ctx context.Context, params oas.AiGetAiC
 	if err != nil {
 		return nil, err
 	}
+	nw, err := h.svc.CachedNews(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
 	return convert[oas.AiGetAiCveIDCachedOK](struct {
 		Explain *ExplainResult `json:"explain"`
-		News    *struct{}      `json:"news"`
-	}{ex, nil})
+		News    *NewsResult    `json:"news"`
+	}{ex, nw})
+}
+
+// AiPostAiCveIDNews implements POST /ai/cve/{id}/news (operator): the box fetches the public sources, the AI summarises them.
+func (h *AIHandlers) AiPostAiCveIDNews(ctx context.Context, params oas.AiPostAiCveIDNewsParams) (*oas.AiPostAiCveIDNewsOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.NewsCVE(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiCveIDNewsOK](v)
 }
 
 // AiGetAiUsage implements GET /ai/usage (viewer).

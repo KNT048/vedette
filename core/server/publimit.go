@@ -12,11 +12,13 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// The per-address limit of requests that carry no session (API_CONVENTIONS §8, D-320): public operations (sign-in, setup, approval
-// links, the block-list URL) and requests refused 401. Counted per client address, IPv6 per /64 (one machine's block); a session
-// is never counted. Not counted: the osquery agents' enrollment, intake and installer routes (a fleet behind one NAT address; they
-// carry their own enrollment secret and body limits), and loopback (the box itself: the health check, `vedette` commands).
-// ponytail: in memory, a sliding window per key, lost on restart; at most pubKeys keys (a flood of addresses drops arbitrary ones).
+// The per-address limit of public requests that carry no valid session (API_CONVENTIONS §8, D-320): sign-in, setup, approval links,
+// the block-list URL. Counted per client address, IPv6 per /64 (one machine's block). Not counted: a request with a valid session
+// (the signed-in app polls GET /setup), a 401 of a protected route (it costs one indexed read and writes nothing, and the app needs
+// the 401 to go to the sign-in page), the osquery agents' enrollment, intake and installer routes (a fleet behind one NAT address;
+// they carry their own enrollment secret and body limits), and loopback (the box itself: the health check, `vedette` commands).
+// ponytail: in memory, a sliding window per key, lost on restart; at most pubKeys keys (a flood of addresses, for example one /48's
+// /64s, drops arbitrary keys and so resets other addresses' counts: the sign-in limits of core/auth still hold).
 const (
 	pubWindow = time.Minute
 	pubKeys   = 10000

@@ -10,9 +10,9 @@ import (
 	"github.com/knt048/vedette/core/server/servertest"
 )
 
-// D-320 (API_CONVENTIONS §8): requests without a session are limited per client address (IPv6 per /64): public operations and
-// 401s count, a signed-in request and the osquery agents' routes do not, nor does loopback. Past the limit: 429 rate_limited with
-// Retry-After.
+// D-320 (API_CONVENTIONS §8): public requests without a session are limited per client address (IPv6 per /64). A signed-in request
+// (also to a public route), a 401 of a protected route, the osquery agents' routes and loopback are not counted. Past the limit: 429
+// rate_limited with Retry-After.
 func TestPublicRequestsAreLimitedPerAddress(t *testing.T) {
 	t.Parallel()
 	log := slog.New(slog.DiscardHandler)
@@ -34,17 +34,24 @@ func TestPublicRequestsAreLimitedPerAddress(t *testing.T) {
 		return w
 	}
 	const a = "198.51.100.7:4000"
-	for _, p := range []string{"/setup", "/modules", "/setup"} { // public, 401, public
-		if w := get(p, a, ""); w.Code == http.StatusTooManyRequests {
-			t.Fatalf("%s limited early", p)
+	for range 10 { // 401s are not counted, and stay 401 (the app goes to the sign-in page on them)
+		if w := get("/modules", a, ""); w.Code != http.StatusUnauthorized {
+			t.Fatalf("a protected route without a session: %d, want 401", w.Code)
 		}
 	}
-	w := get("/modules", a, "")
-	if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
-		t.Fatalf("4th request without a session: %d %q, want 429 with Retry-After", w.Code, w.Header().Get("Retry-After"))
+	for range 3 {
+		if w := get("/setup", a, ""); w.Code == http.StatusTooManyRequests {
+			t.Fatal("limited early")
+		}
 	}
-	if w := get("/modules", a, "viewer"); w.Code == http.StatusTooManyRequests || w.Code == http.StatusUnauthorized { // a session is never counted
-		t.Fatalf("signed in: %d", w.Code)
+	w := get("/setup", a, "")
+	if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Fatalf("4th public request without a session: %d %q, want 429 with Retry-After", w.Code, w.Header().Get("Retry-After"))
+	}
+	for range 5 { // a signed-in page polls GET /setup: never counted, also from an address over the limit
+		if w := get("/setup", a, "viewer"); w.Code == http.StatusTooManyRequests {
+			t.Fatal("a signed-in request to a public route was limited")
+		}
 	}
 	if w := get("/intake/ca.pem", a, ""); w.Code == http.StatusTooManyRequests { // the agents' routes are not counted
 		t.Fatal("the intake CA was limited")

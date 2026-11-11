@@ -40,8 +40,9 @@ type Config struct {
 	// BodyLimits raises (or lowers) the cap for single operations, by operationId, e.g. a 5 MiB
 	// sample upload (issue #39). Every other operation keeps MaxBody.
 	BodyLimits map[string]int64
-	// PublicPerMinute is the limit of requests without a session per client address and minute (publimit.go, D-320): 429
-	// rate_limited past it. 0 = no limit (tests that are not about it); cmd/vedette sets PublicPerMinuteDefault.
+	// PublicPerMinute is the limit of public requests without a session per client address and minute (publimit.go, D-320): 429
+	// rate_limited past it. 0 = no limit (tests that are not about it, and a container-only install, where the port proxy may show
+	// every client as one address); cmd/vedette sets PublicPerMinuteDefault on an appliance.
 	PublicPerMinute int
 }
 
@@ -274,10 +275,12 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 	}
 	mod := ModuleOf(op)
 	if op.MinRole == routes.Public {
-		if pubCounted(route.OperationID()) {
-			if ok, wait := a.pub.allow(r); !ok {
-				apierr.Write(w, pubLimited(wait))
-				return
+		if a.pub != nil && pubCounted(route.OperationID()) {
+			if _, err := a.cfg.Auth.Authenticate(r); err != nil { // a signed-in page (it polls GET /setup) is never counted
+				if ok, wait := a.pub.allow(r); !ok {
+					apierr.Write(w, pubLimited(wait))
+					return
+				}
 			}
 		}
 		if !a.cfg.Modules.Enabled(mod) {
@@ -288,11 +291,6 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 		// Authenticate first: an off module must not tell an anonymous client that its routes exist.
 		p, aerr := a.authenticate(r)
 		if aerr != nil {
-			if aerr.Status == http.StatusUnauthorized { // a request without a (valid) session counts like a public one
-				if ok, wait := a.pub.allow(r); !ok {
-					aerr = pubLimited(wait)
-				}
-			}
 			apierr.Write(w, aerr)
 			return
 		}

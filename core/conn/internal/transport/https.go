@@ -199,7 +199,7 @@ func ValidAuthHeader(name string) bool {
 		return false
 	}
 	n := strings.ToLower(name)
-	return n == "authorization" || !(ForbiddenHeader(name) || authHeaderRefused[n])
+	return n == "authorization" || (!ForbiddenHeader(name) && !authHeaderRefused[n])
 }
 
 // Request is one HTTPS request. The URL is complete (the caller checked it is under the target and the allow-list).

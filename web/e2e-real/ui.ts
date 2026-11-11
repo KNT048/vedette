@@ -39,6 +39,7 @@ export async function expectAccessible(page: Page, label: string) {
  *  answers; once it answers 200 the real answer is passed through and this helper does nothing. Delete it with the 501 (KNOWN_501 in gaps.spec.ts). */
 export async function stubSoftwareUpdates(page: Page) {
   await page.route((url) => url.pathname === '/api/v1/core/updates', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback()
     const real = await route.fetch()
     if (real.status() !== 501) return route.fulfill({ response: real })
     return route.fulfill({

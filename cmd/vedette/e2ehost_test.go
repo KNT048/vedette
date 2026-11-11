@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 	hostserver "github.com/knt048/vedette/host/server"
@@ -108,6 +109,26 @@ func (h *e2eHost) aptRules() {
 	h.m.Rule("apt-get", "dist-upgrade", "sim_ubuntu.txt", 0, "", "")
 }
 
+// autoSecurityFakes replaces opstest's fixed apt-config and systemctl by fakes that follow the switch: the host writes
+// etc/apt/apt.conf.d/52vedette-unattended and reads the effect back, so the fakes answer "on" or "off" from that file.
+// systemctl reboot is only recorded (reboots), never run.
+func (h *e2eHost) autoSecurityFakes(t testing.TB) {
+	t.Helper()
+	conf := filepath.Join(h.m.Root, "etc/apt/apt.conf.d/52vedette-unattended")
+	exectest.WriteScript(t, filepath.Join(h.m.Bin, "apt-config"), `#!/bin/sh
+if grep -q 'Unattended-Upgrade "0"' '`+conf+`' 2>/dev/null; then cat '`+opstest.Fixture("aptconfig_off.txt")+`'; else cat '`+opstest.Fixture("aptconfig_on.txt")+`'; fi
+`)
+	exectest.WriteScript(t, filepath.Join(h.m.Bin, "systemctl"), `#!/bin/sh
+off() { grep -q 'Unattended-Upgrade "0"' '`+conf+`' 2>/dev/null; }
+case "$1" in
+  is-active) cat '`+opstest.Fixture("active.txt")+`' ;;
+  is-enabled) if off; then cat '`+opstest.Fixture("disabled.txt")+`'; exit 1; else cat '`+opstest.Fixture("enabled.txt")+`'; fi ;;
+  reboot) echo reboot >> '`+filepath.Join(h.m.Rec, "reboots")+`' ;;
+esac
+exit 0
+`)
+}
+
 // startE2EHost starts the fake machine and its host on a unix socket, and the control endpoint. Everything stops with t.
 func startE2EHost(t testing.TB) *e2eHost {
 	t.Helper()
@@ -125,9 +146,7 @@ func startE2EHost(t testing.TB) *e2eHost {
 	h.m.WriteRoot("proc/net/route", "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\neth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n")
 	h.m.RuleText("chronyc", "-N", "^,*,203.0.113.7,2,6,377,12,0.0,0.0,0.0\n^,+,ntp1.example.com,2,6,377,12,0.0,0.0,0.0\n", 0, "", "")
 	h.aptRules()
-	h.m.Rule("apt-config", "dump", "aptconfig_on.txt", 0, "", "")
-	h.m.Rule("systemctl", "is-active", "active.txt", 0, "", "")
-	h.m.Rule("systemctl", "is-enabled", "enabled.txt", 0, "", "")
+	h.autoSecurityFakes(t)
 
 	o := h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return h.lock.Load(), nil }
@@ -161,7 +180,8 @@ func startE2EHost(t testing.TB) *e2eHost {
 }
 
 // control is the knobs of the fake host, behind a bearer token (the token is in ready.json, 0600): POST /host?lock=on|off makes
-// the dpkg lock held (a run is refused 409 dpkg_locked), POST /host?install_fail=on|off makes apt-get install exit 100.
+// the dpkg lock held (a run is refused 409 dpkg_locked), POST /host?install_fail=on|off makes apt-get install exit 100,
+// reboot_required=on|off writes or removes /var/run/reboot-required, updates=reset makes the packages pending again, boot=<id> is a reboot done.
 func (h *e2eHost) control() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /host", func(w http.ResponseWriter, r *http.Request) {
@@ -176,6 +196,21 @@ func (h *e2eHost) control() http.Handler {
 		if v := q.Get("install_fail"); v != "" {
 			h.fail.Store(v == "on")
 			h.aptRules()
+		}
+		if q.Get("reboot_required") != "" {
+			if q.Get("reboot_required") == "on" {
+				h.m.WriteRoot("var/run/reboot-required", "*** System restart required ***\n")
+				h.m.WriteRoot("var/run/reboot-required.pkgs", "libc6\n")
+			} else {
+				h.m.RemoveRoot("var/run/reboot-required")
+				h.m.RemoveRoot("var/run/reboot-required.pkgs")
+			}
+		}
+		if q.Get("updates") == "reset" { // the packages are pending again
+			h.m.Mark("installed", false)
+		}
+		if id := q.Get("boot"); id != "" { // the box came back from a reboot: the host takes writes again
+			h.m.SetBootID(id)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]bool{"lock": h.lock.Load(), "install_fail": h.fail.Load()})
 	})

@@ -38,11 +38,18 @@ async function audit(action: string) {
   return r.body.items.filter((i) => i.action === action)
 }
 
-test.afterAll(async () => { // whatever a failed test left: cancel a waiting change, then the address the box started with
+/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
+const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
+/** What the page showed in the click paths below, for the test.fail markers that follow them. */
+const shown = { savedToastOnApply: false, cancelToast: false }
+
+test.afterAll(async () => { // whatever a failed test left: cancel a waiting change, then the address and the time servers the box started with
   const c = await as('admin')
   if ((await api<Net>(c, 'GET', '/core/network')).body.pending) await api(c, 'POST', '/core/network/management/revert')
   const back = await api(c, 'PUT', '/core/network/management', { mode: 'static', address: '192.168.1.50', prefix: 24, gateway: '192.168.1.1', dns: ['1.1.1.1'], confirm: true })
   if (back.status === 200) await api(c, 'POST', '/core/network/management/confirm')
+  await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })
+  await api(c, 'PUT', '/core/network/span', { enabled: false, interface: null, extract: { dns: true, tls_sni: true, http_host: false, flows: true }, filters: [], cpu_percent: 25, memory_mb: 512 })
   await c.dispose()
 })
 
@@ -53,6 +60,7 @@ test('the page lists the cards of the host, names vedette-host, and leaves out t
   await page.goto('/settings/network')
   await expect(h1(page)).toBeVisible()
   await expect(page.getByText(/applied by vedette-host/), 'the page names the helper').toBeVisible()
+  await expect(page.getByText('If the box restarts before you confirm, it comes back on the old address.'), 'D-100: the help next to Save').toBeVisible()
   const table = page.getByRole('table', { name: 'Network interfaces of the box' })
   await expect(table.getByRole('row').filter({ has: page.getByRole('cell', { name: 'eth0', exact: true }) })).toContainText('Management')
   await expect(table.getByRole('cell', { name: 'eth1', exact: true })).toBeVisible()
@@ -82,6 +90,19 @@ test('a viewer and an operator read the page and cannot change it', async ({ bro
   expect((await net()).body.pending).toBeNull()
 })
 
+test('before any management address is saved the host refuses other network changes in words (management_not_set, D-118)', async ({ page }) => {
+  const errors = collectErrors(page)
+  const said = "Vedette has not set up this box's network yet. Save the management address first, then change the other settings."
+  await page.goto('/settings/network')
+  await page.getByLabel('Time source').selectOption('custom')
+  await page.getByLabel('NTP servers').fill('ntp1.example.com')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: said })).toBeVisible()
+  expect((await net()).body.ntp.mode, 'nothing was changed').toBe('default')
+  await shot(page, 'real', 'network-management-not-set')
+  noErrors(errors, /status of 4\d\d/)
+})
+
 test('apply an address: the confirm dialog asks first (Cancel changes nothing), then a 5-minute window shows, and Confirm keeps the change', async ({ page }) => {
   test.setTimeout(90_000)
   const errors = collectErrors(page)
@@ -102,6 +123,7 @@ test('apply an address: the confirm dialog asks first (Cancel changes nothing), 
 
   await save(page).click()
   await dlg.getByRole('button', { name: 'Apply and start the 5-minute timer' }).click()
+  shown.savedToastOnApply = await page.locator('[data-sonner-toast]').filter({ hasText: 'Management settings saved.' }).first().waitFor({ timeout: 3_000 }).then(() => true, () => false)
   const banner = pendingBox(page)
   await expect(banner).toContainText('Waiting for you to confirm at 192.168.1.60')
   await expect(banner).toContainText('the box returns to 192.168.1.50') // the address it replaces
@@ -142,6 +164,7 @@ test('apply a second address and cancel it: the box goes back to the one it had,
   expect((await net()).body.management.address).toBe('192.168.1.70')
   await pendingBox(page).getByRole('button', { name: 'Cancel and go back now' }).click()
   await expect(pendingBox(page)).toHaveCount(0)
+  shown.cancelToast = await page.locator('[data-sonner-toast]').filter({ hasText: /went back|old settings|old address|cancel/i }).first().waitFor({ timeout: 2_000 }).then(() => true, () => false)
   await expect(page.getByLabel('IP address', { exact: true })).toHaveValue('192.168.1.60')
   const back = (await net()).body
   expect(back.pending).toBeNull()
@@ -162,14 +185,87 @@ test('a mistake is told in words and sends nothing: a gateway outside the range,
   await page.goto('/settings/network')
   await fillManagement(page, { address: '192.168.1.80', gateway: '10.9.9.1', dns: '1.1.1.1' })
   await save(page).click()
-  await expect(page.getByRole('alert').filter({ hasText: /gateway/i })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'The gateway must be inside the address range you entered.' })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await fillManagement(page, { address: 'not-an-address', gateway: '192.168.1.1', dns: '1.1.1.1' })
   await save(page).click()
-  await expect(page.getByRole('alert').filter({ hasText: /address/i })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'The IP address must be an IPv4 address like 192.168.10.250.' })).toBeVisible()
   expect((await net()).body.pending).toBeNull()
   expect((await net()).body.management.address).toBe('192.168.1.60')
   noErrors(errors, /status of 4\d\d/)
+})
+
+test('SPAN: eth1 gets the role, the port, what is read and an exclusion are saved and survive a reload, and the switch guide shows steps', async ({ page }) => {
+  test.setTimeout(90_000)
+  const errors = collectErrors(page)
+  await page.goto('/settings/network')
+  await page.getByRole('combobox', { name: 'Role of eth1' }).selectOption('span')
+  await toast(page, /Interface roles saved\./)
+  expect((await net()).body.interfaces.find((i) => i.name === 'eth1')?.role).toBe('span')
+  const want = async (name: string, on: boolean) => { const sw = page.getByRole('switch', { name }); if ((await sw.isChecked()) !== on) await sw.click() }
+  await want('Capture mirrored traffic', true)
+  await page.getByLabel('Capture port').selectOption('eth1')
+  await want('DNS queries', true)
+  await want('TLS server names', true)
+  await want('HTTP hosts', true)
+  await want('Connection metadata', false)
+  await expect(page.getByTestId('span-reading')).toHaveText('Reading: DNS queries, TLS server names, HTTP hosts.')
+  await page.getByLabel('Network range', { exact: true }).fill('abc')
+  await page.getByRole('button', { name: 'Add exclusion' }).click()
+  await expect(page.getByText(/abc/).first()).toBeVisible() // the error names what was typed
+  await page.getByLabel('Network range', { exact: true }).fill('10.0.5.0/24')
+  await page.getByRole('button', { name: 'Add exclusion' }).click()
+  await expect(page.getByRole('list', { name: 'Exclusions' }).getByText('10.0.5.0/24')).toBeVisible()
+  await page.getByRole('button', { name: 'Save SPAN settings' }).click()
+  await toast(page, /SPAN settings saved\./)
+  const span = (await net()).body as unknown as { span: { enabled: boolean; interface: string; extract: Record<string, boolean>; filters: { type: string; value: string }[] } }
+  expect(span.span).toMatchObject({ enabled: true, interface: 'eth1', extract: { dns: true, tls_sni: true, http_host: true, flows: false }, filters: [{ type: 'cidr', value: '10.0.5.0/24' }] })
+  await page.reload()
+  await expect(page.getByRole('switch', { name: 'Capture mirrored traffic' })).toBeChecked()
+  await expect(page.getByLabel('Capture port')).toHaveValue('eth1')
+  await expect(page.getByRole('switch', { name: 'HTTP hosts' })).toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Connection metadata' })).not.toBeChecked()
+  await expect(page.getByRole('list', { name: 'Exclusions' }).getByText('10.0.5.0/24')).toBeVisible()
+  await shot(page, 'real', 'network-span')
+  // the guide for a switch: pick one, see its steps for eth1
+  await page.getByLabel('Switch or device').selectOption({ index: 1 })
+  await expect(page.getByText('Port names and numbers are examples.')).toBeVisible()
+  await expect(page.getByText('the destination is the port plugged into eth1')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 3 }).filter({ hasText: /\S/ }).last()).toBeVisible()
+  noErrors(errors, /status of 4\d\d/)
+})
+
+test('DHCP: the confirm dialog says where to find the new address instead of showing one (D-118), and Cancel changes nothing', async ({ page }) => {
+  const errors = collectErrors(page)
+  const before = (await net()).body
+  await page.goto('/settings/network')
+  await page.getByLabel('How the box gets its address').selectOption('dhcp')
+  await save(page).click()
+  const dlg = page.getByRole('dialog', { name: 'Change the management address?' })
+  await expect(dlg).toContainText('Your DHCP server picks the new address: find it there (or in your router\'s client list), open it on port 8443 within 5 minutes and confirm, or the box returns to the old settings.')
+  await expect(dlg).toContainText('If you cannot find the new address, do nothing: after 5 minutes the box goes back to the old address by itself.')
+  await expect(dlg).not.toContainText(/\d+\.\d+\.\d+\.\d+/)
+  await shot(page, 'real', 'network-dhcp-dialog')
+  await dlg.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const after = (await net()).body
+  expect(after.pending).toBeNull()
+  expect(after.management).toEqual(before.management)
+  noErrors(errors, /status of 4\d\d/)
+})
+
+// test.fail (D-171): starting the 5-minute window toasts "Management settings saved." although nothing is kept until the person confirms. Issue #242.
+test('applying a new address does not say "saved" while the box still waits for the confirm', async () => {
+  test.fail(true, 'GUI: "Management settings saved." when the 5-minute window starts (issue #242, .ai/deferred/feat-e2e-real-harness.md)')
+  knownSymptom(shown.savedToastOnApply)
+  expect(shown.savedToastOnApply, 'a "saved" toast at the start of the window').toBe(false)
+})
+
+// test.fail (D-171): Cancel and go back now gives no toast of its own (Confirm does). Issue #243.
+test('cancelling a waiting change tells the person the box went back', async () => {
+  test.fail(true, 'GUI: Cancel and go back now shows no toast (issue #243, .ai/deferred/feat-e2e-real-harness.md)')
+  knownSymptom(!shown.cancelToast)
+  expect(shown.cancelToast, 'a toast after cancelling').toBe(true)
 })
 
 test('time servers and DNS are applied at once: no countdown, and the page shows them after a reload', async ({ page }) => {
@@ -197,7 +293,8 @@ test('the box is put back on the address it started with', async () => {
   const put = await api(c, 'PUT', '/core/network/management', { mode: 'static', address: '192.168.1.50', prefix: 24, gateway: '192.168.1.1', dns: ['1.1.1.1'], confirm: true })
   expect(put.status, JSON.stringify(put.body)).toBe(200)
   expect((await api(c, 'POST', '/core/network/management/confirm')).status).toBe(200)
-  await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })
+  const ntp = await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })
+  expect(ntp.status, JSON.stringify(ntp.body)).toBe(200)
   await c.dispose()
   expect((await net()).body.management.address).toBe('192.168.1.50')
 })

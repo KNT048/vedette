@@ -3,7 +3,7 @@
 // bare_url, bare_setup_code), started with `-host-socket ""` by cmd/vedette/e2ehost_test.go. It is set up through the API here, with the
 // setup code it printed, as the only account on it.
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
-import { ACCOUNTS, api, box, password } from './box'
+import { ACCOUNTS, api, box, login, password } from './box'
 import { h1, noErrors, noVietnamese, stubSoftwareUpdates } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
 
@@ -26,7 +26,11 @@ test.beforeAll(async () => {
     org: 'Bare Company', admin: { name: ACCOUNTS.admin.name, email: ACCOUNTS.admin.email, password: password() },
     lan: ['192.168.18.0/24'], commitment: false, bundle: 'smb', setup_code: box().bare_setup_code,
   })
-  expect(r.status, JSON.stringify(r.body)).toBeLessThan(300)
+  if (r.status >= 300) { // a HOLD=1 rerun: the box was set up by the run before, so sign in as the administrator it made
+    expect(r.body.error?.code, JSON.stringify(r.body)).toBe('already_setup')
+    const signed = await login(admin, ACCOUNTS.admin.email, password())
+    expect(signed.status, JSON.stringify(signed.body)).toBe(200)
+  }
   signedIn = await admin.storageState()
 })
 test.afterAll(async () => { await admin.dispose() })
@@ -72,7 +76,7 @@ for (const [route, says, label] of [
   })
 }
 
-test('/settings/data renders, and Download backup tells the same truth instead of saving an empty file', async ({ page }) => {
+test('/settings/data renders, Download backup saves nothing and says nothing false, and no 5xx', async ({ page }) => {
   const errors = collectErrors(page)
   const server: string[] = []
   page.on('response', (r) => { if (r.url().startsWith(bare()) && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} -> ${r.status()}`) })
@@ -80,12 +84,53 @@ test('/settings/data renders, and Download backup tells the same truth instead o
   await expect(h1(page)).toBeVisible()
   let downloaded = false
   page.on('download', () => { downloaded = true })
+  const refused = page.waitForResponse((r) => r.url().endsWith('/api/v1/core/data/backup'))
   await page.getByRole('button', { name: 'Download backup', exact: true }).click()
+  expect((await refused).status(), 'the box refuses the backup').toBe(409)
+  await expect(page.locator('[data-sonner-toast]').first()).toBeVisible() // a toast says something happened
   await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Downloaded vedette-backup-/ }), 'no "Downloaded" toast for a backup that was refused').toHaveCount(0)
-  await expect(page.locator('[data-sonner-toast]').first()).toBeVisible() // some toast says what happened
-  await page.waitForTimeout(500)
   expect(downloaded, 'a file was saved although the backend refused').toBe(false)
   await shot(page, 'real', 'bare-data')
   expect(server).toEqual([])
   noErrors(errors, /status of (4|5)\d\d/)
+})
+
+/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
+const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
+
+// test.fail (D-171): lib/api.ts download() throws 'HTTP 409' and ignores the box's JSON error body, so the toast does not say why. Issue #237.
+test('Download backup tells the person what the box said (the container-only sentence)', async ({ page }) => {
+  test.fail(true, 'GUI: the toast says "HTTP 409" (issue #237, .ai/deferred/feat-e2e-real-harness.md)')
+  await openBare(page, '/settings/data')
+  await page.getByRole('button', { name: 'Download backup', exact: true }).click()
+  const toasts = page.locator('[data-sonner-toast]')
+  const said = await toasts.filter({ hasText: SAYS.os }).first().waitFor({ timeout: 5_000 }).then(() => true, () => false)
+  knownSymptom(!said && (await toasts.filter({ hasText: 'HTTP 409' }).count()) > 0)
+  await expect(toasts.filter({ hasText: SAYS.os }).first()).toBeVisible()
+})
+
+// test.fail (D-171): a box with no helper is not the person's mistake, yet both screens are titled "Invalid request". Issue #239.
+test('a container-only install is not reported as an invalid request', async ({ page }) => {
+  test.fail(true, 'GUI: 409 not_appliance is titled "Invalid request" (issue #239, .ai/deferred/feat-e2e-real-harness.md)')
+  const titles: string[] = []
+  for (const [route, says] of [['/settings/updates', SAYS.os], ['/settings/network', SAYS.network]] as const) {
+    await openBare(page, route)
+    const alert = page.getByRole('alert').filter({ hasText: says }).first()
+    await expect(alert).toBeVisible()
+    titles.push(await alert.innerText())
+  }
+  knownSymptom(titles.every((t) => t.startsWith('Invalid request')))
+  for (const t of titles) expect(t).not.toMatch(/^Invalid request/)
+})
+
+// test.fail (D-171): the bands of Settings -> Updates are numbered 1, 2, 3; when the operating system part (1) shows only its error, the page
+// starts at 2. Issue #241.
+test('Settings -> Updates is numbered from 1 when the operating system part is an error', async ({ page }) => {
+  test.fail(true, 'GUI: the sections start at "2" when the OS part errors (issue #241, .ai/deferred/feat-e2e-real-harness.md)')
+  await openBare(page, '/settings/updates')
+  await expect(page.getByRole('alert').filter({ hasText: SAYS.os }).first()).toBeVisible()
+  await expect(page.locator('#managed-band')).toBeVisible()
+  const nums = await page.locator('main span[aria-hidden="true"]').filter({ hasText: /^\d$/ }).allInnerTexts()
+  knownSymptom(nums[0] === '2')
+  expect(nums[0]).toBe('1')
 })

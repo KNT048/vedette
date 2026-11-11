@@ -10,8 +10,9 @@ export interface Box {
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
 }
 
-/** Turns a knob of the fake vedette-host: `lock` (dpkg lock held) or `install_fail` (apt-get install exits 100), `on` or `off`. */
-export async function hostKnob(knob: 'lock' | 'install_fail', value: 'on' | 'off'): Promise<void> {
+/** Turns a knob of the fake vedette-host: `lock` (dpkg lock held), `install_fail` (apt-get install exits 100), `reboot_required` (on/off),
+ *  `updates` (`reset`: the packages are pending again), `boot` (a new boot id: a reboot is over). */
+export async function hostKnob(knob: 'lock' | 'install_fail' | 'reboot_required' | 'updates' | 'boot', value: string): Promise<void> {
   const b = box()
   const r = await fetch(`${b.host_control}/host?${knob}=${value}`, { method: 'POST', headers: { Authorization: `Bearer ${b.host_token}` } })
   if (!r.ok) throw new Error(`host knob ${knob}=${value}: ${r.status}`)

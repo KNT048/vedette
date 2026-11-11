@@ -4,7 +4,7 @@
 // A download is one a minute (429 after that), so the whole spec makes one download through the GUI and checks that file.
 // Where the real answer differs from the mock (the mock saves JSON, the real backend sends a tar.gz) the test is test.fail() with the
 // issue and the deferred line (D-171).
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { expect, request, test } from '@playwright/test'
@@ -36,6 +36,9 @@ function tarEntries(tar: Buffer): { name: string; data: Buffer }[] {
   }
   return out
 }
+
+/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
+const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
 
 let archive: Buffer
 let savedAs: string
@@ -79,6 +82,7 @@ test('the Download backup button saves an archive of the box (a stored secret is
 // whose own name is in Content-Disposition (INV-19). Issue: https://github.com/KNT048/vedette/issues/232, .ai/deferred/feat-e2e-real-harness.md.
 test('the saved file is named like the archive it is: vedette-backup-<day>.tar.gz', async () => {
   test.fail(true, 'GUI gap: the file is saved as .json although it is a tar.gz (issue #232)')
+  knownSymptom(/^vedette-backup-\d{4}-\d\d-\d\d\.json$/.test(savedAs))
   expect(savedAs).toMatch(/^vedette-backup-\d{4}-\d\d-\d\d\.tar\.gz$/)
 })
 
@@ -103,9 +107,25 @@ test('the archive holds the database and no master key, no password and no store
   // no password, no stored secret in the clear
   expect(raw.includes(Buffer.from(password())), 'a password in the archive').toBe(false)
   expect(raw.includes(Buffer.from(secret)), 'a stored connection secret in the clear').toBe(false)
-  // the snapshot's own record says it has no key
-  const meta = entries.find((e) => /(^|\/)snapshot\.json$/.test(e.name))
-  if (meta) expect(JSON.parse(meta.data.toString('utf8'))).toMatchObject({ includes_key: false })
+  // the archive is exactly the manifest and the database (host/ops/backup.go: the key is a third member only for a backup that keeps secrets),
+  // and the manifest says it holds no secrets
+  expect([...names].sort()).toEqual(['manifest.json', 'vedette.db'])
+  const manifest = JSON.parse(entries.find((e) => e.name === 'manifest.json')!.data.toString('utf8'))
+  expect(manifest).toMatchObject({ version: 1, includes_secrets: false })
+})
+
+test('after the download core has removed its snapshot folder (INV-18)', async () => {
+  const dir = join(box().data_dir, 'snapshots')
+  await expect.poll(() => (existsSync(dir) ? readdirSync(dir) : []), { timeout: 15_000, message: 'snapshots/ in the data folder' }).toEqual([])
+})
+
+// test.fail (D-171): the release GUI offers "Restore sample data" ("Trial build only") on a real box, which has no sample data (INV-15). Issue #244.
+test('a real box does not offer to restore sample data', async ({ page }) => {
+  test.fail(true, 'GUI: Restore sample data is shown on a real box (issue #244, .ai/deferred/feat-e2e-real-harness.md)')
+  await page.goto('/settings/data')
+  await expect(h1(page)).toBeVisible()
+  knownSymptom(await page.getByRole('button', { name: 'Restore sample data', exact: true }).isVisible())
+  await expect(page.getByRole('button', { name: 'Restore sample data', exact: true })).toHaveCount(0)
 })
 
 test('the download is audited, a second one inside a minute is refused in words, and only an administrator may ask', async () => {

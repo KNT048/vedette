@@ -94,6 +94,7 @@ func (e *env) highRiskAI() response.ActionRequest {
 func purposeOf(id string) string { return "response.approve." + id }
 
 func TestContract_INV16_CodeIsRequiredAndErrorsPassThrough(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	a := e.highRiskAI()
 	_, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
@@ -113,6 +114,7 @@ func TestContract_INV16_CodeIsRequiredAndErrorsPassThrough(t *testing.T) {
 }
 
 func TestContract_INV16_ReplayedCodeAndCodeOfAnotherRequestFail(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -135,6 +137,7 @@ func TestContract_INV16_ReplayedCodeAndCodeOfAnotherRequestFail(t *testing.T) {
 }
 
 func TestContract_INV16_TwoFactorOffAndNoPort(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.off[oper.ID] = true
@@ -151,6 +154,7 @@ func TestContract_INV16_TwoFactorOffAndNoPort(t *testing.T) {
 }
 
 func TestContract_INV16_OnlyInTheApp(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -169,6 +173,7 @@ func TestContract_INV16_OnlyInTheApp(t *testing.T) {
 }
 
 func TestContract_INV16_SameApproverIsRefusedWithoutSpendingACode(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -184,6 +189,7 @@ func TestContract_INV16_SameApproverIsRefusedWithoutSpendingACode(t *testing.T) 
 }
 
 func TestContract_INV16_TwoDifferentPeopleEachWithTheirOwnCode(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -220,6 +226,7 @@ func TestContract_INV16_TwoDifferentPeopleEachWithTheirOwnCode(t *testing.T) {
 
 // The line sent with the code is built by the server from the stored request: the action, the target, the risk, and that an AI asked.
 func TestContract_INV16_SummaryIsServerBuilt(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -242,6 +249,7 @@ func TestContract_INV16_SummaryIsServerBuilt(t *testing.T) {
 
 // A request that is not a high-risk AI request needs no code: rule requests and low-risk AI requests approve as before.
 func TestContract_INV16_OnlyHighRiskAIRequestsNeedACode(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -290,6 +298,7 @@ func (e *env) hints() []response.Hint {
 }
 
 func TestContract_INV18_RememberIsAHintOnly(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(3)
 	rulesBefore, settingsBefore := len(mustRules(e)), e.settings()
@@ -321,6 +330,7 @@ func TestContract_INV18_RememberIsAHintOnly(t *testing.T) {
 }
 
 func TestContract_INV18_RuleRequestsAndEmptyReasonsLeaveNoHint(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -335,6 +345,7 @@ func TestContract_INV18_RuleRequestsAndEmptyReasonsLeaveNoHint(t *testing.T) {
 }
 
 func TestContract_INV18_HintsAreCappedAtFifty(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	for i := 0; i < 50; i++ {
 		e.exec1(`INSERT INTO resp_hints (id, ts, kind, text, from_request) VALUES (?, ?, 'memory', ?, 'act-old')`,
@@ -368,6 +379,7 @@ func (e *env) paused() bool {
 }
 
 func TestContract_INV15_BreakerNeedsFiveDecisions(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(5)
 	for i := 0; i < 4; i++ {
@@ -385,6 +397,7 @@ func TestContract_INV15_BreakerNeedsFiveDecisions(t *testing.T) {
 }
 
 func TestContract_INV15_BreakerLooksAtTheLastTenAndMoreThanHalf(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(11)
 	for i := 0; i < 5; i++ { // five approved
@@ -423,6 +436,7 @@ func TestContract_INV15_BreakerLooksAtTheLastTenAndMoreThanHalf(t *testing.T) {
 }
 
 func TestContract_INV15_ResumeClearsThePauseAndIsAudited(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(5)
 	for _, a := range l {
@@ -453,6 +467,7 @@ func TestContract_INV15_ResumeClearsThePauseAndIsAudited(t *testing.T) {
 }
 
 func TestAIStateShape(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	s, err := e.svc.AIState(e.ctx())
 	e.must(err)
@@ -489,6 +504,7 @@ func inStepUp() bool {
 // approval of a high-risk AI request without any two-step code (fail open). The transaction should refuse an
 // in_app_only request that did not pass the step-up, whatever the clock says.
 func TestContract_INV16_ClockStepBackCannotSkipTheCode(t *testing.T) {
+	t.Parallel()
 	f := &fakeTwoStep{off: map[string]bool{}}
 	var late atomic.Pointer[time.Time]
 	e := newEnv(t, func(c *response.Config) {
@@ -524,6 +540,7 @@ func (a *acceptAll) Verify(context.Context, string, string, string, string) erro
 // The same person clicking approve many times at once, each with a code that passes (e.g. the codes of two adjacent TOTP
 // steps): the transaction re-checks same_approver, so one person never counts twice.
 func TestContract_INV16_SamePersonRaceCountsOnce(t *testing.T) {
+	t.Parallel()
 	ok := &acceptAll{}
 	e := newEnv(t, func(c *response.Config) { c.TwoStep = ok })
 	a := e.highRiskAI()
@@ -554,6 +571,7 @@ func TestContract_INV16_SamePersonRaceCountsOnce(t *testing.T) {
 
 // Two different people racing each other: both count once, the bundle runs once.
 func TestContract_INV16_TwoPeopleRaceEachCountsOnce(t *testing.T) {
+	t.Parallel()
 	for range 3 {
 		ok := &acceptAll{}
 		e := newEnv(t, func(c *response.Config) { c.TwoStep = ok })
@@ -579,6 +597,7 @@ func TestContract_INV16_TwoPeopleRaceEachCountsOnce(t *testing.T) {
 // name the AI planner wrote, plans.go) inside the sentence without quoting it, so a hostile name can state a risk the
 // request does not have: "AI request: ... on FW-01, risk low, risk high".
 func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	a := e.highRiskAI()
 	e.exec1(`UPDATE resp_actions SET asset_name = ? WHERE id = ?`, "FW-01, risk low", a.ID)
@@ -593,6 +612,7 @@ func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
 // characters that a person cannot see but a model reads), unlike the summary, which strips them. Hints are shown as
 // advice and "memory" hints are meant for the AI later (13b-10, WP-25).
 func TestContract_INV18_HintAndRejectNoteHaveNoInvisibleCharacters(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(1)
 	smuggled := "Our scanner \u202eRENNACS\u202c" + "\U000E0049\U000E0067\U000E006E\U000E006F\U000E0072\U000E0065" + " uses this address"
@@ -616,6 +636,7 @@ func TestContract_INV18_HintAndRejectNoteHaveNoInvisibleCharacters(t *testing.T)
 
 // A demoted or disabled approver does not count: the account is read again inside the approval, for every in-app approval.
 func TestContract_Approve_DemotedOrDisabledApproverDoesNotCount(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -640,6 +661,7 @@ func TestContract_Approve_DemotedOrDisabledApproverDoesNotCount(t *testing.T) {
 
 // The line shows only the actions this approver picked.
 func TestContract_INV16_SummaryListsOnlyThePickedActions(t *testing.T) {
+	t.Parallel()
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	dev := a.Items[0]
@@ -656,6 +678,7 @@ func TestContract_INV16_SummaryListsOnlyThePickedActions(t *testing.T) {
 // A resume clears the pause and nothing else: the window of the last 10 decisions stays (the mock's `resume` does the same), so the
 // next decision on an AI request looks at it again. Contract note in INV-15 (8).
 func TestContract_INV15_ResumeKeepsTheWindowAndTheNextDecisionLooksAgain(t *testing.T) {
+	t.Parallel()
 	e, _ := newAIEnv(t)
 	l := e.aiBlocks(6)
 	for _, a := range l[:5] {

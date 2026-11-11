@@ -31,6 +31,7 @@ func (r *realConns) List(ctx context.Context) ([]response.ConnectionInfo, error)
 // The fingerprint of a request is conn.Fingerprint (the shared vector), so editing the secret of a connection after the request was
 // made is 409 connection_changed on approve (INV-9), while editing only its name or its status is not.
 func TestContract_INV9_EditingTheSecretAfterTheRequestIsConnectionChanged(t *testing.T) {
+	t.Parallel()
 	late := &realConns{}
 	e := newEnv(t, func(c *response.Config) { c.Connections = late })
 	sec, err := secrets.New([]byte("0123456789abcdef0123456789abcdef"))
@@ -85,6 +86,7 @@ func TestContract_INV9_EditingTheSecretAfterTheRequestIsConnectionChanged(t *tes
 // ChangesInForce (what core/conn asks before it deletes a connection, D-93): an item that was executed and not rolled back, or
 // that was sent and whose outcome is not known; not a pending one, a failed one, a rolled back one, or another connection's.
 func TestChangesInForce(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	add := func(n int, item string) {
 		e.t.Helper()
@@ -121,6 +123,7 @@ func TestChangesInForce(t *testing.T) {
 // item carries an explicit flag (not the text) and ChangesInForce counts it, so core/conn does not delete the connection while the
 // late result of the step can still arrive and turn the item into an executed change on it.
 func TestChangesInForceCountsAnItemWhoseOutcomeIsUnknown(t *testing.T) {
+	t.Parallel()
 	var se *slowExec
 	e, _, id := banEnv(t, func(c *response.Config) {
 		se = &slowExec{fakeExecutor: &fakeExecutor{}}

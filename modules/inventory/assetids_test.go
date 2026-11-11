@@ -13,6 +13,7 @@ import (
 // AssetIDs is the unfiltered, uncapped read a reconcile compares against (findings, D-144): every device of every kind, sorted,
 // beyond MaxListed. An empty inventory is an empty answer, never an error.
 func TestAssetIDsListsEveryDeviceOfEveryKind(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if ids, err := e.svc.AssetIDs(e.ctx()); len(ids) != 0 || err != nil {
 		t.Fatalf("empty inventory: %v %v", ids, err)
@@ -33,6 +34,7 @@ INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' |
 // Kinds is the list of every kind a device can have: it must equal the CHECK of inv_asset.kind, or a read that filters on Kinds
 // (DevicesOfKind with Kinds) silently misses devices of a kind added to the schema only.
 func TestKindsEqualsTheSchemaCheck(t *testing.T) {
+	t.Parallel()
 	sqlText, err := os.ReadFile("migrations/sqlite/0001_inventory.sql")
 	if err != nil {
 		t.Fatal(err)

@@ -10,6 +10,7 @@ import (
 // without an address next to it, so the event's subject is checked for it. A custom action that names both a port and an address
 // ("interface {interface} ... {ip}") on an event about the never-touch router is refused just like the built-in port action.
 func TestContract_INV10_AddressPlusPortActionChecksTheSubject(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-gw"] = response.DeviceInfo{ID: "a-gw", Name: "Edge router", IP: "192.168.10.1", Kind: "router"}
 	e.conns.list = append(e.conns.list, response.ConnectionInfo{Connection: response.Connection{ID: "cn-sw", Name: "Core switch", Enabled: true, Kind: "ssh", WriteTools: []string{"cli"}}, Target: "ssh://sw.lan"})
@@ -43,6 +44,7 @@ func TestContract_INV10_AddressPlusPortActionChecksTheSubject(t *testing.T) {
 // INV-10: an action that names only an address acts on that address only: blocking the destination is not refused because the device
 // that talked to it is the router (the router itself still cannot be blocked).
 func TestContract_INV10_AddressOnlyActionIgnoresTheSubject(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-gw"] = response.DeviceInfo{ID: "a-gw", Name: "Edge router", IP: "192.168.10.1", Kind: "router"}
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -61,6 +63,7 @@ func TestContract_INV10_AddressOnlyActionIgnoresTheSubject(t *testing.T) {
 // INV-10: an address parameter cannot be empty or optional: an event without the value is refused (invalid_target), so the "names an
 // address" branch is only taken with a checked, non-empty address.
 func TestContract_INV10_EmptyAddressParamIsRefused(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	sum := e.fire(e.iocEvent("e1", ""))
@@ -72,6 +75,7 @@ func TestContract_INV10_EmptyAddressParamIsRefused(t *testing.T) {
 // INV-10 (L7): a never-touch entry pasted from a Cisco device (aabb.ccdd.eeff) or a label (twelve hex digits) is stored in the
 // canonical form and matches the event's subject in any form.
 func TestContract_INV10_NeverTouchAcceptsCiscoAndBareMACs(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_port_shut")
 	got, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{

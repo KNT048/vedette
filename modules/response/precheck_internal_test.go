@@ -6,6 +6,7 @@ import (
 )
 
 func TestActionFPCoversPrecheckRefuseAndExpect(t *testing.T) {
+	t.Parallel()
 	base := catRow{Run: Tpl{Method: "POST", Path: "/q/{ip}"}, Rollback: Tpl{Method: "DELETE", Path: "/q/{ip}"}, Verify: Tpl{Method: "GET", Path: "/q/{ip}", Expect: "{ip}"},
 		Precheck: Tpl{Method: "GET", Path: "/q/{ip}"}, PrecheckRefuse: []string{"already"}, Risk: RiskLow}
 	fp := actionFP(base)
@@ -33,6 +34,7 @@ func TestActionFPCoversPrecheckRefuseAndExpect(t *testing.T) {
 // INV-14b (D-94): the shipped library goes through the same check as a customer's template, so a forbidden header, a check that
 // writes, or a port action without a refusal in the data files stops the service from starting.
 func TestBuiltinLibraryIsCheckedLikeACustomerAction(t *testing.T) {
+	t.Parallel()
 	ok := builtinDef{ID: "x_port", Kind: "device", Risk: RiskLow,
 		Run: Tpl{CLI: "interface {interface}\nshutdown"}, Rollback: Tpl{CLI: "interface {interface}\nno shutdown"}, Verify: Tpl{CLI: "show {interface}", Expect: "down"},
 		Precheck: Tpl{CLI: "show interfaces {interface} switchport"}, PrecheckRefuse: []string{"trunk"}}
@@ -86,6 +88,7 @@ func TestBuiltinLibraryIsCheckedLikeACustomerAction(t *testing.T) {
 }
 
 func TestForbiddenHeaderNames(t *testing.T) {
+	t.Parallel()
 	for _, h := range []string{"Authorization", "authorization", "COOKIE", "Host", "Proxy-Authorization", "proxy-x", "Connection", "Keep-Alive", "TE", "Transfer-Encoding", "Upgrade", "Proxy-Connection", "Trailer", "Forwarded", "X-Forwarded-For", "x-forwarded-anything"} {
 		if !forbiddenHeader(h) {
 			t.Errorf("%s is allowed", h)

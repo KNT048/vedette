@@ -21,6 +21,7 @@ func editEnv(t *testing.T) (*env, response.CatalogAction, string) {
 // INV-9 (L5): an admin who edits the template or the risk of a custom action cancels the requests that are still open for it: they
 // were made, and shown to the approvers, with the old rendering and the old risk. Each is logged; nothing is sent.
 func TestContract_INV9_EditingACustomActionCancelsItsOpenRequests(t *testing.T) {
+	t.Parallel()
 	e, act, id := editEnv(t)
 	run := response.Tpl{Method: "POST", Path: "/q2/{ip}"}
 	high := response.RiskHigh
@@ -52,6 +53,7 @@ func TestContract_INV9_EditingACustomActionCancelsItsOpenRequests(t *testing.T) 
 // run (an edit that did not go through ChangeAction: a restore, another writer) the request refuses with tool_unavailable and the old
 // rendering is never sent at the old risk.
 func TestContract_INV9_ActionFingerprintMismatchRefusesTheRun(t *testing.T) {
+	t.Parallel()
 	e, act, id := editEnv(t)
 	e.exec1(`UPDATE resp_catalog SET risk = 'high' WHERE id = ?`, act.ID)
 	_, err := e.svc.Approve(e.ctx(), oper, id, nil, "")

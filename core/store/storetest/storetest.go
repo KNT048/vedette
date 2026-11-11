@@ -3,6 +3,7 @@
 package storetest
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/store"
@@ -181,4 +183,112 @@ func NewMigrated(t testing.TB, module, dir string) *store.DB {
 		t.Fatalf("storetest: migrate %s: %v", module, err)
 	}
 	return db
+}
+
+// Migrated is New plus migs applied in order, from a copy: the migrations run once per test process for each list (keyed by module
+// and file contents) into a file whose bytes are kept, and each call writes those bytes to its own t.TempDir() database. Under -race
+// two modules' migrations are about a fifth of a short module test's time, paid by hundreds of tests (the pattern of
+// cmd/vedette/tpldb_test.go). The database is in the state store.Migrate of each one leaves; nothing is shared between tests.
+func Migrated(t testing.TB, migs ...Migration) *store.DB {
+	t.Helper()
+	b, err := template(migs)
+	if err != nil {
+		t.Fatalf("storetest: migrate: %v", err)
+	}
+	p := filepath.Join(t.TempDir(), "test.db")
+	if err := os.WriteFile(p, b, 0o600); err != nil {
+		t.Fatalf("storetest: write: %v", err)
+	}
+	db, err := store.Open(t.Context(), p, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatalf("storetest: open: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("storetest: close: %v", err)
+		}
+	})
+	return db
+}
+
+type migrated struct {
+	once sync.Once
+	b    []byte
+	err  error
+}
+
+var (
+	templatesMu sync.Mutex
+	templates   = map[string]*migrated{}
+)
+
+// template returns the bytes of a closed database that migs were applied to, building it on the first call for that list.
+func template(migs []Migration) ([]byte, error) {
+	key, err := templateKey(migs)
+	if err != nil {
+		return nil, err
+	}
+	templatesMu.Lock()
+	m := templates[key]
+	if m == nil {
+		m = &migrated{}
+		templates[key] = m
+	}
+	templatesMu.Unlock()
+	m.once.Do(func() { m.b, m.err = buildTemplate(migs) })
+	return m.b, m.err
+}
+
+// templateKey names a list by its modules and the names and contents of their files: one module id can have two sets of
+// migrations (logs: config and volume).
+func templateKey(migs []Migration) (string, error) {
+	h := sha256.New()
+	for _, m := range migs {
+		_, _ = fmt.Fprintf(h, "module %q\n", m.Module)
+		err := fs.WalkDir(m.FS, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			b, err := fs.ReadFile(m.FS, path)
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintf(h, "file %q %d\n", path, len(b))
+			_, _ = h.Write(b)
+			return nil
+		})
+		if err != nil {
+			return "", fmt.Errorf("read %s migrations: %w", m.Module, err)
+		}
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+func buildTemplate(migs []Migration) ([]byte, error) {
+	dir, err := os.MkdirTemp("", "vedette-storetest-")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	ctx := context.Background()
+	p := filepath.Join(dir, "template.db")
+	db, err := store.Open(ctx, p, slog.New(slog.DiscardHandler))
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range migs {
+		if err := store.Migrate(ctx, db, m.Module, m.FS); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("%s: %w", m.Module, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		return nil, err
+	}
+	for _, ext := range []string{"-wal", "-shm"} { // a closed WAL database has none; a copy without them would silently lose pages
+		if _, err := os.Stat(p + ext); err == nil {
+			return nil, fmt.Errorf("the template database left %s behind", ext)
+		}
+	}
+	return os.ReadFile(p) //nolint:gosec // p is in the directory this function just made
 }

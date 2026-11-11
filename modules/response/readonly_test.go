@@ -29,6 +29,7 @@ func libraryActions(t *testing.T) map[string]builtinDef {
 }
 
 func TestNormalizeOutput(t *testing.T) {
+	t.Parallel()
 	for name, c := range map[string]struct{ in, want string }{
 		"carriage returns":    {"a\r\nb\r\n", "a\nb\n"},
 		"ansi colour":         {"\x1b[31mAdmin state is down\x1b[0m", "Admin state is down"},
@@ -56,6 +57,7 @@ func TestNormalizeOutput(t *testing.T) {
 }
 
 func TestPrecheckVerdict(t *testing.T) {
+	t.Parallel()
 	refuse := []string{"Mode: trunk", "Switchport: Disabled"}
 	for name, c := range map[string]struct {
 		out, expect string
@@ -83,6 +85,7 @@ func TestPrecheckVerdict(t *testing.T) {
 }
 
 func TestReadBackHolds(t *testing.T) {
+	t.Parallel()
 	if !readBackHolds("{\n \"status\" : \"disable\" }", `"status":"disable"`, false) {
 		t.Error("the JSON read-back after the action did not hold")
 	}
@@ -98,6 +101,7 @@ func TestReadBackHolds(t *testing.T) {
 // The check before must refuse a port that is already down, or the undo (which runs without approval) would turn on a port an
 // administrator shut.
 func TestBuiltinPortShutRefusesAPortThatIsAlreadyDown(t *testing.T) {
+	t.Parallel()
 	lib := libraryActions(t)
 	cisco, aoscx := lib["cisco_port_shut"], lib["aoscx_port_shut"]
 	// what the shipped check prints for an access port an administrator shut: both commands, one after the other
@@ -127,6 +131,7 @@ func TestBuiltinPortShutRefusesAPortThatIsAlreadyDown(t *testing.T) {
 // M6: the refusal list is a deny list over unparsed output, so the Cisco port actions also require the positive text, and they refuse
 // the modes a deny list tends to forget. A bare "trunk" is not a refusal text (it matches a VLAN or a description called trunk).
 func TestCiscoPortChecksFailClosedOnUnexpectedOutput(t *testing.T) {
+	t.Parallel()
 	lib := libraryActions(t)
 	for _, id := range []string{"cisco_port_shut", "cisco_port_vlan_quarantine"} {
 		a := lib[id]
@@ -161,6 +166,7 @@ func TestCiscoPortChecksFailClosedOnUnexpectedOutput(t *testing.T) {
 // M7: fgt_policy_disable promises to refuse a policy whose action is deny (turning that off opens traffic). The check reads the policy
 // and refuses "action":"deny" after the JSON is compacted, or "set action deny" in the command form.
 func TestFortiGatePolicyDisableRefusesADenyPolicy(t *testing.T) {
+	t.Parallel()
 	a := libraryActions(t)["fgt_policy_disable"]
 	if !strings.Contains(a.Description, "refuses to turn off a policy whose action is deny") {
 		t.Fatal("the description no longer promises the deny check")
@@ -183,6 +189,7 @@ func TestFortiGatePolicyDisableRefusesADenyPolicy(t *testing.T) {
 
 // M4: the library loader refuses a read-back that writes, and an SSH read-back or check that is a line of the action.
 func TestLibraryReadBackAndCheckAreReadOnly(t *testing.T) {
+	t.Parallel()
 	base := builtinDef{ID: "x_api", Kind: "device", Risk: RiskLow, Run: Tpl{Method: "POST", Path: "/a/{ip}"}, Rollback: Tpl{Method: "DELETE", Path: "/a/{ip}"}}
 	for name, mod := range map[string]func(a *builtinDef){
 		"DELETE read-back":         func(a *builtinDef) { a.Verify = Tpl{Method: "DELETE", Path: "/a/{ip}", Expect: "{ip}"} },
@@ -214,6 +221,7 @@ func TestLibraryReadBackAndCheckAreReadOnly(t *testing.T) {
 
 // M4: the approval screen shows the stored method of a read step, not a hard-coded GET.
 func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
+	t.Parallel()
 	conn := &ConnectionInfo{Connection: Connection{Kind: "http"}, Target: "https://api.lan"}
 	vals := Values{PIP: "198.51.100.7"}
 	got, err := readStepText(Tpl{Method: "PUT", Path: "/x/{ip}"}, conn, vals, nil)
@@ -233,6 +241,7 @@ func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
 
 // D-58: the commands a template may not contain are data, not Go literals, and the GUI mock carries the same file.
 func TestRefusedCommandListIsDataAndTheMockCopyMatches(t *testing.T) {
+	t.Parallel()
 	ban, err := banData()
 	if err != nil || len(ban.Everywhere) < 10 || len(ban.ReadOnly) < 5 {
 		t.Fatalf("the list: %+v, %v", ban, err)
@@ -261,6 +270,7 @@ func TestRefusedCommandListIsDataAndTheMockCopyMatches(t *testing.T) {
 
 // The Go library and the mock library carry the same data for the actions this slice touches (the drift test lists the exceptions).
 func TestNoCommandBanLiteralsInGoSource(t *testing.T) {
+	t.Parallel()
 	for _, f := range []string{"readonly.go", "../../core/conn/cliban/cliban.go", "../../core/conn/write/write.go"} {
 		src, err := os.ReadFile(f) //nolint:gosec // our own source files
 		if err != nil {

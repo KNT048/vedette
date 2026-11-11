@@ -525,7 +525,12 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 		t.Fatal("the teardown said done while it could not read what the host did")
 	}
 	broken.Store(false)
-	if err := teardown(t.Context()); err != nil {
+	// The add may still hold the host's write lock (it ends after its link appears): busy is retried, as OffGuard does.
+	err := teardown(t.Context())
+	for deadline := time.Now().Add(10 * time.Second); errors.Is(err, errHostBusy) && time.Now().Before(deadline); err = teardown(t.Context()) {
+		<-time.After(50 * time.Millisecond)
+	}
+	if err != nil {
 		t.Fatalf("teardown: %v", err)
 	}
 	if got := e.decoyLinks(); len(got) != 0 || strings.Contains(e.decoysFile(), "192.168.10.240") {

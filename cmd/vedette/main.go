@@ -319,11 +319,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	stopGuards = startGuards(ctx, reg, log, d, wired)
 	api, err := server.New(server.Config{
-		API:        newHandler(d),
-		Auth:       d.Auth.Sessions,
-		Modules:    reg,
-		Log:        log,
-		BodyLimits: bodyLimits(wired),
+		API:             newHandler(d),
+		Auth:            d.Auth.Sessions,
+		Modules:         reg,
+		Log:             log,
+		BodyLimits:      bodyLimits(wired),
+		PublicPerMinute: server.PublicPerMinuteDefault, // D-320
 	})
 	if err != nil {
 		return err

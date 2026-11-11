@@ -40,12 +40,19 @@ type Config struct {
 	// BodyLimits raises (or lowers) the cap for single operations, by operationId, e.g. a 5 MiB
 	// sample upload (issue #39). Every other operation keeps MaxBody.
 	BodyLimits map[string]int64
+	// PublicPerMinute is the limit of requests without a session per client address and minute (publimit.go, D-320): 429
+	// rate_limited past it. 0 = no limit (tests that are not about it); cmd/vedette sets PublicPerMinuteDefault.
+	PublicPerMinute int
 }
+
+// PublicPerMinuteDefault is the box's limit of requests without a session per client address (API_CONVENTIONS §8).
+const PublicPerMinuteDefault = 60
 
 const csp = "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
 
 type api struct {
 	cfg     Config
+	pub     *pubLimiter // nil = no limit
 	oas     *oas.Server
 	max     int64 // cap for operations without an entry in cfg.BodyLimits
 	ceiling int64 // largest cap of all: enforced before routing, the operation's own cap after
@@ -63,7 +70,10 @@ func New(cfg Config) (http.Handler, error) {
 	if err := validateRoutes(routes.Operations); err != nil {
 		return nil, err
 	}
-	a := &api{cfg: cfg, max: cfg.MaxBody}
+	if cfg.PublicPerMinute < 0 {
+		return nil, errors.New("server: negative PublicPerMinute")
+	}
+	a := &api{cfg: cfg, max: cfg.MaxBody, pub: newPubLimiter(cfg.PublicPerMinute, nil)}
 	if a.max == 0 {
 		a.max = DefaultMaxBody
 	}
@@ -264,6 +274,12 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 	}
 	mod := ModuleOf(op)
 	if op.MinRole == routes.Public {
+		if pubCounted(route.OperationID()) {
+			if ok, wait := a.pub.allow(r); !ok {
+				apierr.Write(w, pubLimited(wait))
+				return
+			}
+		}
 		if !a.cfg.Modules.Enabled(mod) {
 			apierr.Write(w, apierr.NotFound())
 			return
@@ -272,6 +288,11 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 		// Authenticate first: an off module must not tell an anonymous client that its routes exist.
 		p, aerr := a.authenticate(r)
 		if aerr != nil {
+			if aerr.Status == http.StatusUnauthorized { // a request without a (valid) session counts like a public one
+				if ok, wait := a.pub.allow(r); !ok {
+					aerr = pubLimited(wait)
+				}
+			}
 			apierr.Write(w, aerr)
 			return
 		}

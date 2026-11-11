@@ -10,6 +10,8 @@ export interface Box {
   control: string; control_token: string; smtp_port: string
   /** The fake vedette-host's knobs and the second box with no host (slice 4, D-163). */
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
+  /** The loopback devices a connection can be saved against (slice 5): the target, the user name and the secret to type, by kind. */
+  devices?: Record<'http' | 'ssh' | 'mcp', { target: string; username?: string; secret?: string }>
 }
 
 /** Turns a knob of the fake vedette-host: `lock` (dpkg lock held), `install_fail` (apt-get install exits 100), `reboot_required` (on/off),
@@ -130,4 +132,26 @@ export async function ensureEmailChannel(admin: APIRequestContext): Promise<void
     fields: { host: '127.0.0.1', port: box().smtp_port, security: 'none', username: 'alerts@e2e.test', from: 'alerts@e2e.test', to: 'it@e2e.test' },
   })
   expect(saved.status, `save the email channel: ${JSON.stringify(saved.body)}`).toBe(200)
+}
+
+// ---- the devices of the box (WP-30 slice 5): an HTTPS, an SSH and an MCP server in the box process, reachable only under their own names ----
+
+export type DeviceKind = 'http' | 'ssh' | 'mcp'
+export const device = (kind: DeviceKind) => {
+  const d = box().devices?.[kind]
+  if (!d) throw new Error(`ready.json has no ${kind} device: run \`make e2e-real\``)
+  return d
+}
+
+/** What the device received so far: HTTP requests, SSH command lines and sign-ins, MCP calls. */
+export async function deviceSeen(kind: DeviceKind): Promise<{ requests?: { method: string; path: string; authorization: string }[]; lines?: string[]; logins?: number; auth_calls?: number; calls?: { http: string; rpc: string; authorization: string }[] }> {
+  const r = await control('GET', `/devices/${kind}/requests`)
+  expect(r.status, `GET /devices/${kind}/requests`).toBe(200)
+  return r.json()
+}
+
+/** The device shows another certificate or host key from now on: the pin saved at the first test no longer matches. */
+export async function rotateDevice(kind: DeviceKind): Promise<void> {
+  const r = await control('POST', `/devices/${kind}/rotate`)
+  expect(r.status, `rotate the ${kind} device`).toBe(204)
 }

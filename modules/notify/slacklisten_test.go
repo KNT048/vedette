@@ -51,7 +51,7 @@ type fakeSlack struct {
 	team      string
 	authTests int
 	updates   []map[string]any // chat.update bodies
-	updMode   string           // how chat.update answers: "" ok, "gone" ok:false message_not_found, "500", "drop" (no answer)
+	updMode   string           // how chat.update answers: "" ok, "gone" (message_not_found), "auth" (token_revoked), "500", "429", "404", "garbage", "drop" (no answer)
 	updTries  int              // every chat.update request, answered or not
 }
 
@@ -140,6 +140,14 @@ func (f *fakeSlack) update(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"ok":false,"error":"message_not_found"}`)
 	case "500":
 		http.Error(w, "down", http.StatusInternalServerError)
+	case "429":
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+	case "404":
+		http.NotFound(w, r)
+	case "garbage":
+		_, _ = io.WriteString(w, "<html>")
+	case "auth":
+		_, _ = io.WriteString(w, `{"ok":false,"error":"token_revoked"}`)
 	case "drop":
 		if c, _, err := w.(http.Hijacker).Hijack(); err == nil {
 			_ = c.Close()

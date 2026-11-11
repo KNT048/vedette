@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -38,8 +37,10 @@ func slackOutcome(decision string) string {
 // slackFinal marks the Slack messages of a finally decided request for removal and remembers the decision for a message recorded
 // later (notify_slack_final). A repeated event changes nothing.
 func slackFinal(ctx context.Context, tx *sql.Tx, requestID, outcome string, now time.Time) error {
-	if _, err := tx.ExecContext(ctx, `UPDATE notify_slack_button SET state = 'remove', outcome = ? WHERE request_id = ? AND state = 'shown'`,
-		outcome, requestID); err != nil {
+	// A message the expiry sweep already marked "ended" and not yet rewritten takes the real outcome (response publishes "expired"
+	// after the request's end time, so the sweep usually marks it first).
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_slack_button SET state = 'remove', outcome = ? WHERE request_id = ?
+		AND (state = 'shown' OR (state = 'remove' AND outcome = 'ended' AND tries = 0))`, outcome, requestID); err != nil {
 		return fmt.Errorf("notify: mark slack buttons for removal: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO notify_slack_final (request_id, outcome, at) VALUES (?, ?, ?)`,
@@ -55,10 +56,11 @@ type slackButtonRow struct {
 }
 
 // clearSlackButtons is the part of the deliver job that removes Slack buttons: it marks the messages of requests that ended, then
-// rewrites at most buttonsPerRun marked messages. Slack refusing the edit (ok:false, or a 4xx other than 429) is final; a 429 or 5xx
-// is tried again at the next run, at most buttonTries times in all. Slack not answering at all stops this run's removals at once
-// (review of #198, L1: a Slack that swallows the requests holds the deliver job for one timeout, not one per message). Without the
-// bot token nothing is sent (the rows are pruned a week after their request).
+// rewrites at most buttonsPerRun marked messages. Slack refusing this edit (channel.SlackEditFinal) is final for the message. Any
+// other failure (no answer, 429, 5xx, busy, the token or app refused) counts one try of that message, at most buttonTries in all,
+// and stops the run (review of #198, L1: a Slack that swallows or slows the requests holds the deliver job for one request, not one
+// per message, and a dead token does not use up every message at once). Without the bot token nothing is sent (the rows are pruned
+// a week after their request).
 func (s *Service) clearSlackButtons(ctx context.Context, now time.Time) error {
 	var rows []slackButtonRow
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -102,12 +104,9 @@ func (s *Service) clearSlackButtons(ctx context.Context, now time.Time) error {
 			return err
 		}
 		err = bot.UpdateApproval(ctx, r.channelID, r.ts, m, slackEndLines[r.outcome])
-		var se *channel.StatusError
-		var pe *channel.ProviderError
-		answered := errors.As(err, &se) || errors.As(err, &pe)
-		done := err == nil || pe != nil || (se != nil && se.Code >= 400 && se.Code < 500 && se.Code != http.StatusTooManyRequests)
+		final := channel.SlackEditFinal(err)
 		state, tries := "remove", r.tries+1
-		if done || tries >= buttonTries {
+		if final || tries >= buttonTries {
 			state = "removed"
 		}
 		if err != nil && state == "removed" {
@@ -121,8 +120,8 @@ func (s *Service) clearSlackButtons(ctx context.Context, now time.Time) error {
 		if werr != nil {
 			return fmt.Errorf("notify: record a slack button removal: %w", werr)
 		}
-		if err != nil && !answered {
-			return nil // Slack did not answer: the rest wait for the next run
+		if !final {
+			return nil // Slack is busy, did not answer, or refuses the token: the rest wait for the next run
 		}
 	}
 	return nil

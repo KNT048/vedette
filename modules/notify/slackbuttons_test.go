@@ -42,11 +42,11 @@ func (se *slEnv) updTries() int {
 }
 
 // checkUpdate asserts one chat.update: the kept message, the bot token, no actions block, the original text and the end line.
-func checkUpdate(t *testing.T, u map[string]any, ts, end string) {
+func checkUpdate(t *testing.T, u map[string]any, end string) {
 	t.Helper()
 	raw, _ := json.Marshal(u["blocks"])
-	if u["channel"] != slChannel || u["ts"] != ts {
-		t.Fatalf("updated %v %v, want %s %s", u["channel"], u["ts"], slChannel, ts)
+	if u["channel"] != slChannel || u["ts"] != slTS {
+		t.Fatalf("updated %v %v, want %s %s", u["channel"], u["ts"], slChannel, slTS)
 	}
 	if strings.Contains(string(raw), `"actions"`) || strings.Contains(string(raw), "vedette_a") {
 		t.Fatalf("the buttons are still there: %s", raw)
@@ -78,7 +78,7 @@ func TestContract_POST8_SlackButtonsRemovedWhenFinallyDecided(t *testing.T) {
 	if len(u) != 1 {
 		t.Fatalf("%d updates after the final decision, want 1", len(u))
 	}
-	checkUpdate(t, u[0], slTS, "Approved.")
+	checkUpdate(t, u[0], "Approved.")
 	se.sl.mu.Lock()
 	auth := se.sl.auths[len(se.sl.auths)-1]
 	se.sl.mu.Unlock()
@@ -116,7 +116,7 @@ func TestSlackEndLineFollowsTheDecision(t *testing.T) {
 		if len(u) != 1 {
 			t.Fatalf("%s: %d updates", c.decision, len(u))
 		}
-		checkUpdate(t, u[0], slTS, c.end)
+		checkUpdate(t, u[0], c.end)
 		if raw, _ := json.Marshal(u[0]); strings.Contains(string(raw), "pwned") {
 			t.Fatalf("event text reached Slack: %s", raw)
 		}
@@ -138,7 +138,7 @@ func TestSlackButtonsRemovedWhenTheRequestEnds(t *testing.T) {
 	if len(u) != 1 {
 		t.Fatalf("%d updates after the request ended, want 1", len(u))
 	}
-	checkUpdate(t, u[0], slTS, "This request has ended. Open Vedette to see the outcome.")
+	checkUpdate(t, u[0], "This request has ended. Open Vedette to see the outcome.")
 }
 
 // The final decision can arrive before the send of the Slack message is recorded (another channel's approver pressed first while
@@ -153,7 +153,7 @@ func TestSlackDecisionBeforeTheSendRecordStillRemovesTheButtons(t *testing.T) {
 	if len(u) != 1 {
 		t.Fatalf("%d updates, want 1", len(u))
 	}
-	checkUpdate(t, u[0], slTS, "Rejected.")
+	checkUpdate(t, u[0], "Rejected.")
 }
 
 // A press on a request that is finally decided is refused before Decide, like one on an ended request.
@@ -237,5 +237,129 @@ func TestSlackButtonRemovalWithoutABotTokenSendsNothing(t *testing.T) {
 	se.flush()
 	if n := se.updTries(); n != 0 {
 		t.Fatalf("%d chat.update calls without a bot token", n)
+	}
+}
+
+// Review of 3b: which failures are final for one message and which stop the run (count a try, the rest wait).
+func TestSlackButtonRemovalFailureKinds(t *testing.T) {
+	for _, c := range []struct {
+		mode      string
+		triesRun1 int  // chat.update calls in the first run, with two messages to rewrite
+		final     bool // the first message is given up after its first try
+	}{
+		{"gone", 2, true}, {"404", 2, true}, // Slack refuses this edit: final, the run goes on
+		{"429", 1, false}, {"500", 1, false}, {"garbage", 1, false}, {"auth", 1, false}, {"drop", 1, false}, // stop the run
+	} {
+		se := newSLEnv(t)
+		se.svc.Subscribe(se.bus)
+		se.request()
+		se.sl.mu.Lock()
+		se.sl.postTS = "1731326400.000200"
+		se.sl.mu.Unlock()
+		if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq("act-2", channel.Slack)); err != nil {
+			t.Fatal(err)
+		}
+		se.decision("act-1", "approved", true)
+		se.decision("act-2", "approved", true)
+		se.setUpd(c.mode)
+		se.flush()
+		if n := se.updTries(); n != c.triesRun1 {
+			t.Fatalf("%s: %d calls in the first run, want %d", c.mode, n, c.triesRun1)
+		}
+		left := se.count(`SELECT COUNT(*) FROM notify_slack_button WHERE state = 'remove'`)
+		if want := map[bool]int{true: 0, false: 2}[c.final]; left != want {
+			t.Fatalf("%s: %d messages still to rewrite, want %d", c.mode, left, want)
+		}
+	}
+}
+
+// Review of 3b: the expiry sweep marks a message "ended" at the end time; response's "expired" event, which comes after, still
+// gives it the real line when it has not been rewritten yet.
+func TestSlackExpiredEventAfterTheSweepKeepsTheRealLine(t *testing.T) {
+	se := newSLEnv(t)
+	se.svc.Subscribe(se.bus)
+	se.request()
+	se.clock.Add(16 * time.Minute)
+	se.setUpd("drop") // the sweep marks it; Slack does not answer, so it is not rewritten yet
+	se.flush()
+	se.setUpd("")
+	se.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(se.ctx(), `UPDATE notify_slack_button SET tries = 0`)
+		return err
+	})
+	se.decision("act-1", "expired", true)
+	se.flush()
+	u := se.updates()
+	if len(u) != 1 {
+		t.Fatalf("%d updates", len(u))
+	}
+	checkUpdate(t, u[0], "Expired. Nothing was changed.")
+}
+
+// Without the history copy (history cleared) the message is still rewritten, with the end line only.
+func TestSlackButtonRemovalWithoutHistoryWritesTheEndLine(t *testing.T) {
+	se := newSLEnv(t)
+	se.svc.Subscribe(se.bus)
+	se.request()
+	se.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(se.ctx(), `DELETE FROM notify_send`)
+		return err
+	})
+	se.decision("act-1", "rejected", true)
+	se.flush()
+	u := se.updates()
+	if len(u) != 1 {
+		t.Fatalf("%d updates", len(u))
+	}
+	raw, _ := json.Marshal(u[0]["blocks"])
+	if u[0]["text"] != "Rejected." || strings.Contains(string(raw), "actions") {
+		t.Fatalf("update %v", u[0])
+	}
+}
+
+// A request id longer than a Telegram button can carry (51 to 128 characters) still has its Slack buttons removed.
+func TestSlackButtonRemovalForALongRequestID(t *testing.T) {
+	se := newSLEnv(t)
+	se.svc.Subscribe(se.bus)
+	id := "act-" + strings.Repeat("x", 100)
+	if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq(id, channel.Slack)); err != nil {
+		t.Fatal(err)
+	}
+	if n := se.count(`SELECT COUNT(*) FROM notify_slack_button`); n != 1 {
+		t.Fatalf("%d rows, posts %d", n, len(se.sl.posts))
+	}
+	se.decision(id, "approved", true)
+	se.flush()
+	if n := len(se.updates()); n != 1 {
+		t.Fatalf("%d updates for a %d-character request id", n, len(id))
+	}
+}
+
+// Final decisions are forgotten a week after they arrived (the hourly prune).
+func TestSlackFinalDecisionsArePruned(t *testing.T) {
+	se := newSLEnv(t)
+	se.svc.Subscribe(se.bus)
+	se.decision("act-9", "approved", true)
+	if n := se.count(`SELECT COUNT(*) FROM notify_slack_final`); n != 1 {
+		t.Fatalf("%d final rows", n)
+	}
+	se.clock.Add(8 * 24 * time.Hour)
+	se.flush()
+	if n := se.count(`SELECT COUNT(*) FROM notify_slack_final`); n != 0 {
+		t.Fatalf("%d final rows after a week", n)
+	}
+}
+
+// Review of 3b (slice 3 gap): an approval whose rendered text does not fit one Block Kit section (3000 characters, after escaping)
+// would be refused by chat.postMessage; it goes through the webhook without buttons instead.
+func TestSlackApprovalTooLongForASectionUsesTheWebhook(t *testing.T) {
+	se := newSLEnv(t)
+	req := se.approvalReq("act-1", channel.Slack)
+	req.What = strings.Repeat("a&b ", 700) // 2800 characters, each & escaped to &amp;
+	if _, err := se.svc.SendApprovalRequest(se.ctx(), req); err != nil {
+		t.Fatal(err)
+	}
+	if len(se.sl.posts) != 0 || !se.sawHostWebhook() || se.count(`SELECT COUNT(*) FROM notify_slack_button`) != 0 {
+		t.Fatalf("posts %d, webhook %v: a message too long for a section must go through the webhook", len(se.sl.posts), se.sawHostWebhook())
 	}
 }

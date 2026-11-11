@@ -3,11 +3,14 @@
 Cập nhật: 2026-11-11, handoff cuối của phiên AI lead của Emily. Repo: **`KNT048/vedette`** (public, D-63). Module Go: `github.com/knt048/vedette`.
 Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitigation, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
 
-**Từ 2026-11-11 (quyết định của Emily):**
-- Emily cài lại Ubuntu cho giống máy của trưởng nhóm. Phiên AI của Kiên điều phối các phiên làm cho Emily, như với trưởng nhóm.
-- Không dùng Discussion #145 nữa.
-- Phiên lead cũ đã dừng sau khi merge xong mọi việc đang dở.
-- Mọi thứ người điều phối mới cần đều có trong repo: file này, các file `.ai/deferred/*` và nội dung các PR. Những gì nằm dưới `~/agents`, `~/scanwp`, `~/fgr` và các worktree trên máy cũ đều không còn.
+**Từ 2026-11-11 (quyết định của Emily; điều phối D-190):**
+- AI-Mlee chạy trên box Ubuntu riêng của Emily: user `byn2`, LAN 192.168.18.141, tmux `claude`, bypass permissions.
+- **AI-Supervisor** (máy Mac của Kiên) điều phối trực tiếp qua tmux, kiểm mỗi 30 phút. Không dùng Discussion #145 nữa.
+- Trạng thái sống của AI-Mlee: `~/vedette-wt/LEAD-STATE.md` trên box (hàng đợi, nhánh, PR). Đọc nó trước, rồi tới file này.
+- **Dải số quyết định của Mlee: D-200…D-229.** Mlee tự ghi vào `docs/DECISIONS.md`, kèm nguồn. Luật cũ "không tự đánh số" bên dưới không còn áp dụng.
+- **Giai đoạn 2 chia lại:** WP-26 `agent-intake` chuyển sang Kiên (AI-Trưởng); `auth-oidc` chuyển sang Kiên (phiên Mac, vì đụng `core/auth`). Emily giữ `reports` và `mcp-server`.
+- Việc đụng phía Kiên: mở issue `owner:kien`. Khi việc đó chặn mình, viết thêm một dòng `[→ AI-Supervisor] …` trong phiên.
+- Test AI thật (`VEDETTE_LIVE_AI=1`) chỉ chạy trên máy Mac của kien: nhờ supervisor chạy.
 
 ## Quy trình đã dùng (D-61 → D-65)
 - **Kiểm trên máy, trong WSL2 Ubuntu.** Mã nằm ở hệ file của WSL, không đặt ở `/mnt/c`.
@@ -23,7 +26,7 @@ Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitiga
 
   Ý không chặn merge ghi một dòng vào `.ai/deferred/<nhánh>.md`.
 - **Chồng lấn → Kiên làm (D-65).** Việc đụng module của Kiên hoặc phần dùng chung: mở issue `owner:kien`. Phần dùng chung gồm `core/`, `cmd/` (trừ dòng nối dây chỉ thêm vào), `Makefile`, `go.mod`, `tools/`, `scripts/`, `.github/`, `web/src/lib`, `web/src/mocks`, `docs/DECISIONS.md`, `DATA_MODEL`, `API_CONVENTIONS`, `MODULE_CONTRACTS`. Dòng Makefile chỉ thêm vào thì để commit riêng và báo @sysjrvn.
-- **Không tự đánh số D-xx.** Ghi vào mục "Quyết định cần ghi" của PR; phiên của Kiên chép vào DECISIONS.
+- ~~**Không tự đánh số D-xx.**~~ (bỏ từ 2026-11-11: Mlee dùng dải D-200…D-229) Trước đây: ghi vào mục "Quyết định cần ghi" của PR; phiên của Kiên chép vào DECISIONS.
 
 ## Đã merge
 - **Giai đoạn 0 (thư viện):** #8, #10 findings · #15 notify · #16 ai · #28 feeds.
@@ -63,7 +66,7 @@ Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitiga
 | findings / mitigation | Các dòng còn mở, gồm việc giữ hay bỏ `findings.RescanClear`. | `.ai/deferred/feat-findings-*.md` |
 | feeds | Các dòng còn mở. | `.ai/deferred/feat-feeds-*.md` |
 | exposure | Mục tiêu quét ngoài. | `.ai/deferred/feat-exposure-module.md` |
-| Giai đoạn 2 | WP-26 agent-intake, WP-27 reports / mcp-server / auth-oidc: chưa bắt đầu. | `docs/TEAM_PLAN.md` |
+| Giai đoạn 2 | WP-27 `reports`, `mcp-server`: chưa bắt đầu; làm sau logs/ai/notify/scan và WP-30 (hỏi supervisor trước). WP-26 và `auth-oidc` đã chuyển sang Kiên (D-190). | `docs/TEAM_PLAN.md` |
 
 ## Chờ từ Kiên (`owner:kien`)
 - **#115 scan:** các dòng lab và `bundled[]`; S5 đã nối scanner ở #208.

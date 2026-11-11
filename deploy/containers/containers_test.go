@@ -331,3 +331,22 @@ func TestMinSequenceFlag(t *testing.T) {
 		t.Errorf("host-deb must default MIN_SEQUENCE to 0: %v\n%s", err, out)
 	}
 }
+
+// The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
+func TestToolPinsAreExact(t *testing.T) {
+	t.Parallel()
+	got := map[string]string{}
+	for _, l := range strings.Split(read(t, "../tools.env"), "\n") {
+		if l = strings.TrimSpace(l); l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(l, "=")
+		if !ok || strings.ContainsAny(v, " \t\"'$") {
+			t.Fatalf("tools.env line %q: KEY=VALUE only, no spaces, quotes or $ (make includes the file)", l)
+		}
+		got[k] = v
+	}
+	if !regexp.MustCompile(`^docker\.io/aquasec/trivy:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$`).MatchString(got["TRIVY_IMAGE"]) {
+		t.Errorf("TRIVY_IMAGE=%q must be docker.io/aquasec/trivy:<MAJOR.MINOR.PATCH>@sha256:<64 hex>", got["TRIVY_IMAGE"])
+	}
+}

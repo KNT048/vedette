@@ -290,9 +290,13 @@ func TestWebhookDoesNotFollowRedirects(t *testing.T) {
 		http.Redirect(w, r, inner.URL, http.StatusTemporaryRedirect)
 	}))
 	t.Cleanup(srv.Close)
+	// Own transport: a nil one is http.DefaultTransport, which another parallel
+	// test's httptest.Server.Close would call CloseIdleConnections on.
+	tr := &http.Transport{}
+	t.Cleanup(tr.CloseIdleConnections)
 	for name, client := range map[string]*http.Client{
 		"default client":             nil,
-		"caller client that follows": {}, // net/http follows redirects unless told not to
+		"caller client that follows": {Transport: tr}, // net/http follows redirects unless told not to
 	} {
 		hit = false
 		c := wh(srv.URL)

@@ -21,7 +21,11 @@ import { Select } from '@/components/ui/input'
 export default function DataSection() {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
-  const org = useMe().data?.org ?? ''
+  const me = useMe().data
+  const org = me?.org ?? ''
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [kept, setKept] = useState<string[] | null>(null) // set once the purge is done and something could not be deleted
   const qc = useQueryClient()
   const purge = usePurge()
   const [askPurge, setAskPurge] = useState(false)
@@ -41,9 +45,10 @@ export default function DataSection() {
   async function doPurge() {
     setPurgeErr(null)
     try {
-      await purge.mutateAsync(typed)
+      const r = await purge.mutateAsync({ confirm: typed, password, ...(code.trim() ? { code: code.trim() } : {}) })
       setAskPurge(false)
       qc.clear()
+      if (r.kept.length > 0) { setKept(r.kept); return } // say what was not deleted before leaving the page
       nav.toSetup() // hộp về trạng thái mới cài: tải lại ở màn cài đặt ban đầu
     } catch (e) { setPurgeErr(errMsg(e, t)) }
   }
@@ -87,7 +92,7 @@ export default function DataSection() {
         </div>
       </Section>
       <Section title={t('data.purge.title')} description={t('data.purge.desc')}>
-        <Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setAskPurge(true) }}>{t('data.purge.button')}</Button>
+        <Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setPassword(''); setCode(''); setAskPurge(true) }}>{t('data.purge.button')}</Button>
       </Section>
       <Section title={t('data.sample.title')} description={t('data.sample.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button>
@@ -99,10 +104,25 @@ export default function DataSection() {
           <Field label={t('data.purge.ask.type', { org })} htmlFor="purge-confirm" error={purgeErr ?? undefined}>
             <Input id="purge-confirm" autoComplete="off" value={typed} aria-invalid={!!purgeErr} onChange={(e) => setTyped(e.target.value)} />
           </Field>
+          <Field label={t('data.purge.ask.password')} htmlFor="purge-password">
+            <Input id="purge-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          {me?.twofa ? (
+            <Field label={t('data.purge.ask.code')} htmlFor="purge-code" hint={me.twofa_method === 'email' ? t('data.purge.ask.codeEmail') : t('data.purge.ask.codeApp')}>
+              <Input id="purge-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            </Field>
+          ) : null}
           <DialogFooter>
             <Button onClick={() => setAskPurge(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={typed !== org || purge.isPending} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
+            <Button variant="danger" disabled={typed !== org || !password || purge.isPending} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={kept !== null} onOpenChange={() => undefined}>
+        <DialogContent title={t('data.purge.done.title')} description={t('data.purge.done.body')}>
+          <ul className="list-disc pl-5 text-sm">{(kept ?? []).map((k) => <li key={k}>{t(`data.purge.done.kept.${k}`)}</li>)}</ul>
+          <DialogFooter><Button variant="danger" onClick={() => nav.toSetup()}>{t('data.purge.done.continue')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

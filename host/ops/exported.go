@@ -74,3 +74,9 @@ func ValidatePodman(args []string) error { return validatePodman(args) }
 func (o *Ops) RunStart(ctx context.Context, a api.ContainerStartArgs) (any, error) {
 	return o.runContainerStart(ctx, nil, a)
 }
+
+// BinIptables is the name of iptables in the command runner (the Docker forward rules, D-267).
+const BinIptables = binIptables
+
+// ValidateIptables is the validator of the iptables binary: the only argv shapes it may ever be given.
+func ValidateIptables(args []string) error { return validateIptables(args) }

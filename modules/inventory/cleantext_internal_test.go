@@ -20,4 +20,10 @@ func TestCleanTextRefusesInvisibleCharacters(t *testing.T) {
 	if !cleanText("a\u00a0b") || !cleanText("e\u0301") { // NBSP is visible spacing, a combining accent is a letter: left alone
 		t.Error("NBSP or a combining accent refused")
 	}
+	if got := stripIgnorable("Living Room \u2600\ufe0f\u034f\u3164"); got != "Living Room \u2600" || !cleanText(got) {
+		t.Errorf("stripIgnorable = %q", got)
+	}
+	if got := stripIgnorable("a\u200eb"); got != "a\u200eb" || cleanText(got) { // a format character stays, and is refused
+		t.Errorf("stripIgnorable kept the text readable as %q", got)
+	}
 }

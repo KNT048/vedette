@@ -84,14 +84,18 @@ func TestNoBoxOwnedProviderChangesNothing(t *testing.T) {
 func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
 	t.Parallel()
 	owned := netip.MustParseAddr("192.168.10.240")
-	known := true
+	known, freshAsks, macs := true, 0, []string{"02:00:00:00:02:40", "52:54:00:aa:bb:cc"}
 	e := newEnv(t, func(c *inventory.Config) {
 		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{owned} }
-		c.BoxOwnedMACs = func(context.Context) ([]string, error) {
+		c.BoxOwnedMACs = func(_ context.Context, fresh bool) ([]string, error) {
 			if !known {
 				return nil, context.DeadlineExceeded
 			}
-			return []string{"02:00:00:00:02:40", "52:54:00:aa:bb:cc"}, nil
+			if fresh {
+				freshAsks++
+				return append([]string{"02:00:00:00:02:41"}, macs...), nil // a decoy added a moment ago
+			}
+			return macs, nil
 		}
 	})
 	ctx := e.ctx()
@@ -108,8 +112,15 @@ func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := devices(); n != 0 {
-		t.Fatalf("%d devices from the box's own frames", n)
+	if n := devices(); n != 0 || freshAsks != 0 {
+		t.Fatalf("%d devices from the box's own frames, %d fresh asks", n, freshAsks)
+	}
+	// A decoy added a moment ago: its MAC is not in the cached answer, so the host is asked again before it counts as a device.
+	if err := e.svc.Record(ctx, at("02:00:00:00:02:41", observe.MAC, "02:00:00:00:02:41")); err != nil {
+		t.Fatal(err)
+	}
+	if n := devices(); n != 0 || freshAsks != 1 {
+		t.Fatalf("%d devices, %d fresh asks: a new decoy's own frame became a device", n, freshAsks)
 	}
 	known = false
 	if err := e.svc.Record(ctx, at("aa:bb:cc:00:02:40", observe.MAC, "aa:bb:cc:00:02:40")); err != nil {

@@ -37,7 +37,9 @@ type Config struct {
 	// observation at a box-owned address is the box only when it carries no MAC or one of these; a foreign MAC there is a
 	// device sitting on the decoy's address, and is recorded (WP-31 M7), so the honeypot sees the conflict and pulls the
 	// decoy (INV-6). nil, or an error (the host has not answered yet), means unknown: everything at the address is dropped.
-	BoxOwnedMACs func(ctx context.Context) ([]string, error)
+	// fresh asks for an answer newer than the cache (a decoy added a moment ago has a MAC the cached answer lacks); the provider
+	// bounds how often that reaches the host. A MAC the cached answer does not hold is asked again with fresh before it counts.
+	BoxOwnedMACs func(ctx context.Context, fresh bool) ([]string, error)
 	Clock        func() time.Time
 	Log          *slog.Logger
 }
@@ -52,7 +54,7 @@ type Service struct {
 	findings FindingCounter
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
-	boxMACs  func(ctx context.Context) ([]string, error)
+	boxMACs  func(ctx context.Context, fresh bool) ([]string, error)
 	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
@@ -101,24 +103,32 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 		return nil
 	}
 	var macs map[string]bool // nil = unknown; asked only when an observation is at a box-owned address
-	asked := false
+	asked, freshAsked := false, false
+	load := func(fresh bool) {
+		macs = nil
+		if list, err := s.boxMACs(ctx, fresh); err == nil {
+			macs = map[string]bool{}
+			for _, m := range list {
+				if n, ok := normMAC(m); ok {
+					macs[n] = true
+				}
+			}
+		}
+	}
 	return func(ip netip.Addr, mac string) bool {
 		if !ip.IsValid() || !owned[ip] {
 			return false
 		}
-		if mac == "" {
+		if mac == "" || s.boxMACs == nil {
 			return true
 		}
-		if !asked && s.boxMACs != nil {
+		if !asked {
 			asked = true
-			if list, err := s.boxMACs(ctx); err == nil {
-				macs = map[string]bool{}
-				for _, m := range list {
-					if n, ok := normMAC(m); ok {
-						macs[n] = true
-					}
-				}
-			}
+			load(false)
+		}
+		if macs != nil && !macs[mac] && !freshAsked { // not the box's by the cached answer: ask the host before calling it a device
+			freshAsked = true
+			load(true)
 		}
 		return macs == nil || macs[mac]
 	}

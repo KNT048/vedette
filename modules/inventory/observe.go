@@ -123,6 +123,7 @@ func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
 			return cleanObs{}, invalid("observation %d: unknown device type", i)
 		}
 	default:
+		value = stripIgnorable(value)
 		if !cleanText(value) {
 			return cleanObs{}, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
 		}

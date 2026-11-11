@@ -45,7 +45,7 @@ export async function api<T = any>(request: APIRequestContext, method: 'GET' | '
     const csrf = (await request.storageState()).cookies.find((c) => c.name === '__Host-vedette_csrf')?.value
     if (csrf) headers['X-CSRF-Token'] = csrf
   }
-  const r = await request.fetch(`/api/v1${path}`, { method, headers, data: body, failOnStatusCode: false })
+  const r = await request.fetch(`/api/v1${path}`, { method, headers, data: body, failOnStatusCode: false, timeout: 45_000 }) // the box checks one password at a time (argon2): a busy machine queues sign-ins
   const text = await r.text()
   return { status: r.status(), body: (text ? safeJson(text) : null) as T }
 }

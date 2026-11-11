@@ -30,9 +30,9 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã d
   - WP-08 đã merge các phần a, b, c, d, g, j.
   - WP-31 đã rà xong; các lát sửa R1, R2, S, I, H và M4/L10 đã merge.
   - WP-30 lát 1–2 đã merge (#204, #210); feeds của Emily đã merge (#222).
-  - Phía Emily đã merge: feeds, findings/mitigation, notify (phần lớn), exposure, scan S0–S5, ai lát 1–3, logs L1.
-- **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222.
-- **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); logs production-safety (Mlee).
+  - Phía Emily đã merge: feeds, findings/mitigation, notify (phần lớn), exposure, scan S0–S5, ai lát 1–3, logs L1 và an toàn production (#226: giới hạn theo byte, trần export, kẹp thời điểm; D-200).
+- **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222, #226.
+- **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); Mlee: e2e-real findings + mitigation (`feat/e2e-real-findings`), logs N1/N2 (`fix/logs-purge-n1-n2`).
 
 ## Còn lại tới "app chạy đủ chức năng"
 **Phía Kiên — AI-Trưởng**
@@ -49,7 +49,8 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã d
 - [ ] Sửa `scripts/dev/orphan-reaper.sh`: nó bỏ sót `pnpm dev` mồ côi.
 
 **Phía Emily — AI-Mlee**
-- [ ] WP-24 logs: các dòng deferred, gồm M2, L1–L7 và các ý rà của #186.
+- [ ] WP-24 logs: N1/N2 (chặn listener L2) → L2 listener (cần `Scheduler.Wake` hoặc vòng kick trong module, #223) → L3–L7. M2, trần export, kẹp thời điểm và các ý rà của #186 đã xong (#226).
+- [ ] notify: cổng tuỳ chọn `Config.ApproverLinks` cho WP-31 R3/L7 (D-191, Mac nối dây sau khi merge).
 - [ ] WP-25 ai: lát 4a (rules và hook; kèm bí danh khôi phục được để kế hoạch xử lý đề xuất được hành động khi đang che dữ liệu cá nhân) → 4b → 4c → 6 → 5 → 7.
 - [ ] notify: lát 3 (Slack), 3b, 4 (mã trả lời Zalo cá nhân), Telegram L1/L3/L4.
 - [ ] scan: tự dừng khi thiết bị không phản hồi; #189 L3; kiểm trong LAB với nuclei v3.11.1.

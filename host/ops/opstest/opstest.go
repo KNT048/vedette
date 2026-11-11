@@ -328,7 +328,7 @@ func (m *Machine) DockerDelete(rule string) {
 // DockerAdminRuleFirst puts a rule of the administrator's own at the top of the fake DOCKER-USER chain.
 func (m *Machine) DockerAdminRuleFirst(rule string) {
 	p := filepath.Join(m.Rec, "ipt.rules")
-	old, _ := os.ReadFile(p) //nolint:gosec // test support: a path under the fake rec dir
+	old, _ := os.ReadFile(p)                                          //nolint:gosec // test support: a path under the fake rec dir
 	m.must(os.WriteFile(p, append([]byte(rule+"\n"), old...), 0o600)) //nolint:gosec // test support: a path under the fake rec dir
 }
 

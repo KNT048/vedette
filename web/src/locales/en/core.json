@@ -228,6 +228,7 @@
       "mitigation": "Mitigation",
       "network": "Network",
       "os": "Operating system",
+      "report": "Reports",
       "response": "Response",
       "scan": "Scans",
       "sensor": "Sensor",
@@ -349,6 +350,11 @@
       "scan.stop": "Stop scan",
       "scan.schedule.missed": "Scheduled scan missed",
       "sensor.interface_set": "Set sensor interface",
+      "report.ai_summary": "Draft an AI commentary on a report",
+      "report.pdpl_generate": "Create the data protection self-assessment",
+      "report.pdpl_org": "Save organisation details for the self-assessment",
+      "report.schedule": "Change the weekly report schedule",
+      "report.send": "Send the weekly report",
       "response.ai": "AI response request refused",
       "response.ai_hint": "Save rejection reason for the AI",
       "response.ai_note": "AI note on a response",
@@ -375,6 +381,8 @@
       "response.execution.disable": "Turn response execution off",
       "response.expire": "Response request expired",
       "response.fail": "Response action failed",
+      "response.identity_link": "Approver linked a channel address",
+      "response.identity_unlink": "Approver unlinked a channel address",
       "response.proposal": "AI proposed a response",
       "response.refused": "Response action refused",
       "response.reject": "Reject response action",
@@ -393,9 +401,16 @@
       "ai.activity_pruned": "Delete old AI activity log lines",
       "ai.assign": "Choose AI profiles for jobs",
       "ai.config": "Change AI settings",
+      "ai.hook.add": "Add AI hook",
+      "ai.hook.builtin": "Turn a built-in AI hook on or off",
+      "ai.hook.edit": "Change AI hook",
+      "ai.hook.remove": "Delete AI hook",
       "ai.profile.add": "Add AI profile",
       "ai.profile.edit": "Change AI profile",
       "ai.profile.remove": "Delete AI profile",
+      "ai.rule.add": "Add AI rule",
+      "ai.rule.edit": "Change AI rule",
+      "ai.rule.remove": "Delete AI rule",
       "ai.test": "Test AI profile",
       "data.backup_failed": "Backup download failed",
       "exposure.box_ip_settings": "Change how the box public address is found",
@@ -546,7 +561,8 @@
       "body": "Software updates come only from signed GitHub releases. Feeds (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds and your own) are fetched by the box directly from each source, never through GitHub. Confirmed recommendation packs ship inside updates.",
       "link": "Open Settings, Feeds"
     },
-    "titleOs": "{{name}}: {{count}} security updates waiting",
+    "titleOs_one": "{{name}}: {{count}} security update waiting",
+    "titleOs_other": "{{name}}: {{count}} security updates waiting",
     "titleOsClean": "{{name}}: no security updates waiting",
     "managed": {
       "title": "Packages managed by Vedette",
@@ -684,6 +700,8 @@
         "backup": "Database backup before the run",
         "health": "Health check after the run",
         "failed": "failed",
+        "failedChip": "Failed",
+        "failedToast": "The update failed. Nothing was installed.",
         "reboot": "Reboot"
       },
       "upgrade": {
@@ -727,7 +745,7 @@
       },
       "3": {
         "name": "AI assistant",
-        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call. Only hashes of what was sent are kept in the AI activity log.",
+        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call, unless an administrator turns off Block personal data; the company rules an administrator writes are sent with every call. Only hashes of what was sent are kept in the AI activity log.",
         "to": "The AI providers you add (one or more profiles), or a model inside your network",
         "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
         "link": "Open AI settings"
@@ -740,7 +758,7 @@
       },
       "5": {
         "name": "Notifications",
-        "what": "Alert content, and the 6-digit sign-in code for people who use two-step email codes. Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
+        "what": "Alert content, the 6-digit sign-in code for people who use two-step email codes, and a 6-digit link code when an approver links their address in My account (sent to that address, or answered privately to their button press in chat). Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
         "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or your own SMTP server for email",
         "control": "Remove the channel, or turn off approvals in chat, to stop it.",
         "link": "Open alert channels"
@@ -1232,6 +1250,8 @@
       "dnsHint": "One to three addresses, separated by commas.",
       "save": "Save management settings",
       "saved": "Management settings saved.",
+      "pendingSaved": "Applied. Confirm the new address in time or the box goes back to the old one.",
+      "revertedNow": "The box went back to the old settings.",
       "restartNote": "If the box restarts before you confirm, it comes back on the old address.",
       "reverted": "The change was not confirmed in time, so the box went back to the old settings."
     },

@@ -100,6 +100,8 @@ const steps: Step[] = [
   { name: 'protocol the kind cannot send', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ kind: 'sophos', proto: 'tcp', sender_ip: '192.168.77.6' }), status: 400, code: 'bad_proto' },
   { name: 'port 0', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 0, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
   { name: 'port 65536', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 65536, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
+  { name: 'proto tls', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ proto: 'tls', port: 6514, sender_ip: '192.168.77.8' }), status: 201, schema: LogSource,
+    real: { status: 400, code: 'tls_unavailable' } }, // D-203: the real box refuses TLS until the TLS listener exists; the catalog and the mock still offer it, and the form shows the server's message
   { name: 'add a second source', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ name: 'conf-fw-b', sender_ip: '192.168.77.7' }), status: 201, schema: LogSource, keep: (b, c) => { c.id2 = b.id } },
   { name: 'edit takes the second source\'s IP', role: 'admin', method: 'PUT', path: ID, body: SRC({ sender_ip: '192.168.77.7' }), status: 409, code: 'duplicate' },
   { name: 'edit an unknown source', role: 'admin', method: 'PUT', path: '/logs/sources/ls-nope', body: SRC({ sender_ip: '192.168.77.9' }), status: 404, code: 'not_found' },

@@ -106,7 +106,7 @@ function Pending({ d }: { d: NetworkState }) {
       {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" disabled={confirm.isPending} onClick={() => { settled.current = true; setError(null); confirm.mutate(undefined, { onSuccess: () => toast.success(t('network.pending.confirmed')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.confirm')}</Button>
-        <Button disabled={revert.isPending} onClick={() => { settled.current = true; setError(null); revert.mutate(undefined, { onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.revert')}</Button>
+        <Button disabled={revert.isPending} onClick={() => { settled.current = true; setError(null); revert.mutate(undefined, { onSuccess: () => toast.success(t('network.management.revertedNow')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.revert')}</Button>
       </div>
     </div>
   )
@@ -135,7 +135,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
     setError(null)
     const body = mode === 'dhcp' ? { mode, confirm } : { mode, address: address.trim(), prefix: Number(prefix), gateway: gateway.trim(), dns: list(dns), confirm }
     management.mutate(body, {
-      onSuccess: () => { setAsk(null); toast.success(t('network.management.saved')) },
+      onSuccess: (n) => { setAsk(null); toast.success(t(n.pending ? 'network.management.pendingSaved' : 'network.management.saved')) },
       onError: (e) => {
         if (e instanceof ApiError && e.code === 'confirm_required') { setAsk({ ip: typeof e.details.new_ip === 'string' && e.details.new_ip ? e.details.new_ip : null }); return }
         setAsk(null); setError(errMsg(e, t))

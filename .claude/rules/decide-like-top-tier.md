@@ -1,6 +1,6 @@
 # Phân vân → tham khảo top-tier rồi tự quyết (kien, 2026-11-09, D-74)
 
 - Gặp chỗ phân vân (sản phẩm, UX, bảo mật, kỹ thuật): trước hết xem các sản phẩm hàng đầu cùng loại làm thế nào, đọc tài liệu chính thức của họ. Ví dụ: bảo mật tài khoản → GitHub, Google, Microsoft; appliance/tường lửa → pfSense/OPNsense, FortiGate, UniFi; phần mềm tự cài → Jenkins, Rancher, Grafana, Home Assistant. Rồi cân nhắc theo bối cảnh Vedette và **tự quyết**.
-- Ghi quyết định vào `docs/DECISIONS.md` (D-xx) kèm nguồn tham khảo (link) và lý do chọn/không chọn. Đổi màn hình/hành vi → thêm tiêu chí vào story trong `docs/USER_STORIES.md` (vẫn phải có story trước khi code, `no-imagined-features.md`), không chờ kien.
+- Ghi quyết định thành file `docs/decisions/D-xx.md`, một hàng bảng (D-250; supervisor gộp vào `docs/DECISIONS.md`, không tự thêm vào bảng) kèm nguồn tham khảo (link) và lý do chọn/không chọn. Đổi màn hình/hành vi → thêm tiêu chí vào story trong `docs/USER_STORIES.md` (vẫn phải có story trước khi code, `no-imagined-features.md`), không chờ kien.
 - Chỉ hỏi kien khi **rất đặc biệt**: tốn tiền thật hoặc cam kết chi phí; rủi ro pháp lý/giấy phép hoặc luồng dữ liệu rời hộp mới; đổi hướng sản phẩm hay đối tượng người dùng; không hoàn tác được; hoặc các sản phẩm hàng đầu làm ngược nhau và cả hai lựa chọn đều có hậu quả lớn cho người dùng. Khi hỏi: đưa khuyến nghị kèm nguồn, không hỏi câu mở.
 - Luật này không mở đường bỏ qua rule cứng khác (bảo mật, pháp lý, ships-as-code, GUI trước).

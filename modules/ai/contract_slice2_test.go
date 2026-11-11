@@ -335,7 +335,7 @@ func TestContract_INV12_PersonalDataStopsTheCall(t *testing.T) {
 		t.Fatalf("a blocked request is not an AI run: %v", runs)
 	}
 	// The answer is run through the after_ai hooks too, but the built-in personal-data hook acts before the AI only; custom hooks on
-	// answers arrive with the hook table (slice 4a), where that path gets its own test.
+	// answers are tested in harness_test.go (TestContract_INV13_AfterAIBlocksAndMasksTheAnswer).
 }
 
 func TestContract_PRE1_NothingToRunMeansAiUnavailableWithAReason(t *testing.T) {

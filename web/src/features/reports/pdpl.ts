@@ -3,6 +3,7 @@
 // Căn cứ đã đối chiếu văn bản gốc (2026-11-06): Luật BVDLCN 91/2025/QH15 (hiệu lực 01/01/2026) và Nghị định 356/2025/NĐ-CP
 // (Công báo số 18, 18/01/2026): Điều 41 NĐ 356 quyết định doanh nghiệp nào được miễn / được chọn thực hiện Điều 21, 22, khoản 2 Điều 33 của Luật.
 
+import type { ModuleId } from '@/lib/modules'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import { newId, nowIso } from '@/mocks/db'
 import { EOL_OS, rowOf } from './weekly'
@@ -30,13 +31,15 @@ export function buildPdpl(org: PdplOrg): PdplReport {
   const rdp = assets.filter((a) => a.services.some((s) => s.port === 3389))
   const unapproved = assets.filter((a) => !a.approved)
   const m = (id: Measure['id'], status: Measure['status'], list: string[] = []): Measure => ({ id, status, n: list.length, names: list.slice(0, 4) })
+  // Mirrors modules/reports/pdpl.go (D-237): something found is "attention"; nothing found is "ok" only when the box could look.
+  const seen = (list: string[], ...needs: ModuleId[]): Measure['status'] => (list.length ? 'attention' : assets.length === 0 || needs.some((n) => !isOn(n)) ? 'unknown' : 'ok')
   const measures: Measure[] = [
-    m('firewall', assets.some((a) => a.kind === 'firewall') ? 'ok' : 'attention'),
-    m('patching', open.length ? 'attention' : 'ok', open.map((f) => f.cve)),
-    m('eol', eol.length ? 'attention' : 'ok', eol.map(label)),
-    m('unapproved', unapproved.length ? 'attention' : 'ok', unapproved.map(label)),
-    m('remote', rdp.length ? 'attention' : 'ok', rdp.map(label)),
-    m('logging', isOn('logs') ? 'ok' : 'attention'),
+    m('firewall', assets.some((a) => a.kind === 'firewall') ? 'ok' : assets.length === 0 ? 'unknown' : 'attention'),
+    m('patching', seen(open.map((f) => f.cve), 'feeds'), open.map((f) => f.cve)),
+    m('eol', seen(eol.map(label)), eol.map(label)),
+    m('unapproved', seen(unapproved.map(label)), unapproved.map(label)),
+    m('remote', seen(rdp.map(label), 'scan'), rdp.map(label)),
+    m('logging', isOn('logs') ? 'ok' : 'unknown'),
     m('honeypot', isOn('honeypot') ? 'ok' : 'unknown'),
     m('scan', isOn('scan') ? 'ok' : 'unknown'),
     m('backup', 'unknown'),

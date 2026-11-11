@@ -184,18 +184,7 @@ func (s *Service) resyncOnce(ctx context.Context) error {
 // transaction (one snapshot, so they agree), then a short write adds the difference. A batch committed meanwhile has added its
 // own bytes to the counter and is not in the sum, so the difference leaves it counted.
 func (s *Service) resync(ctx context.Context) error {
-	var sum, was int64
-	tx, err := s.cfg.Volume.Reader().BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("logs: recomputing the stored bytes: %w", err)
-	}
-	err = tx.QueryRowContext(ctx, `SELECT (SELECT coalesce(sum(length(CAST(line AS BLOB))), 0) FROM logs_events), (SELECT line_bytes FROM logs_volume WHERE id = 1)`).Scan(&sum, &was)
-	if err == nil && s.afterSum != nil {
-		s.afterSum()
-	}
-	if cerr := tx.Rollback(); err == nil && cerr != nil && !errors.Is(cerr, sql.ErrTxDone) {
-		err = cerr
-	}
+	sum, was, err := s.readCounters(ctx)
 	if err != nil {
 		return fmt.Errorf("logs: recomputing the stored bytes: %w", err)
 	}
@@ -205,6 +194,25 @@ func (s *Service) resync(ctx context.Context) error {
 		}
 		return nil
 	})
+}
+
+// readCounters reads the real sum of the line bytes and the counter in one read transaction. The rollback is deferred: a pass
+// survives a panic now, and a read transaction left open would hold the WAL back from checkpointing.
+func (s *Service) readCounters(ctx context.Context) (sum, was int64, err error) {
+	tx, err := s.cfg.Volume.Reader().BeginTx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() {
+		if cerr := tx.Rollback(); err == nil && cerr != nil && !errors.Is(cerr, sql.ErrTxDone) {
+			err = cerr
+		}
+	}()
+	err = tx.QueryRowContext(ctx, `SELECT (SELECT coalesce(sum(length(CAST(line AS BLOB))), 0) FROM logs_events), (SELECT line_bytes FROM logs_volume WHERE id = 1)`).Scan(&sum, &was)
+	if err == nil && s.afterSum != nil {
+		s.afterSum()
+	}
+	return sum, was, err
 }
 
 func (s *Service) dropStale(ctx context.Context) error {
@@ -238,7 +246,11 @@ func (s *Service) dropStale(ctx context.Context) error {
 // the next kick (Ingest, over the bound; skipped when the last purge started less than purgeGap ago) or PurgeEvery.
 // Core records one history row when Run ends, so the history shows one long run per process, not one per hour.
 func Jobs(svc *Service) []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop}}
+	return []jobs.Job{
+		{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop},
+		// The syslog listener is NOT housekeeping: it opens ports, so it runs only while the module is on (SYS-5).
+		{Module: ModuleID, Name: "syslog", Every: SyslogRetry, Run: svc.runSyslog},
+	}
 }
 
 // purgeLoop ends only when ctx does: nothing that goes wrong in a pass may stop it, or nobody would read kick until the

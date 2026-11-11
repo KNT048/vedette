@@ -104,7 +104,7 @@ export const KnowledgeSettings = z.object({ index_profile: z.string().nullable()
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
 
 export const BuiltinHook = z.object({ id: z.string(), name: z.string(), description: z.string(), enabled: z.boolean(), locked: z.boolean().describe('true = always on, cannot be turned off') })
-export const HookMatch = z.object({ type: z.enum(['keywords', 'regex']), pattern: z.string().min(1).max(200).describe('keywords: comma-separated words; regex: JavaScript regular expression') })
+export const HookMatch = z.object({ type: z.enum(['keywords', 'regex']), pattern: z.string().min(1).max(200).describe('keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)') })
 export const CustomHook = z.object({ id: z.string(), name: z.string(), when: HookWhen, match: HookMatch, action: HookAction, message: z.string(), enabled: z.boolean() })
 export const HookInput = z.object({ name: z.string().min(1).max(40), when: HookWhen, match: HookMatch, action: HookAction, message: z.string().min(3).max(200), enabled: z.boolean() })
 export const HooksView = z.object({ builtin: z.array(BuiltinHook), custom: z.array(CustomHook) })

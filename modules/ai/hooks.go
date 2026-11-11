@@ -57,17 +57,23 @@ const (
 	OutcomeHeld    Outcome = "held"
 )
 
-// MaxHookInputBytes bounds the text a hook run scans. Go's regexp is RE2 (time linear in input size, no
-// backtracking blow-up), so with a 200-character pattern and this cap one run costs at most a few hundred
-// milliseconds; anything longer is refused rather than half-checked.
+// MaxHookInputBytes bounds the text a hook run scans. Go's regexp is RE2: no catastrophic backtracking, one search is linear in
+// the text. A customer regex is searched again from the end of each match, and a leftmost-first pattern such as `.*z|a` reads to
+// the end of the text on every search, so the cost is matches x text size, not text size (measured: 1,000 matches and 128 KiB of
+// text take 6 s, so 1 MiB would take most of a minute). MaxMatchesPerScan stops a flood of matches (more is a block). It does not bound the
+// time: the deadline does. Every hook pass (before_ai, after_ai, a test) runs under Service.hookTimeout, the context is checked
+// inside a search, and a pass that runs out of time is a block. Anything over this size is refused rather than half-checked.
 const MaxHookInputBytes = 1 << 20
 
+// MaxMatchesPerScan is the most matches one custom regex may find in one text. More is a block: fail closed.
+const MaxMatchesPerScan = 1000
+
 // MaxRegexProgram is the largest compiled program (instructions, repeats expanded) a custom regex may have, and
-// MaxCustomHooks the most custom hooks a box may have. Together with the context-aware scan (see scanRegexp) they bound
-// the time one Run can take: the context deadline is honoured inside a match attempt, not only between hooks.
+// MaxCustomHooks the most custom hooks a box may have (30, the limit of the GUI mock). Together with the match cap and the
+// context-aware scan (see scanRegexp) they bound the work of one Run; the deadline bounds its time.
 const (
 	MaxRegexProgram = 2000
-	MaxCustomHooks  = 50
+	MaxCustomHooks  = 30
 )
 
 // Errors of the hook runner.
@@ -342,6 +348,10 @@ func (r *HookRunner) run(ctx context.Context, text string, use func(hookDef) boo
 			continue
 		}
 		spans, err := d.find(ctx, scan)
+		if errors.Is(err, errTooManyMatches) { // fail closed: a text this full of matches is not passed on
+			res.note(d)
+			return HookResult{Text: fmt.Sprintf("The text has too many matches for the hook %q, so it was not used.", d.name), Outcome: OutcomeBlocked, Hits: res.Hits}, nil
+		}
 		if err != nil {
 			return HookResult{}, err
 		}

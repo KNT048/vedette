@@ -138,7 +138,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	if err := only(env.Svc.ConfirmTOTP(ctx, app.ID, "", auth.TOTPCode(key, auth.TOTPStep(env.Clock.Now())))); err != nil {
 		t.Fatal(err)
 	}
-	for _, code := range []string{"", "000000", "12345"} {
+	for _, code := range []string{"", authtest.WrongTOTP(key, env.Clock.Now()), "12345"} {
 		_, err := env.Login(t, app.Email, code)
 		if code == "" {
 			apiCode(t, err, 401, "twofa_required")
@@ -172,10 +172,7 @@ func TestContract_INV8_TwoStep(t *testing.T) {
 	if err := env.DB.Reader().QueryRowContext(ctx, "SELECT code_hash FROM core_email_code WHERE user_id = ?", em.ID).Scan(&stored); err != nil || stored == code || len(stored) != 64 {
 		t.Fatalf("stored code value %q, %v", stored, err)
 	}
-	wrong := "000000"
-	if code == wrong {
-		wrong = "111111"
-	}
+	wrong := authtest.WrongCode(code)
 	for range 4 {
 		_, err = env.Login(t, em.Email, wrong)
 		apiCode(t, err, 400, "wrong_code")

@@ -322,7 +322,14 @@ test.describe('users and roles', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await logoutApi(page)
     await login(page, 'lan@example.test', temp)
-    await expect(h1(page)).toBeVisible()
+    // D-180: a password an administrator set is changed at the first sign-in
+    const lanPw = 'lan-chose-this-one-2026'
+    await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible()
+    await page.getByLabel('Temporary password').fill(temp)
+    await page.getByLabel('New password', { exact: true }).fill(lanPw)
+    await page.getByLabel('Repeat new password').fill(lanPw)
+    await page.getByRole('button', { name: 'Save and continue' }).click()
+    await expect(h1(page)).not.toHaveText('Choose a new password')
     await page.goto('/settings/users')
     await expect(page.getByText(/needs a higher role/)).toBeVisible()
     await logoutApi(page)
@@ -333,7 +340,7 @@ test.describe('users and roles', () => {
     await page.getByRole('button', { name: 'Disable Lan IT' }).filter(vis).click()
     await expect(page.getByText('Disabled').filter(vis).first()).toBeVisible()
     await logoutApi(page)
-    await login(page, 'lan@example.test', temp)
+    await login(page, 'lan@example.test', lanPw) // the right password: a disabled account still cannot sign in
     await expect(page.getByText('Wrong email or password.')).toBeVisible()
     await login(page, LOGIN.email, LOGIN.password)
     await page.goto('/settings/users')

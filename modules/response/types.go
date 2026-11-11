@@ -386,11 +386,13 @@ type Settings struct {
 
 // ChannelView is an approval channel as the settings show it.
 type ChannelView struct {
-	Type      string `json:"type"`
-	Label     string `json:"label"`
-	Ready     bool   `json:"ready"`
-	Approvers int    `json:"approvers"`
-	Link      bool   `json:"link"`
+	Type      string   `json:"type"`
+	Label     string   `json:"label"`
+	Ready     bool     `json:"ready"`
+	Approvers int      `json:"approvers"`
+	Link      bool     `json:"link"`
+	Linked    int      `json:"linked"`   // approvers who linked their address (D-191)
+	Unlinked  []string `json:"unlinked"` // names of the approvers who have not
 }
 
 // SettingsView is Settings plus the channels.

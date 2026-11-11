@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RequestHandler } from 'msw'
 import { handlersByModule } from '@/mocks/handlers'
-import { orgStore, sessionStore } from '@/mocks/stores'
+import { modulesStore, orgStore, sessionStore } from '@/mocks/stores'
 import { allEndpoints, buildOpenApi } from './openapi'
 import openapiFile from '../../../api/openapi.json'
 
@@ -29,6 +29,8 @@ describe.each(modules)('hợp đồng %s', (mod) => {
 
   it('GET trả dữ liệu khớp schema', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
+    // an off module's paths are 404 by design (SYS-5; /core/mcp of mcp-server, D-230): the schema is checked with every module on
+    modulesStore.update((l) => l.map((m) => ({ ...m, enabled: true })))
     for (const e of eps.filter((x) => x.method === 'get' && x.response && x.response !== 'file')) {
       if (e.path.includes('{') && !e.example?.params) continue
       sessionStore.set({ userId: e.role === 'public' ? null : 'u-admin' })

@@ -35,7 +35,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
 - SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam; `ReadTimeout` toàn yêu cầu 15 s, D-176; 10 s cho 11 MiB tức ~9 Mbit/s, chỉ đúng cho sensor cục bộ, tính lại khi dựng sensor từ xa) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
-- Listener nhận tối đa **64 kết nối** cùng lúc (`LimitListener`, thư viện chuẩn), chia theo vai tại bắt tay TLS: `passive` ≤ 32, `active` ≤ 16 (D-176); `ErrorLog` của `http.Server` đi qua slog như server 8443 (lỗi handshake bị từ chối vào log, không ra stderr). Client **không theo redirect**: một 3xx là lỗi của request, `Location` không được gọi (không đưa chứng chỉ client cho máy khác).
+- Listener nhận tối đa **64 kết nối** cùng lúc (`PendingListener`, thư viện chuẩn): **16 đang bắt tay** (chưa xác thực; đầy thì kết nối mới thay chỗ kết nối chờ lâu nhất nếu nó đã chờ ≥ 250 ms, không thì kết nối mới bị đóng ngay; mỗi kết nối chờ bị đóng sau 3 s bắt tay, D-326), rồi theo vai tại bắt tay TLS: `passive` ≤ 32, `active` ≤ 16 (D-176); `ErrorLog` của `http.Server` đi qua slog như server 8443 (lỗi handshake bị từ chối vào log, không ra stderr). Client **không theo redirect**: một 3xx là lỗi của request, `Location` không được gọi (không đưa chứng chỉ client cho máy khác).
 - Sensor đọc phản hồi của `core` cũng có trần (config ≤ 64 KiB, jobs ≤ 64 KiB, phản hồi khác ≤ 16 KiB) và giải mã chặt như `core`.
 
 ## 4. Chứng chỉ và danh tính (D-110)
@@ -303,7 +303,7 @@ Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-V
 
 **Thân trong bộ nhớ có trần theo vai (M1 của rà soát SP-1; SYS-6).** Tốc độ 10/s không giới hạn số thân `core` đang giữ cùng lúc: một chứng chỉ bị chiếm sẽ giữ hàng chục thân 11 MiB mở trong 10 s. Nên trước khi đọc **bất kỳ** thân nào, request lấy một chỗ: tối đa **2 thân đang đọc cùng lúc mỗi vai** (`MaxBodiesPerRole`), và **1** cho `POST /jobs/{id}/result` (`MaxResultBodies`; worker chạy một job một lần). Không có chỗ → `503 store_busy` với `Retry-After: 1`, thân không được đọc, kết nối bị đóng; chỗ trả lại khi request kết thúc (kể cả khi kết nối đứt hay thân quá hạn). Kết quả job: trước khi đọc thân, `core` hỏi `Backend.JobRunning(id)`; id sai dạng → `400`, job không đang chạy → `404 unknown_job`, cả hai không đọc thân và đóng kết nối. Sensor xử lý `503` như cũ: chờ `Retry-After`, gửi lại cùng lô.
 
-**Một sensor không giữ được các chỗ kết nối (WP-31 M3, D-176).** `MaxConns` = 64 chia theo vai **tại bắt tay TLS** (vai đọc từ chứng chỉ đã xác minh): `passive` tối đa 32, `active` tối đa 16 (`MaxConnsPassive`, `MaxConnsActive`); kết nối vượt phần của vai hỏng bắt tay, kể cả khi nó không gửi byte nào, trên HTTP/1 và h2. Trên HTTP/1 mọi từ chối trước khi đọc thân trả `Connection: close` kèm hạn đọc 1 s (`DrainGrace`) khi yêu cầu có thể mang thân (h2: không đóng cả kết nối); `GET` có thân = `400 invalid_request`. `ReadTimeout` toàn yêu cầu = `ReadHeaderTimeout + BodyTimeout` (15 s); long poll gỡ hạn đó cho chính nó. Giới hạn đã biết: dòng TCP/TLS chưa xác thực trước bắt tay chưa tính theo vai được (D-176 (5)).
+**Một sensor không giữ được các chỗ kết nối (WP-31 M3, D-176).** `MaxConns` = 64 = 16 chỗ cho kết nối đang bắt tay (`MaxPending`, D-326) + phần của vai **tại bắt tay TLS** (vai đọc từ chứng chỉ đã xác minh): `passive` tối đa 32, `active` tối đa 16 (`MaxConnsPassive`, `MaxConnsActive`); kết nối vượt phần của vai hỏng bắt tay, kể cả khi nó không gửi byte nào, trên HTTP/1 và h2. Trên HTTP/1 mọi từ chối trước khi đọc thân trả `Connection: close` kèm hạn đọc 1 s (`DrainGrace`) khi yêu cầu có thể mang thân (h2: không đóng cả kết nối); `GET` có thân = `400 invalid_request`. `ReadTimeout` toàn yêu cầu = `ReadHeaderTimeout + BodyTimeout` (15 s); long poll gỡ hạn đó cho chính nó. Giới hạn đã biết: dòng TCP/TLS chưa xác thực trước bắt tay chưa tính theo vai được (D-176 (5)).
 
 ## 8. Sequence
 
@@ -351,7 +351,7 @@ sequenceDiagram
 | Nhịp request | 10/giây, burst 20, mỗi vai (long-poll cũng tính) |
 | Long-poll mở | 1 mỗi vai |
 | Thân đang đọc cùng lúc | 2 mỗi vai, 1 cho kết quả job (M1); không có chỗ → `503 store_busy`, `Retry-After: 1` |
-| Kết nối cùng lúc | 64 cho cả listener (`LimitListener`; kết nối thứ 65 chờ trong hàng đợi accept) |
+| Kết nối cùng lúc | 64 cho cả listener (`PendingListener`: 16 đang bắt tay + 32 passive + 16 active; D-326) |
 | Hạn mức chống ngập (`core`) | MAC mới 60/phút và 200/giờ; giá trị mới và địa chỉ IP mới 4 mỗi (MAC, trường) mỗi giờ; 6000 mục/phút cho vai `passive`; lặp trong 15 phút không ghi |
 | Heartbeat | mỗi 30 s; `online` khi ≤ 90 s |
 | Lease của worker | 60 s không poll thành công |

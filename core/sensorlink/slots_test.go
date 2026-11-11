@@ -372,3 +372,26 @@ func TestRefusalOverH2KeepsTheConnection(t *testing.T) {
 		t.Errorf("second request: reused=%v status=%d, want the same h2 connection and 200", reused, st)
 	}
 }
+
+// D-326 (D-176 (5) residual): a local process that opens raw TCP connections and never starts TLS cannot hold the listener: they wait in the
+// pending pool, the oldest is evicted for a newcomer, and the scan role's connection gets through while the junk stays open.
+func TestUnauthenticatedConnectionsCannotStarveTheSensors(t *testing.T) {
+	t.Parallel()
+	r, addr := serveRig(t, sensorlink.Options{})
+	act := r.ca.leaf(t, leafOpts{serial: 200, uris: []string{"vedette:sensor:active"}})
+	var junk []net.Conn
+	for range sensorlink.MaxConns * 2 {
+		c, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		junk = append(junk, c)
+		t.Cleanup(func() { _ = c.Close() })
+	}
+	time.Sleep(sensorlink.MinPendingAge + 100*time.Millisecond) //nolint:forbidigo // real sockets: the junk grows older than the minimum age
+	p := r.peer(t, act)
+	p.c.Timeout = 3 * time.Second
+	if got, err := p.call(t, "https://"+addr, "GET", "/sensor/v1/jobs?wait=0", nil, nil); err != nil || got.status != 200 {
+		t.Fatalf("the scan role polling while %d raw connections are open: %v %d", len(junk), err, got.status)
+	}
+}

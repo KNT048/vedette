@@ -33,14 +33,19 @@ const (
 
 	// MaxBodiesPerRole is how many request bodies core holds in memory at once for one role, MaxResultBodies how many of them
 	// may be a job result (up to 11 MiB; a worker runs one job at a time). A request that cannot get a slot is 503 store_busy
-	// with Retry-After: 1, before its body is read. MaxConns caps the connections of the whole listener.
+	// with Retry-After: 1, before its body is read. MaxConns caps the connections of the whole listener: the pending pool plus
+	// the two role shares.
 	MaxBodiesPerRole = 2
 	MaxResultBodies  = 1
-	MaxConns         = 64
-	// MaxConnsPassive and MaxConnsActive split MaxConns by role (D-176 (4)): a connection is charged to its role at the TLS
-	// handshake (the verified certificate tells which), and a handshake over the share fails. 32 + 16 leaves 16 of the 64 for connections that are
-	// still in their handshake or are not a sensor, so a passive sensor can never hold the slots the scan worker needs (the
-	// worker keeps one long poll, one or two result uploads and a heartbeat: well under 16).
+	MaxConns         = MaxPending + MaxConnsPassive + MaxConnsActive
+	// MaxPending, MinPendingAge and HandshakeDeadline are the pool of connections that have not finished their TLS handshake
+	// (PendingListener, D-326).
+	MaxPending        = 16
+	MinPendingAge     = 250 * time.Millisecond
+	HandshakeDeadline = 3 * time.Second
+	// MaxConnsPassive and MaxConnsActive are the shares of the roles (D-176 (4)): a connection is charged to its role at the TLS
+	// handshake (the verified certificate tells which), and a handshake over the share fails, so a passive sensor can never hold the
+	// slots the scan worker needs (the worker keeps one long poll, one or two result uploads and a heartbeat: well under 16).
 	MaxConnsPassive = 32
 	MaxConnsActive  = 16
 
@@ -93,41 +98,90 @@ type gate struct{ busy atomic.Bool }
 func (g *gate) enter() bool { return g.busy.CompareAndSwap(false, true) }
 func (g *gate) leave()      { g.busy.Store(false) }
 
-// LimitListener returns a listener that accepts at most n connections at a time: Accept waits until a connection that was
-// accepted has been closed. A small stdlib version of the usual limit listener, so that no dependency is added.
-func LimitListener(l net.Listener, n int) net.Listener {
-	return &limitListener{Listener: l, sem: make(chan struct{}, n), done: make(chan struct{})}
+// PendingListener returns the listener of the sensor link (D-326). A connection that has not finished its TLS handshake is unauthenticated:
+// any local process can open one. Those connections get a pool of their own, MaxPending, separate from the shares of the roles that a
+// connection is charged to at the handshake (MaxConnsPassive, MaxConnsActive), so the whole listener holds at most MaxConns. When the
+// pending pool is full, a new connection takes the place of the oldest pending one if that one has waited at least MinPendingAge (a
+// handshake on loopback takes milliseconds, so a sensor's connection is never the one evicted unless it hangs); otherwise the new one is
+// closed at once (the sensor retries with its back-off). Every pending connection is closed after HandshakeDeadline whatever net/http does.
+// A process that fills the pool must keep replacing its connections faster than MinPendingAge, and each of its closes is a free place a
+// sensor's connection can take; before this, 64 idle connections held every slot until net/http's own handshake timeout (D-176 (5)).
+func PendingListener(l net.Listener) net.Listener {
+	return newPendingListener(l, MaxPending, MinPendingAge, HandshakeDeadline, time.Now)
 }
 
-type limitListener struct {
+func newPendingListener(l net.Listener, max int, minAge, deadline time.Duration, now func() time.Time) *pendingListener {
+	return &pendingListener{Listener: l, max: max, minAge: minAge, deadline: deadline, now: now}
+}
+
+type pendingListener struct {
 	net.Listener
-	sem  chan struct{}
-	done chan struct{}
-	once sync.Once
+	max      int
+	minAge   time.Duration
+	deadline time.Duration
+	now      func() time.Time
+
+	mu      sync.Mutex
+	pending []*limitConn // oldest first
 }
 
-func (l *limitListener) Accept() (net.Conn, error) {
-	select {
-	case l.sem <- struct{}{}:
-	case <-l.done:
-		return nil, net.ErrClosed
+func (l *pendingListener) Accept() (net.Conn, error) {
+	for {
+		c, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		lc := &limitConn{Conn: c, l: l, at: l.now()}
+		l.mu.Lock()
+		var evict *limitConn
+		if len(l.pending) >= l.max {
+			if oldest := l.pending[0]; lc.at.Sub(oldest.at) >= l.minAge {
+				evict, l.pending = oldest, l.pending[1:]
+				oldest.pending = false
+			} else {
+				l.mu.Unlock()
+				_ = c.Close() // the pool is full of connections still young enough to be a sensor's: this one waits for its retry
+				continue
+			}
+		}
+		lc.pending = true
+		l.pending = append(l.pending, lc)
+		l.mu.Unlock()
+		if evict != nil {
+			_ = evict.Close()
+		}
+		lc.timer = time.AfterFunc(l.deadline, func() {
+			if l.drop(lc) {
+				_ = lc.Close()
+			}
+		})
+		return lc, nil
 	}
-	c, err := l.Listener.Accept()
-	if err != nil {
-		<-l.sem
-		return nil, err
-	}
-	return &limitConn{Conn: c, release: sync.OnceFunc(func() { <-l.sem })}, nil
 }
 
-func (l *limitListener) Close() error {
-	l.once.Do(func() { close(l.done) })
-	return l.Listener.Close()
+// drop takes c out of the pending pool; false when it was not there (already promoted, evicted or closed).
+func (l *pendingListener) drop(c *limitConn) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if !c.pending {
+		return false
+	}
+	c.pending = false
+	for i, p := range l.pending {
+		if p == c {
+			l.pending = append(l.pending[:i], l.pending[i+1:]...)
+			break
+		}
+	}
+	return true
 }
 
 type limitConn struct {
 	net.Conn
-	release func()
+	l       *pendingListener
+	at      time.Time   // when it was accepted
+	pending bool        // in l.pending; guarded by l.mu
+	timer   *time.Timer // the handshake deadline
 
 	mu     sync.Mutex
 	closed bool
@@ -136,6 +190,10 @@ type limitConn struct {
 
 func (c *limitConn) Close() error {
 	err := c.Conn.Close()
+	c.l.drop(c)
+	if c.timer != nil {
+		c.timer.Stop()
+	}
 	c.mu.Lock()
 	c.closed = true
 	extra := c.extra
@@ -144,8 +202,19 @@ func (c *limitConn) Close() error {
 	for _, f := range extra {
 		f()
 	}
-	c.release()
 	return err
+}
+
+// promote takes c out of the pending pool at the end of a good handshake; false when it is no longer there (evicted or past its deadline):
+// the handshake then fails.
+func (c *limitConn) promote() bool {
+	if !c.l.drop(c) {
+		return false
+	}
+	if c.timer != nil {
+		c.timer.Stop()
+	}
+	return true
 }
 
 // onClose runs f when the connection closes; false when it already has (f is not kept).
@@ -171,8 +240,8 @@ func connCap(r Role) int {
 }
 
 // roleTracker counts the connections each role holds. A connection is charged to its role at the TLS handshake (the verified
-// client certificate says which role it is) and the charge is given back when the connection closes, in the same place as its
-// LimitListener slot. A connection that is not one of LimitListener's (a test server) is not charged.
+// client certificate says which role it is), which also takes it out of the pending pool, and the charge is given back when the
+// connection closes. A connection that is not one of PendingListener's (a test server) is not charged.
 type roleTracker struct {
 	mu sync.Mutex
 	n  map[Role]int
@@ -185,6 +254,9 @@ func (t *roleTracker) charge(c net.Conn, r Role) error {
 	lc, ok := c.(*limitConn)
 	if !ok {
 		return nil
+	}
+	if !lc.promote() {
+		return fmt.Errorf("sensorlink: the handshake took longer than its place in the pending pool")
 	}
 	t.mu.Lock()
 	if t.n[r] >= connCap(r) {

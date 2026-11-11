@@ -46,7 +46,7 @@ if has "$go_paths"; then
 	fi
 	if has '^(internal/release|modules/host|scripts/release)/'; then
 		go test -race -tags releasetestkeys ./internal/release/... # build with the throwaway release keys (keys_testonly.go)
-		go test -race -tags releasetestkeys -run 'Pull|Embedded' ./modules/host/ # the host's real-vector end-to-end test needs them too
+		go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/ # the host's real-vector end-to-end test needs them too
 	fi
 	make contract lint-go
 fi

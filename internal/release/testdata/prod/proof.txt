@@ -1,0 +1,3 @@
+Vedette release keys: proof of possession, made at the key ceremony of 2026-11-11 (D-256).
+Signed by the active and the backup minisign keys and by the cosign key embedded in internal/release/keys.go.
+This is not a release document: no index, manifest or image check accepts it.

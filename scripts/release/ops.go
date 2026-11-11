@@ -22,8 +22,8 @@ const (
 func readDoc(p string) ([]byte, error) { return readSmall(p, int64(maxDoc)) }
 
 // LoadTrust reads the public keys from dir (minisign.pub, minisign-backup.pub, cosign.pub: the files `minisign -G` and
-// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build, which are empty until the
-// real release keys exist (08l) and then refuse, so a build without keys cannot pass a release.
+// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build: the real release keys (D-256)
+// in a normal build, the throwaway ones with the releasetestkeys tag; a build whose keys do not validate refuses.
 func LoadTrust(dir string) (release.Trust, error) {
 	if dir == "" {
 		return release.Embedded()
@@ -78,7 +78,8 @@ func verifyIndexFile(dir string, trust release.Trust, stored *release.Index) (*r
 
 // SignRelease signs the documents of dir with s: index.json and any index.v<N>.json always, and release-manifest.json when there
 // is one (a weekly refresh of the index, D-150, has none) and only for the active key. The backup slot (the offline key, D-103)
-// signs indexes only, into <file>.backup.minisig; it exists to revoke a leaked active key, never to sign a release. It returns the
+// signs indexes only, into <file>.backup.minisig; it exists to revoke a leaked active key. Signing the rescue manifest after such a
+// leak (D-258) is not supported yet. It returns the
 // signature files written. When anything fails, every signature written in this run is removed: a directory holds either all the
 // signatures of the run or none of them.
 func SignRelease(ctx context.Context, s Signer, dir string, backup bool) (written []string, err error) {

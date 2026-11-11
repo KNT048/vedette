@@ -493,7 +493,7 @@ func TestContract_Bootstrap_ThenContainerStartSwitchesAndDowngradesAreRefused(t 
 
 func TestContract_Bootstrap_TheCommittedVectorsOfThisBuild(t *testing.T) {
 	t.Parallel()
-	_, kerr := release.Embedded()
+	tr, kerr := release.Embedded()
 	e := startSys(t) // no Deps.Keys: the keys compiled into this build
 	e.m.StatefulPodman()
 	e.m.MakeUnitsDir()
@@ -515,6 +515,15 @@ func TestContract_Bootstrap_TheCommittedVectorsOfThisBuild(t *testing.T) {
 		}
 		if _, err := e.m.Unit(api.ServiceCore); err == nil {
 			t.Fatal("a build without keys wrote a unit")
+		}
+		return
+	}
+	if !tr.TestOnly { // the real release keys (D-256): the vectors are signed by the throwaway test keys
+		if code, _ := ops.BootstrapCode(run(a)); code != api.CodeSignatureInvalid {
+			t.Fatalf("test-key vectors in a production build: %s", code)
+		}
+		if _, err := e.m.Unit(api.ServiceCore); err == nil {
+			t.Fatal("test-key vectors made a production build write a unit")
 		}
 		return
 	}

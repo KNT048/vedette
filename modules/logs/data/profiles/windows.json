@@ -1,0 +1,51 @@
+{
+  "id": "windows",
+  "title": "Windows Security event log (by event id, through NXLog, Snare or similar)",
+  "kinds": ["windows"],
+  "rule": {
+    "type": "event_id",
+    "patterns": [
+      "(?i)\\bEvent ?(?:ID|Code)\\W{1,4}(?P<id>\\d{1,6})\\b",
+      "^(?P<id>\\d{4,5}): "
+    ],
+    "unknown": "Windows Security event",
+    "titles": {
+      "1102": "The audit log was cleared",
+      "4624": "Successful logon",
+      "4625": "Failed logon",
+      "4634": "An account was logged off",
+      "4647": "User initiated logoff",
+      "4648": "A logon was attempted with explicit credentials",
+      "4672": "Special privileges assigned to a new logon",
+      "4688": "A new process was created",
+      "4697": "A service was installed on the system",
+      "4698": "A scheduled task was created",
+      "4719": "System audit policy was changed",
+      "4720": "A user account was created",
+      "4722": "A user account was enabled",
+      "4723": "An attempt was made to change an account password",
+      "4724": "An attempt was made to reset an account password",
+      "4725": "A user account was disabled",
+      "4726": "A user account was deleted",
+      "4728": "A member was added to a security-enabled global group",
+      "4732": "A member was added to a security-enabled local group",
+      "4738": "A user account was changed",
+      "4740": "A user account was locked out",
+      "4756": "A member was added to a security-enabled universal group",
+      "4768": "A Kerberos authentication ticket (TGT) was requested",
+      "4769": "A Kerberos service ticket was requested",
+      "4771": "Kerberos pre-authentication failed",
+      "4776": "The domain controller attempted to validate account credentials"
+    }
+  },
+  "samples": [
+    {
+      "line": "<14>Nov  9 10:00:00 SRV-AD Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Logon Type: 3",
+      "signature": "4625: Failed logon"
+    },
+    {
+      "line": "{\"EventID\":4720,\"Channel\":\"Security\"}",
+      "signature": "4720: A user account was created"
+    }
+  ]
+}

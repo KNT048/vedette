@@ -92,6 +92,8 @@ type buildOpts struct {
 	baseline, cur    Tree // migrations at rollback.min_version, and at this release
 	services         []string
 	mutateIndex      func(*release.Index)
+	revoke           []string // key ids the index revokes
+	rescue           bool     // the backup key signs index and manifest into .minisig (D-259), instead of active + backup slots
 }
 
 func (r *rig) build(o buildOpts) (dir string, err error) {
@@ -130,7 +132,8 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	}
 	dir = r.t.TempDir()
 	must(r.t, os.WriteFile(filepath.Join(dir, manifestFile), res.Manifest, 0o600))
-	files, err := BuildIndex(prevIdx, IndexParams{Now: t1, Rollout: -1, Channel: o.channel, ManifestVersion: o.version, ManifestRaw: res.Manifest})
+	files, err := BuildIndex(prevIdx, IndexParams{Now: t1, Rollout: -1, Channel: o.channel, ManifestVersion: o.version, ManifestRaw: res.Manifest,
+		RevokeKeys: o.revoke, RevokeReason: reasonIf(o.revoke), BackupKeyID: r.trust.Backup.KeyID()})
 	if err != nil {
 		return "", err
 	}
@@ -146,13 +149,26 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 		must(r.t, os.WriteFile(filepath.Join(dir, f.Name), data, 0o600))
 	}
 	ctx := context.Background()
-	if _, err := SignRelease(ctx, testSigner{r.t, r.active}, dir, false); err != nil {
+	if o.rescue {
+		if _, err := SignRelease(ctx, testSigner{r.t, r.backup}, dir, slotRescue); err != nil {
+			return "", err
+		}
+		return dir, nil
+	}
+	if _, err := SignRelease(ctx, testSigner{r.t, r.active}, dir, slotActive); err != nil {
 		return "", err
 	}
-	if _, err := SignRelease(ctx, testSigner{r.t, r.backup}, dir, true); err != nil {
+	if _, err := SignRelease(ctx, testSigner{r.t, r.backup}, dir, slotBackup); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+func reasonIf(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	return "the active key leaked"
 }
 
 var addOnlyTree = Tree{"modules/a/migrations/sqlite/0001_a.sql": up("CREATE TABLE a (id INT);")}
@@ -591,7 +607,7 @@ func TestLegacyIndexSchema(t *testing.T) {
 		must(t, os.WriteFile(filepath.Join(dir, f.Name), f.Data, 0o600))
 	}
 	r := newRig(t)
-	written, err := SignRelease(t.Context(), testSigner{t, r.active}, dir, true)
+	written, err := SignRelease(t.Context(), testSigner{t, r.active}, dir, slotBackup)
 	if err != nil || len(written) != 2 || !strings.HasSuffix(written[1], "index.v1.json.backup.minisig") {
 		t.Fatal(written, err)
 	}
@@ -616,7 +632,7 @@ func TestSignReleaseSlots(t *testing.T) {
 	if !strings.Contains(string(sig), "trusted comment: file:release-manifest.json version:0.1.0\n") {
 		t.Errorf("%s", sig)
 	}
-	if _, err := SignRelease(t.Context(), testSigner{t, r.active}, t.TempDir(), false); err == nil {
+	if _, err := SignRelease(t.Context(), testSigner{t, r.active}, t.TempDir(), slotActive); err == nil {
 		t.Error("signing an empty directory succeeded")
 	}
 }

@@ -8,7 +8,8 @@
 # For each key: a fresh random passphrase (256 bits, `openssl rand`) goes straight from a shell variable into the login Keychain
 # (service vedette-release-<name>, account $USER) through `security -i` on stdin, so it is never an argument, never printed and never
 # in a file. The item trusts no application (`-T ""`): every later read, by any program, raises a macOS dialog that needs the login
-# password, so a process running as you cannot take the passphrase silently (click "Allow", never "Always Allow"). The key is then
+# password, so a process running as you cannot take the passphrase silently (click "Allow", never "Always Allow"); the script checks
+# the item's access list says so (scripts/release/keychain-acl.sh) before it makes the key. The key is then
 # made by the tools (minisign from your PATH, version-checked against deploy/tools.env, not hash-pinned on macOS; cosign hash-pinned
 # by scripts/release/cosign.sh) and encrypted with that passphrase (minisign: scrypt; cosign: scrypt + secretbox; cosign gets it in
 # COSIGN_PASSWORD, visible to your own processes while it runs). Files land in $VEDETTE_RELEASE_KEYS (default ~/.vedette-release-keys,
@@ -73,7 +74,12 @@ for n in "${names[@]}"; do
 	[ ${#pass} -eq 64 ] || { echo "keygen.sh: openssl did not give a passphrase" >&2; exit 1; }
 	# security -i reads the command from stdin: the passphrase is never in argv (ps) or shell history
 	printf 'add-generic-password -s vedette-release-%s -a %s -l "Vedette release key passphrase (%s)" -T "" -w %s\n' "$n" "$account" "$n" "$pass" | security -i > /dev/null
-	security find-generic-password -s "vedette-release-$n" -a "$account" > /dev/null 2>&1 || { echo "keygen.sh: the Keychain did not keep vedette-release-$n" >&2; exit 1; }
+	kc=$(security find-generic-password -s "vedette-release-$n" -a "$account" 2> /dev/null | sed -n 's/^keychain: "\(.*\)"$/\1/p')
+	[ -n "$kc" ] || { echo "keygen.sh: the Keychain did not keep vedette-release-$n" >&2; exit 1; }
+	# -T "" must leave the item trusting no application; a security(1) that ignored it would let any process read it silently (D-259).
+	# dump-keychain -a prints access lists only (no -d: no secret); keychain-acl.sh fails closed on anything but an empty app list.
+	security dump-keychain -a "$kc" | scripts/release/keychain-acl.sh "vedette-release-$n" "$account" \
+		|| { echo "keygen.sh: vedette-release-$n does not have an empty application list (-T \"\" was not kept)" >&2; exit 1; }
 	case $n in
 		minisign*)
 			label=active

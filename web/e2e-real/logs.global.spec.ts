@@ -1,8 +1,8 @@
 // The logs module on the real backend (S-LOG-1, logs INV-1, INV-3, INV-4, INV-5, INV-12, POST-1, FORBID-5, SYS-5). Global project: the syslog listener,
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
-// port in ready.json (`syslog_port`, a free port of the run, not 514). What is not built is test.fixme with the real flow in its body (D-171 (2)): SIEM
-// forwarding (L5, GET /logs/siem answers 501), the digest's new log types and spikes (a 24 h warm-up a box cannot skip), the TLS listener (D-203).
+// port in ready.json (`syslog_port`, a free port of the run, not 514). SIEM forwarding (L5) is its own test.
+// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types and spikes (a 24 h warm-up a box cannot skip), the TLS listener (D-203).
 // Bad connections (L4, INV-7) are real: a custom feed pulled from a loopback server lists a made-up domain, and one FortiGate DNS line from a LAN address is matched.
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
 import { readFileSync } from 'node:fs'
@@ -128,7 +128,11 @@ test('an empty box says what to do first; the page and the API agree; no script 
   const errors = collectErrors(page)
   const server: string[] = []
   // GET /ai/logs/digest is not built yet and answers 501 (.ai/deferred/feat-ai-activity.md:18): the one answer the page may get
-  page.on('response', (r) => { if (r.url().includes('/api/') && r.status() >= 500 && !r.url().endsWith('/api/v1/ai/logs/digest')) server.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`) })
+  let digest501 = 0
+  page.on('response', (r) => {
+    if (r.url().endsWith('/api/v1/ai/logs/digest')) { if (r.status() === 501) digest501++; return }
+    if (r.url().includes('/api/') && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`)
+  })
   const c = await as('admin')
   try {
     const s = await sources(c)
@@ -143,7 +147,9 @@ test('an empty box says what to do first; the page and the API agree; no script 
     await expectAccessible(page, 'logs, empty')
     await noVietnamese(page, 'logs, empty')
     expect(server).toEqual([])
-    noErrors(errors, /status of 501/) // the 501 of GET /ai/logs/digest, the only 5xx allowed above (the page asks for it now even with no source)
+    // the console line of a 501 has no URL: there must be exactly as many as GET /ai/logs/digest answered (the page asks for it even with no source)
+    expect(errors.filter((e) => /status of 501/.test(e)), 'every console 501 is the AI digest').toHaveLength(digest501)
+    noErrors(errors, /status of 501/)
   } finally { await c.dispose() }
 })
 
@@ -415,6 +421,7 @@ test('roles: a viewer and an operator read, and every change answers 403 forbidd
   try {
     const src = await add(admin)
     const before = JSON.stringify(await sources(admin))
+    const siemSaved = JSON.stringify((await api(admin, 'GET', '/logs/siem')).body)
     const auditRoles = await auditTotal(admin, 'logs.')
     for (const role of ['viewer', 'operator'] as const) {
       const c = await as(role)
@@ -425,12 +432,14 @@ test('roles: a viewer and an operator read, and every change answers 403 forbidd
         for (const [method, path, body] of [
           ['POST', '/logs/sources', { ...SRC, name: uniq('lg'), sender_ip: '127.0.0.9' }], ['PUT', `/logs/sources/${src.id}`, { ...SRC, name: uniq('lg') }],
           ['DELETE', `/logs/sources/${src.id}`, undefined], ['PUT', '/logs/retention', { days: 7 }], ['GET', '/logs/siem', undefined],
+          ['PUT', '/logs/siem', siemBody({ events: ['findings'] })], ['POST', '/logs/siem/test', undefined],
         ] as const) {
           const r = await api<Err>(c, method, path, body)
           expect([r.status, r.body.error.code], `${role}: ${method} ${path}`).toEqual([403, 'forbidden'])
         }
       } finally { await c.dispose() }
       expect(JSON.stringify(await sources(admin)), `${role}: nothing changed`).toBe(before)
+      expect(JSON.stringify((await api(admin, 'GET', '/logs/siem')).body), `${role}: the SIEM configuration is unchanged`).toBe(siemSaved)
       expect(await auditTotal(admin, 'logs.'), `${role}: no audit row`).toBe(auditRoles)
       const ctx = await browser.newContext({ baseURL: box().base_url, storageState: authFile(role) })
       try {
@@ -621,6 +630,8 @@ test('SIEM forwarding on the real backend: validation, the three formats, the ke
   const c = await as('admin')
   const start = (await api<Siem>(c, 'GET', '/logs/siem')).body
   try {
+    // these two checks need a box where nothing is saved yet (a run starts on a fresh box); on a used box they are skipped, and the run says so
+    if (start.host || start.url || start.secret_last4) test.info().annotations.push({ type: 'skipped', description: 'SIEM already configured: not_configured and secret_required checks skipped' })
     if (!start.host && !start.url) {
       const nt = await api<Err>(c, 'POST', '/logs/siem/test')
       expect([nt.status, nt.body.error.code], 'a test before anything is saved').toEqual([400, 'not_configured'])
@@ -696,7 +707,7 @@ test('SIEM forwarding on the real backend: validation, the three formats, the ke
     await expect(page.getByRole('alert')).toContainText('The SIEM cannot be this machine') // blocked_host, the API message
     await expectAccessible(page, 'siem settings')
     await noVietnamese(page, 'siem settings')
-    noErrors(errors, /status of (400|501)/)
+    noErrors(errors) // no allowance: the refused saves above are handled by the form and this page calls no 501 endpoint
   } finally {
     // forwarding stays off whatever happened, so a later spec never sends anything
     await api(c, 'PUT', '/logs/siem', siemBody({ enabled: false }))

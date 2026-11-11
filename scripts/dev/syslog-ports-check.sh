@@ -79,7 +79,7 @@ if ss -H -lunt 'sport = :514' | grep -q .; then
 	fail "port 514 is already in use on this host (rsyslog imudp/imtcp?): podman could not publish it; free it first (docs/DEPLOYMENT.md, syslog port)"
 fi
 if [ -z "$peer" ]; then
-	if [ -n "$(ip -4 route show to match "$hip/30")$(ip -4 route show to root "$hip/30")" ] || [ "$(ip netns list | grep -c "^$ns\b")" -gt 0 ] || ip link show "$hveth" >/dev/null 2>&1; then
+	if [ -n "$(ip -4 route show to match "$hip/30" | grep -v "^default")$(ip -4 route show to root "$hip/30")" ] || [ "$(ip netns list | grep -c "^$ns\b")" -gt 0 ] || ip link show "$hveth" >/dev/null 2>&1; then
 		fail "10.231.77.0/30, the netns $ns or the link $hveth already exists on this host; nothing was changed"
 	fi
 fi

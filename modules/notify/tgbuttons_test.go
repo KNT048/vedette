@@ -179,3 +179,30 @@ func TestTelegramButtonRemovalRetriesAFewTimes(t *testing.T) {
 		t.Fatalf("%d edit attempts after a 400, want 1", n)
 	}
 }
+
+// L1 (#198 review): button removal runs inside the deliver job, so a Telegram that fails or does not answer must cost one edit per run,
+// not one per marked message (20 × 15 s held alert delivery for about 5 minutes). The rest wait for the next run, as on Slack.
+func TestTelegramButtonRemovalStopsAtTheFirstFailure(t *testing.T) {
+	te := newTGEnv(t)
+	te.svc.Subscribe(te.bus)
+	for _, id := range []string{"act-1", "act-2", "act-3"} {
+		te.request(id)
+		if err := te.bus.Publish(te.ctx(), events.Event{Name: "response.decision.made", Data: map[string]any{"request_id": id, "decision": "approved", "by": "admin@acme.example", "final": true}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	te.tg.mu.Lock()
+	te.tg.editStatus = http.StatusInternalServerError
+	te.tg.mu.Unlock()
+	te.flush()
+	if n := len(te.edits()); n != 1 {
+		t.Fatalf("%d edit attempts in one run against a failing Telegram, want 1", n)
+	}
+	te.tg.mu.Lock()
+	te.tg.editStatus = 0
+	te.tg.mu.Unlock()
+	te.flush()
+	if n := len(te.edits()); n != 4 {
+		t.Fatalf("%d edit attempts after Telegram came back, want 1 + 3", n)
+	}
+}

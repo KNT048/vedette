@@ -117,7 +117,7 @@
     "flow": {
       "title": "What data leaves this box",
       "remote": "Data for tasks assigned to cloud profiles goes to {{hosts}} using your key. It is covered by your own agreement with that provider.",
-      "rules": "Data does not pass through any Vedette server and keys never leave this box. With no profile saved, nothing is sent. Passwords and tokens in logs are always masked before sending.",
+      "rules": "Data does not pass through any Vedette server and keys never leave this box. With no profile saved, nothing is sent. Email addresses and phone numbers are masked before sending unless you turn that hook off.",
       "abroad": "If a cloud provider hosts its servers outside Vietnam and the data sent contains personal data (user names or emails in logs), this may count as a cross-border transfer of personal data under Vietnam's Law on Personal Data Protection No. 91/2025/QH15 (Article 20). Keep personal data masking on below, use a profile inside your network for internal data, and see the assessment on the Reports page.",
       "noneRemote": "No cloud profile is set up, so nothing leaves your network. Profiles inside your network keep data on it."
     },
@@ -142,7 +142,7 @@
     "cap": "Daily token cap for all profiles together",
     "capHint": "From 1,000 to 5,000,000. The medium level default is 60,000. Each profile also has its own cap.",
     "redact": "Mask personal information before sending",
-    "redactHint": "Masks emails and phone numbers in logs. Passwords and tokens are always masked.",
+    "redactHint": "This is the Block personal data hook: it masks email addresses and phone numbers, and stops a call whose text holds an ID number, before anything is sent. It does not mask passwords or tokens; add a hook for those.",
     "saving": "Saving",
     "err": {
       "cap": "The cap must be a whole number from 1,000 to 5,000,000."

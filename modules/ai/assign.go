@@ -152,7 +152,7 @@ type ConfigView struct {
 // Config returns the settings. Tier is the level in force today: it is lower than the saved one after the shared cap was passed (INV-4).
 func (s *Service) Config() ConfigView {
 	sn := s.snap.Load()
-	v := ConfigView{Tier: s.meter.Tier(), DailyCap: sn.cfg.DailyCap, RedactPII: sn.cfg.RedactPII,
+	v := ConfigView{Tier: s.meter.Tier(), DailyCap: sn.cfg.DailyCap, RedactPII: s.redactPII(),
 		TierEstimates: map[Tier]*int{}, JobsReady: make(map[string]bool, len(Jobs()))}
 	for _, p := range sn.profiles {
 		v.Configured = v.Configured || p.Usable()
@@ -183,8 +183,22 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 	}
 	cur := s.snap.Load()
 	now := s.cfg.Clock()
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	// redact_pii is the switch of the block-pii hook (INV-12): one row, written with the rest of the settings.
+	hcur := s.harness.Load()
+	on := map[string]bool{}
+	for k, v := range hcur.builtin {
+		on[k] = v
+	}
+	on[HookBlockPII] = in.RedactPII
+	hnext, err := hcur.with(nil, on, nil)
+	if err != nil {
+		return ConfigView{}, err
+	}
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if err := upsertSetting(ctx, tx, "config", in, now, who); err != nil {
+			return err
+		}
+		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
 			return err
 		}
 		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, cap=%d, redact_pii=%t", in.Tier, in.DailyCap, in.RedactPII))
@@ -196,5 +210,6 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		return ConfigView{}, fmt.Errorf("ai: apply token settings: %w", err)
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})
+	s.harness.Store(hnext)
 	return s.Config(), nil
 }

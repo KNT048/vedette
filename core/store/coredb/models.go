@@ -151,6 +151,8 @@ type CoreUser struct {
 	CreatedAt             string
 	LastLogin             *string
 	TempPasswordExpiresAt *string
+	SsoIssuer             *string
+	SsoSubject            *string
 }
 
 type CoreUserTotp struct {

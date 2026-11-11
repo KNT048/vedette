@@ -31,7 +31,7 @@ func (h *APIHandlers) CoreGetCoreAccount(ctx context.Context) (*oas.CoreGetCoreA
 	}
 	out.User = oas.CoreGetCoreAccountOKUser{
 		ID: u.ID, Name: u.Name, Email: u.Email, Role: oas.CoreGetCoreAccountOKUserRole(u.Role), Twofa: u.TwofaMethod != "",
-		CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin),
+		CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin), SSO: u.SSO,
 	}
 	if u.TwofaMethod != "" {
 		out.User.TwofaMethod = oas.NewNilCoreGetCoreAccountOKUserTwofaMethod(oas.CoreGetCoreAccountOKUserTwofaMethod(u.TwofaMethod))

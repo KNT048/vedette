@@ -1,4 +1,6 @@
 # Deferred — feat/auth-oidc (WP-27 auth-oidc, session wp27-oidc)
 
-- [ ] PR 2: backend `modules/authoidc` + `core/auth` khớp hợp đồng GUI (D-194..D-196), IdP giả trong test cho mọi đường từ chối. Hiện `/auth/oidc/*` và `/core/oidc*` trả 501 trên backend thật.
-- [ ] Sau PR 2: dòng `'/settings/users': GET /api/v1/core/oidc` trong `web/e2e-real/gaps.spec.ts` hết đúng; thuộc wp30 (không sửa ở nhánh này) — báo session WP-30 khi PR 2 merge.
+- [x] Done: PR 1 #248 (story, D-194..D-196, GUI on the mock) and PR 2 #261 (backend `modules/auth-oidc` + `core/auth.SSOSignIn`, D-197).
+- [ ] Moved → WP-30 (AI-Supervisor assigns): `web/e2e-real/gaps.spec.ts` lists `GET /api/v1/core/oidc` as not wired; since #261 it answers (404 while the module is off, 200 when on). The WP-30 session drops that line and, if wanted, adds an e2e-real SSO spec against a real IdP container (Keycloak or Dex); not CI.
+- [ ] Moved → AI-Supervisor / kien (needs a story and a D-number before code): IdP behind a private CA. The box trusts the system roots only, so an in-network Keycloak with an internal CA fails at discovery ("the box does not trust the identity provider's certificate"). Until then the IdP needs a publicly trusted certificate, or the box OS trust store must hold the CA.
+- [ ] Moved → AI-Supervisor (ponytail noted in `modules/auth-oidc/limit.go`): a few dozen addresses can fill the 1000 pending SSO flows within 10 minutes and make other SSO sign-ins expire (password sign-in unaffected). Upgrade path: a box-wide start budget.

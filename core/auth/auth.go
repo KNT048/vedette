@@ -61,6 +61,7 @@ const (
 	CodeInvalidEmail       = "invalid_email"
 	CodeInvalidRole        = "invalid_role"
 	CodeTempExpired        = "temp_password_expired"
+	CodeSSOUser            = "sso_user"
 	CodeBusy               = "server_busy" // 503: too many password checks at once (the 409 `busy` of the update module is another thing)
 )
 
@@ -173,6 +174,8 @@ type User struct {
 	LastLogin   *time.Time // nil: never signed in
 	// PasswordChangeRequired: an administrator set the password and the user has not replaced it yet (D-180).
 	PasswordChangeRequired bool
+	// SSO: the account was made by an SSO sign-in (D-195) and signs in only through the identity provider.
+	SSO bool
 }
 
 // TempPasswordLifetime is how long a password an administrator set can sign in (D-180). core/auth has no other
@@ -189,7 +192,7 @@ func tempExpired(expires *string, now time.Time) bool {
 }
 
 func userFrom(r coredb.CoreUser) User {
-	u := User{ID: r.ID, Name: r.Name, Email: r.Email, Role: routes.Role(r.Role), Disabled: r.Disabled != 0, CreatedAt: parseTS(r.CreatedAt), PasswordChangeRequired: r.TempPasswordExpiresAt != nil}
+	u := User{ID: r.ID, Name: r.Name, Email: r.Email, Role: routes.Role(r.Role), Disabled: r.Disabled != 0, CreatedAt: parseTS(r.CreatedAt), PasswordChangeRequired: r.TempPasswordExpiresAt != nil, SSO: r.SsoIssuer != nil}
 	if r.TwofaMethod != nil {
 		u.TwofaMethod = *r.TwofaMethod
 	}

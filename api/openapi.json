@@ -2417,7 +2417,7 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 200,
-                                "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                                "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                               }
                             },
                             "required": [
@@ -2521,7 +2521,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200,
-                        "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                        "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                       }
                     },
                     "required": [
@@ -2598,7 +2598,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 200,
-                          "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                          "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                         }
                       },
                       "required": [
@@ -2742,7 +2742,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200,
-                        "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                        "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                       }
                     },
                     "required": [
@@ -2819,7 +2819,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 200,
-                          "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                          "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                         }
                       },
                       "required": [
@@ -3025,7 +3025,7 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 200,
-                            "description": "keywords: comma-separated words; regex: JavaScript regular expression"
+                            "description": "keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind or backreferences)"
                           }
                         },
                         "required": [

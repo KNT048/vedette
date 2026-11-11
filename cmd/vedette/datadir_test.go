@@ -9,10 +9,24 @@ import (
 	"testing"
 )
 
+// testUID is the owner the cases use: the current user, or 65532 (the container user) when the tests run as root, because the function
+// never acts for uid 0. As root the directories are chowned to it.
+func testUID() int {
+	if os.Geteuid() == 0 {
+		return 65532
+	}
+	return os.Geteuid()
+}
+
 func mkdirMode(t *testing.T, path string, mode os.FileMode) {
 	t.Helper()
 	if err := os.Mkdir(path, 0o700); err != nil {
 		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Chown(path, testUID(), testUID()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := os.Chmod(path, mode); err != nil {
 		t.Fatal(err)
@@ -21,7 +35,7 @@ func mkdirMode(t *testing.T, path string, mode os.FileMode) {
 
 func TestTightenDataDir(t *testing.T) {
 	log := slog.New(slog.DiscardHandler)
-	me := os.Getuid()
+	me := testUID()
 	cases := []struct {
 		name       string
 		from, want os.FileMode
@@ -66,8 +80,17 @@ func TestTightenDataDir(t *testing.T) {
 		}
 	})
 	t.Run("root is never acted on", func(t *testing.T) {
-		dir := filepath.Join(t.TempDir(), "data")
-		mkdirMode(t, dir, 0o777)
+		if os.Geteuid() != 0 {
+			t.Skip("needs a directory really owned by uid 0: run as root")
+		}
+		dir := filepath.Join(t.TempDir(), "data") // owned by uid 0, not chowned
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		wide := os.FileMode(0o777)
+		if err := os.Chmod(dir, wide); err != nil {
+			t.Fatal(err)
+		}
 		tightenDataDir(dir, dir, 0, log)
 		if got := mode(dir); got != 0o777 {
 			t.Errorf("mode %v, want 0777", got)

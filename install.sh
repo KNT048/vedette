@@ -902,7 +902,12 @@ do_uninstall() {
 	if have podman; then
 		podman network rm -f vedette-int >/dev/null 2>&1 || true
 		podman volume rm -f vedette-creds-passive vedette-creds-active >/dev/null 2>&1 || true
-		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-scan-nmap)/ {print $1}' | sort -u | while read -r id; do
+		# every image Vedette made or pulled: the registry names, and the local names bootstrap gives them (localhost/vedette-<service>:<version>,
+		# localhost/vedette-scan-nmap); then what the on-box scan build left without a name (<none>), found only by its label, never by prune
+		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-)/ {print $1}' | sort -u | while read -r id; do
+			podman rmi -f "$id" >/dev/null 2>&1 || true
+		done
+		podman images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
 			podman rmi -f "$id" >/dev/null 2>&1 || true
 		done
 	fi

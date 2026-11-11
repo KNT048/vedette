@@ -212,6 +212,19 @@ EOT
 	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
 	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
+	# ---- images: --uninstall removes every image of Vedette's (registry names, the localhost/vedette-<service> tags bootstrap makes, the
+	# unnamed leftover of the on-box scan build, found by its label) and nothing else. The storage goes with podman afterwards, so a
+	# podman wrapper records what --uninstall asks it to remove, and the images are looked up by ID in that record.
+	x 'set -e; d=$(mktemp -d); cd "$d"
+	   mk() { printf "FROM scratch\nLABEL %s\n" "$2" >Containerfile; podman build -q -t "$1" . >"/root/img.$3"; }
+	   mk localhost/vedette-core:0.0.1 a=core core; mk ghcr.io/knt048/vedette-sensor:0.0.1 a=sensor ghcrimg
+	   mk localhost/other-app:1 a=other other
+	   mk localhost/vic-tmp:1 io.vedette.build=scan scanleft; podman untag localhost/vic-tmp:1
+	   mk localhost/vic-tmp:2 a=foreign foreignleft; podman untag localhost/vic-tmp:2
+	   printf "#!/bin/sh\ncase \"\$1\" in rmi) echo \"\$*\" >>/root/rmi.log ;; esac\nexec /usr/bin/podman \"\$@\"\n" >/usr/local/bin/podman; chmod 0755 /usr/local/bin/podman
+	   rm -f /root/rmi.log; cd /; rm -rf "$d"' >/dev/null 2>&1 || fail "cannot make the test images of the image case"
+	x 'podman images -a --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -q "localhost/vedette-core:0.0.1"' || fail "the image case did not make its images"
+	ok "image case: five test images made (a localhost/vedette-core tag, a ghcr.io/knt048/vedette- tag, an unrelated tag, a dangling image with the scan label, a dangling one without)"
 	# ---- D-267: a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its two rules in, --uninstall takes them out
 	if x 'command -v iptables >/dev/null 2>&1'; then
 		fwd_subnet=$(x "sed -n 's/^Subnet=//p' /etc/containers/systemd/vedette-int.network")
@@ -226,6 +239,14 @@ EOT
 	fi
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un2.log" 2>&1 || { tail -40 "$work/un2.log" >&2; fail "--uninstall --yes failed in the H2 cycle"; }
+	for i in core ghcrimg scanleft; do
+		x "grep -q \"\$(cut -c1-12 /root/img.$i)\" /root/rmi.log" || { x 'cat /root/rmi.log' >&2; fail "image case: --uninstall did not remove the image '$i' (a Vedette name, or the dangling image with the scan label)"; }
+	done
+	for i in other foreignleft; do
+		! x "grep -q \"\$(cut -c1-12 /root/img.$i)\" /root/rmi.log" || fail "image case: --uninstall removed the image '$i', which is not Vedette's"
+	done
+	x 'rm -f /usr/local/bin/podman /root/rmi.log /root/img.*'
+	ok "image case: --uninstall removed the localhost/vedette-*, the ghcr.io/knt048/vedette-* and the dangling scan-labelled image, and left the unrelated tag and the dangling image without the label"
 	if [ -n "${fwd_checked:-}" ]; then
 		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: --uninstall left a vedette-int rule in DOCKER-USER"; }
 		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"

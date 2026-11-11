@@ -1,5 +1,5 @@
 # The `honeypot` image (WP-08e, D-162): OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
-# unit runs inside the network namespace vedette-hp (D-102) with every capability dropped but SETUID, a read-only root and a tmpfs /tmp.
+# unit runs inside the network namespace vedette-hp (D-102) with every capability dropped, a read-only root and a tmpfs /tmp.
 # Build from the repository root: `make honeypot-image` (passes the pins of deploy/containers/pins.env as build arguments); `make images` builds it
 # for amd64 and arm64 with the others.
 #
@@ -14,7 +14,7 @@
 #     (requirements-sdist.txt): they are built from hash-checked sources into py3-none-any wheels, which the build verifies.
 #   * /vedette: the core binary (static, no cgo), only for the unit's `HealthCmd=["/vedette","honeypot","healthcheck"]` (D-137). See D-162 for
 #     why it is not a smaller binary.
-# Run: init.py is process 1 (see its header): it starts as the container's root only to make /dev/log, then it is uid 1000 gid 0 for good.
+# Run: init.py is process 1 (see its header), uid 1000 gid 0 from the start; it reads Samba's audit from smbd's stdout (no syslog, no /dev/log, no root).
 #
 # Multi-arch (D-158): every stage with a RUN runs on the BUILD machine; the last stage only COPYs, so arm64 needs no qemu. The `base` stage has no RUN.
 ARG DEBIAN_IMAGE
@@ -40,7 +40,7 @@ ARG OPENCANARY_VERSION
 ARG SAMBA_MIN_VERSION
 COPY --from=base /var/lib/dpkg/status /target/status
 COPY --from=base /etc/passwd /target/passwd
-COPY deploy/containers/honeypot/assemble.py deploy/containers/honeypot/requirements.txt deploy/containers/honeypot/requirements-sdist.txt /hp/
+COPY deploy/containers/honeypot/assemble.py deploy/containers/honeypot/hpfeeds_stub.py deploy/containers/honeypot/requirements.txt deploy/containers/honeypot/requirements-sdist.txt /hp/
 RUN set -eu; \
     case "${TARGETARCH}" in amd64) tag=x86_64 ;; arm64) tag=aarch64 ;; *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; esac; \
     [ -n "${OPENCANARY_VERSION}" ] && [ -n "${SAMBA_MIN_VERSION}" ] || { echo "OPENCANARY_VERSION and SAMBA_MIN_VERSION come from pins.env" >&2; exit 1; }; \
@@ -73,6 +73,8 @@ RUN set -eu; \
     rm -rf /rootfs/usr/share/man /rootfs/usr/share/info /rootfs/usr/share/locale /rootfs/usr/share/lintian /rootfs/usr/share/bash-completion \
       /rootfs/opt/opencanary/lib/bin/__pycache__; \
     find /rootfs/usr/share/doc -type f ! -name copyright -delete; \
+    # hpfeeds (GPL-3) is not shipped: OpenCanary imports it at the top of logger.py but only calls it for an hpfeeds logger, which core never configures
+    cp /hp/hpfeeds_stub.py /rootfs/opt/opencanary/lib/hpfeeds.py; \
     python3 -I -m compileall -q -j 0 --invalidation-mode unchecked-hash /rootfs/usr/lib/python3.13 /rootfs/opt/opencanary/lib || true; \
     # 5. the files of the image itself
     mkdir -p /rootfs/etc/samba /rootfs/usr/share/vedette /rootfs/var/lib/vedette/honeypot/config /rootfs/var/lib/vedette/honeypot/log /rootfs/var/log; \
@@ -81,6 +83,7 @@ RUN set -eu; \
     ln -s /var/lib/vedette/honeypot/config /rootfs/etc/opencanaryd; \
     ln -s /tmp/samba-audit.log /rootfs/var/log/samba-audit.log; \
     python3 -I /hp/assemble.py inventory /rootfs /rootfs/usr/share/vedette/honeypot-inventory.txt; \
+    find /rootfs -perm /6000 -exec chmod ug-s {} +; \
     chmod -R a+rX,go-w /rootfs; \
     test -x /rootfs/usr/sbin/smbd && test -x /rootfs/usr/bin/python3.13
 
@@ -94,6 +97,7 @@ COPY --chmod=0644 deploy/containers/honeypot/init.py /usr/local/lib/vedette-hp/i
 # OpenCanary 0.9.10 redirects GET / to /index.html and then reads skin/basicLogin/redirect.html, which its wheel does not ship (only nasLogin has it):
 # without this file the web trap answers 500 to the first request of every client. The page is the Apache one the banner claims.
 COPY --chmod=0644 deploy/containers/honeypot/basicLogin-redirect.html /opt/opencanary/lib/opencanary/modules/data/http/skin/basicLogin/redirect.html
-# Starts as root on purpose, and only to make /dev/log: init.py drops to uid 1000 before anything else runs (its header says why).
-USER 0:0
+# uid 1000 gid 0 from the first instruction (no root start, no capability; the health command and `exec` run as this user too). gid 0 is the
+# group of the log volume (podman's :U). UserNS=auto maps a range that must contain 1000: the passwd line above is what tells podman.
+USER 1000:0
 ENTRYPOINT ["/usr/bin/python3", "-I", "/usr/local/lib/vedette-hp/init.py"]

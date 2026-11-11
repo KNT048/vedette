@@ -5,9 +5,10 @@
 #   * Samba serves the planted file token, and opening it reaches OpenCanary as a log type 5000 line whose file name is the token and whose source is
 #     the real client (a client user name with `|` in it cannot forge another source);
 #   * `/vedette honeypot healthcheck` (the unit's HealthCmd) passes;
-#   * every process is uid 1000, holds no capability, has NoNewPrivs; config/ is read-only, the root is read-only, log/ is writable.
+#   * every process is uid 1000 gid 0 with all five capability sets empty and NoNewPrivs; config/ is read-only, the root is read-only, log/ is writable;
+#   * no GPL Python package is in the image (hpfeeds is a stub).
 # Runs rootless podman (CONTAINER=podman) with the unit's flags (host/ops/quadlet.go honeypotUnitText): read-only root, tmpfs /tmp, all capabilities
-# dropped but SETUID, no-new-privileges. What a rootless run cannot show (UserNS=auto, the macvlan namespace, :U, packet capture) is in
+# dropped, no-new-privileges, the log volume with :U. What a rootless run cannot show (UserNS=auto, the macvlan namespace, packet capture) is in
 # .ai/deferred/feat-honeypot.md. Removes the containers, the network and the image at the end (rules/build-artifacts.md); the work folder is
 # under ~/.cache/vedette-honeypot, never /tmp. VEDETTE_HP_REUSE=1 skips the build and uses an image already tagged localhost/vedette-honeypot:hpcheck.
 set -euo pipefail
@@ -28,7 +29,8 @@ cleanup() {
 	$c rm -f "$name" "$client" >/dev/null 2>&1 || true
 	$c network rm -f "$net" >/dev/null 2>&1 || true
 	[ "${VEDETTE_HP_KEEP_IMAGE:-0}" = 1 ] || $c rmi -f "$img" >/dev/null 2>&1 || true
-	rm -rf "$work"
+	# the log files belong to the container's user (podman's :U): remove them from inside the user namespace
+	$c unshare rm -rf "$work" 2>/dev/null || rm -rf "$work"
 }
 trap cleanup EXIT
 fail() { echo "honeypot-check: FAIL $*" >&2; { $c logs --tail 40 "$name" 2>&1 || true; } | sed 's/^/    container: /' >&2; exit 1; }
@@ -47,9 +49,9 @@ ok "opencanary.conf and honeytokens.json written by modules/honeypot"
 
 # 2. run it as the unit does
 $c network create "$net" >/dev/null
-$c run -d --name "$name" --network "$net" --read-only --tmpfs /tmp --cap-drop=ALL --cap-add=SETUID --security-opt no-new-privileges \
+$c run -d --name "$name" --network "$net" --read-only --tmpfs /tmp --cap-drop=ALL --security-opt no-new-privileges \
 	--sysctl net.ipv4.ip_unprivileged_port_start=0 --memory 256m --memory-swap 256m --pids-limit 128 \
-	-v "$work/config:/var/lib/vedette/honeypot/config:ro" -v "$work/log:/var/lib/vedette/honeypot/log" "$img" >/dev/null
+	-v "$work/config:/var/lib/vedette/honeypot/config:ro" -v "$work/log:/var/lib/vedette/honeypot/log:U" "$img" >/dev/null
 ip=
 for _ in $(seq 1 90); do
 	[ "$($c inspect -f '{{.State.Running}}' "$name")" = true ] || fail "the container stopped"
@@ -71,22 +73,25 @@ ok "/vedette honeypot healthcheck exits 0 (the unit's HealthCmd, read from openc
 procs=$($c exec "$name" /usr/bin/python3 -I -c '
 import os
 for p in sorted(int(x) for x in os.listdir("/proc") if x.isdigit()):
-    if p == os.getpid():  # this probe is `exec`ed as the container root with the unit capabilities: not part of the honeypot
+    if p == os.getpid():  # this probe itself (it runs as the image user too, like the unit health command)
         continue
     try:
         s = dict(l.split(":\t", 1) for l in open("/proc/%d/status" % p).read().splitlines() if ":\t" in l)
     except OSError:
         continue
-    print(p, s["Name"], "uid=" + s["Uid"].split()[0], "gid=" + s["Gid"].split()[0], "capeff=" + s["CapEff"].strip(), "nonewprivs=" + s["NoNewPrivs"].strip())
+    caps = "".join(s[k].strip() for k in ("CapInh", "CapPrm", "CapEff", "CapBnd", "CapAmb"))
+    print(p, s["Name"], "uid=" + "/".join(s["Uid"].split()), "gid=" + "/".join(s["Gid"].split()), "groups=" + (s["Groups"].strip() or "-").replace(" ", ","),
+          "caps=" + ("none" if set(caps) <= {"0"} else caps), "nonewprivs=" + s["NoNewPrivs"].strip())
 ')
 echo "$procs" | sed 's/^/    /'
 [ "$(echo "$procs" | wc -l)" -ge 3 ] || fail "fewer than three processes"
-echo "$procs" | grep -q ' uid=0 ' && fail "a process runs as root"
-echo "$procs" | grep -v ' capeff=0000000000000000 ' | grep -q . && fail "a process holds a capability"
+echo "$procs" | grep -v ' uid=1000/1000/1000/1000 gid=0/0/0/0 groups=-\| uid=1000/1000/1000/1000 gid=0/0/0/0 groups=0 ' | grep -q . && fail "a process is not uid 1000, gid 0, without supplementary groups"
+echo "$procs" | grep -v ' caps=none ' | grep -q . && fail "a process has a capability in a set (inheritable, permitted, effective, bounding or ambient)"
 echo "$procs" | grep -v ' nonewprivs=1$' | grep -q . && fail "a process lacks NoNewPrivs"
 echo "$procs" | awk '{print $2}' | grep -qx smbd || fail "smbd is not running"
 echo "$procs" | awk '{print $2}' | grep -q python || fail "no python (init, OpenCanary)"
-ok "every process is uid 1000 gid 0, CapEff 0, NoNewPrivs 1 (init.py started as root only to make /dev/log)"
+ok "every process is uid 1000 gid 0 (no extra groups), all five capability sets empty, NoNewPrivs 1: nothing in the container ever ran as root"
+case "$($c image inspect "$img" --format '{{.Config.User}}')" in 1000:0) ;; *) fail "the image user is not 1000:0" ;; esac
 if $c exec "$name" /usr/bin/python3 -I -c 'open("/var/lib/vedette/honeypot/config/x", "w")' 2>/dev/null; then fail "config/ is writable"; fi
 if $c exec "$name" /usr/bin/python3 -I -c 'open("/usr/x", "w")' 2>/dev/null; then fail "the root filesystem is writable"; fi
 $c exec "$name" /usr/bin/python3 -I -c 'open("/var/lib/vedette/honeypot/log/probe", "w").close()' 2>/dev/null || fail "log/ is not writable by the container's user"
@@ -144,5 +149,10 @@ ok "modules/honeypot ParseLine accepts every line"
 
 # 6. size and contents
 $c image inspect "$img" --format 'honeypot image: {{.Size}} bytes, user {{.Config.User}}, arch {{.Architecture}}'
-$c run --rm --entrypoint /bin/cat "$img" /usr/share/vedette/honeypot-inventory.txt | awk '{print $1}' | sort | uniq -c | sed 's/^/    inventory: /'
+inv=$($c run --rm --entrypoint /bin/cat "$img" /usr/share/vedette/honeypot-inventory.txt)
+echo "$inv" | awk '{print $1}' | sort | uniq -c | sed 's/^/    inventory: /'
+# no GPL Python package ships (hpfeeds is a stub, D-162); Debian packages (Samba) are a separate process and keep their licences
+if echo "$inv" | grep -E '^pip ' | grep -iE 'GPL|GNU General'; then fail "a GPL Python package is in the image (see above)"; fi
+if echo "$inv" | grep -qi '^pip hpfeeds'; then fail "hpfeeds is in the image, not the stub"; fi
+ok "no GPL Python package in the image (hpfeeds is the stub)"
 echo "honeypot-check: all checks passed"

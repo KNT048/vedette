@@ -1,31 +1,30 @@
 #!/usr/bin/python3 -I
-"""The honeypot container's process 1 (WP-08e, D-162): sets the container up, drops to an unprivileged user, and keeps the traps alive.
+"""The honeypot container's process 1 (WP-08e, D-162): sets the container up and keeps the traps alive. It runs as the image's own user,
+uid 1000 gid 0, from the first instruction: no root, no capability (the unit adds none), nothing to drop.
 
-Started as the container's root (the unit drops every capability except SETUID, D-162), it does the few things that need it,
-then becomes uid 1000 for good (setuid() from root also clears the saved uid and every capability; the check below proves
-root cannot be regained), and only then starts anything that touches the network or a byte an attacker sends:
+1. log/ (a volume the container writes and core reads, D-89): podman's `:U` gives it to this user; the mode is made 0755 so core, which
+   reads through the "other" bits, can list it.
+2. plant the file tokens of config/honeytokens.json in the SMB share (a tmpfs folder), start Samba (only when smb is enabled in
+   opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/).
+3. read smbd's standard output. Samba's audit module is told not to use syslog (`full_audit:syslog = false`), so its audit lines are
+   printed on stdout, among Samba's own few log lines. init.py writes smb.conf's include file at start with a fresh random token as the
+   first field of the audit prefix: only a line that begins with that token is an audit line, so nothing a client can make Samba print
+   elsewhere (a user name with a newline in it, say) can pass for one. The line is then turned into the one fixed line OpenCanary's smb
+   module parses.
 
-1. /dev/log: Samba's audit module speaks syslog(3), whose path is fixed; /dev is a tmpfs owned by the container's root, so the
-   socket can only be made before the drop. The socket's reader is this process (the sink below).
-2. log/ (a volume the container writes and core reads, D-89): made group-writable by the owner, so uid 1000 (gid 0) can write it.
-3. drop to uid 1000, gid unchanged (0: the group of the volume), no supplementary groups, umask 002.
-4. plant the file tokens of config/honeytokens.json in the SMB share (a tmpfs folder), start Samba (only when smb is enabled in
-   opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/), then read the syslog socket.
-
-The sink turns Samba's audit lines into the one fixed line OpenCanary's smb module parses. Everything in an audit line that the
-network chose (the path, user, domain, client name) could carry `|` or `: ` and forge fields or a whole line (the module splits on
-`|` and takes the text after the LAST `: `), so the prefix Samba is configured with (smb.conf) holds only values the server decides
-(client address, server address, server name, protocol, client OS class, share), and the path, the only free text, has everything
-outside printable ASCII, every `|` and every `: ` replaced. A line that does not have exactly that shape is dropped and counted.
+Everything in an audit line that the network chose (the path) could carry `|` or `: ` and forge fields or a whole line (the module splits on `|`
+and takes the text after the LAST `: `), so the prefix holds only values the server decides (client address, server address, server name,
+protocol, client OS class, share), and the path, the only free text, has everything outside printable ASCII, every `|` and every `: ` replaced.
+A line that does not have exactly that shape is dropped and counted.
 
 If any child exits, the container exits (the unit restarts it): a half-running honeypot must not look healthy.
 """
 import json
 import os
 import re
+import secrets
 import selectors
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -35,19 +34,20 @@ LOG_DIR = "/var/lib/vedette/honeypot/log"
 CONF = CONF_DIR + "/opencanary.conf"
 TOKENS = CONF_DIR + "/honeytokens.json"
 AUDIT = "/tmp/samba-audit.log"  # /var/log/samba-audit.log (the path core writes to opencanary.conf) is a symlink to it
+AUDIT_CONF = "/tmp/samba/audit.conf"  # included by smb.conf: the prefix with this run's token
+AUDIT_FIELDS = "%I|%i|%L|%R|%a|%S"  # client address, server address, server name, protocol, client OS class, share: all decided by the server
 SHARE = "/tmp/share"
-SAMBA_DIRS = "/tmp/samba"
 UID = 1000
 MAX_JSON = 1 << 20
 AUDIT_MAX = 1 << 20  # the audit file is a pipe to OpenCanary in memory (tmpfs): replaced when it grows past this
-MAX_DGRAM = 4096
+MAX_LINE = 8192  # a longer line of smbd's output is dropped
 PATH_MAX = 200  # modules/honeypot keeps 200 characters of a file name
 
 TOKEN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$")  # tokenNameRE of modules/honeypot/personality.go
 TOKEN_BODY = b"CONFIDENTIAL - internal use only\r\n"
-IPV4 = re.compile(r"^(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}$")
-WORD = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
-AUDIT_MSG = re.compile(r"smbd_audit(?:\[\d+\])?: (.*)\Z", re.S)
+IPV4 = re.compile(r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}")
+WORD = re.compile(r"[A-Za-z0-9_.-]{1,40}")
+NONCE = re.compile(r"[0-9a-f]{32}")
 OPS = {"connect", "openat"}
 CHILD_ENV = {"PATH": "/usr/bin:/bin", "HOME": "/tmp/home", "PYTHONPATH": "/opt/opencanary/lib", "PYTHONDONTWRITEBYTECODE": "1",
              "PYTHONUNBUFFERED": "1", "GIT_PYTHON_REFRESH": "quiet", "LANG": "C.UTF-8"}
@@ -78,46 +78,21 @@ def read_json(path):
     return v
 
 
-def devlog_socket():
-    path = "/dev/log"
-    try:
-        os.unlink(path)
-    except FileNotFoundError:
-        pass
-    s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    s.bind(path)
-    os.chmod(path, 0o666)
-    s.setblocking(False)
-    return s
-
-
-def drop_privileges():
-    os.setuid(UID)  # from root: real, effective and saved uid, and every capability
-    if os.getresuid() != (UID, UID, UID):
-        die("uid is %s after the drop" % (os.getresuid(),))
-    try:
-        os.setuid(0)
-    except PermissionError:
-        return
-    die("root can be regained after the drop")
-
-
 def clean_path(p):
     p = re.sub(r"[^\x20-\x7e]", "?", p).replace("|", "?").replace(": ", ":?")
     return p[:PATH_MAX]
 
 
-def audit_line(data):
-    """One OpenCanary smb line for one syslog datagram, or None. Pure: the tests drive it with hostile inputs."""
-    m = AUDIT_MSG.search(data[:MAX_DGRAM].decode("utf-8", "replace"))
-    if not m:
+def audit_line(line, nonce):
+    """One OpenCanary smb line for one line of smbd's output, or None. Pure: the tests drive it with hostile inputs."""
+    if len(line) > MAX_LINE or not NONCE.fullmatch(nonce) or not line.startswith(nonce + "|"):
         return None
-    f = m.group(1).rstrip("\n").split("|", 8)  # client, server, name, protocol, os class, share | op | status | path
+    f = line[len(nonce) + 1:].rstrip("\n").split("|", 8)  # client, server, name, protocol, os class, share | op | status | path
     if len(f) != 9:
         return None
     src, dst, local, ver, arch, share, op, status, path = f
     src, dst = (re.sub(r"^::ffff:", "", x) for x in (src, dst))
-    if not (IPV4.match(src) and IPV4.match(dst) and all(WORD.match(x) for x in (local, ver, arch, share))):
+    if not (IPV4.fullmatch(src) and IPV4.fullmatch(dst) and all(WORD.fullmatch(x) for x in (local, ver, arch, share))):
         return None
     if op not in OPS or status not in ("ok", "fail"):
         return None
@@ -155,10 +130,10 @@ def plant_tokens(names):
     say("%d file tokens planted" % n)
 
 
-def spawn(argv, env_extra=None):
-    env = dict(CHILD_ENV)
-    env.update(env_extra or {})
-    return subprocess.Popen(argv, env=env, cwd="/tmp", stdin=subprocess.DEVNULL, close_fds=True)  # noqa: S603 - fixed argv, no shell
+def spawn(argv, stdout=None):
+    # cwd is the root of the (read-only) image, so python's sys.path[0] for `-c` is not a folder this user can write
+    return subprocess.Popen(argv, env=dict(CHILD_ENV), cwd="/", stdin=subprocess.DEVNULL, stdout=stdout,
+                            stderr=subprocess.STDOUT if stdout else None, close_fds=True)  # noqa: S603 - fixed argv, no shell
 
 
 def stop(children):
@@ -176,32 +151,36 @@ def stop(children):
 def main():
     global dropped
     os.umask(0o022)
-    if os.geteuid() != 0:
-        die("must start as the container's root (it makes /dev/log and then drops to uid %d)" % UID)
+    if os.geteuid() == 0:
+        die("must not run as root: the image's user is %d:0" % UID)
     conf = read_json(CONF)
     tokens = read_json(TOKENS).get("files", [])
     if not isinstance(tokens, list):
         die(TOKENS + ": files is not a list")
     smb_on = conf.get("smb.enabled") is True
 
-    sock = devlog_socket()
     try:
-        os.chmod(LOG_DIR, 0o775)  # we own it (podman's :U option) or the unit is wrong: checked below
+        os.chmod(LOG_DIR, 0o755)  # we own it (podman's :U option); core reads it through the "other" bits
     except OSError as e:
         say("log dir: %s" % e)
-    drop_privileges()
-    os.umask(0o002)  # OpenCanary's log files: group-writable (the volume's group is ours), readable by core
     if not os.access(LOG_DIR, os.W_OK | os.X_OK):
         die("%s is not writable by uid %d gid %d" % (LOG_DIR, os.getuid(), os.getgid()))
 
     for d in ("home", "samba", "samba/lock", "samba/state", "samba/cache", "samba/pid", "samba/private", "samba/ncalrpc"):
         os.makedirs("/tmp/" + d, mode=0o700, exist_ok=True)
+    nonce = secrets.token_hex(16)
+    with open(AUDIT_CONF, "w", encoding="ascii") as f:
+        f.write("full_audit:prefix = %s|%s\n" % (nonce, AUDIT_FIELDS))  # parameters only: smb.conf includes it inside [global]
+    os.chmod(AUDIT_CONF, 0o600)
     open(AUDIT, "ab").close()  # must exist before OpenCanary starts watching it
     plant_tokens(tokens)
 
     children = []
+    smbd = None
     if smb_on:
-        children.append(spawn(["/usr/sbin/smbd", "--foreground", "--no-process-group", "--debug-stdout", "--configfile=/etc/samba/smb.conf"]))
+        smbd = spawn(["/usr/sbin/smbd", "--foreground", "--no-process-group", "--debug-stdout", "--configfile=/etc/samba/smb.conf"], stdout=subprocess.PIPE)
+        os.set_blocking(smbd.stdout.fileno(), False)
+        children.append(smbd)
     children.append(spawn(["/usr/bin/python3", "-c", "from twisted.scripts.twistd import run; run()", "--nodaemon", "--pidfile=",
                            "--python=/opt/opencanary/lib/bin/opencanary.tac"]))
 
@@ -214,21 +193,40 @@ def main():
     say("up: smb=%s, config %s" % (smb_on, CONF))
 
     sel = selectors.DefaultSelector()
-    sel.register(sock, selectors.EVENT_READ)
+    buf = b""
+    skipping = False  # inside a line longer than MAX_LINE: dropped up to its newline
+    if smbd:
+        sel.register(smbd.stdout, selectors.EVENT_READ)
     while True:
         for _key, _ in sel.select(timeout=1.0):
-            for _ in range(100):  # bounded batch, so the children are checked even under a flood
-                try:
-                    data = sock.recv(MAX_DGRAM)
-                except BlockingIOError:
+            try:
+                data = os.read(smbd.stdout.fileno(), 65536)
+            except BlockingIOError:
+                continue
+            if not data:
+                sel.unregister(smbd.stdout)  # smbd closed its output: the child check below ends the container
+                continue
+            buf += data
+            while True:
+                nl = buf.find(b"\n")
+                if nl < 0:
+                    if len(buf) > MAX_LINE:  # an endless line: keep nothing of it
+                        buf, skipping = b"", True
                     break
-                line = audit_line(data)
-                if line is None:
-                    dropped += 1
-                    if dropped in (1, 10, 100) or dropped % 1000 == 0:
-                        say("%d audit datagrams dropped (not the fixed shape)" % dropped)
-                else:
+                raw, buf = buf[:nl], buf[nl + 1:]
+                if skipping:
+                    skipping = False
+                    continue
+                text = raw.decode("utf-8", "replace")
+                line = audit_line(text, nonce)
+                if line is not None:
                     write_audit(line)
+                elif not text.startswith(nonce):
+                    say("smbd: " + re.sub(r"[^\x20-\x7e]", "?", text)[:300])  # Samba's own log line, made safe to print
+                else:
+                    dropped += 1  # begins with our token but is not the fixed shape
+                    if dropped in (1, 10, 100) or dropped % 1000 == 0:
+                        say("%d audit lines dropped (not the fixed shape)" % dropped)
         for c in children:
             if c.poll() is not None:
                 stop(children)

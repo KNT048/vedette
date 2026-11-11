@@ -9,7 +9,6 @@ Image=ghcr.io/knt048/vedette-honeypot@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
-AddCapability=SETUID
 NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp

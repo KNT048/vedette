@@ -1318,9 +1318,9 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 		api.ServiceScan: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
 			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro"},
 			exec:    "active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
-		// The image starts as the container's root, with SETUID as its only capability, to make /dev/log and then drop to uid 1000 for good
-		// (deploy/containers/honeypot/init.py, D-162). :U gives the volume to the container's user (UserNS=auto picks the range at start).
-		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", addCaps: []string{"SETUID"}, requires: []string{"vedette-host.service"},
+		// The image's user is 1000:0 from the start and the unit adds no capability (deploy/containers/honeypot/init.py, D-162). :U gives the
+		// log volume to that user (UserNS=auto picks the range at start).
+		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
 			volumes: []string{
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro",
 				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U",

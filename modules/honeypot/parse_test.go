@@ -28,6 +28,14 @@ func TestParseLineSMBPortsAsStrings(t *testing.T) {
 		"text":              {`"src_port": "abc", "dst_port": "x"`, 0, 0},
 		"out of range":      {`"src_port": 70000, "dst_port": "0"`, 0, 0},
 		"object and absent": {`"src_port": {"a": 1}`, 0, 0},
+		"21 digits":         {`"src_port": 999999999999999999999, "dst_port": 22`, 0, 22},
+		"20 digits":         {`"src_port": 99999999999999999999, "dst_port": "99999999999999999999"`, 0, 0},
+		"exponent":          {`"src_port": 1e3, "dst_port": "1e3"`, 0, 0},
+		"plus sign":         {`"src_port": "+22", "dst_port": "+22"`, 0, 0},
+		"booleans and null": {`"src_port": true, "dst_port": null`, 0, 0},
+		"padded":            {`"src_port": " 22 ", "dst_port": "\t445\n"`, 22, 445},
+		"fraction":          {`"src_port": 22.5, "dst_port": "22.0"`, 0, 0},
+		"leading zeros":     {`"src_port": "0022", "dst_port": "00"`, 22, 0},
 	} {
 		rec, err := ParseLine([]byte(`{"logtype": 4000, "src_host": "10.0.0.5", ` + tc.ports + `}`))
 		if err != nil {

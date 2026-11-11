@@ -173,7 +173,6 @@ Image=` + repoHoneypot + `@{{.Digest}}
 Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
-AddCapability=SETUID
 NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp

@@ -122,14 +122,6 @@ func TestContainerfilesUsePinnedBasesAndEndNonRoot(t *testing.T) {
 				lastUser = fields[1]
 			}
 		}
-		// The honeypot is the one image that starts as root, on purpose (D-162): init.py makes /dev/log and drops to uid 1000 before it starts
-		// anything; honeypot_test.go holds that (no capability but SETUID in the unit, the drop checked, root not regainable).
-		if f == "honeypot/Containerfile" {
-			if lastUser != "0:0" {
-				t.Errorf("%s: the last USER is the documented 0:0 (init.py drops to 1000), got %q", f, lastUser)
-			}
-			continue
-		}
 		if lastUser == "" || lastUser == "0" || strings.HasPrefix(lastUser, "0:") || lastUser == "root" {
 			t.Errorf("%s: the last stage must end with a numeric non-root USER, got %q", f, lastUser)
 		}

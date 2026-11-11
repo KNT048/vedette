@@ -246,7 +246,7 @@ images: webui-dist scan-pack
 honeypot-image:
 	$(CONTAINER) build -f deploy/containers/honeypot/Containerfile $(PIN_ARGS) -t localhost/vedette-honeypot:$(IMAGE_TAG) .
 
-# Builds the honeypot image, runs it as the unit does (no new privileges, read-only root, only SETUID) and checks what a connection does
+# Builds the honeypot image, runs it as the unit does (no new privileges, read-only root, no capability) and checks what a connection does
 # (scripts/dev/honeypot-check.sh), then removes the image and the containers. Opt-in, like images-check.
 honeypot-check:
 	scripts/dev/honeypot-check.sh

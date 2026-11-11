@@ -120,8 +120,11 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 	if !strings.Contains(cf, "./cmd/vedette\n") || !strings.Contains(cf, "CGO_ENABLED=0") {
 		t.Error("the health binary is the static (no cgo) build of ./cmd/vedette: nothing of it can link a GPL library")
 	}
-	if !slices.Equal(u["DropCapability"], []string{"ALL"}) || !slices.Equal(u["AddCapability"], []string{"SETUID"}) {
-		t.Errorf("capabilities Drop=%v Add=%v: ALL dropped and SETUID alone added (init.py needs it once, to drop root)", u["DropCapability"], u["AddCapability"])
+	if !slices.Equal(u["DropCapability"], []string{"ALL"}) || len(u["AddCapability"]) != 0 || len(u["User"]) != 0 {
+		t.Errorf("capabilities Drop=%v Add=%v: ALL dropped and nothing added (the image user is 1000:0 from the start, no root)", u["DropCapability"], u["AddCapability"])
+	}
+	if !strings.Contains(cf, "\nUSER 1000:0\n") || strings.Contains(cf, "USER 0") || strings.Contains(cf, "USER root") {
+		t.Error("the image must end with USER 1000:0 and never name root")
 	}
 	if u["NoNewPrivileges"][0] != "true" || u["ReadOnly"][0] != "true" || u["Tmpfs"][0] != "/tmp" || u["UserNS"][0] != "auto" {
 		t.Errorf("hardening lines of the unit changed: %v", u)
@@ -184,18 +187,58 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 	if !strings.Contains(cf, `ENTRYPOINT ["/usr/bin/python3", "-I", "/usr/local/lib/vedette-hp/init.py"]`) || !strings.Contains(cf, "deploy/containers/honeypot/init.py /usr/local/lib/vedette-hp/init.py\n") {
 		t.Error("ENTRYPOINT must be the exec form of init.py at the path the image copies it to")
 	}
-	// the drop is checked in code: root must not be regainable, and nothing starts before it
-	for _, want := range []string{"os.setuid(UID)", "os.setuid(0)", "except PermissionError", "root can be regained"} {
+	// no root anywhere: init.py refuses to run as root, uses no syslog socket, drops nothing (there is nothing to drop), and Samba does not use syslog
+	for _, want := range []string{"os.geteuid() == 0", "must not run as root"} {
 		if !strings.Contains(ini, want) {
 			t.Errorf("init.py: missing %q", want)
 		}
 	}
-	if i, j := strings.Index(ini, "drop_privileges()\n"), strings.Index(ini, "spawn(["); i < 0 || j < 0 || i > j {
-		t.Error("init.py must drop privileges before it starts any child")
+	for _, bad := range []string{"/dev/log", "setuid", "AF_UNIX", "socket"} {
+		if strings.Contains(ini, bad) && bad != "/dev/log" {
+			t.Errorf("init.py mentions %q: the root start and the syslog socket are gone (D-162)", bad)
+		}
+	}
+	if !strings.Contains(read(t, "honeypot/smb.conf"), "full_audit:syslog = false") || !strings.Contains(read(t, "honeypot/smb.conf"), "include = /tmp/samba/audit.conf") ||
+		initConst(ini, "AUDIT_CONF") != "/tmp/samba/audit.conf" {
+		t.Error("Samba's audit goes to smbd's stdout (full_audit:syslog = false) with the prefix in the include file init.py writes")
+	}
+	if !strings.Contains(ini, "--debug-stdout") || !strings.Contains(ini, "secrets.token_hex(16)") {
+		t.Error("init.py must read smbd's stdout and put a fresh random token first in the audit prefix")
 	}
 	// OpenCanary's traps the module may enable have ports; the health check reads them from the same file, so the image holds no port list
 	if strings.Contains(cf, "EXPOSE") {
 		t.Error("the unit decides what is reachable (a namespace of macvlan addresses): no EXPOSE")
+	}
+}
+
+// hpfeeds (GPL-3) is not shipped (D-162): OpenCanary imports it at the top of logger.py but calls it only for an hpfeeds logger, which core's
+// configuration never names. A stub module answers the import; it is never in a hash-locked install.
+func TestHoneypotShipsNoGPLPython(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{"honeypot/requirements.txt", "honeypot/requirements-sdist.txt"} {
+		if strings.Contains(strings.ToLower(read(t, f)), "hpfeeds") {
+			t.Errorf("%s names hpfeeds: it is replaced by hpfeeds_stub.py", f)
+		}
+	}
+	if !strings.Contains(read(t, "honeypot/lock.py"), `STUBBED = {"hpfeeds"}`) {
+		t.Error("lock.py must skip hpfeeds when it writes the lock")
+	}
+	cf := read(t, "honeypot/Containerfile")
+	cp := strings.Index(cf, "cp /hp/hpfeeds_stub.py /rootfs/opt/opencanary/lib/hpfeeds.py")
+	if cp < 0 || cp > strings.Index(cf, "compileall") || !strings.Contains(cf, "deploy/containers/honeypot/hpfeeds_stub.py") {
+		t.Error("the stub must be copied to /opt/opencanary/lib/hpfeeds.py before compileall")
+	}
+	stub := read(t, "honeypot/hpfeeds_stub.py")
+	if strings.Count(strings.TrimSpace(stub), "\n") > 14 || regexp.MustCompile(`(?m)^\s*(import|from)\s`).MatchString(stub) ||
+		!strings.Contains(stub, "def new(*a, **k):") || !strings.Contains(stub, "raise RuntimeError(") {
+		t.Errorf("hpfeeds_stub.py must be a short module with no import whose new() raises:\n%s", stub)
+	}
+	conf, err := honeypot.RenderConfig(honeypot.ConfigInput{LogPath: "/var/lib/vedette/honeypot/log/opencanary.jsonl", Enabled: honeypot.Services})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.ToLower(string(conf)), "hpfeeds") {
+		t.Error("the rendered opencanary.conf names an hpfeeds logger: the stub would raise at start")
 	}
 }
 
@@ -204,13 +247,13 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 func TestHoneypotAuditPrefixHoldsOnlyServerValues(t *testing.T) {
 	t.Parallel()
 	smb := read(t, "honeypot/smb.conf")
-	m := regexp.MustCompile(`(?m)^\s*full_audit:prefix = (\S+)$`).FindStringSubmatch(smb)
-	if m == nil {
-		t.Fatal("no full_audit:prefix in smb.conf")
+	if strings.Contains(smb, "full_audit:prefix") {
+		t.Fatal("smb.conf must not set the prefix: init.py writes it with this run's token into the included file")
 	}
-	fields := strings.Split(m[1], "|")
+	prefix := initConst(read(t, "honeypot/init.py"), "AUDIT_FIELDS")
+	fields := strings.Split(prefix, "|")
 	if len(fields) != 6 {
-		t.Fatalf("prefix %q has %d fields, init.py expects 6 before op|status|path", m[1], len(fields))
+		t.Fatalf("prefix %q has %d fields, init.py expects 6 before op|status|path", prefix, len(fields))
 	}
 	for _, f := range fields {
 		switch f { // %I client address, %i server address, %L server name, %R protocol, %a client OS class, %S share
@@ -244,7 +287,8 @@ func python(t *testing.T) string {
 func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 	t.Parallel()
 	py := python(t)
-	prefix := "<190>Nov 11 05:25:06 smbd_audit[42]: "
+	const nonce = "0123456789abcdef0123456789abcdef" // what init.py makes with secrets.token_hex(16) at each start
+	prefix := nonce + "|"
 	good := "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|"
 	cases := []string{
 		prefix + good + "passwords.txt", // 0: normal
@@ -258,19 +302,24 @@ func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|unlink|ok|a",    // 8: an operation we do not audit
 		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|maybe|a", // 9: a status Samba never writes
 		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|openat|ok|a",           // 10: a field short (a '|' moved by the client)
-		"<190>Nov 11 05:25:06 sshd: 192.168.1.5|1|2|3|4|5|openat|ok|a",                      // 11: not ours
+		"192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a",             // 11: no token: any other line of smbd's output, forged or not
 		prefix + "192.168.1.5|192.168.1.240|FILE SERVER|SMB3_11|Win10|Shared|openat|ok|a",   // 12: a space where the server decides a word
 		prefix + good, // 13: an empty path (a share root)
-		prefix + "256.1.1.1|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a", // 14: not an IPv4 address
-		prefix + good + "r|/tmp/share/Q4 payroll.xlsx",                                 // 15: what Samba writes for an open: mode|absolute path
+		prefix + "256.1.1.1|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a",     // 14: not an IPv4 address
+		prefix + good + "r|/tmp/share/Q4 payroll.xlsx",                                     // 15: what Samba writes for an open: mode|absolute path
+		strings.Repeat("f", 32) + "|" + good + "a",                                         // 16: another token
+		prefix + "192.168.1.5|192.168.1.240|FILESERVER\n|SMB3_11|Win10|Shared|openat|ok|a", // 17: a trailing newline in a server field ($ would let it by)
+		prefix + "192.168.1.5\n|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a", // 18: ... in an address
+		strings.ToUpper(nonce) + "|" + good + "a",                                          // 19: the token in another case
 	}
 	in, _ := json.Marshal(cases)
 	code := "import importlib.util, json, sys\n" +
 		"s = importlib.util.spec_from_file_location('hpinit', sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)\n" +
-		"print(json.dumps([m.audit_line(c.encode('utf-8')) for c in json.load(sys.stdin)]))\n"
+		"print(json.dumps([m.audit_line(c, sys.argv[2]) for c in json.load(sys.stdin)]))\n"
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, py, "-I", "-c", code, "honeypot/init.py") //nolint:gosec // test: fixed argv, python3 from PATH
+	// -B: no bytecode is written next to init.py (a committed .pyc and a polluted build context were a review finding)
+	cmd := exec.CommandContext(ctx, py, "-I", "-B", "-c", code, "honeypot/init.py", nonce) //nolint:gosec // test: fixed argv, python3 from PATH
 	cmd.Stdin = bytes.NewReader(in)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -291,7 +340,7 @@ func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 		}
 		return strings.Split(m[1], "|")
 	}
-	refused := map[int]bool{7: true, 8: true, 9: true, 10: true, 11: true, 12: true, 14: true}
+	refused := map[int]bool{7: true, 8: true, 9: true, 10: true, 11: true, 12: true, 14: true, 16: true, 17: true, 18: true, 19: true}
 	for i, g := range got {
 		if refused[i] {
 			if g != nil {

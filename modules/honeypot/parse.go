@@ -131,7 +131,11 @@ func ParseLine(line []byte) (Record, error) {
 
 // clampPort reads a port that may arrive as a number or a string; anything that is not 1-65535 (the "-1" of the SMB lines, text) is 0.
 func clampPort(t text) int {
-	p, err := strconv.Atoi(strings.TrimSpace(string(t)))
+	s := strings.TrimSpace(string(t))
+	if s == "" || strings.Trim(s, "0123456789") != "" { // plain decimal digits only: no sign, exponent or fraction
+		return 0
+	}
+	p, err := strconv.Atoi(s)
 	if err != nil || p < 1 || p > 65535 {
 		return 0
 	}

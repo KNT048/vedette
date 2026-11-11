@@ -26,6 +26,8 @@ import urllib.request
 
 ARCHS = ("x86_64", "aarch64")
 MAX_GLIBC_MINOR = 41  # Debian 13 "trixie" ships glibc 2.41
+# Resolved but never installed: replaced by hpfeeds_stub.py in the image (hpfeeds is GPL-3 and OpenCanary only imports it, D-162).
+STUBBED = {"hpfeeds"}
 HERE = __file__.rsplit("/", 1)[0] if "/" in __file__ else "."
 
 
@@ -75,6 +77,8 @@ def block(name, version, hashes):
 def main():
     wheels, sdists = [], []
     for name, version in sorted(pip_report(HERE + "/requirements.in"), key=lambda x: x[0].lower()):
+        if name.lower() in STUBBED:
+            continue
         files = release_files(name, version)
         by_arch = {a: [] for a in ARCHS}
         anyw = []

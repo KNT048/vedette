@@ -232,7 +232,7 @@ func (s *Service) VerifyApprovalLink(ctx context.Context, token string, b Bindin
 }
 
 // approverProblem re-checks an approver before a link is minted for them (the saved list may be old): the user must still
-// exist, be active and be an operator or administrator, and the saved address must still be their sign-in email.
+// exist, be active and be an operator or administrator, and on the email channel the saved address must still be their sign-in email.
 // With Config.ApproverLinks set, the address must also be linked by the user in My account (D-191); an error from it is a problem too.
 // It returns why not, or "" when the approver is fine. A directory that cannot answer counts as not fine (fail closed).
 func (s *Service) approverProblem(ctx context.Context, ch channel.Type, a Approver) string {
@@ -246,7 +246,7 @@ func (s *Service) approverProblem(ctx context.Context, ch channel.Type, a Approv
 		return "the user is disabled"
 	case u.Role != "operator" && u.Role != "admin":
 		return "the user is no longer an operator or administrator"
-	case !strings.EqualFold(strings.TrimSpace(a.Address), u.Email):
+	case ch == channel.Email && !strings.EqualFold(strings.TrimSpace(a.Address), u.Email):
 		return "the saved address is no longer the sign-in email of the user"
 	}
 	if s.cfg.ApproverLinks == nil {
@@ -255,8 +255,8 @@ func (s *Service) approverProblem(ctx context.Context, ch channel.Type, a Approv
 	linked, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, ch, a.Address)
 	switch {
 	case err != nil:
-		s.cfg.Log.WarnContext(ctx, "approval request: approver link check failed", "user", a.UserID, "channel", string(ch), "err", err)
-		return "the link could not be checked"
+		s.cfg.Log.WarnContext(ctx, "approval request: approver link check failed", "user", a.UserID, "channel", string(ch), "error", err.Error())
+		return "whether the approver linked this address could not be checked"
 	case !linked:
 		return "the approver has not linked this address in My account"
 	}

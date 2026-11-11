@@ -94,12 +94,14 @@ const refusedLimit = "The tool limit for this question was reached, so this call
 func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Prompt, tc provider.ToolCall, turn, inTurn int) provider.ToolResult {
 	res := provider.ToolResult{CallID: tc.ID, Name: tc.Name}
 	shownName := clipRunes(cleanText(tc.Name), 64)
-	rawArgs := strings.TrimSpace(string(tc.Arguments))
+	// What is stored and shown of the arguments is what the hooks let through: until they have run it is a placeholder, so raw text
+	// the model wrote never reaches the answer, the history or the activity row (M1).
+	shownArgs := "[not run]"
 	record := func(result string, act *ActivityTool) {
 		if len(ts.calls) >= askMaxRecorded { // a model that floods calls fills no more than this many lines of a row
 			return
 		}
-		ts.calls = append(ts.calls, AskToolCall{Tool: shownName, Args: SummarizeArgs(rawArgs), Result: result})
+		ts.calls = append(ts.calls, AskToolCall{Tool: shownName, Args: SummarizeArgs(shownArgs), Result: result})
 		if act != nil {
 			ts.acts = append(ts.acts, *act)
 		}
@@ -117,30 +119,57 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 		return fail("That tool is not available. Use only the tools you were given.")
 	}
 	act := func(outcome string) *ActivityTool {
-		return &ActivityTool{Name: t.Name, Access: AccessRead, Args: argsNote(rawArgs, outcome)}
+		return &ActivityTool{Name: t.Name, Access: AccessRead, Args: argsNote(shownArgs, outcome)}
 	}
 	if turn >= askMaxRounds || ts.n > askMaxCalls || inTurn >= askMaxCallsPerTurn {
 		record("limit reached", act("skipped"))
 		return fail(refusedLimit)
 	}
 
-	// before_tool hooks on the arguments; a mask that leaves no valid JSON object is a refusal
+	// a connection tool sends the arguments to that connection: refused when the privacy rule is on and the connection is not inside
+	// the network, even if the rule was turned on after the tools were listed (D-212)
+	if impl.ConnectorID != "" && ts.svc.snap.Load().assign.InternalOnly && !impl.internal {
+		record("not available", act("skipped"))
+		return fail("That tool is not available. Use only the tools you were given.")
+	}
+
+	// The arguments are the model's words, so they go through the hooks like a question: written out once as canonical JSON (a \u
+	// escape cannot hide a word from a pattern), the personal-data hook first, then the before_tool hooks. A mask that leaves no
+	// valid JSON object is a refusal.
+	canon, cerr := canonicalJSON(tc.Arguments)
+	if cerr != nil {
+		shownArgs = "[invalid]"
+		record("invalid arguments", act("error"))
+		return fail("Invalid arguments: the arguments must be one JSON object")
+	}
 	hctx, cancel := context.WithTimeout(ctx, ts.svc.hookTimeout())
-	pre, err := hooks.CheckTool(hctx, AccessRead, rawArgs)
+	pii, err := hooks.RunPersonalData(hctx, canon)
+	var pre HookResult
+	if err == nil && pii.Outcome != OutcomeBlocked && pii.Outcome != OutcomeHeld {
+		pre, err = hooks.CheckTool(hctx, AccessRead, pii.Text)
+	}
 	cancel()
-	if err != nil || pre.Outcome == OutcomeBlocked || pre.Outcome == OutcomeHeld {
-		ts.addHits(pre)
-		who := hookNameList(pre)
+	for _, r := range []HookResult{pii, pre} {
+		ts.addHits(r)
+	}
+	stopped := pii
+	if pii.Outcome != OutcomeBlocked && pii.Outcome != OutcomeHeld {
+		stopped = pre
+	}
+	if err != nil || stopped.Outcome == OutcomeBlocked || stopped.Outcome == OutcomeHeld {
+		who := hookNameList(stopped)
 		if who == "" {
 			who = "the hooks"
 		}
+		shownArgs = "[withheld by hook " + who + "]"
 		record("withheld by hook "+who, act("withheld"))
 		return fail("This call was stopped by a rule of the company and did not run.")
 	}
-	ts.addHits(pre)
 	args := pre.Text
+	shownArgs = args
 	if args == "" {
 		args = "{}"
+		shownArgs = args
 	}
 	parse := impl.parse
 	if parse == nil {
@@ -246,8 +275,31 @@ func parseObject(raw json.RawMessage) (map[string]any, error) {
 
 // argsNote is what the activity row says of a call: a short scrubbed form of the arguments, their hash and how it ended. Never the
 // result.
-func argsNote(raw, outcome string) string {
-	return fmt.Sprintf("%s [%s #%s]", SummarizeArgs(raw), outcome, HashContent(raw)[:10])
+func argsNote(shown, outcome string) string {
+	return fmt.Sprintf("%s [%s #%s]", SummarizeArgs(shown), outcome, HashContent(shown)[:10])
+}
+
+// canonicalJSON writes the arguments of a call as one JSON object with sorted keys and no escaping of readable characters.
+func canonicalJSON(raw json.RawMessage) (string, error) {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return "{}", nil
+	}
+	if len(raw) > askMaxArgs {
+		return "", errBadArgs{"the arguments are too long"}
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var m map[string]any
+	if err := dec.Decode(&m); err != nil || m == nil || dec.More() {
+		return "", errBadArgs{"the arguments must be one JSON object"}
+	}
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(m); err != nil {
+		return "", errBadArgs{"the arguments must be one JSON object"}
+	}
+	return strings.TrimSuffix(b.String(), "\n"), nil
 }
 
 // converse is the model side of the loop: it asks, runs the tools the model calls, and asks again until the model answers with text.

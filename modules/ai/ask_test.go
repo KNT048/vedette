@@ -100,6 +100,17 @@ type fakeConns struct {
 	err     error
 	listErr error
 	calls   []connCall
+	addrs   map[string]string // connection id -> address, as core/conn List has it
+}
+
+func (c *fakeConns) targets(context.Context) (map[string]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := map[string]string{}
+	for k, v := range c.addrs {
+		out[k] = v
+	}
+	return out, nil
 }
 
 func (c *fakeConns) ListReadTools(context.Context) ([]read.ReadTool, error) {
@@ -739,14 +750,14 @@ func TestAskBlockedQuestionIsStoredHiddenAndCostsNothing(t *testing.T) {
 	}
 	// a masked question goes on masked, and the masked text is what is stored and shown
 	a.fake.play(turn{text: "Nothing."})
-	m := a.ask("Which machines still expose RDP? Reply to an.nguyen@example.com", 200, "")
-	if q := m["question"].(string); strings.Contains(q, "an.nguyen") || !strings.Contains(q, "[masked]") {
+	m := a.ask("Which machines still expose RDP? Reply to a.nguyen@example.com", 200, "")
+	if q := m["question"].(string); strings.Contains(q, "a.nguyen") || !strings.Contains(q, "[masked]") {
 		t.Fatalf("question = %q", q)
 	}
 	if h := list(m["hooks"]); len(h) != 1 || h[0].(map[string]any)["action"] != "mask" {
 		t.Fatalf("hooks = %v", h)
 	}
-	if strings.Contains(a.fake.lastRequest(t).Messages[0].Text, "an.nguyen") {
+	if strings.Contains(a.fake.lastRequest(t).Messages[0].Text, "a.nguyen") {
 		t.Fatal("the email reached the provider")
 	}
 	// a custom hook that holds for approval is a refusal too: held questions are hidden
@@ -887,5 +898,147 @@ func TestAskDowngradeIsReported(t *testing.T) {
 	got := a.ask("Which machines still expose RDP?", 200, "")
 	if d, _ := got["downgraded"].(map[string]any); d["from"] != "max" || d["to"] != "med" {
 		t.Fatalf("downgraded = %v", got["downgraded"])
+	}
+}
+
+// storedEverywhere returns every place the arguments of a call are kept: the answer, the history and the activity row.
+func (a *api) storedEverywhere(got map[string]any) string {
+	a.t.Helper()
+	hist := a.want("GET", "/ai/asks", "viewer", "", 200, "")
+	return fmt.Sprint(got["tool_calls"]) + fmt.Sprint(hist) + fmt.Sprintf("%+v", a.activity())
+}
+
+func TestAskMaskedToolArgumentsAreStoredMasked(t *testing.T) {
+	a := newAskAPI(t)
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Mask finance term", "before_tool", "keywords", "payroll", "mask", "Payroll is masked."), 200, "")
+	a.fake.play(turn{calls: []provider.ToolCall{call("search_assets", `{"text":"payroll"}`)}}, turn{text: "Done."})
+	got := a.ask("Find the finance machine", 200, "")
+	all := a.storedEverywhere(got)
+	if strings.Contains(all, "payroll") || !strings.Contains(all, "[masked]") {
+		t.Fatalf("the masked word is stored: %s", all)
+	}
+	row := a.activity()[0].Tools[0]
+	if !strings.HasPrefix(row.Args, `{"text":"[masked]"} [masked #`) && !strings.HasPrefix(row.Args, `{"text":"[masked]"} [ok #`) {
+		t.Fatalf("activity args = %q", row.Args)
+	}
+	// the hash is of the masked text
+	if !strings.HasSuffix(row.Args, "#"+ai.HashContent(`{"text":"[masked]"}`)[:10]+"]") {
+		t.Fatalf("activity args = %q", row.Args)
+	}
+}
+
+func TestAskBlockedToolArgumentsAreStoredAsAPlaceholder(t *testing.T) {
+	a := newAskAPI(t)
+	a.want("POST", "/ai/hooks", "admin", hookJSON("No finance tool", "before_tool", "keywords", "payroll", "block", "Payroll is out of scope."), 200, "")
+	a.fake.play(turn{calls: []provider.ToolCall{call("search_assets", `{"text":"payroll"}`), call("search_assets", `{"text":"\u0070ayroll"}`)}}, turn{text: "Stopped."})
+	got := a.ask("Find the finance machine", 200, "")
+	all := a.storedEverywhere(got)
+	if strings.Contains(all, "payroll") || strings.Contains(all, `\u0070`) || !strings.Contains(all, "[withheld by hook No finance tool]") {
+		t.Fatalf("stored: %s", all)
+	}
+	if a.data.readCount() != 0 { // a \u escape is not a way round the hook
+		t.Fatal("the tool ran")
+	}
+}
+
+func TestAskToolArgumentsGoThroughThePersonalDataHook(t *testing.T) {
+	a := newAskAPI(t)
+	a.conns.tools = []read.ReadTool{{ConnectionID: "cn9", ConnectionName: "Ticket MCP", Kind: "mcp-http", Name: "search",
+		Schema: json.RawMessage(`{"type":"object","properties":{"q":{"type":"string"}},"required":["q"],"additionalProperties":false}`)}}
+	a.conns.addrs = map[string]string{"cn9": "https://192.168.10.9"}
+	a.fake.play(turn{calls: []provider.ToolCall{call("conn_cn9__search", `{"q":"mail a.nguyen@example.com"}`), call("conn_cn9__search", `{"q":"ID 079123456789"}`), call("search_assets", `{"text":"a.nguyen@example.com"}`)}}, turn{text: "Done."})
+	got := a.ask("Look it up", 200, "")
+	calls := a.conns.callList()
+	if len(calls) != 1 || strings.Contains(fmt.Sprint(calls[0].args), "@example.com") || !strings.Contains(fmt.Sprint(calls[0].args), "[masked]") {
+		t.Fatalf("what the server got = %+v", calls) // the email is masked, the ID number call did not run
+	}
+	all := a.storedEverywhere(got)
+	if strings.Contains(all, "a.nguyen") || strings.Contains(all, "079123456789") {
+		t.Fatalf("stored: %s", all)
+	}
+	if res := toolResults(a.fake.askRequests()[1]); len(res) != 3 || !res[1].IsError {
+		t.Fatalf("results = %+v", res)
+	}
+}
+
+func TestContract_INV3_AskConnectionToolsStayInsideWhileTheRuleIsOn(t *testing.T) {
+	sch := json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","enum":["/x"]}},"additionalProperties":false}`)
+	mk := func(id string) read.ReadTool {
+		return read.ReadTool{ConnectionID: id, ConnectionName: "C " + id, Kind: "http", Name: "fetch_url", Schema: sch}
+	}
+	setup := func(t *testing.T, rule bool) *api {
+		a := newAPI(t)
+		local := a.addProfile(internalBody("Local"))["id"].(string)
+		jobs := map[string][2]string{}
+		for _, j := range ai.Jobs() {
+			jobs[string(j)] = [2]string{local, ""}
+		}
+		a.want("PUT", "/ai/assignments", "admin", assignBody(rule, jobs), 200, "")
+		a.conns.tools = []read.ReadTool{mk("in1"), mk("pub"), mk("named"), mk("unknown"), mk("cg")}
+		a.conns.addrs = map[string]string{"in1": "https://192.168.10.1/api", "pub": "https://203.0.113.5/api", "named": "https://router.lan/api", "cg": "100.64.1.2:22"}
+		a.conns.out = map[string]string{"in1/fetch_url": "ok", "pub/fetch_url": "ok"}
+		return a
+	}
+	connNames := func(a *api) string {
+		var n []string
+		for _, d := range a.fake.lastRequest(t).Tools {
+			if strings.HasPrefix(d.Name, "conn_") {
+				n = append(n, d.Name)
+			}
+		}
+		return strings.Join(n, ",")
+	}
+	a := setup(t, true)
+	a.fake.play(turn{text: "Nothing."})
+	a.ask("What does the firewall say?", 200, "")
+	if got := connNames(a); got != "conn_cg__fetch_url,conn_in1__fetch_url" { // an address that is not a private literal is not offered
+		t.Fatalf("offered under the rule = %q", got)
+	}
+	b := setup(t, false)
+	b.fake.play(turn{text: "Nothing."})
+	b.ask("What does the firewall say?", 200, "")
+	if got := connNames(b); !strings.Contains(got, "conn_pub__fetch_url") || !strings.Contains(got, "conn_named__fetch_url") || !strings.Contains(got, "conn_unknown__fetch_url") {
+		t.Fatalf("offered without the rule = %q", got)
+	}
+	// the addresses cannot be read: nothing is offered under the rule
+	c := setup(t, true)
+	c.conns.addrs = nil
+	c.fake.play(turn{text: "Nothing."})
+	c.ask("What does the firewall say?", 200, "")
+	if got := connNames(c); got != "" {
+		t.Fatalf("offered with no addresses = %q", got)
+	}
+	// the rule turned on after the tools were listed: a call to a connection outside is refused
+	d := setup(t, false)
+	localID := d.profileID("Local")
+	step := 0
+	d.fake.mu.Lock()
+	d.fake.script = func(_ context.Context, _ ai.Profile, _ provider.Request) (provider.Response, error) {
+		step++
+		if step == 1 {
+			jobs := map[string][2]string{}
+			for _, j := range ai.Jobs() {
+				jobs[string(j)] = [2]string{localID, ""}
+			}
+			d.want("PUT", "/ai/assignments", "admin", assignBody(true, jobs), 200, "") //nolint:contextcheck // the test drives the API from inside the fake provider
+			return provider.Response{ToolCalls: []provider.ToolCall{{ID: "c1", Name: "conn_pub__fetch_url", Arguments: json.RawMessage(`{"path":"/x"}`)}, {ID: "c2", Name: "conn_in1__fetch_url", Arguments: json.RawMessage(`{"path":"/x"}`)}}, Stop: provider.StopToolUse}, nil
+		}
+		return provider.Response{Text: "Done."}, nil
+	}
+	d.fake.mu.Unlock()
+	d.ask("What does the firewall say?", 200, "")
+	if calls := d.conns.callList(); len(calls) != 1 || calls[0].conn != "in1" {
+		t.Fatalf("reader calls = %+v", calls)
+	}
+}
+
+func TestAskFourCallsPerTurn(t *testing.T) {
+	a := newAskAPI(t)
+	c := call("search_assets", `{"limit":1}`)
+	a.fake.play(turn{calls: []provider.ToolCall{c, c, c, c, c}}, turn{text: "Done."})
+	a.ask("Count the devices please", 200, "")
+	res := toolResults(a.fake.askRequests()[1])
+	if len(res) != 5 || res[3].IsError || !res[4].IsError || !strings.Contains(res[4].Content, "tool limit") || a.data.readCount() != 4 {
+		t.Fatalf("results = %+v, reads = %d", res, a.data.readCount())
 	}
 }

@@ -28,6 +28,17 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Serv
 	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data}
 	if d.ConnReader != nil { // the read tools of the connections (core/conn/read, D-127); a nil *read.Reader in the interface would not compare equal to nil
 		cfg.Conns = d.ConnReader
+		cfg.ConnTargets = func(ctx context.Context) (map[string]string, error) {
+			cs, err := d.Conn.List(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("ai: connections: %w", err)
+			}
+			m := make(map[string]string, len(cs))
+			for _, c := range cs {
+				m[c.ID] = c.Target
+			}
+			return m, nil
+		}
 	}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg

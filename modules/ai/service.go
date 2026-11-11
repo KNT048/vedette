@@ -83,6 +83,9 @@ type Config struct {
 	Data Data
 	// Conns lists and calls the read tools of the connections (core/conn/read); nil = no connection tools.
 	Conns ConnReader
+	// ConnTargets returns the address of each connection by id (core/conn List). While the privacy rule is on, only the tools of a
+	// connection whose address is inside the network are offered; nil = none are (fail closed, D-212).
+	ConnTargets func(ctx context.Context) (map[string]string, error)
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
 	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.

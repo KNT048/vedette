@@ -6,12 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/conn/read"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // The read tools of "Ask your data" (S-AI-5, INV-14, D-211): five of the box (search_assets, list_findings, get_finding, lookup_cve,
@@ -44,7 +47,10 @@ type toolImpl struct {
 	// parse checks the arguments at the edge; nil = one JSON object, whose names and types the code that runs the tool checks (the
 	// reader of a connection against the tool's own schema).
 	parse func(raw json.RawMessage) (map[string]any, error)
-	run   func(ctx context.Context, args map[string]any) (toolOut, error)
+	// internal: the connection of a connection tool is inside the network (private, loopback, ULA or CGNAT address); false when that
+	// could not be checked (D-212).
+	internal bool
+	run      func(ctx context.Context, args map[string]any) (toolOut, error)
 }
 
 // Limits of the result of one call (D-211).
@@ -460,42 +466,83 @@ func connToolName(rt read.ReadTool) string {
 	return n
 }
 
-// descriptionKeys are the schema keywords that hold free text. A device or an MCP server writes them, so a connection tool's schema is
-// shown to the model without them: a tool description is the best place to hide an instruction (tool poisoning). The box writes
-// the description of the tool itself. enum values, types and bounds stay: they are what the call has to be.
-var descriptionKeys = map[string]bool{"description": true, "title": true, "examples": true, "default": true, "$comment": true, "example": true}
+// schemaKeywords are the only keywords of a connection tool's schema the model is shown. A device or an MCP server writes the schema,
+// and free text in it (description, title, examples, default, x-* extensions, a pattern) is the best place to hide an instruction
+// (tool poisoning), so what is not on this list is dropped. enum values, types and bounds stay: they are what the call has to be. The
+// reader (core/conn/read) also hands over only the part of the schema it enforces; this list does not depend on that.
+var schemaKeywords = map[string]bool{"type": true, "properties": true, "required": true, "items": true, "enum": true, "minimum": true, "maximum": true,
+	"exclusiveMinimum": true, "exclusiveMaximum": true, "minLength": true, "maxLength": true, "minItems": true, "maxItems": true, "additionalProperties": true,
+	"anyOf": true, "oneOf": true, "allOf": true}
 
 func stripSchemaText(raw json.RawMessage) json.RawMessage {
+	empty := json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
-		return json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)
+		return empty
 	}
-	var walk func(v any, inProps bool) any
-	walk = func(v any, inProps bool) any {
+	var schema func(v any) any
+	schema = func(v any) any {
 		switch x := v.(type) {
 		case map[string]any:
-			out := make(map[string]any, len(x))
+			out := map[string]any{}
 			for k, e := range x {
-				if !inProps && descriptionKeys[k] {
-					continue
+				switch {
+				case !schemaKeywords[k]:
+				case k == "properties":
+					props := map[string]any{}
+					if m, ok := e.(map[string]any); ok {
+						for name, sub := range m { // the names are arguments, not keywords
+							props[name] = schema(sub)
+						}
+					}
+					out[k] = props
+				case k == "items" || k == "additionalProperties":
+					out[k] = schema(e)
+				case k == "anyOf" || k == "oneOf" || k == "allOf":
+					if l, ok := e.([]any); ok {
+						subs := make([]any, len(l))
+						for i, sub := range l {
+							subs[i] = schema(sub)
+						}
+						out[k] = subs
+					}
+				default:
+					out[k] = e
 				}
-				out[k] = walk(e, !inProps && k == "properties") // the names under "properties" are arguments, not keywords
-			}
-			return out
-		case []any:
-			out := make([]any, len(x))
-			for i, e := range x {
-				out[i] = walk(e, false)
 			}
 			return out
 		}
-		return v
+		return v // true/false of additionalProperties, a bare value
 	}
-	b, err := json.Marshal(walk(v, false))
+	b, err := json.Marshal(schema(v))
 	if err != nil {
-		return json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)
+		return empty
 	}
 	return b
+}
+
+// internalTarget reports whether the address a connection points to is inside the network: a literal private, loopback, unique-local or
+// CGNAT IP address, judged like the address of a profile (INV-3). A name is not trusted (it could resolve to a public address after
+// this check), so it is not internal; the same for anything that does not parse.
+func internalTarget(target string) bool {
+	host := strings.TrimSpace(target)
+	if i := strings.Index(host, "://"); i >= 0 {
+		u, err := url.Parse(host)
+		if err != nil {
+			return false
+		}
+		host = u.Hostname()
+	} else {
+		if i := strings.LastIndex(host, "@"); i >= 0 {
+			host = host[i+1:]
+		}
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		host = strings.Trim(host, "[]")
+	}
+	ip, err := netip.ParseAddr(host)
+	return err == nil && provider.IsInternalAddr(ip)
 }
 
 // connectionTools lists the read tools of the connections that are on and ready. A reader that cannot list adds none: the question is
@@ -512,9 +559,25 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		s.cfg.Log.WarnContext(ctx, "ai: could not list the read tools of the connections", "error", err)
 		return nil
 	}
+	// Whether the connection is inside the network is read from the connection list of core (Config.ConnTargets). While the privacy rule
+	// is on, a tool of a connection that is not inside, or whose address cannot be read, is not offered (fail closed, D-212).
+	targets := map[string]string{}
+	if s.cfg.ConnTargets != nil {
+		t, err := s.cfg.ConnTargets(ctx)
+		if err != nil {
+			s.cfg.Log.WarnContext(ctx, "ai: could not read the addresses of the connections", "error", err)
+		} else {
+			targets = t
+		}
+	}
+	internalOnly := s.snap.Load().assign.InternalOnly
 	var out []toolImpl
 	seen := map[string]bool{}
 	for _, rt := range list {
+		inside := internalTarget(targets[rt.ConnectionID])
+		if internalOnly && !inside {
+			continue
+		}
 		name := connToolName(rt)
 		if seen[name] || rt.ConnectionID == "" || rt.Name == "" {
 			continue
@@ -522,6 +585,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		seen[name] = true
 		connID, tool, connName := rt.ConnectionID, rt.Name, clip(rt.ConnectionName, 60)
 		out = append(out, toolImpl{
+			internal: inside,
 			Tool: Tool{Name: name, Access: AccessRead, Enabled: true, Jobs: []Job{JobAskMyData}, ConnectorID: connID, Schema: stripSchemaText(rt.Schema),
 				Description: fmt.Sprintf("Read-only call on the connection %q (%s): %s. It can change nothing. Give the arguments exactly as the schema allows.", connName, clip(rt.Kind, 20), clip(tool, 60))},
 			run: func(ctx context.Context, args map[string]any) (toolOut, error) {

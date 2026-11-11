@@ -114,7 +114,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},
 	"notify_slack_team":      {skipAll: true, skip: "id rev team_id"},
 	"logs_retention":         {export: "id days"},
-	"logs_sources":           {export: "id kind name sender_ip proto port created_at"},
+	"logs_sources":           {export: "id kind name sender_ip proto port created_at signatures_since"},
 	"rep_history":            {export: "id ts trigger status error", json: "recipients report"},
 	"rep_pdpl":               {export: "id", json: "org report"},
 	"rep_schedule":           {export: "id enabled zone day hour armed_at last_slot_at", json: "recipients"},

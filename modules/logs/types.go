@@ -110,15 +110,37 @@ type EventsView struct {
 	Total  int     `json:"total"`
 }
 
-// Digest is the answer of GET /logs/digest. L1 fills only the line count; the new items, spikes and bad connections come
-// with the aggregation and IOC slices (CONTRACT INV-6, INV-7) and are empty until then.
+// NewItem is a kind of line a source had not sent before (NewItem of contract.ts).
+type NewItem struct {
+	ID         string    `json:"id"`
+	Signature  string    `json:"signature"`
+	SourceID   string    `json:"source_id"`
+	SourceName string    `json:"source_name"`
+	Count      int       `json:"count"`
+	FirstSeen  time.Time `json:"first_seen"`
+	Sample     string    `json:"sample"`
+}
+
+// SpikeItem is a kind of line that a source sent far more often than usual (SpikeItem of contract.ts).
+type SpikeItem struct {
+	ID             string  `json:"id"`
+	Signature      string  `json:"signature"`
+	SourceID       string  `json:"source_id"`
+	SourceName     string  `json:"source_name"`
+	Count          int     `json:"count"`
+	BaselinePerDay float64 `json:"baseline_per_day"`
+	Sample         string  `json:"sample"`
+}
+
+// Digest is the answer of GET /logs/digest. New and Spikes come from the signature counters (INV-6); BadConnections comes
+// with the IOC slice (CONTRACT INV-7) and is empty until then.
 type Digest struct {
-	GeneratedAt    time.Time  `json:"generated_at"`
-	Lines24h       int        `json:"lines_24h"`
-	BaselineDays   int        `json:"baseline_days"`
-	New            []struct{} `json:"new"`
-	Spikes         []struct{} `json:"spikes"`
-	BadConnections []struct{} `json:"bad_connections"`
+	GeneratedAt    time.Time   `json:"generated_at"`
+	Lines24h       int         `json:"lines_24h"`
+	BaselineDays   int         `json:"baseline_days"`
+	New            []NewItem   `json:"new"`
+	Spikes         []SpikeItem `json:"spikes"`
+	BadConnections []struct{}  `json:"bad_connections"`
 }
 
 // Line is one received line handed to Ingest.

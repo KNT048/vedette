@@ -271,7 +271,7 @@ func TestTheListenerJobIsNotTheHousekeepingOne(t *testing.T) {
 			t.Error("the purge job must stay housekeeping")
 		}
 	}
-	if len(names) != 2 {
+	if len(names) != 3 { // purge, syslog, anomaly (L3)
 		t.Errorf("jobs %v", names)
 	}
 }

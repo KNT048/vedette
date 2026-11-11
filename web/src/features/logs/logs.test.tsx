@@ -51,9 +51,9 @@ describe('logs: source catalog (S-LOG-1)', () => {
       // no Vietnamese in the copy users read
       expect(JSON.stringify([e.name, e.intro, e.readsNote, e.steps({ ip: IP, port: 514, proto: e.protos[0]! }), e.snippets({ ip: IP, port: 514, proto: e.protos[0]! }), e.notes]), e.id).not.toMatch(/[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩìíịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹỵýđ]/i)
     }
-    // honesty: only the five kinds that have a reader claim to read; everyone else says stored only
-    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['fortigate', 'mikrotik', 'opnsense', 'pfsense', 'suricata', 'windows'])
-    expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable only/)
+    // honesty: only the kinds that have a profile (modules/logs/data/profiles) say parsed; everyone else says stored, and the digest reads them with the generic pattern finder
+    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['fortigate', 'mikrotik', 'windows'])
+    expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable\./)
   })
 
   it('every snippet that names the box uses the box address and port', () => {
@@ -224,7 +224,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.clear(find)
     await userEvent.type(find, 'synology{Enter}')
     expect(within(form).getByText('Device type: Synology DSM (Log Center)')).toBeInTheDocument()
-    expect(within(form).getByText(/Stored and searchable only/)).toBeInTheDocument()
+    expect(within(form).getByText(/Stored and searchable\./)).toBeInTheDocument()
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
     expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
   })

@@ -194,7 +194,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 		}
 	}
 	for _, bad := range []string{"/dev/log", "setuid", "AF_UNIX", "socket"} {
-		if strings.Contains(ini, bad) && bad != "/dev/log" {
+		if strings.Contains(ini, bad) {
 			t.Errorf("init.py mentions %q: the root start and the syslog socket are gone (D-162)", bad)
 		}
 	}

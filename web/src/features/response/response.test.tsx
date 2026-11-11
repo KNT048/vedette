@@ -450,6 +450,17 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(ok.json.approvals[0]!.via).toBe('telegram')
   })
 
+  it('Zalo personal answers in a private message, so its approver can link it (notify slice 4b, D-252)', async () => {
+    await turnOn()
+    setChannels([{ type: 'zalo-personal', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '2938475610293847561' }] }], false)
+    expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'chat_code' }))
+    renderApp('/account', { role: 'operator' })
+    const card = await screen.findByRole('region', { name: 'Approval channels' })
+    const row = (await within(card).findByText('2938475610293847561')).closest('li')!
+    expect(within(row).getByText(/Reply to the next approval message in .* with one of your codes/)).toBeTruthy()
+    expect(within(row).getByLabelText('Code')).toBeTruthy()
+  })
+
   it('a channel whose answer others may see gets no code', async () => {
     const id = await unlinkedChat()
     const r = await chat(id, 'U0OPS')

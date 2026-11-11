@@ -81,9 +81,10 @@ type Service struct {
 	webhookClient *http.Client
 	// zaloTo makes the direct Zalo sender of one approver (channel.ZaloPersonalTo); only export_test.go replaces it.
 	zaloTo func(channel.Sender, string) (channel.Sender, error)
-	// zaloReplies: something reads Zalo personal replies, so reply codes are sent (replycode.go). False until the listener
-	// (slice 4b) exists; only export_test.go sets it now.
-	zaloReplies bool
+	// zaloListen opens the message connection of the Zalo personal channel (channel.ZaloListen); only export_test.go replaces it.
+	zaloListen func(context.Context, channel.Sender) (zaloInbox, error)
+	zaloRetry  zaloRetry // the wait of the Zalo listener between connections (zalolisten.go)
+	zaloNotes  zaloNotes // rations the audit rows for Zalo messages from non-approvers
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
@@ -110,7 +111,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo}
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox}
 	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
 		cn.OnChange(func(id string, enabled bool) {
 			if id == ModuleID && enabled {

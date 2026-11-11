@@ -73,7 +73,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
         </div>
       ) : (
         <form onSubmit={(e) => void confirm(e)} className="grid gap-3" noValidate>
-          <p className="text-[13px]">{r.method === 'email_code' ? t('identity.howEmail') : t('identity.howChat', { channel: r.label })}</p>
+          <p className="text-[13px]">{r.method === 'email_code' ? t('identity.howEmail') : r.channel === 'zalo-personal' ? t('identity.howZalo', { channel: r.label }) : t('identity.howChat', { channel: r.label })}</p>
           {sent ? <><p className="text-[13px]" role="status">{t('identity.sent', { to: sent.sent_to })}</p><PreviewCode code={sent.preview_code} /></> : null}
           {askCode ? (
             <Field label={t('identity.code')} htmlFor={`${id}-code`} error={err ?? undefined}>

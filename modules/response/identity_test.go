@@ -378,3 +378,33 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 		}
 	}
 }
+
+// Zalo personal answers a reply code in a direct message to the sender only (notify slice 4b, D-252): an unlinked approver's code
+// decides nothing, is not burned, and the answer holds a link code; My account offers to link the ID.
+func TestContract_D191_ZaloPersonalAnswersALinkCodePrivately(t *testing.T) {
+	c := unlinkedChat(t)
+	a := c.pending()
+	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
+	_, err := c.typed(zlOp, "A-7KQ2MX", true)
+	code := linkCodeOf(t, err)
+	if code == "" || !strings.Contains(err.Error(), "send your reply code again") {
+		t.Fatalf("answer = %v", err)
+	}
+	if got := c.only(); len(got.Approvals) != 0 {
+		t.Fatal("an unlinked reply code counted")
+	}
+	if c.count(`SELECT COUNT(*) FROM resp_tokens WHERE kind = 'code' AND used_at IS NOT NULL`) != 0 {
+		t.Fatal("the reply code was burned")
+	}
+	ids, err := c.svc.MyIdentities(c.ctx(), op)
+	c.must(err)
+	found := false
+	for _, r := range ids {
+		if r.Channel == "zalo-personal" {
+			found = r.Method == "chat_code" && r.CodeWaiting
+		}
+	}
+	if !found {
+		t.Fatalf("identities = %+v", ids)
+	}
+}

@@ -97927,8 +97927,8 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-	// privately yet, so it cannot be linked (approve in Vedette).
+	// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
+	// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 }
 
@@ -98003,8 +98003,8 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-// privately yet, so it cannot be linked (approve in Vedette).
+// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
+// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
@@ -115285,8 +115285,8 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-	// privately yet, so it cannot be linked (approve in Vedette).
+	// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
+	// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 }
 
@@ -115361,8 +115361,8 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-// privately yet, so it cannot be linked (approve in Vedette).
+// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
+// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (

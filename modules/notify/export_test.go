@@ -28,5 +28,16 @@ func ReplyCodeHashForTest(requestID, userID string, approve bool, code string) s
 // NewReplyCodesForTest makes the two codes of one approver.
 func NewReplyCodesForTest() (approve, reject string, err error) { return newReplyCodes() }
 
-// SetZaloRepliesForTest turns on sending Zalo reply codes, which waits for the listener (slice 4b) in production.
-func (s *Service) SetZaloRepliesForTest() { s.zaloReplies = true }
+// ZaloInboxForTest is an open Zalo message connection, as the listener reads it.
+type ZaloInboxForTest = zaloInbox
+
+// SetZaloListenForTest replaces how the Zalo listener opens its connection (channel.ZaloListen in production).
+func (s *Service) SetZaloListenForTest(f func(context.Context, channel.Sender) (ZaloInboxForTest, error)) {
+	s.zaloListen = f
+}
+
+// ListenZaloForTest runs the job "zalo-listen" once.
+func (s *Service) ListenZaloForTest(ctx context.Context) error { return s.listenZalo(ctx) }
+
+// NormReplyCodeForTest is the normalisation of spec 7.1.
+func NormReplyCodeForTest(s string) (string, bool, bool) { return normReplyCode(s) }

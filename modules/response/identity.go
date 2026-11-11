@@ -59,9 +59,10 @@ const (
 var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zalo-personal": "Zalo"}
 
 // privateAnswer lists the chat channels whose listener in notify answers a press so that only the person who pressed sees it (Telegram:
-// answerCallbackQuery with show_alert). Only these get a link code in the answer: a code shown in a shared conversation would let the listed
-// person link a stranger's mistyped ID (L7 again). A Slack or Zalo listener is added here once notify guarantees the same (ephemeral, 1:1).
-var privateAnswer = []string{"telegram"}
+// answerCallbackQuery with show_alert; Zalo personal: a direct message to the user ID that sent the reply code, and to nobody who is not a
+// listed approver, notify slice 4b, D-252). Only these get a link code in the answer: a code shown in a shared conversation would let the
+// listed person link a stranger's mistyped ID (L7 again). A Slack listener is added here once notify guarantees the same (ephemeral).
+var privateAnswer = []string{"telegram", "zalo-personal"}
 
 // linkable says whether a person can prove an address on the channel at all: email by a mailed code, a chat channel by a press. The Zalo OA
 // channel has neither (its approvals are links, which notify makes for email only, D-124 (2)), so it is not listed.
@@ -450,5 +451,9 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 	if !made {
 		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.")
 	}
-	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then press again.")
+	again := "press again"
+	if channel == "zalo-personal" {
+		again = "send your reply code again"
+	}
+	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then "+again+".")
 }

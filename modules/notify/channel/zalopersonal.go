@@ -73,13 +73,19 @@ type zaloPersonalSender struct {
 
 // zaloLogin is the signed-in state: the secret key of the session (zpw_enk), the
 // base URL of the service of the configured recipient (chat or group), and the
-// chat service for direct messages ("" when the answer named none).
+// chat service for direct messages ("" when the answer named none). For the reply
+// listener (ZaloListen) it also keeps the user ID of the box's own account, the
+// addresses of the message connection (zpw_ws, checked) and the ping interval
+// the server info asked for (0 = not given).
 type zaloLogin struct {
 	key    []byte
 	keyB64 string
 	base   string
 	chat   string
 	at     time.Time
+	self   string
+	ws     []string
+	ping   time.Duration
 }
 
 // NewZaloPersonal validates the stored configuration (INV-8) without touching the network.
@@ -165,12 +171,20 @@ func (d *zaloDirect) Send(ctx context.Context, m Message) (Receipt, error) {
 
 // send posts m to one user, or to one group when group is true. direct is a message to an approver (ZaloPersonalTo).
 func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, group, direct bool) (Receipt, error) {
-	link, _ := safeLink(m.Link)
-	lines := m.norm().mapText(defang).lines(link)
-	if m.ReplyCodes != nil { // the box's own text, not feed text: kept whole with the link line, which fit never cuts
-		lines[len(lines)-1] += "\n" + m.ReplyCodes.line()
+	var text string
+	if m.Kind == KindReply { // the private answer to an approver's reply (ZaloListen): the title alone, one short line
+		if !direct {
+			return Receipt{}, fmt.Errorf("%w: an answer to a reply goes only to the person who replied", ErrInvalidMessage)
+		}
+		text = truncRunes(strings.TrimSpace(clean(m.Title, false)), zaloReplyMax)
+	} else {
+		link, _ := safeLink(m.Link)
+		lines := m.norm().mapText(defang).lines(link)
+		if m.ReplyCodes != nil { // the box's own text, not feed text: kept whole with the link line, which fit never cuts
+			lines[len(lines)-1] += "\n" + m.ReplyCodes.line()
+		}
+		text = fit(lines, zaloTextMax)
 	}
-	text := fit(lines, zaloTextMax)
 
 	select {
 	case z.sem <- struct{}{}:
@@ -262,10 +276,13 @@ func (z *zaloPersonalSender) signIn(ctx context.Context) error {
 			chat = ""
 		}
 	}
-	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, chat: chat, at: z.now()}
+	self, ws := parseZaloListenInfo(data) // only the reply listener needs them: a send goes on without
+	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, chat: chat, at: z.now(), self: self, ws: ws}
 	infoCtx, cancel := context.WithTimeout(ctx, zaloInfoTimeout)
 	defer cancel()
-	_, _ = z.call(infoCtx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil)
+	if info, err := z.call(infoCtx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil); err == nil {
+		z.li.ping = parseZaloPing(info)
+	}
 	return nil
 }
 

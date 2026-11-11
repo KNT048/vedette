@@ -212,7 +212,7 @@ func (r responseDecisions) Decide(ctx context.Context, c notify.Decision) (notif
 	if err != nil {
 		return notify.DecisionResult{}, err
 	}
-	return notify.DecisionResult{Status: out.Status, Message: out.Message}, nil
+	return notify.DecisionResult{Status: out.Status, Message: out.Message, RequestID: out.RequestID}, nil
 }
 
 // Message queues a short text as an incident notice: every enabled channel whose minimum severity it meets gets it.

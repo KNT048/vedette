@@ -700,6 +700,7 @@
     "linkedAt": "Linked {{at}}. Buttons and links from this address count as you.",
     "unlink": "Unlink",
     "howEmail": "Send a code to this address and enter it here. It is your sign-in email; if it is wrong, ask an administrator to correct it.",
+    "howZalo": "Reply to the next approval message in {{channel}} with one of your codes. Nothing is decided: Vedette answers only you, in a private message, with a 6-digit code. Enter it here, then send your reply code again. Only enter a code that Vedette sent you after you replied yourself; never one someone sent you.",
     "howChat": "Press Approve or Reject on the next approval message in {{channel}}. Nothing is decided: Vedette answers only you with a 6-digit code. Enter it here, then press the button again. Only enter a code that Vedette showed you after you pressed a button yourself; never one someone sent you.",
     "sent": "Code sent to {{to}}. It expires in 10 minutes.",
     "send": "Send code",

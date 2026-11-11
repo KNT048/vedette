@@ -275,10 +275,12 @@ type Decision struct {
 }
 
 // DecisionResult is the answer of the response module: Status says what was recorded (the module response owns the
-// values), Message is the short private reply for the person who pressed the button.
+// values), Message is the short private reply for the person who pressed the button, RequestID the request that was decided
+// (a Zalo reply code names its request only through response's record; empty on a refusal).
 type DecisionResult struct {
-	Status  string
-	Message string
+	Status    string
+	Message   string
+	RequestID string
 }
 
 // Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself.

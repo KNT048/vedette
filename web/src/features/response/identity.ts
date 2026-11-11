@@ -16,7 +16,7 @@ const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
 /** Chat channels whose answer only the presser sees (Telegram show_alert); only these get a code in the answer. */
-const PRIVATE_ANSWER = ['telegram']
+const PRIVATE_ANSWER = ['telegram', 'zalo-personal'] // Zalo personal: a direct message to the user ID that replied (notify slice 4b, D-252)
 
 interface Pending { address: string; code: string; expires: number; tries: number; sent_at: number }
 interface Codes { pending: Record<string, Pending>; sends: Record<string, number[]> }
@@ -65,7 +65,7 @@ export function chatNotLinked(userId: string, channel: string, address: string, 
   const p = newCode(userId, channel, address)
   step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet${p ? '; a link code was shown to the person who pressed' : '; too many link codes this hour'}`)
   return fail(403, 'approver_not_linked', p
-    ? `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code ${p.code} within 10 minutes, then press again.`
+    ? `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code ${p.code} within 10 minutes, then ${channel === 'zalo-personal' ? 'send your reply code again' : 'press again'}.`
     : `Your ${name} account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.`)
 }
 

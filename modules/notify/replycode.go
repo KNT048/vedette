@@ -49,10 +49,10 @@ func replyCodeHash(requestID, userID string, approve bool, code string) string {
 // an unknown risk counts as high), not in-app only, and response allows chat decisions for it (NoChatButtons, D-175: an approver must be
 // able to read the whole change in the message).
 //
-// Nothing reads the replies yet (the listener is slice 4b): until it does, s.zaloReplies is false and no code is sent, because an
-// approver would reply with a code that decides nothing. The listener sets it, together with the Decisions port it needs.
+// The job "zalo-listen" (zalolisten.go) reads the replies under the same conditions (Decisions and the recorder wired, the channel
+// takes approvals), so a code is only sent when something can read the answer.
 func (s *Service) replyCodesAllowed(req ApprovalRequest) bool {
-	return s.zaloReplies && s.cfg.Decisions != nil && s.cfg.Tokens != nil && !req.InAppOnly && !req.NoChatButtons && (req.Risk == RiskLow || req.Risk == RiskMedium)
+	return s.cfg.Decisions != nil && s.cfg.Tokens != nil && !req.InAppOnly && !req.NoChatButtons && (req.Risk == RiskLow || req.Risk == RiskMedium)
 }
 
 // recordReplyCodes makes the codes of one approver and records both hashes; the plain codes only go into the message. A failure means

@@ -44,7 +44,7 @@ const list = <T,>(role: Role, path: string) => call<{ items: T[] }>(role, 'GET',
 const logList = () => list<LogEntry>('admin', '/response/log')
 const getAction = async (id: string) => (await list<ActionRequest>('admin', '/response/actions')).find((a) => a.id === id)!
 /** The notify channels of a test; every approver on them has linked their address (D-191), unless `linked` is false. */
-function setChannels(list: { type: string; approvers?: { user_id: string; address: string }[] }[], linked = true) {
+function setChannels(list: { type: string; approvers?: { user_id: string; address: string }[]; [k: string]: unknown }[], linked = true) {
   collection<unknown>('notify_channels', () => []).set(list)
   identityStore.set(linked ? list.flatMap((c) => (c.approvers ?? []).map((a) => ({ user_id: a.user_id, channel: c.type, address: a.address, linked_at: new Date().toISOString() }))) : [])
 }
@@ -418,15 +418,20 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
   const ids = (role: Role) => list<{ channel: string; address: string; linked: boolean; method: string; code_waiting: boolean }>(role, '/response/me/identities')
   const codeOf = (msg: string) => /code (\d{6})/.exec(msg)?.[1]
   const confirm = (role: Role, channel: string, code: string) => call(role, 'POST', `/response/me/identities/${channel}/confirm`, { code })
+  const TG = (opId = '555') => [
+    { type: 'slack', configured: true, enabled: true, approvals: true, fields: { label: '#security' }, approvers: [{ user_id: 'u-op', address: 'U0OPS' }] },
+    { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: opId }, { user_id: 'u-admin', address: '777' }] },
+  ]
+  const tg = (id: string, external_id: string) => call<ActionRequest>('admin', 'POST', `/response/actions/${id}/chat-decision`, { channel: 'telegram', external_id, decision: 'approve' })
   async function unlinkedChat() {
-    await turnOn(); mapChat(); identityStore.set([])
+    await turnOn(); setChannels(TG(), false)
     await saveSettings({ approval_channels: ['slack', 'telegram'] })
     return (await request()).json.id
   }
 
   it('a press from a listed ID that is not linked decides nothing and answers a private code; the person links it in My account', async () => {
     const id = await unlinkedChat()
-    const r = await chat(id, 'U0OPS')
+    const r = await tg(id, '555')
     expect(r.status).toBe(403)
     expect(r.code).toBe('approver_not_linked')
     const code = codeOf(r.json.error!.message)!
@@ -434,50 +439,58 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect((await getAction(id)).approvals).toHaveLength(0)
     expect((await getAction(id)).status).toBe('pending')
     expect((await logList()).map((l) => l.detail).join('\n')).not.toContain(code) // the log never holds the code
-    expect(await ids('operator')).toEqual([expect.objectContaining({ channel: 'slack', address: 'U0OPS', linked: false, method: 'chat_code', code_waiting: true })])
-    expect((await confirm('admin', 'slack', code)).code).toBe('no_code') // the code is bound to the listed person, not to whoever types it
-    expect((await confirm('operator', 'slack', code)).status).toBe(200)
+    expect((await ids('operator')).find((r) => r.channel === 'telegram')).toEqual(expect.objectContaining({ address: '555', linked: false, method: 'chat_code', code_waiting: true }))
+    expect((await confirm('admin', 'telegram', code)).code).toBe('no_code') // the code is bound to the listed person, not to whoever types it
+    expect((await confirm('operator', 'telegram', code)).status).toBe(200)
     expect(auditActions()).toContain('response.identity_link')
-    expect((await ids('operator'))[0]).toMatchObject({ linked: true, code_waiting: false })
-    expect((await confirm('operator', 'slack', code)).code).toBe('no_code') // single use
-    const ok = await chat(id, 'U0OPS')
+    expect((await ids('operator')).find((r) => r.channel === 'telegram')).toMatchObject({ linked: true, code_waiting: false })
+    expect((await confirm('operator', 'telegram', code)).code).toBe('no_code') // single use
+    const ok = await tg(id, '555')
     expect(ok.status).toBe(200)
-    expect(ok.json.approvals[0]!.via).toBe('slack')
+    expect(ok.json.approvals[0]!.via).toBe('telegram')
+  })
+
+  it('a channel whose answer others may see gets no code', async () => {
+    const id = await unlinkedChat()
+    const r = await chat(id, 'U0OPS')
+    expect(r.code).toBe('approver_not_linked')
+    expect(codeOf(r.json.error!.message)).toBeUndefined()
   })
 
   it('five wrong codes cancel it; a new press replaces it; at most 5 codes an hour', async () => {
     const id = await unlinkedChat()
-    const first = codeOf((await chat(id, 'U0OPS')).json.error!.message)!
+    const first = codeOf((await tg(id, '555')).json.error!.message)!
     const wrong = first === '000000' ? '111111' : '000000'
-    for (let i = 0; i < 4; i++) expect((await confirm('operator', 'slack', wrong)).code).toBe('wrong_code')
-    expect((await confirm('operator', 'slack', 'abc')).code).toBe('invalid_code')
-    expect((await confirm('operator', 'slack', wrong)).code).toBe('too_many_tries')
-    expect((await confirm('operator', 'slack', first)).code).toBe('no_code')
-    for (let i = 0; i < 4; i++) expect(codeOf((await chat(id, 'U0OPS')).json.error!.message)).toMatch(/^\d{6}$/)
-    const capped = await chat(id, 'U0OPS')
+    for (let i = 0; i < 4; i++) expect((await confirm('operator', 'telegram', wrong)).code).toBe('wrong_code')
+    expect((await confirm('operator', 'telegram', 'abc')).code).toBe('invalid_code')
+    expect((await confirm('operator', 'telegram', wrong)).code).toBe('too_many_tries')
+    expect((await confirm('operator', 'telegram', first)).code).toBe('no_code')
+    for (let i = 0; i < 4; i++) expect(codeOf((await tg(id, '555')).json.error!.message)).toMatch(/^\d{6}$/)
+    const capped = await tg(id, '555')
     expect(capped.code).toBe('approver_not_linked')
     expect(codeOf(capped.json.error!.message)).toBeUndefined()
   })
 
   it('a changed ID or an unlink drops the proof', async () => {
     const id = await unlinkedChat()
-    await confirm('operator', 'slack', codeOf((await chat(id, 'U0OPS')).json.error!.message)!)
-    setChannels([{ type: 'slack', configured: true, enabled: true, approvals: true, fields: { label: '#security' }, approvers: [{ user_id: 'u-op', address: 'U0OPS2' }] }], false)
-    identityStore.update((l) => l) // the stored proof is still for U0OPS
-    expect((await chat(id, 'U0OPS2')).code).toBe('approver_not_linked')
-    mapChat()
-    expect((await ids('operator'))[0]!.linked).toBe(true)
-    expect((await call('operator', 'DELETE', '/response/me/identities/slack')).status).toBe(204)
+    await confirm('operator', 'telegram', codeOf((await tg(id, '555')).json.error!.message)!)
+    collection<unknown>('notify_channels', () => []).set(TG('556')) // the administrator changed the ID; the stored proof is still for 555
+    expect((await tg(id, '556')).code).toBe('approver_not_linked')
+    collection<unknown>('notify_channels', () => []).set(TG())
+    expect((await ids('operator')).find((r) => r.channel === 'telegram')!.linked).toBe(true)
+    expect((await call('operator', 'DELETE', '/response/me/identities/telegram')).status).toBe(204)
     expect(auditActions()).toContain('response.identity_unlink')
-    expect((await chat(id, 'U0OPS')).code).toBe('approver_not_linked')
-    expect((await call('operator', 'DELETE', '/response/me/identities/slack')).code).toBe('not_linked')
+    expect((await tg(id, '555')).code).toBe('approver_not_linked')
+    expect((await call('operator', 'DELETE', '/response/me/identities/telegram')).code).toBe('not_linked')
   })
 
   it('email: a code to the sign-in email links it; a changed sign-in email unlinks it; no link is made for an unlinked address', async () => {
     await turnOn()
     setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }], false)
     await saveSettings({ approval_channels: ['email'] })
-    expect((await getAction((await request()).json.id)).email_links).toHaveLength(0) // not linked: no link is minted
+    const dead = (await getAction((await request()).json.id)).email_links[0]!.url.split('/').pop()!
+    sessionStore.set({ userId: null })
+    expect((await (await fetch(`${location.origin}/api/v1/response/approve/${dead}`)).json() as { state: string }).state).toBe('unknown') // notify mails it; it is dead (D-191 (6))
     expect((await call('operator', 'POST', '/response/me/identities/slack/code')).code).toBe('not_listed')
     const sent = await call<{ sent_to: string; preview_code: string }>('operator', 'POST', '/response/me/identities/email/code')
     expect(sent.status).toBe(200)
@@ -488,7 +501,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     await call('operator', 'POST', '/response/emergency-stop')
     await turnOn()
     const r = await request()
-    const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!
+    const token = (await getAction(r.json.id)).email_links.at(-1)!.url.split('/').pop()!
     sessionStore.set({ userId: null })
     expect((await (await fetch(`${location.origin}/api/v1/response/approve/${token}`)).json() as { state: string }).state).toBe('ready')
     usersStore.update((l) => l.map((u) => (u.id === 'u-op' ? { ...u, email: 'it2@acme.example' } : u)))
@@ -512,15 +525,16 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
 
   it('My account: an operator links a chat ID with the code from the press', async () => {
     const id = await unlinkedChat()
-    const code = codeOf((await chat(id, 'U0OPS')).json.error!.message)!
+    const code = codeOf((await tg(id, '555')).json.error!.message)!
     const u = userEvent.setup()
     renderApp('/account', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
-    expect(await within(card).findByText('Not linked')).toBeTruthy()
-    await u.type(within(card).getByLabelText('Code'), code)
-    await u.click(within(card).getByRole('button', { name: 'Link' }))
-    expect(await within(card).findByText('Linked')).toBeTruthy()
-    expect(within(card).getByRole('button', { name: 'Unlink' })).toBeTruthy()
+    const row = (await within(card).findByText('555')).closest('li')!
+    expect(within(row).getByText('Not linked')).toBeTruthy()
+    await u.type(within(row).getByLabelText('Code'), code)
+    await u.click(within(row).getByRole('button', { name: 'Link' }))
+    expect(await within(row).findByText('Linked')).toBeTruthy()
+    expect(within(row).getByRole('button', { name: 'Unlink' })).toBeTruthy()
   })
 
   it('My account: no card for a viewer', async () => {

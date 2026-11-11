@@ -49481,6 +49481,8 @@ func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) Validate() error {
 		return nil
 	case "chat_code":
 		return nil
+	case "unavailable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -60178,6 +60180,8 @@ func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Validate() error
 	case "email_code":
 		return nil
 	case "chat_code":
+		return nil
+	case "unavailable":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

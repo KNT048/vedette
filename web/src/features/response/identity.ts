@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { maskEmail } from '@/features/core/emailCode'
-import { approversOf, chanLabel, identityStore, isLinked, rawChans, step, APPROVAL_TYPES } from './state'
+import { approversOf, chanLabel, identityStore, isLinked, linkable, rawChans, sameAddress, step, APPROVAL_TYPES } from './state'
 import type { Identity } from './types'
 
 const TTL_MS = 10 * 60_000
@@ -15,6 +15,8 @@ const MAX_TRIES = 5
 const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
+/** Chat channels whose answer only the presser sees (Telegram show_alert); only these get a code in the answer. */
+const PRIVATE_ANSWER = ['telegram']
 
 interface Pending { address: string; code: string; expires: number; tries: number; sent_at: number }
 interface Codes { pending: Record<string, Pending>; sends: Record<string, number[]> }
@@ -39,13 +41,13 @@ function mine(userId: string): Identity[] {
   return APPROVAL_TYPES.flatMap((type) => {
     // notify names approvers of an enabled channel with approvals on only (ApprovalChannels), as on the real box
     const ch = rawChans().find((c) => c.type === type && c.configured && c.enabled && c.approvals === true)
-    if (!ch) return []
+    if (!ch || !linkable(type)) return []
     return approversOf(ch).filter((a) => a.user_id === userId).map((a) => {
       const row = identityStore.get().find((x) => x.user_id === userId && x.channel === type && x.address === a.address)
       const linked = isLinked(userId, type, a.address)
       const p = waiting[key(userId, type)]
-      return { channel: type, label: chanLabel(ch), address: a.address, linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : 'chat_code' as const,
-        code_waiting: !linked && !!p && p.address === a.address && Date.now() < p.expires }
+      return { channel: type, label: chanLabel(ch), address: a.address, linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : PRIVATE_ANSWER.includes(type) ? 'chat_code' as const : 'unavailable' as const,
+        code_waiting: !linked && !!p && sameAddress(type, p.address, a.address) && Date.now() < p.expires }
     })
   })
 }
@@ -56,6 +58,10 @@ function mine(userId: string): Identity[] {
  */
 export function chatNotLinked(userId: string, channel: string, address: string, target: string) {
   const name = CHAT_NAME[channel] ?? channel
+  if (!PRIVATE_ANSWER.includes(channel)) {
+    step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet; no code is shown on this channel`)
+    return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Approve in Vedette for now.`)
+  }
   const p = newCode(userId, channel, address)
   step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet${p ? '; a link code was shown to the person who pressed' : '; too many link codes this hour'}`)
   return fail(403, 'approver_not_linked', p
@@ -95,11 +101,12 @@ export const identityHandlers = [
     const b = await body<{ code: string }>(request)
     const p = codesStore.get().pending[k]
     // The code must be for an address that is still on the list for me now: a list changed after the code was made does not link.
-    const row = p ? mine(u.id).find((r) => r.channel === channel && r.address === p.address) : undefined
+    const row = p ? mine(u.id).find((r) => r.channel === channel && sameAddress(channel, r.address, p.address)) : undefined
     if (!p || !row) return fail(400, 'no_code', 'No code is waiting for this channel. Ask for a new code.')
     if (Date.now() > p.expires) { dropCode(k); return fail(400, 'code_expired', 'This code has expired. Ask for a new code.') }
-    if (typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) return fail(400, 'invalid_code', 'The code is 6 digits.')
-    if (b.code !== p.code) {
+    const code = typeof b.code === 'string' ? b.code.trim() : ''
+    if (!/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits.')
+    if (code !== p.code) {
       const tries = p.tries + 1
       if (tries >= MAX_TRIES) { dropCode(k); return fail(400, 'too_many_tries', 'Too many wrong codes. Ask for a new code.') }
       codesStore.update((c) => ({ ...c, pending: { ...c.pending, [k]: { ...p, tries } } }))
@@ -109,7 +116,7 @@ export const identityHandlers = [
     dropCode(k)
     identityStore.update((l) => [...l.filter((x) => !(x.user_id === u.id && x.channel === channel)), { user_id: u.id, channel, address: p.address, linked_at: nowIso() }])
     audit('response.identity_link', channel, `${u.email} linked ${p.address}`)
-    return HttpResponse.json(mine(u.id).find((r) => r.channel === channel && r.address === p.address)!)
+    return HttpResponse.json(mine(u.id).find((r) => r.channel === channel && sameAddress(channel, r.address, p.address))!)
   }),
 
   http.delete(`${API}/response/me/identities/:channel`, ({ params }) => {

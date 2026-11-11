@@ -48932,9 +48932,10 @@
                             "type": "string",
                             "enum": [
                               "email_code",
-                              "chat_code"
+                              "chat_code",
+                              "unavailable"
                             ],
-                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code"
+                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                           },
                           "code_waiting": {
                             "type": "boolean",
@@ -49159,9 +49160,10 @@
                       "type": "string",
                       "enum": [
                         "email_code",
-                        "chat_code"
+                        "chat_code",
+                        "unavailable"
                       ],
-                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code"
+                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                     },
                     "code_waiting": {
                       "type": "boolean",

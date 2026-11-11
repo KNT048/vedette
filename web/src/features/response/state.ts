@@ -92,10 +92,14 @@ export const identityStore = collection<LinkedId[]>('resp_identity', () => [
   { user_id: 'u-admin', channel: 'slack', address: 'U04ABCD1234', linked_at: daysAgo(20) },
   { user_id: 'u-admin', channel: 'email', address: 'admin@acme.example', linked_at: daysAgo(20) },
 ], () => [])
+/** An email address compares without case (and outer spaces), a platform id exactly. */
+export const sameAddress = (channel: string, a: string, b: string) => (channel === 'email' ? a.trim().toLowerCase() === b.trim().toLowerCase() : a === b)
+/** Email by a mailed code, a chat channel by a press; Zalo OA has neither, so it is never listed for linking. */
+export const linkable = (channel: string) => ['email', 'slack', 'telegram', 'zalo-personal'].includes(channel)
 /** Linked for exactly this address; on email the address must also still be the sign-in email. */
 export const isLinked = (userId: string, channel: string, address: string) => {
-  if (channel === 'email' && usersStore.get().find((u) => u.id === userId)?.email.toLowerCase() !== address.toLowerCase()) return false
-  return identityStore.get().some((x) => x.user_id === userId && x.channel === channel && x.address === address)
+  if (channel === 'email' && !sameAddress('email', usersStore.get().find((u) => u.id === userId)?.email ?? '', address)) return false
+  return identityStore.get().some((x) => x.user_id === userId && x.channel === channel && sameAddress(channel, x.address, address))
 }
 
 // ---- Email approval links (D-46): one token per approver, single use, 30 minutes, bound to request and approver ----
@@ -327,7 +331,7 @@ export function newRequest(o: ReqInit, notify: boolean): ActionRequest {
   const id = newId('act')
   const sending = notify ? rawChans().filter((c) => c.configured && c.enabled && s.approval_channels.includes(c.type) && chanReady(c)) : []
   for (const c of sending.filter((x) => LINK_TYPES.includes(x.type))) {
-    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id) && isLinked(x.user_id, c.type, x.address))) { // D-191: no link for an address its person has not proved
+    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id))) { // as notify does today: the link of an unproved address is dead on use (D-191 (6))
       tokensStore.update((l) => [...l, { token: approvalToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
     }
   }
@@ -476,8 +480,8 @@ export function settingsView(): SettingsView {
   return {
     ...settings(),
     channels: APPROVAL_TYPES.flatMap((type) => { const c = rawChans().find((x) => x.type === type && x.configured); if (!c) return []
-      const aps = approversOf(c), open = aps.filter((a) => !isLinked(a.user_id, type, a.address))
-      return [{ type, label: chanLabel(c), ready: chanReady(c), approvers: aps.length, link: LINK_TYPES.includes(type), linked: aps.length - open.length, unlinked: open.map((a) => usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id) }]
+      const aps = linkable(type) && chanReady(c) ? approversOf(c) : [], open = aps.filter((a) => !isLinked(a.user_id, type, a.address))
+      return [{ type, label: chanLabel(c), ready: chanReady(c), approvers: approversOf(c).length, link: LINK_TYPES.includes(type), linked: aps.length - open.length, unlinked: open.map((a) => usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id) }]
     }),
   }
 }

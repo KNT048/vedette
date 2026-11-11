@@ -39,7 +39,7 @@ type Identity struct {
 	Address     string  `json:"address"`
 	Linked      bool    `json:"linked"`
 	LinkedAt    *string `json:"linked_at"`
-	Method      string  `json:"method"` // email_code or chat_code
+	Method      string  `json:"method"` // email_code, chat_code, or unavailable (no private answer on this channel yet)
 	CodeWaiting bool    `json:"code_waiting"`
 }
 
@@ -57,6 +57,18 @@ const (
 )
 
 var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zalo-personal": "Zalo"}
+
+// privateAnswer lists the chat channels whose listener in notify answers a press so that only the person who pressed sees it (Telegram:
+// answerCallbackQuery with show_alert). Only these get a link code in the answer: a code shown in a shared conversation would let the listed
+// person link a stranger's mistyped ID (L7 again). A Slack or Zalo listener is added here once notify guarantees the same (ephemeral, 1:1).
+var privateAnswer = []string{"telegram"}
+
+// linkable says whether a person can prove an address on the channel at all: email by a mailed code, a chat channel by a press. The Zalo OA
+// channel has neither (its approvals are links, which notify makes for email only, D-124 (2)), so it is not listed.
+func linkable(channel string) bool {
+	_, chat := chatVia(channel)
+	return channel == "email" || chat
+}
 
 // linkCodeHash is the stored form of a link code: it is held to the person, the channel and the address it was made for.
 func linkCodeHash(userID, channel, address, code string) string {
@@ -166,7 +178,7 @@ func (s *Service) mine(ctx context.Context, u User) ([]Identity, error) {
 	}
 	for _, t := range approvalTypes {
 		i := slices.IndexFunc(chans, func(c NotifyChannel) bool { return c.Type == t && c.Configured })
-		if i < 0 {
+		if i < 0 || !linkable(t) {
 			continue
 		}
 		list, err := s.cfg.Notifier.Approvers(ctx, t)
@@ -181,9 +193,12 @@ func (s *Service) mine(ctx context.Context, u User) ([]Identity, error) {
 			if err != nil {
 				return nil, err
 			}
-			row := Identity{Channel: t, Label: chans[i].Label, Address: a.Address, Linked: linked, Method: "chat_code"}
-			if t == "email" {
+			row := Identity{Channel: t, Label: chans[i].Label, Address: a.Address, Linked: linked, Method: "unavailable"}
+			switch {
+			case t == "email":
 				row.Method = "email_code"
+			case slices.Contains(privateAnswer, t):
+				row.Method = "chat_code"
 			}
 			if linked {
 				var at string
@@ -235,6 +250,8 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 	switch {
 	case i < 0:
 		return CodeSent{}, fail(http.StatusNotFound, "not_listed", "You are not on the approver list of this channel.")
+	case rows[i].Method == "unavailable":
+		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "This channel cannot be linked yet. Approve in Vedette.")
 	case rows[i].Method != "email_code":
 		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "Press Approve or Reject on the next approval message in this channel; Vedette answers you privately with a code.")
 	case rows[i].Linked:
@@ -359,6 +376,8 @@ func (s *Service) Unlink(ctx context.Context, who Actor, channel string) error {
 		return err
 	}
 	var gone bool
+	s.mu.Lock() // a press or a link that passed its re-check under the lock decides before the proof goes, never after
+	defer s.mu.Unlock()
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		var addr string
 		err := tx.QueryRowContext(ctx, `DELETE FROM resp_identity WHERE user_id = ? AND channel = ? RETURNING address`, u.ID, channel).Scan(&addr)
@@ -391,6 +410,10 @@ func errChatNotLinked(channel string) *apierr.Error {
 // person who pressed (notify POST-8), holds a new link code. The log line never holds the code.
 func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, target, actor string) error {
 	name := chatNames[channel]
+	if !slices.Contains(privateAnswer, channel) {
+		_ = s.refuse(ctx, fail(http.StatusForbidden, "approver_not_linked", name+" "+ext+" is not linked to a Vedette account yet; no code is shown on this channel"), target, actor)
+		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Approve in Vedette for now.")
+	}
 	code, err := "", error(nil)
 	made := s.noteLinkCode(u.ID, channel)
 	if made {

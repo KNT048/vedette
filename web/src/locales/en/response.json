@@ -700,7 +700,7 @@
     "linkedAt": "Linked {{at}}. Buttons and links from this address count as you.",
     "unlink": "Unlink",
     "howEmail": "Send a code to this address and enter it here. It is your sign-in email; if it is wrong, ask an administrator to correct it.",
-    "howChat": "Press Approve or Reject on the next approval message in {{channel}}. Nothing is decided: Vedette answers only you with a 6-digit code. Enter it here, then press the button again.",
+    "howChat": "Press Approve or Reject on the next approval message in {{channel}}. Nothing is decided: Vedette answers only you with a 6-digit code. Enter it here, then press the button again. Only enter a code that Vedette showed you after you pressed a button yourself; never one someone sent you.",
     "sent": "Code sent to {{to}}. It expires in 10 minutes.",
     "send": "Send code",
     "resend": "Send a new code",
@@ -709,6 +709,7 @@
     "codeShape": "The code is 6 digits.",
     "confirm": "Link",
     "linkedToast": "{{channel}} linked.",
-    "unlinkedToast": "{{channel}} unlinked. Its buttons and links no longer count as you."
+    "unlinkedToast": "{{channel}} unlinked. Its buttons and links no longer count as you.",
+    "unavailable": "{{channel}} cannot yet answer only you, so it cannot be linked. Its buttons do not count for you; approve in Vedette."
   }
 }

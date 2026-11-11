@@ -97581,7 +97581,8 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code.
+	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+	// privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 }
 
@@ -97656,12 +97657,14 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code.
+// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+// privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
-	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
-	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode  ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
 )
 
 // AllValues returns all ResponseGetResponseMeIdentitiesOKItemsItemMethod values.
@@ -97669,6 +97672,7 @@ func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGe
 	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
 	}
 }
 
@@ -97678,6 +97682,8 @@ func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte,
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		return []byte(s), nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -97692,6 +97698,9 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+		return nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -114930,7 +114939,8 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code.
+	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+	// privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 }
 
@@ -115005,12 +115015,14 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code.
+// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+// privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
-	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
-	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode  ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
 )
 
 // AllValues returns all ResponsePostResponseMeIdentitiesChannelConfirmOKMethod values.
@@ -115018,6 +115030,7 @@ func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []Resp
 	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
 	}
 }
 
@@ -115027,6 +115040,8 @@ func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		return []byte(s), nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -115041,6 +115056,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(d
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+		return nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

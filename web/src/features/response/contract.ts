@@ -132,11 +132,11 @@ export const SettingsView = Settings.extend({
 })
 
 // ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
-export const IdentityMethod = z.enum(['email_code', 'chat_code'])
+export const IdentityMethod = z.enum(['email_code', 'chat_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
   code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })

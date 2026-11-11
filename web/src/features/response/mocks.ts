@@ -179,7 +179,6 @@ export const handlers = [
     const a = findAction(String(params.id)); if (!a) return notFound()
     const b = await body<{ channel: string; external_id: string; decision: string }>(request)
     if ((b.channel !== 'slack' && b.channel !== 'telegram' && b.channel !== 'zalo-personal') || !/^[A-Za-z0-9_-]{1,64}$/.test(b.external_id ?? '') || (b.decision !== 'approve' && b.decision !== 'reject')) return fail(400, 'invalid', 'Send channel (slack, telegram or zalo-personal), external_id and decision (approve or reject).')
-    if (a.items.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
     // The address must be on THIS channel's approver list, and that user must be an active operator or admin.
     const ch = rawChans().find((c) => c.type === b.channel)
     const ap = ch ? approversOf(ch).find((x) => x.address === b.external_id) : undefined
@@ -187,6 +186,7 @@ export const handlers = [
     if (!ch || !ap || !u) return refuse(403, 'approver_not_listed', `Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or admin.`, a.id)
     if (!settings().approval_channels.includes(b.channel) || !chanReady(ch)) return refuse(403, 'channel_not_allowed', `Approvals from ${b.channel} are not turned on for response.`, a.id)
     if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(u.id, ch.type, ap.address, a.id) // D-191: the answer only the presser sees holds a link code
+    if (a.items.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
     const w = who(u, b.channel, b.external_id)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected in ${b.channel} by ${u.name}`)
     if (isResp(r)) return r

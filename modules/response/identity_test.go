@@ -66,7 +66,7 @@ func unlinkedChat(t *testing.T) *chatEnv {
 func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *testing.T) {
 	c := unlinkedChat(t)
 	a := c.pending()
-	_, err := c.button("slack", slackOp, a.ID, true)
+	_, err := c.button("telegram", tgOp, a.ID, true)
 	code := linkCodeOf(t, err)
 	if code == "" {
 		t.Fatalf("no code in the private answer: %v", err)
@@ -86,31 +86,35 @@ func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *te
 	}
 	ids, err := c.svc.MyIdentities(c.ctx(), op)
 	c.must(err)
-	var slack response.Identity
+	var tg response.Identity
 	for _, r := range ids {
-		if r.Channel == "slack" {
-			slack = r
+		if r.Channel == "telegram" {
+			tg = r
 		}
 	}
-	if slack.Linked || !slack.CodeWaiting || slack.Method != "chat_code" || slack.Address != slackOp {
-		t.Fatalf("my slack row = %+v", slack)
+	if tg.Linked || !tg.CodeWaiting || tg.Method != "chat_code" || tg.Address != tgOp {
+		t.Fatalf("my telegram row = %+v", tg)
 	}
-	// The code is held to the listed person: someone else signed in cannot use it.
-	if _, err := c.svc.ConfirmLink(c.ctx(), op2, "slack", code); !isCode(err, "no_code") {
+	// The code is held to the listed person: someone else signed in, with a code of their own waiting, cannot use it.
+	_, err = c.button("telegram", tgOp2, a.ID, true)
+	if linkCodeOf(t, err) == "" {
+		t.Fatal("no code for the second person")
+	}
+	if _, err := c.svc.ConfirmLink(c.ctx(), op2, "telegram", code); !isCode(err, "wrong_code") {
 		t.Fatalf("another person used the code: %v", err)
 	}
-	got, err := c.svc.ConfirmLink(c.ctx(), op, "slack", code)
+	got, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code)
 	c.must(err)
 	if !got.Linked || got.LinkedAt == nil {
 		t.Fatalf("confirm = %+v", got)
 	}
-	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'slack'`) != 1 {
+	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'telegram'`) != 1 {
 		t.Fatal("no audit line for the link")
 	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "slack", code); !isCode(err, "no_code") {
+	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "no_code") {
 		t.Fatalf("a code worked twice: %v", err)
 	}
-	out, err := c.button("slack", slackOp, a.ID, true)
+	out, err := c.button("telegram", tgOp, a.ID, true)
 	c.must(err)
 	if out.Status != "approved" {
 		t.Fatalf("a linked press = %+v", out)
@@ -161,26 +165,26 @@ func TestContract_D191_WrongCodesExpiryAndTheHourlyCap(t *testing.T) {
 func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	c := unlinkedChat(t)
 	a := c.pending()
-	_, err := c.button("slack", slackOp, a.ID, true)
-	_, err = c.svc.ConfirmLink(c.ctx(), op, "slack", linkCodeOf(t, err))
+	_, err := c.button("telegram", tgOp, a.ID, true)
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", linkCodeOf(t, err))
 	c.must(err)
 	c.note.mu.Lock()
-	c.note.approvers["slack"] = []response.Approver{{UserID: "u-op", Address: "U0NEW0001"}, {UserID: "u-op2", Address: slackOp2}}
+	c.note.approvers["telegram"] = []response.Approver{{UserID: "u-op", Address: "1009"}, {UserID: "u-op2", Address: tgOp2}}
 	c.note.mu.Unlock()
-	if _, err := c.button("slack", "U0NEW0001", a.ID, true); linkCodeOf(t, err) == "" {
+	if _, err := c.button("telegram", "1009", a.ID, true); linkCodeOf(t, err) == "" {
 		t.Fatal("a new address counted on the proof of the old one")
 	}
 	c.note.mu.Lock()
-	c.note.approvers["slack"] = []response.Approver{{UserID: "u-op", Address: slackOp}, {UserID: "u-op2", Address: slackOp2}}
+	c.note.approvers["telegram"] = []response.Approver{{UserID: "u-op", Address: tgOp}, {UserID: "u-op2", Address: tgOp2}}
 	c.note.mu.Unlock()
-	c.must(c.svc.Unlink(c.ctx(), op, "slack"))
+	c.must(c.svc.Unlink(c.ctx(), op, "telegram"))
 	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_unlink'`) != 1 {
 		t.Fatal("no audit line for the unlink")
 	}
-	if _, err := c.button("slack", slackOp, a.ID, true); linkCodeOf(t, err) == "" {
+	if _, err := c.button("telegram", tgOp, a.ID, true); linkCodeOf(t, err) == "" {
 		t.Fatal("an unlinked id still counts")
 	}
-	if err := c.svc.Unlink(c.ctx(), op, "slack"); !isCode(err, "not_linked") {
+	if err := c.svc.Unlink(c.ctx(), op, "telegram"); !isCode(err, "not_linked") {
 		t.Fatalf("second unlink: %v", err)
 	}
 }
@@ -293,3 +297,84 @@ func TestContract_D191_SettingsShowWhoHasNotLinked(t *testing.T) {
 }
 
 func isCode(err error, code string) bool { _, c := apiCode(err); return c == code }
+
+func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
+	c := unlinkedChat(t)
+	a := c.pending()
+	_, err := c.button("slack", slackOp, a.ID, true)
+	if code := linkCodeOf(t, err); code != "" {
+		t.Fatal("a link code was answered on a channel whose answer may be seen by others")
+	}
+	if c.count(`SELECT COUNT(*) FROM resp_link_codes`) != 0 {
+		t.Fatal("a code was made")
+	}
+	if got := c.only(); len(got.Approvals) != 0 {
+		t.Fatal("an unlinked slack press counted")
+	}
+	ids, err := c.svc.MyIdentities(c.ctx(), op)
+	c.must(err)
+	for _, r := range ids {
+		if r.Channel == "slack" && r.Method != "unavailable" {
+			t.Fatalf("slack row = %+v", r)
+		}
+	}
+}
+
+func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
+	c := unlinkedChat(t)
+	a := c.pending()
+	_, err := c.button("telegram", tgOp, a.ID, true)
+	code := linkCodeOf(t, err)
+	c.note.mu.Lock()
+	c.note.approvers["telegram"] = []response.Approver{{UserID: "u-op", Address: "1009"}}
+	c.note.mu.Unlock()
+	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "no_code") {
+		t.Fatalf("a code made for the old ID linked: %v", err)
+	}
+	if c.count(`SELECT COUNT(*) FROM resp_identity`) != 0 {
+		t.Fatal("a proof was recorded")
+	}
+}
+
+func TestContract_D191_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testing.T) {
+	e, _ := emailEnv(t)
+	e.must(e.svc.LinkForTest(e.ctx(), "u-op", "email", "it@acme.example"))
+	a := e.pending()
+	tok := e.mint(a.ID, "u-op", "it@acme.example")
+	if v := e.view(tok); v.State != "ready" {
+		t.Fatalf("view = %q", v.State)
+	}
+	e.svc.SetBeforeLockForTest(func() { e.must(e.svc.Unlink(e.ctx(), op, "email")) })
+	if _, err := e.decide(tok, "approve"); !isCode(err, "approver_not_listed") {
+		t.Fatalf("a link counted after its proof was removed: %v", err)
+	}
+	if e.tokenUsed() != 0 || e.only().Status != response.StatusPending {
+		t.Fatal("the request was decided")
+	}
+}
+
+func TestContract_D191_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
+	e, m := emailEnv(t)
+	e.note.approvers["email"] = []response.Approver{{UserID: "u-op", Address: "IT@Acme.example"}}
+	_, err := e.svc.SendLinkCode(e.ctx(), op, "email")
+	e.must(err)
+	_, err = e.svc.ConfirmLink(e.ctx(), op, "email", " "+m.last("IT@Acme.example")+" ")
+	e.must(err)
+	a := e.pending()
+	if v := e.view(e.mint(a.ID, "u-op", "it@acme.example")); v.State != "ready" {
+		t.Fatalf("view = %q", v.State)
+	}
+}
+
+func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
+	e, _ := emailEnv(t)
+	e.note.chs = append(e.note.chs, response.NotifyChannel{Type: "zalo", Label: "Zalo OA", Configured: true, Enabled: true, Approvals: true, Approvers: 1})
+	e.note.approvers["zalo"] = []response.Approver{{UserID: "u-op", Address: "zoa-1"}}
+	ids, err := e.svc.MyIdentities(e.ctx(), op)
+	e.must(err)
+	for _, r := range ids {
+		if r.Channel == "zalo" {
+			t.Fatalf("zalo OA listed: %+v", r)
+		}
+	}
+}

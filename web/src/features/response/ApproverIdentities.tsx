@@ -49,6 +49,17 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     try { await m.unlink.mutateAsync(r.channel); toast.success(t('identity.unlinkedToast', { channel: r.label })) } catch (e) { toast.error(errText(e)) }
   }
   const askCode = r.method === 'chat_code' || sent || r.code_waiting
+  if (r.method === 'unavailable' && !r.linked) {
+    return (
+      <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <Chip tone="off">{t('identity.notLinked')}</Chip>
+        </div>
+        <p className="text-[13px] text-muted">{t('identity.unavailable', { channel: r.label })}</p>
+      </li>
+    )
+  }
   return (
     <li className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
       <div className="flex flex-wrap items-center justify-between gap-2">

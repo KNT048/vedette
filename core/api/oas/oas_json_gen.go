@@ -183262,6 +183262,8 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) Decode(d *jx.Decoder)
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
 	default:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethod(v)
 	}
@@ -215560,6 +215562,8 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Decode(d *jx.De
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable
 	default:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(v)
 	}

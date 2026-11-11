@@ -84,6 +84,10 @@ type Tool struct {
 	Ident string `json:"-"`
 }
 
+// MayWrite reports whether the server said, when the tool was last seen, that it may change something (destructiveHint, or readOnlyHint
+// false). Such a tool is never access=read (D-179 (5)).
+func (t Tool) MayWrite() bool { return strings.HasSuffix(t.Ident, identMayWrite) }
+
 // Input is what an administrator sends to add or change a connection.
 type Input struct {
 	Name     string

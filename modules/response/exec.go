@@ -2,6 +2,8 @@ package response
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"regexp"
@@ -236,4 +238,17 @@ func (ex *execRec) addressProblem(c ConnectionInfo) string {
 		}
 	}
 	return ""
+}
+
+// execHash is the SHA-256 of the rendered steps, hex. "" for no steps.
+func execHash(ex *execRec) string {
+	if ex == nil {
+		return ""
+	}
+	b, err := json.Marshal(ex)
+	if err != nil {
+		return ""
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
 }

@@ -26,19 +26,7 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
 	}
 	if d.Inventory != nil { // the devices that exist do not count as new ones for the budget
-		cfg.KnownMACs = func(ctx context.Context) ([]string, error) {
-			l, err := d.Inventory.Devices(ctx)
-			if err != nil {
-				return nil, err
-			}
-			var macs []string
-			for _, dev := range l.Items {
-				if dev.MAC != nil {
-					macs = append(macs, *dev.MAC)
-				}
-			}
-			return macs, nil
-		}
+		cfg.KnownMACs = d.Inventory.KnownMACs // uncapped (D-178)
 	}
 	return sensorpassive.New(cfg)
 }

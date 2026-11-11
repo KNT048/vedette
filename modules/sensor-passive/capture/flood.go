@@ -72,6 +72,12 @@ func NewFloodBudget() *FloodBudget {
 	return &FloodBudget{b: newDeviceBook(bookLimits{PerMinute: maxNewMACsPerMinute, PerHour: maxNewMACsPerHour})}
 }
 
+// NewFloodBudgetLimits is a budget with its own numbers of new devices a minute and an hour, for a caller that is not the passive
+// sensor (the active sweep: a fresh install must find the design scale in one pass, yet a /16 of random MACs must still stop).
+func NewFloodBudgetLimits(perMinute, perHour int) *FloodBudget {
+	return &FloodBudget{b: newDeviceBook(bookLimits{PerMinute: perMinute, PerHour: perHour})}
+}
+
 func claimKey(c Claim) (mac, bool) {
 	if m, ok := parseMAC(strings.ToLower(c.MAC)); ok {
 		return m, true

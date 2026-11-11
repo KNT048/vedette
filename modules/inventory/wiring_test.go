@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -243,10 +246,151 @@ INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' |
 	}
 }
 
+// D-177 (M5): the never-touch gateway list takes a device whose kind a person or an agent set, or an approved device whose kind SNMP or
+// nmap set. A kind only a passive frame claimed is never enough (even when the device is approved and a later LLDP frame relabels it
+// router), and an unapproved device's nmap kind is not either (nmap runs in the untrusted scan container and the target shapes its answer).
+func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
+	e := newEnv(t)
+	recKind := func(ip, mac, kind string, src observe.Source, conf float64) {
+		a := netip.MustParseAddr(ip)
+		h := observe.AssetHint{IP: a, MAC: mac}
+		if err := e.svc.Record(e.ctx(), []observe.Observation{
+			{AssetHint: h, Field: observe.MAC, Value: mac, Source: src, Confidence: 0.9},
+			{AssetHint: h, Field: observe.Kind, Value: kind, Source: src, Confidence: conf},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := func(ip, mac string, src observe.Source) { recKind(ip, mac, "router", src, 0.9) }
+	get := func(ip string) inventory.KindDevice {
+		l, err := e.svc.DevicesOfKind(e.ctx(), []string{"router"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range l {
+			if d.IP == ip {
+				return d
+			}
+		}
+		t.Fatalf("no router at %s in %v", ip, l)
+		return inventory.KindDevice{}
+	}
+	// passive only: not trusted, approved or not
+	rec("192.168.10.66", "02:66:66:66:66:66", observe.Passive)
+	d := get("192.168.10.66")
+	if d.TrustedKind() || d.Approved || d.KindSource != "passive" {
+		t.Fatalf("a passive-only router is trusted: %+v", d)
+	}
+	if err := e.svc.Approve(e.ctx(), "emily@acme.example", d.ID); err != nil {
+		t.Fatal(err)
+	}
+	if d = get("192.168.10.66"); d.TrustedKind() || !d.Approved {
+		t.Fatalf("an approved device whose kind is a passive claim is trusted: %+v", d)
+	}
+	// an approved device whose kind came from passive frames is relabelled router by a later LLDP frame: still not trusted
+	recKind("192.168.10.21", "02:21:21:21:21:21", "pc", observe.Passive, 0.5)
+	l, err := e.svc.DevicesOfKind(e.ctx(), []string{"pc"})
+	if err != nil || len(l) != 1 {
+		t.Fatalf("%v %v", l, err)
+	}
+	if err := e.svc.Approve(e.ctx(), "emily@acme.example", l[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	recKind("192.168.10.21", "02:21:21:21:21:21", "router", observe.Passive, 0.99)
+	if d = get("192.168.10.21"); d.TrustedKind() || !d.Approved {
+		t.Fatalf("an approved device relabelled router by a passive frame is trusted: %+v", d)
+	}
+	// nmap: unapproved is not trusted, approved is
+	rec("192.168.10.67", "02:67:67:67:67:67", observe.Nmap)
+	if d = get("192.168.10.67"); d.TrustedKind() || d.KindSource != "nmap" {
+		t.Fatalf("an unapproved nmap router is trusted: %+v", d)
+	}
+	if err := e.svc.Approve(e.ctx(), "emily@acme.example", d.ID); err != nil {
+		t.Fatal(err)
+	}
+	if d = get("192.168.10.67"); !d.TrustedKind() {
+		t.Fatalf("an approved nmap router is not trusted: %+v", d)
+	}
+	// the operator re-picks the kind the passive-only router already has: it becomes manual and trusted
+	r := "router"
+	id := get("192.168.10.66").ID
+	if err := e.svc.PatchDevice(e.ctx(), "emily@acme.example", id, inventory.Patch{Kind: &r}); err != nil {
+		t.Fatal(err)
+	}
+	if d = get("192.168.10.66"); !d.TrustedKind() || d.KindSource != "manual" {
+		t.Fatalf("a router the operator vouched for is not trusted: %+v", d)
+	}
+}
+
+// D-178 (M6): AddressInUse and KnownMACs read the whole table: with more than MaxListed newer devices the oldest one still counts. The box
+// is not "in use" (it is the page's own address).
+func TestAddressInUseAndKnownMACsAreUncapped(t *testing.T) {
+	e := newEnv(t)
+	old := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.1"})
+	e.exec(`UPDATE inv_asset SET mac = 'aa:bb:cc:dd:ee:ff', first_seen = '2020-01-01T00:00:00.000Z' WHERE id = ?`, old)
+	e.exec(`WITH RECURSIVE c(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM c WHERE n < ?)
+INSERT INTO inv_asset (id, ip, mac, kind, origin, first_seen, last_seen) SELECT 'bulk-' || n, '10.' || (n / 65536) || '.' || ((n / 256) % 256) || '.' || (n % 256), printf('02:00:00:00:%02x:%02x', n / 256, n % 256), 'pc', 'discovered', '2026-11-09T10:00:00.000Z', '2026-11-09T10:00:00.000Z' FROM c`, inventory.MaxListed+10)
+	l, err := e.svc.Devices(e.ctx())
+	if err != nil || slices.ContainsFunc(l.Items, func(d inventory.Device) bool { return d.ID == old }) {
+		t.Fatalf("premise: the capped list still holds the oldest device (%v)", err)
+	}
+	if in, err := e.svc.AddressInUse(e.ctx(), "192.168.10.1"); err != nil || !in {
+		t.Fatalf("the oldest device's address is not in use: %v %v", in, err)
+	}
+	if in, err := e.svc.AddressInUse(e.ctx(), "192.168.10.250"); err != nil || in {
+		t.Fatalf("a free address is in use: %v %v", in, err)
+	}
+	macs, err := e.svc.KnownMACs(e.ctx())
+	if err != nil || len(macs) < inventory.MaxListed+10 || !slices.Contains(macs, "aa:bb:cc:dd:ee:ff") {
+		t.Fatalf("%d macs, oldest present %v: %v", len(macs), slices.Contains(macs, "aa:bb:cc:dd:ee:ff"), err)
+	}
+	if all, err := e.svc.AllDevices(e.ctx()); err != nil || len(all) < inventory.MaxListed+10 {
+		t.Fatalf("AllDevices %d: %v", len(all), err)
+	}
+	ctx, cancel := context.WithCancel(e.ctx())
+	cancel()
+	if _, err := e.svc.AddressInUse(ctx, "192.168.10.1"); err == nil {
+		t.Fatal("a failed read answered")
+	}
+	if m, err := e.svc.KnownMACs(ctx); err == nil || m != nil {
+		t.Fatal("a failed read answered")
+	}
+}
+
 // exec runs a write statement behind the service, for fixtures.
 func (e *env) exec(query string, args ...any) {
 	e.t.Helper()
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { _, err := tx.ExecContext(e.ctx(), query, args...); return err }); err != nil {
 		e.t.Fatalf("%s: %v", query, err)
+	}
+}
+
+// L12: a software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
+// still refused.
+func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
+	e := newEnv(t)
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.10.21"})
+	err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{
+		{Vendor: "Mozilla", Product: "Firefox", Version: "121", Confidence: 0.9},
+		{Vendor: "Evil\u200cCorp", Product: "Agent", Confidence: 0.9},
+		{Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9},
+	}, "agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var agent, evil int
+	for _, sw := range e.detail(id).Asset.Software {
+		if sw.Source == "agent" {
+			agent++
+		}
+		if strings.Contains(sw.Display, "Evil") {
+			evil++
+		}
+	}
+	if agent != 2 || evil != 0 {
+		t.Fatalf("%d agent rows, %d from the bad item; want the 2 clean items only", agent, evil)
+	}
+	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "agent"); err == nil {
+		t.Fatal("confidence 2 accepted")
 	}
 }

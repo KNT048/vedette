@@ -1,6 +1,15 @@
 # Logs — Change Impact Map
 
-> Chưa có mã Go; chữ ký là kế hoạch (package `modules/logs`), chốt ở M5.
+> WP-24 L1 có mã: `Service` (nguồn, sự kiện, lưu giữ, `Ingest`, `Purge`, `ExportDeviceLogs`), `LogsHandlers`, `Jobs`. Phần còn lại là kế hoạch, chốt theo từng lát.
+
+## Modifying: `logs.Service.Ingest(ctx, []Line) (IngestResult, error)` (L1) — người gọi: listener (L2), sau này `sensorlink` (L6)
+- Duy nhất đường vào của dòng log. Ghi **một** giao dịch trên `logs.db` mỗi lô (≤ `MaxBatch`), không bao giờ ghi cơ sở chính (INV-12): đổi sang ghi cơ sở chính là đưa lại rủi ro người ghi bị đói (#159/#160). Dòng của nguồn chưa khai bị bỏ và đếm (FORBID-5). Đổi `Line`/`IngestResult` = sửa listener. Đổi `sanitizeLine` đổi nội dung lưu và xuất (`device_logs`).
+
+## Modifying: `logs.Service` (nguồn, `Events`, `SetRetention`, `Purge`), `logs.LogsHandlers`, `logs.Jobs`
+- **web/features/logs** (mock là hợp đồng): mã lỗi `bad_kind|bad_name|bad_ip|bad_proto|bad_port|duplicate|not_found|bad_window|bad_days` và thông báo của mock; giới hạn mà `contract.ts` nói được bị bộ kiểm sinh trả `invalid` trước (D-73). Danh mục loại nguồn và giao thức cho phép là **một dữ liệu**: `content/logs/kinds.json`, `web/src/features/logs/catalog.ts` phải khớp (`kinds.parity.test.ts`).
+- **cmd/vedette**: `logsService` (dùng chung bởi handler, job, xuất log), `logsInventory` (`DevicesOfKind(inventory.Kinds)`: một loại thiết bị mới ngoài `Kinds` thì không được đặt tên trong danh sách nguồn), `logsBox` (đọc `inventory.Settings` và `HostNet`), mở `logs.db` cạnh `vedette.db` trong `run` và `newStackWith`.
+- **core/logexport**: nguồn `device_logs` đăng ký ở `registerLogSources`; đổi tên cột của `logs_events` là đổi tệp xuất.
+- **core (Kiên)**: `POST /core/data/purge` xoá `logs.db` từ danh sách tên tệp dữ liệu module của `cmd/vedette` (D-151); bản sao lưu không chứa nó. **Migration của `logs.db` phải chỉ thêm** (D-151): thêm cột/bảng/chỉ mục, không bao giờ DROP/RENAME/DELETE/UPDATE; `TestVolumeMigrationsAreAddOnly` chặn.
 
 ## Modifying: `IocHits(ctx, since time.Time, minConf float64) ([]IocHit, error)` — 3 người gọi
 - **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1 ↔ 0..100; trigger field `confidence` của response là 0..100) → ngưỡng `gte 80` sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.

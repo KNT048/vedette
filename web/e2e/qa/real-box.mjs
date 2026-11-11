@@ -57,7 +57,7 @@ if (!admin) {
   if (!CODE) throw new Error('the box is not set up yet: set SETUP_CODE to the code in the backend log')
   const r = must(await call(null, 'POST', '/core/setup', {
     org: 'QA Company', admin: { name: ACCOUNTS[0].name, email: ACCOUNTS[0].email, password: PASSWORD },
-    lan: ['192.168.10.0/24'], commitment: false, bundle: 'custom', modules: ['inventory', 'feeds', 'findings', 'mitigation'], setup_code: CODE,
+    lan: ['192.168.10.0/24'], commitment: false, bundle: 'custom', modules: (process.env.BOX_MODULES ?? 'inventory,feeds,findings,mitigation').split(','), setup_code: CODE,
   }), 'setup', 200, 201)
   admin = sessionOf(r.jar)
   console.log('setup done')
@@ -75,6 +75,7 @@ for (const a of ACCOUNTS.slice(1)) {
 const op = await login(ACCOUNTS[1].email, PASSWORD)
 if (!op) throw new Error('operator cannot sign in')
 
+if (process.env.BOX_SKIP_DATA) { console.log('accounts ready, no data (BOX_SKIP_DATA)'); process.exit(0) }
 // KEV first (the box pulls CISA, or its GitHub mirror when cisa.gov answers 403), then the devices, then wait for the findings to appear.
 const kev = must(await call(admin, 'POST', '/feeds/sources/cisa-kev/fetch'), 'fetch KEV', 200).body
 if (kev.status !== 'ok') throw new Error(`KEV fetch: ${JSON.stringify(kev)}`)

@@ -617,9 +617,11 @@ func TestSnapshotToDoesNotNeedTheWriter(t *testing.T) {
 	}
 }
 
-// A database migrated by a NEWER binary must not be opened by an older one (downgrade and host rollback, D-138,
-// D-183): Migrate refuses it and names both versions, and it leaves the database as it found it.
-func TestMigrateRefusesADatabaseNewerThanTheBinary(t *testing.T) {
+// Pins today's behaviour (D-183): goose does not refuse a database newer than the binary, and that is intended.
+// An older binary must start on a newer database: D-151 (add-only volume migrations, logs.db is never restored)
+// and D-138 (rollback.safe=true means the previous version runs on the new database). Whoever adds a refusal
+// here must revisit D-138 and D-151 first.
+func TestMigrateStartsOnADatabaseNewerThanTheBinary(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	db := storetest.New(t)
@@ -631,22 +633,14 @@ func TestMigrateRefusesADatabaseNewerThanTheBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := objects(ctx, t, db)
-	err := store.Migrate(ctx, db, "my-mod", migrations(goodMigration)) // the older binary: only 0001
-	if err == nil {
-		t.Fatal("Migrate accepted a database one version past the binary's migrations")
-	}
-	if !errors.Is(err, store.ErrNewerDatabase) {
-		t.Fatalf("error = %v, want one wrapping ErrNewerDatabase", err)
-	}
-	for _, want := range []string{"my-mod", "2", "1"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q does not name %q", err, want)
-		}
+	if err := store.Migrate(ctx, db, "my-mod", migrations(goodMigration)); err != nil { // the older binary: only 0001
+		t.Fatalf("an older binary must start on a newer database: %v", err)
 	}
 	if after := objects(ctx, t, db); fmt.Sprint(after) != fmt.Sprint(before) {
-		t.Fatalf("a refused Migrate changed the schema:\n%v\n%v", before, after)
+		t.Fatalf("Migrate on a newer database changed the schema:\n%v\n%v", before, after)
 	}
-	if err := store.Migrate(ctx, db, "my-mod", newer); err != nil {
-		t.Fatalf("the newer binary on its own database: %v", err)
+	var top int
+	if err := db.Reader().QueryRowContext(ctx, "SELECT max(version_id) FROM core_migration_my_mod WHERE is_applied = 1").Scan(&top); err != nil || top != 2 {
+		t.Fatalf("applied version = %d (%v), want 2 untouched", top, err)
 	}
 }

@@ -297,8 +297,7 @@ var moduleRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 var ErrMigration = errors.New("store: invalid migration")
 
 // Migrate applies the pending migrations of one module. The version table is
-// core_migration_<module>. Migrations are forward-only: a file with a Down section is refused, and so is a
-// database already past the newest migration of this binary (ErrNewerDatabase).
+// core_migration_<module>. Migrations are forward-only: a file with a Down section is refused.
 // Running it again changes nothing.
 func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
 	if !moduleRE.MatchString(module) {
@@ -311,20 +310,6 @@ func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
 	p, err := goose.NewProvider(goose.DialectSQLite3, db.w, fsys, goose.WithTableName(table))
 	if err != nil {
 		return fmt.Errorf("store: migrate %s: %w", module, err)
-	}
-	// goose applies what is missing and ignores what it does not know: a database a newer binary migrated would
-	// run under older code. Refuse before touching it (downgrade and host rollback, D-138, D-183).
-	have, err := p.GetDBVersion(ctx)
-	if err != nil {
-		return fmt.Errorf("store: migrate %s: %w", module, err)
-	}
-	var known int64
-	for _, src := range p.ListSources() {
-		known = max(known, src.Version)
-	}
-	if have > known {
-		return fmt.Errorf("%w: module %s is at migration %d, this binary has up to %d; do not start, install the newer version or restore a backup",
-			ErrNewerDatabase, module, have, known)
 	}
 	results, err := p.Up(ctx)
 	for _, r := range results {
@@ -393,6 +378,3 @@ func IsUniqueViolation(err error) bool {
 	}
 	return se.Code() == sqliteConstraintUnique || se.Code() == sqliteConstraintPrimaryKey
 }
-
-// ErrNewerDatabase is wrapped by Migrate when the database holds a migration this binary does not have.
-var ErrNewerDatabase = errors.New("store: database is newer than this binary")

@@ -83,10 +83,11 @@ func TestContract_INV7_HTTPUserRules(t *testing.T) {
 	second := admin.post("/core/users", map[string]any{"name": "Two", "email": "two@acme.example", "role": "admin"})
 	wantOK(t, second, 201)
 	secondID := second.JSON["user"].(map[string]any)["id"].(string)
-	// With a second administrator the first may step down; and the second is then the last.
-	wantOK(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 200)
+	// With a second administrator the first may step down (once the second chose their own password, D-180); and the second is then the last.
+	wantStatus(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 400, "last_admin") // the second still has a temporary password
 	two := w.client()
 	two.loginTemp("two@acme.example", second.str("temp_password"))
+	wantOK(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 200)
 	wantStatus(t, two.patch("/core/users/"+secondID, map[string]any{"disabled": true}), 400, "self_disable")
 	wantStatus(t, two.patch("/core/users/"+secondID, map[string]any{"role": "operator"}), 400, "last_admin")
 	// The demoted administrator is a viewer now: every admin route refuses them (the role is read on each request).

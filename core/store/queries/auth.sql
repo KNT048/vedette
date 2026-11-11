@@ -11,7 +11,7 @@ SELECT id, name, email, role, password_hash, cred_version, twofa_method, disable
 FROM core_user WHERE id = ?;
 
 -- name: CountOtherActiveAdmins :one
-SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND id <> ?;
+SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND id <> ?;
 
 -- name: UpdateUserPassword :execrows
 UPDATE core_user SET password_hash = ?, temp_password_expires_at = ?, cred_version = cred_version + 1 WHERE id = ?;

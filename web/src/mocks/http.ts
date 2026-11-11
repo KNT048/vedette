@@ -24,9 +24,9 @@ export function currentUser(): User | undefined {
 export function guard(min: Role, allowLimited = false) {
   const u = currentUser()
   if (!u) return fail(401, 'unauthenticated', 'Your session has ended. Sign in again.')
-  // D-180: a session opened with an administrator-set password may only read /me, change the password and sign out (those three pass allowLimited).
-  if (u.temp_password_expires_at && !allowLimited) return fail(403, 'password_change_required', 'Choose a new password before you continue.')
   if (rank[u.role] < rank[min]) return fail(403, 'forbidden', 'Your account is not allowed to do this.')
+  // D-180 (after the role, like the server): a session opened with an administrator-set password may only read /me, change the password and sign out (those pass allowLimited).
+  if (u.temp_password_expires_at && !allowLimited) return fail(403, 'password_change_required', 'Choose a new password before you continue.')
   return null
 }
 

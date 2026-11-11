@@ -98,7 +98,7 @@ func (q *Queries) CountEmailCodeSendsSince(ctx context.Context, arg CountEmailCo
 }
 
 const countOtherActiveAdmins = `-- name: CountOtherActiveAdmins :one
-SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND id <> ?
+SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND id <> ?
 `
 
 func (q *Queries) CountOtherActiveAdmins(ctx context.Context, id string) (int64, error) {

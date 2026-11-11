@@ -358,7 +358,7 @@ func TestPrivacy_AnswersHaveExactlyTheSchemaKeys(t *testing.T) {
 			t.Errorf("%s update_check = %v", name, r.JSON["update_check"])
 		}
 		flows, _ := r.JSON["flows"].([]any)
-		if len(flows) != 12 {
+		if len(flows) != 13 {
 			t.Fatalf("%s flows = %d", name, len(flows))
 		}
 		for i, f := range flows {

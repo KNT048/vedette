@@ -10,6 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
+	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/response"
@@ -40,6 +41,7 @@ type handler struct {
 	*logs.LogsHandlers
 	*scan.ScanHandlers
 	*ai.AIHandlers
+	*mcpserver.McpHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -64,5 +66,6 @@ func newHandler(d deps) handler {
 		LogsHandlers:     logs.NewLogsHandlers(logsService(d)),
 		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
 		AIHandlers:       ai.NewAIHandlers(d.AI),
+		McpHandlers:      mcpHandlers(d),
 	}
 }

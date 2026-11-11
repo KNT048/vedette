@@ -33,7 +33,7 @@ test('the only active administrator can neither demote nor disable itself', asyn
     expect(demote.body).toMatchObject({ error: { code: 'last_admin', message: expect.stringContaining('At least one active administrator must remain') } })
     const off = await api<{ error: { code: string } }>(admin, 'PATCH', `/core/users/${me.id}`, { disabled: true })
     expect(off.status).toBe(400)
-    expect(['last_admin', 'self_disable']).toContain(off.body.error.code)
+    expect(off.body.error.code, 'a person cannot disable the account they are using').toBe('self_disable')
     expect((await api<{ role: string }>(admin, 'GET', '/me')).body.role, 'still an administrator').toBe('admin')
 
     // and so does the page: Disable is off for yourself, the role list snaps back with the reason

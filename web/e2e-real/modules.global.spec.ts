@@ -16,7 +16,7 @@ interface Mod { id: string; enabled: boolean; tier: string; depends: string[] }
 const mods = async (c: Awaited<ReturnType<typeof request.newContext>>) => (await api<{ modules: Mod[] }>(c, 'GET', '/modules')).body.modules
 const state = async (c: Awaited<ReturnType<typeof request.newContext>>, id: string) => (await mods(c)).find((m) => m.id === id)?.enabled
 const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toast]').filter({ hasText: re }).first()).toBeVisible()
-const sw = (page: Page, name: string) => page.getByRole('switch', { name: `Turn on module ${name}` })
+const sw = (page: Page, name: string) => page.getByRole('switch', { name: `Turn on module ${name}`, exact: true })
 async function onModulesPage(page: Page, find: string) {
   await page.goto('/settings/modules')
   await expect(h1(page)).toContainText('modules are on')
@@ -27,6 +27,7 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })
+  const original = (await api<{ box_ip: { auto: boolean; interval_min: number } }>(admin, 'GET', '/exposure/targets')).body.box_ip
   try {
     expect(await state(admin, 'exposure'), 'exposure is on (mid-size bundle)').toBe(true)
     const keep = await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 37 })
@@ -87,7 +88,7 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
     noErrors(errors, /status of 404/)
   } finally {
     if ((await state(admin, 'exposure')) === false) await api(admin, 'PATCH', '/modules/exposure', { enabled: true })
-    await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
+    await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: original.auto, interval_min: original.interval_min })
     await admin.dispose()
   }
 })

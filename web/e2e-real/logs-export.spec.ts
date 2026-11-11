@@ -108,9 +108,16 @@ test('the Data page downloads the days the person picks', async ({ page }) => {
   const today = day(org.timezone)
   await page.getByLabel('From', { exact: true }).fill(today)
   await page.getByLabel('To', { exact: true }).fill(today)
-  const saved = page.waitForEvent('download', { timeout: 15_000 })
+  const saved = page.waitForEvent('download', { timeout: 15_000 }).catch(() => null)
   await page.getByRole('button', { name: 'Download logs' }).click()
   const file = await saved
+  if (!file) {
+    // Only the known bug may satisfy test.fail: the box's own 400 invalid_range message in the toast. Anything else (a renamed label, a
+    // timeout, another error) is a real failure of this test, so the expectation is switched off and the test is reported red.
+    const known = await page.locator('[data-sonner-toast]').filter({ hasText: 'Dates are written YYYY-MM-DD' }).first().isVisible()
+    if (!known) test.fail(false)
+    throw new Error(known ? 'no download: the box refused the day with 400 invalid_range (the known bug)' : 'no download and no invalid_range toast: not the known bug')
+  }
   expect(file.suggestedFilename()).toMatch(/^vedette-logs-/)
   lastStart = Date.now() // only reached when the bug is fixed: the download used the slot
 })
@@ -119,6 +126,7 @@ test('JSON: the days are whole days of the organization time zone, missing categ
   test.setTimeout(150_000)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })
   const tz = org.timezone
+  await slot() // wait first: the day is read after the wait, so a wait across midnight in the organization zone cannot skew it
   const today = day(tz)
   const r = await exportLogs(admin, { categories: CATEGORIES.join(','), format: 'json', from: today, to: today })
   expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)

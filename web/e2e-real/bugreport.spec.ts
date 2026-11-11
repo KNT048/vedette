@@ -15,12 +15,15 @@ const SECRET_IP = '192.168.77.5'
 
 /** A context that aborts everything that is not the box, and lists what it was asked for. */
 async function sealed(browser: import('@playwright/test').Browser, role: 'admin' | 'viewer') {
-  const context = await browser.newContext({ baseURL: box().base_url, storageState: authFile(role), locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh', acceptDownloads: true })
+  const context = await browser.newContext({ baseURL: box().base_url, storageState: authFile(role), locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh', acceptDownloads: true, serviceWorkers: 'block' }) // a service worker's requests would not pass context.route
   const outside: string[] = []
-  await context.route((url) => url.origin !== new URL(box().base_url).origin && !/^(data|blob|about):/.test(url.href), async (route) => {
+  const leaves = (url: URL) => url.origin !== new URL(box().base_url).origin && !/^(data|blob|about):/.test(url.href)
+  await context.route(leaves, async (route) => {
     outside.push(route.request().url())
     await route.abort()
   })
+  // a websocket is not a route request: close any that is not for the box, and count it
+  await context.routeWebSocket((url) => leaves(url), (ws) => { outside.push(ws.url()); void ws.close() })
   return { context, outside }
 }
 async function openDialog(page: Page, visit = true) {
@@ -83,7 +86,7 @@ test('the dialog shows what would be sent, with emails and IPs removed, and noth
 
   // Open GitHub issue: the one request that leaves, in a new tab, opened by the person, and it is aborted here
   const [popup] = await Promise.all([context.waitForEvent('page'), dlg.getByRole('button', { name: 'Open GitHub issue' }).click()])
-  await popup.waitForEvent('close', { timeout: 1500 }).catch(() => undefined)
+  void popup
   await expect.poll(() => outside.length).toBe(1)
   const url = new URL(outside[0]!)
   expect(`${url.origin}${url.pathname}`).toBe('https://github.com/KNT048/vedette/issues/new')

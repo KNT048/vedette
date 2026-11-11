@@ -75,7 +75,8 @@ test('a viewer and an operator read the page and cannot change it', async () => 
 })
 
 // test.fail (D-171): .ai/deferred/fix-privacy-accuracy.md:2 (before release: report the signal as off, refuse to turn it on).
-test('the API reports the anonymous signal as not sent, like PRIVACY.md flow 2 and the page', async ({ page }) => {
+// Two tests, so that a fix of the GET and a fix of the PATCH each turn their own test red.
+test('GET /core/privacy reports the anonymous signal as not sent, like PRIVACY.md flow 2 and the page', async ({ page }) => {
   test.fail(true, 'bug: GET /core/privacy reports flow 2 as on until a value is stored (.ai/deferred/fix-privacy-accuracy.md:2)')
   const got = (await api<Privacy>(page.request, 'GET', '/core/privacy')).body
   expect(got.flows.find((f) => f.id === 2)?.state).toBe('off')
@@ -83,9 +84,15 @@ test('the API reports the anonymous signal as not sent, like PRIVACY.md flow 2 a
   expect(got.telemetry.last_sent).toBeNull()
 })
 
-test('the API refuses to turn the anonymous signal on', async ({ page }) => {
+test('PATCH /core/privacy refuses to turn the anonymous signal on, and stores nothing', async ({ page }) => {
   test.fail(true, 'bug: PATCH /core/privacy accepts telemetry:true and stores it (.ai/deferred/fix-privacy-accuracy.md:2)')
-  const r = await api(page.request, 'PATCH', '/core/privacy', { telemetry: true })
-  expect(r.status).toBeGreaterThanOrEqual(400)
-  expect(r.status).toBeLessThan(500)
+  const before = (await api<Privacy>(page.request, 'GET', '/core/privacy')).body.telemetry.enabled
+  try {
+    const r = await api(page.request, 'PATCH', '/core/privacy', { telemetry: true })
+    expect(r.status).toBeGreaterThanOrEqual(400)
+    expect(r.status).toBeLessThan(500)
+  } finally {
+    // put back what GET reported before (an unset value reads as on, so a box that never stored one ends up with the same reading)
+    await api(page.request, 'PATCH', '/core/privacy', { telemetry: before })
+  }
 })

@@ -12,8 +12,11 @@ import (
 
 const (
 	growthAS = 512 << 20 // address space the child may add to what the Go runtime has reserved at start
-	limitCPU = 60        // seconds of CPU; the kernel sends SIGXCPU at the soft limit and SIGKILL at the hard one
 )
+
+// limitCPUText is the seconds of CPU; soft = hard, so the kernel sends SIGKILL at the limit. A string only so that the test child can be
+// built with `-ldflags -X` to a short one (pdftexttest.BuildChild); the release build keeps 60.
+var limitCPUText = "60"
 
 // setLimits lowers the child's own limits (soft = hard, so they cannot be raised again): address space, CPU time, no core file
 // (a core dump would write the untrusted file's memory to disk). RLIMIT_FSIZE is left alone: it would kill the child with SIGXFSZ
@@ -27,10 +30,14 @@ func setLimits() error {
 	if err != nil {
 		return err
 	}
+	cpu, err := strconv.ParseUint(limitCPUText, 10, 64)
+	if err != nil || cpu == 0 {
+		return fmt.Errorf("pdftext: bad CPU limit %q", limitCPUText)
+	}
 	for _, l := range []struct {
 		res int
 		n   uint64
-	}{{syscall.RLIMIT_AS, base + growthAS}, {syscall.RLIMIT_CPU, limitCPU}, {syscall.RLIMIT_CORE, 0}} {
+	}{{syscall.RLIMIT_AS, base + growthAS}, {syscall.RLIMIT_CPU, cpu}, {syscall.RLIMIT_CORE, 0}} {
 		if err := syscall.Setrlimit(l.res, &syscall.Rlimit{Cur: l.n, Max: l.n}); err != nil {
 			return err
 		}

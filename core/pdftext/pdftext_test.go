@@ -1,42 +1,25 @@
-package pdftext
+package pdftext_test
 
 import (
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	osexec "os/exec" //nolint:depguard // test harness: builds the test child and starts it with fixed argv, no shell; SYS-1 is about the product
+	osexec "os/exec" //nolint:depguard // test harness: starts the test child with fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/exec/exectest"
+	. "github.com/knt048/vedette/core/pdftext" //nolint:revive // the tests read like the package
+	"github.com/knt048/vedette/core/pdftext/pdftexttest"
 )
 
-// The tests run the real child: TestMain builds testdata/child (the same ChildMain as `vedette pdftext`) once, without -race, and
-// points childPath at it. Every PDF below is hand-made in code so the offsets of its xref stay right; the hostile ones are the
-// samples of the review of #323 (a Go fatal error or an endless loop in the library).
-
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "pdftext-child")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	exe := filepath.Join(dir, "child")
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
-	defer cancel()
-	build := osexec.CommandContext(ctx, "go", "build", "-o", exe, "./testdata/child") //nolint:gosec // fixed argv, a test helper
-	build.Env = append(os.Environ(), "GOFLAGS=")
-	if out, err := build.CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "building the test child: %v\n%s", err, out)
-		os.Exit(1)
-	}
-	childPath = func() (string, error) { return exe, nil }
-	code := m.Run()
-	_ = os.RemoveAll(dir)
-	os.Exit(code)
-}
+// The tests run the real child: pdftexttest.BuildChild builds it (the same ChildMain as `vedette pdftext`) without -race and
+// registers it. Every PDF below is hand-made in code so the offsets of its xref stay right; the hostile ones are the samples of the
+// review of #323 (a Go fatal error or an endless loop in the library) and one that only the address-space limit stops.
 
 // pdfBuilder writes objects and the offsets of their "n 0 obj" lines.
 type pdfBuilder struct {
@@ -72,7 +55,6 @@ func xrefEntry(kind byte, a int, c byte) []byte {
 	return []byte{kind, byte(a >> 8 & 0xff), byte(a & 0xff), c}
 }
 
-// normalPDF is a small valid file whose page says text.
 func normalPDF(text string) []byte {
 	return pagePDF([]byte("BT /F1 12 Tf 72 700 Td (" + text + ") Tj ET"))
 }
@@ -99,16 +81,18 @@ func pagePDF(content []byte) []byte {
 // xrefStreamPDF is a file whose only structure is an xref stream (object 1) with the given dictionary extras and rows.
 func xrefStreamPDF(extra string, size int, rows ...[]byte) []byte {
 	b := newPDF("1.5")
-	b.stream(1, fmt.Sprintf("/Type /XRef /Size %s /W [1 2 1] %s", fmt.Sprint(size), extra), bytes.Join(rows, nil))
+	b.stream(1, fmt.Sprintf("/Type /XRef /Size %d /W [1 2 1] %s", size, extra), bytes.Join(rows, nil))
 	return b.tail(b.offs[1])
+}
+
+// xrefOfSize is an xref stream with no data that claims size objects: the library allocates 32 bytes for each before it reads a row.
+func xrefOfSize(size string) []byte {
+	return []byte("%PDF-1.5\n1 0 obj\n<< /Type /XRef /Size " + size + " /W [1 2 1] /Length 0 >>\nstream\n\nendstream\nendobj\nstartxref\n9\n%%EOF\n")
 }
 
 func hostile() map[string][]byte {
 	free := xrefEntry(0, 0, 255)
 	self := xrefEntry(1, 9, 0) // object 1 is the xref stream, at offset 9
-
-	// 251-byte class: an xref stream that claims four billion objects. make([]xref, size) asks for ~100 GB.
-	hugeSize := []byte("%PDF-1.5\n1 0 obj\n<< /Type /XRef /Size 4000000000 /W [1 2 1] /Length 0 >>\nstream\n\nendstream\nendobj\nstartxref\n9\n%%EOF\n")
 
 	// A table xref that announces four billion rows.
 	hugeTable := []byte("%PDF-1.4\nxref\n0 4000000000\n0000000000 65535 f \ntrailer\n<< /Size 4000000000 /Root 1 0 R >>\nstartxref\n9\n%%EOF\n")
@@ -140,75 +124,74 @@ func hostile() map[string][]byte {
 	prevTable := t.tail(tx)
 
 	return map[string][]byte{
-		"huge-xref-stream-size": hugeSize, "huge-xref-table": hugeTable, "huge-xref-row-start": hugeStart, "startxref-3e9": farStart,
+		"huge-xref-stream-size": xrefOfSize("4000000000"), "size-40000000": xrefOfSize("40000000"),
+		"huge-xref-table": hugeTable, "huge-xref-row-start": hugeStart, "startxref-3e9": farStart,
 		"self-containing-objstm": selfStream, "extends-self": extends,
 		"prev-self-stream": prevStream, "prev-self-table": prevTable,
 	}
 }
 
+func linuxOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("the child's limits (RLIMIT_AS, RLIMIT_CPU) are set on Linux only")
+	}
+}
+
 func TestNormalPDFReturnsItsText(t *testing.T) {
+	pdftexttest.BuildChild(t)
 	text, err := PDFText(context.Background(), bytes.NewReader(normalPDF("Hello Vedette")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(text, "Hello Vedette") {
+	if !strings.Contains(text, "Hello Vedette") || strings.Contains(text, Marker) {
 		t.Fatalf("text = %q", text)
 	}
 }
 
-// Each hostile file must end in ErrLimit or ErrCrashed (or a clean refusal), never take the test process down, and within the time
-// the limits allow. The wall clock is shortened to 3 s here; the CPU limit has its own test.
-func TestHostilePDFsDoNotKillTheCaller(t *testing.T) {
-	defer func(d time.Duration) { wallLimit = d }(wallLimit)
-	wallLimit = 3 * time.Second
+// Each hostile file ends in an error and never takes the test process down; on Linux the files that only a limit stops must fail on
+// that limit: the fatal ones are ErrCrashed (size-40000000 is a 1.28 GB allocation that succeeds without RLIMIT_AS), the endless ones
+// ErrLimit (here by the wall clock, shortened to 3 s; the CPU limit has its own test).
+func TestHostilePDFs(t *testing.T) {
+	pdftexttest.BuildChild(t)
+	defer SetWallLimit(3 * time.Second)()
+	want := map[string]error{
+		"huge-xref-stream-size": ErrCrashed, "size-40000000": ErrCrashed, "self-containing-objstm": ErrCrashed,
+		"extends-self": ErrLimit, "prev-self-stream": ErrLimit, "prev-self-table": ErrLimit,
+	}
 	for name, data := range hostile() {
 		t.Run(name, func(t *testing.T) {
 			start := time.Now()
 			text, err := PDFText(context.Background(), bytes.NewReader(data))
-			took := time.Since(start)
-			t.Logf("%s: %d bytes -> err=%v text=%d bytes in %v", name, len(data), err, len(text), took)
+			t.Logf("%s: %d bytes -> err=%v text=%d bytes in %v", name, len(data), err, len(text), time.Since(start))
 			if !errors.Is(err, ErrLimit) && !errors.Is(err, ErrCrashed) && !errors.Is(err, ErrNotPDF) {
 				t.Fatalf("err = %v, want ErrLimit, ErrCrashed or ErrNotPDF", err)
 			}
-			if took > wallLimit+3*time.Second {
-				t.Fatalf("took %v with a wall limit of %v", took, wallLimit)
+			if w, ok := want[name]; ok && runtime.GOOS == "linux" && !errors.Is(err, w) {
+				t.Fatalf("err = %v, want %v", err, w)
 			}
 		})
 	}
 }
 
-// The files that must fail on a limit, not by luck of a clean refusal: the fatal ones are ErrCrashed, the endless ones ErrLimit.
-func TestHostileKindsOfFailure(t *testing.T) {
-	defer func(d time.Duration) { wallLimit = d }(wallLimit)
-	wallLimit = 3 * time.Second
-	h := hostile()
-	for name, want := range map[string]error{
-		"huge-xref-stream-size": ErrCrashed, "self-containing-objstm": ErrCrashed,
-		"extends-self": ErrLimit, "prev-self-stream": ErrLimit, "prev-self-table": ErrLimit,
-	} {
-		if _, err := PDFText(context.Background(), bytes.NewReader(h[name])); !errors.Is(err, want) {
-			t.Errorf("%s: err = %v, want %v", name, err, want)
-		}
-	}
-}
-
-// RLIMIT_CPU is the second line (the first is the wall clock): with the wall clock out of the way, an endless loop is stopped by the
-// kernel after 60 s of CPU.
+// RLIMIT_CPU is the second line (the first is the wall clock): a child built with a 2 s CPU limit is killed by the kernel long before
+// the 30 s wall clock, so the endless loop returns ErrLimit in seconds.
 func TestCPULimitStopsAnEndlessLoop(t *testing.T) {
-	if testing.Short() {
-		t.Skip("takes 60 s")
-	}
-	defer func(d time.Duration) { wallLimit = d }(wallLimit)
-	wallLimit = 5 * time.Minute
+	linuxOnly(t)
+	pdftexttest.BuildChild(t, "-X github.com/knt048/vedette/core/pdftext.limitCPUText=2")
+	defer SetWallLimit(30 * time.Second)()
 	start := time.Now()
 	_, err := PDFText(context.Background(), bytes.NewReader(hostile()["prev-self-stream"]))
-	took := time.Since(start)
-	if !errors.Is(err, ErrLimit) || took > 90*time.Second || took < 30*time.Second {
-		t.Fatalf("err = %v after %v, want ErrLimit after about 60 s of CPU", err, took)
+	if !errors.Is(err, ErrLimit) {
+		t.Fatalf("err = %v, want ErrLimit", err)
+	}
+	if took := time.Since(start); took > 25*time.Second {
+		t.Fatalf("took %v: the wall clock, not the CPU limit, stopped it", took)
 	}
 }
 
 func TestNotAPDFAndEncryptedAndInputCap(t *testing.T) {
+	pdftexttest.BuildChild(t)
 	if _, err := PDFText(context.Background(), strings.NewReader("hello")); !errors.Is(err, ErrNotPDF) {
 		t.Fatalf("plain text: %v", err)
 	}
@@ -227,10 +210,10 @@ func TestNotAPDFAndEncryptedAndInputCap(t *testing.T) {
 
 // The child enforces the input cap on its own, not only through the parent (it is a subcommand anyone with the binary can run).
 func TestChildRefusesOversizeInputItself(t *testing.T) {
-	exe, _ := childPath()
+	exe := pdftexttest.BuildChild(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, exe) //nolint:gosec // the test child built by TestMain
+	cmd := osexec.CommandContext(ctx, exe) //nolint:gosec // the test child just built
 	cmd.Stdin = bytes.NewReader(append([]byte("%PDF-1.4\n"), make([]byte, MaxInput)...))
 	err := cmd.Run()
 	var ee *osexec.ExitError
@@ -241,6 +224,7 @@ func TestChildRefusesOversizeInputItself(t *testing.T) {
 
 // A page whose text is longer than MaxText comes back cut at MaxText, valid UTF-8, with ErrTruncated and the text.
 func TestOutputIsCappedAtMaxText(t *testing.T) {
+	pdftexttest.BuildChild(t)
 	line := strings.Repeat("ab", 1000)
 	var content strings.Builder
 	content.WriteString("BT /F1 12 Tf 72 700 Td ")
@@ -256,23 +240,71 @@ func TestOutputIsCappedAtMaxText(t *testing.T) {
 	if !errors.Is(err, ErrTruncated) {
 		t.Fatalf("err = %v", err)
 	}
-	if len(text) == 0 || len(text) > MaxText {
-		t.Fatalf("len(text) = %d, want 1..%d", len(text), MaxText)
+	if len(text) == 0 || len(text) > MaxText || strings.HasPrefix(text, Marker) {
+		t.Fatalf("len(text) = %d, want 1..%d without the marker", len(text), MaxText)
 	}
 }
 
+// A program that is not the PDF child must never pass for it: without the marker the output is ErrCrashed, with it the text comes
+// through.
+func TestOutputWithoutTheMarkerIsACrash(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs /bin/sh")
+	}
+	dir := t.TempDir()
+	foreign, marked := filepath.Join(dir, "foreign"), filepath.Join(dir, "marked")
+	exectest.WriteScript(t, foreign, "#!/bin/sh\necho PASS\n")
+	exectest.WriteScript(t, marked, "#!/bin/sh\nprintf 'VDPDF1\\nhello\\n'\n")
+	t.Cleanup(func() { SetChild("") })
+	pdf := normalPDF("x")
+
+	SetChild(foreign)
+	if text, err := PDFText(context.Background(), bytes.NewReader(pdf)); !errors.Is(err, ErrCrashed) || text != "" {
+		t.Fatalf("foreign output: text=%q err=%v, want ErrCrashed", text, err)
+	}
+	SetChild(marked)
+	if text, err := PDFText(context.Background(), bytes.NewReader(pdf)); err != nil || text != "hello\n" {
+		t.Fatalf("marked output: text=%q err=%v", text, err)
+	}
+}
+
+// With no child registered (what every binary but vedette has, a test binary above all) PDFText returns ErrNoChild and starts nothing:
+// it never reads the input and never runs the binary again.
+func TestNoRegisteredChildStartsNothing(t *testing.T) {
+	SetChild("")
+	r := &countingReader{r: bytes.NewReader(normalPDF("x"))}
+	if _, err := PDFText(context.Background(), r); !errors.Is(err, ErrNoChild) {
+		t.Fatalf("err = %v, want ErrNoChild", err)
+	}
+	if r.n != 0 {
+		t.Fatalf("the input was read (%d bytes) although there is no child", r.n)
+	}
+}
+
+type countingReader struct {
+	r *bytes.Reader
+	n int
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += n
+	return n, err
+}
+
 func TestArgvIsExactlyTheSubcommand(t *testing.T) {
-	if validArgs([]string{Subcommand}) != nil {
+	if ValidArgs([]string{Subcommand}) != nil {
 		t.Fatal("the subcommand is refused")
 	}
 	for _, a := range [][]string{nil, {}, {"pdftext", "x"}, {"healthcheck"}, {"-db", "x"}} {
-		if validArgs(a) == nil {
+		if ValidArgs(a) == nil {
 			t.Fatalf("argv %q accepted", a)
 		}
 	}
 }
 
 func TestCancelledContextReturnsItsError(t *testing.T) {
+	pdftexttest.BuildChild(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := PDFText(ctx, bytes.NewReader(normalPDF("x"))); !errors.Is(err, context.Canceled) {

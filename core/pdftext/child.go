@@ -62,7 +62,7 @@ func ChildMain(stdin io.Reader, stdout, stderr io.Writer) int {
 		say(stderr, "unreadable")
 		return ExitNotPDF
 	}
-	if _, err := io.WriteString(stdout, text); err != nil {
+	if _, err := io.WriteString(stdout, Marker+text); err != nil {
 		return ExitNotPDF
 	}
 	if cut {

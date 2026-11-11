@@ -17,8 +17,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/exec"
@@ -54,16 +56,59 @@ var (
 	ErrTruncated = errors.New("pdftext: the text was cut at the limit")
 )
 
-// childPath is the program to run: this binary. A test replaces it with a build of the child that has no race detector (which reserves
-// terabytes of address space and cannot live under RLIMIT_AS).
-var childPath = os.Executable
+// childPath names the program that serves as the child. It is empty until a binary registers itself: only cmd/vedette does (UseSelf),
+// because the child contract (argv `pdftext`, the marker, the exit codes) is that binary's. Any other binary that calls PDFText, a test
+// binary above all, would run itself again with argv `pdftext` and take its own output for a PDF's text.
+var (
+	childMu   sync.Mutex
+	childPath string
+)
+
+// ErrNoChild means no child is registered in this binary: PDFText starts nothing.
+var ErrNoChild = errors.New("pdftext: no PDF child is registered in this binary")
+
+// UseSelf makes the running binary the child: `vedette` calls it once in main. On Linux the path is /proc/self/exe, which is always
+// the image that is running, even after the file was replaced.
+func UseSelf() {
+	p := "/proc/self/exe"
+	if runtime.GOOS != "linux" {
+		exe, err := os.Executable()
+		if err != nil {
+			return
+		}
+		p = exe
+	}
+	SetChild(p)
+}
+
+// SetChild registers the absolute path of a program that runs ChildMain for argv `pdftext`; "" unregisters. Tests of other packages
+// call it through pdftexttest.BuildChild, with a build that has no race detector (the race detector reserves terabytes of address space
+// and cannot live under RLIMIT_AS).
+func SetChild(path string) {
+	childMu.Lock()
+	defer childMu.Unlock()
+	childPath = path
+}
+
+func child() string {
+	childMu.Lock()
+	defer childMu.Unlock()
+	return childPath
+}
+
+// Marker is written by the child before the text and required by the parent: output without it is not from a PDF child.
+const Marker = "VDPDF1\n"
 
 var active = make(chan struct{}, maxActive)
 
-// PDFText reads a PDF from r and returns its text (UTF-8, at most MaxText bytes). Errors: ErrNotPDF, ErrEncrypted, ErrTooLarge,
-// ErrLimit, ErrCrashed (test with errors.Is), or the context's error when the caller cancels. ErrTruncated comes with a usable text.
-// It waits for a free slot (two children at once) until ctx ends.
+// PDFText reads a PDF from r and returns its text (UTF-8, at most MaxText bytes). Errors: ErrNoChild (nothing registered, nothing
+// started), ErrNotPDF, ErrEncrypted, ErrTooLarge, ErrLimit, ErrCrashed (test with errors.Is), or the context's error when the caller
+// cancels. ErrTruncated comes with a usable text. It waits for a free slot (two children at once) until ctx ends.
 func PDFText(ctx context.Context, r io.Reader) (string, error) {
+	exe := child()
+	if exe == "" {
+		return "", ErrNoChild
+	}
 	data, err := io.ReadAll(io.LimitReader(r, MaxInput+1))
 	switch {
 	case err != nil:
@@ -79,14 +124,10 @@ func PDFText(ctx context.Context, r io.Reader) (string, error) {
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
-	exe, err := childPath()
-	if err != nil {
-		return "", fmt.Errorf("%w: own path: %w", ErrCrashed, err)
-	}
 	run, err := exec.NewRunner(slog.Default(), exec.Binary{
 		Name: "vedette-pdftext", Path: exe,
 		Validate:  validArgs,
-		MaxOutput: MaxText + 1, // one byte over the cap means the child did not keep to it
+		MaxOutput: int64(len(Marker)) + MaxText + 1, // one byte over the cap means the child did not keep to it
 		MaxStderr: maxStderr,
 	})
 	if err != nil {
@@ -113,21 +154,31 @@ func PDFText(ctx context.Context, r io.Reader) (string, error) {
 		case ExitTooLarge:
 			return "", ErrTooLarge
 		case ExitCut:
-			if !res.Truncated {
-				return strings.ToValidUTF8(string(res.Stdout), ""), ErrTruncated
+			if text, ok := withMarker(res); ok {
+				return text, ErrTruncated
 			}
 			return "", ErrCrashed
-		case -1: // killed by a signal: SIGXCPU or SIGKILL from the kernel's limits
+		case -1: // killed by a signal: SIGKILL from the kernel's limits
 			return "", ErrLimit
 		}
 		return "", ErrCrashed
 	default:
 		return "", fmt.Errorf("%w: %w", ErrCrashed, err)
 	}
-	if res.Truncated {
+	text, ok := withMarker(res)
+	if !ok {
 		return "", ErrCrashed
 	}
-	return strings.ToValidUTF8(string(res.Stdout), ""), nil
+	return text, nil
+}
+
+// withMarker strips the marker from the child's stdout; ok is false when it is missing or the output hit the cap.
+func withMarker(res exec.Result) (string, bool) {
+	body, ok := bytes.CutPrefix(res.Stdout, []byte(Marker))
+	if !ok || res.Truncated {
+		return "", false
+	}
+	return strings.ToValidUTF8(string(body), ""), true
 }
 
 // validArgs is the allowlist of the argv: exactly the subcommand, nothing else.

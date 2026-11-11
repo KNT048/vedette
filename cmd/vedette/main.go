@@ -53,6 +53,7 @@ func main() {
 	if pdftextCommand(os.Args[1:]) { // the PDF reader child (D-264): its own limits, no signals, no database
 		os.Exit(pdftext.ChildMain(os.Stdin, os.Stdout, os.Stderr))
 	}
+	pdftext.UseSelf() // this binary is the one that may serve as the PDF child (D-264); no other binary registers
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 	stop()

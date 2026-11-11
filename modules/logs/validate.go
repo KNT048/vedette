@@ -48,7 +48,7 @@ var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 // name pattern, the port range) are refused first by the generated validator as 400 invalid (D-73); these codes remain
 // for what the schema cannot say (the protocol a kind can send, an IP that is not a dotted quad) and for the service
 // used directly.
-func (in Input) normalize() (Input, error) {
+func (in Input) normalize(tlsOK bool) (Input, error) {
 	k, ok := kinds[in.Kind]
 	if !ok {
 		return in, apierr.New(400, "bad_kind", "Choose a device type from the list.")
@@ -63,8 +63,8 @@ func (in Input) normalize() (Input, error) {
 	if !slices.Contains(k.Protos, in.Proto) {
 		return in, apierr.New(400, "bad_proto", "This device type cannot send logs with the chosen protocol. Pick another protocol from the list.")
 	}
-	if in.Proto == "tls" { // D-203: the TLS listener (6514) is not built; a source that would silently never receive is refused
-		return in, apierr.New(400, "tls_unavailable", "Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP.")
+	if in.Proto == "tls" && !tlsOK { // D-203, D-214: the box has no certificate to serve (loopback or dev, plain HTTP); a source that would silently never receive is refused
+		return in, apierr.New(400, "tls_unavailable", "Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP.")
 	}
 	if in.Port < 1 || in.Port > 65535 {
 		return in, apierr.New(400, "bad_port", "The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS).")

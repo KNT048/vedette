@@ -165,3 +165,17 @@ func TestLogsNeverCountListsTheBox(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 }
+
+// D-214: deps.SyslogTLS reaches logs: with it a TLS source is accepted, without it (a loopback or dev box) it is refused.
+func TestWiringLogsTLSSourcesFollowDepsSyslogTLS(t *testing.T) {
+	t.Parallel()
+	in := logs.Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "192.168.30.9", Proto: "tls", Port: 6514}
+	plain := logsService(*newStack(t).d)
+	if _, err := plain.AddSource(t.Context(), "admin@acme.example", in); err == nil || !strings.Contains(err.Error(), "HTTPS certificate") {
+		t.Fatalf("a box with no TLS config must refuse proto tls: %v", err)
+	}
+	withTLS := logsService(*newStackWith(t, func(d *deps) { d.SyslogTLS = &tls.Config{MinVersion: tls.VersionTLS12} }).d)
+	if src, err := withTLS.AddSource(t.Context(), "admin@acme.example", in); err != nil || src.Proto != "tls" {
+		t.Fatalf("a box with a TLS config must accept proto tls: %+v %v", src, err)
+	}
+}

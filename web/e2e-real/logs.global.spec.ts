@@ -2,7 +2,7 @@
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
 // port in ready.json (`syslog_port`, a free port of the run, not 514). SIEM forwarding (L5) is its own test.
-// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types, spikes (a 24 h warm-up a box cannot skip) and bad connections (L4), the TLS listener (D-203).
+// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types, spikes (a 24 h warm-up a box cannot skip) and bad connections (L4), the TLS listener on this plain-HTTP box (D-214: it needs a test certificate in the box and the TLS port in ready.json).
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
 import { readFileSync } from 'node:fs'
 import { createSocket } from 'node:dgram'
@@ -221,7 +221,7 @@ test('every refusal of a source carries its code and saves nothing (INV-3)', asy
       ['IPv6', { ...SRC, name: n, sender_ip: '::1' }, 400, 'invalid'],
       ['IP with a leading zero', { ...SRC, name: n, sender_ip: '010.1.1.1' }, 400, 'invalid'], // bad_ip is only reachable below the schema (service tests)
       ['a protocol the kind cannot send', { ...SRC, name: n, kind: 'mikrotik', proto: 'tcp' }, 400, 'bad_proto'],
-      ['TLS, not built (D-203)', { ...SRC, name: n, kind: 'fortigate', proto: 'tls', port: 6514 }, 400, 'tls_unavailable'],
+      ['TLS, the box has no certificate (plain HTTP, D-203, D-214)', { ...SRC, name: n, kind: 'fortigate', proto: 'tls', port: 6514 }, 400, 'tls_unavailable'],
       ['port 0', { ...SRC, name: n, port: 0 }, 400, 'invalid'],
       ['port 70000', { ...SRC, name: n, port: 70000 }, 400, 'invalid'],
     ]
@@ -517,7 +517,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
   } finally { await c.dispose() }
 })
 
-// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP and TCP) or refused as not built (TLS, D-203), the others are bad_proto
+// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP and TCP) or refused because this plain-HTTP box has no certificate to serve (TLS, D-203, D-214), the others are bad_proto
 const KINDS: { id: string; protos: string[] }[] = JSON.parse(readFileSync(new URL('../../content/logs/kinds.json', import.meta.url), 'utf8'))
 test('every device type with every protocol on the real backend: allowed UDP/TCP saved, TLS refused, any other combination bad_proto (INV-3, QA row 44)', async () => {
   test.setTimeout(120_000)
@@ -671,7 +671,7 @@ test.fixme('digest: after the 24 h warm-up a log type never seen before is "new"
   await expect.poll(async () => (await api<{ new: unknown[] }>(c, 'GET', '/logs/digest')).body.new.length).toBeGreaterThan(0)
   await c.dispose()
 })
-test.fixme('a TLS source is served on 6514 with the pinned client certificate (POST-1; D-203: tls is refused until the listener exists)', async () => {
+test.fixme('a TLS source is served on the TLS port with the box certificate (POST-1, D-214; this box has no TLS config, so tls is refused with tls_unavailable until the e2e box serves TLS and puts the port in ready.json)', async () => {
   const c = await as('admin')
   const r = await api(c, 'POST', '/logs/sources', { kind: 'fortigate', name: uniq('lg'), sender_ip: '127.0.0.1', proto: 'tls', port: 6514 })
   expect(r.status).toBe(201)

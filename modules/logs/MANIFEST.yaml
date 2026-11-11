@@ -5,9 +5,9 @@ tier: optional
 default: off
 depends: [core, feeds, inventory]
 soft_depends: [notify, ai, response, sensor-passive]   # sensor-passive: cùng container sensor, nguồn metadata SPAN
-permissions: [net_bind_low, "outbound:siem"]   # cổng 514; SIEM do khách khai địa chỉ
-ports: ["udp/514", "tcp/514", "tcp/6514"]       # 6514 = syslog TLS (defaultPort của GUI)
-container: sensor      # D-55: nghe syslog + phân tích SPAN trong `sensor` (mạng host); lưu/gộp/API trong `core`. Giả định, xem câu hỏi mở 1
+permissions: ["outbound:siem"]   # không cần capability (D-167): listener bind cổng không đặc quyền 5514/5515; SIEM do khách khai địa chỉ
+ports: ["udp/514", "tcp/514", "tcp/6514"]       # cổng của hộp (publish 514->5514 udp+tcp, 6514->5515 tcp, D-167, D-214); 6514 = syslog TLS (defaultPort của GUI), chỉ khi hộp có chứng chỉ HTTPS
+container: core        # D-167: listener syslog chạy trong `core` (publish 514->5514, 6514->5515, không capability); chuyển sang `sensor` chỉ ở L6 (D-297, hoãn sau v1)
 tables_prefix: logs_
 tables: [logs_sources, logs_retention, logs_siem, logs_events, logs_source_buckets, logs_source_seen, logs_signature_daily, logs_signature_buckets, logs_signature_addrs, logs_anomaly_sent, logs_ioc_hits]   # config in the main database; logs_events, logs_source_*, logs_signature_*, logs_anomaly_sent, logs_ioc_hits in logs.db (INV-12)
 stories: [S-LOG-1, S-LOG-2, S-LOG-3, S-LOG-4]

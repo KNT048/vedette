@@ -320,7 +320,7 @@ func duplicate() error {
 
 // AddSource declares a source (POST /logs/sources). One source per sender address.
 func (s *Service) AddSource(ctx context.Context, user string, in Input) (Source, error) {
-	in, err := in.normalize()
+	in, err := in.normalize(s.cfg.Syslog.TLS != nil)
 	if err != nil {
 		return Source{}, err
 	}
@@ -367,7 +367,7 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 	if exists == 0 {
 		return Source{}, notFound()
 	}
-	in, err := in.normalize()
+	in, err := in.normalize(s.cfg.Syslog.TLS != nil)
 	if err != nil {
 		return Source{}, err
 	}

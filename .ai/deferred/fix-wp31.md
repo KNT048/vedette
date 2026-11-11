@@ -9,7 +9,6 @@ Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Me
 - [ ] R1 leftover (D-174 covers headers only): a credential-looking key in a template's JSON body (`"password"`, `"api_key"`, `"token"`...) or a secret typed into CLI text ends up in the chain/audit rows and chat messages; add a body-JSON credential-key check at save → slice R2.
 - [ ] L1, L2, L3, L5 response execution path (re-check earlier approver, count unknown-state items, hash-check undo, emergency stop interrupts a running step) + L4 (latent SYS-8, MCP annotations) + L9 (BoxAddrs for decoy IPs) → slice R2, after R1.
 - [ ] L7 response/notify: approver channel identity is typed by an admin, never proven by the user → needs a story criterion (link step in My account) first; slice R3.
-- [ ] M3 core/sensorlink: one sensor can hold all 64 link slots (unread chunked body, no read deadline) → slice S (Mac).
 - [ ] L11 honeypot: failed teardown never retried while the module is off (SYS-5) → slice H (Mac).
 - [ ] L13 honeypot: `clean()` keeps variation selectors → slice H.
 - [ ] L14 honeypot: Viewer sees bait passwords in full (INV-10) → decide in slice H (D-xx).

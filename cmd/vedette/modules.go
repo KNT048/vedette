@@ -113,7 +113,7 @@ func wiredModules() []moduleWiring {
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
 		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
-		{ID: "ai", Migrations: ai.Migrations},                                 // depends on core only (MANIFEST); last: nothing depends on it
+		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); last: nothing depends on it; the job prunes the activity log
 	}
 }
 

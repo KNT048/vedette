@@ -710,8 +710,9 @@ const iocChunkRows = 2000
 //
 // The list goes in as one transaction per iocChunkRows records, each re-reading the feed row: a feed edited,
 // switched off or deleted meanwhile stops the pull (stale) and no later chunk writes. Every upsert stamps
-// last_seen with this pull's stamp, so the last small transaction drops the listings still older than the stamp,
-// then runs finish (the outcome row, the audit entry) with the counts. Until then a reader sees the old and the new
+// last_seen with this pull's stamp, so the last transactions drop the listings that carry any other stamp (<>, not <:
+// a clock set back leaves older pulls stamped in the future; chunk 0 moves the stamp up by 1 ms until no listing of
+// the feed already has it), 2 000 at a time, and the last one runs finish (the outcome row, the audit entry) with the counts. Until then a reader sees the old and the new
 // list together, never fewer listings; a pull cut off halfway leaves extra rows that the next pull removes.
 // hook, when not nil, runs after each chunk has committed (tests).
 func applyIOCs(ctx context.Context, db *store.DB, now time.Time, src sourceRow, recs []iocInput, hook func(chunk int), finish func(tx *sql.Tx, added, removed int) error) (added, removed int, stale bool, err error) {
@@ -742,6 +743,18 @@ func applyIOCs(ctx context.Context, db *store.DB, now time.Time, src sourceRow, 
 				if before, err = count(tx); err != nil {
 					return fmt.Errorf("feeds: count listings: %w", err)
 				}
+				for { // a stamp no earlier pull of this feed used, so "any other stamp" means "not in this list"
+					var one int
+					err := tx.QueryRowContext(ctx, `SELECT 1 FROM feeds_ioc_source WHERE source_id = ? AND last_seen = ? LIMIT 1`, src.ID, stamp).Scan(&one)
+					if errors.Is(err, sql.ErrNoRows) {
+						break
+					}
+					if err != nil {
+						return fmt.Errorf("feeds: check stamp: %w", err)
+					}
+					now = now.Add(time.Millisecond)
+					stamp = store.FormatTS(now)
+				}
 			}
 			return upsertIOCs(ctx, tx, stamp, src.ID, part)
 		})
@@ -753,27 +766,33 @@ func applyIOCs(ctx context.Context, db *store.DB, now time.Time, src sourceRow, 
 		}
 		i = end
 	}
-	err = db.Write(ctx, func(tx *sql.Tx) error {
-		ok, err := live(tx)
-		if err != nil || !ok {
-			stale = !ok
-			return err
+	for last := false; !last; {
+		err = db.Write(ctx, func(tx *sql.Tx) error {
+			ok, err := live(tx)
+			if err != nil || !ok {
+				stale = !ok
+				return err
+			}
+			res, err := tx.ExecContext(ctx, `DELETE FROM feeds_ioc_source WHERE source_id = ?1 AND ioc_id IN (
+SELECT ioc_id FROM feeds_ioc_source WHERE source_id = ?1 AND last_seen <> ?2 LIMIT ?3)`, src.ID, stamp, iocChunkRows)
+			if err != nil {
+				return fmt.Errorf("feeds: drop listings: %w", err)
+			}
+			n, _ := res.RowsAffected()
+			removed += int(n)
+			if last = n < iocChunkRows; !last {
+				return nil
+			}
+			after, err := count(tx)
+			if err != nil {
+				return fmt.Errorf("feeds: count listings: %w", err)
+			}
+			added = after - (before - removed)
+			return finish(tx, added, removed)
+		})
+		if err != nil || stale {
+			return 0, 0, stale, err
 		}
-		res, err := tx.ExecContext(ctx, `DELETE FROM feeds_ioc_source WHERE source_id = ? AND last_seen < ?`, src.ID, stamp)
-		if err != nil {
-			return fmt.Errorf("feeds: drop listings: %w", err)
-		}
-		r64, _ := res.RowsAffected()
-		removed = int(r64)
-		after, err := count(tx)
-		if err != nil {
-			return fmt.Errorf("feeds: count listings: %w", err)
-		}
-		added = after - (before - removed)
-		return finish(tx, added, removed)
-	})
-	if err != nil || stale {
-		return 0, 0, stale, err
 	}
 	return added, removed, false, nil
 }

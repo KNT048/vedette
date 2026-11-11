@@ -149,3 +149,73 @@ func TestIOCCancelledPullLeavesExtraRowsNeverFewerAndTheNextConverges(t *testing
 		t.Errorf("next pull: %d listings, +%d -%d", got, added, removed)
 	}
 }
+
+// The deterministic form of the regression: when a chunk has committed, another write gets the connection now.
+func TestIOCWriteGetsInBetweenChunks(t *testing.T) {
+	t.Parallel()
+	e, _ := chunkEnv(t, testIPs(2*iocChunkRows+1))
+	ran := false
+	e.svc.afterChunk = func(chunk int) {
+		if chunk != 0 {
+			return
+		}
+		ran = true
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		if err := e.db.Write(ctx, func(*sql.Tx) error { return nil }); err != nil {
+			t.Errorf("a write between chunks: %v", err)
+		}
+	}
+	if c, b := e.fetch("et-open"); c != 200 {
+		t.Fatal(c, b)
+	}
+	if !ran {
+		t.Error("the hook never ran")
+	}
+}
+
+// A clock set back (NTP) leaves the earlier pull's rows stamped in the future; a listing that vanished is still removed.
+func TestIOCVanishedListingsGoEvenWhenTheClockWentBack(t *testing.T) {
+	t.Parallel()
+	e, o := chunkEnv(t, testIPs(50))
+	if c, b := e.fetch("et-open"); c != 200 {
+		t.Fatal(c, b)
+	}
+	o.body("/et.txt", `"e2"`, testIPs(20))
+	e.setNow(e.clock().Add(-2 * time.Hour))
+	if c, b := e.fetch("et-open"); c != 200 {
+		t.Fatal(c, b)
+	}
+	if got := listings(t, e); got != 20 {
+		t.Errorf("%d listings after a smaller list on a clock set back, want 20", got)
+	}
+	ev := e.pub.named(EventIOCUpdated)
+	if last := ev[len(ev)-1]; last != (IOCUpdatedEvent{FeedID: "et-open", Removed: 30}) {
+		t.Errorf("counts: %+v", last)
+	}
+}
+
+// The same instant twice (a frozen clock): the second pull must still tell old rows from new ones.
+func TestIOCVanishedListingsGoOnAFrozenClock(t *testing.T) {
+	t.Parallel()
+	_, db := newStore(t)
+	src, err := NewStore(db).source(t.Context(), "et-open")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ips := func(n int) []iocInput {
+		var out []iocInput
+		for _, l := range strings.Fields(testIPs(n)) {
+			out = append(out, iocInput{Kind: "ip", Value: l})
+		}
+		return out
+	}
+	ok := func(*sql.Tx, int, int) error { return nil }
+	if _, _, _, err := applyIOCs(t.Context(), db, epoch0, src, ips(30), nil, ok); err != nil {
+		t.Fatal(err)
+	}
+	_, removed, _, err := applyIOCs(t.Context(), db, epoch0, src, ips(10), nil, ok)
+	if err != nil || removed != 20 || listed(t, db, "et-open") != 10 {
+		t.Errorf("removed %d, listed %d, err %v", removed, listed(t, db, "et-open"), err)
+	}
+}

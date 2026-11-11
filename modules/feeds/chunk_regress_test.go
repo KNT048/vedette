@@ -19,12 +19,12 @@ func testIPs(n int) string {
 
 // A long indicator list must not hold the single writer connection for the whole apply: another write that
 // arrives during the pull gets it between chunks. The real list is 186k domains (~15 s on the e2e box, ~70 us a
-// row). The bound is relative (the longest wait must be under a third of the pull) because an absolute one
-// is not stable: under -race a 2000-row chunk takes seconds. 12k rows are 6 chunks, so the wait is about a
-// sixth of the pull; in one transaction it was the whole pull (measured with 40k rows: 2.3 s of 2.5 s).
+// row). The bound is relative (the longest wait must be under half of the pull) because an absolute one
+// is not stable: under -race a 2000-row chunk takes seconds. 20k rows are 10 chunks, so the wait is about a
+// tenth of the pull; in one transaction it was the whole pull. Not parallel: other tests would load the writer
+// and the box. The deterministic check is TestIOCWriteGetsInBetweenChunks.
 func TestIOCPullDoesNotHoldTheWriterForTheWholeList(t *testing.T) {
-	t.Parallel()
-	const rows = 12_000
+	const rows = 20_000
 	e, o := pullEnv(t)
 	e.only("et-open")
 	o.body("/et.txt", `"e1"`, testIPs(rows))
@@ -53,7 +53,7 @@ func TestIOCPullDoesNotHoldTheWriterForTheWholeList(t *testing.T) {
 	}
 	total := time.Since(began)
 	t.Logf("pull %v, %d probes, longest wait for the writer: %v", total, probes, worst)
-	if worst > total/3 {
+	if worst > total/2 {
 		t.Errorf("another write waited %v of a %v pull: the list was applied in one long transaction", worst, total)
 	}
 	if n := rowsOf(t, e.db, "feeds_ioc_source"); n != rows {

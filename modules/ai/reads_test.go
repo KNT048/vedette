@@ -43,7 +43,7 @@ func TestConfigReadIsAReadTheBoxMade(t *testing.T) {
 	a := newAskAPI(t)
 	a.conns.tools = []read.ReadTool{
 		{ConnectionID: "cn1", ConnectionName: "Edge firewall", Kind: "http", Name: "fetch_url", Schema: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"}},"additionalProperties":false}`)},
-		{ConnectionID: "cn2", ConnectionName: "Core switch‮", Kind: "ssh", Name: "show_run", Schema: json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)},
+		{ConnectionID: "cn2", ConnectionName: "Core switch\u202e", Kind: "ssh", Name: "show_run", Schema: json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)},
 	}
 	a.conns.out = map[string]string{"cn1/fetch_url": "status ok", "cn2/show_run": "hostname core"}
 	ctx := a.ctx()
@@ -64,7 +64,7 @@ func TestConfigReadIsAReadTheBoxMade(t *testing.T) {
 		if r.ConnectionID == "cn1" {
 			fw = r
 		}
-		if strings.ContainsRune(r.ConnectionName, '‮') {
+		if strings.ContainsRune(r.ConnectionName, '\u202e') {
 			t.Errorf("a bidi control was stored: %q", r.ConnectionName)
 		}
 	}

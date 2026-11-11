@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"container/list"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -19,21 +20,22 @@ import (
 
 // Limits are the bounds of the listener (S-LOG-1, SYS-6; starting points to measure, ponytail). A zero field takes its default.
 type Limits struct {
-	MaxLine       int           // bytes of one message kept (8 KiB, the rsyslog default); a longer one is cut and counted
-	MaxFrame      int           // largest datagram, octet count or newline-less line read (64 KiB)
-	MaxConns      int           // TCP connections at once, all sources (1,000)
-	MaxConnsIP    int           // TCP connections at once from one source (256)
-	Idle          time.Duration // a connection that sends nothing for this long is closed (5 min)
-	FrameTimeout  time.Duration // once a frame has started, the rest must arrive within this (30 s): slow-loris
-	Rate          float64       // lines a second one source may send (2,000)
-	Burst         int           // and the burst it may send at once (10,000); above Queue on purpose: the queue is the buffer behind the bucket, a UDP burst over it is dropped and counted, and TCP waits
-	BatchLines    int           // lines in a batch (500)
-	BatchBytes    int           // bytes of text in a batch (1 MiB)
-	BatchWait     time.Duration // the longest a line waits for its batch (2 s)
-	Queue         int           // lines waiting for a batch (4,096); a datagram is dropped and counted when it is full
-	UnknownKept   int           // senders remembered while counting the unknown ones (256, least recently seen out)
-	FlushOnClose  time.Duration // the longest a Sink call may take once the server is stopping (5 s)
-	ErrorLogEvery time.Duration // the least time between two log lines about a failing Sink (10 s)
+	MaxLine          int           // bytes of one message kept (8 KiB, the rsyslog default); a longer one is cut and counted
+	MaxFrame         int           // largest datagram, octet count or newline-less line read (64 KiB)
+	MaxConns         int           // TCP connections at once, all sources (1,000)
+	MaxConnsIP       int           // TCP connections at once from one source (256)
+	Idle             time.Duration // a connection that sends nothing for this long is closed (5 min)
+	HandshakeTimeout time.Duration // a TLS connection must finish its handshake within this (10 s): a half-open or silent one cannot hold a slot
+	FrameTimeout     time.Duration // once a frame has started, the rest must arrive within this (30 s): slow-loris
+	Rate             float64       // lines a second one source may send (2,000)
+	Burst            int           // and the burst it may send at once (10,000); above Queue on purpose: the queue is the buffer behind the bucket, a UDP burst over it is dropped and counted, and TCP waits
+	BatchLines       int           // lines in a batch (500)
+	BatchBytes       int           // bytes of text in a batch (1 MiB)
+	BatchWait        time.Duration // the longest a line waits for its batch (2 s)
+	Queue            int           // lines waiting for a batch (4,096); a datagram is dropped and counted when it is full
+	UnknownKept      int           // senders remembered while counting the unknown ones (256, least recently seen out)
+	FlushOnClose     time.Duration // the longest a Sink call may take once the server is stopping (5 s)
+	ErrorLogEvery    time.Duration // the least time between two log lines about a failing Sink (10 s)
 }
 
 func (l Limits) withDefaults() Limits {
@@ -53,6 +55,7 @@ func (l Limits) withDefaults() Limits {
 	def(&l.MaxConnsIP, 256)
 	defD(&l.Idle, 5*time.Minute)
 	defD(&l.FrameTimeout, 30*time.Second)
+	defD(&l.HandshakeTimeout, 10*time.Second)
 	if l.Rate <= 0 {
 		l.Rate = 2000
 	}
@@ -67,8 +70,8 @@ func (l Limits) withDefaults() Limits {
 	return l
 }
 
-// Source is a declared sender: the line's source id and the protocol it was declared with ("udp" or "tcp"; "tls" is not served
-// here). The sender is identified by its IP address only.
+// Source is a declared sender: the line's source id and the protocol it was declared with ("udp", "tcp" or "tls"; "tls" is served only
+// when Config.TLS is set). The sender is identified by its IP address only, also over TLS (no client certificate, D-214).
 type Source struct {
 	ID    string
 	Proto string
@@ -95,10 +98,14 @@ type Config struct {
 	Log    *slog.Logger
 	Now    func() time.Time // nil: time.Now
 	Limits Limits
+	// TLS is the server side of syslog over TLS (RFC 5425). Nil: "tls" sources are not served and nothing listens for TLS. Its
+	// GetCertificate is called for every handshake, so a renewed certificate is served with no restart. The TLS port is derived
+	// from Ports (tlsPorts): 514 gives 6514, any other port p gives p+1 (5514 gives 5515), 0 stays 0 (tests).
+	TLS *tls.Config
 }
 
-// Server owns the sockets. It opens a UDP socket only while a UDP source is declared and a TCP one only while a TCP source is
-// (nothing listens on a box with no sources), and closes them when the last such source goes (SetSources).
+// Server owns the sockets. It opens a UDP socket only while a UDP source is declared, a TCP one only while a TCP source is and a TLS
+// one only while a TLS source is and Config.TLS is set (nothing listens on a box with no sources), and closes them when the last such source goes (SetSources).
 type Server struct {
 	cfg Config
 	lim Limits
@@ -111,10 +118,12 @@ type Server struct {
 	srcView  atomic.Pointer[map[netip.Addr]Source]
 	udp      *net.UDPConn
 	tcp      net.Listener
-	bindErr  [2]string // why udp and tcp are wanted but not open
-	port     int       // the port chosen by the first listener that opened, 0 until then
+	tlsL     net.Listener // tls.NewListener over a TCP listener of its own: Accept hands out connections whose handshake has not run
+	bindErr  [3]string    // why udp, tcp and tls are wanted but not open
+	port     int          // the port chosen by the first plain listener that opened, 0 until then
+	tlsPort  int          // the same for TLS
 	fellBack bool
-	conns    map[net.Conn]netip.Addr
+	conns    map[net.Conn]connInfo
 	perIP    map[netip.Addr]int
 	wg       sync.WaitGroup
 
@@ -126,15 +135,16 @@ type Server struct {
 	unkMu   sync.Mutex
 	unknown *lru
 
-	logMu   sync.Mutex
-	lastLog time.Time
+	logMu     sync.Mutex
+	lastLog   time.Time
+	lastTLSLg time.Time
 
 	st counters
 }
 
 type counters struct {
 	received, unknown, rateDropped, queueDropped, truncated atomic.Int64
-	connRejected, badFrames, sinkLost                       atomic.Int64
+	connRejected, badFrames, sinkLost, handshakeFailed      atomic.Int64
 	rfc5424, rfc3164, cef, leef, raw                        atomic.Int64
 }
 
@@ -143,7 +153,7 @@ func New(cfg Config) (*Server, error) {
 	if cfg.Sink == nil || cfg.Log == nil || len(cfg.Ports) == 0 {
 		return nil, errors.New("listen: creating server: Sink, Log and Ports are required")
 	}
-	s := &Server{cfg: cfg, lim: cfg.Limits.withDefaults(), now: cfg.Now, sources: map[netip.Addr]Source{}, conns: map[net.Conn]netip.Addr{}, perIP: map[netip.Addr]int{}, buckets: map[string]*bucket{}}
+	s := &Server{cfg: cfg, lim: cfg.Limits.withDefaults(), now: cfg.Now, sources: map[netip.Addr]Source{}, conns: map[net.Conn]connInfo{}, perIP: map[netip.Addr]int{}, buckets: map[string]*bucket{}}
 	if s.now == nil {
 		s.now = time.Now
 	}
@@ -208,7 +218,7 @@ func (s *Server) Run(ctx context.Context) error {
 	<-ctx.Done()
 	s.mu.Lock()
 	s.running = false
-	s.closeLocked(true, true)
+	s.closeLocked(true, true, true)
 	s.mu.Unlock()
 	s.wg.Wait() // no producer is left: the batcher flushes what is queued and ends
 	close(quit)
@@ -218,14 +228,15 @@ func (s *Server) Run(ctx context.Context) error {
 
 // applyLocked opens and closes sockets to match the sources.
 func (s *Server) applyLocked() error {
-	var needUDP, needTCP bool
+	var needUDP, needTCP, needTLS bool
 	for _, src := range s.sources {
 		needUDP = needUDP || src.Proto == "udp"
 		needTCP = needTCP || src.Proto == "tcp"
+		needTLS = needTLS || (src.Proto == "tls" && s.cfg.TLS != nil)
 	}
-	s.closeLocked(!needUDP, !needTCP)
-	for conn, ip := range s.conns { // a sender that is gone or changed protocol
-		if src, ok := s.sources[ip]; !ok || src.Proto != "tcp" {
+	s.closeLocked(!needUDP, !needTCP, !needTLS)
+	for conn, ci := range s.conns { // a sender that is gone or changed protocol
+		if src, ok := s.sources[ci.ip]; !ok || src.Proto != ci.proto {
 			_ = conn.Close()
 		}
 	}
@@ -247,7 +258,17 @@ func (s *Server) applyLocked() error {
 		} else {
 			s.tcp = sock.(net.Listener)
 			s.wg.Add(1)
-			go s.acceptLoop(s.tcp)
+			go s.acceptLoop(s.tcp, "tcp")
+		}
+	}
+	if needTLS && s.tlsL == nil {
+		if sock, err := s.bind("tls"); err != nil {
+			errs = append(errs, fmt.Errorf("tls: %w", err))
+			s.noteBind(2, err)
+		} else {
+			s.tlsL = tls.NewListener(sock.(net.Listener), s.cfg.TLS) // the config is used as it is: GetCertificate runs for each handshake
+			s.wg.Add(1)
+			go s.acceptLoop(s.tlsL, "tls")
 		}
 	}
 	if s.udp != nil || !needUDP {
@@ -256,10 +277,13 @@ func (s *Server) applyLocked() error {
 	if s.tcp != nil || !needTCP {
 		s.noteBind(1, nil)
 	}
+	if s.tlsL != nil || !needTLS {
+		s.noteBind(2, nil)
+	}
 	return errors.Join(errs...)
 }
 
-// noteBind records why socket i (0 udp, 1 tcp) is not open, or clears it, and logs a failure when the reason is new (a retry
+// noteBind records why socket i (0 udp, 1 tcp, 2 tls) is not open, or clears it, and logs a failure when the reason is new (a retry
 // every half minute must not fill the log).
 func (s *Server) noteBind(i int, err error) {
 	text := ""
@@ -271,11 +295,11 @@ func (s *Server) noteBind(i int, err error) {
 	}
 	s.bindErr[i] = text
 	if err != nil {
-		s.cfg.Log.WarnContext(s.ctx, "logs: could not open a syslog socket; the other protocol is not affected and this one is retried", "proto", [2]string{"udp", "tcp"}[i], "err", err)
+		s.cfg.Log.WarnContext(s.ctx, "logs: could not open a syslog socket; the other protocol is not affected and this one is retried", "proto", [3]string{"udp", "tcp", "tls"}[i], "err", err)
 	}
 }
 
-func (s *Server) closeLocked(udp, tcp bool) {
+func (s *Server) closeLocked(udp, tcp, tlsOff bool) {
 	if udp && s.udp != nil {
 		_ = s.udp.Close()
 		s.udp = nil
@@ -283,19 +307,41 @@ func (s *Server) closeLocked(udp, tcp bool) {
 	if tcp && s.tcp != nil {
 		_ = s.tcp.Close()
 		s.tcp = nil
-		if !s.running {
-			for conn := range s.conns {
-				_ = conn.Close()
-			}
+	}
+	if tlsOff && s.tlsL != nil {
+		_ = s.tlsL.Close()
+		s.tlsL = nil
+	}
+	if !s.running {
+		for conn := range s.conns {
+			_ = conn.Close()
 		}
 	}
 }
 
+// tlsPorts maps the plain ports to the TLS ones: 514 to 6514 (RFC 5425), another port p to p+1 (the core container listens on 5514 and
+// publishes 6514 to 5515), 0 stays 0.
+func tlsPorts(ports []int) []int {
+	out := make([]int, len(ports))
+	for i, p := range ports {
+		switch {
+		case p == 514:
+			out[i] = 6514
+		case p > 0 && p < 65535:
+			out[i] = p + 1
+		}
+	}
+	return out
+}
+
 // bind opens one socket on the port in use, or tries the configured ports in order until one is permitted.
 func (s *Server) bind(proto string) (sock io.Closer, err error) {
-	ports := s.cfg.Ports
-	if s.port != 0 {
-		ports = []int{s.port}
+	ports, chosen := s.cfg.Ports, s.port
+	if proto == "tls" {
+		ports, chosen = tlsPorts(s.cfg.Ports), s.tlsPort
+	}
+	if chosen != 0 {
+		ports = []int{chosen}
 	}
 	var lc net.ListenConfig
 	for i, p := range ports {
@@ -306,6 +352,12 @@ func (s *Server) bind(proto string) (sock io.Closer, err error) {
 			sock, err = lc.Listen(s.ctx, "tcp4", addr)
 		}
 		if err == nil {
+			if proto == "tls" {
+				if p != 0 {
+					s.tlsPort = p
+				}
+				return sock, nil
+			}
 			if p != 0 {
 				s.port = p
 			}
@@ -335,22 +387,34 @@ func (s *Server) Addrs() (udp, tcp net.Addr) {
 	return udp, tcp
 }
 
+// TLSAddr is the address of the TLS socket; nil when it is not open.
+func (s *Server) TLSAddr() net.Addr {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.tlsL == nil {
+		return nil
+	}
+	return s.tlsL.Addr()
+}
+
 // Status says which port is in use and whether it is not the preferred one.
 type Status struct {
 	Port      int  // 0 until a socket has opened
 	Preferred int  // the first configured port
 	FellBack  bool // Port is not Preferred, because Preferred was not permitted
 	UDP, TCP  bool // sockets open
-	// UDPErr and TCPErr are why a socket that is wanted (a source of that protocol exists) is not open; empty otherwise.
-	UDPErr, TCPErr string
-	Conns          int // TCP connections open now
+	TLS       bool // the TLS socket is open
+	TLSPort   int  // the port of the TLS socket, 0 until it has opened
+	// UDPErr, TCPErr and TLSErr are why a socket that is wanted (a source of that protocol exists) is not open; empty otherwise.
+	UDPErr, TCPErr, TLSErr string
+	Conns                  int // TCP and TLS connections open now
 }
 
 // Status reports where the server listens.
 func (s *Server) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1], Conns: len(s.conns)}
+	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, TLS: s.tlsL != nil, TLSPort: s.tlsPort, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1], TLSErr: s.bindErr[2], Conns: len(s.conns)}
 }
 
 // UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
@@ -362,14 +426,15 @@ type UnknownSender struct {
 
 // Stats are the counters since the server started.
 type Stats struct {
-	Received     int64 // lines accepted into the queue
-	Unknown      int64 // datagrams and connections from senders that are not declared (or declared with another protocol)
-	RateDropped  int64 // lines over the per-source rate
-	QueueDropped int64 // datagrams dropped because the queue was full
-	Truncated    int64 // messages cut at MaxLine
-	ConnRejected int64 // connections over the total or per-sender limit
-	BadFrames    int64 // connections closed for a bad octet count, an oversized frame or a stream that ended inside one
-	SinkLost     int64 // lines in batches the Sink refused
+	Received        int64 // lines accepted into the queue
+	Unknown         int64 // datagrams and connections from senders that are not declared (or declared with another protocol)
+	RateDropped     int64 // lines over the per-source rate
+	QueueDropped    int64 // datagrams dropped because the queue was full
+	Truncated       int64 // messages cut at MaxLine
+	ConnRejected    int64 // connections over the total or per-sender limit
+	BadFrames       int64 // connections closed for a bad octet count, an oversized frame or a stream that ended inside one
+	SinkLost        int64 // lines in batches the Sink refused
+	HandshakeFailed int64 // TLS connections that did not complete the handshake (not TLS, a bad version, too slow)
 	// Formats counts accepted lines by what their header was: rfc5424, rfc3164, cef, leef, raw.
 	Formats       map[string]int64
 	UnknownSender []UnknownSender // most recent first, at most Limits.UnknownKept
@@ -379,7 +444,7 @@ type Stats struct {
 func (s *Server) Stats() Stats {
 	return Stats{
 		Received: s.st.received.Load(), Unknown: s.st.unknown.Load(), RateDropped: s.st.rateDropped.Load(), QueueDropped: s.st.queueDropped.Load(),
-		Truncated: s.st.truncated.Load(), ConnRejected: s.st.connRejected.Load(), BadFrames: s.st.badFrames.Load(), SinkLost: s.st.sinkLost.Load(),
+		Truncated: s.st.truncated.Load(), ConnRejected: s.st.connRejected.Load(), BadFrames: s.st.badFrames.Load(), SinkLost: s.st.sinkLost.Load(), HandshakeFailed: s.st.handshakeFailed.Load(),
 		Formats:       map[string]int64{FormatRFC5424: s.st.rfc5424.Load(), FormatRFC3164: s.st.rfc3164.Load(), "cef": s.st.cef.Load(), "leef": s.st.leef.Load(), FormatRaw: s.st.raw.Load()},
 		UnknownSender: s.unknownList(),
 	}
@@ -465,7 +530,9 @@ func (s *Server) udpLoop(c *net.UDPConn) {
 	}
 }
 
-func (s *Server) acceptLoop(l net.Listener) {
+// acceptLoop serves one listener: proto is "tcp" or "tls". A TLS Accept hands out the connection before its handshake, so the sender
+// check below runs before a single byte is read or a handshake is paid for; the handshake itself is in serveConn, under its own bound.
+func (s *Server) acceptLoop(l net.Listener, proto string) {
 	defer s.wg.Done()
 	for {
 		conn, err := l.Accept()
@@ -486,12 +553,12 @@ func (s *Server) acceptLoop(l net.Listener) {
 			continue
 		}
 		ip := ap.AddrPort().Addr().Unmap()
-		if _, ok := s.lookup(ip, "tcp"); !ok {
+		if _, ok := s.lookup(ip, proto); !ok {
 			s.noteUnknown(ip)
 			_ = conn.Close()
 			continue
 		}
-		switch s.register(l, conn, ip) {
+		switch s.register(l, conn, ip, proto) {
 		case regOverLimit:
 			s.st.connRejected.Add(1)
 			_ = conn.Close()
@@ -505,7 +572,7 @@ func (s *Server) acceptLoop(l net.Listener) {
 			continue
 		}
 		s.wg.Add(1)
-		go s.serveConn(conn, ip)
+		go s.serveConn(conn, ip, proto)
 	}
 }
 
@@ -519,21 +586,27 @@ const (
 
 // register counts a connection against the limits, and refuses it (regOK is the only success) when the sources changed while it
 // was being accepted: the sender must still be a TCP source and l still the listener in use, else the connection would outlive both.
-func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr) int {
+func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if l == nil || s.tcp != l {
+	if l == nil || (proto == "tcp" && s.tcp != l) || (proto == "tls" && s.tlsL != l) {
 		return regGone
 	}
-	if src, ok := s.sources[ip]; !ok || src.Proto != "tcp" {
+	if src, ok := s.sources[ip]; !ok || src.Proto != proto {
 		return regStale
 	}
 	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
 		return regOverLimit
 	}
-	s.conns[conn] = ip
+	s.conns[conn] = connInfo{ip: ip, proto: proto}
 	s.perIP[ip]++
 	return regOK
+}
+
+// connInfo is who a registered connection is and what it was accepted as.
+type connInfo struct {
+	ip    netip.Addr
+	proto string
 }
 
 func (s *Server) unregister(conn net.Conn, ip netip.Addr) {
@@ -545,7 +618,7 @@ func (s *Server) unregister(conn net.Conn, ip netip.Addr) {
 	}
 }
 
-func (s *Server) serveConn(conn net.Conn, ip netip.Addr) {
+func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 	defer s.wg.Done()
 	defer s.unregister(conn, ip)
 	defer func() { _ = conn.Close() }()
@@ -558,6 +631,17 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr) {
 		case <-done:
 		}
 	}()
+	if tc, ok := conn.(*tls.Conn); ok { // the handshake is bounded: a client that connects and says nothing must not hold a slot
+		_ = tc.SetDeadline(time.Now().Add(s.lim.HandshakeTimeout)) // the shutdown watcher above closes the connection too
+		err := tc.HandshakeContext(s.ctx)                          // bounded by the deadline above; a shutdown cancels it
+		_ = tc.SetDeadline(time.Time{})
+		if err != nil {
+			if s.ctx.Err() == nil {
+				s.handshakeFailed(ip, err)
+			}
+			return
+		}
+	}
 	br := bufio.NewReaderSize(conn, 4096)
 	for {
 		// Wait for the first byte of a frame under the idle deadline, past the line ends that a sender puts between frames (the
@@ -581,7 +665,7 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr) {
 			}
 			return
 		}
-		src, ok := s.lookup(ip, "tcp") // still declared, and under the same id
+		src, ok := s.lookup(ip, proto) // still declared, and under the same id
 		if !ok {
 			return
 		}
@@ -706,6 +790,18 @@ func (s *Server) batcher(ctx context.Context, quit <-chan struct{}) {
 				}
 			}
 		}
+	}
+}
+
+// handshakeFailed counts a failed TLS handshake and logs one now and then: a scanner or a device with the wrong protocol retries every
+// few seconds, and each of them must not be a line.
+func (s *Server) handshakeFailed(ip netip.Addr, err error) {
+	s.st.handshakeFailed.Add(1)
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
+	if now := s.now(); now.Sub(s.lastTLSLg) >= s.lim.ErrorLogEvery {
+		s.lastTLSLg = now
+		s.cfg.Log.WarnContext(s.ctx, "logs: a syslog TLS handshake failed (the device is not sending TLS, does not trust the certificate, or was too slow); more are only counted", "sender", ip.String(), "err", err)
 	}
 }
 

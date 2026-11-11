@@ -548,42 +548,49 @@ func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow, keep []KeepRow) (map
 // ftsTable is an FTS5 index and how it keeps its text (https://sqlite.org/fts5.html#external_content_and_contentless_tables).
 type ftsTable struct {
 	name string
-	mode string // "regular" (its own content), "external" (content=<table>) or "contentless" (content='')
+	mode string // "regular" (its own content), "external" (content=<table>) or "contentless" (content='' or content="")
 }
 
-// ftsTables lists the FTS5 virtual tables. The mode is read from the CREATE statement SQLite kept: a regular table has a
-// <name>_content shadow table, content=” (or "") is contentless, any other content= option names an external table.
+// fts5Create is the head of the CREATE statement SQLite keeps for an FTS5 table.
+var fts5Create = regexp.MustCompile(`(?is)^\s*create\s+virtual\s+table\s+(?:"(?:[^"]|"")*"|'(?:[^']|'')*'|\[[^\]]*\]|` + "`[^`]*`" + `|\S+)\s+using\s+fts5\s*\(`)
+
+// ftsTables lists the virtual tables and how each FTS5 one keeps its text, read from the CREATE statement SQLite kept: an
+// empty content= option is contentless, any other content= option names an external table, none is a regular table. A
+// virtual table that is not FTS5 (rtree, ...) fails the purge closed: wipe does not know how to empty it, and leaving its
+// rows would break "a new install" (INV-14).
 func ftsTables(ctx context.Context, tx *sql.Tx) ([]ftsTable, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT m.name, m.sql, EXISTS (SELECT 1 FROM sqlite_master c WHERE c.type = 'table' AND c.name = m.name || '_content')
-		FROM sqlite_master m JOIN pragma_table_list l ON l.schema = 'main' AND l.name = m.name
-		WHERE m.type = 'table' AND l.type = 'virtual' AND lower(m.sql) LIKE '%using%fts5%' ORDER BY m.name`)
+	rows, err := tx.QueryContext(ctx, `SELECT m.name, m.sql FROM pragma_table_list l JOIN sqlite_master m ON m.type = 'table' AND m.name = l.name
+		WHERE l.schema = 'main' AND l.type = 'virtual' ORDER BY m.name`)
 	if err != nil {
-		return nil, fmt.Errorf("core: purge: list FTS5 tables: %w", err)
+		return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
 	}
 	var out []ftsTable
 	for rows.Next() {
 		var (
-			t        ftsTable
-			text     string
-			hasOwned bool
+			t    ftsTable
+			text string
 		)
-		if err := rows.Scan(&t.name, &text, &hasOwned); err != nil {
+		if err := rows.Scan(&t.name, &text); err != nil {
 			_ = rows.Close()
-			return nil, fmt.Errorf("core: purge: list FTS5 tables: %w", err)
+			return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
+		}
+		if !fts5Create.MatchString(text) {
+			_ = rows.Close()
+			return nil, fmt.Errorf("core: purge: virtual table %s is not FTS5 and the purge cannot empty it", t.name)
 		}
 		opts := strings.ToLower(strings.Join(strings.Fields(text), ""))
 		switch {
-		case hasOwned:
-			t.mode = "regular"
 		case strings.Contains(opts, "content=''") || strings.Contains(opts, `content=""`):
 			t.mode = "contentless"
-		default:
+		case strings.Contains(opts, "content="):
 			t.mode = "external"
+		default:
+			t.mode = "regular"
 		}
 		out = append(out, t)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return nil, fmt.Errorf("core: purge: list FTS5 tables: %w", err)
+		return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
 	}
 	return out, nil
 }

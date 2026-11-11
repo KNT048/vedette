@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/store"
@@ -55,12 +56,18 @@ func TestPurgeKeepsFTS5IndexesWhole(t *testing.T) {
 		}
 	}
 
-	if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := wipe(ctx, tx, nil, nil); return err }); err != nil {
+	// A seed row of the content table (a migration INSERT) must be in the external index after the purge: rebuild, not
+	// delete-all. integrity-check with rank=1 also compares the index with the content table.
+	seeds := []seedRow{{table: "doc", cols: []string{"id", "body"}, vals: []any{int64(7), "seed firewall"}}}
+	if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := wipe(ctx, tx, seeds, nil); return err }); err != nil {
 		t.Fatalf("wipe: %v", err)
 	}
-	for _, f := range []string{"doc_fts", "own_fts", "bare_fts"} {
-		write(`INSERT INTO ` + f + `(` + f + `) VALUES ('integrity-check')`)
+	check := func() {
+		t.Helper()
+		write(`INSERT INTO doc_fts(doc_fts, rank) VALUES ('integrity-check', 1)`, `INSERT INTO own_fts(own_fts) VALUES ('integrity-check')`,
+			`INSERT INTO bare_fts(bare_fts) VALUES ('integrity-check')`)
 	}
+	check()
 	count := func(q string) int {
 		t.Helper()
 		var n int
@@ -68,6 +75,9 @@ func TestPurgeKeepsFTS5IndexesWhole(t *testing.T) {
 			t.Fatalf("%s: %v", q, err)
 		}
 		return n
+	}
+	if n := count(`SELECT count(*) FROM doc_fts WHERE doc_fts MATCH 'seed'`); n != 1 {
+		t.Errorf("the seed row of the content table: %d matches, want 1", n)
 	}
 	if n := count(`SELECT count(*) FROM doc_fts WHERE doc_fts MATCH 'tuong'`) + count(`SELECT count(*) FROM own_fts WHERE own_fts MATCH 'old'`) + count(`SELECT count(*) FROM bare_fts WHERE bare_fts MATCH 'old'`); n != 0 {
 		t.Errorf("%d index entries survived the purge", n)
@@ -81,7 +91,35 @@ func TestPurgeKeepsFTS5IndexesWhole(t *testing.T) {
 		t.Errorf("regular + contentless indexes after the purge: %d matches, want 2", n)
 	}
 	write(`DELETE FROM doc`)
-	for _, f := range []string{"doc_fts", "own_fts", "bare_fts"} {
-		write(`INSERT INTO ` + f + `(` + f + `) VALUES ('integrity-check')`)
+	check()
+}
+
+// A virtual table the purge does not know how to empty (anything but FTS5) fails it closed: nothing is deleted.
+func TestPurgeRefusesAVirtualTableItCannotEmpty(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		for _, q := range []string{`CREATE TABLE doc (id INTEGER PRIMARY KEY, body TEXT)`, `INSERT INTO doc (body) VALUES ('kept')`,
+			`CREATE VIRTUAL TABLE box USING rtree(id, x0, x1)`, `INSERT INTO box VALUES (1, 0, 1)`} {
+			if _, err := tx.ExecContext(ctx, q); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err = db.Write(ctx, func(tx *sql.Tx) error { _, err := wipe(ctx, tx, nil, nil); return err })
+	if err == nil || !strings.Contains(err.Error(), "not FTS5") {
+		t.Fatalf("wipe with an rtree table = %v, want a refusal", err)
+	}
+	var n int
+	if err := db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM doc`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("rows after a refused purge = %d (%v), want 1", n, err)
 	}
 }

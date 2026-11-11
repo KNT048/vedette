@@ -83,10 +83,11 @@ func TestContract_INV7_HTTPUserRules(t *testing.T) {
 	second := admin.post("/core/users", map[string]any{"name": "Two", "email": "two@acme.example", "role": "admin"})
 	wantOK(t, second, 201)
 	secondID := second.JSON["user"].(map[string]any)["id"].(string)
-	// With a second administrator the first may step down; and the second is then the last.
-	wantOK(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 200)
+	// With a second administrator the first may step down (once the second chose their own password, D-180); and the second is then the last.
+	wantStatus(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 400, "last_admin") // the second still has a temporary password
 	two := w.client()
-	wantOK(t, two.post("/auth/login", map[string]any{"email": "two@acme.example", "password": second.str("temp_password")}), 200)
+	two.loginTemp("two@acme.example", second.str("temp_password"))
+	wantOK(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 200)
 	wantStatus(t, two.patch("/core/users/"+secondID, map[string]any{"disabled": true}), 400, "self_disable")
 	wantStatus(t, two.patch("/core/users/"+secondID, map[string]any{"role": "operator"}), 400, "last_admin")
 	// The demoted administrator is a viewer now: every admin route refuses them (the role is read on each request).
@@ -123,8 +124,8 @@ func TestUsers_ResetTwoFA(t *testing.T) {
 	wantStatus(t, admin.post("/core/users/u-nope/2fa/reset", nil), 404, "not_found")
 
 	bob := w.client()
-	wantOK(t, bob.post("/auth/login", map[string]any{"email": "bob@acme.example", "password": bobC.str("temp_password")}), 200)
-	start := bob.post("/core/account/2fa/start", map[string]any{"password": bobC.str("temp_password")})
+	bob.loginTemp("bob@acme.example", bobC.str("temp_password"))
+	start := bob.post("/core/account/2fa/start", map[string]any{"password": authtest.Password})
 	wantOK(t, start, 200)
 	wantOK(t, bob.post("/core/account/2fa/confirm", map[string]any{"code": auth.TOTPCode(decodeBase32(t, start.str("secret")), auth.TOTPStep(w.env.Clock.Now()))}), 200)
 	w.env.Clock.Advance(time.Minute)
@@ -139,7 +140,7 @@ func TestUsers_ResetTwoFA(t *testing.T) {
 	}
 	wantOK(t, admin.post("/core/users/"+bobID+"/2fa/reset", nil), 200)
 	wantStatus(t, bob.get("/me"), 401, "unauthenticated") // every session of that user ended
-	wantOK(t, w.client().post("/auth/login", map[string]any{"email": "bob@acme.example", "password": bobC.str("temp_password")}), 200)
+	wantOK(t, w.client().login("bob@acme.example"), 200)
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'user.2fa_reset' AND target = 'bob@acme.example' AND detail LIKE 'was authenticator app%'"); n != 1 {
 		t.Fatal("no user.2fa_reset audit row")
 	}
@@ -216,4 +217,79 @@ func TestUsers_TemporaryPasswordSignsInForEveryRole(t *testing.T) {
 		wantStatus(t, w.client().post("/auth/login", map[string]any{"email": email, "password": temp}), 400, "invalid_credentials")
 		wantOK(t, w.client().post("/auth/login", map[string]any{"email": email, "password": temp2}), 200)
 	}
+}
+
+// D-180 over HTTP: a password an administrator set must be changed at first sign-in. Until then the session reads /me, changes the
+// password and signs out, and every other call is 403 password_change_required; the temporary password also ends after 72 hours.
+func TestUsers_FirstSignInForcesAPasswordChange(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	wantOK(t, admin.get("/me"), 200)
+	if admin.get("/me").JSON["password_change_required"] != false {
+		t.Fatal("the administrator who chose their own password is limited")
+	}
+	made := admin.post("/core/users", map[string]any{"name": "Hana", "email": "hana@acme.example", "role": "operator"})
+	wantOK(t, made, 201)
+	temp := made.str("temp_password")
+
+	hana := w.client()
+	wantOK(t, hana.post("/auth/login", map[string]any{"email": "hana@acme.example", "password": temp}), 200)
+	me := hana.get("/me")
+	wantOK(t, me, 200)
+	if me.JSON["password_change_required"] != true {
+		t.Fatalf("/me = %s", me.Raw)
+	}
+	for _, path := range []string{"/core/account", "/modules", "/core/general", "/core/privacy"} {
+		wantStatus(t, hana.get(path), 403, "password_change_required")
+	}
+	wantStatus(t, hana.post("/core/account/2fa/start", map[string]any{"password": temp}), 403, "password_change_required")
+	wantStatus(t, hana.patch("/core/account", map[string]any{"name": "Other"}), 403, "password_change_required")
+
+	wantStatus(t, hana.post("/core/account/password", map[string]any{"current": "wrong", "next": "a brand new password"}), 400, "wrong_password")
+	wantStatus(t, hana.post("/core/account/password", map[string]any{"current": temp, "next": "short"}), 400, "weak_password")
+	wantStatus(t, hana.post("/core/account/password", map[string]any{"current": temp, "next": temp}), 400, "same_password")
+	wantStatus(t, hana.get("/core/account"), 403, "password_change_required")
+	wantOK(t, hana.post("/core/account/password", map[string]any{"current": temp, "next": "a brand new password"}), 200)
+
+	wantOK(t, hana.get("/core/account"), 200)
+	if hana.get("/me").JSON["password_change_required"] != false {
+		t.Fatal("the flag survived the change")
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'account.password' AND target = 'hana@acme.example' AND detail = 'temporary password replaced'"); n != 1 {
+		t.Fatal("no audit row for the replacement of the temporary password")
+	}
+	wantStatus(t, w.client().post("/auth/login", map[string]any{"email": "hana@acme.example", "password": temp}), 400, "invalid_credentials")
+
+	// A limited user can sign out.
+	other := w.client()
+	reset := admin.post("/core/users/"+made.JSON["user"].(map[string]any)["id"].(string)+"/reset-password", nil)
+	wantOK(t, reset, 200)
+	wantOK(t, other.post("/auth/login", map[string]any{"email": "hana@acme.example", "password": reset.str("temp_password")}), 200)
+	wantStatus(t, other.get("/modules"), 403, "password_change_required")
+	if r := other.post("/auth/logout", nil); r.Code != 204 {
+		t.Fatalf("logout of a limited session = %d", r.Code)
+	}
+	wantStatus(t, other.get("/me"), 401, "unauthenticated")
+}
+
+func TestUsers_TemporaryPasswordEndsAfter72Hours(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	made := admin.post("/core/users", map[string]any{"name": "Hana", "email": "hana@acme.example", "role": "viewer"})
+	wantOK(t, made, 201)
+	login := func(pw string) reply {
+		return w.client().post("/auth/login", map[string]any{"email": "hana@acme.example", "password": pw})
+	}
+	w.env.Clock.Advance(71 * time.Hour)
+	wantOK(t, login(made.str("temp_password")), 200)
+	w.env.Clock.Advance(2 * time.Hour)
+	wantStatus(t, login(made.str("temp_password")), 400, "temp_password_expired")
+	wantStatus(t, login("not the password"), 400, "invalid_credentials")
+	admin = w.client() // the administrator's own session idled out meanwhile
+	wantOK(t, admin.login("admin@acme.example"), 200)
+	reset := admin.post("/core/users/"+made.JSON["user"].(map[string]any)["id"].(string)+"/reset-password", nil)
+	wantOK(t, reset, 200)
+	wantOK(t, login(reset.str("temp_password")), 200)
 }

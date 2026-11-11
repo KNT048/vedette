@@ -505,7 +505,7 @@ type Handler interface {
 	// CorePostAuthLogin implements core_post_auth_login operation.
 	//
 	// Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-	// and 401 twofa_required).
+	// and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180).
 	//
 	// POST /auth/login
 	CorePostAuthLogin(ctx context.Context, req *CorePostAuthLoginReq) (*CorePostAuthLoginOK, error)
@@ -557,7 +557,8 @@ type Handler interface {
 	CorePostCoreAccount2FAStart(ctx context.Context, req *CorePostCoreAccount2FAStartReq) (*CorePostCoreAccount2FAStartOK, error)
 	// CorePostCoreAccountPassword implements core_post_core_account_password operation.
 	//
-	// Change password (needs the current password).
+	// Change password (needs the current password). The same call ends the temporary-password limit of
+	// D-180: the new password must differ from the temporary one.
 	//
 	// POST /core/account/password
 	CorePostCoreAccountPassword(ctx context.Context, req *CorePostCoreAccountPasswordReq) (*CorePostCoreAccountPasswordOK, error)
@@ -670,7 +671,8 @@ type Handler interface {
 	CorePostCoreUpdatesRollback(ctx context.Context, req *CorePostCoreUpdatesRollbackReq) (*CorePostCoreUpdatesRollbackOK, error)
 	// CorePostCoreUsers implements core_post_core_users operation.
 	//
-	// Create a user with a role; returns a temporary password once.
+	// Create a user with a role; returns a temporary password once. The user must change it at first
+	// sign-in and it expires after 72 hours (D-180).
 	//
 	// POST /core/users
 	CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (*CorePostCoreUsersCreated, error)
@@ -683,7 +685,8 @@ type Handler interface {
 	CorePostCoreUsersID2FAReset(ctx context.Context, params CorePostCoreUsersID2FAResetParams) (*CorePostCoreUsersID2FAResetOK, error)
 	// CorePostCoreUsersIDResetPassword implements core_post_core_users_id_reset_password operation.
 	//
-	// Reset password: temporary password once, ends all of that user's sessions.
+	// Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180),
+	// ends all of that user's sessions.
 	//
 	// POST /core/users/{id}/reset-password
 	CorePostCoreUsersIDResetPassword(ctx context.Context, params CorePostCoreUsersIDResetPasswordParams) (*CorePostCoreUsersIDResetPasswordOK, error)

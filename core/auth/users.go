@@ -33,6 +33,8 @@ type NewUser struct {
 	Email        string
 	Role         routes.Role
 	PasswordHash string
+	// Temporary: an administrator chose the password (D-180): it works for TempPasswordLifetime and the user must replace it.
+	Temporary bool
 }
 
 // CreateUser inserts an account inside the caller's transaction and writes user.create. Refusals are
@@ -52,7 +54,11 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 	}
 	id := store.NewID("u")
 	now := s.now()
-	err := q.InsertUser(ctx, coredb.InsertUserParams{ID: id, Name: name, Email: email, Role: string(in.Role), PasswordHash: in.PasswordHash, CreatedAt: store.FormatTS(now)})
+	var temp *string
+	if in.Temporary {
+		temp = s.tempExpiry()
+	}
+	err := q.InsertUser(ctx, coredb.InsertUserParams{ID: id, Name: name, Email: email, Role: string(in.Role), PasswordHash: in.PasswordHash, TempPasswordExpiresAt: temp, CreatedAt: store.FormatTS(now)})
 	if store.IsUniqueViolation(err) { // two creates of one email raced past the check above
 		return User{}, apierr.New(409, CodeDuplicate, "This email already has an account.")
 	}
@@ -62,7 +68,7 @@ func (s *Service) CreateUser(ctx context.Context, tx *sql.Tx, actor string, in N
 	if err := s.audit.Append(ctx, tx, audit.Entry{User: actor, Action: "user.create", Target: email, Detail: "role " + string(in.Role)}); err != nil {
 		return User{}, err
 	}
-	return User{ID: id, Name: name, Email: email, Role: in.Role, CreatedAt: now}, nil
+	return User{ID: id, Name: name, Email: email, Role: in.Role, CreatedAt: now, PasswordChangeRequired: in.Temporary}, nil
 }
 
 // ValidateUserFields applies the rules of a new account's name, email and role and returns the email as it
@@ -185,8 +191,9 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSess
 	})
 }
 
-// ResetPassword is POST /core/users/{id}/reset-password (admin): it sets a new random temporary password,
-// ends every session of that user (INV-7) and returns the password. It is returned this once and never
+// ResetPassword is POST /core/users/{id}/reset-password (admin): it sets a new random temporary password
+// (TempPasswordLifetime, replaced by the user at the next sign-in, D-180), ends every session of that user
+// (INV-7) and returns the password. It is returned this once and never
 // stored in the clear: the handler passes it on in the response and nowhere else.
 func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorSessionID, targetID string) (string, error) {
 	t, err := coredb.New(s.db.Reader()).GetUserByID(ctx, targetID)
@@ -210,7 +217,7 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 		if refusal, err := s.adminRefusal(ctx, coredb.New(tx), actorID, actorSessionID); refusal != nil || err != nil {
 			return struct{}{}, refusal, err
 		}
-		if n, err := coredb.New(tx).UpdateUserPassword(ctx, coredb.UpdateUserPasswordParams{PasswordHash: hash, ID: t.ID}); err != nil || n == 0 {
+		if n, err := coredb.New(tx).UpdateUserPassword(ctx, coredb.UpdateUserPasswordParams{PasswordHash: hash, TempPasswordExpiresAt: s.tempExpiry(), ID: t.ID}); err != nil || n == 0 {
 			if err == nil {
 				return struct{}{}, notFound(), nil
 			}
@@ -232,7 +239,8 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 // counted by the same rate limit as sign-in), the new one must pass the policy (weak_password) and differ
 // (same_password). Every session of the user ends, the current one (currentSessionID) included, and a new
 // session for the same browser is returned for the handler to set as cookies (Sessions.Replace): the user
-// stays signed in, a copy of the old cookie does not.
+// stays signed in, a copy of the old cookie does not. It also ends the limit of a temporary password
+// (D-180): the statement that stores the hash clears core_user.temp_password_expires_at.
 func (s *Service) ChangeOwnPassword(ctx context.Context, userID, currentSessionID, current, next string) (Issued, error) {
 	t, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -274,7 +282,11 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID, currentSessionI
 		if err != nil {
 			return Issued{}, nil, err
 		}
-		return fresh, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.password", Target: t.Email})
+		detail := ""
+		if t.TempPasswordExpiresAt != nil {
+			detail = "temporary password replaced"
+		}
+		return fresh, nil, s.audit.Append(ctx, tx, audit.Entry{User: t.Email, Action: "account.password", Target: t.Email, Detail: detail})
 	})
 }
 

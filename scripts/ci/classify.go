@@ -24,6 +24,7 @@ var rules = []rule{
 	{"web/src/features/response/templates/", Result{true, true}}, // Go reads the *.sample.json files
 	{"web/src/features/core/testdata/", Result{true, true}},      // Go reads connections_matrix.json and keys/
 	{"web/src/features/core/bundles.ts", Result{true, true}},     // modules/core/handlers_setup_test.go
+	{"web/src/locales/en/core.json", Result{true, true}},         // modules/core/auditlabels_test.go: every audit action has a label
 
 	// No test reads these.
 	{".ai/", Result{}},

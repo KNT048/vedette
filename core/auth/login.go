@@ -144,6 +144,9 @@ func disabledError() *apierr.Error {
 //     and resend_after (the code was just mailed); with a bad Code, no session: invalid_code (app) or the
 //     email-code errors of EmailCodes.Verify. An email-method account whose channel cannot send is 503
 //     twofa_email_unavailable, never password-only;
+//     A password an administrator set that is past TempPasswordLifetime is refused here, once it is proven
+//     right: 400 temp_password_expired (D-180). One inside its window signs in, and its session is limited
+//     (server.Principal.PasswordChangeRequired);
 //  4. on success one transaction first re-reads the account and refuses when its password, disabled flag or
 //     two-step method changed since step 2 (a reset or disable that committed meanwhile wins), then creates
 //     the session, sets last_login, stores the TOTP step (a code is accepted once), upgrades an outdated
@@ -169,6 +172,14 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 			return LoginResult{}, err
 		}
 		return LoginResult{}, disabledError()
+	}
+
+	// D-180: the password is right, but an administrator-set one past its window cannot sign in; the administrator resets it again.
+	if tempExpired(row.TempPasswordExpiresAt, s.now()) {
+		if err := s.auditFailure(ctx, row.Email, row.Email, "temporary password expired"); err != nil {
+			return LoginResult{}, err
+		}
+		return LoginResult{}, apierr.New(400, CodeTempExpired, "This temporary password has expired. Ask an administrator for a new one.")
 	}
 
 	code := strings.Join(strings.Fields(req.Code), "")

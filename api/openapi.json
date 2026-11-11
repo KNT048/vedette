@@ -12708,7 +12708,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 13 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -12732,7 +12732,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 13
+                            "maximum": 14
                           },
                           "state": {
                             "type": "string",
@@ -12760,7 +12760,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 13 flows listed in PRIVACY.md"
+                      "description": "Exactly the 14 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -12867,7 +12867,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 13
+                            "maximum": 14
                           },
                           "state": {
                             "type": "string",
@@ -12895,7 +12895,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 13 flows listed in PRIVACY.md"
+                      "description": "Exactly the 14 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",

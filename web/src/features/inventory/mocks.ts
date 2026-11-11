@@ -698,7 +698,8 @@ export const handlers = [
     const password = b.password ? b.password : prev!.password
     const conn: StoredWazuh = {
       url: (b.url ?? '').trim().replace(/\/+$/, ''), username: (b.username ?? '').trim(), password, password_last4: password.slice(-4), interval_minutes: Number(b.interval_minutes),
-      status: prev?.status ?? 'never', last_sync: prev?.last_sync ?? null, agents: prev?.agents ?? 0, packages: prev?.packages ?? 0, error: null,
+      // the check just passed: 'never' until the first pull, else 'connected' (the next pull says more), as the backend does (D-309)
+      status: prev?.last_sync ? 'connected' : 'never', last_sync: prev?.last_sync ?? null, agents: prev?.agents ?? 0, packages: prev?.packages ?? 0, error: null,
     }
     wazuhStore.set(conn)
     audit('inventory.wazuh_connect', conn.url, `user ${conn.username}, every ${conn.interval_minutes} min`)

@@ -83,27 +83,84 @@ func parseOne(s string) (netip.Addr, bool) {
 var remoteKeys = set("rhost", "rip", "remip", "remote", "remote_ip", "remote_addr", "remoteaddr", "remote_address", "client", "client_ip", "clientip",
 	"client_addr", "src", "srcip", "src_ip", "source_ip", "sourceip", "source_address", "saddr", "peer", "peer_ip", "ipaddress", "ip_address", "ip")
 
-// remoteWords are the words after which a peer address comes: sshd "from 1.2.3.4", "closed by 1.2.3.4".
-var remoteWords = set("from", "by")
-
-// genericRemote finds the peer address of a line that no profile settled, by the layouts that daemons share: key=value with a key of
-// remoteKeys, the word after "from" or "by", host[addr] (postfix) and name/addr:port (OpenVPN). It returns the address only when every
-// countable candidate of the line is the same address: with two different ones it returns none (D-210). Candidates inside a double-quoted
-// span (a request line, a referer, a user agent: text the client controls) are skipped, and a bare word that is an address is a candidate too,
-// so the client address that starts an access-log line is read and an injected one elsewhere makes the line ambiguous. A user name, a workstation or a
-// URL is text an attacker writes ("src=8.8.8.8", "from 8.8.8.8", "a[8.8.8.8]"), and the first match from the left would name an innocent
-// address for a ban (fail2ban CVE-2007-4321, DenyHosts CVE-2007-4323); a line with a second address is one in which no word can be
-// trusted to be the peer. The price is that an attacker can hide by adding an address of its own to the line; it cannot be framed by it.
-// It does not use regular expressions (it runs on every line of a device without a profile).
+// genericRemote finds the peer address of a line that no profile settled (D-210, round 3). It is a POSITIONAL ALLOWLIST: an address is
+// read only from a position where a daemon puts its peer, and any other address-shaped word makes the line ambiguous, so it has none:
+//
+//	(a) the first word of the message (after a "tag:" word) when the line is an access-log line (ADDR ident user [date] ...): nginx, apache;
+//	(b) sshd "from ADDR port N", "by ADDR port N" and "user NAME ADDR port N": the address is directly followed by " port <digits>";
+//	(c) apache error "[client ADDR]" and "[client ADDR:port]";
+//	(d) key=value with a key of remoteKeys (rhost, rip, client, src ...): the value is a site even when it is empty or "-".
+//
+// A line yields an address only when it has such sites, every site is the same countable address, and no other word of the line is an
+// address (quoted or not, in JSON, after "user", in a URI). Words inside a double-quoted span, or that open a quoted span with " or ', are
+// text the client controls and are never a site; an odd number of unescaped double quotes gives none. Missing data beats a framed address:
+// TopAddresses feeds automatic bans (fail2ban CVE-2007-4321, DenyHosts CVE-2007-4323). It does not use regular expressions.
 func genericRemote(msg string) netip.Addr {
-	var found netip.Addr
-	prev := ""
-	words := 0
-	if unbalancedQuotes(msg) { // a quote written into the line (a user name) could hide the real address and expose a written one
+	if unbalancedQuotes(msg) {
 		return netip.Addr{}
 	}
-	inQuote := false // inside a double-quoted span: text the client of the daemon controls (a request line, a user agent, a referer)
-	for i := 0; i < len(msg) && words < maxRemoteWords; {
+	words := splitWords(msg)
+	first := 0
+	if len(words) > 0 && strings.HasSuffix(words[0], ":") {
+		first = 1
+	}
+	var sites []string
+	stray := false
+	inQuote := false
+	prev, prev2 := "", ""
+	for n, w := range words {
+		if w == "" {
+			prev, prev2 = "", ""
+			continue
+		}
+		quoted := inQuote || w[0] == '"' || w[0] == '\''
+		for k := 0; k < len(w); k++ {
+			if w[k] == '"' && (k == 0 || w[k-1] != '\\') {
+				inQuote = !inQuote
+			}
+		}
+		site := false
+		if !quoted {
+			eq := strings.IndexByte(w, '=')
+			switch {
+			case eq > 0 && eq < 24:
+				if remoteKeys[lowerKey(w[:eq])] {
+					sites, site = append(sites, w[eq+1:]), true
+				}
+			case n == first && accessLog(words[n:]):
+				sites, site = append(sites, w), true
+			case (prev == "from" || prev == "by") && portFollows(words, n+1), prev2 == "user" && portFollows(words, n+1):
+				sites, site = append(sites, w), true
+			case prev == "[client":
+				sites, site = append(sites, strings.TrimSuffix(w, "]")), true
+			}
+		}
+		if !site {
+			if a, ok := ParseAddr(w); ok && Countable(a) {
+				stray = true
+			}
+		}
+		prev2, prev = prev, lowerKey(strings.TrimRight(w, ":"))
+	}
+	if stray || len(sites) == 0 {
+		return netip.Addr{}
+	}
+	var found netip.Addr
+	for _, v := range sites {
+		a, ok := ParseAddr(v)
+		if !ok || !Countable(a) || found.IsValid() && found != a {
+			return netip.Addr{}
+		}
+		found = a
+	}
+	return found
+}
+
+// splitWords cuts the line at spaces and tabs into at most maxRemoteWords words; a word that is too long to be an address is "" (it keeps
+// its position).
+func splitWords(msg string) []string {
+	var out []string
+	for i := 0; i < len(msg) && len(out) < maxRemoteWords; {
 		if msg[i] == ' ' || msg[i] == '\t' {
 			i++
 			continue
@@ -112,53 +169,31 @@ func genericRemote(msg string) netip.Addr {
 		for j < len(msg) && msg[j] != ' ' && msg[j] != '\t' {
 			j++
 		}
-		w := msg[i:j]
+		if j-i > maxAddrText+24 {
+			out = append(out, "")
+		} else {
+			out = append(out, msg[i:j])
+		}
 		i = j
-		words++
-		if len(w) > maxAddrText+24 {
-			prev = ""
-			continue
-		}
-		quoted := inQuote
-		for k := 0; k < len(w); k++ {
-			if w[k] == '"' && (k == 0 || w[k-1] != '\\') {
-				inQuote = !inQuote
-			}
-		}
-		if quoted {
-			prev = lowerKey(strings.TrimRight(w, ":"))
-			continue
-		}
-		var cands [4]string // a word can be a candidate in more than one way: "x[8.8.8.8]/203.0.113.40:5" is two
-		cands[3] = w        // a bare word that is an address is a candidate too: the client address of an access log is the first word
-		if eq := strings.IndexByte(w, '='); eq > 0 && eq < 24 {
-			if remoteKeys[lowerKey(w[:eq])] {
-				cands[0] = w[eq+1:]
-			}
-		} else if remoteWords[prev] && (prev != "by" || strings.HasPrefix(msg[j:], " port ")) { // sshd "closed by 1.2.3.4 port 22"
-			cands[0] = w
-		}
-		if b := strings.IndexByte(w, '['); b > 0 && strings.IndexByte(w, ']') > b { // unknown[1.2.3.4]:
-			cands[1] = w
-		}
-		if s := strings.IndexByte(w, '/'); s > 0 { // bob/1.2.3.4:5555
-			cands[2] = w[strings.LastIndexByte(w, '/')+1:]
-		}
-		for _, cand := range cands {
-			if cand == "" {
-				continue
-			}
-			if a, ok := ParseAddr(cand); ok && Countable(a) {
-				if found.IsValid() && found != a {
-					return netip.Addr{}
-				}
-				found = a
-			}
-		}
-		prev = lowerKey(strings.TrimRight(w, ":"))
 	}
-	return found
+	return out
 }
+
+// portFollows says whether the words from i are "port <digits>".
+func portFollows(words []string, i int) bool {
+	if i+1 >= len(words) || words[i] != "port" || words[i+1] == "" {
+		return false
+	}
+	for _, c := range words[i+1] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// accessLog says whether the words are the start of a common or combined access-log line: ADDR ident user [date.
+func accessLog(w []string) bool { return len(w) >= 4 && strings.HasPrefix(w[3], "[") }
 
 // unbalancedQuotes says whether the line has an odd number of unescaped double quotes: then no quoted span can be told from text.
 func unbalancedQuotes(msg string) bool {

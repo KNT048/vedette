@@ -109,15 +109,15 @@ func TestGenericRemote(t *testing.T) {
 		{"sudo: bob : TTY=pts/0 ; PWD=/home/bob ; USER=root ; COMMAND=/bin/ls", ""},
 		{"su[99]: FAILED SU (to root) bob on pts/1", ""},
 		{"dovecot: imap-login: Disconnected (auth failed, 3 attempts in 10 secs): user=<bob>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2, TLS", "203.0.113.20"},
-		{"postfix/smtpd[77]: NOQUEUE: reject: RCPT from unknown[203.0.113.30]: 554 5.7.1 Relay access denied; from=<a@b.example> to=<c@d.example>", "203.0.113.30"},
-		{"postfix/smtpd[77]: warning: unknown[203.0.113.31]: SASL LOGIN authentication failed: UGFzc3dvcmQ6", "203.0.113.31"},
-		{"postfix/smtpd[77]: connect from mail.example.com[2001:db8::31]", "2001:db8::31"},
-		{"postfix/smtpd[77]: disconnect from unknown[203.0.113.32] ehlo=1 auth=0/1 commands=1/2", "203.0.113.32"},
+		{"postfix/smtpd[77]: NOQUEUE: reject: RCPT from unknown[203.0.113.30]: 554 5.7.1 Relay access denied; from=<a@b.example> to=<c@d.example>", ""}, // R3: not an allowlisted position: none
+		{"postfix/smtpd[77]: warning: unknown[203.0.113.31]: SASL LOGIN authentication failed: UGFzc3dvcmQ6", ""},                                       // R3: not an allowlisted position: none
+		{"postfix/smtpd[77]: connect from mail.example.com[2001:db8::31]", ""},                                                                          // R3: not an allowlisted position: none
+		{"postfix/smtpd[77]: disconnect from unknown[203.0.113.32] ehlo=1 auth=0/1 commands=1/2", ""},                                                   // R3: not an allowlisted position: none
 		{"postfix/smtpd[77]: lost connection after CONNECT from localhost[127.0.0.1]", ""},
 		{"postfix/submission/smtpd[7]: client=unknown[203.0.113.33], sasl_username=bob", "203.0.113.33"},
-		{"openvpn[1]: bob/203.0.113.40:51820 TLS Error: TLS handshake failed", "203.0.113.40"},
-		{"openvpn[1]: 203.0.113.41:51820 TLS Error: TLS key negotiation failed", "203.0.113.41"}, // R2: a bare address word is a candidate
-		{"openvpn[1]: TLS: Initial packet from [AF_INET]203.0.113.42:51820, sid=abc", "203.0.113.42"},
+		{"openvpn[1]: bob/203.0.113.40:51820 TLS Error: TLS handshake failed", ""},        // R3: not an allowlisted position: none
+		{"openvpn[1]: 203.0.113.41:51820 TLS Error: TLS key negotiation failed", ""},      // R3: not an allowlisted position: none
+		{"openvpn[1]: TLS: Initial packet from [AF_INET]203.0.113.42:51820, sid=abc", ""}, // R3: not an allowlisted position: none
 		{"kernel: IN=eth0 OUT= SRC=203.0.113.50 DST=10.0.0.1 LEN=60 PROTO=TCP SPT=4444 DPT=22", "203.0.113.50"},
 		{"app: login failed user=bob ip=203.0.113.60 reason=bad-password", "203.0.113.60"},
 		{`app: login failed client_ip="203.0.113.61"`, "203.0.113.61"},
@@ -128,37 +128,54 @@ func TestGenericRemote(t *testing.T) {
 		{"app: login failed from 169.254.3.3", ""},
 		{"app: login failed from fe80::1%eth0", ""},
 		{"app: login failed from 255.255.255.255", ""},
-		{"app: login failed from 127.0.0.1 then from 203.0.113.70", "203.0.113.70"}, // the first countable one
-		{"app: login failed from ::ffff:203.0.113.71", "203.0.113.71"},
-		{"app: login failed from [2001:db8::71]:4433", "2001:db8::71"},
+		{"app: login failed from 127.0.0.1 then from 203.0.113.70", ""}, // R3: no " port N": not a site
+		{"app: login failed from ::ffff:203.0.113.71", ""},              // R3: no " port N": not a site
+		{"app: login failed from [2001:db8::71]:4433", ""},              // R3: no " port N": not a site
 		{"app: login failed from not-an-address", ""},
 		{"app: from", ""},
-		{"app: 192.168.1.5 is mentioned with no layout", "192.168.1.5"}, // R2: the only address of the line
-		{"app: gw=203.0.113.99 dst=1.1.1.1", ""},                        // dst and gw are not the peer
+		{"app: 192.168.1.5 is mentioned with no layout", ""}, // R3: the framing primitive: not an access-log line
+		{"app: gw=203.0.113.99 dst=1.1.1.1", ""},             // dst and gw are not the peer
 		// H1 (D-210): text that an attacker writes (a user name, a URL) must not name another address. Two different candidates in one line:
 		// no address at all (the line still counts everywhere else); the same address twice is one.
 		{"sshd[1]: Invalid user src=8.8.8.8 from 203.0.113.5 port 22", ""},
 		{"sshd[1]: Invalid user x from 8.8.8.8 from 203.0.113.5 port 22", ""},
 		{"sshd[1]: Failed password for invalid user rhost=8.8.8.8 from 203.0.113.5 port 22 ssh2", ""},
-		{"sshd[1]: Failed password for invalid user a/8.8.8.8:1 from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Failed password for invalid user a/8.8.8.8:1 from 203.0.113.5 port 22 ssh2", "203.0.113.5"}, // R3: a/addr:port is no site and no address word
 		{"sshd[1]: Failed password for invalid user a[8.8.8.8] from 203.0.113.5 port 22 ssh2", ""},
 		{"sshd[1]: Failed password for invalid user ip=10.0.0.1 from 203.0.113.5 port 22 ssh2", ""},
 		{"sshd[1]: Failed password for invalid user rip=8.8.8.8 from 203.0.113.5 port 22 ssh2", ""},
 		{"sshd[1]: Connection closed by invalid user by 8.8.8.8 203.0.113.5 port 22 [preauth]", ""}, // "by" counts only before "addr port"
 		{"sshd[1]: Failed password for root from 203.0.113.5 port 22 ssh2 rhost=203.0.113.5", "203.0.113.5"},
-		{"nginx: 203.0.113.5 - - \"GET /login?client=8.8.8.8 HTTP/1.1\" 401", "203.0.113.5"}, // R2: the request is a quoted span; the client is the first word
+		{"nginx: 203.0.113.5 - - \"GET /login?client=8.8.8.8 HTTP/1.1\" 401", ""}, // R3: not an access-log line
 		// R2 H1: nginx and apache have no profile; the text of the request, the referer and the agent is the client's.
 		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST http://h/8.8.8.8 HTTP/1.1\" 401 12", "203.0.113.5"},
-		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST /a[8.8.8.8] HTTP/1.1\" 401 12", "203.0.113.5"},
-		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12 \"from 8.8.8.8\" \"src=8.8.8.8\"", "203.0.113.5"},
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST /a[8.8.8.8] HTTP/1.1\" 401 12", ""},                        // R3: an address in a quoted span makes the line ambiguous
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12 \"from 8.8.8.8\" \"src=8.8.8.8\"", ""}, // R3: an address in a quoted span makes the line ambiguous
 		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12 \"-\" \"curl\"", "203.0.113.5"},
 		{"nginx: - - - [10/Nov/2026:10:00:00 +0000] \"POST /a[8.8.8.8] HTTP/1.1\" 401 12 \"src=8.8.8.8\"", ""}, // no client address: the quoted text is not read
 		{"nginx: 203.0.113.5 - 8.8.8.8 [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12", ""},           // an unquoted second address: ambiguous
 		{"sshd[1]: Invalid user x src=8.8.8.8 \" from 203.0.113.5 port 22 ssh2", ""},                           // an odd quote could hide the real address: none
-		{"app: GET /a/8.8.8.8:80 from 203.0.113.5", "203.0.113.5"},
+		// R3: a lone address-shaped word in a field the attacker writes is never the peer; only the allowlisted positions are read.
+		{"apache2: [client 203.0.113.5:4444] AH01618: user 8.8.8.8 not found: /admin", ""},
+		{"apache2: [client 203.0.113.5:4444] AH01617: user 8.8.8.8: authentication failure for \"/admin\": Password Mismatch", ""},
+		{"apache2: [client 203.0.113.5] user 8.8.8.8 not found: /admin", ""},
+		{"apache2: [client 203.0.113.5:4444] AH01618: user bob not found: /admin", "203.0.113.5"},
+		{"apache2: [client 203.0.113.5] user bob not found: /admin", "203.0.113.5"},
+		{"apache2: AH00126: Invalid URI in request GET 8.8.8.8 HTTP/1.1", ""},
+		{"sshd: input_userauth_request: invalid user 8.8.8.8 [preauth]", ""},
+		{"pam_succeed_if(sshd:auth): error retrieving information about user 8.8.8.8", ""},
+		{`app: {"event": "login_failed", "user": "8.8.8.8", "ip": "203.0.113.5"}`, ""},
+		{"app: login failed for user '8.8.8.8'", ""},
+		{`app: login failed for "8.8.8.8 x" reason "bad password"`, ""},
+		{"sshd[1]: Failed password for invalid user admin from 203.0.113.9 port 51234 ssh2", "203.0.113.9"},
+		{"sshd[1]: Connection closed by authenticating user root 203.0.113.9 port 22 [preauth]", "203.0.113.9"},
+		{"sshd[1]: Connection closed by authenticating user 8.8.8.8 203.0.113.9 port 22 [preauth]", ""},
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"GET / HTTP/1.1\" 200 5 \"-\" \"curl\"", "203.0.113.5"},
+		{"203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"GET / HTTP/1.1\" 200 5", "203.0.113.5"},
+		{"app: GET /a/8.8.8.8:80 from 203.0.113.5", ""}, // R3: no " port N": not a site
 		{"app: GET http://x/8.8.8.8 from 203.0.113.5", ""},
 		{"dovecot: imap-login: Disconnected (auth failed): user=<a rip=8.8.8.8>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", ""},
-		{"dovecot: imap-login: Disconnected (auth failed): user=<a/8.8.8.8:1>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", ""},
+		{"dovecot: imap-login: Disconnected (auth failed): user=<a/8.8.8.8:1>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", "203.0.113.20"}, // R3: a/addr:port is no site and no address word
 		{"postfix/smtpd[7]: NOQUEUE: reject: RCPT from unknown[203.0.113.30]: 554 5.7.1 <x[8.8.8.8]>: Relay access denied", ""},
 		{"openvpn[1]: x[8.8.8.8]/203.0.113.40:51820 TLS Error", ""},
 		{"openvpn[1]: by/203.0.113.40:51820 from 8.8.8.8", ""},
@@ -260,7 +277,7 @@ func TestRemoteFallsBackToTheGenericReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r := demo.Of("demo", `type="traffic" action="deny" from 203.0.113.82`); r.Profile != "demo" || r.Remote != addrOf(t, "203.0.113.82") {
+	if r := demo.Of("demo", `type="traffic" action="deny" from 203.0.113.82 port 22`); r.Profile != "demo" || r.Remote != addrOf(t, "203.0.113.82") {
 		t.Fatalf("%+v", r)
 	}
 }

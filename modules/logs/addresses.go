@@ -183,9 +183,13 @@ func (u *pendingUpdate) apply(s *Service) {
 	if len(s.pend) <= MaxPendingAddrs {
 		return
 	}
-	byGroup := map[[2]string]*pendGroup{}
+	type groupKey struct {
+		source string
+		sig    int64
+	}
+	byGroup := map[groupKey]*pendGroup{}
 	for k := range s.pend {
-		gk := [2]string{k.source, fmt.Sprint(k.sig)}
+		gk := groupKey{k.source, k.sig}
 		g := byGroup[gk]
 		if g == nil {
 			g = &pendGroup{source: k.source, sig: k.sig}

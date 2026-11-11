@@ -373,7 +373,7 @@ func TestContract_TopAddresses_BucketQuotaCoversEverySignature(t *testing.T) {
 	src := e.addLinux("FW-HQ", "192.168.10.1")
 	words := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet"}
 	line := func(k int, ip string) string {
-		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s", words[k%10], words[k/10%10], ip)
+		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s port 1000", words[k%10], words[k/10%10], ip)
 	}
 	sigs := map[string]bool{}
 	for k := 0; k < 100; k++ {
@@ -553,12 +553,12 @@ func TestMeasureIngestCostOfAddresses(t *testing.T) {
 	run("one address", 20, func(int) string { return sshFail("203.0.113.9") })
 	run("500 addresses, one signature", 20, func(i int) string { return sshFail(spoof(i)) })
 	run("addresses of 25 signatures", 20, func(i int) string {
-		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s tunnel refused from %s", words[i%25], spoof(i+100000))
+		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s tunnel refused from %s port 1000", words[i%25], spoof(i+100000))
 	})
 	// The worst case for the quotas: the bucket is full of one-line rows, and every batch brings 250 new addresses of two lines each, which
 	// each push out a row (a delete and an insert).
 	run("churn: 250 new addresses x 2 lines, bucket full", 20, func(i int) string {
-		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s tunnel refused from %s", words[i/2%25], spoof(i/2+300000))
+		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s tunnel refused from %s port 1000", words[i/2%25], spoof(i/2+300000))
 	})
 }
 
@@ -641,7 +641,7 @@ func TestContract_TopAddresses_SlowAttackerBehindAFullBucketIsKept(t *testing.T)
 
 func vpnLine(k int, ip string) string {
 	words := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet"}
-	return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s", words[k%10], words[k/10%10], ip)
+	return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s port 1000", words[k%10], words[k/10%10], ip)
 }
 
 // The memory of the addresses without a row is bounded.

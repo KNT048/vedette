@@ -7,53 +7,171 @@ import (
 )
 
 // Mine turns a log message into its template: the words that make a kind of line stay, the values that change from one line
-// to the next are masked. IPv4 addresses (with their port) become <ip>, hexadecimal values, MAC and IPv6 addresses <hex>, and
-// every run of digits <n>, so "user admin logged in from 192.168.10.113 via winbox" and the same line from another address
-// have the same template. It is the template miner of the generic profile (Drain-style, with fixed masks instead of a learned
-// tree: it needs no state, so the same line has the same signature on any box, in any order, after a restart).
-// Mine is total: any input gives a non-empty, valid UTF-8 text of at most MaxSignatureBytes bytes, with no control character.
+// to the next are masked, so that a device cannot make one signature per value. Masked: IPv4 addresses (with their port) -> <ip>,
+// hexadecimal values, MAC and IPv6 addresses -> <hex>, digit runs -> <n>, a long identifier or random-looking token -> <tok>,
+// a path (a word that starts with "/") -> <path>, a quoted string -> <s>, the value after "=" -> <v> unless it is a short plain
+// word (an enumeration such as action=deny) or an address or number, and the name that follows "user", "username" or "for"
+// -> <name> ("Invalid user oracle" and "Invalid user postgres" are one signature; a list of user names is not a list of
+// signatures). The rule is fixed and has no state, so the same line has the same signature on any box, in any order, after a
+// restart (Drain-style template mining without the learned tree). Mine is total: any input gives a non-empty, valid UTF-8 text
+// of at most MaxSignatureBytes bytes, with no control character.
 func Mine(text string) string {
-	text = strings.ToValidUTF8(clip(text, maxScan), "?")
+	text = maskQuotes(strings.ToValidUTF8(clip(text, maxScan), "?"))
+	var out []string
+	size, maskNext := 0, false
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return r == ' ' || unicode.IsControl(r) }) {
+		if size >= MaxSignatureBytes {
+			break
+		}
+		var m string
+		switch low := lowerWord(w); {
+		case maskNext && (low == "invalid" || low == "illegal" || low == "user" || low == "username"): // "for invalid user x": the name comes after "user"
+			m = w
+		case maskNext && plainName(w):
+			m, maskNext = "<name>", false
+		default:
+			m, maskNext = maskWord(w), low == "user" || low == "username" || low == "for"
+		}
+		out = append(out, m)
+		size += len(m) + 1
+	}
+	res := strings.TrimSpace(cut(strings.Join(out, " "), MaxSignatureBytes))
+	if res == "" {
+		return "(empty)"
+	}
+	return res
+}
+
+// lowerWord is the word in ASCII lower case without the punctuation that ends it.
+func lowerWord(w string) string {
+	return strings.ToLower(strings.TrimRight(w, ":,;."))
+}
+
+// plainName says whether w can be the name of an account: it starts with a letter and has only letters, digits and . _ - (at most 64).
+func plainName(w string) bool {
+	if w == "" || len(w) > 64 || (w[0] < 'A' || w[0] > 'Z' && w[0] < 'a' || w[0] > 'z') {
+		return false
+	}
+	for i := 0; i < len(w); i++ {
+		if !isAtomByte(w[i]) || w[i] == ':' {
+			return false
+		}
+	}
+	return true
+}
+
+// enumLike says whether v is a short plain word: letters, '_' and '-' only, at most 16 bytes (deny, accept, forward).
+func enumLike(v string) bool {
+	if v == "" || len(v) > 16 {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		if c := v[i]; (c < 'A' || c > 'Z' && c < 'a' || c > 'z') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// maskQuotes replaces every "quoted string" (closed within 256 bytes) by <s>, or by the bare word when it is an enumeration.
+func maskQuotes(s string) string {
+	if !strings.Contains(s, `"`) {
+		return s
+	}
 	var b strings.Builder
-	space := false
-	for i := 0; i < len(text) && b.Len() < MaxSignatureBytes; {
-		c := text[i]
-		switch {
-		case c == ' ' || c == '\t' || c < 0x20 || c == 0x7f:
-			space = true
+	for i := 0; i < len(s); {
+		if s[i] != '"' {
+			b.WriteByte(s[i])
 			i++
 			continue
-		case isAtomByte(c):
-			if space && b.Len() > 0 {
-				b.WriteByte(' ')
+		}
+		end := -1
+		for j := i + 1; j < len(s) && j <= i+256; j++ {
+			if s[j] == '\\' {
+				j++
+				continue
 			}
-			space = false
+			if s[j] == '"' {
+				end = j
+				break
+			}
+		}
+		if end < 0 { // not closed: the quote is just a character
+			b.WriteByte('"')
+			i++
+			continue
+		}
+		if in := s[i+1 : end]; enumLike(in) {
+			b.WriteString(in)
+		} else {
+			b.WriteString("<s>")
+		}
+		i = end + 1
+	}
+	return b.String()
+}
+
+// maskWord masks one word (no space in it).
+func maskWord(w string) string {
+	if len(w) > 1 && w[0] == '/' {
+		return "<path>"
+	}
+	if i := strings.IndexByte(w, '='); i > 0 {
+		key := w[:i]
+		ok := true
+		for k := 0; k < len(key); k++ {
+			if !isAtomByte(key[k]) || key[k] == ':' {
+				ok = false
+			}
+		}
+		if ok {
+			return maskPlain(key) + "=" + maskValue(w[i+1:])
+		}
+	}
+	return maskPlain(w)
+}
+
+// maskValue masks what follows "=": a short plain word stays, an address, a number or a hex value keep their own mask, everything
+// else is <v>. Punctuation that ends the value stays where it is.
+func maskValue(v string) string {
+	core := strings.TrimRight(v, ",;)]}")
+	tail := v[len(core):]
+	switch {
+	case core == "":
+		return v
+	case core[0] == '<': // already masked (a quoted string)
+		return v
+	case enumLike(core):
+		return v
+	}
+	switch m := maskPlain(core); m {
+	case "<ip>", "<n>", "<hex>":
+		return m + tail
+	}
+	return "<v>" + tail
+}
+
+// maskPlain walks a word and masks its atoms; punctuation and non-ASCII text are kept as they are.
+func maskPlain(text string) string {
+	var b strings.Builder
+	for i := 0; i < len(text); {
+		c := text[i]
+		if isAtomByte(c) {
 			j := i
 			for j < len(text) && isAtomByte(text[j]) {
 				j++
 			}
 			maskAtom(&b, text[i:j])
 			i = j
-		default: // punctuation and non-ASCII text are kept as they are
-			r, n := utf8.DecodeRuneInString(text[i:])
-			if unicode.IsControl(r) { // C1 controls: a space, like the C0 ones
-				space = true
-				i += n
-				continue
-			}
-			if space && b.Len() > 0 {
-				b.WriteByte(' ')
-			}
-			space = false
-			b.WriteString(text[i : i+n])
-			i += n
+			continue
 		}
+		r, n := utf8.DecodeRuneInString(text[i:])
+		if r == utf8.RuneError && n == 1 || !unicode.IsControl(r) {
+			b.WriteString(text[i : i+n])
+		}
+		i += n
 	}
-	out := strings.TrimSpace(cut(b.String(), MaxSignatureBytes))
-	if out == "" {
-		return "(empty)"
-	}
-	return out
+	return b.String()
 }
 
 // isAtomByte says whether c can be part of a word or a value: letters, digits and the joiners of addresses and identifiers.
@@ -84,6 +202,10 @@ func maskAtom(b *strings.Builder, a string) {
 		}
 		if hexLike(a) {
 			b.WriteString("<hex>")
+			return
+		}
+		if randomLike(a) {
+			b.WriteString("<tok>")
 			return
 		}
 		for i := 0; i < len(a); {
@@ -177,4 +299,26 @@ func cut(s string, n int) string {
 		n--
 	}
 	return s[:n]
+}
+
+// randomLike says whether an atom looks like an identifier or a random token and not like a word: 16 bytes or more with letters and
+// digits mixed, or 20 bytes or more with an upper-case letter after the first character, or 24 bytes or more with a digit or an
+// upper-case letter (session ids, base64, tokens, serial numbers).
+func randomLike(a string) bool {
+	if len(a) < 16 {
+		return false
+	}
+	digit, letter, upper := false, false, false
+	for i := 0; i < len(a); i++ {
+		switch c := a[i]; {
+		case isDigit(c):
+			digit = true
+		case c >= 'A' && c <= 'Z':
+			letter = true
+			upper = upper || i > 0
+		case c >= 'a' && c <= 'z':
+			letter = true
+		}
+	}
+	return digit && letter || len(a) >= 20 && upper || len(a) >= 24 && (digit || upper)
 }

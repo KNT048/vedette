@@ -103,10 +103,11 @@ type sourceRow struct {
 	ID, Kind, Name, SenderIP, Proto string
 	Port                            int
 	CreatedAt                       time.Time
+	Since                           time.Time // signatures_since: zero when the kind and the sender never changed
 }
 
 func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
-	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, created_at FROM logs_sources ORDER BY created_at, id`)
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, created_at, signatures_since FROM logs_sources ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("logs: reading sources: %w", err)
 	}
@@ -115,11 +116,17 @@ func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
 	for rows.Next() {
 		var r sourceRow
 		var created string
-		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &created); err != nil {
+		var since sql.NullString
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &created, &since); err != nil {
 			return nil, fmt.Errorf("logs: reading sources: %w", err)
 		}
 		if r.CreatedAt, err = time.Parse("2006-01-02T15:04:05.000Z", created); err != nil {
 			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		}
+		if since.Valid {
+			if r.Since, err = time.Parse("2006-01-02T15:04:05.000Z", since.String); err != nil {
+				return nil, fmt.Errorf("logs: reading sources: %w", err)
+			}
 		}
 		out = append(out, r)
 	}
@@ -311,7 +318,7 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 		if err := s.checkSender(ctx, tx, in.SenderIP, id); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET kind = ?, name = ?, sender_ip = ?, proto = ?, port = ? WHERE id = ?`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id)
+		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET signatures_since = CASE WHEN kind <> ?1 OR sender_ip <> ?3 THEN ?7 ELSE signatures_since END, kind = ?1, name = ?2, sender_ip = ?3, proto = ?4, port = ?5 WHERE id = ?6`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id, store.FormatTS(s.now()))
 		if err != nil {
 			if store.IsUniqueViolation(err) {
 				return duplicate()

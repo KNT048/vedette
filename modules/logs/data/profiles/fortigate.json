@@ -4,7 +4,7 @@
   "kinds": ["fortigate"],
   "rule": {
     "type": "kv",
-    "fields": ["type", "subtype", "logid", "action", "dstport", "msg"],
+    "fields": ["type", "subtype", "logid", "action", "msg"],
     "mined": ["msg"],
     "src_field": "srcip",
     "dst_field": "dstip"
@@ -12,7 +12,7 @@
   "samples": [
     {
       "line": "<189>date=2026-11-09 time=10:00:00 devname=\"FW-HQ\" logid=\"0000000013\" type=\"traffic\" subtype=\"forward\" level=\"warning\" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action=\"deny\" policyid=3",
-      "signature": "type=traffic subtype=forward logid=0000000013 action=deny dstport=3389",
+      "signature": "type=traffic subtype=forward logid=0000000013 action=deny",
       "src": "45.9.148.20",
       "dest": "192.168.10.1"
     },

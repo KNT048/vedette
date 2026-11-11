@@ -14,11 +14,16 @@ import (
 
 // Limits of the signature counters (INV-1: a device is an untrusted source, so what it can add to the tables is bounded).
 const (
-	// MaxSignaturesPerDay is how many (signature, destination) rows one source can have in a UTC day; the lines past it are counted
-	// under OtherSignature. ponytail: 2,000, one constant; a real device has tens to hundreds of kinds of line.
-	MaxSignaturesPerDay = 2000
-	// MaxSignaturesPerBucket is the same for one 5-minute bucket of the counters that Counts reads.
-	MaxSignaturesPerBucket = 500
+	// MaxMinedPerDay and MaxProfilePerDay are how many signature rows one source can have in a UTC day, for the lines read by the
+	// generic miner and for the lines read by a device profile: separate quotas, so that a flood of mined lines cannot push a profile
+	// signature out. The lines past a quota are counted under OtherSignature. ponytail: 1,000 and 2,000, one constant each; a real
+	// device has tens to hundreds of kinds of line. Worst case per source: 3,001 rows of at most about 700 bytes (signature 240,
+	// destination 64, sample 300, key and overhead) = about 2 MiB a day, 20 MiB over the 10 days that are kept.
+	MaxMinedPerDay   = 1000
+	MaxProfilePerDay = 2000
+	// MaxMinedPerBucket and MaxProfilePerBucket are the same for one 5-minute bucket of the counters that Counts reads.
+	MaxMinedPerBucket   = 500
+	MaxProfilePerBucket = 500
 	// OtherSignature is where the lines past the caps are counted.
 	OtherSignature = "(other)"
 	// MaxSampleBytes is how much of the first line of a row is kept as its sample.
@@ -31,12 +36,14 @@ const (
 // ErrBadWindow is returned by Counts for a window outside CountsMinWindow..CountsMaxWindow.
 var ErrBadWindow = errors.New("logs: the window must be between 5 minutes and 24 hours")
 
-type dailyKey struct{ day, source, signature, dest string }
+type dailyKey struct{ day, source, signature string }
 
 type dailyVal struct {
 	n      int
 	first  time.Time
 	sample string
+	dest   string // of the latest line
+	mined  bool
 }
 
 type bucketKey struct {
@@ -45,18 +52,23 @@ type bucketKey struct {
 	signature string
 }
 
+type bucketVal struct {
+	n     int
+	mined bool
+}
+
 // sigBatch is what one batch of lines adds to the counters: a flood of identical lines is one entry.
 type sigBatch struct {
 	daily  map[dailyKey]*dailyVal
-	bucket map[bucketKey]int
+	bucket map[bucketKey]*bucketVal
 }
 
-// tally turns a batch of sanitized lines into counter increments. kinds maps a declared source id to its device kind. Pure: no
-// database (the memo makes a flood of identical lines cost one signature, not one per line).
+// tally turns a batch of sanitized lines (in receive order) into counter increments. kinds maps a declared source id to its device
+// kind. Pure: no database (the memo makes a flood of identical lines cost one signature, not one per line).
 func (s *Service) tally(kinds map[string]string, keep []Line) sigBatch {
 	type memoKey struct{ kind, text string }
 	memo := map[memoKey]signature.Result{}
-	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]int{}}
+	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]*bucketVal{}}
 	for _, l := range keep {
 		kind := kinds[l.SourceID]
 		r, ok := memo[memoKey{kind, l.Text}]
@@ -64,16 +76,25 @@ func (s *Service) tally(kinds map[string]string, keep []Line) sigBatch {
 			r = s.sigs.Of(kind, l.Text)
 			memo[memoKey{kind, l.Text}] = r
 		}
-		k := dailyKey{l.At.UTC().Format("2006-01-02"), l.SourceID, r.Signature, r.Dest}
+		mined := r.Profile == signature.GenericProfile
+		k := dailyKey{l.At.UTC().Format("2006-01-02"), l.SourceID, r.Signature}
 		if v := b.daily[k]; v != nil {
 			v.n++
 			if l.At.Before(v.first) {
 				v.first, v.sample = l.At, sampleOf(l.Text)
 			}
+			if r.Dest != "" {
+				v.dest = r.Dest
+			}
 		} else {
-			b.daily[k] = &dailyVal{n: 1, first: l.At, sample: sampleOf(l.Text)}
+			b.daily[k] = &dailyVal{n: 1, first: l.At, sample: sampleOf(l.Text), dest: r.Dest, mined: mined}
 		}
-		b.bucket[bucketKey{l.SourceID, l.At.Unix() / bucketSeconds, r.Signature}]++
+		bk := bucketKey{l.SourceID, l.At.Unix() / bucketSeconds, r.Signature}
+		if v := b.bucket[bk]; v != nil {
+			v.n++
+		} else {
+			b.bucket[bk] = &bucketVal{n: 1, mined: mined}
+		}
 	}
 	return b
 }
@@ -89,77 +110,115 @@ func sampleOf(text string) string {
 	return text[:n]
 }
 
+// What one key costs: a key under its quota is one statement, INSERT ... ON CONFLICT DO UPDATE, whose RETURNING says whether the row is
+// new (count equal to the added count: 1) or was counted up (0). The number of rows of a class (mined or profile) of a day and source is
+// read once per batch, then followed in memory; at the quota a key is only counted up when its row exists (UPDATE), and otherwise
+// the lines go to OtherSignature.
+const (
+	upsertDaily = `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+		ON CONFLICT (day, source_id, signature) DO UPDATE SET count = count + excluded.count, first_seen = min(first_seen, excluded.first_seen),
+		    dest = CASE WHEN excluded.dest <> '' THEN excluded.dest ELSE dest END
+		RETURNING count = ?5`
+	updateDaily = `UPDATE logs_signature_daily SET count = count + ?4, first_seen = min(first_seen, ?5),
+		    dest = CASE WHEN ?6 <> '' THEN ?6 ELSE dest END
+		WHERE day = ?1 AND source_id = ?2 AND signature = ?3`
+	upsertOtherDaily = `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?1, ?2, ?3, '', ?4, ?5, ?6, ?7)
+		ON CONFLICT (day, source_id, signature) DO UPDATE SET count = count + excluded.count, first_seen = min(first_seen, excluded.first_seen)`
+	rowsDaily = `SELECT count(*) FROM (SELECT 1 FROM logs_signature_daily WHERE day = ?1 AND source_id = ?2 AND mined = ?3 AND signature <> ?4 LIMIT ?5)`
+
+	upsertBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
+		ON CONFLICT (source_id, bucket, signature) DO UPDATE SET count = count + excluded.count
+		RETURNING count = ?4`
+	updateBucket      = `UPDATE logs_signature_buckets SET count = count + ?4 WHERE source_id = ?1 AND bucket = ?2 AND signature = ?3`
+	upsertOtherBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
+		ON CONFLICT (source_id, bucket, signature) DO UPDATE SET count = count + excluded.count`
+	rowsBucket = `SELECT count(*) FROM (SELECT 1 FROM logs_signature_buckets WHERE bucket = ?1 AND source_id = ?2 AND mined = ?3 AND signature <> ?4 LIMIT ?5)`
+)
+
+func flag(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // storeSignatures adds a batch to the counters inside the transaction of the batch (the writer of logs.db, never the main one).
-// A key that is new for its day and source, past the cap of rows, is counted under OtherSignature instead.
 func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) error {
-	rows := map[[2]string]int{} // rows of (day, source) and (bucket, source), read when first needed
-	rowsOf := func(q string, a, c any, limit int) (int, error) {
+	rows := map[[3]string]int{} // rows of a class of a day (or bucket) and source, read when first needed and followed here
+	rowsOf := func(q, a, src string, mined bool, quota int) (int, error) {
+		k := [3]string{a, src, fmt.Sprint(mined)}
+		if n, ok := rows[k]; ok {
+			return n, nil
+		}
 		var n int
-		if err := tx.QueryRowContext(ctx, q, a, c, limit).Scan(&n); err != nil {
+		if err := tx.QueryRowContext(ctx, q, a, src, flag(mined), OtherSignature, quota).Scan(&n); err != nil {
 			return 0, fmt.Errorf("logs: counting signature rows: %w", err)
 		}
+		rows[k] = n
 		return n, nil
 	}
 	for k, v := range b.daily {
 		first := store.FormatTS(v.first)
-		res, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET count = count + ?, first_seen = min(first_seen, ?) WHERE day = ? AND source_id = ? AND signature = ? AND dest = ?`, v.n, first, k.day, k.source, k.signature, k.dest)
+		quota := MaxProfilePerDay
+		if v.mined {
+			quota = MaxMinedPerDay
+		}
+		n, err := rowsOf(rowsDaily, k.day, k.source, v.mined, quota)
 		if err != nil {
-			return fmt.Errorf("logs: counting signatures: %w", err)
+			return err
 		}
-		if n, _ := res.RowsAffected(); n > 0 {
-			continue
-		}
-		rk := [2]string{"d" + k.day, k.source}
-		if _, ok := rows[rk]; !ok {
-			if rows[rk], err = rowsOf(`SELECT count(*) FROM (SELECT 1 FROM logs_signature_daily WHERE day = ? AND source_id = ? LIMIT ?)`, k.day, k.source, MaxSignaturesPerDay); err != nil {
-				return err
-			}
-		}
-		sig, dest, sample := k.signature, k.dest, v.sample
-		if rows[rk] >= MaxSignaturesPerDay {
-			sig, dest = OtherSignature, ""
-			res, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET count = count + ?, first_seen = min(first_seen, ?) WHERE day = ? AND source_id = ? AND signature = ? AND dest = ?`, v.n, first, k.day, k.source, sig, dest)
-			if err != nil {
+		ck := [3]string{k.day, k.source, fmt.Sprint(v.mined)}
+		if n < quota {
+			var old int
+			if err := tx.QueryRowContext(ctx, upsertDaily, k.day, k.source, k.signature, v.dest, v.n, first, v.sample, flag(v.mined)).Scan(&old); err != nil {
 				return fmt.Errorf("logs: counting signatures: %w", err)
 			}
-			if n, _ := res.RowsAffected(); n > 0 {
-				continue
+			if old == 1 && k.signature != OtherSignature {
+				rows[ck]++
 			}
+			continue
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample) VALUES (?, ?, ?, ?, ?, ?, ?)`, k.day, k.source, sig, dest, v.n, first, sample); err != nil {
-			return fmt.Errorf("logs: counting signatures: %w", err)
-		}
-		rows[rk]++
-	}
-	for k, n := range b.bucket {
-		res, err := tx.ExecContext(ctx, `UPDATE logs_signature_buckets SET count = count + ? WHERE source_id = ? AND bucket = ? AND signature = ?`, n, k.source, k.bucket, k.signature)
+		res, err := tx.ExecContext(ctx, updateDaily, k.day, k.source, k.signature, v.n, first, v.dest)
 		if err != nil {
 			return fmt.Errorf("logs: counting signatures: %w", err)
 		}
 		if c, _ := res.RowsAffected(); c > 0 {
 			continue
 		}
-		rk := [2]string{fmt.Sprintf("b%d", k.bucket), k.source}
-		if _, ok := rows[rk]; !ok {
-			if rows[rk], err = rowsOf(`SELECT count(*) FROM (SELECT 1 FROM logs_signature_buckets WHERE bucket = ?1 AND source_id = ?2 LIMIT ?3)`, k.bucket, k.source, MaxSignaturesPerBucket); err != nil {
-				return err
-			}
-		}
-		sig := k.signature
-		if rows[rk] >= MaxSignaturesPerBucket {
-			sig = OtherSignature
-			res, err := tx.ExecContext(ctx, `UPDATE logs_signature_buckets SET count = count + ? WHERE source_id = ? AND bucket = ? AND signature = ?`, n, k.source, k.bucket, sig)
-			if err != nil {
-				return fmt.Errorf("logs: counting signatures: %w", err)
-			}
-			if c, _ := res.RowsAffected(); c > 0 {
-				continue
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count) VALUES (?, ?, ?, ?)`, k.source, k.bucket, sig, n); err != nil {
+		if _, err := tx.ExecContext(ctx, upsertOtherDaily, k.day, k.source, OtherSignature, v.n, first, v.sample, flag(v.mined)); err != nil {
 			return fmt.Errorf("logs: counting signatures: %w", err)
 		}
-		rows[rk]++
+	}
+	for k, v := range b.bucket {
+		quota := MaxProfilePerBucket
+		if v.mined {
+			quota = MaxMinedPerBucket
+		}
+		bk := fmt.Sprint(k.bucket)
+		n, err := rowsOf(rowsBucket, bk, k.source, v.mined, quota)
+		if err != nil {
+			return err
+		}
+		if n < quota {
+			var old int
+			if err := tx.QueryRowContext(ctx, upsertBucket, k.source, k.bucket, k.signature, v.n, flag(v.mined)).Scan(&old); err != nil {
+				return fmt.Errorf("logs: counting signatures: %w", err)
+			}
+			if old == 1 && k.signature != OtherSignature {
+				rows[[3]string{bk, k.source, fmt.Sprint(v.mined)}]++
+			}
+			continue
+		}
+		res, err := tx.ExecContext(ctx, updateBucket, k.source, k.bucket, k.signature, v.n)
+		if err != nil {
+			return fmt.Errorf("logs: counting signatures: %w", err)
+		}
+		if c, _ := res.RowsAffected(); c > 0 {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, upsertOtherBucket, k.source, k.bucket, OtherSignature, v.n, flag(v.mined)); err != nil {
+			return fmt.Errorf("logs: counting signatures: %w", err)
+		}
 	}
 	return nil
 }

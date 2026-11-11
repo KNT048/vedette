@@ -225,15 +225,16 @@ func (s *Service) dropStale(ctx context.Context) error {
 		return err
 	}
 	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
-		// The signature counters follow the retention, but never keep less than the 9 days that the baseline reads: older rows are
-		// deleted; rows older than the retention that remain (retention 7) lose their sample, which is a copy of a line.
+		// The signature counters are kept for exactly BaselineDays+2 days whatever the retention (the baseline reads them and nothing
+		// else does, and a longer retention must not grow them: with the caps they are bounded, see MaxMinedPerDay). The sample is a
+		// copy of a line, so it goes when the line would: a sample whose row is older than the retention is blanked (only with a
+		// retention of 7 days, the one shorter than the 9 days kept).
 		now := s.now().UTC()
-		keep := max(days, BaselineDays+2)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_daily WHERE day < ?`, now.Add(-time.Duration(keep)*24*time.Hour).Format("2006-01-02")); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_daily WHERE day < ?`, now.Add(-(BaselineDays+2)*24*time.Hour).Format("2006-01-02")); err != nil {
 			return fmt.Errorf("logs: dropping old signature counters: %w", err)
 		}
-		if keep > days {
-			if _, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET sample = '' WHERE day < ? AND sample <> ''`, now.Add(-time.Duration(days)*24*time.Hour).Format("2006-01-02")); err != nil {
+		if days < BaselineDays+2 {
+			if _, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET sample = '' WHERE first_seen < ? AND sample <> ''`, store.FormatTS(now.Add(-time.Duration(days)*24*time.Hour))); err != nil {
 				return fmt.Errorf("logs: dropping old samples: %w", err)
 			}
 		}

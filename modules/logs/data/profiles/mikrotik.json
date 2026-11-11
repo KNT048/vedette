@@ -11,7 +11,7 @@
   "samples": [
     {
       "line": "<134>Nov  9 10:00:00 RT system,info,account user admin logged in from 192.168.10.113 via winbox",
-      "signature": "system,info,account: user admin logged in from <ip> via winbox"
+      "signature": "system,info,account: user <name> logged in from <ip> via winbox"
     },
     {
       "line": "firewall,info forward: in:ether1 out:ether2, proto TCP (SYN), 192.168.10.113:50922->8.8.8.8:53, len 60",

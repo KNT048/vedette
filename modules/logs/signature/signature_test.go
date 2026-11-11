@@ -24,17 +24,28 @@ const goodProfile = `{
 
 func TestMineMasksIPsNumbersAndHex(t *testing.T) {
 	t.Parallel()
+	//nolint:gosec // "token=…" and "session…=…" are text to mask, not credentials
 	cases := map[string]string{
-		"user admin logged in from 192.168.10.113 via winbox":                     "user admin logged in from <ip> via winbox",
-		"Failed password for root from 10.1.2.3:51022 ssh2":                       "Failed password for root from <ip> ssh<n>",
+		"user admin logged in from 192.168.10.113 via winbox":                     "user <name> logged in from <ip> via winbox",
+		"Failed password for root from 10.1.2.3:51022 ssh2":                       "Failed password for <name> from <ip> ssh<n>",
 		"session 4711 closed after 93 seconds":                                    "session <n> closed after <n> seconds",
 		"hash 9f86d081884c7d659a2feaa0c55ad015 seen":                              "hash <hex> seen",
 		"mac aa:bb:cc:dd:ee:ff moved":                                             "mac <hex> moved",
 		"id 0x7ffe1234 ok":                                                        "id <hex> ok",
 		"conn from fe80::1ff:fe23:4567:890a refused":                              "conn from <hex> refused",
 		"in:ether1 out:ether2, proto TCP (SYN), 192.168.10.113:50922->8.8.8.8:53": "in:ether<n> out:ether<n>, proto TCP (SYN), <ip>-><ip>",
-		"":    "(empty)",
-		"   ": "(empty)",
+		"Invalid user oracle from 45.9.148.20 port 50123":                         "Invalid user <name> from <ip> port <n>",
+		"Invalid user postgres from 45.9.148.21 port 50124":                       "Invalid user <name> from <ip> port <n>",
+		"Failed password for invalid user admin2 from 1.2.3.4":                    "Failed password for invalid user <name> from <ip>",
+		"token=dXNlcjpwYXNzd29yZA== accepted":                                     "token=<v> accepted",
+		"session JSESSIONID=AbCdEfGhIjKlMnOpQrSt opened":                          "session JSESSIONID=<v> opened",
+		"GET /wp-login.php?x=abc HTTP/1.1":                                        "GET <path> HTTP/<n>.<n>",
+		"GET /admin/config.bak HTTP/1.1":                                          "GET <path> HTTP/<n>.<n>",
+		`msg="Administrator admin login failed" action="deny" srcip=1.2.3.4 n=42`: "msg=<s> action=deny srcip=<ip> n=<n>",
+		"id sess_Ab12Cd34Ef56Gh78Ij done":                                         "id <tok> done",
+		"open ConfigurationManagerFactory now":                                    "open <tok> now",
+		"":                                                                        "(empty)",
+		"   ":                                                                     "(empty)",
 	}
 	for in, want := range cases {
 		if got := Mine(in); got != want {
@@ -123,7 +134,7 @@ func TestKVProfile(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	// A kind without a profile, and a line the profile does not recognise, both go to the generic miner.
-	if r := set.Of("nginx", "GET /a/b 200 1234"); r.Profile != GenericProfile || r.Signature != "GET /a/b <n> <n>" || r.Dest != "" {
+	if r := set.Of("nginx", "GET /a/b 200 1234"); r.Profile != GenericProfile || r.Signature != "GET <path> <n> <n>" || r.Dest != "" {
 		t.Fatalf("%+v", r)
 	}
 	if r := set.Of("demo", "no key value pairs here 42"); r.Profile != GenericProfile {
@@ -145,11 +156,11 @@ func TestShippedProfiles(t *testing.T) {
 	}
 	cases := []struct{ kind, line, sig, dest string }{
 		{"fortigate", `<189>date=2026-11-09 time=10:00:00 devname="FW-HQ" logid="0000000013" type="traffic" subtype="forward" level="warning" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action="deny" policyid=3`,
-			"type=traffic subtype=forward logid=0000000013 action=deny dstport=3389", "192.168.10.1"},
+			"type=traffic subtype=forward logid=0000000013 action=deny", "192.168.10.1"},
 		{"fortigate", `type="event" subtype="system" logid="0100032001" level="alert" msg="Administrator admin login failed from https(10.0.0.9) because of invalid password"`,
 			"type=event subtype=system logid=0100032001 msg=Administrator admin login failed from https(<ip>) because of invalid password", ""},
 		{"mikrotik", `<134>Nov  9 10:00:00 RT system,info,account user admin logged in from 192.168.10.113 via winbox`,
-			"system,info,account: user admin logged in from <ip> via winbox", ""},
+			"system,info,account: user <name> logged in from <ip> via winbox", ""},
 		{"mikrotik", `firewall,info forward: in:ether1 out:ether2, proto TCP (SYN), 192.168.10.113:50922->8.8.8.8:53, len 60`,
 			"firewall,info: forward: in:ether<n> out:ether<n>, proto TCP (SYN), <ip>-><ip>, len <n>", "8.8.8.8"},
 		{"windows", `<14>Nov  9 10:00:00 SRV-AD Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Logon Type: 3`,

@@ -21,6 +21,30 @@ make dev
 
 Open http://localhost:5173. On first run choose **Use sample data** to look around, or set it up from scratch.
 
+## Install on a box
+
+For a real box: a fresh **Ubuntu 24.04, Ubuntu 26.04 or Debian 13** (amd64 or arm64) with systemd, at least 4 GB of memory (8 GB recommended), 6 GB of free disk under `/var`, a wired network port, and the free TCP ports **8443** (the interface) and **8444** (the sensor link). Run it as root, on a machine that has nothing else of Vedette on it:
+
+```bash
+curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh
+```
+
+Use the `install.sh` of the release you want (the Releases page of this repository; it carries that release's version and package checksum inside it, which is why you do not get it from the source tree). To read it before running it, download it with `-o install.sh` and run `sudo sh install.sh`. At the end it prints `https://<address of the box>:8443` and a **one-time setup code**; open the address (the certificate is self-signed: accept it once), enter the code and follow the setup wizard.
+
+What it does, in order, and it stops at the first thing it cannot do (a refusal in the first step changes nothing): checks the OS, architecture, systemd, disk, the two ports, that no other Vedette is there and that the clock is set; installs the packages Vedette needs with `apt` (podman, chrony, netplan.io, nftables, unattended-upgrades and what they depend on); downloads the `vedette-host` package of that release and refuses it unless its SHA-256 is the one written into the script; writes `/etc/vedette/host.conf`, the chrony configuration and the container network `vedette-int` (a `172.30.x.0/24` that clashes with nothing on the box); runs `vedette-host -bootstrap`, which checks the signed release (the signing keys are built into `vedette-host`, not into the script) and pulls the signed container images by digest; starts Vedette and waits up to 5 minutes for it to be healthy.
+
+It does **not** touch your network settings. If you want Vedette's **Box network** screen to manage the address of the box, run it with `--network-handover` on a box whose management port is wired and gets its address by DHCP: it then hands `netplan` to Vedette (your old files are kept in `/var/lib/vedette-install/netplan-moved`) and applies nothing until the next boot or until you confirm a change in the screen. On a Wi-Fi box, a static address or NetworkManager it says "Box network is not available on this box" and leaves everything alone.
+
+What leaves the box while it installs (all of it is in `PRIVACY.md`, flow 6): `apt` to your distribution's package mirrors, GitHub (the install files of the release), `ghcr.io` (the signed images) and `deb.debian.org` (to build the `scan` image, which needs `nmap`). No Vedette data goes anywhere.
+
+Run the same command again to repair or upgrade the host package; it changes nothing that is already right. To remove Vedette and put the box back as it was (containers, images, units, the packages the installer added, the users, the data and the key; this cannot be undone):
+
+```bash
+sudo sh install.sh --uninstall --yes            # --keep-data keeps /var/lib/vedette*, /etc/vedette and the users
+```
+
+Until the first release exists, the script in this repository stops with "not tied to a release". To try the installer before that, see `docs/INSTALL-TEST.md` (a test install signed with throwaway keys; not for customers).
+
 ## What leaves your machine
 
 Exactly what `PRIVACY.md` lists. Notably, an **anonymous signal is on by default** (counts of trap touches, connections to bad IPs/domains and devices by type; no names, no IP addresses, no logs). Turn it off under Settings → Privacy.

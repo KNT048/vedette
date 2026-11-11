@@ -47,6 +47,7 @@ help:
 	@echo "make sbom         CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
+	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -304,3 +305,17 @@ dev-sensors-down:
 # Up, a device that only the sensor can have seen appears in the inventory within a bound, down (D-146: not in CI yet).
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
+
+# ---- install.sh (WP-08h, D-166) ----------------------------------------------------------------------------------------------
+# install-artifacts: the TEST release for `install.sh --test-artifacts DIR`, signed with throwaway keys made on the spot (the real keys and
+# images do not exist before WP-08k). The folder dist/install is the product (copy it to the box); the work folder and the local images
+# are removed unless RELEASE=1; `make clean` removes dist. FAST=1: core with a placeholder interface + sensor, for install-check.
+# install-check: install.sh end to end in systemd containers (Ubuntu 24.04, 26.04, Debian 13), opt-in: pulls base images, runs apt in them.
+.PHONY: install-artifacts install-check
+TEST_VERSION ?= 0.0.1-test.1
+FAST ?=
+install-artifacts:
+	VERSION=$(TEST_VERSION) ARCH=$(ARCH) FAST=$(FAST) RELEASE=$(RELEASE) scripts/dev/install-artifacts.sh
+
+install-check:
+	scripts/dev/install-check.sh

@@ -1,0 +1,7 @@
+# Deferred — feat/install-sh (WP-08h install.sh, D-166)
+
+- [ ] 2026-11-11 WP-08k: the release job fills the three baked lines of `install.sh` (`VEDETTE_VERSION`, `VEDETTE_DEB_SHA256_AMD64`, `VEDETTE_DEB_SHA256_ARM64`), signs `install.sh` with minisign and uploads it, the `.deb` (renamed to the SemVer spelling `vedette-host_<version>_<arch>.deb`: nfpm writes `~`, and GitHub may not keep it) and the two manifest files with their `.minisig` to `v<version>`, and `index.json` + `.minisig` to the fixed release `index`; README "Install" says where the verification key is published once it exists.
+- [ ] 2026-11-11 Full (non-FAST) `make install-artifacts` (real core interface + scan image) and `make install-check` on it: heavy, not run by the implementer (supervisor rule: no long runs); the lead runs it. arm64 install-check not run (no arm64 box).
+- [ ] 2026-11-11 After WP-08e (honeypot image) is on `main`: `make install-artifacts` includes the honeypot when `localhost/vedette-honeypot:$TEST_VERSION` exists; add a honeypot service line to the install-check and the decoy check to the on-box run (docs/INSTALL-TEST.md step 5 already has it).
+- [ ] 2026-11-11 `--network-handover` is DHCP-only (a static address must match host's own renderer byte for byte): hand-over of a static box = set the address in Box network after the install, or a follow-up that calls the host's renderer.
+- [ ] 2026-11-11 docs/RUNBOOK.md §1.3 (delete the data by hand) and the postrm message should name `install.sh --uninstall --yes`.

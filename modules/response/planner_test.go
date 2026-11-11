@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -415,37 +414,95 @@ func TestPlanDoesNotListChannelsItWasNotSentTo(t *testing.T) {
 	}
 }
 
-// The live run once returned a plan with a message step (msg_send, one free-text value) that the text type refused, which dropped the whole plan.
-// Such an action is no longer offered to the AI; one that still arrives is checked like any other.
-func TestPlanDoesNotOfferActionsWithOnlyFreeText(t *testing.T) {
-	e, fp, _ := aiPlanEnv(t)
-	e.aiMayPropose("msg_send", true)
-	_, err := e.svc.PlanOpen(e.ctx())
+// Every value must be the device's address: one that is, next to one that is not, does not carry the other through (a custom action with
+// {ip} and {interface}, or {ip} and {cidr}).
+func TestPlanEveryValueMustBeTheDeviceAddress(t *testing.T) {
+	cases := map[string]struct {
+		cli    string
+		params []response.DraftParam
+		pre    bool
+	}{
+		"ip and interface": {cli: "block {ip} on {interface}", pre: true, params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "interface", Value: "Gi1/0/48"}}},
+		"ip and cidr":      {cli: "deny {ip} {cidr}", params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "cidr", Value: "10.0.0.0/8"}}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			e, fp, _ := aiPlanEnv(t)
+			e.conns.list = []response.ConnectionInfo{{Connection: response.Connection{ID: "cn-ssh", Name: "Switch", Enabled: true, Kind: "ssh", WriteTools: []string{"cli"}}, Target: "ssh://sw"}}
+			in := response.CatalogInput{Name: "Custom", Description: "d", ConnectionID: "cn-ssh", Risk: response.RiskMedium, Enabled: true, AIMayPropose: true,
+				Run: response.Tpl{CLI: c.cli}, Rollback: response.Tpl{CLI: "no " + c.cli}}
+			if c.pre {
+				in.Precheck, in.PrecheckRefuse = response.Tpl{CLI: "show interfaces {interface} switchport"}, []string{"Administrative Mode: trunk"}
+			}
+			act, err := e.svc.AddAction(e.ctx(), admin, in)
+			e.must(err)
+			fp.steps = func(response.PlanTarget) []response.DraftStep {
+				return []response.DraftStep{{Kind: "contain", Title: "t", Detail: "d", ActionID: act.ID, Params: c.params}}
+			}
+			n, err := e.svc.PlanOpen(e.ctx())
+			e.must(err)
+			if n != 0 {
+				t.Fatal("a plan with a value that is not the device address was stored")
+			}
+			e.planRefused("evidence_mismatch")
+			for _, a := range fp.acts[0] {
+				if a.ID == act.ID {
+					t.Fatal("an action the gate can never accept was offered")
+				}
+			}
+		})
+	}
+}
+
+// A name is self-announced by the device, so it is no evidence: a host that calls itself like a VIP does not get its VIP switched off.
+func TestPlanNameIsNoEvidence(t *testing.T) {
+	e, fp, targets := aiPlanEnv(t)
+	e.firewall("fgt_vip_disable")
+	e.aiMayPropose("fgt_vip_disable", true)
+	for i := range *targets {
+		(*targets)[i].AssetName = "NAS-PHOTO-443" // the hostname equals the VIP name
+	}
+	fp.steps = func(response.PlanTarget) []response.DraftStep {
+		return []response.DraftStep{{Kind: "contain", Title: "t", Detail: "d", ActionID: "fgt_vip_disable", Params: []response.DraftParam{{Name: "name", Value: "NAS-PHOTO-443"}}}}
+	}
+	n, err := e.svc.PlanOpen(e.ctx())
 	e.must(err)
-	if len(fp.acts) == 0 {
-		t.Fatal("the planner was not asked")
+	if n != 0 {
+		t.Fatal("a plan on a name was stored")
 	}
-	offered := []string{}
+	e.planRefused("evidence_mismatch")
 	for _, a := range fp.acts[0] {
-		offered = append(offered, a.ID)
-	}
-	if slices.Contains(offered, "msg_send") || !slices.Contains(offered, "blocklist_add") {
-		t.Fatalf("offered %v", offered)
-	}
-	// the draft as the model returned it: the long, many-sentence text is refused by the type, and the plan is refused with it
-	e2, fp2, _ := aiPlanEnv(t)
-	e2.aiMayPropose("msg_send", true)
-	fp2.steps = func(response.PlanTarget) []response.DraftStep {
-		return []response.DraftStep{
-			{Kind: "contain", Title: "Limit exposure", Detail: "d"},
-			{Kind: "check", Title: "Check", Detail: "d"},
-			{Kind: "patch", Title: "Patch", Detail: "d"},
-			{Kind: "contain", Title: "Tell the team", Detail: "d", ActionID: "msg_send", Params: []response.DraftParam{{Name: "text", Value: strings.Repeat("The NAS is exposed to CVE-2024-3400; please review it now. ", 12)}}},
+		if a.ID == "fgt_vip_disable" {
+			t.Fatal("a name-only action was offered")
 		}
 	}
-	n, err := e2.svc.PlanOpen(e2.ctx())
-	e2.must(err)
-	if n != 0 || !e2.logHas("refused", "step 4 cannot be planned (invalid_target)") {
-		t.Fatalf("saved %d", n)
+}
+
+// Plans send no messages: an action with only free text is neither offered nor accepted, in a plan or when a proposal is requested.
+func TestPlanRefusesActionsWithOnlyFreeText(t *testing.T) {
+	e, fp, _ := aiPlanEnv(t)
+	e.aiMayPropose("msg_send", true)
+	fp.steps = func(response.PlanTarget) []response.DraftStep {
+		return []response.DraftStep{{Kind: "contain", Title: "Tell the team", Detail: "d", ActionID: "msg_send", Params: []response.DraftParam{{Name: "text", Value: "Check the NAS"}}}}
 	}
+	n, err := e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	if n != 0 {
+		t.Fatal("a message plan was stored")
+	}
+	e.planRefused("evidence_mismatch")
+	for _, a := range fp.acts[0] {
+		if a.ID == "msg_send" || len(a.Params) == 0 {
+			t.Fatalf("offered %s", a.ID)
+		}
+		for _, p := range a.Params {
+			if p.Type != "ip" {
+				t.Fatalf("%s is offered with a %s value", a.ID, p.Type)
+			}
+		}
+	}
+	e.exec1(`UPDATE resp_plans SET steps = ? WHERE finding_id = 'f1'`, `[{"kind":"contain","title":"t","detail":"d","proposal":{"id":"pr-msg","action_id":"msg_send","params":{"text":"Check the NAS"},"asset_id":"a1","asset_name":"NAS"}}]`)
+	e.turnOn()
+	_, err = e.svc.RequestProposal(e.ctx(), oper, "pr-msg")
+	wantCode(t, err, 409, "evidence_mismatch")
 }

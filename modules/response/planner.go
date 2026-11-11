@@ -122,9 +122,8 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			}
 			actions = []AIAction{}
 			for _, a := range all {
-				// An action whose only value is free text (msg_send) is not offered: nothing ties it to the device, Propose does not take it from the
-				// AI either (D-119), and a model that picks it writes text the type check refuses, which costs the whole plan.
-				if a.Available && slices.ContainsFunc(a.Params, func(p AIParam) bool { return p.Type != string(PText) }) {
+				// Only actions the gate can accept are offered: every value an address (aboutTheDevice); the rest could never pass and would cost the plan.
+				if a.Available && offerable(paramTypes(a.Params)) {
 					actions = append(actions, a)
 				}
 			}
@@ -303,7 +302,7 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 			if f != nil {
 				return nil, "step " + fmt.Sprint(i+1) + " cannot be planned (" + f.code + "): " + oneLine(f.msg, 200)
 			}
-			if why := aboutTheDevice(Values(pl.rec.Values), cat, t.AssetIP, t.AssetName); why != "" {
+			if why := aboutTheDevice(Values(pl.rec.Values), cat, t.AssetIP); why != "" {
 				return nil, "step " + fmt.Sprint(i+1) + ": " + why
 			}
 			checked := map[string]string{}
@@ -320,25 +319,30 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 	return out, ""
 }
 
-// aboutTheDevice is the evidence gate of Propose (INV-15 (3), D-119) for a plan: the values of an action must be about the device the
-// finding is on (its address or its name), and an action that names a device part, or no address, needs that device's address for the
-// never-touch check. Only an action with no target at all (every value is free text) is exempt. "" = passes. The same words refuse a
+// aboutTheDevice is the evidence gate of Propose (INV-15 (3), D-119) for a plan, made stricter because nothing but the inventory ties a value
+// to the device: EVERY value of the action must be the address of the device the finding is on, nothing else. A name is not accepted
+// (names are self-announced by the device and fold Unicode), nor a CIDR, interface, MAC, VLAN, port or id, until evidence can tie them
+// to the device; an action with only free-text values is refused too (plans send no messages). "" = passes. The same words refuse a
 // proposal again when it is requested, against the inventory's own word about the device.
-func aboutTheDevice(vals Values, cat catRow, ip, name string) string {
-	if !slices.ContainsFunc(cat.params(), func(p ParamType) bool { return p != PText }) {
-		return ""
+func aboutTheDevice(vals Values, cat catRow, ip string) string {
+	if !offerable(cat.params()) {
+		return "the action takes values that nothing can tie to the device of the finding, or only free text (evidence_mismatch); a plan proposes only actions on the address of that device"
 	}
-	if ip == "" && (!namesAnAddress(vals) || namesADevicePart(vals)) {
+	if ip == "" {
 		return "no address is known for the device of the finding, so the never-touch list cannot be checked for this action (never_touch)"
 	}
-	f := foundEvidence{names: []string{name}}
-	if ip != "" {
-		f.relates = []string{ip}
-	}
-	if !f.relatesTo(vals, cat) {
-		return "the action is not about the device of the finding (evidence_mismatch): its target is neither that address nor that name"
+	f := foundEvidence{relates: []string{ip}}
+	for p, v := range vals {
+		if p != PIP || !f.relatesTo(Values{p: v}, cat) {
+			return "the action is not about the device of the finding (evidence_mismatch): every value must be the address of that device"
+		}
 	}
 	return ""
+}
+
+// offerable says whether an action can pass aboutTheDevice at all: it takes at least one value and every value is an address.
+func offerable(ps []ParamType) bool {
+	return len(ps) > 0 && !slices.ContainsFunc(ps, func(p ParamType) bool { return p != PIP })
 }
 
 // planJob is the job of the plan writer.
@@ -347,4 +351,12 @@ func (s *Service) planJob() jobs.Job {
 		_, err := s.PlanOpen(ctx)
 		return err
 	}}
+}
+
+func paramTypes(ps []AIParam) []ParamType {
+	out := make([]ParamType, len(ps))
+	for i, p := range ps {
+		out[i] = ParamType(p.Type)
+	}
+	return out
 }

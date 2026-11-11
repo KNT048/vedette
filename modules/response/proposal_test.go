@@ -19,8 +19,8 @@ func TestContract_INV15_ProposalTextCannotReachACommand(t *testing.T) {
 	e.plan("plan-1", `{"id":"pr-msg","action_id":"msg_send","params":{"text":"hi; reboot $(id)"},"asset_id":"a-nas"}`)
 	_, err = e.svc.RequestProposal(e.ctx(), oper, "pr-msg")
 	wantCode(t, err, 400, "invalid_target")
-	e.plan("plan-2", `{"id":"pr-extra","action_id":"fgt_vip_disable","params":{"name":"NAS","text":"execute reboot","cli":"execute factoryreset"},"asset_id":"a-nas"}`)
-	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	e.plan("plan-2", `{"id":"pr-extra","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21","text":"execute reboot","cli":"execute factoryreset"},"asset_id":"a-nas"}`)
+	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
 	e.must(err)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-extra")
 	e.must(err)
@@ -46,15 +46,15 @@ func TestContract_INV15_ProposalTextCannotReachACommand(t *testing.T) {
 func TestContract_INV15_ProposalNeedsAIMayPropose(t *testing.T) {
 	e := planEnv(t)
 	off, on := false, true
-	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &off})
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &off})
 	e.must(err)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"asset_id":"a-nas","asset_name":"NAS"}`)
 	_, err = e.svc.RequestProposal(e.ctx(), oper, "pr-1")
 	wantCode(t, err, 403, "tool_not_allowed")
 	if e.requests() != 0 || e.exec.count() != 0 {
 		t.Fatalf("a refused proposal left %d request(s)", e.requests())
 	}
-	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	_, err = e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
 	e.must(err)
 	if _, err = e.svc.RequestProposal(e.ctx(), oper, "pr-1"); err != nil {
 		t.Fatalf("a proposal for an action the AI may propose was refused: %v", err)
@@ -67,12 +67,12 @@ func TestContract_INV15_ProposalNeedsAIMayPropose(t *testing.T) {
 func TestContract_INV10_ProposalSubjectIsTheFindingsAsset(t *testing.T) {
 	e := planEnv(t)
 	on := true
-	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
 	e.must(err)
 	e.dir.devices["a-other"] = response.DeviceInfo{ID: "a-other", Name: "Printer", IP: "192.168.10.99", Approved: true}
 	_, err = e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.21", Label: "NAS"}}) // the finding's asset
 	e.must(err)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-other","asset_name":"Printer"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"asset_id":"a-other","asset_name":"Printer"}`)
 	_, err = e.svc.RequestProposal(e.ctx(), oper, "pr-1")
 	wantCode(t, err, 409, "never_touch")
 	_, err = e.svc.SetAllowlist(e.ctx(), admin, nil)

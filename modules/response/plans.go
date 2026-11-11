@@ -218,7 +218,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 				refusal = fail(http.StatusNotFound, "not_found", "No such proposal.")
 				return nil
 			}
-			subject, deviceName, assetID := "", "", prop.AssetID
+			subject, assetID := "", prop.AssetID
 			if s.cfg.Directory != nil {
 				f, ok, err := s.cfg.Directory.Finding(ctx, plan.FindingID)
 				if err != nil {
@@ -237,7 +237,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 					return nil
 				}
 				if ok {
-					subject, deviceName = d.IP, d.Name
+					subject = d.IP
 				}
 			}
 			st, err := loadSettings(ctx, tx)
@@ -287,7 +287,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 				return nil
 			}
 			if s.cfg.Directory != nil { // the stored values are checked again against the device the inventory says the finding is on
-				if why := aboutTheDevice(Values(pl.rec.Values), cats[prop.ActionID], subject, deviceName); why != "" {
+				if why := aboutTheDevice(Values(pl.rec.Values), cats[prop.ActionID], subject); why != "" {
 					refusal = fail(http.StatusConflict, "evidence_mismatch", "This proposal is not about the device of the finding: "+why+". Nothing was requested.")
 					return nil
 				}

@@ -387,3 +387,15 @@ func TestFirstProfileIsNotAssignedToTheAutomaticResponsePlanJob(t *testing.T) {
 		t.Fatalf("ask-my-data = %v", s)
 	}
 }
+
+func TestSuggestionDoesNotFillTheAutomaticResponsePlanJob(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("One", keyA))
+	jobs := a.want("GET", "/ai/assignments/suggestion", "viewer", "", 200, "")["jobs"].(map[string]any)
+	if s := jobs["response-plan"].(map[string]any); s["primary"] != nil {
+		t.Fatalf("response-plan = %v", s)
+	}
+	if s := jobs["ask-my-data"].(map[string]any); s["primary"] == nil {
+		t.Fatalf("ask-my-data = %v", s)
+	}
+}

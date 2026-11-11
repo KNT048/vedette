@@ -231,7 +231,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Clock: d.Clock, Log: d.Log}); err != nil {
+	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log}); err != nil {
 		return fmt.Errorf("agent-intake: %w", err)
 	}
 	d.Logs = logexport.New()
@@ -388,6 +388,16 @@ func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 		return false
 	}
 	on, err := p.conns.HasEnabled(ctx)
+	return err != nil || on
+}
+
+// WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved (D-309); the caller checks that the module is on. A store
+// that cannot be read counts as "on", like the others.
+func (p privacyFacts) WazuhConnected(ctx context.Context) bool {
+	if p.d == nil || p.d.AgentIntake == nil {
+		return false
+	}
+	on, err := p.d.AgentIntake.WazuhConnected(ctx)
 	return err != nil || on
 }
 

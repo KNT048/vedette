@@ -10779,7 +10779,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCorePrivacyOperation
-							r.summary = "The 13 data flows leaving the box and the verbatim anonymous-signal payload"
+							r.summary = "The 14 data flows leaving the box and the verbatim anonymous-signal payload"
 							r.operationID = "core_get_core_privacy"
 							r.operationGroup = ""
 							r.pathPattern = "/core/privacy"

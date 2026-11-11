@@ -36,9 +36,9 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | 404 | Không có đối tượng (`not_found`, 51 endpoint) hoặc liên kết sai (`unknown`) | Không phân biệt "không tồn tại" và "không được xem" với token công khai |
 | 409 | Trạng thái hiện tại không cho phép (64 mã: `already_*`, `busy`, `expired`, `not_pending`, `ip_in_use`…) | Thao tác có thể thành công sau khi người dùng sửa trạng thái |
 | 413 | Tệp/thân quá lớn (`too_large` ở `POST /feeds/parse-test`) | Mock còn trả 400 `too_large` ở 3 endpoint tải tệp: thống nhất về 413 **[ĐX]** |
-| 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
+| 422 | Dịch vụ ngoài từ chối thông tin hợp lệ về hình thức (`wazuh_auth`, `wazuh_forbidden`) | Hiện đúng 1 chỗ; dùng cho "đúng dạng nhưng bên kia từ chối" |
 | 429 | Giới hạn tần suất / trần (`rate_limited`, `resend_too_soon`, `too_many_codes`, `daily_cap`) | Kèm `Retry-After` (mục 8) |
-| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `address_refused`, `device_error`, `pin_mismatch`, `discovery_failed`, `wazuh_unreachable`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
+| 502 / 503 | Hệ thống ngoài không tới được / kênh cần thiết đang hỏng (`unreachable`, `address_refused`, `device_error`, `pin_mismatch`, `discovery_failed`, `wazuh_unreachable`, `wazuh_tls`, `wazuh_bad_reply`, `twofa_email_unavailable`, `server_busy`) | `server_busy` kèm `Retry-After` (mục 8) |
 
 **Bất biến:** (1) mọi mutation ghi `core_audit` (SYS-3); (2) thân phản hồi của PUT/PATCH/POST-hành-động là **tài nguyên sau khi đổi**, để client không phải gọi lại GET (ngoại lệ có sẵn: `PATCH /core/account` và vài POST trả `{ok:true}`; giữ nguyên); (3) `GET` không bao giờ ghi, trừ `last_fetch` của danh sách chặn (mục 11.3) và các GET xuất dữ liệu (`…/export*`) ghi một dòng `core_audit` không chứa dữ liệu (D-72).
 
@@ -360,7 +360,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (82 mã)
+#### HTTP 409 (83 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -446,6 +446,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `connectivity_check_failed` | 409 | The box could not reach the network with the new settings, so it went back to the old ones. Check the address, prefix length and gateway, then try again. Chỉ backend (run `reverted`, D-100). | `PUT /core/network/management` |
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
+| `wazuh_changed` | 409 | The Wazuh connection was changed or removed while this was checked. Enter the password and save again. | `PUT /inventory/agents/wazuh` with a blank password while another Save or Delete ran (agent-intake) |
 
 #### HTTP 412 (1 mã)
 
@@ -465,11 +466,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `misdirected_request` | 421 | This address is not one Vedette answers to. Open it with the name or address it was set up with. | mọi yêu cầu có tiêu đề `Host` ngoài danh sách cho phép (cờ `-hosts`, mặc định tên loopback và tên trong chứng chỉ), trả **trước** khi định tuyến, kể cả đường dẫn ngoài `/api/v1`. Mã mới của backend [ĐX]: chống DNS rebinding |
 
-#### HTTP 422 (1 mã)
+#### HTTP 422 (2 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `wazuh_auth` | 422 | Wazuh refused the user name or password. Check the read-only API user you created. | module inventory (validator dùng chung) |
+| `wazuh_forbidden` | 422 | Wazuh signed the user in, but it may not read the agents or their inventory. Give its role the agent:read and syscollector:read actions on agent:id:* (the steps above). | `POST /inventory/agents/wazuh/test`, `PUT /inventory/agents/wazuh` (agent-intake, D-309) |
 
 #### HTTP 429 (4 mã)
 
@@ -480,7 +482,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (20 mã)
+#### HTTP 502 (22 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -491,6 +493,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
 | `pin_mismatch` | 502 | The certificate of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again. | `POST /core/connections/{id}/test` (D-94) |
 | `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /core/connections/{id}/test` (trước là `POST /ai/connections/{id}/test`, D-93); `POST /ai/profiles/test` |
+| `wazuh_tls` | 502 | The Wazuh certificate changed since it was saved, so the saved password was not sent. Open Edit and press Save to trust the new one, or check what answers at that address. | `POST /inventory/agents/wazuh/test` with the saved password (agent-intake, D-308); the pull shows the same as the card's error |
+| `wazuh_bad_reply` | 502 | The Wazuh server answered in a way Vedette does not understand (${what}). Check that the address is the Wazuh server API, port 55000 by default. | `POST /inventory/agents/wazuh/test`, `PUT /inventory/agents/wazuh` (agent-intake, D-309; never the server's own text) |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |
 | `apt_failed` | 502 | The package manager failed. See the update output for the reason. Backend [ĐX]: host `apt_failed`, `stale_check`. | `POST /core/updates/os/check` |
 | `effect_not_verified` | 502 | The change was made but could not be confirmed on the box. Check the setting again. Backend [ĐX]: host `effect_not_verified`. | `PATCH /core/updates/os/settings` |

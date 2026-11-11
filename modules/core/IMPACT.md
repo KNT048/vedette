@@ -147,6 +147,9 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 ## Disabling this module
 Không thể (tier core). Gỡ `core` = không còn binary.
 
+## Modifying: facade HTTPS `core/conn/https.go` (WP-26 lát 4, D-305)
+- **Người gọi**: `modules/agent-intake` (`wazuh.go`, `wazuh_client.go`: kéo Wazuh). Đổi `HTTPSOptions`, `HTTPSRequest`, lỗi xuất (`ErrPinMismatch`, `ErrUnverified`, `RefusedError`, `DeviceError`) hay `HTTPSTargetProblem` → agent-intake phải đổi theo (`go test ./modules/agent-intake/ -run Wazuh`). Đổi `transport.Client`/`Dialer` hay `checkTarget` là đổi luôn hành vi của Wazuh (cùng một mã, đó là mục đích).
+
 ## Modifying: đường truyền của kết nối (WP-13b lát 5, D-94, INV-23) — `core/conn/internal/transport/{dial,https,ssh,mcp,sse,clean,testhooks}.go`, `core/conn/test.go`, `core/conn/conntest/`
 - **Người gọi**: chỉ `core/conn` (`test.go`) và, từ 13b-6, `core/conn/write`; gói là `internal`, không gói nào khác import được. `Dialer.Refuse` là `conn.RefusedAddr` cộng `Config.BoxAddrs` hỏi **lại ở mỗi lần quay** (`cmd/vedette` `boxSources.BoxAddrs`, đệm 30 giây phía host); đổi một trong hai là đổi chính sách lúc quay số, nên `TestDialer*`, `TestTestRefusesAddressesAtDialTime` và `TestWiringTestRefusesTheBoxAtDialTime` phải chạy lại. Thêm một đường ra mạng khác trong `core/conn` mà không qua `Dialer` là phá INV-23. Từ 13b-6, `core/conn/write` lấy dialer, roots và thông tin xác thực qua `Service.WriteAccess`/`Service.OpenCredential` (đòi `cred.Key`: chỉ gói dưới `core/conn` tạo được, nên giữ `*conn.Service` không đủ để đọc thông tin xác thực); `conn.AllowsURL` là khớp allow-list lúc gửi (cùng `under()`).
 - **Mọi giới hạn** (`MaxRequest` 64 KB, `MaxResponse`/`MaxOutput` 1 MB, `ConnectTimeout` 5 s, `CallTimeout` 15 s, `LineTimeout` 20 s, `SessionTimeout` 60 s) là hằng của D-94; `TestHTTPSDeadlineEndsAHungCall` khoá giá trị. Đổi là đổi D-94.

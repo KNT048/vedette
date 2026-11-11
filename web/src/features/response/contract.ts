@@ -121,6 +121,7 @@ export const Settings = z.object({
   approval_channels: z.array(z.string()).describe('Channel types that receive approval requests'),
   breaker_max_per_hour: z.number().int().min(1).max(200).describe('More actions than this in one hour pauses everything'),
   breaker_tripped_at: iso.nullable(), breaker_notified: z.array(z.string()),
+  stopped_at: iso.nullable().describe('Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included'),
   multi_target_max: z.number().int().min(1).max(1000).describe('An action touching more targets than this needs a second approver'),
   maintenance: z.array(Window).describe('No rule or AI request is created during a window'),
   ai: AiGates,
@@ -223,9 +224,9 @@ export const Blocklist = z.object({
 // ---- Log ----
 export const LogKind = z.enum(['rule_fired', 'proposal', 'request', 'approved', 'rejected', 'executed', 'rolled_back', 'ttl_removed', 'refused', 'expired', 'failed', 'settings', 'emergency_stop', 'blocklist_token', 'dry_run', 'simulated', 'deduped', 'breaker', 'ai_note'])
 export const LogEntry = z.object({
-  id, ts: iso, kind: LogKind, actor: z.string(), detail: z.string(),
+  id, ts: z.string().describe('Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be re-encoded and break the hash'), kind: LogKind, actor: z.string(), detail: z.string(),
   prev_hash: z.string().describe('hash of the previous entry; 64 zeros for the first'),
-  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify([id, ts, kind, actor, detail])'),
+  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts exactly as served'),
 })
 export const LogList = z.object({ items: z.array(LogEntry).describe('Oldest first, so the chain can be checked from the start') })
 
@@ -308,7 +309,7 @@ export const endpoints = defineEndpoints([
 
   R({ method: 'get', path: '/response/blocklist', summary: 'The block list your firewall pulls: tokenised address, entries with source, reason and expiry, last fetch', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
   R({ method: 'post', path: '/response/blocklist/token', summary: 'Regenerate the block list token; the old address stops working at once', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
-  R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'file' }),
+  R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'text' }),
 
   R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
   R({ method: 'post', path: '/response/catalog', status: 201, summary: 'Add a custom action. The fields must fit the connection kind (API: method, path, body; SSH: command; MCP: write tool and arguments) and the connection must have an enabled write tool', stories: ['S-RESP-4'], role: 'admin', body: CatalogInput, response: CatalogAction }),

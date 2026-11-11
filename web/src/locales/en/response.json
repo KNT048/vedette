@@ -11,7 +11,8 @@
     "onTitle": "High-risk mode is on",
     "onBody": "Actions that change your network devices can run after a person approves them. {{count}} request(s) waiting. Use Emergency stop if something looks wrong.",
     "breakerTitle": "Circuit breaker is open: all response is paused",
-    "breakerBody": "More than {{max}} actions were requested in one hour, so rules and AI requests are paused and your channels were told."
+    "breakerBody": "More than {{max}} actions were requested in one hour, so rules and AI requests are paused and your channels were told.",
+    "stoppedBody": "Someone pressed Emergency stop, so rules and AI requests are paused and no device step runs, an undo included, until an administrator resumes."
   },
   "plans": {
     "title": "Plans from the AI for critical findings",
@@ -614,6 +615,7 @@
     "windowAdd": "Add a window",
     "tripped": "The circuit breaker is open.",
     "trippedBody": "More than {{max}} actions in one hour, at {{time}}. Notified: {{who}}.",
+    "stoppedBody": "Emergency stop pressed at {{time}}. No step that touches a device runs, an undo included, until you resume.",
     "resume": "Resume",
     "resumed": "Response resumed"
   },

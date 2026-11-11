@@ -3,7 +3,7 @@
   {
    "id": "honeypot",
    "name": "A device touches a honeypot trap",
-   "description": "Something on your network connected to a decoy, used a planted credential or scanned the decoys.",
+   "description": "Something on your network connected to a decoy, used a planted credential or scanned the decoys. The source of a scan can be forged, so a scan never uses pre-approval.",
    "fields": [
     {
      "key": "source_ip",

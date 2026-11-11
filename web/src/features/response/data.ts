@@ -12,7 +12,7 @@ const F = (key: string, label: string, type: TriggerField['type'], example: stri
 export const AI_PROOF: Partial<Record<Trigger, ('finding' | 'ioc_hit' | 'config_read')[]>> = { finding: ['finding'], ioc_connection: ['ioc_hit'] }
 export const KINDS = ['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']
 export const TRIGGERS: { id: Trigger; name: string; description: string; fields: TriggerField[] }[] = [
-  { id: 'honeypot', name: 'A device touches a honeypot trap', description: 'Something on your network connected to a decoy, used a planted credential or scanned the decoys.',
+  { id: 'honeypot', name: 'A device touches a honeypot trap', description: 'Something on your network connected to a decoy, used a planted credential or scanned the decoys. The source of a scan can be forged, so a scan never uses pre-approval.',
     fields: [F('source_ip', 'Source IP address', 'ip', '192.168.10.157'), F('source_device', 'Source device', 'text', 'PC-HR-01'), F('decoy', 'Decoy touched', 'text', 'FILESRV-OLD'), F('kind', 'Kind of touch', 'choice', 'scan', ['service', 'token', 'scan']), F('switch_port', 'Switch port of the source', 'interface', 'Gi1/0/12')] },
   { id: 'ioc_connection', name: 'A device connects to a known-bad address', description: 'A LAN device talked to an IP address or domain on a threat feed. Read from the known-bad connection list of the Logs module.',
     fields: [F('src_ip', 'Device IP address', 'ip', '192.168.10.105'), F('device', 'Device', 'text', 'PC-SALES-02'), F('dest', 'Destination', 'text', '185.220.101.47'), F('dest_kind', 'Destination kind', 'choice', 'ip', ['ip', 'domain']),

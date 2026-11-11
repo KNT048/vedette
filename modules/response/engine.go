@@ -393,10 +393,13 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 	// limit was lowered after the rule was saved) it is a normal pending request.
 	need, _ := requiredApprovals(recs, st)
 	held := ""
-	if rule.PreApproved && need > 1 {
+	switch {
+	case rule.PreApproved && need > 1:
 		held = "; pre-approval not used, this request needs " + itoa(need) + " approvers"
+	case rule.PreApproved && forgeable(ev):
+		held = "; pre-approval not used, " + forgeableMsg
 	}
-	pre := rule.PreApproved && preApprovedProblem(rule.Actions, cats) == "" && need == 1
+	pre := rule.PreApproved && held == "" && preApprovedProblem(rule.Actions, cats) == ""
 	title := rule.Name + ": " + itoa(len(recs)) + " actions"
 	if len(recs) == 1 {
 		title = recs[0].Title
@@ -429,6 +432,12 @@ func firstLine(s string) string {
 }
 
 func store2(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
+
+// forgeable reports whether the source address of the event can be forged: a port scan of a decoy is seen from a SYN alone, with
+// no handshake, so any LAN host can make it name 1.1.1.1. A person approves what such an event asks for (D-286 (4), review of #304).
+func forgeable(ev Det) bool { return ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan" }
+
+const forgeableMsg = "the source address of a port scan can be forged, so a person approves it"
 
 // ---- evaluating events ----
 
@@ -825,6 +834,9 @@ func (s *Service) Simulate(ctx context.Context, who Actor, in RuleInput, eventID
 			notes = append(notes, bad)
 		} else {
 			notes = append(notes, "Pre-approved: a live run would carry this out without asking a person.")
+			if forgeable(ev) {
+				notes = append(notes, "Pre-approval is not used for this event: "+forgeableMsg+".")
+			}
 		}
 	} else {
 		notes = append(notes, "Every action needs approval before it runs.")

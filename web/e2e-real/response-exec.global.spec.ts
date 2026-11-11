@@ -313,8 +313,7 @@ test('INV-10: an address on the never-touch list refuses the run and is logged',
   ctx.allowBefore = undefined
 })
 
-// The settings of the box cannot be read while the emergency stop is on: GET /response/settings answers 500 ("unexpected field stopped_at", issue #302),
-// so this test reads the effects somewhere else (the rule run, the request, the log) and the page check lives in the test.fail below.
+// This test reads the effects of the stop in the rule run, the request and the log; the settings and the page are checked in the test after it.
 test('INV-8: the emergency stop cancels what waits, holds every rule behind the breaker and is logged; only an administrator resumes', async () => {
   const { admin, op, viewer } = ctxs()
   const run = await manual(op)
@@ -342,8 +341,8 @@ test('INV-8: the emergency stop cancels what waits, holds every rule behind the 
   expect((await api(op, 'POST', `/response/actions/${(await waiting(admin)).id}/approve`, {})).status).toBe(409)
 })
 
-// Issue #302: remove test.fail when GET /response/settings answers 200 after an emergency stop.
-test.fail('GET /response/settings after an emergency stop answers 200 and the page offers Resume (issue #302)', async ({ page }) => {
+// Issue #302 (fixed): the settings stay readable after an emergency stop, and the page says so and offers Resume.
+test('GET /response/settings after an emergency stop answers 200 and the page offers Resume (issue #302)', async ({ page }) => {
   const { admin, op } = ctxs()
   try {
     expect((await api(op, 'POST', '/response/emergency-stop')).status).toBe(200)
@@ -400,9 +399,8 @@ test('INV-19: the response log keeps what happened, holds no secret, cannot be e
   expect(rows.map((l) => l.hash).slice(0, items.length), 'the exported lines are the lines of the log').toEqual(items.map((l) => l.hash))
 })
 
-// Issue #308: GET /response/log serves ts with the milliseconds cut off (the box hashes "…:30.000Z", the API says "…:30Z"), so nobody can recompute the
-// hashes from what the API serves, and the page of the log, which does exactly that, cannot say "Chain verified". Remove test.fail when it is fixed.
-test.fail('the log served by the API and shown on the page verifies by itself (issue #308)', async ({ page }) => {
+// Issue #308 (fixed): GET /response/log serves ts exactly as stored and hashed, so the served chain re-verifies and the page of the log says "Chain verified".
+test('the log served by the API and shown on the page verifies by itself (issue #308)', async ({ page }) => {
   const items = await log(ctxs().admin)
   expect(brokenAt(items), 'the served chain verifies').toEqual([])
   await page.context().addCookies((await ctxs().admin.storageState()).cookies)

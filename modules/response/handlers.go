@@ -486,7 +486,7 @@ func (h *ResponseHandlers) ResponsePostResponseBlocklistToken(ctx context.Contex
 }
 
 // ResponseGetResponseBlocklistTokenTxt implements GET /response/blocklist/{token}.txt (public: the token is the credential).
-// ogen fixes the content type of a file answer to application/octet-stream; the text is plain, one address per line.
+// The contract declares text/plain; charset=utf-8 (response 'text', blocklist-format.md §4): one address per line.
 func (h *ResponseHandlers) ResponseGetResponseBlocklistTokenTxt(ctx context.Context, params oas.ResponseGetResponseBlocklistTokenTxtParams) (oas.ResponseGetResponseBlocklistTokenTxtOK, error) {
 	from := ""
 	if x, ok := server.ExchangeFrom(ctx); ok {

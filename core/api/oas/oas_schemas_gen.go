@@ -98137,13 +98137,17 @@ func (s *ResponseGetResponseLogOK) SetItems(val []ResponseGetResponseLogOKItemsI
 type ResponseGetResponseLogOKItemsItem struct {
 	Actor  string `json:"actor"`
 	Detail string `json:"detail"`
-	// Lowercase hex SHA-256 of prev_hash + "\n" + JSON.stringify([id, ts, kind, actor, detail]).
+	// Lowercase hex SHA-256 of prev_hash + "\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts})
+	// (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts
+	// exactly as served.
 	Hash string                                `json:"hash"`
 	ID   string                                `json:"id"`
 	Kind ResponseGetResponseLogOKItemsItemKind `json:"kind"`
 	// Hash of the previous entry; 64 zeros for the first.
-	PrevHash string    `json:"prev_hash"`
-	Ts       time.Time `json:"ts"`
+	PrevHash string `json:"prev_hash"`
+	// Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be
+	// re-encoded and break the hash.
+	Ts string `json:"ts"`
 }
 
 // GetActor returns the value of Actor.
@@ -98177,7 +98181,7 @@ func (s *ResponseGetResponseLogOKItemsItem) GetPrevHash() string {
 }
 
 // GetTs returns the value of Ts.
-func (s *ResponseGetResponseLogOKItemsItem) GetTs() time.Time {
+func (s *ResponseGetResponseLogOKItemsItem) GetTs() string {
 	return s.Ts
 }
 
@@ -98212,7 +98216,7 @@ func (s *ResponseGetResponseLogOKItemsItem) SetPrevHash(val string) {
 }
 
 // SetTs sets the value of Ts.
-func (s *ResponseGetResponseLogOKItemsItem) SetTs(val time.Time) {
+func (s *ResponseGetResponseLogOKItemsItem) SetTs(val string) {
 	s.Ts = val
 }
 
@@ -100242,6 +100246,9 @@ type ResponseGetResponseSettingsOK struct {
 	MaxPerHour int `json:"max_per_hour"`
 	// An action touching more targets than this needs a second approver.
 	MultiTargetMax int `json:"multi_target_max"`
+	// Set by the emergency stop until an administrator resumes: no step that touches a device runs, an
+	// undo included.
+	StoppedAt NilDateTime `json:"stopped_at"`
 }
 
 // GetAcceptedAt returns the value of AcceptedAt.
@@ -100309,6 +100316,11 @@ func (s *ResponseGetResponseSettingsOK) GetMultiTargetMax() int {
 	return s.MultiTargetMax
 }
 
+// GetStoppedAt returns the value of StoppedAt.
+func (s *ResponseGetResponseSettingsOK) GetStoppedAt() NilDateTime {
+	return s.StoppedAt
+}
+
 // SetAcceptedAt sets the value of AcceptedAt.
 func (s *ResponseGetResponseSettingsOK) SetAcceptedAt(val NilDateTime) {
 	s.AcceptedAt = val
@@ -100372,6 +100384,11 @@ func (s *ResponseGetResponseSettingsOK) SetMaxPerHour(val int) {
 // SetMultiTargetMax sets the value of MultiTargetMax.
 func (s *ResponseGetResponseSettingsOK) SetMultiTargetMax(val int) {
 	s.MultiTargetMax = val
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *ResponseGetResponseSettingsOK) SetStoppedAt(val NilDateTime) {
+	s.StoppedAt = val
 }
 
 type ResponseGetResponseSettingsOKAi struct {
@@ -112940,6 +112957,9 @@ type ResponsePostResponseBreakerResetOK struct {
 	MaxPerHour int `json:"max_per_hour"`
 	// An action touching more targets than this needs a second approver.
 	MultiTargetMax int `json:"multi_target_max"`
+	// Set by the emergency stop until an administrator resumes: no step that touches a device runs, an
+	// undo included.
+	StoppedAt NilDateTime `json:"stopped_at"`
 }
 
 // GetAcceptedAt returns the value of AcceptedAt.
@@ -113007,6 +113027,11 @@ func (s *ResponsePostResponseBreakerResetOK) GetMultiTargetMax() int {
 	return s.MultiTargetMax
 }
 
+// GetStoppedAt returns the value of StoppedAt.
+func (s *ResponsePostResponseBreakerResetOK) GetStoppedAt() NilDateTime {
+	return s.StoppedAt
+}
+
 // SetAcceptedAt sets the value of AcceptedAt.
 func (s *ResponsePostResponseBreakerResetOK) SetAcceptedAt(val NilDateTime) {
 	s.AcceptedAt = val
@@ -113070,6 +113095,11 @@ func (s *ResponsePostResponseBreakerResetOK) SetMaxPerHour(val int) {
 // SetMultiTargetMax sets the value of MultiTargetMax.
 func (s *ResponsePostResponseBreakerResetOK) SetMultiTargetMax(val int) {
 	s.MultiTargetMax = val
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *ResponsePostResponseBreakerResetOK) SetStoppedAt(val NilDateTime) {
+	s.StoppedAt = val
 }
 
 type ResponsePostResponseBreakerResetOKAi struct {
@@ -115287,6 +115317,9 @@ type ResponsePostResponseExecutionOK struct {
 	MaxPerHour int `json:"max_per_hour"`
 	// An action touching more targets than this needs a second approver.
 	MultiTargetMax int `json:"multi_target_max"`
+	// Set by the emergency stop until an administrator resumes: no step that touches a device runs, an
+	// undo included.
+	StoppedAt NilDateTime `json:"stopped_at"`
 }
 
 // GetAcceptedAt returns the value of AcceptedAt.
@@ -115354,6 +115387,11 @@ func (s *ResponsePostResponseExecutionOK) GetMultiTargetMax() int {
 	return s.MultiTargetMax
 }
 
+// GetStoppedAt returns the value of StoppedAt.
+func (s *ResponsePostResponseExecutionOK) GetStoppedAt() NilDateTime {
+	return s.StoppedAt
+}
+
 // SetAcceptedAt sets the value of AcceptedAt.
 func (s *ResponsePostResponseExecutionOK) SetAcceptedAt(val NilDateTime) {
 	s.AcceptedAt = val
@@ -115417,6 +115455,11 @@ func (s *ResponsePostResponseExecutionOK) SetMaxPerHour(val int) {
 // SetMultiTargetMax sets the value of MultiTargetMax.
 func (s *ResponsePostResponseExecutionOK) SetMultiTargetMax(val int) {
 	s.MultiTargetMax = val
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *ResponsePostResponseExecutionOK) SetStoppedAt(val NilDateTime) {
+	s.StoppedAt = val
 }
 
 type ResponsePostResponseExecutionOKAi struct {
@@ -123265,6 +123308,9 @@ type ResponsePutResponseSettingsOK struct {
 	MaxPerHour int `json:"max_per_hour"`
 	// An action touching more targets than this needs a second approver.
 	MultiTargetMax int `json:"multi_target_max"`
+	// Set by the emergency stop until an administrator resumes: no step that touches a device runs, an
+	// undo included.
+	StoppedAt NilDateTime `json:"stopped_at"`
 }
 
 // GetAcceptedAt returns the value of AcceptedAt.
@@ -123332,6 +123378,11 @@ func (s *ResponsePutResponseSettingsOK) GetMultiTargetMax() int {
 	return s.MultiTargetMax
 }
 
+// GetStoppedAt returns the value of StoppedAt.
+func (s *ResponsePutResponseSettingsOK) GetStoppedAt() NilDateTime {
+	return s.StoppedAt
+}
+
 // SetAcceptedAt sets the value of AcceptedAt.
 func (s *ResponsePutResponseSettingsOK) SetAcceptedAt(val NilDateTime) {
 	s.AcceptedAt = val
@@ -123395,6 +123446,11 @@ func (s *ResponsePutResponseSettingsOK) SetMaxPerHour(val int) {
 // SetMultiTargetMax sets the value of MultiTargetMax.
 func (s *ResponsePutResponseSettingsOK) SetMultiTargetMax(val int) {
 	s.MultiTargetMax = val
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *ResponsePutResponseSettingsOK) SetStoppedAt(val NilDateTime) {
+	s.StoppedAt = val
 }
 
 type ResponsePutResponseSettingsOKAi struct {

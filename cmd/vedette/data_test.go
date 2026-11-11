@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -229,38 +230,33 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	addr, lines, done, stop := boot()
 	defer stop()
 	cookies := map[string]*http.Cookie{}
+	// call retries a 503 server_busy (nothing was written: the writer or the password-check queue was full) after its Retry-After, as the GUI
+	// does, for at most about 30 s: under a loaded machine the write wait limit (D-246) can fire before this request gets the writer (#320).
 	call := func(method, path string, body any) (int, []byte, http.Header) {
 		t.Helper()
-		var rd io.Reader
+		var payload []byte
 		if body != nil {
-			b, _ := json.Marshal(body)
-			rd = bytes.NewReader(b)
+			payload, _ = json.Marshal(body)
 		}
-		req, err := http.NewRequestWithContext(t.Context(), method, "http://"+addr+"/api/v1"+path, rd)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		for _, c := range cookies {
-			req.AddCookie(c)
-		}
-		if c, ok := cookies[auth.CookieCSRF]; ok {
-			req.Header.Set(auth.HeaderCSRF, c.Value)
-		}
-		resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer func() { _ = resp.Body.Close() }()
-		for _, c := range resp.Cookies() {
-			if c.MaxAge < 0 || c.Value == "" {
-				delete(cookies, c.Name)
-			} else {
-				cookies[c.Name] = c
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			c, b, hd := callOnce(t, cookies, addr, method, path, payload)
+			if c != http.StatusServiceUnavailable || !strings.Contains(string(b), `"server_busy"`) {
+				return c, b, hd
+			}
+			wait := time.Second
+			if s, err := strconv.Atoi(hd.Get("Retry-After")); err == nil && s > 0 {
+				wait = time.Duration(s) * time.Second
+			}
+			if time.Now().Add(wait).After(deadline) {
+				return c, b, hd
+			}
+			select {
+			case <-t.Context().Done():
+				return c, b, hd
+			case <-time.After(wait):
 			}
 		}
-		b, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, b, resp.Header
 	}
 
 	code := setupCode(lines)
@@ -603,6 +599,40 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 			t.Errorf("table %s is in the export", name)
 		}
 	}
+}
+
+// callOnce sends one API request with the test's cookies (and the CSRF header) and keeps the cookies the answer sets or clears.
+func callOnce(t *testing.T, cookies map[string]*http.Cookie, addr, method, path string, payload []byte) (int, []byte, http.Header) {
+	t.Helper()
+	var rd io.Reader
+	if payload != nil {
+		rd = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequestWithContext(t.Context(), method, "http://"+addr+"/api/v1"+path, rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	if c, ok := cookies[auth.CookieCSRF]; ok {
+		req.Header.Set(auth.HeaderCSRF, c.Value)
+	}
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	for _, c := range resp.Cookies() {
+		if c.MaxAge < 0 || c.Value == "" {
+			delete(cookies, c.Name)
+		} else {
+			cookies[c.Name] = c
+		}
+	}
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, b, resp.Header
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }

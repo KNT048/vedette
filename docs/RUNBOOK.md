@@ -78,7 +78,7 @@ Cài đặt ban đầu làm hoàn toàn trong GUI (D-22), không SSH.
 
 ### 5.1 Có gì, không có gì
 - **Trong bản sao lưu:** một bản chụp SQLite nhất quán của `vedette.db` (`VACUUM INTO`, không lọc gì) cùng `manifest.json`: cấu hình mọi module, người dùng **kèm băm mật khẩu argon2id** (không có mật khẩu rõ), thiết bị, finding, nhật ký kiểm toán, cấu hình `logs` (nguồn, lưu giữ, SIEM). **Không có khoá chủ**: bí mật mã hoá (khoá AI/feed, token, mật khẩu kênh, khoá TOTP) không mở được nếu không có khoá. Giữ tệp như dữ liệu nhạy cảm (băm mật khẩu của mọi quản trị viên có thể bị bẻ ngoại tuyến).
-- **Không trong bản sao lưu:** `logs.db` (các dòng log nhận được; D-151: sao lưu, khôi phục và quay lui không đụng tới nó); khoá chủ `/var/lib/vedette/vedette.key` ở bản tải về; log thô của honeypot; chứng chỉ TLS (`vedette-selfsigned.*`, tự sinh lại); image (kéo lại); unit Quadlet (sinh lại từ mã).
+- **Không trong bản sao lưu:** `logs.db` (các dòng log nhận được; D-151: sao lưu, khôi phục và quay lui không đụng tới nó); khoá chủ `/var/lib/vedette/vedette.key` ở bản tải về; log thô của honeypot; chứng chỉ TLS (`vedette-selfsigned.*` và CA `vedette-selfsigned-ca.*`, tự sinh lại; CA mới nghĩa là máy đã đăng ký chạy lại lệnh cài, D-262); image (kéo lại); unit Quadlet (sinh lại từ mã).
 - **Khoá chủ** `/var/lib/vedette/vedette.key`: chép một lần ra chỗ ngoài hộp (tệp 0600). Mất khoá thì khoá AI, khoá feed, token và mật khẩu kênh đã lưu không giải mã được và phải nhập lại, **và mọi người dùng đã bật hai bước không đăng nhập được** (khoá TOTP cũng mã hoá bằng khoá chủ); khôi phục sang máy mới mà không chép khoá cũ thì hộp tạo khoá mới.
 
 ### 5.2 Tạo bản sao lưu
@@ -211,7 +211,7 @@ Mọi module dùng chung `vedette.db`, trừ ngoại lệ ghi rõ. Tắt module 
 ## 11. Vị trí tệp trên hộp
 | Đường dẫn | Nội dung |
 |---|---|
-| `/var/lib/vedette/` | `vedette.db` (+ `-wal`, `-shm`), `vedette.key` (khoá chủ, 0600), `logs.db`, `vedette-selfsigned.crt/.key`, `snapshots/` (bản chụp tạm) |
+| `/var/lib/vedette/` | `vedette.db` (+ `-wal`, `-shm`), `vedette.key` (khoá chủ, 0600), `logs.db`, `vedette-selfsigned.crt/.key` (lá 8443), `vedette-selfsigned-ca.crt/.key` (CA riêng của hộp ký lá, D-262; 0600, xoá thì máy đã đăng ký phải chạy lại lệnh cài), `snapshots/` (bản chụp tạm) |
 | `/var/lib/vedette-host/` | trạng thái host: `backups/` (+ `index.json`), `exports/`, `containers/` (`versions-<service>.json`, `transition-<service>.json`), `runs/`, `hp/` (decoy), `net/` |
 | `/var/lib/vedette-honeypot/{config,log}` | cấu hình sinh cho OpenCanary; log thô |
 | `/etc/vedette/host.conf` | do `install.sh` ghi từ id người dùng thật (đừng sửa tay: chạy lại script) |

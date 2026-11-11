@@ -128,7 +128,11 @@ func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time
 	if err != nil {
 		return fmt.Errorf("tls: generate key: %w", err)
 	}
-	certPEM, err := selfSignedPEM(key, hosts, now())
+	ca, err := ensureBoxCA(certPath, now())
+	if err != nil {
+		return err
+	}
+	certPEM, err := selfSignedPEM(ca, key, hosts, now())
 	if err != nil {
 		return err
 	}
@@ -158,14 +162,23 @@ func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time
 		return false, nil //nolint:nilerr // loadTLS reports a pair that cannot be loaded, with the file names
 	}
 	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil || !slices.Contains(leaf.Subject.Organization, selfSignedOrg) || !need(leaf) {
+	if err != nil || !slices.Contains(leaf.Subject.Organization, selfSignedOrg) {
 		return false, nil //nolint:nilerr // see above
 	}
 	signer, ok := pair.PrivateKey.(crypto.Signer)
 	if !ok {
 		return false, nil
 	}
-	certPEM, err := selfSignedPEM(signer, hosts, now())
+	ca, err := ensureBoxCA(certPath, now())
+	if err != nil {
+		return false, err
+	}
+	if notSignedBy(leaf, ca) { // upgrade of a box with an old self-signed leaf (D-262): same key, same names, under the CA
+		hosts = append(append(append([]string(nil), hosts...), leaf.DNSNames...), addrStrings(certIPs(leaf))...)
+	} else if !need(leaf) {
+		return false, nil
+	}
+	certPEM, err := selfSignedPEM(ca, signer, hosts, now())
 	if err != nil {
 		return false, err
 	}
@@ -347,6 +360,10 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 			mgmt = a
 		}
 	}
+	ca, err := ensureBoxCA(r.certPath, r.now())
+	if err != nil {
+		return err
+	}
 	hosts := append([]string(nil), r.hosts...)
 	addrChange := false
 	var now map[netip.Addr]bool
@@ -364,13 +381,13 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	} else {
 		hosts = append(hosts, addrStrings(certIPs(leaf))...) // no fresh answer: keep the addresses it has
 	}
-	if !addrChange && leaf.NotAfter.Sub(r.now()) > selfSignedRenewBefore {
+	if !addrChange && leaf.NotAfter.Sub(r.now()) > selfSignedRenewBefore && !notSignedBy(leaf, ca) {
 		if now != nil {
 			r.lastMgmt = now
 		}
 		return nil
 	}
-	certPEM, err := selfSignedPEM(signer, append(hosts, r.localList()...), r.now())
+	certPEM, err := selfSignedPEM(ca, signer, append(hosts, r.localList()...), r.now())
 	if err != nil {
 		return err
 	}
@@ -513,9 +530,123 @@ func (w *ownerCertWarner) Run(ctx context.Context, log *slog.Logger, tick, addrT
 		})
 }
 
-// selfSignedPEM makes a self-signed server certificate for key, valid selfSignedLifetime, for hosts and
-// localNames.
-func selfSignedPEM(key crypto.Signer, hosts []string, now time.Time) ([]byte, error) {
+// The box CA (WP-26 slice 1, D-262): a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate
+// as the server's end-entity certificate), signs the self-made leaf, so an agent that pins the CA keeps
+// trusting the box through every leaf re-issue (D-139). Created once next to the leaf, never rotated by a
+// renewal; only an expired CA, or one that cannot cover a new leaf, is replaced.
+const (
+	boxCALifetime = 20 * 365 * 24 * time.Hour
+	boxCAName     = "vedette-selfsigned-ca"
+)
+
+// boxCA is the box CA: its certificate and key.
+type boxCA struct {
+	cert *x509.Certificate
+	key  crypto.Signer
+}
+
+// boxCAPaths are the CA files, in the directory of the leaf's certificate (mode 0600 like the leaf's key).
+func boxCAPaths(leafCertPath string) (certPath, keyPath string) {
+	d := filepath.Dir(leafCertPath)
+	return filepath.Join(d, boxCAName+".crt"), filepath.Join(d, boxCAName+".key")
+}
+
+// notSignedBy reports whether leaf does not chain to ca (an old self-signed leaf, or a CA that was replaced).
+func notSignedBy(leaf *x509.Certificate, ca *boxCA) bool {
+	return leaf.CheckSignatureFrom(ca.cert) != nil
+}
+
+// ensureBoxCA loads the box CA next to leafCertPath, or makes it when there is none. A CA that expires
+// within selfSignedLifetime (it could not cover a new leaf) is replaced, and the leaf follows at its next
+// check. A certificate without its key, or files that do not parse, are an error: they were not left by
+// this function (it writes the key first, so a key alone is an interrupted first start and is replaced).
+func ensureBoxCA(leafCertPath string, now time.Time) (*boxCA, error) {
+	crtPath, keyPath := boxCAPaths(leafCertPath)
+	if _, err := os.Lstat(crtPath); err == nil {
+		if err := checkKeyFile(keyPath); err != nil {
+			return nil, fmt.Errorf("tls: box CA: %w (delete %s and %s to make a new CA; agents must then be enrolled again)", err, crtPath, keyPath)
+		}
+		pair, err := tls.LoadX509KeyPair(crtPath, keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("tls: box CA: %w (delete %s and %s to make a new CA; agents must then be enrolled again)", err, crtPath, keyPath)
+		}
+		cert, err := x509.ParseCertificate(pair.Certificate[0])
+		signer, ok := pair.PrivateKey.(crypto.Signer)
+		if err != nil || !ok || !cert.IsCA {
+			return nil, fmt.Errorf("tls: %s is not a CA certificate with its key", crtPath)
+		}
+		if cert.NotAfter.Sub(now) > selfSignedLifetime {
+			return &boxCA{cert: cert, key: signer}, nil
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("tls: box CA: %w", err)
+	}
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("tls: generate CA key: %w", err)
+	}
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
+	if err != nil {
+		return nil, fmt.Errorf("tls: serial: %w", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: serial, Subject: pkix.Name{CommonName: "Vedette box CA", Organization: []string{selfSignedOrg}},
+		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(boxCALifetime),
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign, BasicConstraintsValid: true, IsCA: true, MaxPathLen: 0, MaxPathLenZero: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	if err != nil {
+		return nil, fmt.Errorf("tls: create CA certificate: %w", err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, fmt.Errorf("tls: parse CA certificate: %w", err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("tls: encode CA key: %w", err)
+	}
+	if err := writeAtomic(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})); err != nil {
+		return nil, err
+	}
+	if err := writeAtomic(crtPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})); err != nil {
+		return nil, err
+	}
+	return &boxCA{cert: cert, key: key}, nil
+}
+
+// trustAnchorPEM is what an agent pins to trust this box's 8443 (served by GET /intake/ca.pem in a later
+// slice): the box CA's certificate for the box's own pair; for a certificate the owner supplied
+// (-tls-cert), the certificates of the file as supplied (the chain, or the leaf alone), never anything else
+// that file holds (a key in the same file is not copied).
+func trustAnchorPEM(certPath string, ownerSupplied bool) ([]byte, error) {
+	if !ownerSupplied {
+		certPath, _ = boxCAPaths(certPath)
+	}
+	raw, err := os.ReadFile(certPath) //nolint:gosec // the configured certificate path, or the CA file next to it
+	if err != nil {
+		return nil, fmt.Errorf("tls: trust anchor: %w", err)
+	}
+	var out []byte
+	for {
+		var blk *pem.Block
+		blk, raw = pem.Decode(raw)
+		if blk == nil {
+			break
+		}
+		if blk.Type == "CERTIFICATE" {
+			out = append(out, pem.EncodeToMemory(blk)...)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("tls: %s holds no certificate", certPath)
+	}
+	return out, nil
+}
+
+// selfSignedPEM makes a server certificate for key, signed by the box CA, valid selfSignedLifetime, for
+// hosts and localNames.
+func selfSignedPEM(ca *boxCA, key crypto.Signer, hosts []string, now time.Time) ([]byte, error) {
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
 	if err != nil {
 		return nil, fmt.Errorf("tls: serial: %w", err)
@@ -537,7 +668,7 @@ func selfSignedPEM(key crypto.Signer, hosts []string, now time.Time) ([]byte, er
 			tmpl.DNSNames = append(tmpl.DNSNames, h)
 		}
 	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, ca.cert, key.Public(), ca.key)
 	if err != nil {
 		return nil, fmt.Errorf("tls: create certificate: %w", err)
 	}

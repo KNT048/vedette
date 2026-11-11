@@ -475,7 +475,9 @@ func TestEnsureCertRenewsItsOwnPairNearExpiry(t *testing.T) {
 	}{
 		{"own pair, 10 days left", own(10*24*time.Hour, selfSignedOrg), true},
 		{"own pair, already expired", own(-time.Hour, selfSignedOrg), true},
-		{"own pair, 60 days left", own(60*24*time.Hour, selfSignedOrg), false},
+		// An old self-signed leaf is re-issued once under the box CA whatever time it has left (D-262); a
+		// leaf that already chains to the CA and has time left is left alone (TestBoxCAFreshBoxLeafChainsToIt).
+		{"old self-signed pair, 60 days left", own(60*24*time.Hour, selfSignedOrg), true},
 		{"owner's pair, 10 days left", own(10*24*time.Hour, "Acme IT"), false},
 	}
 	for _, tc := range cases {

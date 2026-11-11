@@ -997,15 +997,27 @@ func TestContract_Update_RollbackNeedsThePreUpdateBackupOfAnUnsafeCoreRelease(t 
 			t.Fatal("the database was touched")
 		}
 	})
-	t.Run("retention dropped it from the index", func(t *testing.T) {
+	t.Run("it is not in the index", func(t *testing.T) {
 		t.Parallel()
 		c := setupCoreUnsafe(t)
 		e := c.e
-		for range 3 { // the host keeps the three newest pre_* backups
+		if err := os.WriteFile(filepath.Join(e.m.State, "backups", "index.json"), []byte(`{"backups":[]}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodeRollbackBackupMissing)
+	})
+	t.Run("retention keeps it (D-157): the versions point at it", func(t *testing.T) {
+		t.Parallel()
+		c := setupCoreUnsafe(t)
+		e := c.e
+		for range 3 { // the host keeps the three newest pre_* backups, and B1 on top of them
 			e.clock.Advance(time.Minute)
 			e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "pre_update", Snapshot: e.snap(), IncludeSecrets: true})
 		}
-		e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodeRollbackBackupMissing)
+		res := result[api.ContainerRollbackResult](t, e.rollback(t, "core"))
+		if res.RestoredBackupID == nil || *res.RestoredBackupID != c.backup {
+			t.Fatalf("%+v", res)
+		}
 	})
 }
 

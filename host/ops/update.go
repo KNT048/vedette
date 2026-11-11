@@ -66,6 +66,16 @@ func (o *Ops) unpackBackup(rec backupRecord, prefix string) (extracted, func(), 
 	return ex, cleanup, nil
 }
 
+// archiveLooked is nil when the archive file of an indexed backup is a regular file; os.ErrNotExist (wrapped)
+// when there is none; another error when it cannot be told (I/O) or it is not a regular file.
+func (o *Ops) archiveLooked(id string) error {
+	st, err := os.Lstat(o.archivePath(id))
+	if err == nil && !st.Mode().IsRegular() {
+		return errors.New("ops: the backup archive is not a regular file")
+	}
+	return err
+}
+
 // archiveThere says whether the archive file of an indexed backup is still on disk.
 func (o *Ops) archiveThere(id string) bool {
 	st, err := os.Lstat(o.archivePath(id))
@@ -218,16 +228,33 @@ func (o *Ops) putUnitBack(ctx context.Context, rc *server.RunContext, service st
 // pre_update backup of the change, "aside" brings back the files the change moved aside. It is the same
 // descriptor path as backup.restore (extract, swap; D-87).
 func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
-	var bk backupRecord
+	var ex extracted
 	if t.DBRevert == dbBackup {
-		// A backup that is not in the index or whose archive is gone is not coming back: no retry can cure it
-		// (errUnrecoverable stops the loop, D-142's way out is backup.restore). Checked before core is stopped,
-		// so a hopeless revert does not stop core at all (D-157, WP-31 M4).
-		rec, ok := o.lookupBackup(t.BackupID)
-		if !ok || !o.archiveThere(rec.ID) {
-			return fmt.Errorf("%w: the pre_update backup is gone", errUnrecoverable)
+		// The backup is unpacked and verified BEFORE core is stopped (as container.rollback does), so a revert
+		// that cannot work does not stop core. What no retry can cure is errUnrecoverable (the loop stops; D-142's
+		// way out is backup.restore): the index was read and has no such backup, the archive file does not
+		// exist, or it does not match its checksum or is not a valid archive. An I/O error, a full disk or an
+		// unreadable index may pass: those stay plain errors and the loop tries again (D-157, WP-31 M4).
+		rec, ok, err := o.lookupBackup(t.BackupID)
+		if err != nil {
+			return fmt.Errorf("ops: read the backup index: %w", err)
 		}
-		bk = rec
+		if !ok {
+			return fmt.Errorf("%w: the pre_update backup is not in the index", errUnrecoverable)
+		}
+		if err := o.archiveLooked(rec.ID); errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%w: the pre_update backup file is gone", errUnrecoverable)
+		} else if err != nil {
+			return fmt.Errorf("ops: look at the pre_update backup file: %w", err)
+		}
+		var cleanup func()
+		if ex, cleanup, err = o.unpackBackup(rec, "rv-"); err != nil {
+			if isBadArchive(err) {
+				return fmt.Errorf("%w: %w", errUnrecoverable, err)
+			}
+			return err
+		}
+		defer cleanup()
 	}
 	if err := o.stopCore(ctx); err != nil {
 		return err
@@ -241,11 +268,6 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 		defer tree.close()
 		return tree.putAsideBack(t.Aside)
 	case dbBackup:
-		ex, cleanup, err := o.unpackBackup(bk, "rv-")
-		if err != nil {
-			return err
-		}
-		defer cleanup()
 		if err := o.swap(ex); err != nil {
 			return err
 		}
@@ -399,7 +421,10 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 	// the service moved into the running release.
 	if service == api.ServiceCore && !curMan.Rollback.Safe {
 		p.restoreDB = true
-		rec, ok := o.lookupBackup(p.cur.BackupID)
+		rec, ok, lerr := o.lookupBackup(p.cur.BackupID)
+		if lerr != nil {
+			return nil, refuse412(api.CodeRestoreFailed, "The backup index cannot be read.")
+		}
 		if p.cur.BackupID == "" || !ok {
 			return nil, refuse412(api.CodeRollbackBackupMissing, "This release cannot be rolled back without the backup made before it was installed, and that backup is gone.")
 		}

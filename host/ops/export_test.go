@@ -35,7 +35,7 @@ func Retain(kinds []string, minutes []int) (kept []int) {
 	for i, k := range kinds {
 		ix.Backups = append(ix.Backups, backupRecord{ID: string(rune('a' + i)), Kind: k, CreatedAt: time.Unix(1_700_000_000, 0).Add(time.Duration(minutes[i]) * time.Minute)})
 	}
-	retain(&ix, nil)
+	retain(&ix, nil, "")
 	for _, r := range ix.Backups {
 		kept = append(kept, int(r.ID[0]-'a'))
 	}

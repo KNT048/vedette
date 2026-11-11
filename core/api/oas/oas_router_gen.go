@@ -9211,7 +9211,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostAuthLoginOperation
-								r.summary = "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required)"
+								r.summary = "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180)"
 								r.operationID = "core_post_auth_login"
 								r.operationGroup = ""
 								r.pathPattern = "/auth/login"
@@ -9514,7 +9514,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreAccountPasswordOperation
-										r.summary = "Change password (needs the current password)"
+										r.summary = "Change password (needs the current password). The same call ends the temporary-password limit of D-180: the new password must differ from the temporary one"
 										r.operationID = "core_post_core_account_password"
 										r.operationGroup = ""
 										r.pathPattern = "/core/account/password"
@@ -10828,7 +10828,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return r, true
 							case "POST":
 								r.name = CorePostCoreUsersOperation
-								r.summary = "Create a user with a role; returns a temporary password once"
+								r.summary = "Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours (D-180)"
 								r.operationID = "core_post_core_users"
 								r.operationGroup = ""
 								r.pathPattern = "/core/users"
@@ -10923,7 +10923,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = CorePostCoreUsersIDResetPasswordOperation
-											r.summary = "Reset password: temporary password once, ends all of that user's sessions"
+											r.summary = "Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180), ends all of that user's sessions"
 											r.operationID = "core_post_core_users_id_reset_password"
 											r.operationGroup = ""
 											r.pathPattern = "/core/users/{id}/reset-password"

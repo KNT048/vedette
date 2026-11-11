@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, ApiError } from './api'
 
 export type Role = 'viewer' | 'operator' | 'admin'
-export interface Me { id: string; name: string; email: string; role: Role; org: string; twofa: boolean; twofa_method: 'app' | 'email' | null }
+export interface Me { id: string; name: string; email: string; role: Role; org: string; twofa: boolean; twofa_method: 'app' | 'email' | null; password_change_required: boolean }
 
 const rank: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 

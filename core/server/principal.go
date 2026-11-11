@@ -14,7 +14,14 @@ type Principal struct {
 	ID    string
 	Email string
 	Role  routes.Role
+	// PasswordChangeRequired: the session was opened with a password an administrator set (D-180). Every
+	// operation except those in limitedSessionOps answers 403 password_change_required.
+	PasswordChangeRequired bool
 }
+
+// limitedSessionOps are the operations a session with PasswordChangeRequired may use (D-180): read who it
+// is, and change the password. Signing out is a public operation and does not pass this gate.
+var limitedSessionOps = map[string]bool{"core_get_me": true, "core_post_core_account_password": true}
 
 // ErrNoSession is what an Authenticator returns when the request carries no valid session:
 // the response is 401 unauthenticated.

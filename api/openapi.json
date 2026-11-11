@@ -6283,7 +6283,7 @@
     "/auth/login": {
       "post": {
         "operationId": "core_post_auth_login",
-        "summary": "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required)",
+        "summary": "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180)",
         "tags": [
           "core"
         ],
@@ -7039,7 +7039,7 @@
     "/core/account/password": {
       "post": {
         "operationId": "core_post_core_account_password",
-        "summary": "Change password (needs the current password)",
+        "summary": "Change password (needs the current password). The same call ends the temporary-password limit of D-180: the new password must differ from the temporary one",
         "tags": [
           "core"
         ],
@@ -16753,7 +16753,7 @@
       },
       "post": {
         "operationId": "core_post_core_users",
-        "summary": "Create a user with a role; returns a temporary password once",
+        "summary": "Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours (D-180)",
         "tags": [
           "core"
         ],
@@ -17105,7 +17105,7 @@
     "/core/users/{id}/reset-password": {
       "post": {
         "operationId": "core_post_core_users_id_reset_password",
-        "summary": "Reset password: temporary password once, ends all of that user's sessions",
+        "summary": "Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180), ends all of that user's sessions",
         "tags": [
           "core"
         ],
@@ -34581,6 +34581,10 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "password_change_required": {
+                      "type": "boolean",
+                      "description": "The password was set by an administrator (D-180): until the user changes it, every call except GET /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the GUI shows the Choose a new password screen"
                     }
                   },
                   "required": [
@@ -34590,7 +34594,8 @@
                     "role",
                     "org",
                     "twofa",
-                    "twofa_method"
+                    "twofa_method",
+                    "password_change_required"
                   ],
                   "additionalProperties": false
                 }

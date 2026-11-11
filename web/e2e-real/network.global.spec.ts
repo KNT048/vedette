@@ -38,8 +38,6 @@ async function audit(action: string) {
   return r.body.items.filter((i) => i.action === action)
 }
 
-/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
-const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
 /** What the page showed in the click paths below, for the test.fail markers that follow them. */
 const shown = { savedToastOnApply: false, cancelToast: false }
 
@@ -257,17 +255,11 @@ test('DHCP: the confirm dialog says where to find the new address instead of sho
   noErrors(errors, /status of 4\d\d/)
 })
 
-// test.fail (D-171): starting the 5-minute window toasts "Management settings saved." although nothing is kept until the person confirms. Issue #242.
 test('applying a new address does not say "saved" while the box still waits for the confirm', async () => {
-  test.fail(true, 'GUI: "Management settings saved." when the 5-minute window starts (issue #242, .ai/deferred/feat-e2e-real-harness.md)')
-  knownSymptom(shown.savedToastOnApply)
   expect(shown.savedToastOnApply, 'a "saved" toast at the start of the window').toBe(false)
 })
 
-// test.fail (D-171): Cancel and go back now gives no toast of its own (Confirm does). Issue #243.
 test('cancelling a waiting change tells the person the box went back', async () => {
-  test.fail(true, 'GUI: Cancel and go back now shows no toast (issue #243, .ai/deferred/feat-e2e-real-harness.md)')
-  knownSymptom(!shown.cancelToast)
   expect(shown.cancelToast, 'a toast after cancelling').toBe(true)
 })
 

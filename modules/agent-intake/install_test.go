@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -484,6 +485,9 @@ func TestMirror_OneDownloadPerAddress(t *testing.T) {
 // A client that stops reading frees its slot when the write deadline passes (a real server, a raw connection that never reads), and while
 // it holds the slot another address still downloads and the same address is refused.
 func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the second client address is 127.0.0.2, which only Linux has on loopback")
+	}
 	w := newWorld(t)
 	w.fillMirror()
 	w.svc.SetMirrorWaitsForTest(300*time.Millisecond, 5*time.Second)

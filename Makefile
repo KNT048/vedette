@@ -81,6 +81,7 @@ verify-go-static:
 	go build ./...
 	go vet ./...
 	$(MAKE) generate-check contract lint-go test-go-shards-check
+	bash scripts/dev/orphan-reaper-test.sh
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
 generate: generate-sql generate-api

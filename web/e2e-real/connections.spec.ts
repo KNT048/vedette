@@ -1,9 +1,11 @@
-// Settings -> Connections on the real backend (D-93, D-94, D-127, S-AI-7, S-RESP-4). The devices are the loopback fakes of the box process
+// Settings -> Connections on the real backend (D-93, D-94, D-127, S-AI-7). The devices are the loopback fakes of the box process
 // (cmd/vedette/e2edevices_test.go): an HTTPS, an SSH and an MCP server reachable under their own names. The form matrix is that of
 // e2e/qa/wp06-connections.spec.ts; what only a real box shows is new: Test reaches the fake and the fake saw the credential, the first test pins
 // the certificate or host key, a changed key is refused before anything is sent, "Forget pinned key" lets the next test pin again, the real
 // address policy refuses loopback and link-local, the secret never comes back, and a viewer or operator cannot read or change connections.
 // One device per kind is shared and rotated by the pin test, so the tests run in order in one worker.
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { expect, request, test, type Locator, type Page } from '@playwright/test'
 import { api, authFile, box, device, deviceSeen, rotateDevice, uniq } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -128,6 +130,8 @@ test('HTTP API: the first Test reaches the device with the token, pins the certi
   const raw = (await page.request.get('/api/v1/core/connections')).text()
   expect(await raw, 'the secret in the list').not.toContain(dev.secret!)
   expect(row?.auth.last4).toBe(dev.secret!.slice(-4))
+  const log = readFileSync(join(dirname(process.env.E2E_BOX ?? ''), 'box.log'), 'utf8')
+  expect(log, 'the token in the box log').not.toContain(dev.secret!)
   await shot(page, 'real-connections', 'http-pinned')
   await expectAccessible(page, 'connections list with a pinned device')
   noErrors(errors, /status of (4|5)\d\d/)
@@ -203,6 +207,21 @@ test('a device that shows another certificate is refused before anything is sent
   await test_(c)
   await expect(c.getByRole('status')).toContainText('The certificate is now pinned.')
   await expect(c).toContainText('Working')
+})
+
+test('SSH: a device with another host key is refused before the password is sent', async ({ page }) => {
+  const dev = device('ssh')
+  const name = uniq('sshrot')
+  await open(page)
+  await add(page, { name, kind: 'ssh', target: dev.target, auth: 'basic', username: dev.username, secret: dev.secret, allow: 'show version' })
+  const c = card(page, name)
+  await test_(c)
+  await expect(c.getByRole('status')).toContainText('The host key is now pinned.')
+  await rotateDevice('ssh')
+  const before = (await deviceSeen('ssh')).auth_calls ?? 0
+  await test_(c)
+  await expect(c.getByRole('alert')).toContainText(/is not the one pinned at the first test\. Nothing was sent\./)
+  expect((await deviceSeen('ssh')).auth_calls, 'credential checks the device saw after the refusal').toBe(before)
 })
 
 test('delete asks first and removes the connection; an operator and a viewer can neither read nor change connections', async ({ page }) => {

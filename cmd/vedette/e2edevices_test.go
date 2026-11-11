@@ -37,8 +37,8 @@ type e2eDevices struct {
 
 const (
 	e2eSSHUser = "e2e-ro"
-	e2eSSHPass = "e2e-ssh-pass-0123456789" //nolint:gosec // a test value of the fake device
-	e2eToken   = "e2e-api-token-0123456789"
+	e2eSSHPass = "e2e-ssh-pass-0123456789"  //nolint:gosec // a test value of the fake device
+	e2eToken   = "e2e-api-token-0123456789" //nolint:gosec // a test value of the fake device
 )
 
 // startE2EDevices starts the three fakes. Their names are in the returned map (ready.json "devices").
@@ -109,7 +109,7 @@ func TestE2EDevicesRoutes(t *testing.T) {
 	d.routes(mux)
 	call := func(method, path string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, httptest.NewRequest(method, path, nil))
+		mux.ServeHTTP(w, httptest.NewRequestWithContext(t.Context(), method, path, nil))
 		return w
 	}
 	for _, k := range []string{"http", "ssh", "mcp"} {

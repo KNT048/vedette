@@ -34,11 +34,6 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 )
 
-var (
-	e2eDevicesMu sync.Mutex
-	e2eDevs      *e2eDevices // the devices of TestE2EBox, for the control routes of its box (nil: none)
-)
-
 // e2eReady is ready.json: everything a spec needs to find the box.
 type e2eReady struct {
 	BaseURL     string `json:"base_url"`
@@ -57,6 +52,7 @@ type e2eReady struct {
 	BareSetupCode string `json:"bare_setup_code,omitempty"`
 	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
+	devs    *e2eDevices               // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -302,16 +298,13 @@ func TestE2EBox(t *testing.T) {
 	ctx := e2eStop(t)
 	var host *e2eHost
 	var seed e2eReady
-	devs, logins := startE2EDevices(t) // slice 5: the loopback devices of the Connections specs
-	e2eDevicesMu.Lock()
-	e2eDevs = devs
-	e2eDevicesMu.Unlock()
+	devs, logins := startE2EDevices(t)        // slice 5: the loopback devices of the Connections specs
 	if os.Getenv("VEDETTE_E2E_HOST") == "1" { // slice 4: the fake host in this process, and the second box that has none
 		host = startE2EHost(t)
 		bare := startE2EBare(ctx, t, dir)
 		seed = e2eReady{HostControl: host.ctlURL, HostToken: host.ctlToken, BareURL: bare.BaseURL, BareSetupCode: bare.SetupCode}
 	}
-	seed.Devices = logins
+	seed.Devices, seed.devs = logins, devs
 	data, sock := "", ""
 	if host != nil {
 		data, sock = host.dataDir, host.socket
@@ -481,11 +474,9 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop 
 		w.WriteHeader(http.StatusNoContent)
 	})
 	e2eExposureRoutes(mux)
-	e2eDevicesMu.Lock()
-	if e2eDevs != nil {
-		e2eDevs.routes(mux)
+	if ready.devs != nil {
+		ready.devs.routes(mux)
 	}
-	e2eDevicesMu.Unlock()
 	srv := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -650,7 +650,9 @@ type lruEntry struct {
 	last  time.Time
 }
 
-func newLRU(max int) *lru { return &lru{max: max, ll: list.New(), idx: map[netip.Addr]*list.Element{}} }
+func newLRU(limit int) *lru {
+	return &lru{max: limit, ll: list.New(), idx: map[netip.Addr]*list.Element{}}
+}
 
 func (l *lru) touch(ip netip.Addr, at time.Time) {
 	if e, ok := l.idx[ip]; ok {

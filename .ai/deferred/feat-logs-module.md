@@ -23,6 +23,7 @@ Common to every slice: module code in `modules/logs/` only; cmd additive lines i
 - Useful alone: yes (sources and search work on lines injected through `Ingest`; the GUI real-box pass can already run).
 
 ### L2: syslog listeners (in-process, the shared `listen` package)
+- [x] 2026-11-11 — DONE in feat/logs-l2-syslog except TLS 6514 (needs a core seam; see `.ai/deferred/feat-logs-l2-syslog.md`). Everything else below is built; the limits chosen are in CONTRACT.md "Listener syslog".
 - Stories: S-LOG-1 (point syslog at the box).
 - Does: package `modules/logs/listen` (no `database/sql`, no `core/store`, like `sensor-passive/capture`, so it moves to `vedette-sensor` unchanged): UDP, TCP (RFC 6587 octet-counting and newline framing), TLS 6514 (server cert only); envelope parser RFC 3164 + RFC 5424 + CEF/LEEF header, fail-closed (a line that does not parse is kept raw, counted, never drops the batch); sender identity = remote IP, matched to a declared source; unknown senders dropped and counted (bounded LRU of 256); limits (see Quyết định cần ghi); batching (<= 500 lines or 1 MiB or 2 s) into `Ingest`. Runs as a `core/jobs` job inside core (`localLink`-style) on a configurable port (default 514 when the process may bind it, else 5514), listeners opened/closed when sources change, no listener while the module is off.
 - INV/POST: INV-1, INV-2 (syslog only), FORBID-5, POST-1.

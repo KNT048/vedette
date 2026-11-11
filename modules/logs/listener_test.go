@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -12,6 +13,17 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/logs/listen"
 )
+
+// Network helpers with a context, as the linter wants (loopback only).
+func dialCtx(network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	return d.DialContext(context.Background(), network, addr)
+}
+
+func listenPacket(network, addr string) (net.PacketConn, error) {
+	var lc net.ListenConfig
+	return lc.ListenPacket(context.Background(), network, addr)
+}
 
 func waitUntil(t *testing.T, what string, cond func() bool) {
 	t.Helper()
@@ -77,7 +89,7 @@ func TestUDPSyslogIsStoredAndSearchable(t *testing.T) {
 	stop := e.runSyslogJob()
 	var udp net.Addr
 	waitUntil(t, "the UDP socket", func() bool { udp, _ = e.addrs(); return udp != nil })
-	c, err := net.Dial("udp4", udp.String())
+	c, err := dialCtx("udp4", udp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +108,7 @@ func TestUDPSyslogIsStoredAndSearchable(t *testing.T) {
 	if view, err := e.svc.Sources(t.Context()); err != nil || view.Sources[0].State != "receiving" {
 		t.Errorf("state %+v %v", view.Sources, err)
 	}
-	if err := stop(); err != context.Canceled {
+	if err := stop(); !errors.Is(err, context.Canceled) {
 		t.Errorf("job ended with %v", err)
 	}
 }
@@ -109,7 +121,7 @@ func TestTCPSyslogBothFramingsAreStored(t *testing.T) {
 	defer func() { _ = stop() }()
 	var tcp net.Addr
 	waitUntil(t, "the TCP socket", func() bool { _, tcp = e.addrs(); return tcp != nil })
-	c, err := net.Dial("tcp4", tcp.String())
+	c, err := dialCtx("tcp4", tcp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +142,7 @@ func TestASenderThatIsNotDeclaredStoresNothing(t *testing.T) {
 	defer func() { _ = stop() }()
 	var udp net.Addr
 	waitUntil(t, "the UDP socket", func() bool { udp, _ = e.addrs(); return udp != nil })
-	c, _ := net.Dial("udp4", udp.String())
+	c, _ := dialCtx("udp4", udp.String())
 	defer func() { _ = c.Close() }()
 	_, _ = io.WriteString(c, "<34>from 127.0.0.1, which nobody declared")
 	waitUntil(t, "the datagram to be counted", func() bool { return e.svc.ListenStatus().Stats.Unknown == 1 })
@@ -215,7 +227,7 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	var tcp net.Addr
 	waitUntil(t, "the socket after the module was turned on", func() bool { _, tcp = e.addrs(); return tcp != nil })
 	addr := tcp.String()
-	c, err := net.Dial("tcp4", addr)
+	c, err := dialCtx("tcp4", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +236,7 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	gate.set(false)
 	sched.ModuleChanged(ModuleID, false)
 	waitUntil(t, "the listener to stop", func() bool { return e.svc.listening.Load() == nil })
-	if conn, err := net.DialTimeout("tcp4", addr, time.Second); err == nil {
+	if conn, err := dialCtx("tcp4", addr); err == nil {
 		_ = conn.Close()
 		t.Error("the port still accepts connections after the module was turned off")
 	}
@@ -251,7 +263,7 @@ func TestTheListenerJobIsNotTheHousekeepingOne(t *testing.T) {
 func TestABindFailureEndsTheJobWithTheErrorSoTheSchedulerRetries(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
-	hold, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	hold, err := listenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

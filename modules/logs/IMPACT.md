@@ -1,6 +1,6 @@
 # Logs — Change Impact Map
 
-> WP-24 L1 có mã: `Service` (nguồn, sự kiện, lưu giữ, `Ingest`, `Purge`, `ExportDeviceLogs`), `LogsHandlers`, `Jobs`. Phần còn lại là kế hoạch, chốt theo từng lát.
+> WP-24 L1 và L2 có mã (L2: gói `listen`, job `syslog`): `Service` (nguồn, sự kiện, lưu giữ, `Ingest`, `Purge`, `ExportDeviceLogs`), `LogsHandlers`, `Jobs`. Phần còn lại là kế hoạch, chốt theo từng lát.
 
 ## Modifying: `logs.Service.Ingest(ctx, []Line) (IngestResult, error)` (L1) — người gọi: listener (L2), sau này `sensorlink` (L6)
 - Duy nhất đường vào của dòng log. Ghi **một** giao dịch trên `logs.db` mỗi lô (≤ `MaxBatch`), không bao giờ ghi cơ sở chính (INV-12): đổi sang ghi cơ sở chính là đưa lại rủi ro người ghi bị đói (#159/#160). Dòng của nguồn chưa khai bị bỏ và đếm (FORBID-5). Khi tổng byte vượt `MaxEventBytes`, `Ingest` đánh thức job `purge` (kênh `kick` đệm 1, gộp, không chờ): lượt đó ghi audit vào cơ sở chính (người ghi của core) nên dùng chung với mọi thứ khác; đổi trần hay mức 90% là đổi dung lượng đĩa tối đa của hộp. `Line.At` ngoài [bây giờ − lưu giữ, bây giờ] thành bây giờ: listener không thể ghi dòng cũ hơn lưu giữ. Lượt dọn chỉ chạy trong `Run` của job `purge` (vòng lặp dài, `Housekeeping`: chạy cả khi module tắt, dừng khi tắt máy): đổi `Jobs` hay `kick` là đổi lúc nào dọn chạy, và lịch sử job chỉ có một dòng cho cả thời gian tiến trình chạy. Lần tính lại bộ đếm ở lượt dọn đầu tiên sau khởi động dùng ảnh chụp đọc và không giữ người ghi; khi có lũ lúc khởi động, WAL phình ra trong lúc quét. Đổi `Line`/`IngestResult` = sửa listener. Đổi `sanitizeLine` đổi nội dung lưu và xuất (`device_logs`).
@@ -32,3 +32,11 @@
 - Trang Logs, mục Cài đặt → SIEM, panel AI digest trong `logs.panels` trống/"đang tắt".
 - `response`: trigger `ioc_connection`, `log_threshold`; mẫu `tpl-ioc-*`, `tpl-vpn-ban`, `tpl-ssh-acl`, `tpl-iot-shut` không có sự kiện. `notify`: mất cảnh báo kết nối xấu. `ai`: mất `log-digest`/`log-investigate`.
 - Cổng 514/6514 đóng; thiết bị đang gửi syslog bị từ chối kết nối. `logs_*` giữ nguyên.
+
+## Modifying: `modules/logs/listen` (L2) — gói không có cơ sở dữ liệu, sẽ chạy trong `vedette-sensor` ở L6
+- **logs** (`listener.go`): `listen.Server`, `Config`, `Limits`, `Source`, `Line`, `Status`, `Stats`. Gói **không được import `database/sql` hay `core/store`** (nó phải chuyển sang sensor không đổi mã, như `sensor-passive/capture`); mọi thứ lưu trữ đi qua `Sink` → `Service.Ingest`. Đổi `Line` là đổi `Service.sink`. Một lô tối đa 500 dòng khớp `MaxBatch` của `Ingest`: nâng một bên mà không nâng bên kia làm `ErrBatchTooLarge` và mất lô.
+- **Giới hạn** (`Limits`): đổi là đổi bộ nhớ và độ chịu lũ của hộp: 1.000 kết nối × bộ đệm 4 KiB, hàng đợi 4.096 dòng × tối đa 8 KiB. Dòng cắt ở 8 KiB rồi `Ingest` cắt ở 2 KiB: giảm `MaxLine` xuống dưới 2 KiB làm mất chữ đã lưu được.
+- **Job `syslog`** (`Jobs`): không `Housekeeping`. Đổi thành housekeeping là mở cổng khi module tắt (SYS-5); `TestNoSocketWhileTheModuleIsOff` chặn. Thêm/sửa/xoá nguồn gọi `sourcesChanged`: một đường sửa nguồn mới (import hàng loạt) phải gọi nó, nếu không socket chỉ theo sau ở lần chạy lại sau 30 giây.
+- **cmd/vedette**: cờ `-syslog-port` và `deps.SyslogPort` (Kiên sở hữu Quadlet của `core`: cổng 514 cần quyền bind hoặc publish cổng; không có thì dùng 5514 và phải publish `5514/udp`, `5514/tcp`). `logsJobs` giờ trả hai job.
+- **Hộp**: một cổng cho UDP và TCP, mọi địa chỉ IPv4. Tường lửa/NAT của hộp phải cho thiết bị tới cổng đó; listener không tự mở gì ngoài socket.
+- **web/features/logs**: trang Nguồn nói thiết bị gửi tới cổng của nguồn (mặc định 514) trong khi hộp có thể nghe ở 5514: GUI chưa biết cổng thật (dòng hoãn của L2, cần tiêu chí story).

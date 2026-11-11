@@ -16,6 +16,17 @@ import (
 
 var lo = netip.MustParseAddr("127.0.0.1")
 
+// Network helpers with a context, as the linter wants (loopback only).
+func dialCtx(network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	return d.DialContext(context.Background(), network, addr)
+}
+
+func listenPacket(network, addr string) (net.PacketConn, error) {
+	var lc net.ListenConfig
+	return lc.ListenPacket(context.Background(), network, addr)
+}
+
 // rig is a Server on loopback with a Sink that keeps what it gets.
 type rig struct {
 	t    *testing.T
@@ -78,7 +89,8 @@ func (r *rig) start() {
 func (r *rig) shutdown() {
 	r.stop()
 	select {
-	case <-r.done:
+	case err := <-r.done:
+		_ = err
 	case <-time.After(10 * time.Second):
 		r.t.Error("Run did not return after cancel")
 	}
@@ -121,7 +133,7 @@ func (r *rig) tcpAddr() string {
 
 func sendUDP(t *testing.T, addr, msg string) {
 	t.Helper()
-	c, err := net.Dial("udp4", addr)
+	c, err := dialCtx("udp4", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +145,7 @@ func sendUDP(t *testing.T, addr, msg string) {
 
 func dialTCP(t *testing.T, addr string) net.Conn {
 	t.Helper()
-	c, err := net.Dial("tcp4", addr)
+	c, err := dialCtx("tcp4", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +342,7 @@ func TestConnectionsAreBounded(t *testing.T) {
 	// a closed connection frees its place
 	_ = keep[0].Close()
 	waitFor(t, "a place to be free", func() bool {
-		c, err := net.Dial("tcp4", addr)
+		c, err := dialCtx("tcp4", addr)
 		if err != nil {
 			return false
 		}
@@ -526,7 +538,7 @@ func TestTurningTheServerOffClosesEverythingAndFlushes(t *testing.T) {
 	if got := r.texts(); len(got) != 1 || got[0] != "<34>last words" {
 		t.Errorf("flushed %q", got)
 	}
-	if _, err := net.DialTimeout("tcp4", addr, time.Second); err == nil {
+	if _, err := dialCtx("tcp4", addr); err == nil {
 		t.Error("the port still accepts connections after shutdown")
 	}
 	if !closedByPeer(c, 2*time.Second) {
@@ -535,7 +547,8 @@ func TestTurningTheServerOffClosesEverythingAndFlushes(t *testing.T) {
 }
 
 func TestTheFallbackPortIsUsedOnlyWhenThePreferredOneIsNotPermitted(t *testing.T) {
-	probe, err := net.Listen("tcp4", "127.0.0.1:1")
+	var lc net.ListenConfig
+	probe, err := lc.Listen(context.Background(), "tcp4", "127.0.0.1:1")
 	if err == nil {
 		_ = probe.Close()
 		t.Skip("this process may bind port 1")
@@ -551,7 +564,7 @@ func TestTheFallbackPortIsUsedOnlyWhenThePreferredOneIsNotPermitted(t *testing.T
 }
 
 func TestABusyPortIsAnErrorNotAFallback(t *testing.T) {
-	hold, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	hold, err := listenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,7 +589,7 @@ func TestEndToEndWithManySendersAtOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			c, err := net.Dial("tcp4", addr)
+			c, err := dialCtx("tcp4", addr)
 			if err != nil {
 				t.Error(err)
 				return

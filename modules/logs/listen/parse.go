@@ -102,9 +102,9 @@ func parsePRI(s string) (pri int, rest string, ok bool) {
 }
 
 // token cuts the text up to the first space; ok is false when there is none or the token is empty or longer than max.
-func token(s string, max int) (tok, rest string, ok bool) {
+func token(s string, limit int) (tok, rest string, ok bool) {
 	i := strings.IndexByte(s, ' ')
-	if i <= 0 || i > max {
+	if i <= 0 || i > limit {
 		return "", "", false
 	}
 	return s[:i], s[i+1:], true

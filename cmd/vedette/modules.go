@@ -72,6 +72,8 @@ type deps struct {
 	HostNet *hostNetCache
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
 	CertKick func()
+	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
+	SyslogPort int
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
 	// module is off or the job runs. Never nil in serve.
 	Wake func(module, job string)

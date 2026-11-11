@@ -1,7 +1,6 @@
 package signature
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -21,8 +20,8 @@ import (
 // non-empty, valid UTF-8 text of at most MaxSignatureBytes bytes, with no control character.
 func Mine(text string) string {
 	text = strings.ToValidUTF8(clip(text, maxScan), "?")
-	if strings.IndexByte(text, '@') >= 0 { // rare: a regular expression is fine
-		text = emailRE.ReplaceAllString(text, "<email>")
+	if strings.IndexByte(text, '@') >= 0 { // rare
+		text = maskEmails(text)
 	}
 	text = maskIdentity(maskBeforeParen(maskPamName(maskBracketBeforeLogin(text))))
 	text = maskQuotes(text)
@@ -58,6 +57,7 @@ func Mine(text string) string {
 		out = append(out, pre+m)
 		size += len(pre) + len(m) + 1
 	}
+	maskWordPatterns(out)
 	res := strings.TrimSpace(cut(strings.Join(out, " "), MaxSignatureBytes))
 	if res == "" {
 		return "(empty)"
@@ -66,8 +66,6 @@ func Mine(text string) string {
 }
 
 var (
-	// emailRE finds an e-mail address.
-	emailRE = regexp.MustCompile(`[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,24}`)
 	// identityKeys are the keys whose value names somebody or something: whatever the shape of the value and of the separator, it is
 	// never part of a signature, enumeration or not.
 	identityKeys = set("user", "username", "usr", "acct", "account", "login", "logname", "uname", "name", "uid", "host", "hostname", "rhost", "src", "dst", "query", "domain", "url", "uri", "email", "mail", "set_id", "userid", "user_id", "suser", "duser", "shost", "dhost")
@@ -82,6 +80,84 @@ var (
 	tlds          = set("com", "net", "org", "info", "biz", "edu", "gov", "mil", "int", "io", "co", "uk", "de", "fr", "ru", "cn", "jp", "vn", "us", "ca", "au", "in", "br", "xyz", "top", "cc", "me", "tv", "app", "dev", "ai", "tk", "ml", "ga", "cf", "gq", "online", "site", "club", "shop", "cloud")
 	maskTokens    = set("<v>", "<s>", "<ip>", "<n>", "<hex>", "<tok>", "<path>", "<dom>", "<url>", "<name>", "<email>")
 )
+
+// maskWordPatterns masks the name in four layouts where the name has no keyword in front of it but a fixed neighbour: the user
+// column of a squid access line (the word before "HIER_..."), the "bob : user NOT in sudoers" and "bob : TTY=..." of sudo, and the
+// name after "FAILED SU (to root)". It works on the words of the signature, in place.
+func maskWordPatterns(out []string) {
+	for i, w := range out {
+		switch {
+		case strings.HasPrefix(w, "HIER_") && i > 0 && out[i-1] != "-" && !maskTokens[out[i-1]]:
+			out[i-1] = "<name>"
+		case w == ":" && i > 0 && i+1 < len(out) && (strings.HasPrefix(out[i+1], "TTY=") || out[i+1] == "user" && i+3 < len(out) && out[i+2] == "NOT" && out[i+3] == "in") && !maskTokens[out[i-1]]:
+			out[i-1] = "<name>"
+		case w == "FAILED" && i+3 < len(out) && out[i+1] == "SU" && strings.HasPrefix(out[i+2], "(to"):
+			for j := i + 2; j < min(i+4, len(out)-1); j++ {
+				if strings.HasSuffix(out[j], ")") && !maskTokens[out[j+1]] && !nameWord(out[j+1]) {
+					out[j+1] = "<name>"
+					break
+				}
+			}
+		}
+	}
+}
+
+// maskEmails replaces every e-mail address (local@domain.tld: [A-Za-z0-9._%+-]+ "@" [A-Za-z0-9.-]+ "." [A-Za-z]{2,24}) by <email>. It
+// scans by hand around each "@", in time linear in the line: the regular expression with counted repeats ({1,64}@...{1,255}) cost 3 to
+// 6 ms on a hostile 4 KB line, and even the unbounded form costs about 0.3 ms (10 times the rest of Mine). The length limits of an
+// address are not enforced: masking too much is harmless, and a name left in the text would be a name in a signature.
+func maskEmails(s string) string {
+	var b strings.Builder
+	last := 0 // what has been written to b
+	for at := strings.IndexByte(s, '@'); at >= 0; at = indexFrom(s, '@', at+1) {
+		start := at
+		for start > last && emailLocalByte(s[start-1]) {
+			start--
+		}
+		end := at + 1
+		for end < len(s) && (isAlnum(s[end]) || s[end] == '.' || s[end] == '-') {
+			end++
+		}
+		if start == at {
+			continue
+		}
+		// the domain ends at the last "." of the run that is followed by 2 letters or more (at most 24 are taken), after at least one character
+		stop := -1
+		for p := end - 1; p > at+1; p-- {
+			if s[p] != '.' {
+				continue
+			}
+			k := 0
+			for p+1+k < end && k < 24 && isAlpha(s[p+1+k]) {
+				k++
+			}
+			if k >= 2 {
+				stop = p + 1 + k
+				break
+			}
+		}
+		if stop < 0 {
+			continue
+		}
+		b.WriteString(s[last:start])
+		b.WriteString("<email>")
+		last = stop
+		at = stop - 1 // the next search starts after the match
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+func emailLocalByte(c byte) bool {
+	return isAlnum(c) || c == '.' || c == '_' || c == '%' || c == '+' || c == '-'
+}
+
+func isAlpha(c byte) bool { return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' }
+
+func isAlnum(c byte) bool { return isAlpha(c) || isDigit(c) }
 
 func set(words ...string) map[string]bool {
 	m := make(map[string]bool, len(words))
@@ -415,6 +491,9 @@ func maskWord(w string) string {
 	if strings.Contains(w, "://") {
 		return "<url>"
 	}
+	if i := strings.IndexByte(w, '/'); i > 0 && i <= 65 && ipv4Prefix(w[i+1:]) > 0 && ipv4Prefix(w[:i]) != i && !shoutingKeyword(w[:i]) {
+		return "<name>/" + maskPlain(w[i+1:]) // openvpn "bob/203.0.113.9:51234" (squid's HIER_DIRECT/ip is a keyword, not a name)
+	}
 	if i := strings.IndexByte(w, '='); i > 0 {
 		key := w[:i]
 		ok := true
@@ -429,6 +508,9 @@ func maskWord(w string) string {
 	}
 	return maskPlain(w)
 }
+
+// shoutingKeyword says whether a word is a keyword of the device in capitals with an underscore (squid's HIER_DIRECT, TCP_DENIED), not a name.
+func shoutingKeyword(w string) bool { return strings.Contains(w, "_") && w == strings.ToUpper(w) }
 
 // maskValue masks what follows "=": a mask that is already there, a short plain word, an address, a number or a hex value stay, everything
 // else is <v>. Punctuation that ends the value stays where it is.

@@ -2,7 +2,10 @@ package signature
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
+	"time"
 )
 
 var users = []string{"admin", "root", "oracle", "postgres", "test", "guest", "ubuntu", "user", "ftp", "mysql", "pi", "support", "nagios", "git", "deploy", "jenkins", "hadoop", "tomcat", "www", "backup"}
@@ -231,6 +234,19 @@ var realWorld = []struct {
 	{"linux-rsyslog", "userName=X", func(i int) string { return fmt.Sprintf("auth failed userName=%s", name(i)) }},
 	{"linux-rsyslog", "user-name=X / user_name=X", func(i int) string { return fmt.Sprintf("auth failed user_name=%s", name(i)) }},
 	{"linux-rsyslog", "src=/dst= host names", func(i int) string { return fmt.Sprintf("conn src=%s dst=%s proto=tcp", host(i), "srv-"+name(i)) }},
+	{"linux-rsyslog", "openvpn X/ip:port", func(i int) string {
+		return fmt.Sprintf("openvpn[1]: %s/1.2.3.4:51234 MULTI_sva: pool returned IPv4=10.8.0.6", name(i))
+	}},
+	{"linux-rsyslog", "squid user column", func(i int) string {
+		return fmt.Sprintf("squid[1]: 1699 1 10.0.0.5 TCP_DENIED/403 3900 CONNECT evil.example.com:443 %s HIER_NONE/- text/html", name(i))
+	}},
+	{"linux-rsyslog", "sudo X : user NOT in sudoers", func(i int) string {
+		return fmt.Sprintf("sudo: %s : user NOT in sudoers ; TTY=pts/0 ; PWD=/home/%s ; USER=root ; COMMAND=/bin/bash", name(i), name(i))
+	}},
+	{"linux-rsyslog", "sudo X : TTY=", func(i int) string {
+		return fmt.Sprintf("sudo: %s : TTY=pts/0 ; PWD=/home/x ; USER=root ; COMMAND=/bin/ls", name(i))
+	}},
+	{"linux-rsyslog", "su FAILED SU (to root) X on", func(i int) string { return fmt.Sprintf("su[1]: FAILED SU (to root) %s on pts/0", name(i)) }},
 }
 
 func TestContract_INV1_RealWorldFormatsAreFewSignatures(t *testing.T) {
@@ -285,5 +301,67 @@ func TestMineKeepsTheQuotedMessage(t *testing.T) {
 		if got := Mine(in); got != want {
 			t.Errorf("Mine(%q)\n got  %q\n want %q", in, got, want)
 		}
+	}
+}
+
+// The e-mail pattern is linear: a hostile line (a long local part, a long run of dotted labels, an "@" in every word) costs about what
+// the same line without its "@" costs, not 20 to 40 times as much as the counted form {1,64}@...{1,255} did (3 to 6 ms a line). The
+// bound is a ratio to a control line of the same text, so it holds with -race and on a loaded box (best of 5 runs of 20 lines); the
+// measured numbers are in D-206 and in the benchmark.
+func TestMineHostileEmailLinesAreCheap(t *testing.T) {
+	lines := []string{
+		strings.Repeat("a", 2000) + "@" + strings.Repeat("b.", 1000),
+		strings.Repeat("a@b ", 1000),
+		"a@" + strings.Repeat("b", 3998),
+		strings.Repeat("x@"+strings.Repeat(".", 30), 125),
+	}
+	best := func(l string) time.Duration {
+		d := time.Hour
+		for run := 0; run < 5; run++ {
+			start := time.Now()
+			for i := 0; i < 20; i++ {
+				_ = Mine(l)
+			}
+			d = min(d, time.Since(start)/20)
+		}
+		return d
+	}
+	for _, l := range lines {
+		hostile, control := best(l), best(strings.ReplaceAll(l, "@", "#"))
+		if hostile > 8*control+300*time.Microsecond {
+			t.Errorf("%d bytes: %v a line against %v for the same line without its @", len(l), hostile, control)
+		}
+	}
+	if got := Mine("mail bob@corp.example.com now"); got != "mail <email> now" {
+		t.Fatalf("%q", got)
+	}
+}
+
+// maskEmails does what the regular expression it replaced did: the same text out of random strings over the alphabet of addresses.
+func TestMaskEmailsMatchesTheRegularExpression(t *testing.T) {
+	t.Parallel()
+	re := regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}`)
+	alphabet := []byte("ab.-@1_%+ Zq")
+	seed := uint32(7)
+	for n := 0; n < 200000; n++ {
+		l := make([]byte, 1+n%26)
+		for i := range l {
+			seed = seed*1664525 + 1013904223
+			l[i] = alphabet[int(seed>>16)%len(alphabet)]
+		}
+		if got, want := maskEmails(string(l)), re.ReplaceAllString(string(l), "<email>"); got != want {
+			t.Fatalf("%q: %q, the regular expression gives %q", l, got, want)
+		}
+	}
+	long := "a@b." + strings.Repeat("c", 30) + " x@y.zz"
+	if got, want := maskEmails(long), re.ReplaceAllString(long, "<email>"); got != want {
+		t.Fatalf("%q, want %q", got, want)
+	}
+}
+
+func BenchmarkMineHostileEmail(b *testing.B) {
+	l := strings.Repeat("a", 2000) + "@" + strings.Repeat("b.", 1000)
+	for b.Loop() {
+		_ = Mine(l)
 	}
 }

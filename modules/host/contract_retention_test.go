@@ -188,19 +188,34 @@ func TestContract_Backup_ASteppedBackClockKeepsTheNewBackupAndDropsTheOldestOthe
 	})
 }
 
-// If what needs a backup cannot be read, nothing is dropped this time (fail closed).
-func TestContract_Backup_RetentionDropsNothingWhenAVersionsFileCannotBeRead(t *testing.T) {
+// If what needs a backup cannot be read, every pre_update backup is kept (only those are ever referenced) and the
+// other kinds age out as usual, so the store stays bounded; one audit line says so.
+func TestContract_Backup_RetentionKeepsEveryPreUpdateButAgesTheRestWhenAVersionsFileCannotBeRead(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
 	if err := os.WriteFile(filepath.Join(e.m.State, "containers", "versions-core.json"), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	var pu []string
+	for range 5 {
+		e.clock.Advance(time.Minute)
+		pu = append(pu, result[api.BackupResult](t, e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "pre_update", Snapshot: e.snap(), IncludeSecrets: true})).BackupID)
+	}
 	for range 5 {
 		e.clock.Advance(time.Minute)
 		e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "pre_os_update", Snapshot: e.snap()})
 	}
-	if ids := e.listed(t); len(ids) != 5 {
-		t.Fatalf("%d backups kept, want all 5: %v", len(ids), ids)
+	ids := e.listed(t)
+	if len(ids) != 5+3 {
+		t.Fatalf("%d backups kept, want the 5 pre_update and 3 pre_os_update: %v", len(ids), ids)
+	}
+	for _, id := range pu {
+		if !slices.Contains(ids, id) {
+			t.Fatalf("a pre_update backup was dropped: %s", id)
+		}
+	}
+	if n := e.notes(t, "backup_retention_unknown"); len(n) != 1 {
+		t.Fatalf("audit lines: %v", n)
 	}
 	// Once the file is readable again retention works as before.
 	if err := os.Remove(filepath.Join(e.m.State, "containers", "versions-core.json")); err != nil {

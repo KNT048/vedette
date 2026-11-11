@@ -67,24 +67,11 @@ func (e extracted) db() string  { return filepath.Join(e.Dir, memberDB) }
 func (e extracted) key() string { return filepath.Join(e.Dir, memberKey) }
 
 // What extract says of an archive that is there but is not the backup the index describes. No retry
-// cures these (the file does not change by itself); isBadArchive tells them from I/O errors and a full disk.
-const (
-	msgArchiveMismatch   = "The backup file does not match its recorded checksum."
-	msgArchiveInvalid    = "The backup archive is not a valid Vedette backup."
-	msgArchiveIncomplete = "The backup archive is incomplete."
-)
+// cures these (the file does not change by itself): they wrap errBadArchive, so errors.Is tells them from
+// I/O errors and a full disk. The wrapped refusal or failure is still what the client sees (errors.As).
+var errBadArchive = errors.New("ops: the backup archive is not the backup the index describes")
 
-func isBadArchive(err error) bool {
-	var ref *server.Refusal
-	var fl *server.Failure
-	switch {
-	case errors.As(err, &ref):
-		return ref.Code == api.CodeChecksumMismatch && ref.Message == msgArchiveMismatch
-	case errors.As(err, &fl):
-		return fl.Code == api.CodeRestoreFailed && (fl.Message == msgArchiveInvalid || fl.Message == msgArchiveIncomplete)
-	}
-	return false
-}
+func badArchive(inner error) error { return fmt.Errorf("%w: %w", errBadArchive, inner) }
 
 // extract verifies the archive against the index (size and SHA-256 of the file, so a file that
 // changed on disk is refused) and unpacks it into dir. Members are written by this function under
@@ -96,7 +83,7 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 		return extracted{}, refuse412(api.CodeChecksumMismatch, "The backup file cannot be read.")
 	}
 	if sum != rec.SHA256 || size != rec.Size {
-		return extracted{}, refuse412(api.CodeChecksumMismatch, msgArchiveMismatch)
+		return extracted{}, badArchive(refuse412(api.CodeChecksumMismatch, "The backup file does not match its recorded checksum."))
 	}
 	f, err := os.Open(path) //nolint:gosec // archive path built from a validated hex id
 	if err != nil {
@@ -106,7 +93,7 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 	// The space the members will take is what their headers declare; read those first (the stream
 	// is discarded), so a disk too small for the archive is refused before a byte is written.
 	if need, err := o.declaredSize(f); err != nil {
-		return extracted{}, fail(api.CodeRestoreFailed, msgArchiveInvalid)
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup."))
 	} else if err := o.checkRestoreSpace(dir, need); err != nil {
 		return extracted{}, err
 	}
@@ -148,13 +135,13 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 		return nil
 	})
 	if errors.Is(err, ErrArchive) {
-		return extracted{}, fail(api.CodeRestoreFailed, msgArchiveInvalid)
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup."))
 	}
 	if err != nil { // writing a member failed (disk, I/O): not the archive's fault
 		return extracted{}, fail(api.CodeRestoreFailed, "The backup could not be unpacked.")
 	}
 	if !manifestSeen || !dbSeen || ex.Manifest.IncludesSecrets != ex.HasKey {
-		return extracted{}, fail(api.CodeRestoreFailed, msgArchiveIncomplete)
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is incomplete."))
 	}
 	return ex, nil
 }

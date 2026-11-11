@@ -257,10 +257,15 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	ix.Backups = append(ix.Backups, rec)
 	keep, known := o.referencedBackups()
 	if !known {
-		// A record of what needs a backup cannot be read: fail closed, drop nothing this time (D-157).
-		o.log.Warn("could not tell which backups are still needed; keeping them all")
+		// A record of what needs a backup cannot be read: fail closed (D-157). Only a pre_update backup is ever
+		// referenced (a version's backup_id, the rollback journal's), so every pre_update is kept this time and
+		// the other kinds age out as usual: the store does not grow without bound while the file stays damaged.
+		o.log.Warn("could not tell which backups are still needed; keeping every pre_update backup")
+		o.noteLimited("retention_unknown", api.CmdBackupCreate, "backup_retention_unknown", map[string]any{"backup_id": rec.ID, "kept": "every pre_update backup"})
 		for _, r := range ix.Backups {
-			keep[r.ID] = true
+			if r.Kind == "pre_update" {
+				keep[r.ID] = true
+			}
 		}
 	}
 	dropped := retain(&ix, keep, rec.ID)

@@ -249,7 +249,7 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 		}
 		var cleanup func()
 		if ex, cleanup, err = o.unpackBackup(rec, "rv-"); err != nil {
-			if isBadArchive(err) {
+			if errors.Is(err, errBadArchive) {
 				return fmt.Errorf("%w: %w", errUnrecoverable, err)
 			}
 			return err
@@ -421,11 +421,14 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 	// the service moved into the running release.
 	if service == api.ServiceCore && !curMan.Rollback.Safe {
 		p.restoreDB = true
+		if p.cur.BackupID == "" { // before the lookup: an empty id is "missing" even when the index cannot be read
+			return nil, refuse412(api.CodeRollbackBackupMissing, "This release cannot be rolled back without the backup made before it was installed, and that backup is gone.")
+		}
 		rec, ok, lerr := o.lookupBackup(p.cur.BackupID)
 		if lerr != nil {
 			return nil, refuse412(api.CodeRestoreFailed, "The backup index cannot be read.")
 		}
-		if p.cur.BackupID == "" || !ok {
+		if !ok {
 			return nil, refuse412(api.CodeRollbackBackupMissing, "This release cannot be rolled back without the backup made before it was installed, and that backup is gone.")
 		}
 		if !o.archiveThere(rec.ID) {

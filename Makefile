@@ -254,8 +254,10 @@ honeypot-image:
 honeypot-check:
 	scripts/dev/honeypot-check.sh
 
-# Does a published port keep the real sender address of syslog over UDP and TCP (#266, D-167)? Runs a tiny listener in a container with core's flags
-# (scripts/dev/syslog-ports-check.sh); podman's own networks only, nothing on the host's. Opt-in.
+# Does core's published syslog port (514 -> 5514, rootful podman) keep the real sender address for UDP and TCP, and survive a core restart (#266, D-167)?
+# Opt-in, run as root from your own account: `sudo make syslog-ports-check`. While it runs it changes the host: a podman network and container (with
+# netavark's nftables DNAT of <LAN address>:514), a netns vedette-slc-peer with a veth pair on 10.231.77.0/30, and net.ipv4.ip_forward is read and
+# written back; the trap undoes all of it. Never netplan, NetworkManager, the LAN interface or other firewall rules. Needs 514 free (scripts/dev/syslog-ports-check.sh).
 syslog-ports-check:
 	scripts/dev/syslog-ports-check.sh
 

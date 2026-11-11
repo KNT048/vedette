@@ -1,66 +1,163 @@
 #!/usr/bin/env bash
-# make syslog-ports-check (#266 item 1, D-167): does a PUBLISHED port keep the real sender address for UDP and TCP? logs identifies a source
-# by that address, so a port that rewrites it (loopback, a bridge gateway) would make every device an unknown sender.
-# Runs a tiny listener (scripts/dev/syslogpeer) in a container with the flags of core's unit (all capabilities dropped, no-new-privileges, a
-# user that is not root, a podman bridge network, `-p <hostport>:5514/udp` and `/tcp` like PublishPort=514:5514/udp|tcp), then sends from
-#   * the host, to the box's own LAN address            (peer must be that address);
-#   * a second container on its own podman network      (peer is logged as information: a sender behind the host is NAT-ed by design).
-# Only podman's own networks are used; the host's interfaces, netplan and firewall are never touched. Rootless podman cannot bind a port
-# below 1024, so the host side is VEDETTE_SYSLOG_HOSTPORT (default 15514); the mechanism (published port -> container port) is the same.
-# The real appliance unit is ROOTFUL (vedette-host's Quadlet): run this as root (CONTAINER="sudo podman" is not supported, run the whole
-# script under sudo) to measure that one; rootless answers for a dev box only. Work folder under ~/.cache, containers and networks removed.
+# make syslog-ports-check (#266 item 1, D-167): does core's PUBLISHED syslog port keep the real sender address, for UDP and TCP, on the path a
+# device's packets really take? logs identifies a source by that address, so a port that rewrites it (a gateway, loopback, a masquerade)
+# would turn every device into an unknown sender (dropped, D-203).
+#
+# RUN IT AS ROOT FROM YOUR OWN ACCOUNT:  sudo scripts/dev/syslog-ports-check.sh   (rootful podman, like the appliance's core unit)
+# It starts the listener the way core's unit does (all capabilities dropped, no-new-privileges, uid 1000, a podman bridge network, the
+# published ports bound to the box's LAN address) and sends from OUTSIDE the host, so the packets enter through PREROUTING and FORWARD:
+#   default: a throwaway network namespace joined to the host by a veth pair (a /30 of 10.231.77.0/24) sends to the LAN address;
+#   VEDETTE_SYSLOG_PEER=<ip>: you send from another machine on the LAN with that address (e.g. `logger -n <box> -P 514 -d x` and
+#            `logger -n <box> -P 514 -T x`); the script waits VEDETTE_SYSLOG_WAIT seconds (default 90) for both a udp and a tcp line from it.
+# PASS only if the listener prints exactly the peer's address for udp and for tcp (any other source, the gateway, 10.88.x, 127.0.0.1, is a
+# FAIL with the line printed), and (default mode) lines from a sender that keeps ONE source port reach the new container within 10 s of
+# a `podman restart` (UDP conntrack must not pin them to the old one, M1).
+#
+# WHAT IT CHANGES ON THE HOST while it runs (the EXIT trap undoes all of it; a SIGKILL skips the trap, see "leftovers" below):
+#   * podman: one network (a bridge, /etc/containers/networks/<name>.json, a /24 chosen by netavark) and one container, with the nftables
+#     rules netavark adds for them (DNAT of <LAN address>:514 only);
+#   * default mode: the netns vedette-slc-peer, the veth pair vslc-h/vslc-p, 10.231.77.1/30 on vslc-h (refuses to run if a route already
+#     overlaps that /30 or the names exist);
+#   * net.ipv4.ip_forward is read first and written back at the end (netavark turns it on);
+#   * a work folder under /tmp (the helper binary), removed at the end.
+# It never touches netplan, NetworkManager, the LAN interface, or firewall rules other than what netavark itself adds for the test container.
+# Leftovers after a kill: `ip netns del vedette-slc-peer; ip link del vslc-h; podman rm -f vedette-syslog-check; podman network rm
+# vedette-syslog-net`. Port 514 must be free on the host (podman holds it for the container): the script refuses to run if it is not.
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-c=${CONTAINER:-podman}
-hostport=${VEDETTE_SYSLOG_HOSTPORT:-15514}
-id=$$
-name=vedette-syslog-check-$id
-net=vedette-syslog-net-$id
-net2=vedette-syslog-net2-$id
-snd=vedette-syslog-send-$id
-root=${VEDETTE_SYSLOG_WORK:-$HOME/.cache/vedette-syslog-check}
-mkdir -p "$root"
-work=$(mktemp -d "$root/check.XXXXXX")
-cleanup() {
-	$c rm -f "$name" "$snd" >/dev/null 2>&1 || true
-	$c network rm -f "$net" "$net2" >/dev/null 2>&1 || true
-	rm -rf "$work"
-}
-trap cleanup EXIT
-fail() { echo "syslog-ports-check: FAIL $*" >&2; { $c logs --tail 20 "$name" 2>&1 || true; } | sed 's/^/    container: /' >&2; exit 1; }
+
+name=vedette-syslog-check
+net=vedette-syslog-net
+ns=vedette-slc-peer
+hveth=vslc-h
+pveth=vslc-p
+hip=10.231.77.1
+pip=10.231.77.2
+sport=40514
+wait=${VEDETTE_SYSLOG_WAIT:-90}
+peer=${VEDETTE_SYSLOG_PEER:-}
+fail() { echo "syslog-ports-check: FAIL $*" >&2; exit 1; }
 ok() { echo "syslog-ports-check: ok   $*"; }
 
-lan=$(ip -4 route get 192.0.2.1 | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1)
-[ -n "$lan" ] || fail "no LAN address (ip route get)"
-mkdir -p "$work/rootfs"
-CGO_ENABLED=0 go build -o "$work/rootfs/peer" ./scripts/dev/syslogpeer
-chmod 0755 "$work/rootfs" "$work/rootfs/peer"
-$c network create "$net" >/dev/null
-$c network create --subnet 10.231.77.0/24 "$net2" >/dev/null
+[ "$(id -u)" = 0 ] || fail "run as root from your own account: sudo $0"
+[ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ] || fail "run it with sudo from your own account (the helper is built as that user, never as root)"
+repo=$(sudo -u "$SUDO_USER" git -C "$(dirname "$0")" rev-parse --show-toplevel)
+[ -z "$peer" ] || [[ $peer =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "VEDETTE_SYSLOG_PEER is not an IPv4 address"
 
-$c run -d --name "$name" --network "$net" -p "$hostport:5514/udp" -p "$hostport:5514/tcp" --cap-drop=ALL --security-opt no-new-privileges --user 1000:1000 \
-	--rootfs "$work/rootfs" /peer listen 5514 >/dev/null
+work=
+fwd_old=
+loop_pid=
+made_podman= # set once this run created the podman objects
+made_ns= # set once this run created the netns and the veth: the trap never touches a name it did not create
+cleanup() {
+	[ -z "$loop_pid" ] || kill "$loop_pid" >/dev/null 2>&1 || true
+	if [ -n "$made_podman" ]; then
+		podman rm -f "$name" >/dev/null 2>&1 || true
+		podman network rm -f "$net" >/dev/null 2>&1 || true
+	fi
+	if [ -n "$made_ns" ]; then
+		ip netns del "$ns" >/dev/null 2>&1 || true
+		ip link del "$hveth" >/dev/null 2>&1 || true
+	fi
+	[ -z "$fwd_old" ] || echo "$fwd_old" >/proc/sys/net/ipv4/ip_forward 2>/dev/null || true
+	[ -z "$work" ] || rm -rf "$work"
+}
+trap cleanup EXIT
+
+# 1. the helper, built by the invoking user (root's PATH may have no go, or an older one)
+work=$(sudo -u "$SUDO_USER" mktemp -d /tmp/vedette-slc.XXXXXX)
+chmod 0755 "$work"
+mkdir "$work/rootfs"
+gobin=$(sudo -u "$SUDO_USER" bash -lc 'command -v go' 2>/dev/null || true)
+[ -n "$gobin" ] || gobin=/usr/local/go/bin/go
+sudo -u "$SUDO_USER" env CGO_ENABLED=0 "$gobin" -C "$repo" build -o "$work/rootfs/peer" ./scripts/dev/syslogpeer
+chmod 0755 "$work/rootfs" "$work/rootfs/peer"
+
+# 2. preflight: nothing here may clash with the host
+lan=$(ip -4 route get 1.1.1.1 | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1) # asks the routing table, sends nothing
+[ -n "$lan" ] || fail "no primary LAN address (ip route get)"
+if ss -H -lunt 'sport = :514' | grep -q .; then
+	fail "port 514 is already in use on this host (rsyslog imudp/imtcp?): podman could not publish it; free it first (docs/DEPLOYMENT.md, syslog port)"
+fi
+if [ -z "$peer" ]; then
+	if [ -n "$(ip -4 route show to match "$hip/30")$(ip -4 route show to root "$hip/30")" ] || [ "$(ip netns list | grep -c "^$ns\b")" -gt 0 ] || ip link show "$hveth" >/dev/null 2>&1; then
+		fail "10.231.77.0/30, the netns $ns or the link $hveth already exists on this host; nothing was changed"
+	fi
+fi
+fwd_old=$(cat /proc/sys/net/ipv4/ip_forward)
+
+# 3. the listener, published like core's unit (host 514 -> container 5514, udp and tcp) but on the LAN address only
+[ -z "$(podman network ls -q --filter name=^$net\$)$(podman ps -aq --filter name=^$name\$)" ] || fail "a podman network or container named $net/$name already exists; nothing was changed"
+made_podman=1
+podman network create "$net" >/dev/null
+podman run -d --name "$name" --network "$net" -p "$lan:514:5514/udp" -p "$lan:514:5514/tcp" \
+	--cap-drop=ALL --security-opt no-new-privileges --user 1000:1000 --rootfs "$work/rootfs" /peer listen 5514 >/dev/null
 for _ in $(seq 1 30); do
-	case "$($c logs "$name" 2>&1)" in *ready*) break ;; esac
-	[ "$($c inspect -f '{{.State.Running}}' "$name")" = true ] || fail "the listener stopped"
+	[ "$(podman logs "$name" 2>&1 | grep -c -x ready)" -gt 0 ] && break
+	[ "$(podman inspect -f '{{.State.Running}}' "$name")" = true ] || break
 	sleep 1
 done
-ok "listener up as uid 1000, no capability, publishing $hostport -> 5514 udp+tcp (rootless=$($c info --format '{{.Host.Security.Rootless}}'), network backend $($c info --format '{{.Host.NetworkBackend}}'))"
+[ "$(podman logs "$name" 2>&1 | grep -c -x ready)" -gt 0 ] || fail "the listener did not print ready: $(podman logs --tail 5 "$name" 2>&1 | tr '\n' ' ')"
+ok "listener up (uid 1000, no capability), host $lan:514 -> container 5514 udp+tcp, ip_forward was $fwd_old"
 
-"$work/rootfs/peer" send udp "$lan:$hostport"
-"$work/rootfs/peer" send tcp "$lan:$hostport"
-"$c" run --rm --name "$snd" --network "$net2" --ip 10.231.77.9 --cap-drop=ALL --user 1000:1000 --rootfs "$work/rootfs" /peer send udp "$lan:$hostport"
-"$c" run --rm --name "$snd" --network "$net2" --ip 10.231.77.9 --cap-drop=ALL --user 1000:1000 --rootfs "$work/rootfs" /peer send tcp "$lan:$hostport"
-sleep 1
-log=$($c logs "$name" 2>&1)
-echo "$log" | sed 's/^/syslog-ports-check: listener saw: /'
+seen() { podman logs "$name" 2>&1 | grep -v -x ready || true; } # every source line so far
+has() { [ "$(seen | grep -c -x -- "$1")" -gt 0 ]; } # grep -c reads everything: no SIGPIPE under pipefail
+# strict: every source line must be the peer (any other source is the failure this check exists for)
+only_peer() { # $1 = peer ip
+	local bad
+	bad=$(seen | grep -v -x -e "udp $1" -e "tcp $1" || true)
+	[ -z "$bad" ] || fail "the listener saw a sender that is not $1:
+$(echo "$bad" | sed 's/^/    /')
+the sender address is NOT kept"
+}
 
-for p in udp tcp; do
-	echo "$log" | grep -qx "$p $lan" || fail "$p from the host ($lan) was seen by the listener as something else: the sender address is NOT kept"
-	ok "$p from $lan arrives as $lan"
+if [ -n "$peer" ]; then
+	echo "syslog-ports-check: waiting up to ${wait}s for a udp and a tcp line from $peer (send to $lan:514)"
+	for _ in $(seq 1 "$wait"); do
+		has "udp $peer" && has "tcp $peer" && break
+		sleep 1
+	done
+	only_peer "$peer"
+	for p in udp tcp; do has "$p $peer" || fail "no $p line from $peer within ${wait}s"; ok "$p from $peer arrives as $peer"; done
+	echo "syslog-ports-check: PASS (LAN peer $peer; the restart step needs the default mode)"
+	exit 0
+fi
+
+# 4. the peer: a netns behind a veth, so its packets enter the host (PREROUTING + FORWARD), not locally generated ones
+made_ns=1
+ip netns add "$ns"
+ip link add "$hveth" type veth peer name "$pveth"
+ip link set "$pveth" netns "$ns"
+ip addr add "$hip/30" dev "$hveth"
+ip link set "$hveth" up
+ip -n "$ns" addr add "$pip/30" dev "$pveth"
+ip -n "$ns" link set "$pveth" up
+ip -n "$ns" link set lo up
+ip -n "$ns" route add default via "$hip"
+peerbin="$work/rootfs/peer"
+send() { ip netns exec "$ns" "$peerbin" send "$1" "$lan:514"; }
+
+send udp || fail "udp send from the peer"
+send tcp || fail "tcp send from the peer"
+for _ in $(seq 1 10); do
+	has "udp $pip" && has "tcp $pip" && break
+	sleep 1
 done
-for p in udp tcp; do
-	seen=$(echo "$log" | grep -c "^$p 10\.231\.77\.9$" || true)
-	if [ "$seen" -gt 0 ]; then ok "$p from 10.231.77.9 (second container) arrives as 10.231.77.9"; else echo "syslog-ports-check: info $p from the second container (10.231.77.9) arrives masqueraded (see the lines above)"; fi
+only_peer "$pip"
+for p in udp tcp; do has "$p $pip" || fail "no $p line from the peer ($pip) reached the listener"; ok "$p from $pip (entered the host through veth) arrives as $pip"; done
+
+# 5. M1: a device that never pauses (one fixed source port) while core restarts: UDP conntrack must not keep sending to the old container
+ip netns exec "$ns" "$peerbin" loop "$lan:514" "$sport" &
+loop_pid=$!
+sleep 3
+podman restart -t 2 "$name" >/dev/null
+got=
+for _ in $(seq 1 10); do # lines after the LAST "ready" are the new container's
+	if [ "$(podman logs "$name" 2>&1 | tac | sed '/^ready$/q' | grep -c -x "udp $pip")" -gt 0 ]; then got=1; break; fi
+	sleep 1
 done
+kill "$loop_pid" >/dev/null 2>&1 || true
+loop_pid=
+[ -n "$got" ] || fail "after 'podman restart' no datagram from the peer (fixed source port $sport, 1/s) reached the new container in 10 s: a stale UDP conntrack entry pins the flow to the old one (vedette-host must clear it after core starts)"
+only_peer "$pip"
+ok "after a restart, a sender that never pauses reaches the new container within 10 s"
 echo "syslog-ports-check: PASS"

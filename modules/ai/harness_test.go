@@ -149,7 +149,7 @@ func TestContract_JSONIsStrictOnRulesAndHooks(t *testing.T) {
 	}
 }
 
-func TestContract_INV13_HooksListCrudAndShape(t *testing.T) {
+func TestContract_INV12_HooksListCrudAndShape(t *testing.T) {
 	a := newAPI(t)
 	got := a.want("GET", "/ai/hooks", "admin", "", 200, "")
 	b := got["builtin"].([]any)
@@ -204,7 +204,7 @@ func TestContract_INV13_HooksListCrudAndShape(t *testing.T) {
 	}
 }
 
-func TestContract_INV13_HookLimits(t *testing.T) {
+func TestContract_INV12_HookLimits(t *testing.T) {
 	a := newAPI(t)
 	valid := func(name string) string {
 		return hookJSON(name, "before_ai", "keywords", "word", "mask", "A word was masked.")
@@ -227,7 +227,7 @@ func (a *api) firstHookID() string {
 	return a.want("GET", "/ai/hooks", "admin", "", 200, "")["custom"].([]any)[0].(map[string]any)["id"].(string)
 }
 
-func TestContract_INV13_FieldLimitsAndRE2(t *testing.T) {
+func TestContract_INV12_FieldLimitsAndRE2(t *testing.T) {
 	a := newAPI(t)
 	long := strings.Repeat("a", 201)
 	bad := map[string]string{
@@ -270,7 +270,7 @@ func TestContract_INV13_FieldLimitsAndRE2(t *testing.T) {
 	}
 }
 
-func TestContract_INV14_BuiltinSwitches(t *testing.T) {
+func TestContract_INV12_BuiltinSwitches(t *testing.T) {
 	a := newAPI(t)
 	a.want("PUT", "/ai/hooks/builtin/write-approval", "admin", `{"enabled":false}`, 400, "locked")
 	a.want("PUT", "/ai/hooks/builtin/write-approval", "admin", `{"enabled":true}`, 400, "locked")
@@ -350,7 +350,7 @@ func TestContract_INV12_TheSwitchDecidesWhatReachesTheProvider(t *testing.T) {
 	}
 }
 
-func TestContract_INV13_AfterAIBlocksAndMasksTheAnswer(t *testing.T) {
+func TestContract_INV12_AfterAIBlocksAndMasksTheAnswer(t *testing.T) {
 	t.Run("block", func(t *testing.T) {
 		a := newAPI(t)
 		a.withProfile()

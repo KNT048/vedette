@@ -1,0 +1,5 @@
+# Deferred: feat/ai-4a-rules-hooks (WP-25 slice 4a)
+
+- [ ] 2026-11-11 — The mock allows 30 custom hooks (`harness-mocks.ts` `customHooksStore.get().length >= 30`) while the backend and the spec allow 50; the mock and the GUI text "up to 30 custom hooks" should say 50 — vì sao để sau: `web/src/mocks` and the GUI are not part of this slice (GUI-first: a GUI change is a story of its own) — ở đâu: web/src/features/ai/harness-mocks.ts
+- [ ] 2026-11-11 — A JSON body with a repeated key (`{"text":"a","text":"b"}`) is accepted by the generated decoder (last one wins); only unknown fields, wrong types and trailing data are refused — vì sao để sau: the decoding is core/server's (ogen), not the module's; `internal/jsonstrict` is not wired into it — ở đâu: core/server (Kiên)
+- [ ] 2026-11-11 — `ai_setting.config.redact_pii` is still written by `PUT /ai/config` but no longer read (the block-pii row of `ai_hook_state` is the switch) — vì sao để sau: dropping the field from `Settings` changes the stored JSON shape; harmless, one more migration-free cleanup when slice 4 is done — ở đâu: modules/ai/service.go Settings

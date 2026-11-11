@@ -70,7 +70,12 @@ export function dispositionName(header: string | null, fallback: string): string
 /** Tải file (CSV/JSON/rule pack) từ API mock hoặc thật mà không rời trình duyệt. Tên file: do hộp gửi (Content-Disposition), không có thì `filename`. */
 export async function download(path: string, filename: string) {
   const res = await fetch(`${location.origin}/api/v1${path}`, { credentials: 'same-origin' })
-  if (!res.ok) throw new ApiError(res.status, 'download_failed', `HTTP ${res.status}`)
+  if (!res.ok) {
+    // The box's own sentence (error.message of the JSON body) when it sent one, not just the status.
+    const data: unknown = await res.json().catch(() => null)
+    const err = (data as { error?: { code?: string; message?: string } } | null)?.error
+    throw new ApiError(res.status, err?.code ?? 'download_failed', err?.message ?? `HTTP ${res.status}`)
+  }
   const name = dispositionName(res.headers.get('Content-Disposition'), filename)
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)

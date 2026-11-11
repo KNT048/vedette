@@ -26,4 +26,10 @@ describe('download file name (S-CORE-1, issue #232)', () => {
     await download('/core/data/backup', 'vedette-backup-day.json')
     expect(saved).toBe('vedette-backup-2026-11-11.tar.gz')
   })
+  it('a refusal carries the sentence the box sent, not just the status (issue #237)', async () => {
+    server.use(http.get('*/api/v1/core/data/backup', () => HttpResponse.json({ error: { code: 'not_appliance', message: 'This install has no operating system helper (container-only install).' } }, { status: 409 })))
+    await expect(download('/core/data/backup', 'x.tar.gz')).rejects.toMatchObject({ status: 409, code: 'not_appliance', message: 'This install has no operating system helper (container-only install).' })
+    server.use(http.get('*/api/v1/core/data/backup', () => new HttpResponse('boom', { status: 500 })))
+    await expect(download('/core/data/backup', 'x.tar.gz')).rejects.toMatchObject({ status: 500, message: 'HTTP 500' })
+  })
 })

@@ -65,7 +65,8 @@ type osRunResultView struct {
 type osRunView struct {
 	ID         string           `json:"id"`
 	Scope      string           `json:"scope"`
-	Status     string           `json:"status"` // running | done
+	Status     string           `json:"status"` // running | done | failed
+	Error      *string          `json:"error"`  // only a failed run: why, in words
 	StartedAt  time.Time        `json:"started_at"`
 	FinishedAt *time.Time       `json:"finished_at"`
 	User       string           `json:"user"`

@@ -16554,6 +16554,8 @@ func (s *CoreGetCoreUpdatesOsOKWindowMode) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreUpdatesOsRunOK struct {
+	// Only for a failed run: why, in words (the lines keep the raw output).
+	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	ID         string      `json:"id"`
 	// Apt output so far.
@@ -16563,6 +16565,11 @@ type CoreGetCoreUpdatesOsRunOK struct {
 	StartedAt time.Time                          `json:"started_at"`
 	Status    CoreGetCoreUpdatesOsRunOKStatus    `json:"status"`
 	User      string                             `json:"user"`
+}
+
+// GetError returns the value of Error.
+func (s *CoreGetCoreUpdatesOsRunOK) GetError() NilString {
+	return s.Error
 }
 
 // GetFinishedAt returns the value of FinishedAt.
@@ -16603,6 +16610,11 @@ func (s *CoreGetCoreUpdatesOsRunOK) GetStatus() CoreGetCoreUpdatesOsRunOKStatus 
 // GetUser returns the value of User.
 func (s *CoreGetCoreUpdatesOsRunOK) GetUser() string {
 	return s.User
+}
+
+// SetError sets the value of Error.
+func (s *CoreGetCoreUpdatesOsRunOK) SetError(val NilString) {
+	s.Error = val
 }
 
 // SetFinishedAt sets the value of FinishedAt.
@@ -16776,6 +16788,7 @@ type CoreGetCoreUpdatesOsRunOKStatus string
 const (
 	CoreGetCoreUpdatesOsRunOKStatusRunning CoreGetCoreUpdatesOsRunOKStatus = "running"
 	CoreGetCoreUpdatesOsRunOKStatusDone    CoreGetCoreUpdatesOsRunOKStatus = "done"
+	CoreGetCoreUpdatesOsRunOKStatusFailed  CoreGetCoreUpdatesOsRunOKStatus = "failed"
 )
 
 // AllValues returns all CoreGetCoreUpdatesOsRunOKStatus values.
@@ -16783,6 +16796,7 @@ func (CoreGetCoreUpdatesOsRunOKStatus) AllValues() []CoreGetCoreUpdatesOsRunOKSt
 	return []CoreGetCoreUpdatesOsRunOKStatus{
 		CoreGetCoreUpdatesOsRunOKStatusRunning,
 		CoreGetCoreUpdatesOsRunOKStatusDone,
+		CoreGetCoreUpdatesOsRunOKStatusFailed,
 	}
 }
 
@@ -16792,6 +16806,8 @@ func (s CoreGetCoreUpdatesOsRunOKStatus) MarshalText() ([]byte, error) {
 	case CoreGetCoreUpdatesOsRunOKStatusRunning:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOsRunOKStatusDone:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOsRunOKStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -16806,6 +16822,9 @@ func (s *CoreGetCoreUpdatesOsRunOKStatus) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetCoreUpdatesOsRunOKStatusDone:
 		*s = CoreGetCoreUpdatesOsRunOKStatusDone
+		return nil
+	case CoreGetCoreUpdatesOsRunOKStatusFailed:
+		*s = CoreGetCoreUpdatesOsRunOKStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -27740,6 +27759,8 @@ func (s *CorePostCoreUpdatesOsCheckOKWindowMode) UnmarshalText(data []byte) erro
 }
 
 type CorePostCoreUpdatesOsInstallAccepted struct {
+	// Only for a failed run: why, in words (the lines keep the raw output).
+	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	ID         string      `json:"id"`
 	// Apt output so far.
@@ -27749,6 +27770,11 @@ type CorePostCoreUpdatesOsInstallAccepted struct {
 	StartedAt time.Time                                     `json:"started_at"`
 	Status    CorePostCoreUpdatesOsInstallAcceptedStatus    `json:"status"`
 	User      string                                        `json:"user"`
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetError() NilString {
+	return s.Error
 }
 
 // GetFinishedAt returns the value of FinishedAt.
@@ -27789,6 +27815,11 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) GetStatus() CorePostCoreUpdatesOs
 // GetUser returns the value of User.
 func (s *CorePostCoreUpdatesOsInstallAccepted) GetUser() string {
 	return s.User
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetError(val NilString) {
+	s.Error = val
 }
 
 // SetFinishedAt sets the value of FinishedAt.
@@ -27962,6 +27993,7 @@ type CorePostCoreUpdatesOsInstallAcceptedStatus string
 const (
 	CorePostCoreUpdatesOsInstallAcceptedStatusRunning CorePostCoreUpdatesOsInstallAcceptedStatus = "running"
 	CorePostCoreUpdatesOsInstallAcceptedStatusDone    CorePostCoreUpdatesOsInstallAcceptedStatus = "done"
+	CorePostCoreUpdatesOsInstallAcceptedStatusFailed  CorePostCoreUpdatesOsInstallAcceptedStatus = "failed"
 )
 
 // AllValues returns all CorePostCoreUpdatesOsInstallAcceptedStatus values.
@@ -27969,6 +28001,7 @@ func (CorePostCoreUpdatesOsInstallAcceptedStatus) AllValues() []CorePostCoreUpda
 	return []CorePostCoreUpdatesOsInstallAcceptedStatus{
 		CorePostCoreUpdatesOsInstallAcceptedStatusRunning,
 		CorePostCoreUpdatesOsInstallAcceptedStatusDone,
+		CorePostCoreUpdatesOsInstallAcceptedStatusFailed,
 	}
 }
 
@@ -27978,6 +28011,8 @@ func (s CorePostCoreUpdatesOsInstallAcceptedStatus) MarshalText() ([]byte, error
 	case CorePostCoreUpdatesOsInstallAcceptedStatusRunning:
 		return []byte(s), nil
 	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesOsInstallAcceptedStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -27992,6 +28027,9 @@ func (s *CorePostCoreUpdatesOsInstallAcceptedStatus) UnmarshalText(data []byte) 
 		return nil
 	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
 		*s = CorePostCoreUpdatesOsInstallAcceptedStatusDone
+		return nil
+	case CorePostCoreUpdatesOsInstallAcceptedStatusFailed:
+		*s = CorePostCoreUpdatesOsInstallAcceptedStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

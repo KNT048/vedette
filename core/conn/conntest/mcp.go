@@ -10,8 +10,9 @@ import (
 	"testing"
 )
 
-// MCPTool is a tool the MCP fake offers. Schema is its inputSchema as JSON; "" is {"type":"object"}.
-type MCPTool struct{ Name, Description, Schema string }
+// MCPTool is a tool the MCP fake offers. Schema is its inputSchema as JSON; "" is {"type":"object"}. Annotations is the tool's annotations
+// object as JSON ({"destructiveHint":true}); "" sends none.
+type MCPTool struct{ Name, Description, Schema, Annotations string }
 
 // MCPOpts configures the MCP fake.
 type MCPOpts struct {
@@ -150,7 +151,11 @@ func (m *MCP) serve(w http.ResponseWriter, r *http.Request) {
 			if t.Schema != "" {
 				schema = json.RawMessage(t.Schema)
 			}
-			tools = append(tools, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema})
+			tool := map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema}
+			if t.Annotations != "" {
+				tool["annotations"] = json.RawMessage(t.Annotations)
+			}
+			tools = append(tools, tool)
 		}
 		if m.opts.Oversize {
 			tools = append(tools, map[string]any{"name": "big", "description": strings.Repeat("x", 2<<20)})

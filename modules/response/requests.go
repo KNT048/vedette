@@ -273,6 +273,25 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 				a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.logActor()); err != nil {
 				return err
 			}
+			// D-179 (1): an earlier approver who was disabled or demoted since no longer counts (a stale approval is not an approval); the request
+			// then waits for a new second person. Only the current caller was re-read above.
+			kept := make([]Approval, 0, len(a.Approvals))
+			for _, x := range a.Approvals {
+				if x.Via != ViaAuto && x.UserID != who.ID {
+					stale, err := s.stillMayApprove(ctx, Actor{ID: x.UserID})
+					if err != nil {
+						return err
+					}
+					if stale != nil {
+						if err := s.step(ctx, tx, "response.approve", a.ID, LogApproved, "The earlier approval by "+x.Email+" no longer counts: the account was disabled or can no longer approve", "system"); err != nil {
+							return err
+						}
+						continue
+					}
+				}
+				kept = append(kept, x)
+			}
+			a.Approvals = kept
 			humans := 0 // an automatic approval (via=auto) never counts towards two approvers (INV-2)
 			for _, x := range a.Approvals {
 				if x.Via != ViaAuto {
@@ -398,7 +417,12 @@ func deviceActionsLastHour(ctx context.Context, q dbq, now time.Time) (int, erro
 	n := 0
 	for _, r := range reqs {
 		for _, i := range r.recs {
-			if i.ConnectorID != nil && i.ExecutedAt != nil && now.Sub(parseTS(*i.ExecutedAt)) < hour {
+			// A step counts when it ran or when it may have: the outcome of a time-out or a 5xx is not known (D-179 (2)).
+			at := i.SentAt
+			if at == "" && i.ExecutedAt != nil {
+				at = *i.ExecutedAt
+			}
+			if i.ConnectorID != nil && at != "" && (i.ExecutedAt != nil || i.StateUnknown || i.RunningAt != "") && now.Sub(parseTS(at)) < hour {
 				n++
 			}
 		}
@@ -599,10 +623,20 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 	}
 	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
 	stopAF := context.AfterFunc(s.bg, cancel) //nolint:contextcheck // s.bg is the lifetime of the service, not of the caller; the box shutting down (Close) ends the step; the record of it is still written below
+	xctx, untrack := s.trackStep(xctx)        // registered before the step reads the stop flag, so a stop cannot fall between the two (D-179 (4))
 	out := s.carryOut(xctx, r, it, cat, cs)
+	stoppedByUser := errors.Is(context.Cause(xctx), errEmergencyStop)
+	untrack()
 	stopAF()
 	cancel()
 	out.fromRun = true
+	if stoppedByUser && out.refusal == nil && out.err != "" {
+		if out.unknown {
+			out.err = "Stopped by the emergency stop while the step was being sent. " + stateUnknown
+		} else { // only reads were in flight: nothing changed
+			out.err, out.refusal = "", fail(http.StatusConflict, "emergency_stop", "Held: the emergency stop is on (only an admin can resume). Nothing was changed.")
+		}
+	}
 	return s.finishItem(ctx, reqID, itemID, out)
 }
 
@@ -662,6 +696,7 @@ func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bo
 			return nil
 		}
 		r.recs[k].RunningAt = s.ts()
+		r.recs[k].SentAt = store2(s.now())
 		if err := s.step(ctx, tx, "response.run", r.ID, LogApproved, "Running: "+it.Title+": "+callText(it.Change.Rest, it.Change.CLI)+"; the step is being sent now and the result follows", "system"); err != nil {
 			return err
 		}
@@ -1210,12 +1245,12 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 				out.failure = e.Message
 				break
 			}
-			if cat, ok := cats[it.ActionID]; ok && it.Exec != nil && actionFP(cat) == it.ActionFP && !s.execMatches(cat, it, conn) {
-				out.failure = "The steps stored with this change are not what its action renders (the stored request was altered), so the undo was not sent. Undo it on the device."
+			if why := s.undoStepsProblem(cats, it, conn); why != "" {
+				out.failure = why
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			out = s.undoOnDevice(xctx, r.ID, it, conn)
+			out = s.undoOnDevice(xctx, r.ID, it, conn) // not tracked: the emergency stop lets an undo in flight finish (D-179 (6))
 			cancel()
 		}
 	}
@@ -1294,8 +1329,8 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 // EmergencyStop is POST /response/emergency-stop: execution off, the global circuit breaker open and every pending request
 // cancelled, in one transaction. The open breaker stops what the execution switch does not: pre-approved rules, the box actions
 // (block list, webhook, message) and every item still to run (fire and runItem read it per rule and per item); only an admin
-// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A step that is already running finishes;
-// the next one reads the switch and the breaker.
+// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A run step that is being sent is cancelled
+// (D-179 (4)); an undo step that is being sent finishes (an undo is the safe direction, D-88 (4)), and the next undo is blocked by the stop.
 func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	cancelled := 0
 	var fx effects
@@ -1334,8 +1369,40 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.stopInFlight() // right after the commit, before the notifications: a step that reads the flag from now on sees it, one that already left is cancelled
 	s.run(ctx, &fx)
 	return cancelled, nil
+}
+
+// errEmergencyStop is the cause of the cancel that the emergency stop sends to a step in flight.
+var errEmergencyStop = errors.New("emergency stop")
+
+// trackStep makes ctx of a run step cancellable by the emergency stop until untrack is called (D-179 (4)); an undo is not tracked (D-179 (6)).
+// The executor sees the cancel as its context ending: the SSH writer sends no further line, and the item ends as "stopped", state unknown.
+func (s *Service) trackStep(ctx context.Context) (context.Context, func()) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	key := &cancel
+	s.inflightMu.Lock()
+	if s.inflight == nil {
+		s.inflight = map[*context.CancelCauseFunc]struct{}{}
+	}
+	s.inflight[key] = struct{}{}
+	s.inflightMu.Unlock()
+	return ctx, func() {
+		s.inflightMu.Lock()
+		delete(s.inflight, key)
+		s.inflightMu.Unlock()
+		cancel(nil)
+	}
+}
+
+// stopInFlight cancels every tracked step.
+func (s *Service) stopInFlight() {
+	s.inflightMu.Lock()
+	defer s.inflightMu.Unlock()
+	for k := range s.inflight {
+		(*k)(errEmergencyStop)
+	}
 }
 
 // ---- metrics ----

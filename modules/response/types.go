@@ -155,6 +155,14 @@ type itemRec struct {
 	// stays so after a restart or a timeout is failed by the sweep with "state unknown": a step may have been applied.
 	RunningAt string `json:"running_at,omitempty"`
 
+	// SentAt is when the step was claimed to go out (the same moment as RunningAt, which the finish clears). MaxPerHour counts a step by it, so a
+	// step whose outcome is not known (a time-out, a 5xx) uses up the budget like one that ran (D-179 (2)).
+	SentAt string `json:"sent_at,omitempty"`
+
+	// ExecHash is the SHA-256 of Exec as it was rendered when the request was made. An undo, which the TTL sweep sends unattended, compares
+	// it before it sends the stored rollback (D-179 (3)).
+	ExecHash string `json:"exec_hash,omitempty"`
+
 	// ConnIdent is conn.Identity of the connection (id, kind, address) when the request was made: an undo is held to it instead of to ConnFP,
 	// so a rotated token or a renewed pin does not strand a change that is in force (D-88 (4)).
 	ConnIdent string `json:"conn_ident,omitempty"`

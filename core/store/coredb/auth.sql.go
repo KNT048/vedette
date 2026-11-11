@@ -617,16 +617,31 @@ func (q *Queries) PruneOldEmailCodeSends(ctx context.Context, sentAt string) (in
 	return result.RowsAffected()
 }
 
-const prunePendingTotp = `-- name: PrunePendingTotp :execrows
-DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ?
+const prunePendingTotp = `-- name: PrunePendingTotp :many
+DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ? RETURNING secret_id
 `
 
-func (q *Queries) PrunePendingTotp(ctx context.Context, createdAt string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, prunePendingTotp, createdAt)
+func (q *Queries) PrunePendingTotp(ctx context.Context, createdAt string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, prunePendingTotp, createdAt)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected()
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var secret_id string
+		if err := rows.Scan(&secret_id); err != nil {
+			return nil, err
+		}
+		items = append(items, secret_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const pruneSessions = `-- name: PruneSessions :execrows

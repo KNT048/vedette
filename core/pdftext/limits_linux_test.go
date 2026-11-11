@@ -12,12 +12,14 @@ import (
 )
 
 // limitsHelper is set in the re-executed test binary: it lowers RLIMIT_CPU first (a unit with LimitCPU=30), runs setLimits and prints
-// what the kernel then says. setLimits cannot be undone, so it runs in a process of its own.
+// what the kernel then says. setLimits cannot be undone, so it runs in a process of its own. This is the package's only TestMain
+// (Linux only): another TestMain in package pdftext would not build on Linux; merge it into this one.
 const limitsHelper = "VEDETTE_PDFTEXT_LIMITS_HELPER"
 
 func TestMain(m *testing.M) {
 	if os.Getenv(limitsHelper) == "1" {
-		if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &syscall.Rlimit{Cur: 30, Max: 30}); err != nil {
+		if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &syscall.Rlimit{Cur: 30, Max: 30}); err != nil { // a runner already below 30 s
+			os.Stdout.WriteString("lowering RLIMIT_CPU: " + err.Error())
 			os.Exit(3)
 		}
 		if err := setLimits(); err != nil {

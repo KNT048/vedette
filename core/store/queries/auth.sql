@@ -150,8 +150,8 @@ ON CONFLICT (chain) DO UPDATE SET last_hash = excluded.last_hash, count = core_c
 -- name: PruneSessions :execrows
 DELETE FROM core_session WHERE expires_at < sqlc.arg(cutoff) OR revoked_at < sqlc.arg(cutoff) OR last_seen < sqlc.arg(cutoff);
 
--- name: PrunePendingTotp :execrows
-DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ?;
+-- name: PrunePendingTotp :many
+DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ? RETURNING secret_id;
 
 -- name: PruneEmailCodes :execrows
 DELETE FROM core_email_code WHERE expires_at < ?;

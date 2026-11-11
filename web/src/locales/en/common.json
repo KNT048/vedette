@@ -27,6 +27,8 @@
     "forbidden": "You do not have access to this",
     "unauthenticated": "Your session has ended",
     "invalid": "Invalid request",
+    "notOnInstall": "Not available on this install",
+    "unavailable": "Not available right now",
     "previewStale": "In this preview, the saved sample data may come from an older version of the app.",
     "previewStaleLink": "Restore sample data",
     "notImplemented": "This part is not available in this version yet."

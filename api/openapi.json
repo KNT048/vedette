@@ -9198,7 +9198,7 @@
     "/core/mcp": {
       "get": {
         "operationId": "core_get_core_mcp",
-        "summary": "MCP server state, tokens (last 4 characters only) and the read-only tool list",
+        "summary": "MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every /core/mcp path answers 404",
         "tags": [
           "core"
         ],
@@ -9275,155 +9275,16 @@
                         "additionalProperties": false
                       }
                     },
-                    "tools": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "scope": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "scope"
-                        ],
-                        "additionalProperties": false
-                      }
+                    "listening": {
+                      "type": "boolean",
+                      "description": "The port is open. False while it cannot be opened (another process holds it): do not give a token to that address"
                     },
-                    "scopes": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "enabled",
-                    "bind",
-                    "port",
-                    "endpoint",
-                    "tokens",
-                    "tools",
-                    "scopes"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "core_patch_core_mcp",
-        "summary": "Turn the MCP server on/off (binds to localhost)",
-        "tags": [
-          "core"
-        ],
-        "x-stories": [
-          "S-MCP-1"
-        ],
-        "x-min-role": "admin",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "enabled"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "bind": {
-                      "type": "string"
-                    },
-                    "port": {
-                      "type": "number"
-                    },
-                    "endpoint": {
-                      "type": "string"
-                    },
-                    "tokens": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "scopes": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "last4": {
-                            "type": "string"
-                          },
-                          "created_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          },
-                          "last_used": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "scopes",
-                          "last4",
-                          "created_at",
-                          "last_used"
-                        ],
-                        "additionalProperties": false
-                      }
+                    "listen_error": {
+                      "description": "Why the port could not be opened; null while listening",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "tools": {
                       "type": "array",
@@ -9457,6 +9318,8 @@
                     "port",
                     "endpoint",
                     "tokens",
+                    "listening",
+                    "listen_error",
                     "tools",
                     "scopes"
                   ],
@@ -9481,7 +9344,7 @@
     "/core/mcp/tokens": {
       "post": {
         "operationId": "core_post_core_mcp_tokens",
-        "summary": "Create a read-only token by scope; returns the full token once",
+        "summary": "Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many)",
         "tags": [
           "core"
         ],
@@ -12839,7 +12702,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 12 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The 13 data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -12863,7 +12726,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 12
+                            "maximum": 13
                           },
                           "state": {
                             "type": "string",
@@ -12891,7 +12754,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 12 flows listed in PRIVACY.md"
+                      "description": "Exactly the 13 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -12998,7 +12861,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 12
+                            "maximum": 13
                           },
                           "state": {
                             "type": "string",
@@ -13026,7 +12889,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 12 flows listed in PRIVACY.md"
+                      "description": "Exactly the 13 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",

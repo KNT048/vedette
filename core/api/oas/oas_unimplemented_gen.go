@@ -562,7 +562,9 @@ func (UnimplementedHandler) CoreGetCoreLogsExport(ctx context.Context, params Co
 
 // CoreGetCoreMcp implements core_get_core_mcp operation.
 //
-// MCP server state, tokens (last 4 characters only) and the read-only tool list.
+// MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the
+// mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every
+// /core/mcp path answers 404.
 //
 // GET /core/mcp
 func (UnimplementedHandler) CoreGetCoreMcp(ctx context.Context) (r *CoreGetCoreMcpOK, _ error) {
@@ -598,7 +600,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {
@@ -693,15 +695,6 @@ func (UnimplementedHandler) CoreGetSetup(ctx context.Context) (r *CoreGetSetupOK
 //
 // PATCH /core/account
 func (UnimplementedHandler) CorePatchCoreAccount(ctx context.Context, req *CorePatchCoreAccountReq) (r *CorePatchCoreAccountOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// CorePatchCoreMcp implements core_patch_core_mcp operation.
-//
-// Turn the MCP server on/off (binds to localhost).
-//
-// PATCH /core/mcp
-func (UnimplementedHandler) CorePatchCoreMcp(ctx context.Context, req *CorePatchCoreMcpReq) (r *CorePatchCoreMcpOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -909,7 +902,7 @@ func (UnimplementedHandler) CorePostCoreDataPurge(ctx context.Context, req *Core
 
 // CorePostCoreMcpTokens implements core_post_core_mcp_tokens operation.
 //
-// Create a read-only token by scope; returns the full token once.
+// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).
 //
 // POST /core/mcp/tokens
 func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (r *CorePostCoreMcpTokensCreated, _ error) {

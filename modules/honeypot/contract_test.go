@@ -761,24 +761,46 @@ func TestContract_INV12_HostileText(t *testing.T) {
 	)
 	e.poll()
 	hits, _ := e.svc.Hits(e.ctx(), honeypot.HitFilter{})
-	if len(hits) != 1 {
+	// two usable lines: the hostile SSH login, and the last one, whose absurd port is read as 0 and whose object user name is ignored (INV-12b:
+	// a port that is not 1-65535 no longer makes the whole line unusable)
+	if len(hits) != 2 {
 		t.Fatalf("%d hits from hostile lines", len(hits))
 	}
-	h := hits[0]
-	if len(h.Excerpt) > 600 || strings.ContainsAny(h.Excerpt, "\x00\n\r\u202e") {
-		t.Fatalf("excerpt %q", h.Excerpt)
+	for _, h := range hits {
+		if len(h.Excerpt) > 600 || strings.ContainsAny(h.Excerpt, "\x00\n\r\u202e") {
+			t.Fatalf("excerpt %q", h.Excerpt)
+		}
+	}
+	// the two hits by content, not by position: the hostile SSH login (.157) and the line whose port and user name were unusable (.158)
+	var h, other honeypot.Hit
+	for _, x := range hits {
+		switch x.SrcIP {
+		case "192.168.10.157":
+			h = x
+		case "192.168.10.158":
+			other = x
+		}
+	}
+	if h.ID == "" || other.ID == "" {
+		t.Fatalf("expected one hit from .157 and one from .158, got %+v", hits)
+	}
+	// the object user name is ignored (no text from it), the absurd source port became 0 (Hit has no source port; the trap port is the service's)
+	if strings.Contains(other.Excerpt, "[1]") || strings.Contains(other.Excerpt, "map[") || other.Excerpt != "new connection" {
+		t.Fatalf("the .158 hit kept something from its object user name: excerpt %q", other.Excerpt)
 	}
 	if e.count(`SELECT count(*) FROM sqlite_master WHERE name = 'hp_hits'`) != 1 {
 		t.Fatal("table gone")
 	}
 	st := e.svc.Stats()
-	if st.Unusable < 5 || st.Lines != 1 {
+	if st.Unusable < 5 || st.Lines != 2 {
 		t.Fatalf("%+v", st)
 	}
-	d, _ := e.svc.HitDetail(e.ctx(), h.ID)
-	for _, ev := range d.Events {
-		if len(ev.Text) > 400 {
-			t.Fatalf("event text %d long", len(ev.Text))
+	for _, id := range []string{h.ID, other.ID} {
+		d, _ := e.svc.HitDetail(e.ctx(), id)
+		for _, ev := range d.Events {
+			if len(ev.Text) > 400 {
+				t.Fatalf("event text %d long", len(ev.Text))
+			}
 		}
 	}
 }

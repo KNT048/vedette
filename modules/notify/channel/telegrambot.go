@@ -36,6 +36,9 @@ var (
 	telegramUserRE   = regexp.MustCompile(`^[A-Za-z0-9_]{1,32}$`)      // the public username of a chat, without @
 	telegramQueryRE  = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)     // callback_query.id
 	callbackDataRE   = regexp.MustCompile(`^[A-Za-z0-9_.:@+-]{1,64}$`) // what notify puts in callback_data (and all it accepts back)
+	// buttonDataRE is the data of any button: a Slack value carries "a:" or "r:" and a request id of up to 128 characters
+	// (Telegram callback_data, at most 64 bytes, is checked again by the Telegram sender).
+	buttonDataRE = regexp.MustCompile(`^[A-Za-z0-9_.:@+-]{1,130}$`)
 )
 
 // Button is one inline button under a message. Data is what Telegram sends back when it is pressed (callback_data):
@@ -50,8 +53,8 @@ func checkButtons(bs []Button) error {
 		if t := Line(b.Text, maxButtonText+1); t == "" || len([]rune(t)) > maxButtonText {
 			return fmt.Errorf("%w: a button label is 1 to %d characters", ErrInvalidMessage, maxButtonText)
 		}
-		if !callbackDataRE.MatchString(b.Data) {
-			return fmt.Errorf("%w: button data is 1 to 64 characters of letters, digits and _ . : @ + -", ErrInvalidMessage)
+		if !buttonDataRE.MatchString(b.Data) {
+			return fmt.Errorf("%w: button data is 1 to 130 characters of letters, digits and _ . : @ + -", ErrInvalidMessage)
 		}
 	}
 	return nil

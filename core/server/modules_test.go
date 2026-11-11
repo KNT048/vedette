@@ -236,7 +236,6 @@ var contractRoutes = map[string][]string{
 	"mcp-server": {
 		"DELETE /core/mcp/tokens/{id}",
 		"GET /core/mcp",
-		"PATCH /core/mcp",
 		"POST /core/mcp/tokens",
 	},
 	"mitigation": {

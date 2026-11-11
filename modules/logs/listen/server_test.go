@@ -236,7 +236,9 @@ func TestAHugeDatagramIsCutAndCounted(t *testing.T) {
 	r := newRig(t, Limits{BatchWait: 20 * time.Millisecond, MaxLine: 50}, nil)
 	r.set("udp")
 	r.start()
-	sendUDP(t, r.udpAddr(), "<34>"+strings.Repeat("z", 60000))
+	// 8,000 bytes: far over MaxLine, and under macOS's default UDP datagram limit (net.inet.udp.maxdgram = 9216),
+	// which refuses a bigger send with EMSGSIZE ("message too long") before it reaches the listener.
+	sendUDP(t, r.udpAddr(), "<34>"+strings.Repeat("z", 8000))
 	waitFor(t, "a line", func() bool { return len(r.lines()) == 1 })
 	if n := len(r.lines()[0].Text); n != 50 {
 		t.Errorf("kept %d bytes", n)

@@ -34,8 +34,9 @@ if has "$go_paths"; then
 		printf '%s\n' "$changed" | sed -En 's#^(modules/[^/]+)/(migrations|testdata)/.*#\1/...#p; s#^(modules/[^/]+)/MANIFEST\.yaml$#\1/...#p'
 		has '^core/store/queries/' && echo 'core/store/...'
 		has '^api/openapi\.json$' && echo 'core/api/...'
+		true # the group's status is its last command's: a false `has` would end the script here (set -e, pipefail)
 	} | sort -u)
-	pkgs=$(for d in $dirs; do [ -d "${d%/...}" ] && go list "./$d" 2>/dev/null; done | sort -u)
+	pkgs=$(for d in $dirs; do if [ -d "${d%/...}" ]; then go list "./$d" 2>/dev/null || true; fi; done | sort -u)
 	if [ -n "$pkgs" ]; then
 		rdeps=$(go list -f '{{.ImportPath}}{{range .Imports}} {{.}}{{end}}{{range .TestImports}} {{.}}{{end}}{{range .XTestImports}} {{.}}{{end}}' ./... |
 			awk -v want="$(printf "%s " $pkgs)" 'BEGIN { n = split(want, a, " "); for (i = 1; i <= n; i++) w[a[i]] = 1 }

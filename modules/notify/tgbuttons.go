@@ -36,22 +36,26 @@ func buttonsShown(ctx context.Context, tx *sql.Tx, requestID, chatID string, mes
 	return nil
 }
 
-// decisionEvent marks the buttons of a request for removal when response.decision.made {request_id, final} says the request is
-// finally decided (approved by the last person needed, rejected, expired or cancelled). final=false (the first of two approvals)
-// leaves them for the second person. Anything not of that form, or about a request without buttons, changes nothing.
+// decisionEvent marks the buttons of a request for removal when response.decision.made {request_id, decision, final} says the request is
+// finally decided (approved by the last person needed, rejected, expired or cancelled): its Telegram message (tgbuttons.go) and its
+// Slack messages (slackbuttons.go). final=false (the first of two approvals) leaves them for the second person. Anything not of that
+// form, or about a request without buttons, changes nothing.
 func (s *Service) decisionEvent(ctx context.Context, data any) error {
 	var e struct {
 		RequestID string `json:"request_id"`
+		Decision  string `json:"decision"`
 		Final     bool   `json:"final"`
 	}
-	if decode(data, &e) != nil || !e.Final || !idRE.MatchString(e.RequestID) || len(e.RequestID) > maxButtonRequestID {
+	if decode(data, &e) != nil || !e.Final || !idRE.MatchString(e.RequestID) {
 		return nil
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_tg_button SET state = 'remove' WHERE request_id = ? AND state IN ('none', 'shown')`, e.RequestID); err != nil {
-			return fmt.Errorf("notify: mark telegram buttons for removal: %w", err)
+		if len(e.RequestID) <= maxButtonRequestID {
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_tg_button SET state = 'remove' WHERE request_id = ? AND state IN ('none', 'shown')`, e.RequestID); err != nil {
+				return fmt.Errorf("notify: mark telegram buttons for removal: %w", err)
+			}
 		}
-		return nil
+		return slackFinal(ctx, tx, e.RequestID, slackOutcome(e.Decision), s.now())
 	})
 }
 

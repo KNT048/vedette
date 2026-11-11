@@ -150,12 +150,12 @@ export const useRemoveConnection = () => useConnectionWrite((id: string) => api.
 export const useTestConnection = () => useConnectionWrite((id: string) => api.post<ConnectorTestResult>(`/core/connections/${encodeURIComponent(id)}/test`))
 
 // ---- MCP ----
-export const useMcp = () => useQuery({ queryKey: ['core', 'mcp'], queryFn: () => api.get<McpState>('/core/mcp') })
+/** Only while the mcp-server module is on: off, every /core/mcp path is 404 (D-230). The switch is useToggleModule. */
+export const useMcp = (enabled: boolean) => useQuery({ queryKey: ['core', 'mcp'], queryFn: () => api.get<McpState>('/core/mcp'), enabled })
 export function useMcpMutations() {
   const qc = useQueryClient()
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['core', 'mcp'] }) }
   return {
-    toggle: useMutation({ mutationFn: (enabled: boolean) => api.patch<McpState>('/core/mcp', { enabled }), onSuccess: () => { refresh(); void qc.invalidateQueries({ queryKey: ['modules'] }) } }),
     create: useMutation({ mutationFn: (v: { name: string; scopes: string[] }) => api.post<McpTokenCreated>('/core/mcp/tokens', v), onSuccess: refresh }),
     revoke: useMutation({ mutationFn: (id: string) => api.del(`/core/mcp/tokens/${id}`), onSuccess: refresh }),
   }

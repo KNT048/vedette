@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/secrets"
@@ -115,4 +116,29 @@ func FuzzTelegramSentMessageID(f *testing.F) {
 			t.Fatalf("message id %d out of range from %q", id, body)
 		}
 	})
+}
+
+// Review of slice 3b: button data may be up to 130 characters (a Slack value "a:" + a 128-character request id), but a Telegram
+// callback_data is at most 64 bytes: the Telegram sender refuses longer data before any call.
+func TestTelegramSendRefusesButtonDataOver64(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":5}}`)
+	}))
+	t.Cleanup(srv.Close)
+	s, err := newTelegramAt(srv.URL, TelegramConfig{Token: secrets.NewValue(tgToken), ChatID: "-1002145678901", Client: srv.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := sample
+	m.Buttons = []Button{{Text: "Approve", Data: "a:" + strings.Repeat("x", 63)}}
+	if _, err := s.Send(t.Context(), m); !errors.Is(err, ErrInvalidMessage) || calls != 0 {
+		t.Fatalf("err %v, calls %d", err, calls)
+	}
+	m.Buttons = []Button{{Text: "Approve", Data: "a:" + strings.Repeat("x", 62)}}
+	if _, err := s.Send(t.Context(), m); err != nil || calls != 1 {
+		t.Fatalf("64 bytes: err %v, calls %d", err, calls)
+	}
 }

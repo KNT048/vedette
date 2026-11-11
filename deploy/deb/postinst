@@ -146,11 +146,13 @@ configure)
 	# core_data (the default of core and of the installer's host.conf): the database and the key; core's alone, kept on purge
 	once 700 "$CORE" /var/lib/vedette
 	# honeypot folders (D-123 (1)): root's and closed above; config/ is written by core and read by the container; log/ is
-	# written by the container and read by core. log/ is core's for now and is not re-owned here: the owner the container needs
-	# under UserNS=auto (a :U on the volume) is decided in the lab (docs/DEPLOYMENT.md section 3.1, D-155 (5)).
+	# written by the container and read by core.
+	# log/ is THE CONTAINER'S after its first start: the unit mounts it with podman's :U, which gives it to uid 1000 of the honeypot image
+	# (a subuid on the host) and init.py sets mode 0755 (D-162). So it is made here only when it is missing and is never checked or re-owned
+	# afterwards: `once` would stop every later upgrade at "exists with mode and owner ...".
 	install -d -m 0755 -o root -g root /var/lib/vedette-honeypot
 	install -d -m 0755 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/config
-	once 750 "$CORE" /var/lib/vedette-honeypot/log
+	[ -d /var/lib/vedette-honeypot/log ] || install -d -m 0755 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/log
 
 	subid /etc/subuid
 	subid /etc/subgid

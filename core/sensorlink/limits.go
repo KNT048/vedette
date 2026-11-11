@@ -111,8 +111,8 @@ func PendingListener(l net.Listener) net.Listener {
 	return newPendingListener(l, MaxPending, MinPendingAge, HandshakeDeadline, time.Now)
 }
 
-func newPendingListener(l net.Listener, max int, minAge, deadline time.Duration, now func() time.Time) *pendingListener {
-	return &pendingListener{Listener: l, max: max, minAge: minAge, deadline: deadline, now: now}
+func newPendingListener(l net.Listener, limit int, minAge, deadline time.Duration, now func() time.Time) *pendingListener {
+	return &pendingListener{Listener: l, max: limit, minAge: minAge, deadline: deadline, now: now}
 }
 
 type pendingListener struct {

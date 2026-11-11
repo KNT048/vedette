@@ -60,7 +60,7 @@ lap "go test -c -tags webui"
 mkdir -p "$tmp/box" && chmod 700 "$tmp/box"
 # Job control puts each background job in its own process group (Linux and macOS), so cleanup can stop a whole tree.
 set -m
-(cd cmd/vedette && VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
+(cd cmd/vedette && umask 022 && VEDETTE_E2E_HOST=1 VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
 box=$!
 set +m
 for _ in $(seq 1 120); do

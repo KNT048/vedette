@@ -17,6 +17,10 @@ Quy ước: **Triệu chứng → Kiểm tra → Sửa → Xác minh**. Không S
 - Không quản lý OS, không cấu hình card mạng; tính năng mạng sâu (SPAN, IP phụ cho bẫy) có hạn chế ghi rõ trong UI: sẽ điền ở M2.
 - Compose file, volume, biến môi trường, tài khoản chạy: sẽ điền ở M2.
 
+### 1.3 Gỡ gói `vedette-host` và xoá dữ liệu (D-155)
+- `apt remove vedette-host` hoặc `apt purge vedette-host` chỉ xoá binary, unit và trạng thái bật. **Dữ liệu còn nguyên**, kể cả sau `purge`: CSDL và khoá chủ ở `/var/lib/vedette`, bản sao lưu, trạng thái host `/var/lib/vedette-host`, thư mục honeypot `/var/lib/vedette-honeypot`, `/etc/vedette/host.conf`, các unit Quadlet `/etc/containers/systemd/vedette-*`, người dùng và nhóm `vedette` và `vedette-sensor`, dòng `containers:` trong `/etc/subuid` và `/etc/subgid`. Khoá chủ không tạo lại được: mất nó thì mất mọi bí mật đã lưu.
+- Muốn xoá hẳn (bước riêng, có chủ ý, không hoàn tác): dừng các unit `vedette-*`, `apt purge vedette-host`, rồi xoá từng thư mục ở trên, các unit Quadlet và volume `vedette-creds-*`, và (nếu không còn dùng) người dùng và nhóm bằng `userdel`/`groupdel`. Lệnh cụ thể sẽ điền ở M2 cùng installer; không xoá dòng `containers:` nếu máy còn chạy container khác dùng `--userns=auto`.
+
 ## 2. Khởi động lần đầu
 Cài đặt ban đầu làm hoàn toàn trong GUI (D-22): tạo admin, bật 2FA, tên tổ chức, múi giờ, bật module, khai thiết bị, kênh cảnh báo.
 - Lấy địa chỉ và mã thiết lập lần đầu từ console: sẽ điền ở M2.

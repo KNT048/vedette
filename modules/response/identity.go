@@ -276,7 +276,10 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 	if err != nil {
 		return CodeSent{}, err
 	}
-	i := slices.IndexFunc(rows, func(r Identity) bool { return r.Channel == channel })
+	i := slices.IndexFunc(rows, func(r Identity) bool { return r.Channel == channel && !r.Linked }) // listed twice: the ID still to link
+	if i < 0 {
+		i = slices.IndexFunc(rows, func(r Identity) bool { return r.Channel == channel })
+	}
 	switch {
 	case i < 0:
 		return CodeSent{}, fail(http.StatusNotFound, "not_listed", "You are not on the approver list of this channel.")
@@ -358,7 +361,19 @@ func (s *Service) LinkFromChat(ctx context.Context, d ChatDecision) (ChatOutcome
 	if gate != nil {
 		return ChatOutcome{}, gate
 	}
+	anon := d.ExternalID + " via " + d.Channel
+	if ok, _ := s.chatAllow("chat:"+d.Channel+"|"+d.ExternalID, true); !ok { // the same per-sender limit as a decision (D-135); listed, so let in
+		return ChatOutcome{}, errRateLimited()
+	}
+	if linked, err := s.isLinked(ctx, u, d.Channel, d.ExternalID); err != nil {
+		return ChatOutcome{}, err
+	} else if linked {
+		return ChatOutcome{Status: "already_linked", Message: "This " + chatNames[d.Channel] + " account is already linked to Vedette."}, nil
+	}
 	if _, err := s.confirmCode(ctx, u, d.Channel, d.ExternalID, d.Code); err != nil {
+		if ae, ok := apierr.As(err); ok && (ae.Code == "wrong_code" || ae.Code == "too_many_tries") {
+			return ChatOutcome{}, s.refuse(ctx, ae, "chat", anon) // a wrong link code from a chat ID is logged like a refused decision
+		}
 		return ChatOutcome{}, err
 	}
 	return ChatOutcome{Status: "linked", Message: "Linked. Your " + chatNames[d.Channel] + " account now counts as you in Vedette: reply to approval messages with your codes."}, nil

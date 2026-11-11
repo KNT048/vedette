@@ -28,7 +28,6 @@ const (
 	zaloWatchEvery   = 30 * time.Second // how often a live connection checks that its channel is unchanged
 	zaloWorkers      = telegramWorkers
 	zaloHealthy      = 10 * time.Minute // a connection that lived this long clears the failure count
-	zaloGiveUp       = 8                // failed connections in a row after which the listener waits for the channel to change
 	zaloRetryMax     = 30 * time.Minute // the longest wait between failed connections (D-46: an account that misbehaves can be locked)
 	zaloReplacedWait = 10 * time.Minute // after another client took the account over: do not take it back at once
 	zaloAnswerWait   = 20 * time.Second // one private answer: it may wait for a send in progress and sign in
@@ -83,9 +82,7 @@ func (s *Service) listenZalo(ctx context.Context) error {
 	if ctx.Err() != nil || errors.Is(err, errZaloChanged) {
 		return nil
 	}
-	if s.zaloRetry.after(err, time.Since(started), time.Now()) {
-		s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: the reply listener stopped after repeated failures; it starts again when the channel is saved")
-	}
+	s.zaloRetry.after(err, time.Since(started), time.Now())
 	if err != nil {
 		return fmt.Errorf("notify: zalo listener: %w", err)
 	}
@@ -267,51 +264,46 @@ func (s *Service) noteZaloStranger(ctx context.Context, m channel.ZaloText) {
 	}
 }
 
-// zaloRetry is the wait of the listener between connections, for one revision of the channel: saving the channel starts afresh.
+// zaloRetry is the wait of the listener between connections, for one revision of the channel: saving the channel starts afresh. It
+// never gives up (codes keep going out while the channel takes approvals): at worst it tries every 30 minutes.
 type zaloRetry struct {
-	mu      sync.Mutex
-	rev     int64
-	fails   int
-	next    time.Time
-	stopped bool // zaloGiveUp failures in a row: nothing until the channel changes
+	mu    sync.Mutex
+	rev   int64
+	fails int
+	next  time.Time
 }
 
 func (r *zaloRetry) due(rev int64, now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if rev != r.rev {
-		r.rev, r.fails, r.next, r.stopped = rev, 0, time.Time{}, false
+		r.rev, r.fails, r.next = rev, 0, time.Time{}
 	}
-	return !r.stopped && !now.Before(r.next)
+	return !now.Before(r.next)
 }
 
-// after records how a connection ended; it reports true when the listener has just given up.
-func (r *zaloRetry) after(err error, lived time.Duration, now time.Time) bool {
+// after records how a connection ended.
+func (r *zaloRetry) after(err error, lived time.Duration, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var be *channel.BackoffError
 	switch {
 	case errors.Is(err, channel.ErrZaloReplaced):
 		r.next = now.Add(zaloReplacedWait)
-		return false
+		return
+	case errors.As(err, &be): // the channel's sign-ins are paused (the alert sender's state): wait it out, not a failure of the listener
+		r.next = be.Until
+		return
 	case lived >= zaloHealthy:
 		r.fails, r.next = 0, time.Time{}
-		return false
+		return
 	}
 	r.fails++
-	if r.fails >= zaloGiveUp {
-		r.stopped = true
-		return true
-	}
 	d := zaloListenEvery
 	for i := 1; i < r.fails && d < zaloRetryMax; i++ {
 		d *= 2
 	}
 	r.next = now.Add(min(d, zaloRetryMax))
-	if errors.As(err, &be) && be.Until.After(r.next) { // the channel's sign-ins are paused: no sooner than the pause ends
-		r.next = be.Until
-	}
-	return false
 }
 
 // zaloBudget allows a few events per key in a window (the private answers of the listener).

@@ -700,7 +700,7 @@
     "linkedAt": "Linked {{at}}. Buttons and links from this address count as you.",
     "unlink": "Unlink",
     "howEmail": "Send a code to this address and enter it here. It is your sign-in email; if it is wrong, ask an administrator to correct it.",
-    "howSend": "Prove that this {{channel}} account is yours: get a code here, then send it as a message from that account to the Vedette {{channel}} account. Until then you get no approval codes on {{channel}}.",
+    "howSend": "Prove that this {{channel}} account is yours: get a code here, then send it as a message from that account to the {{channel}} account that sends you Vedette alerts. Until then you get no approval codes on {{channel}}. Never give the code to anyone: Vedette never asks for it, and whoever sends it from their account can approve as you.",
     "sendWaiting": "Send this code from {{channel}} account {{address}} within 10 minutes. This page updates when it arrives.",
     "sendLost": "A code is waiting. If you no longer have it, get a new one.",
     "getCode": "Get a code",

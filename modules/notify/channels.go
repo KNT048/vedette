@@ -279,7 +279,7 @@ func (s *Service) savedSender(ctx context.Context, c channelRow, toOverride []st
 	if toOverride == nil {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if cs, ok := s.senders[c.Type]; ok && cs.rev == c.Rev { // built at the same time by another job: one sender (one session) per channel
+		if cs, ok := s.senders[c.Type]; ok && cs.rev >= c.Rev { // built at the same time by another job (or a newer revision): keep it
 			return cs.sender, nil
 		}
 		s.senders[c.Type] = cachedSender{rev: c.Rev, sender: snd}

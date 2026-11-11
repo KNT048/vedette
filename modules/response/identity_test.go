@@ -409,6 +409,20 @@ func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
 	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "telegram", ExternalID: tgOp, Code: sent.Code}); err == nil {
 		t.Fatal("a send-code link on another channel")
 	}
+	wrong := "000000"
+	if sent.Code == wrong {
+		wrong = "111111"
+	}
+	for range 4 { // wrong codes from the listed ID use up its tries and are logged as refusals, without the code
+		_, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: wrong})
+		wantCode(t, err, 400, "wrong_code")
+	}
+	if n := c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'wrong_code:%'`); n != 4 {
+		t.Fatalf("refusals logged = %d", n)
+	}
+	if rows := c.dump(`SELECT detail FROM resp_log`) + c.dump(`SELECT detail FROM core_audit`); strings.Contains(rows, sent.Code) {
+		t.Fatal("the link code reached a log")
+	}
 	out, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code})
 	c.must(err)
 	if out.Status != "linked" {
@@ -422,8 +436,8 @@ func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
 	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'zalo-personal'`) != 1 {
 		t.Fatal("the link is not audited")
 	}
-	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code}); err == nil {
-		t.Fatal("a link code worked twice")
+	if again, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code}); err != nil || again.Status != "already_linked" {
+		t.Fatalf("six digits from a linked ID = %+v, %v", again, err)
 	}
 	got, err := c.typed(zlOp, "A-7KQ2MX", true) // the reply code was not burned by the refusal
 	c.must(err)

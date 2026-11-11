@@ -298,7 +298,7 @@ test.describe('users and roles', () => {
     const vis = { visible: true }
     await expect(page.getByRole('button', { name: /Disable Alex Admin/ }).filter(vis)).toBeDisabled()
     await page.getByLabel('Role of Alex Admin').filter(vis).selectOption('viewer')
-    await expect(page.getByText(/At least one active administrator must remain/).first()).toBeVisible()
+    await expect(page.getByText(/At least one active administrator who signs in with a password must remain/).first()).toBeVisible()
     await expect(page.getByLabel('Role of Alex Admin').filter(vis)).toHaveValue('admin')
     await page.getByRole('button', { name: 'Add user' }).click()
     await page.getByRole('button', { name: 'Create account' }).click()

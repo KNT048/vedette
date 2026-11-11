@@ -425,14 +425,5 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 	if inv == nil {
 		return false, nil
 	}
-	list, err := inv.Devices(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, dev := range list.Items {
-		if !dev.IsBox && dev.IP == ip.String() {
-			return true, nil
-		}
-	}
-	return false, nil
+	return inv.AddressInUse(ctx, ip.String()) // uncapped (D-178): the 2000 row list forgets the oldest device
 }

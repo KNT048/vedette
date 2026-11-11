@@ -33,7 +33,17 @@ func cleanText(s string) bool {
 	if n < 1 || n > maxObsValue || !utf8.ValidString(s) {
 		return false
 	}
-	return !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f })
+	return !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f || invisible(r) })
+}
+
+// invisible is a character that changes how text reads or hides in it (L12, defence in depth): C1 controls, zero-width, bidi
+// controls and the tag block.
+func invisible(r rune) bool {
+	switch {
+	case r >= 0x80 && r <= 0x9f, r >= 0x200b && r <= 0x200d, r >= 0x202a && r <= 0x202e, r == 0x2060, r >= 0x2066 && r <= 0x2069, r == 0xfeff, r >= 0xe0000 && r <= 0xe007f:
+		return true
+	}
+	return false
 }
 
 // ipv4 parses an IPv4 address in the plain dotted form.

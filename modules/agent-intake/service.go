@@ -74,7 +74,11 @@ type Service struct {
 	wazuhPace   time.Duration
 	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
 
-	mirror chan struct{} // one slot per running package download (install.go)
+	mirror      chan struct{}   // one slot per running package download, box-wide (install.go)
+	mirrorBy    map[string]bool // the source addresses (srcKey) that hold a slot: one download each
+	mirrorMu    sync.Mutex
+	chunkWait   time.Duration // mirrorChunkWait, mirrorMaxTime (tests shorten them)
+	maxDownload time.Duration
 }
 
 // New returns the service.
@@ -88,7 +92,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}, mirror: make(chan struct{}, maxMirrorDownloads)}
+	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}, mirror: make(chan struct{}, maxMirrorDownloads), mirrorBy: map[string]bool{}, chunkWait: mirrorChunkWait, maxDownload: mirrorMaxTime}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
 	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget
@@ -132,20 +136,26 @@ func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target
 // warnUnmatched logs that a node's connection address is not among the IPv4 it declared, for a node at most once an hour: a node that
 // stays unmatched must not fill the log.
 func (s *Service) warnUnmatched(ctx context.Context, key string, args ...any) {
+	if s.warnDue(time.Hour, key) {
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a node's address is not among the IPv4 it declared; nothing written to the inventory", args...)
+	}
+}
+
+// warnDue says whether a WARN line for key may be written now: at most once per every. What anyone can trigger without a credential must
+// not fill the log.
+func (s *Service) warnDue(every time.Duration, key string) bool {
 	now := s.now()
 	s.warnMu.Lock()
 	if len(s.lastWarn) > limiterKeys {
 		clear(s.lastWarn)
 	}
 	last, seen := s.lastWarn[key]
-	due := !seen || now.Sub(last) >= time.Hour
+	due := !seen || now.Sub(last) >= every
 	if due {
 		s.lastWarn[key] = now
 	}
 	s.warnMu.Unlock()
-	if due {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: a node's address is not among the IPv4 it declared; nothing written to the inventory", args...)
-	}
+	return due
 }
 
 // ---- tokens: look-up ----

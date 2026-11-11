@@ -4,7 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -360,6 +364,43 @@ func TestMirror_MissingFolderOrFileIs404WithACodeAndALogLine(t *testing.T) {
 	}
 }
 
+// L1: anyone can ask for a missing package, so the WARN line is written once a minute, not once per request; the answer stays the same.
+func TestMirror_MissingWarnsOncePerMinute(t *testing.T) {
+	w := newWorld(t)
+	for range 5 {
+		if res, _ := w.get("/install/osquery/SHA256SUMS", "", ""); res.code != 404 || res.errCode() != "mirror_missing" {
+			t.Fatalf("missing: %d %s", res.code, res.raw)
+		}
+	}
+	if n := strings.Count(w.logs.String(), "osquery package is not in the folder"); n != 1 {
+		t.Fatalf("%d WARN lines for 5 requests", n)
+	}
+	w.clock.Advance(61 * time.Second)
+	w.get("/install/osquery/SHA256SUMS", "", "")
+	if n := strings.Count(w.logs.String(), "osquery package is not in the folder"); n != 2 {
+		t.Fatalf("%d WARN lines after a minute", n)
+	}
+}
+
+// L2: a certificate that cannot be read does not take the Agents page down (tokens and Wazuh still show); the public files still fail.
+func TestInstall_UnreadableCertificateDegradesTheAdminPage(t *testing.T) {
+	w := newWorld(t, func(c *agentintake.Config) {
+		c.TrustAnchor = func() ([]byte, error) { return nil, errors.New("disk read failed") }
+	})
+	w.token("srv", 7)
+	page, _ := w.get("/inventory/agents", "", "admin")
+	linux, _ := page.body["install"].(map[string]any)["linux"].(map[string]any)
+	if page.code != 200 || len(tokenList(t, page)) != 1 || !strings.Contains(linux["script"].(string), "this box has no certificate") {
+		t.Fatalf("page: %d", page.code)
+	}
+	if !strings.Contains(w.logs.String(), "could not be read") {
+		t.Fatal("the failure was not logged")
+	}
+	if res, _ := w.get("/intake/ca.pem", "", ""); res.code != 500 {
+		t.Fatalf("ca.pem with an unreadable certificate: %d", res.code)
+	}
+}
+
 // blockedWriter is a client that stops reading: its first Write blocks until release is closed.
 type blockedWriter struct {
 	h       http.Header
@@ -377,38 +418,122 @@ func (b *blockedWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// At most 4 downloads run at once; the fifth is told to come back (429, Retry-After 5), and a slot is free again when a download ends.
+// One download at a time per source address, 8 box-wide; a refused one is told to come back (429, Retry-After 5); SHA256SUMS takes no slot; a
+// slot is free again when a download ends.
 func TestMirror_ConcurrencyCap(t *testing.T) {
 	w := newWorld(t)
 	w.fillMirror()
 	release := make(chan struct{})
 	var done sync.WaitGroup
 	var writers []*blockedWriter
-	for range 4 {
+	for i := range 8 { // eight different addresses fill the box
 		bw := &blockedWriter{h: http.Header{}, started: make(chan struct{}), release: release}
 		writers = append(writers, bw)
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.Prefix+"/install/osquery/"+mirrorNames[2], nil)
-		r.RemoteAddr = "192.0.2.200:40000"
+		r.RemoteAddr = fmt.Sprintf("192.0.2.%d:40000", 100+i)
 		done.Add(1)
 		go func() { defer done.Done(); w.h.ServeHTTP(bw, r) }()
 	}
 	for _, bw := range writers {
 		<-bw.started
 	}
-	res, _ := w.get("/install/osquery/"+mirrorNames[2], "", "")
+	res, _ := w.get("/install/osquery/"+mirrorNames[2], "", "") // a ninth address
 	if res.code != 429 || res.errCode() != "rate_limited" || res.header.Get("Retry-After") != "5" {
-		t.Fatalf("fifth download: %d retry-after %q %s", res.code, res.header.Get("Retry-After"), res.raw)
+		t.Fatalf("ninth download: %d retry-after %q %s", res.code, res.header.Get("Retry-After"), res.raw)
 	}
-	if res, _ := w.get("/install/osquery/"+mirrorNames[2], "", ""); res.code != 429 {
-		t.Fatalf("still full: %d", res.code)
-	}
-	// unknown names do not take a slot or tell that the box is busy
+	// unknown names do not take a slot or tell that the box is busy; SHA256SUMS is served while every slot is taken
 	if res, _ := w.get("/install/osquery/nope", "", ""); res.code != 404 {
 		t.Fatalf("unknown name while busy: %d", res.code)
+	}
+	if res, body := w.get("/install/osquery/SHA256SUMS", "", ""); res.code != 200 || len(body) == 0 {
+		t.Fatalf("SHA256SUMS while busy: %d", res.code)
 	}
 	close(release)
 	done.Wait()
 	if res, _ := w.get("/install/osquery/"+mirrorNames[2], "", ""); res.code != 200 {
 		t.Fatalf("after the downloads ended: %d %s", res.code, res.raw)
+	}
+}
+
+// The same address cannot take a second package download, whatever room the box has (IPv6 counts per /64).
+func TestMirror_OneDownloadPerAddress(t *testing.T) {
+	w := newWorld(t)
+	w.fillMirror()
+	for _, c := range []struct{ first, second string }{
+		{"192.0.2.50:1", "192.0.2.50:2"}, {"[2001:db8:1:2::1]:1", "[2001:db8:1:2:ffff::9]:2"},
+	} {
+		release := make(chan struct{})
+		bw := &blockedWriter{h: http.Header{}, started: make(chan struct{}), release: release}
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.Prefix+"/install/osquery/"+mirrorNames[0], nil)
+		r.RemoteAddr = c.first
+		done := make(chan struct{})
+		go func() { defer close(done); w.h.ServeHTTP(bw, r) }()
+		<-bw.started
+		r2 := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.Prefix+"/install/osquery/"+mirrorNames[1], nil)
+		r2.RemoteAddr = c.second
+		rec := httptest.NewRecorder()
+		w.h.ServeHTTP(rec, r2)
+		if rec.Code != 429 {
+			t.Errorf("%s then %s: second download %d", c.first, c.second, rec.Code)
+		}
+		close(release)
+		<-done
+	}
+}
+
+// A client that stops reading frees its slot when the write deadline passes (a real server, a raw connection that never reads), and while
+// it holds the slot another address still downloads and the same address is refused.
+func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
+	w := newWorld(t)
+	w.fillMirror()
+	w.svc.SetMirrorWaitsForTest(300*time.Millisecond, 5*time.Second)
+	big := filepath.Join(w.mirror, mirrorNames[1]) // the rpm: a sparse file far larger than any socket buffer
+	if err := os.Truncate(big, 256<<20); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(w.h)
+	t.Cleanup(srv.Close)
+	url := func(name string) string { return srv.URL + server.Prefix + "/install/osquery/" + name }
+	clientFrom := func(ip string) *http.Client {
+		d := &net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP(ip)}}
+		return &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{DialContext: d.DialContext, DisableKeepAlives: true}}
+	}
+	get := func(c *http.Client, name string) int {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url(name), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return resp.StatusCode
+	}
+	stalled, err := new(net.Dialer).DialContext(t.Context(), "tcp", srv.Listener.Addr().String()) // from 127.0.0.1, never reads
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stalled.Close() })
+	if _, err := fmt.Fprintf(stalled, "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", server.Prefix+"/install/osquery/"+mirrorNames[1], srv.Listener.Addr()); err != nil {
+		t.Fatal(err)
+	}
+	first, second := clientFrom("127.0.0.1"), clientFrom("127.0.0.2")
+	deadline := time.Now().Add(3 * time.Second)
+	for get(first, mirrorNames[2]) != 429 { // the first address holds its slot as soon as the request is served
+		if time.Now().After(deadline) {
+			t.Fatal("the stalled download never took a slot")
+		}
+		<-time.After(20 * time.Millisecond)
+	}
+	if code := get(second, mirrorNames[2]); code != 200 {
+		t.Fatalf("a second address while the first holds a slot: %d", code)
+	}
+	for get(first, mirrorNames[2]) != 200 { // the write deadline frees it
+		if time.Now().After(deadline.Add(5 * time.Second)) {
+			t.Fatal("the stalled client still holds its slot after the write deadline")
+		}
+		<-time.After(50 * time.Millisecond)
 	}
 }

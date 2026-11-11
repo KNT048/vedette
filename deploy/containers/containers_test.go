@@ -378,7 +378,7 @@ func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
 	for _, want := range []string{
 		"COPY deploy/osquery/PINS /pins/osquery.pins", ". /pins/osquery.pins", "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/",
 		"${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}\" | sha256sum -c -", "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}\" | sha256sum -c -", "${OSQUERY_MSI_SHA256}  /out/${msi}\" | sha256sum -c -",
-		"set -eu",
+		"set -eu", "curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o",
 		// the names the box serves (modules/agent-intake install.go mirrorFiles) and the scripts ask for
 		`deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"`, `rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"`, `msi="osquery-${OSQUERY_VERSION}.msi"`,
 	} {

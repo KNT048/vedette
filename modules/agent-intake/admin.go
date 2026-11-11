@@ -48,7 +48,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 	if err != nil {
 		return nil, err
 	}
-	sh, ps1, err := h.s.installFor(x.R.Host, true)
+	sh, ps1, err := h.s.installFor(ctx, x.R.Host, true)
 	if err != nil {
 		return nil, fmt.Errorf("agentintake: the box certificate: %w", err)
 	}

@@ -12,6 +12,7 @@
 # downloaded over HTTPS from github.com/osquery/osquery/releases/download/5.12.1/ and hashed with sha256sum. The release publishes no checksum
 # file and no asset digest (gh api repos/osquery/osquery/releases/tags/5.12.1: digest empty), so the same three files were also downloaded from the
 # official package site (https://pkg.osquery.io/deb/, /rpm/, /windows/) and gave the same three hashes.
+# Measured cost (2026-11-12, make core-image): the osquery layer is 79.9 MB, the whole core image 127 MB.
 OSQUERY_VERSION=5.12.1
 OSQUERY_DEB_AMD64_SHA256=051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013
 OSQUERY_RPM_X86_64_SHA256=eb3dccd38dec8f92bfd8616fd24f1210486f5f02ffc9d6c016827ab668f67c08

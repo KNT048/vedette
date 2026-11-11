@@ -35,7 +35,7 @@ RUN set -eu; \
     deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"; rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"; msi="osquery-${OSQUERY_VERSION}.msi"; \
     mkdir -p -m 0755 /out; \
     for f in "${deb}" "${rpm}" "${msi}"; do \
-      curl -fsSL --max-time 600 -o "/out/${f}" "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/${f}"; \
+      curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o "/out/${f}" "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/${f}"; \
     done; \
     echo "${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}" | sha256sum -c -; \
     echo "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}" | sha256sum -c -; \

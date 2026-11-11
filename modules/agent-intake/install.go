@@ -116,10 +116,15 @@ func noCertificate() *apierr.Error {
 
 // installFor renders both scripts for a request: the box address of its Host and the pinned certificate (the placeholder when there is none,
 // for the admin's view only).
-func (s *Service) installFor(host string, withPlaceholder bool) (sh, ps1 string, err error) {
+func (s *Service) installFor(ctx context.Context, host string, withPlaceholder bool) (sh, ps1 string, err error) {
 	ca, err := s.anchor()
 	switch {
-	case errors.Is(err, ErrNoTrustAnchor) && withPlaceholder:
+	case err != nil && withPlaceholder: // the admin's page must not fail for a certificate it does not depend on: tokens and Wazuh still show
+		if !errors.Is(err, ErrNoTrustAnchor) {
+			if s.warnDue(time.Minute, "anchor") {
+				s.cfg.Log.WarnContext(ctx, "agent-intake: the box certificate could not be read; the Agents page shows a placeholder for it", "error", err)
+			}
+		}
 		ca = []byte(caPlaceholder)
 	case err != nil:
 		return "", "", err
@@ -174,7 +179,7 @@ func (h *InstallHandlers) script(ctx context.Context, windows bool, contentType 
 	if err != nil {
 		return nil, err
 	}
-	sh, ps1, err := h.s.installFor(x.R.Host, false)
+	sh, ps1, err := h.s.installFor(ctx, x.R.Host, false)
 	if errors.Is(err, ErrNoTrustAnchor) {
 		return nil, noCertificate()
 	}
@@ -211,7 +216,7 @@ func (h *InstallHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inve
 // text built from OsqueryVersion; a request's name is only a key into this table, and what is opened is the name stored in it.
 const (
 	mirrorSums         = "SHA256SUMS"
-	maxMirrorDownloads = 4                // at most this many downloads at once (the packages are 20 to 30 MB each)
+	maxMirrorDownloads = 8                // at most this many downloads at once box-wide (the packages are 20 to 30 MB each); one per source address
 	mirrorRetryAfter   = 5 * time.Second  // what a refused download is told
 	mirrorChunkWait    = 30 * time.Second // a client that takes no data for this long is cut
 	mirrorMaxTime      = 10 * time.Minute // and none keeps a slot longer than this
@@ -247,12 +252,13 @@ func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, pa
 		return none, err
 	}
 	s := h.s
-	select {
-	case s.mirror <- struct{}{}:
-	default:
-		return none, rateLimited(mirrorRetryAfter)
+	release := func() {}
+	if f.name != mirrorSums { // SHA256SUMS is about 300 bytes: it never takes a slot, or four slow readers would lock every install out
+		var ok bool
+		if release, ok = s.takeMirrorSlot(srcKey(x.ClientAddr())); !ok {
+			return none, rateLimited(mirrorRetryAfter)
+		}
 	}
-	release := func() { <-s.mirror }
 	file, size, err := s.openMirror(ctx, f.name)
 	if err != nil {
 		release()
@@ -262,7 +268,29 @@ func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, pa
 	hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	hd.Set("Cache-Control", "public, max-age=3600")
 	x.SetContentType(f.contentType)
-	return oas.InventoryGetInstallOsqueryFileOK{Data: &mirrorBody{f: file, rc: http.NewResponseController(x.W), start: time.Now(), release: release}}, nil
+	return oas.InventoryGetInstallOsqueryFileOK{Data: &mirrorBody{f: file, rc: http.NewResponseController(x.W), start: time.Now(), release: release, chunkWait: s.chunkWait, maxTime: s.maxDownload}}, nil
+}
+
+// takeMirrorSlot gives a package download its place: one download at a time for a source address (IPv6 per /64), and at most
+// maxMirrorDownloads box-wide. The release func gives both back.
+func (s *Service) takeMirrorSlot(key string) (release func(), ok bool) {
+	s.mirrorMu.Lock()
+	defer s.mirrorMu.Unlock()
+	if s.mirrorBy[key] {
+		return nil, false
+	}
+	select {
+	case s.mirror <- struct{}{}:
+	default:
+		return nil, false
+	}
+	s.mirrorBy[key] = true
+	return func() {
+		s.mirrorMu.Lock()
+		delete(s.mirrorBy, key)
+		s.mirrorMu.Unlock()
+		<-s.mirror
+	}, true
 }
 
 func missingMirror() *apierr.Error {
@@ -273,13 +301,18 @@ func missingMirror() *apierr.Error {
 // answers with the file and its size. Whatever stops that (no folder, no such file, a link out of the folder, something that is not a regular
 // file, no permission) is 404 mirror_missing, with the reason in a log line for the admin.
 func (s *Service) openMirror(ctx context.Context, name string) (*os.File, int64, error) {
+	// Anyone can ask for these: the WARN line is written once a minute per reason, not once per request.
 	if s.cfg.MirrorDir == "" {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: no osquery package folder is configured; the mirror answers 404", "file", name)
+		if s.warnDue(time.Minute, "mirror:unset") {
+			s.cfg.Log.WarnContext(ctx, "agent-intake: no osquery package folder is configured; the mirror answers 404", "file", name)
+		}
 		return nil, 0, missingMirror()
 	}
 	f, size, err := openIn(s.cfg.MirrorDir, name)
 	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: the osquery package is not in the folder; the mirror answers 404", "file", name, "dir", s.cfg.MirrorDir, "error", err)
+		if s.warnDue(time.Minute, "mirror:missing") {
+			s.cfg.Log.WarnContext(ctx, "agent-intake: the osquery package is not in the folder; the mirror answers 404", "file", name, "dir", s.cfg.MirrorDir, "error", err)
+		}
 		return nil, 0, missingMirror()
 	}
 	return f, size, nil
@@ -304,19 +337,22 @@ func openIn(dir, name string) (*os.File, int64, error) {
 	return f, fi.Size(), nil
 }
 
-// mirrorBody is the response body of a package: the file, a write deadline for each chunk (a client that stops reading cannot hold one of
-// the four slots, and none holds it past mirrorMaxTime), and the slot given back on Close, which the generated encoder calls when the copy ends.
+// mirrorBody is the response body of a package: the file, a write deadline for each chunk and for the whole download (a client that stops
+// reading is cut after chunkWait, one that reads a trickle after maxTime), and the slot given back on Close, which the generated encoder
+// calls when the copy ends. A slow reader therefore holds its address's one slot for at most maxTime (10 minutes).
 type mirrorBody struct {
-	f       *os.File
-	rc      *http.ResponseController
-	start   time.Time
-	release func()
-	closed  atomic.Bool
+	f         *os.File
+	rc        *http.ResponseController
+	start     time.Time
+	release   func()
+	chunkWait time.Duration
+	maxTime   time.Duration
+	closed    atomic.Bool
 }
 
 func (b *mirrorBody) Read(p []byte) (int, error) {
-	d := time.Now().Add(mirrorChunkWait)
-	if end := b.start.Add(mirrorMaxTime); end.Before(d) {
+	d := time.Now().Add(b.chunkWait)
+	if end := b.start.Add(b.maxTime); end.Before(d) {
 		d = end
 	}
 	_ = b.rc.SetWriteDeadline(d) // not every writer supports it: then there is no deadline

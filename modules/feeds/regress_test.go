@@ -443,8 +443,8 @@ func TestRegress_ReasonsEchoOnlySafeQuotedText(t *testing.T) {
 	assertSafeReasons(t, "kev", k.Stats)
 	n, _ := ParseNucleiCVEs([]byte(`{"ID":"\u001b[2J\u202e"}` + "\n"))
 	assertSafeReasons(t, "nuclei", n.Stats)
-	if len(k.Rejects) != 1 || !strings.Contains(k.Rejects[0].Reason, `\x1b[2J\u202e`) || len(n.Rejects) != 1 || !strings.Contains(n.Rejects[0].Reason, `\x1b`) {
-		t.Errorf("escapes expected: %+v %+v", k.Rejects, n.Rejects)
+	if len(k.Rejects) != 1 || !strings.Contains(k.Rejects[0].Reason, `" [2J X"`) || len(n.Rejects) != 1 || !strings.Contains(n.Rejects[0].Reason, `" [2J "`) {
+		t.Errorf("unprintable runes expected as spaces (D-208): %+v %+v", k.Rejects, n.Rejects)
 	}
 	if k.Rejected != 1 || n.Rejected != 1 {
 		t.Errorf("kev %+v nuclei %+v", k.Stats, n.Stats)

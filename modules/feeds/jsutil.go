@@ -169,7 +169,15 @@ func stripFormat(s string) string {
 
 // quoteVal renders a feed-supplied value for a message: truncated, then quoted
 // with Go escapes so control and format characters show as \x1b or \u202e.
-func quoteVal(s string) string { return strconv.Quote(jsSlice(s, 40)) }
+func quoteVal(s string) string {
+	// D-208: a feed value is a short snippet, never more: unprintable runes (controls, bidi overrides) become spaces first.
+	return strconv.Quote(strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) {
+			return r
+		}
+		return ' '
+	}, jsSlice(s, 40)))
+}
 
 // cleanText strips a UTF-8 BOM and replaces invalid UTF-8 so nothing downstream
 // (JSON, SQLite text columns) sees broken encoding.

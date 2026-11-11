@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/exec/exectest"
+	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 	hostserver "github.com/knt048/vedette/host/server"
@@ -38,6 +40,7 @@ type e2eHost struct {
 	fail     atomic.Bool // apt-get install fails
 	ctlURL   string
 	ctlToken string
+	client   *hostclient.Client // the host's own answers, for GET /honeypot of the control endpoint (slice 8b)
 }
 
 var e2eAddrRE = regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
@@ -119,6 +122,7 @@ func (h *e2eHost) autoSecurityFakes(t testing.TB) {
 if grep -q 'Unattended-Upgrade "0"' '`+conf+`' 2>/dev/null; then cat '`+opstest.Fixture("aptconfig_off.txt")+`'; else cat '`+opstest.Fixture("aptconfig_on.txt")+`'; fi
 `)
 	exectest.WriteScript(t, filepath.Join(h.m.Bin, "systemctl"), `#!/bin/sh
+case "$2" in vedette-honeypot*) exec '`+filepath.Join(h.m.Bin, "systemctl.ctr")+`' "$@" ;; esac
 off() { grep -q 'Unattended-Upgrade "0"' '`+conf+`' 2>/dev/null; }
 case "$1" in
   is-active) cat '`+opstest.Fixture("active.txt")+`' ;;
@@ -127,6 +131,29 @@ case "$1" in
 esac
 exit 0
 `)
+}
+
+// honeypotFakes (slice 8b) gives the machine the honeypot unit and a systemctl and podman that remember what container.start and
+// container.stop do (opstest's stateful ones). They answer for the honeypot unit only: every other call goes on to the fakes of the
+// OS-update slice, which the stateful ones would change (is-active of any unit, podman of anything). The stateful systemctl is saved as
+// systemctl.ctr, which autoSecurityFakes hands the honeypot calls to; podman gets a small wrapper here.
+func (h *e2eHost) honeypotFakes(t testing.TB) {
+	t.Helper()
+	plain, ctr := filepath.Join(h.m.Bin, "podman.plain"), filepath.Join(h.m.Bin, "podman.ctr")
+	if err := os.Rename(filepath.Join(h.m.Bin, "podman"), plain); err != nil {
+		t.Fatal(err)
+	}
+	h.m.StatefulContainers()
+	for from, to := range map[string]string{"podman": ctr, "systemctl": filepath.Join(h.m.Bin, "systemctl.ctr")} {
+		if err := os.Rename(filepath.Join(h.m.Bin, from), to); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exectest.WriteScript(t, filepath.Join(h.m.Bin, "podman"), `#!/bin/sh
+case "$1 $2 $3" in "container inspect vedette-honeypot"*) exec '`+ctr+`' "$@" ;; esac
+exec '`+plain+`' "$@"
+`)
+	h.m.InstallUnit(api.ServiceHoneypot, opstest.Digest('a'), true)
 }
 
 // startE2EHost starts the fake machine and its host on a unix socket, and the control endpoint. Everything stops with t.
@@ -146,9 +173,10 @@ func startE2EHost(t testing.TB) *e2eHost {
 	h.m.WriteRoot("proc/net/route", "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\neth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n")
 	h.m.RuleText("chronyc", "-N", "^,*,203.0.113.7,2,6,377,12,0.0,0.0,0.0\n^,+,ntp1.example.com,2,6,377,12,0.0,0.0,0.0\n", 0, "", "")
 	h.aptRules()
+	h.honeypotFakes(t)
 	h.autoSecurityFakes(t)
 
-	o := h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
+	o :=h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return h.lock.Load(), nil }
 		d.FreeBytes = func(string) (uint64, error) { return 100 << 30, nil }
 		// no timer fires during a run: a scheduled reboot never happens, and the 5-minute network revert is a Go test (D-118)
@@ -161,7 +189,7 @@ func startE2EHost(t testing.TB) *e2eHost {
 	})
 	o.Start(context.Background(), hh.Server)
 	t.Cleanup(o.Close)
-	h.socket = hh.Socket
+	h.socket, h.client = hh.Socket, hh.Client
 
 	tok := make([]byte, 16)
 	if _, err := rand.Read(tok); err != nil {
@@ -181,15 +209,58 @@ func startE2EHost(t testing.TB) *e2eHost {
 
 // control is the knobs of the fake host, behind a bearer token (the token is in ready.json, 0600): POST /host?lock=on|off makes
 // the dpkg lock held (a run is refused 409 dpkg_locked), POST /host?install_fail=on|off makes apt-get install exit 100,
-// reboot_required=on|off writes or removes /var/run/reboot-required, updates=reset makes the packages pending again, boot=<id> is a reboot done.
+// reboot_required=on|off writes or removes /var/run/reboot-required, updates=reset makes the packages pending again, boot=<id> is a reboot done,
+// hp_start=fail|ok makes `systemctl restart vedette-honeypot` exit 1 or work (slice 8b).
+// GET /honeypot (slice 8b) is what the host itself says about the honeypot: the unit state and the decoy addresses with their MAC.
 func (h *e2eHost) control() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /host", func(w http.ResponseWriter, r *http.Request) {
+	authed := func(w http.ResponseWriter, r *http.Request) bool {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+h.ctlToken)) != 1 {
 			http.Error(w, "no", http.StatusUnauthorized)
+			return false
+		}
+		return true
+	}
+	mux.HandleFunc("GET /honeypot", func(w http.ResponseWriter, r *http.Request) {
+		if !authed(w, r) {
+			return
+		}
+		out := struct {
+			UnitState string         `json:"unit_state"`
+			Decoys    []api.NetDecoy `json:"decoys"`
+			Restarts  int            `json:"restarts"` // `systemctl restart vedette-honeypot` calls so far, failed ones too
+		}{Decoys: []api.NetDecoy{}}
+		for _, c := range h.m.Calls("systemctl") {
+			if len(c) > 1 && c[0] == "restart" && strings.HasPrefix(c[1], "vedette-honeypot") {
+				out.Restarts++
+			}
+		}
+		cs, err := h.client.StateContainers(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		for _, s := range cs.Services {
+			if s.Service == api.ServiceHoneypot {
+				out.UnitState = s.UnitState
+			}
+		}
+		ns, err := h.client.StateNet(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		out.Decoys = append(out.Decoys, ns.Decoys...)
+		_ = json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("POST /host", func(w http.ResponseWriter, r *http.Request) {
+		if !authed(w, r) {
 			return
 		}
 		q := r.URL.Query()
+		if v := q.Get("hp_start"); v != "" {
+			h.m.Mark("restart-fails", v == "fail")
+		}
 		if v := q.Get("lock"); v != "" {
 			h.lock.Store(v == "on")
 		}
@@ -310,6 +381,28 @@ func TestE2EBoxHarnessHost(t *testing.T) {
 	}
 	if got := call(http.MethodPost, ready.HostControl+"/host?lock=off", ready.HostToken); got != http.StatusOK {
 		t.Errorf("control with the token = %d", got)
+	}
+	// slice 8b: the host has the honeypot unit (stopped) and no decoy; the control endpoint says so, and wants its token
+	if got := call(http.MethodGet, ready.HostControl+"/honeypot", ""); got != http.StatusUnauthorized {
+		t.Errorf("GET /honeypot without a token = %d", got)
+	}
+	hreq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ready.HostControl+"/honeypot", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hreq.Header.Set("Authorization", "Bearer "+ready.HostToken)
+	hresp, err := (&http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 10 * time.Second}).Do(hreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hp struct {
+		UnitState string         `json:"unit_state"`
+		Decoys    []api.NetDecoy `json:"decoys"`
+	}
+	err = json.NewDecoder(hresp.Body).Decode(&hp)
+	_ = hresp.Body.Close()
+	if err != nil || hresp.StatusCode != http.StatusOK || hp.UnitState != api.UnitInactive || len(hp.Decoys) != 0 {
+		t.Errorf("GET /honeypot = %d %+v %v", hresp.StatusCode, hp, err)
 	}
 	for _, u := range []string{ready.BaseURL, ready.BareURL} {
 		if got := call(http.MethodGet, u+"/api/v1/setup", ""); got != http.StatusOK {

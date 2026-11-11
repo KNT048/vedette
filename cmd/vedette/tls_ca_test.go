@@ -8,11 +8,12 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"log/slog"
 	"math/big"
 	"net"
 	"os"
-	"os/exec"
+	"os/exec" //nolint:depguard // the test runs openssl verify with fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
 	"slices"
 	"strings"
@@ -137,7 +138,7 @@ func TestBoxCASurvivesRenewalAndAddressChange(t *testing.T) {
 		t.Fatal("a renewal touched the CA")
 	}
 	// The renewal at start (ensureCertAt) does the same.
-	if err := ensureCertAt(crt, filepath.Join(dir, "c.key"), []string{"box.acme.example"}, func() time.Time { return later.Add(790 * 24 * time.Hour) }); err != nil {
+	if err := ensureCertAt(crt, filepath.Join(dir, "c.key"), []string{"box.acme.example"}, func() time.Time { return later.Add(790 * 24 * time.Hour) }, nil); err != nil {
 		t.Fatal(err)
 	}
 	verifyUnderOnlyTheCA(t, dir, readCert(t, crt), "box.acme.example", later.Add(790*24*time.Hour))
@@ -237,42 +238,224 @@ func TestBoxCAFilesAreChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	caCrt, caKey := boxCAPaths(crt)
-	if err := os.Chmod(caKey, 0o644); err != nil {
-		t.Fatal(err)
+	// Every unusable state is quarantined and replaced, with one ERROR on log, never an error (H-1).
+	states := map[string]func(){
+		"key readable by others": func() { _ = os.Chmod(caKey, 0o644) }, //nolint:gosec // the state under test
+		"key missing":            func() { _ = os.Remove(caKey) },
+		"key does not match": func() {
+			other := t.TempDir()
+			if err := ensureCert(filepath.Join(other, "c.crt"), filepath.Join(other, "c.key"), nil); err != nil {
+				t.Error(err)
+			}
+			_, ok := boxCAPaths(filepath.Join(other, "c.crt"))
+			_ = os.WriteFile(caKey, mustRead(t, ok), 0o600)
+		},
+		"unparsable": func() { _ = os.WriteFile(caCrt, []byte("junk"), 0o600) },
+		"not a CA":   func() { _ = os.WriteFile(caCrt, mustRead(t, crt), 0o600) },
 	}
-	if _, err := ensureBoxCA(crt, time.Now()); err == nil || !strings.Contains(err.Error(), "chmod 600") {
-		t.Fatalf("a readable CA key was accepted: %v", err)
+	at := time.Now()
+	for name, damage := range states {
+		old := mustRead(t, caCrt)
+		damage()
+		var logBuf bytes.Buffer
+		at = at.Add(time.Second) // a distinct quarantine name each time
+		ca, err := ensureBoxCA(crt, at, slog.New(slog.NewTextHandler(&logBuf, nil)))
+		if err != nil || !ca.cert.IsCA {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.Contains(logBuf.String(), "level=ERROR") || !strings.Contains(logBuf.String(), "enrol") || strings.Contains(logBuf.String(), "PRIVATE") {
+			t.Errorf("%s: log %q", name, logBuf.String())
+		}
+		if bytes.Equal(old, mustRead(t, caCrt)) {
+			t.Errorf("%s: the CA was not replaced", name)
+		}
+		for _, p := range []string{caCrt, caKey} {
+			if info, err := os.Stat(p); err != nil || info.Mode().Perm() != 0o600 {
+				t.Errorf("%s: %s: %v %v", name, p, info, err)
+			}
+		}
+		if q, _ := filepath.Glob(caCrt + ".quarantine-*"); len(q) == 0 {
+			t.Errorf("%s: the old CA certificate was not moved aside", name)
+		}
 	}
-	if err := os.Chmod(caKey, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	// A CA certificate without its key is an error, not a silent new CA (agents would lose the box).
-	keep := mustRead(t, caKey)
-	if err := os.Remove(caKey); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ensureBoxCA(crt, time.Now()); err == nil {
-		t.Fatal("a CA certificate without its key was accepted")
-	}
-	// A key alone is an interrupted first start: replaced.
+	// A key alone is an interrupted first start: replaced without an ERROR.
 	if err := os.Remove(caCrt); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(caKey, keep, 0o600); err != nil {
+	if _, err := ensureBoxCA(crt, time.Now(), nil); err != nil || !readCert(t, caCrt).IsCA {
+		t.Fatalf("a key alone: %v", err)
+	}
+}
+
+// H-1: transport() comes up for every broken-CA state: the CA is quarantined and replaced and the leaf follows.
+func TestBoxCABrokenCADoesNotStopTransport(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"mode", "key missing", "mismatch", "unparsable"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			o := options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}
+			if _, _, _, _, err := transport(o); err != nil {
+				t.Fatal(err)
+			}
+			crt := filepath.Join(dir, "vedette-selfsigned.crt")
+			caCrt, caKey := boxCAPaths(crt)
+			served := mustRead(t, crt)
+			switch name {
+			case "mode":
+				_ = os.Chmod(caKey, 0o644) //nolint:gosec // the state under test
+			case "key missing":
+				_ = os.Remove(caKey)
+			case "mismatch":
+				other := t.TempDir()
+				_ = ensureCert(filepath.Join(other, "c.crt"), filepath.Join(other, "c.key"), nil)
+				_, ok := boxCAPaths(filepath.Join(other, "c.crt"))
+				_ = os.WriteFile(caKey, mustRead(t, ok), 0o600)
+			case "unparsable":
+				_ = os.WriteFile(caCrt, []byte("junk"), 0o600)
+			}
+			cfg, _, _, renew, err := transport(o)
+			if err != nil || renew == nil || cfg.GetCertificate == nil {
+				t.Fatalf("transport with a %s CA: %v", name, err)
+			}
+			// At start the unusable CA is quarantined and replaced, and the leaf follows under the new CA, same key.
+			if bytes.Equal(served, mustRead(t, crt)) {
+				t.Error("the leaf was not re-issued under the new CA")
+			}
+			if err := renew.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+				t.Fatal(err)
+			}
+			verifyUnderOnlyTheCA(t, dir, servedLeaf(t, renew), "box.acme.example", time.Now())
+			if q, _ := filepath.Glob(filepath.Join(dir, "vedette-selfsigned-ca.crt.quarantine-*")); len(q) == 0 {
+				t.Error("the old CA certificate was not quarantined")
+			}
+		})
+	}
+}
+
+// H-1 / L-1: replacing a CA near its expiry moves the old files aside first. A crash between the two writes
+// of the new CA (the new key written, no certificate yet) starts and heals; swapping the writes (certificate
+// first) would leave an old key with a new certificate, which loadBoxCA rejects.
+func TestBoxCAReplacementCrashStates(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt := filepath.Join(dir, "c.crt")
+	caCrt, caKey := boxCAPaths(crt)
+	old, err := ensureBoxCA(crt, time.Now(), nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ensureBoxCA(crt, time.Now()); err != nil {
+	later := time.Now().Add(boxCALifetime - selfSignedLifetime/2)
+	// The crash: the first write of the new CA lands, the second does not. makeBoxCA with a writer that fails
+	// on its second call; the old pair is moved aside by ensureBoxCA before this, so what remains is the
+	// new key alone. (Writing the certificate first would leave a certificate and no key: the check below
+	// that the key exists and the certificate does not fails.)
+	for _, p := range []string{caCrt, caKey} {
+		if err := os.Rename(p, p+".quarantine-1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := 0
+	_, err = makeBoxCA(caCrt, caKey, later, func(path string, data []byte) error {
+		calls++
+		if calls == 2 {
+			return errors.New("crash")
+		}
+		return writeAtomic(path, data)
+	})
+	if err == nil || calls != 2 {
+		t.Fatalf("makeBoxCA: %v after %d writes", err, calls)
+	}
+	if !fileExists(caKey) || fileExists(caCrt) {
+		t.Fatalf("after the crash: key %v, certificate %v; want the key alone", fileExists(caKey), fileExists(caCrt))
+	}
+	// And it heals at the next start, without an ERROR (nothing enrolled yet to lose).
+	var logBuf bytes.Buffer
+	ca, err := ensureBoxCA(crt, later, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil || ca.cert.Equal(old.cert) || logBuf.Len() != 0 {
+		t.Fatalf("key alone after a crash: %v %q", err, logBuf.String())
+	}
+	if _, err := loadBoxCA(caCrt, caKey); err != nil {
+		t.Fatalf("the healed pair does not load: %v", err)
+	}
+	// The real replacement near expiry: the old files are moved aside, the new pair loads.
+	later2 := later.Add(boxCALifetime - selfSignedLifetime/2)
+	if _, err := ensureBoxCA(crt, later2, slog.New(slog.DiscardHandler)); err != nil {
 		t.Fatal(err)
 	}
-	if !readCert(t, caCrt).IsCA {
-		t.Fatal("no CA made")
+	if q, _ := filepath.Glob(caCrt + ".quarantine-*"); len(q) < 2 {
+		t.Errorf("old CA certificates moved aside: %v", q)
 	}
-	// A certificate that is not a CA at the CA path is refused.
-	if err := os.WriteFile(caCrt, mustRead(t, crt), 0o600); err != nil {
+	if _, err := loadBoxCA(caCrt, caKey); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ensureBoxCA(crt, time.Now()); err == nil {
-		t.Fatal("a non-CA certificate at the CA path was accepted")
+}
+
+// H-1: an upgrade on a data directory that cannot be written must not stop core: the old leaf is kept.
+func TestBoxCAUpgradeInAReadOnlyDirectoryKeepsTheOldLeaf(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root writes anywhere")
+	}
+	dir := t.TempDir()
+	crt, key := filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
+	writeOldSelfSigned(t, crt, key, []string{"old.acme.example"})
+	before := mustRead(t, crt)
+	if err := os.Chmod(dir, 0o500); err != nil { //nolint:gosec // a read-only directory is the state under test
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a directory the test made, made writable again
+	cfg, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "old.acme.example"})
+	if err != nil || cfg == nil || renew == nil {
+		t.Fatalf("transport: %v", err)
+	}
+	if !bytes.Equal(before, mustRead(t, crt)) {
+		t.Fatal("the leaf changed")
+	}
+	if err := renew.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !bytes.Equal(before, mustRead(t, crt)) {
+		t.Fatal("the leaf changed in Check")
+	}
+	// Writable again: the next Check upgrades it.
+	if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // a directory the test made, made writable again
+		t.Fatal(err)
+	}
+	if err := renew.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatal(err)
+	}
+	verifyUnderOnlyTheCA(t, dir, servedLeaf(t, renew), "old.acme.example", time.Now())
+}
+
+// H-1: a CA that cannot be made at all (the directory is read-only) never stops a Check while the leaf in use
+// needs nothing; an expiring leaf still reports the error.
+func TestBoxCACheckKeepsServingWithoutACA(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root writes anywhere")
+	}
+	r, crt := newTestRenewer(t, nil)
+	dir := filepath.Dir(crt)
+	_, caKey := boxCAPaths(crt)
+	if err := os.Chmod(caKey, 0o644); err != nil { //nolint:gosec // the state under test; unusable: quarantine needs to move files in dir
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil { //nolint:gosec // a read-only directory is the state under test
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a directory the test made, made writable again
+	var logBuf bytes.Buffer
+	if err := r.Check(t.Context(), slog.New(slog.NewTextHandler(&logBuf, nil))); err != nil {
+		t.Fatalf("a valid leaf and a broken CA stopped Check: %v", err)
+	}
+	if !strings.Contains(logBuf.String(), "box CA is not available") {
+		t.Errorf("no reason logged: %q", logBuf.String())
+	}
+	later := time.Now().Add(800 * 24 * time.Hour)
+	r.now = func() time.Time { return later }
+	if err := r.Check(t.Context(), nil); err == nil {
+		t.Fatal("an expiring leaf with no CA reported no error")
 	}
 }
 
@@ -280,15 +463,15 @@ func TestBoxCAExpiringIsReplaced(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt := filepath.Join(dir, "c.crt")
-	a, err := ensureBoxCA(crt, time.Now())
+	a, err := ensureBoxCA(crt, time.Now(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ensureBoxCA(crt, time.Now())
+	b, err := ensureBoxCA(crt, time.Now(), nil)
 	if err != nil || !a.cert.Equal(b.cert) {
 		t.Fatalf("a young CA was replaced: %v", err)
 	}
-	c, err := ensureBoxCA(crt, time.Now().Add(boxCALifetime-selfSignedLifetime/2)) // cannot cover a new leaf
+	c, err := ensureBoxCA(crt, time.Now().Add(boxCALifetime-selfSignedLifetime/2), slog.New(slog.DiscardHandler)) // cannot cover a new leaf
 	if err != nil || a.cert.Equal(c.cert) {
 		t.Fatalf("an old CA was kept: %v", err)
 	}

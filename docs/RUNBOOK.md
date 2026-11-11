@@ -168,6 +168,7 @@ Kiểm theo thứ tự, từ rẻ đến đắt:
 - **Kiểm tra:** `podman inspect --format '{{.State.Health.Status}}' vedette-core`; `journalctl -u vedette-core -n 200 --no-pager`; `df -h /var` (đĩa đầy là nguyên nhân thường gặp: installer đòi ≥ 6 GiB); `systemctl is-active vedette-host` (host phải lên trước `core`); `ls -ld /var/lib/vedette` (0700, chủ `vedette`).
 - **Sửa:** dung lượng thì giải phóng; DB không mở được hoặc mới hơn phần mềm thì §5.3; sau đó `systemctl restart vedette-core` (không `podman restart`: unit do host quản lý).
 - **Xác minh:** healthy trong 60–300 s và `/api/v1/setup` trả 200.
+- Log `the box CA could not be kept and was replaced; enrolled agents must run the install command again` (ERROR; trường `reason` nói vì sao): CA riêng của hộp (D-262) hỏng hoặc sắp hết hạn nên đã được làm lại; core vẫn lên. Hai tệp cũ nằm ở `/var/lib/vedette/vedette-selfsigned-ca.{crt,key}.quarantine-<unix>`. Máy chủ đã đăng ký agent phải chạy lại lệnh cài một dòng; trình duyệt không cần làm gì. Log `the box CA is not available; the certificate in use is kept` (WARN): không dời hay ghi được tệp CA (đĩa đầy, thư mục chỉ đọc); chứng chỉ đang dùng vẫn chạy, sửa đĩa/quyền rồi chờ 10 phút hoặc khởi động lại.
 - `vedette-host` không lên với lỗi về `/run/vedette` (chỉ sau khi nâng từ unit cũ có `RuntimeDirectory=`; hộp dựng mới không gặp): `systemctl stop vedette-host && rmdir /run/vedette`, rồi `systemctl start vedette-host` **và** `systemctl restart vedette-core` (core còn gắn thư mục cũ đã xoá) — hoặc khởi động lại máy (`.ai/deferred/feat-host-framework.md:17`). Xác minh: `test -S /run/vedette/host.sock` và Settings → Updates → "Check now" chạy được (không 502).
 
 ## 9. Ứng phó sự cố: lỗ hổng trong chính Vedette
@@ -211,7 +212,7 @@ Mọi module dùng chung `vedette.db`, trừ ngoại lệ ghi rõ. Tắt module 
 ## 11. Vị trí tệp trên hộp
 | Đường dẫn | Nội dung |
 |---|---|
-| `/var/lib/vedette/` | `vedette.db` (+ `-wal`, `-shm`), `vedette.key` (khoá chủ, 0600), `logs.db`, `vedette-selfsigned.crt/.key` (lá 8443), `vedette-selfsigned-ca.crt/.key` (CA riêng của hộp ký lá, D-262; 0600, xoá thì máy đã đăng ký phải chạy lại lệnh cài), `snapshots/` (bản chụp tạm) |
+| `/var/lib/vedette/` | `vedette.db` (+ `-wal`, `-shm`), `vedette.key` (khoá chủ, 0600), `logs.db`, `vedette-selfsigned.crt/.key` (lá 8443), `vedette-selfsigned-ca.crt/.key` (CA riêng của hộp ký lá, D-262; 0600; xoá hay hỏng thì CA mới được làm và máy đã đăng ký phải chạy lại lệnh cài; bản cũ nằm ở `vedette-selfsigned-ca.*.quarantine-<unix>`, purge dọn), `snapshots/` (bản chụp tạm) |
 | `/var/lib/vedette-host/` | trạng thái host: `backups/` (+ `index.json`), `exports/`, `containers/` (`versions-<service>.json`, `transition-<service>.json`), `runs/`, `hp/` (decoy), `net/` |
 | `/var/lib/vedette-honeypot/{config,log}` | cấu hình sinh cho OpenCanary; log thô |
 | `/etc/vedette/host.conf` | do `install.sh` ghi từ id người dùng thật (đừng sửa tay: chạy lại script) |

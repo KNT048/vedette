@@ -62,6 +62,7 @@ type options struct {
 	db, key, listen string
 	tlsCert, tlsKey string
 	hosts           string
+	log             *slog.Logger // set by serve for transport (the box CA's log lines); nil in tests
 	hostSocket      string
 	honeypotDir     string
 	// sensorListen and sensorCreds are the sensor link (D-141): the mutual-TLS listener of the two sensor containers and the directory
@@ -180,7 +181,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-		if err := ensureCert(certPath, keyPath, hosts); err != nil {
+		if err := ensureCertAt(certPath, keyPath, hosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
 		}
 	}
@@ -216,6 +217,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
+	o.log = log
 	tlsCfg, hosts, hsts, renew, err := transport(o)
 	if err != nil {
 		return err

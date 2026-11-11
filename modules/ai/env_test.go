@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -119,14 +120,22 @@ type clock struct {
 
 func (c *clock) Now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t.Add(0) }
 
+// Add moves the clock of the box, forward or back.
+func (c *clock) Add(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
+
 type env struct {
-	t     *testing.T
-	db    *store.DB
-	sec   *secrets.Store
-	fake  *fakeProviders
-	clock *clock
-	svc   *ai.Service
-	facts *fakeFacts
+	t      *testing.T
+	db     *store.DB
+	sec    *secrets.Store
+	fake   *fakeProviders
+	clock  *clock
+	svc    *ai.Service
+	facts  *fakeFacts
+	pruner *fakePruner
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -145,7 +154,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts()}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}}
 	e.svc = e.newService()
 	return e
 }
@@ -153,7 +162,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -361,4 +370,27 @@ func newFacts() *fakeFacts {
 			RequiredAction: "Apply updates per vendor instructions.", DateAdded: "2022-09-08", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24", "javascript:alert(1)", "ftp://files.example.com/patch.txt", "https://nvd.nist.gov/vuln/detail/CVE-2022-27593", "https://example.com/third"}, Ransomware: true}},
 		assets: map[string][]ai.AssetFact{"CVE-2022-27593": {{Name: "NAS-PHOTOS", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}},
 	}
+}
+
+// fakePruner is core's chainhead.Prune (issue #194) with a way to make it fail: the tests prune against the real helper, so the
+// anchor and the head they check are the ones core writes.
+type fakePruner struct {
+	mu   sync.Mutex
+	fail error
+}
+
+func (p *fakePruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID, lastPrunedHash string, removed int64, now time.Time) error {
+	p.mu.Lock()
+	fail := p.fail
+	p.mu.Unlock()
+	if fail != nil {
+		return fail
+	}
+	return chainhead.Prune(ctx, tx, chain, lastPrunedID, lastPrunedHash, removed, now)
+}
+
+func (p *fakePruner) failWith(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.fail = err
 }

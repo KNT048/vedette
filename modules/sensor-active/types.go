@@ -42,6 +42,7 @@ type Inventory interface {
 	MarkFirstScan(ctx context.Context, assetID string) error
 	Asset(ctx context.Context, assetID string) (Asset, error)     // ErrNotFound when unknown
 	Addresses(ctx context.Context) (map[netip.Addr]string, error) // IP -> device id of every known device
+	KnownMACs(ctx context.Context) ([]string, error)              // MAC of every known device (uncapped): a sweep charges only MACs not in it
 	// ProtectedIPs lists the addresses a sweep must not probe: devices declared by hand, devices set to
 	// regular_scan=never, fragile or unclassified devices after their one gentle scan, and the box itself. It
 	// is by IP, so a new MAC at a protected address does not make it fair game.

@@ -183,10 +183,10 @@ type runSpec struct {
 	note     *string
 	user     string
 	ids      []string
-	picked   []string  // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
-	first    Current   // the device the run begins with: shown as current from the start (POST-1)
-	onlyCVEs []string  // nil: every CVE of the devices' findings; else only these (the KEV rescan, INV-9; a backlog in one run, S4b)
-	end      time.Time // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
+	picked   []string            // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
+	first    Current             // the device the run begins with: shown as current from the start (POST-1)
+	onlyCVEs map[string][]string // nil: every CVE of the devices' findings; else device id -> the only CVEs it is probed for (the KEV rescan, INV-9; a backlog in one run keeps each event's pairs, #189 review L2)
+	end      time.Time           // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
 	// inTx, when set, runs in the transaction that writes the run row: what the run is for (the schedule slot, the
 	// KEV event) is recorded with it or not at all (#164 review L4).
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error
@@ -432,7 +432,11 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if careful {
 		rate = max(1, st.Rate/4) // D-126 (2): fragile and unclassified devices at a quarter of the speed
 	}
-	return s.scanDevice(ctx, runID, d, st, rate, sp.onlyCVEs)
+	var only []string // nil: every CVE; a device the map does not name gets an empty list and is probed for nothing
+	if sp.onlyCVEs != nil {
+		only = append([]string{}, sp.onlyCVEs[d.ID]...)
+	}
+	return s.scanDevice(ctx, runID, d, st, rate, only)
 }
 
 func (s *Service) skip(d Device, why string) RunRow {
@@ -561,17 +565,16 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}
-	out, err := s.runJob(ctx, job)
+	res, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
 	}
-	var res []nucleiout.Result
-	if err == nil && out.Truncated {
-		err = errors.New("the output was over the cap")
-	}
-	if err == nil {
-		res, err = nucleiout.Parse(out.JSONL, ids, hostPorts(job.Targets))
+	if errors.Is(err, ErrEngineDown) { // the scanner cannot run any job now: stop with its own words, not device by device
+		s.cfg.Log.ErrorContext(ctx, "scan: the scanner cannot run jobs", "asset", d.ID, "run", runID, "error", err)
+		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
+		rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteEngine})
+		return rows, "The vulnerability scanner stopped accepting jobs: " + clip(err.Error(), 400)
 	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		s.cfg.Log.ErrorContext(ctx, "scan: the scanner failed on a device", "asset", d.ID, "run", runID, "error", err)
@@ -631,29 +634,29 @@ func recheckInput(ts []nucleiargv.Target, hostPort string) string {
 }
 
 // runJob runs the job on the engine, bounded by the device timeout; after Stop now it waits at most stopGrace.
-func (s *Service) runJob(ctx context.Context, job nucleiargv.Job) (Output, error) {
+func (s *Service) runJob(ctx context.Context, job Job) ([]nucleiout.Result, error) {
 	jctx, cancel := context.WithTimeout(ctx, deviceTimeout)
 	defer cancel()
 	type result struct {
-		out Output
+		res []nucleiout.Result
 		err error
 	}
 	ch := make(chan result, 1)
 	s.busy.Add(1)
 	go func() {
 		defer s.busy.Add(-1)
-		out, err := s.cfg.Engine.Run(jctx, job)
-		ch <- result{out, err}
+		res, err := s.cfg.Engine.Run(jctx, job)
+		ch <- result{res, err}
 	}()
 	select {
 	case r := <-ch:
-		return r.out, r.err
+		return r.res, r.err
 	case <-ctx.Done():
 		select {
 		case r := <-ch:
-			return r.out, r.err
+			return r.res, r.err
 		case <-time.After(stopGrace):
-			return Output{}, ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
 }

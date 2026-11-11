@@ -23,39 +23,67 @@ const (
 	maxSwVer   = 100
 )
 
-// checkItems validates software that comes from an agent (SYS-6) and fills in the defaults.
-func checkItems(items []SoftwareItem) ([]SoftwareItem, error) {
+// checkItems validates software that comes from an agent (SYS-6) and fills in the defaults. An item that does not pass (a name with an
+// invisible character, L12) is dropped and logged on its own: one such name must not reject the rest of a device's list. Any other bad
+// item is still refused (PRE-2).
+func (s *Service) checkItems(ctx context.Context, items []SoftwareItem) ([]SoftwareItem, error) {
 	if len(items) > maxItems {
 		return nil, invalid("a software list has at most %d items", maxItems)
 	}
 	out := make([]SoftwareItem, 0, len(items))
 	for i, it := range items {
+		it, err := checkItem(i, it)
+		if err != nil {
+			if !hasInvisible(it.Vendor, it.Product, it.Display, it.Version) {
+				return nil, err
+			}
+			s.log.WarnContext(ctx, "inventory: a software item with an invisible character was dropped", "index", i)
+			continue
+		}
+		out = append(out, it)
+	}
+	return out, nil
+}
+
+// hasInvisible says whether a text holds a character cleanText refuses as invisible (not a C0 control: those stay a refusal).
+func hasInvisible(texts ...string) bool {
+	for _, t := range texts {
+		if strings.ContainsFunc(t, invisible) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkItem validates one item.
+func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
+	{
 		if !cleanText(it.Vendor) || !cleanText(it.Product) {
-			return nil, invalid("software %d: vendor and product must be 1 to %d printable characters", i, maxSwField)
+			return it, invalid("software %d: vendor and product must be 1 to %d printable characters", i, maxSwField)
 		}
 		if it.Display == "" {
 			it.Display = it.Vendor + " " + it.Product
 		}
 		if !cleanText(it.Display) {
-			return nil, invalid("software %d: display must be 1 to %d printable characters", i, maxSwField)
+			return it, invalid("software %d: display must be 1 to %d printable characters", i, maxSwField)
 		}
 		if it.Version != "" && (!cleanText(it.Version) || utf8.RuneCountInString(it.Version) > maxSwVer) {
-			return nil, invalid("software %d: version must be at most %d printable characters", i, maxSwVer)
+			return it, invalid("software %d: version must be at most %d printable characters", i, maxSwVer)
 		}
 		if utf8.RuneCountInString(it.CPE) > maxCPE || strings.ContainsFunc(it.CPE, func(r rune) bool { return r < 0x20 }) {
-			return nil, invalid("software %d: cpe is not valid", i)
+			return it, invalid("software %d: cpe is not valid", i)
 		}
 		if it.Confidence < 0 || it.Confidence > 1 || it.Confidence != it.Confidence {
-			return nil, invalid("software %d: confidence must be between 0 and 1", i)
+			return it, invalid("software %d: confidence must be between 0 and 1", i)
 		}
 		if len(it.KevKeys) > maxKeys {
-			return nil, invalid("software %d: at most %d match keys", i, maxKeys)
+			return it, invalid("software %d: at most %d match keys", i, maxKeys)
 		}
 		keys := make([]string, 0, len(it.KevKeys))
 		for _, k := range it.KevKeys {
 			k = strings.ToLower(strings.TrimSpace(k))
 			if !cleanText(k) || len(k) > 400 {
-				return nil, invalid("software %d: a match key is not valid", i)
+				return it, invalid("software %d: a match key is not valid", i)
 			}
 			if !slices.Contains(keys, k) {
 				keys = append(keys, k)
@@ -65,9 +93,8 @@ func checkItems(items []SoftwareItem) ([]SoftwareItem, error) {
 			keys = []string{kevKey(it.Vendor, it.Product)}
 		}
 		it.KevKeys = keys
-		out = append(out, it)
 	}
-	return out, nil
+	return it, nil
 }
 
 func swKey(vendor, product, version string) string {
@@ -219,7 +246,7 @@ func (s *Service) UpsertSoftware(ctx context.Context, assetID string, items []So
 	if !observe.ValidSource(observe.Source(source)) || source == "manual" {
 		return invalid("software source %q is not allowed", source)
 	}
-	clean, err := checkItems(items)
+	clean, err := s.checkItems(ctx, items)
 	if err != nil {
 		return err
 	}
@@ -248,7 +275,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	for i, it := range items {
 		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence}
 	}
-	clean, err := checkItems(conv)
+	clean, err := s.checkItems(ctx, conv)
 	if err != nil {
 		return err
 	}

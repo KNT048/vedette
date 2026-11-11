@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
@@ -163,7 +164,16 @@ type runEngine struct {
 	stubborn chan struct{} // set: Run ignores its context and returns only when this is closed (a worker that does not stop)
 }
 
-func (f *runEngine) Run(ctx context.Context, j nucleiargv.Job) (Output, error) {
+// Output is what the fake nuclei printed: its JSONL, or Truncated for output over the cap.
+type Output struct {
+	JSONL     []byte
+	Truncated bool
+}
+
+// Run answers with what reply prints and parses it the way the real engine does (nucleiout.Parse against the job's
+// ids and targets; output over the cap is an error).
+func (f *runEngine) Run(ctx context.Context, job Job) ([]nucleiout.Result, error) {
+	j := job.Job
 	f.mu.Lock()
 	f.jobs = append(f.jobs, j)
 	reply, onRun, blocked, ch, stubborn := f.reply, f.onRun, f.blocked, f.block, f.stubborn
@@ -174,14 +184,21 @@ func (f *runEngine) Run(ctx context.Context, j nucleiargv.Job) (Output, error) {
 	if stubborn != nil {
 		close(ch)
 		<-stubborn
-		return Output{}, ctx.Err()
+		return nil, ctx.Err()
 	}
 	if blocked {
 		close(ch)
 		<-ctx.Done()
-		return Output{}, ctx.Err()
+		return nil, ctx.Err()
 	}
-	return reply(j)
+	out, err := reply(j)
+	if err != nil {
+		return nil, err
+	}
+	if out.Truncated {
+		return nil, errors.New("the output was over the cap")
+	}
+	return nucleiout.Parse(out.JSONL, job.IDs, hostPorts(j.Targets))
 }
 
 func (f *runEngine) sent() []nucleiargv.Job {

@@ -68,6 +68,12 @@ func TestPinsAreExact(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`).MatchString(p["SCAN_PACK_VERSION"]) {
 		t.Errorf("SCAN_PACK_VERSION=%q must be AAAA.M.N (modules/scan/pack)", p["SCAN_PACK_VERSION"])
 	}
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`).MatchString(p["OPENCANARY_VERSION"]) {
+		t.Errorf("OPENCANARY_VERSION=%q must be MAJOR.MINOR.PATCH", p["OPENCANARY_VERSION"])
+	}
+	if !regexp.MustCompile(`^[0-9]+:[0-9]+\.[0-9]+$`).MatchString(p["SAMBA_MIN_VERSION"]) {
+		t.Errorf("SAMBA_MIN_VERSION=%q is the Debian floor, epoch:major.minor, of the Samba the build takes from the repository", p["SAMBA_MIN_VERSION"])
+	}
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+$`).MatchString(p["NMAP_MIN_VERSION"]) {
 		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
 	}
@@ -91,7 +97,7 @@ func TestPinsAreExact(t *testing.T) {
 // end: the unit says User= with the host's sensor uid, and the image's own default is the same kind of user.
 func TestContainerfilesUsePinnedBasesAndEndNonRoot(t *testing.T) {
 	t.Parallel()
-	for _, f := range []string{"sensor/Containerfile", "scan-base/Containerfile", "core/Containerfile", "scan/Containerfile.onbox"} {
+	for _, f := range []string{"sensor/Containerfile", "scan-base/Containerfile", "core/Containerfile", "scan/Containerfile.onbox", "honeypot/Containerfile"} {
 		text := read(t, f)
 		stages := map[string]bool{}
 		lastUser := ""
@@ -228,7 +234,7 @@ func (s containerStage) hasRun() bool {
 // no qemu; the last stage, the one of the target architecture, only COPYs. A Go build stage compiles for TARGETOS/TARGETARCH.
 func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	t.Parallel()
-	for _, f := range []string{"sensor/Containerfile", "scan-base/Containerfile", "core/Containerfile"} {
+	for _, f := range []string{"sensor/Containerfile", "scan-base/Containerfile", "core/Containerfile", "honeypot/Containerfile"} {
 		stages := stagesOf(read(t, f))
 		if len(stages) < 2 {
 			t.Fatalf("%s: expected a build stage and a final stage", f)
@@ -244,7 +250,8 @@ func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 				}
 				continue
 			}
-			if !strings.Contains(s.from, "--platform=$BUILDPLATFORM ") {
+			// a stage with no RUN (the honeypot's `base`, read only for its dpkg status) runs nothing, so it needs no emulation either
+			if s.hasRun() && !strings.Contains(s.from, "--platform=$BUILDPLATFORM ") {
 				t.Errorf("%s: stage %q runs on the target platform; every stage before the last must be --platform=$BUILDPLATFORM", f, s.from)
 			}
 			if strings.Contains(s.body, "go build") {

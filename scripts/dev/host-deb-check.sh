@@ -160,7 +160,8 @@ EOT
 	want "core_data /var/lib/vedette 700 vedette:vedette" '^/var/lib/vedette d 700 vedette:vedette '
 	want "/var/lib/vedette-honeypot 755 root:root" '^/var/lib/vedette-honeypot d 755 root:root '
 	want "honeypot config/ 755 vedette:vedette" '^/var/lib/vedette-honeypot/config d 755 vedette:vedette '
-	want "honeypot log/ 750 vedette:vedette" '^/var/lib/vedette-honeypot/log d 750 vedette:vedette '
+	# made once as vedette's with 755; after the honeypot first starts it belongs to the container (:U, D-162) and the postinst never checks it again
+	want "honeypot log/ 755 vedette:vedette" '^/var/lib/vedette-honeypot/log d 755 vedette:vedette '
 	want "the unit is enabled" '^is-enabled=enabled$'
 	want "the unit is NOT started" '^active=inactive$'
 	want "the enable link is in multi-user.target.wants" '^wants=1$'
@@ -177,6 +178,13 @@ EOT
 	s2=$(state)
 	[ "$s1" = "$s2" ] || { diff <(echo "$s1") <(echo "$s2") >&2 || true; fail "the second install changed the state"; }
 	ok "second install: users, groups, subid lines, tree, modes, owners, hashes and unit state are identical"
+
+	# After the honeypot first starts, podman's :U has given log/ to the container's user (a subuid) with mode 755 (D-162): an upgrade must go through.
+	x 'chown 165536:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
+	install "--reinstall"
+	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "165536:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
+	ok "an upgrade after the honeypot took log/ (:U) succeeds and leaves its owner and mode alone"
+	x 'chown vedette:vedette /var/lib/vedette-honeypot/log'
 
 	# ---- an administrator's choices survive an upgrade --------------------------------------------------------------------
 	x 'systemctl disable vedette-host.service >/dev/null 2>&1'

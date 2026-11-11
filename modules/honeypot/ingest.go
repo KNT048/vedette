@@ -401,7 +401,10 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	det := detail(r, svc)
 	first := fmt.Sprintf("%s trap: %s connected to %s:%d", svc.Label(), src, trapIP, port)
-	more := svc.Label() + " trap: " + det + " [from port " + strconv.Itoa(r.SrcPort) + "]"
+	more := svc.Label() + " trap: " + det
+	if r.SrcPort != 0 { // the SMB lines have no source port (OpenCanary writes -1): no "[from port 0]"
+		more += " [from port " + strconv.Itoa(r.SrcPort) + "]"
+	}
 	svcCopy := svc
 	if err := s.upsert(ctx, tx, env, storedHit{
 		Hit:    Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det},

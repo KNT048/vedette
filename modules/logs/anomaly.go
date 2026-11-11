@@ -43,7 +43,8 @@ const (
 	SummaryTarget = "new kinds of message"
 	// BoundedPrefix starts the target of every event of a bounded signature ("sig:<signature>"): its own namespace in notify's
 	// dedupe key (kind, source, target), so a mined incident aimed at the same destination can never absorb it. A mined target is an
-	// address or a masked text and cannot hold "sig:" followed by a bounded signature (those contain "=").
+	// address or a masked text and cannot hold "sig:" followed by a bounded signature: those keep digits, which the miner always
+	// masks, and contain spaces, which a destination cannot have.
 	BoundedPrefix = "sig:"
 	BacklogTarget = "waiting events"
 	// MaxEventText, MaxEventKey, MaxEventTitle, MaxDeviceID and MaxDeviceName are what notify accepts (modules/notify/incidents.go
@@ -93,11 +94,15 @@ type anomaly struct {
 	Bounded   bool      // the signature comes from a vocabulary of shipped data (a known log id or event id)
 }
 
+// ponytail: a spike's ref is the UTC day, so a bounded spike is announced or named best effort within the day it is seen (a spike that goes
+// on is evaluated again the next day); upgrade path: key the ref on the day the spike started.
+//
 // rank orders anomalies for the digest and for the events. A signature that shipped data can name comes before one that the miner made
 // (a log id or an event id the product knows is what a person needs to see; what the miner made can be a list of user names), and
 // then the rarest first: a burst of new kinds of line (a brute force, a scan) is many signatures of about the same count, and the one
 // real event is the one with one line. A spike is the opposite: the one with most lines first. So the order is: bounded new, bounded
-// spike, mined new (the rarest first), mined spike (the most lines first), and last the text, so that the order is fixed (among new items of the same count the one first seen last goes first: a real event is not behind a flood).
+// spike, mined new (the rarest first), mined spike (the most lines first), and last the text, so that the order is fixed. Bounded new items are the exception to "rarest first": the one first seen last goes first whatever its
+// count, so a real event of 2 or 50 lines is not behind a flood of 1-line items; for the mined new items it breaks ties.
 func rank(a, b anomaly) int {
 	switch {
 	case a.Bounded != b.Bounded:
@@ -107,6 +112,11 @@ func rank(a, b anomaly) int {
 		return 1
 	case a.Kind != b.Kind:
 		if a.Kind == "new" {
+			return -1
+		}
+		return 1
+	case a.Bounded && a.Kind == "new" && !a.First.Equal(b.First): // bounded new: the newest first whatever the count (a flood of 1-line items must not delay a real event of 2 or 50 lines)
+		if a.First.After(b.First) {
 			return -1
 		}
 		return 1
@@ -496,8 +506,23 @@ func (p *sourcePass) bounded(ctx context.Context, waiting []anomaly) error {
 			n = room - 1
 		}
 	}
+	send := waiting[:n:n]
+	if len(fresh) > 0 && room >= 3 {
+		// With a summary going out, one individual place is for the item that has been named longest and still waits (first in, first
+		// out), so under a steady trickle of fresh items a named one still gets its own event.
+		var oldest []anomaly
+		for _, a := range waiting[room-2:] {
+			if a.Kind == "new" && p.isCovered(a) && (oldest == nil || a.First.Before(oldest[0].First)) {
+				oldest = []anomaly{a}
+			}
+		}
+		if oldest != nil {
+			n = room - 2
+			send = append(waiting[:n:n], oldest...)
+		}
+	}
 	var errs []error
-	for _, a := range waiting[:n] {
+	for _, a := range send {
 		d, err := p.s.detailOf(ctx, p.src.ID, a.Signature, p.now)
 		if err != nil {
 			return errors.Join(append(errs, err)...)
@@ -506,7 +531,7 @@ func (p *sourcePass) bounded(ctx context.Context, waiting []anomaly) error {
 		errs = append(errs, p.s.announce(ctx, p.src, p.now, p.ref, g, p.s.eventFor(ctx, p.src, g, map[string]detail{a.Signature: d}, p.base()), true))
 	}
 	if len(fresh) > 0 {
-		errs = append(errs, p.backlog(ctx, fresh, len(waiting)-n))
+		errs = append(errs, p.backlog(ctx, fresh, len(waiting)-len(send)))
 	}
 	return errors.Join(errs...)
 }

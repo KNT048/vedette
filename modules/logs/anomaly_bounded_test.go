@@ -51,6 +51,13 @@ func TestBoundedVocabularyFitsTheQuotas(t *testing.T) {
 // announced in the first pass with room, not a day later.
 func TestContract_Events_BoundedOverflowIsNeverSilent(t *testing.T) {
 	t.Parallel()
+	for _, reps := range []int{1, 2, 50} { // a real event of one, two or fifty lines: the count does not put it behind a flood of 1-line items
+		t.Run(fmt.Sprintf("real event of %d lines", reps), func(t *testing.T) { boundedOverflow(t, reps) })
+	}
+}
+
+func boundedOverflow(t *testing.T, reps int) {
+	t.Helper()
 	e := newEnv(t)
 	p := &pubs{}
 	e.svc.cfg.Events = p
@@ -71,7 +78,7 @@ func TestContract_Events_BoundedOverflowIsNeverSilent(t *testing.T) {
 	realAt := time.Duration(-1)
 	for step := 0; step < 24*12; step++ {
 		if step == 12 {
-			e.feed(src, realLine, 1)
+			e.feed(src, realLine, reps)
 		}
 		before := len(p.events())
 		e.detect()
@@ -209,5 +216,64 @@ func TestContract_INV6_DigestIsRoundRobinAcrossSources(t *testing.T) {
 	}
 	if pos < 0 || pos > 1 {
 		t.Fatalf("the realLine event of source B is at position %d of the digest", pos)
+	}
+}
+
+// A steady trickle of fresh bounded kinds (21 or 25 an hour, more than a backlog summary leaves room for) keeps a real event from being
+// only named in backlogs: when a summary goes out, one individual place of the hour is for the item that has been named longest and
+// still waits (first in, first out), so the real event has its own event within a couple of hours. And every item of the trickle is
+// announced or named before it ages out.
+func TestContract_Events_TrickleDoesNotKeepARealEventInTheBacklog(t *testing.T) {
+	t.Parallel()
+	for _, perHour := range []int{21, 25} {
+		e := newEnv(t)
+		p := &pubs{}
+		e.svc.cfg.Events = p
+		src := e.warmSource("fortigate", "192.168.10.1")
+		realLine := `logid="0101039947" type="event" action="tunnel-up" dstip=203.0.113.9`
+		realSig := e.svc.sigs.Of("fortigate", realLine).Signature
+		var spoof []string
+		for _, l := range allBoundedFortiLines() {
+			if sig := e.svc.sigs.Of("fortigate", l).Signature; sig != sigFor(22) && sig != realSig {
+				spoof = append(spoof, l)
+			}
+		}
+		e.feed(src, realLine, 1)
+		start := e.svc.now()
+		realAt := time.Duration(-1)
+		used := 0
+		seen := map[string]bool{}
+		for step := 0; step < 40*12; step++ { // 16 hours of trickle, then time for the first ones to age out
+			if step%12 == 0 && step < 16*12 && used < len(spoof) {
+				e.advance(time.Second)
+				k := min(perHour, len(spoof)-used)
+				ingestAll(e, src, k, func(i int) string { return spoof[used+i] }, 1)
+				used += k
+			}
+			before := len(p.events())
+			e.detect()
+			for _, ev := range p.events()[before:] {
+				if ev.Target == BoundedPrefix+realSig && realAt < 0 {
+					realAt = e.svc.now().Sub(start)
+				}
+				if sig, ok := strings.CutPrefix(ev.Target, BoundedPrefix); ok && !strings.HasPrefix(sig, BacklogTarget) {
+					seen[sig] = true
+				}
+				for _, line := range strings.Split(ev.What, "\n") {
+					if rest, ok := strings.CutPrefix(line, "New: "); ok && strings.Contains(rest, " (") {
+						seen[rest[:strings.LastIndex(rest, " (")]] = true
+					}
+				}
+			}
+			e.advance(5 * time.Minute)
+		}
+		if realAt < 0 || realAt > 2*time.Hour+10*time.Minute {
+			t.Fatalf("%d an hour: the real event had its own event after %v", perHour, realAt)
+		}
+		for _, l := range spoof[:used] {
+			if sig := e.svc.sigs.Of("fortigate", l).Signature; !seen[sig] {
+				t.Fatalf("%d an hour: %s was neither announced nor named", perHour, sig)
+			}
+		}
 	}
 }

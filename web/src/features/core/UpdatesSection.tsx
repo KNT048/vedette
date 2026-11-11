@@ -189,7 +189,7 @@ export default function UpdatesSection() {
       <ReadOnlyNote role="admin" />
       <OsBlock />
       {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}
-      <div className="mt-12"><QueryState query={q}>{(s) => <Body s={s} />}</QueryState></div>
+      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
     </>
   )
 }

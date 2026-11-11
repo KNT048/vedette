@@ -51,7 +51,7 @@ export const api = {
 export function dispositionName(header: string | null, fallback: string): string {
   const clean = (v: string) => {
     // eslint-disable-next-line no-control-regex
-    const base = v.replace(/[\u0000-\u001f\u007f]/g, '').split(/[\\/]/).pop()?.trim() ?? ''
+    const base = v.replace(/[\u0000-\u001f\u007f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').split(/[\\/]/).pop()?.trim() ?? ''
     return base && base !== '.' && base !== '..' ? base : ''
   }
   if (!header) return fallback

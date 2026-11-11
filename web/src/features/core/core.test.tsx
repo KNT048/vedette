@@ -1188,7 +1188,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check now' }, T))
-    expect(await screen.findByText('Checked the package mirrors.')).toBeInTheDocument()
+    expect(await screen.findByText('Checked the package mirrors.', undefined, T)).toBeInTheDocument()
     asAdmin()
     await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ update_check: false }) })
     const r = await post('/check')

@@ -69,7 +69,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
 		s.Log.ErrorContext(ctx, "adding the devices of \"I have it\" failed", "error", err)
 	}
-	if err := s.st.maintain(ctx, now); err != nil {
+	if err := s.st.maintain(ctx, now); err != nil && ctx.Err() == nil { // a stop in the middle of it is a shutdown, not a failure
 		s.Log.ErrorContext(ctx, "pruning feed data failed", "error", err)
 	}
 	return nil

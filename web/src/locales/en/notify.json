@@ -204,19 +204,19 @@
       "slack": "Slack member ID",
       "telegram": "Telegram user ID",
       "email": "Sign-in email",
-      "zalo-personal": "Zalo user ID or phone"
+      "zalo-personal": "Zalo user ID"
     },
     "placeholder": {
       "slack": "U04ABCD1234",
       "telegram": "123456789",
       "email": "name@company.com",
-      "zalo-personal": "0912345678"
+      "zalo-personal": "2938475610293847561"
     },
     "hint": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
       "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
-      "zalo-personal": "Approval requests list a short code. An approver replies in Zalo with that code to approve. Only listed approvers count."
+      "zalo-personal": "Each approver gets a private message from this Zalo account with two codes of their own: one to approve, one to reject. Replying with a code from their own Zalo account decides; each code works once and ends with the request. High-risk actions are approved only in Vedette. Enter the Zalo user ID of each approver, not a phone number."
     },
     "email": {
       "p1": "The link is single-use, valid for 30 minutes, and bound to that one action and that one approver.",

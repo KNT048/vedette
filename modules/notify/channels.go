@@ -50,10 +50,14 @@ var approverAddr = map[channel.Type]struct {
 }{
 	channel.Slack:        {regexp.MustCompile(`^[UW][A-Z0-9]{8,12}$`), "A Slack member ID looks like U04ABCD1234 (Profile, More, Copy member ID)."},
 	channel.Telegram:     {regexp.MustCompile(`^\d{5,15}$`), "A Telegram user ID is a number of 5 to 15 digits. A bot such as @userinfobot can show it."},
-	channel.ZaloPersonal: {regexp.MustCompile(`^(\d{6,25}|\+?84\d{9}|0\d{9})$`), "Enter the approver Zalo user ID (digits) or the phone number registered on Zalo."},
+	channel.ZaloPersonal: {regexp.MustCompile(`^\d{6,25}$`), zaloApproverMsg},
 }
 
 const emailApproverMsg = "An approver email is not valid, for example name@company.com."
+
+// zaloApproverMsg: D-242, a reply carries the sender's Zalo user ID and never their phone number, so a phone number would never match.
+const zaloApproverMsg = "Enter the approver's Zalo user ID, not a phone number: a reply in Zalo carries the sender's user ID, never the phone number, " +
+	"so a phone number would never match. The user ID is the long number of the Zalo account, for example 2938475610293847561."
 
 var (
 	slackChannelIDRE = regexp.MustCompile(`^[CGD][A-Z0-9]{8,12}$`)
@@ -303,6 +307,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 			"not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.")
 	}
 	seen := map[string]bool{}
+	addrs := map[string]string{} // address → email of the user it belongs to
 	for _, a := range in.Approvers {
 		u, found, err := s.cfg.Users.Lookup(ctx, a.UserID)
 		if err != nil {
@@ -326,9 +331,17 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 			if !strings.EqualFold(addr, u.Email) { // the link is for this person: it goes to the address they sign in with
 				return badRequest("bad_approver_address", u.Email+": the approval link goes to the sign-in email of the user, "+u.Email+".")
 			}
-		} else if !rule.re.MatchString(addr) {
+		} else if !rule.re.MatchString(addr) || (t == channel.ZaloPersonal && channel.ZaloPhoneLike(addr)) {
 			return badRequest("bad_approver_address", u.Email+": "+rule.msg)
 		}
+		key := addr
+		if t == channel.Email {
+			key = strings.ToLower(addr)
+		}
+		if other, dup := addrs[key]; dup { // one address is one person (D-242, UNIQUE in notify_approver): an id for two people is nobody's
+			return badRequest("duplicate_address", u.Email+": "+addr+" is already the address of "+other+". One address can belong to one approver only.")
+		}
+		addrs[key] = u.Email
 	}
 	return nil
 }

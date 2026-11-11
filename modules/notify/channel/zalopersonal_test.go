@@ -155,6 +155,7 @@ type zaloFake struct {
 	sent        []map[string]any
 	loginErr    int             // outer error_code of the sign-in answer
 	loginSvc    string          // overrides the service map: the chat and group address
+	noChat      bool            // the service map names no chat service
 	sendErr     func(n int) int // outer error_code of the nth send (0 = success)
 	echo        string          // appended to every error message
 	loginCookie bool            // set the rotated cookie at sign-in
@@ -247,9 +248,13 @@ func (f *zaloFake) login(w http.ResponseWriter, r *http.Request) {
 	if f.loginSvc != "" {
 		chat, group = f.loginSvc, f.loginSvc
 	}
+	chats := []string{chat}
+	if f.noChat {
+		chats = nil
+	}
 	inner := f.envelope(0, "Success", map[string]any{
 		"uid": "42", "zpw_enk": base64.StdEncoding.EncodeToString([]byte(zpKey)),
-		"zpw_service_map_v3": map[string]any{"chat": []string{chat}, "group": []string{group}},
+		"zpw_service_map_v3": map[string]any{"chat": chats, "group": []string{group}},
 		"zpw_ws":             []string{"wss://ws1-msg.chat.zalo.me"},
 	})
 	enc, _ := zaloEncrypt([]byte(enk), inner)

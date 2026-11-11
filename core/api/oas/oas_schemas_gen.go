@@ -80333,7 +80333,8 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApprovalLast4) SetBotToken(val Nil
 }
 
 type NotifyGetNotifyChannelsOKChannelsItemApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }
@@ -83396,7 +83397,8 @@ func (s *NotifyPutNotifyChannelsTypeOKApprovalLast4) SetBotToken(val NilString) 
 }
 
 type NotifyPutNotifyChannelsTypeOKApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }
@@ -83692,7 +83694,8 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 }
 
 type NotifyPutNotifyChannelsTypeReqApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }

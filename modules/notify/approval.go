@@ -46,8 +46,10 @@ const (
 // allows a link and a token recorder is wired (spec approval-tokens.md 4; the record of the token, with the
 // address, is stored by the TokenRecorder before the mail goes out), otherwise (high risk, D-57 item 20, or no
 // recorder) a message that says to open Vedette. Other channels with approvals on get one message without a
-// link that approves; on Telegram it carries Approve/Reject buttons (tglisten.go) unless the request is in-app only.
-// Slack buttons and Zalo reply codes are not built yet.
+// link that approves; on Telegram and Slack it carries Approve/Reject buttons (tglisten.go, slacklisten.go) unless the
+// request is in-app only. On Zalo personal, when reply codes are allowed (replyCodesAllowed), every approver instead gets
+// their own direct message with their own two codes, recorded before it goes out (replycode.go, spec 7.1); otherwise the
+// configured recipient gets one message that says to open Vedette.
 //
 // A message with a link is sent at most once: nothing here is retried, and the request ending (ctx) stops the
 // messages not yet started. Each attempt that was made is recorded, also after ctx ended. It returns one
@@ -101,10 +103,40 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	type skipped struct{ user, reason string }
 	var skips []skipped // approvers who no longer qualify: no link is minted and nothing is mailed to them
 	linkOK := s.cfg.Tokens != nil && !req.InAppOnly && ApprovalViaChannelAllowed("email", req.Risk) == nil
+	codesOK := s.replyCodesAllowed(req)
 	for _, ac := range chans {
 		c, err := loadChannel(ctx, s.cfg.DB.Reader(), ac.Type)
 		if err != nil {
 			return nil, err
+		}
+		if ac.Type == channel.ZaloPersonal && codesOK && len(ac.Approvers) > 0 { // each approver gets their own codes, in their own chat
+			snd, err := s.savedSender(ctx, c, nil) // the session of the channel, shared with its alerts
+			if err != nil {
+				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
+			}
+			expires := ApprovalExpiry(now, req.Expires)
+			planned := len(plan)
+			for _, a := range ac.Approvers {
+				if why := s.approverProblem(ctx, ac.Type, a); why != "" {
+					skips = append(skips, skipped{a.UserID, why})
+					continue
+				}
+				direct, err := s.zaloTo(snd, a.Address)
+				if err != nil {
+					skips = append(skips, skipped{a.UserID, "the saved address is not a Zalo user ID"})
+					continue
+				}
+				m := base
+				if m.ReplyCodes, err = s.recordReplyCodes(ctx, req, a, expires); err != nil {
+					return nil, err
+				}
+				plan = append(plan, outgoing{snd: direct, msg: m, recipient: a.Address})
+			}
+			if len(plan) > planned {
+				continue
+			}
+			// every approver was skipped (left, demoted, or an address saved before D-242): the channel still hears about the
+			// request, with the message that says to open Vedette
 		}
 		if ac.Type != channel.Email {
 			snd, err := s.savedSender(ctx, c, nil)

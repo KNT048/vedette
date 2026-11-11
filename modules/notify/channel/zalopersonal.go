@@ -71,12 +71,14 @@ type zaloPersonalSender struct {
 	notBefore time.Time // no sign-in before this
 }
 
-// zaloLogin is the signed-in state: the secret key of the session (zpw_enk) and
-// the base URL of the one service the message goes to.
+// zaloLogin is the signed-in state: the secret key of the session (zpw_enk), the
+// base URL of the service of the configured recipient (chat or group), and the
+// chat service for direct messages ("" when the answer named none).
 type zaloLogin struct {
 	key    []byte
 	keyB64 string
 	base   string
+	chat   string
 	at     time.Time
 }
 
@@ -117,8 +119,58 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 	if err := m.check(); err != nil {
 		return Receipt{}, err
 	}
+	if m.ReplyCodes != nil { // codes are for one approver: never to the configured user or group (ZaloPersonalTo)
+		return Receipt{}, fmt.Errorf("%w: reply codes go only to the approver they belong to", ErrInvalidMessage)
+	}
+	return z.send(ctx, m, z.user, z.group, false)
+}
+
+// ZaloPersonalTo returns a sender that posts to one person, userID (the Zalo user ID, digits, never a phone number), through the
+// session of snd, which must be a Zalo personal sender: same sign-in, same sign-in pause, one send at a time with it. It is how an
+// approver gets their own reply codes (spec approval-tokens.md 7), and how a resend of that message reaches the same approver.
+func ZaloPersonalTo(snd Sender, userID string) (Sender, error) {
+	z, ok := snd.(*zaloPersonalSender)
+	if !ok {
+		return nil, errors.New("notify: zalo-personal: a direct message needs the Zalo personal channel")
+	}
+	if !zaloPersonalUserRE.MatchString(userID) || ZaloPhoneLike(userID) {
+		return nil, cfgErr("bad_user_id", "The approver is the numeric Zalo user ID (6 to 25 digits), not a phone number.")
+	}
+	return &zaloDirect{z: z, user: userID}, nil
+}
+
+// ZaloPhoneLike reports whether s has the form of a Vietnamese phone number (0 and 9 digits, or 84 and 9 digits, with or without +).
+// A reply carries the sender's user ID, never their phone number, so such an address could never match (D-242).
+func ZaloPhoneLike(s string) bool { return zaloPhoneRE.MatchString(s) }
+
+var zaloPhoneRE = regexp.MustCompile(`^(\+?84\d{9}|0\d{9})$`)
+
+// zaloDirect is the sender of ZaloPersonalTo.
+type zaloDirect struct {
+	noPrint
+	z    *zaloPersonalSender
+	user string
+}
+
+func (*zaloDirect) Type() Type { return ZaloPersonal }
+
+func (d *zaloDirect) Dest() string { return "Zalo " + d.user }
+
+func (d *zaloDirect) Send(ctx context.Context, m Message) (Receipt, error) {
+	if err := m.check(); err != nil {
+		return Receipt{}, err
+	}
+	return d.z.send(ctx, m, d.user, false, true)
+}
+
+// send posts m to one user, or to one group when group is true. direct is a message to an approver (ZaloPersonalTo).
+func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, group, direct bool) (Receipt, error) {
 	link, _ := safeLink(m.Link)
-	text := fit(m.norm().mapText(defang).lines(link), zaloTextMax)
+	lines := m.norm().mapText(defang).lines(link)
+	if m.ReplyCodes != nil { // the box's own text, not feed text: kept whole with the link line, which fit never cuts
+		lines[len(lines)-1] += "\n" + m.ReplyCodes.line()
+	}
+	text := fit(lines, zaloTextMax)
 
 	select {
 	case z.sem <- struct{}{}:
@@ -139,10 +191,10 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 				return Receipt{}, err
 			}
 		}
-		err := z.post(ctx, text)
+		err := z.post(ctx, text, to, group)
 		if err == nil {
 			z.failures = 0
-			return Receipt{To: z.Dest(), Detail: "Zalo (personal account) sent the message to " + z.user + "."}, nil
+			return Receipt{To: "Zalo " + to, Detail: "Zalo (personal account) sent the message to " + to + "."}, nil
 		}
 		var pe *ProviderError
 		var se *StatusError
@@ -150,6 +202,10 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 		case errors.As(err, &se) && (se.Code == http.StatusUnauthorized || se.Code == http.StatusForbidden):
 			z.li = nil // the session is refused: no retry, and the next sign-in waits
 			z.fail()
+			return Receipt{}, err
+		case errors.As(err, &pe) && pe.requestRefused && direct && fresh:
+			// The session was just accepted at sign-in, so the refusal is about this one approver (a wrong ID, a block, not a
+			// friend): a message failure. It must not pause sign-ins for the channel's alerts and the other approvers.
 			return Receipt{}, err
 		case errors.As(err, &pe) && pe.requestRefused:
 			z.li = nil
@@ -198,25 +254,36 @@ func (z *zaloPersonalSender) signIn(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, at: z.now()}
+	chat := base
+	if z.group { // a group channel still sends direct messages (reply codes): keep the chat service too, when the answer names one
+		if _, c, err := parseZaloLoginInfo(data, false); err == nil {
+			chat = c
+		} else {
+			chat = ""
+		}
+	}
+	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, chat: chat, at: z.now()}
 	infoCtx, cancel := context.WithTimeout(ctx, zaloInfoTimeout)
 	defer cancel()
 	_, _ = z.call(infoCtx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil)
 	return nil
 }
 
-// post sends the text through the signed-in session.
-func (z *zaloPersonalSender) post(ctx context.Context, text string) error {
-	plain := zaloMessageParams(z.sess.imei, z.user, text, z.group, z.now())
+// post sends the text to one user or one group through the signed-in session.
+func (z *zaloPersonalSender) post(ctx context.Context, text, to string, group bool) error {
+	base, path := z.li.chat, "/api/message/sms"
+	if group {
+		base, path = z.li.base, "/api/group/sendmsg"
+	}
+	if base == "" {
+		return badAnswer("the sign-in answer named no service for a direct message")
+	}
+	plain := zaloMessageParams(z.sess.imei, to, text, group, z.now())
 	enc, err := zaloEncrypt(z.li.key, plain)
 	if err != nil {
 		return fmt.Errorf("notify: zalo-personal: encrypt message: %w", err)
 	}
-	path := "/api/message/sms"
-	if z.group {
-		path = "/api/group/sendmsg"
-	}
-	body, err := z.call(ctx, http.MethodPost, z.li.base+path+"?"+zaloVersionQuery().Encode(), strings.NewReader(url.Values{"params": {enc}}.Encode()))
+	body, err := z.call(ctx, http.MethodPost, base+path+"?"+zaloVersionQuery().Encode(), strings.NewReader(url.Values{"params": {enc}}.Encode()))
 	if err != nil {
 		return err
 	}

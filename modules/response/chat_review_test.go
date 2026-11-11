@@ -133,6 +133,7 @@ func TestChat_ManyStrangersAreBoundedByTheBudget(t *testing.T) {
 func TestChat_ACompletingApprovalReturnsAtOnceAndTheItemsRunInTheBackground(t *testing.T) {
 	c := newChatEnv(t)
 	a := c.highRisk()
+	c.twoPersonMedium(a)
 	if _, err := c.button("slack", slackOp, a.ID, true); err != nil {
 		t.Fatal(err)
 	}
@@ -164,6 +165,7 @@ func TestChat_ACompletingApprovalReturnsAtOnceAndTheItemsRunInTheBackground(t *t
 func TestChat_CloseEndsADetachedRun(t *testing.T) {
 	c := newChatEnv(t)
 	a := c.highRisk()
+	c.twoPersonMedium(a)
 	if _, err := c.button("slack", slackOp, a.ID, true); err != nil {
 		t.Fatal(err)
 	}

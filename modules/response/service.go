@@ -2,7 +2,9 @@ package response
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain"
@@ -438,11 +441,25 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, auditAction, target stri
 	if actor == "" {
 		actor = "system"
 	}
-	detail = oneLine(detail, 1500)
+	detail = capDetail(detail)
 	if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: auditAction, Target: target, Detail: detail}); err != nil {
 		return fmt.Errorf("response: audit %s: %w", auditAction, err)
 	}
 	return s.appendLog(ctx, tx, kind, actor, detail)
+}
+
+// maxDetail is the size cap of a log line (runes).
+const maxDetail = 1500
+
+// capDetail makes a detail one line and cuts it to the cap. A text that the cap cuts keeps its SHA-256 at the end, so the hash-chained row
+// still commits to the whole text (D-175: the row of a request and of an execution holds the full call, or its hash).
+func capDetail(detail string) string {
+	if utf8.RuneCountInString(detail) <= maxDetail {
+		return oneLine(detail, maxDetail)
+	}
+	sum := sha256.Sum256([]byte(detail))
+	tail := " [cut; SHA-256 of the full text " + hex.EncodeToString(sum[:]) + "]"
+	return oneLine(detail, maxDetail-utf8.RuneCountInString(tail)) + tail
 }
 
 // LogKind is the kind of a resp_log line (INV-19).

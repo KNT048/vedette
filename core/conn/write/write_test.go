@@ -572,3 +572,49 @@ func TestWriterCallsAnMCPToolWithTypedArguments(t *testing.T) {
 		t.Fatalf("%d calls went through refusals", len(f.Calls())-before)
 	}
 }
+
+// D-174: a token connection with a header name sends the token in that header and no Authorization; the secret stays in the vault.
+func TestWriterSendsTheTokenInTheNamedHeader(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	f := conntest.NewHTTPS(t, nil)
+	c := r.create(conn.Input{Name: "Key API", Kind: "http", Target: f.URL, AuthType: "token", AuthHeader: str("X-API-Key"), Secret: secrets.NewValue(token),
+		Allow: []string{f.URL + "/api/"}, Enabled: true, Tools: []conn.ToolInput{{Name: "send_request", Enabled: true}}})
+	if c.Auth.Header == nil || *c.Auth.Header != "X-API-Key" || c.Username != nil {
+		t.Fatalf("saved %+v username %v", c.Auth, c.Username)
+	}
+	c = r.tested(c)
+	n := len(f.Requests())
+	wantStatus(t, r.do(post(c, f, "/api/v2/block", `{"ip":"198.51.100.7"}`)), write.StatusOK)
+	q := f.Requests()[n:]
+	if len(q) != 1 || q[0].Header.Get("X-API-Key") != token || q[0].Header.Get("Authorization") != "" {
+		t.Fatalf("the device saw %+v", q)
+	}
+	// The token is in the vault only: no connection row, audit row or secret row holds it in plain text.
+	for _, q := range []string{`SELECT group_concat(name || target || ifnull(username, '') || auth_type, '|') FROM core_connection`, `SELECT group_concat(action || target || detail, '|') FROM core_audit`, `SELECT group_concat(hex(ciphertext), '|') FROM core_secret`} {
+		var all sql.NullString
+		if err := r.env.DB.Reader().QueryRowContext(t.Context(), q).Scan(&all); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+		if strings.Contains(all.String, token) {
+			t.Errorf("the token is in plain text: %s", q)
+		}
+	}
+	// A header name on the wrong sign-in, or one the transport owns, is refused at the edge.
+	for _, in := range []conn.Input{
+		{Name: "Basic", Kind: "http", Target: f.URL, AuthType: "basic", Username: str("u"), AuthHeader: str("X-API-Key"), Secret: secrets.NewValue("pw-0123456789"), Allow: []string{f.URL + "/api/"}},
+		{Name: "Host", Kind: "http", Target: f.URL, AuthType: "token", AuthHeader: str("Host"), Secret: secrets.NewValue(token), Allow: []string{f.URL + "/api/"}},
+		{Name: "CL", Kind: "http", Target: f.URL, AuthType: "token", AuthHeader: str("Content-Length"), Secret: secrets.NewValue(token), Allow: []string{f.URL + "/api/"}},
+		{Name: "Bad", Kind: "http", Target: f.URL, AuthType: "token", AuthHeader: str("X Key:"), Secret: secrets.NewValue(token), Allow: []string{f.URL + "/api/"}},
+	} {
+		err := r.env.DB.Write(t.Context(), func(tx *sql.Tx) error { _, err := r.svc.Create(t.Context(), tx, admin, in); return err })
+		if err == nil {
+			t.Errorf("%s: accepted", in.Name)
+		}
+	}
+	// Changing the header name is a security change: the fingerprint moves, so a request made before it does not carry on.
+	c2 := r.update(c.ID, func(in *conn.Input) { in.AuthHeader = str("X-Other-Key") })
+	if c2.Fingerprint() == c.Fingerprint() {
+		t.Error("a new header name did not move the fingerprint")
+	}
+}

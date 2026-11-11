@@ -114,7 +114,7 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	if json.Unmarshal(ans, &ok) != nil || !ok.OK {
 		return Receipt{}, &ProviderError{Channel: Telegram, Reason: "the answer did not confirm delivery"}
 	}
-	return Receipt{To: "chat " + t.chat, Detail: fmt.Sprintf("Telegram received the message (chat %s).", t.chat)}, nil
+	return Receipt{To: "chat " + t.chat, Detail: fmt.Sprintf("Telegram received the message (chat %s).", t.chat), MessageID: sentMessageID(ans), ChatID: sentChatID(ans)}, nil
 }
 
 // telegramDescription picks the "description" of an error answer, falling back to the raw text.

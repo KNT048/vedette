@@ -24,6 +24,7 @@ import (
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 )
 
 // stack is the binary's real wiring on a temp SQLite database and the real bus: every module the binary carries,
@@ -48,6 +49,14 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	logsDB, err := store.Open(ctx, filepath.Join(t.TempDir(), "logs.db"), log) // the volume of the logs module (modules/logs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = logsDB.Close() })
+	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
+		t.Fatal(err)
+	}
 	wired := wiredModules()
 	if err := migrateAll(ctx, db, wired); err != nil {
 		t.Fatal(err)
@@ -61,7 +70,7 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := &deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	d := &deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
 	if tune != nil {
 		tune(d)
 	}

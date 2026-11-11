@@ -2,11 +2,13 @@ package transport_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -288,5 +290,32 @@ func TestHTTPSPinIsThePublicKey(t *testing.T) {
 	f.Rotate(t)
 	if _, err := get(transport.NewHTTPS(transport.HTTPSConfig{Dialer: dialer(), Pin: pin}), f.URL); !errors.Is(err, transport.ErrPinMismatch) {
 		t.Fatalf("a new key = %v, want ErrPinMismatch", err)
+	}
+}
+
+// D-174: the names a token may not be sent in, one list with the mock of the GUI (both read auth_header_refused.json).
+func TestValidAuthHeaderRefusesTheSharedList(t *testing.T) {
+	raw, err := os.ReadFile("../../../../web/src/features/core/testdata/auth_header_refused.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var l struct{ Refused, Valid []string }
+	if err := json.Unmarshal(raw, &l); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range l.Refused {
+		if transport.ValidAuthHeader(n) {
+			t.Errorf("%q was accepted", n)
+		}
+	}
+	for _, n := range l.Valid {
+		if !transport.ValidAuthHeader(n) {
+			t.Errorf("%q was refused", n)
+		}
+	}
+	for _, n := range []string{"", "X Key", "X-Key:", strings.Repeat("a", 65)} {
+		if transport.ValidAuthHeader(n) {
+			t.Errorf("%q was accepted", n)
+		}
 	}
 }

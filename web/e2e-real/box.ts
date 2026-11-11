@@ -1,7 +1,7 @@
 // Shared by the specs that run on the real backend (WP-30, D-170): the box manifest, API calls with the CSRF header, sign-in that waits
 // out the box's one-password-at-a-time gate, the storageState files of the seeded roles, unique names.
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { expect, type APIRequestContext } from '@playwright/test'
 
 export interface Box { base_url: string; setup_code: string; data_dir: string; honeypot_dir: string }
@@ -27,8 +27,9 @@ export const ACCOUNTS: Record<Role, { name: string; email: string }> = {
   operator: { name: 'E2E Operator', email: 'op@e2e.test' },
   viewer: { name: 'E2E Viewer', email: 'view@e2e.test' },
 }
-/** The storageState file of a seeded role (written by seed.setup.ts); relative to web/. */
-export const authFile = (role: Role) => resolve('test-results/real/.auth', `${role}.json`)
+/** The storageState file of a seeded role (written by seed.setup.ts). It lives next to ready.json, in the 0700 temp folder of the run: Playwright
+ *  empties its outputDir at the start of every run (that would break a HOLD rerun), and the cookies must not sit in the repository. */
+export const authFile = (role: Role) => join(dirname(process.env.E2E_BOX ?? ''), 'auth', `${role}.json`)
 
 let counter = 0
 /** A name no other test uses on this box: entities in the parallel project never share one (D-172). */

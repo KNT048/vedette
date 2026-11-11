@@ -36,11 +36,11 @@ test.describe('sign-in', () => {
     await page.getByLabel('Email').fill(who.email)
     await page.getByLabel('Password').fill('wrong-password')
     await page.getByLabel('Password').press('Enter')
-    await expect(page.getByText('Wrong email or password.')).toBeVisible()
+    await expect(page.getByText('Wrong email or password.')).toBeVisible({ timeout: 30_000 }) // the box checks one password at a time
     await expect(page.getByLabel('Email')).toHaveValue(who.email)
     await page.getByLabel('Password').fill(password())
     await page.getByLabel('Password').press('Enter')
-    await expect(page).toHaveURL(/\/settings\/audit/)
+    await expect(page).toHaveURL(/\/settings\/audit/, { timeout: 30_000 })
     await expect(h1(page)).toBeVisible()
     noErrors(errors, /status of 401/)
   })
@@ -50,7 +50,7 @@ test.describe('sign-in', () => {
     await page.getByLabel('Email').fill(`${uniq('nobody')}@e2e.test`)
     await page.getByLabel('Password').fill('wrong-password-123')
     await page.getByLabel('Password').press('Enter')
-    await expect(page.getByText('Wrong email or password.')).toBeVisible()
+    await expect(page.getByText('Wrong email or password.')).toBeVisible({ timeout: 30_000 }) // the box checks one password at a time
     await expect(page).toHaveURL(/\/login/)
   })
 
@@ -90,6 +90,8 @@ for (const role of ['viewer', 'operator'] as const) {
           // fixme (D-171, unbuilt backend): GET /core/updates answers 501, so the page shows "Could not load data" instead of its read-only
           // note. Tracked by .ai/deferred/feat-core-os-updates.md:3 and listed in KNOWN_501 of gaps.spec.ts.
           test.info().annotations.push({ type: 'fixme', description: 'settings/updates read-only note: .ai/deferred/feat-core-os-updates.md:3' })
+          // the skip ends with the 501: when the endpoint is built this fails, and the Updates note must be checked like the other sections
+          expect((await api(page.request, 'GET', '/core/updates')).status, 'GET /core/updates is no longer 501: remove this skip').toBe(501)
           continue
         }
         if (adminOnly.includes(sec)) {

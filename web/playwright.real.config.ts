@@ -21,9 +21,9 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh', trace: 'retain-on-failure' },
   projects: [
-    { name: 'setup', testMatch: /setup\.spec\.ts$/, workers: 1, use: desktop },
+    { name: 'setup', testMatch: /(^|\/)setup\.spec\.ts$/, workers: 1, use: desktop },
     { name: 'seed', testMatch: /seed\.setup\.ts$/, workers: 1, dependencies: ['setup'], use: desktop },
-    { name: 'parallel', testMatch: /\.spec\.ts$/, testIgnore: [/setup\.spec\.ts$/, /\.global\.spec\.ts$/], dependencies: ['seed'], use: desktop },
+    { name: 'parallel', testMatch: /\.spec\.ts$/, testIgnore: [/(^|\/)setup\.spec\.ts$/, /\.global\.spec\.ts$/], dependencies: ['seed'], use: desktop },
     { name: 'global', testMatch: /\.global\.spec\.ts$/, workers: 1, dependencies: ['parallel'], use: desktop },
   ],
 })

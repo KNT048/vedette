@@ -17,7 +17,7 @@ lap() { printf 'e2e-real: %-34s %4ds\n' "$1" "$((SECONDS - t0))"; t0=$SECONDS; }
 # Preflight (rules/local-checks.md): no other Playwright run, and not on a loaded machine (load5 above 2 x CPUs: wait, at most 30 minutes).
 if pgrep -f playwright/test/cli.js >/dev/null; then echo "e2e-real: another Playwright run is active (pgrep -f playwright/test/cli.js)" >&2; exit 1; fi
 for i in $(seq 0 30); do
-	load5=$(uptime | sed 's/,/ /g; s/.*load averages*: *//' | awk '{print $2}')
+	load5=$(LC_ALL=C uptime | sed 's/,/ /g; s/.*load averages*: *//' | awk '{print $2}')
 	awk -v l="$load5" -v n="$ncpu" 'BEGIN { exit !(l > 2 * n) }' || break
 	[ "$i" -lt 30 ] || { echo "e2e-real: load5 $load5 stayed above $((2 * ncpu)) for 30 minutes" >&2; exit 1; }
 	echo "e2e-real: load5 $load5 is above $((2 * ncpu)): waiting 60 s ($i/30)" >&2
@@ -29,12 +29,17 @@ box=
 pw=
 hold=${HOLD:-}
 cleanup() {
+	rc=$?
 	[ -z "$pw" ] || kill -- "-$pw" 2>/dev/null || true # Playwright and the Chromium it started
 	if [ -n "$box" ]; then
 		kill -TERM -- "-$box" 2>/dev/null || true # the box stops itself on SIGTERM
 		for _ in $(seq 1 15); do kill -0 "$box" 2>/dev/null || break; sleep 1; done
 		kill -KILL -- "-$box" 2>/dev/null || true
 		wait "$box" 2>/dev/null || true
+	fi
+	# a failed run keeps the box log (the temp folder is removed below): next to the traces, gitignored, removed by make clean
+	if [ "$rc" -ne 0 ] && [ -s "$tmp/box/box.log" ]; then
+		mkdir -p web/test-results/real && cp "$tmp/box/box.log" web/test-results/real/box.log || true
 	fi
 	rm -rf "$tmp" web/dist internal/webui/dist
 }
@@ -52,7 +57,7 @@ go test -c -tags webui -o "$tmp/box.test" ./cmd/vedette
 rm -rf web/dist internal/webui/dist # the GUI is inside the test binary now (rules/build-artifacts.md)
 lap "go test -c -tags webui"
 
-mkdir -p "$tmp/box"
+mkdir -p "$tmp/box" && chmod 700 "$tmp/box"
 # Job control puts each background job in its own process group (Linux and macOS), so cleanup can stop a whole tree.
 set -m
 (cd cmd/vedette && VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &

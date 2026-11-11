@@ -27,7 +27,7 @@ test('the box starts with setup open and a wrong setup code is refused', async (
 
 test('"Use sample data" is refused cleanly by the real box and creates nothing (INV-15)', async ({ page, request }) => {
   const errors = collectErrors(page)
-  // the API, with a valid setup code: the build has no sample data, and the answer does not depend on the code
+  // the API, with no setup code at all: the build has no sample data, and that refusal comes before the code is judged
   const r = await api<{ error: { code: string } }>(request, 'POST', '/core/setup', { sample: true })
   expect(r.status).toBe(400)
   expect(r.body.error.code).toBe('sample_unavailable')

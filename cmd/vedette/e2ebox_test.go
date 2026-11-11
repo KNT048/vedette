@@ -176,7 +176,7 @@ func TestE2EBoxHarness(t *testing.T) {
 	done := make(chan error, 1)
 	stopped := make(chan struct{})
 	go func() { done <- e2eBox(ctx, dir); close(stopped) }()
-	t.Cleanup(func() { // the temp dir is removed after the box has stopped (see waitStopped)
+	t.Cleanup(func() { // the temp dir is removed only after the box has stopped, so wait for it
 		cancel()
 		select {
 		case <-stopped:

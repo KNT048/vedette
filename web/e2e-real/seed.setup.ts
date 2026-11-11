@@ -11,7 +11,7 @@ test('accounts and one storageState per role', async () => {
     const c = await ctx()
     const r = await login(c, ACCOUNTS[role].email, password())
     expect(r.status, `sign-in of the ${role}: ${JSON.stringify(r.body)}`).toBe(200)
-    mkdirSync(dirname(authFile(role)), { recursive: true })
+    mkdirSync(dirname(authFile(role)), { recursive: true, mode: 0o700 })
     await c.storageState({ path: authFile(role) })
     return c
   }
@@ -19,6 +19,9 @@ test('accounts and one storageState per role', async () => {
   const admin = await signedIn('admin')
   // The wizard's mid-size bundle leaves `response` off (D-41, it acts on the customer's devices). The routes check visits its page, so the
   // seed turns the module on; the switch that lets it act on devices is a separate one and stays off.
+  // Public-IP auto-detect would call checkip/icanhazip/ifconfig.me during the run: turn it off right after the wizard (no internet dependence).
+  const noAuto = await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
+  expect(noAuto.status, `exposure auto-detect off: ${JSON.stringify(noAuto.body)}`).toBe(200)
   const on = await api(admin, 'PATCH', '/modules/response', { enabled: true, with_dependencies: true })
   expect(on.status, `enable response: ${JSON.stringify(on.body)}`).toBe(200)
   for (const role of ['operator', 'viewer'] as const) {

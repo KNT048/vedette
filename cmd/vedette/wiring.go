@@ -231,7 +231,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log}); err != nil {
+	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
+		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}); err != nil {
 		return fmt.Errorf("agent-intake: %w", err)
 	}
 	d.Logs = logexport.New()

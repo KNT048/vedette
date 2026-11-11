@@ -48,6 +48,14 @@ type Config struct {
 	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
 	Clock    func() time.Time
 	Log      *slog.Logger
+
+	// The install scripts, the certificate and the package mirror (slice 3). All optional: without TrustAnchor, ca.pem and the scripts
+	// answer 404 no_certificate; without MirrorDir the package files answer 404 mirror_missing; without HostAllowed the request's Host is
+	// never used for the box address.
+	TrustAnchor func() ([]byte, error) // the PEM certificates osquery pins (cmd/vedette trustAnchorPEM); ErrNoTrustAnchor when the box has no certificate
+	HostAllowed func(host string) bool // the Host allow-list of the server (server.HostMatcher): the only Hosts the scripts may carry
+	BoxURL      string                 // the configured address of the box, https://host[:port], or "" when there is none
+	MirrorDir   string                 // the folder of the image that holds the pinned osquery packages
 }
 
 // Service is the osquery intake. Create it with New.
@@ -66,9 +74,7 @@ type Service struct {
 	wazuhPace   time.Duration
 	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
 
-	pruneMu   sync.Mutex
-	pruneLast time.Time // the previous node-prune run; a long gap means the module was off (or the box down)
-	onSince   time.Time // the start of the current unbroken run of node-prune runs
+	mirror chan struct{} // one slot per running package download (install.go)
 }
 
 // New returns the service.
@@ -82,7 +88,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}}
+	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}, mirror: make(chan struct{}, maxMirrorDownloads)}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
 	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget

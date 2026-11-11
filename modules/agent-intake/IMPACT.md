@@ -1,8 +1,8 @@
 # Agent-intake — Change Impact Map
 
-> Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Đường admin, script cài và Wazuh là lát 3 và 4. Kế hoạch: `docs/plans/2026-11-11-wp26-agent-intake.md`.
+> Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Lát 4: Wazuh. Lát 3: đường admin, script cài, `ca.pem`, kho gói. Kế hoạch: `docs/plans/2026-11-11-wp26-agent-intake.md`.
 
-## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 0 người gọi trong Go cho tới lát 3 (đường admin)
+## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` hiện secret một lần; đổi định dạng token (`vdt_osquery_` + 32 ký tự) → regex trong `parse.go`, script cài và `/intake/osquery/status` vỡ.
 - Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409) là của GUI tạo token.
 
@@ -32,12 +32,22 @@
 - **Wazuh server API** (bên ngoài, v4.9.x theo `api/api/spec/spec.yaml`): đổi tên trường `affected_items`/`total_affected_items`, `lastKeepAlive`, cột syscollector → `wazuh_bad_reply` hoặc agent bị bỏ; phiên bản Wazuh mới cần một lần chạy thật (dòng deferred).
 - **Lát 3** (`GET /inventory/agents`): đọc thẻ qua `Service.Wazuh(ctx)`; không đọc bảng trực tiếp ngoài module.
 
-## Modifying: script cài (`/install/osquery.sh|ps1`, lát 3)
+## Modifying: script cài (`/install/osquery.sh|ps1`, `GET /inventory/agents` khối `install`, lát 3)
 - Máy chủ khách đã cài: script chỉ chạy một lần; đổi **nội dung** thì SHA-256 trên GUI đổi (người dùng so lại), đổi **tham số** thì lệnh một dòng trong GUI + hướng dẫn gỡ phải sửa cùng lúc.
+- **web/features/inventory** (`scripts/osquery.sh`, `scripts/osquery.ps1`, `installScripts.ts`): `modules/agent-intake/scripts/` là bản chép; sửa một bên mà không sửa bên kia làm `TestInstall_ScriptsEqualTheGUI` đỏ (chép lại bằng `cp`). Đổi cách GUI điền `@@BOX@@/@@VERSION@@/@@CA@@` (dòng `const fill`) cũng làm test đỏ: sửa `fill` ở `install.go` cùng lúc.
+- **Địa chỉ trong script** (`boxURL`): Host của yêu cầu chỉ được dùng khi `Config.HostAllowed` (danh sách Host của server) chấp nhận; đổi cách `core/server` so Host (`HostMatcher`) đổi luôn cái script được phép mang. Hộp sau proxy/NAT ngược: Host là tên proxy, phải nằm trong `-hosts`, nếu không script mang địa chỉ cấu hình hoặc `<VEDETTE_BOX_IP>`.
+- **cmd/vedette** (`trustAnchor`): chứng chỉ ghim đọc một lần lúc khởi động; đổi tệp chứng chỉ của chủ hộp thì phải khởi động lại để `ca.pem` và script theo kịp (cùng lúc listener mới phục vụ chứng chỉ mới). Hộp HTTP trên loopback: 404 `no_certificate`.
 - **core/updates**: gói osquery nằm trong `managed`; đổi phiên bản = đổi `osquery_version` trong `AgentsResponse.install`.
 
-## Modifying: job `node-prune` (`Prune`, job thường, D-265 (8))
-- Không chạy khi module tắt: khi tắt mọi máy đều "im" nên im lặng không được tính; chuỗi 90 ngày chỉ tính khi job chạy liền (bắt đầu lại sau khoảng tắt hoặc khởi động lại, trong bộ nhớ). Đổi sang Housekeeping = hộp tắt 90 ngày cắt mọi máy vĩnh viễn. Đổi 90 ngày (`NodeSilentDays`) hay 30 ngày = đổi lời hứa trong CONTRACT POST-4 và DATA_MODEL.
+## Modifying: kho gói osquery (`GET /install/osquery/{file}`, `deploy/osquery/PINS`, `deploy/containers/core/Containerfile`, lát 3)
+- Đổi phiên bản osquery = một commit đổi **bốn chỗ**: `deploy/osquery/PINS` (phiên bản + 3 SHA-256), `OSQUERY_VERSION` ở `web/src/features/inventory/installScripts.ts`, `OsqueryVersion` ở `install.go`, dòng osquery ở `THIRD_PARTY_NOTICES.md`; `TestInstall_VersionsAgree` bắt ba số đầu lệch nhau, bước dựng image bắt hash sai. Tên tệp trong script, trong `mirrorFiles` và trong Containerfile phải khớp (test đọc cả ba).
+- **image `core`**: +~76 MiB (3 tệp, 79.872.941 byte; đã nén sẵn nên lớp image cũng cỡ đó). Thư mục `/usr/share/vedette/osquery/` là mặc định của cờ `-osquery-dir`; đổi một bên làm kho trả 404 `mirror_missing`. Bản dựng không qua image (`make dev`) không có thư mục đó: kho 404 `mirror_missing`, script cài trên máy chủ khách sẽ lỗi khi tải gói.
+- **Tải**: tối đa 4 lượt cùng lúc (429 `rate_limited`, `Retry-After: 5`); một máy chủ khách tải thất bại thì script dừng, chạy lại sau. Nhiều máy cùng cài một lúc (> 4) phải thử lại.
+- Không có luồng dữ liệu ra mới (không tải lúc chạy), nên `PRIVACY.md` không đổi.
+
+## Modifying: job `node-prune` (`Prune`, job thường, D-265 (8)) và bảng `intake_prune_clock` (lát 3)
+- Không chạy khi module tắt: khi tắt mọi máy đều "im" nên im lặng không được tính. Lần chạy cuối nằm trong DB (`intake_prune_clock`): lần chạy đầu sau khoảng trống > 3 giờ (tắt module, tắt hộp, khởi động lại, nâng cấp) cộng khoảng trống vào `last_seen` của mọi máy (không quá lúc đó). `last_seen` chỉ dùng để dọn, nên dời nó không đổi gì khác. Đổi sang Housekeeping = hộp tắt 90 ngày cắt mọi máy vĩnh viễn. Đổi 90 ngày (`NodeSilentDays`), 30 ngày hay ngưỡng 3 giờ (`pruneGap`, phải lớn hơn nhịp `pruneEvery` 1 giờ) = đổi lời hứa trong CONTRACT POST-4 và DATA_MODEL. Xoá hàng đồng hồ (hoặc khôi phục DB cũ) = mọi máy được thêm 90 ngày từ lần chạy kế.
+- **core/export** (`modules/core/export_policy.go`): `intake_prune_clock` là bảng xuất; thêm cột phải phân loại ở đó (`TestExport_PolicyClassifiesEveryColumn`).
 
 ## Disabling this module
 - Mục Agents trong Inventory hiện "module đang tắt"; script cài và `/intake/*` trả 404 (cổng SYS-5, test `TestContract_SYS5_ModuleOffIs404`); osquery trên máy chủ khách nhận 404 ở config/log (osquery tự thử lại; rẻ, qua cổng); không đăng ký/báo được.

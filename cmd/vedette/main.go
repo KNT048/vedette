@@ -77,6 +77,8 @@ type options struct {
 	syslogPort int
 	// mcpListen is the loopback address of the read-only MCP server (mcp-server module, INV-5, D-230).
 	mcpListen string
+	// osqueryDir is the folder of the pinned osquery packages the agent-intake module serves (D-169 (10)); empty or missing = the mirror answers 404 mirror_missing.
+	osqueryDir string
 }
 
 // newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
@@ -99,6 +101,7 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	flags.StringVar(&o.sensorCreds, "sensor-creds", "", "directory where core writes the sensors' credentials, <dir>/passive/sensor.pem and <dir>/active/sensor.pem (needed with -sensor-listen); each role's folder is a volume shared with that container only")
 	flags.IntVar(&o.syslogPort, "syslog-port", 0, "port of the syslog listener of the logs module (UDP and TCP, only while the module is on and a source is declared); 0 = 514, or 5514 when this process may not bind 514")
 	flags.StringVar(&o.mcpListen, "mcp-listen", "127.0.0.1:8765", "loopback address and port of the read-only MCP server, open only while the mcp-server module is on; an address off loopback is refused (INV-5, D-230)")
+	flags.StringVar(&o.osqueryDir, "osquery-dir", defaultOsqueryDir, "folder with the pinned osquery packages (.deb, .rpm, .msi and SHA256SUMS) that the agent-intake module serves to servers under /install/osquery/; the core image carries them, a build without the folder answers 404 mirror_missing")
 	return flags, showVersion
 }
 
@@ -280,6 +283,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
+	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o), server.HostMatcher(hosts, boxOwnAddress(d.HostNet)), o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}

@@ -1,0 +1,5 @@
+# Deferred — feat-agent-intake-admin (WP-26 lát 3)
+
+- [ ] 2026-11-12 — Giấy phép osquery (`LICENSE`, `LICENSE-GPL2`) chưa được đóng thành tệp riêng cạnh gói trong image; dòng `THIRD_PARTY_NOTICES.md` ghi nguồn và gói tự mang giấy phép; kế hoạch (mục 2.6) để lát 5 thêm tệp giấy phép ghim hash — vì sao để sau: thêm một tệp tải về cần ghim riêng, ngoài phạm vi lát 3 — ở đâu: deploy/containers/core/Containerfile stage `osquery`
+- [ ] 2026-11-12 — Đo mức tăng thật của image `core` sau `make core-image` (ước tính 79.872.941 byte = 76 MiB từ ba tệp đã nén; lead chạy dựng) và ghi vào IMPACT nếu khác nhiều — vì sao để sau: agent không chạy dựng image (heavy) — ở đâu: modules/agent-intake/IMPACT.md "kho gói osquery"
+- [ ] 2026-11-12 — `make dev` (SPA + mock) không qua backend thật nên không kiểm được kho gói; lát 5 chạy thật: `GET /install/osquery/*` từ image, script cài trên Ubuntu hộp test, kiểm `Content-Length` và hash trên đường truyền thật — vì sao để sau: cần image và máy Linux (lát 5) — ở đâu: web/e2e-real, lát 5

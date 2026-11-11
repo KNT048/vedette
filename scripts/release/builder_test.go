@@ -779,7 +779,7 @@ func TestLoadTrust(t *testing.T) {
 	if _, err := LoadTrust(dir); err == nil {
 		t.Error("trust without a cosign key")
 	}
-	// no keys dir = the keys compiled into this build: none in a production build (refuses), the throwaway ones in a test build
+	// no keys dir = the keys compiled into this build: the real release keys (D-256), or the throwaway ones in a test build
 	if _, err := LoadTrust(""); err != nil && !errors.Is(err, release.ErrNoTrustKeys) {
 		t.Errorf("embedded keys: %v", err)
 	}

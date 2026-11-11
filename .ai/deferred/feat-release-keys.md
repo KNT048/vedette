@@ -1,0 +1,5 @@
+# Việc để sau — khoá ký phát hành (nhánh feat/release-keys, D-256, D-257)
+
+- [ ] 2026-11-11 — kien chép `~/.vedette-release-keys/` ra hai USB và ba mật khẩu Keychain `vedette-release-*` ra giấy, cất tách nhau; rồi xoá khoá dự phòng (`minisign-backup.key` + mục Keychain) khỏi Mac — vì sao để sau: chỉ kien làm được (vật lý) — ở đâu: docs/RELEASE_KEYS.md "kien cần làm" — chủ: kien
+- [ ] 2026-11-11 — Job dựng image/`.deb` phát hành (WP-08) kiểm binary `core` và `vedette-host` sắp đăng được dựng **không** có tag `releasetestkeys` (ví dụ `go version -m <binary>` không có `-tags=releasetestkeys`) — vì sao để sau: job phát hành chưa có; mã nguồn đã được CI kiểm (`TestProductionBuildEmbedsTheReleaseKeys`) — ở đâu: Makefile `images`, D-108 (2) — chủ: AI-Trưởng (WP-08)
+- [ ] 2026-11-11 — `TestMinisignCLIHandling` (scripts/release) đỏ trên macOS: đường dẫn khoá đã giải symlink là `/private/var/...` còn đường dẫn mong đợi là `/var/...` (test so argv trước khi giải symlink); CI Linux không bị — vì sao để sau: có từ trước, ngoài phạm vi nhánh khoá — ở đâu: scripts/release/builder_test.go:704 — chủ: Mac supervisor

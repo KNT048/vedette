@@ -22,8 +22,8 @@ const (
 func readDoc(p string) ([]byte, error) { return readSmall(p, int64(maxDoc)) }
 
 // LoadTrust reads the public keys from dir (minisign.pub, minisign-backup.pub, cosign.pub: the files `minisign -G` and
-// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build, which are empty until the
-// real release keys exist (08l) and then refuse, so a build without keys cannot pass a release.
+// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build: the real release keys (D-256)
+// in a normal build, the throwaway ones with the releasetestkeys tag; a build whose keys do not validate refuses.
 func LoadTrust(dir string) (release.Trust, error) {
 	if dir == "" {
 		return release.Embedded()

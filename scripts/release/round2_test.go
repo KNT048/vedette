@@ -133,11 +133,11 @@ func TestRefreshIndexSignsAndVerifies(t *testing.T) {
 	ref := t.TempDir()
 	must(t, os.WriteFile(filepath.Join(ref, indexFile), files[0].Data, 0o600))
 	ctx := context.Background()
-	written, err := SignRelease(ctx, testSigner{t, r.active}, ref, false)
+	written, err := SignRelease(ctx, testSigner{t, r.active}, ref, slotActive)
 	if err != nil || len(written) != 1 || filepath.Base(written[0]) != "index.json.minisig" {
 		t.Fatalf("a refresh signs the index alone: %v %v", written, err)
 	}
-	if _, err := SignRelease(ctx, testSigner{t, r.backup}, ref, true); err != nil {
+	if _, err := SignRelease(ctx, testSigner{t, r.backup}, ref, slotBackup); err != nil {
 		t.Fatal(err)
 	}
 	s, err := VerifyDir(ref, pub, r.trust)
@@ -276,7 +276,7 @@ func TestSignFailureRemovesTheRunsSignatures(t *testing.T) {
 			must(t, os.Remove(s))
 		}
 		f := &failingSigner{inner: testSigner{t, r.active}, failOn: failOn}
-		written, err := SignRelease(t.Context(), f, dir, false)
+		written, err := SignRelease(t.Context(), f, dir, slotActive)
 		if err == nil || len(written) != 0 {
 			t.Fatalf("failOn %d: %v %v", failOn, written, err)
 		}

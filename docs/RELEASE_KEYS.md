@@ -14,6 +14,7 @@ Account của mục Keychain là tên người dùng macOS (`kien`). Mỗi mục
 
 `scripts/release/keygen.sh` trên Mac của người duy trì (chỉ macOS vì mật khẩu vào Keychain):
 
+0. Thử trước một lần: `security dump-keychain -a ~/Library/Keychains/login.keychain-db > /dev/null` phải thoát 0 (chỉ đọc danh sách quyền, không có mật khẩu). Script dùng lệnh này để kiểm mục vừa tạo không tin ứng dụng nào (D-259); lệnh này hỏng thì script dừng.
 1. Kiểm `minisign` trong PATH đúng phiên bản `deploy/tools.env` (0.12; trên macOS là bản Homebrew, chỉ kiểm phiên bản, không ghim hash: binary ghim của `minisign.sh` chỉ có cho Linux) và lấy cosign v2.6.5 ghim SHA-256 bằng `scripts/release/cosign.sh` (D-257).
 2. Từ chối nếu đã có tệp khoá hay mục Keychain cùng tên (không bao giờ ghi đè khoá).
 3. Mỗi khoá: mật khẩu ngẫu nhiên 256 bit (`openssl rand -hex 32`) vào biến shell, ghi thẳng vào Keychain qua `security -i` đọc từ stdin (không nằm trong argv, lịch sử shell hay tệp, không in ra), mục không tin ứng dụng nào; tạo khoá, mã hoá bằng mật khẩu đó (minisign: scrypt; cosign: scrypt + secretbox; cosign nhận mật khẩu qua `COSIGN_PASSWORD`, tiến trình cùng tài khoản thấy được trong lúc cosign chạy); thư mục `0700`, tệp `0600`.
@@ -50,9 +51,28 @@ Thư mục khoá nằm ở thư mục nhà, ngoài iCloud Drive.
 
 ## Xoay khoá và thu hồi (D-108, D-130, D-258)
 
-- **Khoá đang dùng bị lộ hoặc mất:** hộp đã cài chỉ tin hai khoá nhúng, nên bản cứu phải đi qua khoá **dự phòng** (D-258). Lấy khoá dự phòng từ nơi ngoại tuyến. Tạo khoá đang dùng mới (`mv` cặp cũ vào `retired/`, xoá mục Keychain cũ sau khi đã có bản ngoại tuyến của nó, `scripts/release/keygen.sh minisign`), đổi `prodMinisignActive`, chuyển dòng cũ vào `prodMinisignRetired` (chỉ dùng để kiểm lại index đã lưu), PR có quyết định D mới, dựng bản cứu. Khoá **dự phòng** ký index của bản cứu (có `revocations` `kind=key` cho `7B78764E550D48D0`; chỉ index ký bằng khoá dự phòng thu hồi được khoá nhúng, thu hồi được giữ mãi, và được đặt lại `sequence`, D-108 M2) **và** manifest của bản cứu; bộ xác minh của hộp đã nhận manifest ký bằng khoá dự phòng. **Hôm nay `scripts/release sign -slot backup` chỉ ký index** (chế độ ký bản cứu là việc để sau, `.ai/deferred/feat-release-keys.md`); tới khi có nó, hộp đã cài chỉ được cứu bằng cách cài lại (`install.sh` mới).
+- **Khoá đang dùng bị lộ hoặc mất:** hộp đã cài chỉ tin hai khoá nhúng, nên bản cứu phải đi qua khoá **dự phòng** (D-258). Các bước ở mục "Bản cứu" ngay dưới (D-259).
 - **Khoá cosign bị lộ:** thu hồi `kind=key` bằng `CosignKeyID` trong index ký bằng khoá dự phòng, và phát hành binary với khoá cosign mới. Bộ xác minh nhận 1–2 khoá cosign (`Trust.Cosign`), nhưng `Embedded()` hôm nay chỉ dựng từ một hằng `prodCosign`: nhúng hai khoá trong lúc chuyển cần sửa mã.
 - **Khoá dự phòng bị lộ:** nghiêm trọng như lộ cả hai: một mình nó ký được index và manifest hộp nhận, và thu hồi vĩnh viễn được khoá đang dùng. Không index nào thu hồi được khoá dự phòng (thiết kế, D-108). Phản ứng: phát hành ngay bằng khoá đang dùng một binary với khoá dự phòng mới, trước khi kẻ giữ khoá kịp thu hồi khoá đang dùng; hộp nào đã nhận index thu hồi của kẻ đó chỉ cứu được bằng cài lại. Cả hai khoá minisign cùng lộ là giới hạn đã ghi (update-manifest §13 (b)).
 - Mất mật khẩu hay mọi bản sao của khoá đang dùng mà khoá dự phòng còn: như "bị lộ" ở trên. Mất cả hai khoá minisign: hộp đã cài không nhận cập nhật nào nữa; người dùng phải cài lại bằng `install.sh` mới.
 
-Nguồn: D-103, D-108, D-130, D-258, `docs/specs/update-manifest.md` §5, §8, §13.
+## Bản cứu sau khi khoá đang dùng lộ (D-258, D-259)
+
+**Hộp tìm chữ ký ở đâu.** Hộp nhận **một** chữ ký cho mỗi tài liệu, ở đúng chỗ như mọi bản: `index.json.minisig` và `release-manifest.json.minisig` (`container.pull` có `index_sig`/`manifest_sig`; cài đặt đầu dùng `-index-sig`/`-manifest-sig`). Bộ xác minh của hộp nhận chữ ký của **bất kỳ** khoá nào trong hai khoá nhúng. Vì vậy bản cứu đăng chữ ký của khoá **dự phòng** ở chính hai tệp đó, và không đăng chữ ký nào của khoá đang dùng (hộp sẽ từ chối nó vì khoá đó đã bị thu hồi). Mã phía hộp không đổi dòng nào. `<tệp>.backup.minisig` (`-slot backup`) vẫn chỉ là chữ ký thêm để `verify` kiểm; hộp không bao giờ tải nó.
+
+**Các bước** (máy người duy trì, khoá dự phòng lấy từ USB):
+
+1. Giữ một thư mục có ba nửa công khai **cũ** (`minisign.pub` là khoá vừa lộ, `minisign-backup.pub`, `cosign.pub`): đó là thứ các hộp đã cài đang tin. Mọi lệnh dưới đây chạy với `-keys-dir` trỏ vào đó, vì khoá biên dịch trong bản cứu đã là khoá mới.
+2. Tạo khoá đang dùng mới: chuyển cặp cũ vào `retired/`, `scripts/release/keygen.sh minisign`. Đổi `prodMinisignActive`, chuyển dòng cũ vào `prodMinisignRetired` (D-130), ghi D mới, merge, dựng image và `.deb` của bản cứu.
+3. **Index nền là bản lưu của chính người duy trì**, không tải lại từ GitHub: kẻ giữ khoá lộ có thể đã đăng index của nó, và mọi thứ trong `-prev-index` (kênh, advisory, thu hồi, `keys`) đi vào index mà khoá dự phòng sắp ký. Dùng bản sao index cuối cùng mình đăng (so SHA-256 với bản đã ghi lúc đăng), và đọc lại phần được mang theo trước khi ký.
+4. `release manifest` như mọi bản (`-prev-index` là bản lưu đó, `-keys-dir` cũ).
+5. `release index … -prev-index <bản lưu> -keys-dir <khoá cũ> -revoke-key <ID khoá lộ> -revoke-reason "<lý do>"`: thêm dòng thu hồi `kind=key` (`-revoke-key` không chạy khi thiếu `-prev-index`: index không nền sẽ bỏ mất kênh, advisory và thu hồi đã có). Thu hồi khoá được giữ mãi; hộp chỉ nhận nó khi index do khoá dự phòng ký (D-108 M1), và khi đó `sequence` được phép thấp hơn index kẻ giữ khoá lộ có thể đã đưa cho hộp (D-108 M2).
+6. `release sign -slot rescue -key <usb>/minisign-backup.key -prev-index <bản lưu> -keys-dir <khoá cũ> …` (hoặc `make release-sign RELEASE_SLOT=rescue RELEASE_PREV_INDEX=… RELEASE_KEYS=…`): khoá dự phòng ký `index.json` (cùng mọi `index.v<N>.json`) **và** `release-manifest.json` vào `<tệp>.minisig`. Công cụ từ chối khi thiếu manifest, khi thư mục đã có chữ ký của lượt khác, khi index không thu hồi khoá đang dùng của bộ khoá cũ, hoặc khi index nền đã thu hồi khoá đó (mỗi khoá lộ chỉ một bản cứu). Ký xong nó chạy `verify`; không ra `RESCUE` (ví dụ ký nhầm bằng khoá khác) thì xoá hết chữ ký của lượt đó.
+7. `release verify -dir … -prev-index <bản lưu> -keys-dir <khoá cũ>`: chạy đúng bộ xác minh của hộp, dòng kết quả ghi `RESCUE`. Manifest ký bằng khoá dự phòng chỉ qua khi index cũng do khoá dự phòng ký, thu hồi khoá đang dùng của bộ khoá được kiểm, và index nền chưa thu hồi nó. Kiểm với khoá biên dịch mới thì bị từ chối.
+8. Đăng, rồi cất khoá dự phòng lại ngoại tuyến. Bản thường kế tiếp dùng khoá mới, `-prev-index` là index của bản cứu, khoá biên dịch mới; thu hồi khoá cũ đi tiếp trong mọi index sau.
+
+**Cửa sổ của bản cứu.** Hộp tải `index.json` hiện hành. Hộp còn binary cũ chỉ đọc được index do khoá dự phòng ký; index kế tiếp (bản làm mới hằng tuần D-150, hay bản thường) do khoá mới ký thì hộp cũ từ chối, không tới được manifest cứu. Vậy hộp nào chưa nhận bản cứu (tắt máy, lỗi mạng) trước index kế tiếp phải cài lại bằng `install.sh` mới. Để cửa sổ dài nhất: index cứu `-valid-days 14`, và không đăng index nào khác trong 14 ngày trừ khi có bản vá gấp (index hết hạn chỉ cảnh báo, D-104, nên hộp cũ vẫn nhận index cứu sau đó). Không chọn: khoá dự phòng ký luôn các bản làm mới trong một thời gian (khoá ngoại tuyến phải ra ngoài nhiều lần, D-258 (3)).
+
+Quy tắc "khoá dự phòng chỉ ký bản cứu" nằm ở công cụ (`sign`, `verify`), không ở hộp: hộp nhận manifest do khoá dự phòng ký vì khoá đó không bao giờ bị thu hồi (D-108). Vì thế nó phải ở ngoại tuyến.
+
+Nguồn: D-103, D-108, D-130, D-258, D-259, `docs/specs/update-manifest.md` §5, §8, §13.

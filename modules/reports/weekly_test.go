@@ -110,10 +110,10 @@ func TestWeeklyListsAreCappedButCountsAreNot(t *testing.T) {
 func TestWeeklyCleansNamesFromTheNetwork(t *testing.T) {
 	t.Parallel()
 	in := sampleInput()
-	in.devices[1].Name = "pc\r\nBcc: x@evil.example‮<script>"
+	in.devices[1].Name = "pc\r\nBcc: x@evil.example\u202e<script>"
 	r := buildWeekly(in)
 	got := r.NewFindings[0].Device
-	if strings.ContainsAny(got, "\r\n‮") || strings.Contains(got, "  ") {
+	if strings.ContainsAny(got, "\r\n\u202e") || strings.Contains(got, "  ") {
 		t.Fatalf("device name was not cleaned: %q", got)
 	}
 	long := strings.Repeat("é", 500)

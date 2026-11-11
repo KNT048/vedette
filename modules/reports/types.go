@@ -155,7 +155,7 @@ type Obligation struct {
 	Done    *bool  `json:"done"`
 }
 
-// KindCount, KeySystem and SourceCount are the parts of the inventory block.
+// KindCount counts the devices of one kind.
 type KindCount struct {
 	Kind string `json:"kind"`
 	N    int    `json:"n"`

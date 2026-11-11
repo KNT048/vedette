@@ -14,7 +14,7 @@ func TestRegime(t *testing.T) {
 		edit func(*PdplOrg)
 		want string
 	}{
-		{"micro is exempt", func(o *PdplOrg) {}, "exempt"},
+		{"micro is exempt", func(*PdplOrg) {}, "exempt"},
 		{"household is exempt", func(o *PdplOrg) { o.Size = "household" }, "exempt"},
 		{"small is optional", func(o *PdplOrg) { o.Size = "small" }, "optional"},
 		{"startup is optional", func(o *PdplOrg) { o.Size = "startup" }, "optional"},

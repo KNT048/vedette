@@ -130,10 +130,10 @@ func newEnv(t *testing.T) *env {
 
 func (e *env) ctx() context.Context { return e.t.Context() }
 
-func (e *env) count(query string, args ...any) int {
+func (e *env) count(query string) int {
 	e.t.Helper()
 	var n int
-	if err := e.db.Reader().QueryRowContext(e.ctx(), query, args...).Scan(&n); err != nil {
+	if err := e.db.Reader().QueryRowContext(e.ctx(), query).Scan(&n); err != nil {
 		e.t.Fatal(err)
 	}
 	return n

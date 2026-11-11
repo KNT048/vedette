@@ -1,21 +1,9 @@
 package reports
 
 import (
-	"errors"
 	"strings"
 	"testing"
-
-	"github.com/knt048/vedette/core/apierr"
 )
-
-func codeOf(t *testing.T, err error) string {
-	t.Helper()
-	var ae *apierr.Error
-	if !errors.As(err, &ae) {
-		t.Fatalf("not an API error: %v", err)
-	}
-	return ae.Code
-}
 
 func TestCheckScheduleRejects(t *testing.T) {
 	t.Parallel()
@@ -75,7 +63,7 @@ func TestCheckOrg(t *testing.T) {
 		{"short name", func(o *PdplOrg) { o.Name = "A" }, "invalid_name"},
 		{"control in name", func(o *PdplOrg) { o.Name = "Ac\x00me" }, "invalid_name"},
 		{"newline in name", func(o *PdplOrg) { o.Name = "Acme\nLtd" }, "invalid_name"},
-		{"bidi in name", func(o *PdplOrg) { o.Name = "Acme‮Ltd" }, "invalid_name"},
+		{"bidi in name", func(o *PdplOrg) { o.Name = "Acme\u202eLtd" }, "invalid_name"},
 		{"tax code letters", func(o *PdplOrg) { o.TaxCode = "03123456AB" }, "invalid_tax_code"},
 		{"tax code 9 digits", func(o *PdplOrg) { o.TaxCode = "031234567" }, "invalid_tax_code"},
 		{"short address", func(o *PdplOrg) { o.Address = "1" }, "invalid_address"},

@@ -63,7 +63,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 | WP-24 | `logs`: nhận syslog UDP/TCP/TLS, parser, gộp, baseline, khớp IOC, chuyển SIEM | Emily | L |
 | WP-25 | `ai` module: harness (rules, memory, skills, RAG FTS5, kết nối, hook), nhật ký hoạt động | Emily | L |
 | WP-26 | `agent-intake`: máy chủ TLS cho osquery, token đăng ký, kéo Wazuh | Kiên (AI-Trưởng; D-190) | M |
-| WP-27 | `reports`, `mcp-server` (Emily) · `auth-oidc` (Kiên, phiên Mac; đụng `core/auth`; D-190) | Emily + Kiên | M |
+| WP-27 | `reports`, `mcp-server`, `auth-oidc` (Kiên, phiên Mac; D-190, D-198) | Kiên | M |
 
 ### Giai đoạn 3 — hoàn thiện
 | WP | Việc | Chủ |
@@ -71,7 +71,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 | WP-08 | Đóng gói: image, Quadlet, script cài, cosign, phát hành theo lô | Kiên |
 | WP-30 | E2E trên backend thật cho từng module (mỗi chủ module) | Cả hai |
 | WP-31 | Rà bảo mật SYS-1…8 + D-41, chuẩn bị kiểm thử xâm nhập | Kiên (+ AI kiểm độc lập) |
-| WP-32 | Điền RUNBOOK, hướng dẫn cài đặt và quản trị | Cả hai |
+| WP-32 | Điền RUNBOOK, hướng dẫn cài đặt và quản trị (AI-Trưởng viết cả hai phần, D-198) | Cả hai |
 
 **Đường găng:** WP-01 → WP-03 → WP-04 → (WP-10, WP-22) → WP-13. Kiên ưu tiên tuyệt đối WP-01…WP-04 trong tuần đầu; Emily không phụ thuộc đường găng cho tới giai đoạn 1.
 

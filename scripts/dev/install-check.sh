@@ -225,6 +225,33 @@ EOT
 	snap_files "$work/$n.after2"
 	same "$work/$n.before" "$work/$n.after2" "after the H2 cycle and the removal of the test packages the box is not as before"
 	ok "the H2 cycle ends with the box as before (users, units, sockets, forwarding sysctl, packages, files)"
+
+	# ---- N1: a package that was installed and only UPGRADED as a dependency is not ours to remove ------------------------
+	# A local apt repository (trusted, in /opt so that apt's sandbox user can read it) holds a made-up vic-lib 2.0 and a made-up
+	# catatonit 99:1 (a package the installer asks for when it is missing) that depends on vic-lib (>= 2.0). vic-lib 1.0 is installed
+	# first and marked automatic, so installing catatonit upgrades vic-lib as a dependency: an "Inst vic-lib [1.0] (2.0)" line.
+	# Only the filter on that line stands between vic-lib and the uninstall.
+	x 'set -e; rm -rf /opt/vicrepo /root/b; mkdir -p /opt/vicrepo /root/b
+	   mk() { d=/root/b/$1_$2; mkdir -p $d/DEBIAN; { printf "Package: $1\nVersion: $2\nArchitecture: all\nMaintainer: x <x@example.invalid>\nDescription: install-check N1\n"; [ -z "$3" ] || printf "Depends: $3\n"; } >$d/DEBIAN/control; dpkg-deb -b $d /opt/vicrepo/$1_$2_all.deb >/dev/null; }
+	   mk vic-lib 1.0 ""; mk vic-lib 2.0 ""; mk catatonit 99:1 "vic-lib (>= 2.0)"
+	   cd /opt/vicrepo
+	   for f in *.deb; do dpkg-deb -f $f; printf "Filename: ./$f\nSize: $(stat -c %s $f)\nSHA256: $(sha256sum $f | cut -d" " -f1)\n\n"; done >Packages
+	   printf "Origin: vic\nLabel: vic\nSuite: vic\nDate: Wed, 11 Nov 2026 00:00:00 UTC\nSHA256:\n $(sha256sum Packages | cut -d" " -f1) $(stat -c %s Packages) Packages\n" >Release
+	   chmod -R a+rX /opt/vicrepo; rm -rf /root/b
+	   echo "deb [trusted=yes] file:/opt/vicrepo ./" >/etc/apt/sources.list.d/vic.list
+	   apt-get update -q >/dev/null 2>&1; dpkg -i /opt/vicrepo/vic-lib_1.0_all.deb >/dev/null 2>&1; apt-mark auto vic-lib >/dev/null' || fail "cannot make the local repository of the N1 case"
+	! x 'dpkg -s catatonit >/dev/null 2>&1' || fail "N1: catatonit is installed before the case, the made-up one would not be asked for"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install3.log" 2>&1 || { tail -40 "$work/install3.log" >&2; fail "the N1 install failed"; }
+	[ "$(x 'dpkg-query -W -f="\${Version}" vic-lib')" = 2.0 ] || fail "N1: apt did not upgrade vic-lib as a dependency of catatonit, the case does not reproduce an upgrade"
+	x '! grep -qx vic-lib /var/lib/vedette-install/installed-by-us' || fail "N1: an upgraded package is recorded as installed by us"
+	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un3.log" 2>&1 || { tail -40 "$work/un3.log" >&2; fail "--uninstall --yes failed in the N1 case"; }
+	x 'dpkg -s vic-lib >/dev/null 2>&1' || fail "N1: the uninstall removed a package that was only upgraded"
+	! x 'dpkg -s catatonit >/dev/null 2>&1' || fail "N1: the uninstall left the package it asked for"
+	ok "N1: vic-lib was upgraded 1.0 -> 2.0 as a dependency of catatonit (ours) and survived the uninstall; catatonit went"
+	# the box is not compared again after this case (an upgrade is never undone); only the test's own leftovers are removed
+	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib >/dev/null 2>&1; true'
+	# shellcheck disable=SC2046 # package names, one word each
+	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
 	"$c" rm -f -t 0 "$ctr" >/dev/null
 	"$c" volume rm -f "vic-$n-containers" >/dev/null 2>&1 || true
 	"$c" rmi -f "localhost/vedette-installcheck-$n:check" >/dev/null 2>&1 || true

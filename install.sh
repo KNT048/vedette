@@ -282,7 +282,8 @@ preflight() {
 # A dependency that another installed package merely Recommends is never found by autoremove; this list lets --uninstall look
 # at it again (purging it only when nothing else depends on it).
 record_new_packages() {
-	apt-get -s -q "$@" 2>/dev/null | awk '/^Inst / {print $2}' | while read -r p; do add_line "$STATE/installed-by-us" "$p"; done
+	# only NEW packages: an upgrade of an installed one is "Inst name [old-version] (new ...)" and is not ours to remove (N1)
+	apt-get -s -q "$@" 2>/dev/null | awk '/^Inst / && $3 !~ /^\[/ {print $2}' | while read -r p; do add_line "$STATE/installed-by-us" "$p"; done
 	touch "$STATE/installed-by-us"
 }
 
@@ -311,8 +312,6 @@ install_packages() {
 	# only what is missing: a package that is already installed is not upgraded, not re-marked and not recorded (H2, M2)
 	missing=
 	for p in $pkgs; do installed_pkg "$p" || missing="$missing $p"; done
-	# the packages that were removable before we started stay the administrator's business at uninstall
-	[ -e "$STATE/autoremovable.before" ] || apt_sim autoremove >"$STATE/autoremovable.before"
 	if [ -n "$missing" ]; then
 		# shellcheck disable=SC2086 # package names, one word each
 		remv=$(apt_sim install --no-upgrade --no-install-recommends $missing)
@@ -717,15 +716,32 @@ nft_table_is_netavark_only() {
 		END { exit foreign }'
 }
 
+# forwarding_needed_elsewhere: true when something that is not ours wants IP forwarding on: a running Docker, a podman network that is
+# neither the default nor ours, libvirt's bridge, or a sysctl file that sets it (then the value is the administrator's, not ours to undo)
+forwarding_needed_elsewhere() {
+	systemctl is-active --quiet docker.service 2>/dev/null && return 0
+	systemctl is-active --quiet libvirtd.service 2>/dev/null && return 0
+	[ -e /sys/class/net/virbr0 ] && return 0
+	grep -qsE '^[[:space:]]*net\.ipv[46]\.(ip_forward|conf\.(all|default)\.forwarding)[[:space:]]*=[[:space:]]*1' /etc/sysctl.conf /etc/sysctl.d/*.conf /usr/lib/sysctl.d/*.conf && return 0
+	if have podman; then
+		podman network ls --format '{{.Name}}' 2>/dev/null | grep -vxE 'podman|vedette-int' | grep -q . && return 0
+	fi
+	return 1
+}
+
 # restore_runtime: what netavark changed on the host: forwarding back to what it was, the nft tables it left, if they are not in use
 restore_runtime() {
-	if [ -s "$STATE/ip_forward.orig" ]; then
-		o=$(cat "$STATE/ip_forward.orig")
-		case $o in 0 | 1) sysctl -qw "net.ipv4.ip_forward=$o" >/dev/null 2>&1 || true ;; esac
-	fi
-	if [ -s "$STATE/ip6_forward.orig" ]; then
-		o=$(cat "$STATE/ip6_forward.orig")
-		case $o in 0 | 1) sysctl -qw "net.ipv6.conf.all.forwarding=$o" >/dev/null 2>&1 || true ;; esac
+	if forwarding_needed_elsewhere; then
+		say "left IP forwarding as it is: something else on this box needs it (Docker, another container network, libvirt or a sysctl file)"
+	else
+		if [ -s "$STATE/ip_forward.orig" ]; then
+			o=$(cat "$STATE/ip_forward.orig")
+			case $o in 0 | 1) sysctl -qw "net.ipv4.ip_forward=$o" >/dev/null 2>&1 || true ;; esac
+		fi
+		if [ -s "$STATE/ip6_forward.orig" ]; then
+			o=$(cat "$STATE/ip6_forward.orig")
+			case $o in 0 | 1) sysctl -qw "net.ipv6.conf.all.forwarding=$o" >/dev/null 2>&1 || true ;; esac
+		fi
 	fi
 	if [ -e "$STATE/nft.before" ] && have nft; then
 		nft list tables 2>/dev/null | while read -r _ fam name; do
@@ -754,13 +770,18 @@ purge_added_packages() {
 	fi
 	# shellcheck disable=SC2086 # package names, one word each
 	[ -z "$asked" ] || apt-mark auto $asked >/dev/null
-	touch "$STATE/autoremovable.before"
+	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2). Whatever else
+	# became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package marked manual.
+	touch "$STATE/asked-packages" "$STATE/installed-by-us"
+	cat "$STATE/asked-packages" "$STATE/installed-by-us" | sort -u >"$TMP/cand.all"
+	apt-mark showmanual 2>/dev/null | sort -u >"$TMP/manual"
+	comm -23 "$TMP/cand.all" "$TMP/manual" >"$TMP/cand"
 	# a purge can leave a library nothing needs any more (its user was in the first set): go round until nothing is left
 	pass=0
 	while [ "$pass" -lt 6 ]; do
 		pass=$((pass + 1))
 		apt_sim autoremove --purge >"$TMP/rm.all"
-		comm -13 "$STATE/autoremovable.before" "$TMP/rm.all" >"$TMP/rm.ours"
+		comm -12 "$TMP/cand" "$TMP/rm.all" >"$TMP/rm.ours"
 		[ -s "$TMP/rm.ours" ] || break
 		# shellcheck disable=SC2046 # package names, one word each
 		apt_sim purge $(cat "$TMP/rm.ours") >"$TMP/rm.sim"
@@ -779,7 +800,7 @@ purge_added_packages() {
 	left=
 	if [ -s "$STATE/installed-by-us" ]; then
 		while read -r p; do
-			if printf '%s' "$p" | grep -Eq '^[a-z0-9][a-z0-9+.-]*$' && installed_pkg "$p"; then left="$left $p"; fi
+			if printf '%s' "$p" | grep -Eq '^[a-z0-9][a-z0-9+.-]*$' && installed_pkg "$p" && ! grep -qxF "$p" "$TMP/manual"; then left="$left $p"; fi
 		done <"$STATE/installed-by-us"
 	fi
 	if [ -n "$left" ]; then
@@ -868,7 +889,9 @@ do_uninstall() {
 	if [ -n "$KEEP_DATA" ]; then
 		: >"$STATE/asked-packages"
 		: >"$STATE/removed-packages"
-		rm -f "$STATE/autoremovable.before"
+		: >"$STATE/installed-by-us"
+		# the next install saves the forwarding and nft state again, as it will be then
+		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users"
 	else
 		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /etc/vedette /var/log/vedette-host /run/vedette

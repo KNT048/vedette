@@ -5,7 +5,7 @@ package ops
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"os/exec" //nolint:depguard // the test starts a plain child process in new namespaces; SYS-1 is about the product
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -44,10 +44,13 @@ func TestIsNetNSOnRealFiles(t *testing.T) {
 // read back as 0, so no namespace was ever a network one). Needs no privilege.
 func TestNSTypeReadsTheKernelsAnswer(t *testing.T) {
 	t.Parallel()
+	if _, err := os.Stat("/proc/self/ns/net"); err != nil {
+		t.Skipf("no /proc/self/ns: %v", err)
+	}
 	for path, want := range map[string]int{"/proc/self/ns/net": unix.CLONE_NEWNET, "/proc/self/ns/mnt": unix.CLONE_NEWNS} {
 		f, err := os.Open(path) //nolint:gosec // a fixed path of /proc
 		if err != nil {
-			t.Skipf("no %s: %v", path, err)
+			t.Fatal(err)
 		}
 		got, err := nsType(f)
 		_ = f.Close()
@@ -65,7 +68,7 @@ func TestIsNetNSAcceptsAnotherNamespace(t *testing.T) {
 	if err != nil {
 		t.Skip("no sleep binary")
 	}
-	cmd := exec.CommandContext(t.Context(), sleep, "30")
+	cmd := exec.CommandContext(t.Context(), sleep, "30") //nolint:gosec // the sleep binary found on PATH, a fixed argument
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:  syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET,
 		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getuid(), Size: 1}},
@@ -75,7 +78,7 @@ func TestIsNetNSAcceptsAnotherNamespace(t *testing.T) {
 		t.Skipf("cannot start a process in new user and network namespaces here: %v", err)
 	}
 	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
-	f, err := os.Open(fmt.Sprintf("/proc/%d/ns/net", cmd.Process.Pid)) //nolint:gosec // the namespace link of the test's own child
+	f, err := os.Open(fmt.Sprintf("/proc/%d/ns/net", cmd.Process.Pid))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -260,7 +260,7 @@ func TestContract_INV6_AutoStopOnUnresponsive(t *testing.T) {
 	v := r.start("a-web01", "a-nas02")
 	r.wait()
 	got := r.run(v.ID)
-	if got.Status != "auto_stopped" || *got.StopReason != "WEB01 (192.168.10.12) did not respond after 3 attempts in a row. Vedette stopped so the device is not hung." {
+	if got.Status != "auto_stopped" || *got.StopReason != "WEB01 (192.168.10.12) stopped responding after 3 failed requests. Vedette stopped so the device is not hung." {
 		t.Fatalf("run: %+v", got)
 	}
 	if rowOf(got, "a-web01", "no_response") == nil || rowOf(got, "a-nas02", "skipped") == nil || len(r.eng.sent()) != 1 || r.eng.sent()[0].MaxHostErrors != 3 {

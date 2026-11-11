@@ -1,6 +1,6 @@
 #!/bin/sh
 # vedette-host prerm (WP-08g, D-155). Stops and disables the unit when the package is removed. NOT on upgrade: the running
-# helper (and the dpkg it may have started itself) is left alone.
+# helper (and the dpkg it may have started itself) is left alone here; the postinst restarts it after the new files are in.
 set -eu
 UNIT=vedette-host.service
 

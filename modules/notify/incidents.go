@@ -411,7 +411,16 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 	if old.recipient.Valid {
 		to = []string{old.recipient.String}
 	}
-	snd, err := s.savedSender(ctx, c, to)
+	var snd channel.Sender
+	if old.ch == channel.ZaloPersonal && old.recipient.Valid {
+		// An approver's own message: to that approver again, through the session of the channel (never a second sign-in, never the
+		// alert recipient). The reply codes are not kept, so the copy has none.
+		if snd, err = s.savedSender(ctx, c, nil); err == nil {
+			snd, err = s.zaloTo(snd, old.recipient.String)
+		}
+	} else {
+		snd, err = s.savedSender(ctx, c, to)
+	}
 	if err != nil {
 		rec = SendRecord{ID: store.NewID("sd"), Channel: old.ch, To: string(old.ch), At: s.now(), Error: "The channel settings cannot be used: " + userText(err)}
 	} else {

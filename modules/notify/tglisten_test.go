@@ -197,6 +197,8 @@ func (f *fakeTelegram) buttons(t *testing.T) (approve, reject string) {
 // recDecisions is the Decisions port of the response module: it records every call and answers what the test set.
 type recDecisions struct {
 	mu    sync.Mutex
+	links []notify.Decision
+	link  notify.DecisionResult
 	calls []notify.Decision
 	res   notify.DecisionResult
 	err   error
@@ -207,6 +209,17 @@ func (d *recDecisions) Decide(_ context.Context, c notify.Decision) (notify.Deci
 	defer d.mu.Unlock()
 	d.calls = append(d.calls, c)
 	return d.res, d.err
+}
+
+// LinkChat records the call like Decide (Code is the link code) and answers with link, or "linked".
+func (d *recDecisions) LinkChat(_ context.Context, c notify.Decision) (notify.DecisionResult, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.links = append(d.links, c)
+	if d.link.Status == "" {
+		return notify.DecisionResult{Status: "linked", Message: "Linked."}, nil
+	}
+	return d.link, nil
 }
 
 func (d *recDecisions) got() []notify.Decision {

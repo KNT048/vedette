@@ -11,6 +11,7 @@
   "titleStopped": "Last scan was stopped {{time}}: {{done}}/{{total}} devices done",
   "meta": "Only scans inside the confirmed scope: {{networks}}. Next scheduled run: {{next}}.",
   "noSchedule": "schedule is off",
+  "noScheduleZone": "on hold, the time zone cannot be read",
   "titleSetup": "Cannot scan yet: confirm the scan scope first",
   "metaSetup": "Vedette scans no address until you set the scan scope and tick the commitment that you may scan it.",
   "tabs": {
@@ -83,6 +84,7 @@
     "pickManual": "Added by hand: pick it to scan",
     "go": "Scan now ({{count}})",
     "busy": "A scan is already running. Wait for it or press Stop now.",
+    "engineBusy": "The scanner is still finishing the scan you stopped. Scan now works again in a moment.",
     "none": "Select at least one device.",
     "started": "Scan started"
   },
@@ -185,7 +187,7 @@
     "stopDescription": "Stop scanning when a device stops responding unusually, so it does not hang.",
     "stopSwitch": "Stop automatically when a device does not respond",
     "stopAfter": "Stop after",
-    "stopAfterOption": "{{count}} failed attempts in a row",
+    "stopAfterOption": "{{count}} failed requests",
     "neverTitle": "What Vedette never does",
     "neverDescription": "Applies to every scan and cannot be turned off.",
     "neverHeadline": "No exploitation, no denial of service",
@@ -237,7 +239,10 @@
       "no_match": "Not scanned: no matching device",
       "pick_only_one": "Not scanned automatically: {{count}} device needs a hand pick in <nav>Scan now</nav>",
       "pick_only_other": "Not scanned automatically: {{count}} devices need a hand pick in <nav>Scan now</nav>",
-      "stopped": "Stopped before the end: <nav>see the run</nav>"
+      "stopped": "Stopped before the end: <nav>see the run</nav>",
+      "expired_no_template": "Not scanned for 7 days: the scan template never arrived",
+      "expired_scanner": "Not scanned for 7 days: the scanner was not available",
+      "expired_zone": "Not scanned for 7 days: the time zone of the organization could not be read"
     },
     "empty": "No events yet.",
     "emptyHelp": "When a new KEV with a scan template matches your devices, the event shows up here."

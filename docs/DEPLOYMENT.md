@@ -4,7 +4,7 @@ Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56
 
 Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/host-api.md) (lệnh của `vedette-host`) · `specs/*.md` · [`UPDATES.md`](UPDATES.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · `../PRIVACY.md`.
 
-Đường dẫn file ship trong repo (đề xuất): `deploy/install.sh`, `deploy/quadlet/*.tmpl` (unit sinh ra từ mẫu), `deploy/compose/compose.yaml`, `deploy/containers/*/Containerfile`.
+Đường dẫn file ship trong repo (đề xuất): `install.sh` (ở gốc kho, D-166; bản phát hành mang phiên bản và sha256 của `.deb` bên trong), `deploy/quadlet/*.tmpl` (unit sinh ra từ mẫu), `deploy/compose/compose.yaml`, `deploy/containers/*/Containerfile`.
 
 ## 1. Nguyên tắc
 
@@ -156,7 +156,7 @@ Bất biến (kiểm bằng test hợp đồng ở `modules/core/`):
 | **Từ chối** (postinst, trước khi tạo gì; D-155 (11)-(13)) | tài khoản `vedette`/`vedette-sensor` có sẵn mà không phải tài khoản hệ thống (id ngoài dải `login.defs`, nhóm có thành viên, shell đăng nhập, nhóm chính khác); thư mục là liên kết tượng trưng; `core_data` hay `log/` có sẵn mà sai chủ/quyền; dải `/etc/subuid` của chủ khác chồng lên dải của podman |
 | **Depends** (tối thiểu) | `podman (>= 4.4)`, `systemd (>= 254)`, `nftables`, `iproute2`, `procps`, `chrony`, `netplan.io`, `unattended-upgrades`, `passwd` (lý do từng gói: D-155 (3)) |
 | **Tạo** (postinst, chạy lại không đổi gì) | nhóm+người dùng hệ thống `vedette` (`core_uid`, `core_gid` = `socket_gid`) và `vedette-sensor` (`sensor_uid`/`sensor_gid`), id do hệ thống cấp; `/etc/vedette` 0755 root; `/var/lib/vedette-host` 0700 root; `/etc/containers/systemd` 0755 root; `/var/lib/vedette` (`core_data`) 0700 `vedette`; `/var/lib/vedette-honeypot` 0755 root với `config/` 0755 và `log/` 0750 của `vedette`; một dòng `containers:2147483647:2147483648` trong `/etc/subuid` và `/etc/subgid` nếu chưa có dòng `containers:` (cho `UserNS=auto` của honeypot) |
-| **Bật, không khởi động** | `deb-systemd-helper enable` (lần cài đầu; nâng cấp giữ việc quản trị viên đã tắt) và `daemon-reload`; unit chưa chạy cho tới khi installer ghi `/etc/vedette/host.conf` (từ `getent`, gói không ghi nó) và khởi động; `ConditionPathExists=/etc/vedette/host.conf` làm unit bị bỏ qua lúc khởi động máy khi chưa có tệp (không vòng lặp sập). Nâng cấp gói không khởi động lại host. |
+| **Bật, không khởi động** | `deb-systemd-helper enable` (lần cài đầu; nâng cấp giữ việc quản trị viên đã tắt) và `daemon-reload`; unit chưa chạy cho tới khi installer ghi `/etc/vedette/host.conf` (từ `getent`, gói không ghi nó) và khởi động; `ConditionPathExists=/etc/vedette/host.conf` làm unit bị bỏ qua lúc khởi động máy khi chưa có tệp (không vòng lặp sập). Nâng cấp gói (`$2` khác rỗng) chạy `deb-systemd-invoke try-restart vedette-host.service` sau `daemon-reload`: host đang chạy được khởi động lại (cùng `vedette-honeypot`, `Requires=`), host đang dừng vẫn dừng (D-260). |
 | **Gỡ** | `remove`: dừng và tắt unit, xoá binary và unit. `purge`: thêm quên trạng thái bật. **Cả hai giữ dữ liệu**: `/var/lib/vedette` (CSDL, khoá chủ), bản sao lưu, `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/etc/vedette`, unit Quadlet, người dùng/nhóm, dòng subuid/subgid. Cách xoá hẳn: `RUNBOOK.md` §1.3. |
 
 Kiểm: test Go `deploy/deb` (trong `make check`) đọc lại gói đã dựng; `make host-deb-check` (tuỳ chọn, kéo image) cài hai lần trong container systemd Debian 13 và Ubuntu 24.04 và so trạng thái. Việc còn mở: chủ của `log/` honeypot dưới `UserNS=auto` (D-155 (5)); tự nâng cấp phải chạy dpkg qua `systemd-run` (D-155 (8)).
@@ -188,21 +188,24 @@ Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài d
 
 | | **Appliance** | **Chỉ container** |
 |---|---|---|
-| Cài bằng | `deploy/install.sh` trên Ubuntu 24.04/26.04 hoặc Debian 13 sạch (sau: ISO/VM image) | Compose/Quadlet trên Docker hoặc Podman sẵn có của khách |
-| Runtime | Podman + Quadlet, rootful | Docker hoặc Podman, khách chọn |
+| Cài bằng | `install.sh` trên Ubuntu 24.04/26.04 hoặc Debian 13 sạch (sau: ISO/VM image) | Docker Compose v2 trên Docker hoặc Podman (`podman compose`) sẵn có của khách: `deploy/compose/container-only/`, hướng dẫn `INSTALL-CONTAINER.md` (D-168); không Quadlet cho kiểu này |
+| Runtime | Podman + Quadlet, rootful | Docker hoặc Podman, khách chọn; rootless chỉ chạy được `core` (sensor cần root) |
 | `vedette-host` | có | không |
-| Cập nhật OS, reboot (S-CORE-7) | trong GUI | **không**; GUI hiện hướng dẫn, không có nút |
-| Box network (D-56): card, SPAN, IP phụ, NTP | cấu hình trong GUI | **không**; khách tự cấu hình trước (card SPAN promisc, macvlan); GUI chỉ đọc trạng thái nếu thấy được |
-| Tự cập nhật Vedette | có, theo lô, health gate, rollback | **không**; GUI báo có bản mới và hiện lệnh `pull`/`up`; khách tự bấm |
-| Xác minh cosign | `vedette-host` tự kiểm (minisign cho index/manifest, cosign trong manifest) trước khi kéo theo digest (D-103) | khách tự xác minh bằng `cosign verify` (lệnh hiện trong GUI) hoặc policy Podman |
-| Sao lưu | snapshot DB + xoay vòng bởi host | snapshot DB trong volume do `core` tạo; khách tự sao lưu volume |
-| SPAN / syslog 514 | đủ | được nếu khách chạy `sensor` ở mạng host và card đã sẵn sàng |
-| Bẫy trên IP phụ | macvlan trong namespace `vedette-hp` do host tạo (D-102) | macvlan do khách tạo, hoặc bẫy trên IP chính ở cổng không trùng dịch vụ host (bị hạn chế) |
-| "This box" (S-INV-5) | danh sách gói dpkg của host | không đọc được host (câu hỏi mở A7 ở ARCHITECTURE) |
-| Greenbone | được | được nếu khách có đủ tài nguyên |
+| Cập nhật OS, reboot (S-CORE-7) | trong GUI | **không**; GUI nói không có và việc khách tự làm, không có nút (G2, S-CORE-7) |
+| Box network (D-56): card, SPAN, IP phụ, NTP | cấu hình trong GUI | **không**; khách tự chuẩn bị card SPAN (promisc, không IP) trước; danh sách card để chọn là card sensor báo trong nhịp tim (D-168 (8)) |
+| Tự cập nhật Vedette | có, theo lô, health gate, rollback | **không**; giao diện sẽ báo có bản mới và hiện lệnh `pull`/`up`, khách tự chạy (G4: chặn bởi phần kiểm bản mới của core và WP-08k; hiện là 501 "not available yet"); bản cập nhật là tệp `vedette.env` mới của bản phát hành |
+| Xác minh cosign | `vedette-host` tự kiểm (minisign cho index/manifest, cosign trong manifest) trước khi kéo theo digest (D-103) | khách tự xác minh: minisign cho `vedette.env`, `cosign verify --key` cho từng image (D-103 (3) đã đẩy chữ ký lên ghcr); lệnh nằm ở `INSTALL-CONTAINER.md`, GUI hiện sau (G4) |
+| Sao lưu | snapshot DB + xoay vòng bởi host | **không** có bản sao lưu của host; khoá chủ và DB cùng nằm trong volume `data`, khách tự sao lưu volume |
+| SPAN / syslog 514 | đủ | syslog: thêm `compose.syslog.yaml` (core nghe 5514, publish 514 trên địa chỉ khách đặt); SPAN: thêm `compose.sensors.yaml` (Linux, root, card đã sẵn sàng; sensor uid 0 chỉ `NET_RAW`, scan 65532 không capability) |
+| Bẫy trên IP phụ | macvlan trong namespace `vedette-hp` do host tạo (D-102) | **không có ở bản đầu**: không có đường mã nào cho bẫy khi không có `vedette-host` (module nói lý do); dòng cũ "bẫy trên IP chính" đã bỏ (D-168 (4)) |
+| "This box" (S-INV-5) | danh sách gói dpkg của host | thiết bị có, tên `vedette`, **không có danh sách gói** (G3; trả lời câu hỏi mở A7) |
+| Greenbone | được | chưa có ở bản đầu (M7 chưa xây) |
+| Trong image/compose | — | `core` và `scan` chạy `65532:65532`, `sensor` chạy uid 0, nhóm 65532 (đọc chứng chỉ của nó, 0640), chỉ với `NET_RAW` (Docker chỉ cấp capability thêm cho root: đo ở Docker 29.1.3 người dùng không root nhận 0, Podman 5.7.0 thì nhận; đường lùi D-114 (3)); thư mục dữ liệu nằm sẵn trong image `core` nên volume mới không cần bước root (D-168 (5)) |
 | Cảnh báo | — | Docker `-p` đi vòng tường lửa UFW (xem §12): ràng buộc cổng vào đúng IP |
 
-Hạn chế của kiểu Chỉ container phải hiện rõ ở GUI (Cài đặt → Updates, Box network): "Not available in container-only mode" kèm lý do, không ẩn mục (S-CORE-1: nói rõ chỗ thiếu vì sao thiếu). Phiên bản Docker/Podman tối thiểu: chốt ở M2.
+Hạn chế của kiểu Chỉ container phải hiện rõ ở GUI (Cài đặt → Updates, Box network): tiêu đề "Not available on this install" kèm câu của hộp, không ẩn mục (S-CORE-1: nói rõ chỗ thiếu vì sao thiếu; đã có, `web/src/components/common/States.tsx`); các câu "khách tự làm gì" còn thiếu là G1 đến G6 trong S-CORE-9 và các story liên quan. Phiên bản Docker/Podman tối thiểu (B8): ghi bản đã thử (Docker Engine 29.1.3 + Compose 2.40.3; Podman 5.7.0 với compose v2) rồi bản của lab; không đoán sàn (D-168 (7)).
+
+Chỉ có một kiểu cài thứ hai này: Compose, không Quadlet. Lý do và các lát còn lại: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`.
 
 ## 6. Unit mẫu
 
@@ -421,6 +424,8 @@ Thứ tự khởi động: `vedette-host` (sẵn sàng khi `READY=1`) → `core`
 
 ### 6.2 Docker Compose (dev/CI tương đương)
 
+**Tệp thật cho khách (kiểu Chỉ container, D-168): `deploy/compose/container-only/`** (`compose.yaml` core; `compose.sensors.yaml`; `compose.syslog.yaml`; `vedette.env`), hướng dẫn `docs/INSTALL-CONTAINER.md`; khối minh hoạ dưới đây **không** phải tệp đó (không có `profile: lab`, địa chỉ ví dụ, `honeypot`/`honeypot-lab` không có trong kiểu Chỉ container) và chỉ còn giá trị tham khảo cho dev/lab.
+
 Dùng **cùng image**. Khác biệt: mạng host/macvlan chỉ có ý nghĩa trên Linux có card thật (profile `lab`); trên máy dev macOS/Windows dùng profile `dev` (bridge + cổng cao + fixture pcap).
 
 ```yaml
@@ -529,7 +534,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 
 ## 8. Lần khởi động đầu (first boot)
 
-Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi gì khi đã đạt trạng thái):
+Kiểu Appliance, `install.sh` (D-166; idempotent; chạy lại không đổi gì khi đã đạt trạng thái; `--uninstall --yes` đưa hộp về như trước; bàn giao netplan chỉ khi có `--network-handover` và cổng quản trị có dây DHCP; kênh cài thử `--test-artifacts` chỉ để thử, `docs/INSTALL-TEST.md`). Bảng dưới là thứ tự các bước; script gộp bước 2 và 3 thành "gói apt + `.deb`, rồi `host.conf`":
 
 | Bước | Việc | Xác minh bằng hiệu ứng |
 |---|---|---|
@@ -656,4 +661,4 @@ Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạ
 | B5 | ~~Chặn egress của honeypot (macvlan không qua netfilter host)~~ **Đã chốt (D-102):** ruleset nft trong chính namespace `vedette-hp` chặn mọi kết nối mới đi ra (§12). |
 | B6 | Cohort chỉ chặn cập nhật **tự động**; người dùng bấm tay có cài được bản chưa tới cohort không? (đề xuất: được, bản đã ký) |
 | B7 | Quản lý greenbone: socket GMP trên volume hay cổng nội bộ; ghim digest theo `release.json` thay cho cosign của upstream? |
-| B8 | Số tối thiểu phiên bản Docker/Podman cho kiểu Chỉ container; đường dẫn file ship trong `deploy/`. |
+| B8 | Số tối thiểu phiên bản Docker/Podman cho kiểu Chỉ container. **Đường dẫn đã chốt (D-168): `deploy/compose/container-only/`.** Sàn phiên bản: ghi bản đã thử rồi bản của lab, chưa đoán (§5). |

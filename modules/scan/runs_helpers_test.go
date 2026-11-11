@@ -166,13 +166,14 @@ type runEngine struct {
 
 // Output is what the fake nuclei printed: its JSONL, or Truncated for output over the cap.
 type Output struct {
-	JSONL     []byte
-	Truncated bool
+	JSONL      []byte
+	Truncated  bool
+	HostErrors []nucleiout.HostError // what the worker counted from nuclei's error log (D-165)
 }
 
 // Run answers with what reply prints and parses it the way the real engine does (nucleiout.Parse against the job's
 // ids and targets; output over the cap is an error).
-func (f *runEngine) Run(ctx context.Context, job Job) ([]nucleiout.Result, error) {
+func (f *runEngine) Run(ctx context.Context, job Job) (nucleiout.Outcome, error) {
 	j := job.Job
 	f.mu.Lock()
 	f.jobs = append(f.jobs, j)
@@ -184,21 +185,22 @@ func (f *runEngine) Run(ctx context.Context, job Job) ([]nucleiout.Result, error
 	if stubborn != nil {
 		close(ch)
 		<-stubborn
-		return nil, ctx.Err()
+		return nucleiout.Outcome{}, ctx.Err()
 	}
 	if blocked {
 		close(ch)
 		<-ctx.Done()
-		return nil, ctx.Err()
+		return nucleiout.Outcome{}, ctx.Err()
 	}
 	out, err := reply(j)
 	if err != nil {
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	if out.Truncated {
-		return nil, errors.New("the output was over the cap")
+		return nucleiout.Outcome{}, errors.New("the output was over the cap")
 	}
-	return nucleiout.Parse(out.JSONL, job.IDs, hostPorts(j.Targets))
+	res, err := nucleiout.Parse(out.JSONL, job.IDs, hostPorts(j.Targets))
+	return nucleiout.Outcome{Results: res, HostErrors: out.HostErrors}, err
 }
 
 func (f *runEngine) sent() []nucleiargv.Job {

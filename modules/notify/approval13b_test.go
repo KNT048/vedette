@@ -309,5 +309,9 @@ func (fakeDecisions) Decide(context.Context, notify.Decision) (notify.DecisionRe
 	return notify.DecisionResult{Status: "approved", Message: "Recorded."}, nil
 }
 
+func (fakeDecisions) LinkChat(context.Context, notify.Decision) (notify.DecisionResult, error) {
+	return notify.DecisionResult{Status: "linked", Message: "Linked."}, nil
+}
+
 // allApprovalChannels is what the older tests pass: every channel the response module could allow.
 var allApprovalChannels = []channel.Type{channel.Email, channel.Telegram, channel.Slack, channel.Zalo, channel.ZaloPersonal}

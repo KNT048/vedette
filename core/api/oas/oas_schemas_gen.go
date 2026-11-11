@@ -59663,6 +59663,20 @@ type InventoryDeleteInventoryDevicesIDNoContent struct{}
 // InventoryDeleteInventoryDevicesIDSoftwareSidNoContent is response for InventoryDeleteInventoryDevicesIDSoftwareSid operation.
 type InventoryDeleteInventoryDevicesIDSoftwareSidNoContent struct{}
 
+type InventoryGetInstallOsqueryFileOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s InventoryGetInstallOsqueryFileOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 type InventoryGetInstallOsqueryPs1OK struct {
 	Data io.Reader
 }
@@ -59685,6 +59699,20 @@ type InventoryGetInstallOsqueryShOK struct {
 //
 // Kept to satisfy the io.Reader interface.
 func (s InventoryGetInstallOsqueryShOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type InventoryGetIntakeCaPemOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s InventoryGetIntakeCaPemOK) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
@@ -64177,6 +64205,347 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 		return nil
 	case InventoryPatchInventoryDevicesIDReqRegularScanNever:
 		*s = InventoryPatchInventoryDevicesIDReqRegularScanNever
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostIntakeOsqueryConfigOK struct {
+	NodeInvalid OptBool                                       `json:"node_invalid"`
+	Schedule    OptInventoryPostIntakeOsqueryConfigOKSchedule `json:"schedule"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryConfigOK) GetNodeInvalid() OptBool {
+	return s.NodeInvalid
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *InventoryPostIntakeOsqueryConfigOK) GetSchedule() OptInventoryPostIntakeOsqueryConfigOKSchedule {
+	return s.Schedule
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryConfigOK) SetNodeInvalid(val OptBool) {
+	s.NodeInvalid = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *InventoryPostIntakeOsqueryConfigOK) SetSchedule(val OptInventoryPostIntakeOsqueryConfigOKSchedule) {
+	s.Schedule = val
+}
+
+type InventoryPostIntakeOsqueryConfigOKSchedule map[string]InventoryPostIntakeOsqueryConfigOKScheduleItem
+
+func (s *InventoryPostIntakeOsqueryConfigOKSchedule) init() InventoryPostIntakeOsqueryConfigOKSchedule {
+	m := *s
+	if m == nil {
+		m = map[string]InventoryPostIntakeOsqueryConfigOKScheduleItem{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryConfigOKScheduleItem struct {
+	Interval int       `json:"interval"`
+	Platform OptString `json:"platform"`
+	Query    string    `json:"query"`
+	Snapshot OptBool   `json:"snapshot"`
+}
+
+// GetInterval returns the value of Interval.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetInterval() int {
+	return s.Interval
+}
+
+// GetPlatform returns the value of Platform.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetPlatform() OptString {
+	return s.Platform
+}
+
+// GetQuery returns the value of Query.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetQuery() string {
+	return s.Query
+}
+
+// GetSnapshot returns the value of Snapshot.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetSnapshot() OptBool {
+	return s.Snapshot
+}
+
+// SetInterval sets the value of Interval.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetInterval(val int) {
+	s.Interval = val
+}
+
+// SetPlatform sets the value of Platform.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetPlatform(val OptString) {
+	s.Platform = val
+}
+
+// SetQuery sets the value of Query.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetQuery(val string) {
+	s.Query = val
+}
+
+// SetSnapshot sets the value of Snapshot.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetSnapshot(val OptBool) {
+	s.Snapshot = val
+}
+
+type InventoryPostIntakeOsqueryConfigReq struct {
+	NodeKey         string `json:"node_key"`
+	AdditionalProps InventoryPostIntakeOsqueryConfigReqAdditional
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryConfigReq) GetNodeKey() string {
+	return s.NodeKey
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryConfigReq) GetAdditionalProps() InventoryPostIntakeOsqueryConfigReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryConfigReq) SetNodeKey(val string) {
+	s.NodeKey = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryConfigReq) SetAdditionalProps(val InventoryPostIntakeOsqueryConfigReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryConfigReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryConfigReqAdditional) init() InventoryPostIntakeOsqueryConfigReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryEnrollOK struct {
+	NodeInvalid bool `json:"node_invalid"`
+	// Returned once, only when enrollment succeeds; osquery sends it with every later call.
+	NodeKey OptString `json:"node_key"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryEnrollOK) GetNodeInvalid() bool {
+	return s.NodeInvalid
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryEnrollOK) GetNodeKey() OptString {
+	return s.NodeKey
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryEnrollOK) SetNodeInvalid(val bool) {
+	s.NodeInvalid = val
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryEnrollOK) SetNodeKey(val OptString) {
+	s.NodeKey = val
+}
+
+type InventoryPostIntakeOsqueryEnrollReq struct {
+	// The enrollment token (osquery reads it from enroll_secret_path).
+	EnrollSecret    OptString                                         `json:"enroll_secret"`
+	HostDetails     OptInventoryPostIntakeOsqueryEnrollReqHostDetails `json:"host_details"`
+	HostIdentifier  string                                            `json:"host_identifier"`
+	AdditionalProps InventoryPostIntakeOsqueryEnrollReqAdditional
+}
+
+// GetEnrollSecret returns the value of EnrollSecret.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetEnrollSecret() OptString {
+	return s.EnrollSecret
+}
+
+// GetHostDetails returns the value of HostDetails.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetHostDetails() OptInventoryPostIntakeOsqueryEnrollReqHostDetails {
+	return s.HostDetails
+}
+
+// GetHostIdentifier returns the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetHostIdentifier() string {
+	return s.HostIdentifier
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetAdditionalProps() InventoryPostIntakeOsqueryEnrollReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetEnrollSecret sets the value of EnrollSecret.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetEnrollSecret(val OptString) {
+	s.EnrollSecret = val
+}
+
+// SetHostDetails sets the value of HostDetails.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetHostDetails(val OptInventoryPostIntakeOsqueryEnrollReqHostDetails) {
+	s.HostDetails = val
+}
+
+// SetHostIdentifier sets the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetHostIdentifier(val string) {
+	s.HostIdentifier = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetAdditionalProps(val InventoryPostIntakeOsqueryEnrollReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryEnrollReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryEnrollReqAdditional) init() InventoryPostIntakeOsqueryEnrollReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryEnrollReqHostDetails map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryEnrollReqHostDetails) init() InventoryPostIntakeOsqueryEnrollReqHostDetails {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogOK struct {
+	NodeInvalid bool `json:"node_invalid"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryLogOK) GetNodeInvalid() bool {
+	return s.NodeInvalid
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryLogOK) SetNodeInvalid(val bool) {
+	s.NodeInvalid = val
+}
+
+type InventoryPostIntakeOsqueryLogReq struct {
+	// Events: scheduled-query snapshots (result) or osquery own log lines (status, read for size and
+	// dropped).
+	Data            []InventoryPostIntakeOsqueryLogReqDataItem `json:"data"`
+	LogType         InventoryPostIntakeOsqueryLogReqLogType    `json:"log_type"`
+	NodeKey         string                                     `json:"node_key"`
+	AdditionalProps InventoryPostIntakeOsqueryLogReqAdditional
+}
+
+// GetData returns the value of Data.
+func (s *InventoryPostIntakeOsqueryLogReq) GetData() []InventoryPostIntakeOsqueryLogReqDataItem {
+	return s.Data
+}
+
+// GetLogType returns the value of LogType.
+func (s *InventoryPostIntakeOsqueryLogReq) GetLogType() InventoryPostIntakeOsqueryLogReqLogType {
+	return s.LogType
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryLogReq) GetNodeKey() string {
+	return s.NodeKey
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryLogReq) GetAdditionalProps() InventoryPostIntakeOsqueryLogReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetData sets the value of Data.
+func (s *InventoryPostIntakeOsqueryLogReq) SetData(val []InventoryPostIntakeOsqueryLogReqDataItem) {
+	s.Data = val
+}
+
+// SetLogType sets the value of LogType.
+func (s *InventoryPostIntakeOsqueryLogReq) SetLogType(val InventoryPostIntakeOsqueryLogReqLogType) {
+	s.LogType = val
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryLogReq) SetNodeKey(val string) {
+	s.NodeKey = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryLogReq) SetAdditionalProps(val InventoryPostIntakeOsqueryLogReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryLogReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryLogReqAdditional) init() InventoryPostIntakeOsqueryLogReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogReqDataItem map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryLogReqDataItem) init() InventoryPostIntakeOsqueryLogReqDataItem {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogReqLogType string
+
+const (
+	InventoryPostIntakeOsqueryLogReqLogTypeResult InventoryPostIntakeOsqueryLogReqLogType = "result"
+	InventoryPostIntakeOsqueryLogReqLogTypeStatus InventoryPostIntakeOsqueryLogReqLogType = "status"
+)
+
+// AllValues returns all InventoryPostIntakeOsqueryLogReqLogType values.
+func (InventoryPostIntakeOsqueryLogReqLogType) AllValues() []InventoryPostIntakeOsqueryLogReqLogType {
+	return []InventoryPostIntakeOsqueryLogReqLogType{
+		InventoryPostIntakeOsqueryLogReqLogTypeResult,
+		InventoryPostIntakeOsqueryLogReqLogTypeStatus,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostIntakeOsqueryLogReqLogType) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostIntakeOsqueryLogReqLogTypeResult:
+		return []byte(s), nil
+	case InventoryPostIntakeOsqueryLogReqLogTypeStatus:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostIntakeOsqueryLogReqLogType) UnmarshalText(data []byte) error {
+	switch InventoryPostIntakeOsqueryLogReqLogType(data) {
+	case InventoryPostIntakeOsqueryLogReqLogTypeResult:
+		*s = InventoryPostIntakeOsqueryLogReqLogTypeResult
+		return nil
+	case InventoryPostIntakeOsqueryLogReqLogTypeStatus:
+		*s = InventoryPostIntakeOsqueryLogReqLogTypeStatus
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -80333,7 +80702,8 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApprovalLast4) SetBotToken(val Nil
 }
 
 type NotifyGetNotifyChannelsOKChannelsItemApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }
@@ -83396,7 +83766,8 @@ func (s *NotifyPutNotifyChannelsTypeOKApprovalLast4) SetBotToken(val NilString) 
 }
 
 type NotifyPutNotifyChannelsTypeOKApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }
@@ -83692,7 +84063,8 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 }
 
 type NotifyPutNotifyChannelsTypeReqApproversItem struct {
-	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone.
+	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
+	// unique per channel.
 	Address string `json:"address"`
 	UserID  string `json:"user_id"`
 }
@@ -85040,6 +85412,98 @@ func (o OptInventoryPatchInventoryDevicesIDReqRegularScan) Get() (v InventoryPat
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPatchInventoryDevicesIDReqRegularScan) Or(d InventoryPatchInventoryDevicesIDReqRegularScan) InventoryPatchInventoryDevicesIDReqRegularScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostIntakeOsqueryConfigOKSchedule returns new OptInventoryPostIntakeOsqueryConfigOKSchedule with value set to v.
+func NewOptInventoryPostIntakeOsqueryConfigOKSchedule(v InventoryPostIntakeOsqueryConfigOKSchedule) OptInventoryPostIntakeOsqueryConfigOKSchedule {
+	return OptInventoryPostIntakeOsqueryConfigOKSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostIntakeOsqueryConfigOKSchedule is optional InventoryPostIntakeOsqueryConfigOKSchedule.
+type OptInventoryPostIntakeOsqueryConfigOKSchedule struct {
+	Value InventoryPostIntakeOsqueryConfigOKSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostIntakeOsqueryConfigOKSchedule was set.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostIntakeOsqueryConfigOKSchedule) Reset() {
+	var v InventoryPostIntakeOsqueryConfigOKSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostIntakeOsqueryConfigOKSchedule) SetTo(v InventoryPostIntakeOsqueryConfigOKSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) Get() (v InventoryPostIntakeOsqueryConfigOKSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) Or(d InventoryPostIntakeOsqueryConfigOKSchedule) InventoryPostIntakeOsqueryConfigOKSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostIntakeOsqueryEnrollReqHostDetails returns new OptInventoryPostIntakeOsqueryEnrollReqHostDetails with value set to v.
+func NewOptInventoryPostIntakeOsqueryEnrollReqHostDetails(v InventoryPostIntakeOsqueryEnrollReqHostDetails) OptInventoryPostIntakeOsqueryEnrollReqHostDetails {
+	return OptInventoryPostIntakeOsqueryEnrollReqHostDetails{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostIntakeOsqueryEnrollReqHostDetails is optional InventoryPostIntakeOsqueryEnrollReqHostDetails.
+type OptInventoryPostIntakeOsqueryEnrollReqHostDetails struct {
+	Value InventoryPostIntakeOsqueryEnrollReqHostDetails
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostIntakeOsqueryEnrollReqHostDetails was set.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Reset() {
+	var v InventoryPostIntakeOsqueryEnrollReqHostDetails
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostIntakeOsqueryEnrollReqHostDetails) SetTo(v InventoryPostIntakeOsqueryEnrollReqHostDetails) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Get() (v InventoryPostIntakeOsqueryEnrollReqHostDetails, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Or(d InventoryPostIntakeOsqueryEnrollReqHostDetails) InventoryPostIntakeOsqueryEnrollReqHostDetails {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -97924,8 +98388,9 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-	// privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 }
 
@@ -98000,13 +98465,15 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-// privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "send_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
 )
 
@@ -98015,6 +98482,7 @@ func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGe
 	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
 	}
 }
@@ -98025,6 +98493,8 @@ func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte,
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		return []byte(s), nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		return []byte(s), nil
@@ -98041,6 +98511,9 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+		return nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
@@ -115234,11 +115707,19 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 }
 
 type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
+	// Send_code channels only: the code to send from your own chat account to the box account (sent_to is
+	// that account ID); it proves nothing until it arrives from there.
+	Code OptString `json:"code"`
 	// Preview build only; never sent by a real box.
 	PreviewCode OptString `json:"preview_code"`
 	ResendAfter int       `json:"resend_after"`
 	// The address, masked.
 	SentTo string `json:"sent_to"`
+}
+
+// GetCode returns the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetCode() OptString {
+	return s.Code
 }
 
 // GetPreviewCode returns the value of PreviewCode.
@@ -115254,6 +115735,11 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetResendAfter() int {
 // GetSentTo returns the value of SentTo.
 func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetSentTo() string {
 	return s.SentTo
+}
+
+// SetCode sets the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetCode(val OptString) {
+	s.Code = val
 }
 
 // SetPreviewCode sets the value of PreviewCode.
@@ -115282,8 +115768,9 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-	// privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 }
 
@@ -115358,13 +115845,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
-// privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "send_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
 )
 
@@ -115373,6 +115862,7 @@ func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []Resp
 	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
 	}
 }
@@ -115383,6 +115873,8 @@ func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		return []byte(s), nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		return []byte(s), nil
@@ -115399,6 +115891,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(d
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+		return nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable
@@ -123420,7 +123915,10 @@ type ScanGetScansConfigOK struct {
 	Config          ScanGetScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
-	Scope           ScanGetScansConfigOKScope  `json:"scope"`
+	// Set while the schedule is on but nothing automated can start because the organization time zone
+	// cannot be read; next_run is null then (D-261 (3)).
+	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
+	Scope                 ScanGetScansConfigOKScope `json:"scope"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -123446,6 +123944,11 @@ func (s *ScanGetScansConfigOK) GetDangerousChecks() bool {
 // GetNextRun returns the value of NextRun.
 func (s *ScanGetScansConfigOK) GetNextRun() NilDateTime {
 	return s.NextRun
+}
+
+// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
+func (s *ScanGetScansConfigOK) GetScheduleBlockedReason() NilString {
+	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -123476,6 +123979,11 @@ func (s *ScanGetScansConfigOK) SetDangerousChecks(val bool) {
 // SetNextRun sets the value of NextRun.
 func (s *ScanGetScansConfigOK) SetNextRun(val NilDateTime) {
 	s.NextRun = val
+}
+
+// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
+func (s *ScanGetScansConfigOK) SetScheduleBlockedReason(val NilString) {
+	s.ScheduleBlockedReason = val
 }
 
 // SetScope sets the value of Scope.
@@ -123942,7 +124450,9 @@ type ScanGetScansEventsOKItemsItem struct {
 	Product    string     `json:"product"`
 	// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
 	// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-	// every device was done (D-145 (7)).
+	// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
+	// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
+	// devices is empty, no run (D-261 (2)).
 	Result ScanGetScansEventsOKItemsItemResult `json:"result"`
 	RunID  NilString                           `json:"run_id"`
 	Ts     time.Time                           `json:"ts"`
@@ -124030,16 +124540,21 @@ func (s *ScanGetScansEventsOKItemsItem) SetTs(val time.Time) {
 
 // Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
 // only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-// every device was done (D-145 (7)).
+// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
+// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
+// devices is empty, no run (D-261 (2)).
 type ScanGetScansEventsOKItemsItemResult string
 
 const (
-	ScanGetScansEventsOKItemsItemResultMatched    ScanGetScansEventsOKItemsItemResult = "matched"
-	ScanGetScansEventsOKItemsItemResultClear      ScanGetScansEventsOKItemsItemResult = "clear"
-	ScanGetScansEventsOKItemsItemResultSkippedOff ScanGetScansEventsOKItemsItemResult = "skipped_off"
-	ScanGetScansEventsOKItemsItemResultNoMatch    ScanGetScansEventsOKItemsItemResult = "no_match"
-	ScanGetScansEventsOKItemsItemResultPickOnly   ScanGetScansEventsOKItemsItemResult = "pick_only"
-	ScanGetScansEventsOKItemsItemResultStopped    ScanGetScansEventsOKItemsItemResult = "stopped"
+	ScanGetScansEventsOKItemsItemResultMatched           ScanGetScansEventsOKItemsItemResult = "matched"
+	ScanGetScansEventsOKItemsItemResultClear             ScanGetScansEventsOKItemsItemResult = "clear"
+	ScanGetScansEventsOKItemsItemResultSkippedOff        ScanGetScansEventsOKItemsItemResult = "skipped_off"
+	ScanGetScansEventsOKItemsItemResultNoMatch           ScanGetScansEventsOKItemsItemResult = "no_match"
+	ScanGetScansEventsOKItemsItemResultPickOnly          ScanGetScansEventsOKItemsItemResult = "pick_only"
+	ScanGetScansEventsOKItemsItemResultStopped           ScanGetScansEventsOKItemsItemResult = "stopped"
+	ScanGetScansEventsOKItemsItemResultExpiredNoTemplate ScanGetScansEventsOKItemsItemResult = "expired_no_template"
+	ScanGetScansEventsOKItemsItemResultExpiredScanner    ScanGetScansEventsOKItemsItemResult = "expired_scanner"
+	ScanGetScansEventsOKItemsItemResultExpiredZone       ScanGetScansEventsOKItemsItemResult = "expired_zone"
 )
 
 // AllValues returns all ScanGetScansEventsOKItemsItemResult values.
@@ -124051,6 +124566,9 @@ func (ScanGetScansEventsOKItemsItemResult) AllValues() []ScanGetScansEventsOKIte
 		ScanGetScansEventsOKItemsItemResultNoMatch,
 		ScanGetScansEventsOKItemsItemResultPickOnly,
 		ScanGetScansEventsOKItemsItemResultStopped,
+		ScanGetScansEventsOKItemsItemResultExpiredNoTemplate,
+		ScanGetScansEventsOKItemsItemResultExpiredScanner,
+		ScanGetScansEventsOKItemsItemResultExpiredZone,
 	}
 }
 
@@ -124068,6 +124586,12 @@ func (s ScanGetScansEventsOKItemsItemResult) MarshalText() ([]byte, error) {
 	case ScanGetScansEventsOKItemsItemResultPickOnly:
 		return []byte(s), nil
 	case ScanGetScansEventsOKItemsItemResultStopped:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredNoTemplate:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredScanner:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredZone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -124094,6 +124618,15 @@ func (s *ScanGetScansEventsOKItemsItemResult) UnmarshalText(data []byte) error {
 		return nil
 	case ScanGetScansEventsOKItemsItemResultStopped:
 		*s = ScanGetScansEventsOKItemsItemResultStopped
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredNoTemplate:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredNoTemplate
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredScanner:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredScanner
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredZone:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredZone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -124295,12 +124828,25 @@ func (s *ScanGetScansProbesOKItemsItemResult) UnmarshalText(data []byte) error {
 }
 
 type ScanGetScansRunsOK struct {
-	Items []ScanGetScansRunsOKItemsItem `json:"items"`
+	// True while the scanner still works on a run that already shows stopped; a new scan is refused (409
+	// already_running) until it is free (D-261 (4)).
+	EngineBusy bool                          `json:"engine_busy"`
+	Items      []ScanGetScansRunsOKItemsItem `json:"items"`
+}
+
+// GetEngineBusy returns the value of EngineBusy.
+func (s *ScanGetScansRunsOK) GetEngineBusy() bool {
+	return s.EngineBusy
 }
 
 // GetItems returns the value of Items.
 func (s *ScanGetScansRunsOK) GetItems() []ScanGetScansRunsOKItemsItem {
 	return s.Items
+}
+
+// SetEngineBusy sets the value of EngineBusy.
+func (s *ScanGetScansRunsOK) SetEngineBusy(val bool) {
+	s.EngineBusy = val
 }
 
 // SetItems sets the value of Items.
@@ -126324,7 +126870,10 @@ type ScanPutScansConfigOK struct {
 	Config          ScanPutScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
-	Scope           ScanPutScansConfigOKScope  `json:"scope"`
+	// Set while the schedule is on but nothing automated can start because the organization time zone
+	// cannot be read; next_run is null then (D-261 (3)).
+	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
+	Scope                 ScanPutScansConfigOKScope `json:"scope"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -126350,6 +126899,11 @@ func (s *ScanPutScansConfigOK) GetDangerousChecks() bool {
 // GetNextRun returns the value of NextRun.
 func (s *ScanPutScansConfigOK) GetNextRun() NilDateTime {
 	return s.NextRun
+}
+
+// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
+func (s *ScanPutScansConfigOK) GetScheduleBlockedReason() NilString {
+	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -126380,6 +126934,11 @@ func (s *ScanPutScansConfigOK) SetDangerousChecks(val bool) {
 // SetNextRun sets the value of NextRun.
 func (s *ScanPutScansConfigOK) SetNextRun(val NilDateTime) {
 	s.NextRun = val
+}
+
+// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
+func (s *ScanPutScansConfigOK) SetScheduleBlockedReason(val NilString) {
+	s.ScheduleBlockedReason = val
 }
 
 // SetScope sets the value of Scope.

@@ -91,7 +91,7 @@ function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarge
   )
 }
 
-function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanConfigResponse; live: boolean }) {
+function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[]; cfg: ScanConfigResponse; live: boolean; engineBusy: boolean }) {
   const { t } = useTranslation('scan')
   const can = useCan('operator')
   const start = useStartRun()
@@ -115,7 +115,7 @@ function StartPanel({ targets, cfg, live }: { targets: ScanTarget[]; cfg: ScanCo
     const x = targets.find((y) => y.id === id)
     return !!x && x.selectable && (!x.pick_only || picks.has(id))
   })), [raw, picks, targets])
-  const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : !can ? t('common:needRole', { role: t('common:role.operator') }) : sel.size === 0 ? t('start.none') : null
+  const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : engineBusy ? t('start.engineBusy') : !can ? t('common:needRole', { role: t('common:role.operator') }) : sel.size === 0 ? t('start.none') : null
   const c = cfg.config
   return (
     <div className="grid gap-4">
@@ -248,7 +248,7 @@ export function RunsTab() {
     <>
       {live ? <Progress run={live} /> : last ? <Last run={last} /> : null}
       <Section id="start" title={t('start.title')} description={t('start.description')} stories={['S-SCAN-1', 'S-SCAN-4']}>
-        <QueryState query={targets}>{(d) => <QueryState query={cfg}>{(c) => <StartPanel targets={d.items} cfg={c} live={!!live} />}</QueryState>}</QueryState>
+        <QueryState query={targets}>{(d) => <QueryState query={cfg}>{(c) => <StartPanel targets={d.items} cfg={c} live={!!live} engineBusy={!!runs.data?.engine_busy} />}</QueryState>}</QueryState>
       </Section>
       <Section id="history" title={t('hist.title')} description={t('hist.description')} stories={['S-SCAN-3']}>
         <QueryState query={runs}>{(d) => <History runs={d.items} />}</QueryState>

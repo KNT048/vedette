@@ -30,6 +30,7 @@
 ## Disabling this module
 - Devices ngừng nhận thiết bị mới thụ động; "Scope and sensors" trống; S-INV-3 chỉ còn nguồn khác.
 - `logs` mất metadata SPAN; không ảnh hưởng `sensor-active`, `agent-intake`, `honeypot`.
+- **Container `sensor` theo module (D-260)**: `cmd/vedette/modulecontainer.go` + `modreg.NewOnGuard`/`OffGuard` gọi `container.start`/`container.stop persist` của host; bỏ hai guard này (hoặc xoá `[Install]` khỏi hợp đồng) thì sau cài mới container không lên và sau reboot nó chạy khi module tắt (lỗi M3 của rà RUNBOOK). Mỗi lần bật/tắt tốn một lệnh ghi của host (10/phút cho cả `core`).
 - Quan sát/thiết bị đã có giữ nguyên.
 
 ## SP-4 xong: nửa `capture` và nửa `core` đã tách (D-122)

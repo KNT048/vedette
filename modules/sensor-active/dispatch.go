@@ -353,7 +353,7 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
-	case res.JSONL() != nil || res.JSONLB64 != "":
+	case res.JSONL() != nil || res.JSONLB64 != "" || len(res.HostErrors) > 0:
 		return Output{}, fmt.Errorf("%w: nuclei output on an nmap job", ErrResultRejected)
 	case res.Reason == "nmap_missing":
 		d.mu.Lock()

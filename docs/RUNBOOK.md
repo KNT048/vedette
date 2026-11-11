@@ -1,96 +1,174 @@
-# Runbook vận hành Vedette (khung)
+# Runbook vận hành Vedette
 
-Lập 2026-11-09. Đây là **khung**: chỗ nào phụ thuộc backend ghi "sẽ điền ở M2". Kiến trúc hộp theo D-55 (appliance, `vedette-host` + container Podman/Quadlet; bản OS theo D-57 (1): Ubuntu 24.04, Ubuntu 26.04, Debian 13, mạng bằng netplan + networkd theo D-99) và D-56 (mạng/SPAN). Mọi lệnh sau khi điền phải chạy được trên máy mới dựng từ repo và có bước xác minh bằng hiệu ứng (`rules/ships-as-code.md`).
+Viết 2026-11-11 theo mã đang có trên `main`. Kiến trúc hộp theo D-55 (appliance: `vedette-host` + container Podman/Quadlet; bản OS theo D-57 (1): Ubuntu 24.04, Ubuntu 26.04, Debian 13; mạng bằng netplan + networkd, D-99) và D-56 (mạng/SPAN). Chỗ sản phẩm chưa làm ghi đúng một dòng `chưa có: …` kèm WP hoặc dòng deferred; không đoán, không mô tả màn hình chưa tồn tại.
 
-Quy ước: **Triệu chứng → Kiểm tra → Sửa → Xác minh**. Không SSH sửa tay cấu hình rồi bỏ đó: cấu hình sinh từ DB/repo, sửa tay sẽ bị ghi đè.
+Quy ước: **Triệu chứng → Kiểm tra → Sửa → Xác minh**; xác minh bằng hiệu ứng (dịch vụ chạy, cổng mở, API trả lời), không bằng mã thoát. Không SSH sửa tay cấu hình rồi bỏ đó: unit Quadlet, `host.conf`, cấu hình bẫy đều sinh từ mã/DB, sửa tay sẽ bị ghi đè hoặc bị host từ chối. Nhãn giao diện giữ tiếng Anh như GUI hiện.
+
+Mọi lệnh dưới đây chạy bằng root trên hộp. Podman là **rootful** nên `podman` cũng phải là root. Tên: dịch vụ systemd `vedette-host`, `vedette-core`, `vedette-sensor`, `vedette-scan`, `vedette-honeypot`; container cùng tên.
+
+**Xem nhanh trạng thái** (dùng trước mọi mục khác):
+
+```sh
+systemctl is-active vedette-host vedette-core                      # active active
+podman ps -a --format '{{.Names}} {{.Status}}'                    # vedette-core ... (healthy)
+curl -ks -o /dev/null -w '%{http_code}\n' https://127.0.0.1:8443/api/v1/setup   # 200
+podman port vedette-core                                           # 8443 mọi địa chỉ, 8444 chỉ 127.0.0.1
+journalctl -u vedette-core -u vedette-host -n 100 --no-pager
+```
 
 ## 1. Cài đặt
 
 ### 1.1 Appliance (đủ tính năng)
-- Yêu cầu: máy x86-64/arm64, Ubuntu 24.04, Ubuntu 26.04 hoặc Debian 13 mới cài (D-57 (1)), 2 card mạng (quản trị + SPAN/TAP), đĩa và RAM tối thiểu: sẽ điền ở M2.
-- Cài bằng script: sẽ điền ở M2 (lệnh, ghim phiên bản, idempotent; chạy lại không phá).
-- Xác minh cài xong: `vedette-host` chạy (systemd), các container `core`, `sensor`, `honeypot` lên, cổng HTTPS 8443 mở, image đúng chữ ký cosign: sẽ điền ở M2.
-- Hệ điều hành không hỗ trợ: script dừng và nói rõ lý do, không cài dở.
-- ISO/VM image: chưa có (D-55: làm sau).
+- Yêu cầu (preflight của `install.sh` kiểm; sai thì dừng, **chưa đổi gì**): root; Linux với systemd là PID 1 (không phải container thường); Ubuntu 24.04, Ubuntu 26.04 hoặc Debian 13 (D-57 (1)); amd64 hoặc arm64; đồng hồ đã đặt; cổng 8443 và 8444 chưa ai dùng; chưa có bản Vedette nào khác (`host.conf`, gói `vedette-host`, người dùng `vedette`, container `vedette-*`); **còn ≥ 6 GiB trống dưới `/var`**. RAM dưới 4 GiB thì cảnh báo, không dừng (khuyến nghị 8 GiB). NIC: một card có IP là đủ; SPAN cần thêm một card không IP, và mạng có dây (Wi-Fi không hỗ trợ SPAN và bẫy macvlan).
+- Cài bằng một script, chạy lại được (idempotent):
+  ```sh
+  curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh && sudo sh install.sh
+  sh install.sh --help          # tuỳ chọn: --network-handover | --uninstall --yes [--keep-data]
+  # qua pipe, truyền tuỳ chọn bằng: curl -fsSL <url> | sudo sh -s -- --network-handover
+  ```
+  (Giữ tệp `install.sh` lại: §1.3 và §3 chạy lại nó. Gỡ cài không cần giá trị bản phát hành trong script, nên bản sao nào cũng được.)
+  Script làm theo thứ tự: preflight → cài gói apt còn **thiếu** (không nâng gói đã có) → tải `.deb` của đúng bản phát hành và kiểm sha256 ghi sẵn trong script → ghi `/etc/vedette/host.conf` từ id người dùng thật → (tuỳ chọn) bàn giao netplan → `vedette-host -bootstrap` (kiểm chữ ký minisign của chỉ mục và manifest, chữ ký cosign của image nằm trong manifest, kéo image theo digest) → khởi động `vedette-host` và `vedette-core`, chờ healthy tối đa 300 s. Chạy lại sau khi một lần dừng giữa chừng thì sửa tiếp; chỉ `--uninstall --yes` mới gỡ. Mặc định **không đụng mạng** của hộp; `--network-handover` chỉ khi netplan chỉ có đúng một card có dây DHCP, và chỉ ghi tệp, chưa áp dụng ngay (áp ở lần khởi động sau hoặc khi xác nhận ở Box network). Thiếu `--network-handover` thì Settings → Box network vẫn mở được nhưng Save bị từ chối (409 `net_backend_unsupported`; installer gọi là "read-only").
+- Xác minh cài xong (hiệu ứng):
+  1. `systemctl is-active vedette-host` in `active` và `test -S /run/vedette/host.sock` thành công (socket 0660 `root:vedette`).
+  2. `podman ps` có `vedette-core` ở trạng thái healthy: `podman inspect --format '{{.State.Health.Status}}' vedette-core` (Podman 4.x: `{{.State.Healthcheck.Status}}`) in `healthy`.
+  3. `curl -ks https://127.0.0.1:8443/api/v1/setup` trả 200, và trả 200 cả ở `https://<IP quản trị>:8443/api/v1/setup` từ máy khác trong LAN.
+  4. `podman port vedette-core` in `8443/tcp -> 0.0.0.0:8443` và `8444/tcp -> 127.0.0.1:8444` (netavark chuyển cổng bằng luật nft nên `ss -ltn` có thể không thấy socket nghe; D-166 (1) và `docs/INSTALL-TEST.md:62` nói ngược nhau, lab chưa chốt); không có cổng Vedette nào khác (22/80/445/1433/3389 chỉ mở trên IP bẫy khi `honeypot` bật).
+  5. Image đã qua kiểm chữ ký: `/var/lib/vedette-host/containers/versions-core.json` tồn tại (`-bootstrap` thoát 0 mới ghi tệp này); sai chữ ký thì `-bootstrap` từ chối và **không khởi động gì** (installer in "vedette-host refused the release").
+- OS không hỗ trợ: script dừng, in lý do và "Nothing was changed". Cài thử trên hộp thật với thư mục tạo bằng `make install-artifacts` và khoá tạm: `docs/INSTALL-TEST.md` (kênh thử, chỉ cho đội; kênh thử và kênh khách không trộn, đổi kênh phải `--uninstall --yes` trước).
+- chưa có: bản phát hành thật. `install.sh` trong kho có ba giá trị phiên bản/sha256 để trống nên dừng với "not tied to a release"; khoá ký thật và đẩy image: WP-08k (`.ai/deferred/feat-install-sh.md:3`, `.ai/deferred/feat-release-builder.md:3`).
+- chưa có: ISO hoặc VM image (D-55: làm sau; `.ai/deferred/docs-runbook.md`).
+- chưa có: số đo RAM/đĩa theo tải thật. Cỡ thiết kế 4 nhân / 8 GB / SSD 64 GB cho mục tiêu 1.000 thiết bị (`DEPLOYMENT.md` §4) chưa đo; installer chỉ ép 6 GiB trống (`.ai/deferred/docs-runbook.md`).
 
 ### 1.2 Chỉ container (Docker/Podman sẵn có)
-- Không quản lý OS, không cấu hình card mạng; tính năng mạng sâu (SPAN, IP phụ cho bẫy) có hạn chế ghi rõ trong UI: sẽ điền ở M2.
-- Compose file, volume, biến môi trường, tài khoản chạy: sẽ điền ở M2.
+- chưa có: kiểu cài này cho người vận hành (compose, volume, biến môi trường, tài khoản chạy, giới hạn hiển thị trong GUI): WP-08m (`.ai/tasks/current.md:40` chỉ ghi "08m compose"). `deploy/compose/compose.yaml` hiện chỉ là môi trường dev (`make dev-sensors`: `core` + `sensor` phát lại pcap + `scan` với nmap/nuclei giả), không dùng để chạy thật.
 
-### 1.3 Gỡ gói `vedette-host` và xoá dữ liệu (D-155)
-- `apt remove vedette-host` hoặc `apt purge vedette-host` chỉ xoá binary, unit và trạng thái bật. **Dữ liệu còn nguyên**, kể cả sau `purge`: CSDL và khoá chủ ở `/var/lib/vedette`, bản sao lưu, trạng thái host `/var/lib/vedette-host`, thư mục honeypot `/var/lib/vedette-honeypot`, `/etc/vedette/host.conf`, các unit Quadlet `/etc/containers/systemd/vedette-*`, người dùng và nhóm `vedette` và `vedette-sensor`, dòng `containers:` trong `/etc/subuid` và `/etc/subgid`. Khoá chủ không tạo lại được: mất nó thì mất mọi bí mật đã lưu.
-- Muốn xoá hẳn (bước riêng, có chủ ý, không hoàn tác): dừng các unit `vedette-*`, `apt purge vedette-host`, rồi xoá từng thư mục ở trên, các unit Quadlet và volume `vedette-creds-*`, và (nếu không còn dùng) người dùng và nhóm bằng `userdel`/`groupdel`. Lệnh cụ thể sẽ điền ở M2 cùng installer; không xoá dòng `containers:` nếu máy còn chạy container khác dùng `--userns=auto`.
+### 1.3 Gỡ cài đặt và xoá dữ liệu (D-155, D-166)
+Cách đúng cho hộp do `install.sh` dựng: **chạy lại script đã dựng nó**.
+```sh
+sh install.sh --uninstall              # chỉ nói sẽ gỡ gì, chưa làm
+sh install.sh --uninstall --yes        # gỡ; XOÁ CSDL và khoá chủ (không hoàn tác)
+sh install.sh --uninstall --yes --keep-data   # gỡ nhưng giữ /var/lib/vedette*, /etc/vedette và người dùng
+```
+- Gỡ: container, image, mạng và volume, unit Quadlet, namespace `vedette-hp`, gói `vedette-host` và gói apt mà chính script đã cài (chỉ khi không ai khác cần), trả `ip_forward` và bảng nft về như trước, rồi xoá `/var/lib/vedette`, `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/var/lib/vedette-creds`, `/etc/vedette`, `/var/log/vedette-host`, người dùng và nhóm `vedette`, `vedette-sensor`, dòng `containers:` trong `/etc/subuid`, `/etc/subgid` nếu chính script thêm. Nếu apt phải gỡ nhiều gói hơn tập đó, script không gỡ thêm và nói rõ (câu này chỉ về gói apt). Netplan đã bàn giao được trả về tệp cũ (áp ở lần khởi động sau).
+- **Cẩn thận, rộng hơn Vedette:** nếu chính script đã cài `podman`, nó xoá **toàn bộ** `/var/lib/containers` (mọi container, image, volume rootful trên máy, kể cả không phải của Vedette) và cả `/etc/containers/systemd`, **kể cả khi `--keep-data`**; nếu script đã cài `chrony` thì tắt nó; nó xoá các tài khoản hệ thống mà gói được thêm đã tạo (ví dụ `_chrony`). Có container khác trên máy thì sao lưu chúng trước.
+- `apt remove vedette-host` hoặc `apt purge vedette-host` (không qua script) chỉ xoá binary, unit và trạng thái bật. **Dữ liệu còn nguyên, kể cả sau `purge`**: CSDL và khoá chủ `/var/lib/vedette`, bản sao lưu và trạng thái host `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/etc/vedette/host.conf`, unit Quadlet `/etc/containers/systemd/vedette-*`, người dùng và nhóm, dòng subuid/subgid. Khoá chủ không tạo lại được: mất nó thì mất mọi bí mật đã lưu.
+- Hộp cài tay mà không có gói `vedette-host`, không có `host.conf` và không có `/var/lib/vedette-install` (chỉ khi đó script nói "nothing to remove"; hộp có gói thì `sh install.sh --uninstall --yes` gỡ như thường): chưa có script; làm tay đúng thứ tự, không hoàn tác: `systemctl stop vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume` (ba unit sau phải dừng, không thì cản lần cài sau); `podman rm -f vedette-honeypot vedette-scan vedette-sensor vedette-core`; `ip netns delete vedette-hp`; `rm -f /etc/containers/systemd/vedette-*`; `systemctl daemon-reload`; `podman network rm -f vedette-int`; `podman volume rm -f vedette-creds-passive vedette-creds-active`; xoá image `ghcr.io/knt048/vedette-*` và `localhost/vedette-scan-nmap` (`podman images`, `podman rmi -f <id>`); `apt purge vedette-host`; rồi xoá từng thư mục ở trên và `userdel`/`groupdel` hai tài khoản. Không xoá dòng `containers:` trong `/etc/subuid` nếu máy còn container khác dùng `--userns=auto`.
+- Xác minh: `ss -ltn` không còn 8443/8444 (và `podman ps -a` không còn container giữ cổng); `podman ps -a` không còn `vedette-*`; `ls /run/netns` không có `vedette-hp`; (không `--keep-data`) `getent passwd vedette` rỗng và `/var/lib/vedette` không còn.
+- Xoá dữ liệu mà giữ phần mềm: Settings → Data → Delete all data (xem §5.4).
 
 ## 2. Khởi động lần đầu
-Cài đặt ban đầu làm hoàn toàn trong GUI (D-22): tạo admin, bật 2FA, tên tổ chức, múi giờ, bật module, khai thiết bị, kênh cảnh báo.
-- Lấy địa chỉ và mã thiết lập lần đầu từ console: sẽ điền ở M2.
-- Thứ tự màn hình, giá trị mặc định an toàn (module tuỳ chọn tắt, hành động phản ứng tắt): sẽ điền ở M2.
-- Cấu hình card quản trị / SPAN (Settings → Box network, D-56): sẽ điền ở M2.
-- Xác minh: đăng nhập được bằng 2FA, trang Home hiện dữ liệu feed có thời điểm, `feeds` kéo `index.json` đã ký thành công: sẽ điền ở M2.
+Cài đặt ban đầu làm hoàn toàn trong GUI (D-22), không SSH.
+- **Lấy địa chỉ và mã thiết lập.** Cuối `install.sh` in `open: https://<IP>:8443` và `setup code: XXXXX-XXXXX-XXXXX-XXXXX` (4 nhóm 5 ký tự, dùng một lần, D-75). Mất màn hình đó: `journalctl -u vedette-core -o cat --no-pager | grep setup_code | tail -n 1`. Hộp in lại mã ở mỗi lần khởi động cho tới khi tạo quản trị viên đầu tiên; sau đó mã bị xoá và không in nữa. Thiếu hay sai mã thì `/setup` trả 403 `invalid_setup_code`. Chứng chỉ TLS là tự ký: chấp nhận một lần; nó đi theo địa chỉ quản trị (D-139), đổi địa chỉ thì chấp nhận lại.
+- **Thứ tự màn hình** (bốn bước): Account (tên tổ chức, quản trị viên, mã thiết lập) → Network (dải LAN, bắt buộc có độ dài tiền tố, D-32) → Modules (gói Small business, Mid-size business hoặc Custom; module cần module khác thì tự kéo theo) → Alerts (kênh cảnh báo đầu tiên). Sau đó, vẫn trong GUI: Settings → General (múi giờ, tên tổ chức), My account (bật hai bước bằng app hoặc mã email; sản phẩm **không ép** bật), Settings → Feeds.
+- **Mặc định an toàn.** Module tuỳ chọn tắt cho tới khi gói bạn chọn bật chúng: Small business bật feeds, inventory, notify, sensor-passive, findings, mitigation, honeypot, reports; Mid-size thêm sensor-active, scan, exposure, logs, ai. `response` (hành động phản ứng lên thiết bị) và `mcp-server` không nằm trong gói nào: tắt; công tắc thực thi của `response` còn là công tắc riêng, cũng tắt (D-41). Quét chủ động chỉ chạy trong phạm vi đã xác nhận sở hữu và có đồng ý (D-26).
+- **Box network** (Settings → Box network, D-56). Địa chỉ quản trị: Save hỏi xác nhận trước (409 `confirm_required`), rồi áp dụng ngay với **cửa sổ xác nhận 5 phút** (cố định): mở GUI ở địa chỉ mới, đăng nhập lại, bấm xác nhận; không xác nhận kịp, hoặc hộp khởi động lại trước khi xác nhận, thì hộp **tự về địa chỉ cũ**. Mỗi lần đổi, host dò ARP địa chỉ tĩnh mới và từ chối nếu trùng (`address_conflict`). SPAN: card "SPAN capture" chọn cổng (không IP, chỉ nghe; không dùng được card quản trị), chọn "What Vedette reads" (DNS queries, TLS server names, HTTP hosts, Connection metadata), "Exclusions". Hộp chưa bàn giao netplan (§1.1) thì Save bị từ chối (`net_backend_unsupported`).
+- **Xác minh:** đăng nhập được (và hỏi mã khi đã bật hai bước); Home hiện dữ liệu có thời điểm; Settings → Feeds mỗi nguồn bật có "Last fetch" trong vòng `interval_hours` + 60 phút (feeds INV-9; hộp kéo thẳng từ từng nguồn qua HTTPS, D-36, không có `index.json` ký cho feed); Home không nói "0 newly exploited" khi danh sách CISA chưa tải được (nó báo `never_loaded` kèm lỗi).
 
-## 3. Nâng cấp
-- Nâng cấp từ giao diện (Settings → Updates), qua kênh `stable` hoặc `beta`, theo cohort (`docs/ENGINEERING.md` §6, D-12).
-- Trước khi nâng: sao lưu tự động (xem §5), kiểm cửa sổ bảo trì: sẽ điền ở M2.
-- Quy trình: `vedette-host` kéo image, kiểm chữ ký cosign, khởi động container mới, kiểm sức khoẻ, chuyển: sẽ điền ở M2.
-- Từ chối khi chữ ký sai hoặc bị thu hồi; hiện lý do trong UI: sẽ điền ở M2.
-- Xác minh: phiên bản mới ở Settings → Updates, các module trước đó bật vẫn bật, dữ liệu còn nguyên: sẽ điền ở M2.
+## 3. Nâng cấp phần mềm Vedette
+- chưa có: nâng cấp image `core`/`sensor`/`scan`/`honeypot` từ GUI. `vedette-host` đã có phần của nó (kiểm minisign và cosign, thu hồi, sao lưu `pre_update`, health gate, tự quay về unit cũ) nhưng `core` chưa gọi: các đường `/core/updates*` của phần mềm trả 501, nên trong Settings → Updates chỉ khối "Operating system of this box" chạy thật; kênh `stable`/`beta`, cohort, bundle ngoại tuyến cũng chưa chạy. WP-08k và `core` cập nhật phần mềm: `.ai/deferred/feat-host-net-containers.md:56`, `.ai/deferred/feat-install-sh.md:3`.
+- Hiện có: chạy lại `install.sh` của bản phát hành mới nâng gói `vedette-host`; script thấy đã bootstrap (có `versions-core.json`) thì **bỏ qua bootstrap**, container giữ nguyên. Gói mới tự khởi động lại `vedette-host` nếu nó đang chạy (postinst `try-restart`, D-260; unit đang dừng thì vẫn dừng). `core` không phụ thuộc host nên không bị khởi động lại; `vedette-honeypot` có `Requires=vedette-host` nên khởi động lại cùng. Xác minh: `/usr/lib/vedette/vedette-host -version` bằng phiên bản của script **và** `systemctl show -p ActiveEnterTimestamp vedette-host` là thời điểm sau lần chạy script; `systemctl is-active vedette-host` in `active`; `podman inspect --format '{{.State.StartedAt}}' vedette-core` không đổi (core không bị khởi động lại). (Bản trước D-260 không tự khởi động lại: khi đó chạy `systemctl restart vedette-host`.)
+- Cập nhật hệ điều hành của hộp: xem §6 (đã chạy thật).
 
 ## 4. Hoàn tác
-- Hoàn tác bằng tag image cũ (D-55); migration DB chỉ tiến nên hoàn tác = image cũ + khôi phục sao lưu trước nâng cấp: sẽ điền ở M2.
-- Hộp tự hoàn tác khi kiểm sức khoẻ thất bại sau nâng cấp: sẽ điền ở M2.
-- Hoàn tác thủ công từ console: sẽ điền ở M2.
-- Xác minh: phiên bản cũ chạy, đăng nhập được, dữ liệu khớp bản sao lưu: sẽ điền ở M2.
+- chưa có: hoàn tác phần mềm từ GUI hay console. `container.rollback` của host chỉ nhận lệnh từ `core` (socket chỉ mở cho đúng uid và cgroup của `vedette-core`, root không gọi được), mà `core` chưa nối nút "Roll back" vào backend (cùng dòng `.ai/deferred/feat-host-net-containers.md:56`). Không có lệnh `vedette-host` trên console cho việc này.
+- Hoàn tác **dữ liệu** làm tay từ bản sao lưu: §5.3. Hoàn tác thay đổi địa chỉ quản trị: tự động nếu không xác nhận kịp (§2).
+- Sau thất bại dở dang của một lần đổi unit mà host không đặt lại được dữ liệu của `core`: §5.5.
 
 ## 5. Sao lưu và khôi phục
-- Có gì trong bản sao lưu: SQLite trên volume, khoá `core/secrets` (mã hoá, tách khỏi bản sao lưu dữ liệu hay không: sẽ điền ở M2), cấu hình sinh ra, content pack: sẽ điền ở M2.
-- Sao lưu hằng ngày + trước nâng cấp, nơi lưu, số bản giữ, mã hoá: sẽ điền ở M2. Lưu ý IP egress hiệu lực 30 ngày kể từ lần thấy cuối (D-25): khôi phục sang máy khác thì hộp mới tự dò lại IP của nó (chế độ tự phát hiện), không cần xác nhận tay trừ khi tắt chế độ đó.
-- Xuất/xoá dữ liệu từ GUI (Settings → Data): sẽ điền ở M2.
-- Khôi phục: sẽ điền ở M2. Xác minh bằng tra cứu một bản ghi đã biết và chạy thử gửi cảnh báo.
-- **Diễn tập khôi phục** trên máy sạch mỗi quý: sẽ điền ở M2 (ghi kết quả vào `docs/project-map/completion-log.md`).
+
+### 5.1 Có gì, không có gì
+- **Trong bản sao lưu:** một bản chụp SQLite nhất quán của `vedette.db` (`VACUUM INTO`, không lọc gì) cùng `manifest.json`: cấu hình mọi module, người dùng **kèm băm mật khẩu argon2id** (không có mật khẩu rõ), thiết bị, finding, nhật ký kiểm toán, cấu hình `logs` (nguồn, lưu giữ, SIEM). **Không có khoá chủ**: bí mật mã hoá (khoá AI/feed, token, mật khẩu kênh, khoá TOTP) không mở được nếu không có khoá. Giữ tệp như dữ liệu nhạy cảm (băm mật khẩu của mọi quản trị viên có thể bị bẻ ngoại tuyến).
+- **Không trong bản sao lưu:** `logs.db` (các dòng log nhận được; D-151: sao lưu, khôi phục và quay lui không đụng tới nó); khoá chủ `/var/lib/vedette/vedette.key` ở bản tải về; log thô của honeypot; chứng chỉ TLS (`vedette-selfsigned.*`, tự sinh lại); image (kéo lại); unit Quadlet (sinh lại từ mã).
+- **Khoá chủ** `/var/lib/vedette/vedette.key`: chép một lần ra chỗ ngoài hộp (tệp 0600). Mất khoá thì khoá AI, khoá feed, token và mật khẩu kênh đã lưu không giải mã được và phải nhập lại, **và mọi người dùng đã bật hai bước không đăng nhập được** (khoá TOTP cũng mã hoá bằng khoá chủ); khôi phục sang máy mới mà không chép khoá cũ thì hộp tạo khoá mới.
+
+### 5.2 Tạo bản sao lưu
+- Thủ công: Settings → Data → Backup → Download backup (quản trị viên; tối đa một lần mỗi phút, quá thì 429). Mỗi lần tải còn để lại một bản `manual` trên host.
+- Tự động: trước mỗi lần cài bản vá OS, host tạo bản `pre_os_update` (có khoá, chỉ nằm trên máy, không tải được).
+- Nơi lưu và số bản (host): `/var/lib/vedette-host/backups/<id>.tar.gz` (0600) cùng `index.json`; giữ tối đa 3 bản `pre_*` (mọi loại `pre_*` tính chung) cộng mọi bản mà tệp `versions-*.json` hoặc nhật ký chuyển unit còn trỏ tới (bản đó không tính vào 3 và không bị xoá), và tối đa 10 bản `manual` (cũ nhất bị xoá); không xoá chọn lọc.
+- chưa có: sao lưu hằng ngày tự động, thư mục ngoài (USB/NFS), số bản giữ tuỳ chỉnh (`.ai/deferred/docs-runbook.md`).
+- Xác minh: tệp tải về lớn hơn 0 và `tar -tzf vedette-backup-<ngày>.tar.gz` liệt kê `manifest.json` và `vedette.db`; `ls -l /var/lib/vedette-host/backups` có bản mới.
+
+### 5.3 Khôi phục
+- chưa có: khôi phục từ GUI hay tải tệp lên (`backup.restore` của host chỉ được `core` gọi và `core` chưa có đường cho nó; `.ai/deferred/feat-core-os-updates.md:6`).
+- Khôi phục tay (làm đúng việc host làm; hộp ngừng phục vụ trong lúc làm). `<uid>` và `<gid>` là `core_uid` và `core_gid` trong `/etc/vedette/host.conf`.
+  1. Trước khi dừng gì, kiểm bản sao lưu không mới hơn phần mềm đang chạy: `tar -xzOf <bản sao lưu>.tar.gz manifest.json` (xem `db_schema`; host làm kiểm này, `schema_newer`, làm tay thì phải tự kiểm); bản sao lưu mới hơn thì không khôi phục. Rồi `systemctl stop vedette-core`.
+  2. Cất CSDL hiện tại ra chỗ ngoài `/var/lib/vedette`: `mkdir -p /root/vedette-before-restore && mv /var/lib/vedette/vedette.db* /root/vedette-before-restore/`.
+  3. Giải nén vào thư mục tạm của root, **không** giải thẳng vào `/var/lib/vedette`: `mkdir -p /root/restore && tar -xzf <bản sao lưu>.tar.gz -C /root/restore vedette.db`.
+  4. Đặt vào chỗ: `install -m 0600 -o <uid> -g <gid> /root/restore/vedette.db /var/lib/vedette/vedette.db`. Cùng hộp: giữ nguyên `vedette.key` đang có. **Hộp mới:** chép cả `vedette.key` đã cất ngoài hộp (§5.1) bằng `install -m 0600 -o <uid> -g <gid>`. Không có khoá thì mọi bí mật phải nhập lại **và mọi người dùng đã bật hai bước không đăng nhập được** (khoá TOTP và mật khẩu SMTP mã hoá bằng khoá chủ); nếu mọi quản trị viên đều bật hai bước thì hộp không dùng được.
+  5. `systemctl start vedette-core`.
+- Xác minh: `podman inspect` báo `vedette-core` healthy và `/api/v1/setup` trả 200; đăng nhập; tra cứu một thiết bị đã biết; Settings → Alert channels → Send test nhận được. DB mới hơn phần mềm (schema lạ) hay hỏng thì `core` không lên: `journalctl -u vedette-core -n 100`; trả lại tệp cũ từ `/root/vedette-before-restore` rồi khởi động lại. Sau khôi phục `logs.db` vẫn là dữ liệu hiện tại: dòng log của nguồn mà cấu hình đã khôi phục không còn biết vẫn hiện theo id và hết hạn theo lưu giữ (vô hại).
+- IP egress của `exposure` hiệu lực 30 ngày kể từ lần thấy cuối (D-79): khôi phục sang máy khác thì hộp mới tự dò lại IP của nó (chế độ tự phát hiện), không cần xác nhận tay trừ khi tắt chế độ đó.
+- **Diễn tập khôi phục** trên máy sạch mỗi quý: dựng máy mới (§1.1), khôi phục (bước trên), kiểm số thiết bị và finding khớp bản gốc; ghi kết quả vào sổ vận hành của bạn (đội dự án ghi vào `docs/project-map/completion-log.md`).
+
+### 5.4 Xuất, tải log, xoá dữ liệu (Settings → Data, quản trị viên)
+- **Export JSON:** mọi bảng dữ liệu, không bí mật, trần 256 MiB (quá thì tệp dừng sớm, vẫn là JSON hợp lệ, `truncated:true`).
+- **Download logs:** tám loại (audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot), JSON hoặc CSV, theo ngày. Log nền tảng (journal của container) không nằm ở đây: `journalctl -u vedette-core` (và các unit khác). `device_logs` có trần riêng 32 MiB (giữ dòng mới nhất, kèm dòng đánh dấu đã cắt).
+- **Delete all data:** gõ đúng tên tổ chức + mật khẩu hiện tại + mã hai bước (nếu có). Xoá mọi dữ liệu, người dùng, **mọi bản sao lưu trên host** và `logs.db`, thay khoá chủ bằng khoá mới, rồi `core` tự dừng và Quadlet dựng hộp mới (trang không tới được vài giây, wizard mở lại với mã thiết lập mới). Giữ: chứng chỉ TLS, journal hệ thống, cấu hình mạng, log thô của honeypot. Không có helper (`vedette-host`) thì `kept` ghi `host_backups`; có helper mà không trả lời thì từ chối 502 và **không xoá gì**. Từ chối 412 `transition_pending` khi một lần đổi unit đang chờ: §5.5.
+
+### 5.5 `core_data_unrecoverable`: host không đặt lại được dữ liệu của core
+- **Triệu chứng:** lệnh chạm `core` trả 412 `transition_pending` với chữ "See the RUNBOOK entry core_data_unrecoverable"; `core` đứng yên (có thể đang dừng).
+- **Kiểm tra:** `grep core_data_unrecoverable /var/log/vedette-host/audit.jsonl | tail -n 1` (ghi `service`, `run_id`, `db_revert`, `aside`, `backup_id`); `ls -la /var/lib/vedette` (tìm `vedette.db.rollback`, `vedette.key.rollback`, `*.quarantine-*`); `cat /var/lib/vedette-host/containers/transition-core.json` (`"unrecoverable": true`, `aside` là đúng các tên đã bị dời thành `<tên>.rollback`).
+- **Sửa (tay):** `systemctl stop vedette-core`; `mkdir -p /root/vedette-unrecoverable && cd /var/lib/vedette`. Nếu `aside` có `vedette.db`: chuyển **mọi** `vedette.db`, `vedette.db-wal`, `vedette.db-shm`, `vedette.db-journal` hiện có mà **không** nằm trong `aside` sang `/root/vedette-unrecoverable/` (WAL của CSDL khác gặp CSDL cũ sẽ làm hỏng nó; host làm đúng việc này, `host/ops/coredata.go:599`). Rồi với mỗi tên trong `aside` còn bản `.rollback`: chuyển tệp hiện có cùng tên (nếu còn) sang `/root/vedette-unrecoverable/`, rồi `mv <tên>.rollback <tên>` (đặt lại thứ đã dời); giữ nguyên `*.quarantine-*` (xem trước khi xoá); xoá `/var/lib/vedette-host/containers/transition-core.json` (nhật ký này đang chặn mọi lệnh chạm `core`); `systemctl start vedette-core`. Không chắc tệp nào là bản đúng thì dừng, khôi phục theo §5.3 rồi mới xoá nhật ký.
+- **Xác minh:** `vedette-core` healthy, `/api/v1/setup` trả 200, đăng nhập được, dữ liệu khớp bản đang tin.
+- chưa có: lệnh CLI của host cho việc này (`.ai/deferred/feat-host-net-containers.md:85`). Về mặt API, khi `core` chạy, `backup.restore` đi qua được nhật ký `unrecoverable` và xoá nó khi khôi phục xong (host-api §6.12), nhưng chưa có nút GUI (§5.3).
 
 ## 6. Cập nhật hệ điều hành
-- Hộp kiểm hệ điều hành trước tiên (D-53): bản phát hành, kernel, gói có vá bảo mật, cần khởi động lại, unattended-upgrades, hạn hỗ trợ.
-- `vedette-host` thực thi qua danh sách lệnh cố định; không cho giao diện chạy lệnh tuỳ ý: sẽ điền ở M2.
-- Cửa sổ bảo trì và lịch khởi động lại (Settings → Updates): sẽ điền ở M2.
-- Sau khởi động lại: container tự lên (Quadlet), SPAN nhận lại lưu lượng, bẫy lên lại trên IP phụ: sẽ điền ở M2.
-- Nâng bản phát hành OS (Ubuntu 24.04 → 26.04…): sẽ điền ở M2.
+Chạy thật qua `vedette-host` (D-53), chỉ có ở kiểu Appliance. Settings → Updates, khối "Operating system of this box".
+- **Kiểm trước tiên:** "Check now" (hộp **không tự kiểm lần đầu**: chưa bấm thì API trả 409 `no_check_yet`, `.ai/deferred/feat-core-os-updates.md:8`). Hiện: Distribution, Kernel, Standard support (hết hạn), số gói chờ và số gói security, cần Reboot hay không và vì gói nào, "Automatic security updates".
+- **Danh sách lệnh cố định:** `vedette-host` chỉ chạy `apt-get` với danh sách gói do chính nó tính lại từ trạng thái apt; GUI không có đường chạy lệnh tuỳ ý, và không có lệnh nâng bản phát hành (host không bao giờ chạy `do-release-upgrade`).
+- **Cài:** "Install security updates" hoặc "Install all updates" (quản trị viên). Host tạo bản `pre_os_update` trước, chạy apt, rồi kiểm sức khoẻ (`core` trả lời); tiến trình hiện ở "Latest install run". Từ chối: `dpkg_locked` (apt khác đang giữ khoá; thử lại sau 60 s), `low_disk` (dưới 1 GiB trống ở `/var`), `dpkg_inconsistent`. Health check hỏng thì run `failed`, gói đã cài **không** tự gỡ; DB lùi được từ bản `pre_os_update` (§5.3 tay).
+- **Cửa sổ bảo trì và khởi động lại:** Maintenance window (Any time hoặc Only in a window: ngày và giờ). "Automatic security updates" bật thì `unattended-upgrades` cài bản vá security theo timer của apt, **không** theo cửa sổ của Vedette (D-85). Reboot: "Reboot now" hoặc "Schedule reboot" (đầu cửa sổ kế tiếp hoặc giờ tự chọn; phải nằm trong cửa sổ nếu đã đặt); host từ chối khi đã khởi động lại 3 lần trong 24 giờ (tính mọi lần host tự reboot, cả theo lịch, không chỉ "Reboot now").
+- **Sau khi khởi động lại:** `vedette-host` lên trước, rồi `core`, rồi `sensor` và `scan` (chỉ khi module của chúng bật: `core` đối chiếu lúc nó khởi động và bỏ `[Install]` của container có module tắt, D-260) và `honeypot` (chỉ khi module bật: tắt thì host bỏ `[Install]`, D-189). Xác minh: `systemctl is-active vedette-host vedette-core`; `podman ps` healthy; `ls /run/netns` có `vedette-hp` (host tạo lúc khởi động) khi dùng bẫy; Settings → Box network: SPAN báo "Receiving mirrored traffic" trở lại; trang Honeypot: IP bẫy trả lời lại.
+- **Nâng bản phát hành OS (Ubuntu 24.04 → 26.04):** chỉ hướng dẫn ("Release upgrade to … is available"), hộp không tự làm. Chỉ ba bản ở §1.1 được hỗ trợ: sau khi nâng OS lên bản ngoài danh sách, các lệnh apt của host bị từ chối (`not_appliance`); nâng xong phải kiểm lại từng hiệu ứng ở mục trên.
 
-## 7. Đặt lại 2FA của admin từ console
-Dùng khi admin mất thiết bị 2FA. Phải có quyền vật lý hoặc SSH quản trị vào hộp (đã được chủ hộp cho phép); thao tác được ghi audit.
-- Lệnh trên console, tham số, xác nhận danh tính: sẽ điền ở M2.
-- Hiệu ứng mong đợi: đăng nhập lại chỉ bằng mật khẩu một lần, buộc đăng ký 2FA mới, phiên cũ bị huỷ: sẽ điền ở M2.
-- Không có cửa sau trong giao diện web; không đặt lại qua email: sẽ điền ở M2 (xác nhận với kien).
+## 7. Đặt lại 2FA của quản trị viên
+Dùng khi một người mất thiết bị 2FA (hoặc, với người dùng mã email, khi kênh email hỏng).
+- **Cách có sẵn:** một quản trị viên **khác** vào Settings → Users → "Reset two-step sign-in" cho người đó. Hiệu ứng thật: hai bước của người đó bị **tắt** (không bắt đăng ký lại ngay), mọi phiên của họ bị huỷ, ghi audit `user.2fa_reset`; họ đăng nhập chỉ bằng mật khẩu rồi tự bật lại ở My account. Quản trị viên không đặt lại 2FA của chính mình (400). Quên cả mật khẩu: "Reset password" cấp mật khẩu tạm (hiện đúng một lần, nhưng còn hiệu lực 72 giờ) và buộc đổi ở lần đăng nhập đầu. Cả hai đều chạy trong GUI; không có đường qua email.
+- **Phòng trước:** luôn giữ ít nhất **hai** quản trị viên đăng nhập bằng mật khẩu (quản trị viên SSO không tính, để IdP hỏng không khoá chủ hộp ra ngoài).
+- chưa có: lệnh trên console để đặt lại 2FA khi không còn quản trị viên nào đăng nhập được (người duy nhất mất thiết bị). Hiện chỉ còn dựng lại hộp (`install.sh --uninstall --yes` rồi cài lại): mất toàn bộ dữ liệu, và `--uninstall --yes` xoá luôn mọi bản sao lưu trên hộp. Khôi phục bản sao lưu (§5.3) đưa lại đúng tài khoản đó với hai bước đang bật, nên chỉ giúp khi bản sao lưu có trước lúc người đó bật hai bước. Lý do không có đường khác: "Delete all data" đòi mật khẩu và (khi tài khoản đã bật hai bước) mã hai bước (`.ai/deferred/docs-runbook.md`).
+- Không có cửa sau trong giao diện web.
 
 ## 8. Xử lý sự cố
 
 ### 8.1 SPAN không thấy lưu lượng
 Kiểm theo thứ tự, từ rẻ đến đắt:
-1. Settings → Box network: trạng thái lưu lượng (gói/giây, số MAC khác hộp, lần nhận gói cuối). Chỉ thấy MAC của hộp = mirror chưa bật hoặc sai cổng (D-56).
-2. Card SPAN còn link, không có IP, đang ở chế độ nghe: sẽ điền ở M2 (lệnh kiểm).
-3. Cấu hình port mirroring trên switch (theo hướng dẫn từng hãng trong UI); mirror cả hai chiều; cổng đích đúng.
-4. Bộ lọc loại trừ không che hết; giới hạn tài nguyên không làm rơi gói: sẽ điền ở M2.
-5. Container `sensor` chạy với `CAP_NET_RAW`, đúng card: sẽ điền ở M2.
-- Xác minh: số gói/giây > 0, thấy MAC thiết bị khác, DNS/SNI mới xuất hiện: sẽ điền ở M2.
+1. Settings → Box network → "SPAN capture", khối "Mirrored traffic now" (Packets per second, "Other devices seen (MAC addresses)", Last packet) và dòng kết luận (làm mới mỗi 5 giây): "Only the box's own traffic" = chỉ thấy MAC của hộp, mirror chưa bật hoặc sai cổng đích (D-56); "Nothing is arriving" (`no_traffic`) = link lên nhưng không có gói; "No cable signal" (`no_link`) = chưa cắm cáp; "The listener did not start" (`sensor_unreachable`) = hộp lưu cổng nhưng chưa báo được sensor (thử lại sau vài giây; nếu kéo dài, kiểm container `vedette-sensor` ở bước 5: tắt rồi bật `sensor-passive` không khởi động lại container).
+2. Card SPAN có link, **không IP**, đang nghe: `ip -o link show <card>` có `LOWER_UP`; `ip -4 addr show dev <card>` rỗng; đang nghe thì `ip -d link show <card>` có `promiscuity 1` (hoặc `cat /sys/class/net/<card>/flags` có bit 0x100); `ip link` thường **không** in chữ `PROMISC` vì sensor bật nó qua socket của chính nó, không phải host. `ip -s link show <card>` cho thấy RX tăng khi mirror chạy.
+3. Cấu hình port mirroring trên switch (mirror cả hai chiều; cổng đích đúng cổng cắm vào card SPAN; hướng dẫn từng hãng ở Box network).
+4. "Exclusions" không che hết lưu lượng cần xem; ít nhất một mục ở "What Vedette reads" được chọn (không chọn gì thì không bật được SPAN).
+5. Container `sensor` chạy và khoẻ: `podman ps --filter name=vedette-sensor`; `podman inspect --format '{{.State.Health.Status}}' vedette-sensor` in `healthy` (nhịp heartbeat tới `core` còn trẻ hơn 60 s); `grep -E 'AddCapability|Network' /etc/containers/systemd/vedette-sensor.container` có `AddCapability=NET_RAW` và `Network=host` (unit do host sinh, đừng sửa tay); `journalctl -u vedette-sensor -n 100 --no-pager`. Module `sensor-passive` phải bật. `podman ps --filter name=vedette-sensor` trống khi module bật thì `core` sẽ bật lại nó (thử lại theo nhịp 10 s, 30 s, 2 phút rồi 10 phút; lý do nằm ở `journalctl -u vedette-core`), hoặc bật lại module để thử ngay (D-260).
+- **Xác minh:** Packets per second > 0, "Other devices seen" ≥ 1, dòng "Receiving mirrored traffic"; DNS/SNI mới xuất hiện trong dữ liệu thiết bị.
+- VM: vSwitch phải cho promiscuous và giả MAC (VMware "Promiscuous Mode", Hyper-V "MAC address spoofing"), không thì SPAN và decoy im lặng (`DEPLOYMENT.md` §4).
 
 ### 8.2 Feed lỗi
-- Trang feeds: nguồn nào lỗi, từ khi nào, lỗi gì.
-- Kiểm: ra Internet (HTTPS), DNS, giờ hệ thống (chữ ký có hạn), proxy, key BYOK hết hạn/hết quota, chữ ký `index.json` sai (fail-closed: giữ dữ liệu cũ và báo): sẽ điền ở M2.
-- Xác minh: lần kéo gần nhất thành công, thời điểm cập nhật mới: sẽ điền ở M2.
+- **Triệu chứng:** Settings → Feeds hiện nguồn nào lỗi, từ khi nào và lỗi gì; Home báo KEV `never_loaded` kèm lỗi, hoặc dữ liệu cũ hơn `interval_hours` + 60 phút.
+- **Kiểm tra** (hộp kéo thẳng từng nguồn qua HTTPS 443, không qua GitHub của dự án; nguồn lỗi thì giữ dữ liệu cũ, ghi lỗi, lùi thời gian thử lại, không làm sập job): ra Internet và DNS từ chính hộp (`curl -s -o /dev/null -w '%{http_code}\n' --max-time 30 <URL nguồn ở Settings → Feeds>`); giờ hệ thống (`timedatectl show -p NTPSynchronized --value` in `yes`; `chronyc -n -c sources` có nguồn); feed riêng có URL hợp lệ (`https`; `http` chỉ cho host nội bộ) và secret xác thực chưa hết hạn (chỉ hiện 4 ký tự cuối: nhập lại bằng Settings → Feeds); phản hồi quá 5 000 000 byte bị bỏ qua (lỗi hiện: "The source is larger than 5000000 bytes; Vedette would skip it."); danh sách CISA khi 403/5xx/hết giờ được kéo lại từ bản dự phòng `cisagov/kev-data` (dòng "Answered by …" dưới hàng CISA nói bên nào trả lời).
+- **Proxy:** `feeds` **không dùng** biến proxy môi trường (`modules/feeds/fetch.go:70`), nên hộp chỉ qua proxy mới ra Internet được thì feeds không kéo được (chưa có: hỗ trợ proxy cho feeds, `.ai/deferred/docs-runbook.md`). Cái đang có proxy: `podman pull` của host qua `[engine] env` trong `/etc/containers/containers.conf` (`DEPLOYMENT.md` §2) và nhà cung cấp AI.
+- **Sửa:** theo nguyên nhân ở trên; ép kéo lại ở Settings → Feeds ("Fetch now" từng nguồn; feed tắt thì 409 `feed_disabled`).
+- **Xác minh:** nguồn đó báo thành công, "Last fetch" là thời điểm mới, Home hết cảnh báo.
 
 ### 8.3 Phê duyệt không tới
-"Phê duyệt" = thông báo duyệt thiết bị/hành động phản ứng đến kênh cảnh báo.
-- Kiểm: kênh bật chưa, "Gửi thử" từ Settings → Alert channels, lịch im lặng, gộp thông báo, token Telegram/Slack/Zalo hết hạn, mạng bị chặn tới nhà cung cấp kênh (đổi kênh nếu bị chặn, D-19), hàng đợi gửi: sẽ điền ở M2.
-- Thông báo duyệt không bao giờ chạy hành động khi chưa có thao tác trong GUI: sẽ điền ở M2 (khớp S-NOT / module `response`).
-- Xác minh: "Gửi thử" nhận được; duyệt thật đi đến log audit: sẽ điền ở M2.
+"Phê duyệt" = yêu cầu duyệt thiết bị hoặc hành động phản ứng gửi tới kênh cảnh báo.
+- **Kiểm tra:** Settings → Alert channels: kênh đã bật và "Last test" là thành công chưa (bấm "Send test"); bảng "All sent messages"/History ghi mọi lần thử gửi kèm lỗi (câu thân thiện); "Quiet hours" và "Grouping window" (tin `critical` không bao giờ bị gộp; trong Quiet hours nó chỉ đi ngay khi bật "Still send Critical right away", nếu không thì bị giữ tới hết khung giờ); token Telegram, token Slack `xapp-`/`xoxb-`, mật khẩu SMTP hết hạn hay bị thu hồi (chỉ hiện 4 ký tự cuối: nhập lại); mạng chặn tới nhà cung cấp kênh (Telegram, Slack, Zalo hoặc SMTP của khách): đổi sang kênh khác (D-19); module `notify` bật (tắt thì không xếp hàng gì và sự kiện nhận lúc tắt bị bỏ); webhook chung không được trỏ vào chính hộp.
+- Thông báo duyệt **không bao giờ chạy hành động** khi chưa có thao tác duyệt trong GUI hay nút/mã/liên kết của đúng người duyệt; module `response` và công tắc thực thi tắt mặc định.
+- **Sửa:** theo nguyên nhân; kênh chỉ có liên kết (email, Zalo OA) thì người duyệt mở liên kết để duyệt trong Vedette.
+- **Xác minh:** "Send test" nhận được; một yêu cầu duyệt thật đi tới kênh và quyết định xuất hiện ở Settings → Audit log.
+- chưa có: đăng nhập Zalo cá nhân thật (nút QR trong GUI là giả lập, API thật trả 400 `bad_secret`; cách làm còn phải chọn): `.ai/deferred/feat-notify-module.md:9`. Slack và Telegram dùng nút Approve/Reject (hộp mở kết nối ra, không mở cổng vào).
 
 ### 8.4 CPU cao
-1. Container nào: `podman stats`: sẽ điền ở M2.
-2. `scan` (nuclei/nmap) đang chạy: dừng ngay từ GUI, giảm throttle, dời vào cửa sổ giờ.
-3. `sensor` trên SPAN lưu lượng lớn: thêm bộ lọc loại trừ, giảm trích xuất, giới hạn tài nguyên.
-4. `logs` parser/gộp: giới hạn tốc độ nhận, kiểm vòng lặp nguồn log.
-5. `ai` job lô, SQLite khoá/VACUUM: sẽ điền ở M2.
-- Tắt module không cần (tắt = không route, không job, dữ liệu giữ nguyên) là cách giảm tải an toàn nhất.
-- Xác minh: CPU xuống dưới ngưỡng, không còn job treo: sẽ điền ở M2.
+1. Container nào: `podman stats --no-stream` (giới hạn mặc định: `core` 2 CPU, `sensor` 1, `honeypot` 0.5, `scan` 2 với trọng số thấp); `top` cho `vedette-host` và tiến trình ngoài container.
+2. `scan` (nuclei/nmap) đang chạy: trang "Vulnerability scans" (`/scans`) → "Stop now"; giảm "Speed" (tab "Schedule and safety"); dời vào cửa sổ giờ.
+3. `sensor` trên SPAN lưu lượng lớn: thêm "Exclusions", bớt mục ở "What Vedette reads" (Box network).
+4. `logs`: nhận syslog quá nhanh từ một nguồn: kiểm nguồn gửi vòng lặp (mỗi nguồn bị giới hạn tốc độ; dòng của nguồn chưa khai báo bị bỏ và đếm); `logs.db` có người ghi riêng, chạy dọn theo khúc 10.000 dòng; vượt trần 4 GiB thì dọn dòng cũ nhất tới 90%.
+5. `ai`: các lượt gọi nhà cung cấp theo trần token (`daily_cap`), xem nhật ký hoạt động. Ngay sau "Delete all data", lần khởi động kế nén CSDL (`VACUUM`) nên tốn CPU và đĩa vài phút.
+- Tắt module không cần (Settings → Modules: tắt = không route, không job, dữ liệu giữ nguyên) là cách giảm tải an toàn nhất; vài job dọn theo thời hạn lưu vẫn chạy khi tắt (§10).
+- **Xác minh:** `podman stats --no-stream` dưới ngưỡng bạn đặt; Settings → Modules đúng module bật; trang Scans không còn lượt chạy.
+
+### 8.5 `core` không lên hoặc không healthy
+- **Kiểm tra:** `podman inspect --format '{{.State.Health.Status}}' vedette-core`; `journalctl -u vedette-core -n 200 --no-pager`; `df -h /var` (đĩa đầy là nguyên nhân thường gặp: installer đòi ≥ 6 GiB); `systemctl is-active vedette-host` (host phải lên trước `core`); `ls -ld /var/lib/vedette` (0700, chủ `vedette`).
+- **Sửa:** dung lượng thì giải phóng; DB không mở được hoặc mới hơn phần mềm thì §5.3; sau đó `systemctl restart vedette-core` (không `podman restart`: unit do host quản lý).
+- **Xác minh:** healthy trong 60–300 s và `/api/v1/setup` trả 200.
+- `vedette-host` không lên với lỗi về `/run/vedette` (chỉ sau khi nâng từ unit cũ có `RuntimeDirectory=`; hộp dựng mới không gặp): `systemctl stop vedette-host && rmdir /run/vedette`, rồi `systemctl start vedette-host` **và** `systemctl restart vedette-core` (core còn gắn thư mục cũ đã xoá) — hoặc khởi động lại máy (`.ai/deferred/feat-host-framework.md:17`). Xác minh: `test -S /run/vedette/host.sock` và Settings → Updates → "Check now" chạy được (không 502).
 
 ## 9. Ứng phó sự cố: lỗ hổng trong chính Vedette
 Vedette là sản phẩm bảo mật nên lỗ hổng của nó là sự cố (`SECURITY.md`). Cam kết hiện có: xác nhận trong 2 ngày làm việc; sửa hoặc giảm thiểu trong 14 ngày (critical) / 30 ngày (high); mọi bản vá bảo mật có advisory (GHSA, CVE nếu phù hợp), đi qua kênh product-advisory và hiện trong ứng dụng.
@@ -99,12 +177,45 @@ Vedette là sản phẩm bảo mật nên lỗ hổng của nó là sự cố (`
 |---|---|---|
 | 1. Tiếp nhận | Báo cáo riêng qua GitHub Security Advisories; không thảo luận ở issue/PR công khai. Ghi giờ nhận. | người duy trì |
 | 2. Xác nhận và phân loại | Tái hiện trên bản mới nhất và bản đã phát hành; chấm CVSS, ghi phiên bản và module bị ảnh hưởng; có đang bị khai thác không. | người duy trì + owner module |
-| 3. Giảm thiểu tạm | Nếu chưa có vá: hướng dẫn tắt module bị ảnh hưởng, đổi cấu hình, chặn cổng. | người duy trì |
+| 3. Giảm thiểu tạm | Nếu chưa có vá: hướng dẫn tắt module bị ảnh hưởng (Settings → Modules), đổi cấu hình, chặn cổng. | người duy trì |
 | 4. Sửa | Làm trên nhánh riêng tư (advisory private fork); thêm test lặp lại lỗi; review bởi người thứ hai; không lộ chi tiết trong tên nhánh/commit công khai trước khi phát hành. | owner module |
 | 5. Phát hành | Đi qua `docs/ENGINEERING.md` §6 với cohort rút gọn, ký cosign, kênh product-advisory; **kien tag tay**. | người duy trì |
-| 6. Thông báo | Công bố GHSA (+ CVE), changelog mục Security, banner trong ứng dụng cho người dùng đang chạy bản bị ảnh hưởng: sẽ điền ở M2 (cơ chế banner). | người duy trì |
-| 7. Thu hồi | Nếu một bản phát hành bị lỗi nặng: thu hồi (revocation) để hộp không cài và cảnh báo hộp đã cài (D-12): sẽ điền ở M2. | người duy trì |
+| 6. Thông báo | Công bố GHSA (+ CVE), changelog mục Security. chưa có: banner trong ứng dụng cho hộp đang chạy bản bị ảnh hưởng (cần `core` cập nhật phần mềm và advisory trong index: `.ai/deferred/feat-host-net-containers.md:56`). | người duy trì |
+| 7. Thu hồi | Một bản phát hành lỗi nặng: thu hồi bằng `revoked[]` trong index ký; host **từ chối** kéo hay chuyển sang bản, digest hoặc khoá đã bị thu hồi (`release_revoked`, `key_revoked`, `previous_revoked`). chưa có: lệnh của công cụ dựng để thêm mục thu hồi vào index (`.ai/deferred/feat-release-builder.md:6`) và cảnh báo cho hộp đã cài (như bước 6). | người duy trì |
 | 8. Sau sự cố | Ghi nguyên nhân gốc vào `docs/project-map/lessons.md`, thêm test/quy tắc chặn tái diễn, đóng advisory. | người duy trì |
 
-- Lộ khoá ký (cosign/minisign): thu hồi khoá, phát hành khoá mới qua kênh đã biết, đính chính công khai: sẽ điền ở M2.
-- Lộ secret của người dùng do lỗi Vedette: thông báo để họ đổi khoá API/token đã cấu hình; Vedette không giữ khoá ở dạng rõ (AES-256-GCM).
+- Lộ khoá ký (minisign/cosign): chưa có: thủ tục thu hồi khoá và phát khoá mới (khoá thật chưa tạo: `.ai/deferred/feat-release-builder.md:3`; đường khôi phục khi khoá đang dùng bị lộ: `.ai/deferred/feat-host-net-containers.md:18`).
+- Lộ secret của người dùng do lỗi Vedette: thông báo để họ đổi khoá API/token đã cấu hình (AI, feed, kênh); Vedette không giữ khoá ở dạng rõ (AES-256-GCM, hiện 4 ký tự cuối).
+
+## 10. Module: cổng, dữ liệu, lưu giữ, sao lưu, khi tắt
+Mọi module dùng chung `vedette.db`, trừ ngoại lệ ghi rõ. Tắt module = không route, không job, không cổng; dữ liệu giữ nguyên; màn hình khác nói rõ chỗ thiếu dữ liệu vì module tắt. Ngoại lệ có chủ ý: job dọn theo thời hạn lưu (`Housekeeping`, D-160) vẫn chạy khi tắt, chỉ để xoá dữ liệu quá hạn.
+
+| Module | Cổng / kết nối | Dữ liệu | Lưu giữ, dọn | Trong sao lưu | Khi tắt |
+|---|---|---|---|---|---|
+| `feeds` | chỉ ra: HTTPS 443 tới từng nguồn đã khai | `feeds_*` | kéo mỗi 1–168 giờ theo nguồn; trần mỗi lần kéo 5 MB, 50 000 dòng (hagezi 250 000) | có | không kéo; dữ liệu giữ; module khác hiện "chưa có dữ liệu". Feed riêng của quản trị viên có thể trỏ `http` tới host riêng/loopback (INV-2) |
+| `inventory`, `findings`, `mitigation` | không | `inv_*`, `fnd_*`, `mit_*` | không dọn tự động | có | job đối chiếu dừng; dữ liệu giữ |
+| `notify` | chỉ ra: Telegram (long polling), Slack (Socket Mode), Zalo, SMTP của khách, webhook | `notify_*`; bí mật kênh qua `core/secrets`, GUI chỉ hiện 4 ký tự cuối | `notify_kev` 30 ngày; `notify_send`/`notify_incident`/`notify_notice` **chưa dọn** (chưa có: dọn theo hạn lưu, `.ai/deferred/feat-notify-module.md:10`) | có | không gửi, không xếp hàng; sự kiện nhận lúc tắt bị bỏ; người dùng 2FA bằng email không đăng nhập được cho tới khi bật lại hoặc quản trị đặt lại hai bước |
+| `exposure` | chỉ ra: ba dịch vụ "IP của tôi" (checkip.amazonaws.com, icanhazip.com, ifconfig.me); chưa có: quét từ ngoài (CT log, httpx), quét `exposure` trả 501 (`cmd/vedette/exposure.go:22`) | `exp_*` | IP hiệu lực 30 ngày kể từ lần thấy cuối (D-79), tự gia hạn; ảnh chụp theo ngày | có | không tự dò IP |
+| `scan` (+ `sensor-active`) | container `vedette-scan`, mạng host, `NET_RAW`; không cổng nghe | `scan_*` | probe giữ 90 ngày, sự kiện quét lại 1 năm; **job `retention` vẫn chạy khi tắt** (D-202) | có | không quét, lịch và quét lại dừng; container bị dừng và không tự lên khi khởi động lại máy (D-260) |
+| `logs` | nhận syslog UDP/TCP 514 (5514 khi tiến trình không bind được 514) trong `core`, chỉ khi module bật **và** đã khai ít nhất một nguồn; TLS 6514 chưa xây | cấu hình ở `vedette.db`; **dòng log ở `logs.db`** (tệp riêng cạnh `vedette.db`, migration chỉ thêm, D-151) | `retention_days` ∈ {7, 30, 90, 180}, mặc định 30; **trần 4 GiB chữ của dòng** (D-200: vượt thì xoá dòng cũ nhất tới 90%); xoá một nguồn không xoá dòng đã nhận; **job `purge` chạy cả khi tắt** (D-201), ghi audit `logs.purge_started` và `logs.purge` | cấu hình có; **`logs.db` không** | không nhận dòng mới, socket đóng; dòng cũ vẫn bị dọn theo hạn và trần |
+| `ai` | chỉ ra: HTTPS tới nhà cung cấp khách cấu hình (dùng biến proxy môi trường nếu có) | `ai_*`; khoá API qua `core/secrets` (4 ký tự cuối) | nhật ký hoạt động mặc định 365 ngày (tối thiểu 90, tối đa 3650), chuỗi băm; **job `activity-prune` (6 giờ) chạy cả khi tắt** (D-202) | có (khoá chủ thì không) | không gọi nhà cung cấp; dữ liệu giữ. "Explain" và "brief" gửi dữ liệu ra ngoài: `PRIVACY.md` luồng 3 |
+| `reports` | không; gửi email qua kênh email của `notify`; PDF do trình duyệt in | `rep_*`; lịch sử gửi (mỗi mục giữ số liệu của tuần đó, hiển thị tối đa 52) | không dọn tự động | có | trang Reports (mục ở thanh bên) mất, lịch gửi dừng; trong báo cáo PDPL các biện pháp thiếu dữ liệu hiện `unknown`, không bao giờ `ok` |
+| `mcp-server` | `127.0.0.1:8765` (`/mcp`), chỉ loopback, cần token (`-mcp-listen`); mở đúng khi module bật | `mcp_*`; token tạo/thu hồi ở Settings → MCP server | mỗi lần gọi một dòng `core_audit` | có | cổng đóng |
+| `honeypot` | 22, 80, 445, 1433, 3389 **chỉ trên IP bẫy** (namespace `vedette-hp`), không trên IP quản trị | `hp_*`; `config/` và `log/` ở `/var/lib/vedette-honeypot` | log thô của container, `core` chỉ đọc | `hp_*` có; log thô không | container dừng, unit không còn `[Install]`, IP bẫy bị gỡ (D-189) |
+| `sensor-passive` | container `vedette-sensor`, mạng host, `NET_RAW`; không cổng nghe | `sp_*` | — | có | container bị dừng và không tự lên khi khởi động lại máy (D-260) |
+
+- Container `sensor` và `scan` đi theo công tắc module như honeypot (D-260): bật module thì `core` nhờ host bật container (và giữ `[Install]` để lên lại sau khởi động máy), tắt thì dừng và bỏ `[Install]`. Host từ chối hay chưa trả lời thì `core` thử lại (10 s, 30 s, 2 phút, rồi mỗi 10 phút) và ghi lý do vào `journalctl -u vedette-core`. Đừng `systemctl start/stop` tay: `core` sẽ đưa chúng về đúng trạng thái module.
+- chưa có: nhận syslog từ LAN trên hộp appliance. Unit `core` chỉ publish 8443 và `127.0.0.1:8444`, chưa publish 514/5514 và chưa có `NET_BIND_SERVICE`, nên listener chạy nhưng LAN chưa tới được (`.ai/deferred/feat-logs-l2-syslog.md:5`); TLS 6514: `.ai/deferred/feat-logs-l2-syslog.md:3`; màn hình chưa nói cổng đang nghe là 514 hay 5514 (`.ai/deferred/feat-logs-l2-syslog.md:4`).
+- chưa có: dùng `mcp-server` trên hộp appliance. Máy chủ chỉ nghe loopback của chính container `core`, host không tới được; chỉ dùng được ở kiểu cài không container (D-234 (3), `.ai/deferred/feat-mcp-server.md:3`). Máy khác tới MCP qua đường hầm SSH hoặc reverse proxy do khách dựng; Vedette không mở cổng ra LAN.
+
+## 11. Vị trí tệp trên hộp
+| Đường dẫn | Nội dung |
+|---|---|
+| `/var/lib/vedette/` | `vedette.db` (+ `-wal`, `-shm`), `vedette.key` (khoá chủ, 0600), `logs.db`, `vedette-selfsigned.crt/.key`, `snapshots/` (bản chụp tạm) |
+| `/var/lib/vedette-host/` | trạng thái host: `backups/` (+ `index.json`), `exports/`, `containers/` (`versions-<service>.json`, `transition-<service>.json`), `runs/`, `hp/` (decoy), `net/` |
+| `/var/lib/vedette-honeypot/{config,log}` | cấu hình sinh cho OpenCanary; log thô |
+| `/etc/vedette/host.conf` | do `install.sh` ghi từ id người dùng thật (đừng sửa tay: chạy lại script) |
+| `/etc/containers/systemd/vedette-*` | unit Quadlet do host sinh từ mẫu hằng (đừng sửa tay) |
+| `/var/log/vedette-host/audit.jsonl` | nhật ký kiểm toán của host (chuỗi băm chỉ-thêm) |
+| `/var/lib/vedette-install/` | trạng thái của `install.sh` (kênh, gói đã yêu cầu apt, id người dùng) |
+| `journalctl -u vedette-<tên>` | log container và `vedette-host` (container ghi vào journald) |

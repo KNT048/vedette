@@ -445,7 +445,7 @@
       "enable": "Memory enabled: {{text}}",
       "addTitle": "Add memory",
       "editTitle": "Edit memory",
-      "dialogBody": "The AI reads enabled memories before it answers.",
+      "dialogBody": "The AI reads enabled memories before it answers questions about your network.",
       "text": "Memory",
       "textHint": "A fact, for example: NAS-PHOTOS is reachable from the Internet through FortiGate virtual IP NAS-PHOTO-443.",
       "errText": "Write the memory in at least 3 characters.",

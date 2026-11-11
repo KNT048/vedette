@@ -1,0 +1,75 @@
+# Install test on a real box (WP-08h, D-166)
+
+The plan the Mac session follows to install Vedette on the test box **192.168.18.141** the way a customer would: root, over SSH, one script, then the GUI. It uses the **test channel**: the release keys and the published images do not exist yet (WP-08k), so the install runs from a folder built on the dev box and signed with throwaway keys. The installer prints `TEST INSTALL - NOT FOR CUSTOMERS` at the start and at the end. The customer path (GitHub release plus `ghcr.io`) is the default of `install.sh` and stops with "not tied to a release" until the first release exists. The two channels never mix: a test host and a release host are different builds with different trusted keys, `install.sh` refuses to install over the other channel (run `--uninstall --yes` first), and a release `install.sh` refuses `--test-artifacts`.
+
+**192.168.18.141 is a team member's development box (Mlee's, user `byn2`), not a lab machine.** Nobody but the Mac session installs on it, and only as written here: no network hand-over, no Box network Apply, and decoy IPs only after asking her (below). Do not SSH there from anywhere else.
+
+## Safe install on this test box
+
+**What the install changes on the host, and how `--uninstall --yes` reverts each change.** Nothing else is changed.
+
+| Change | Uninstall |
+|---|---|
+| Packages that are **missing** are added with apt: `vedette-host`, and out of podman, netavark, aardvark-dns, catatonit, chrony, netplan.io, nftables, iptables, iproute2, procps, unattended-upgrades, passwd, curl, ca-certificates only those not installed yet, plus their dependencies. **No package that is already installed is upgraded on purpose** (`--no-upgrade` on the ones the installer names); a dependency can still be upgraded when a new package needs a newer version of it (that upgrade is not undone and the package is never removed), needrestart only lists, and the installer refuses if apt would remove anything but `systemd-timesyncd` (which chrony replaces). The installer records the packages it asked for in `/var/lib/vedette-install/asked-packages`. | `vedette-host` is purged; the recorded packages are marked automatic and apt removes those of them (and the ones apt newly installed for them) that nothing else needs now. Packages that became removable for other reasons, such as old kernels, and packages marked manual are never touched. A package somebody installed on top (for example `ufw`, which needs `iptables`) keeps what it needs. If apt would remove anything beyond that set the installer removes nothing more and says so. A replaced `systemd-timesyncd` is installed again. |
+| The accounts the new packages make (`_chrony`), and the users `vedette`, `vedette-sensor` | removed (only the ones the installer saw appear) |
+| `/etc/chrony/chrony.conf` is **not touched**, chrony is **not restarted**; an existing chrony keeps its configuration. The installer only checks that chrony lists time sources and says so if it does not. | nothing to revert (`vedette.sources`, written later by vedette-host from Box network, is removed) |
+| Podman units and data: `/etc/containers/systemd/vedette-*` (units, `vedette-int.network`, two credential volumes), rootful images `ghcr.io/knt048/vedette-*` and `localhost/vedette-scan-nmap:*` (the scan image build also leaves its base layers in the rootful storage), containers `vedette-*`, network `vedette-int` (a `172.30.x.0/24` that clashes with nothing in `ip route`), `/var/lib/containers` if podman was added | removed; the storage folder too when podman was added by the installer |
+| `net.ipv4.ip_forward` (and IPv6 forwarding): netavark turns it on when the first container network comes up | the value recorded before the install is written back, unless something else needs forwarding now (Docker running, another podman network, libvirt, a sysctl file that sets it): then it is left and the installer says so |
+| nft tables netavark leaves (`inet netavark`, and the empty `ip nat`/`ip filter` iptables-nft makes) | removed when they did not exist before and are empty or netavark's; a table with other rules is left and reported |
+| `/etc/subuid` and `/etc/subgid`: one `containers:2147483647:2147483648` line when the box has no `containers:` line | removed only when the installer added it; an administrator's own line is never touched |
+| Folders and users: `/etc/vedette`, `/var/lib/vedette` (database and key), `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/var/lib/vedette-install` (installer state), `/var/log/vedette-host`, `/run/vedette`, network namespace `vedette-hp` (honeypot decoy links live in it) | removed (`--keep-data` keeps the data and the users) |
+| TCP 8443 (interface, API) and 8444 (sensor link, on 127.0.0.1) | closed when the containers are removed |
+| During the install only: `/etc/containers/registries.conf.d/vedette-test-mirror.conf` and the unit `vedette-testregistry.service` (a loopback registry on 127.0.0.1:5077). The mirror is system-wide, so it also redirects pulls of `ghcr.io/knt048/*` by **byn2's rootless podman** for the minutes of the install; nothing else. | removed when the install ends, also when it fails or the SSH session drops (the next run of either channel removes a leftover one) |
+
+**What it must never touch** (it cannot: the default is no network hand-over; do not add `--network-handover`):
+
+- `/etc/netplan/*`, NetworkManager and the LAN connection of the box. **No `--network-handover`, and no Box network Apply or confirm in the GUI on this box**: losing its address loses the box. Looking at the Box network screen is fine; pressing Apply is not. (The decoy IPs of the honeypot do not change the address of the box; they are separate macvlan links inside `vedette-hp`.)
+- the home directory of `byn2` (`~byn2/vedette*`, Mlee's worktrees and caches), the tmux session `claude`, the processes of `byn2`, `sshd` and its config, the apt sources. Everything is done as root outside `/home`: keep the test folder and the snapshots under `/root/vedette-test`.
+- no reboot (only with the supervisor's OK).
+- no scan of anything outside the box: this plan runs no scan; active scanning stays off.
+
+If the preflight refuses (for example port 8443 or 8444 is in use by Mlee's own dev run), that is the answer: do not stop her processes, report it to the supervisor.
+
+**Before and after.** Take the snapshot first and compare after the uninstall; the two must be identical except for the noise listed below:
+
+```sh
+snap() { d=$1; mkdir -p "$d"
+  getent passwd | sort >"$d/passwd"; getent group | sort >"$d/group"
+  systemctl list-unit-files --no-legend --no-pager | awk '{print $1,$2}' | sort >"$d/units"
+  # sockets: the dev processes of byn2 listen on ports of their own; only these are compared
+  ss -H -ltnu | awk '{print $1,$5}' | grep -E ':(8443|8444|5077)$' | sort >"$d/sockets"
+  ip -o link | awk '{print $2}' | sort >"$d/links"; ls /run/netns 2>/dev/null | sort >"$d/netns"
+  ip -4 -o addr | awk '{print $2,$4}' | sort >"$d/addr"; ip -4 route | sort >"$d/routes"
+  cat /proc/sys/net/ipv4/ip_forward /proc/sys/net/ipv6/conf/all/forwarding >"$d/sysctl"
+  (nft list tables 2>/dev/null || echo "no nft") | sort >"$d/nft"
+  dpkg-query -W -f='${binary:Package} ${Version}\n' | sort >"$d/packages"
+  sha256sum /etc/chrony/chrony.conf >"$d/chrony" 2>&1
+  ls -la /etc/netplan >"$d/netplan" 2>&1; sha256sum /etc/netplan/* 2>/dev/null >>"$d/netplan"
+  find /etc /usr/lib/vedette /var/lib /var/log /run/vedette -xdev -printf '%p %y %m %u:%g\n' 2>/dev/null \
+    | grep -Ev '^/var/lib/(apt|dpkg|systemd|ucf|pam|private|snapd|logrotate|PackageKit|update-notifier)|^/var/log/(apt|dpkg|journal|syslog|auth|kern|cloud-init|unattended-upgrades)|^/etc/(ssl|ld.so.cache|alternatives|\.pwd.lock|mailcap)|\.(log|gz|old)( |$)' | sort >"$d/files"; }
+mkdir -p /root/vedette-test; snap /root/vedette-test/before
+# ... install, test ...
+snap /root/vedette-test/after; diff -ru /root/vedette-test/before /root/vedette-test/after && echo IDENTICAL
+```
+
+Known noise that is not an installer fault: the apt lists and the apt/dpkg/journal logs (excluded above), `ip -o link` entries of **byn2's own** containers or VMs that come and go, and the unit list if byn2 or the OS changed a unit meanwhile. In the packages file, only these lines may legitimately differ: a **dependency that apt upgraded** because a new package needed a newer version (the line has a new version, the package is still there; report which), packages that **apt or unattended-upgrades upgraded on their own** in that window, and the base layers of the `scan` image build in podman's storage (not a package line, but `/var/lib/containers` content; with podman added by the installer the folder is removed). When podman was already installed but had never run as root, its rootful storage is created by the install and **stays** after the uninstall (`/var/lib/containers/storage`: `db.sql`, `libpod/`, `overlay*/`, `volumes/`, lock files): the installer never deletes a container storage it did not create the folder for, since other rootful containers may use it (seen on 192.168.18.141, #298). A package that is **missing** after the uninstall, or one that is **new** and not in the installer's `asked-packages` or its dependencies, is a bug. `addr`, `routes`, `chrony` and `netplan` prove the LAN connection and the time configuration were not touched. Any other difference is a bug of the installer: report it, do not clean up by hand.
+
+## What to run (the Mac session, as root, `ssh root@192.168.18.141`)
+
+0. **Build the artifacts on a Linux dev box with podman** (not on the test box, and **not on the Mac**: the build needs podman and bash 4 or later, and macOS has neither by default, issue #298): `make install-artifacts` (full: core with the real interface, sensor and scan; add the honeypot image of WP-08e built with the same tag if it is on `main`: `make install-artifacts` includes it when `localhost/vedette-honeypot:$TEST_VERSION` exists). The test box is amd64 and the default follows the machine you build on: on an arm64 box use `make install-artifacts ARCH=amd64`. The result is `dist/install/` on that box. Copy it to the Mac (`rsync -a <build box>:<repo>/dist/install/ <local folder>/`), then from the Mac: `rsync -a <local folder>/ root@192.168.18.141:/root/vedette-test/art/` and make root own it: `ssh root@192.168.18.141 'chown -R root:root /root/vedette-test/art && chmod -R go-w /root/vedette-test/art'` (the rsync of macOS has no `--chown`), then `ssh root@192.168.18.141 'cd /root/vedette-test/art && sha256sum -c SHA256SUMS'`. The installer refuses a folder that is not root's or is writable by group or others, and copies what it uses into its own closed folder before it checks anything.
+1. **Snapshot** the box (above).
+2. **Install**: `sh /root/vedette-test/art/install.sh --test-artifacts /root/vedette-test/art`. Expect: the warning, `preflight ... ok`, packages, `vedette-host`, `bootstrap` (several minutes; the scan image is built on the box and needs `deb.debian.org`), then `Vedette is running`, an address `https://192.168.18.141:8443` and a setup code. A refusal in the preflight changes nothing. If a step fails, run the same command again: it repairs what stopped (the installer's own marker is written before its first change); only `--uninstall --yes` removes.
+3. **Effects, from the box**: `systemctl is-active vedette-host`; `podman ps` (vedette-core healthy); `curl -ks https://127.0.0.1:8443/api/v1/setup` answers 200 and so does `https://192.168.18.141:8443/api/v1/setup` from the Mac (`curl -k`); `ss -ltn` shows 8443 and 127.0.0.1:8444 (netavark's port forward does open a listener); `cat /etc/vedette/host.conf` matches `getent passwd vedette vedette-sensor`; `cat /etc/containers/systemd/vedette-int.network` (a `172.30.x.0/24` that clashes with nothing in `ip route`); `chronyc sources` (chrony's own configuration, unchanged: `sha256sum /etc/chrony/chrony.conf` equals the snapshot); `ls /etc/netplan` and `ip -4 addr` unchanged from the snapshot; `ls /etc/containers/registries.conf.d/vedette-test-mirror.conf` does not exist; `cat /proc/sys/net/ipv4/ip_forward` is probably 1 now (it is restored at uninstall).
+4. **GUI**: open `https://192.168.18.141:8443`, accept the certificate, enter the setup code, finish the wizard (administrator with 2FA, LAN range, scan consent, modules, notifications).
+5. **Modules**: turn on `sensor-passive` (the sensor container starts and a heartbeat shows), and `honeypot` (the container starts). **Decoy IPs: only after asking Mlee** (and the supervisor): pick an address outside her DHCP range, check it is free with `arping -D -I <nic> <ip>` (no reply means free), add it in the honeypot screen; on this wired LAN macvlan is expected to work: the decoy answers ARP and a connection to a decoy port is a hit in the GUI; from the Mac, one `nc -vz <decoy ip> 22` is the whole test. Remove the decoy afterwards. Leave `sensor-active` off. **SPAN** (a second NIC in promiscuous mode) only if the box has one: `ip -o link` shows a second wired card without an address; otherwise write "SPAN skipped: no second NIC". Do not press Apply in Box network (see above).
+6. **Re-run**: `sh /root/vedette-test/art/install.sh --test-artifacts /root/vedette-test/art` again. Expect `host.conf is already right` and `already bootstrapped`, and core not restarted (`podman inspect --format '{{.State.StartedAt}}' vedette-core` unchanged).
+7. **Uninstall**: `sh /root/vedette-test/art/install.sh --uninstall` (only says what it would do), then `sh /root/vedette-test/art/install.sh --uninstall --yes`. This deletes the test box's Vedette database and key.
+8. **After**: snapshot and the `diff` above must say IDENTICAL (apart from the noise listed); `ss -ltn` has no 8443/8444; `ip -o link` has no leftover macvlan or decoy link; `ls /run/netns` has no `vedette-hp`; `cat /proc/sys/net/ipv4/ip_forward` is the value of the snapshot; `nft list tables` is as in the snapshot.
+
+## Not failures
+
+The container run (`make install-check`) cannot show, and this plan checks on the box instead: macvlan decoys on a real wire, a second NIC and SPAN, `netplan` and the network hand-over (not exercised on this box on purpose), a reboot (the units come back after boot: only with the supervisor's OK). If the box has no second NIC, SPAN is skipped, not failed. The scan image build needs `deb.debian.org`; a box that cannot reach it installs without active scanning (the installer says so and goes on).
+
+## Report
+
+Send the supervisor: the install output (setup code removed), the result of step 3, the module and decoy checks of step 5, the second-run result, and the `diff` of step 8. Any difference, any step that did not behave as described: stop there and report; do not repair by hand.

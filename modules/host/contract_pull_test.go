@@ -881,13 +881,14 @@ func TestContract_Pull_AHostWithoutKeysRefusesEveryPullAndStoresNothing(t *testi
 	}
 }
 
-// The keys of this very build (production seam: Deps.Keys unset). A production build embeds none until
-// the real keys are pasted in, and then refuses everything; a build with the releasetestkeys tag (CI
-// runs the tests both ways) embeds the throwaway keys of internal/release/testdata and then accepts the
-// committed vectors that the real minisign signed, which is the end-to-end check of the format.
+// The keys of this very build (production seam: Deps.Keys unset). A production build embeds the real
+// release keys (D-256), so the committed vectors, signed by the throwaway test keys, are refused as not
+// signed by a trusted key; a build with the releasetestkeys tag (CI runs the tests both ways) embeds the
+// throwaway keys of internal/release/testdata and then accepts them, which is the end-to-end check of the
+// format; a build with no usable keys refuses everything.
 func TestContract_Pull_TheEmbeddedKeysOfThisBuild(t *testing.T) {
 	t.Parallel()
-	_, kerr := release.Embedded()
+	tr, kerr := release.Embedded()
 	e := startSys(t) // no Deps.Keys
 	e.m.StatefulImages()
 	rd := func(name string) []byte {
@@ -903,6 +904,13 @@ func TestContract_Pull_TheEmbeddedKeysOfThisBuild(t *testing.T) {
 		e.refused(t, api.CmdContainerPull, args, 412, api.CodeNoTrustedKeys)
 		if len(e.m.Calls("podman")) != 0 {
 			t.Fatal("a build without keys ran podman")
+		}
+		return
+	}
+	if !tr.TestOnly {
+		e.refused(t, api.CmdContainerPull, args, 412, api.CodeSignatureInvalid)
+		if len(e.m.Calls("podman")) != 0 {
+			t.Fatal("test-key vectors made a production build run podman")
 		}
 		return
 	}

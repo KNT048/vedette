@@ -122,7 +122,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
             </Field>
             <Field htmlFor="sch-at" label={t('safety.at')}><Input id="sch-at" type="time" value={sch.at} onChange={(e) => setSch((s) => ({ ...s, at: e.target.value }))} disabled={dis || !sch.enabled} /></Field>
           </div>
-          <p className="text-[13px] text-muted">{!data.can_scan && sch.enabled ? t('safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
+          <p className="text-[13px] text-muted">{data.schedule_blocked_reason ? data.schedule_blocked_reason : !data.can_scan && sch.enabled ? t('safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
         </div>
       </Section>
 

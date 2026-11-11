@@ -38,6 +38,9 @@ import (
 type honeypotHost struct {
 	api hostAPI
 	log *slog.Logger
+	// who names the service in logs and errors; empty = "honeypot". The sensor and scan followers (modulecontainer.go) reuse this adapter's
+	// host calls, each with its own instance, so their warnings carry their own name and are rate-limited apart.
+	who string
 	// poll is the gap between looks at a run that is still going after its event stream ended (at least a second on a
 	// real host); runFor bounds the wait for one accepted run.
 	poll, runFor time.Duration
@@ -239,6 +242,13 @@ func (h *honeypotHost) StopContainer(ctx context.Context) error {
 	return nil
 }
 
+func (h *honeypotHost) name() string {
+	if h.who == "" {
+		return "honeypot"
+	}
+	return h.who
+}
+
 func (h *honeypotHost) setStale() {
 	h.mu.Lock()
 	h.status = stateAt{}
@@ -266,9 +276,9 @@ func (h *honeypotHost) do(ctx context.Context, command string, args any, ok stri
 		return h.outcome(ctx, command, run.Error.Code, run.Error.Message)
 	}
 	if h.warnDue(command + " ended") {
-		h.log.WarnContext(ctx, "honeypot: a host run ended without a result", "command", command, "status", string(run.Status))
+		h.log.WarnContext(ctx, "container host: a host run ended without a result", "service", h.name(), "command", command, "status", string(run.Status))
 	}
-	return fmt.Errorf("honeypot: %s ended %s with no result; outcome unknown, will check again at the next apply", command, run.Status)
+	return fmt.Errorf("%s: %s ended %s with no result; outcome unknown, will check again at the next apply", h.name(), command, run.Status)
 }
 
 // outcome sorts a code of the host. A run that was cut off (the host restarted or is stopping, a timeout, a failure of
@@ -279,9 +289,9 @@ func (h *honeypotHost) outcome(ctx context.Context, command, code, hostMsg strin
 	switch code {
 	case api.CodeHostRestarted, api.CodeShuttingDown, api.CodeTimeout, api.CodeCommandFailed, api.CodeInternal:
 		if h.warnDue(command + " " + code) {
-			h.log.WarnContext(ctx, "honeypot: a host run was cut off; outcome unknown", "command", command, "code", code, "message", hostMsg)
+			h.log.WarnContext(ctx, "container host: a host run was cut off; outcome unknown", "service", h.name(), "command", command, "code", code, "message", hostMsg)
 		}
-		return fmt.Errorf("honeypot: %s was cut off (%s); outcome unknown, will check again at the next apply", command, code)
+		return fmt.Errorf("%s: %s was cut off (%s); outcome unknown, will check again at the next apply", h.name(), command, code)
 	case api.CodePendingConfirm, api.CodeNetPendingConfirm, api.CodeInstallInProgress:
 		return errHostBusy
 	}
@@ -372,7 +382,7 @@ func (e refusedError) Is(target error) bool { return target == honeypot.ErrRefus
 // shows the text beside the address it could not place.
 func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg string) error {
 	if h.warnDue(command + " " + code) {
-		h.log.WarnContext(ctx, "honeypot: vedette-host refused or failed a command", "command", command, "code", code, "message", hostMsg)
+		h.log.WarnContext(ctx, "container host: vedette-host refused or failed a command", "service", h.name(), "command", command, "code", code, "message", hostMsg)
 	}
 	what := "the host could not do it"
 	switch code {
@@ -385,9 +395,9 @@ func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg strin
 	case api.CodeLimitReached:
 		what = "the host holds the most decoy addresses it allows"
 	case api.CodeUnitUnknown, api.CodeNotPulled:
-		what = "the honeypot container is not installed on this box"
+		what = "the " + h.name() + " container is not installed on this box"
 	case api.CodeUnitUnsafe:
-		what = "the honeypot container's unit is missing or not one the host trusts"
+		what = "the " + h.name() + " container's unit is missing or not one the host trusts"
 	case api.CodeNotAppliance:
 		what = notApplianceReason
 	}

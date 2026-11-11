@@ -64,7 +64,7 @@ type NetMgmt struct {
 type NetConfig struct {
 	Mgmt *NetMgmt `json:"mgmt"`
 	SPAN *string  `json:"span"` // name of the SPAN card, or null
-	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty for the default pool.ntp.org
+	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty when the file is absent or holds the default pool.ntp.org line (the distribution's own sources stay either way, D-166)
 }
 
 // NetRoute is the default route the kernel has, from /proc/net/route.
@@ -149,7 +149,7 @@ type NetApplySPAN struct {
 type NetApplyArgs struct {
 	Mgmt NetApplyMgmt `json:"mgmt"`
 	SPAN NetApplySPAN `json:"span"`
-	// NTP holds up to four IPv4 addresses or names; empty means the default pool.ntp.org (D-106).
+	// NTP holds up to four IPv4 addresses or names, added to the sources of the distribution's own chrony configuration (D-106, D-166); empty writes the default `pool pool.ntp.org` into vedette.sources.
 	NTP []string `json:"ntp"`
 	// ConfirmTimeoutS is the confirm window of a management change, 30 to 600; 0 means 120.
 	ConfirmTimeoutS int `json:"confirm_timeout_s"`

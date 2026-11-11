@@ -141,15 +141,16 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
-	cfg      Config
-	router   *Router
-	meter    *Meter
-	loc      *time.Location          // the box time zone: the day of the meter and of "today" in the usage view
-	harness  atomic.Pointer[harness] // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
-	degraded string                  // why the saved settings could not be loaded; "" = loaded
-	mu       sync.Mutex              // serialises changes
-	testSlot chan struct{}           // one place: a hook test runs while it holds it, so tests cannot pile up work
-	snap     atomic.Pointer[snapshot]
+	cfg       Config
+	router    *Router
+	meter     *Meter
+	loc       *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
+	harness   atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
+	skillsOff atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
+	degraded  string                          // why the saved settings could not be loaded; "" = loaded
+	mu        sync.Mutex                      // serialises changes
+	testSlot  chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
+	snap      atomic.Pointer[snapshot]
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -182,6 +183,8 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	}
 	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1)}
 	s.harness.Store(h0)
+	none := map[string]bool{}
+	s.skillsOff.Store(&none)
 	sn, err := s.load(ctx)
 	if err == nil {
 		err = s.build(sn, loc)
@@ -196,6 +199,12 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 			}
 		} else {
 			err = fmt.Errorf("load rules and hooks: %w", err)
+		}
+	}
+	if err == nil {
+		var off map[string]bool
+		if off, err = s.loadSkills(ctx); err == nil {
+			s.skillsOff.Store(&off)
 		}
 	}
 	if err == nil {

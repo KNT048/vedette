@@ -128,14 +128,15 @@ func (c *clock) Add(d time.Duration) {
 }
 
 type env struct {
-	t      *testing.T
-	db     *store.DB
-	sec    *secrets.Store
-	fake   *fakeProviders
-	clock  *clock
-	svc    *ai.Service
-	facts  *fakeFacts
-	pruner *fakePruner
+	t           *testing.T
+	db          *store.DB
+	sec         *secrets.Store
+	fake        *fakeProviders
+	clock       *clock
+	svc         *ai.Service
+	facts       *fakeFacts
+	pruner      *fakePruner
+	hookTimeout time.Duration // 0 = the default; a test sets a tiny one to run out of time
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -162,7 +163,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout})
 	if err != nil {
 		e.t.Fatal(err)
 	}

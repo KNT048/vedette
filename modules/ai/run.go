@@ -159,11 +159,18 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 
 // guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
 // them. Any block, hold or failed run stops the call (fail closed): nothing is sent.
-func (s *Service) guard(ctx context.Context, spec JobSpec) (question string, data []DataBlock, names []string, stop string) {
+func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string) {
+	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
+	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
+	defer cancel()
 	run := func(text string) (string, bool) {
-		r, err := s.hooks.Run(ctx, BeforeAI, text)
-		if err != nil {
+		r, err := hooks.Run(ctx, BeforeAI, text)
+		if errors.Is(err, ErrHookInputTooLarge) {
 			stop = "The text is too long to check against the hooks, so it was not sent."
+			return "", false
+		}
+		if err != nil {
+			stop = "The text could not be checked against the hooks in time, so it was not sent."
 			return "", false
 		}
 		names = append(names, r.Names()...)
@@ -216,8 +223,11 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	}
 	entry := ActivityEntry{Job: string(spec.Job), Trigger: trigger, Hooks: []string{}, InputHash: HashContent(""), OutputHash: HashContent(""), Result: ResultError}
 
-	question, data, hooks, stop := s.guard(ctx, spec)
-	entry.Hooks = hooks
+	// One generation of the rules and hooks for the whole call: the answer is checked by the hooks that checked the question.
+	har := s.harness.Load()
+	hooks := har.runner
+	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
+	entry.Hooks = hookNames
 	if stop != "" {
 		entry.Result, entry.Summary, entry.InputHash = ResultBlockedByHook, "Not sent: "+stop, HashContent(stop)
 		if err := s.record(ctx, entry); err != nil {
@@ -225,7 +235,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		return JobResult{}, apiUnavailable("The AI was not asked: " + stop)
 	}
-	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Question: question, Data: data})
+	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Data: data})
 	if err != nil {
 		return JobResult{}, fmt.Errorf("ai: build prompt: %w", err)
 	}
@@ -243,11 +253,15 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		entry.Result = ResultFallbackUsed
 	}
 
-	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone.
+	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone. The hooks get
+	// their own deadline, so slow hooks cannot use up the time of the activity row (INV-17), which has a fresh one.
+	hctx, hcancel := context.WithTimeout(context.WithoutCancel(ctx), s.hookTimeout())
+	structured := spec.Schema != nil && spec.Check != nil && spec.Check(res.Response.Text) == nil // the format is checked first; a bad answer is refused below
+	after, herr := afterHooks(hctx, hooks, structured, res.Response.Text)
+	hcancel()
+	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	wctx, wcancel := detached(ctx)
 	defer wcancel()
-	after, herr := s.hooks.Run(wctx, AfterAI, res.Response.Text)
-	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	text := after.Text
 	var bad error
 	switch {

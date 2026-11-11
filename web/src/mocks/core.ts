@@ -27,7 +27,7 @@ export const coreHandlers = [
     const b = await body<{ email: string; password: string; code: string }>(request)
     const email = String(b.email ?? '').trim().toLowerCase()
     const u = usersStore.get().find((x) => x.email === email && !x.disabled)
-    if (!u || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
+    if (!u || u.sso || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
     // D-180: a temporary password past its 72 hours is refused once it is proven right (before the two-step code, like the backend).
     if (u.temp_password_expires_at && Date.parse(u.temp_password_expires_at) <= Date.now()) {
       audit('auth.login_failed', u.email, 'temporary password expired')
@@ -68,7 +68,7 @@ export const coreHandlers = [
   http.post(`${API}/auth/login/resend-code`, async ({ request }) => {
     const b = await body<{ email: string; password: string }>(request)
     const u = usersStore.get().find((x) => x.email === String(b.email ?? '').trim().toLowerCase() && !x.disabled)
-    if (!u || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
+    if (!u || u.sso || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
     if (twofaMethodOf(u) !== 'email') return fail(409, 'not_email_method', 'This account does not use email codes.')
     if (!emailChannelReady()) return fail(503, 'twofa_email_unavailable', EMAIL_UNAVAILABLE)
     const sent = issueCode(u.id)

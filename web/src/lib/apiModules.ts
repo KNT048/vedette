@@ -6,7 +6,7 @@ const prefixOverrides: ReadonlyArray<readonly [string, string]> = [
   ['/scans', 'scan'],
   ['/scans/credentialed', 'scan-credentialed'],
   ['/core/oidc', 'auth-oidc'],
-  ['/core/sso', 'auth-oidc'],
+  ['/auth/oidc', 'auth-oidc'],
   ['/core/mcp', 'mcp-server'],
   ['/install', 'agent-intake'],
   ['/intake', 'agent-intake'],

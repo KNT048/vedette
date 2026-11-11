@@ -5,9 +5,9 @@ tier: optional
 default: off
 depends: [core]
 permissions: ["outbound:https"]     # discovery, token, JWKS tới IdP của khách khai báo
-ports: []                           # redirect/callback trên cổng 8443 của core
+ports: []                           # /auth/oidc/* và trang /sso/callback trên cổng 8443 của core
 container: core        # D-55
 tables_prefix: oidc_
-tables: [oidc_config]
+tables: [oidc_config, oidc_flow, oidc_identity]
 stories: [S-CORE-3]
 milestone: M7

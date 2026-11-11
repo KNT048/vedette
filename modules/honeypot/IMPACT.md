@@ -7,6 +7,12 @@
 - **ai** (công cụ chỉ-đọc `ask-my-data`): đổi cột → câu trả lời sai chứ không lỗi.
 - **core/logs export** (`/core/logs/export?categories=honeypot`, D-132): `Service.ExportHits` đọc thẳng cột của `hp_hits` (`hitCols`, `events` là JSON, không `conn_key`), đăng ký ở `cmd/vedette/logexport.go`; đổi cột → file tải về thay đổi, kiểm tra offline hash không ảnh hưởng (hit không có hash chain).
 
+## Modifying: `Service.Tokens(ctx)`, `MaskTokens`, `GET /honeypot/tokens` (D-189, L14)
+- **web/features/honeypot** (`Tokens.tsx`, mock + MSW): in `Tokens.tsx` the viewer sees what the API sends (`password: ••••••••xxxx`); the mock masks for a viewer exactly as the handler does. `Tokens(ctx)` returns the full password for internal callers (`token()`, tests); only the handler masks, by the role of the principal (operator, admin: full). A new reader of `Tokens` that leaves the module must go through `MaskTokens` unless it is operator-only. The `hits` export (`ExportHits`) and the `ai` read tools never carry the password.
+
+## Modifying: `Service.Disable`, `Service.EnsureOff` (D-189, L11)
+- **cmd/vedette** (`honeypotEnsureOff` → `moduleWiring.EnsureOff` → `modreg.OffGuard`): called at start with the module off and after each switch-off, retried with backoff until nil; the run loop's own `Disable` on cancel stays (same lock as `Apply`, `applyMu`). `Disable` returning nil now means the host confirmed; an error keeps the host status at "turning off". Changing `EnsureOff` to return nil early leaves traps listening after a failed teardown.
+
 ## Modifying: event `honeypot.hit.created` (`HitEventData`) — 3 người nhận
 - **notify**: nội dung cảnh báo (IP nguồn, thiết bị nguồn, 1 giờ sự kiện).
 - **response**: nguồn trigger (D-50).

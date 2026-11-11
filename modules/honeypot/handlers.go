@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
 )
@@ -165,11 +166,20 @@ func (h *HoneypotHandlers) HoneypotPostHoneypotTestScan(ctx context.Context) (*o
 	return convert[oas.HoneypotPostHoneypotTestScanOK](hit)
 }
 
-// HoneypotGetHoneypotTokens implements GET /honeypot/tokens (viewer).
+// HoneypotGetHoneypotTokens implements GET /honeypot/tokens (viewer). The bait passwords are in full for an operator and an
+// administrator only; a viewer gets the last 4 characters, so an insider with a read-only account cannot learn the canary
+// set (INV-10, D-189).
 func (h *HoneypotHandlers) HoneypotGetHoneypotTokens(ctx context.Context) (*oas.HoneypotGetHoneypotTokensOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
 	l, err := h.svc.Tokens(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if p.Role != routes.Operator && p.Role != routes.Admin { // fail closed: viewer and any unknown role see the mask
+		l = MaskTokens(l)
 	}
 	return convert[oas.HoneypotGetHoneypotTokensOK](struct {
 		Items []Token `json:"items"`

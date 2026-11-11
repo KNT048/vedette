@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"net/netip"
 	"regexp"
 	"regexp/syntax"
 	"strings"
@@ -483,19 +484,76 @@ func allDigits(s string) bool {
 	return true
 }
 
+// findPhones finds phone numbers. An IP address literal (IPv4 or IPv6) is not a phone number (D-205): the finder reads the
+// text with each valid address blanked out (same length, so offsets are unchanged), so it never matches inside or across one,
+// and a number written next to an address is still found. After a match the search goes on one byte past its start, so a
+// number that begins inside an earlier, longer candidate (the "01" of NAS-01 before "(0912 345 678)") is masked too: spans may
+// overlap and maskSpans merges them (when in doubt, mask).
 func findPhones(s string) []span {
+	s = blankIPs(s)
 	var out []span
-	for i := 0; i < len(s); {
+	for i := 0; i < len(s); i++ {
 		if c := s[i]; c == '+' || c == '(' || isDigitByte(c) {
 			if e := phoneAt(s, i); e > i {
 				out = append(out, span{i, e})
-				i = e
-				continue
 			}
 		}
-		i++
 	}
 	return out
+}
+
+var (
+	ipv4RE = regexp.MustCompile(`[0-9]{1,3}(?:\.[0-9]{1,3}){3}`)
+	hexRE  = regexp.MustCompile(`[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*`)
+)
+
+// blankIPs returns s with every valid IPv4 and IPv6 literal replaced, byte for byte, by '#'. IPv4 candidates are four dotted
+// groups of up to three digits that are not part of a longer digit run; IPv6 candidates are runs of hex digits, colons and dots
+// that hold a colon (so ::ffff:1.2.3.4 is one), tried whole and then with trailing and a single leading ':' or '.' trimmed.
+// netip decides what is valid; a candidate it rejects is left alone.
+func blankIPs(s string) string {
+	if !strings.ContainsAny(s, ".:") {
+		return s
+	}
+	var b []byte
+	blank := func(a, z int) {
+		if b == nil {
+			b = []byte(s)
+		}
+		for k := a; k < z; k++ {
+			b[k] = '#'
+		}
+	}
+	for _, m := range ipv4RE.FindAllStringIndex(s, -1) {
+		if (m[0] > 0 && isDigitByte(s[m[0]-1])) || (m[1] < len(s) && isDigitByte(s[m[1]])) {
+			continue
+		}
+		if _, err := netip.ParseAddr(s[m[0]:m[1]]); err == nil {
+			blank(m[0], m[1])
+		}
+	}
+	for _, m := range hexRE.FindAllStringIndex(s, -1) {
+		a, z := m[0], m[1]
+		for try := 0; try < 2 && a < z; try++ {
+			for e := z; e > a; e-- {
+				if addr, err := netip.ParseAddr(s[a:e]); err == nil && addr.Is6() {
+					blank(a, e)
+					break
+				}
+				if c := s[e-1]; c != ':' && c != '.' {
+					break // only trailing ':' and '.' are trimmed
+				}
+			}
+			if s[a] != ':' || (a+1 < z && s[a+1] == ':') {
+				break
+			}
+			a++
+		}
+	}
+	if b == nil {
+		return s
+	}
+	return string(b)
 }
 
 // cveBefore reports whether the digits at start are the tail of a CVE identifier (CVE-2024-12345), which is public

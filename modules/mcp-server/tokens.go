@@ -55,7 +55,7 @@ func parseTS(s string) (time.Time, error) {
 	return t, nil
 }
 
-const tokenCols = `id, name, scopes, last4, created_at, last_used`
+const tokenCols = `id, name, scopes, last4, created_at, last_used` //nolint:gosec // column names, not a credential
 
 type scanner interface{ Scan(dest ...any) error }
 

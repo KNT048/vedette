@@ -211,10 +211,10 @@ func (w *world) auditRows(action string) []string {
 	return out
 }
 
-func (w *world) scalar(q string, args ...any) string {
+func (w *world) scalar(q string) string {
 	w.t.Helper()
 	var v sql.NullString
-	if err := w.db.Reader().QueryRowContext(w.t.Context(), q, args...).Scan(&v); err != nil {
+	if err := w.db.Reader().QueryRowContext(w.t.Context(), q).Scan(&v); err != nil {
 		w.t.Fatal(err)
 	}
 	return v.String

@@ -85,7 +85,7 @@ func TestMCPServerOnTheRealWiring(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("MCP-Protocol-Version", "2025-06-18")
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}

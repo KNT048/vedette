@@ -40,12 +40,53 @@ func (s *Service) view(ctx context.Context, st Settings) (SettingsView, error) {
 	for _, t := range approvalTypes {
 		for _, c := range chans {
 			if c.Type == t && c.Configured {
-				v.Channels = append(v.Channels, ChannelView{Type: t, Label: c.Label, Ready: chanReady(c), Approvers: c.Approvers, Link: slices.Contains(linkTypes, t)})
+				cv := ChannelView{Type: t, Label: c.Label, Ready: chanReady(c), Approvers: c.Approvers, Link: slices.Contains(linkTypes, t), Unlinked: []string{}}
+				if err := s.linkedCounts(ctx, &cv); err != nil {
+					return SettingsView{}, err
+				}
+				v.Channels = append(v.Channels, cv)
 				break
 			}
 		}
 	}
 	return v, nil
+}
+
+// linkedCounts fills how many approvers of the channel linked their address and who has not (D-191). Notify lists approvers of a ready
+// channel only; for another channel both stay empty.
+func (s *Service) linkedCounts(ctx context.Context, cv *ChannelView) error {
+	if s.cfg.Notifier == nil || s.cfg.Users == nil {
+		return nil
+	}
+	list, err := s.cfg.Notifier.Approvers(ctx, cv.Type)
+	if err != nil {
+		return err
+	}
+	for _, a := range list {
+		u, ok, err := s.cfg.Users.Lookup(ctx, a.UserID)
+		if err != nil {
+			return err
+		}
+		linked := false
+		if ok {
+			if linked, err = s.isLinked(ctx, u, cv.Type, a.Address); err != nil {
+				return err
+			}
+		}
+		if linked {
+			cv.Linked++
+			continue
+		}
+		name := u.Name
+		if name == "" {
+			name = u.Email
+		}
+		if name == "" {
+			name = a.UserID
+		}
+		cv.Unlinked = append(cv.Unlinked, truncRunes(cleanLine(name), 80))
+	}
+	return nil
 }
 
 // Settings is GET /response/settings.

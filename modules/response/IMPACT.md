@@ -76,3 +76,9 @@
 - **Dữ liệu**: hai trường JSON mới trên item (`sent_at`, `exec_hash`), không migration; yêu cầu cũ không có `exec_hash` thì không hoàn tác từ đây được ("undo it on the device"). `Ident` của công cụ MCP đổi dạng (hậu tố `+w`): lần Test kế tiếp coi công cụ đã lưu là mới (write, tắt) nếu hint đổi.
 - **Thêm (D-179 (8))**: `Config.BoxAddrs` đổi kiểu thành `func() ([]netip.Addr, error)`, thêm `Config.BoxMACs` (cả hai do `cmd/vedette/response.go`); `modules/honeypot` có thêm `DecoyIPsRead`; `cmd/vedette/hostmacs.go` đọc MAC từ `state/net`.
 - **Hành vi đổi**: bước đang gửi **bị huỷ** bởi dừng khẩn cấp (trước đây chạy nốt); người duyệt trước bị vô hiệu hoá không còn được tính; `max_per_hour` chặt hơn.
+
+## Modifying: `isLinked`, `resp_identity`, `resp_link_codes`, `Config.Mailer`, `/response/me/identities*` (WP-31 R3, D-191)
+- **Người gọi**: `DecideFromChat` (sau `chatGate`, và lần kiểm lại dưới khoá), `approverValid` (`LinkView`, `DecideByLink`, kiểm lại dưới khoá), `view` (`ChannelView.Linked`/`Unlinked` của Settings), bốn handler `/response/me/identities*`. Bỏ hay nới `isLinked` mở lại L7 (địa chỉ gõ nhầm → người lạ duyệt).
+- **cmd/vedette**: `responseMailer` bọc `notify.CodeMailer.SendStepUpCode` (tin "link this email address…"); `Config.Mailer` nil → không gửi được mã email (503 `email_not_ready`).
+- **notify (Emily)**: không đổi. `notify` vẫn gửi thư duyệt tới địa chỉ email chưa liên kết (liên kết trong thư đã vô hiệu); cổng tuỳ chọn `notify.Config.ApproverLinks` để `notify` bỏ qua người chưa liên kết đang chờ Mlee (D-191 (6), `.ai/deferred/fix-wp31-approver-identity.md`). Câu trả lời riêng của listener (POST-8) là kênh đưa mã chat; listener mới (Slack, Zalo cá nhân) phải giữ nó **riêng** cho người bấm.
+- **FE**: `web/src/features/response/ApproverIdentities.tsx` (My account, gắn ở `features/core/AccountPage.tsx` khi operator+ và module bật), `ResponseSettings.tsx` (số đã liên kết, tên chưa liên kết), mock `identity.ts`.

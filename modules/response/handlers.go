@@ -586,3 +586,51 @@ func (h *ResponseHandlers) ResponseGetResponseLog(ctx context.Context) (*oas.Res
 		Items []LogEntry `json:"items"`
 	}{l})
 }
+
+// ResponseGetResponseMeIdentities implements GET /response/me/identities (operator, D-191).
+func (h *ResponseHandlers) ResponseGetResponseMeIdentities(ctx context.Context) (*oas.ResponseGetResponseMeIdentitiesOK, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items, err := h.svc.MyIdentities(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponseGetResponseMeIdentitiesOK](map[string]any{"items": items})
+}
+
+// ResponsePostResponseMeIdentitiesChannelCode implements POST /response/me/identities/{channel}/code (operator, D-191).
+func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params oas.ResponsePostResponseMeIdentitiesChannelCodeParams) (*oas.ResponsePostResponseMeIdentitiesChannelCodeOK, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SendLinkCode(ctx, who, params.Channel)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponsePostResponseMeIdentitiesChannelCodeOK](v)
+}
+
+// ResponsePostResponseMeIdentitiesChannelConfirm implements POST /response/me/identities/{channel}/confirm (operator, D-191).
+func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelConfirm(ctx context.Context, req *oas.ResponsePostResponseMeIdentitiesChannelConfirmReq, params oas.ResponsePostResponseMeIdentitiesChannelConfirmParams) (*oas.ResponsePostResponseMeIdentitiesChannelConfirmOK, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.ConfirmLink(ctx, who, params.Channel, req.Code)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponsePostResponseMeIdentitiesChannelConfirmOK](v)
+}
+
+// ResponseDeleteResponseMeIdentitiesChannel implements DELETE /response/me/identities/{channel} (operator, D-191).
+func (h *ResponseHandlers) ResponseDeleteResponseMeIdentitiesChannel(ctx context.Context, params oas.ResponseDeleteResponseMeIdentitiesChannelParams) error {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return err
+	}
+	return h.svc.Unlink(ctx, who, params.Channel)
+}

@@ -497,9 +497,9 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('address_mismatch')
   })
 
-  it('email not set up: no code; chat channels have no send button; viewers have no identities', async () => {
+  it('a channel that is off lists nobody; chat channels have no send button; viewers have no identities', async () => {
     setChannels([{ type: 'email', configured: true, enabled: false, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }, { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '42' }] }], false)
-    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('email_not_ready')
+    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('not_listed')
     expect((await call('operator', 'POST', '/response/me/identities/telegram/code')).code).toBe('chat_channel')
     expect((await call('viewer', 'GET', '/response/me/identities')).status).toBe(403)
   })

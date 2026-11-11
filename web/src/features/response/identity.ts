@@ -37,7 +37,8 @@ const dropCode = (k: string) => codesStore.update((c) => { const pending = { ...
 function mine(userId: string): Identity[] {
   const waiting = codesStore.get().pending
   return APPROVAL_TYPES.flatMap((type) => {
-    const ch = rawChans().find((c) => c.type === type && c.configured)
+    // notify names approvers of an enabled channel with approvals on only (ApprovalChannels), as on the real box
+    const ch = rawChans().find((c) => c.type === type && c.configured && c.enabled && c.approvals === true)
     if (!ch) return []
     return approversOf(ch).filter((a) => a.user_id === userId).map((a) => {
       const row = identityStore.get().find((x) => x.user_id === userId && x.channel === type && x.address === a.address)

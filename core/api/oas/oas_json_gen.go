@@ -182943,6 +182943,346 @@ func (s *ResponseGetResponseLogOKItemsItemKind) UnmarshalJSON(data []byte) error
 }
 
 // Encode implements json.Marshaler.
+func (s *ResponseGetResponseMeIdentitiesOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponseGetResponseMeIdentitiesOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfResponseGetResponseMeIdentitiesOK = [1]string{
+	0: "items",
+}
+
+// Decode decodes ResponseGetResponseMeIdentitiesOK from json.
+func (s *ResponseGetResponseMeIdentitiesOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseMeIdentitiesOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]ResponseGetResponseMeIdentitiesOKItemsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ResponseGetResponseMeIdentitiesOKItemsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseMeIdentitiesOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponseGetResponseMeIdentitiesOK) {
+					name = jsonFieldsNameOfResponseGetResponseMeIdentitiesOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponseGetResponseMeIdentitiesOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseMeIdentitiesOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("code_waiting")
+		e.Bool(s.CodeWaiting)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("linked")
+		e.Bool(s.Linked)
+	}
+	{
+		e.FieldStart("linked_at")
+		s.LinkedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem = [7]string{
+	0: "address",
+	1: "channel",
+	2: "code_waiting",
+	3: "label",
+	4: "linked",
+	5: "linked_at",
+	6: "method",
+}
+
+// Decode decodes ResponseGetResponseMeIdentitiesOKItemsItem from json.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseMeIdentitiesOKItemsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "channel":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "code_waiting":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.CodeWaiting = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code_waiting\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "linked":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Linked = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "linked_at":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.LinkedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked_at\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponseGetResponseMeIdentitiesOKItemsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b01111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem) {
+					name = jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponseGetResponseMeIdentitiesOKItemsItemMethod as json.
+func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponseGetResponseMeIdentitiesOKItemsItemMethod from json.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponseGetResponseMeIdentitiesOKItemsItemMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponseGetResponseMeIdentitiesOKItemsItemMethod(v) {
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+	default:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *ResponseGetResponseMetricsOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -187103,6 +187443,10 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) encodeFields(e *jx.Encoder) 
 		e.Bool(s.Link)
 	}
 	{
+		e.FieldStart("linked")
+		e.Int(s.Linked)
+	}
+	{
 		e.FieldStart("ready")
 		e.Bool(s.Ready)
 	}
@@ -187110,14 +187454,24 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) encodeFields(e *jx.Encoder) 
 		e.FieldStart("type")
 		e.Str(s.Type)
 	}
+	{
+		e.FieldStart("unlinked")
+		e.ArrStart()
+		for _, elem := range s.Unlinked {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponseSettingsOKChannelsItem = [5]string{
+var jsonFieldsNameOfResponseGetResponseSettingsOKChannelsItem = [7]string{
 	0: "approvers",
 	1: "label",
 	2: "link",
-	3: "ready",
-	4: "type",
+	3: "linked",
+	4: "ready",
+	5: "type",
+	6: "unlinked",
 }
 
 // Decode decodes ResponseGetResponseSettingsOKChannelsItem from json.
@@ -187165,8 +187519,20 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
-		case "ready":
+		case "linked":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Linked = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "ready":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ready = bool(v)
@@ -187178,7 +187544,7 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"ready\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Type = string(v)
@@ -187188,6 +187554,26 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "unlinked":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				s.Unlinked = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Unlinked = append(s.Unlinked, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unlinked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -187199,7 +187585,7 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -210558,6 +210944,10 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) encodeFields(e *jx.Enco
 		e.Bool(s.Link)
 	}
 	{
+		e.FieldStart("linked")
+		e.Int(s.Linked)
+	}
+	{
 		e.FieldStart("ready")
 		e.Bool(s.Ready)
 	}
@@ -210565,14 +210955,24 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) encodeFields(e *jx.Enco
 		e.FieldStart("type")
 		e.Str(s.Type)
 	}
+	{
+		e.FieldStart("unlinked")
+		e.ArrStart()
+		for _, elem := range s.Unlinked {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseBreakerResetOKChannelsItem = [5]string{
+var jsonFieldsNameOfResponsePostResponseBreakerResetOKChannelsItem = [7]string{
 	0: "approvers",
 	1: "label",
 	2: "link",
-	3: "ready",
-	4: "type",
+	3: "linked",
+	4: "ready",
+	5: "type",
+	6: "unlinked",
 }
 
 // Decode decodes ResponsePostResponseBreakerResetOKChannelsItem from json.
@@ -210620,8 +211020,20 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
-		case "ready":
+		case "linked":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Linked = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "ready":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ready = bool(v)
@@ -210633,7 +211045,7 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"ready\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Type = string(v)
@@ -210643,6 +211055,26 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) Decode(d *jx.Decoder) e
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "unlinked":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				s.Unlinked = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Unlinked = append(s.Unlinked, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unlinked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -210654,7 +211086,7 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214336,6 +214768,10 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) encodeFields(e *jx.Encoder
 		e.Bool(s.Link)
 	}
 	{
+		e.FieldStart("linked")
+		e.Int(s.Linked)
+	}
+	{
 		e.FieldStart("ready")
 		e.Bool(s.Ready)
 	}
@@ -214343,14 +214779,24 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) encodeFields(e *jx.Encoder
 		e.FieldStart("type")
 		e.Str(s.Type)
 	}
+	{
+		e.FieldStart("unlinked")
+		e.ArrStart()
+		for _, elem := range s.Unlinked {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseExecutionOKChannelsItem = [5]string{
+var jsonFieldsNameOfResponsePostResponseExecutionOKChannelsItem = [7]string{
 	0: "approvers",
 	1: "label",
 	2: "link",
-	3: "ready",
-	4: "type",
+	3: "linked",
+	4: "ready",
+	5: "type",
+	6: "unlinked",
 }
 
 // Decode decodes ResponsePostResponseExecutionOKChannelsItem from json.
@@ -214398,8 +214844,20 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
-		case "ready":
+		case "linked":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Linked = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "ready":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ready = bool(v)
@@ -214411,7 +214869,7 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"ready\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Type = string(v)
@@ -214421,6 +214879,26 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "unlinked":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				s.Unlinked = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Unlinked = append(s.Unlinked, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unlinked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -214432,7 +214910,7 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214734,6 +215212,466 @@ func (s *ResponsePostResponseExecutionReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ResponsePostResponseExecutionReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.PreviewCode.Set {
+			e.FieldStart("preview_code")
+			s.PreviewCode.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("resend_after")
+		e.Int(s.ResendAfter)
+	}
+	{
+		e.FieldStart("sent_to")
+		e.Str(s.SentTo)
+	}
+}
+
+var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK = [3]string{
+	0: "preview_code",
+	1: "resend_after",
+	2: "sent_to",
+}
+
+// Decode decodes ResponsePostResponseMeIdentitiesChannelCodeOK from json.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseMeIdentitiesChannelCodeOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "preview_code":
+			if err := func() error {
+				s.PreviewCode.Reset()
+				if err := s.PreviewCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"preview_code\"")
+			}
+		case "resend_after":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ResendAfter = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resend_after\"")
+			}
+		case "sent_to":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.SentTo = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sent_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseMeIdentitiesChannelCodeOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000110,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK) {
+					name = jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("code_waiting")
+		e.Bool(s.CodeWaiting)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("linked")
+		e.Bool(s.Linked)
+	}
+	{
+		e.FieldStart("linked_at")
+		s.LinkedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK = [7]string{
+	0: "address",
+	1: "channel",
+	2: "code_waiting",
+	3: "label",
+	4: "linked",
+	5: "linked_at",
+	6: "method",
+}
+
+// Decode decodes ResponsePostResponseMeIdentitiesChannelConfirmOK from json.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseMeIdentitiesChannelConfirmOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "channel":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "code_waiting":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.CodeWaiting = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code_waiting\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "linked":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Linked = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "linked_at":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.LinkedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked_at\"")
+			}
+		case "method":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseMeIdentitiesChannelConfirmOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b01111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK) {
+					name = jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ResponsePostResponseMeIdentitiesChannelConfirmOKMethod as json.
+func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ResponsePostResponseMeIdentitiesChannelConfirmOKMethod from json.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseMeIdentitiesChannelConfirmOKMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(v) {
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+	default:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+}
+
+var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmReq = [1]string{
+	0: "code",
+}
+
+// Decode decodes ResponsePostResponseMeIdentitiesChannelConfirmReq from json.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ResponsePostResponseMeIdentitiesChannelConfirmReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ResponsePostResponseMeIdentitiesChannelConfirmReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmReq) {
+					name = jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -228432,6 +229370,10 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) encodeFields(e *jx.Encoder) 
 		e.Bool(s.Link)
 	}
 	{
+		e.FieldStart("linked")
+		e.Int(s.Linked)
+	}
+	{
 		e.FieldStart("ready")
 		e.Bool(s.Ready)
 	}
@@ -228439,14 +229381,24 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) encodeFields(e *jx.Encoder) 
 		e.FieldStart("type")
 		e.Str(s.Type)
 	}
+	{
+		e.FieldStart("unlinked")
+		e.ArrStart()
+		for _, elem := range s.Unlinked {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfResponsePutResponseSettingsOKChannelsItem = [5]string{
+var jsonFieldsNameOfResponsePutResponseSettingsOKChannelsItem = [7]string{
 	0: "approvers",
 	1: "label",
 	2: "link",
-	3: "ready",
-	4: "type",
+	3: "linked",
+	4: "ready",
+	5: "type",
+	6: "unlinked",
 }
 
 // Decode decodes ResponsePutResponseSettingsOKChannelsItem from json.
@@ -228494,8 +229446,20 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
-		case "ready":
+		case "linked":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Linked = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"linked\"")
+			}
+		case "ready":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ready = bool(v)
@@ -228507,7 +229471,7 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"ready\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Type = string(v)
@@ -228517,6 +229481,26 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "unlinked":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				s.Unlinked = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Unlinked = append(s.Unlinked, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unlinked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -228528,7 +229512,7 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) Decode(d *jx.Decoder) error 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

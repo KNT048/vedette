@@ -83,7 +83,7 @@ type fakeHost struct {
 	failRm    error
 	failAdd   map[netip.Addr]error // AddDecoyIP of these fails with the error (wrap honeypot.ErrRefused for a refusal)
 	addTook   bool                 // a failed add was done by the host all the same (the answer was lost)
-	onAdd    func() // called after an address was accepted
+	onAdd     func()               // called after an address was accepted
 }
 
 func newHost(available bool) *fakeHost {

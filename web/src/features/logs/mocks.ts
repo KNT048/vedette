@@ -18,14 +18,14 @@ const sources = collection<Stored[]>('logs_sources', () => [
   { id: 'ls-4', kind: 'windows', name: 'SRV-FILE', sender_ip: '192.168.10.11', proto: 'udp', port: 514, last_received: daysAgo(3), lines_per_hour: 0, created_at: daysAgo(20) },
 ], () => [])
 // IOC detections (S-LOG-2, S-LOG-4, D-43): metadata from a SPAN port (DNS query, TLS SNI, HTTP host, flow) or syslog matched against the feeds.
-// Stored shape is read by the response module with peek('logs_ioc_hits'). Clean install: empty.
-type StoredIoc = Omit<IocHit, 'asset_name'>
+// Stored shape is read by the response module with peek('logs_ioc_hits'); like the box (INV-7) it does not hold the device: asset_id and
+// asset_name are resolved from the inventory when the digest is read. Clean install: empty.
+type StoredIoc = Omit<IocHit, 'asset_id' | 'asset_name'>
 const iocHits = collection<StoredIoc[]>('logs_ioc_hits', () => {
-  const id = (ip: string) => assetsStore.get().find((x) => x.ip === ip)?.id ?? null
   return [
-    { id: 'b-1', ts: daysAgo(0, 0.2), asset_id: id('192.168.10.105'), src_ip: '192.168.10.105', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'span_flow', feeds: ['Tor exit list', 'IPsum'], confidence: 0.9 },
-    { id: 'b-2', ts: daysAgo(0, 1.6), asset_id: id('192.168.10.20'), src_ip: '192.168.10.20', dest: 'update-dsm-synology.com', dest_kind: 'domain', seen_via: 'span_dns', feeds: ['hagezi TIF', 'Phishing.Database'], confidence: 0.95 },
-    { id: 'b-3', ts: daysAgo(0, 3), asset_id: id('192.168.10.157'), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6 },
+    { id: 'b-1', ts: daysAgo(0, 0.2), src_ip: '192.168.10.105', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'span_flow', feeds: ['Tor exit list', 'IPsum'], confidence: 0.9 },
+    { id: 'b-2', ts: daysAgo(0, 1.6), src_ip: '192.168.10.20', dest: 'update-dsm-synology.com', dest_kind: 'domain', seen_via: 'span_dns', feeds: ['hagezi TIF', 'Phishing.Database'], confidence: 0.95 },
+    { id: 'b-3', ts: daysAgo(0, 3), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6 },
   ]
 }, () => [])
 const retention = collection<{ days: number }>('logs_retention', () => ({ days: 30 }))
@@ -87,8 +87,11 @@ function digest(): Digest {
     { id: 's-2', signature: 'Blocked DNS to 8.8.8.8 (forcing internal DNS)', source_id: 'ls-1', source_name: nameOf('ls-1'), count: 96, baseline_per_day: 9, sample: 'type="traffic" srcip=192.168.10.108 dstip=8.8.8.8 dstport=53 action="deny"' },
   ]
   const assets = assetsStore.get()
-  // Device resolved from the inventory when read, so removing a device is reflected.
-  const bad: IocHit[] = iocHits.get().map((r) => { const a = assets.find((x) => x.ip === r.src_ip); return { ...r, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null } })
+  // Like the box (INV-7, iochits.go): the hits of the last 24 hours, newest first, at most 20, and the device resolved from the inventory when read, so
+  // removing or renaming a device is reflected.
+  const since = Date.now() - 86400e3
+  const bad: IocHit[] = iocHits.get().filter((r) => new Date(r.ts).getTime() >= since).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 20)
+    .map((r) => { const a = assets.find((x) => x.ip === r.src_ip); return { ...r, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null } })
   return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: fresh, spikes, bad_connections: bad }
 }
 
@@ -105,19 +108,50 @@ function validateSource(b: Partial<SourceInput>, selfId?: string) {
 
 const WINDOW_MS: Record<EventWindow, number> = { '1h': 3600e3, '24h': 86400e3, '7d': 7 * 86400e3 }
 
-function validateSiem(b: Partial<SiemInput>) {
+// The checks of the box (modules/logs/siem.go SetSiem), in its order: format, then the destination (URL or host, port, protocol, and an address
+// that no SIEM may be at), then the events, then the signing key; a webhook with no saved key and none sent is refused last.
+const SIEM_HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/
+const NUMERIC_LABEL_RE = /^(0x[0-9a-f]+|[0-9]+)$/
+const SIEM_METADATA = ['100.100.100.200', '192.0.0.192', 'fd00:ec2::254'] // cloud metadata endpoints that are not link-local
+const BAD_HOST = 'The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.'
+const BAD_URL = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://siem.company.com/hooks/vedette.'
+// SYS-7: loopback, link-local, multicast, unspecified, broadcast, a metadata endpoint and the box's own address are never a destination; a name
+// that is an address in disguise (2130706433, 0x7f.1) is not a host name, and localhost is loopback. Names are resolved only on the box's socket.
+function siemHostProblem(raw: string) {
+  const host = raw.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  const blocked = fail(400, 'blocked_host', 'The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box.')
+  if (IPV4_RE.test(host)) {
+    const [a = 0, b = 0] = host.split('.').map(Number)
+    return a === 127 || host === '0.0.0.0' || (a >= 224 && a <= 239) || (a === 169 && b === 254) || host === '255.255.255.255' || SIEM_METADATA.includes(host) || host === boxInfo().ip ? blocked : null
+  }
+  if (host.includes(':')) return host === '::1' || host === '::' || /^fe[89ab]/.test(host) || /^ff/.test(host) || SIEM_METADATA.includes(host) ? blocked : null
+  if (NUMERIC_LABEL_RE.test(host.split('.').at(-1) ?? '')) return fail(400, 'bad_host', BAD_HOST)
+  return host === 'localhost' || host.endsWith('.localhost') ? blocked : null
+}
+function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
   if (!['syslog', 'cef', 'json'].includes(String(b.format))) return fail(400, 'bad_format', 'Choose a format: syslog, CEF or JSON webhook.')
   if (b.format === 'json') {
+    const raw = String(b.url ?? '').trim()
     let u: URL | null = null
-    try { u = new URL(String(b.url ?? '')) } catch { /* không phải URL */ }
-    if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://siem.company.com/hooks/vedette.')
-    if (b.secret && b.secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
+    try { u = new URL(raw) } catch { /* not a URL */ }
+    // eslint-disable-next-line no-control-regex
+    if (!u || raw.length > 2048 || !/^https?:$/.test(u.protocol) || u.hostname === '' || u.username || u.password || u.hash || /[^\x21-\x7e]/.test(raw)) return fail(400, 'bad_url', BAD_URL)
+    const problem = siemHostProblem(u.hostname); if (problem) return problem
   } else {
-    if (!(IPV4_RE.test(String(b.host ?? '')) || DOMAIN_RE.test(String(b.host ?? '')))) return fail(400, 'bad_host', 'The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.')
+    const host = String(b.host ?? '').trim()
+    if (host.length > 253 || !(IPV4_RE.test(host) || SIEM_HOST_RE.test(host))) return fail(400, 'bad_host', BAD_HOST)
     if (!Number.isInteger(b.port) || b.port! < 1 || b.port! > 65535) return fail(400, 'bad_port', 'The port must be a number from 1 to 65535.')
     if (!['udp', 'tcp', 'tls'].includes(String(b.proto))) return fail(400, 'bad_proto', 'Choose UDP, TCP or TLS.')
+    const problem = siemHostProblem(host); if (problem) return problem
   }
-  if (!Array.isArray(b.events) || b.events.length === 0 || b.events.some((e) => !SIEM_EVENTS.includes(e))) return fail(400, 'bad_events', 'Choose at least one event type to forward.')
+  const ev = Array.isArray(b.events) ? b.events : []
+  if (ev.length === 0 || ev.length > SIEM_EVENTS.length || ev.some((e) => !SIEM_EVENTS.includes(e)) || new Set(ev).size !== ev.length) return fail(400, 'bad_events', 'Choose at least one event type to forward.')
+  if (b.secret && [...b.secret].length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
+  // eslint-disable-next-line no-control-regex
+  if (b.secret && (new TextEncoder().encode(b.secret).length > 512 || b.secret !== b.secret.trim() || /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/.test(b.secret))) {
+    return fail(400, 'bad_secret', 'The signing key can be at most 512 bytes, with no control characters and no space at either end.')
+  }
+  if (b.format === 'json' && !b.secret && !saved.secret) return fail(400, 'secret_required', 'Enter the webhook signing key.')
   return null
 }
 const publicSiem = (c: ReturnType<typeof siem.get>): SiemConfig => { const { secret, ...rest } = c; return { ...rest, secret_last4: secret ? secret.slice(-4) : null } }
@@ -194,8 +228,8 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const b = await body<SiemInput>(request)
     const cur = siem.get()
-    const bad = validateSiem(b); if (bad) return bad
-    const next = { ...cur, enabled: b.enabled === true, format: b.format!, host: b.format === 'json' ? '' : b.host!, port: b.format === 'json' ? 514 : b.port!, proto: b.format === 'json' ? 'udp' as const : b.proto!, url: b.format === 'json' ? b.url! : '', events: b.events!, secret: b.secret ? b.secret : cur.secret, last_test: null }
+    const bad = validateSiem(b, cur); if (bad) return bad
+    const next = { ...cur, enabled: b.enabled === true, format: b.format!, host: b.format === 'json' ? '' : b.host!.trim(), port: b.format === 'json' ? 514 : b.port!, proto: b.format === 'json' ? 'udp' as const : b.proto!, url: b.format === 'json' ? b.url!.trim() : '', events: b.events!, secret: b.secret ? b.secret : cur.secret, last_test: null }
     siem.set(next)
     audit('logs.siem_save', b.format === 'json' ? next.url : `${next.host}:${next.port}`, `${next.format}, ${next.enabled ? 'on' : 'off'}`)
     return HttpResponse.json(publicSiem(next))

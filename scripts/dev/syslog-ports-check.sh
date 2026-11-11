@@ -20,7 +20,7 @@
 #     overlaps that /30 or the names exist);
 #   * net.ipv4.ip_forward is read first and written back at the end (netavark turns it on);
 #   * a work folder under /tmp (the helper binary), removed at the end;
-#   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed, D-266): two ACCEPT rules at the top of
+#   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed, D-266; the product side is D-267): two ACCEPT rules at the top of
 #     DOCKER-USER, published (conntrack DNAT) packets to the test network's subnet and their replies (Docker's policy drops forwarded
 #     packets that netavark's own nftables table accepts), deleted by the trap. FORWARD DROP without DOCKER-USER (ufw?): the script stops with a message, changes nothing.
 # It never touches netplan, NetworkManager, the LAN interface, or firewall rules other than the two above and what netavark adds for the test container.

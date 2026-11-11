@@ -339,6 +339,38 @@ func TestMinSequenceFlag(t *testing.T) {
 	}
 }
 
+// The release preflight is wired into the targets (the effects are tested in scripts/release): host-deb checks the binary it built and
+// gives nfpm a fixed file time; release-manifest passes the floor of the host to the index step.
+func TestHostDebPreflightWiring(t *testing.T) {
+	t.Parallel()
+	run := func(args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory", "-n"}, args...)...) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	out, err := run("host-deb", "VERSION=1.2.3", "SOURCE_DATE_EPOCH=1700000000")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	for _, want := range []string{"scripts/release check-binaries dist/host-deb/amd64/vedette-host", "SOURCE_DATE_EPOCH=1700000000 VERSION=1.2.3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("host-deb: %q missing:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, "go build") > strings.Index(out, "check-binaries") {
+		t.Error("host-deb checks the binary before it is built")
+	}
+	if out, err = run("host-deb", "VERSION=1.2.3", "SOURCE_DATE_EPOCH=yesterday"); err != nil || !strings.Contains(out, "SOURCE_DATE_EPOCH must be Unix seconds") {
+		t.Errorf("a bad SOURCE_DATE_EPOCH must be refused by the recipe: %v\n%s", err, out)
+	}
+	if out, err = run("release-manifest", "RELEASE_PREV_INDEX=/nonexistent", "MIN_SEQUENCE=4"); err != nil || !strings.Contains(out, "-prev-index /nonexistent -min-sequence 4") {
+		t.Errorf("release-manifest must pass MIN_SEQUENCE to the index step: %v\n%s", err, out)
+	}
+}
+
 // The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
 func TestToolPinsAreExact(t *testing.T) {
 	t.Parallel()

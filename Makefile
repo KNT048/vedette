@@ -15,8 +15,9 @@ PACK_DIR := deploy/containers/scan-base/pack
 # Multi-arch images (WP-08d, D-158): `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64
 # The index sequence floor compiled into vedette-host, the only binary that links internal/release (core does not, a test keeps that true).
-# A plain decimal: it is the -X value of internal/release.MinSequenceText. The release job (WP-08f/k) passes the sequence of the index current at build time.
-MIN_SEQUENCE ?= 0
+# A plain decimal: it is the -X value of internal/release.MinSequenceText. With RELEASE_PREV_INDEX (the published index, a directory) it is
+# that index's sequence, read and verified by `release min-sequence`; without it, 0 (development, the first release).
+MIN_SEQUENCE ?= $(if $(RELEASE_PREV_INDEX),$(shell $(RELEASE_GO) min-sequence -prev-index $(RELEASE_PREV_INDEX) $(RELEASE_KEYS_ARG)),0)
 RELEASE_PKG := github.com/knt048/vedette/internal/release
 
 # Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2 (D-62).
@@ -51,6 +52,7 @@ help:
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
+	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb refuses a vedette-host built with -tags releasetestkeys (go run ./scripts/release check-binaries BINARY... for core and the rest) and sets file times from SOURCE_DATE_EPOCH (commit time)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -274,6 +276,8 @@ scan-image: scan-base-image
 # The binary goes to dist/host-deb/<arch>/, the package to dist/ (both removed by `make clean`).
 ARCH ?= amd64
 DEB_OUT ?= dist
+# The file time inside the .deb (nfpm reads SOURCE_DATE_EPOCH): the commit time, so two builds of one commit give the same bytes.
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
 check-min-sequence:
 	@printf '%s' "$(MIN_SEQUENCE)" | grep -Eq '^(0|[1-9][0-9]{0,17})$$' || { echo "MIN_SEQUENCE must be a plain decimal number (0, or no leading zero, at most 18 digits), got '$(MIN_SEQUENCE)'" >&2; exit 1; }
 host-deb: check-min-sequence
@@ -281,8 +285,10 @@ host-deb: check-min-sequence
 	@case "$(ARCH)" in amd64|arm64) ;; *) echo "host-deb: ARCH must be amd64 or arm64, got '$(ARCH)'" >&2; exit 1;; esac
 	mkdir -p $(DEB_OUT)/host-deb/$(ARCH)
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X $(RELEASE_PKG).MinSequenceText=$(MIN_SEQUENCE)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
+	go run ./scripts/release check-binaries $(DEB_OUT)/host-deb/$(ARCH)/vedette-host
 	go run ./scripts/hostlicenses -goos linux -goarch $(ARCH) -out $(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses
-	VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
+	@printf '%s' "$(SOURCE_DATE_EPOCH)" | grep -Eq '^[0-9]{1,12}$$' || { echo "host-deb: SOURCE_DATE_EPOCH must be Unix seconds (default: the commit time of HEAD; is this a git checkout?), got '$(SOURCE_DATE_EPOCH)'" >&2; exit 1; }
+	SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
 
 # Installs the package twice in a systemd container per target OS (Debian 13, Ubuntu 24.04, pinned by digest in deploy/deb/check-pins.env)
 # and checks the effects (scripts/dev/host-deb-check.sh). Pulls images and runs apt in them: opt-in, not in `make check` or CI.
@@ -372,9 +378,9 @@ release-cosign-plan:
 	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }
 	$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign
 
-release-manifest:
+release-manifest: check-min-sequence
 	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
-	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_KEYS_ARG)
 
 release-refresh:
 	$(RELEASE_GO) index -out $(RELEASE_OUT) -prev-index "$(RELEASE_PREV_INDEX)" $(RELEASE_KEYS_ARG)

@@ -8,6 +8,8 @@
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
+//	go run ./scripts/release min-sequence -prev-index DIR [-keys-dir DIR]   (prints the sequence of the published index: the MIN_SEQUENCE of vedette-host; index -min-sequence N refuses a sequence not above it)
+//	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //
@@ -36,7 +38,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|index|sign|verify [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|index|min-sequence|check-binaries|sign|verify [flags]")
 		return 2
 	}
 	var err error
@@ -48,6 +50,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdManifest(ctx, args[1:], stdout, stderr)
 	case "index":
 		err = cmdIndex(args[1:], stdout)
+	case "min-sequence":
+		err = cmdMinSequence(args[1:], stdout)
+	case "check-binaries":
+		err = cmdCheckBinaries(args[1:], stdout)
 	case "sign":
 		err = cmdSign(ctx, args[1:], stdin, stdout)
 	case "verify":
@@ -226,6 +232,7 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	prev := fs.String("prev-index", "", "directory of the published index (it carries revocations, advisories and the other channel; required for a refresh)")
 	keys := fs.String("keys-dir", "", "directory with the public keys (default: the keys compiled in)")
 	seq := fs.Uint64("sequence", 0, "index sequence (default previous + 1; at most 10 above it)")
+	minSeq := fs.Uint64("min-sequence", 0, "MIN_SEQUENCE the release's vedette-host was built with (see min-sequence): the new sequence must be above it")
 	rollout := fs.Int("rollout", -1, "rollout percent of the channel (default 100)")
 	days := fs.Int("valid-days", 14, "days until expires_at (at most 14)")
 	now := fs.String("now", "", "RFC 3339 generated_at (default now)")
@@ -238,7 +245,7 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	p := IndexParams{Now: time.Now(), Sequence: *seq, Rollout: *rollout, ValidFor: time.Duration(*days) * 24 * time.Hour,
+	p := IndexParams{Now: time.Now(), Sequence: *seq, MinSequence: *minSeq, Rollout: *rollout, ValidFor: time.Duration(*days) * 24 * time.Hour,
 		RevokeKeys: revoke, RevokeReason: *reason}
 	if *days <= 0 {
 		return errors.New("-valid-days must be positive")

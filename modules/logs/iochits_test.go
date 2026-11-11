@@ -441,7 +441,7 @@ func TestContract_INV7_TheDeviceIsResolvedAtRead(t *testing.T) {
 	if h := got["192.168.10.77"]; h.AssetID != nil || h.AssetName != nil {
 		t.Fatalf("an unknown address has a device: %+v", h)
 	}
-	inv.byIP[lanDevice] = Device{ID: "a-1", Name: "Front desk‮"}
+	inv.byIP[lanDevice] = Device{ID: "a-1", Name: "Front desk\u202e"}
 	inv.byIP["192.168.10.77"] = Device{ID: "a-2", Name: "Printer"}
 	got = byIP()
 	if h := got[lanDevice]; *h.AssetName != "Front desk" {
@@ -591,11 +591,11 @@ func TestIOCPurgeFollowsTheRetentionAndIsSilent(t *testing.T) {
 func TestIOCEventTextIsPlainAndBounded(t *testing.T) {
 	t.Parallel()
 	e, src, _, p := iocEnv(t)
-	e.svc.cfg.Inventory = fakeInv{byIP: map[string]Device{lanDevice: {ID: "a-1", Name: "PC\n<script>" + strings.Repeat("é", 400) + "‮\x00"}}}
+	e.svc.cfg.Inventory = fakeInv{byIP: map[string]Device{lanDevice: {ID: "a-1", Name: "PC\n<script>" + strings.Repeat("é", 400) + "\u202e\x00"}}}
 	e.feedAll(src, []string{traffic(lanDevice, badIP)})
 	b := p.bad[0]
 	for _, s := range []string{b.Title, b.What, b.Action, b.Target, b.Devices[0].Name, b.Source} {
-		if strings.ContainsAny(s, "\n\r\x00‮") {
+		if strings.ContainsAny(s, "\n\r\x00\u202e") {
 			t.Errorf("control character in %q", s)
 		}
 	}

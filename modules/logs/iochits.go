@@ -348,7 +348,7 @@ const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence
 
 // iocHits reads the newest hits since a time with at least minConf, newest first, with the device of each resolved now (INV-7).
 func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...any) ([]IocHit, error) {
-	rows, err := s.cfg.Volume.Reader().QueryContext(ctx, `SELECT `+iocColumns+` FROM logs_ioc_hits WHERE `+where+` ORDER BY ts DESC, rowid DESC LIMIT `+fmt.Sprint(limit), args...) //nolint:gosec // where is a constant of this file; the values are bound arguments
+	rows, err := s.cfg.Volume.Reader().QueryContext(ctx, `SELECT `+iocColumns+` FROM logs_ioc_hits WHERE `+where+` ORDER BY ts DESC, rowid DESC LIMIT `+fmt.Sprint(limit), args...)
 	if err != nil {
 		return nil, fmt.Errorf("logs: reading the bad connections: %w", err)
 	}

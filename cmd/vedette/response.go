@@ -346,6 +346,10 @@ func responseConfig(d *deps) (response.Config, error) {
 		}
 		cfg.Executor = responseExecutor{w}
 	}
+	if d.AI != nil && d.Findings != nil && d.Inventory != nil { // plans for open critical findings (13b-11): the AI has no tool, response checks every proposal
+		cfg.Planner = responsePlanner{d.AI}
+		cfg.Critical = responseCritical{fnd: d.Findings, inv: findingsInventory{d.Inventory}, facts: d.AIFacts}.list
+	}
 	if d.Reg != nil {
 		cfg.Modules = d.Reg
 	}

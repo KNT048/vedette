@@ -422,7 +422,7 @@ func TestPlansAndProposalRequest(t *testing.T) {
 func TestJobsBelongToTheModule(t *testing.T) {
 	e := newEnv(t)
 	js := e.svc.Jobs()
-	if len(js) != 2 {
+	if len(js) != 3 { // evaluate, sweep, plan
 		t.Fatalf("%d jobs", len(js))
 	}
 	for _, j := range js {

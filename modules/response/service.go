@@ -221,16 +221,19 @@ type Config struct {
 	Users   Users
 	Log     *slog.Logger
 
-	Modules     ModuleGate    // nil = on (tests)
-	Bus         Bus           // nil = events are dropped
-	Directory   Directory     // nil = trigger events are logged and skipped
-	Notifier    Notifier      // nil = no alert channel
-	Connections Connections   // nil = no connection
-	Executor    Executor      // nil = no device can be changed
-	Webhooks    Webhooks      // nil = no webhook
-	Links       LinkTokens    // nil = no approval link can be checked: every link is unknown (404)
-	TwoStep     TwoStep       // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
-	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
+	Modules     ModuleGate  // nil = on (tests)
+	Bus         Bus         // nil = events are dropped
+	Directory   Directory   // nil = trigger events are logged and skipped
+	Notifier    Notifier    // nil = no alert channel
+	Connections Connections // nil = no connection
+	Executor    Executor    // nil = no device can be changed
+	Webhooks    Webhooks    // nil = no webhook
+	Links       LinkTokens  // nil = no approval link can be checked: every link is unknown (404)
+	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
+	Planner     Planner     // nil = no plan is ever written; ai_available is false (13b-11)
+	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
+	Critical func(ctx context.Context) ([]PlanTarget, error)
+	Evidence EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets.
@@ -266,8 +269,9 @@ type Service struct {
 	seeded bool
 
 	limitMu         sync.Mutex
-	proposeTimes    []time.Time // Propose calls of the last hour, any outcome (D-119)
-	proposeSkipped  int         // calls refused since the last log line
+	planTried       map[string]time.Time // when a plan was last asked for, per finding (limitMu)
+	proposeTimes    []time.Time          // Propose calls of the last hour, any outcome (D-119)
+	proposeSkipped  int                  // calls refused since the last log line
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit

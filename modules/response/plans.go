@@ -18,7 +18,7 @@ import (
 )
 
 // AI plans (S-RESP-1). The plans are written by the AI job of part 13b into resp_plans; this part reads them and turns one
-// proposal into an approval request. Nothing here asks an AI anything.
+// proposal into an approval request. planner.go writes them; nothing in this file asks an AI anything.
 
 // storedProposal is what the plan job (part 13b) stores for one proposed action: the catalog action and the typed values of
 // its parameters, and nothing else. It never holds a command, an API path or a body: the change is rendered from the
@@ -142,7 +142,7 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 	if err != nil {
 		return PlanList{}, err
 	}
-	out := PlanList{Items: []Plan{}, Execution: st.Execution}
+	out := PlanList{Items: []Plan{}, Execution: st.Execution, AIAvailable: s.aiAvailable(ctx)}
 	for _, p := range plans {
 		if s.cfg.Directory != nil {
 			f, ok, err := s.cfg.Directory.Finding(ctx, p.FindingID)

@@ -130,7 +130,6 @@
   "GET /scans/targets": "scan",
   "GET /setup": "core",
   "PATCH /core/account": "core",
-  "PATCH /core/mcp": "mcp-server",
   "PATCH /core/privacy": "core",
   "PATCH /core/updates": "core",
   "PATCH /core/updates/os/settings": "core",

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -28,6 +29,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
+	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/reports"
@@ -77,6 +79,8 @@ type deps struct {
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
 	SyslogPort int
+	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen).
+	MCPListen netip.AddrPort
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
 	// module is off or the job runs. Never nil in serve.
 	Wake func(module, job string)
@@ -130,8 +134,9 @@ func wiredModules() []moduleWiring {
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
 		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
-		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); last: nothing depends on it; the job prunes the activity log
+		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); the job prunes the activity log
 		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},    // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
+		{ID: "mcp-server", Migrations: mcpserver.Migrations},                  // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
 	}
 }
 

@@ -127,9 +127,9 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(12), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(13), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 12 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 13 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
@@ -170,6 +170,8 @@ export const ConnectorTestResult = z.object({ ok: z.literal(true), latency_ms: z
 export const McpToken = z.object({ id: z.string(), name: z.string(), scopes: z.array(z.string()), last4: z.string(), created_at: ts, last_used: ts.nullable() })
 export const McpState = z.object({
   enabled: z.boolean(), bind: z.string(), port: z.number(), endpoint: z.string(), tokens: z.array(McpToken),
+  listening: z.boolean().describe('The port is open. False while it cannot be opened (another process holds it): do not give a token to that address'),
+  listen_error: z.string().nullable().describe('Why the port could not be opened; null while listening'),
   tools: z.array(z.object({ name: z.string(), scope: z.string() })), scopes: z.array(z.string()),
 })
 export const McpTokenCreated = z.object({ token: z.string().describe('Returned once, at creation'), item: McpToken })
@@ -258,7 +260,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // quyền riêng tư
-  { method: 'get', path: '/core/privacy', summary: 'The 12 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The 13 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
   { method: 'get', path: '/core/connections', summary: 'Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF, automation platform, MCP server', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', response: z.object({ items: z.array(Connector) }) },
@@ -266,9 +268,8 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/core/connections/{id}', summary: 'Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin = forget the pin)', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), body: ConnectorInput, response: Connector },
   { method: 'delete', path: '/core/connections/{id}', summary: 'Delete a connection; 409 in_use while a response change made through it is still in force', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/core/connections/{id}/test', summary: 'Test a connection, pin its certificate or host key on first use, and refresh its tool list', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', params: z.object({ id: z.string() }), response: ConnectorTestResult },
-  { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list', stories: ['S-MCP-1'], role: 'admin', response: McpState },
-  { method: 'patch', path: '/core/mcp', summary: 'Turn the MCP server on/off (binds to localhost)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: McpState },
-  { method: 'post', path: '/core/mcp/tokens', status: 201, summary: 'Create a read-only token by scope; returns the full token once', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
+  { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every /core/mcp path answers 404', stories: ['S-MCP-1'], role: 'admin', response: McpState },
+  { method: 'post', path: '/core/mcp/tokens', status: 201, summary: 'Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
   { method: 'delete', path: '/core/mcp/tokens/{id}', summary: 'Revoke an MCP token', stories: ['S-MCP-1'], role: 'admin', params: id, response: null },
   // dữ liệu
   { method: 'get', path: '/core/data/backup', summary: 'Download a backup (no passwords or keys)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },

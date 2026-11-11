@@ -291,6 +291,7 @@
         "update_check": "Change update check"
       },
       "mcp": {
+        "call": "MCP tool call",
         "token_create": "Create MCP token",
         "token_revoke": "Revoke MCP token"
       },
@@ -811,6 +812,13 @@
         "to": "Only the address you typed for each connection",
         "control": "Delete the connection, or turn it off. Nothing is sent to a connection that is off.",
         "link": "Open connections"
+      },
+      "13": {
+        "name": "MCP server, read by tools you connect",
+        "what": "Only while you turn on the MCP server. The box sends nothing by itself: an AI tool or SIEM you give a token to asks, and gets the devices, findings and vulnerability-feed entries its token's scopes allow. No passwords, keys, tokens, users, audit log, log lines, AI history or settings are ever in an answer. The box listens on this machine only (localhost); a tool on another machine reaches it only through a tunnel or proxy you set up. What the tool does with the answers, for example sending them to its own AI provider, is up to that tool.",
+        "to": "Only the tools you gave a token to, through this machine",
+        "control": "Revoke the token, or turn off the MCP server. Tokens stop working at once.",
+        "link": "Open MCP server"
       }
     },
     "telemetry": {
@@ -842,7 +850,9 @@
     "bindNote": "localhost only, not open to the network",
     "endpoint": "MCP address",
     "clientConfig": "Config for the MCP tool",
-    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN.",
+    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
+    "notListening": "The port is not open yet.",
+    "notListeningHint": "Do not give a token to this address until the port is open: another program listening there would receive it.",
     "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",
     "scope": {
       "assets": "Devices",
@@ -867,6 +877,10 @@
       "revoke": "Revoke",
       "revokeOf": "Revoke token {{name}}",
       "revoked": "Token {{name}} revoked.",
+      "revokeAsk": {
+        "title": "Revoke token {{name}}?",
+        "body": "The tool that uses it loses access at once. This cannot be undone: to connect it again, create a new token."
+      },
       "col": {
         "name": "Name",
         "scopes": "Scopes",

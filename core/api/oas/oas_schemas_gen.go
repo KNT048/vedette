@@ -13351,13 +13351,18 @@ func (s CoreGetCoreLogsExportOK) Read(p []byte) (n int, err error) {
 }
 
 type CoreGetCoreMcpOK struct {
-	Bind     string                       `json:"bind"`
-	Enabled  bool                         `json:"enabled"`
-	Endpoint string                       `json:"endpoint"`
-	Port     float64                      `json:"port"`
-	Scopes   []string                     `json:"scopes"`
-	Tokens   []CoreGetCoreMcpOKTokensItem `json:"tokens"`
-	Tools    []CoreGetCoreMcpOKToolsItem  `json:"tools"`
+	Bind     string `json:"bind"`
+	Enabled  bool   `json:"enabled"`
+	Endpoint string `json:"endpoint"`
+	// Why the port could not be opened; null while listening.
+	ListenError NilString `json:"listen_error"`
+	// The port is open. False while it cannot be opened (another process holds it): do not give a token to
+	// that address.
+	Listening bool                         `json:"listening"`
+	Port      float64                      `json:"port"`
+	Scopes    []string                     `json:"scopes"`
+	Tokens    []CoreGetCoreMcpOKTokensItem `json:"tokens"`
+	Tools     []CoreGetCoreMcpOKToolsItem  `json:"tools"`
 }
 
 // GetBind returns the value of Bind.
@@ -13373,6 +13378,16 @@ func (s *CoreGetCoreMcpOK) GetEnabled() bool {
 // GetEndpoint returns the value of Endpoint.
 func (s *CoreGetCoreMcpOK) GetEndpoint() string {
 	return s.Endpoint
+}
+
+// GetListenError returns the value of ListenError.
+func (s *CoreGetCoreMcpOK) GetListenError() NilString {
+	return s.ListenError
+}
+
+// GetListening returns the value of Listening.
+func (s *CoreGetCoreMcpOK) GetListening() bool {
+	return s.Listening
 }
 
 // GetPort returns the value of Port.
@@ -13408,6 +13423,16 @@ func (s *CoreGetCoreMcpOK) SetEnabled(val bool) {
 // SetEndpoint sets the value of Endpoint.
 func (s *CoreGetCoreMcpOK) SetEndpoint(val string) {
 	s.Endpoint = val
+}
+
+// SetListenError sets the value of ListenError.
+func (s *CoreGetCoreMcpOK) SetListenError(val NilString) {
+	s.ListenError = val
+}
+
+// SetListening sets the value of Listening.
+func (s *CoreGetCoreMcpOK) SetListening(val bool) {
+	s.Listening = val
 }
 
 // SetPort sets the value of Port.
@@ -14642,7 +14667,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 12 flows listed in PRIVACY.md.
+	// Exactly the 13 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -17788,196 +17813,8 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 	s.Name = val
 }
 
-type CorePatchCoreMcpOK struct {
-	Bind     string                         `json:"bind"`
-	Enabled  bool                           `json:"enabled"`
-	Endpoint string                         `json:"endpoint"`
-	Port     float64                        `json:"port"`
-	Scopes   []string                       `json:"scopes"`
-	Tokens   []CorePatchCoreMcpOKTokensItem `json:"tokens"`
-	Tools    []CorePatchCoreMcpOKToolsItem  `json:"tools"`
-}
-
-// GetBind returns the value of Bind.
-func (s *CorePatchCoreMcpOK) GetBind() string {
-	return s.Bind
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *CorePatchCoreMcpOK) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetEndpoint returns the value of Endpoint.
-func (s *CorePatchCoreMcpOK) GetEndpoint() string {
-	return s.Endpoint
-}
-
-// GetPort returns the value of Port.
-func (s *CorePatchCoreMcpOK) GetPort() float64 {
-	return s.Port
-}
-
-// GetScopes returns the value of Scopes.
-func (s *CorePatchCoreMcpOK) GetScopes() []string {
-	return s.Scopes
-}
-
-// GetTokens returns the value of Tokens.
-func (s *CorePatchCoreMcpOK) GetTokens() []CorePatchCoreMcpOKTokensItem {
-	return s.Tokens
-}
-
-// GetTools returns the value of Tools.
-func (s *CorePatchCoreMcpOK) GetTools() []CorePatchCoreMcpOKToolsItem {
-	return s.Tools
-}
-
-// SetBind sets the value of Bind.
-func (s *CorePatchCoreMcpOK) SetBind(val string) {
-	s.Bind = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *CorePatchCoreMcpOK) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetEndpoint sets the value of Endpoint.
-func (s *CorePatchCoreMcpOK) SetEndpoint(val string) {
-	s.Endpoint = val
-}
-
-// SetPort sets the value of Port.
-func (s *CorePatchCoreMcpOK) SetPort(val float64) {
-	s.Port = val
-}
-
-// SetScopes sets the value of Scopes.
-func (s *CorePatchCoreMcpOK) SetScopes(val []string) {
-	s.Scopes = val
-}
-
-// SetTokens sets the value of Tokens.
-func (s *CorePatchCoreMcpOK) SetTokens(val []CorePatchCoreMcpOKTokensItem) {
-	s.Tokens = val
-}
-
-// SetTools sets the value of Tools.
-func (s *CorePatchCoreMcpOK) SetTools(val []CorePatchCoreMcpOKToolsItem) {
-	s.Tools = val
-}
-
-type CorePatchCoreMcpOKTokensItem struct {
-	CreatedAt time.Time   `json:"created_at"`
-	ID        string      `json:"id"`
-	Last4     string      `json:"last4"`
-	LastUsed  NilDateTime `json:"last_used"`
-	Name      string      `json:"name"`
-	Scopes    []string    `json:"scopes"`
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *CorePatchCoreMcpOKTokensItem) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetID returns the value of ID.
-func (s *CorePatchCoreMcpOKTokensItem) GetID() string {
-	return s.ID
-}
-
-// GetLast4 returns the value of Last4.
-func (s *CorePatchCoreMcpOKTokensItem) GetLast4() string {
-	return s.Last4
-}
-
-// GetLastUsed returns the value of LastUsed.
-func (s *CorePatchCoreMcpOKTokensItem) GetLastUsed() NilDateTime {
-	return s.LastUsed
-}
-
-// GetName returns the value of Name.
-func (s *CorePatchCoreMcpOKTokensItem) GetName() string {
-	return s.Name
-}
-
-// GetScopes returns the value of Scopes.
-func (s *CorePatchCoreMcpOKTokensItem) GetScopes() []string {
-	return s.Scopes
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *CorePatchCoreMcpOKTokensItem) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetID sets the value of ID.
-func (s *CorePatchCoreMcpOKTokensItem) SetID(val string) {
-	s.ID = val
-}
-
-// SetLast4 sets the value of Last4.
-func (s *CorePatchCoreMcpOKTokensItem) SetLast4(val string) {
-	s.Last4 = val
-}
-
-// SetLastUsed sets the value of LastUsed.
-func (s *CorePatchCoreMcpOKTokensItem) SetLastUsed(val NilDateTime) {
-	s.LastUsed = val
-}
-
-// SetName sets the value of Name.
-func (s *CorePatchCoreMcpOKTokensItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetScopes sets the value of Scopes.
-func (s *CorePatchCoreMcpOKTokensItem) SetScopes(val []string) {
-	s.Scopes = val
-}
-
-type CorePatchCoreMcpOKToolsItem struct {
-	Name  string `json:"name"`
-	Scope string `json:"scope"`
-}
-
-// GetName returns the value of Name.
-func (s *CorePatchCoreMcpOKToolsItem) GetName() string {
-	return s.Name
-}
-
-// GetScope returns the value of Scope.
-func (s *CorePatchCoreMcpOKToolsItem) GetScope() string {
-	return s.Scope
-}
-
-// SetName sets the value of Name.
-func (s *CorePatchCoreMcpOKToolsItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetScope sets the value of Scope.
-func (s *CorePatchCoreMcpOKToolsItem) SetScope(val string) {
-	s.Scope = val
-}
-
-type CorePatchCoreMcpReq struct {
-	Enabled bool `json:"enabled"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *CorePatchCoreMcpReq) GetEnabled() bool {
-	return s.Enabled
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *CorePatchCoreMcpReq) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 12 flows listed in PRIVACY.md.
+	// Exactly the 13 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`

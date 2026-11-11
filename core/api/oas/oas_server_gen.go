@@ -377,7 +377,9 @@ type Handler interface {
 	CoreGetCoreLogsExport(ctx context.Context, params CoreGetCoreLogsExportParams) (CoreGetCoreLogsExportOK, error)
 	// CoreGetCoreMcp implements core_get_core_mcp operation.
 	//
-	// MCP server state, tokens (last 4 characters only) and the read-only tool list.
+	// MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the
+	// mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every
+	// /core/mcp path answers 404.
 	//
 	// GET /core/mcp
 	CoreGetCoreMcp(ctx context.Context) (*CoreGetCoreMcpOK, error)
@@ -401,7 +403,7 @@ type Handler interface {
 	CoreGetCoreOidc(ctx context.Context) (*CoreGetCoreOidcOK, error)
 	// CoreGetCorePrivacy implements core_get_core_privacy operation.
 	//
-	// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
+	// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
 	//
 	// GET /core/privacy
 	CoreGetCorePrivacy(ctx context.Context) (*CoreGetCorePrivacyOK, error)
@@ -466,12 +468,6 @@ type Handler interface {
 	//
 	// PATCH /core/account
 	CorePatchCoreAccount(ctx context.Context, req *CorePatchCoreAccountReq) (*CorePatchCoreAccountOK, error)
-	// CorePatchCoreMcp implements core_patch_core_mcp operation.
-	//
-	// Turn the MCP server on/off (binds to localhost).
-	//
-	// PATCH /core/mcp
-	CorePatchCoreMcp(ctx context.Context, req *CorePatchCoreMcpReq) (*CorePatchCoreMcpOK, error)
 	// CorePatchCorePrivacy implements core_patch_core_privacy operation.
 	//
 	// Turn the anonymous signal and update checks on/off.
@@ -616,7 +612,7 @@ type Handler interface {
 	CorePostCoreDataPurge(ctx context.Context, req *CorePostCoreDataPurgeReq) (*CorePostCoreDataPurgeOK, error)
 	// CorePostCoreMcpTokens implements core_post_core_mcp_tokens operation.
 	//
-	// Create a read-only token by scope; returns the full token once.
+	// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).
 	//
 	// POST /core/mcp/tokens
 	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensCreated, error)

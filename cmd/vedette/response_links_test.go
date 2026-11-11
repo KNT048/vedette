@@ -137,6 +137,22 @@ func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionReq
 	if _, err := svc.SaveSettings(ctx, boss, in); err != nil {
 		t.Fatal(err)
 	}
+	// D-191: Lan proves the address first, with the code notify's code mailer sends (responseMailer).
+	me := response.Actor{ID: lan.ID, Email: "lan@acme.example", Via: response.ViaApp}
+	if _, err := svc.SendLinkCode(ctx, me, "email"); err != nil {
+		t.Fatal(err)
+	}
+	codeMail := sink.messages()
+	if len(codeMail) != 1 || !strings.Contains(mailBody(t, codeMail[0]), "link this email address") {
+		t.Fatalf("link code mail: %v", codeMail)
+	}
+	lc := regexp.MustCompile(`code is (\d{6})`).FindStringSubmatch(mailBody(t, codeMail[0]))
+	if lc == nil {
+		t.Fatalf("no code in the mail:\n%s", mailBody(t, codeMail[0]))
+	}
+	if _, err := svc.ConfirmLink(ctx, me, "email", lc[1]); err != nil {
+		t.Fatal(err)
+	}
 	ttl := 60
 	ri := response.RuleInput{Name: "Block", Enabled: true, Live: true, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, MaxPerHour: 10,
 		Actions: []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: &ttl}}}
@@ -171,7 +187,7 @@ func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionReq
 		t.Fatalf("requests: %v %+v", err, reqs)
 	}
 	a = reqs[0]
-	msgs := sink.messages()
+	msgs := sink.messages()[1:] // after the link code mail
 	if len(msgs) != 1 || !strings.Contains(msgs[0], "lan@acme.example") {
 		t.Fatalf("%d messages, want 1 to the approver:\n%v", len(msgs), msgs)
 	}

@@ -354,6 +354,8 @@
       "response.execution.disable": "Turn response execution off",
       "response.expire": "Response request expired",
       "response.fail": "Response action failed",
+      "response.identity_link": "Approver linked a channel address",
+      "response.identity_unlink": "Approver unlinked a channel address",
       "response.proposal": "AI proposed a response",
       "response.refused": "Response action refused",
       "response.reject": "Reject response action",

@@ -93,7 +93,7 @@ type buildOpts struct {
 	services         []string
 	mutateIndex      func(*release.Index)
 	revoke           []string // key ids the index revokes
-	rescue           bool     // the backup key signs index and manifest into .minisig (D-259), instead of active + backup slots
+	rescue           bool     // SignRescue with the backup key (D-259), instead of the active and backup slots
 }
 
 func (r *rig) build(o buildOpts) (dir string, err error) {
@@ -150,7 +150,7 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	}
 	ctx := context.Background()
 	if o.rescue {
-		if _, err := SignRelease(ctx, testSigner{r.t, r.backup}, dir, slotRescue); err != nil {
+		if _, err := SignRescue(ctx, testSigner{r.t, r.backup}, dir, o.prevDir, r.trust); err != nil {
 			return "", err
 		}
 		return dir, nil

@@ -8,7 +8,7 @@
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
-//	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup|rescue] [-passphrase-stdin]
+//	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
@@ -264,7 +264,10 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		}
 	}
 	var prevIndex *release.Index
-	if *prev != "" || len(revoke) > 0 {
+	if len(revoke) > 0 && *prev == "" {
+		return errors.New("-revoke-key needs -prev-index: a rescue index carries on from the last published index (D-259)")
+	}
+	if *prev != "" {
 		trust, err := LoadTrust(*keys)
 		if err != nil {
 			return err
@@ -313,6 +316,8 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	bin := fs.String("minisign", "", "absolute path of the pinned minisign (scripts/release/minisign.sh prints it)")
 	slot := fs.String("slot", slotActive, "active: index and manifest; backup: indexes only, into .backup.minisig (offline key, D-103); rescue: the backup key signs index and manifest into .minisig after the active key leaked (D-259)")
 	pass := fs.Bool("passphrase-stdin", false, "read the key's passphrase from the first line of stdin (default: minisign asks on the terminal)")
+	prev := fs.String("prev-index", "", "-slot rescue: directory of the last index published before the rescue")
+	keys := fs.String("keys-dir", "", "-slot rescue: the public keys the installed boxes trust (the ones before the leak)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -321,6 +326,17 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	}
 	if *slot != slotActive && *slot != slotBackup && *slot != slotRescue {
 		return errors.New("-slot is active, backup or rescue")
+	}
+	rescue := *slot == slotRescue
+	if rescue != (*prev != "" && *keys != "") || (!rescue && (*prev != "" || *keys != "")) {
+		return errors.New("-slot rescue takes -prev-index and -keys-dir, and only it does (D-259)")
+	}
+	var trust release.Trust
+	if rescue {
+		var err error
+		if trust, err = LoadTrust(*keys); err != nil {
+			return err
+		}
 	}
 	s := MinisignCLI{Bin: *bin, KeyPath: *key, Interactive: true}
 	if root, err := RepoRoot(ctx, "."); err == nil {
@@ -334,7 +350,13 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 		defer clear(line)
 		s.Passphrase, s.Interactive = line, false
 	}
-	written, err := SignRelease(ctx, s, *dir, *slot)
+	var written []string
+	var err error
+	if rescue {
+		written, err = SignRescue(ctx, s, *dir, *prev, trust)
+	} else {
+		written, err = SignRelease(ctx, s, *dir, *slot)
+	}
 	for _, w := range written {
 		say(stdout, "signed %s", w)
 	}

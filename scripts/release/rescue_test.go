@@ -113,7 +113,16 @@ func TestRescueRoundTrip(t *testing.T) {
 	}
 }
 
-// The backup key's manifest passes verify only as a rescue: index signed by the backup key and revoking the active key.
+// clearSigs removes every signature of dir.
+func clearSigs(t *testing.T, dir string) {
+	t.Helper()
+	sigs, _ := filepath.Glob(filepath.Join(dir, "*.minisig"))
+	for _, s := range sigs {
+		must(t, os.Remove(s))
+	}
+}
+
+// The backup key's manifest passes verify only as a rescue: index signed by the backup key and revoking the active key, once.
 func TestVerifyRefusesABackupManifestOutsideARescue(t *testing.T) {
 	r := newRig(t)
 	pub, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
@@ -124,14 +133,34 @@ func TestVerifyRefusesABackupManifestOutsideARescue(t *testing.T) {
 	if _, err := VerifyDir(pub, "", r.trust); err == nil || !strings.Contains(err.Error(), "backup key") {
 		t.Errorf("a backup-signed manifest beside an active-signed index: %v", err)
 	}
-	// a backup-signed index that revokes a key, but not the active one (here the cosign key)
-	other, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, rescue: true,
-		revoke: []string{release.CosignKeyID(r.trust.Cosign[0])}})
-	if err != nil {
-		t.Fatal(err)
+	pub, err = r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
+	must(t, err)
+	// a backup-signed index that revokes a key, but not the active one (here the cosign key): sign refuses, verify too
+	cosignID := release.CosignKeyID(r.trust.Cosign[0])
+	if _, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, rescue: true, revoke: []string{cosignID}}); err == nil || !strings.Contains(err.Error(), "must revoke the active key") {
+		t.Errorf("SignRescue of an index that does not revoke the active key: %v", err)
 	}
-	if _, err := VerifyDir(other, "", r.trust); err == nil || !strings.Contains(err.Error(), "revoke the active key") {
+	other, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, revoke: []string{cosignID}})
+	must(t, err)
+	clearSigs(t, other)
+	_, err = SignRelease(t.Context(), testSigner{t, r.backup}, other, slotRescue)
+	must(t, err)
+	if _, err := VerifyDir(other, pub, r.trust); err == nil || !strings.Contains(err.Error(), "revoke the active key") {
 		t.Errorf("a rescue that does not revoke the active key: %v", err)
+	}
+	// one rescue per leaked key: on top of the rescue index, the backup key signs no second release
+	resc, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, rescue: true, revoke: []string{r.trust.Active.KeyID()}})
+	must(t, err)
+	if _, err := r.build(buildOpts{version: "0.1.2", channel: "stable", cur: addOnlyTree, prevDir: resc, rescue: true}); err == nil || !strings.Contains(err.Error(), "already revokes") {
+		t.Errorf("a second rescue for the same key: %v", err)
+	}
+	second, err := r.build(buildOpts{version: "0.1.2", channel: "stable", cur: addOnlyTree, prevDir: resc})
+	must(t, err)
+	clearSigs(t, second)
+	_, err = SignRelease(t.Context(), testSigner{t, r.backup}, second, slotRescue)
+	must(t, err)
+	if _, err := VerifyDir(second, resc, r.trust); err == nil || !strings.Contains(err.Error(), "already revokes") {
+		t.Errorf("verify of a second rescue for the same key: %v", err)
 	}
 }
 
@@ -139,24 +168,50 @@ func TestSignRescueRefusals(t *testing.T) {
 	r := newRig(t)
 	pub, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
 	must(t, err)
-	// no key revocation in the index
-	if _, err := SignRelease(t.Context(), testSigner{t, r.backup}, pub, slotRescue); err == nil || !strings.Contains(err.Error(), "-revoke-key") {
-		t.Errorf("a rescue index without a key revocation: %v", err)
-	}
-	// an index-only directory: a rescue must bring the new binary
+	leaked := r.trust.Active.KeyID()
 	prev, err := LoadPrevIndex(pub, r.trust)
 	must(t, err)
-	files, err := BuildIndex(prev, IndexParams{Now: t1, Rollout: -1, RevokeKeys: []string{r.trust.Active.KeyID()}, RevokeReason: "leak", BackupKeyID: r.trust.Backup.KeyID()})
+	rev := IndexParams{Now: t1, Rollout: -1, RevokeKeys: []string{leaked}, RevokeReason: "leak", BackupKeyID: r.trust.Backup.KeyID()}
+	// an index-only directory: a rescue must bring the new binary
+	files, err := BuildIndex(prev, rev)
 	must(t, err)
 	ref := t.TempDir()
 	must(t, os.WriteFile(filepath.Join(ref, indexFile), files[0].Data, 0o600))
-	if _, err := SignRelease(t.Context(), testSigner{t, r.backup}, ref, slotRescue); err == nil || !strings.Contains(err.Error(), "release manifest") {
+	if _, err := SignRescue(t.Context(), testSigner{t, r.backup}, ref, pub, r.trust); err == nil || !strings.Contains(err.Error(), "release manifest") {
 		t.Errorf("a rescue without a manifest: %v", err)
 	}
-	if left, _ := filepath.Glob(filepath.Join(ref, "*.minisig")); len(left) != 0 {
+	if _, err := SignRescue(t.Context(), testSigner{t, r.backup}, ref, "", r.trust); err == nil || !strings.Contains(err.Error(), "-prev-index") {
+		t.Errorf("a rescue without the published index: %v", err)
+	}
+	// signed by the wrong key (the leaked one itself): verify sees no rescue, and the signatures are gone
+	dir, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, revoke: []string{leaked}})
+	must(t, err)
+	clearSigs(t, dir)
+	if _, err := SignRescue(t.Context(), testSigner{t, r.active}, dir, pub, r.trust); err == nil || !strings.Contains(err.Error(), "signatures were removed") {
+		t.Errorf("a rescue signed by the active key: %v", err)
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "*.minisig")); len(left) != 0 {
 		t.Errorf("a refused rescue left signatures: %v", left)
 	}
-	if _, err := SignRelease(t.Context(), testSigner{t, r.backup}, ref, "root"); err == nil {
+	// a signature of another run in the directory: refused before signing, and nothing of this run is left
+	mraw, _ := os.ReadFile(filepath.Join(dir, manifestFile))
+	must(t, os.WriteFile(filepath.Join(dir, manifestFile+".minisig"), r.active.SignComment(mraw, "t"), 0o600))
+	if _, err := SignRescue(t.Context(), testSigner{t, r.backup}, dir, pub, r.trust); err == nil || !strings.Contains(err.Error(), "already there") {
+		t.Errorf("a rescue over another run's signature: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, indexFile+".minisig")); err == nil {
+		t.Error("a refused rescue signed the index")
+	}
+	must(t, os.Remove(filepath.Join(dir, manifestFile+".minisig")))
+	// the signer dies half way: no signature of the run is left
+	f := &failingSigner{inner: testSigner{t, r.backup}, failOn: 2}
+	if _, err := SignRescue(t.Context(), f, dir, pub, r.trust); err == nil {
+		t.Error("a failing signer passed")
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "*.minisig")); len(left) != 0 {
+		t.Errorf("a failed rescue left signatures: %v", left)
+	}
+	if _, err := SignRelease(t.Context(), testSigner{t, r.backup}, dir, "root"); err == nil {
 		t.Error("an unknown slot was accepted")
 	}
 }
@@ -224,6 +279,19 @@ func TestRescueCommands(t *testing.T) {
 	}
 	if c, msg := run1("sign", "-dir", out, "-key", "/nonexistent", "-minisign", "/bin/true", "-slot", "root"); c == 0 || !strings.Contains(msg, "rescue") {
 		t.Errorf("an unknown slot: %d %s", c, msg)
+	}
+	for _, args := range [][]string{
+		{"-slot", "rescue"},                     // a rescue needs the published index and the boxes' keys
+		{"-slot", "rescue", "-prev-index", pub}, // ... both of them
+		{"-slot", "active", "-keys-dir", keys},  // and only a rescue takes them
+		{"-slot", "backup", "-prev-index", pub},
+	} {
+		if c, msg := run1(append([]string{"sign", "-dir", out, "-key", "/nonexistent", "-minisign", "/bin/true"}, args...)...); c == 0 || !strings.Contains(msg, "-prev-index and -keys-dir") {
+			t.Errorf("sign %v: %d %s", args, c, msg)
+		}
+	}
+	if c, msg := run1("index", "-out", t.TempDir(), "-keys-dir", keys, "-manifest", filepath.Join(pub, manifestFile), "-revoke-key", r.trust.Active.KeyID(), "-revoke-reason", "leak"); c == 0 || !strings.Contains(msg, "-prev-index") {
+		t.Errorf("-revoke-key without -prev-index: %d %s", c, msg)
 	}
 	resc, err := r.build(buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, prevDir: pub, revoke: []string{r.trust.Active.KeyID()}, rescue: true})
 	must(t, err)

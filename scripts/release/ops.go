@@ -81,7 +81,7 @@ const (
 	slotActive = "active" // the active key: indexes and the manifest, into <file>.minisig
 	slotBackup = "backup" // the offline backup key (D-103): indexes only, into <file>.backup.minisig, which only verify reads
 	// slotRescue is the backup key signing a rescue release after the active key leaked (D-258, D-259): indexes and the manifest,
-	// into <file>.minisig, the one signature a box downloads; the index must revoke a key and the manifest must be there.
+	// into <file>.minisig, the one signature a box downloads. Only SignRescue uses it, with the checks a rescue needs.
 	slotRescue = "rescue"
 )
 
@@ -126,8 +126,12 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 		}
 	}
 	if slot == slotRescue {
-		if err := checkRevokesAKey(filepath.Join(dir, indexFile)); err != nil {
-			return nil, err
+		// The rescue overwrites the .minisig a box downloads: a signature left from another run (the leaked key's, say) next to
+		// the rescue's would make a directory of mixed signers if this run stopped half way.
+		for _, p := range docs {
+			if _, err := os.Lstat(p + ".minisig"); !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("%s.minisig is already there: a rescue signs a directory with no signatures (remove those of other runs)", filepath.Base(p))
+			}
 		}
 	}
 	for _, p := range docs {
@@ -151,25 +155,50 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 	return written, nil
 }
 
-// checkRevokesAKey refuses a rescue whose index revokes no key: the backup key signs a manifest only to replace a revoked key
-// (D-258). It is a guard against signing with the wrong slot; verify checks that the active key of the boxes' keys is the one revoked.
-func checkRevokesAKey(p string) error {
-	raw, err := readDoc(p)
+// SignRescue signs a rescue release (D-258, D-259) with s, which must hold the backup key, for the boxes that embed trust (the keys
+// before the leak), on top of prevDir, the last index published before the rescue. Before signing: the index of dir revokes
+// trust.Active, and prevDir does not revoke it yet (one rescue per leaked key: a box that comes late downloads the same published
+// files). After signing, VerifyDir must report a rescue, which also proves s held the backup key; otherwise every signature of the
+// run is removed.
+func SignRescue(ctx context.Context, s Signer, dir, prevDir string, trust release.Trust) (written []string, err error) {
+	if prevDir == "" {
+		return nil, errors.New("a rescue needs -prev-index, the last index published before the rescue, and -keys-dir, the keys the installed boxes trust")
+	}
+	prev, err := LoadPrevIndex(prevDir, trust)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	active := trust.Active.KeyID()
+	if prev.KeyRevoked(active) {
+		return nil, fmt.Errorf("the published index already revokes %s: that rescue happened; a second one for the same key is refused (D-259)", active)
+	}
+	raw, err := readDoc(filepath.Join(dir, indexFile))
+	if err != nil {
+		return nil, err
 	}
 	var x struct {
 		Revoked []release.Revocation `json:"revoked"`
 	}
 	if err := json.Unmarshal(raw, &x); err != nil {
-		return fmt.Errorf("%s: %w", indexFile, err)
+		return nil, fmt.Errorf("%s: %w", indexFile, err)
 	}
-	for _, r := range x.Revoked {
-		if r.Kind == release.KindKey {
-			return nil
+	if !slices.ContainsFunc(x.Revoked, func(r release.Revocation) bool { return r.Kind == release.KindKey && r.ID == active }) {
+		return nil, fmt.Errorf("the rescue index must revoke the active key %s of these keys: build it with release index -revoke-key (D-259)", active)
+	}
+	if written, err = SignRelease(ctx, s, dir, slotRescue); err != nil {
+		return nil, err
+	}
+	sum, err := VerifyDir(dir, prevDir, trust)
+	if err == nil && !sum.Rescue {
+		err = errors.New("signed, but not as a rescue: was the key the backup key?")
+	}
+	if err != nil {
+		for _, w := range written {
+			_ = os.Remove(w)
 		}
+		return nil, fmt.Errorf("the rescue does not verify, its signatures were removed: %w", err)
 	}
-	return errors.New("a rescue index revokes the leaked active key: build it with release index -revoke-key (D-259)")
+	return written, nil
 }
 
 func isLegacyIndex(base string) bool {
@@ -290,6 +319,9 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 		// embed (-keys-dir), not the new build's: for a box with the new key the backup key has no business signing a release.
 		if idx.KeyID != trust.Backup.KeyID() || !idx.KeyRevoked(trust.Active.KeyID()) {
 			return nil, fmt.Errorf("the manifest is signed by the backup key, which signs only a rescue: the index must also be signed by the backup key and revoke the active key %s of these keys (verify a rescue with -keys-dir holding the keys the installed boxes trust)", trust.Active.KeyID())
+		}
+		if stored != nil && stored.KeyRevoked(trust.Active.KeyID()) {
+			return nil, fmt.Errorf("the published index already revokes %s: the rescue for that key happened, and the backup key does not sign another release (D-259)", trust.Active.KeyID())
 		}
 		s.Rescue = true
 	default:

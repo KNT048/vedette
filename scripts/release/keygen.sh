@@ -74,12 +74,14 @@ for n in "${names[@]}"; do
 	[ ${#pass} -eq 64 ] || { echo "keygen.sh: openssl did not give a passphrase" >&2; exit 1; }
 	# security -i reads the command from stdin: the passphrase is never in argv (ps) or shell history
 	printf 'add-generic-password -s vedette-release-%s -a %s -l "Vedette release key passphrase (%s)" -T "" -w %s\n' "$n" "$account" "$n" "$pass" | security -i > /dev/null
-	kc=$(security find-generic-password -s "vedette-release-$n" -a "$account" 2> /dev/null | sed -n 's/^keychain: "\(.*\)"$/\1/p')
+	kc=$(security find-generic-password -s "vedette-release-$n" -a "$account" 2> /dev/null | sed -n 's/^keychain: "\(.*\)"$/\1/p') || kc=
 	[ -n "$kc" ] || { echo "keygen.sh: the Keychain did not keep vedette-release-$n" >&2; exit 1; }
 	# -T "" must leave the item trusting no application; a security(1) that ignored it would let any process read it silently (D-259).
 	# dump-keychain -a prints access lists only (no -d: no secret); keychain-acl.sh fails closed on anything but an empty app list.
-	security dump-keychain -a "$kc" | scripts/release/keychain-acl.sh "vedette-release-$n" "$account" \
+	acl=$(security dump-keychain -a "$kc" 2> /dev/null) || { echo "keygen.sh: security dump-keychain -a $kc failed, so the access list of vedette-release-$n is unchecked" >&2; exit 1; }
+	printf '%s\n' "$acl" | scripts/release/keychain-acl.sh "vedette-release-$n" "$account" \
 		|| { echo "keygen.sh: vedette-release-$n does not have an empty application list (-T \"\" was not kept)" >&2; exit 1; }
+	unset acl
 	case $n in
 		minisign*)
 			label=active

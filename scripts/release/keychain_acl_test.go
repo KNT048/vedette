@@ -27,10 +27,16 @@ func TestKeychainACLCheck(t *testing.T) {
 		{"vt-app", "me", string(dump), false},
 		{"vt-missing", "me", string(dump), false},
 		{"vt-none", "other", string(dump), false},
-		{"vt-none", "me", strings.ReplaceAll(string(dump), "applications (0):", "applications: <null>"), false}, // every application
-		{"vt-none", "me", strings.ReplaceAll(string(dump), "decrypt derive export_clear", "derive"), false},     // no reader entry found
-		{"vt-none", "me", string(dump) + string(dump), false},                                                   // two items
+		{"vt-none", "me", strings.ReplaceAll(string(dump), "applications (0):", "applications: <null>"), false},                                // every application
+		{"vt-none", "me", strings.ReplaceAll(string(dump), "(6): decrypt derive export_clear export_wrapped mac sign", "(1): encrypt"), false}, // no reader entry found
+		{"vt-none", "me", string(dump) + string(dump), false},                                                                                  // two items
 		{"vt-none", "me", "", false},
+		// an entry "any" (it includes decrypt) open to every application, and a reader entry with no applications line (review D-259)
+		{"vt-none", "me", strings.Replace(string(dump), "    entry 1:\n        authorizations (1): encrypt\n        don't-require-password\n        description: vt-none\n        applications: <null>",
+			"    entry 1:\n        authorizations (1): any\n        don't-require-password\n        description: vt-none\n        applications: <null>", 1), false},
+		{"vt-none", "me", strings.Replace(string(dump), "        description: vt-none\n        applications (0):\n    entry 1:", "        description: vt-none\n    entry 1:", 1), false},
+		// encrypt alone may stay open to every application: it cannot read the secret
+		{"vt-none", "me", strings.Replace(string(dump), "authorizations (1): change_acl", "authorizations (1): encrypt", 1), true},
 	} {
 		if err := check(c.svc, c.acct, c.in); (err == nil) != c.ok {
 			t.Errorf("%s/%s: err=%v, want ok=%t", c.svc, c.acct, err, c.ok)

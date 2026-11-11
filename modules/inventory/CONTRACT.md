@@ -77,7 +77,7 @@ S-INV-1, 2, 3, 5; D-30 danh mục, D-32 tiền tố, D-45 mong manh, D-53 hộp 
 - IP có số 0 đứng đầu (`192.168.01.5`) bị từ chối `bad_ip`: backend dùng `netip` nghiêm ngặt vì `01` có thể hiểu là bát phân (nhập nhằng), mock thì nhận. Cùng lý do cho dải mạng (`bad_cidr`).
 - Ràng buộc schema (độ dài, enum, số dải ≤ 16, `days` 1..7…) trả `400 invalid` kèm `field` đầy đủ theo D-73, không phải `bad_*` như mock.
 - Xuất CSV ghi một dòng `core_audit` (`inventory.export`, không chứa dữ liệu) theo D-72.
-- ogen cố định `Content-Type: application/octet-stream` và không đặt `Content-Disposition` cho hai tệp CSV: cần lớp HTTP ngoài ogen (core/server) nếu muốn `text/csv` + tên tệp (API_CONVENTIONS §11).
+- Hai tệp CSV (`/inventory/export.csv`, `/inventory/import-template.csv`) trả `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="vedette-devices-YYYYMMDD.csv"` (mẫu: `vedette-devices-template.csv`) và `Cache-Control: no-store` qua `server.Exchange.SetContentType` (bộ mã hoá sinh của ogen nói octet-stream); chỉ khi thành công. `TestHandlersRolesAndShapes`.
 - ~~ARCHITECTURE §4 xếp ưu tiên nguồn; GUI dùng "khai tay > tin cậy cao > mới hơn"~~ Đã thống nhất theo DATA_MODEL §5.1: manual > agent > snmp > nmap = scan > passive, rồi `confidence`, `seen_at`, `id` (mock `markCurrent` đã sửa, WP-06).
 - Danh mục ~880 mục là fixture biên dịch sẵn hay dựng từ `feeds`? Khi `feeds` tắt dùng gì?
 - Cửa sổ quét ở `inventory` (gói/giây) và `scan` (request/giây): hai cấu hình riêng, chưa gộp; ngày đã thống nhất 1..7 (D-57 (9)).

@@ -58,7 +58,9 @@ func (s *Service) Events(ctx context.Context, q EventQuery) (EventsView, error) 
 		return EventsView{}, searchBusy()
 	}
 	v, err := s.search(sctx, q, span)
-	if err != nil && ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+	// Out of time: the driver may answer with the deadline error or, when the deadline cuts a scan that is running, with its own
+	// "interrupted" error; either way the search's deadline has passed and the caller's context has not.
+	if err != nil && ctx.Err() == nil && errors.Is(sctx.Err(), context.DeadlineExceeded) {
 		return EventsView{}, searchBusy()
 	}
 	return v, err

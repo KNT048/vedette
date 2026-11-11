@@ -1,0 +1,4 @@
+# Deferred: fix/logs-production-safety
+
+- [ ] 2026-11-11 — L5 (from feat-logs-module): `core/jobs` runs a job only while `gate.Enabled(Job.Module)` is true and has no way to run one while the module is off, so a box with logs off keeps its lines past retention; needs a core issue (Kiên) or a page text with a story — ở đâu: core/jobs/jobs.go (`runOnce`, the loop), `modules/logs/purge.go` `Jobs`.
+- [ ] 2026-11-11 — The "interrupted" error of a search cut mid-scan could not be reproduced with the pinned modernc driver (it answers with the context error in every case tried); the mapping now covers any error once the search's own deadline has passed, and the test really interrupts a scan, but it passes with the old mapping too — ở đâu: modules/logs/events.go, TestEventsSearchInterruptedMidScanIsServerBusy.

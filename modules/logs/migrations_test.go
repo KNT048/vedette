@@ -15,10 +15,7 @@ import (
 // they travel with the backup and the binary together.
 
 var (
-	lineComment  = regexp.MustCompile(`--[^\n]*`)
-	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
-	stringLit    = regexp.MustCompile(`'(?:[^']|'')*'`)
-	forbidden    = []struct {
+	forbidden = []struct {
 		re  *regexp.Regexp
 		why string
 	}{
@@ -26,14 +23,59 @@ var (
 		{regexp.MustCompile(`(?i)\brename\b`), "RENAME makes the old name disappear for an older binary"},
 		{regexp.MustCompile(`(?i)\bdelete\b`), "DELETE removes rows an older binary expects"},
 		{regexp.MustCompile(`(?i)\bupdate\b`), "UPDATE rewrites what an older binary reads"},
+		{regexp.MustCompile(`(?i)\breplace\s+into\b`), "REPLACE INTO overwrites rows"},
+		{regexp.MustCompile(`(?i)\binsert\s+or\s+replace\b`), "INSERT OR REPLACE overwrites rows"},
+		{regexp.MustCompile(`(?i)\bcreate\s+(temp\w*\s+)?trigger\b`), "a trigger changes what an older binary's statements do"},
+		{regexp.MustCompile(`(?i)\bcreate\s+unique\s+index\b`), "a unique index makes an older binary's inserts fail"},
 	}
 	alterAdd = regexp.MustCompile(`(?i)^\s*alter\s+table\s+\S+\s+add\s+column\s`)
 )
 
+// stripLiterals removes string literals and comments in one left-to-right pass, so that each is recognised by what
+// precedes it and not by what another removal left: a '--' inside a string is not a comment, and a comment marker cannot
+// be made by joining two strings. A string becomes ” (two quotes), a comment a space.
+func stripLiterals(sql string) string {
+	var b strings.Builder
+	for i := 0; i < len(sql); {
+		switch {
+		case sql[i] == '\'':
+			i++
+			for i < len(sql) {
+				if sql[i] == '\'' {
+					if i+1 < len(sql) && sql[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+			i++ // the closing quote (an unterminated string runs to the end)
+			b.WriteString("''")
+		case strings.HasPrefix(sql[i:], "--"):
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+			b.WriteByte(' ')
+		case strings.HasPrefix(sql[i:], "/*"):
+			end := strings.Index(sql[i+2:], "*/")
+			if end < 0 {
+				i = len(sql)
+			} else {
+				i += end + 4
+			}
+			b.WriteByte(' ')
+		default:
+			b.WriteByte(sql[i])
+			i++
+		}
+	}
+	return b.String()
+}
+
 // addOnlyViolations returns what in a migration is not add-only (empty: it is).
 func addOnlyViolations(sql string) []string {
-	s := blockComment.ReplaceAllString(lineComment.ReplaceAllString(sql, ""), "")
-	s = stringLit.ReplaceAllString(s, "''")
+	s := stripLiterals(sql)
 	var out []string
 	for _, f := range forbidden {
 		if m := f.re.FindString(s); m != "" {
@@ -67,6 +109,14 @@ func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
 		`DELETE FROM logs_events;`:                                              false,
 		`UPDATE logs_events SET line = lower(line);`:                            false,
 		"CREATE TABLE logs_ok (a TEXT);\nDROP\nTABLE logs_source_buckets;":      false,
+		// the two ways round the old order of removal (comments first, then strings)
+		"SELECT '--'; DROP TABLE logs_events;":                                           false, // '--' in a string is not a comment
+		"SELECT '/*'; DROP TABLE logs_events; SELECT '*/';":                              false, // two strings are not a comment
+		`INSERT INTO logs_x (a) VALUES ('it''s -- fine'); CREATE TABLE logs_w (a TEXT);`: true,
+		`REPLACE INTO logs_source_seen (source_id, last_received) VALUES ('a', 'b');`:    false,
+		`INSERT OR REPLACE INTO logs_source_seen (source_id) VALUES ('a');`:              false,
+		`CREATE TRIGGER logs_t AFTER INSERT ON logs_events BEGIN SELECT 1; END;`:         false,
+		`CREATE UNIQUE INDEX logs_u ON logs_events (source_id, ts);`:                     false,
 	} {
 		if got := len(addOnlyViolations(sql)) == 0; got != want {
 			t.Errorf("%q: add-only = %t, want %t (%v)", sql, got, want, addOnlyViolations(sql))

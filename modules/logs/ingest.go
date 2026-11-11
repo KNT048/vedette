@@ -20,6 +20,13 @@ var ErrBatchTooLarge = errors.New("logs: batch has more than the allowed number 
 // UTF-8 becomes U+FFFD, NUL and other control characters except tab become a space (a line is shown and exported as text;
 // it is never interpreted), and a line longer than MaxLineBytes is cut on a character boundary and marked.
 func sanitizeLine(s string) string {
+	if len(s) > maxIngestLineBytes { // before the walks below: a huge line costs 4x the kept size at most
+		cut := maxIngestLineBytes
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		s = s[:cut]
+	}
 	s = strings.ToValidUTF8(s, "�")
 	if strings.IndexFunc(s, isControl) >= 0 {
 		s = strings.Map(func(r rune) rune {
@@ -51,8 +58,10 @@ func isControl(r rune) bool {
 
 // Ingest stores a batch of received lines in one transaction on logs.db: at most one write per batch, never on the
 // main database, so a flood never waits for the core writer and never holds it. Lines of a source that is not declared
-// are dropped and counted (FORBID-5). At most MaxBatch lines (ErrBatchTooLarge). A line's time is its receive time; a
-// zero time or one in the future is now.
+// are dropped and counted (FORBID-5). At most MaxBatch lines (ErrBatchTooLarge). A line's time is its receive time,
+// clamped to [now - retention, now]: a zero time or one in the future is now, and one older than the retention is the
+// oldest time kept (a listener bug must not write lines that the next purge deletes at once). When the stored bytes pass
+// MaxEventBytes a purge starts in the background (at most one at a time); Ingest never waits for it.
 func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error) {
 	var res IngestResult
 	if len(lines) > MaxBatch {
@@ -66,6 +75,11 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 		return res, err
 	}
 	now := s.ts()
+	days, err := s.Retention(ctx)
+	if err != nil {
+		return res, err
+	}
+	oldest := now.Add(-time.Duration(days) * 24 * time.Hour)
 	type key struct {
 		source string
 		bucket int64
@@ -81,6 +95,9 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 		if l.At.IsZero() || l.At.After(now) {
 			l.At = now
 		}
+		if l.At.Before(oldest) {
+			l.At = oldest
+		}
 		l.At = l.At.UTC().Truncate(time.Millisecond)
 		l.Text = sanitizeLine(l.Text)
 		keep = append(keep, l)
@@ -92,16 +109,22 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(keep) == 0 {
 		return res, nil
 	}
+	var stored int64
 	err = s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
 		ins, err := tx.PrepareContext(ctx, `INSERT INTO logs_events (ts, source_id, line) VALUES (?, ?, ?)`)
 		if err != nil {
 			return fmt.Errorf("logs: storing lines: %w", err)
 		}
 		defer func() { _ = ins.Close() }()
+		added := 0
 		for _, l := range keep {
+			added += len(l.Text)
 			if _, err := ins.ExecContext(ctx, store.FormatTS(l.At), l.SourceID, l.Text); err != nil {
 				return fmt.Errorf("logs: storing a line: %w", err)
 			}
+		}
+		if err := tx.QueryRowContext(ctx, `UPDATE logs_volume SET line_bytes = line_bytes + ? WHERE id = 1 RETURNING line_bytes`, added).Scan(&stored); err != nil {
+			return fmt.Errorf("logs: counting bytes: %w", err)
 		}
 		for k, n := range buckets {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO logs_source_buckets (source_id, bucket, lines) VALUES (?, ?, ?) ON CONFLICT (source_id, bucket) DO UPDATE SET lines = lines + excluded.lines`, k.source, k.bucket, n); err != nil {
@@ -119,7 +142,30 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 		return IngestResult{}, err
 	}
 	res.Stored = len(keep)
+	if stored > s.maxBytes {
+		s.startPurge()
+	}
 	return res, nil
+}
+
+// purgeBudget bounds a purge that Ingest started.
+const purgeBudget = 30 * time.Minute
+
+// startPurge runs a purge in the background unless one that it started is still under way (coalesced: a flood over the bound
+// starts one purge, not one per batch). It never blocks the caller, which holds no lock and may not wait for the core writer
+// that the audit rows of the purge need (INV-12).
+func (s *Service) startPurge() {
+	if !s.purging.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer s.purging.Store(false)
+		ctx, cancel := context.WithTimeout(context.Background(), purgeBudget)
+		defer cancel()
+		if _, err := s.Purge(ctx); err != nil {
+			s.cfg.Log.Warn("logs: the purge started by a full volume failed", "err", err)
+		}
+	}()
 }
 
 // sourceIDs is the set of declared source ids (one small read on the main database; reads do not wait for its writer).

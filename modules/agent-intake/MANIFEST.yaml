@@ -8,7 +8,7 @@ permissions: ["outbound:https"]       # kéo Wazuh API tới địa chỉ khách
 ports: ["tcp/8443"]                   # cùng cổng HTTPS của core; osquery TLS + trang script cài
 container: core        # D-55
 tables_prefix: intake_
-tables: [intake_agent_tokens, intake_wazuh]
+tables: [intake_agent_tokens, intake_osquery_nodes, intake_wazuh]   # intake_wazuh arrives with the Wazuh slice (WP-26 lát 4)
 stories: [S-INV-4]
 milestone: M7
 gui_under: inventory   # màn hình ở Inventory → Agents (web/features/inventory)

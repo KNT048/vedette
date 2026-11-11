@@ -108,7 +108,9 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice_finding":  {export: "notice_id finding_id"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient", json: "message", url: "to"},
-	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"}, // the hash never leaves (mcp-server INV-3)
+	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received", skip: "token_hash"},                                                                   // the hash never leaves (agent-intake INV-3)
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac", skip: "node_key_hash"}, // the key hash never leaves
+	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                       // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},

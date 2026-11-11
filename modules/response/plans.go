@@ -154,7 +154,7 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 			}
 		}
 		pl := p.Plan
-		pl.SentTo = s.liveChannels(ctx)
+		pl.SentTo = []string{} // a plan is not sent anywhere: only a request is
 		for _, x := range p.steps {
 			step := PlanStep{Kind: x.Kind, Title: x.Title, Detail: x.Detail}
 			if x.Proposal != nil {
@@ -169,16 +169,6 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 		out.Items = append(out.Items, pl)
 	}
 	return out, nil
-}
-
-func (s *Service) liveChannels(ctx context.Context) []string {
-	out := []string{}
-	for _, n := range s.channelNames(ctx) {
-		if n != "the app" {
-			out = append(out, n)
-		}
-	}
-	return out
 }
 
 // planRefusal turns a planning failure into the API error of the request.
@@ -228,7 +218,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 				refusal = fail(http.StatusNotFound, "not_found", "No such proposal.")
 				return nil
 			}
-			subject, assetID := "", prop.AssetID
+			subject, deviceName, assetID := "", "", prop.AssetID
 			if s.cfg.Directory != nil {
 				f, ok, err := s.cfg.Directory.Finding(ctx, plan.FindingID)
 				if err != nil {
@@ -247,7 +237,7 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 					return nil
 				}
 				if ok {
-					subject = d.IP
+					subject, deviceName = d.IP, d.Name
 				}
 			}
 			st, err := loadSettings(ctx, tx)
@@ -256,6 +246,10 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 			}
 			if !st.Execution {
 				refusal = fail(http.StatusConflict, "execution_off", offMsg)
+				return nil
+			}
+			if e := checkAIPaused(st); e != nil { // a request made from an AI plan is an AI request (INV-15 (3))
+				refusal = e
 				return nil
 			}
 			if w := maintenanceNow(st, s.now()); w != nil {
@@ -291,6 +285,12 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 			if f != nil {
 				refusal = planRefusal(f)
 				return nil
+			}
+			if s.cfg.Directory != nil { // the stored values are checked again against the device the inventory says the finding is on
+				if why := aboutTheDevice(Values(pl.rec.Values), cats[prop.ActionID], subject, deviceName); why != "" {
+					refusal = fail(http.StatusConflict, "evidence_mismatch", "This proposal is not about the device of the finding: "+why+". Nothing was requested.")
+					return nil
+				}
 			}
 			existing, err := loadReqs(ctx, tx, `WHERE proposal_id = ? AND status IN ('pending', 'approved', 'executed')`, pid)
 			if err != nil {

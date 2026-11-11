@@ -269,9 +269,11 @@ type Service struct {
 	seeded bool
 
 	limitMu         sync.Mutex
-	planTried       map[string]time.Time // when a plan was last asked for, per finding (limitMu)
-	proposeTimes    []time.Time          // Propose calls of the last hour, any outcome (D-119)
-	proposeSkipped  int                  // calls refused since the last log line
+	planFails       map[string]planAttempt // failed or refused plans per finding (limitMu)
+	planDay         string                 // the UTC day planCalls counts
+	planCalls       int
+	proposeTimes    []time.Time // Propose calls of the last hour, any outcome (D-119)
+	proposeSkipped  int         // calls refused since the last log line
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit

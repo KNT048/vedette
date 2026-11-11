@@ -21,20 +21,18 @@ import (
 var ErrPlanUnavailable = errors.New("response: the AI cannot make plans now")
 
 const (
-	maxPlansPerRun = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens
-	planRetry      = time.Hour       // a finding whose plan was refused or failed is asked again after this
-	planEvery      = 5 * time.Minute // how often the job looks
-	maxPlanSteps   = 6               // steps in a plan
-	maxPlanActions = 3               // steps of a plan that carry a proposal
-	planPath       = "From the inventory record of the device. No device connection was read."
-	planActor      = "ai:response"
+	maxPlansPerRun  = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens
+	maxPlanCallsDay = 20              // plan calls in one UTC day: the daily AI cap is shared with Explain, Ask and the reports (D-181)
+	planEvery       = 5 * time.Minute // how often the job looks
+	maxPlanSteps    = 6               // steps in a plan
+	maxPlanActions  = 3               // steps of a plan that carry a proposal
+	planPath        = "From the inventory record of the device. No device connection was read."
+	planActor       = "ai:response"
 )
 
-// PlanTarget is an open critical finding and the device it is on: what the AI is asked about. Facts is untrusted text from the exploited
-// list (it reaches the model only as a fenced data block).
+// PlanTarget is an open critical finding and the device it is on: what the AI is asked about.
 type PlanTarget struct {
 	FindingID, CVE, AssetID, AssetName, AssetIP, AssetKind string
-	Facts                                                  string
 }
 
 // DraftParam is one value the AI chose for a parameter of an action.
@@ -80,6 +78,13 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	if !s.aiAvailable(ctx) || s.cfg.Critical == nil {
 		return 0, nil
 	}
+	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return 0, err
+	}
+	if checkAIPaused(st) != nil { // the quality breaker paused the AI (INV-15 (3)): no plan is asked for either
+		return 0, nil
+	}
 	targets, err := s.cfg.Critical(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("response: list the open critical findings: %w", err)
@@ -104,10 +109,10 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	var actions []AIAction
 	asked := 0
 	for _, t := range targets {
-		if have[t.FindingID] || s.recentlyTried(t.FindingID) {
+		if have[t.FindingID] || s.backedOff(t.FindingID) {
 			continue
 		}
-		if asked >= maxPlansPerRun {
+		if asked >= maxPlansPerRun || !s.planCall(false) {
 			break
 		}
 		if actions == nil {
@@ -123,13 +128,14 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			}
 		}
 		asked++
-		s.markTried(t.FindingID)
+		s.planCall(true)
 		d, err := s.cfg.Planner.Plan(ctx, PlanAsk{Target: t, Actions: actions})
 		if errors.Is(err, ErrPlanUnavailable) {
 			return saved, nil
 		}
 		if err != nil {
 			s.cfg.Log.WarnContext(ctx, "response: the AI could not make a plan", "finding", t.FindingID, "error", err)
+			s.planFailed(t.FindingID)
 			continue
 		}
 		ok, err := s.savePlan(ctx, t, d)
@@ -138,25 +144,58 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		}
 		if ok {
 			saved++
+		} else {
+			s.planFailed(t.FindingID)
 		}
 	}
 	return saved, nil
 }
 
-func (s *Service) recentlyTried(id string) bool {
-	s.limitMu.Lock()
-	defer s.limitMu.Unlock()
-	t, ok := s.planTried[id]
-	return ok && s.now().Sub(t) < planRetry
+// planBackoff is how long a finding waits after its 1st, 2nd and 3rd failed or refused plan; after the 4th it is not asked again.
+// ponytail: the counters live in memory, so a restart starts them again (the shared daily cap of the ai module bounds what that can
+// cost); a table is the upgrade if restarts turn out to be frequent.
+var planBackoff = []time.Duration{time.Hour, 6 * time.Hour, 24 * time.Hour}
+
+type planAttempt struct {
+	n  int
+	at time.Time
 }
 
-func (s *Service) markTried(id string) {
+func (s *Service) backedOff(id string) bool {
 	s.limitMu.Lock()
 	defer s.limitMu.Unlock()
-	if s.planTried == nil || len(s.planTried) > 2000 {
-		s.planTried = map[string]time.Time{}
+	f, ok := s.planFails[id]
+	if !ok {
+		return false
 	}
-	s.planTried[id] = s.now()
+	return f.n > len(planBackoff) || s.now().Sub(f.at) < planBackoff[f.n-1]
+}
+
+func (s *Service) planFailed(id string) {
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	if s.planFails == nil || len(s.planFails) > 2000 {
+		s.planFails = map[string]planAttempt{}
+	}
+	f := s.planFails[id]
+	s.planFails[id] = planAttempt{n: f.n + 1, at: s.now()}
+}
+
+// planCall says whether another plan call fits today's budget; count=true also counts one.
+func (s *Service) planCall(count bool) bool {
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	day := s.now().UTC().Format("2006-01-02")
+	if s.planDay != day {
+		s.planDay, s.planCalls = day, 0
+	}
+	if s.planCalls >= maxPlanCallsDay {
+		return false
+	}
+	if count {
+		s.planCalls++
+	}
+	return true
 }
 
 // savePlan checks the draft and, if it passes, stores it; if not, nothing is stored and the refusal is written to the log and the audit
@@ -224,7 +263,7 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 		if !slices.Contains([]string{"contain", "check", "patch"}, x.Kind) {
 			return nil, fmt.Sprintf("step %d has an unknown kind", i+1)
 		}
-		st := storedStep{Kind: x.Kind, Title: oneLine(x.Title, 120), Detail: oneLine(x.Detail, 600)}
+		st := storedStep{Kind: x.Kind, Title: truncRunes(cleanLine(x.Title), 120), Detail: truncRunes(cleanLine(x.Detail), 600)}
 		if st.Title == "" || st.Detail == "" {
 			return nil, fmt.Sprintf("step %d has no title or no text", i+1)
 		}
@@ -262,6 +301,9 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 			if f != nil {
 				return nil, "step " + fmt.Sprint(i+1) + " cannot be planned (" + f.code + "): " + oneLine(f.msg, 200)
 			}
+			if why := aboutTheDevice(Values(pl.rec.Values), cat, t.AssetIP, t.AssetName); why != "" {
+				return nil, "step " + fmt.Sprint(i+1) + ": " + why
+			}
 			checked := map[string]string{}
 			for p, v := range pl.rec.Values {
 				checked[string(p)] = v
@@ -274,6 +316,27 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 		out = append(out, st)
 	}
 	return out, ""
+}
+
+// aboutTheDevice is the evidence gate of Propose (INV-15 (3), D-119) for a plan: the values of an action must be about the device the
+// finding is on (its address or its name), and an action that names a device part, or no address, needs that device's address for the
+// never-touch check. Only an action with no target at all (every value is free text) is exempt. "" = passes. The same words refuse a
+// proposal again when it is requested, against the inventory's own word about the device.
+func aboutTheDevice(vals Values, cat catRow, ip, name string) string {
+	if !slices.ContainsFunc(cat.params(), func(p ParamType) bool { return p != PText }) {
+		return ""
+	}
+	if ip == "" && (!namesAnAddress(vals) || namesADevicePart(vals)) {
+		return "no address is known for the device of the finding, so the never-touch list cannot be checked for this action (never_touch)"
+	}
+	f := foundEvidence{names: []string{name}}
+	if ip != "" {
+		f.relates = []string{ip}
+	}
+	if !f.relatesTo(vals, cat) {
+		return "the action is not about the device of the finding (evidence_mismatch): its target is neither that address nor that name"
+	}
+	return ""
 }
 
 // planJob is the job of the plan writer.

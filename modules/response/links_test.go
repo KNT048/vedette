@@ -984,7 +984,7 @@ func TestPost5_RequestProposalHoldsNoLockWhileSending(t *testing.T) {
 	e.note.sendSent = []string{"Email"}
 	e.note.block = make(chan struct{})
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-nas","asset_name":"NAS"}`)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1") // returns while the send waits on the blackhole
 	e.must(err)
 	eventually(t, "the send started", func() bool { return len(e.note.requests()) == 1 })

@@ -103,12 +103,12 @@ func banAndBlock() []response.RuleAction {
 // carries AI data, so the AI gates apply to it (13b-9: a high-risk one needs the code of two people).
 func TestContract_INV14_PlanProposalIsRenderedFromTheCatalog(t *testing.T) {
 	e := planEnv(t)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS",`+
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-nas","asset_name":"NAS",`+
 		`"change":{"before":"b","after":"a","cli":"config system global; execute factoryreset","rest":{"method":"DELETE","url":"https://attacker.example/api/v2/cmdb/firewall/policy","body":null},"rollback":{"title":"Undo","cli":"u","rest":null},"verify":""}}`)
 	pl, err := e.svc.Plans(e.ctx(), "")
 	e.must(err)
 	pv := pl.Items[0].Steps[0].Proposal
-	if pv == nil || pv.State != "ready" || pv.ConnectorID != "cn-fw" || !strings.HasPrefix(pv.Change.Rest.URL, "https://fw.lan/api/v2/cmdb/firewall/vip/NAS-PHOTO-443") || response.HasShellChar(pv.Change.CLI) {
+	if pv == nil || pv.State != "ready" || pv.ConnectorID != "cn-fw" || !strings.HasPrefix(pv.Change.Rest.URL, "https://fw.lan/api/v2/cmdb/firewall/vip/NAS") || response.HasShellChar(pv.Change.CLI) {
 		t.Fatalf("the proposal is not shown as rendered from the catalog: %+v", pv)
 	}
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1")
@@ -172,7 +172,7 @@ func TestContract_INV14_PlanProposalRefusesStoredText(t *testing.T) {
 // INV-10: the never-touch list applies to a plan proposal: the device the plan is about must stay reachable.
 func TestContract_INV10_PlanProposalNeverTouch(t *testing.T) {
 	e := planEnv(t)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-nas","asset_name":"NAS"}`)
 	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.21", Label: "NAS"}})
 	e.must(err)
 	_, err = e.svc.RequestProposal(e.ctx(), oper, "pr-1")
@@ -183,7 +183,7 @@ func TestContract_INV10_PlanProposalNeverTouch(t *testing.T) {
 // was already approved (not run yet) counts as requested.
 func TestContract_INV12_PlanProposalGates(t *testing.T) {
 	e := planEnv(t)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS"},"asset_id":"a-nas","asset_name":"NAS"}`)
 	e.saveSettings(func(in *response.SettingsInput) {
 		in.Maintenance = []response.Window{{ID: "w1", Name: "Patch night", Start: e.at(-time.Hour), End: e.at(time.Hour)}}
 	})

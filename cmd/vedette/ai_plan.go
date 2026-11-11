@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -18,7 +17,10 @@ import (
 // responsePlanner is response.Planner over ai.Service.RunJob for the job response-plan (S-RESP-1). The model gets the finding, the
 // device and the list of catalog actions it may propose, and answers with a JSON object of steps. It has no tool: it cannot read or change
 // anything. What it names is checked by response (savePlan) before anything is stored; this adapter only moves text.
-type responsePlanner struct{ svc *ai.Service }
+type responsePlanner struct {
+	svc   *ai.Service
+	facts ai.Facts // the exploited-list entry of the CVE; nil = the CVE id only
+}
 
 func (p responsePlanner) Available(context.Context) bool { return p.svc.Available(ai.JobResponsePlan) }
 
@@ -84,11 +86,14 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 	}
 	dev := fmt.Sprintf("Device: %s (%s), kind %s\nFinding: %s\n", t.AssetName, t.AssetIP, t.AssetKind, t.CVE)
 	var d response.PlanDraft
+	ready := p.svc.Ready(ai.JobResponsePlan)
 	res, err := p.svc.RunJob(ctx, ai.JobSpec{
-		Job: ai.JobResponsePlan, Actor: "system", Task: planTask + "\n\nActions you may propose:\n" + cat.String(),
+		Job: ai.JobResponsePlan, Actor: "system", Task: planTask,
 		Question: "Write the response plan for this finding.",
-		Data:     []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + t.CVE, Text: t.Facts}, {Kind: "inventory", Source: "the device of the finding", Text: dev}},
-		Schema:   &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 1500,
+		// The catalog is data, not Task: the before-AI hooks look at every data block, and they do not look at Task.
+		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
+			{Kind: ai.DataDocument, Source: "actions you may propose", Text: cat.String()}},
+		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 1500,
 		Summary: "Response plan for " + t.CVE,
 		Check: func(text string) error {
 			var perr error
@@ -97,20 +102,36 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		},
 	})
 	if err != nil {
-		if ae, ok := apierr.As(err); ok && (ae.Code == "ai_unavailable" || ae.Code == "daily_cap") {
-			return response.PlanDraft{}, fmt.Errorf("%w: %s", response.ErrPlanUnavailable, ae.Message)
-		}
-		return response.PlanDraft{}, err
+		return response.PlanDraft{}, planError(err, ready)
 	}
 	d.Model, d.Profile = res.Model, res.Profile
 	return d, nil
 }
 
+// planError sorts a failure of RunJob. The AI is unavailable (the run stops) when no profile can run the job (ready != nil) or the daily cap
+// is spent. Anything else, though it also arrives as 409 ai_unavailable (a format failure, a hook that stopped the answer, a provider
+// that did not answer), is about this finding only: the caller backs the finding off and goes on.
+func planError(err, ready error) error {
+	if ae, ok := apierr.As(err); ok && (ready != nil || ae.Code == "daily_cap") {
+		return fmt.Errorf("%w: %s", response.ErrPlanUnavailable, ae.Message)
+	}
+	return err
+}
+
+// factsOf is the exploited-list entry of a CVE as text; a lookup that fails or finds nothing gives the id alone (the plan is then thinner, not refused).
+func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
+	if p.facts != nil {
+		if c, ok, err := p.facts.CVE(ctx, cve); err == nil && ok {
+			return fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nRequired action (CISA): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, c.RequiredAction, c.Ransomware)
+		}
+	}
+	return "CVE: " + cve + "\n"
+}
+
 // responseCritical lists the open critical findings with their device and the exploited-list facts, for the plan job.
 type responseCritical struct {
-	fnd   *findings.Service
-	inv   findings.Inventory
-	facts ai.Facts
+	fnd *findings.Service
+	inv findings.Inventory
 }
 
 func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, error) {
@@ -146,18 +167,6 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind}
 		if a.IP == "—" { // unknown address
 			t.AssetIP = ""
-		}
-		if r.facts != nil {
-			c, ok, err := r.facts.CVE(ctx, f.CVE)
-			if err != nil && !errors.Is(err, context.Canceled) {
-				return nil, err
-			}
-			if ok {
-				t.Facts = fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nRequired action (CISA): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, c.RequiredAction, c.Ransomware)
-			}
-		}
-		if t.Facts == "" {
-			t.Facts = "CVE: " + f.CVE + "\n"
 		}
 		out = append(out, t)
 	}

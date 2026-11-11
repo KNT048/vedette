@@ -44,7 +44,7 @@ type Config struct {
 	Audit    *audit.Log
 	Sink     observe.Sink         // the inventory: device observations (core/observe)
 	Software observe.SoftwareSink // the inventory: the software list of a device
-	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password, restricted to this module)
+	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
 	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
 	Clock    func() time.Time
 	Log      *slog.Logger
@@ -61,11 +61,10 @@ type Service struct {
 	lastWarn map[string]time.Time
 	replaced map[string]*replaceState // by source address: the last software replace (ingest.go allowReplace)
 
-	wazuhSecrets *passwordOpener // the only reader of the Wazuh password (wazuh.go)
-	wazuhRoots   *x509.CertPool  // nil: the system's (tests replace it)
-	wazuhSleep   func(ctx context.Context, d time.Duration) error
-	wazuhPace    time.Duration
-	wazuhBudget  time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
+	wazuhRoots  *x509.CertPool // nil: the system's (tests replace it)
+	wazuhSleep  func(ctx context.Context, d time.Duration) error
+	wazuhPace   time.Duration
+	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
 
 	pruneMu   sync.Mutex
 	pruneLast time.Time // the previous node-prune run; a long gap means the module was off (or the box down)
@@ -87,13 +86,6 @@ func New(cfg Config) (*Service, error) {
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
 	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget
-	if cfg.Secrets != nil {
-		o, err := restrictWazuh(cfg.Secrets)
-		if err != nil {
-			return nil, fmt.Errorf("agentintake: restrict the wazuh password: %w", err)
-		}
-		s.wazuhSecrets = o
-	}
 	return s, nil
 }
 

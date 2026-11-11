@@ -2,8 +2,7 @@
 -- agent-intake, the Wazuh pull (S-INV-4, WP-26 slice 4, D-169 (12), (13), D-305..D-309). Only package modules/agent-intake writes it.
 -- Forward-only (DATA_MODEL 6): no Down section.
 
--- The one Wazuh connection (id = 1). The password of the read-only API user is in core_secret (purpose intake_wazuh.password, opened
--- only by this module); password_last4 is what the API shows ("" for a password shorter than 8 characters, core/secrets keeps none).
+-- The one Wazuh connection (id = 1). The password of the read-only API user is in core_secret (purpose intake_wazuh.password); password_last4 is what the API shows ("" for a password shorter than 8 characters, core/secrets keeps none).
 -- tls_pin is the trust decision of the last Save: 'system' (a public authority vouched for the certificate, and must keep doing so) or
 -- the hex SHA-256 of the leaf's public key (trust on first use). generation grows at every Save, so a pull that started before a Save
 -- does not write its result over the new connection. next_pull is when the pull job may run next (Save sets it to now).

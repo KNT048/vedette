@@ -49,13 +49,10 @@ func TestOnlyPKINamesTheCAPurpose(t *testing.T) {
 		if rel != "core/pki/ca.go" && strings.Contains(src, "core_sensor_ca") {
 			t.Errorf("%s contains core_sensor_ca: only core/pki/ca.go may name the CA purpose", rel)
 		}
-		// agent-intake's wazuh.go holds its own purpose (intake_wazuh.password, D-305): exempt from the Reserve and Restrict needles
-		// below, never from the one about core_sensor_ca above.
-		own := rel == "modules/agent-intake/wazuh.go"
-		if strings.Contains(src, "secrets.Reserve(") && rel != "core/pki/ca.go" && !own {
+		if strings.Contains(src, "secrets.Reserve(") && rel != "core/pki/ca.go" {
 			t.Errorf("%s reserves a secret purpose: only core/pki/ca.go does", rel)
 		}
-		if strings.Contains(src, ".Restrict(") && !strings.HasPrefix(rel, "core/conn/internal/cred/") && rel != "core/pki/authority.go" && !own {
+		if strings.Contains(src, ".Restrict(") && !strings.HasPrefix(rel, "core/conn/internal/cred/") && rel != "core/pki/authority.go" {
 			t.Errorf("%s restricts a secret purpose: only core/conn/internal/cred and core/pki do", rel)
 		}
 		return nil

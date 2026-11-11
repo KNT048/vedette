@@ -26,15 +26,9 @@ import (
 // core/secrets and only this file opens it; the certificate is the public roots' or pinned at Save (trust on first use); every address
 // goes through core/conn's policy; nothing is ever written to Wazuh (FORBID-4).
 
-// wazuhPurpose is the core_secret purpose of the password. Only this file names it.
+// wazuhPurpose is the core_secret purpose of the password. Like every other module's secret (ai, feeds, logs, notify, oidc) it is sealed
+// and opened through core/secrets with this purpose; the vault sees only the ciphertext and the AAD binds it to this purpose.
 const wazuhPurpose = "intake_wazuh.password"
-
-func init() { secrets.Reserve(wazuhPurpose) } // closed to Store.Open from the start of the process (core/pki precedent)
-
-// passwordOpener is the one reader of the purpose; only this file restricts it or holds the opener (core/conn TestOnlyCredNamesTheCredentialPurpose).
-type passwordOpener = secrets.Opener
-
-func restrictWazuh(st *secrets.Store) (*passwordOpener, error) { return st.Restrict(wazuhPurpose) }
 
 const (
 	wazuhTestBudget = 30 * time.Second // the whole Test or Save probe
@@ -160,7 +154,7 @@ type checked struct {
 }
 
 func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error) {
-	if s.cfg.Conn == nil || s.wazuhSecrets == nil {
+	if s.cfg.Conn == nil || s.cfg.Secrets == nil {
 		return checked{}, wazuhOff()
 	}
 	o, e := s.origin(ctx, in.URL)
@@ -198,7 +192,7 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 		return checked{}, bad400("bad_interval", "Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes.")
 	}
 	if !c.typed {
-		raw, err := s.wazuhSecrets.Open(ctx, tx, prev.secretID)
+		raw, err := s.cfg.Secrets.Open(ctx, tx, prev.secretID, wazuhPurpose)
 		if err != nil {
 			return checked{}, fmt.Errorf("agentintake: open wazuh password: %w", err)
 		}
@@ -350,7 +344,7 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 
 // DeleteWazuh removes the connection and its password in one transaction (INV-6). Data already pulled stays in the inventory.
 func (s *Service) DeleteWazuh(ctx context.Context, actor string) error {
-	if s.cfg.Conn == nil || s.wazuhSecrets == nil {
+	if s.cfg.Conn == nil || s.cfg.Secrets == nil {
 		return wazuhOff()
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -385,7 +379,7 @@ const staleAgent = 7 * 24 * time.Hour
 // over many agents that does not fit in the 10-minute budget goes on at the next tick from the agent after the last one done
 // (resume_after), so a large fleet is read in full over a few ticks, at most 4 calls a second.
 func (s *Service) WazuhPull(ctx context.Context) error {
-	if s.cfg.Conn == nil || s.wazuhSecrets == nil {
+	if s.cfg.Conn == nil || s.cfg.Secrets == nil {
 		return nil
 	}
 	now := s.now()
@@ -403,7 +397,7 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = ? WHERE id = 1`, store.FormatTS(next)); err != nil {
 			return fmt.Errorf("agentintake: wazuh next pull: %w", err)
 		}
-		if raw, err = s.wazuhSecrets.Open(ctx, tx, w.secretID); err != nil {
+		if raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose); err != nil {
 			return fmt.Errorf("agentintake: open wazuh password: %w", err)
 		}
 		due = true

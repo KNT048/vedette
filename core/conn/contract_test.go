@@ -15,18 +15,14 @@ import (
 // content, scripts, tools, whatever is added), not a list that a new top-level directory could be missing from.
 //
 // core/pki holds a restricted purpose of its own (core_sensor_ca, core INV-24), so its two files are exempt from the two needles
-// about restriction and Opener use, and from nothing else: they may never name "core_connection". So is modules/agent-intake/wazuh.go
-// (intake_wazuh.password).
+// about restriction and Opener use, and from nothing else: they may never name "core_connection".
 func TestOnlyCredNamesTheCredentialPurpose(t *testing.T) {
 	t.Parallel()
 	root := filepath.Join("..", "..")
 	credOrSecrets := func(rel string) bool {
 		return strings.HasPrefix(rel, "core/conn/internal/cred/") || strings.HasPrefix(rel, "core/secrets/")
 	}
-	// agent-intake's wazuh.go holds the Wazuh password purpose (intake_wazuh.password, D-305) the same way.
-	ownsPurpose := func(rel string) bool {
-		return rel == "core/pki/ca.go" || rel == "core/pki/authority.go" || rel == "modules/agent-intake/wazuh.go"
-	}
+	pkiOwn := func(rel string) bool { return rel == "core/pki/ca.go" || rel == "core/pki/authority.go" }
 	scanned := 0
 	tops := map[string]bool{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -54,7 +50,7 @@ func TestOnlyCredNamesTheCredentialPurpose(t *testing.T) {
 			if !strings.Contains(string(b), n) || credOrSecrets(rel) {
 				continue
 			}
-			if n != `"core_connection"` && ownsPurpose(rel) {
+			if n != `"core_connection"` && pkiOwn(rel) {
 				continue
 			}
 			t.Errorf("%s contains %s: only core/conn/internal/cred may name the credential purpose or hold its opener", rel, n)

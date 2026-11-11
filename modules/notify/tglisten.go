@@ -113,14 +113,16 @@ func parseButtonData(data string) (requestID, nonce string, approve, ok bool) {
 	return requestID, nonce, data[0] == 'a', true
 }
 
-// checkButton says whether data is a button notify sent: its nonce matches the one kept for the request (constant time).
+// checkButton says whether data is a button notify sent: its nonce matches the one kept for the request (constant time), and the
+// request is not over (its buttons are not marked for removal or removed, and it has not ended: review of #198, L2).
 func (s *Service) checkButton(ctx context.Context, data string) (requestID string, approve, ok bool, err error) {
 	requestID, nonce, approve, ok := parseButtonData(data)
 	if !ok {
 		return "", false, false, nil
 	}
 	var stored string
-	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT nonce_hash FROM notify_tg_button WHERE request_id = ?`, requestID).Scan(&stored)
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT nonce_hash FROM notify_tg_button
+		WHERE request_id = ? AND state NOT IN ('remove', 'removed') AND expires_at > ?`, requestID, store.FormatTS(s.now())).Scan(&stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, false, nil
 	}

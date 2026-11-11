@@ -92,7 +92,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		snd       channel.Sender
 		msg       channel.Message // what is sent (may hold a token)
 		recipient string          // the approver's address, for a message to one person
-		tgChat    string          // Telegram with buttons: the chat, so the buttons can be removed later (tgbuttons.go)
+		buttons   bool            // Telegram with buttons: where the message is gets kept, so they can be removed later (tgbuttons.go)
 	}
 	var plan []outgoing
 	type skipped struct{ user, reason string }
@@ -108,16 +108,13 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			if err != nil {
 				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
 			}
-			m, tgChat := base, ""
+			m := base
 			if ac.Type == channel.Telegram { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
 				if m.Buttons, err = s.telegramButtons(ctx, req, c.Fields); err != nil {
 					return nil, err
 				}
-				if len(m.Buttons) > 0 {
-					tgChat = strings.TrimSpace(c.Fields["chat_id"])
-				}
 			}
-			plan = append(plan, outgoing{snd: snd, msg: m, tgChat: tgChat})
+			plan = append(plan, outgoing{snd: snd, msg: m, buttons: len(m.Buttons) > 0})
 			continue
 		}
 		var key []byte
@@ -151,13 +148,14 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		}
 	}
 	var recs []SendRecord
-	var to, tgChats []string
+	var to []string
+	var withButtons []bool
 	for _, p := range plan {
 		if ctx.Err() != nil {
 			break // not started: nothing was sent, so there is nothing to record
 		}
 		recs = append(recs, Deliver(ctx, store.NewID("sd"), p.snd, p.msg, s.now))
-		to, tgChats = append(to, p.recipient), append(tgChats, p.tgChat)
+		to, withButtons = append(to, p.recipient), append(withButtons, p.buttons)
 	}
 	if len(recs) == 0 && len(skips) == 0 {
 		return nil, ctx.Err()
@@ -181,8 +179,8 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			if err := insertSend(wctx, tx, r, "approval", req.ID, req.Title, "/response", to[i], base); err != nil { // base: no token is ever stored
 				return err
 			}
-			if tgChats[i] != "" && r.OK && r.MessageID > 0 {
-				if err := buttonsShown(wctx, tx, req.ID, tgChats[i], r.MessageID); err != nil {
+			if withButtons[i] && r.OK && r.MessageID > 0 && r.ChatID != "" { // the chat Telegram named, never the configured text (#198 M1)
+				if err := buttonsShown(wctx, tx, req.ID, r.ChatID, r.MessageID); err != nil {
 					return err
 				}
 			}

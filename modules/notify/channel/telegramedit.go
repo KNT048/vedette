@@ -32,6 +32,23 @@ func sentMessageID(body []byte) int64 {
 	return id
 }
 
+// sentChatID reads result.chat.id of a sendMessage answer (untrusted): a plain JSON number of Telegram's chat form (a raw number,
+// never a string that holds one; at most 21 characters with its sign), else "" (unknown: the buttons cannot be removed later). This
+// is the chat the buttons are removed in, never the configured chat_id, which may have another spelling (review of #198, M1).
+func sentChatID(body []byte) string {
+	var ans struct {
+		Result struct {
+			Chat struct {
+				ID json.RawMessage `json:"id"`
+			} `json:"chat"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(body, &ans) != nil || !telegramChatIDRE.Match(ans.Result.Chat.ID) {
+		return ""
+	}
+	return string(ans.Result.Chat.ID)
+}
+
 // RemoveButtons takes the inline keyboard off one message (editMessageReplyMarkup with an empty keyboard). A refusal is a
 // *StatusError: 400 means Telegram will never take this edit (the buttons are gone already, the message was deleted, or it is
 // too old to edit); other codes may pass later. Errors never carry the URL or the token.

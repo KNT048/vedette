@@ -35,6 +35,7 @@ type fakeTelegram struct {
 	// hangAnswers is how many answerCallbackQuery calls get no answer at all (they end with the caller's deadline).
 	hangAnswers int
 	edits       []map[string]any // editMessageReplyMarkup bodies
+	sendChat    string           // the chat id sendMessage answers with (a JSON number); "" = tgChat
 	editStatus  int              // non-zero: editMessageReplyMarkup answers this HTTP status
 }
 
@@ -84,7 +85,13 @@ func (f *fakeTelegram) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.sends = append(f.sends, body)
 		f.mu.Unlock()
-		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":7}}`)
+		f.mu.Lock()
+		chat := f.sendChat
+		f.mu.Unlock()
+		if chat == "" {
+			chat = tgChat
+		}
+		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":7,"chat":{"id":`+chat+`,"type":"supergroup"}}}`) // Telegram names the chat as a number
 	case "editMessageReplyMarkup":
 		f.mu.Lock()
 		f.edits = append(f.edits, body)

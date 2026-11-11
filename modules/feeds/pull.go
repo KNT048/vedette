@@ -429,8 +429,26 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		stale          bool
 		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
 	)
+	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
+		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
+			return err
+		}
+		if actor == "" {
+			return nil
+		}
+		detail := fmt.Sprintf("%d records", out.Records)
+		if !out.OK {
+			detail = out.Err
+		}
+		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
+	}
 	write := func(p pullPlan) error {
 		fresh, changed, added, removed, stale, baseline = nil, nil, 0, 0, false, false
+		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
+			var err error
+			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
+			return err
+		}
 		return s.DB.Write(ctx, func(tx *sql.Tx) error {
 			cur, err := sourceTx(ctx, tx, src.ID)
 			if err != nil {
@@ -468,22 +486,8 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if _, err = applyEPSS(ctx, tx, p.epssLatest, p.epssAgo); err != nil {
 					return err
 				}
-			case p.hasIOCs:
-				if added, removed, err = applyIOCs(ctx, tx, p.out.Finished, src.ID, p.iocs); err != nil {
-					return err
-				}
 			}
-			if err := recordOutcome(ctx, tx, src.ID, p.out); err != nil {
-				return err
-			}
-			if actor == "" {
-				return nil
-			}
-			detail := fmt.Sprintf("%d records", p.out.Records)
-			if !p.out.OK {
-				detail = p.out.Err
-			}
-			return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
+			return finish(tx, p.out)
 		})
 	}
 	err = write(p)

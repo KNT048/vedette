@@ -259,7 +259,7 @@ func TestBoxCAFilesAreChecked(t *testing.T) {
 		damage()
 		var logBuf bytes.Buffer
 		at = at.Add(time.Second) // a distinct quarantine name each time
-		ca, err := ensureBoxCA(crt, at, slog.New(slog.NewTextHandler(&logBuf, nil)))
+		ca, err := ensureBoxCA(crt, at, slog.New(slog.NewTextHandler(&logBuf, nil)), true)
 		if err != nil || !ca.cert.IsCA {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -277,12 +277,19 @@ func TestBoxCAFilesAreChecked(t *testing.T) {
 		if q, _ := filepath.Glob(caCrt + ".quarantine-*"); len(q) == 0 {
 			t.Errorf("%s: the old CA certificate was not moved aside", name)
 		}
+		// L-a: a key moved aside because others could read it is not left readable.
+		qk, _ := filepath.Glob(caKey + ".quarantine-*")
+		for _, p := range qk {
+			if info, err := os.Stat(p); err != nil || info.Mode().Perm()&0o077 != 0 {
+				t.Errorf("%s: quarantined key %s: %v %v", name, p, info, err)
+			}
+		}
 	}
 	// A key alone is an interrupted first start: replaced without an ERROR.
 	if err := os.Remove(caCrt); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ensureBoxCA(crt, time.Now(), nil); err != nil || !readCert(t, caCrt).IsCA {
+	if _, err := ensureBoxCA(crt, time.Now(), nil, true); err != nil || !readCert(t, caCrt).IsCA {
 		t.Fatalf("a key alone: %v", err)
 	}
 }
@@ -341,7 +348,7 @@ func TestBoxCAReplacementCrashStates(t *testing.T) {
 	dir := t.TempDir()
 	crt := filepath.Join(dir, "c.crt")
 	caCrt, caKey := boxCAPaths(crt)
-	old, err := ensureBoxCA(crt, time.Now(), nil)
+	old, err := ensureBoxCA(crt, time.Now(), nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +378,7 @@ func TestBoxCAReplacementCrashStates(t *testing.T) {
 	}
 	// And it heals at the next start, without an ERROR (nothing enrolled yet to lose).
 	var logBuf bytes.Buffer
-	ca, err := ensureBoxCA(crt, later, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	ca, err := ensureBoxCA(crt, later, slog.New(slog.NewTextHandler(&logBuf, nil)), true)
 	if err != nil || ca.cert.Equal(old.cert) || logBuf.Len() != 0 {
 		t.Fatalf("key alone after a crash: %v %q", err, logBuf.String())
 	}
@@ -380,7 +387,7 @@ func TestBoxCAReplacementCrashStates(t *testing.T) {
 	}
 	// The real replacement near expiry: the old files are moved aside, the new pair loads.
 	later2 := later.Add(boxCALifetime - selfSignedLifetime/2)
-	if _, err := ensureBoxCA(crt, later2, slog.New(slog.DiscardHandler)); err != nil {
+	if _, err := ensureBoxCA(crt, later2, slog.New(slog.DiscardHandler), true); err != nil {
 		t.Fatal(err)
 	}
 	if q, _ := filepath.Glob(caCrt + ".quarantine-*"); len(q) < 2 {
@@ -463,15 +470,15 @@ func TestBoxCAExpiringIsReplaced(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt := filepath.Join(dir, "c.crt")
-	a, err := ensureBoxCA(crt, time.Now(), nil)
+	a, err := ensureBoxCA(crt, time.Now(), nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ensureBoxCA(crt, time.Now(), nil)
+	b, err := ensureBoxCA(crt, time.Now(), nil, true)
 	if err != nil || !a.cert.Equal(b.cert) {
 		t.Fatalf("a young CA was replaced: %v", err)
 	}
-	c, err := ensureBoxCA(crt, time.Now().Add(boxCALifetime-selfSignedLifetime/2), slog.New(slog.DiscardHandler)) // cannot cover a new leaf
+	c, err := ensureBoxCA(crt, time.Now().Add(boxCALifetime-selfSignedLifetime/2), slog.New(slog.DiscardHandler), true) // cannot cover a new leaf
 	if err != nil || a.cert.Equal(c.cert) {
 		t.Fatalf("an old CA was kept: %v", err)
 	}
@@ -594,5 +601,93 @@ func TestBoxCAOpenSSLVerify(t *testing.T) {
 	out, err := exec.CommandContext(t.Context(), bin, "verify", "-CAfile", caCrt2, "-purpose", "sslserver", oc).CombinedOutput() //nolint:gosec // a path the test made
 	if err != nil || !strings.Contains(string(out), ": OK") {
 		t.Fatalf("after the upgrade: %v\n%s", err, out)
+	}
+}
+
+// M-1: a read error that says nothing about the files (here EACCES on the key) never moves the CA aside while
+// the leaf in use needs nothing; it is replaced only when a new leaf is required.
+func TestBoxCAUnreadableIsNotReplacedUnlessALeafIsRequired(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root reads any file")
+	}
+	r, crt := newTestRenewer(t, nil)
+	caCrt, caKey := boxCAPaths(crt)
+	before, beforeKey := mustRead(t, caCrt), mustRead(t, caKey)
+	if err := os.Chmod(caKey, 0); err != nil {
+		t.Fatal(err)
+	}
+	quarantined := func() int {
+		a, _ := filepath.Glob(caCrt + ".quarantine-*")
+		b, _ := filepath.Glob(caKey + ".quarantine-*")
+		return len(a) + len(b)
+	}
+	if _, err := ensureBoxCA(crt, time.Now(), nil, false); !errors.Is(err, errCAUnreadable) {
+		t.Fatalf("ensureBoxCA = %v, want errCAUnreadable", err)
+	}
+	var logBuf bytes.Buffer
+	if err := r.Check(t.Context(), slog.New(slog.NewTextHandler(&logBuf, nil))); err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !strings.Contains(logBuf.String(), "box CA is not available") || strings.Contains(logBuf.String(), "level=ERROR") {
+		t.Errorf("log %q", logBuf.String())
+	}
+	if quarantined() != 0 || !bytes.Equal(before, mustRead(t, caCrt)) {
+		t.Fatal("a read error moved the CA aside")
+	}
+	// Readable again: the same CA is used.
+	if err := os.Chmod(caKey, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(beforeKey, mustRead(t, caKey)) {
+		t.Fatal("the key changed")
+	}
+	if ca, err := ensureBoxCA(crt, time.Now(), nil, false); err != nil || !ca.cert.Equal(readCert(t, caCrt)) || quarantined() != 0 {
+		t.Fatalf("after the error went away: %v", err)
+	}
+	// An error that never goes away: when a new leaf is required the CA is replaced.
+	if err := os.Chmod(caKey, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensureBoxCA(crt, time.Now(), slog.New(slog.DiscardHandler), true); err != nil {
+		t.Fatal(err)
+	}
+	if quarantined() != 2 || bytes.Equal(before, mustRead(t, caCrt)) {
+		t.Fatalf("not replaced when required: %d files aside", quarantined())
+	}
+	// And Check does it for an expiring leaf.
+	r2, crt2 := newTestRenewer(t, nil)
+	_, caKey2 := boxCAPaths(crt2)
+	if err := os.Chmod(caKey2, 0); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(800 * 24 * time.Hour)
+	r2.now = func() time.Time { return later }
+	if err := r2.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatalf("Check with an expiring leaf: %v", err)
+	}
+	verifyUnderOnlyTheCA(t, filepath.Dir(crt2), servedLeaf(t, r2), "box.acme.example", later)
+}
+
+// L-b: the CA is there and only the leaf cannot be written (read-only directory): the old leaf is kept.
+func TestBoxCAUpgradeKeepsTheOldLeafWhenOnlyTheLeafWriteFails(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root writes anywhere")
+	}
+	dir := t.TempDir()
+	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
+	writeOldSelfSigned(t, crt, key, []string{"old.example"})
+	if _, err := ensureBoxCA(crt, time.Now(), nil, true); err != nil {
+		t.Fatal(err)
+	}
+	before := mustRead(t, crt)
+	if err := os.Chmod(dir, 0o500); err != nil { //nolint:gosec // a read-only directory is the state under test
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a directory the test made, made writable again
+	replaced, err := renewSelfSigned(crt, key, nil, time.Now, slog.New(slog.DiscardHandler))
+	if err != nil || replaced || !bytes.Equal(before, mustRead(t, crt)) {
+		t.Fatalf("renewSelfSigned = %v, %v", replaced, err)
 	}
 }

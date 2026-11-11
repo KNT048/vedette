@@ -128,7 +128,7 @@ func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time
 	if err != nil {
 		return fmt.Errorf("tls: generate key: %w", err)
 	}
-	ca, err := ensureBoxCA(certPath, now(), log)
+	ca, err := ensureBoxCA(certPath, now(), log, true) // no leaf yet: a CA is required
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time
 	// Nothing about the CA may stop a start while the leaf in use is valid and needs no new certificate
 	// (H-1): the upgrade is optional, and the next Check (at start) tries again and logs why.
 	optional := !need(leaf) && now().Before(leaf.NotAfter)
-	ca, err := ensureBoxCA(certPath, now(), log)
+	ca, err := ensureBoxCA(certPath, now(), log, !optional)
 	if err != nil {
 		if optional {
 			log.Warn("the box CA is not available; the certificate in use is kept", "error", err)
@@ -378,7 +378,9 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 			mgmt = a
 		}
 	}
-	ca, caErr := ensureBoxCA(r.certPath, r.now(), log)
+	// An unreadable CA is replaced only when a new leaf is truly required (expiring or expired), so an
+	// error that never goes away cannot keep the box from renewing.
+	ca, caErr := ensureBoxCA(r.certPath, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
 	hosts := append([]string(nil), r.hosts...)
 	addrChange := false
 	var now map[netip.Addr]bool
@@ -583,13 +585,32 @@ func notSignedBy(leaf *x509.Certificate, ca *boxCA) bool {
 	return leaf.CheckSignatureFrom(ca.cert) != nil
 }
 
-// loadBoxCA reads the CA pair and says why it cannot be used: key mode wider than 0600, files that do not
-// load or match, a certificate that is not a CA.
+// errCAUnreadable marks a read or stat error on the CA files other than "does not exist" (EMFILE, EIO,
+// EACCES): the files may be fine, so nothing is moved aside because of it (M-1).
+var errCAUnreadable = errors.New("the box CA files could not be read")
+
+// loadBoxCA reads the CA pair and says why it cannot be used: key missing or with a mode wider than 0600,
+// files that hold no PEM, do not parse or match, a certificate that is not a CA. A read or stat error that
+// is not "does not exist" wraps errCAUnreadable instead: that says nothing about the files.
 func loadBoxCA(crtPath, keyPath string) (*boxCA, error) {
+	if _, err := os.Stat(keyPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%w: %w", errCAUnreadable, err)
+	}
 	if err := checkKeyFile(keyPath); err != nil {
 		return nil, err
 	}
-	pair, err := tls.LoadX509KeyPair(crtPath, keyPath)
+	var files [2][]byte
+	for i, p := range []string{crtPath, keyPath} {
+		b, err := os.ReadFile(p) //nolint:gosec // the CA files next to the leaf
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("%w: %w", errCAUnreadable, err)
+		}
+		files[i] = b
+	}
+	pair, err := tls.X509KeyPair(files[0], files[1])
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +630,7 @@ func loadBoxCA(crtPath, keyPath string) (*boxCA, error) {
 // administrators out of the GUI for a file the 8443 listener does not need. The old files are moved before
 // the new ones are written, so a crash leaves nothing or a key alone (replaced next time), never a
 // mismatched pair. An error only when files cannot be moved or written.
-func ensureBoxCA(leafCertPath string, now time.Time, log *slog.Logger) (*boxCA, error) {
+func ensureBoxCA(leafCertPath string, now time.Time, log *slog.Logger, mustHave bool) (*boxCA, error) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -619,16 +640,21 @@ func ensureBoxCA(leafCertPath string, now time.Time, log *slog.Logger) (*boxCA, 
 		if lerr == nil && ca.cert.NotAfter.Sub(now) > selfSignedLifetime {
 			return ca, nil
 		}
+		if errors.Is(lerr, errCAUnreadable) && !mustHave {
+			return nil, lerr // maybe passing (EMFILE, EIO): move nothing; callers keep serving a valid leaf
+		}
 		reason := "it is about to expire"
 		if lerr != nil {
 			reason = lerr.Error()
 		}
 		stamp := ".quarantine-" + strconv.FormatInt(now.Unix(), 10)
-		for _, p := range []string{keyPath, crtPath} {
+		// The certificate first: a crash between the two renames leaves a key alone, which heals without an ERROR.
+		for _, p := range []string{crtPath, keyPath} {
 			if err := os.Rename(p, p+stamp); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return nil, fmt.Errorf("tls: box CA: move %s aside: %w", p, err)
 			}
 		}
+		_ = os.Chmod(keyPath+stamp, 0o600) // it may have been moved because others could read it
 		log.Error("the box CA could not be kept and was replaced; enrolled agents must run the install command again",
 			"reason", reason, "old_files", filepath.Base(crtPath)+stamp)
 	} else if !errors.Is(err, fs.ErrNotExist) {

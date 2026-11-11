@@ -1,6 +1,6 @@
 package channel
 
-// The reply listener of the Zalo personal channel (slice 4b, D-252): the message connection of the Zalo web client, read from zca-js
+// The reply listener of the Zalo personal channel (slice 4b, D-243): the message connection of the Zalo web client, read from zca-js
 // v2.2.0 `listen.ts` (MIT) and re-implemented here. EXPERIMENTAL: nothing in it is documented by Zalo and it has not been checked
 // against a real account yet (lab line in .ai/deferred/feat-notify-listeners.md). Everything that comes in is untrusted: frames are
 // capped, decoding fails closed, a frame that cannot be read is skipped, and only direct text messages from another account leave

@@ -60,7 +60,7 @@ var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zal
 
 // privateAnswer lists the chat channels whose listener in notify answers a press so that only the person who pressed sees it (Telegram:
 // answerCallbackQuery with show_alert; Zalo personal: a direct message to the user ID that sent the reply code, and to nobody who is not a
-// listed approver, notify slice 4b, D-252). Only these get a link code in the answer: a code shown in a shared conversation would let the
+// listed approver, notify slice 4b, D-243). Only these get a link code in the answer: a code shown in a shared conversation would let the
 // listed person link a stranger's mistyped ID (L7 again). A Slack listener is added here once notify guarantees the same (ephemeral).
 var privateAnswer = []string{"telegram", "zalo-personal"}
 

@@ -379,7 +379,7 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 	}
 }
 
-// Zalo personal answers a reply code in a direct message to the sender only (notify slice 4b, D-252): an unlinked approver's code
+// Zalo personal answers a reply code in a direct message to the sender only (notify slice 4b, D-243): an unlinked approver's code
 // decides nothing, is not burned, and the answer holds a link code; My account offers to link the ID.
 func TestContract_D191_ZaloPersonalAnswersALinkCodePrivately(t *testing.T) {
 	c := unlinkedChat(t)

@@ -16,7 +16,7 @@ const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
 /** Chat channels whose answer only the presser sees (Telegram show_alert); only these get a code in the answer. */
-const PRIVATE_ANSWER = ['telegram', 'zalo-personal'] // Zalo personal: a direct message to the user ID that replied (notify slice 4b, D-252)
+const PRIVATE_ANSWER = ['telegram', 'zalo-personal'] // Zalo personal: a direct message to the user ID that replied (notify slice 4b, D-243)
 
 interface Pending { address: string; code: string; expires: number; tries: number; sent_at: number }
 interface Codes { pending: Record<string, Pending>; sends: Record<string, number[]> }

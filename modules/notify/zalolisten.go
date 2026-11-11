@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Approvals by Zalo personal reply codes, the receive half (slice 4b, D-252; docs/specs/approval-tokens.md 7, 7.1). EXPERIMENTAL: the
+// Approvals by Zalo personal reply codes, the receive half (slice 4b, D-243; docs/specs/approval-tokens.md 7, 7.1). EXPERIMENTAL: the
 // message connection of the Zalo web client is reverse-engineered and not yet checked against a real account. The job "zalo-listen"
 // opens it OUT over the channel's session (no inbound port, FORBID-4) while the module is on, the Zalo personal channel is configured,
 // enabled and takes approvals, and the Decisions port and the token recorder are wired (the conditions under which codes are sent at

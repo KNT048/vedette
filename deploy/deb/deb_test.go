@@ -416,7 +416,7 @@ func TestScripts_Rules(t *testing.T) {
 		return strings.Join(out, "\n")
 	}
 	post := code("postinst")
-	for _, bad := range []string{"deb-systemd-invoke", "systemctl start", "systemctl restart", "try-restart", "--now", "--uid", "userdel", "groupdel", "rm -"} {
+	for _, bad := range []string{"systemctl start", "systemctl restart", "deb-systemd-invoke start", "deb-systemd-invoke restart", "--now", "--uid", "userdel", "groupdel", "rm -"} {
 		if strings.Contains(post, bad) {
 			t.Errorf("postinst contains %q", bad)
 		}
@@ -441,5 +441,66 @@ func TestScripts_Rules(t *testing.T) {
 	pre := code("prerm")
 	if !strings.Contains(pre, "remove | deconfigure)") || !strings.Contains(pre, "upgrade | failed-upgrade) ;;") {
 		t.Error("prerm must stop the unit on remove and deconfigure, and do nothing on upgrade")
+	}
+}
+
+// M2: an upgrade restarts a vedette-host that is running (try-restart: a stopped unit stays stopped, a first install starts
+// nothing); the old daemon must not outlive the new package. This runs the real restart_after_upgrade of the postinst with
+// deb-systemd-invoke and systemctl replaced by recorders on PATH, and reads the configure branch to see it is called after the
+// reload, inside the systemd check, with the previous version ($2). host-deb-check proves the effect in a systemd container.
+func TestPostinst_UpgradeRestartsARunningHost(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile("postinst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(b)
+	i := strings.Index(text, "restart_after_upgrade() {")
+	if i < 0 {
+		t.Fatal("the postinst has no restart_after_upgrade")
+	}
+	j := strings.Index(text[i:], "\n}\n")
+	if j < 0 {
+		t.Fatal("restart_after_upgrade has no end")
+	}
+	fn := text[i : i+j+3]
+	if !strings.Contains(text, "daemon-reload >/dev/null || true\n\t\trestart_after_upgrade \"${2:-}\"\n\tfi") {
+		t.Error("configure must call restart_after_upgrade \"${2:-}\" right after the daemon-reload, inside the systemd check")
+	}
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("no sh")
+	}
+	run := func(t *testing.T, withInvoke bool, old string) string {
+		t.Helper()
+		bin := t.TempDir()
+		log := filepath.Join(bin, "calls")
+		rec := "#!/bin/sh\necho \"${0##*/} $*\" >> " + log + "\n"
+		names := []string{"systemctl"}
+		if withInvoke {
+			names = append(names, "deb-systemd-invoke")
+		}
+		for _, n := range names {
+			if err := os.WriteFile(filepath.Join(bin, n), []byte(rec), 0o755); err != nil { //nolint:gosec // test: a recorder script in a temp dir
+				t.Fatal(err)
+			}
+		}
+		// command -v must not find the real deb-systemd-invoke of the machine: PATH is the recorders and the shell's own dir only
+		cmd := exec.CommandContext(t.Context(), sh, "-c", "set -eu\nUNIT=vedette-host.service\n"+fn+"restart_after_upgrade \""+old+"\"\n") //nolint:gosec // test: the postinst's own function
+		cmd.Env = []string{"PATH=" + bin}
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("restart_after_upgrade: %v %s", err, out)
+		}
+		got, _ := os.ReadFile(log)
+		return string(got)
+	}
+	if got := run(t, true, "0.1.0"); got != "deb-systemd-invoke try-restart vedette-host.service\n" {
+		t.Errorf("upgrade with the Debian helper: %q", got)
+	}
+	if got := run(t, false, "0.1.0"); got != "systemctl --system try-restart vedette-host.service\n" {
+		t.Errorf("upgrade without the helper: %q", got)
+	}
+	if got := run(t, true, ""); got != "" {
+		t.Errorf("a first install must start or restart nothing: %q", got)
 	}
 }

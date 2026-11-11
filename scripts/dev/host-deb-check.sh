@@ -186,6 +186,22 @@ EOT
 	ok "an upgrade after the honeypot took log/ (:U) succeeds and leaves its owner and mode alone"
 	x 'chown vedette:vedette /var/lib/vedette-honeypot/log'
 
+	# ---- an upgrade replaces a running daemon (M2) --------------------------------------------------------------------------
+	# The placeholder binary cannot run as the helper, so a drop-in (in /run, gone with the cleanup below) makes the unit a plain sleep: what is
+	# checked is what the postinst does to a RUNNING unit. A running unit gets a new main process on upgrade; a stopped one stays stopped.
+	x 'mkdir -p /run/systemd/system/vedette-host.service.d && printf "[Service]\nType=simple\nExecStart=\nExecStart=/bin/sleep 3600\n" >/run/systemd/system/vedette-host.service.d/check.conf && systemctl daemon-reload && systemctl start vedette-host.service' || fail "cannot run the unit as a sleep for the upgrade check"
+	pid1=$(x 'systemctl show -p MainPID --value vedette-host.service')
+	[ -n "$pid1" ] && [ "$pid1" != 0 ] || fail "the unit stand-in did not start"
+	install "--reinstall"
+	pid2=$(x 'systemctl show -p MainPID --value vedette-host.service')
+	[ "$(x 'systemctl show -p ActiveState --value vedette-host.service')" = active ] && [ -n "$pid2" ] && [ "$pid2" != 0 ] && [ "$pid2" != "$pid1" ] || fail "an upgrade left the old process of vedette-host running (pid $pid1 -> $pid2)"
+	ok "an upgrade restarts a running vedette-host (new main process, still active)"
+	x 'systemctl stop vedette-host.service'
+	install "--reinstall"
+	[ "$(x 'systemctl show -p ActiveState --value vedette-host.service')" = inactive ] || fail "an upgrade started a vedette-host that was stopped"
+	ok "an upgrade leaves a stopped vedette-host stopped"
+	x 'rm -f /run/systemd/system/vedette-host.service.d/check.conf && rmdir /run/systemd/system/vedette-host.service.d && systemctl daemon-reload'
+
 	# ---- an administrator's choices survive an upgrade --------------------------------------------------------------------
 	x 'systemctl disable vedette-host.service >/dev/null 2>&1'
 	install "--reinstall"

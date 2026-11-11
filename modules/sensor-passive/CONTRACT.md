@@ -84,7 +84,7 @@ Box network (card quản trị/SPAN, hướng dẫn mirror, IP phụ, NTP — D-
 - **Nhận**: `host.network.changed` (mở lại bắt gói; nhóm B), `core.module.disabled`.
 
 ## Behaviour khi tắt
-Không bắt gói, không job (từ SP-4: ba route vai `passive` trả `409 module_off`, sensor dừng ngay và bỏ hàng đợi, host dừng container `sensor`); thiết bị mới chỉ phát hiện qua quét chủ động/agent/khai tay; mất S-INV-3 "thiết bị lạ" thụ động và S-LOG-4 (khớp IOC từ SPAN). Danh sách thiết bị và quan sát cũ giữ.
+Không bắt gói, không job (từ SP-4: ba route vai `passive` trả `409 module_off`, sensor dừng ngay và bỏ hàng đợi, host dừng container `sensor`); **container `sensor` chạy đúng khi module bật (D-260, SYS-5)**: lúc `core` khởi động và sau mỗi lần bật, `modreg.OnGuard` gọi `container.start` của `sensor` (thử lại có lùi tới khi host xác nhận); lúc khởi động và sau mỗi lần tắt, `OffGuard` gọi `container.stop` với `persist` (unit mất `[Install]`, reboot không đưa nó lên; bật lại thì `container.start` đặt `[Install]` lại); mỗi hàm kiểm lại module dưới khoá trước khi chạm host (`cmd/vedette/modulecontainer.go`; `TestModuleContainer*`, `TestOnGuard*`); không có host (`-host-socket` rỗng) thì không có gì để theo; thiết bị mới chỉ phát hiện qua quét chủ động/agent/khai tay; mất S-INV-3 "thiết bị lạ" thụ động và S-LOG-4 (khớp IOC từ SPAN). Danh sách thiết bị và quan sát cũ giữ.
 
 ## Story và quyết định
 S-INV-1, S-INV-3, S-LOG-4; D-43 SPAN thay Zeek/Suricata; D-45; D-55 container `sensor`; D-56 Box network; D-80; D-109…D-112, D-114, D-116 giao thức sensor và tách bắt gói sang container `sensor`.

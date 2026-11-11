@@ -12,11 +12,12 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
+import { ApiError } from '@/lib/api'
 import { useMe, type Role } from '@/lib/session'
 import { useOidc, useOidcMutations, useToggleModule, useUserMutations, useUsers } from './api'
 import { errMsg } from './parts'
 import { EMAIL_RE } from './util'
-import type { AdminUser, OidcConfig } from './types'
+import type { AdminUser, OidcConfig, OidcSave } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 
@@ -60,10 +61,11 @@ function OidcPanel() {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('auth-oidc')
   const toggle = useToggleModule()
-  const q = useOidc()
+  const q = useOidc(on === true)
+  const [askOff, setAskOff] = useState(false)
   if (on === undefined) return <Loading />
   async function enable(v: boolean) {
-    try { await toggle.mutateAsync({ id: 'auth-oidc', enabled: v }); toast.success(v ? t('oidc.enabledToast') : t('oidc.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
+    try { await toggle.mutateAsync({ id: 'auth-oidc', enabled: v }); setAskOff(false); toast.success(v ? t('oidc.enabledToast') : t('oidc.disabledToast')) } catch (e) { setAskOff(false); toast.error(errMsg(e, t)) }
   }
   if (!on) {
     return (
@@ -75,32 +77,59 @@ function OidcPanel() {
   }
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-  return <OidcForm cfg={q.data} onDisable={() => void enable(false)} />
+  const n = q.data.sso_users
+  return (
+    <>
+      <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />
+      {/* D-196 (5): turning SSO off locks out the people who only sign in through it, so say how many first. */}
+      <Dialog open={askOff} onOpenChange={setAskOff}>
+        <DialogContent title={t('oidc.offAsk.title')} description={n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
+          <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={toggle.isPending} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }
+
+const NO_ACCESS = 'none'
+type OidcField = 'issuer' | 'client' | 'secret' | 'scopes' | 'claim' | 'form'
+const OIDC_FIELD: Record<string, OidcField | undefined> = { invalid_issuer: 'issuer', invalid_client: 'client', invalid_secret: 'secret', invalid_scopes: 'scopes', invalid_claim: 'claim' }
 
 function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }) {
   const { t } = useTranslation('core')
   const m = useOidcMutations()
-  const [v, setV] = useState({ issuer: cfg.issuer, client_id: cfg.client_id, client_secret: '', default_role: cfg.default_role, role_map: cfg.role_map })
-  const [error, setError] = useState<string | null>(null)
+  const [v, setV] = useState<OidcSave>({ issuer: cfg.issuer, client_id: cfg.client_id, client_secret: '', scopes: cfg.scopes, groups_claim: cfg.groups_claim, default_role: cfg.default_role, role_map: cfg.role_map })
+  // Each refusal of the server goes under the field it is about; the rest under the form.
+  const [error, setError] = useState<{ field: OidcField; text: string } | null>(null)
+  const [endpoints, setEndpoints] = useState<Record<string, string> | null>(null)
+  const errOf = (f: OidcField) => (error?.field === f ? error.text : undefined)
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    try { await m.save.mutateAsync(v); setV((x) => ({ ...x, client_secret: '' })); toast.success(t('common:saved')) } catch (err) { setError(errMsg(err, t)) }
+    try {
+      const r = await m.save.mutateAsync(v)
+      setV({ issuer: r.issuer, client_id: r.client_id, client_secret: '', scopes: r.scopes, groups_claim: r.groups_claim, default_role: r.default_role, role_map: r.role_map })
+      toast.success(t('common:saved'))
+    } catch (err) {
+      setError({ field: (err instanceof ApiError && OIDC_FIELD[err.code]) || 'form', text: errMsg(err, t) })
+    }
   }
   async function test() {
-    try { await m.test.mutateAsync(); toast.success(t('oidc.testOk')) } catch (err) { toast.error(errMsg(err, t)) }
+    setEndpoints(null)
+    try { const r = await m.test.mutateAsync(); setEndpoints(r.endpoints); toast.success(t('oidc.testOk')) } catch (err) { toast.error(errMsg(err, t)) }
   }
   const setMap = (i: number, patch: Partial<{ group: string; role: Role }>) => setV({ ...v, role_map: v.role_map.map((r, k) => (k === i ? { ...r, ...patch } : r)) })
   return (
     <form onSubmit={(e) => void save(e)} className="grid max-w-xl gap-4" noValidate>
-      <CodeBlock label={t('oidc.redirect')} code={`${location.origin}/api/v1/auth/oidc/callback`} />
-      <Field label={t('oidc.issuer')} hint={t('oidc.issuerHint')} htmlFor="oidc-issuer" error={error ?? undefined}><Input id="oidc-issuer" value={v.issuer} aria-invalid={!!error} onChange={(e) => setV({ ...v, issuer: e.target.value })} placeholder="https://sso.acme.example/realms/main" /></Field>
-      <Field label={t('oidc.clientId')} htmlFor="oidc-client"><Input id="oidc-client" value={v.client_id} onChange={(e) => setV({ ...v, client_id: e.target.value })} /></Field>
-      <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret"><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
-      <Field label={t('oidc.defaultRole')} hint={t('oidc.defaultRoleHint')} htmlFor="oidc-default">
-        <Select id="oidc-default" value={v.default_role} onChange={(e) => setV({ ...v, default_role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
-      </Field>
+      <div className="grid gap-1">
+        <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
+        <p className="text-[13px] text-muted">{t('oidc.redirectHint')}</p>
+      </div>
+      <Field label={t('oidc.issuer')} hint={t('oidc.issuerHint')} htmlFor="oidc-issuer" error={errOf('issuer')}><Input id="oidc-issuer" value={v.issuer} aria-invalid={!!errOf('issuer')} onChange={(e) => setV({ ...v, issuer: e.target.value })} placeholder="https://sso.acme.example/realms/main" /></Field>
+      <Field label={t('oidc.clientId')} htmlFor="oidc-client" error={errOf('client')}><Input id="oidc-client" value={v.client_id} aria-invalid={!!errOf('client')} onChange={(e) => setV({ ...v, client_id: e.target.value })} /></Field>
+      <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret" error={errOf('secret')}><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} aria-invalid={!!errOf('secret')} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
+      <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} htmlFor="oidc-scopes" error={errOf('scopes')}><Input id="oidc-scopes" value={v.scopes} spellCheck={false} aria-invalid={!!errOf('scopes')} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
+      <Field label={t('oidc.claim')} hint={t('oidc.claimHint')} htmlFor="oidc-claim" error={errOf('claim')}><Input id="oidc-claim" className="max-w-56" value={v.groups_claim} spellCheck={false} aria-invalid={!!errOf('claim')} onChange={(e) => setV({ ...v, groups_claim: e.target.value })} /></Field>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t('oidc.map')}</legend>
         <p className="text-[13px] text-muted">{t('oidc.mapHint')}</p>
@@ -111,13 +140,28 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
             <Button variant="ghost" size="icon" aria-label={t('oidc.mapRemove', { n: i + 1 })} onClick={() => setV({ ...v, role_map: v.role_map.filter((_, k) => k !== i) })}><Trash2 /></Button>
           </div>
         ))}
-        <div><Button size="sm" onClick={() => setV({ ...v, role_map: [...v.role_map, { group: '', role: 'viewer' }] })}><Plus />{t('oidc.mapAdd')}</Button></div>
+        {v.role_map.length < 10 ? <div><Button size="sm" onClick={() => setV({ ...v, role_map: [...v.role_map, { group: '', role: 'viewer' }] })}><Plus />{t('oidc.mapAdd')}</Button></div> : null}
       </fieldset>
+      <Field label={t('oidc.defaultRole')} hint={t('oidc.defaultRoleHint')} htmlFor="oidc-default">
+        <Select id="oidc-default" className="max-w-56" value={v.default_role ?? NO_ACCESS} onChange={(e) => setV({ ...v, default_role: e.target.value === NO_ACCESS ? null : (e.target.value as Role) })}>
+          <option value={NO_ACCESS}>{t('oidc.noAccess')}</option>
+          {ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}
+        </Select>
+      </Field>
+      {errOf('form') ? <p role="alert" className="text-[13px] text-danger">{errOf('form')}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={m.save.isPending}>{t('common:save')}</Button>
         <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer} title={cfg.issuer ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
+      {endpoints ? (
+        <section className="grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-[13px]" aria-labelledby="oidc-endpoints">
+          <h3 id="oidc-endpoints" className="text-sm font-medium">{t('oidc.endpoints')}</h3>
+          <dl className="grid gap-1">
+          {Object.entries(endpoints).map(([k, url]) => <div key={k} className="grid gap-x-3 sm:grid-cols-[110px_1fr]"><dt className="text-muted">{t(`oidc.endpoint.${k}`, { defaultValue: k })}</dt><dd className="break-all font-mono">{url}</dd></div>)}
+          </dl>
+        </section>
+      ) : null}
     </form>
   )
 }
@@ -153,18 +197,20 @@ export default function UsersSection() {
       <QueryState query={q}>
         {({ items }) => {
           const isMe = (u: AdminUser) => u.id === me?.id
-          const roleSelect = (u: AdminUser) => (
+          const roleSelect = (u: AdminUser) => (u.sso ? (
+            <span className="grid text-sm"><span>{t(`common:role.${u.role}`)}</span><span className="text-[12px] text-muted">{t('users.ssoRole')}</span></span>
+          ) : (
             <Select className="h-8 w-36" aria-label={t('users.roleOf', { name: u.name })} value={u.role} onChange={(e) => void patch(u, { role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
-          )
+          ))
           const actions = (u: AdminUser) => (
             <div className="flex flex-wrap gap-1.5">
-              <Button size="sm" onClick={() => setAskReset(u)} aria-label={t('users.resetOf', { name: u.name })}>{t('users.reset')}</Button>
+              {u.sso ? null : <Button size="sm" onClick={() => setAskReset(u)} aria-label={t('users.resetOf', { name: u.name })}>{t('users.reset')}</Button>}
               <Button size="sm" disabled={isMe(u) && !u.disabled} title={isMe(u) && !u.disabled ? t('users.selfDisable') : undefined} onClick={() => void patch(u, { disabled: !u.disabled })} aria-label={t(u.disabled ? 'users.enableOf' : 'users.disableOf', { name: u.name })}>{u.disabled ? t('users.enable') : t('users.disable')}</Button>
               {u.twofa ? <Button size="sm" disabled={isMe(u)} title={isMe(u) ? t('users.resetTwofaSelf') : undefined} onClick={() => setAskReset2fa(u)} aria-label={t('users.resetTwofaOf', { name: u.name })}>{t('users.resetTwofa')}</Button> : null}
             </div>
           )
           const nameCell = (u: AdminUser) => <div className="grid"><span className="font-medium">{u.name}{isMe(u) ? <span className="ml-2 text-[12px] font-normal text-muted">{t('users.you')}</span> : null}</span><span className="break-all text-[13px] text-muted">{u.email}</span></div>
-          const twofa = (u: AdminUser) => (u.twofa_method ? <Chip tone="ok">{t(`users.method.${u.twofa_method}`)}</Chip> : <Chip tone="off">{t('users.twofaOff')}</Chip>)
+          const twofa = (u: AdminUser) => (u.sso ? <Chip tone="accent">{t('users.sso')}</Chip> : u.twofa_method ? <Chip tone="ok">{t(`users.method.${u.twofa_method}`)}</Chip> : <Chip tone="off">{t('users.twofaOff')}</Chip>)
           const stateChip = (u: AdminUser) => (u.disabled ? <Chip tone="off">{t('users.disabled')}</Chip> : <Chip tone="ok">{t('users.active')}</Chip>)
           const columns: ColumnDef<AdminUser>[] = [
             { id: 'name', header: t('users.col.name'), accessorFn: (u) => u.name, cell: ({ row }) => nameCell(row.original) },

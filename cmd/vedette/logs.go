@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 )
@@ -42,6 +44,7 @@ func logsService(d deps) *logs.Service {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}
 	cfg.Syslog.Host = syslogHost
+	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
@@ -51,6 +54,53 @@ func logsService(d deps) *logs.Service {
 	}
 	logsServices[d.DB] = svc
 	return svc
+}
+
+// logsNeverCount is logs' Config.NeverCount: the addresses that the per-address counters never count, from the sources the box already has
+// for "is this the box" (core/conn's boxSources, response's responseBoxAddrs): what vedette-host reports for the appliance and the
+// decoys of the honeypot (an error while the host has not answered or the decoy record cannot be read: logs keeps its last set), plus the
+// container's own addresses, the container's gateway, the LAN default gateway from the host's network state and the -hosts literals. Subnets are not listed (an interface of the container may sit
+// on the LAN): only the addresses of the box itself.
+func logsNeverCount(d *deps) func(context.Context) ([]netip.Addr, error) {
+	host := notifyBoxAddrs(d.HostNet)
+	decoys := lateDecoys{d}
+	var state netStateReader
+	if d.HostSocket != "" {
+		state = hostclient.New(d.HostSocket)
+	}
+	return func(ctx context.Context) ([]netip.Addr, error) {
+		out, known := host()
+		var err error
+		if !known {
+			err = errHostNetUnknown
+		}
+		if more, derr := decoys.DecoyIPsRead(ctx); derr != nil {
+			err = derr
+		} else {
+			out = append(out, more...)
+		}
+		for _, p := range containerAddrs() {
+			out = append(out, p.Addr())
+		}
+		if g, ok := procGateway(); ok { // the container's gateway: the bridge of the host
+			out = append(out, g)
+		}
+		if state != nil { // the LAN default gateway, which only the host can see (host-api state/net default_route)
+			if st, serr := state.StateNet(ctx); serr != nil {
+				err = serr
+			} else if st.DefaultRoute != nil {
+				if g, perr := netip.ParseAddr(st.DefaultRoute.Gateway); perr == nil {
+					out = append(out, g)
+				}
+			}
+		}
+		for _, h := range d.Hosts {
+			if a, perr := netip.ParseAddr(strings.Trim(h, "[]")); perr == nil {
+				out = append(out, a)
+			}
+		}
+		return out, err
+	}
 }
 
 // logsJobs is the Jobs func of the logs entry in wiredModules.

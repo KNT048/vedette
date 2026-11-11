@@ -174,7 +174,7 @@ func TestBodylessRouteWithABodyIs400AndClosed(t *testing.T) {
 	}
 }
 
-// serveRig runs the real listener of core (Serve: LimitListener, TLS with the per-role charge, timeouts) on a loopback port.
+// serveRig runs the real listener of core (Serve: PendingListener, TLS with the per-role charge, timeouts) on a loopback port.
 func serveRig(t *testing.T, o sensorlink.Options) (*rig, string) {
 	t.Helper()
 	r := newRig(t, rigOpt{})
@@ -373,8 +373,9 @@ func TestRefusalOverH2KeepsTheConnection(t *testing.T) {
 	}
 }
 
-// D-326 (D-176 (5) residual): a local process that opens raw TCP connections and never starts TLS cannot hold the listener: they wait in the
-// pending pool, the oldest is evicted for a newcomer, and the scan role's connection gets through while the junk stays open.
+// D-326 (D-176 (5) residual): a local process that opens raw TCP connections, never starts TLS and holds them cannot keep the listener: 16 of
+// them wait in the pending pool (the rest are closed at once), and once they are older than the minimum age the scan role's connection takes
+// the place of the oldest. A sustained flood is not covered (see PendingListener).
 func TestUnauthenticatedConnectionsCannotStarveTheSensors(t *testing.T) {
 	t.Parallel()
 	r, addr := serveRig(t, sensorlink.Options{})

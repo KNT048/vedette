@@ -104,8 +104,9 @@ func (g *gate) leave()      { g.busy.Store(false) }
 // pending pool is full, a new connection takes the place of the oldest pending one if that one has waited at least MinPendingAge (a
 // handshake on loopback takes milliseconds, so a sensor's connection is never the one evicted unless it hangs); otherwise the new one is
 // closed at once (the sensor retries with its back-off). Every pending connection is closed after HandshakeDeadline whatever net/http does.
-// A process that fills the pool must keep replacing its connections faster than MinPendingAge, and each of its closes is a free place a
-// sensor's connection can take; before this, 64 idle connections held every slot until net/http's own handshake timeout (D-176 (5)).
+// What this stops: a process that opens connections and holds them (before, 64 idle connections held every slot until net/http's own
+// handshake timeout, D-176 (5)). What it does not stop: a process that keeps opening connections without pause; it wins most places as
+// they free up, so a sensor gets in only now and then. That needs a listener per role that other processes cannot reach (deferred).
 func PendingListener(l net.Listener) net.Listener {
 	return newPendingListener(l, MaxPending, MinPendingAge, HandshakeDeadline, time.Now)
 }
@@ -150,11 +151,13 @@ func (l *pendingListener) Accept() (net.Conn, error) {
 		if evict != nil {
 			_ = evict.Close()
 		}
+		lc.mu.Lock()
 		lc.timer = time.AfterFunc(l.deadline, func() {
 			if l.drop(lc) {
 				_ = lc.Close()
 			}
 		})
+		lc.mu.Unlock()
 		return lc, nil
 	}
 }
@@ -179,11 +182,11 @@ func (l *pendingListener) drop(c *limitConn) bool {
 type limitConn struct {
 	net.Conn
 	l       *pendingListener
-	at      time.Time   // when it was accepted
-	pending bool        // in l.pending; guarded by l.mu
-	timer   *time.Timer // the handshake deadline
+	at      time.Time // when it was accepted
+	pending bool      // in l.pending; guarded by l.mu
 
 	mu     sync.Mutex
+	timer  *time.Timer // the handshake deadline; guarded by mu (its callback may run before Accept has stored it)
 	closed bool
 	extra  []func() // run once when the connection closes: the role charge
 }
@@ -191,10 +194,10 @@ type limitConn struct {
 func (c *limitConn) Close() error {
 	err := c.Conn.Close()
 	c.l.drop(c)
+	c.mu.Lock()
 	if c.timer != nil {
 		c.timer.Stop()
 	}
-	c.mu.Lock()
 	c.closed = true
 	extra := c.extra
 	c.extra = nil
@@ -211,9 +214,11 @@ func (c *limitConn) promote() bool {
 	if !c.l.drop(c) {
 		return false
 	}
+	c.mu.Lock()
 	if c.timer != nil {
 		c.timer.Stop()
 	}
+	c.mu.Unlock()
 	return true
 }
 

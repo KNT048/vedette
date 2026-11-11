@@ -121,7 +121,7 @@ func usable(p netip.Prefix, ip netip.Addr) bool {
 
 func lastAddr(p netip.Prefix) netip.Addr {
 	b := p.Masked().Addr().As4()
-	n := binary.BigEndian.Uint32(b[:]) | uint32(1)<<(32-p.Bits()) - 1
+	n := binary.BigEndian.Uint32(b[:]) | (uint32(1)<<(32-p.Bits()) - 1)
 	binary.BigEndian.PutUint32(b[:], n)
 	return netip.AddrFrom4(b)
 }

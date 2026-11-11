@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
+	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -226,6 +227,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.ConnReader, err = read.New(read.Config{Conns: d.Conn, Log: d.Log}); err != nil {
 		return fmt.Errorf("connection reader: %w", err)
 	}
+	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
+		return fmt.Errorf("auth-oidc: %w", err)
+	}
 	d.Logs = logexport.New()
 	d.PurgeGate = &core.PurgeGate{}
 	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
@@ -349,8 +353,8 @@ func subscribe(d deps) {
 }
 
 // privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
-// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), no OIDC issuer
-// (auth-oidc is not built). Each answer moves to its module's service when that module gets a backend.
+// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), flow 11 when
+// auth-oidc has an issuer. Each answer moves to its module's service when that module gets a backend.
 type privacyFacts struct {
 	conns *conn.Service
 	d     *deps // read lazily: the ai service is built after core, which takes this value
@@ -361,8 +365,17 @@ func (p privacyFacts) AIConfigured(context.Context) bool {
 	return p.d != nil && p.d.AI != nil && p.d.AI.Configured()
 }
 
-func (privacyFacts) NTPPublic(context.Context) bool      { return true }
-func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
+func (privacyFacts) NTPPublic(context.Context) bool { return true }
+
+// OIDCConfigured: flow 11 and the SSO button (auth-options) while auth-oidc has an issuer saved; the caller checks that the module is
+// on. A store that cannot be read counts as "yes", like ConnectionsConfigured: the page must not say nothing leaves when it does not know.
+func (p privacyFacts) OIDCConfigured(ctx context.Context) bool {
+	if p.d == nil || p.d.OIDC == nil {
+		return false
+	}
+	on, err := p.d.OIDC.Configured(ctx)
+	return err != nil || on
+}
 
 // ConnectionsConfigured: flow 12 is on while an enabled connection exists (D-93). A store that cannot be read counts as "on": the
 // Privacy page must never say that nothing leaves the box when it does not know.

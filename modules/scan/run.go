@@ -565,17 +565,16 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}
-	out, err := s.runJob(ctx, job)
+	res, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
 	}
-	var res []nucleiout.Result
-	if err == nil && out.Truncated {
-		err = errors.New("the output was over the cap")
-	}
-	if err == nil {
-		res, err = nucleiout.Parse(out.JSONL, ids, hostPorts(job.Targets))
+	if errors.Is(err, ErrEngineDown) { // the scanner cannot run any job now: stop with its own words, not device by device
+		s.cfg.Log.ErrorContext(ctx, "scan: the scanner cannot run jobs", "asset", d.ID, "run", runID, "error", err)
+		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
+		rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteEngine})
+		return rows, "The vulnerability scanner stopped accepting jobs: " + clip(err.Error(), 400)
 	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		s.cfg.Log.ErrorContext(ctx, "scan: the scanner failed on a device", "asset", d.ID, "run", runID, "error", err)
@@ -635,29 +634,29 @@ func recheckInput(ts []nucleiargv.Target, hostPort string) string {
 }
 
 // runJob runs the job on the engine, bounded by the device timeout; after Stop now it waits at most stopGrace.
-func (s *Service) runJob(ctx context.Context, job nucleiargv.Job) (Output, error) {
+func (s *Service) runJob(ctx context.Context, job Job) ([]nucleiout.Result, error) {
 	jctx, cancel := context.WithTimeout(ctx, deviceTimeout)
 	defer cancel()
 	type result struct {
-		out Output
+		res []nucleiout.Result
 		err error
 	}
 	ch := make(chan result, 1)
 	s.busy.Add(1)
 	go func() {
 		defer s.busy.Add(-1)
-		out, err := s.cfg.Engine.Run(jctx, job)
-		ch <- result{out, err}
+		res, err := s.cfg.Engine.Run(jctx, job)
+		ch <- result{res, err}
 	}()
 	select {
 	case r := <-ch:
-		return r.out, r.err
+		return r.res, r.err
 	case <-ctx.Done():
 		select {
 		case r := <-ch:
-			return r.out, r.err
+			return r.res, r.err
 		case <-time.After(stopGrace):
-			return Output{}, ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
 }

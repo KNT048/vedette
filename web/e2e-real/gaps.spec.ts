@@ -16,8 +16,6 @@ const KNOWN_404: Record<string, Record<string, string>> = {
 }
 const KNOWN_501: Record<string, Record<string, string>> = {
   '/settings/updates': { 'GET /api/v1/core/updates': 'Kiên (core) · .ai/deferred/feat-core-os-updates.md:3 (software updates /core/updates*)' },
-  '/assistant': { 'GET /api/v1/ai/asks': 'Mlee (ai) · .ai/deferred/feat-e2e-real-specs-sal.md (the "Ask your data" history and POST /ai/ask)' },
-  '/settings/siem': { 'GET /api/v1/logs/siem': 'Mlee (logs) · .ai/deferred/feat-e2e-real-specs-sal.md (SIEM forwarding, L5)' },
 }
 
 /** A 501 the page may or may not trigger (it depends on which module switches the other specs left): allowed, never required. */

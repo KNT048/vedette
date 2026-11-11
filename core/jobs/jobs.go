@@ -198,6 +198,28 @@ func (s *Scheduler) ModuleChanged(id string, _ bool) {
 // active says whether the job may run now: its module is on, or it is a housekeeping job.
 func (s *Scheduler) active(jb *job) bool { return jb.Housekeeping || s.gate.Enabled(jb.Module) }
 
+// Wake runs the named job now, under the same gate and the same cancellable context as a scheduled run, then its timer
+// starts again from Every. It does nothing when the job is unknown, its module is off (unless Housekeeping) or it is
+// running already. For a module that needs a run sooner than its timer, for example a purge once stored bytes pass a bound.
+func (s *Scheduler) Wake(module, name string) {
+	s.mu.Lock()
+	jb := s.jobs[module+"/"+name]
+	s.mu.Unlock()
+	if jb == nil || !s.active(jb) {
+		return
+	}
+	jb.mu.Lock()
+	running := jb.cancel != nil
+	jb.mu.Unlock()
+	if running {
+		return
+	}
+	select {
+	case jb.wake <- struct{}{}:
+	default:
+	}
+}
+
 // loop runs one job: run when the module is on (or always, for housekeeping), then wait Every (or a wake-up), forever.
 func (s *Scheduler) loop(ctx context.Context, jb *job) {
 	timer := time.NewTimer(0)

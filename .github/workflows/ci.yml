@@ -7,7 +7,8 @@
 # Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web suite.
 # A push to main runs only go-test, mostly from the cache, to save main's Go test cache (the merge queue already ran every job on
-# that tree); the daily schedule runs everything uncached (-count=1).
+# that tree); the daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
+# the issue labelled flaky.
 # `go` and `web` always run and always report under those names (the ruleset on main requires them,
 # and the merge queue runs this workflow on its merge_group ref, D-245): they succeed only when every job they need succeeded or was
 # skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
@@ -110,7 +111,9 @@ jobs:
           restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
       - name: go test -race, shard ${{ matrix.shard }} of 4
         env:
-          GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=1' || '' }} # the daily run tests everything, uncached
+          # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).
+          # -shuffle stays off elsewhere: it is not a cacheable flag, so it would turn the test cache off (go help test).
+          GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on' || '' }}
         run: make test-go-shard SHARD=${{ matrix.shard }}
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')
@@ -119,6 +122,30 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
           key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  # D-365: a failed daily run adds its failed tests to the one open issue labelled flaky. Only this job may write issues.
+  flaky:
+    needs: [changes, go-test]
+    if: always() && github.event_name == 'schedule' && needs.go-test.result == 'failure'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false # scripts/ci uses the standard library only
+      - name: Open or update the flaky issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: make ci-flaky
 
   go-release:
     needs: changes

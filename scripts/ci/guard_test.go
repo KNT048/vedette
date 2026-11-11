@@ -202,7 +202,7 @@ func TestEveryNoneRuleNamesARealPath(t *testing.T) {
 }
 
 // D-365: the go-test matrix of ci.yml is exactly shards 1..SHARDS of the Makefile, only main saves the Go test cache (pull requests
-// and merge_group refs only restore it), and nothing but the daily schedule turns the cache off.
+// and merge_group refs only restore it), and nothing but the daily schedule turns the cache off (-count, -shuffle).
 func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	t.Parallel()
 	read := func(p string) string {
@@ -238,8 +238,9 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 			t.Errorf("a restore-and-save actions/cache step holds the Go build cache, so pull requests would save copies:\n%s", step)
 		}
 	}
-	if got := strings.Count(wf, "'-count=1'"); got != 1 || !strings.Contains(wf, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=1' || '' }}") {
-		t.Errorf("-count=1 must be set by the daily schedule only (%d settings)", got)
+	if got := len(regexp.MustCompile(`-count=|-shuffle`).FindAllString(regexp.MustCompile(`(?m)#.*$`).ReplaceAllString(wf, ""), -1)); got != 2 ||
+		!strings.Contains(wf, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on' || '' }}") {
+		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
 	}
 	if regexp.MustCompile(`(?m)^test-go-shard:\n(\t.*\n)*\t.*-count=`).MatchString(mk) {
 		t.Error("make test-go-shard forces -count: the cache would never be used")

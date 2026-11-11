@@ -100,8 +100,8 @@ type Outputs struct{ Go, Tests, Web, Vuln, Audit bool }
 // Decide maps the event and the changed paths to job switches. diffOK is false when the diff could not be
 // computed; then everything runs. A pull request is narrowed by its paths. A push to main runs only go-test (D-365):
 // the merge queue already ran every job on that exact tree, and the push run is what saves main's Go test cache, the
-// only cache pull requests and the queue can restore. The daily schedule runs everything, uncached (ci.yml passes
-// -count=1), plus both vulnerability scans. workflow_dispatch, merge_group and any unknown event run everything.
+// only cache pull requests and the queue can restore. The daily schedule runs everything, uncached and shuffled
+// (ci.yml passes -count=2 -shuffle=on), plus both vulnerability scans. workflow_dispatch, merge_group and any unknown event run everything.
 func Decide(event string, changed []string, diffOK bool) Outputs {
 	switch {
 	case event == "schedule":

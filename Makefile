@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -129,7 +129,7 @@ test-go-release:
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
 # scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
-# exactly one shard. GOTESTFLAGS=-count=1 tests without the cache (CI's daily run).
+# exactly one shard. GOTESTFLAGS adds go test flags (CI's daily run: -count=2 -shuffle=on, uncached).
 # -timeout 18m (the job allows 20 m) is a stopgap: modules/response alone passes go test's default 10 m under -race on CI and turned
 # main red (2026-11-12). The real fix is fast response tests (branch fix/storetest-sync-off, target < 120 s); then lower it.
 SHARDS ?= 4
@@ -145,6 +145,19 @@ test-go-shards-check:
 # CI change detection (D-140): prints go/web/vuln/audit switches (to $$GITHUB_OUTPUT when set) from GITHUB_EVENT_NAME and git diff HEAD^1..HEAD.
 ci-changes:
 	go run ./scripts/ci changes
+
+# The daily run's flaky issue (D-365), CI only (GH_TOKEN, GH_REPO): the failed go-test jobs' logs of this run become the list of
+# failed tests by package, added to the one open issue labelled flaky (or a new one).
+ci-flaky:
+	@test -n "$$GITHUB_RUN_ID" && test -n "$$GH_REPO" || { echo "ci-flaky runs in CI (GITHUB_RUN_ID, GH_REPO, GH_TOKEN)"; exit 2; }
+	@url="$$GITHUB_SERVER_URL/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID"; \
+	jobs=$$(gh api "repos/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.conclusion == "failure" and (.name | startswith("go-test"))) | .id') || exit 1; \
+	for j in $$jobs; do gh api "repos/$$GH_REPO/actions/jobs/$$j/logs" || exit 1; done | go run ./scripts/ci flaky "$$url" > flaky.md || exit 1; \
+	[ -s flaky.md ] || echo "The daily run failed in go-test, but no failed test was found in its logs: $$url" > flaky.md; \
+	gh label create flaky --color d93f0b --description "A test failed in the daily -count=2 -shuffle=on run (D-365)" --force >/dev/null || exit 1; \
+	n=$$(gh issue list --label flaky --state open --json number --jq '.[0].number') || exit 1; \
+	if [ -n "$$n" ]; then gh issue comment "$$n" --body-file flaky.md; else gh issue create --title "Flaky tests (daily -count=2 -shuffle=on run)" --label flaky --body-file flaky.md; fi; \
+	s=$$?; rm -f flaky.md; exit $$s
 
 # Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
 # Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".

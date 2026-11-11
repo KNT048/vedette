@@ -26,7 +26,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ci changes | ci shard I N | ci times LOG")
+		return fmt.Errorf("usage: ci changes | ci shard I N | ci times LOG | ci flaky RUN_URL < LOGS")
 	}
 	switch args[0] {
 	case "changes":
@@ -41,6 +41,11 @@ func run(args []string) error {
 			return fmt.Errorf("shard: I and N must be integers with 1 <= I <= N")
 		}
 		return shardCmd(i, n)
+	case "flaky":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: ci flaky RUN_URL < LOGS")
+		}
+		return printFailures(os.Stdin, os.Stdout, args[1])
 	case "times":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: ci times LOG")

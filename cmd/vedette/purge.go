@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
+	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -22,14 +24,30 @@ func purgeHost(d *deps) core.PurgeHost {
 	return hostPurger{hostclient.New(d.HostSocket)}
 }
 
-// hostPurger adds backup.purge to the host client. The command is D-156 and its client method is on another branch
-// (feat/host-backup-purge); until that merges the purge refuses on a box that has a helper, because the helper's backups cannot be
-// deleted and "delete all data" must not leave them: the answer is 503 host_unreachable and nothing is deleted.
-// Replace this method with the client's own BackupPurge when it lands (.ai/deferred/feat-core-data-purge.md).
+// hostPurger is the host client as core.PurgeHost: ListRuns comes from the client, BackupPurge (host command backup.purge, D-156) is
+// the client's own, minus the run id. The client reports a run that failed as a plain error that names the code; the two codes the
+// purge treats specially (transition_pending, busy) are turned back into a *client.Error so core maps them (412, 409) like a refusal
+// at the door. core makes a fresh request id for every purge.
 type hostPurger struct{ *hostclient.Client }
 
-func (hostPurger) BackupPurge(context.Context, string, string) (int, error) {
-	return 0, fmt.Errorf("%w: the host client has no backup.purge yet (D-156)", hostclient.ErrUnreachable)
+func (p hostPurger) BackupPurge(ctx context.Context, requestID, actor string) (int, error) {
+	n, _, err := p.Client.BackupPurge(ctx, requestID, actor)
+	return n, purgeRunError(err)
+}
+
+// purgeRunError gives a failed backup.purge run ("host: backup.purge failed: <code>") the typed error of its code, for the codes core
+// maps. Any other error is returned as it is.
+func purgeRunError(err error) error {
+	var typed *hostclient.Error
+	if err == nil || errors.As(err, &typed) {
+		return err
+	}
+	for code, status := range map[string]int{hostapi.CodeTransitionPending: 412, hostapi.CodeBusy: 409} {
+		if strings.HasSuffix(err.Error(), ": "+code) {
+			return &hostclient.Error{Status: status, Code: code, Message: err.Error()}
+		}
+	}
+	return err
 }
 
 // openCanaryLog is the file the honeypot container writes and the honeypot module tails (modules/honeypot defaultLogFile).

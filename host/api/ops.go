@@ -14,6 +14,7 @@ const (
 	CmdOSRebootCancel    = "os.reboot.cancel"
 	CmdBackupCreate      = "backup.create"
 	CmdBackupRestore     = "backup.restore"
+	CmdBackupPurge       = "backup.purge"
 	CmdLogsExport        = "logs.export"
 )
 
@@ -197,4 +198,9 @@ type LogsExportResult struct {
 	Size     int64  `json:"size"`
 	SHA256   string `json:"sha256"`
 	Lines    int    `json:"lines"`
+}
+
+// BackupPurgeResult is the result of backup.purge (D-156): how many archives were deleted.
+type BackupPurgeResult struct {
+	Deleted int `json:"deleted"`
 }

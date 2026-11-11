@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// AIHandlers implements the operations of the ai module that this slice builds: profiles, keys, assignments and the shared token
-// settings (S-AI-1). Embed it in the composite handler of cmd/vedette. The role of each route comes from the route table, so
+// AIHandlers implements the operations of the ai module built so far: profiles, keys, assignments, the shared token
+// settings (S-AI-1), explaining a CVE, usage and runs (S-AI-2, S-AI-4, S-AI-6). Embed it in the composite handler of cmd/vedette. The role of each route comes from the route table, so
 // nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so answers are built from the domain types (their JSON
@@ -165,4 +165,49 @@ func (h *AIHandlers) AiPutAiAssignments(ctx context.Context, req *oas.AiPutAiAss
 // AiGetAiAssignmentsSuggestion implements GET /ai/assignments/suggestion (viewer).
 func (h *AIHandlers) AiGetAiAssignmentsSuggestion(_ context.Context, params oas.AiGetAiAssignmentsSuggestionParams) (*oas.AiGetAiAssignmentsSuggestionOK, error) {
 	return convert[oas.AiGetAiAssignmentsSuggestionOK](h.svc.Suggestion(params.InternalOnly == oas.AiGetAiAssignmentsSuggestionInternalOnlyTrue))
+}
+
+// AiPostAiCveIDExplain implements POST /ai/cve/{id}/explain (operator).
+func (h *AIHandlers) AiPostAiCveIDExplain(ctx context.Context, params oas.AiPostAiCveIDExplainParams) (*oas.AiPostAiCveIDExplainOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.ExplainCVE(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiCveIDExplainOK](v)
+}
+
+// AiGetAiCveIDCached implements GET /ai/cve/{id}/cached (viewer): what was generated before, with no AI call.
+func (h *AIHandlers) AiGetAiCveIDCached(ctx context.Context, params oas.AiGetAiCveIDCachedParams) (*oas.AiGetAiCveIDCachedOK, error) {
+	ex, err := h.svc.CachedCVE(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiCveIDCachedOK](struct {
+		Explain *ExplainResult `json:"explain"`
+		News    *struct{}      `json:"news"`
+	}{ex, nil})
+}
+
+// AiGetAiUsage implements GET /ai/usage (viewer).
+func (h *AIHandlers) AiGetAiUsage(ctx context.Context) (*oas.AiGetAiUsageOK, error) {
+	v, err := h.svc.Usage(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiUsageOK](v)
+}
+
+// AiGetAiRuns implements GET /ai/runs (viewer).
+func (h *AIHandlers) AiGetAiRuns(ctx context.Context) (*oas.AiGetAiRunsOK, error) {
+	runs, err := h.svc.Runs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiRunsOK](struct {
+		Items []RunView `json:"items"`
+	}{runs})
 }

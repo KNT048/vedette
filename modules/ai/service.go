@@ -62,6 +62,11 @@ type Config struct {
 	Zone func(context.Context) string
 	// Factory builds the client of a profile; nil = Profile.Provider. Tests inject fakes: no test calls a real provider.
 	Factory func(Profile) (provider.Provider, error)
+	// Facts is what the box knows about a CVE and the devices it matches (feeds, findings, inventory), read through the ports of
+	// those modules. nil = explaining a CVE answers 409 ai_unavailable.
+	Facts Facts
+	// Modules says whether the ai module is on (the module registry); nil = on. It is asked by the doors other modules use.
+	Modules interface{ Enabled(id string) bool }
 }
 
 // stored is a profile as the service holds it: the library profile (with its key opened) and the id of its sealed key.
@@ -125,8 +130,10 @@ type Service struct {
 	cfg      Config
 	router   *Router
 	meter    *Meter
-	degraded string     // why the saved settings could not be loaded; "" = loaded
-	mu       sync.Mutex // serialises changes
+	loc      *time.Location // the box time zone: the day of the meter and of "today" in the usage view
+	hooks    *HookRunner    // the built-in hooks on; custom hooks and their switches arrive with the harness (slice 4a)
+	degraded string         // why the saved settings could not be loaded; "" = loaded
+	mu       sync.Mutex     // serialises changes
 	snap     atomic.Pointer[snapshot]
 }
 
@@ -153,10 +160,20 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 			return nil, err
 		}
 	}
-	s := &Service{cfg: cfg}
+	hooks, err := NewHookRunner(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	s := &Service{cfg: cfg, loc: loc, hooks: hooks}
 	sn, err := s.load(ctx)
 	if err == nil {
 		err = s.build(sn, loc)
+	}
+	if err == nil {
+		// today's usage comes back from ai_activity, so the level in force and the caps survive a restart (INV-4)
+		if err = s.seedMeter(ctx); err != nil {
+			err = fmt.Errorf("load today's usage: %w", err)
+		}
 	}
 	if err != nil {
 		// A saved state that cannot be loaded (a key that cannot be opened, a profile that a newer rule refuses) must not stop the

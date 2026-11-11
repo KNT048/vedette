@@ -17,6 +17,9 @@ var (
 	logsServices = map[*store.DB]*logs.Service{}
 )
 
+// syslogHost is the address the syslog listener binds; empty (production) = every IPv4 address. Only the end-to-end box sets it (e2ebox_test.go), to loopback.
+var syslogHost string
+
 // logsService builds the logs service once per database, so the handlers, the purge job and the log export share it
 // (nil without a logs.db: a test that builds deps by hand; serve always opens it).
 // The volume (lines and counters) is deps.LogsDB, a file of its own next to the main database, so that a flood of syslog
@@ -34,6 +37,7 @@ func logsService(d deps) *logs.Service {
 	if d.SyslogPort != 0 {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}
+	cfg.Syslog.Host = syslogHost
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())

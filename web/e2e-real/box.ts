@@ -12,6 +12,8 @@ export interface Box {
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
   /** The loopback devices a connection can be saved against (slice 5): the target, the user name and the secret to type, by kind. */
   devices?: Record<'http' | 'ssh' | 'mcp', { target: string; username?: string; secret?: string }>
+  /** The port of the syslog listener of the logs module (UDP and TCP on loopback): a source declared with sender 127.0.0.1 receives what a spec sends there. */
+  syslog_port?: string
 }
 
 /** The sensors of the run (slice 7): the REAL vedette-sensor binary, started as a child of the box through its control endpoint. `passive` replays a

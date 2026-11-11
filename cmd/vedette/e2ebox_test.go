@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -55,7 +56,9 @@ type e2eReady struct {
 	sensorBin string
 	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
-	devs    *e2eDevices               // not in ready.json: the control routes of this box (nil: the bare box has none)
+	// the port of the syslog listener of the logs module (UDP and TCP, loopback): a spec declares a source with sender 127.0.0.1 and feeds it lines
+	SyslogPort string      `json:"syslog_port,omitempty"`
+	devs       *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -153,6 +156,11 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer func() { _ = f.Close() }()
 	defer e2eOffline()()
+	syslogPort, err := e2eFreePort(ctx)
+	if err != nil {
+		return err
+	}
+	seed.SyslogPort = strconv.Itoa(syslogPort)
 	seed.DataDir, seed.HoneypotDir = data, hp
 	var sensors *e2eSensors
 	if seed.sensorBin != "" {
@@ -168,6 +176,7 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", "127.0.0.1:0", "-host-socket", hostSocket, "-honeypot-dir", hp,
+		"-syslog-port", seed.SyslogPort, // not 514/5514: two runs at once, and a Mac may not bind 514 (logs spec)
 	}
 	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
 		log.onLink = sensors.linkUp
@@ -177,6 +186,29 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	return errors.Join(runErr, log.err)
+}
+
+// The listener of the logs module binds loopback only in this test binary: a test box does not open a syslog port on the LAN. Set once, before any box starts (two boxes
+// run in one process and read it from their own goroutines).
+func init() { syslogHost = "127.0.0.1" }
+
+// e2eFreePort returns a port that is free for both TCP and UDP on loopback right now (the syslog listener needs one number for both).
+func e2eFreePort(ctx context.Context) (int, error) {
+	for range 20 {
+		tl, err := new(net.ListenConfig).Listen(ctx, "tcp4", "127.0.0.1:0")
+		if err != nil {
+			return 0, err
+		}
+		port := tl.Addr().(*net.TCPAddr).Port
+		_ = tl.Close()
+		ul, err := new(net.ListenConfig).ListenPacket(ctx, "udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		if err != nil {
+			continue
+		}
+		_ = ul.Close()
+		return port, nil
+	}
+	return 0, errors.New("no port free for TCP and UDP on loopback")
 }
 
 // e2eKEV is the CISA catalog the box of the run "downloads": one entry, so the Home title is the loaded one ("Today: N ..."), the same

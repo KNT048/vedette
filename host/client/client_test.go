@@ -291,7 +291,10 @@ func TestBackupPurge(t *testing.T) {
 	defer cancel()
 	go func() {
 		<-started
-		time.Sleep(time.Second) // the POST response is on its way; polling has begun
+		select { // the POST response is on its way; polling has begun
+		case <-time.After(time.Second):
+		case <-short.Done():
+		}
 		cancel()
 	}()
 	if _, id, err := h.Client.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.Canceled) || id == "" {

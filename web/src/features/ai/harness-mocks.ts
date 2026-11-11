@@ -28,6 +28,8 @@ const memoryText = (v: unknown) => text(v, 3, 300)
 // ---- Knowledge
 const DOC_RE = /\.(pdf|md|txt|docx)$/i
 const MAX_DOC = 10 * 1024 * 1024
+// Bytes a base64 text decodes to; -1 when it is not base64 (standard alphabet, padded or not).
+const base64Len = (c: unknown) => (typeof c === 'string' && /^[A-Za-z0-9+/]*={0,2}$/.test(c) ? Math.floor((c.replace(/=+$/, '').length * 3) / 4) : -1)
 const indexProfile = () => { const id = knowledgeSettings.get().index_profile; return id && aiProfilesStore.get().some((p) => p.id === id) ? id : null }
 const knowledgeView = () => ({ index_profile: indexProfile(), items: knowledgeStore.get().map((d) => docView(d)) })
 
@@ -154,6 +156,7 @@ export const harnessHandlers = [
     const size = Number(b.size)
     if (!Number.isInteger(size) || size < 1) return fail(400, 'invalid_size', 'The file is empty.')
     if (size > MAX_DOC) return fail(400, 'too_large', 'The file is larger than 10 MB. Split it or remove pictures, then upload again.')
+    if (base64Len(b.content) !== size) return fail(400, 'invalid_size', 'The file arrived damaged or cut short. Pick it again.')
     if (b.jobs !== undefined && !jobsOk(b.jobs)) return fail(400, 'invalid_jobs', 'One of the chosen jobs is not an AI job. Pick from the list.')
     if (!indexProfile()) return fail(400, 'no_index_profile', 'Choose which AI profile builds the index before adding documents.')
     if (knowledgeStore.get().length >= 50) return fail(400, 'too_many', 'A box holds up to 50 documents. Delete the ones you no longer use.')

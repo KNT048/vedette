@@ -29,6 +29,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | Library | Version | License | How used |
 |---|---|---|---|
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | embedded: SQLite engine transpiled to Go (database/sql driver) in `core/store`; also carries musl and SQLite's public-domain code, see the module's `LICENSE-3RD-PARTY.md` |
+| github.com/ledongthuc/pdf | v0.0.0-20261020125853-5e46805f718e | BSD-3-Clause | embedded: reads the text of a PDF that an administrator adds to the AI knowledge base (`modules/ai/knowledge_parse.go`); a fork of `rsc.io/pdf`, no dependency of its own; the file is read in memory, never run, and a panic on a malformed file is caught |
 | github.com/pressly/goose/v3 | v3.29.0 | MIT | embedded: runs the embedded SQL migrations at start-up (`core/store.Migrate`); forward-only, no Down |
 | modernc.org/libc, modernc.org/mathutil, modernc.org/memory | v1.79.0, v1.7.1, v1.12.1 | BSD-3-Clause | embedded: runtime of modernc.org/sqlite |
 | github.com/ncruces/go-strftime | v1.1.0 | MIT | embedded: via modernc.org/sqlite |

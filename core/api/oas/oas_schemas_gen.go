@@ -6992,10 +6992,18 @@ func (s *AiPostAiKnowledgeOKStatus) UnmarshalText(data []byte) error {
 }
 
 type AiPostAiKnowledgeReq struct {
-	Jobs []AiPostAiKnowledgeReqJobsItem `json:"jobs"`
-	Name string                         `json:"name"`
-	// Bytes; 10 MB at most. PDF, MD, TXT or DOCX.
+	// The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The
+	// box keeps only the text it finds in it, never the file.
+	Content string                         `json:"content"`
+	Jobs    []AiPostAiKnowledgeReqJobsItem `json:"jobs"`
+	Name    string                         `json:"name"`
+	// Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX.
 	Size int `json:"size"`
+}
+
+// GetContent returns the value of Content.
+func (s *AiPostAiKnowledgeReq) GetContent() string {
+	return s.Content
 }
 
 // GetJobs returns the value of Jobs.
@@ -7011,6 +7019,11 @@ func (s *AiPostAiKnowledgeReq) GetName() string {
 // GetSize returns the value of Size.
 func (s *AiPostAiKnowledgeReq) GetSize() int {
 	return s.Size
+}
+
+// SetContent sets the value of Content.
+func (s *AiPostAiKnowledgeReq) SetContent(val string) {
+	s.Content = val
 }
 
 // SetJobs sets the value of Jobs.

@@ -259,7 +259,8 @@ func (UnimplementedHandler) AiPostAiHooksTest(ctx context.Context, req *AiPostAi
 
 // AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 //
-// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+// Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it
+// in the background.
 //
 // POST /ai/knowledge
 func (UnimplementedHandler) AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (r *AiPostAiKnowledgeOK, _ error) {

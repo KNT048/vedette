@@ -190,6 +190,16 @@ func feedBlock(f CVEFacts) DataBlock {
 	return DataBlock{Kind: DataFeed, Source: "exploited list entry " + f.CVE, Text: b.String()}
 }
 
+// explainKnowledgeQuery is what the documents are searched with for a CVE: the product and the names of the devices it matches, not
+// the long text of the entry or the addresses (numbers match every network document).
+func explainKnowledgeQuery(f CVEFacts, assets []AssetFact) string {
+	parts := []string{f.Vendor, f.Product, f.Name}
+	for _, a := range assets {
+		parts = append(parts, a.Name, a.Kind)
+	}
+	return strings.Join(parts, " ")
+}
+
 func inventoryBlock(assets []AssetFact) DataBlock {
 	var b strings.Builder
 	if len(assets) == 0 {
@@ -295,13 +305,18 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 	if err != nil {
 		return explainInputs{}, false, err
 	}
+	// The pieces of the knowledge base the call would carry are part of the answer's inputs: a changed document is a cache miss.
+	know, err := s.knowledgeForCall(ctx, har.runner, JobExplainFinding, explainKnowledgeQuery(facts, assets))
+	if err != nil {
+		return explainInputs{}, false, err
+	}
 	var rules []string
 	for _, r := range har.rules {
 		if r.Enabled && r.appliesTo(JobExplainFinding) {
 			rules = append(rules, r.Text)
 		}
 	}
-	hash := HashContent("explain-v2\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + "\nrules:" + strings.Join(rules, "\n"))
+	hash := HashContent("explain-v2\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
 	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash}, true, nil
 }
 
@@ -362,11 +377,12 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 	now := s.cfg.Clock()
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: JobExplainFinding, Actor: actor, Task: explainTask,
-		Question:  fmt.Sprintf("Explain %s for this company. The box has decided the affected status is %q.", cve, affected),
-		Data:      []DataBlock{feed, inv},
-		Schema:    &provider.Schema{Name: "explain_cve", JSON: json.RawMessage(explainSchema)},
-		MaxTokens: 1200,
-		Summary:   fmt.Sprintf("Explained %s for %d matching devices", cve, len(assets)),
+		Question:       fmt.Sprintf("Explain %s for this company. The box has decided the affected status is %q.", cve, affected),
+		Data:           []DataBlock{feed, inv},
+		KnowledgeQuery: explainKnowledgeQuery(facts, assets),
+		Schema:         &provider.Schema{Name: "explain_cve", JSON: json.RawMessage(explainSchema)},
+		MaxTokens:      1200,
+		Summary:        fmt.Sprintf("Explained %s for %d matching devices", cve, len(assets)),
 		Check: func(text string) error {
 			var perr error
 			answer, perr = parseExplain(text)

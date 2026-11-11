@@ -477,6 +477,7 @@
       "errType": "{{name}} is not a PDF, MD, TXT or DOCX file.",
       "errSize": "{{name}} is larger than 10 MB.",
       "errEmpty": "{{name}} is empty.",
+      "errRead": "{{name}} could not be read. Pick the file again.",
       "added": "{{name}} added",
       "empty": "No documents yet",
       "emptyBody": "Upload a network diagram or your security policy and the AI can use it when it explains findings.",

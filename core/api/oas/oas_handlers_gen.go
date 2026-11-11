@@ -3640,7 +3640,8 @@ func (s *Server) handleAiPostAiHooksTestRequest(args [0]string, argsEscaped bool
 
 // handleAiPostAiKnowledgeRequest handles ai_post_ai_knowledge operation.
 //
-// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+// Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it
+// in the background.
 //
 // POST /ai/knowledge
 func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3724,7 +3725,7 @@ func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPostAiKnowledgeOperation,
-			OperationSummary: "Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size",
+			OperationSummary: "Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
 			OperationID:      "ai_post_ai_knowledge",
 			Body:             request,
 			RawBody:          rawBody,

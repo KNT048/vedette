@@ -166,23 +166,17 @@ test('the page starts empty: the three steps, switches locked, and each wrong ad
   expect(server, 'the API answered 5xx').toEqual([])
 })
 
-// KNOWN BUG, issue #270 (.ai/deferred/feat-e2e-real-honeypot.md:3): usable() in modules/honeypot/personality.go computes the last address of 192.168.1.0/24
-// as 192.168.0.255 (operator precedence), so the broadcast address 192.168.1.255 is accepted as the secondary IP. Only that symptom may satisfy test.fail.
-test('the broadcast address is refused as the secondary IP (INV-5, FORBID-1)', async ({ page }) => {
-  test.fail()
+// Issue #270 (fixed, 59da3e7): usable() computed the last address of 192.168.1.0/24 as 192.168.0.255, so the broadcast address was accepted.
+test('the broadcast address is refused as the secondary IP, in the page and by the API (INV-5, FORBID-1)', async ({ page }) => {
   await page.goto('/honeypot')
   await page.getByLabel('Trap secondary IP').fill('192.168.1.255')
-  await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith('/api/v1/honeypot/config') && r.request().method() === 'PUT'),
-    page.getByRole('button', { name: 'Save', exact: true }).click(),
-  ])
-  const admin = await as('admin')
-  const accepted = (await get<Overview>(admin, '/honeypot')).secondary_ip === '192.168.1.255'
-  // put the decoy back whatever the box did
-  expect((await api(admin, 'PUT', '/honeypot/config', { secondary_ip: DECOY_IP, hostname: DECOY_NAME })).status, 'decoy put back').toBe(200)
-  await admin.dispose()
-  if (!accepted) test.fail(false) // the symptom is not the known one: the expectation is switched off and the test is red if it fails
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText(/not the network or broadcast address/)).toBeVisible()
+  const admin = await as('admin')
+  const r = await api<{ error: { code: string } }>(admin, 'PUT', '/honeypot/config', { secondary_ip: '192.168.1.255', hostname: DECOY_NAME })
+  expect(r).toMatchObject({ status: 400, body: { error: { code: 'ip_outside_lan' } } })
+  expect((await get<Overview>(admin, '/honeypot')).secondary_ip, 'the decoy address is unchanged').toBe(DECOY_IP)
+  await admin.dispose()
 })
 
 test('a host that cannot start the container never makes a trap "Listening"; once it can, the GUI follows the host (S-HP-1, D-161)', async ({ page }) => {
@@ -370,7 +364,8 @@ test('a real log line becomes a hit with the device name, on the timeline, and a
   // the page: the heading counts it, the table names the device, the detail shows the timeline
   await page.goto('/honeypot')
   await expect(h1(page)).toHaveText(/trap hits? today|Traps were hit/)
-  const row = page.getByRole('table', { name: 'Trap hits' }).getByRole('row').filter({ hasText: src.ip }).first()
+  const row = page.getByRole('table', { name: 'Trap hits' }).getByRole('row').filter({ has: page.locator(`a[href="/honeypot/hits/${ssh.id}"]`) })
+  await expect(row).toContainText(src.ip)
   await expect(row.getByRole('link', { name: src.name, exact: true })).toBeVisible()
   await expect(row).toContainText('SSH')
   await expect(page.getByRole('table', { name: 'Trap hits' }).getByText('Token').first()).toBeVisible()

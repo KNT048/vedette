@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -47,7 +46,7 @@ func TestQuickCheckFindsDamage(t *testing.T) {
 		return // too damaged to open is refused as well
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := db.QuickCheck(ctx); !errors.Is(err, store.ErrDamaged) && err == nil {
+	if err := db.QuickCheck(ctx); err == nil { // ErrDamaged, or SQLite's own "malformed" error from the read
 		t.Fatal("a damaged database passed QuickCheck")
 	}
 }

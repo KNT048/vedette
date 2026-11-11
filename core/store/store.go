@@ -324,8 +324,8 @@ func (db *DB) Check(ctx context.Context) error {
 }
 
 // QuickCheck runs PRAGMA quick_check (at most 20 problems): the structure of every page and index, without the slow comparison of
-// index contents. The process runs it at start, before the migrations (D-87, host-api 6.11): a damaged database is refused (ErrDamaged),
-// so the program stops and the host's health check reverts to the snapshot instead of a box writing on top of the damage.
+// index contents. The process runs it at start, before the migrations (INV-32): a damaged database is refused (ErrDamaged), so the
+// program stops instead of writing on top of the damage.
 func (db *DB) QuickCheck(ctx context.Context) error { return db.pragmaCheck(ctx, "quick_check(20)") }
 
 func (db *DB) pragmaCheck(ctx context.Context, pragma string) error {

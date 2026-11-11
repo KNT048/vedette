@@ -244,8 +244,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.ErrorContext(ctx, "closing the database failed", "error", err)
 		}
 	}()
-	// A damaged database stops the program before anything writes to it: the host's health check then reverts to the snapshot taken
-	// before an update (D-87, host-api 6.11). A newer schema is not refused: an older core runs on a newer database by design (INV-26, D-183).
+	// A damaged database stops the program before anything writes to it (fail closed, INV-32). Only an update whose release says
+	// rollback.safe=false gets its database back from the snapshot when the health check fails (host/ops update.go); otherwise the box
+	// stays down until someone restores a backup (RUNBOOK). A newer schema is not refused: an older core runs on a newer database by design (INV-26, D-183).
 	if err := db.QuickCheck(ctx); err != nil {
 		log.ErrorContext(ctx, "the database failed SQLite's check; not starting", "error", err)
 		return err

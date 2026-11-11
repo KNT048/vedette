@@ -16,8 +16,9 @@ import (
 type Host interface {
 	// Interfaces lists the cards of the machine the in-process capture runs on.
 	Interfaces(ctx context.Context) ([]capture.Interface, error)
-	// HostCards lists the cards vedette-host reports; ok is false when no host answers (container-only install, D-168):
-	// SetInterface then validates against the cards in the sensor's heartbeat.
+	// HostCards lists the cards vedette-host reports. ok is false only when core runs without a host socket (container-only
+	// install, D-168, D-263): SetInterface then validates against the cards in the sensor's heartbeat. A configured host
+	// that gives no list is an error, never ok=false (D-118).
 	HostCards(ctx context.Context) (cards []capture.Interface, ok bool, err error)
 	// SpanOptions returns the extraction switches and exclusion filters of the SPAN settings (Settings, Box network, D-56).
 	SpanOptions(ctx context.Context) (sensorlink.Extract, []sensorlink.Filter, error)

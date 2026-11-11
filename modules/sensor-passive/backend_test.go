@@ -495,8 +495,12 @@ func TestNoHostTheCardIsChosenAgainstTheHeartbeat(t *testing.T) {
 		iface string
 		span  bool
 	}{"a card the sensor does not report": {"eth0", false}, "SPAN on a card with an IP": {"eno1", true}, "SPAN with no card": {"", true}, "a name that is not an interface name": {"en p3s0;rm", false}} {
-		if err := set(c.iface, c.span); !errors.Is(err, sp.ErrBadInterface) {
+		err := set(c.iface, c.span)
+		if !errors.Is(err, sp.ErrBadInterface) {
 			t.Errorf("%s: %v", name, err)
+		}
+		if c.iface == "en p3s0;rm" && (err == nil || !strings.Contains(err.Error(), "is not an interface name")) {
+			t.Errorf("%s: the edge check did not refuse it: %v", name, err)
 		}
 	}
 	if err := set("enp3s0", true); err != nil {

@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 
 	hostapi "github.com/knt048/vedette/host/api"
@@ -50,27 +47,37 @@ func purgeRunError(err error) error {
 	return err
 }
 
-// openCanaryLog is the file the honeypot container writes and the honeypot module tails (modules/honeypot defaultLogFile).
-const openCanaryLog = "opencanary.jsonl"
-
 // purgeBeforeWipe runs before anything is deleted (HandlersConfig.BeforeWipe): the honeypot is turned off through its own Disable path
 // while its record of the decoy addresses it placed is still there, so those addresses leave the host (they would stay on the
-// interface otherwise, and nothing would remove them after the record is gone), and the OpenCanary log is emptied so the old hits are
-// never read again. An error refuses the purge.
+// interface otherwise, and nothing would remove them after the record is gone). An error refuses the purge. Core does not touch the
+// honeypot's raw log: the container owns it and core mounts it read-only (see purgeKeptRows).
 func purgeBeforeWipe(d *deps) func(context.Context) error {
 	return func(ctx context.Context) error {
-		if d.Honeypot != nil {
-			if err := d.Honeypot.Disable(ctx); err != nil {
-				return fmt.Errorf("turn the honeypot off: %w", err)
-			}
-		}
-		if d.HoneypotDir == "" {
+		if d.Honeypot == nil {
 			return nil
 		}
-		log := filepath.Join(d.HoneypotDir, HoneypotLogDir, openCanaryLog)
-		if err := os.Truncate(log, 0); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("empty the honeypot log: %w", err)
+		if err := d.Honeypot.Disable(ctx); err != nil {
+			return fmt.Errorf("turn the honeypot off: %w", err)
 		}
 		return nil
 	}
+}
+
+// purgeKeptRows and purgeAlsoKept: the honeypot's raw log (opencanary.jsonl under -honeypot-dir/log) stays, because the container owns it
+// and core cannot write it (N2). To keep the fresh box from reading its old events as new, the row that holds the honeypot's read position
+// in that log survives the wipe (hp_config "tail", the key modules/honeypot stores it under); the answer lists "honeypot_log" as kept.
+// Without a honeypot directory there is no log and nothing to keep. The host is to empty the log at a purge once it runs the container
+// (deferred: .ai/deferred/feat-core-data-purge.md).
+func purgeKeptRows(d *deps) []core.KeepRow {
+	if d.HoneypotDir == "" {
+		return nil
+	}
+	return []core.KeepRow{{Table: "hp_config", Column: "key", Value: "tail"}}
+}
+
+func purgeAlsoKept(d *deps) []string {
+	if d.HoneypotDir == "" {
+		return nil
+	}
+	return []string{"honeypot_log"}
 }

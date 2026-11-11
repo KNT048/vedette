@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,6 +58,8 @@ type dataWorld struct {
 	host     *fakeHost
 	wipeSeen chan map[string]int // BeforeWipe hook: the row counts it saw (nil channel value = hook not called)
 	hookErr  error               // what the BeforeWipe hook returns
+	gate     *core.PurgeGate     // shared with the handlers; shut while a purge runs
+	gateSeen []bool              // whether the gate was shut when each hook ran
 	osBusy   bool
 }
 
@@ -69,12 +72,16 @@ type fakeHost struct {
 	calls    int
 	// what the purge sent with the host run
 	requestID, actor string
+	onPurge          func() // runs inside BackupPurge, to look at the box at that moment
 }
 
 func (f *fakeHost) ListRuns(context.Context, int) ([]api.Run, error) { return f.runs, f.listErr }
 func (f *fakeHost) BackupPurge(_ context.Context, requestID, actor string) (int, error) {
 	f.calls++
 	f.requestID, f.actor = requestID, actor
+	if f.onPurge != nil {
+		f.onPurge()
+	}
 	return f.purged, f.purgeErr
 }
 
@@ -83,9 +90,9 @@ func (f *fakeHost) BackupPurge(_ context.Context, requestID, actor string) (int,
 func newDataWorld(t *testing.T) *dataWorld { return newDataWorldIn(t, t.TempDir(), true) }
 
 // newDataWorldIn is newDataWorld in a directory the test prepared; withHost false is a box without a helper.
-func newDataWorldIn(t *testing.T, dir string, withHost bool) *dataWorld {
+func newDataWorldIn(t *testing.T, dir string, withHost bool, tune ...func(*core.HandlersConfig)) *dataWorld {
 	t.Helper()
-	dw := &dataWorld{dir: dir, key: filepath.Join(dir, "vedette.key"), restarts: make(chan struct{}, 4), wipeSeen: make(chan map[string]int, 4)}
+	dw := &dataWorld{dir: dir, key: filepath.Join(dir, "vedette.key"), restarts: make(chan struct{}, 4), wipeSeen: make(chan map[string]int, 4), gate: &core.PurgeGate{}}
 	if withHost {
 		dw.host = &fakeHost{}
 	}
@@ -103,7 +110,13 @@ func newDataWorldIn(t *testing.T, dir string, withHost bool) *dataWorld {
 			hc.Host = dw.host
 		}
 		hc.OSBusy = func(context.Context) bool { return dw.osBusy }
+		hc.Gate = dw.gate
+		hc.KeepRows = []core.KeepRow{{Table: "tm_parent", Column: "id", Value: "keep"}}
+		for _, f := range tune {
+			f(hc)
+		}
 		hc.BeforeWipe = func(context.Context) error {
+			dw.gateSeen = append(dw.gateSeen, dw.gate.Active())
 			dw.wipeSeen <- w.tableCounts() //nolint:contextcheck // a test helper that reads with the test's own context
 			return dw.hookErr
 		}
@@ -161,6 +174,7 @@ func (w *world) tableCounts() map[string]int {
 func (w *dataWorld) plant() (gone, kept []string) {
 	w.t.Helper()
 	w.exec(`INSERT INTO tm_parent (id, name) VALUES ('p1', 'parent')`)
+	w.exec(`INSERT INTO tm_parent (id, name) VALUES ('keep', 'a row that describes what the purge leaves')`)
 	w.exec(`INSERT INTO tm_child (parent_id, note, api_secret, token_hash, blobby, last4, secret_last4) VALUES ('p1', 'child note', 'PLANT-api-secret-0001', 'PLANT-token-hash-0002', x'deadbeef', 'abcd', 'wxyz')`)
 	w.exec(`INSERT INTO tm_log (line) VALUES ('one'), ('two')`)
 	w.exec(`UPDATE tm_seed SET v = 'changed'`)
@@ -234,6 +248,19 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	if kept, _ := r.JSON["kept"].([]any); kept == nil || len(kept) != 0 || w.host.calls != 1 {
 		t.Errorf("a box with a helper deleted its backups and keeps nothing back: kept = %v, backup.purge calls = %d", r.JSON["kept"], w.host.calls)
 	}
+	if len(w.gateSeen) != 1 || !w.gateSeen[0] || !w.gate.Active() { // N4: shut for the whole purge, and for good after a success
+		t.Errorf("gate while the hook ran: %v, after the purge: %v", w.gateSeen, w.gate.Active())
+	}
+	var keepName string // the row KeepRow names survived the wipe, the others did not
+	if err := w.env.DB.Reader().QueryRowContext(t.Context(), `SELECT name FROM tm_parent WHERE id = 'keep'`).Scan(&keepName); err != nil || keepName == "" {
+		t.Errorf("the kept row is gone: %q %v", keepName, err)
+	}
+	if n := w.env.Count(t, `SELECT count(*) FROM tm_parent WHERE id = 'p1'`); n != 0 {
+		t.Error("a row that is not kept survived")
+	}
+	if !strings.Contains(w.logs.String(), "data purge requested") || !strings.Contains(w.logs.String(), "email=admin@acme.example") {
+		t.Errorf("the journal line of the purge does not name the administrator: %s", w.logs.String())
+	}
 	if w.host.requestID == "" || !strings.HasPrefix(w.host.actor, "admin@acme.example") {
 		t.Errorf("backup.purge is a host run: it needs a request id and the actor, got %q %q", w.host.requestID, w.host.actor)
 	}
@@ -270,7 +297,7 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	// Every table: the fresh state.
 	want := map[string]int{
 		"core_audit": 1, "core_chain_head": 1, // the purge's own row and its chain head; no setup code: the next start makes it
-		"tm_seed":     1,
+		"tm_seed": 1, "tm_parent": 1, // the row KeepRow keeps
 		"core_module": 0, // set below: one row per module of the build
 	}
 	want["core_module"] = len(w.reg.List())
@@ -429,6 +456,8 @@ func TestContract_INV14_RefusalsBeforeTheWipeDeleteNothing(t *testing.T) {
 		status int
 		code   string
 	}{
+		{"helper socket file is missing (vedette-host restarting)", func(w *dataWorld) { w.host.listErr = fmt.Errorf("%w: %w", hostclient.ErrUnreachable, fs.ErrNotExist) }, 502, "host_unreachable"},
+		{"helper socket file is missing at the purge call", func(w *dataWorld) { w.host.purgeErr = fmt.Errorf("%w: %w", hostclient.ErrUnreachable, fs.ErrNotExist) }, 502, "host_unreachable"},
 		{"helper does not answer", func(w *dataWorld) { w.host.purgeErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 502, "host_unreachable"},
 		{"helper refuses the listing", func(w *dataWorld) { w.host.listErr = fmt.Errorf("%w: down", hostclient.ErrUnreachable) }, 502, "host_unreachable"},
 		{"update journal pending", func(w *dataWorld) { w.host.purgeErr = &hostclient.Error{Status: 412, Code: "transition_pending"} }, 412, "transition_pending"},
@@ -461,8 +490,30 @@ func TestContract_INV14_RefusalsBeforeTheWipeDeleteNothing(t *testing.T) {
 			}
 			wantOK(t, admin.get("/me"), 200)
 			w.exec(`UPDATE tm_seed SET v = 'writable'`)
-			if tc.name != "the honeypot hook refuses" && len(w.wipeSeen) != 0 {
-				t.Error("the honeypot hook ran although the purge was already refused")
+			if w.gate.Active() {
+				t.Error("the gate stayed shut after a refused purge")
+			}
+			// N3: the local prep (the hook) comes before the helper's deletion, so a refusal by the helper happens after it; a refusal
+			// before the prep (core's own update running) or by the hook itself never reaches the helper.
+			switch tc.name {
+			case "core's own update is going":
+				if len(w.wipeSeen) != 0 || w.host.calls != 0 {
+					t.Error("the hook or the helper ran although the purge was refused at the door")
+				}
+			case "the honeypot hook refuses":
+				if w.host.calls != 0 {
+					t.Error("the helper deleted its backups although the local prep failed")
+				}
+			default:
+				if len(w.wipeSeen) != 1 {
+					t.Error("the local prep did not run before the helper was asked")
+				}
+			}
+			if exists(w.key+".new") || exists(filepath.Join(w.dir, "tmp", "purge-trash-")) {
+				t.Error("the staged key was not put away")
+			}
+			if entries, _ := os.ReadDir(filepath.Join(w.dir, "tmp")); len(entries) != 0 {
+				t.Errorf("a refused purge left %d entries in tmp", len(entries))
 			}
 		})
 	}
@@ -540,6 +591,106 @@ func TestContract_INV14_NeedsThePasswordAndTheTwoStepCode(t *testing.T) {
 	<-w2.restarts
 	if w2.env.Count(t, `SELECT count(*) FROM core_user`) != 0 {
 		t.Error("the purge with the right password and code did not delete the users")
+	}
+}
+
+// N3: the helper's backups are deleted LAST, after every local step that can fail has been prepared (the hook, the scratch database, the
+// staged key, the trash), because that deletion cannot be undone. When the helper is asked, all of that already exists.
+func TestContract_INV14_TheHelperIsAskedLast(t *testing.T) {
+	t.Parallel()
+	w := newDataWorld(t)
+	admin := w.setupAdmin()
+	w.plant()
+	var sawHook, sawKey, sawTrash, sawOldData bool
+	w.host.onPurge = func() {
+		sawHook = len(w.wipeSeen) == 1
+		sawKey = exists(w.key + ".new")
+		entries, _ := os.ReadDir(filepath.Join(w.dir, "tmp"))
+		for _, e := range entries {
+			sawTrash = sawTrash || strings.HasPrefix(e.Name(), "purge-trash-")
+		}
+		sawOldData = w.env.Count(t, `SELECT count(*) FROM core_user`) == 1 && exists(filepath.Join(w.dir, "logs.db")) // nothing local is deleted yet
+	}
+	wantOK(t, admin.post("/core/data/purge", purgeBody()), 200)
+	<-w.restarts
+	if !sawHook || !sawKey || !sawTrash || !sawOldData {
+		t.Errorf("when the helper was asked: hook ran %v, staged key %v, trash %v, data still there %v", sawHook, sawKey, sawTrash, sawOldData)
+	}
+}
+
+// N3: a failure after the helper deleted its backups says so (500 backups_already_deleted, not "nothing was deleted"), and leaves the
+// data on the box as it was, files and key included, so the purge can be tried again.
+func TestContract_INV14_FailureAfterTheHelperSaysTheBackupsAreGone(t *testing.T) {
+	t.Parallel()
+	w := newDataWorld(t)
+	admin := w.setupAdmin()
+	gone, kept := w.plant()
+	if err := os.Mkdir(filepath.Join(w.dir, "purge-compact-pending"), 0o700); err != nil { // makes the step after the helper fail
+		t.Fatal(err)
+	}
+	before := w.tableCounts()
+	keyBefore, _ := os.ReadFile(w.key)
+	r := admin.post("/core/data/purge", purgeBody())
+	if r.Code != 500 || r.code() != "backups_already_deleted" || strings.Contains(r.Raw, "Nothing was deleted") {
+		t.Fatalf("purge = %d %s, want 500 backups_already_deleted", r.Code, r.Raw)
+	}
+	if w.host.calls != 1 {
+		t.Errorf("the helper was asked %d times", w.host.calls)
+	}
+	for n, c := range w.tableCounts() {
+		if before[n] != c {
+			t.Errorf("table %s: %d rows before, %d after", n, before[n], c)
+		}
+	}
+	for _, p := range append(gone, kept...) {
+		if !exists(p) {
+			t.Errorf("%s was not put back", p)
+		}
+	}
+	if keyAfter, _ := os.ReadFile(w.key); string(keyAfter) != string(keyBefore) {
+		t.Error("the key changed")
+	}
+	if w.gate.Active() {
+		t.Error("the gate stayed shut")
+	}
+	wantOK(t, admin.get("/me"), 200)
+}
+
+// A box configured without a helper but with a honeypot says in kept that the honeypot's raw log stays.
+func TestContract_INV14_KeptSaysTheHoneypotLogStays(t *testing.T) {
+	t.Parallel()
+	w := newDataWorldIn(t, t.TempDir(), false, func(hc *core.HandlersConfig) { hc.AlsoKept = []string{"honeypot_log"} })
+	admin := w.setupAdmin()
+	r := admin.post("/core/data/purge", purgeBody())
+	wantOK(t, r, 200)
+	if kept, _ := r.JSON["kept"].([]any); len(kept) != 2 || kept[0] != "host_backups" || kept[1] != "honeypot_log" {
+		t.Fatalf("kept = %v", r.JSON["kept"])
+	}
+	<-w.restarts
+}
+
+// N4: while a purge runs, core's own endpoints that start host work answer 409 busy and leave no audit row: here an OS check and the
+// backup download, with the gate shut by hand; they work again when it is open.
+func TestContract_INV14_HostWorkIsRefusedWhilePurging(t *testing.T) {
+	t.Parallel()
+	e := newOSEnv(t, osOpts{})
+	e.checked()
+	rows := func() int { return e.env.Count(t, `SELECT count(*) FROM core_audit`) }
+	if !e.purgeGate.TryBegin() {
+		t.Fatal("the gate was shut already")
+	}
+	if e.purgeGate.TryBegin() {
+		t.Error("a second purge could shut the gate again")
+	}
+	before := rows()
+	wantStatus(t, e.admin.post("/core/updates/os/check", nil), 409, "busy")
+	wantStatus(t, e.admin.get("/core/data/backup"), 409, "busy")
+	if rows() != before {
+		t.Error("a refused request left an audit row")
+	}
+	e.purgeGate.End()
+	if r := e.admin.post("/core/updates/os/check", nil); r.Code >= 400 {
+		t.Errorf("the check after the gate opened = %d %s", r.Code, r.Raw)
 	}
 }
 

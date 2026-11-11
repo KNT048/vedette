@@ -492,11 +492,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `pending_invalid` | 502 | The box could not trust its record of the waiting change, so it went back to the old settings. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 | `confirm_failed` | 502 | The box could not save the new settings, so it went back to the old ones. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 
-#### HTTP 500 (1 mã)
+#### HTTP 500 (2 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN) | Endpoint dùng |
 |---|---|---|---|
 | `internal` | 500 | Something went wrong on the box. Try again; if it keeps happening, send a bug report. | mọi endpoint, lỗi không dự kiến (`core/server`; chi tiết chỉ vào log kèm `X-Request-Id`, không vào phản hồi; WP-04a) |
+| `backups_already_deleted` | 500 | The backups held by the operating system helper were already deleted, but the data on this box could not be deleted. The data on this box is still there. Fix the problem described in the box log and delete all data again. (backend only, D-154: the purge failed after the helper step) | `POST /core/data/purge` |
 
 #### HTTP 501 (1 mã)
 
@@ -510,7 +511,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `server_busy` | 503 | The box is busy checking other sign-ins. Try again in a few seconds. | `POST /auth/login`; `POST /auth/login/resend-code`; `GET /response/blocklist/{token}.txt` (the store cannot be read: 503 with `Retry-After`, never an empty list, blocklist-format 6); mọi thao tác phải băm hoặc kiểm mật khẩu (`POST /core/users`, `/core/users/{id}/reset-password`, `/core/account/password`, `/core/account/2fa/disable`, `/core/setup`). Mã mới **[ĐX]** (WP-04b rà soát bảo mật): ít nhất một lần chờ quá 2 giây hoặc hàng đợi băm đầy. Kèm `retry_after` (giây) trong `error` và `Retry-After`. Không phải `busy` (409, cập nhật hệ điều hành). Lần thử bị từ chối vì bận **không** tính vào giới hạn đăng nhập sai |
 | `twofa_email_unavailable` | 503 | The email channel cannot send two-step codes now. | `POST /auth/login`; `POST /auth/login/resend-code` |
-| `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. (`POST /core/data/purge` answers it with status 502, D-154: the helper that holds the backups does not answer and nothing is deleted.) Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
+| `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. (`POST /core/data/purge` answers it with status 502, D-154: a configured helper that holds the backups does not answer, its socket file missing included, and nothing is deleted.) Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
 | `scanner_unavailable` | 503 | The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again. | `POST /scans/runs`; job quét lịch và quét lại KEV của `scan` (D-125: không có heartbeat của worker, hoặc heartbeat báo thiếu nuclei hay gói mẫu) |
 
 ## 4. Phân trang, lọc, sắp xếp

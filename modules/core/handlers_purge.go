@@ -12,7 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -91,19 +93,28 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 			return nil, err
 		}
 	}
-	// A trace that survives the data: the journal, never the database (it is about to be deleted).
+	// A trace that survives the data: the journal, never the database (it is about to be deleted). The user id alone points to nobody
+	// once the users are gone, so the email goes in too.
 	if x, ok := server.ExchangeFrom(ctx); ok {
-		h.log.WarnContext(ctx, "data purge requested", "user_id", c.ID, "ip", x.ClientAddr().String())
+		h.log.WarnContext(ctx, "data purge requested", "user_id", c.ID, "email", c.Email, "ip", x.ClientAddr().String())
 	}
+	// N4: from here core's own endpoints that start host work (OS update, backup, network change) answer 409 busy, so nothing new can
+	// start between the busy checks below and the wipe. It is cleared when the purge fails; after a success the process stops.
+	if !h.gate.TryBegin() {
+		return nil, apierr.New(409, codeBusy, "A data purge is already running.")
+	}
+	done := false
+	defer func() {
+		if !done {
+			h.gate.End()
+		}
+	}()
 	if h.osBusy != nil && h.osBusy(ctx) { // M2: core's own OS update (INV-12)
 		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
 	}
+	// N3: everything local and reversible comes first, the host's irreversible deletion of the backups last, just before the transaction.
+	// A failure before it leaves the box as it was; after it the answer says the backups are already gone.
 	var kept []oas.CorePostCoreDataPurgeOKKeptItem
-	if skipped, err := h.purgeHostBackups(ctx, c); err != nil { // nothing has been deleted yet: any refusal here leaves the box as it was
-		return nil, err
-	} else if skipped {
-		kept = append(kept, oas.CorePostCoreDataPurgeOKKeptItemHostBackups)
-	}
 	if h.beforeWipe != nil {
 		if err := h.beforeWipe(ctx); err != nil {
 			return nil, fmt.Errorf("core: before the purge: %w", err)
@@ -124,6 +135,22 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		_ = os.Remove(stagedKey)
 		return nil, err
 	}
+	abandon := func() { // nothing irreversible has happened: put the local prep away
+		trash.discard()
+		if stagedKey != "" {
+			_ = os.Remove(stagedKey)
+		}
+	}
+	hostDone := false
+	if skipped, err := h.purgeHostBackups(ctx, c); err != nil {
+		abandon()
+		return nil, err
+	} else if skipped {
+		kept = append(kept, oas.CorePostCoreDataPurgeOKKeptItemHostBackups)
+	} else {
+		hostDone = true
+	}
+	kept = append(kept, h.alsoKept...)
 	var removed map[string]float64
 	var publish func() // applies the module Change to the registry's cache once the transaction has committed
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
@@ -137,7 +164,7 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		if req.Confirm != cur.Name {
 			return confirmMismatch()
 		}
-		if removed, err = wipe(ctx, tx, seeds); err != nil {
+		if removed, err = wipe(ctx, tx, seeds, h.keepRows); err != nil {
 			return err
 		}
 		// The files are moved into the trash while the transaction is still open and moved back when it does not commit (M3):
@@ -171,8 +198,13 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		if stagedKey != "" {
 			_ = os.Remove(stagedKey)
 		}
+		if hostDone { // the helper's backups are gone and this box's data is not: say so, whatever went wrong
+			h.log.ErrorContext(ctx, "data purge failed after the helper deleted the backups", "error", err)
+			return nil, apierr.New(500, CodeBackupsDeleted, "The backups held by the operating system helper were already deleted, but the data on this box could not be deleted. The data on this box is still there. Fix the problem described in the box log and delete all data again.")
+		}
 		return nil, err
 	}
+	done = true // the box is wiped: the gate stays shut until the process stops
 	publish()
 	trash.discard() // the old data is gone for good
 	if stagedKey != "" {
@@ -203,21 +235,46 @@ type PurgeHost interface {
 	BackupPurge(ctx context.Context, requestID, actor string) (deleted int, err error)
 }
 
+// CodeBackupsDeleted is the 500 of a purge that failed after the helper had deleted its backups (API_CONVENTIONS 3.3).
+const CodeBackupsDeleted = "backups_already_deleted"
+
+// PurgeGate says that a factory reset is running (N4). core's own endpoints that start host work check it and answer 409 busy, so the
+// busy check of the purge cannot be overtaken. One gate is shared by the handlers of core; nil is a gate that is never shut.
+type PurgeGate struct{ on atomic.Bool }
+
+// TryBegin shuts the gate; false when it is already shut.
+func (g *PurgeGate) TryBegin() bool { return g == nil || g.on.CompareAndSwap(false, true) }
+
+// End opens the gate.
+func (g *PurgeGate) End() {
+	if g != nil {
+		g.on.Store(false)
+	}
+}
+
+// Active reports whether a purge is running.
+func (g *PurgeGate) Active() bool { return g != nil && g.on.Load() }
+
+// errPurging is what an endpoint that starts host work answers while a purge runs.
+func errPurging() *apierr.Error {
+	return apierr.New(409, codeBusy, "All data on this box is being deleted. Wait for it to finish.")
+}
+
 // CodeTransitionPending is the 412 of a purge while core's update journal is pending or unrecoverable (host answer transition_pending).
 const CodeTransitionPending = "transition_pending"
 
 // purgeHostBackups asks the helper for its running commands (409 busy when one is not finished: an update or a backup would race
-// the purge) and has it delete every backup. skipped is true when this box has no helper (no socket): there is nothing to delete
-// and the answer says so. A helper that does not answer, or refuses, stops the purge before anything is deleted (503 host_unreachable
-// or the mapped error).
+// the purge) and has it delete every backup. skipped is true when this box is configured without a helper (purgeHost nil, the container-only install): there is nothing to
+// delete and the answer says so. A configured helper that does not answer, or refuses, stops the purge (502 host_unreachable or the
+// mapped error); the caller has deleted nothing yet.
 func (h *APIHandlers) purgeHostBackups(ctx context.Context, c caller) (skipped bool, err error) {
 	if h.purgeHost == nil {
 		return true, nil
 	}
+	// Fail closed (N1): a helper that is configured and does not answer, a missing socket file included (it is missing while vedette-host
+	// restarts), is 502 and nothing is wiped. Only a box configured without a helper (purgeHost nil) skips the call.
 	noHelper := func(err error) (bool, error) {
 		switch {
-		case errors.Is(err, client.ErrUnreachable) && errors.Is(err, fs.ErrNotExist): // no socket file: a container-only install (D-55)
-			return true, nil
 		case errors.Is(err, client.ErrUnreachable) || errors.Is(err, client.ErrDenied):
 			h.log.WarnContext(ctx, "data purge: vedette-host does not answer", "error", err)
 			return false, apierr.New(502, CodeHostUnreachable, "The operating system helper (vedette-host) is not answering, so its backups cannot be deleted. Nothing was deleted. Try again in a minute.")
@@ -252,6 +309,11 @@ func (h *APIHandlers) purgeHostBackups(ctx context.Context, c caller) (skipped b
 func confirmMismatch() *apierr.Error {
 	return apierr.New(400, CodeConfirmMismatch, "The organization name does not match. Type it exactly to confirm deletion.")
 }
+
+// KeepRow names rows that survive the purge: the rows of Table whose Column equals Value. They describe something the purge leaves on
+// the box (the honeypot's read position in its raw log, which the honeypot container owns), so that the fresh box does not read old
+// events as new. The identifiers come from cmd/vedette, never from a request.
+type KeepRow struct{ Table, Column, Value string }
 
 // seedRow is one row of a fresh install: the values of one table row, by column.
 type seedRow struct {
@@ -324,13 +386,44 @@ func (h *APIHandlers) freshRows(ctx context.Context) ([]seedRow, error) {
 // resp_log, ...) are dropped for the deletion and created again from the text SQLite kept, in the same transaction: DDL is
 // transactional, so a failure leaves them in place. Foreign keys are checked at commit, so the order of the tables does not
 // matter. The result is how many rows each table lost beyond its seeds; empty tables are left out.
-func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow) (map[string]float64, error) {
+func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow, keep []KeepRow) (map[string]float64, error) {
 	if _, err := tx.ExecContext(ctx, "PRAGMA defer_foreign_keys = ON"); err != nil {
 		return nil, fmt.Errorf("core: purge: %w", err)
 	}
 	tables, names, err := dataTables(ctx, tx)
 	if err != nil {
 		return nil, err
+	}
+	// Rows that describe what the purge leaves on the box (KeepRow) are read before the delete and put back with the seeds.
+	for _, k := range keep {
+		cols, ok := tables[k.Table]
+		if !ok {
+			continue
+		}
+		names := make([]string, len(cols))
+		quoted := make([]string, len(cols))
+		for i, c := range cols {
+			names[i], quoted[i] = c.Name, quoteIdent(c.Name)
+		}
+		rows, err := tx.QueryContext(ctx, "SELECT "+strings.Join(quoted, ", ")+" FROM "+quoteIdent(k.Table)+" WHERE "+quoteIdent(k.Column)+" = ?", k.Value) //nolint:gosec // identifiers from sqlite_master or cmd/vedette's own list, quoted
+		if err != nil {
+			return nil, fmt.Errorf("core: purge: read the rows to keep of %s: %w", k.Table, err)
+		}
+		for rows.Next() {
+			vals := make([]any, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range vals {
+				ptrs[i] = &vals[i]
+			}
+			if err := rows.Scan(ptrs...); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("core: purge: read the rows to keep of %s: %w", k.Table, err)
+			}
+			seeds = append(slices.Clone(seeds), seedRow{table: k.Table, cols: names, vals: vals})
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("core: purge: read the rows to keep of %s: %w", k.Table, err)
+		}
 	}
 	type trigger struct{ name, sql string }
 	var triggers []trigger

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	// validates time zone names and the audit filters turn a day into hours with them.
 	_ "time/tzdata"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
@@ -61,6 +63,9 @@ type APIHandlers struct {
 	purgeHost  PurgeHost   // vedette-host, for the backups; nil = no helper on this box
 	osBusy     func(context.Context) bool
 	beforeWipe func(context.Context) error
+	gate       *PurgeGate
+	alsoKept   []oas.CorePostCoreDataPurgeOKKeptItem
+	keepRows   []KeepRow
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -96,6 +101,13 @@ type HandlersConfig struct {
 	Host       PurgeHost
 	OSBusy     func(context.Context) bool
 	BeforeWipe func(context.Context) error
+	// Gate is shared with the OS and network handlers (OSConfig.Gate, NetworkConfig.Gate): shut while a purge runs (N4). nil = its own.
+	Gate *PurgeGate
+	// AlsoKept names what a purge leaves on the box besides what it always reports ("honeypot_log": the honeypot's raw log, which the
+	// honeypot container owns), and KeepRows the rows that must survive the wipe because they describe it (the honeypot's read position
+	// in that log, so old events are not read again). Both set by cmd/vedette.
+	AlsoKept []string
+	KeepRows []KeepRow
 }
 
 // NewAPIHandlers returns the handlers.
@@ -120,7 +132,17 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 	if c.DataDir != "" { // what an interrupted purge left behind: the old data in the trash, the scratch databases, a half-written new key
 		sweepPurgeLeftovers(c.DataDir, c.KeyPath)
 	}
-	h := &APIHandlers{dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	if c.Gate == nil {
+		c.Gate = &PurgeGate{}
+	}
+	var alsoKept []oas.CorePostCoreDataPurgeOKKeptItem
+	for _, k := range c.AlsoKept {
+		if k != string(oas.CorePostCoreDataPurgeOKKeptItemHoneypotLog) {
+			return nil, fmt.Errorf("core: HandlersConfig.AlsoKept: %q is not a kept item a caller may add", k)
+		}
+		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
+	}
+	h := &APIHandlers{gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

@@ -12629,6 +12629,8 @@ func (s CorePostCoreDataPurgeOKKeptItem) Validate() error {
 		return nil
 	case "key_not_replaced":
 		return nil
+	case "honeypot_log":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

@@ -30,6 +30,7 @@ import (
 // idempotency key and an actor label, after a core_audit row for the intent (and one more when it fails);
 // nothing here runs a command itself (SYS-1).
 type OSHandlers struct {
+	gate  *PurgeGate // shut while a purge runs: act refuses (N4)
 	db    *store.DB
 	auth  *auth.Service
 	audit *audit.Log
@@ -90,6 +91,8 @@ type OSConfig struct {
 	// Zone returns the IANA name of the organization time zone (APIHandlers.OrgTimeZone).
 	Zone  func(context.Context) (string, error)
 	Clock func() time.Time // nil: time.Now
+	// Gate is shut while a factory reset runs: every host write then answers 409 busy (N4). The same gate as HandlersConfig.Gate; nil = never shut.
+	Gate *PurgeGate
 }
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
@@ -100,7 +103,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout}
+	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout}
 	if c.Host != nil {
 		if c.DataDir == "" || c.KeyPath == "" {
 			return nil, errors.New("core: OSConfig with a Host needs DataDir and KeyPath")
@@ -163,6 +166,9 @@ func (h *OSHandlers) record(ctx context.Context, c caller, admin bool, action, t
 
 // act records the intent, runs fn (a host call and the wait for it) and, when fn fails, records that too.
 func (h *OSHandlers) act(ctx context.Context, c caller, admin bool, action, target, detail string, fn func(requestID, actor string) error) error {
+	if h.gate.Active() { // a purge is running (N4): no audit row, nothing started
+		return errPurging()
+	}
 	if err := h.record(ctx, c, admin, action, target, detail); err != nil {
 		return err
 	}

@@ -46019,6 +46019,8 @@ func (s *CorePostCoreDataPurgeOKKeptItem) Decode(d *jx.Decoder) error {
 		*s = CorePostCoreDataPurgeOKKeptItemHostBackups
 	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
 		*s = CorePostCoreDataPurgeOKKeptItemKeyNotReplaced
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
+		*s = CorePostCoreDataPurgeOKKeptItemHoneypotLog
 	default:
 		*s = CorePostCoreDataPurgeOKKeptItem(v)
 	}

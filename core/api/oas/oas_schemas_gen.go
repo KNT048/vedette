@@ -22362,6 +22362,7 @@ type CorePostCoreDataPurgeOKKeptItem string
 const (
 	CorePostCoreDataPurgeOKKeptItemHostBackups    CorePostCoreDataPurgeOKKeptItem = "host_backups"
 	CorePostCoreDataPurgeOKKeptItemKeyNotReplaced CorePostCoreDataPurgeOKKeptItem = "key_not_replaced"
+	CorePostCoreDataPurgeOKKeptItemHoneypotLog    CorePostCoreDataPurgeOKKeptItem = "honeypot_log"
 )
 
 // AllValues returns all CorePostCoreDataPurgeOKKeptItem values.
@@ -22369,6 +22370,7 @@ func (CorePostCoreDataPurgeOKKeptItem) AllValues() []CorePostCoreDataPurgeOKKept
 	return []CorePostCoreDataPurgeOKKeptItem{
 		CorePostCoreDataPurgeOKKeptItemHostBackups,
 		CorePostCoreDataPurgeOKKeptItemKeyNotReplaced,
+		CorePostCoreDataPurgeOKKeptItemHoneypotLog,
 	}
 }
 
@@ -22378,6 +22380,8 @@ func (s CorePostCoreDataPurgeOKKeptItem) MarshalText() ([]byte, error) {
 	case CorePostCoreDataPurgeOKKeptItemHostBackups:
 		return []byte(s), nil
 	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
+		return []byte(s), nil
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -22392,6 +22396,9 @@ func (s *CorePostCoreDataPurgeOKKeptItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
 		*s = CorePostCoreDataPurgeOKKeptItemKeyNotReplaced
+		return nil
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
+		*s = CorePostCoreDataPurgeOKKeptItemHoneypotLog
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

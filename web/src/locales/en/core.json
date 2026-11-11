@@ -724,7 +724,8 @@
         "body": "The box is restarting and will open first-run setup. Not deleted:",
         "continue": "Continue to setup",
         "kept": {
-          "host_backups": "Backups held by the operating system helper: this box has no helper (container-only install), so there were none to delete here. Check the host that runs the container.",
+          "host_backups": "Backups made by the operating system helper: this box is set up without the helper (container-only install: the helper's socket is turned off in its settings), so there were none to delete here. Check the host that runs the container for backups.",
+          "honeypot_log": "The honeypot's raw log on the box (the honeypot container owns it): its old lines are still in that file, but the fresh box does not read them again.",
           "key_not_replaced": "The decryption key could not be replaced. Old copies of the data stay readable with it: replace the key file on the box by hand."
         }
       }

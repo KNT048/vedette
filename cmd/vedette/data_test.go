@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -155,7 +156,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	db, key := filepath.Join(dir, "vedette.db"), filepath.Join(dir, "vedette.key")
-	args := []string{"-db", db, "-key", key, "-listen", "127.0.0.1:0"}
+	args := []string{"-db", db, "-key", key, "-listen", "127.0.0.1:0", "-honeypot-dir", filepath.Join(dir, "hp"), "-host-socket", ""}
 
 	boot := func() (addr string, lines <-chan string, done <-chan error, stop func()) {
 		ctx, cancel := context.WithCancel(t.Context())
@@ -296,13 +297,37 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if !fileExists(logsDB) {
 		t.Fatal("a refused purge removed logs.db")
 	}
+	// N2: the honeypot's raw log stays (core mounts it read-only and must not write it) and so does the row that holds the read position in it,
+	// so the fresh box does not read the old events as new. Plant both through a second handle on the live database.
+	hpLog := filepath.Join(dir, "hp", HoneypotLogDir, "opencanary.jsonl")
+	if err := os.MkdirAll(filepath.Dir(hpLog), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hpLog, []byte(`{"logtype":4000}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Dir(hpLog), 0o500); err != nil { // read-only for everyone, like the container mount
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(hpLog), 0o700) })
+	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that.
+	var tailValue string
+	for range 100 {
+		if tailValue = rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); strings.Contains(tailValue, `"offset":17`) {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !strings.Contains(tailValue, `"offset":17`) {
+		t.Fatalf("the honeypot did not read the planted log line: tail = %q", tailValue)
+	}
 	keyBefore, err := os.ReadFile(key) //nolint:gosec // a path of this test's own temp directory
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	c, b, _ = call("POST", "/core/data/purge", map[string]any{"confirm": "Acme Co", "password": adminPassword})
-	if c != 200 || !strings.Contains(string(b), `"ok":true`) || !strings.Contains(string(b), `"core_user":1`) || !strings.Contains(string(b), `"kept":["host_backups"]`) {
+	if c != 200 || !strings.Contains(string(b), `"ok":true`) || !strings.Contains(string(b), `"core_user":1`) || !strings.Contains(string(b), `"kept":["host_backups","honeypot_log"]`) {
 		t.Fatalf("purge = %d %s (a box without a helper says so in kept)", c, b)
 	}
 	// H1 (a): the key file is replaced (same mode, nothing staged left), so any old copy opens nothing this box holds.
@@ -348,6 +373,12 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	// and the setup code is made by the next start.
 	fresh := rowCounts(t, filepath.Join(t.TempDir(), "fresh.db"), true)
 	got := rowCounts(t, db, false)
+	if b, err := os.ReadFile(hpLog); err != nil || string(b) != `{"logtype":4000}`+"\n" { //nolint:gosec // a path of this test's own temp directory
+		t.Errorf("the honeypot log was touched by the purge: %q %v", b, err)
+	}
+	if kept := rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); kept != tailValue {
+		t.Errorf("the honeypot read position after the purge = %q, want it kept as %q", kept, tailValue)
+	}
 	mans, err := modreg.Load(modules.Manifests)
 	if err != nil {
 		t.Fatal(err)
@@ -358,7 +389,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 			nMods++
 		}
 	}
-	fresh["core_audit"], fresh["core_chain_head"], fresh["core_module"] = 1, 1, nMods
+	fresh["core_audit"], fresh["core_chain_head"], fresh["core_module"], fresh["hp_config"] = 1, 1, nMods, 1 // hp_config: the read position of the honeypot log, kept
 	for tbl, n := range got {
 		if n != fresh[tbl] {
 			t.Errorf("table %s has %d rows after the purge, a fresh box has %d", tbl, n, fresh[tbl])
@@ -520,6 +551,21 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+
+// rowValue reads one text value from the database at path ("" when there is no row).
+func rowValue(t *testing.T, path, query string) string {
+	t.Helper()
+	db, err := store.Open(t.Context(), path, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	var v string
+	if err := db.Reader().QueryRowContext(t.Context(), query).Scan(&v); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		t.Fatal(err)
+	}
+	return v
+}
 
 // rowCounts counts the rows of every data table of the database at path, with the tables found in sqlite_master.
 func rowCounts(t *testing.T, path string, migrate bool) map[string]int {

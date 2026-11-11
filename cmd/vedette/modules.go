@@ -58,6 +58,8 @@ type deps struct {
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string
+	// PurgeGate is shut while a factory reset runs; the core, OS and network handlers share it (N4). Set by buildServices.
+	PurgeGate *core.PurgeGate
 	// Restart ends the process after a data purge (POST /core/data/purge, D-154) so that the supervisor starts it on a fresh box; nil in tests.
 	Restart func()
 	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself

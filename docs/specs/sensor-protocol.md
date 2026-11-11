@@ -302,6 +302,8 @@ Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-V
 
 **Thân trong bộ nhớ có trần theo vai (M1 của rà soát SP-1; SYS-6).** Tốc độ 10/s không giới hạn số thân `core` đang giữ cùng lúc: một chứng chỉ bị chiếm sẽ giữ hàng chục thân 11 MiB mở trong 10 s. Nên trước khi đọc **bất kỳ** thân nào, request lấy một chỗ: tối đa **2 thân đang đọc cùng lúc mỗi vai** (`MaxBodiesPerRole`), và **1** cho `POST /jobs/{id}/result` (`MaxResultBodies`; worker chạy một job một lần). Không có chỗ → `503 store_busy` với `Retry-After: 1`, thân không được đọc, kết nối bị đóng; chỗ trả lại khi request kết thúc (kể cả khi kết nối đứt hay thân quá hạn). Kết quả job: trước khi đọc thân, `core` hỏi `Backend.JobRunning(id)`; id sai dạng → `400`, job không đang chạy → `404 unknown_job`, cả hai không đọc thân và đóng kết nối. Sensor xử lý `503` như cũ: chờ `Retry-After`, gửi lại cùng lô.
 
+**Một sensor không giữ được các chỗ kết nối (WP-31 M3, D-176).** `MaxConns` = 64 chia theo vai sau bắt tay TLS: `passive` tối đa 32, `active` tối đa 16 (`MaxConnsPassive`, `MaxConnsActive`); kết nối vượt phần của vai bị đóng. Mọi từ chối trước khi đọc thân trả `Connection: close` kèm hạn đọc 1 s (`DrainGrace`) khi yêu cầu có thể mang thân; `GET` có thân = `400 invalid_request`. `ReadTimeout` toàn yêu cầu = `ReadHeaderTimeout + BodyTimeout` (15 s); long poll gỡ hạn đó cho chính nó.
+
 ## 8. Sequence
 
 ```mermaid

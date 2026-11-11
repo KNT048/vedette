@@ -72,6 +72,8 @@ type Options struct {
 	Log *slog.Logger
 	// BodyTimeout overrides BodyTimeout (tests).
 	BodyTimeout time.Duration
+	// HeaderTimeout overrides ReadHeaderTimeout (tests).
+	HeaderTimeout time.Duration
 }
 
 // Server serves the sensor protocol.
@@ -82,6 +84,7 @@ type Server struct {
 	now         func() time.Time
 	log         *slog.Logger
 	bodyTimeout time.Duration
+	hdrTimeout  time.Duration
 	buckets     map[Role]*bucket
 	polls       map[Role]*gate
 	bodies      map[Role]chan struct{} // in-flight request bodies per role: MaxBodiesPerRole slots
@@ -94,7 +97,7 @@ func NewServer(o Options) (*Server, error) {
 		return nil, errors.New("sensorlink: server needs an Identity and a Backend")
 	}
 	s := &Server{
-		id: o.Identity, be: o.Backend, moduleOn: o.ModuleOn, now: o.Now, log: o.Log, bodyTimeout: o.BodyTimeout,
+		id: o.Identity, be: o.Backend, moduleOn: o.ModuleOn, now: o.Now, log: o.Log, bodyTimeout: o.BodyTimeout, hdrTimeout: o.HeaderTimeout,
 		buckets: map[Role]*bucket{}, polls: map[Role]*gate{}, bodies: map[Role]chan struct{}{}, results: make(chan struct{}, MaxResultBodies),
 	}
 	if s.now == nil {
@@ -105,6 +108,9 @@ func NewServer(o Options) (*Server, error) {
 	}
 	if s.bodyTimeout <= 0 {
 		s.bodyTimeout = BodyTimeout
+	}
+	if s.hdrTimeout <= 0 {
+		s.hdrTimeout = ReadHeaderTimeout
 	}
 	for _, r := range Roles {
 		s.buckets[r] = &bucket{}
@@ -145,10 +151,11 @@ func (s *Server) verifyConnection(cs tls.ConnectionState) error {
 }
 
 // HTTPServer returns the http.Server for addr with the timeouts of the protocol: serve it with ServeTLS(listener, "", "").
+// ReadTimeout is the whole request (D-176 (3)), and ConnState keeps each role to its share of the connections (D-176 (4)).
 func (s *Server) HTTPServer(addr string) *http.Server {
 	return &http.Server{
-		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(),
-		ReadHeaderTimeout: ReadHeaderTimeout, WriteTimeout: WriteTimeout, IdleTimeout: IdleTimeout, MaxHeaderBytes: 16 << 10,
+		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(), ConnState: newRoleTracker().connState,
+		ReadHeaderTimeout: s.hdrTimeout, ReadTimeout: s.hdrTimeout + s.bodyTimeout, WriteTimeout: WriteTimeout, IdleTimeout: IdleTimeout, MaxHeaderBytes: 16 << 10,
 		ErrorLog: slog.NewLogLogger(s.log.Handler(), slog.LevelWarn), // like the 8443 server: handshake refusals go to the log, not stderr
 	}
 }
@@ -227,41 +234,48 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	// retirement of its serial and the expiry of its certificate; neither is a handshake event (D-110 (5)).
 	role, err := s.callerRole(r)
 	if err != nil {
-		w.Header().Set("Connection", "close") // a connection whose identity is no longer good is not reused (HTTP/1.1)
+		closeAfter(w) // a connection whose identity is no longer good is not reused (HTTP/1.1)
 		s.writeError(w, NewError(CodeCertRetired))
 		return
 	}
 	// 2. protocol version
 	if r.Header.Get(ProtoHeader) != ProtoVersion {
-		s.writeError(w, NewError(CodeProtoUnsupported))
+		s.refuse(w, r, NewError(CodeProtoUnsupported))
 		return
 	}
 	// 3. route of the role, before any body is read
 	rt, jobID, ok := lookup(role, r.Method, r.URL.Path)
 	if !ok {
-		s.writeError(w, NewError(CodeForbiddenRoute))
+		s.refuse(w, r, NewError(CodeForbiddenRoute))
+		return
+	}
+	if rt.max == 0 && r.ContentLength != 0 {
+		s.refuse(w, r, NewError(CodeInvalidRequest)) // a route without a body that is sent one (D-176 (2))
 		return
 	}
 	// 4. module switch
 	if s.moduleOn != nil && !s.moduleOn(role) {
-		s.writeError(w, NewError(CodeModuleOff))
+		s.refuse(w, r, NewError(CodeModuleOff))
 		return
 	}
 	// 5. rate
 	if ok, retry := s.buckets[role].take(s.now()); !ok {
 		e := NewError(CodeRateLimited)
 		e.RetryAfter = retry
-		s.writeError(w, e)
+		s.refuse(w, r, e)
 		return
 	}
 	// 6. one long poll per role
 	if rt.long {
 		g := s.polls[role]
 		if !g.enter() {
-			s.writeError(w, NewError(CodePollInProgress))
+			s.refuse(w, r, NewError(CodePollInProgress))
 			return
 		}
 		defer g.leave()
+		// ReadTimeout is for a request, not for the poll that follows a bodyless one: net/http reads in the background to see the
+		// peer go, and the deadline would end the poll early.
+		_ = http.NewResponseController(w).SetReadDeadline(time.Time{})
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), WriteTimeout-time.Second)
 	defer cancel()
@@ -291,7 +305,7 @@ func (s *Server) callerRole(r *http.Request) (Role, error) {
 func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Request, role Role, rt route, jobID string) {
 	q, err := queryOf(r, rt.id)
 	if err != nil {
-		s.writeError(w, NewError(CodeInvalidRequest))
+		s.refuse(w, r, NewError(CodeInvalidRequest))
 		return
 	}
 	var raw []byte
@@ -300,24 +314,25 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 		// body is not read, so the connection cannot be reused.
 		if rt.id == rResult {
 			if !jobIDRE.MatchString(jobID) {
-				w.Header().Set("Connection", "close")
+				closeAfter(w)
 				s.writeError(w, NewError(CodeInvalidRequest))
 				return
 			}
 			if !s.be.JobRunning(jobID) {
-				w.Header().Set("Connection", "close")
+				closeAfter(w)
 				s.writeError(w, NewError(CodeUnknownJob))
 				return
 			}
 		}
 		release, ok := s.takeBody(role, rt.id)
 		if !ok {
-			w.Header().Set("Connection", "close")
+			closeAfter(w)
 			s.writeError(w, StoreBusy(time.Second))
 			return
 		}
 		defer release()
 		if raw, err = s.readBody(w, r, rt.max); err != nil {
+			closeAfter(w) // refused before (or while) reading: the rest of the body is not waited for
 			s.rejectResult(rt, jobID, err)
 			s.fail(ctx, w, err)
 			return
@@ -511,6 +526,23 @@ func (s *Server) fail(ctx context.Context, w http.ResponseWriter, err error) {
 		e = NewError(CodeInternal)
 	}
 	s.writeError(w, e)
+}
+
+// refuse answers a request that is refused before its body is read. When the request may carry a body (a length other than 0,
+// chunked included) the connection is closed after the answer (D-176 (1)); see closeAfter.
+func (s *Server) refuse(w http.ResponseWriter, r *http.Request, e *Error) {
+	if r.ContentLength != 0 {
+		closeAfter(w)
+	}
+	s.writeError(w, e)
+}
+
+// closeAfter marks the answer as the last on its connection and gives the peer DrainGrace to finish the body it was sending.
+// Connection: close alone is not enough: net/http still reads up to 256 KiB of an unread body after the answer is flushed, with
+// no deadline of its own, and a sensor could hold the slot for as long as it dripped bytes. The answer is not delayed by it.
+func closeAfter(w http.ResponseWriter) {
+	w.Header().Set("Connection", "close")
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(DrainGrace)) // wall clock: a socket deadline
 }
 
 func (s *Server) writeError(w http.ResponseWriter, e *Error) {

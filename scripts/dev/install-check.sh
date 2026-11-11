@@ -88,6 +88,8 @@ EOT
 	# the state a box can be compared by: accounts, unit files, listening sockets, links, packages, files (volatile paths left out).
 	# Left out on purpose: the account _chrony and UDP 323. chronyd cannot be signalled inside a rootless container ("Permission denied"
 	# from kill, even for root), so it outlives its own purge here; on a real box --uninstall stops it first (install.sh, "a purge does not stop a daemon").
+	# Also left out: the run records of vedette-host (/var/lib/vedette-host/runs/): core makes them on its own, e.g. a "busy" refusal when its
+	# module reconcile at start meets the host's own AfterReady, so the second run of the installer is not what creates them
 	state() {
 		x '
 		echo "## passwd"; getent passwd | grep -v "^_chrony:" | sort; echo "## group"; getent group | grep -v "^_chrony:" | sort
@@ -99,7 +101,7 @@ EOT
 		echo "## netns"; ls /run/netns 2>/dev/null | sort
 		echo "## packages"; dpkg-query -W -f="\${binary:Package} \${Version}\n" | sort
 		echo "## files"; find /etc /opt /srv /usr/lib/vedette /var/lib /var/log /root /run/vedette /run/containers -xdev -printf "%p %y %m %u:%g\n" 2>/dev/null \
-			| grep -Ev "^(/var/lib/(apt|dpkg|systemd|ucf|pam|private|containers/)|/etc/(ssl|ld.so.cache|alternatives|machine-id|\.pwd.lock)|/root/(art|\.cache|\.local)|/var/log/(apt|dpkg|alternatives|journal|README|lastlog|wtmp|btmp|faillog|bootstrap)|/etc/(passwd|group|shadow|gshadow)[-]? )" | sort
+			| grep -Ev "^(/var/lib/(apt|dpkg|systemd|ucf|pam|private|containers/|vedette-host/runs/)|/etc/(ssl|ld.so.cache|alternatives|machine-id|\.pwd.lock)|/root/(art|\.cache|\.local)|/var/log/(apt|dpkg|alternatives|journal|README|lastlog|wtmp|btmp|faillog|bootstrap)|/etc/(passwd|group|shadow|gshadow)[-]? )" | sort
 		'
 	}
 	snap_files() { state >"$1"; }

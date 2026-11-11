@@ -84,6 +84,7 @@ type deps struct {
 	Authority        *pki.Authority
 	SensorCreds      string
 	Response         *response.Service // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
+	AIFacts          ai.Facts          // the data ai explains from (feeds, findings, inventory); response's plan job reads the same
 	AI               *ai.Service       // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
 }
 

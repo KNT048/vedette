@@ -59,9 +59,10 @@ const (
 
 // MaxHookInputBytes bounds the text a hook run scans. Go's regexp is RE2: no catastrophic backtracking, one search is linear in
 // the text. A customer regex is searched again from the end of each match, and a leftmost-first pattern such as `.*z|a` reads to
-// the end of the text on every search, so the cost is matches x text size, not text size. MaxMatchesPerScan caps the matches, which
-// caps that cost (a text with more matches is a block, see HookRunner.Run), and the context deadline stops a scan inside a
-// search. Anything over this size is refused rather than half-checked.
+// the end of the text on every search, so the cost is matches x text size, not text size (measured: 1,000 matches and 128 KiB of
+// text take 6 s, so 1 MiB would take most of a minute). MaxMatchesPerScan stops a flood of matches (more is a block). It does not bound the
+// time: the deadline does. Every hook pass (before_ai, after_ai, a test) runs under Service.hookTimeout, the context is checked
+// inside a search, and a pass that runs out of time is a block. Anything over this size is refused rather than half-checked.
 const MaxHookInputBytes = 1 << 20
 
 // MaxMatchesPerScan is the most matches one custom regex may find in one text. More is a block: fail closed.
@@ -69,7 +70,7 @@ const MaxMatchesPerScan = 1000
 
 // MaxRegexProgram is the largest compiled program (instructions, repeats expanded) a custom regex may have, and
 // MaxCustomHooks the most custom hooks a box may have (30, the limit of the GUI mock). Together with the match cap and the
-// context-aware scan (see scanRegexp) they bound the time one Run can take.
+// context-aware scan (see scanRegexp) they bound the work of one Run; the deadline bounds its time.
 const (
 	MaxRegexProgram = 2000
 	MaxCustomHooks  = 30

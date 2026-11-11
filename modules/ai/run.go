@@ -160,10 +160,17 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 // guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
 // them. Any block, hold or failed run stops the call (fail closed): nothing is sent.
 func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string) {
+	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
+	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
+	defer cancel()
 	run := func(text string) (string, bool) {
 		r, err := hooks.Run(ctx, BeforeAI, text)
-		if err != nil {
+		if errors.Is(err, ErrHookInputTooLarge) {
 			stop = "The text is too long to check against the hooks, so it was not sent."
+			return "", false
+		}
+		if err != nil {
+			stop = "The text could not be checked against the hooks in time, so it was not sent."
 			return "", false
 		}
 		names = append(names, r.Names()...)

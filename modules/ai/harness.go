@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -249,26 +249,6 @@ func (s *Service) loadHarness(ctx context.Context) (*harness, error) {
 
 func tidy(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// hasHidden reports a character that cannot be seen or typed back: control characters (line breaks and tabs are only white space and
-// are tidied away elsewhere), format characters (zero width, bidirectional overrides), the tag block U+E0000..E007F and the blank
-// U+2800. It is the rule of core/auth for names; the one exception is a ZERO WIDTH (NON-)JOINER between two letters, which some
-// scripts need to be spelled correctly.
-func hasHidden(s string) bool {
-	rs := []rune(s)
-	for i, r := range rs {
-		if (r == 0x200C || r == 0x200D) && i > 0 && i+1 < len(rs) && unicode.IsLetter(rs[i-1]) && unicode.IsLetter(rs[i+1]) {
-			continue
-		}
-		if r == '\n' || r == '\t' || r == '\r' {
-			continue
-		}
-		if r == 0x2800 || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || (r >= 0xE0000 && r <= 0xE007F) {
-			return true
-		}
-	}
-	return false
-}
-
 func badInput(code, format string, a ...any) error {
 	return apierr.New(http.StatusBadRequest, code, fmt.Sprintf(format, a...))
 }
@@ -302,7 +282,7 @@ func ruleView(r Rule) RuleView {
 // checkRule normalises and validates a rule body (INV-7): the text is tidied (one line, single spaces), 3..300 characters; jobs are known, unique.
 func checkRule(in RuleInput) (Rule, error) {
 	text := tidy(in.Text)
-	if n := utf8.RuneCountInString(text); n < 3 || n > 300 || hasHidden(text) {
+	if n := utf8.RuneCountInString(text); n < 3 || n > 300 || auth.HasInvisible(text) {
 		return Rule{}, badInput("invalid_rule", `Write the rule in 3 to 300 characters, for example "Always name devices by hostname and IP address".`)
 	}
 	jobs := []Job{}
@@ -481,11 +461,11 @@ func (s *Service) HooksView() HooksView {
 func checkHook(in CustomHook, others []CustomHook) (CustomHook, error) {
 	in.Name, in.Message, in.Match.Pattern = tidy(in.Name), tidy(in.Message), strings.TrimSpace(in.Match.Pattern)
 	switch {
-	case hasHidden(in.Name):
+	case auth.HasInvisible(in.Name):
 		return CustomHook{}, badInput("invalid_name", "The name may not contain control or invisible characters.")
-	case hasHidden(in.Message):
+	case auth.HasInvisible(in.Message):
 		return CustomHook{}, badInput("invalid_message", "The message may not contain control or invisible characters.")
-	case hasHidden(in.Match.Pattern):
+	case auth.HasInvisible(in.Match.Pattern):
 		return CustomHook{}, badInput("invalid_match", "The pattern may not contain control or invisible characters. Write such a character as an escape, for example \\x{200b}.")
 	}
 	if err := in.Validate(); err != nil {
@@ -696,7 +676,7 @@ func (s *Service) TestHook(ctx context.Context, in HookTestInput) (HookTestResul
 	default:
 		return HookTestResult{}, badInput("invalid_when", "Pick the stage to test.")
 	}
-	// One test at a time: each can use the whole deadline, so a second waits for a turn and is turned away when none comes.
+	// One test at a time: each can use the whole deadline, so a second waits for a turn and is turned away (503 server_busy, as the log search is) when none comes.
 	select {
 	case s.testSlot <- struct{}{}: // a free place is taken before any waiting, so a short wait cannot turn away the only test
 		defer func() { <-s.testSlot }()
@@ -707,7 +687,7 @@ func (s *Service) TestHook(ctx context.Context, in HookTestInput) (HookTestResul
 		case s.testSlot <- struct{}{}:
 			defer func() { <-s.testSlot }()
 		case <-wait.C:
-			return HookTestResult{}, apierr.New(http.StatusTooManyRequests, "busy", "Another hook test is running. Try again in a moment.")
+			return HookTestResult{}, apierr.New(http.StatusServiceUnavailable, "server_busy", "The box is busy testing another hook. Try again in a moment.")
 		case <-ctx.Done():
 			return HookTestResult{}, ctx.Err()
 		}

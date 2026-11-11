@@ -642,6 +642,9 @@ func TestContract_INV17_HooksThatRunOutOfTimeBlockTheAnswerAndTheRowIsStillWritt
 	e.svc = e.newService()
 	a := &api{env: e, h: e.handler(servertest.NewGate())}
 	a.withProfile()
+	// no before_ai hook has anything to do, so only the after_ai pass runs out of time
+	a.want("PUT", "/ai/hooks/builtin/block-pii", "admin", `{"enabled":false}`, 200, "")
+	a.want("PUT", "/ai/hooks/builtin/security-only", "admin", `{"enabled":false}`, 200, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Any", "after_ai", "keywords", "nomatch", "block", "abc"), 200, "")
 	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be checked") {
@@ -665,9 +668,9 @@ func TestHookTestRunsOutOfTimeAndRunsOneAtATime(t *testing.T) {
 	e.svc = e.newService()
 	a := &api{env: e, h: e.handler(servertest.NewGate())}
 	a.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai","hook":`+hookJSON("D", "before_ai", "keywords", "hello", "block", "abc")+`}`, 400, "invalid_text")
-	// a second test waits for the first and is turned away with 429 when it cannot get a turn
+	// a second test waits for the first and is turned away with 503 server_busy when it cannot get a turn
 	release := e.svc.HoldHookTest()
-	a.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai"}`, 429, "busy")
+	a.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai"}`, 503, "server_busy")
 	release()
 	e.hookTimeout = 0
 	e.svc = e.newService()
@@ -740,5 +743,106 @@ func TestUpgradeKeepsPersonalDataProtectionOnAndSaysSo(t *testing.T) {
 	}
 	if strings.Contains(logs.String(), "redact_pii") {
 		t.Fatalf("the stored setting went stale: %q", logs.String())
+	}
+}
+
+// ---- second review
+
+func TestContract_INV12_AfterAISeesWhatIsStored(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	// the format check later removes the control character and turns the line break into a space: the hooks must see that form
+	a.fake.setAnswer(`{"why":"The secret is hunt\u0001er2 and the access\nlog.","patch_steps":["x"],"temp_mitigations":["y"],"detection_hints":["z"]}`)
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Secret", "after_ai", "keywords", "hunter2", "block", "A secret was in the answer."), 200, "")
+	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Log", "after_ai", "keywords", "access log", "block", "A log was in the answer."), 200, "")
+	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	if rows := a.activity(); len(rows) != 2 || rows[0].Result != ai.ResultBlockedByHook || rows[1].Result != ai.ResultBlockedByHook {
+		t.Fatalf("rows = %+v", rows)
+	}
+	// a mask works on that form too, and what is stored is the masked, cleaned text
+	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Mask", "after_ai", "keywords", "hunter2", "mask", "A secret was removed."), 200, "")
+	got := a.explain("CVE-2022-27593", 200, "")
+	if why := got["why"].(string); strings.Contains(why, "hunter2") || !strings.Contains(why, "The secret is [masked] and the access log.") {
+		t.Fatalf("why = %q", why)
+	}
+}
+
+func TestContract_INV12_BeforeAIHooksHaveADeadlineToo(t *testing.T) {
+	e := newEnv(t)
+	e.hookTimeout = time.Nanosecond
+	e.svc = e.newService()
+	a := &api{env: e, h: e.handler(servertest.NewGate())}
+	a.withProfile()
+	// the built-in personal-data hook is a before_ai hook: out of time is a block, and nothing goes to the provider
+	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not sent") {
+		t.Fatalf("message = %q", msg)
+	}
+	if a.fake.total() != 0 {
+		t.Fatal("the provider was called")
+	}
+	rows := a.activity()
+	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn != 0 {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+func TestContract_INV12_InvisibleCharactersFollowCoreAuth(t *testing.T) {
+	e := newEnv(t)
+	// default-ignorable code points that are not format characters: Hangul fillers, the combining grapheme joiner, a variation selector
+	for _, r := range []string{"\u3164", "\u034f", "\ufe0f", "\u115f", "\U000E0100"} {
+		h := ai.HookJSON{Name: "Ad" + r + "min", When: ai.BeforeAI, Match: ai.HookMatchJSON{Type: ai.MatchKeywords, Pattern: "x"}, Action: ai.ActionBlock, Message: "abc", Enabled: true}
+		for field, set := range map[string]func(*ai.HookJSON){
+			"invalid_name":    func(*ai.HookJSON) {},
+			"invalid_message": func(h *ai.HookJSON) { h.Name, h.Message = "N", "abc"+r },
+			"invalid_match":   func(h *ai.HookJSON) { h.Name, h.Match.Pattern = "N", "pa"+r+"ss" },
+		} {
+			x := h
+			set(&x)
+			_, err := e.svc.AddHook(e.ctx(), "admin@acme.example", x)
+			var ae *apierr.Error
+			if !errors.As(err, &ae) || ae.Code != field {
+				t.Errorf("%U in %s: err = %v", []rune(r)[0], field, err)
+			}
+		}
+		_, err := e.svc.AddRule(e.ctx(), "admin@acme.example", ai.RuleInput{Text: "Name every" + r + " device.", Jobs: []ai.Job{}, Enabled: true})
+		var ae *apierr.Error
+		if !errors.As(err, &ae) || ae.Code != "invalid_rule" {
+			t.Errorf("%U in a rule: err = %v", []rune(r)[0], err)
+		}
+	}
+}
+
+func TestHookSwitchRowsAreWrittenEvenWhenTheyAreMissing(t *testing.T) {
+	a := newAPI(t)
+	if err := a.exec(`DELETE FROM ai_hook_state WHERE builtin_id IN ('block-pii', 'security-only')`); err != nil {
+		t.Fatal(err)
+	}
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","daily_cap":60000,"redact_pii":false}`, 200, "")
+	a.want("PUT", "/ai/hooks/builtin/security-only", "admin", `{"enabled":false}`, 200, "")
+	got := map[string]int{}
+	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT builtin_id, enabled FROM ai_hook_state`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		var on int
+		if err := rows.Scan(&id, &on); err != nil {
+			t.Fatal(err)
+		}
+		got[id] = on
+	}
+	if got["block-pii"] != 0 || got["security-only"] != 0 || got["write-approval"] != 1 || len(got) != 3 {
+		t.Fatalf("ai_hook_state = %v", got)
+	}
+	a.svc = a.newService()
+	b := &api{env: a.env, h: a.handler(servertest.NewGate())}
+	if b.want("GET", "/ai/config", "viewer", "", 200, "")["redact_pii"] != false {
+		t.Fatal("the switch did not survive a restart")
 	}
 }

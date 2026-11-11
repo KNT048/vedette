@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 )
 
@@ -11,7 +12,8 @@ import (
 // (the job has a schema and the text parses as JSON) goes through them field by field: the hooks see each string value and nothing
 // else, so a pattern that ends at white space cannot eat the quote, bracket or comma that closes a field and break the format.
 // A block or hold in any field stops the answer; a mask changes that field; the masked answer is written out again as JSON.
-// The activity row hashes the model's raw answer, not this result.
+// Map keys and non-string values are not hooked: the schemas are closed (additionalProperties false) and what is stored is re-marshalled
+// from the parsed struct, so a key or a number never reaches a person or a prompt. The activity row hashes the model's raw answer, not this result.
 func afterHooks(ctx context.Context, hooks *HookRunner, structured bool, text string) (HookResult, error) {
 	if !structured {
 		return hooks.Run(ctx, AfterAI, text)
@@ -27,6 +29,7 @@ func afterHooks(ctx context.Context, hooks *HookRunner, structured bool, text st
 	walk = func(v any) (any, bool, error) {
 		switch x := v.(type) {
 		case string:
+			x = cleanText(x) // the form that is stored (INV-12): control characters and line breaks cannot split a word past a hook
 			r, err := hooks.Run(ctx, AfterAI, x)
 			if err != nil {
 				return nil, false, err
@@ -52,8 +55,13 @@ func afterHooks(ctx context.Context, hooks *HookRunner, structured bool, text st
 				x[i] = n
 			}
 		case map[string]any:
-			for k, e := range x {
-				n, stop, err := walk(e)
+			keys := make([]string, 0, len(x))
+			for k := range x {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys) // the same answer always reports the same hook
+			for _, k := range keys {
+				n, stop, err := walk(x[k])
 				if err != nil || stop {
 					return nil, stop, err
 				}

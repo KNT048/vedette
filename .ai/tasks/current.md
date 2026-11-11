@@ -27,7 +27,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - **M1 xong:** giao diện đầy đủ trên mock API; bản build release không mang mock (#184).
 - **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` và `logs` còn các lát cuối (bên dưới).
 - **WP-30 xong** (lát 1–10, #335: `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`). Lát 1–9b: #204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311.
-- **WP-31:** R1, R2, S, I, H, M3, M4/L10 đã merge; R3 (định danh kênh người duyệt, L7) đã merge (#234, #259); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
+- **WP-31 xong, trừ danh sách LAB** (đóng 2026-11-12, bảng trạng thái ở `wp31-findings.md` của supervisor): R1, R2, S, I, H, M3, M4/L10, R3 (L7: #234, #259) đã merge; phần đóng: M7 (MAC lạ ở IP decoy là thiết bị) và L12 (D-296), L14 sửa chữ D-189 (D-295); M1 còn một LOW chấp nhận (`.ai/deferred/fix-wp31-closeout-inventory.md`); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
 - **Đang mở (PR):** #336 (gộp D-xx vào `DECISIONS.md`, supervisor) · #331 (logs L3: chữ ký, baseline 7 ngày, bất thường; Mlee) · #326 (ai: tin CVE; Mlee) · #297 (logs: core mở syslog 514, Mlee/Trưởng).
 - **Issue mở:** #332 (response `log_threshold` nối `logs.Service.Counts`) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; PR #297). #115 đã đóng 2026-11-12 (đã xong qua #116, #119, #138, #151, #176, #208…).
 
@@ -65,6 +65,15 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 
 **Chờ kien (người)**
 - [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.
+  - Danh sách LAB của WP-31 (không sửa được bằng code; chạy trên VM/box thật):
+    - [ ] M7: MAC macvlan của decoy mà vedette-host báo (`state/net`) trùng MAC sensor thụ động thấy trên dây; một máy thật nhận IP decoy (DHCP hay IP tĩnh) thành thiết bị, có cảnh báo, decoy bị gỡ.
+    - [ ] L10: systemd thật: host tự tạo `/run/vedette` 0750 root:`socket_gid`, không vòng crash khi khởi động lại.
+    - [ ] L5: dừng khẩn cấp cắt một lượt SSH đang chạy trên thiết bị thật.
+    - [ ] L7: người duyệt tự liên kết danh tính bằng mã trên Telegram, Zalo, email thật.
+    - [ ] L9: IP decoy đã áp trên box Ubuntu bị `never_touch` từ chối khi một hành động nhắm vào.
+    - [ ] M5: nmap không đè loại do sensor thụ động gán cho máy chặn probe (ít quan trọng: thiết bị chưa duyệt không được tin).
+    - [ ] Root boundary: `SO_PEERPIDFD` và cgroup của core dưới Quadlet; NET_RAW ambient cho container sensor/scan không root; kill cả process group và `Pdeathsig` trên kernel thật.
+    - [ ] SYS-7: egress của nuclei (`-duc -ni`) với tcpdump, vì `scan`/`sensor` dùng `Network=host` không có hàng rào egress.
 - [ ] Thử listener Zalo cá nhân trong lab (#316, thử nghiệm).
 - [ ] Ghi chú phát hành (release note) cho migration `notify` 0006.
 - [x] Khoá ký phát hành: đã nhúng khoá thật (#313; nghi thức khoá đã thành code).

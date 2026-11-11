@@ -77,3 +77,66 @@ func TestNoBoxOwnedProviderChangesNothing(t *testing.T) {
 		t.Fatalf("%d devices, %d skipped", n, e.svc.BoxOwnedSkipped())
 	}
 }
+
+// WP-31 M7: a device that sits on a decoy's address (a DHCP lease or a static address an intruder chose) is a device. Only what
+// carries no MAC, or one of the box's own MACs (its cards and the decoys' macvlan links, Config.BoxOwnedMACs), is the box; while
+// the box's MACs are unknown, everything at the address is dropped as before.
+func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
+	t.Parallel()
+	owned := netip.MustParseAddr("192.168.10.240")
+	known, freshAsks, macs := true, 0, []string{"02:00:00:00:02:40", "52:54:00:aa:bb:cc"}
+	e := newEnv(t, func(c *inventory.Config) {
+		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{owned} }
+		c.BoxOwnedMACs = func(_ context.Context, fresh bool) ([]string, error) {
+			if !known {
+				return nil, context.DeadlineExceeded
+			}
+			if fresh {
+				freshAsks++
+				return append([]string{"02:00:00:00:02:41"}, macs...), nil // a decoy added a moment ago
+			}
+			return macs, nil
+		}
+	})
+	ctx := e.ctx()
+	at := func(m string, f observe.Field, v string) []observe.Observation {
+		return []observe.Observation{{AssetHint: observe.AssetHint{IP: owned, MAC: m}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.9}}
+	}
+	devices := func() int { return e.count(`SELECT count(*) FROM inv_asset`) }
+	for _, b := range [][]observe.Observation{
+		at("02:00:00:00:02:40", observe.MAC, "02:00:00:00:02:40"), // the decoy itself
+		at("52:54:00:AA:BB:CC", observe.MAC, "52:54:00:AA:BB:CC"), // the box's card, any case
+		at("", observe.Hostname, "trap"),                          // no MAC: cannot tell, so the box
+	} {
+		if err := e.svc.Record(ctx, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := devices(); n != 0 || freshAsks != 0 {
+		t.Fatalf("%d devices from the box's own frames, %d fresh asks", n, freshAsks)
+	}
+	// A decoy added a moment ago: its MAC is not in the cached answer, so the host is asked again before it counts as a device.
+	if err := e.svc.Record(ctx, at("02:00:00:00:02:41", observe.MAC, "02:00:00:00:02:41")); err != nil {
+		t.Fatal(err)
+	}
+	if n := devices(); n != 0 || freshAsks != 1 {
+		t.Fatalf("%d devices, %d fresh asks: a new decoy's own frame became a device", n, freshAsks)
+	}
+	known = false
+	if err := e.svc.Record(ctx, at("aa:bb:cc:00:02:40", observe.MAC, "aa:bb:cc:00:02:40")); err != nil {
+		t.Fatal(err)
+	}
+	if n := devices(); n != 0 {
+		t.Fatalf("%d devices while the box's MACs are unknown", n)
+	}
+	known = true
+	if err := e.svc.Record(ctx, at("aa:bb:cc:00:02:40", observe.MAC, "aa:bb:cc:00:02:40")); err != nil {
+		t.Fatal(err)
+	}
+	if n := devices(); n != 1 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 {
+		t.Fatalf("%d devices, %d discoveries: a foreign machine on a decoy address stayed invisible", n, len(e.ev.named(inventory.EventAssetDiscovered)))
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, owned.String()); n != 1 {
+		t.Fatal("the device does not hold the decoy's address")
+	}
+}

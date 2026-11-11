@@ -13,3 +13,19 @@ func (s *Service) MemoryLinesForCall(ctx context.Context, job Job) (sent string,
 	mc, err := s.memoryForCall(ctx, s.Hooks(), job)
 	return mc.block.Text, mc.left, err
 }
+
+// WaitIndexed waits until every document that was handed to the indexer is read.
+func (s *Service) WaitIndexed() { s.indexing.Wait() }
+
+// HoldIndexer takes the one place of the indexer and returns the function that gives it back, so a test can keep a document waiting.
+func (s *Service) HoldIndexer() (release func()) {
+	s.indexSlot <- struct{}{}
+	return func() { <-s.indexSlot }
+}
+
+// KnowledgeForCall returns the text of the pieces a call of the job would carry for the search text (after the hooks), the pieces
+// used ("<document id>:<number>") and the ones a hook kept out.
+func (s *Service) KnowledgeForCall(ctx context.Context, job Job, query string) (sent string, used, left []string, err error) {
+	kc, err := s.knowledgeForCall(ctx, s.Hooks(), job, query)
+	return kc.block.Text, kc.refs, kc.left, err
+}

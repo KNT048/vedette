@@ -97,6 +97,8 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		"resp_log.prev_hash": true, "resp_log.hash": true, "hp_hits.token_id": true,
 		// The hash chain of the AI activity log (verifiable offline) and the hash of the inputs an AI result was made from: digests, not secrets.
 		"ai_activity.prev_hash": true, "ai_activity.hash": true, "ai_activity.input_hash": true, "ai_activity.output_hash": true, "ai_result.inputs_hash": true,
+		// Counts of tokens used (the log export keeps them too), not tokens as in credentials.
+		"ai_activity.tokens_in": true, "ai_activity.tokens_out": true, "ai_result.tokens_in": true, "ai_result.tokens_out": true,
 	}
 	for tbl, cols := range schema {
 		if !known[tbl] {

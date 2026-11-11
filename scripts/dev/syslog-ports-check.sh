@@ -177,8 +177,9 @@ sleep 3
 podman restart -t 2 "$name" >/dev/null
 # what vedette-host does once it sees core run again (D-268): delete the UDP conntrack entries of port 514, fixed argv, exit 1 = nothing to delete
 rc=0
-/usr/sbin/conntrack -D -f ipv4 -p udp --orig-port-dst 514 >/dev/null 2>&1 || rc=$?
-[ "$rc" -le 1 ] || fail "conntrack -D exited $rc (needs root and the nf_conntrack netlink; vedette-host runs it as root)"
+ctout=$(/usr/sbin/conntrack -D -f ipv4 -p udp --orig-port-dst 514 2>&1 >/dev/null) || rc=$?
+[ "$rc" -le 1 ] || fail "conntrack -D exited $rc (needs root and the nf_conntrack netlink; vedette-host runs it as root): $ctout"
+ok "conntrack -D after the restart: $(printf '%s' "$ctout" | grep -o '[0-9]* flow entries have been deleted' || echo "no count printed (exit $rc)")"
 got=
 for _ in $(seq 1 10); do # lines after the LAST "ready" are the new container's
 	if [ "$(podman logs "$name" 2>&1 | tac | sed '/^ready$/q' | grep -c -x "udp $pip")" -gt 0 ]; then got=1; break; fi

@@ -50,3 +50,6 @@ export type ProposeBody = z.infer<typeof C.ProposeBody>
 export type ProposeResult = z.infer<typeof C.ProposeResult>
 export type Metrics = z.infer<typeof C.Metrics>
 export type Stat = z.infer<typeof C.Stat>
+export type Identity = z.infer<typeof C.Identity>
+export type IdentityList = z.infer<typeof C.IdentityList>
+export type CodeSent = z.infer<typeof C.CodeSent>

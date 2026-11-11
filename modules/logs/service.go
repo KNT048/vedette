@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/logs/listen"
 )
 
 // Config is what NewService needs. Config is the main database (configuration, audit), Volume is logs.db (lines and
@@ -26,6 +27,8 @@ type Config struct {
 	Box       Box
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
+	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
+	Syslog SyslogConfig
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -54,6 +57,11 @@ type Service struct {
 	afterStart func()
 	// afterSum, when set by a test, runs in resync after the sum is read, while the read transaction is still open.
 	afterSum func()
+	// changed wakes the syslog listener (capacity 1) when the sources change; listening is the running listener, nil when none.
+	changed chan struct{}
+	// loadForListener, when set by a test, replaces the read of the sources that feeds the listener.
+	loadForListener func(context.Context) ([]sourceRow, error)
+	listening       atomic.Pointer[listen.Server]
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -68,7 +76,7 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
@@ -253,6 +261,7 @@ func (s *Service) AddSource(ctx context.Context, user string, in Input) (Source,
 	if err != nil {
 		return Source{}, err
 	}
+	s.sourcesChanged()
 	return s.view(ctx, id)
 }
 
@@ -301,12 +310,13 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 	if err != nil {
 		return Source{}, err
 	}
+	s.sourcesChanged()
 	return s.view(ctx, id)
 }
 
 // DeleteSource removes a source (DELETE /logs/sources/{id}). The lines it sent are kept until retention expires (INV-4).
 func (s *Service) DeleteSource(ctx context.Context, user, id string) error {
-	return s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
+	err := s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
 		var name string
 		err := tx.QueryRowContext(ctx, `SELECT name FROM logs_sources WHERE id = ?`, id).Scan(&name)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -320,6 +330,10 @@ func (s *Service) DeleteSource(ctx context.Context, user, id string) error {
 		}
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.source_delete", Target: name, Detail: "logs already received are kept for the retention period"})
 	})
+	if err == nil {
+		s.sourcesChanged()
+	}
+	return err
 }
 
 // Retention returns how many days received lines are kept.

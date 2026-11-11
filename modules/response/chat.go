@@ -293,6 +293,12 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	refuse := func(e *apierr.Error) (ChatOutcome, error) {
 		return ChatOutcome{}, s.refuse(ctx, e, target, who.refuseActor())
 	}
+	// D-191: the ID must be one its person linked in My account. Not linked: nothing is decided and the private answer holds a link code.
+	if linked, err := s.isLinked(ctx, u, d.Channel, d.ExternalID); err != nil {
+		return ChatOutcome{}, err
+	} else if !linked {
+		return ChatOutcome{}, s.chatNotLinked(ctx, u, d.Channel, d.ExternalID, target, who.refuseActor())
+	}
 
 	// The request: from the button, or (Zalo) from the record of the code.
 	var rec codeRow
@@ -343,6 +349,9 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 		}
 		if u2.ID != u.ID { // the id was given to someone else while this call waited: it is not the person who was checked
 			return errChatNotListed(), nil
+		}
+		if linked, err := s.isLinked(ctx, u2, d.Channel, d.ExternalID); err != nil || !linked { // unlinked while this call waited
+			return errChatNotLinked(d.Channel), err
 		}
 		return nil, nil
 	}, detach: true}

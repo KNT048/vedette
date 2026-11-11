@@ -154,6 +154,7 @@ func telegramEnv(t *testing.T) *env {
 	e.note.chs = []response.NotifyChannel{{Type: "telegram", Label: "Telegram", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
 	e.note.approvers = map[string][]response.Approver{"telegram": {{UserID: "u-op", Address: "1001"}}}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"telegram"} })
+	e.linkAll()
 	return e
 }
 

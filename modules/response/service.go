@@ -232,6 +232,7 @@ type Config struct {
 	Links       LinkTokens  // nil = no approval link can be checked: every link is unknown (404)
 	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Planner     Planner     // nil = no plan is ever written; ai_available is false (13b-11)
+	Mailer      LinkMailer  // nil = no link code can be mailed: an email approver cannot link (503 email_not_ready), D-191
 	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
 	Critical func(ctx context.Context) ([]PlanTarget, error)
 	Evidence EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
@@ -292,6 +293,7 @@ type Service struct {
 	chatFullAt      time.Time              // when "chat rate table full" was last logged
 	chatNoteWin     time.Time              // start of the window of the global budget of refusal lines
 	chatNoteN       int
+	identSends      map[string][]time.Time // link codes made per person and channel in the last hour (D-191)
 
 	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
 	bg           context.Context

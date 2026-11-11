@@ -113,9 +113,6 @@ var (
 	rn73AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn75AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-	}
 	rn120AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -2375,14 +2372,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						switch r.Method {
 						case "GET":
 							s.handleCoreGetCoreMcpRequest([0]string{}, elemIsEscaped, w, r)
-						case "PATCH":
-							s.handleCorePatchCoreMcpRequest([0]string{}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET,PATCH",
-								allowedHeaders: rn75AllowedHeaders,
+								allowedMethods: "GET",
+								allowedHeaders: nil,
 								acceptPost:     "",
-								acceptPatch:    "application/json",
+								acceptPatch:    "",
 							})
 						}
 
@@ -10219,17 +10214,8 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCoreMcpOperation
-							r.summary = "MCP server state, tokens (last 4 characters only) and the read-only tool list"
+							r.summary = "MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every /core/mcp path answers 404"
 							r.operationID = "core_get_core_mcp"
-							r.operationGroup = ""
-							r.pathPattern = "/core/mcp"
-							r.args = args
-							r.count = 0
-							return r, true
-						case "PATCH":
-							r.name = CorePatchCoreMcpOperation
-							r.summary = "Turn the MCP server on/off (binds to localhost)"
-							r.operationID = "core_patch_core_mcp"
 							r.operationGroup = ""
 							r.pathPattern = "/core/mcp"
 							r.args = args
@@ -10252,7 +10238,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostCoreMcpTokensOperation
-								r.summary = "Create a read-only token by scope; returns the full token once"
+								r.summary = "Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many)"
 								r.operationID = "core_post_core_mcp_tokens"
 								r.operationGroup = ""
 								r.pathPattern = "/core/mcp/tokens"
@@ -10606,7 +10592,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCorePrivacyOperation
-							r.summary = "The 12 data flows leaving the box and the verbatim anonymous-signal payload"
+							r.summary = "The 13 data flows leaving the box and the verbatim anonymous-signal payload"
 							r.operationID = "core_get_core_privacy"
 							r.operationGroup = ""
 							r.pathPattern = "/core/privacy"

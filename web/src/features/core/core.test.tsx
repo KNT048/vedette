@@ -300,11 +300,11 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
-  it('hiện đủ 12 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
+  it('hiện đủ 13 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(13)
-    for (const n of ['Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(14)
+    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
     expect(document.querySelector('pre code')).toBeNull()
     expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()
@@ -892,9 +892,47 @@ describe('core: MCP (S-MCP-1)', () => {
     const row = (await screen.findByText('Claude Desktop', { selector: 'span' })).closest('tr')!
     expect(row.textContent).not.toMatch(/vmcp_/)
     await u.click(within(row).getByRole('button', { name: 'Revoke token Claude Desktop' }))
+    const ask = await screen.findByRole('dialog', { name: 'Revoke token Claude Desktop?' })
+    await u.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(within(row).getByText('Claude Desktop')).toBeInTheDocument()
+    await u.click(within(row).getByRole('button', { name: 'Revoke token Claude Desktop' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'Revoke token Claude Desktop?' })).getByRole('button', { name: 'Revoke' }))
     expect(await screen.findByText('No tokens yet. Create one so an outside tool can connect.')).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Tools the MCP server offers' })).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+  it('the switch is the module (D-230): off, no /core/mcp path answers and the page asks for none', async () => {
+    const u = user()
+    setModule('mcp-server', true)
+    renderApp('/settings/mcp')
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })).toBeInTheDocument()
+    await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(modulesStore.get().find((m) => m.id === 'mcp-server')?.enabled).toBe(false)
+    expect(screen.queryByText('127.0.0.1:8765')).not.toBeInTheDocument()
+    expect((await call('/core/mcp', 'GET')).status).toBe(404)
+    expect((await call('/core/mcp/tokens', 'POST', { name: 'x', scopes: ['feeds'] })).status).toBe(404)
+    expect((await call('/core/mcp/tokens/t-1', 'DELETE')).status).toBe(404)
+  })
+  it('a port another program holds is said plainly, so no token goes to it (D-230)', async () => {
+    setModule('mcp-server', true)
+    server.use(http.get('*/api/v1/core/mcp', () => HttpResponse.json({ enabled: true, bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: false,
+      listen_error: 'The port 127.0.0.1:8765 could not be opened: another program may hold it. Vedette tries again every 15 seconds.', tokens: [], tools: [], scopes: ['assets'] })))
+    renderApp('/settings/mcp')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('could not be opened')
+    expect(alert).toHaveTextContent('Do not give a token to this address')
+  })
+  it('refuses what the server refuses: bad name, unknown scope, an 11th token', async () => {
+    setModule('mcp-server', true)
+    renderApp('/settings/mcp') // signs the admin in
+    await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })
+    const create = (b: object) => call('/core/mcp/tokens', 'POST', b)
+    expect(await errCode(await create({ name: '<b>', scopes: ['feeds'] }))).toBe('invalid_name')
+    expect(await errCode(await create({ name: 'ok', scopes: ['feeds', 'secrets'] }))).toBe('invalid_scopes')
+    expect(await errCode(await create({ name: 'ok', scopes: [] }))).toBe('invalid_scopes')
+    for (let i = 0; i < 10; i++) expect((await create({ name: `t${i}`, scopes: ['feeds'] })).status).toBe(201)
+    expect(await errCode(await create({ name: 'eleven', scopes: ['feeds'] }))).toBe('too_many')
   })
 })
 

@@ -81,7 +81,6 @@ const (
 	CoreGetModulesOperation                                 OperationName = "CoreGetModules"
 	CoreGetSetupOperation                                   OperationName = "CoreGetSetup"
 	CorePatchCoreAccountOperation                           OperationName = "CorePatchCoreAccount"
-	CorePatchCoreMcpOperation                               OperationName = "CorePatchCoreMcp"
 	CorePatchCorePrivacyOperation                           OperationName = "CorePatchCorePrivacy"
 	CorePatchCoreUpdatesOperation                           OperationName = "CorePatchCoreUpdates"
 	CorePatchCoreUpdatesOsSettingsOperation                 OperationName = "CorePatchCoreUpdatesOsSettings"

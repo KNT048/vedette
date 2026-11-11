@@ -87,6 +87,11 @@ func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {
 		"link_preview_options": map[string]any{"is_disabled": true},
 	}
 	if len(m.Buttons) > 0 {
+		for _, b := range m.Buttons {
+			if !callbackDataRE.MatchString(b.Data) {
+				return Receipt{}, fmt.Errorf("%w: Telegram button data is 1 to 64 characters", ErrInvalidMessage)
+			}
+		}
 		args["reply_markup"] = telegramKeyboard(m.Buttons)
 	}
 	if m.Kind == "approval" {

@@ -104,7 +104,7 @@ Thư chứa: tiêu đề yêu cầu, bảng thay đổi (lấy từ `change`, **
 - **Ánh xạ danh tính**: sự kiện `block_actions` đến kèm `user.id` (Slack member ID) và `channel.id`. Core tìm `Approver` trong cấu hình kênh Slack có `address == user.id` → `user_id` Vedette. Không tìm thấy hoặc người dùng không còn operator/admin → từ chối, tin phản hồi riêng (ephemeral) "You are not an approver".
 - Chỉ nhận từ `channel_id` đã khai báo trong cấu hình (mock có `channel_id` "approvals only"); nút bấm trong kênh khác bị bỏ qua.
 - Chống giả mạo: kết nối Socket Mode được Slack xác thực bằng `app_token`, nên không cần kiểm chữ ký request như webhook; vẫn kiểm `request_id` còn `pending` và `payload.team.id` trùng team đã cấu hình.
-- Sau khi quyết định: cập nhật tin gốc (chat.update) để bỏ nút, ghi ai quyết định.
+- Sau khi quyết định (hoặc hết hạn): cập nhật tin gốc (chat.update) để bỏ nút, giữ văn bản, thêm một dòng cố định nói kết quả (Approved / Rejected / Expired / Cancelled / ended). Không ghi tên hay email người quyết định vào kênh Slack (D-241); log kiểm toán của Vedette có.
 - Kết nối đứt: kết nối lại có lùi dần; trong lúc đứt, yêu cầu vẫn mở trong app và các kênh khác. Quá hạn thì yêu cầu hết hạn bình thường.
 
 ## 6. Telegram (bot, long polling)

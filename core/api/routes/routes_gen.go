@@ -99,7 +99,6 @@ var Operations = map[string]Operation{
 	"core_get_modules":                                      {Method: "GET", Path: "/modules", MinRole: Viewer, Tag: "core"},
 	"core_get_setup":                                        {Method: "GET", Path: "/setup", MinRole: Public, Tag: "core"},
 	"core_patch_core_account":                               {Method: "PATCH", Path: "/core/account", MinRole: Viewer, Tag: "core"},
-	"core_patch_core_mcp":                                   {Method: "PATCH", Path: "/core/mcp", MinRole: Admin, Tag: "core"},
 	"core_patch_core_privacy":                               {Method: "PATCH", Path: "/core/privacy", MinRole: Admin, Tag: "core"},
 	"core_patch_core_updates":                               {Method: "PATCH", Path: "/core/updates", MinRole: Admin, Tag: "core"},
 	"core_patch_core_updates_os_settings":                   {Method: "PATCH", Path: "/core/updates/os/settings", MinRole: Admin, Tag: "core"},

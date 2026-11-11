@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-faster/jx"
 	ht "github.com/ogen-go/ogen/http"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/store"
 )
 
 // safeField admits only names that can come from the contract (property and parameter names).
@@ -39,6 +41,8 @@ func mapError(err error) (*apierr.Error, bool) {
 	switch {
 	case errors.As(err, &api):
 		return api, false
+	case errors.Is(err, store.ErrBusy): // the writer stayed taken past the request's wait limit (D-246); store logged it
+		return serverBusy(), false
 	case errors.As(err, &maxErr):
 		return apierr.TooLarge(), false
 	case errors.As(err, &secErr):
@@ -72,6 +76,12 @@ func mapError(err error) (*apierr.Error, bool) {
 		return apierr.Invalid("The request body is not valid JSON of the expected shape."), false
 	}
 	return apierr.Internal(), true
+}
+
+// serverBusy is the 503 of a request refused because the database writer stayed busy past store.RequestWriteWait (D-246).
+func serverBusy() *apierr.Error {
+	return apierr.New(http.StatusServiceUnavailable, "server_busy", "The box is busy saving other changes. Try again in a few seconds.").
+		With("retry_after", int(store.RequestWriteWait/time.Second))
 }
 
 // fieldPath is the full path of the first failing field of a validation error, for example

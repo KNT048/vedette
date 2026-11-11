@@ -8278,7 +8278,9 @@ func (s *Server) handleCoreGetCoreLogsExportRequest(args [0]string, argsEscaped 
 
 // handleCoreGetCoreMcpRequest handles core_get_core_mcp operation.
 //
-// MCP server state, tokens (last 4 characters only) and the read-only tool list.
+// MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the
+// mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every
+// /core/mcp path answers 404.
 //
 // GET /core/mcp
 func (s *Server) handleCoreGetCoreMcpRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8347,7 +8349,7 @@ func (s *Server) handleCoreGetCoreMcpRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreMcpOperation,
-			OperationSummary: "MCP server state, tokens (last 4 characters only) and the read-only tool list",
+			OperationSummary: "MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every /core/mcp path answers 404",
 			OperationID:      "core_get_core_mcp",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -8782,7 +8784,7 @@ func (s *Server) handleCoreGetCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleCoreGetCorePrivacyRequest handles core_get_core_privacy operation.
 //
-// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8851,7 +8853,7 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCorePrivacyOperation,
-			OperationSummary: "The 12 data flows leaving the box and the verbatim anonymous-signal payload",
+			OperationSummary: "The 13 data flows leaving the box and the verbatim anonymous-signal payload",
 			OperationID:      "core_get_core_privacy",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -10074,147 +10076,6 @@ func (s *Server) handleCorePatchCoreAccountRequest(args [0]string, argsEscaped b
 	}
 
 	if err := encodeCorePatchCoreAccountResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleCorePatchCoreMcpRequest handles core_patch_core_mcp operation.
-//
-// Turn the MCP server on/off (binds to localhost).
-//
-// PATCH /core/mcp
-func (s *Server) handleCorePatchCoreMcpRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: CorePatchCoreMcpOperation,
-			ID:   "core_patch_core_mcp",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, CorePatchCoreMcpOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeCorePatchCoreMcpRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *CorePatchCoreMcpOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    CorePatchCoreMcpOperation,
-			OperationSummary: "Turn the MCP server on/off (binds to localhost)",
-			OperationID:      "core_patch_core_mcp",
-			Body:             request,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = *CorePatchCoreMcpReq
-			Params   = struct{}
-			Response = *CorePatchCoreMcpOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CorePatchCoreMcp(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.CorePatchCoreMcp(ctx, request)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeCorePatchCoreMcpResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -12814,7 +12675,7 @@ func (s *Server) handleCorePostCoreDataPurgeRequest(args [0]string, argsEscaped 
 
 // handleCorePostCoreMcpTokensRequest handles core_post_core_mcp_tokens operation.
 //
-// Create a read-only token by scope; returns the full token once.
+// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).
 //
 // POST /core/mcp/tokens
 func (s *Server) handleCorePostCoreMcpTokensRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12898,7 +12759,7 @@ func (s *Server) handleCorePostCoreMcpTokensRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreMcpTokensOperation,
-			OperationSummary: "Create a read-only token by scope; returns the full token once",
+			OperationSummary: "Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many)",
 			OperationID:      "core_post_core_mcp_tokens",
 			Body:             request,
 			RawBody:          rawBody,

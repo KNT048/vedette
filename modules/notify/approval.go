@@ -120,7 +120,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 					return nil, err
 				}
 			}
-			if ac.Type == channel.Slack && !req.NoChatButtons { // Approve/Reject buttons through the bot; the posted message is kept (slacklisten.go)
+			if ac.Type == channel.Slack && !req.NoChatButtons && channel.SlackFits(m) { // buttons through the bot; the posted message is kept (slacklisten.go)
 				if bs, btns := s.slackApprovalSender(ctx, c, req); bs != nil {
 					snd, m.Buttons = bs, btns
 				}

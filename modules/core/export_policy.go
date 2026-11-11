@@ -102,10 +102,12 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice_finding":  {export: "notice_id finding_id"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient", json: "message", url: "to"},
+	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"}, // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
-	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at"},
+	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},
+	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},
 	"notify_slack_team":      {skipAll: true, skip: "id rev team_id"},
 	"logs_retention":         {export: "id days"},
 	"logs_sources":           {export: "id kind name sender_ip proto port created_at"},

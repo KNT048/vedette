@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -155,12 +157,14 @@ func TestEnsureOffFailsWhileAnUnavailableHostMayStillHoldTraps(t *testing.T) {
 	e.gate.turnOff()
 	e.host.mu.Lock()
 	e.host.status.Available = false
+	e.host.failRm = errors.New("vedette-host is not answering") // unreachable: nothing can be removed either
 	e.host.mu.Unlock()
 	if err := e.svc.EnsureOff(ctx); err == nil {
 		t.Fatal("an unavailable host that still holds applied addresses was reported as torn down")
 	}
 	e.host.mu.Lock()
 	e.host.status.Available = true
+	e.host.failRm = nil
 	e.host.mu.Unlock()
 	if err := e.svc.EnsureOff(ctx); err != nil {
 		t.Fatal(err)
@@ -227,4 +231,113 @@ func TestApplyRecordsAnAddressTheHostTookWhileTheContextWasCancelled(t *testing.
 	if len(e.host.ips) != 0 {
 		t.Fatalf("the teardown left %v", e.host.ips)
 	}
+}
+
+// H2: only a refusal of the host drops an address from the record and shows a conflict; an unknown outcome (the answer was
+// lost, the host was busy) keeps it on record, shows no conflict, stops this Apply from asking for more, and the teardown
+// removes what the host did take (SYS-5).
+func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	sec := addr("192.168.10.240")
+	e.host.mu.Lock()
+	e.host.failAdd = map[netip.Addr]error{sec: errors.New("the host's answer was lost, outcome unknown")}
+	e.host.addTook = true
+	e.host.mu.Unlock()
+	if err := e.svc.Apply(e.ctx()); err == nil || errors.Is(err, honeypot.ErrRefused) {
+		t.Fatalf("an unknown outcome: %v", err)
+	}
+	if got := e.svc.DecoyIPs(e.ctx()); len(got) != 1 || got[0] != sec {
+		t.Fatalf("the address the host may hold is not on record: %v", got)
+	}
+	for _, tr := range overviewTraps(t, e) {
+		if tr.State == "conflict" {
+			t.Fatalf("an unknown outcome shows %s as a conflict", tr.Service)
+		}
+	}
+	if ok, _ := e.svc.HostStatus(); ok {
+		t.Fatal("a trap listens on an address nobody confirmed")
+	}
+	e.gate.turnOff()
+	if err := e.svc.EnsureOff(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if e.host.ipCount() != 0 {
+		t.Fatalf("the teardown left %d addresses on the host", e.host.ipCount())
+	}
+
+	// A refusal is a refusal: dropped from the record, shown as a conflict.
+	e2 := newEnv(t)
+	e2.setup()
+	e2.host.mu.Lock()
+	e2.host.failAdd = map[netip.Addr]error{sec: fmt.Errorf("another device answers (ip_in_use): %w", honeypot.ErrRefused)}
+	e2.host.mu.Unlock()
+	_ = e2.svc.Apply(e2.ctx())
+	if got := e2.svc.DecoyIPs(e2.ctx()); len(got) != 0 {
+		t.Fatalf("a refused address is on record: %v", got)
+	}
+	conflicts := 0
+	for _, tr := range overviewTraps(t, e2) {
+		if tr.State == "conflict" {
+			conflicts++
+		}
+	}
+	if conflicts == 0 {
+		t.Fatal("a refused address shows no conflict")
+	}
+}
+
+// M1: after an unknown outcome the Apply asks the host for no further address.
+func TestApplyStopsAskingAfterAnUnknownOutcome(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	if _, err := e.svc.AddDecoy(e.ctx(), "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "LNX-OLD", IP: "192.168.10.241"}); err != nil {
+		t.Fatal(err)
+	}
+	busy := errors.New("the host is busy")
+	e.host.mu.Lock()
+	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.240"): busy, addr("192.168.10.241"): busy}
+	e.host.mu.Unlock()
+	_ = e.svc.Apply(e.ctx())
+	adds := 0
+	for _, c := range e.host.log() {
+		if strings.HasPrefix(c, "add ") {
+			adds++
+		}
+	}
+	if adds != 1 {
+		t.Fatalf("%d adds asked after an unknown outcome: %v", adds, e.host.log())
+	}
+}
+
+// M2: a host that answers but cannot run the container (its unit is missing) still has its decoy addresses removed when
+// the module is switched off; done only when they are all gone.
+func TestEnsureOffRemovesAddressesWhenTheContainerIsNotAvailable(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.gate.turnOff()
+	e.host.mu.Lock()
+	e.host.status = honeypot.HostStatus{Available: false, Reason: "the honeypot container is not installed on this box"}
+	e.host.mu.Unlock()
+	if err := e.svc.EnsureOff(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if e.host.ipCount() != 0 {
+		t.Fatalf("decoy addresses left on the host: %d", e.host.ipCount())
+	}
+}
+
+func overviewTraps(t *testing.T, e *env) []honeypot.Trap {
+	t.Helper()
+	o, err := e.svc.Overview(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return o.Traps
 }

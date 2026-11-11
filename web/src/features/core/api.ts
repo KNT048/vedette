@@ -3,7 +3,7 @@ import { api, ApiError } from '@/lib/api'
 import type { ModuleId } from '@/lib/modules'
 import type { Role } from '@/lib/session'
 import type {
-  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
+  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
@@ -85,11 +85,11 @@ export function useUserMutations() {
     reset2fa: useMutation({ mutationFn: (id: string) => api.post(`/core/users/${id}/2fa/reset`), onSuccess: refresh }),
   }
 }
-export const useOidc = () => useQuery({ queryKey: ['core', 'oidc'], queryFn: () => api.get<OidcConfig>('/core/oidc') })
+export const useOidc = (enabled = true) => useQuery({ queryKey: ['core', 'oidc'], queryFn: () => api.get<OidcConfig>('/core/oidc'), enabled })
 export function useOidcMutations() {
   const qc = useQueryClient()
   return {
-    save: useMutation({ mutationFn: (v: Omit<OidcConfig, 'secret_last4'> & { client_secret: string }) => api.put<OidcConfig>('/core/oidc', v), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['core', 'oidc'] }); void qc.invalidateQueries({ queryKey: ['core', 'auth-options'] }) } }),
+    save: useMutation({ mutationFn: (v: OidcSave) => api.put<OidcConfig>('/core/oidc', v), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['core', 'oidc'] }); void qc.invalidateQueries({ queryKey: ['core', 'auth-options'] }) } }),
     test: useMutation({ mutationFn: () => api.post<{ ok: true; endpoints: Record<string, string> }>('/core/oidc/test') }),
   }
 }
@@ -172,7 +172,7 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
 export const saveNotifyChannel = (type: string, fields: Record<string, string>, secret: string) =>
   api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
-export const usePurge = () => useMutation({ mutationFn: (confirm: string) => api.post<{ ok: true; removed: Record<string, number> }>('/core/data/purge', { confirm }) })
+export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
 // ---- mạng của hộp (D-56) ----
 export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })

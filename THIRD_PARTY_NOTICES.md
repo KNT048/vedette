@@ -56,13 +56,13 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | github.com/go-faster/yaml | v0.4.6 | Apache-2.0 and MIT | spec parser inside ogen's `jsonschema` package (linked, not used at run time) |
 | github.com/dlclark/regexp2 | v1.12.0 | MIT | string `pattern` validation (ECMA-262 regexes from the contract) |
 | github.com/google/uuid | v1.6.0 | BSD-3-Clause | UUID parameters in generated code |
-| github.com/shopspring/decimal | v1.4.0 | MIT | number handling in ogen runtime |
+| github.com/shopspring/decimal | v1.5.0 | MIT | number handling in ogen runtime |
 | github.com/segmentio/asm | v1.2.1 | MIT-0 | base64 in ogen runtime |
 | github.com/ghodss/yaml | v1.0.0 | MIT and BSD-3-Clause | YAML to JSON in ogen's spec package (linked, not used at run time) |
 | gopkg.in/yaml.v2 | v2.4.0 | Apache-2.0 and MIT | YAML parsing used by `ghodss/yaml` |
 | github.com/fatih/color, github.com/mattn/go-colorable, github.com/mattn/go-isatty | v1.19.0, v0.1.14, v0.0.24 | MIT | terminal colour in ogen's logger (linked, not used at run time) |
 | go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
-| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, 2023-07-25 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
+| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, v0.0.0-20261011100332-faecfb24eb49 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
 
 ## Protocol knowledge re-implemented in Go (no third-party code linked)
 
@@ -120,6 +120,8 @@ Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tool
 | nfpm (github.com/goreleaser/nfpm/v2) | v2.43.0 | MIT | the maintainer's build tool for the `vedette-host` `.deb` (`make host-deb`, D-155); a separate process on the maintainer's and CI machine, never shipped or linked into Vedette; its Go dependency graph was checked for GPL/AGPL (none) |
 | sqlc (github.com/sqlc-dev/sqlc) | v1.31.1 | MIT | generates the typed query code in `core/store/coredb` from SQL files (`make generate`); the generated code is committed, sqlc itself is never linked |
 | GitHub Actions in `.github/workflows/ci.yml`: `actions/checkout`, `actions/setup-go`, `pnpm/action-setup`, `actions/cache` | pinned by commit SHA (cache v6.1.0) | MIT | run on GitHub's runners only (D-63); `actions/cache` keeps the golangci-lint cache between runs (D-140). Change detection uses no third-party action |
+
+Release supply-chain scanner (D-159, maintainer's machine only, never shipped, not a Go dependency): **trivy** (aquasecurity/trivy, Apache-2.0), run from its official container image pinned by digest in `deploy/tools.env`. `make sbom` writes the CycloneDX SBOMs (`dist/sbom/`) and `make vuln-scan` gates the release on fixable HIGH/CRITICAL vulnerabilities. It downloads its own vulnerability database (`ghcr.io/aquasecurity/trivy-db`, built by Aqua Security from public advisories; used only to scan, not redistributed) into the maintainer's cache; nothing of Vedette's, and no data of a customer, leaves the machine.
 
 Release signing tools (maintainer's machine only, not in `tools/go.mod`, never shipped): minisign (ISC) signs `index.json` and release manifests; cosign (Apache-2.0), pinned, signs images in the legacy format with `--new-bundle-format=false --use-signing-config=false` (D-103). minisign 0.12 was also run once to produce the committed signature test vectors of `internal/release` (D-107; throwaway test keys, commands in `internal/release/testdata/README.md`). cosign was not run: its legacy signature format is built by a committed Go generator, and two payload strings are copied from the test file of github.com/sigstore/sigstore `pkg/signature/payload` (Apache-2.0, source and commit in that README); no cosign or sigstore code is linked.
 

@@ -4,13 +4,17 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
+import { toast } from 'sonner'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { encode } from 'uqr'
-import { totpAt } from './totp'
+import { newSecret, totpAt } from './totp'
+import { collection } from '@/mocks/db'
 import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
-import { mockSign } from './mocks'
+import { mockSign, MOCK_IDP_USER } from './mocks'
+import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
+import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
@@ -310,8 +314,20 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     await expectNoA11yViolations()
   })
 
+  it('the anonymous signal cannot be turned on: 400 telemetry_unavailable, and it reads as off (D-154)', async () => {
+    renderApp('/settings/privacy')
+    await screen.findByRole('heading', { level: 1 })
+    const on = await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: true }) })
+    expect(on.status).toBe(400)
+    expect(((await on.json()) as { error: { code: string } }).error.code).toBe('telemetry_unavailable')
+    const off = await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: false }) })
+    expect(off.status).toBe(200)
+    const got = (await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()) as { telemetry: { enabled: boolean } }
+    expect(got.telemetry.enabled).toBe(false)
+  })
+
   it.each([true, false])('the title never says a signal is sent, whatever telemetry.enabled is (%s)', async (enabled) => {
-    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) })
+    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) }) // true is refused (400): the title does not depend on it
     renderApp('/settings/privacy')
     const h1 = await screen.findByRole('heading', { level: 1 })
     expect(h1).toHaveTextContent('The box connects out only for the flows listed below')
@@ -346,21 +362,102 @@ describe('core: dữ liệu', () => {
     await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample')
     expect(confirm).toBeDisabled()
     await u.type(within(dlg).getByLabelText(/Type the organization name/), ' Company')
+    expect(confirm).toBeDisabled() // the password is needed too (D-154)
+    expect(within(dlg).queryByLabelText('Two-step code')).toBeNull() // no two-step on this account
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
     expect(confirm).toBeEnabled()
+    // what is deleted and what is kept, said exactly
+    expect(within(dlg).getByText(/Deleted: all data, users and backups.*decryption key is replaced/)).toBeInTheDocument()
+    expect(within(dlg).getByText(/Kept: the TLS certificate, the system journal.*network settings/)).toBeInTheDocument()
     await u.click(confirm)
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
     expect(orgStore.get().setup_complete).toBe(false)
     expect(sessionStore.get().userId).toBeNull()
     spy.mockRestore()
   })
 
+  it('mật khẩu sai bị từ chối, 5 lần sai bị chặn, không xoá gì', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'not-the-password')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/The password is needed to delete all data/)).toBeInTheDocument()
+    for (let i = 0; i < 4; i++) await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await u.clear(within(dlg).getByLabelText('Your current password'))
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo') // the right one, but the limit is reached
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Too many tries/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+    expect(assetsStore.get().length).toBeGreaterThan(0)
+    spy.mockRestore()
+  })
+
+  it('có hai bước: ô mã hiện ra, thiếu hay sai mã bị từ chối, đúng mã mới xoá', async () => {
+    const u = user()
+    const secret = newSecret()
+    collection<Record<string, string>>('core_totp', () => ({})).update((s) => ({ ...s, 'u-admin': secret }))
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+    expect(within(dlg).getByText('The 6-digit code from your authenticator app.')).toBeInTheDocument()
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Enter the 6-digit code|Type the 6-digit code/)).toBeInTheDocument()
+    await u.type(within(dlg).getByLabelText('Two-step code'), '000000')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Wrong code/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+    await u.clear(within(dlg).getByLabelText('Two-step code'))
+    await u.type(within(dlg).getByLabelText('Two-step code'), await totpAt(secret, Date.now()))
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    spy.mockRestore()
+  })
+
+  it('nói rõ cái gì chưa xoá được (kept) trước khi rời trang', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    server.use(http.post(`${location.origin}/api/v1/core/data/purge`, () => HttpResponse.json({ ok: true, removed: {}, kept: ['host_backups'] })))
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    const done = await screen.findByRole('dialog', { name: 'All data deleted' })
+    expect(within(done).getByText(/set up without the helper/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled() // the page waits for the administrator
+    await u.click(within(done).getByRole('button', { name: 'Continue to setup' }))
+    expect(spy).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
+  })
+
   it('server từ chối khi tên không khớp', async () => {
     renderApp('/settings/data')
     await screen.findByRole('button', { name: 'Delete all data' })
-    const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai' }) })
+    const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai', password: 'vedette-demo' }) })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('confirm_mismatch')
     expect(assetsStore.get().length).toBeGreaterThan(0)
+  })
+
+  it('the release build (VITE_API_MOCK=off) does not offer to restore sample data a real box does not have (issue #244)', async () => {
+    vi.stubEnv('VITE_API_MOCK', 'off')
+    try {
+      renderApp('/settings/data')
+      await screen.findByRole('button', { name: 'Download backup' })
+      expect(screen.queryByRole('button', { name: 'Restore sample data' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/Trial build only/)).not.toBeInTheDocument()
+    } finally { vi.unstubAllEnvs() }
   })
 
   it('khôi phục dữ liệu mẫu gọi reset rồi tải lại', async () => {
@@ -438,7 +535,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     const u = user()
     renderApp('/settings/users')
     await u.selectOptions((await screen.findAllByLabelText('Role of Admin'))[0]!, 'viewer')
-    expect(await screen.findByText(/At least one active administrator must remain/)).toBeInTheDocument()
+    expect((await screen.findAllByText(/who signs in with a password must remain/))[0]).toBeInTheDocument()
     expect(usersStore.get().find((x) => x.id === 'u-admin')!.role).toBe('admin')
   })
 
@@ -458,14 +555,28 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await u.type(await screen.findByLabelText('Issuer'), 'http://sso.acme.example')
     await u.type(screen.getByLabelText('Client ID'), 'vedette')
     await u.type(screen.getByLabelText('Client secret'), 'bi-mat-rat-dai')
+    // D-194 (5): the redirect address is the SPA callback page, not an API path
+    expect(screen.getByText(`${location.origin}/sso/callback`)).toBeInTheDocument()
+    // D-195: no access by default
+    expect((screen.getByLabelText('People in none of these groups') as HTMLSelectElement).value).toBe('none')
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/The issuer must be an https address/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Issuer'))
     await u.type(screen.getByLabelText('Issuer'), 'https://sso.acme.example/realms/main')
+    await u.clear(screen.getByLabelText('Scopes'))
+    await u.type(screen.getByLabelText('Scopes'), 'email profile')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/Scopes are words separated by spaces/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Scopes')).toHaveAttribute('aria-invalid', 'true') // the error sits under its own field
+    expect(screen.getByLabelText('Issuer')).toHaveAttribute('aria-invalid', 'false')
+    await u.type(screen.getByLabelText('Scopes'), ' openid groups')
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/ending in/)).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Test connection' }))
-    expect(await screen.findByText('Read the IdP\'s OIDC configuration.')).toBeInTheDocument()
+    expect(await screen.findByText('Read the identity provider\'s OIDC configuration.')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Endpoints read from the identity provider' })).getByText('Signing keys')).toBeInTheDocument()
+    expect(auditStore.get().map((r) => r.action)).toEqual(expect.arrayContaining(['oidc.update', 'oidc.test']))
+    await expectNoA11yViolations()
   })
 
   it('trang đăng nhập có nút SSO khi auth-oidc bật và đã cấu hình', async () => {
@@ -476,19 +587,205 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign in with SSO' })).toBeNull()
   })
+})
 
-  it('SSO đã cấu hình: nút hiện ở trang đăng nhập và đăng nhập được', async () => {
-    const u = user()
+// D-194, D-195, D-196: the SSO round trip on the mock. The mock skips the identity provider: its authorization address is the
+// callback page itself, with a code. The identity there is MOCK_IDP_USER (groups vedette-operators and staff).
+describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
+  const ISSUER = 'https://sso.acme.example'
+  async function configure(map: { group: string; role: Role }[], default_role: Role | null = null) {
     setModule('auth-oidc', true)
     sessionStore.set({ userId: 'u-admin' })
-    const put = await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: 'https://sso.acme.example', client_id: 'v', client_secret: 'bi-mat-rat-dai', default_role: 'viewer', role_map: [] }) })
+    const put = await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: ISSUER, client_id: 'v', client_secret: 'bi-mat-rat-dai', scopes: 'openid email profile', groups_claim: 'groups', default_role, role_map: map }) })
     expect(put.status).toBe(200)
-    renderApp('/login', { role: null })
-    await u.click(await screen.findByRole('button', { name: 'Sign in with SSO' }))
-    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
-    expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.role).toBe('viewer')
+    sessionStore.set({ userId: null })
+  }
+  /** What the sign-in page does: start, keep the binding in this tab; returns the callback path the IdP would send back. */
+  async function start(): Promise<string> {
+    const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    const b = (await r.json()) as { authorize_url: string; binding: string }
+    saveSsoFlow({ binding: b.binding, next: '/account' })
+    const url = new URL(b.authorize_url)
+    return url.pathname + url.search
+  }
+  const ssoUser = () => usersStore.get().find((x) => x.email === MOCK_IDP_USER.email)
+
+  it('nút SSO bắt đầu luồng và giữ binding trong tab này', async () => {
+    const u = user()
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, origin: location.origin, assign })
+    try {
+      renderApp('/login?next=%2Faccount', { role: null })
+      await u.click(await screen.findByRole('button', { name: 'Sign in with SSO' }))
+      await waitFor(() => expect(assign).toHaveBeenCalledOnce())
+    } finally { vi.unstubAllGlobals() }
+    expect(String(assign.mock.calls[0]![0])).toMatch(/\/sso\/callback\?code=mock-[0-9a-f]+&state=[0-9a-f]{64}$/)
+    expect(takeSsoFlow()).toEqual({ binding: expect.stringMatching(/^[0-9a-f]{64}$/), next: '/account' })
   })
 
+  it('lần đầu: tạo tài khoản SSO với vai cao nhất của nhóm, vào trang đang định vào', async () => {
+    await configure([{ group: 'staff', role: 'viewer' }, { group: 'vedette-operators', role: 'operator' }, { group: 'other', role: 'admin' }])
+    renderApp(await start(), { role: null })
+    expect(await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)).toBeInTheDocument()
+    expect(ssoUser()).toMatchObject({ role: 'operator', sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub }, password: '' })
+    expect(sessionStore.get().userId).toBe(ssoUser()!.id)
+    const rows = auditStore.get().map((r) => `${r.action} ${r.detail ?? ''}`)
+    expect(rows).toEqual(expect.arrayContaining(['user.create SSO', 'auth.login SSO']))
+    // D-195 (5), D-196 (1): no password, no Vedette two-step sign-in
+    expect(screen.queryByRole('button', { name: 'Change password' })).toBeNull()
+    const login = await fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: MOCK_IDP_USER.email, password: '' }) })
+    expect(login.status).toBe(400)
+  })
+
+  it('vai đồng bộ theo nhóm ở mỗi lần đăng nhập', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    await configure([{ group: 'vedette-operators', role: 'viewer' }])
+    renderApp(await start(), { role: null })
+    await waitFor(() => expect(ssoUser()?.role).toBe('viewer'))
+    expect(auditStore.get().some((r) => r.action === 'user.role' && r.detail?.includes('SSO groups'))).toBe(true)
+  })
+
+  it('không nhóm nào khớp và vai mặc định là No access → từ chối, không tạo tài khoản', async () => {
+    await configure([{ group: 'vedette-admins', role: 'admin' }])
+    renderApp(await start(), { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your company account is not in a group that may use Vedette')
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute('href', '/login')
+    expect(ssoUser()).toBeUndefined()
+    expect(auditStore.get().some((r) => r.action === 'auth.login_failed' && r.detail === 'SSO: no_access')).toBe(true)
+    await expectNoA11yViolations()
+  })
+
+  it('vai mặc định cho người không thuộc nhóm nào khi quản trị viên chọn', async () => {
+    await configure([], 'viewer')
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    expect(ssoUser()?.role).toBe('viewer')
+  })
+
+  it('liên kết gọi lại mở ở tab khác (không có binding) hay dùng lại → từ chối', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    const path = await start()
+    const kept = takeSsoFlow()! // another tab: nothing kept here
+    renderApp(path, { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('started in another tab')
+    expect(ssoUser()).toBeUndefined()
+    // the state was spent by that try: even the right binding no longer helps
+    const state = new URLSearchParams(path.split('?')[1]).get('state')
+    const again = await fetch(`${location.origin}/api/v1/auth/oidc/callback`, { method: 'POST', body: JSON.stringify({ code: 'x', state, binding: kept.binding }) })
+    expect(again.status).toBe(400)
+    expect(((await again.json()) as { error: { code: string } }).error.code).toBe('sso_expired')
+  })
+
+  it('IdP trả lỗi → hiện mã lỗi, không gọi hộp', async () => {
+    const calls: string[] = []
+    const seen = ({ request }: { request: Request }) => { calls.push(new URL(request.url).pathname) }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/sso/callback?error=access_denied&state=x', { role: null })
+      expect(await screen.findByRole('alert')).toHaveTextContent('Your identity provider did not sign you in (access_denied). Try again')
+    } finally { server.events.removeListener('request:start', seen) }
+    expect(calls).not.toContain('/api/v1/auth/oidc/callback')
+  })
+
+  it('module tắt: không có route SSO (404); địa chỉ khác địa chỉ đã đăng ký → 409 sso_wrong_address', async () => {
+    const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    expect(r.status).toBe(404)
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    // the administrator saved from another address: that is the one registered at the identity provider
+    collection<{ redirect_uri?: string }>('oidc_config', () => ({})).update((c) => ({ ...c, redirect_uri: 'https://vedette.acme.example/sso/callback' }))
+    const w = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    expect(w.status).toBe(409)
+    expect(((await w.json()) as { error: { code: string; message: string } }).error).toMatchObject({ code: 'sso_wrong_address', message: expect.stringContaining('https://vedette.acme.example') })
+  })
+
+  it('luồng gắn với issuer/client lúc bắt đầu: đổi cấu hình giữa chừng → hết hạn', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    const path = await start()
+    sessionStore.set({ userId: 'u-admin' })
+    await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: 'https://other.acme.example', client_id: 'v', client_secret: '', scopes: 'openid', groups_claim: 'groups', default_role: null, role_map: [{ group: 'vedette-operators', role: 'operator' }] }) })
+    sessionStore.set({ userId: null })
+    renderApp(path, { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('expired or was already used')
+    expect(ssoUser()).toBeUndefined()
+  })
+
+  it('rời nhóm → từ chối và kết thúc phiên đang có của người đó', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    const id = ssoUser()!.id
+    expect(sessionStore.get().userId).toBe(id)
+    await configure([])
+    sessionStore.set({ userId: id })
+    renderApp(await start(), { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('not in a group')
+    expect(sessionStore.get().userId).toBeNull()
+  })
+
+  it('đổi IdP: tài khoản SSO cũ được gắn lại chỉ khi email đã xác minh', async () => {
+    usersStore.update((l) => [...l, { id: 'u-old', name: 'Old', email: MOCK_IDP_USER.email, role: 'viewer', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: 'https://old-idp.acme.example', sub: 'old-sub' } }])
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    MOCK_IDP_USER.email_verified = undefined // the new IdP does not say (Entra)
+    try {
+      renderApp(await start(), { role: null })
+      expect(await screen.findByRole('alert')).toHaveTextContent('does not belong to this SSO identity')
+      expect(usersStore.get().find((x) => x.id === 'u-old')?.sso?.iss).toBe('https://old-idp.acme.example')
+    } finally { MOCK_IDP_USER.email_verified = true }
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    expect(usersStore.get().find((x) => x.id === 'u-old')).toMatchObject({ role: 'operator', sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } })
+    expect(auditStore.get().some((r) => r.action === 'user.sso_relink')).toBe(true)
+  })
+
+  it('email đã thuộc tài khoản mật khẩu → không nối (D-195 (3))', async () => {
+    usersStore.update((l) => [...l, { id: 'u-pw', name: 'Same', email: MOCK_IDP_USER.email, role: 'admin', password: 'x'.repeat(12), twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null }])
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    renderApp(await start(), { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('does not belong to this SSO identity')
+    expect(usersStore.get().find((x) => x.id === 'u-pw')).toMatchObject({ role: 'admin' })
+    expect(usersStore.get().find((x) => x.id === 'u-pw')?.sso).toBeUndefined()
+    expect(sessionStore.get().userId).toBeNull()
+  })
+
+  it('tài khoản SSO bị vô hiệu → từ chối dù IdP cho qua', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    usersStore.update((l) => [...l, { id: 'u-sso', name: 'S', email: MOCK_IDP_USER.email, role: 'operator', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, disabled: true, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
+    renderApp(await start(), { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('This account has been disabled')
+  })
+
+  it('Users: tài khoản SSO không đổi vai, không đặt lại mật khẩu; quản trị viên mật khẩu cuối cùng được giữ', async () => {
+    const u = user()
+    usersStore.update((l) => [...l, { id: 'u-sso', name: 'Sso Admin', email: MOCK_IDP_USER.email, role: 'admin', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
+    renderApp('/settings/users')
+    expect((await screen.findAllByText('Through SSO'))[0]).toBeInTheDocument()
+    expect(screen.getAllByText('Set by SSO groups')[0]).toBeInTheDocument()
+    expect(screen.queryAllByLabelText('Role of Sso Admin')).toHaveLength(0)
+    expect(screen.queryAllByRole('button', { name: 'Reset password of Sso Admin' })).toHaveLength(0)
+    const patch = await fetch(`${location.origin}/api/v1/core/users/u-sso`, { method: 'PATCH', body: JSON.stringify({ role: 'viewer' }) })
+    expect(patch.status).toBe(409)
+    // D-196 (3): the SSO admin does not count; the only password admin stays
+    await u.selectOptions((await screen.findAllByLabelText('Role of Admin'))[0]!, 'viewer')
+    expect((await screen.findAllByText(/who signs in with a password must remain/))[0]).toBeInTheDocument()
+  })
+
+  it('tắt SSO: hộp thoại nói số người chỉ đăng nhập bằng SSO', async () => {
+    const u = user()
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    usersStore.update((l) => [...l, { id: 'u-sso', name: 'S', email: MOCK_IDP_USER.email, role: 'operator', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Turn off SSO' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Turn off SSO sign-in?' })
+    expect(dialog).toHaveTextContent('1 person signs in only through SSO')
+    await u.click(within(dialog).getByRole('button', { name: 'Turn off SSO' }))
+    await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'auth-oidc')?.enabled).toBe(false))
+  })
+})
+
+describe('core: nhật ký (S-CORE-3)', () => {
   it('nhật ký lọc được theo chữ và nhóm', async () => {
     const u = user()
     auditStore.set([
@@ -978,6 +1275,57 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
   const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
   const osSection = () => within(document.getElementById('os') ?? document.body)
 
+  it('shows the operating system part even when the software part is not built yet (501, issue #230)', async () => {
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
+    expect(osSection().getByRole('button', { name: 'Check now' })).toBeInTheDocument()
+    expect(await screen.findByText('Not built yet.')).toBeInTheDocument()
+  })
+
+  it('a box that has not checked yet shows its message and Check now, which loads the page (issue #231)', async () => {
+    collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false })).set({ on: true })
+    const u = user()
+    renderApp('/settings/updates')
+    expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
+    await u.click(osSection().getByRole('button', { name: 'Check now' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
+    expect(osSection().getByRole('table', { name: 'Pending operating system updates' })).toBeInTheDocument()
+  })
+
+  it('says "1 security update" in the singular (issue #240)', async () => {
+    asAdmin()
+    const os = await (await fetch(BASE)).json()
+    server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ ...os, pending: os.pending.slice(0, 1).map((p: object) => ({ ...p, security: true })) })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { level: 1, name: /: 1 security update waiting$/ }, T)).toBeInTheDocument()
+  })
+
+  it('a container-only install: the 409 is titled for what it is and the page still numbers 1, 2, 3 (issues #239, #241)', async () => {
+    server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ error: { code: 'not_appliance', message: 'This install has no operating system helper (container-only install).' } }, { status: 409 })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText('Not available on this install', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText('Invalid request')).not.toBeInTheDocument()
+    expect(screen.getByText('This install has no operating system helper (container-only install).')).toBeInTheDocument()
+    expect(osSection().getByRole('heading', { level: 2, name: 'Operating system of this box' })).toBeInTheDocument()
+    const nums = Array.from(document.querySelectorAll('span[aria-hidden="true"]')).map((n) => n.textContent).filter((x) => /^[123]$/.test(x ?? ''))
+    expect(nums).toEqual(['1', '2', '3'])
+  })
+
+  it('a failed install says Failed with the reason and no success toast (issue #238)', async () => {
+    collection<{ on: boolean }>('core_os_install_fails', () => ({ on: false })).set({ on: true })
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: /^Install security updates/ }, T))
+    const log = await screen.findByRole('log', { name: 'apt output' })
+    expect(await within(log.parentElement!).findByText('Failed', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(within(log.parentElement!).getByRole('alert')).toHaveTextContent(/package manager failed/)
+    expect(log).toHaveTextContent('run failed: apt_failed')
+    expect(within(log.parentElement!).queryByText('Finished')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Finished: /)).not.toBeInTheDocument()
+    toast.dismiss()
+  })
+
   it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
@@ -1086,7 +1434,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check now' }, T))
-    expect(await screen.findByText('Checked the package mirrors.')).toBeInTheDocument()
+    expect(await screen.findByText('Checked the package mirrors.', undefined, T)).toBeInTheDocument()
     asAdmin()
     await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ update_check: false }) })
     const r = await post('/check')

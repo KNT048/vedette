@@ -1,0 +1,122 @@
+# Exceptions of the release vulnerability gate (`make vuln-scan`, D-159). The gate fails on every HIGH or CRITICAL vulnerability that has a
+# fix; an entry here lets one such finding pass, and only while all of this holds (scripts/trivyignore checks it first, and fails the gate if not):
+#   - id:         the vulnerability id (CVE-... or GHSA-...); add `paths:` or `purls:` to narrow it to one binary or package.
+#   - statement:  why it may ship: not reachable, no fixed version we can take yet, the issue that tracks the bump.
+#   - expired_at: yyyy-mm-dd, after today and at most 90 days ahead (the entry stops applying at the start of that day). From that date the entry fails the gate even if the finding is gone:
+#                 delete it, or renew it with a new reason.
+# Example (keep as a comment):
+#   - id: CVE-2026-12345
+#     purls: ["pkg:golang/example.com/module@v1.2.3"]
+#     statement: the vulnerable function is not linked (govulncheck: not called); bumping in issue #123
+#     expired_at: 2026-12-01
+vulnerabilities:
+  - id: CVE-2026-76844
+    statement: "zlib1g 1:1.3.dfsg+really1.3.1-1+b1 in the pinned debian:trixie-slim (DEBIAN_IMAGE); fixed in 1+deb13u1, which a re-pin of that digest brings. First seen 2026-11-11 by the first make vuln-scan; the re-pin is its own change (every image rebuilt and checked by effect), tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-85091
+    statement: "zlib1g 1:1.3.dfsg+really1.3.1-1+b1 in the pinned debian:trixie-slim (DEBIAN_IMAGE); fixed in 1+deb13u1, which a re-pin of that digest brings. First seen 2026-11-11 by the first make vuln-scan; the re-pin is its own change (every image rebuilt and checked by effect), tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-100349
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-100351
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-100352
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-100353
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-100354
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-111943
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-116587
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-33818
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-39821
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-46600
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56851
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56853
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56854
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56858
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56859
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56860
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56862
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56864
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-56865
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-71556
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-78661
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-78667
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-78669
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-84304
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-84445
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11
+  - id: CVE-2026-97031
+    paths: ["usr/local/bin/nuclei"]
+    statement: "in the Go dependencies or the Go toolchain of the pinned nuclei release binary (scan-base, pins.env NUCLEI_VERSION), not code of ours; the fix is a newer nuclei release, which needs the lab checks of .ai/deferred/feat-sensor-nuclei.md, so it is its own change. First seen 2026-11-11, tracked in .ai/deferred/feat-release-sbom-scan.md"
+    expired_at: 2026-12-11

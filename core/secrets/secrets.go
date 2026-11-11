@@ -74,6 +74,76 @@ func GenerateKeyFile(path string) (err error) {
 	return syncDir(filepath.Dir(path))
 }
 
+// StageKeyFile writes a fresh random key next to path as path+".new" (mode 0600, owner and group of the existing key file, so a
+// service that runs under another account can still read it), fsynced, and returns its name. PromoteKeyFile then renames it over
+// path. Together they replace the key atomically: a crash leaves the old key or the new one, never a half file. An older
+// leftover ".new" is overwritten.
+func StageKeyFile(path string) (staged string, err error) {
+	key := make([]byte, KeySize)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return "", fmt.Errorf("secrets: generate key: %w", err)
+	}
+	staged = path + ".new"
+	_ = os.Remove(staged)
+	f, err := os.OpenFile(staged, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // the key path comes from installer configuration, not from a request
+	if err != nil {
+		return "", fmt.Errorf("secrets: create staged key file: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = os.Remove(staged)
+		}
+	}()
+	if _, err := f.Write(key); err != nil {
+		_ = f.Close()
+		return "", fmt.Errorf("secrets: write staged key file: %w", err)
+	}
+	if err := keepOwner(f, path); err != nil {
+		_ = f.Close()
+		return "", err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return "", fmt.Errorf("secrets: sync staged key file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("secrets: close staged key file: %w", err)
+	}
+	return staged, nil
+}
+
+// keepOwner gives f the owner and group of the file at path, when that file exists and the process is allowed to (a process that
+// created f as the same owner has nothing to change; a Chown refused for another owner is an error: the new key would be unreadable).
+func keepOwner(f *os.File, path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil //nolint:nilerr // no old key: nothing to keep
+	}
+	uid, gid, ok := ownerOf(info)
+	if !ok {
+		return nil
+	}
+	own, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("secrets: stat staged key file: %w", err)
+	}
+	if ouid, ogid, ok := ownerOf(own); ok && ouid == uid && ogid == gid {
+		return nil
+	}
+	if err := f.Chown(uid, gid); err != nil {
+		return fmt.Errorf("secrets: give the new key the owner of the old one: %w", err)
+	}
+	return nil
+}
+
+// PromoteKeyFile renames a staged key over path and syncs the directory.
+func PromoteKeyFile(staged, path string) error {
+	if err := os.Rename(staged, path); err != nil {
+		return fmt.Errorf("secrets: replace key file: %w", err)
+	}
+	return syncDir(filepath.Dir(path))
+}
+
 // syncDir fsyncs a directory so a newly created entry survives a crash.
 func syncDir(dir string) error {
 	d, err := os.Open(dir) //nolint:gosec // parent of the key path from installer configuration

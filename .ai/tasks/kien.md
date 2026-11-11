@@ -4,6 +4,8 @@
 > - **AI-Supervisor trên máy Mac:** điều phối cả ba phía. Mỗi lát việc của Mac chạy thành một session phụ của Claude Desktop. Trạng thái nằm ở `vedette-wt/LEAD-STATE.md` và `vedette-wt/sessions/*.md` trên máy Mac.
 > - **AI-Trưởng trên box Ubuntu** (`byn`, tmux `claude`). Trạng thái nằm ở `~/vedette-wt/LEAD-STATE.md` trên box.
 >
+> **Chia lại 2026-11-11 chiều (D-198):** Mac nhận thêm `notify` (phần còn lại), WP-27 `reports`/`mcp-server`, spec WP-30 cho scan/ai/logs; AI-Trưởng nhận thêm `scan` (phần còn lại), cả WP-32, và viết `install.sh` WP-08h (thử cài trên box Mlee vì có LAN). Cổng kiểm `make check` ở mọi nơi (D-199). Dải số quyết định mới của Mac: D-230…D-259.
+>
 > Chia việc còn lại và định nghĩa "xong": `.ai/tasks/current.md`. Các mục bên dưới là lịch sử và quy trình; trạng thái mới nhất nằm trong `current.md`.
 
 Cập nhật đầu file: 2026-11-11. Phần thân viết ngày 2026-11-10 tối, từ phiên Ubuntu của anh Trưởng.
@@ -80,7 +82,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 4. Sau khi Emily thêm tín hiệu `BoxAddrs` (#157): chỉnh `cmd/vedette/notify.go`.
 5. **WP-08** đóng gói/phát hành (Quadlet: `Restart=always`, `KillMode=control-group`, `core_cgroup` trong `host.conf`, `GOMEMLIMIT` cho core; bản build phát hành không mang mock, xem mục "Trước khi phát hành").
 6. **WP-30** E2E backend thật cho module phía Kiên → **WP-31** rà SYS-1…8 + D-41 → **WP-32** RUNBOOK (ghi cả `backup.restore` và lối thoát `core_data_unrecoverable`).
-7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge` (purge xoá cả `logs.db` + sidecar theo D-151, #187), nút Khôi phục.
+7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, nút Khôi phục (`/core/data/export` và `/purge` xong ở D-154, #187).
 8. Việc sau khi PR Emily về: DATA_MODEL `exp_*` đã vào (#94); kiểm danh mục WP-23 ở dưới khi có PR mới. Đóng #146 sau khi đo PR chỉ web.
 
 ## Nối một module vào binary (issue #33)

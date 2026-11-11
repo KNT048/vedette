@@ -44,7 +44,7 @@ export const AuthOptions = z.object({ oidc: z.boolean() })
 // ---- tài khoản ----
 export const AccountSession = z.object({ id: z.string(), device: z.string(), ip: z.string(), started_at: ts, last_seen: ts, current: z.boolean() })
 export const Account = z.object({
-  user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable() }),
+  user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('The account signs in only through SSO (D-195): no Vedette password, two-step sign-in is the identity provider\'s') }),
   twofa_email: z.object({
     available: z.boolean().describe('true only when the notify module is on and an email channel is configured and enabled'),
     reason: z.enum(['module_off', 'channel_not_ready']).nullable().describe('Why the email method cannot be chosen, null when available'),
@@ -55,13 +55,24 @@ export const Account = z.object({
 export const TotpStart = z.object({ secret: z.string().describe('20-byte base32 key (RFC 4648), typed by hand into the authenticator app'), otpauth: z.string().describe('URI otpauth://totp/Vedette:<email>?secret=…&issuer=Vedette&algorithm=SHA1&digits=6&period=30') })
 
 // ---- người dùng, OIDC ----
-export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable() })
+export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset') })
 export const UserCreated = z.object({ user: AdminUser, temp_password: z.string().describe('Returned once only') })
+const OidcRoleRow = z.object({ group: z.string(), role: Role })
 export const OidcConfig = z.object({
-  issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(), default_role: Role,
-  role_map: z.array(z.object({ group: z.string(), role: Role })),
+  issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(),
+  scopes: z.string().describe('Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email profile"; add "groups" for IdPs that need it (Okta, Authentik)'),
+  groups_claim: z.string().describe('Name of the ID-token claim that lists the person\'s groups (default "groups")'),
+  default_role: Role.nullable().describe('Role for a person in none of the mapped groups; null = no access, the default (D-195)'),
+  role_map: z.array(OidcRoleRow).describe('Group to role; a person in several mapped groups gets the highest of their roles'),
+  redirect_uri: z.string().describe('The address to register at the identity provider: this box\'s address as the browser reached it, plus /sso/callback'),
+  sso_users: z.number().int().describe('Accounts that sign in only through SSO; they cannot sign in while the module is off'),
 })
-export const OidcSave = OidcConfig.omit({ secret_last4: true }).extend({ client_secret: z.string().describe('Empty keeps the stored secret') })
+export const OidcSave = z.object({
+  issuer: z.string(), client_id: z.string(), client_secret: z.string().describe('Empty keeps the stored secret'),
+  scopes: z.string(), groups_claim: z.string(), default_role: Role.nullable(), role_map: z.array(OidcRoleRow),
+})
+export const OidcStart = z.object({ authorize_url: z.string().describe('The identity provider\'s authorization endpoint with client_id, redirect_uri, scope, state, nonce, code_challenge (S256)'), binding: z.string().describe('Random value the page keeps in session storage and sends back with the callback, so the sign-in can only finish in the tab that started it') })
+export const OidcCallback = z.object({ code: z.string(), state: z.string(), binding: z.string() })
 export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.string(), z.string()) })
 
 // ---- audit ----
@@ -107,8 +118,9 @@ export const OsRunResult = z.object({
   health: z.array(z.object({ name: z.string(), ok: z.boolean() })).describe('Checks after the run'), reboot_required: z.boolean(),
 })
 export const OsRun = z.object({
-  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
+  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done', 'failed']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
   lines: z.array(z.string()).describe('apt output so far'), result: OsRunResult.nullable(),
+  error: z.string().nullable().describe('Only for a failed run: why, in words (the lines keep the raw output)'),
 })
 export const OsRebootBody = z.object({ when: z.enum(['now', 'window', 'custom']), at: z.string().optional().describe('Local time HH:MM, only for "custom"; must fall inside the maintenance window') })
 export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('Items installed automatically in automatic mode') })
@@ -201,7 +213,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule) }) },
   { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
   { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
-  { method: 'post', path: '/core/sso/login', summary: 'SSO sign-in (mock for the OIDC redirect round trip)', stories: ['S-CORE-3'], role: 'public', response: Ok },
+  { method: 'post', path: '/auth/oidc/start', summary: 'Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited', stories: ['S-CORE-3'], role: 'public', response: OidcStart },
+  { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },
   // chung
   { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
   { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
@@ -260,8 +273,8 @@ export const endpoints = defineEndpoints([
   // dữ liệu
   { method: 'get', path: '/core/data/backup', summary: 'Download a backup (no passwords or keys)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
   { method: 'get', path: '/core/logs/export', summary: 'Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; chained categories (audit, response, AI activity) are exported unscrubbed with their chain anchor and head; one download at a time (409 busy), at most one a minute (429 rate_limited), over 128 MB is refused (413 logs_too_large); the download, and a refusal, are audited', stories: ['S-CORE-6'], role: 'admin', query: z.object({ categories: z.string().optional().describe('Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot; none or an unknown one is 400 invalid_categories'), from: z.string().optional().describe('Start date, YYYY-MM-DD, inclusive, in the organization time zone'), to: z.string().optional().describe('End date, YYYY-MM-DD, inclusive, in the organization time zone; before from is 400 invalid_range'), format: z.string().optional().describe('json (default) or csv; anything else is 400 invalid_format') }), response: 'file', example: { query: { categories: 'audit,ai_activity', format: 'json' } } },
-  { method: 'get', path: '/core/data/export', summary: 'Export my data as JSON', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
-  { method: 'post', path: '/core/data/purge', summary: 'Delete all data back to a fresh install (type the exact organization name to confirm)', stories: ['S-CORE-1'], role: 'admin', body: z.object({ confirm: z.string() }), response: z.object({ ok: z.literal(true), removed: z.record(z.string(), z.number()) }) },
+  { method: 'get', path: '/core/data/export', summary: 'Export my data as JSON (every table except secrets; 409 busy while another export runs)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
+  { method: 'post', path: '/core/data/purge', summary: 'Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable when the configured helper does not answer, its socket missing included (nothing is deleted); 412 transition_pending; 500 backups_already_deleted when the purge fails after the helper deleted its backups (the data on the box is still there). kept lists what was not done or not touched (host_backups: this box is configured without a helper, so there were no helper backups to delete; honeypot_log: the raw log of the honeypot belongs to its container and stays; key_not_replaced: the new key could not be written, replace vedette.key by hand)', stories: ['S-CORE-1'], role: 'admin', body: z.object({ confirm: z.string(), password: z.string(), code: z.string().optional() }), response: z.object({ ok: z.literal(true), removed: z.record(z.string(), z.number()), kept: z.array(z.enum(['host_backups', 'key_not_replaced', 'honeypot_log'])) }) },
   { method: 'get', path: '/core/network', summary: 'Network interfaces, management address, SPAN capture settings and live status, NTP, decoy IPs', stories: ['S-CORE-8', 'S-INV-1'], role: 'viewer', response: NetworkState },
   { method: 'put', path: '/core/network/interfaces', summary: 'Set the role of every interface (management / SPAN capture / unused). Exactly one management interface, at most one SPAN interface; the management interface cannot be changed here (409)', stories: ['S-CORE-8'], role: 'admin', body: z.object({ roles: z.record(z.string(), IfaceRole) }), response: NetworkState },
   { method: 'put', path: '/core/network/management', summary: 'Management interface: DHCP or static. An address change applies for 5 minutes and reverts unless confirmed from the new address (you sign in again there)', stories: ['S-CORE-8'], role: 'admin', body: ManagementBody, response: NetworkState },

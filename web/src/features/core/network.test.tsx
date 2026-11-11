@@ -371,6 +371,9 @@ describe('box network: the page', () => {
     expect(dlg).toHaveTextContent('You will need to sign in again at the new address')
     expect((await get()).management.address).toBe('192.168.10.250') // not applied until the button
     await u.click(within(dlg).getByRole('button', { name: 'Apply and start the 5-minute timer' }))
+    // The box keeps nothing until the person confirms, so the toast says so (issue #242).
+    expect(await screen.findByText('Applied. Confirm the new address in time or the box goes back to the old one.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText('Management settings saved.')).not.toBeInTheDocument()
     const banner = await screen.findByRole('status', undefined, T)
     expect(banner).toHaveTextContent('Waiting for you to confirm at 192.168.10.200')
     expect(banner).toHaveTextContent(/Time left: 4:5\d|Time left: 5:00/)
@@ -388,6 +391,7 @@ describe('box network: the page', () => {
     await call('PUT', '/management', { ...goodStatic, confirm: true })
     await open()
     await u.click(await screen.findByRole('button', { name: 'Cancel and go back now' }, T))
+    expect(await screen.findByText('The box went back to the old settings.', undefined, T)).toBeInTheDocument() // issue #243
     await waitFor(() => expect(document.getElementById('management-title')).toBeInTheDocument(), T)
     await waitFor(() => expect(within(document.getElementById('management')!).getByLabelText('IP address')).toHaveValue('192.168.10.250'), T)
   })

@@ -54,14 +54,20 @@ type osRunState struct {
 	status   api.Status
 	lines    []string
 	result   *api.OSRunResult
+	failure  string // why a run that did not succeed ended, in words (empty otherwise)
 }
 
 func (r *osRunState) running() bool { return !r.status.Terminal() }
 
 func (r *osRunState) view() osRunView {
 	v := osRunView{ID: r.meta.RunID, Scope: r.meta.Scope, Status: "done", StartedAt: r.started, FinishedAt: r.finished, User: r.meta.User, Lines: append([]string{}, r.lines...)}
-	if r.running() {
+	switch {
+	case r.running():
 		v.Status = "running"
+	case r.status != api.StatusSucceeded:
+		v.Status = "failed"
+		why := r.failure
+		v.Error = &why
 	}
 	if r.result != nil {
 		rv := &osRunResultView{Installed: r.result.Installed, Security: r.result.Security, Backup: r.result.Backup, RebootRequired: r.result.RebootRequired, Health: []osHealthView{}}
@@ -245,6 +251,7 @@ func (h *OSHandlers) applyFinal(rs *osRunState, r api.Run) {
 			why += ": " + r.Error.Code + ": " + r.Error.Message
 		}
 		rs.addLine("[vedette-host] run " + why)
+		rs.failure = failureText(r)
 	}
 }
 
@@ -353,6 +360,14 @@ func (h *OSHandlers) busy(ctx context.Context) bool {
 	return rs.running()
 }
 
+// Busy reports whether an operating system install run of this core is in progress (the factory reset refuses to start then).
+func (h *OSHandlers) Busy(ctx context.Context) bool {
+	if h.host == nil { // a box without a helper has no install run
+		return false
+	}
+	return h.busy(ctx)
+}
+
 func (h *OSHandlers) loadRunMeta(ctx context.Context) (osRunMeta, error) {
 	var m osRunMeta
 	raw, err := coredb.New(h.db.Reader()).GetSetting(ctx, keyOSRun)
@@ -388,4 +403,22 @@ func (h *OSHandlers) loadJSON(ctx context.Context, key string, into any) error {
 		return fmt.Errorf("core: setting %s is not valid: %w", key, err)
 	}
 	return nil
+}
+
+// failureText says in words why a run that did not succeed ended; the lines keep the raw output.
+func failureText(r api.Run) string {
+	if r.Error != nil {
+		switch r.Error.Code {
+		case api.CodeAptFailed, api.CodeStaleCheck:
+			return "The package manager failed, so the update did not finish. See the update output for the reason."
+		case api.CodeHealthCheckFailed:
+			return "The updates were installed but a health check failed afterwards. Check the services on the box."
+		case api.CodeTimeout:
+			return "The update took too long or the box lost contact with its operating system helper, so it was stopped. Check the box, then try again."
+		}
+		if r.Error.Message != "" {
+			return "The update did not finish: " + r.Error.Message
+		}
+	}
+	return "The update did not finish. See the update output for the reason."
 }

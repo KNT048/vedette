@@ -8470,8 +8470,15 @@ func (s *CoreGetCoreOidcOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.DefaultRole.Validate(); err != nil {
-			return err
+		if value, ok := s.DefaultRole.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -8505,6 +8512,27 @@ func (s *CoreGetCoreOidcOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "role_map",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.SSOUsers)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sso_users",
 			Error: err,
 		})
 	}
@@ -9760,6 +9788,8 @@ func (s CoreGetCoreUpdatesOsRunOKStatus) Validate() error {
 	case "running":
 		return nil
 	case "done":
+		return nil
+	case "failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12609,6 +12639,34 @@ func (s *CorePostCoreDataPurgeOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.Kept == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Kept {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kept",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Removed.Validate(); err != nil {
 			return err
 		}
@@ -12623,6 +12681,19 @@ func (s *CorePostCoreDataPurgeOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s CorePostCoreDataPurgeOKKeptItem) Validate() error {
+	switch s {
+	case "host_backups":
+		return nil
+	case "key_not_replaced":
+		return nil
+	case "honeypot_log":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s CorePostCoreDataPurgeOKRemoved) Validate() error {
@@ -15632,6 +15703,8 @@ func (s CorePostCoreUpdatesOsInstallAcceptedStatus) Validate() error {
 	case "running":
 		return nil
 	case "done":
+		return nil
+	case "failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -19329,8 +19402,15 @@ func (s *CorePutCoreOidcOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.DefaultRole.Validate(); err != nil {
-			return err
+		if value, ok := s.DefaultRole.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -19364,6 +19444,27 @@ func (s *CorePutCoreOidcOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "role_map",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.SSOUsers)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sso_users",
 			Error: err,
 		})
 	}
@@ -19429,8 +19530,15 @@ func (s *CorePutCoreOidcReq) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.DefaultRole.Validate(); err != nil {
-			return err
+		if value, ok := s.DefaultRole.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {

@@ -27,11 +27,18 @@ var (
 		{regexp.MustCompile(`(?i)\binsert\s+or\s+replace\b`), "INSERT OR REPLACE overwrites rows"},
 		{regexp.MustCompile(`(?i)\bcreate\s+(temp\w*\s+)?trigger\b`), "a trigger changes what an older binary's statements do"},
 		{regexp.MustCompile(`(?i)\bcreate\s+unique\s+index\b`), "a unique index makes an older binary's inserts fail"},
+		{regexp.MustCompile(`(?i)\bif\s+not\s+exists\b`), "IF NOT EXISTS may find an older shape of the table and carry on: a migration creates what is not there"},
+		{regexp.MustCompile(`(?i)\b(attach|detach)\b`), "ATTACH reaches outside logs.db"},
 	}
 	pragma     = regexp.MustCompile(`(?i)\bpragma\b`)
 	checkWord  = regexp.MustCompile(`(?i)\bcheck\b`)
-	createTab  = regexp.MustCompile(`(?i)\bcreate\s+(?:temp\w*\s+)?table\s+(?:if\s+not\s+exists\s+)?([A-Za-z_]\w*)`)
+	createTab  = regexp.MustCompile(`(?i)\bcreate\s+(?:temp\w*\s+)?table\s+([A-Za-z_]\w*)`)
 	insertInto = regexp.MustCompile(`(?i)\binsert\s+(?:or\s+\w+\s+)?into\s+(\S+)`)
+	createIdx  = regexp.MustCompile(`(?is)^\s*create\s+index\s+.*?\bon\s+[^\s(]+\s*\(`)
+	plainCol   = regexp.MustCompile("(?i)^\\s*(?:[A-Za-z_]\\w*|\"\"|``|\\[\\])(?:\\s+collate\\s+(?:\\w+|\"\"|``|\\[\\]))?(?:\\s+(?:asc|desc))?\\s*$")
+	generated  = regexp.MustCompile(`(?i)\bgenerated\b|\bas\s*\(`)
+	funcCall   = regexp.MustCompile(`(?i)(\w+)\s*\(`)
+	references = regexp.MustCompile(`(?i)\breferences\b`)
 	alterAdd   = regexp.MustCompile(`(?i)^\s*alter\s+table\s+\S+\s+add\s+column\s`)
 )
 
@@ -113,10 +120,78 @@ func addOnlyViolations(sql string) []string {
 				out = append(out, "ALTER TABLE may only ADD COLUMN: "+t)
 			} else if checkWord.MatchString(stmt) {
 				out = append(out, "a CHECK on an added column fails an older binary's writes: "+t)
+			} else if generated.MatchString(stmt) {
+				out = append(out, "a generated column computes from the row with a function an older binary may not have: "+t)
+			} else if references.MatchString(stmt) {
+				out = append(out, "a REFERENCES on an added column ties the table to another: "+t)
 			}
+		}
+		if v := indexViolation(stmt); v != "" {
+			out = append(out, v+": "+strings.TrimSpace(stmt))
 		}
 	}
 	return out
+}
+
+// indexViolation judges one CREATE INDEX: its columns must be plain (no expression), and its WHERE, if any, must call no
+// function (a keyword such as IN or AND before a parenthesis is not one).
+func indexViolation(stmt string) string {
+	loc := createIdx.FindStringIndex(stmt)
+	if loc == nil {
+		return ""
+	}
+	depth, end := 1, -1
+	for i := loc[1]; i < len(stmt) && end < 0; i++ {
+		switch stmt[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				end = i
+			}
+		}
+	}
+	if end < 0 {
+		return "an index whose column list does not close"
+	}
+	for _, col := range splitTop(stmt[loc[1]:end]) {
+		if !plainCol.MatchString(col) {
+			return "an index on an expression is not a column of the table an older binary reads"
+		}
+	}
+	tail := strings.TrimSpace(stmt[end+1:])
+	if tail == "" {
+		return ""
+	}
+	if !strings.HasPrefix(strings.ToLower(tail), "where") {
+		return "an index with something after its columns other than WHERE"
+	}
+	for _, m := range funcCall.FindAllStringSubmatch(tail, -1) {
+		switch strings.ToLower(m[1]) {
+		case "in", "and", "or", "not", "is", "where", "between", "like", "glob":
+		default:
+			return "a partial index calls a function an older binary may not have (" + m[1] + ")"
+		}
+	}
+	return ""
+}
+
+// splitTop splits an index's column list at the commas that are not inside parentheses.
+func splitTop(list string) []string {
+	var out []string
+	depth, from := 0, 0
+	for i, c := range list {
+		switch {
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+		case c == ',' && depth == 0:
+			out = append(out, list[from:i])
+			from = i + 1
+		}
+	}
+	return append(out, list[from:])
 }
 
 func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
@@ -157,6 +232,26 @@ func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
 		`INSERT OR REPLACE INTO logs_source_seen (source_id) VALUES ('a');`:                          false,
 		`CREATE TRIGGER logs_t AFTER INSERT ON logs_events BEGIN SELECT 1; END;`:                     false,
 		`CREATE UNIQUE INDEX logs_u ON logs_events (source_id, ts);`:                                 false,
+		// L-1 remainder (re-review of 4911f0e)
+		`CREATE TABLE IF NOT EXISTS logs_events (id INTEGER); INSERT INTO logs_events (id) VALUES (1);`: false,
+		`CREATE TABLE IF NOT EXISTS logs_q (a TEXT);`:                                                   false,
+		`CREATE INDEX IF NOT EXISTS logs_i ON logs_events (ts);`:                                        false,
+		`CREATE INDEX logs_j ON logs_events (json_extract(line, '$.a'));`:                               false,
+		`CREATE INDEX logs_k ON logs_events (lower(source_id));`:                                        false,
+		`CREATE INDEX logs_l ON logs_events (ts + 1);`:                                                  false,
+		`CREATE INDEX logs_m ON logs_events (source_id, ts DESC);`:                                      true,
+		`CREATE INDEX logs_n ON logs_events (source_id COLLATE NOCASE);`:                                true,
+		`ALTER TABLE logs_events ADD COLUMN s TEXT REFERENCES logs_sources (id);`:                       false,
+		`ATTACH DATABASE 'x.db' AS x;`:                                                                  false,
+		`attach 'x.db' as x; CREATE TABLE x.logs_t (a);`:                                                false,
+		// review of e0907d9
+		`CREATE INDEX i ON logs_events (ts) WHERE json_extract(line, '$.a') IS NOT NULL;`:                    false,
+		`ALTER TABLE logs_events ADD COLUMN j TEXT GENERATED ALWAYS AS (json_extract(line, '$.a')) VIRTUAL;`: false,
+		`ALTER TABLE logs_events ADD COLUMN j TEXT AS (lower(line));`:                                        false,
+		`CREATE INDEX i ON logs_events (ts) WHERE source_id IN ('a', 'b');`:                                  true,
+		`CREATE INDEX i ON logs_events (ts) WHERE (source_id IS NOT NULL);`:                                  true,
+		"CREATE INDEX i ON logs_events (`ts`);":                                                              true,
+		`CREATE INDEX i ON logs_events (source_id COLLATE "NOCASE");`:                                        true,
 	} {
 		if got := len(addOnlyViolations(sql)) == 0; got != want {
 			t.Errorf("%q: add-only = %t, want %t (%v)", sql, got, want, addOnlyViolations(sql))

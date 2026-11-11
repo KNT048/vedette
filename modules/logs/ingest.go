@@ -64,7 +64,7 @@ func isControl(r rune) bool {
 // are dropped and counted (FORBID-5). At most MaxBatch lines (ErrBatchTooLarge). A line's time is its receive time,
 // receive time, and one outside [now - retention, now] (zero, in the future, older than the retention) is now: a line
 // dated on the retention boundary would be deleted by the next purge. When the stored bytes pass
-// MaxEventBytes a purge starts in the background (at most one at a time); Ingest never waits for it.
+// MaxEventBytes the purge job is woken (at most one purge at a time, in the job); Ingest never waits for it.
 func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error) {
 	var res IngestResult
 	if len(lines) > MaxBatch {
@@ -143,48 +143,23 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	}
 	res.Stored = len(keep)
 	if stored > s.maxBytes {
-		s.startPurge(ctx)
+		s.startPurge()
 	}
 	return res, nil
 }
 
-// purgeBudget bounds a purge that Ingest started; purgeGap is the least time between two such starts.
-const (
-	purgeBudget = 30 * time.Minute
-	purgeGap    = time.Minute
-)
+// purgeGap is the least time between two purges that a kick starts.
+const purgeGap = time.Minute
 
-// startPurge runs a purge in the background unless one is under way (the flag is shared with the hourly job: coalesced, a
-// flood over the bound starts one purge, not one per batch) or one started less than purgeGap ago (the 90% target leaves
-// room for a minute of flood, but not for a purge per batch when a source outruns it). It never blocks the caller, which
-// holds no lock and may not wait for the core writer that the audit rows of the purge need (INV-12).
-//
-// ponytail: the goroutine's context has a deadline (purgeBudget) but is not cancelled when the module is turned off or at
-// shutdown: core/jobs cancels only the context of its own jobs. A purge is transactional in chunks, so a stop in the middle
-// is safe; the cancel needs `Scheduler.Wake` (.ai/deferred/fix-logs-production-safety.md).
-func (s *Service) startPurge(parent context.Context) {
-	if !s.purging.CompareAndSwap(false, true) {
-		return
+// startPurge wakes the purge job: a non-blocking send on the buffered kick channel, so a flood over the bound gives one
+// wake-up, not one per batch, and Ingest never waits (it holds no lock and may not wait for the core writer that the audit
+// rows of the purge need, INV-12). With the module off no job listens and the send just fills the buffer: nothing runs.
+// The purge itself runs in the job (Jobs), under core/jobs' context: shutting down cancels it (the job is Housekeeping, so turning the module off does not).
+func (s *Service) startPurge() {
+	select {
+	case s.kick <- struct{}{}:
+	default:
 	}
-	if now := s.now(); !s.lastStart.IsZero() && now.Sub(s.lastStart) < purgeGap {
-		s.purging.Store(false)
-		return
-	}
-	s.lastStart = s.now() // only read and written by the holder of the flag
-	// Detached from the batch's context (the purge outlives the call), with its own budget.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), purgeBudget)
-	go func() {
-		defer s.purging.Store(false)
-		defer cancel()
-		defer func() {
-			if r := recover(); r != nil {
-				s.cfg.Log.ErrorContext(ctx, "logs: the purge started by a full volume panicked", "panic", fmt.Sprint(r))
-			}
-		}()
-		if _, err := s.Purge(ctx); err != nil {
-			s.cfg.Log.WarnContext(ctx, "logs: the purge started by a full volume failed", "err", err)
-		}
-	}()
 }
 
 // sourceIDs is the set of declared source ids (one small read on the main database; reads do not wait for its writer).

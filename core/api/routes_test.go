@@ -95,13 +95,12 @@ func inv5Public(p string) bool {
 }
 
 // publicExceptions are public in the contract but not listed in INV-5's text. The CONTRACT text is
-// incomplete: they have no session by design (SSO start, one-time email links, firewall list fetch).
+// incomplete: they have no session by design (one-time email links, firewall list fetch); the SSO round trip is under /auth/ (D-194).
 // Fix INV-5 in a contract PR; until then this list is the explicit, reviewed set.
 var publicExceptions = []string{
 	"GET /response/approve/{token}",
 	"POST /response/approve/{token}",
 	"GET /response/blocklist/{token}.txt",
-	"POST /core/sso/login",
 }
 
 func TestPublicOperationsAreExactlyINV5(t *testing.T) {

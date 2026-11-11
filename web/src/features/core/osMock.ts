@@ -15,7 +15,7 @@ interface OsStore {
   reboot_required: boolean; reboot_reasons: string[]; reboot_scheduled_at: string | null
   auto_security: boolean; window: MaintenanceWindow
 }
-interface RunStore { id: string; scope: 'security' | 'all'; started_at: string; user: string; lines: string[]; pkgs: OsPackage[]; backup: string; settled: boolean }
+interface RunStore { id: string; scope: 'security' | 'all'; started_at: string; user: string; lines: string[]; pkgs: OsPackage[]; backup: string; settled: boolean; failed?: boolean }
 
 const pkg = (name: string, current: string, next: string, security: boolean, cves: string[] = []): OsPackage => ({ name, current, new: next, security, cves })
 const seed = (): OsStore => ({
@@ -36,6 +36,8 @@ const seed = (): OsStore => ({
   auto_security: true, window: { mode: 'window', days: [7], from: '02:00', to: '05:00' },
 })
 const store = collection<OsStore>('core_os', seed)
+/** A test turns this on to make the next install end as apt does when it refuses (host code apt_failed, issue #238). */
+const installFails = collection<{ on: boolean }>('core_os_install_fails', () => ({ on: false }))
 const runStore = collection<RunStore | null>('core_os_run', () => null, () => null)
 
 const MIRRORS = { ubuntu: ['archive.ubuntu.com', 'security.ubuntu.com'], debian: ['deb.debian.org', 'security.debian.org'] }
@@ -91,6 +93,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   function settle() {
     const r = runStore.get()
     if (!r || r.settled || running(r)) return
+    if (r.failed) { runStore.set({ ...r, settled: true }); audit('os.install_done', r.scope, 'run failed (apt_failed)'); return }
     const names = new Set(r.pkgs.map((p) => p.name))
     const needReboot = r.pkgs.filter((p) => p.name.startsWith('linux-image-') || p.name === 'libc6')
     runStore.set({ ...r, settled: true })
@@ -108,16 +111,18 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
     const shown = done ? r.lines.length : Math.min(r.lines.length, Math.floor(elapsed(r) / STEP_MS) + 1)
     const s = store.get()
     return {
-      id: r.id, scope: r.scope, status: done ? 'done' : 'running', started_at: r.started_at,
+      id: r.id, scope: r.scope, status: done ? (r.failed ? 'failed' : 'done') : 'running', started_at: r.started_at,
       finished_at: done ? new Date(new Date(r.started_at).getTime() + total(r)).toISOString() : null, user: r.user,
       lines: r.lines.slice(0, shown),
+      error: done && r.failed ? 'The package manager failed, so nothing was installed. See the update output for the reason.' : null,
       result: done ? {
-        installed: r.pkgs.length, security: r.pkgs.filter((p) => p.security).length, backup: r.backup,
+        installed: r.failed ? 0 : r.pkgs.length, security: r.failed ? 0 : r.pkgs.filter((p) => p.security).length, backup: r.backup,
         health: [{ name: 'vedette-api', ok: true }, { name: 'database', ok: true }, { name: 'sensor', ok: true }, { name: 'web interface', ok: true }],
         reboot_required: s.reboot_required,
       } : null,
     }
   }
+  const neverChecked = collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false }))
   function state(): OsState {
     settle()
     let s = store.get()
@@ -155,7 +160,12 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   }
 
   return [
-    http.get(`${API}/core/updates/os`, () => { const denied = guard('viewer'); if (denied) return denied; return HttpResponse.json(state()) }),
+    http.get(`${API}/core/updates/os`, () => {
+      const denied = guard('viewer'); if (denied) return denied
+      // A box that has never run a check (the real box answers 409 until the first one, issue #231). Off by default; a test turns it on.
+      if (neverChecked.get().on) return fail(409, 'no_check_yet', 'The box has not looked for operating system updates yet. Click Check now.')
+      return HttpResponse.json(state())
+    }),
     http.get(`${API}/core/updates/os/run`, () => {
       const denied = guard('viewer'); if (denied) return denied
       settle()
@@ -166,6 +176,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       const denied = guard('operator'); if (denied) return denied
       if (!deps.updateCheckOn()) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on to look for operating system updates.')
       if (running(runStore.get())) return fail(409, 'busy', 'An update run is in progress. Wait for it to finish, then check again.')
+      neverChecked.set({ on: false })
       store.update((s) => ({ ...s, last_check: nowIso() }))
       audit('os.check', 'operating system')
       return HttpResponse.json(state())
@@ -179,7 +190,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       const pkgs = store.get().pending.filter((p) => b.scope === 'all' || p.security)
       if (!pkgs.length) return fail(409, 'nothing_to_install', b.scope === 'security' ? 'There are no security updates waiting. Click "Check now" to look again.' : 'There are no updates waiting. Click "Check now" to look again.')
       const backup = `vedette-pre-update-${stamp()}.db.gz (4.2 MB)`
-      const r: RunStore = { id: newId('run'), scope: b.scope, started_at: nowIso(), user: currentUser()!.email, lines: linesFor(pkgs, b.scope, backup), pkgs, backup, settled: false }
+      const r: RunStore = { id: newId('run'), scope: b.scope, started_at: nowIso(), user: currentUser()!.email, lines: installFails.get().on ? [...linesFor(pkgs, b.scope, backup).slice(0, 4), '[vedette-host] run failed: apt_failed: apt-get exited with status 100'] : linesFor(pkgs, b.scope, backup), pkgs, backup, settled: false, failed: installFails.get().on }
       runStore.set(r)
       audit('os.install', b.scope, `${pkgs.length} packages`)
       return HttpResponse.json(runView(r), { status: 202 })

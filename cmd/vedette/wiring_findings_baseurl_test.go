@@ -43,9 +43,9 @@ func TestWiringInventoryFindingsCount(t *testing.T) {
 	if c != 200 || !found {
 		t.Fatalf("list findings_count of %s is not %v: %v", id, want, v)
 	}
-	s.setModule("findings", false) // the count stays: the findings are still there and deleting the device still deletes them
-	if c, v := s.do("GET", "/inventory/devices/"+id, "viewer", ""); c != 200 || v["findings_count"] != want {
-		t.Fatalf("findings off: %v (%d)", v["findings_count"], c)
+	s.setModule("findings", false) // off: deleting the device would not delete them (no subscriber), so the dialog promises nothing
+	if c, v := s.do("GET", "/inventory/devices/"+id, "viewer", ""); c != 200 || v["findings_count"] != float64(0) {
+		t.Fatalf("findings off: %v (%d), want 0", v["findings_count"], c)
 	}
 }
 

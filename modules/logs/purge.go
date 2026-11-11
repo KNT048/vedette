@@ -85,7 +85,7 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 				return res, fmt.Errorf("logs: reading the stored bytes: %w", err)
 			}
 			if left > keep { // no lines left to delete and the counter still says over: it counts bytes that are not there
-				s.cfg.Log.Warn("logs: the byte counter was higher than the lines it counts; recomputed", "counter", left)
+				s.cfg.Log.WarnContext(ctx, "logs: the byte counter was higher than the lines it counts; recomputed", "counter", left)
 				if err := s.resync(ctx); err != nil {
 					return res, err
 				}

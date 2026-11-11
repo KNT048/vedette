@@ -802,7 +802,7 @@ func (e *env) wait() {
 		if time.Now().After(end) {
 			e.t.Fatal("the purge started by Ingest did not end")
 		}
-		time.Sleep(5 * time.Millisecond)
+		<-time.After(5 * time.Millisecond)
 	}
 }
 

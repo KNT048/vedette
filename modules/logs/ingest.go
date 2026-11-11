@@ -143,7 +143,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	}
 	res.Stored = len(keep)
 	if stored > s.maxBytes {
-		s.startPurge()
+		s.startPurge(ctx)
 	}
 	return res, nil
 }
@@ -162,7 +162,7 @@ const (
 // ponytail: the goroutine's context has a deadline (purgeBudget) but is not cancelled when the module is turned off or at
 // shutdown: core/jobs cancels only the context of its own jobs. A purge is transactional in chunks, so a stop in the middle
 // is safe; the cancel needs `Scheduler.Wake` (.ai/deferred/fix-logs-production-safety.md).
-func (s *Service) startPurge() {
+func (s *Service) startPurge(parent context.Context) {
 	if !s.purging.CompareAndSwap(false, true) {
 		return
 	}
@@ -171,17 +171,18 @@ func (s *Service) startPurge() {
 		return
 	}
 	s.lastStart = s.now() // only read and written by the holder of the flag
+	// Detached from the batch's context (the purge outlives the call), with its own budget.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), purgeBudget)
 	go func() {
 		defer s.purging.Store(false)
+		defer cancel()
 		defer func() {
 			if r := recover(); r != nil {
-				s.cfg.Log.Error("logs: the purge started by a full volume panicked", "panic", fmt.Sprint(r))
+				s.cfg.Log.ErrorContext(ctx, "logs: the purge started by a full volume panicked", "panic", fmt.Sprint(r))
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), purgeBudget)
-		defer cancel()
 		if _, err := s.Purge(ctx); err != nil {
-			s.cfg.Log.Warn("logs: the purge started by a full volume failed", "err", err)
+			s.cfg.Log.WarnContext(ctx, "logs: the purge started by a full volume failed", "err", err)
 		}
 	}()
 }

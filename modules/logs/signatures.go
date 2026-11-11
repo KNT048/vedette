@@ -2,10 +2,11 @@ package logs
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"time"
 	"unicode/utf8"
 
@@ -143,11 +144,10 @@ const (
 	blankSamplesSQL = `UPDATE logs_signature_daily SET sample = '' WHERE day <= ?1 AND first_seen < ?2 AND sample <> ''`
 )
 
-// sigHash is the 64-bit FNV-1a hash of a signature: what the 5-minute counters store instead of its text.
+// sigHash is the first 64 bits of the SHA-256 of a signature: what the 5-minute counters store instead of its text.
 func sigHash(sig string) int64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(sig))
-	return int64(h.Sum64()) //nolint:gosec // the bits are the hash: a negative number is as good a key as a positive one
+	sum := sha256.Sum256([]byte(sig))
+	return int64(binary.BigEndian.Uint64(sum[:8])) //nolint:gosec // the bits are the hash: a negative number is as good a key as a positive one
 }
 
 func flag(b bool) int {

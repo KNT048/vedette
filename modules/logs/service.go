@@ -76,8 +76,9 @@ type Service struct {
 	loadForListener func(context.Context) ([]sourceRow, error)
 	listening       atomic.Pointer[listen.Server]
 	// snap is the last reading of the signature counters, shared by the digest and the events (anomaly.go).
-	snapMu sync.Mutex
-	snap   *snapshot
+	snapMu  sync.Mutex
+	snap    *snapshot
+	snapGen uint64 // bumped by every dropSnapshot
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

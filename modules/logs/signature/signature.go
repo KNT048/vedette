@@ -69,9 +69,12 @@ type Rule struct {
 	// Vocab lists, for a key of Fields, the only values the signature takes: a value that is not listed is left out of the signature (for
 	// the first field, which decides whether the line is in the format, the line is not read by the profile). A rule whose every field
 	// has a vocabulary and none is mined has a signature that shipped data bounds: Result.Bounded.
-	Vocab    map[string][]string `json:"vocab,omitempty"`
-	SrcField string              `json:"src_field,omitempty"` // key that holds the source address
-	DstField string              `json:"dst_field,omitempty"` // key that holds the destination address
+	Vocab map[string][]string `json:"vocab,omitempty"`
+	// Shapes gives, for the first field, an RE2 pattern for a value that is not in Vocab but is well formed (a ten-digit FortiGate log id):
+	// the line is still read by the profile, the signature keeps that value, and it is not Bounded (it counts in the quota of the miner).
+	Shapes   map[string]string `json:"shapes,omitempty"`
+	SrcField string            `json:"src_field,omitempty"` // key that holds the source address
+	DstField string            `json:"dst_field,omitempty"` // key that holds the destination address
 	// event_id
 	Patterns []string          `json:"patterns,omitempty"` // each with a named group "id"; tried in order
 	Titles   map[string]string `json:"titles,omitempty"`   // id -> what the event is: the vocabulary, an id that is not here is not read
@@ -99,6 +102,7 @@ type profile struct {
 	mined     map[string]bool
 	wanted    map[string]bool
 	vocab     map[string]map[string]bool
+	shape     *regexp.Regexp // of the first field
 	headVocab map[string]bool
 	bounded   bool
 }
@@ -255,6 +259,16 @@ func compile(f File) (*profile, error) {
 				p.vocab[k][v] = true
 			}
 		}
+		for k, src := range r.Shapes {
+			if k != r.Fields[0] || p.vocab[k] == nil {
+				return nil, fmt.Errorf("shapes: only the first field, which has a vocab, can have one (%q)", k)
+			}
+			re, err := regexp.Compile(src)
+			if err != nil || len(src) > MaxPatternBytes {
+				return nil, fmt.Errorf("shape of %q: a pattern of at most %d bytes: %w", k, MaxPatternBytes, err)
+			}
+			p.shape = re
+		}
 		p.bounded = len(r.Mined) == 0
 		for _, k := range r.Fields {
 			p.bounded = p.bounded && p.vocab[k] != nil
@@ -398,6 +412,7 @@ func (p *profile) read(msg string) (Result, bool) {
 			return r, false
 		}
 		var parts []string
+		bounded := p.bounded
 		for i, k := range p.Rule.Fields {
 			v, has := kv[k]
 			if !has {
@@ -405,9 +420,13 @@ func (p *profile) read(msg string) (Result, bool) {
 			}
 			if voc := p.vocab[k]; voc != nil && !voc[v] {
 				if i == 0 {
-					return r, false // the key of the format is not one the data knows: not this profile's line
+					if p.shape == nil || !p.shape.MatchString(v) {
+						return r, false // the key of the format is not one the data knows: not this profile's line
+					}
+					bounded = false // well formed but unknown: read, kept, counted in the quota of the miner
+				} else {
+					continue
 				}
-				continue
 			}
 			if p.mined[k] {
 				v = Mine(v)
@@ -418,7 +437,7 @@ func (p *profile) read(msg string) (Result, bool) {
 		}
 		r.Signature = strings.Join(parts, " ")
 		r.Src, r.Dest = addr(kv[p.Rule.SrcField]), addr(kv[p.Rule.DstField])
-		r.Bounded = p.bounded
+		r.Bounded = bounded
 	case TypeEventID:
 		id, title := "", ""
 		for _, re := range p.patterns {

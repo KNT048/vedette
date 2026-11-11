@@ -2,13 +2,17 @@ package logs
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -21,13 +25,13 @@ import (
 // fgLogids and fgActions are inside the vocabulary of the FortiGate profile (data/profiles/fortigate.json): a signature of the
 // profile needs a known log id, so the tests that want many distinct profile signatures take them from here.
 var (
-	fgLogids  = []string{"0000000013", "0001000014", "0000000011", "0100032001", "0100032002", "0100032003", "0100044546", "0100044547", "0100040704", "0101039426", "0102043008", "0102043009", "0316013056", "0419016384", "1059028704", "0211008192"}
-	fgActions = []string{"deny", "accept", "close", "timeout"}
+	fgLogids  = []string{"0000000013", "0001000014", "0000000020", "0100032001", "0100032002", "0100032003", "0100044546", "0100044547", "0100040704", "0101039426", "0102043008", "0102043009", "0316013056", "0419016384", "1059028704", "0211008192"}
+	fgActions = []string{"deny", "accept", "close", "timeout", "start", "dropped", "blocked", "passthrough"}
 	fgMu      sync.Mutex
 	fgIndex   = map[int]int{}
 )
 
-// fgN gives each number a test uses its own log id and action (up to 64 of them), the same one in every test.
+// fgN gives each number a test uses its own log id and action (up to 128 of them), the same one in every test.
 func fgN(n int) (logid, action string) {
 	fgMu.Lock()
 	defer fgMu.Unlock()
@@ -484,9 +488,9 @@ func TestContract_Events_GroupingAndRateLimit(t *testing.T) {
 	for _, ev := range p.events() {
 		perSource[ev.Source]++
 	}
-	// 1 grouped event + 18 targets one by one + ONE summary of the 7 the hour had no room for: nothing is held back for later, and a
-	// burst is not an event for each of its signatures.
-	if perSource["FW-HQ"] != 20 || eventsAbout(p, "new kinds of message") != 1 {
+	// These are signatures of the profile (bounded): they have a room of their own, are never put in a summary, and what does not fit in
+	// the hour waits for the next one: 1 grouped event + 25 targets in all, 20 the first hour and the 6 held back the second.
+	if perSource["FW-HQ"] != 26 || eventsAbout(p, "new kinds of message") != 0 {
 		t.Fatalf("after the hour: %v, %d summaries", perSource, eventsAbout(p, "new kinds of message"))
 	}
 }
@@ -564,7 +568,7 @@ func TestPurgeDropsOldSignatureCounters(t *testing.T) {
 			if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_buckets (source_id, bucket, sig_hash, count, mined) VALUES (?, ?, 1, 1, 0)`, src.ID, at.Unix()/300); err != nil {
 				return err
 			}
-			_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at) VALUES (?, 'new', 'sig', ?, 't', ?)`, src.ID, ts, ts)
+			_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at, bounded) VALUES (?, 'new', 'sig', ?, 't', ?, 0)`, src.ID, ts, ts)
 			return err
 		}); err != nil {
 			t.Fatal(err)
@@ -1045,7 +1049,7 @@ func TestEventForClipsEveryPart(t *testing.T) {
 		g.items = append(g.items, anomaly{Kind: "new", SourceID: "ls-x", Signature: sig, Count: 9})
 		det[sig] = detail{sample: strings.Repeat("é", 512)}
 	}
-	ev := e.svc.eventFor(t.Context(), sourceRow{ID: "ls-x", Name: "FW-HQ", SenderIP: "192.168.10.1"}, g, det)
+	ev := e.svc.eventFor(t.Context(), sourceRow{ID: "ls-x", Name: "FW-HQ", SenderIP: "192.168.10.1"}, g, det, nil)
 	notifyAccepts(t, ev)
 }
 
@@ -1186,49 +1190,206 @@ func eventsAbout(p *pubs, part string) (n int) {
 	return n
 }
 
-// H-3: 600 new kinds of line and one real event, detection every hour for 25 hours: the real event is announced, no hour sends
-// more than 20 events, and what the burst leaves over is one summary event for the source, not one event per signature.
-func TestContract_Events_BurstDoesNotStarveARealEvent(t *testing.T) {
+func summaries(p *pubs) (out []AnomalyEvent) {
+	for _, ev := range p.events() {
+		if strings.Contains(ev.Title, "new kinds of message") || strings.Contains(ev.Title, "spiked") {
+			out = append(out, ev)
+		}
+	}
+	return out
+}
+
+// minedFlood feeds n new kinds of line the miner cannot make alike, one line each.
+func minedFlood(e *env, src Source, n int) {
+	ingestAll(e, src, n, func(i int) string { return "aaa" + letters(i) + " hello" }, 1)
+}
+
+// The design of D-206: bounded signatures (shipped vocabulary) have a room of their own and are never put in a summary; a flood of mined
+// kinds is itself reported, once an hour, by a summary whose target is different every hour (notify opens a new incident), which lists
+// the rarest items; what the summary covers is not recorded as announced.
+func TestContract_Events_MinedFloodIsOneSummaryAnHour(t *testing.T) {
 	t.Parallel()
-	for _, c := range []struct {
-		name, real string
-		reps       int
-	}{
-		{"profile signature", realNew, 1},
-		{"mined signature", "zzz a real new event", 2},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			e := newEnv(t)
-			p := &pubs{}
-			e.svc.cfg.Events = p
-			src := e.warmSource("fortigate", "192.168.10.1")
-			ingestAll(e, src, 600, func(i int) string { return "aaa" + letters(i) + " hello" }, c.reps)
-			e.feed(src, c.real, 1)
-			perHour := 0
-			for h := 0; h < 25; h++ {
-				before := len(p.events())
-				e.detect()
-				if n := len(p.events()) - before; n > EventsPerHour {
-					t.Fatalf("hour %d sent %d events", h, n)
-				} else if n > perHour {
-					perHour = n
-				}
-				e.advance(time.Hour)
-			}
-			if eventsAbout(p, "0100044547")+eventsAbout(p, "zzz a real") == 0 {
-				t.Fatalf("the real event was never announced (%d events)", len(p.events()))
-			}
-			if eventsAbout(p, "new kinds of message") != 1 {
-				t.Fatalf("want one summary event, got %d of %d", eventsAbout(p, "new kinds of message"), len(p.events()))
-			}
-			if len(p.events()) > EventsPerHour {
-				t.Fatalf("%d events for one burst", len(p.events()))
-			}
-			for _, ev := range p.events() {
-				notifyAccepts(t, ev)
-			}
-		})
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src := e.warmSource("fortigate", "192.168.10.1")
+	minedFlood(e, src, 600)
+	perHour := map[int]int{}
+	for h := 0; h < 24; h++ { // the signatures are new for 24 hours
+		before := len(summaries(p))
+		e.detect()
+		e.detect() // a second pass in the same hour adds nothing
+		perHour[h] = len(summaries(p)) - before
+		e.advance(time.Hour)
+	}
+	for h, n := range perHour {
+		if n != 1 {
+			t.Fatalf("hour %d: %d summaries, want 1", h, n)
+		}
+	}
+	if len(p.events()) != 24 {
+		t.Fatalf("%d events for a flood of one kind: only the summaries", len(p.events()))
+	}
+	targets := map[string]bool{}
+	for _, ev := range summaries(p) {
+		targets[ev.Source+"\x00"+ev.Target] = true
+		notifyAccepts(t, ev)
+		if !strings.Contains(ev.Title, "possible brute force or scan") || !strings.Contains(ev.What, "aaaa hello") {
+			t.Fatalf("%+v", ev)
+		}
+	}
+	if len(targets) != 24 {
+		t.Fatalf("%d different targets in 24 summaries: notify would count up one incident", len(targets))
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_anomaly_sent WHERE kind = 'new'`); n != 0 {
+		t.Fatalf("%d signatures of the flood were marked as announced one by one", n)
+	}
+}
+
+// A real event of the profile is announced alone, in the hour it happens, under a flood of mined kinds and 30 mined spikes.
+func TestContract_Events_RealBoundedEventSurvivesAFloodAndSpikes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "192.168.10.1", Proto: "udp", Port: 514})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for d := 0; d <= 3; d++ { // 30 mined kinds of line with a steady baseline
+		*e.clock = t0.Add(time.Duration(d) * 24 * time.Hour)
+		for k := 0; k < 30; k++ {
+			e.feed(src, fmt.Sprintf("steady%s line", letters(k)), 10)
+		}
+	}
+	*e.clock = t0.Add(3*24*time.Hour + 2*time.Hour)
+	for k := 0; k < 30; k++ {
+		e.feed(src, fmt.Sprintf("steady%s line", letters(k)), 300) // 30 spikes
+	}
+	minedFlood(e, src, 600)
+	e.feed(src, realNew, 1)
+	e.detect()
+	alone := 0
+	for _, ev := range p.events() {
+		if strings.Contains(ev.Title, "0100044547") && !strings.Contains(ev.Title, "kinds of message") {
+			alone++
+		}
+	}
+	if alone != 1 {
+		t.Fatalf("the real event was announced alone %d times in %d events", alone, len(p.events()))
+	}
+	got := summaries(p)
+	if len(got) != 1 || !strings.Contains(got[0].Title, "new kinds of message") || !strings.Contains(got[0].Title, "spike") {
+		t.Fatalf("one summary that says what it carries: %+v", got)
+	}
+	if first := p.events()[0]; !strings.Contains(first.Title, "0100044547") { // bounded first
+		t.Fatalf("the first event is %q", first.Title)
+	}
+}
+
+// d: more bounded signatures than the hour has room for are not lost: they wait for the next hour (and are never summarised).
+func TestContract_Events_BoundedFloodWaitsForTheNextHour(t *testing.T) {
+	t.Parallel()
+	// 26 signatures of the profile, each aimed at its own address: 26 events' worth
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src := e.warmSource("fortigate", "192.168.10.1")
+	for i, n := 0, 500; n < 526; i, n = i+1, n+1 {
+		e.feed(src, fw(n, fmt.Sprintf("198.51.100.%d", i+1)), 2)
+	}
+	e.detect()
+	if len(p.events()) != EventsPerHour || len(summaries(p)) != 0 {
+		t.Fatalf("first hour: %d events, %d summaries", len(p.events()), len(summaries(p)))
+	}
+	e.advance(61 * time.Minute)
+	e.detect()
+	if len(p.events()) != 26 || len(summaries(p)) != 0 {
+		t.Fatalf("second hour: %d events", len(p.events()))
+	}
+	seen := map[string]bool{}
+	for _, ev := range p.events() {
+		seen[ev.Target] = true
+	}
+	if len(seen) != 26 {
+		t.Fatalf("%d different targets: something was announced twice or lost", len(seen))
+	}
+}
+
+// The order of rank: bounded new, bounded spike, mined new (the rarest first), mined spike (the most lines first).
+func TestRankOrder(t *testing.T) {
+	t.Parallel()
+	items := []anomaly{
+		{Kind: "spike", Signature: "m-spike-big", Count: 900},
+		{Kind: "new", Signature: "m-new-3", Count: 3},
+		{Kind: "spike", Signature: "b-spike", Count: 100, Bounded: true},
+		{Kind: "new", Signature: "m-new-1", Count: 1},
+		{Kind: "new", Signature: "b-new", Count: 5, Bounded: true},
+		{Kind: "spike", Signature: "m-spike-small", Count: 60},
+	}
+	slices.SortFunc(items, rank)
+	var got []string
+	for _, a := range items {
+		got = append(got, a.Signature)
+	}
+	want := []string{"b-new", "b-spike", "m-new-1", "m-new-3", "m-spike-big", "m-spike-small"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("%v, want %v", got, want)
+	}
+}
+
+type countInv struct {
+	fakeInv
+	calls *atomic.Int32
+}
+
+func (c countInv) DevicesByIP(ctx context.Context, ips []string) (map[string]Device, error) {
+	c.calls.Add(1)
+	return c.fakeInv.DevicesByIP(ctx, ips)
+}
+
+// The inventory is asked once for the device that sends the log, not once for every event.
+func TestDetectAsksTheInventoryOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	var calls atomic.Int32
+	e.svc.cfg.Inventory = countInv{fakeInv{byIP: map[string]Device{"192.168.10.1": {ID: "a-fw", Name: "FW-HQ"}}}, &calls}
+	src := e.warmSource("fortigate", "192.168.10.1")
+	for n := 600; n < 605; n++ {
+		e.feed(src, fw(n, fmt.Sprintf("name-%d", n)), 2)
+	}
+	calls.Store(0) // the sources view of the set-up asked too
+	e.detect()
+	if len(p.events()) != 5 || calls.Load() != 1 {
+		t.Fatalf("%d events, %d inventory calls", len(p.events()), calls.Load())
+	}
+}
+
+// A snapshot that was read before a change of the sources is not stored after it.
+func TestSnapshotReadBeforeAChangeIsNotStored(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	g := e.svc.snapshotGen()
+	e.svc.dropSnapshot() // a source changed while the counters were being read
+	e.svc.storeSnapshotIfCurrent(g, e.svc.now(), nil, map[string]sourceRow{})
+	if e.svc.snap != nil {
+		t.Fatal("a stale reading was stored")
+	}
+	g = e.svc.snapshotGen()
+	e.svc.storeSnapshotIfCurrent(g, e.svc.now(), nil, map[string]sourceRow{})
+	if e.svc.snap == nil {
+		t.Fatal("a current reading was dropped")
+	}
+}
+
+// The hash of the 5-minute counters is the first 64 bits of SHA-256, not a hash with a known collision recipe.
+func TestSigHashIsSHA256(t *testing.T) {
+	t.Parallel()
+	sum := sha256.Sum256([]byte("(other)"))
+	if got, want := sigHash("(other)"), int64(binary.BigEndian.Uint64(sum[:8])); got != want { //nolint:gosec // the bits are the hash
+		t.Fatalf("%d, want %d", got, want)
 	}
 }
 

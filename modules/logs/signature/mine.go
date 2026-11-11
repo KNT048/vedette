@@ -24,13 +24,17 @@ func Mine(text string) string {
 	if strings.IndexByte(text, '@') >= 0 { // rare: a regular expression is fine
 		text = emailRE.ReplaceAllString(text, "<email>")
 	}
-	text = maskIdentity(maskPamName(text))
+	text = maskIdentity(maskBeforeParen(maskPamName(maskBracketBeforeLogin(text))))
 	text = maskQuotes(text)
 	var out []string
-	size, maskNext := 0, false
+	size, maskNext, afterName := 0, false, false
 	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return r == ' ' || unicode.IsControl(r) }) {
 		if size >= MaxSignatureBytes {
 			break
+		}
+		pre := "" // "message=User bob failed": the key of a kept sentence is apart from its first word
+		if i := strings.IndexByte(w, '='); i > 0 && i < len(w)-1 && keepsQuote(w[:i+1]) {
+			pre, w = w[:i+1], w[i+1:]
 		}
 		low := lowerWord(w)
 		var m string
@@ -39,13 +43,20 @@ func Mine(text string) string {
 			m = w
 		case maskNext && sentenceWords[low]: // "SSL user failed to logged in": no name here
 			m, maskNext = w, false
-		case maskNext && plainName(w):
+		case maskNext && nameToken(w):
 			m, maskNext = "<name>", false
+			afterName = true
+			out = append(out, pre+m)
+			size += len(pre) + len(m) + 1
+			continue
+		case afterName && (w == "->" || w == "=>"): // "user [bob] -> [bob]": the second name is the first again
+			m, maskNext = w, true
 		default:
 			m, maskNext = maskWord(w), nameKeywords[low]
 		}
-		out = append(out, m)
-		size += len(m) + 1
+		afterName = false
+		out = append(out, pre+m)
+		size += len(pre) + len(m) + 1
 	}
 	res := strings.TrimSpace(cut(strings.Join(out, " "), MaxSignatureBytes))
 	if res == "" {
@@ -59,12 +70,15 @@ var (
 	emailRE = regexp.MustCompile(`[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,24}`)
 	// identityKeys are the keys whose value names somebody or something: whatever the shape of the value and of the separator, it is
 	// never part of a signature, enumeration or not.
-	identityKeys = set("user", "username", "usr", "acct", "account", "login", "logname", "uname", "name", "uid", "host", "hostname", "rhost", "src", "dst", "query", "domain", "url", "uri", "email", "mail")
+	identityKeys = set("user", "username", "usr", "acct", "account", "login", "logname", "uname", "name", "uid", "host", "hostname", "rhost", "src", "dst", "query", "domain", "url", "uri", "email", "mail", "set_id", "userid", "user_id", "suser", "duser", "shost", "dhost")
+	// identitySuffixes: a key that ends with one of these (client_user, targetUser, sasl_username, user_name, TargetUserName) names somebody too.
+	identitySuffixes = []string{"user", "username", "name", "host", "login", "account"}
 	// nameKeywords are the words after which a name comes. skipWords can stand between the keyword and the name; sentenceWords end
 	// the search ("account locked after 5 failures" has no name).
-	nameKeywords  = set("user", "username", "login", "account", "acct", "khoản", "dùng", "for")
+	nameKeywords  = set("user", "username", "login", "account", "acct", "khoản", "dùng", "for", "пользователь", "пользователя", "логин")
 	skipWords     = set("of", "for", "as", "by", "invalid", "illegal", "user", "username", "account", "name", "the", "a", "an")
 	sentenceWords = set("failed", "failure", "successful", "successfully", "success", "ok", "denied", "from", "via", "at", "on", "in", "to", "with", "is", "was", "has", "not", "error", "locked", "logged", "rejected", "accepted", "closed", "opened", "started", "stopped")
+	machineWords  = set("DESKTOP", "LAPTOP", "WIN", "PC", "NB", "WORKSTATION", "SERVER")
 	tlds          = set("com", "net", "org", "info", "biz", "edu", "gov", "mil", "int", "io", "co", "uk", "de", "fr", "ru", "cn", "jp", "vn", "us", "ca", "au", "in", "br", "xyz", "top", "cc", "me", "tv", "app", "dev", "ai", "tk", "ml", "ga", "cf", "gq", "online", "site", "club", "shop", "cloud")
 	maskTokens    = set("<v>", "<s>", "<ip>", "<n>", "<hex>", "<tok>", "<path>", "<dom>", "<url>", "<name>", "<email>")
 )
@@ -77,8 +91,23 @@ func set(words ...string) map[string]bool {
 	return m
 }
 
-// maskIdentity replaces the value of every identity key by <v>: key=value, key:value, key: value, key="value", key=<value>,
-// 'key'='value' and the JSON form "key":"value". One pass, no regular expression (this runs on every line a device sends).
+// identityKey says whether a key (a word of letters and underscores) names somebody or something: it is one of identityKeys or ends
+// with one of identitySuffixes, in any case.
+func identityKey(k string) bool {
+	k = strings.ToLower(k)
+	if identityKeys[k] {
+		return true
+	}
+	for _, suf := range identitySuffixes {
+		if strings.HasSuffix(k, suf) {
+			return true
+		}
+	}
+	return false
+}
+
+// maskIdentity replaces the value of every identity key by <v>: key=value, key = value, key:value, key: value, key := value,
+// key="value", key=<value>, and the JSON form "key":"value". One pass, no regular expression (this runs on every line a device sends).
 func maskIdentity(s string) string {
 	if strings.IndexByte(s, '=') < 0 && strings.IndexByte(s, ':') < 0 {
 		return s
@@ -89,22 +118,31 @@ func maskIdentity(s string) string {
 		if s[i] != '=' && s[i] != ':' {
 			continue
 		}
+		sepEnd := i + 1
+		if s[i] == ':' && sepEnd < len(s) && s[sepEnd] == '=' { // :=
+			sepEnd++
+		} else if s[i] == '=' && s[i-1] == ':' { // the = of := was handled with its colon
+			continue
+		}
 		k := i
-		if s[k-1] == '"' { // "key":"value"
+		for k > 0 && (s[k-1] == ' ' || s[k-1] == '\t') && i-k < 2 { // key = value
+			k--
+		}
+		if k > 0 && s[k-1] == '"' { // "key":"value"
 			k--
 		}
 		start := k
-		for start > 0 && (s[start-1] >= 'a' && s[start-1] <= 'z' || s[start-1] >= 'A' && s[start-1] <= 'Z') {
+		for start > 0 && (s[start-1] >= 'a' && s[start-1] <= 'z' || s[start-1] >= 'A' && s[start-1] <= 'Z' || s[start-1] == '_') {
 			start--
 		}
-		if k-start < 3 || k-start > 8 || start > 0 && (isAtomByte(s[start-1]) && s[start-1] != ':' && s[start-1] != '.' && s[start-1] != '-') {
+		if k-start < 3 || k-start > 24 || start > 0 && isDigit(s[start-1]) {
 			continue
 		}
-		if !identityKeys[strings.ToLower(s[start:k])] {
+		if !identityKey(s[start:k]) {
 			continue
 		}
-		v := i + 1
-		if v < len(s) && s[v] == ' ' {
+		v := sepEnd
+		for v < len(s) && (s[v] == ' ' || s[v] == '\t') && v-sepEnd < 4 {
 			v++
 		}
 		end := valueEnd(s, v)
@@ -120,6 +158,95 @@ func maskIdentity(s string) string {
 	}
 	b.WriteString(s[last:])
 	return b.String()
+}
+
+// maskBeforeParen masks the name that stands before "(address)" or "(uid=": "bob (10.5.50.3): login failed" of a hotspot, and
+// "session opened for user root(uid=0) by bob(uid=1000)" of PAM.
+func maskBeforeParen(s string) string {
+	if strings.IndexByte(s, '(') < 0 {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for i := 1; i < len(s); i++ {
+		if s[i] != '(' {
+			continue
+		}
+		rest := s[i+1:]
+		ok := strings.HasPrefix(rest, "uid=")
+		if n := ipv4Prefix(rest); n > 0 && n < len(rest) && rest[n] == ')' {
+			ok = true
+		}
+		if !ok {
+			continue
+		}
+		end := i
+		if s[end-1] == ' ' {
+			end--
+		}
+		start := end
+		for start > 0 && start > end-64 && nameRune(s, start-1) {
+			start--
+		}
+		for start < end && !utf8.RuneStart(s[start]) {
+			start++
+		}
+		if start == end || start > 0 && s[start-1] != ' ' && s[start-1] != '\t' && s[start-1] != '[' || nameWord(s[start:end]) {
+			continue
+		}
+		b.WriteString(s[last:start])
+		b.WriteString("<name>")
+		last = end
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// nameRune says whether the byte at s[i] can be part of a name: a letter, digit or . _ @ - of any script (bytes of multi-byte characters count).
+func nameRune(s string, i int) bool {
+	c := s[i]
+	return c >= 0x80 || isDigit(c) || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '.' || c == '_' || c == '@' || c == '-'
+}
+
+// nameWord says whether a token is a word of the sentence and not a name: a keyword, a skip word or a sentence word.
+func nameWord(w string) bool {
+	l := strings.ToLower(w)
+	return nameKeywords[l] || skipWords[l] || sentenceWords[l]
+}
+
+// maskBracketBeforeLogin masks the [name] of "[bob] FAIL LOGIN" and "[bob] OK LOGIN" (vsftpd).
+func maskBracketBeforeLogin(s string) string {
+	i := strings.Index(s, "] FAIL LOGIN")
+	if j := strings.Index(s, "] OK LOGIN"); i < 0 || j >= 0 && j < i {
+		i = j
+	}
+	if i < 0 {
+		return s
+	}
+	open := strings.LastIndexByte(s[:i], '[')
+	if open < 0 || i-open > 66 {
+		return s
+	}
+	return s[:open+1] + "<name>" + s[i:]
+}
+
+// nameToken says whether w is, once the brackets, quotes and punctuation around it are taken off, a name: letters of any script, digits
+// and . _ @ - (so a name may start with a digit or be written in Cyrillic), at most 64 bytes.
+func nameToken(w string) bool {
+	w = strings.TrimLeft(w, `[<"'(`)
+	w = strings.TrimRight(w, `]>"':,;.)!?`)
+	if w == "" || len(w) > 64 {
+		return false
+	}
+	for _, r := range w {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '.' && r != '_' && r != '@' && r != '-' {
+			return false
+		}
+	}
+	return !nameWord(w)
 }
 
 // valueEnd returns where the value that starts at v ends: after its closing quote or bracket, or at the first space or separator.
@@ -198,19 +325,6 @@ func lowerWord(w string) string {
 	return strings.ToLower(strings.TrimRight(w, ":,;."))
 }
 
-// plainName says whether w can be the name of an account: it starts with a letter and has only letters, digits and . _ - (at most 64).
-func plainName(w string) bool {
-	if w == "" || len(w) > 64 || (w[0] < 'A' || w[0] > 'Z' && w[0] < 'a' || w[0] > 'z') {
-		return false
-	}
-	for i := 0; i < len(w); i++ {
-		if !isAtomByte(w[i]) || w[i] == ':' {
-			return false
-		}
-	}
-	return true
-}
-
 // enumLike says whether v is a short plain word: letters, '_' and '-' only, at most 16 bytes (deny, accept, forward).
 func enumLike(v string) bool {
 	if v == "" || len(v) > 16 {
@@ -250,8 +364,8 @@ func maskQuotes(s string) string {
 				i++
 				continue
 			}
-			if in := s[i+1 : end]; enumLike(in) {
-				b.WriteString(in)
+			if in := s[i+1 : end]; enumLike(in) || keepsQuote(s[:i]) {
+				b.WriteString(in) // an enumeration, or the sentence of a msg: its words stay (the names in it were masked)
 			} else {
 				b.WriteString("<s>")
 			}
@@ -280,6 +394,17 @@ func maskQuotes(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// keepsQuote says whether the quote that follows s opens the value of msg, logdesc or message: a sentence the device wrote, whose words
+// belong in the signature.
+func keepsQuote(before string) bool {
+	for _, k := range []string{"msg=", "logdesc=", "message="} {
+		if len(before) >= len(k) && strings.EqualFold(before[len(before)-len(k):], k) {
+			return true
+		}
+	}
+	return false
 }
 
 // maskWord masks one word (no space in it).
@@ -407,6 +532,10 @@ func maskAtom(b *strings.Builder, a string) {
 			a = a[len(host):]
 			continue
 		}
+		if machineName(a) {
+			b.WriteString("<host>")
+			return
+		}
 		if randomLike(a) {
 			b.WriteString("<tok>")
 			return
@@ -524,4 +653,28 @@ func randomLike(a string) bool {
 		}
 	}
 	return digit && letter || len(a) >= 20 && upper || len(a) >= 24 && (digit || upper)
+}
+
+// machineName says whether a is a name that Windows and phones give themselves: upper-case letters, a hyphen and 5 or more upper-case
+// letters and digits with a digit among them (DESKTOP-4K8R2QP, LAPTOP-7XJ3L9A).
+func machineName(a string) bool {
+	i := strings.IndexByte(a, '-')
+	if i < 2 || i > 10 || len(a)-i-1 < 5 || len(a)-i-1 > 15 {
+		return false
+	}
+	for k := 0; k < i; k++ {
+		if a[k] < 'A' || a[k] > 'Z' {
+			return false
+		}
+	}
+	digit := machineWords[a[:i]]
+	for k := i + 1; k < len(a); k++ {
+		switch c := a[k]; {
+		case isDigit(c):
+			digit = true
+		case c < 'A' || c > 'Z':
+			return false
+		}
+	}
+	return digit
 }

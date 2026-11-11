@@ -30,6 +30,7 @@
 
 ## Modifying: job `anomaly` và sự kiện `logs.anomaly.detected` (L3)
 - **notify** (`logEvent`): đọc `source`, `target`, `title` (≤ 200 ký tự), `what`, `action`, `severity`, `devices[{id,name}]`; `source` + `target` là khoá gộp incident. Đổi tên trường hay nghĩa của `target` là đổi cách notify gộp. Tối đa 20 sự kiện mỗi giờ mỗi nguồn: nâng trần là nâng lượng thông báo của khách.
+- Hai phòng 20 sự kiện mỗi giờ mỗi nguồn (bounded; bộ tìm mẫu) và một bản tóm tắt mỗi giờ khi bộ tìm mẫu có nhiều nhóm hơn phòng; `target` của bản tóm tắt có giờ UTC để notify mở incident mới. Đổi cách đặt `target` hay bỏ giờ khỏi nó là làm notify cộng dồn lặng lẽ.
 - Không `Housekeeping`: biến nó thành housekeeping là gửi sự kiện khi module tắt (SYS-5); `TestContract_SYS5_NoEventsWhileTheModuleIsOff` chặn.
 - **Sửa nguồn** (`UpdateSource`): đổi `kind` hoặc `sender_ip` đặt `logs_sources.signatures_since` và khởi động lại 24 giờ của nguồn; một đường sửa nguồn mới (import hàng loạt) phải làm như vậy.
 - **cmd/vedette** (`logs.go`): `Config.Events` là `d.Bus`; thiếu thì job không làm gì.

@@ -41,7 +41,7 @@ func TestMineMasksIPsNumbersAndHex(t *testing.T) {
 		"session JSESSIONID=AbCdEfGhIjKlMnOpQrSt opened":                          "session JSESSIONID=<v> opened",
 		"GET /wp-login.php?x=abc HTTP/1.1":                                        "GET <path> HTTP/<n>.<n>",
 		"GET /admin/config.bak HTTP/1.1":                                          "GET <path> HTTP/<n>.<n>",
-		`msg="Administrator admin login failed" action="deny" srcip=1.2.3.4 n=42`: "msg=<s> action=deny srcip=<ip> n=<n>",
+		`msg="Administrator admin login failed" action="deny" srcip=1.2.3.4 n=42`: "msg=Administrator admin login failed action=deny srcip=<ip> n=<n>",
 		"id sess_Ab12Cd34Ef56Gh78Ij done":                                         "id <tok> done",
 		"open ConfigurationManagerFactory now":                                    "open <tok> now",
 		"":                                                                        "(empty)",

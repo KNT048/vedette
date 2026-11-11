@@ -44,10 +44,11 @@ CREATE INDEX logs_signature_buckets_source ON logs_signature_buckets (source_id,
 -- events sent in the last hour are the distinct (target, sent_at) of a source. Kept 3 days.
 CREATE TABLE logs_anomaly_sent (
     source_id TEXT NOT NULL CHECK (length(source_id) BETWEEN 1 AND 64),
-    kind      TEXT NOT NULL CHECK (kind IN ('new', 'spike')),
+    kind      TEXT NOT NULL CHECK (kind IN ('new', 'spike', 'summary')),
     signature TEXT NOT NULL CHECK (length(signature) BETWEEN 1 AND 256),
     ref       TEXT NOT NULL,
     target    TEXT NOT NULL,
+    bounded   INTEGER NOT NULL CHECK (bounded IN (0, 1)), -- the room of the hour that the event used: bounded signatures have their own
     sent_at   TEXT NOT NULL CHECK (sent_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     PRIMARY KEY (source_id, kind, signature, ref)
 ) WITHOUT ROWID;

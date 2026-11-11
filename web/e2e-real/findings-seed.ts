@@ -6,7 +6,7 @@
 // and a device declared in the inventory with that vendor and product is matched at once (inventory INV-10, `inventory.match.changed`); the
 // findings module creates the finding (`suspected`, basis `product`: the list has no affected version ranges).
 // This is box-wide state (the built-in feed's address and rows), so the specs that use it are `.global.spec.ts`, and the address is reset to
-// the default at the end. The CVE-2099-* rows stay in the box until the run ends (the feed has no delete); the box is thrown away after it.
+// the default at the end. The CVE-2099-* rows stay until the next successful CISA pull replaces them (or the run ends: the box is thrown away).
 // Vendor, product, device, address and CVE are unique per seed (CVE-2099-*, a year no real list has reached), so tests never share a finding.
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -47,25 +47,34 @@ export async function startFeedServer() {
     expect(r.status, `mirror address of the CISA feed: ${JSON.stringify(r.body)}`).toBe(200)
   } finally { await admin.dispose() }
 }
-/** Gives the CISA feed its default address back and stops the server (call in afterAll). */
+/** Gives the CISA feed its default address back and stops the server (call in afterAll); the server is closed whatever the reset did. */
 export async function stopFeedServer() {
-  const admin = await as('admin')
-  try { expect((await api(admin, 'PUT', '/feeds/sources/cisa-kev', { url: '' })).status, 'reset of the CISA feed address').toBe(200) } finally { await admin.dispose() }
   const s = srv; srv = undefined
-  if (s) await new Promise((ok) => s.close(ok))
+  const admin = await as('admin')
+  try {
+    expect((await api(admin, 'PUT', '/feeds/sources/cisa-kev', { url: '' })).status, 'reset of the CISA feed address').toBe(200)
+    const after = (await api<{ items: { id: string; url: string }[] }>(admin, 'GET', '/feeds/sources')).body.items.find((i) => i.id === 'cisa-kev')
+    expect(after, 'the CISA feed is listed').toBeDefined()
+    expect(after!.url, 'the CISA feed no longer points at the loopback server').not.toBe(`${base}/kev.json`)
+  } finally {
+    await admin.dispose()
+    if (s) await new Promise((ok) => s.close(ok))
+  }
 }
 
 /** What a test made and has not removed: swept by id after it, whatever the test did. */
 const made = { devices: [] as string[] }
-/** Removes the devices of the seeds of the test (their findings go with them), through the API, and checks the status of every delete. Use as `test.afterEach(sweep)`. */
+/** Removes the devices of the seeds of the test (their findings go with them), through the API, and checks the status of every delete (404 only
+ *  for a device the test itself deleted). The list is cleared once the deletes are checked. Use as `test.afterEach(sweep)`. */
 export async function sweep() {
   if (!made.devices.length) return
   const admin = await as('admin')
   try {
-    const devices = (await api<{ items: { id: string }[] }>(admin, 'GET', '/inventory/devices')).body.items
-    for (const id of made.devices.splice(0)) {
-      if (devices.some((d) => d.id === id)) expect([200, 204], `cleanup of device ${id}`).toContain((await api(admin, 'DELETE', `/inventory/devices/${id}`)).status)
+    for (const id of [...made.devices]) {
+      const st = (await api(admin, 'DELETE', `/inventory/devices/${id}`)).status
+      expect([200, 204, 404], `cleanup of device ${id}`).toContain(st)
     }
+    made.devices.length = 0
   } finally { await admin.dispose() }
 }
 
@@ -78,7 +87,7 @@ export async function seed(): Promise<Seed> {
     const n = seq++
     const vendor = `Vend-${tag}`, product = `Widget-${tag}`, host = `host-${tag}`
     const cve = `CVE-2099-${String(100000 + (Date.now() % 800000) + n)}`
-    const ip = `10.231.${(process.pid + n) % 250}.${(Math.floor(Date.now() / 1000) + n * 7) % 250 + 1}`
+    const ip = `10.231.${Math.floor(n / 250) % 250}.${(n % 250) + 1}` // a counter: this file's addresses never repeat in a run
     entries.push({ cveID: cve, vendorProject: vendor, product, vulnerabilityName: `QA ${tag} remote code execution`, dateAdded: '2026-11-01', shortDescription: `QA entry ${tag}`, requiredAction: `Apply the QA update for ${tag}.`, dueDate: '2099-12-01', knownRansomwareCampaignUse: 'Unknown', notes: 'https://advisory.example/qa' })
     render()
     const pulled = await api(admin, 'POST', '/feeds/sources/cisa-kev/fetch')

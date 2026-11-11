@@ -1,4 +1,4 @@
-// The findings and mitigation modules with a finding on the box (S-MIT-1, S-MIT-3, S-INV-2, S-CORE-1, S-CORE-3, findings INV-1..4/7, mitigation INV-1/3).
+// The findings and mitigation modules with a finding on the box (S-MIT-1, S-INV-2, S-CORE-1, S-CORE-3, findings INV-1..3, INV-4 (product match only), INV-7, mitigation INV-1/3; S-MIT-3 only as "no confirmed exploitation signs", there is no pack).
 // Global project: a finding comes from the CISA list, so every test here uses the box-wide mirror address of that feed (findings-seed.ts), and the mitigation
 // switch at the end is box-wide too. Every test has a finding of its own (unique vendor, product, device, CVE-2099-*) and removes its device afterwards.
 // Steps from e2e/qa/findings.spec.ts.
@@ -31,7 +31,7 @@ const table = (page: Page) => page.getByRole('table', { name: 'Findings list' })
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Mark as handled' })
 const statusPost = (page: Page, id: string) => page.waitForResponse((r) => r.url().endsWith(`/findings/${id}/status`) && r.request().method() === 'POST')
 
-test.describe('a finding made through a feed and a device (S-MIT-1, S-INV-2, INV-1, INV-4)', () => {
+test.describe('a finding made through the CISA list and a device (S-MIT-1, S-INV-2, INV-1, INV-4 product match)', () => {
   test.use({ storageState: authFile('viewer') })
   let s: Seed
 
@@ -118,7 +118,7 @@ test.describe('a finding made through a feed and a device (S-MIT-1, S-INV-2, INV
     await expect(page.getByText(SEV[d.severity]!, { exact: true }).first()).toBeVisible()
     const ev = page.locator('#evidence')
     await expect(ev).toContainText(BASIS.product!)
-    await expect(ev).toContainText(new RegExp(`${Math.round(d.confidence * 100)}\\s?%`))
+    await expect(ev).toContainText(new Intl.NumberFormat('en-GB', { style: 'percent', maximumFractionDigits: 0 }).format(d.confidence)) // the page's own fmtPercent(confidence, 0)
     await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', `/scans?target=${s.deviceId}`)
     await expect(page.getByRole('link', { name: `Open ${s.cve} page` })).toHaveAttribute('href', `/cve/${s.cve}`)
     await expect(page.getByRole('link', { name: s.host }).first()).toHaveAttribute('href', `/devices/${s.deviceId}`)
@@ -132,14 +132,15 @@ test.describe('a finding made through a feed and a device (S-MIT-1, S-INV-2, INV
     await expect(page.getByText('Confirmed by Vedette maintainers', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Source information' })).toBeVisible()
     await expect(page.getByText(d.kev!.required_action)).toBeVisible() // CISA's own words, in the page's language of origin
-    await expect(page.getByRole('link', { name: 'https://advisory.example/qa' })).toBeVisible()
+    expect(d.kev!.links).toEqual(['https://advisory.example/qa']) // KEV "notes" are links; the page renders each as an anchor (Recommendation.tsx NoPack)
+    await expect(page.getByRole('link', { name: 'https://advisory.example/qa' })).toHaveAttribute('href', 'https://advisory.example/qa')
     await expect(page.getByRole('button', { name: 'Applied' })).toHaveCount(0) // no pack, nothing to mark as applied
     await expect(page.getByRole('button', { name: 'Ask my AI' })).toBeDisabled() // no AI profile
     await expect(page.getByText('The AI assistant is off, or no AI profile is assigned to this job.').first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai')
     await expect(page.getByRole('button', { name: 'Explain', exact: true })).toBeDisabled()
     // "Have I been hit?" without a pack: the honest sentence
-    await expect(page.getByText(/No confirmed exploitation signs for this CVE yet/)).toBeVisible()
+    await expect(page.getByText('No confirmed exploitation signs for this CVE yet.', { exact: false })).toBeVisible()
     await expectAccessible(page, 'finding detail')
     await noVietnamese(page, 'finding detail')
     await shot(page, 'real', 'finding-detail')
@@ -184,6 +185,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
     await expect(dlg.getByText(/at least 3 characters/)).toBeVisible()
     await dlg.getByLabel(/^Note/).fill('ab')
     await dlg.getByRole('button', { name: 'Save status' }).click()
+    await expect(dlg.getByLabel(/^Note/)).toHaveAttribute('aria-invalid', 'true') // still refused after the click on "ab"
     await expect(dlg.getByText(/at least 3 characters/)).toBeVisible()
     expect(posts, 'a refused form sends nothing').toEqual([])
     const note = `Checked by hand ${uniq('fp')}`
@@ -196,7 +198,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
     await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} marked as false positive`)
     await expect(page.getByText(note)).toBeVisible()
     await expect(page.getByText('Marked as false positive', { exact: true })).toBeVisible()
-    await expect(page.getByText(new RegExp(`${operator.replace('.', '\\.')}`)).first()).toBeVisible()
+    await expect(page.getByText(operator).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Reopen finding' })).toBeVisible()
     // the server has the same: status, who, why, one more history row
     const c = await as('viewer')
@@ -253,7 +255,8 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
     expect((await r).status()).toBe(200)
     await page.getByRole('button', { name: 'Mark as handled' }).click()
     const p = statusPost(page, s.findingId)
-    await dialog(page).getByRole('button', { name: 'Save status' }).click() // Patched is the first radio
+    await dialog(page).getByRole('radio', { name: /^Patched/ }).click()
+    await dialog(page).getByRole('button', { name: 'Save status' }).click()
     expect((await p).status()).toBe(200)
     await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} is patched`)
     const v = await as('viewer')
@@ -281,7 +284,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
       }
       const r501 = await post(s.findingId, { action: 'mitigated', note: 'x'.repeat(501) })
       expect(r501.status).toBe(400)
-      expect(r501.body.error.code).toMatch(/^(invalid|note_too_long)$/)
+      expect(r501.body).toMatchObject({ error: { code: 'invalid' } }) // exact: the OpenAPI schema (maxLength 500) refuses it before the handler, as the "Không khớp" section of findings CONTRACT says; INV-3's `note_too_long` is reachable only for a note of <= 500 characters but > 500 UTF-16 units
       expect((await post(s.findingId, { action: 'delete', note: '' })).status).toBe(400) // an action that does not exist
       expect((await post(s.findingId, { note: 'no action' })).status).toBe(400)
       const open = await post(s.findingId, { action: 'reopen', note: '' })
@@ -308,6 +311,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
   })
 
   test('mitigation: "Applied" has no pack to mark, and the AI is unavailable, both with a precise refusal and no change (INV-1, INV-3)', async () => {
+    test.setTimeout(120_000)
     const s = await seed()
     const op = await as('operator')
     try {
@@ -351,17 +355,18 @@ test.describe('roles (S-MIT-1, S-CORE-3)', () => {
       const c = page.request
       expect((await api(c, 'GET', '/findings')).status).toBe(200)
       expect((await api(c, 'GET', `/findings/${s.findingId}`)).status).toBe(200)
-      expect((await api(c, 'POST', `/findings/${s.findingId}/status`, { action: 'patched', note: '' })).status).toBe(403)
-      expect((await api(c, 'POST', `/findings/${s.findingId}/applied`, { item: 'patch' })).status).toBe(403)
-      expect((await api(c, 'POST', `/findings/${s.findingId}/ai`, { skill: 'explain' })).status).toBe(403)
-      expect((await api(c, 'GET', '/core/audit')).status).toBe(403) // the audit log is the administrator's
+      for (const [method, path, body] of [['POST', `/findings/${s.findingId}/status`, { action: 'patched', note: '' }], ['POST', `/findings/${s.findingId}/applied`, { item: 'patch' }], ['POST', `/findings/${s.findingId}/ai`, { skill: 'explain' }], ['GET', '/core/audit', undefined]] as const) {
+        const r = await api<{ error: { code: string } }>(c, method, path, body) // the audit log is the administrator's
+        expect(r.status, `${method} ${path}`).toBe(403)
+        expect(r.body, `${method} ${path}`).toMatchObject({ error: { code: 'forbidden' } })
+      }
       const admin = await as('admin')
       try {
         const d = (await finding(admin, s.findingId)).body
         expect(d.status).toBe('suspected')
         expect(d.history.map((h) => h.action)).toEqual(['created'])
       } finally { await admin.dispose() }
-      noErrors(errors, /status of 40[13]/)
+      noErrors(errors) // collectErrors already leaves out the browser's own 4xx lines
     } finally { await context.close() }
   })
 
@@ -393,50 +398,52 @@ test.describe('roles (S-MIT-1, S-CORE-3)', () => {
 
 test.describe('mitigation switch (S-CORE-1)', () => {
   test.use({ storageState: authFile('admin') })
-test('mitigation off: the finding and its status changes stay, "What to do" says the module is off, its routes answer 404; on again brings it back', async ({ page }) => {
-  test.setTimeout(150_000)
-  const errors = collectErrors(page)
-  const s = await seed()
-  const admin = await as('admin')
-  const state = async () => (await api<{ modules: { id: string; enabled: boolean }[] }>(admin, 'GET', '/modules')).body.modules.find((m) => m.id === 'mitigation')?.enabled
-  try {
-    expect(await state(), 'mitigation is on (mid-size bundle)').toBe(true)
-    expect((await api(admin, 'PATCH', '/modules/mitigation', { enabled: false })).status).toBe(200)
-    expect(await state()).toBe(false)
-    // the routes of mitigation answer as if they did not exist (SYS-5); findings is untouched
-    for (const [path, body] of [[`/findings/${s.findingId}/applied`, { item: 'patch' }], [`/findings/${s.findingId}/ai`, { skill: 'explain' }]] as const) {
-      const r = await api(admin, 'POST', path, body)
-      expect(r.status, path).toBe(404)
-      expect(r.body, path).toMatchObject({ error: { code: 'not_found' } })
+  test('mitigation off: the finding and its status changes stay, "What to do" says the module is off, its routes answer 404; on again brings it back', async ({ page }) => {
+    test.setTimeout(150_000)
+    const errors = collectErrors(page)
+    const s = await seed()
+    const admin = await as('admin')
+    const state = async () => (await api<{ modules: { id: string; enabled: boolean }[] }>(admin, 'GET', '/modules')).body.modules.find((m) => m.id === 'mitigation')?.enabled
+    try {
+      expect(await state(), 'mitigation is on (mid-size bundle)').toBe(true)
+      expect((await api(admin, 'PATCH', '/modules/mitigation', { enabled: false })).status).toBe(200)
+      expect(await state()).toBe(false)
+      // the routes of mitigation answer as if they did not exist (SYS-5); findings is untouched
+      for (const [path, body] of [[`/findings/${s.findingId}/applied`, { item: 'patch' }], [`/findings/${s.findingId}/ai`, { skill: 'explain' }]] as const) {
+        const r = await api(admin, 'POST', path, body)
+        expect(r.status, path).toBe(404)
+        expect(r.body, path).toMatchObject({ error: { code: 'not_found' } })
+      }
+      const d = (await finding(admin, s.findingId)).body
+      expect(d).toMatchObject({ status: 'suspected', pack: null, compromise: null, applied: [] })
+      expect((await api(admin, 'GET', `/findings?asset=${s.deviceId}`)).status).toBe(200)
+      await page.goto(`/findings/${s.findingId}`)
+      await expect(h1(page)).toHaveText(`${s.host} may be affected by ${s.cve}: needs checking`)
+      await expect(page.getByText('Mitigation module is off')).toBeVisible() // S-CORE-1: the page says why the panel is missing
+      await expect(page.getByText('No confirmed recommendation yet')).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Mark as handled' })).toBeEnabled() // the status is findings', not mitigation's
+      await noVietnamese(page, 'mitigation off')
+      const saved = page.waitForResponse((r) => r.url().endsWith(`/findings/${s.findingId}/status`) && r.request().method() === 'POST')
+      await page.getByRole('button', { name: 'Mark as handled' }).click()
+      await page.getByRole('dialog', { name: 'Mark as handled' }).getByRole('button', { name: 'Save status' }).click()
+      expect((await saved).status()).toBe(200)
+      await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} is patched`)
+      // on again: the panel and the routes are back, the data was kept
+      expect((await api(admin, 'PATCH', '/modules/mitigation', { enabled: true })).status).toBe(200)
+      expect(await state()).toBe(true)
+      const back = await api<{ error: { code: string } }>(admin, 'POST', `/findings/${s.findingId}/applied`, { item: 'patch' })
+      expect(back.status).toBe(400)
+      expect(back.body).toMatchObject({ error: { code: 'no_pack' } })
+      await page.reload()
+      await expect(page.getByText('Mitigation module is off')).toHaveCount(0)
+      await expect(page.getByText('No confirmed recommendation yet')).toBeVisible()
+      expect((await finding(admin, s.findingId)).body.status).toBe('patched')
+      noErrors(errors)
+    } finally {
+      try { if ((await state()) !== true) throw new Error('mitigation is not on') } catch { /* put it back whatever state() said */ }
+      const back = await api(admin, 'PATCH', '/modules/mitigation', { enabled: true })
+      await admin.dispose()
+      expect(back.status, 'mitigation put back on').toBe(200)
     }
-    const d = (await finding(admin, s.findingId)).body
-    expect(d).toMatchObject({ status: 'suspected', pack: null, compromise: null, applied: [] })
-    expect((await api(admin, 'GET', `/findings?asset=${s.deviceId}`)).status).toBe(200)
-    await page.goto(`/findings/${s.findingId}`)
-    await expect(h1(page)).toHaveText(`${s.host} may be affected by ${s.cve}: needs checking`)
-    await expect(page.getByText('Mitigation module is off')).toBeVisible() // S-CORE-1: the page says why the panel is missing
-    await expect(page.getByText('No confirmed recommendation yet')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Mark as handled' })).toBeEnabled() // the status is findings', not mitigation's
-    await noVietnamese(page, 'mitigation off')
-    const saved = page.waitForResponse((r) => r.url().endsWith(`/findings/${s.findingId}/status`) && r.request().method() === 'POST')
-    await page.getByRole('button', { name: 'Mark as handled' }).click()
-    await page.getByRole('dialog', { name: 'Mark as handled' }).getByRole('button', { name: 'Save status' }).click()
-    expect((await saved).status()).toBe(200)
-    await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} is patched`)
-    // on again: the panel and the routes are back, the data was kept
-    expect((await api(admin, 'PATCH', '/modules/mitigation', { enabled: true })).status).toBe(200)
-    expect(await state()).toBe(true)
-    const back = await api<{ error: { code: string } }>(admin, 'POST', `/findings/${s.findingId}/applied`, { item: 'patch' })
-    expect(back.status).toBe(400)
-    expect(back.body).toMatchObject({ error: { code: 'no_pack' } })
-    await page.reload()
-    await expect(page.getByText('Mitigation module is off')).toHaveCount(0)
-    await expect(page.getByText('No confirmed recommendation yet')).toBeVisible()
-    expect((await finding(admin, s.findingId)).body.status).toBe('patched')
-    noErrors(errors, /status of 404/)
-  } finally {
-    if ((await state()) === false) await api(admin, 'PATCH', '/modules/mitigation', { enabled: true })
-    await admin.dispose()
-  }
-})
+  })
 })

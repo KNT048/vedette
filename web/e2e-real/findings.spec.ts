@@ -1,6 +1,6 @@
-// The findings and mitigation modules on the real backend, on a box with no internet (S-MIT-1, S-MIT-3, S-INV-2, S-CORE-3, findings INV-1..3/7, mitigation INV-1/3).
-// A finding gets onto the box through public APIs only (findings-seed.ts: a custom vulnerability feed from loopback + a device declared in the inventory).
-// Every test has a finding of its own (unique vendor, product, device, CVE-2099-*), and removes it through the API afterwards. Steps from e2e/qa/findings.spec.ts.
+// The findings and mitigation modules on the real backend, on a box with no internet (S-MIT-1, findings PRE-3, INV-3).
+// Tests that need a finding are in findings.global.spec.ts (a finding comes from the cisa-kev mirror address on loopback + a declared device, see findings-seed.ts); this file is what needs none.
+// Steps from e2e/qa/findings.spec.ts.
 import { expect, test, type Page } from '@playwright/test'
 import { api, authFile, uniq } from './box'
 import { as, type Row } from './findings-seed'

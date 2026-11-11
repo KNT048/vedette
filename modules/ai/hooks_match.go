@@ -5,8 +5,10 @@ import (
 	"errors"
 	"io"
 	"math"
+	"net/netip"
 	"regexp"
 	"regexp/syntax"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -317,10 +319,19 @@ func isIDSep(b byte) bool {
 
 // findIDNumbers finds identity numbers of exactly 9 or 12 digits as people write them: unbroken, or in groups of
 // three or more digits joined by up to three separator characters ([ \t\n.-]), such as 0790.1234.5678,
-// 123 456 789 or 079 012 345 678. A digit run longer than that is not an ID number. Dotted IPv4 addresses are
-// left alone. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
+// 123 456 789 or 079 012 345 678. A digit run longer than that is not an ID number. IP address literals are blanked
+// first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
 // spaces between them, is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
+	// Two readings, and an ID in either is an ID: one with every address blanked (an address is never part of a digit run), and one
+	// that keeps the addresses whose first or last group is only digits touching other digits (123 456 789::1, ::123 456 789: the
+	// group may be the ID's own).
+	out := append(idRuns(blankIPs(s, false, false)), idRuns(blankIPs(s, false, true))...)
+	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
+	return dropInside(out, findPhones(s))
+}
+
+func idRuns(s string) []span {
 	var out []span
 	for i := 0; i < len(s); {
 		if !isDigitByte(s[i]) {
@@ -328,8 +339,8 @@ func findIDNumbers(s string) []span {
 			continue
 		}
 		start, end, digits := i, i, 0
-		groups, allDots := 0, true
-		maxGroup, minGroup := 0, math.MaxInt
+		groups := 0
+		minGroup := math.MaxInt
 		for j := i; j < len(s) && isDigitByte(s[j]); {
 			k := j
 			for k < len(s) && isDigitByte(s[k]) {
@@ -338,7 +349,7 @@ func findIDNumbers(s string) []span {
 			g := k - j
 			groups++
 			digits += g
-			maxGroup, minGroup = max(maxGroup, g), min(minGroup, g)
+			minGroup = min(minGroup, g)
 			end = k
 			// A separator run of one to three characters followed by a digit continues the number.
 			m := k
@@ -346,11 +357,6 @@ func findIDNumbers(s string) []span {
 				m++
 			}
 			if m-k >= 1 && m-k <= 3 && m < len(s) && isDigitByte(s[m]) {
-				for _, c := range []byte(s[k:m]) {
-					if c != '.' {
-						allDots = false
-					}
-				}
 				j = m
 				continue
 			}
@@ -360,7 +366,7 @@ func findIDNumbers(s string) []span {
 		if digits != 9 && digits != 12 {
 			continue
 		}
-		if groups > 1 && (minGroup < 3 || (allDots && groups == 4 && maxGroup <= 3 && isIPv4(s[start:end]))) {
+		if groups > 1 && minGroup < 3 {
 			continue
 		}
 		if cveBefore(s, start) {
@@ -369,26 +375,6 @@ func findIDNumbers(s string) []span {
 		out = append(out, span{start, end})
 	}
 	return dropInside(out, findPhones(s))
-}
-
-func isIPv4(s string) bool {
-	parts := strings.Split(s, ".")
-	if len(parts) != 4 {
-		return false
-	}
-	for _, p := range parts {
-		if len(p) == 0 || len(p) > 3 {
-			return false
-		}
-		n := 0
-		for _, c := range []byte(p) {
-			n = n*10 + int(c-'0')
-		}
-		if n > 255 {
-			return false
-		}
-	}
-	return true
 }
 
 func isPhoneSep(b byte) bool {
@@ -483,19 +469,177 @@ func allDigits(s string) bool {
 	return true
 }
 
+// findPhones finds phone numbers. An IP address literal (IPv4 or IPv6) that stands alone is not a phone number (D-205): the
+// finder reads the text with each such address blanked out (same length, so offsets are unchanged), so it never matches inside
+// or across one, and a number written next to an address is still found. After a match the search goes on one byte past its
+// start, so a number that begins inside an earlier, longer candidate (the "01" of NAS-01 before "(0912 345 678)") is masked
+// too: spans overlap and maskSpans merges them (when in doubt, mask). Time is linear: at most ten digits are read at each byte.
 func findPhones(s string) []span {
+	s = blankIPs(s, true, true)
 	var out []span
-	for i := 0; i < len(s); {
+	for i := 0; i < len(s); i++ {
 		if c := s[i]; c == '+' || c == '(' || isDigitByte(c) {
 			if e := phoneAt(s, i); e > i {
 				out = append(out, span{i, e})
-				i = e
-				continue
 			}
 		}
-		i++
 	}
 	return out
+}
+
+var ipv4RE = regexp.MustCompile(`[0-9]{1,3}(?:\.[0-9]{1,3}){3}`)
+
+const (
+	maxIPv6 = 45 // the longest IPv6 literal netip accepts without a zone ("0000:...:0000" with an embedded IPv4)
+	maxLead = 32 // how far back a country code is looked for before an IPv4 candidate
+)
+
+func isAddrByte(c byte) bool {
+	return c == ':' || c == '.' || isDigitByte(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+// phoneBefore (bare: also the prefixes without a plus; only the phone finder asks for these) reports whether a country code or trunk prefix (+cc, or digits that start with 84 or 0) stands
+// before s[a:], with only digits and up to
+// phone separators in between: then the digits at a are the rest of a phone number, not an address ("+84 91.234.56.78").
+func phoneBefore(s string, a int, bare bool) bool {
+	k := a
+	for k > 0 && a-k < maxLead && (isDigitByte(s[k-1]) || isPhoneSep(s[k-1])) {
+		k--
+	}
+	if k > 0 && s[k-1] == '+' {
+		return true
+	}
+	for i := k; i < a; { // each digit run of the window: "84" or "0" that is not glued to a word, or a code right after '+'
+		if !isDigitByte(s[i]) {
+			i++
+			continue
+		}
+		e := i
+		for e < a && isDigitByte(s[e]) {
+			e++
+		}
+		run := s[i:e]
+		if (i > 0 && s[i-1] == '+') || (bare && (strings.HasPrefix(run, "0") || strings.HasPrefix(run, "84"))) {
+			return true
+		}
+		i = e
+	}
+	return false
+}
+
+// phoneInside reports whether an IPv4 candidate that starts with a phone prefix as its first group ("84.255.255.255", "84.32.175.88 25")
+// is a phone number: the rest has the digits of one (8 or more), or more digits follow it.
+func phoneInside(s string, a, z int) bool {
+	dot := strings.IndexByte(s[a:z], '.')
+	if first := s[a : a+dot]; first != "84" && first != "0" {
+		return false
+	}
+	n := 0
+	for _, c := range []byte(s[a+dot : z]) {
+		if isDigitByte(c) {
+			n++
+		}
+	}
+	return n >= 8 || digitAfterSeps(s, z)
+}
+
+// digitAfterSeps reports whether one to three phone separators and then a digit follow position e.
+func digitAfterSeps(s string, e int) bool {
+	k, n := e, 0
+	for k < len(s) && n < 3 && isPhoneSep(s[k]) {
+		k++
+		n++
+	}
+	return n > 0 && k < len(s) && isDigitByte(s[k])
+}
+
+// blankIPs returns s with every IPv4 and IPv6 literal that stands alone replaced, byte for byte, by 'x'; netip decides what
+// is valid. Fail closed: an IPv4 candidate inside a longer dotted chain (1.2.3.4.5), or after a country code, is left alone
+// (a dotted phone number such as +84 91.234.56.78 is also a valid address, and must be masked); an IPv6 candidate glued to a
+// word ("Tel::0912") is left alone, and, when phones is set, so is one whose last group is only digits and is followed by
+// separators and more digits (2001:db8::0912 345 678: the digits are a phone number). The ID finder passes phones=false: it
+// wants the whole address out of any digit run, so it keeps only the '+' and chain rules. IPv6 runs longer than an address are skipped without parsing, so the pass is
+// linear.
+func blankIPs(s string, phones, edges bool) string {
+	if !strings.ContainsAny(s, ".:") {
+		return s
+	}
+	var b []byte
+	blank := func(a, z int) {
+		if b == nil {
+			b = []byte(s)
+		}
+		for k := a; k < z; k++ {
+			b[k] = 'x' // a letter: a filled address never reads as a separator between digits (R3 L-1)
+		}
+	}
+	for _, m := range ipv4RE.FindAllStringIndex(s, -1) {
+		a, z := m[0], m[1]
+		if (a > 0 && isDigitByte(s[a-1])) || (z < len(s) && isDigitByte(s[z])) {
+			continue
+		}
+		if (a >= 2 && s[a-1] == '.' && isDigitByte(s[a-2])) || (z+1 < len(s) && s[z] == '.' && isDigitByte(s[z+1])) || phoneBefore(s, a, phones) || (phones && phoneInside(s, a, z)) {
+			continue
+		}
+		if _, err := netip.ParseAddr(s[a:z]); err == nil {
+			blank(a, z)
+		}
+	}
+	for i := 0; i < len(s); {
+		if !isAddrByte(s[i]) {
+			i++
+			continue
+		}
+		j := i
+		for j < len(s) && isAddrByte(s[j]) {
+			j++
+		}
+		if j-i <= maxIPv6+4 {
+			blankV6(s, i, j, edges, blank)
+		}
+		i = j
+	}
+	if b == nil {
+		return s
+	}
+	return string(b)
+}
+
+// blankV6 tries the address-byte run s[a:z]: whole, then with up to three trailing ':' or '.' (a sentence's full stop) trimmed,
+// then without one leading ':' (as in "ip:fe80::1"). At most five parses of at most 45 bytes each.
+func blankV6(s string, a, z int, edges bool, blank func(a, z int)) {
+	for try := 0; try < 2 && a < z; try++ {
+		if a == 0 || !isWordByte(s[a-1]) {
+			for e, trims := z, 0; e > a && trims <= 3 && e-a <= maxIPv6; e, trims = e-1, trims+1 {
+				if addr, err := netip.ParseAddr(s[a:e]); err == nil && addr.Is6() && (e != z || z == len(s) || !isWordByte(s[z])) {
+					if !edges || (!phoneFollows(s, a, e) && !phonePrecedes(s, a, e)) {
+						blank(a, e)
+					}
+					return
+				}
+				if c := s[e-1]; c != ':' && c != '.' {
+					break
+				}
+			}
+		}
+		if s[a] != ':' || (a+1 < z && s[a+1] == ':') {
+			return
+		}
+		a++
+	}
+}
+
+// phoneFollows reports whether the address s[a:e] ends in a group of digits only (or digits and dots) that is followed by up to three phone
+// separators and another digit: the group may be the start of a phone number.
+func phoneFollows(s string, a, e int) bool {
+	g := e
+	for g > a && (isDigitByte(s[g-1]) || s[g-1] == '.') { // the last group, or an IPv4 tail (::0.21.22.160 062)
+		g--
+	}
+	if g == e || g == a || !isDigitByte(s[e-1]) { // any digit run at the edge, also one glued to hex letters (R3 M-1)
+		return false
+	}
+	return digitAfterSeps(s, e)
 }
 
 // cveBefore reports whether the digits at start are the tail of a CVE identifier (CVE-2024-12345), which is public
@@ -507,15 +651,36 @@ func cveBefore(s string, start int) bool {
 // dropInside removes the spans that lie wholly inside one of the guards. A nine-digit group that is the tail of a
 // phone number with a country prefix (+84 912 345 678) is a phone number, not an identity number.
 func dropInside(spans, guards []span) []span {
+	// Both lists are sorted by start, so one pass does it: a span lies inside a guard when the guard with the furthest end
+	// among those that start at or before it reaches its end.
 	var out []span
+	g, reach := 0, -1
 	for _, sp := range spans {
-		inside := false
-		for _, g := range guards {
-			inside = inside || (sp.start >= g.start && sp.end <= g.end)
+		for g < len(guards) && guards[g].start <= sp.start {
+			reach = max(reach, guards[g].end)
+			g++
 		}
-		if !inside {
+		if sp.end > reach {
 			out = append(out, sp)
 		}
 	}
 	return out
+}
+
+// phonePrecedes is phoneFollows turned around: the address s[a:e] starts with a group of digits only, and a digit and up to three
+// phone separators come right before it (0912 345 678::1: the "678" is the number's, not the address's).
+func phonePrecedes(s string, a, e int) bool {
+	g := a
+	for g < e && isDigitByte(s[g]) {
+		g++
+	}
+	if g == a || g == e { // R3 M-1
+		return false
+	}
+	k, n := a, 0
+	for k > 0 && n < 3 && isPhoneSep(s[k-1]) {
+		k--
+		n++
+	}
+	return n > 0 && k > 0 && isDigitByte(s[k-1])
 }

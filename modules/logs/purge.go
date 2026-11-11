@@ -76,8 +76,19 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 			}
 		}
 		if over {
-			if res.Over, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events ORDER BY id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, nil, s.maxBytes-s.maxBytes/10); err != nil {
+			keep := s.maxBytes - s.maxBytes/10
+			if res.Over, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events ORDER BY id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, nil, keep); err != nil {
 				return res, err
+			}
+			var left int64
+			if err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT line_bytes FROM logs_volume WHERE id = 1`).Scan(&left); err != nil {
+				return res, fmt.Errorf("logs: reading the stored bytes: %w", err)
+			}
+			if left > keep { // no lines left to delete and the counter still says over: it counts bytes that are not there
+				s.cfg.Log.Warn("logs: the byte counter was higher than the lines it counts; recomputed", "counter", left)
+				if err := s.resync(ctx); err != nil {
+					return res, err
+				}
 			}
 		}
 	}
@@ -103,7 +114,17 @@ func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep i
 			args = []any{arg, s.chunk}
 		}
 		n := 0
+		skip := false
 		err := s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+			var now int64
+			if keep > 0 { // under the target already (another purge, or the expired lines just deleted): delete nothing more
+				if err := tx.QueryRowContext(ctx, `SELECT line_bytes FROM logs_volume WHERE id = 1`).Scan(&now); err != nil {
+					return fmt.Errorf("logs: reading the stored bytes: %w", err)
+				}
+				if skip = now <= keep; skip {
+					return nil
+				}
+			}
 			rows, err := tx.QueryContext(ctx, stmt, args...)
 			if err != nil {
 				return fmt.Errorf("logs: purging lines: %w", err)
@@ -130,6 +151,9 @@ func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep i
 		if err != nil {
 			return total, err
 		}
+		if skip {
+			return total, nil
+		}
 		total += n
 		if s.afterChunk != nil {
 			s.afterChunk()
@@ -138,6 +162,16 @@ func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep i
 			return total, nil
 		}
 	}
+}
+
+// resync sets the byte counter to what the lines hold (a full scan: only when the counter is known or suspected to be wrong).
+func (s *Service) resync(ctx context.Context) error {
+	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE logs_volume SET line_bytes = (SELECT coalesce(sum(length(CAST(line AS BLOB))), 0) FROM logs_events) WHERE id = 1`); err != nil {
+			return fmt.Errorf("logs: recomputing the stored bytes: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *Service) dropStale(ctx context.Context) error {
@@ -163,9 +197,22 @@ func (s *Service) dropStale(ctx context.Context) error {
 	})
 }
 
-// Jobs returns the jobs of the module (core runs one only while the module is on).
+// Jobs returns the jobs of the module (core runs one only while the module is on). The purge shares the flag of the purge that
+// Ingest starts: when one is under way the job skips its turn. The first run after a start recomputes the byte counter from
+// the lines, so that a counter that drifted (a crash cannot do it, an older binary can) does not outlive a restart.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: func(ctx context.Context) error {
+		if !svc.purging.CompareAndSwap(false, true) {
+			return nil
+		}
+		defer svc.purging.Store(false)
+		svc.lastStart = svc.now()
+		if !svc.resynced.Load() {
+			if err := svc.resync(ctx); err != nil {
+				return err
+			}
+			svc.resynced.Store(true)
+		}
 		_, err := svc.Purge(ctx)
 		return err
 	}}}

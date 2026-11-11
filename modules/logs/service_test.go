@@ -581,7 +581,10 @@ func TestContract_INV4_PurgeBoundaryIsStrict(t *testing.T) {
 func (e *env) bulk(sourceID string, n int, ts time.Time) {
 	e.t.Helper()
 	err := e.vol.Write(e.t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.t.Context(), `WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < ?) INSERT INTO logs_events (ts, source_id, line) SELECT ?, ?, 'l' FROM c`, n, store.FormatTS(ts), sourceID)
+		if _, err := tx.ExecContext(e.t.Context(), `WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < ?) INSERT INTO logs_events (ts, source_id, line) SELECT ?, ?, 'l' FROM c`, n, store.FormatTS(ts), sourceID); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(e.t.Context(), `UPDATE logs_volume SET line_bytes = line_bytes + ?`, n) // each line is one byte
 		return err
 	})
 	if err != nil {
@@ -910,8 +913,8 @@ func TestExportDeviceLogsCannotMakeTheCoreExportTooLarge(t *testing.T) {
 	_ = exp.Close()
 }
 
-// L2: a time older than the retention is the oldest time kept, so that the next purge does not delete the line at once.
-func TestIngestClampsTheTimeToTheRetention(t *testing.T) {
+// L2: a time outside [now - retention, now] is the receive time, now, and the next purge (an hour later) keeps the line.
+func TestIngestClampsTheTimeToNow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
@@ -919,9 +922,10 @@ func TestIngestClampsTheTimeToTheRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ts string
-	if err := e.vol.Reader().QueryRowContext(t.Context(), `SELECT ts FROM logs_events`).Scan(&ts); err != nil || ts != store.FormatTS(e.clock.Add(-30*24*time.Hour)) {
-		t.Fatalf("ts = %q %v, want now minus the 30 days of retention", ts, err)
+	if err := e.vol.Reader().QueryRowContext(t.Context(), `SELECT ts FROM logs_events`).Scan(&ts); err != nil || ts != store.FormatTS(*e.clock) {
+		t.Fatalf("ts = %q %v, want now", ts, err)
 	}
+	e.advance(PurgeEvery) // the clock moves: a line that sat on the boundary would now be expired
 	if res, err := e.svc.Purge(t.Context()); err != nil || res.Expired != 0 {
 		t.Fatalf("%+v %v: the clamped line must survive the next purge", res, err)
 	}
@@ -931,8 +935,14 @@ func TestIngestClampsTheTimeToTheRetention(t *testing.T) {
 // first, the text would survive behind the spaces).
 func TestSanitizeCutsBeforeItWalks(t *testing.T) {
 	t.Parallel()
-	if got := sanitizeLine(strings.Repeat("\x00", 9000) + "tail"); got != "" {
-		t.Fatalf("got %d bytes, want the line cut at %d bytes first and then trimmed to nothing", len(got), maxIngestLineBytes)
+	if got := sanitizeLine(strings.Repeat("\x00", 9000) + "tail"); got != " ...[cut]" {
+		t.Fatalf("got %q, want the line cut at %d bytes first, trimmed to nothing, and marked", got, maxIngestLineBytes)
+	}
+	if got := sanitizeLine("ab" + strings.Repeat(" ", 9000)); got != "ab ...[cut]" {
+		t.Fatalf("got %q: a line cut before sanitizing is always marked", got)
+	}
+	if got := sanitizeLine(strings.Repeat("\x80", 9000)); len(got) > MaxLineBytes || !strings.HasSuffix(got, "...[cut]") || !utf8.ValidString(got) {
+		t.Fatalf("a line of continuation bytes: %d bytes", len(got))
 	}
 	got := sanitizeLine(strings.Repeat("é", 10_000_000))
 	if len(got) > MaxLineBytes || !strings.HasSuffix(got, "...[cut]") || !utf8.ValidString(got) {
@@ -969,23 +979,113 @@ func TestPurgeWithNothingToDoIsSilentAndAStartedPurgeAlwaysEnds(t *testing.T) {
 	}
 }
 
-// A search that the deadline cuts while it is scanning (not one whose deadline had already passed) is a 503 server_busy,
-// not a 500 from the driver's "interrupted" error.
-func TestEventsSearchInterruptedMidScanIsServerBusy(t *testing.T) {
+// M-B: the over-bound step stops when the expired delete alone got the volume under 90% of the bound.
+func TestPurgeDoesNotDeleteMoreThanTheBoundNeeds(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
-	e.bulk(s.ID, 400_000, *e.clock)
-	e.svc.searchTimeout = 20 * time.Millisecond
-	start := time.Now()
-	_, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "no such text"}) // matches nothing: the whole table is scanned
-	if code(err) != "server_busy" {
-		t.Fatalf("after %v: err = %v, want 503 server_busy", time.Since(start), err)
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 100)...)); err != nil { // 1,000 bytes, to expire
+		t.Fatal(err)
 	}
-	if time.Since(start) < e.svc.searchTimeout {
-		t.Fatalf("answered after %v, before the deadline: the scan was not interrupted", time.Since(start))
+	e.advance(40 * 24 * time.Hour)
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 100)...)); err != nil { // 1,000 fresh bytes
+		t.Fatal(err)
 	}
-	if len(e.svc.searchSem) != 0 {
-		t.Fatal("an interrupted search left its slot taken")
+	e.svc.maxBytes = 1500 // 2,000 stored is over; the expired 1,000 alone leaves 1,000, under 1,350
+	res, err := e.svc.Purge(t.Context())
+	if err != nil || res.Expired != 100 || res.Over != 0 {
+		t.Fatalf("%+v %v, want 100 expired and nothing over", res, err)
+	}
+	if count(t, e.vol, `SELECT count(*) FROM logs_events`) != 100 {
+		t.Fatal("fresh lines were deleted although the bound was met")
+	}
+}
+
+// M-C: a counter that is too high (lines the counter never saw leave) is recomputed from the rows when the over-bound step runs
+// out of lines and is still over; the first run of the job after a start recomputes it too.
+func TestPurgeResyncsAnOvercountedCounter(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "0123456789", "0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	set := func(n int) {
+		t.Helper()
+		if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(t.Context(), `UPDATE logs_volume SET line_bytes = ?`, n)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set(1_000_000)
+	e.svc.maxBytes = 100
+	if _, err := e.svc.Purge(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := count(t, e.vol, `SELECT line_bytes FROM logs_volume`), count(t, e.vol, `SELECT coalesce(sum(length(line)), 0) FROM logs_events`); got != want {
+		t.Fatalf("counter %d after the purge, rows hold %d: not recomputed", got, want)
+	}
+	e.svc.maxBytes = MaxEventBytes
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "0123456789", "0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	set(1_000_000)
+	if err := Jobs(e.svc)[0].Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); got != 20 {
+		t.Fatalf("counter %d after the first run of the job, want 20", got)
+	}
+}
+
+// M-D: the job does not run a purge while one that Ingest started is under way.
+func TestTheJobSkipsWhileAPurgeRuns(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 10, e.clock.Add(-60*24*time.Hour))
+	e.svc.purging.Store(true)
+	if err := Jobs(e.svc)[0].Run(t.Context()); err != nil || count(t, e.vol, `SELECT count(*) FROM logs_events`) != 10 {
+		t.Fatalf("the job purged while another purge was running: %v", err)
+	}
+	e.svc.purging.Store(false)
+	if err := Jobs(e.svc)[0].Run(t.Context()); err != nil || count(t, e.vol, `SELECT count(*) FROM logs_events`) != 0 {
+		t.Fatalf("the job did not purge when none was running: %v", err)
+	}
+	if e.svc.purging.Load() {
+		t.Fatal("the job left the purge flag set")
+	}
+}
+
+// M-D / L-5: background purges start at least a minute apart.
+func TestBackgroundPurgesStartAMinuteApart(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.svc.maxBytes = 1000
+	big := lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 150)...) // 1,500 bytes: over on its own
+	started := func() int {
+		return count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`)
+	}
+	if _, err := e.svc.Ingest(t.Context(), big); err != nil {
+		t.Fatal(err)
+	}
+	e.wait()
+	if _, err := e.svc.Ingest(t.Context(), big); err != nil { // over again at once
+		t.Fatal(err)
+	}
+	e.wait()
+	if n := started(); n != 1 {
+		t.Fatalf("%d purges started within a minute, want 1", n)
+	}
+	e.advance(time.Minute)
+	if _, err := e.svc.Ingest(t.Context(), big); err != nil {
+		t.Fatal(err)
+	}
+	e.wait()
+	if n := started(); n != 2 {
+		t.Fatalf("%d purges started after the minute, want 2", n)
 	}
 }

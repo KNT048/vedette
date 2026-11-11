@@ -23,8 +23,11 @@ const (
 	// maxIngestLineBytes is where a line is cut before it is sanitized: the sanitizer walks the whole string, and a line of
 	// megabytes would be walked for 2,048 bytes of result.
 	maxIngestLineBytes = 4 * MaxLineBytes
-	// ExportMaxBytes caps what the device_logs export source writes (an estimate: each line counts twice its bytes, for JSON
-	// escaping, plus 128 for the keys): core caps the whole export at 128 MiB (D-132) and one source must not use it all.
+	// ExportMaxBytes caps what the device_logs export source writes: core caps the whole export at 128 MiB (D-132) and one
+	// source must not use it all. A line is counted as 2 x its bytes + 128, which is an upper bound of what it writes: the JSON
+	// object is {"id":"le-<up to 19 digits>","ts":<24>,"source_id":"ls-<26>"=29 characters,"line":"..."} plus a newline, a fixed
+	// part of at most 118 bytes, and the line text, already sanitized (no control character but the tab), at most doubles when it
+	// is written (a quote, a backslash and a tab become two bytes; the rest is written as it is: no HTML or \u escaping).
 	ExportMaxBytes = 32 << 20
 	// EventsPage is how many of the newest events GET /logs/events returns.
 	EventsPage = 200

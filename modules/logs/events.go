@@ -61,6 +61,7 @@ func (s *Service) Events(ctx context.Context, q EventQuery) (EventsView, error) 
 	// Out of time: the driver may answer with the deadline error or, when the deadline cuts a scan that is running, with its own
 	// "interrupted" error; either way the search's deadline has passed and the caller's context has not.
 	if err != nil && ctx.Err() == nil && errors.Is(sctx.Err(), context.DeadlineExceeded) {
+		s.cfg.Log.Warn("logs: a search ran out of time", "err", err)
 		return EventsView{}, searchBusy()
 	}
 	return v, err

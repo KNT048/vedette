@@ -37,6 +37,10 @@ type Service struct {
 	maxBytes, exportBytes int64
 	// purging is true while a purge that Ingest started is under way: at most one at a time.
 	purging atomic.Bool
+	// lastStart is when the last purge started (the job's or Ingest's); read and written only by the holder of purging.
+	lastStart time.Time
+	// resynced is true once the byte counter was recomputed from the rows in this process.
+	resynced atomic.Bool
 	// chunk is purgeChunk; afterChunk, when set by a test, runs after every purge transaction (the writer is free then).
 	chunk int
 	// searchSem holds MaxSearches tokens; searchTimeout is SearchTimeout (a field so that a test can shorten it).

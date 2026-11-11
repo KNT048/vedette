@@ -2,11 +2,10 @@ package logs
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"math"
 	"time"
 
 	"github.com/knt048/vedette/core/logexport"
@@ -30,27 +29,46 @@ func (s *Service) ExportDeviceLogs(ctx context.Context, from, to time.Time, w io
 		hi = store.FormatTS(to)
 	}
 	vol := s.cfg.Volume.Reader()
-	// The oldest id that still fits: the running cost of the lines from the newest back, as far as it stays within the cap.
-	var first sql.NullInt64
-	err := vol.QueryRowContext(ctx, `SELECT min(id) FROM (SELECT id, sum(2 * length(CAST(line AS BLOB)) + 128) OVER (ORDER BY id DESC) AS run
-		FROM logs_events WHERE ts >= ? AND ts <= ?) WHERE run <= ?`, lo, hi, s.exportBytes).Scan(&first)
+	// Walk the range from the newest line back, adding up what each costs, and stop at the first line that does not fit: the
+	// lines before it (older) are left out. newest is the first id seen: the rows below are read up to it, so a line that
+	// arrives during the export is not half in.
+	var first, newest int64
+	cutOff := false
+	rows, err := vol.QueryContext(ctx, `SELECT id, octet_length(line) FROM logs_events WHERE ts >= ? AND ts <= ? ORDER BY id DESC`, lo, hi)
 	if err != nil {
 		return fmt.Errorf("logs: sizing the export: %w", err)
 	}
-	if !first.Valid {
-		first.Int64 = math.MaxInt64 // nothing fits, or nothing is there: no line, and a marker only if something was left out
+	var used int64
+	for rows.Next() {
+		var id, n int64
+		if err := rows.Scan(&id, &n); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("logs: sizing the export: %w", err)
+		}
+		if newest == 0 {
+			newest = id
+		}
+		if used += 2*n + 128; used > s.exportBytes {
+			cutOff = true
+			break
+		}
+		first = id
 	}
-	if err := (logexport.Rows{
-		SQL:  `SELECT 'le-' || id AS id, ts, source_id, line FROM logs_events WHERE ts >= ? AND ts <= ? AND id >= ? ORDER BY id`,
-		Args: []any{lo, hi, first.Int64},
-	}).Write(ctx, vol, w); err != nil {
-		return err
-	}
-	var older int
-	if err := vol.QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM logs_events WHERE ts >= ? AND ts <= ? AND id < ? LIMIT 1)`, lo, hi, first.Int64).Scan(&older); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("logs: sizing the export: %w", err)
 	}
-	if older == 0 {
+	if newest == 0 {
+		return nil // no line in the range
+	}
+	if first > 0 {
+		if err := (logexport.Rows{
+			SQL:  `SELECT 'le-' || id AS id, ts, source_id, line FROM logs_events WHERE ts >= ? AND ts <= ? AND id >= ? AND id <= ? ORDER BY id`,
+			Args: []any{lo, hi, first, newest},
+		}).Write(ctx, vol, w); err != nil {
+			return err
+		}
+	}
+	if !cutOff {
 		return nil
 	}
 	marker, err := json.Marshal(map[string]string{"id": "cut", "ts": store.FormatTS(s.now()), "source_id": "",

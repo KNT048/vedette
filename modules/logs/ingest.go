@@ -20,12 +20,13 @@ var ErrBatchTooLarge = errors.New("logs: batch has more than the allowed number 
 // UTF-8 becomes U+FFFD, NUL and other control characters except tab become a space (a line is shown and exported as text;
 // it is never interpreted), and a line longer than MaxLineBytes is cut on a character boundary and marked.
 func sanitizeLine(s string) string {
+	early := false
 	if len(s) > maxIngestLineBytes { // before the walks below: a huge line costs 4x the kept size at most
 		cut := maxIngestLineBytes
-		for cut > 0 && !utf8.RuneStart(s[cut]) {
+		for k := 0; k < utf8.UTFMax-1 && cut > 0 && !utf8.RuneStart(s[cut]); k++ { // a rune is at most 4 bytes: three steps back at most
 			cut--
 		}
-		s = s[:cut]
+		s, early = s[:cut], true
 	}
 	s = strings.ToValidUTF8(s, "�")
 	if strings.IndexFunc(s, isControl) >= 0 {
@@ -37,15 +38,17 @@ func sanitizeLine(s string) string {
 		}, s)
 	}
 	s = strings.TrimRight(s, " ")
-	if len(s) <= MaxLineBytes {
+	if len(s) <= MaxLineBytes && !early { // a line that was cut before is always marked, whatever is left of it
 		return s
 	}
 	const mark = " ...[cut]"
-	cut := MaxLineBytes - len(mark)
-	for cut > 0 && !utf8.RuneStart(s[cut]) {
-		cut--
+	if cut := MaxLineBytes - len(mark); len(s) > cut {
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		s = s[:cut]
 	}
-	return s[:cut] + mark
+	return s + mark
 }
 
 // isControl says whether a rune must not reach a stored line: every control (Cc: C0, DEL, C1 with NEL), format (Cf: the
@@ -59,8 +62,8 @@ func isControl(r rune) bool {
 // Ingest stores a batch of received lines in one transaction on logs.db: at most one write per batch, never on the
 // main database, so a flood never waits for the core writer and never holds it. Lines of a source that is not declared
 // are dropped and counted (FORBID-5). At most MaxBatch lines (ErrBatchTooLarge). A line's time is its receive time,
-// clamped to [now - retention, now]: a zero time or one in the future is now, and one older than the retention is the
-// oldest time kept (a listener bug must not write lines that the next purge deletes at once). When the stored bytes pass
+// receive time, and one outside [now - retention, now] (zero, in the future, older than the retention) is now: a line
+// dated on the retention boundary would be deleted by the next purge. When the stored bytes pass
 // MaxEventBytes a purge starts in the background (at most one at a time); Ingest never waits for it.
 func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error) {
 	var res IngestResult
@@ -92,11 +95,8 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 			res.Unknown++
 			continue
 		}
-		if l.At.IsZero() || l.At.After(now) {
-			l.At = now
-		}
-		if l.At.Before(oldest) {
-			l.At = oldest
+		if l.At.IsZero() || l.At.After(now) || l.At.Before(oldest) {
+			l.At = now // the time is the receive time: one outside [now - retention, now] is a bug of the sender or of the listener
 		}
 		l.At = l.At.UTC().Truncate(time.Millisecond)
 		l.Text = sanitizeLine(l.Text)
@@ -148,18 +148,36 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	return res, nil
 }
 
-// purgeBudget bounds a purge that Ingest started.
-const purgeBudget = 30 * time.Minute
+// purgeBudget bounds a purge that Ingest started; purgeGap is the least time between two such starts.
+const (
+	purgeBudget = 30 * time.Minute
+	purgeGap    = time.Minute
+)
 
-// startPurge runs a purge in the background unless one that it started is still under way (coalesced: a flood over the bound
-// starts one purge, not one per batch). It never blocks the caller, which holds no lock and may not wait for the core writer
-// that the audit rows of the purge need (INV-12).
+// startPurge runs a purge in the background unless one is under way (the flag is shared with the hourly job: coalesced, a
+// flood over the bound starts one purge, not one per batch) or one started less than purgeGap ago (the 90% target leaves
+// room for a minute of flood, but not for a purge per batch when a source outruns it). It never blocks the caller, which
+// holds no lock and may not wait for the core writer that the audit rows of the purge need (INV-12).
+//
+// ponytail: the goroutine's context has a deadline (purgeBudget) but is not cancelled when the module is turned off or at
+// shutdown: core/jobs cancels only the context of its own jobs. A purge is transactional in chunks, so a stop in the middle
+// is safe; the cancel needs `Scheduler.Wake` (.ai/deferred/fix-logs-production-safety.md).
 func (s *Service) startPurge() {
 	if !s.purging.CompareAndSwap(false, true) {
 		return
 	}
+	if now := s.now(); !s.lastStart.IsZero() && now.Sub(s.lastStart) < purgeGap {
+		s.purging.Store(false)
+		return
+	}
+	s.lastStart = s.now() // only read and written by the holder of the flag
 	go func() {
 		defer s.purging.Store(false)
+		defer func() {
+			if r := recover(); r != nil {
+				s.cfg.Log.Error("logs: the purge started by a full volume panicked", "panic", fmt.Sprint(r))
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), purgeBudget)
 		defer cancel()
 		if _, err := s.Purge(ctx); err != nil {

@@ -313,6 +313,17 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
+  it('an empty list of bad connections says why it is empty, and says so differently when Feeds is off', async () => {
+    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [] }
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
+    const first = renderApp('/logs')
+    expect(await screen.findByText(/not switched on yet, so an empty list does not mean the network is clean/)).toBeInTheDocument()
+    first.unmount()
+    modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
+    renderApp('/logs')
+    expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
+  })
+
   it('logs module off: says where to turn it on', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'logs' ? { ...m, enabled: false } : m)))
     renderApp('/logs')

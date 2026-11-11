@@ -1,0 +1,5 @@
+# Deferred: feat/logs-l7-real-gui (logs L7)
+- [ ] 2026-11-12 — L4 (AI-Mlee): the digest's "bad connection" test is `test.fixme` in `web/e2e-real/logs.global.spec.ts`; when L4 lands, make it real and drop the `digest.bad.emptyWhy` sentence in `web/src/locales/en/logs.json` (+ the unit test "an empty list of bad connections says why") — ở đâu: D-300 (1).
+- [ ] 2026-11-12 — digest "new" and spike after the 24 h warm-up cannot run on a fresh e2e box; Go tests carry them, the e2e `test.fixme` stays until a clock seam exists (Kiên's harness) — ở đâu: D-300 (2).
+- [ ] 2026-11-12 — SIEM e2e (`test.fixme`) and the mock alignment (`secret_required`, `blocked_host`, duplicate `events` → `bad_events`) wait for #344 (L5) to merge; then make the spec real: save, `secret_last4`, empty secret keeps the old one, test to loopback answers `blocked_host`, viewer/operator 403 — ở đâu: #344, `web/src/features/logs/mocks.ts`.
+- [ ] 2026-11-12 — digest `more` count (items beyond 20 per kind) needs an API contract change, left alone — ở đâu: `.ai/deferred/feat-logs-l3-signatures.md`.

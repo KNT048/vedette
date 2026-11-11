@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
 	"testing"
 	"time"
@@ -173,7 +174,7 @@ func TestBodylessRouteWithABodyIs400AndClosed(t *testing.T) {
 	}
 }
 
-// serveRig runs the real listener of core (Serve: LimitListener, TLS, ConnState, timeouts) on a loopback port.
+// serveRig runs the real listener of core (Serve: LimitListener, TLS with the per-role charge, timeouts) on a loopback port.
 func serveRig(t *testing.T, o sensorlink.Options) (*rig, string) {
 	t.Helper()
 	r := newRig(t, rigOpt{})
@@ -193,8 +194,13 @@ func serveRig(t *testing.T, o sensorlink.Options) (*rig, string) {
 
 func dialTo(t *testing.T, r *rig, addr string, cert tls.Certificate) *rawConn {
 	t.Helper()
+	return dialProto(t, r, addr, cert, "http/1.1")
+}
+
+func dialProto(t *testing.T, r *rig, addr string, cert tls.Certificate, proto string) *rawConn {
+	t.Helper()
 	c, err := (&tls.Dialer{Config: &tls.Config{
-		MinVersion: tls.VersionTLS13, RootCAs: r.ca.pool, Certificates: []tls.Certificate{cert}, Time: r.clk.Now, NextProtos: []string{"http/1.1"},
+		MinVersion: tls.VersionTLS13, RootCAs: r.ca.pool, Certificates: []tls.Certificate{cert}, Time: r.clk.Now, NextProtos: []string{proto},
 	}}).DialContext(t.Context(), "tcp", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +210,7 @@ func dialTo(t *testing.T, r *rig, addr string, cert tls.Certificate) *rawConn {
 }
 
 // The review's attack: one passive certificate opens MaxConns connections and holds them. The slots a role may hold are its
-// own share, so the scan role still polls; the connections over the share are closed at their first byte.
+// own share, so the scan role still polls; the connections over the share fail their TLS handshake.
 func TestOnePassiveCertificateCannotHoldEverySlot(t *testing.T) {
 	t.Parallel()
 	r, addr := serveRig(t, sensorlink.Options{})
@@ -233,11 +239,57 @@ func TestOnePassiveCertificateCannotHoldEverySlot(t *testing.T) {
 		t.Errorf("%d of %d passive connections were closed, want at least %d (over the share of %d)", closed, sensorlink.MaxConns, want, sensorlink.MaxConnsPassive)
 	}
 
+	// the connections over the share failed their handshake: none of their requests reached the backend (L-1)
+	if n := countCalls(r.be.Calls(), "config"); n > sensorlink.MaxConnsPassive {
+		t.Errorf("%d config calls reached the backend, want at most %d (one per connection within the share)", n, sensorlink.MaxConnsPassive)
+	}
+
 	p := r.peer(t, act)
 	p.c.Timeout = 3 * time.Second
 	got, err := p.call(t, "https://"+addr, "GET", "/sensor/v1/jobs?wait=0", nil, nil)
 	if err != nil || got.status != 200 {
 		t.Fatalf("the scan role polling while a passive sensor holds its share: %v %d", err, got.status)
+	}
+}
+
+func countCalls(calls []string, name string) (n int) {
+	for _, c := range calls {
+		if c == name {
+			n++
+		}
+	}
+	return n
+}
+
+// M-1: connections that finish TLS and then send nothing are charged to their role at the handshake, on HTTP/1 and on h2 (where
+// net/http waits for the client preface up to 10 s), so they cannot starve the scan role; and the charge is given back when
+// they close.
+func TestSilentConnectionsAreChargedAtTheHandshake(t *testing.T) {
+	t.Parallel()
+	for _, proto := range []string{"http/1.1", "h2"} {
+		t.Run(proto, func(t *testing.T) {
+			t.Parallel()
+			r, addr := serveRig(t, sensorlink.Options{})
+			pass := r.ca.leaf(t, leafOpts{serial: 100})
+			act := r.ca.leaf(t, leafOpts{serial: 200, uris: []string{"vedette:sensor:active"}})
+			var held []*rawConn
+			for range sensorlink.MaxConns {
+				held = append(held, dialProto(t, r, addr, pass, proto))
+			}
+			time.Sleep(300 * time.Millisecond) //nolint:forbidigo // real sockets: the server finishes the handshakes
+			p := r.peer(t, act)
+			p.c.Timeout = 3 * time.Second
+			if got, err := p.call(t, "https://"+addr, "GET", "/sensor/v1/jobs?wait=0", nil, nil); err != nil || got.status != 200 {
+				t.Fatalf("the scan role polling while 64 silent passive connections are open: %v %d", err, got.status)
+			}
+			for _, c := range held {
+				_ = c.c.Close()
+			}
+			time.Sleep(300 * time.Millisecond) //nolint:forbidigo // real sockets: the server notices the closes
+			if got, err := r.peer(t, pass).call(t, "https://"+addr, "POST", "/sensor/v1/heartbeat", []byte(hbSpan), nil); err != nil || got.status != 200 {
+				t.Errorf("a passive request after its connections closed: %v %d (the charge was not given back)", err, got.status)
+			}
+		})
 	}
 }
 
@@ -253,8 +305,8 @@ func TestReadTimeoutSparesTheLongPoll(t *testing.T) {
 	if want := sensorlink.ReadHeaderTimeout + sensorlink.BodyTimeout; hs.ReadTimeout != want {
 		t.Errorf("ReadTimeout = %v, want ReadHeaderTimeout + BodyTimeout = %v", hs.ReadTimeout, want)
 	}
-	if hs.IdleTimeout != sensorlink.IdleTimeout || hs.ReadHeaderTimeout != sensorlink.ReadHeaderTimeout || hs.ConnState == nil {
-		t.Errorf("HTTPServer: idle %v header %v ConnState nil=%v", hs.IdleTimeout, hs.ReadHeaderTimeout, hs.ConnState == nil)
+	if hs.IdleTimeout != sensorlink.IdleTimeout || hs.ReadHeaderTimeout != sensorlink.ReadHeaderTimeout {
+		t.Errorf("HTTPServer: idle %v header %v", hs.IdleTimeout, hs.ReadHeaderTimeout)
 	}
 
 	r, addr := serveRig(t, sensorlink.Options{HeaderTimeout: 200 * time.Millisecond, BodyTimeout: 200 * time.Millisecond})
@@ -290,4 +342,33 @@ func mustServer(t *testing.T) *sensorlink.Server {
 	t.Helper()
 	r := newRig(t, rigOpt{})
 	return r.srv
+}
+
+// L-2: over h2 a refusal does not become a GOAWAY: the sensor's next request reuses the same connection.
+func TestRefusalOverH2KeepsTheConnection(t *testing.T) {
+	t.Parallel()
+	r, addr := serveRig(t, sensorlink.Options{})
+	tr := &http.Transport{TLSClientConfig: &tls.Config{
+		MinVersion: tls.VersionTLS13, RootCAs: r.ca.pool, Certificates: []tls.Certificate{r.ca.leaf(t, leafOpts{serial: 100})}, Time: r.clk.Now,
+	}, ForceAttemptHTTP2: true}
+	t.Cleanup(tr.CloseIdleConnections)
+	do := func(method, path string, body io.Reader) (proto string, reused bool, status int) {
+		req, _ := http.NewRequestWithContext(t.Context(), method, "https://"+addr+path, body)
+		req.Header.Set(sensorlink.ProtoHeader, sensorlink.ProtoVersion)
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{GotConn: func(i httptrace.GotConnInfo) { reused = i.Reused }}))
+		res, err := tr.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.Copy(io.Discard, res.Body)
+		_ = res.Body.Close()
+		return res.Proto, reused, res.StatusCode
+	}
+	proto, _, st := do("POST", "/sensor/v1/jobs", strings.NewReader("{}")) // not a route of the passive role: 403 with a body
+	if proto != "HTTP/2.0" || st != 403 {
+		t.Fatalf("first request: %s %d, want HTTP/2.0 403", proto, st)
+	}
+	if _, reused, st := do("GET", "/sensor/v1/config", nil); !reused || st != 200 {
+		t.Errorf("second request: reused=%v status=%d, want the same h2 connection and 200", reused, st)
+	}
 }

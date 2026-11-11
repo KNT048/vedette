@@ -2,6 +2,7 @@ package sensorlink
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -85,6 +86,7 @@ type Server struct {
 	log         *slog.Logger
 	bodyTimeout time.Duration
 	hdrTimeout  time.Duration
+	tracker     *roleTracker
 	buckets     map[Role]*bucket
 	polls       map[Role]*gate
 	bodies      map[Role]chan struct{} // in-flight request bodies per role: MaxBodiesPerRole slots
@@ -98,7 +100,7 @@ func NewServer(o Options) (*Server, error) {
 	}
 	s := &Server{
 		id: o.Identity, be: o.Backend, moduleOn: o.ModuleOn, now: o.Now, log: o.Log, bodyTimeout: o.BodyTimeout, hdrTimeout: o.HeaderTimeout,
-		buckets: map[Role]*bucket{}, polls: map[Role]*gate{}, bodies: map[Role]chan struct{}{}, results: make(chan struct{}, MaxResultBodies),
+		tracker: newRoleTracker(), buckets: map[Role]*bucket{}, polls: map[Role]*gate{}, bodies: map[Role]chan struct{}{}, results: make(chan struct{}, MaxResultBodies),
 	}
 	if s.now == nil {
 		s.now = time.Now
@@ -123,8 +125,12 @@ func NewServer(o Options) (*Server, error) {
 // TLSConfig is the listener's configuration: TLS 1.3 at least, a client certificate required and verified against the sensor
 // CA only, and VerifyConnection checking the EKU, the role URI and the serial on every handshake, resumed ones included
 // (VerifyPeerCertificate does not run on a resumed session; D-109 (2)).
+//
+// Behind Serve each connection is also charged to its role at the handshake (D-176 (4)): GetConfigForClient hands the handshake
+// a copy whose VerifyConnection fails it when the role is at its share, so a sensor holds at most its share of the slots even
+// if it never sends a byte after TLS. The copies share one explicit session-ticket key, so resumption still works.
 func (s *Server) TLSConfig() *tls.Config {
-	return &tls.Config{
+	base := &tls.Config{
 		MinVersion:       tls.VersionTLS13,
 		ClientAuth:       tls.RequireAndVerifyClientCert,
 		ClientCAs:        s.id.ClientCAs(),
@@ -133,6 +139,27 @@ func (s *Server) TLSConfig() *tls.Config {
 		VerifyConnection: s.verifyConnection,
 		NextProtos:       []string{"h2", "http/1.1"},
 	}
+	var key [32]byte
+	if _, err := rand.Read(key[:]); err != nil {
+		panic(err) // crypto/rand does not fail
+	}
+	base.SetSessionTicketKeys([][32]byte{key})
+	top := base.Clone()
+	top.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+		c := base.Clone()
+		c.VerifyConnection = func(cs tls.ConnectionState) error {
+			if err := s.verifyConnection(cs); err != nil {
+				return err
+			}
+			role, err := ClientRole(cs.PeerCertificates[0])
+			if err != nil {
+				return err
+			}
+			return s.tracker.charge(hello.Conn, role)
+		}
+		return c, nil
+	}
+	return top
 }
 
 func (s *Server) verifyConnection(cs tls.ConnectionState) error {
@@ -151,10 +178,10 @@ func (s *Server) verifyConnection(cs tls.ConnectionState) error {
 }
 
 // HTTPServer returns the http.Server for addr with the timeouts of the protocol: serve it with ServeTLS(listener, "", "").
-// ReadTimeout is the whole request (D-176 (3)), and ConnState keeps each role to its share of the connections (D-176 (4)).
+// ReadTimeout is the whole request (D-176 (3)), and Serve keeps each role to its share of the connections at the TLS handshake (D-176 (4)).
 func (s *Server) HTTPServer(addr string) *http.Server {
 	return &http.Server{
-		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(), ConnState: newRoleTracker().connState,
+		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(),
 		ReadHeaderTimeout: s.hdrTimeout, ReadTimeout: s.hdrTimeout + s.bodyTimeout, WriteTimeout: WriteTimeout, IdleTimeout: IdleTimeout, MaxHeaderBytes: 16 << 10,
 		ErrorLog: slog.NewLogLogger(s.log.Handler(), slog.LevelWarn), // like the 8443 server: handshake refusals go to the log, not stderr
 	}
@@ -234,7 +261,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	// retirement of its serial and the expiry of its certificate; neither is a handshake event (D-110 (5)).
 	role, err := s.callerRole(r)
 	if err != nil {
-		closeAfter(w) // a connection whose identity is no longer good is not reused (HTTP/1.1)
+		closeAfter(w, r) // a connection whose identity is no longer good is not reused (HTTP/1.1)
 		s.writeError(w, NewError(CodeCertRetired))
 		return
 	}
@@ -314,25 +341,25 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 		// body is not read, so the connection cannot be reused.
 		if rt.id == rResult {
 			if !jobIDRE.MatchString(jobID) {
-				closeAfter(w)
+				closeAfter(w, r)
 				s.writeError(w, NewError(CodeInvalidRequest))
 				return
 			}
 			if !s.be.JobRunning(jobID) {
-				closeAfter(w)
+				closeAfter(w, r)
 				s.writeError(w, NewError(CodeUnknownJob))
 				return
 			}
 		}
 		release, ok := s.takeBody(role, rt.id)
 		if !ok {
-			closeAfter(w)
+			closeAfter(w, r)
 			s.writeError(w, StoreBusy(time.Second))
 			return
 		}
 		defer release()
 		if raw, err = s.readBody(w, r, rt.max); err != nil {
-			closeAfter(w) // refused before (or while) reading: the rest of the body is not waited for
+			closeAfter(w, r) // refused before (or while) reading: the rest of the body is not waited for
 			s.rejectResult(rt, jobID, err)
 			s.fail(ctx, w, err)
 			return
@@ -483,7 +510,9 @@ func (s *Server) readBody(w http.ResponseWriter, r *http.Request, limit int64) (
 	if err != nil {
 		// The deadline stays where it is: the connection cannot be reused after a body that failed half way, and net/http would
 		// otherwise wait for the rest of it with no limit once the answer is written.
-		w.Header().Set("Connection", "close")
+		if r.ProtoMajor == 1 {
+			w.Header().Set("Connection", "close")
+		}
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, errTooLarge
@@ -532,7 +561,7 @@ func (s *Server) fail(ctx context.Context, w http.ResponseWriter, err error) {
 // chunked included) the connection is closed after the answer (D-176 (1)); see closeAfter.
 func (s *Server) refuse(w http.ResponseWriter, r *http.Request, e *Error) {
 	if r.ContentLength != 0 {
-		closeAfter(w)
+		closeAfter(w, r)
 	}
 	s.writeError(w, e)
 }
@@ -540,7 +569,10 @@ func (s *Server) refuse(w http.ResponseWriter, r *http.Request, e *Error) {
 // closeAfter marks the answer as the last on its connection and gives the peer DrainGrace to finish the body it was sending.
 // Connection: close alone is not enough: net/http still reads up to 256 KiB of an unread body after the answer is flushed, with
 // no deadline of its own, and a sensor could hold the slot for as long as it dripped bytes. The answer is not delayed by it.
-func closeAfter(w http.ResponseWriter) {
+func closeAfter(w http.ResponseWriter, r *http.Request) {
+	if r.ProtoMajor != 1 {
+		return // h2: Connection: close would become a GOAWAY on the sensor's whole connection; a refused stream is just reset
+	}
 	w.Header().Set("Connection", "close")
 	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(DrainGrace)) // wall clock: a socket deadline
 }

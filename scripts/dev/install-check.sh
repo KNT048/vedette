@@ -51,7 +51,8 @@ for n in $targets; do
 	image=${images[$n]:-}
 	[ -n "$image" ] || fail "unknown target $n"
 	ctr=vic-$n
-	x() { "$c" exec "$ctr" sh -c "$1"; }
+	# a real admin shell has a UTF-8 locale: under it Ubuntu 26.04's uutils sort and comm disagree unless install.sh sets LC_ALL=C (#298)
+	x() { "$c" exec -e LANG=en_US.UTF-8 "$ctr" sh -c "$1"; }
 	"$c" image exists "$image" || pulled="$pulled $image"
 
 	mkdir -p "$work/$n"

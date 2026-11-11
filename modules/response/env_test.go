@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -487,3 +488,19 @@ func twoBlocks() []response.RuleAction {
 	}
 }
 func strp(s string) *string { return &s }
+
+// linkAll records a proof (D-191) for every approver the fake notifier lists now, as if each had linked in My account. A test about
+// something else than the proof calls it after it sets the lists.
+func (e *env) linkAll() {
+	e.t.Helper()
+	e.note.mu.Lock()
+	lists := maps.Clone(e.note.approvers)
+	e.note.mu.Unlock()
+	for ch, list := range lists {
+		for _, a := range list {
+			if err := e.svc.LinkForTest(e.ctx(), a.UserID, ch, a.Address); err != nil {
+				e.t.Fatal(err)
+			}
+		}
+	}
+}

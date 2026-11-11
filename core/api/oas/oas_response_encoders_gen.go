@@ -2820,6 +2820,12 @@ func encodeResponseDeleteResponseCatalogIDResponse(response *ResponseDeleteRespo
 	return nil
 }
 
+func encodeResponseDeleteResponseMeIdentitiesChannelResponse(response *ResponseDeleteResponseMeIdentitiesChannelNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeResponseDeleteResponseRulesIDResponse(response *ResponseDeleteResponseRulesIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
@@ -2933,6 +2939,19 @@ func encodeResponseGetResponseEventsResponse(response *ResponseGetResponseEvents
 }
 
 func encodeResponseGetResponseLogResponse(response *ResponseGetResponseLogOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeResponseGetResponseMeIdentitiesResponse(response *ResponseGetResponseMeIdentitiesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -3167,6 +3186,32 @@ func encodeResponsePostResponseEmergencyStopResponse(response *ResponsePostRespo
 }
 
 func encodeResponsePostResponseExecutionResponse(response *ResponsePostResponseExecutionOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeResponsePostResponseMeIdentitiesChannelCodeResponse(response *ResponsePostResponseMeIdentitiesChannelCodeOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeResponsePostResponseMeIdentitiesChannelConfirmResponse(response *ResponsePostResponseMeIdentitiesChannelConfirmOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

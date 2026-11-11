@@ -272,6 +272,7 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 			op := s.addUser("op@acme.example", routes.Operator)
 			sink := newSMTPSink(t)
 			s.email(sink, notify.Approver{UserID: op.ID, Address: "op@acme.example"})
+			s.exec(`INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, 'email', 'op@acme.example', '2026-11-10T09:00:00.000Z')`, op.ID) // proved in My account (D-191)
 			_, err := newNotify(s.d).SendApprovalRequest(t.Context(), notify.ApprovalRequest{ID: "req-1", Title: "Block 203.0.113.9", What: "w", Action: "a",
 				Severity: notify.High, Expires: time.Now().Add(time.Hour), Channels: []channel.Type{channel.Email}})
 			if tc.base == "" {

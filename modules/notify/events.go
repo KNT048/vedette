@@ -226,5 +226,6 @@ func (s *Service) Jobs() []jobs.Job {
 		{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush},
 		{Module: ModuleID, Name: telegramListenJob, Every: telegramListenEvery, Run: s.listenTelegram},
 		{Module: ModuleID, Name: slackListenJob, Every: slackListenEvery, Run: s.listenSlack},
+		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
 	}
 }

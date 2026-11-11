@@ -275,15 +275,20 @@ type Decision struct {
 }
 
 // DecisionResult is the answer of the response module: Status says what was recorded (the module response owns the
-// values), Message is the short private reply for the person who pressed the button.
+// values), Message is the short private reply for the person who pressed the button, RequestID the request that was decided
+// (a Zalo reply code names its request only through response's record; empty on a refusal).
 type DecisionResult struct {
-	Status  string
-	Message string
+	Status    string
+	Message   string
+	RequestID string
 }
 
 // Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself.
+// LinkChat takes a link code an approver sent from their own chat account (Zalo personal, D-243): Code is the 6 digits, ExternalID
+// the sender; response links the ID when the code is the one My account showed the person listed with that ID (D-191).
 type Decisions interface {
 	Decide(ctx context.Context, d Decision) (DecisionResult, error)
+	LinkChat(ctx context.Context, d Decision) (DecisionResult, error)
 }
 
 // Errors of the service that are not API errors.

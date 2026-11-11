@@ -49746,6 +49746,8 @@ func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) Validate() error {
 		return nil
 	case "chat_code":
 		return nil
+	case "send_code":
+		return nil
 	case "unavailable":
 		return nil
 	default:
@@ -60445,6 +60447,8 @@ func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Validate() error
 	case "email_code":
 		return nil
 	case "chat_code":
+		return nil
+	case "send_code":
 		return nil
 	case "unavailable":
 		return nil

@@ -87,11 +87,9 @@ func (d *zaloDirectFake) Send(_ context.Context, m channel.Message) (channel.Rec
 	return channel.Receipt{To: d.Dest()}, nil
 }
 
-// newZaloEnv is newEnv with what reply codes need: a Decisions port, and the listener switch on (export_test.go).
+// newZaloEnv is newEnv with what reply codes need: a Decisions port.
 func newZaloEnv(t *testing.T, opts ...func(*notify.Config)) *env {
-	e := newEnv(t, append([]func(*notify.Config){func(c *notify.Config) { c.Decisions = fakeDecisions{} }}, opts...)...)
-	e.svc.SetZaloRepliesForTest()
-	return e
+	return newEnv(t, append([]func(*notify.Config){func(c *notify.Config) { c.Decisions = fakeDecisions{} }}, opts...)...)
 }
 
 func (e *env) zaloApprovals(approvers ...notify.Approver) *zaloRecorder {
@@ -287,9 +285,9 @@ func TestContract_INV11_ZaloApprovalResendGoesToTheSameApprover(t *testing.T) {
 	}
 }
 
-// Until the listener exists nothing reads a reply, so no code is sent: the channel gets the "open Vedette" message as before.
+// Without the Decisions port nothing reads the replies (the listener does not run): no code is sent.
 func TestZaloNoCodesWhileNothingReadsTheReplies(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) { c.Decisions = fakeDecisions{} })
+	e := newEnv(t)
 	z := e.zaloApprovals()
 	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z7", channel.ZaloPersonal))
 	if err != nil || len(sv) != 1 || len(z.sent) != 0 || len(e.tokens.codes) != 0 {

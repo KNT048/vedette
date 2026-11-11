@@ -212,6 +212,21 @@ func (r responseDecisions) Decide(ctx context.Context, c notify.Decision) (notif
 	if err != nil {
 		return notify.DecisionResult{}, err
 	}
+	return notify.DecisionResult{Status: out.Status, Message: out.Message, RequestID: out.RequestID}, nil
+}
+
+// LinkChat hands response a link code that arrived from a chat ID (Zalo personal, D-243); refusals come back as Status/Message like Decide.
+func (r responseDecisions) LinkChat(ctx context.Context, c notify.Decision) (notify.DecisionResult, error) {
+	if r.d.Response == nil {
+		return notify.DecisionResult{}, errResponseNotReady
+	}
+	out, err := r.d.Response.LinkFromChat(ctx, response.ChatDecision{Channel: string(c.Channel), ExternalID: c.ExternalID, Code: c.Code})
+	if ae, ok := apierr.As(err); ok {
+		return notify.DecisionResult{Status: ae.Code, Message: ae.Message}, nil
+	}
+	if err != nil {
+		return notify.DecisionResult{}, err
+	}
 	return notify.DecisionResult{Status: out.Status, Message: out.Message}, nil
 }
 

@@ -48,6 +48,7 @@ type ChatDecision struct {
 // was recorded and another person must still approve) or "rejected". Approvals and Required are the counts after the decision. Message is
 // a short private reply for the person who pressed the button. A refusal is an error (an *apierr.Error), never an outcome.
 type ChatOutcome struct {
+	RequestID string // the request that was decided (a Zalo reply code names it only through its record)
 	Status    string
 	Approvals int
 	Required  int
@@ -381,7 +382,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 		}
 		return ChatOutcome{}, err
 	}
-	o := ChatOutcome{Approvals: len(out.Approvals), Required: out.RequiresApprovals}
+	o := ChatOutcome{RequestID: r.ID, Approvals: len(out.Approvals), Required: out.RequiresApprovals}
 	switch {
 	case !d.Approve:
 		o.Status, o.Message = "rejected", "Rejected. Nothing was changed."

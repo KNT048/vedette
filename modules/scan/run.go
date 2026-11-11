@@ -685,7 +685,8 @@ func checkMatched(c check, res []nucleiout.Result) bool {
 }
 
 // allUnreachable says every target of the job stopped answering: the worker counted at least max-host-errors timeouts on each
-// of them, from nuclei's error log, which is the point where nuclei itself gives up on a target (-mhe). It holds even when the
+// of them, from nuclei's error log. That is a run total, not nuclei's own -mhe count (consecutive errors, reset by a success,
+// and applied to http targets only), so a very flaky but alive device can count here too: the safe side for the device (D-165 (4)). It holds even when the
 // device answered some templates before it died: the device is lost for this run (INV-6, D-165). One target that did not
 // reach the limit means the device still answers on it, so it is not this case.
 func allUnreachable(he []nucleiout.HostError, targets []nucleiargv.Target) bool {
@@ -768,7 +769,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 	case seen && !answered:
 		row.Result, row.Note = "no_response", cve+": no answer for this check."
 	default:
-		// D-133 (5): nuclei may report matches only, so this is "no match reported", never "not vulnerable". It never
+		// D-133 (5), D-165: a not-matched line is "no match reported", never "not vulnerable". It never
 		// resolves, downgrades or marks the finding: nothing is sent to the findings module.
 		row.Result, row.Note = "not_matched", cve+": no match reported by the scan template."
 	}

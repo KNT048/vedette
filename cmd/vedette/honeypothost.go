@@ -55,6 +55,7 @@ type honeypotHost struct {
 type stateAt struct {
 	at      time.Time
 	running bool
+	down    bool // the unit is inactive or failed: only then may a stop be skipped (an `other`/`unknown` unit may be coming up)
 }
 
 // hostAPI is the part of *hostclient.Client the adapter uses; tests wrap the real client to break it.
@@ -112,7 +113,9 @@ func (h *honeypotHost) Status(ctx context.Context) (honeypot.HostStatus, error) 
 			break
 		}
 		running := s.UnitState == api.UnitActive
-		h.setRunning(running)
+		h.mu.Lock()
+		h.status = stateAt{at: time.Now(), running: running, down: s.UnitState == api.UnitInactive || s.UnitState == api.UnitFailed}
+		h.mu.Unlock()
 		return honeypot.HostStatus{Available: true, Running: running}, nil
 	}
 	h.setRunning(false)
@@ -215,7 +218,7 @@ func (h *honeypotHost) StartContainer(ctx context.Context, restart bool) error {
 // on with no trap, or with every address refused, asks for the stop at every Apply.
 func (h *honeypotHost) StopContainer(ctx context.Context) error {
 	h.mu.Lock()
-	skip := h.stopped && !h.status.running && !h.status.at.IsZero() && time.Since(h.status.at) < stateTTL
+	skip := h.stopped && h.status.down && time.Since(h.status.at) < stateTTL
 	h.mu.Unlock()
 	if skip {
 		return nil
@@ -227,8 +230,8 @@ func (h *honeypotHost) StopContainer(ctx context.Context) error {
 		h.setStale()
 		return err
 	}
-	h.setRunning(false)
 	h.mu.Lock()
+	h.status = stateAt{at: time.Now(), down: true}
 	h.stopped = true
 	h.mu.Unlock()
 	return nil

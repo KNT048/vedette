@@ -298,7 +298,7 @@ func (r *Reader) fetch(ctx context.Context, c conn.Connection) map[string]liveTo
 	out := map[string]liveTool{}
 	for _, t := range tools {
 		if schema, ok := publicSchema(t.Schema, redact); ok {
-			out[t.Name] = liveTool{ident: conn.ToolIdent(t.Description, t.Schema), schema: schema}
+			out[t.Name] = liveTool{ident: conn.ToolIdent(t.Description, t.Schema, t.MayWrite()), schema: schema}
 		}
 	}
 	return out
@@ -735,8 +735,11 @@ func (r *Reader) mcp(ctx context.Context, c conn.Connection, secret secrets.Valu
 	if found == nil {
 		return "", false, ErrUnavailable
 	}
+	if found.MayWrite() {
+		return "", false, ErrUnavailable // the server says the tool may change something: never a read tool (D-179 (5))
+	}
 	for _, t := range c.Tools {
-		if t.Name == tool && t.Ident != conn.ToolIdent(found.Description, found.Schema) {
+		if t.Name == tool && t.Ident != conn.ToolIdent(found.Description, found.Schema, found.MayWrite()) {
 			return "", false, ErrUnavailable // the server changed the tool since: test the connection again and set it again
 		}
 	}

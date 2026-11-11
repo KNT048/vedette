@@ -28,6 +28,14 @@ type MCPTool struct {
 	Description string
 	// Schema is the server's inputSchema as it sent it, when it is a JSON object of at most MaxSchema bytes; nil otherwise.
 	Schema json.RawMessage
+	// ReadOnlyHint and DestructiveHint are the server's annotations, nil when it did not send them. They are the server's claims: they can only
+	// take trust away (MayWrite), never give it.
+	ReadOnlyHint, DestructiveHint *bool
+}
+
+// MayWrite reports whether the server says the tool may change something: destructiveHint true, or readOnlyHint stated as false (D-179 (5)).
+func (t MCPTool) MayWrite() bool {
+	return (t.DestructiveHint != nil && *t.DestructiveHint) || (t.ReadOnlyHint != nil && !*t.ReadOnlyHint)
 }
 
 // MaxSchema is the longest input schema that is kept.
@@ -109,6 +117,10 @@ func (m *MCP) ListTools(ctx context.Context) ([]MCPTool, error) {
 				Name        string          `json:"name"`
 				Description string          `json:"description"`
 				InputSchema json.RawMessage `json:"inputSchema"`
+				Annotations struct {
+					ReadOnlyHint    *bool `json:"readOnlyHint"`
+					DestructiveHint *bool `json:"destructiveHint"`
+				} `json:"annotations"`
 			} `json:"tools"`
 			NextCursor string `json:"nextCursor"`
 		}
@@ -119,7 +131,7 @@ func (m *MCP) ListTools(ctx context.Context) ([]MCPTool, error) {
 			if len(out) >= maxMCPTools {
 				return out, nil
 			}
-			out = append(out, MCPTool{Name: t.Name, Description: t.Description, Schema: keepSchema(t.InputSchema)})
+			out = append(out, MCPTool{Name: t.Name, Description: t.Description, Schema: keepSchema(t.InputSchema), ReadOnlyHint: t.Annotations.ReadOnlyHint, DestructiveHint: t.Annotations.DestructiveHint})
 		}
 		if r.NextCursor == "" {
 			return out, nil

@@ -11,3 +11,4 @@
 - [ ] **Tín hiệu ẩn danh (INV-14)**: D-82 bỏ luồng gửi; module không có đường mã nào gửi. Giữ nguyên.
 - [ ] **WP-08: hạn mức ổ đĩa (volume quota) cho `log/`** (rà WP-14): `RotatingFileHandler` giới hạn mỗi tệp 10 MiB × 3 bản xoay, nhưng kẻ chiếm container vẫn ghi được tệp khác vào `log/`; cần quota/kích thước volume riêng để không làm đầy hệ tệp của `vedette.db`.
 - [ ] **GUI cho lý do conflict và bộ đếm bị bỏ** (rà WP-14): `Service.TrapConflicts()`, `Stats().Suppressed/Implausible/NotRegular/SkippedBytes` chưa có trường trong `HpOverview`; cần story (gui-first.md).
+- [ ] 2026-11-11 — Bộ chuyển honeypot bỏ `container.start` khi unit `active` (rà 8a vòng 2, Low): kiểm của host còn xét health và digest đã ghim, nên container active mà không khoẻ không còn được một lần start thường sửa — vì sao để sau: hiếm, cần trạng thái health trong `state/containers` — ở đâu: `cmd/vedette/honeypothost.go` `StartContainer`

@@ -9,8 +9,9 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
 
-// INV-6 with matches-only output (D-133 (5), D-165): a device that stopped answering prints nothing on stdout, so core
-// learns it from the host errors the worker counted in nuclei's error log. The helpers say what the fake worker reports.
+// INV-6 mid-run (D-165): with -ms a device that answered some templates and then died leaves lines that look like answers,
+// so core learns it from the host errors the worker counted in nuclei's error log. The helpers say what the fake worker
+// reports. A device that never answered prints only error lines and is the older rule (TestContract_INV6_AutoStopOnUnresponsive).
 
 // timedOut reports a count of timeouts for the given targets of the job (all of them when only is empty); a count at the
 // job's max host errors is "unreachable", below it is not.
@@ -27,7 +28,7 @@ func timedOut(count int, only ...int) func(j nucleiargv.Job) []nucleiout.HostErr
 	}
 }
 
-// silent is a device that printed no line (matches only) and the host errors the worker saw.
+// silent is a device that printed no line and the host errors the worker saw.
 func silent(he func(nucleiargv.Job) []nucleiout.HostError) func(j nucleiargv.Job) (Output, error) {
 	return func(j nucleiargv.Job) (Output, error) { return Output{HostErrors: he(j)}, nil }
 }
@@ -45,7 +46,7 @@ func TestContract_INV6_SilentDeadDeviceAutoStops(t *testing.T) {
 	v := r.start("a-web01", "a-nas02")
 	r.wait()
 	got := r.run(v.ID)
-	if got.Status != "auto_stopped" || got.StopReason == nil || *got.StopReason != "WEB01 (192.168.10.12) did not respond after 3 attempts in a row. Vedette stopped so the device is not hung." {
+	if got.Status != "auto_stopped" || got.StopReason == nil || *got.StopReason != "WEB01 (192.168.10.12) stopped responding after 3 failed requests. Vedette stopped so the device is not hung." {
 		t.Fatalf("run: %+v", got)
 	}
 	if rowOf(got, "a-web01", "no_response") == nil || rowOf(got, "a-nas02", "skipped") == nil || len(r.eng.sent()) != 1 {
@@ -106,19 +107,68 @@ func TestContract_INV6_NotEveryTimeoutIsADeadDevice(t *testing.T) {
 			t.Fatalf("a device with a target that answered stopped the run: %+v", got)
 		}
 	})
-	t.Run("a matched line wins over timeouts on every target", func(t *testing.T) {
-		t.Parallel()
-		r := newRunEnv(t)
-		r.eng.reply = func(j nucleiargv.Job) (Output, error) {
-			out, err := lines("CVE-2022-27593")(j)
-			out.HostErrors = timedOut(j.MaxHostErrors)(j)
-			return out, err
+}
+
+// answeredThenDied is a device that answered with a line per template (not matched, no error, plus a match for the ids in
+// hit) and was then given up on: the worker reports every target unreachable.
+func answeredThenDied(hit ...string) func(j nucleiargv.Job) (Output, error) {
+	return func(j nucleiargv.Job) (Output, error) {
+		out, err := lines(hit...)(j)
+		out.HostErrors = timedOut(j.MaxHostErrors)(j)
+		return out, err
+	}
+}
+
+// H1 (review 1): a device that answered some templates (not-matched lines, no error) and then died is no_response and ends
+// the run, whatever it answered before.
+func TestContract_INV6_AnsweredThenDiedAutoStops(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	r.eng.reply = func(j nucleiargv.Job) (Output, error) {
+		if j.Targets[0].Host == "192.168.10.12" {
+			return answeredThenDied()(j)
 		}
-		v := r.start("a-nas02")
-		r.wait()
-		got := r.run(v.ID)
-		if got.Status != "done" || rowOf(got, "a-nas02", "matched") == nil || rowOf(got, "a-nas02", "no_response") != nil {
-			t.Fatalf("a match was lost to host errors: %+v", got)
-		}
-	})
+		return lines("CVE-2022-27593")(j)
+	}
+	v := r.start("a-web01", "a-nas02")
+	r.wait()
+	got := r.run(v.ID)
+	if got.Status != "auto_stopped" || got.StopReason == nil || *got.StopReason != "WEB01 (192.168.10.12) stopped responding after 3 failed requests. Vedette stopped so the device is not hung." {
+		t.Fatalf("run: %+v", got)
+	}
+	if rowOf(got, "a-web01", "no_response") == nil || rowOf(got, "a-web01", "not_matched") != nil || rowOf(got, "a-nas02", "skipped") == nil || len(r.eng.sent()) != 1 {
+		t.Fatalf("rows: %+v", got.Results)
+	}
+	if n := r.count(`SELECT count(*) FROM scan_probe WHERE result = 'no_response'`); n == 0 {
+		t.Fatal("the probe rows did not close as no_response")
+	}
+	if n := r.count(`SELECT count(*) FROM scan_probe WHERE result = 'not_matched'`); n != 0 {
+		t.Fatalf("a lost device has %d probe rows as not_matched", n)
+	}
+}
+
+// A match the device gave before it died is not lost: the finding is confirmed and the row and the probe say matched; the
+// rest of the device is no_response and the run still stops.
+func TestContract_INV6_MatchBeforeDeathIsKept(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	r.eng.reply = answeredThenDied("CVE-2022-27593")
+	v := r.start("a-nas02", "a-web01")
+	r.wait()
+	got := r.run(v.ID)
+	if got.Status != "auto_stopped" || got.StopReason == nil {
+		t.Fatalf("run: %+v", got)
+	}
+	if rowOf(got, "a-nas02", "matched") == nil || rowOf(got, "a-nas02", "no_response") == nil || rowOf(got, "a-web01", "skipped") == nil {
+		t.Fatalf("rows: %+v", got.Results)
+	}
+	if !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) {
+		t.Fatalf("the match was lost: %v", r.findings.confirms)
+	}
+	if n := r.count(`SELECT count(*) FROM scan_probe WHERE result = 'matched'`); n != 1 {
+		t.Fatalf("probe rows as matched: %d", n)
+	}
+	if got.Matched != 1 {
+		t.Fatalf("matched count: %d", got.Matched)
+	}
 }

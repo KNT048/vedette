@@ -59,7 +59,7 @@ func ForbiddenTags() []string { return slices.Clone(forbiddenTags) }
 //	                     resolvers about the target), no javascript, websocket, headless, code or file templates
 //	-elog /dev/stderr    nuclei's own error log (one JSON object per failed request, with input, address, kind) on
 //	                     stderr: the worker counts network timeouts per target from it, so core learns that a device
-//	                     stopped answering although stdout holds matches only (INV-6, D-165)
+//	                     stopped answering after it had answered some templates (INV-6, D-165)
 //	-c 1 -bs 1           one template and one target at a time, so -rl is the whole load on a device
 //	-timeout 10 -retries 1
 var fixedFlags = []string{

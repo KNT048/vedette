@@ -8,8 +8,8 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-// Host errors (INV-6, D-165). With matches-only JSONL on stdout, silence cannot tell "answered, no match" from "stopped
-// answering". The other signal is nuclei's own error log (-elog, written to stderr): one JSON object per failed request,
+// Host errors (INV-6, D-165). With -ms (matcher status) stdout has a line per template and target, but a device that
+// answered some templates and then died leaves lines that look like answers. The signal that says it stopped is nuclei's own error log (-elog, written to stderr): one JSON object per failed request,
 // {"template","type","input","address","error","kind"} (pkg/output JSONLogRequest, v3.11.1). The worker counts, per
 // target of the job, the lines whose kind is "network-temporary-error" (a timeout: what a device that went quiet
 // produces; "connection refused" is a permanent error and means the device is alive) and reports them.

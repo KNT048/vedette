@@ -41,24 +41,31 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 type netHost struct{ box *core.NetworkHandlers }
 
 func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
-	cards, ok, err := n.box.Cards(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		out := make([]capture.Interface, 0, len(cards))
-		for _, c := range cards {
-			h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
-			for _, a := range c.Addresses {
-				if a.Is4() {
-					h.Addresses = append(h.Addresses, netip.PrefixFrom(a, 32)) // the host module reports addresses without a mask
-				}
-			}
-			out = append(out, h)
-		}
-		return out, nil
+	out, ok, err := n.HostCards(ctx)
+	if err != nil || ok {
+		return out, err
 	}
 	return osInterfaces()
+}
+
+// HostCards is the list vedette-host reports; ok is false when no host answers (container-only install), and then
+// SetInterface uses the cards of the sensor's heartbeat instead of osInterfaces (the container's own eth0, D-168).
+func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, error) {
+	cards, ok, err := n.box.Cards(ctx)
+	if err != nil || !ok {
+		return nil, false, err
+	}
+	out := make([]capture.Interface, 0, len(cards))
+	for _, c := range cards {
+		h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
+		for _, a := range c.Addresses {
+			if a.Is4() {
+				h.Addresses = append(h.Addresses, netip.PrefixFrom(a, 32)) // the host module reports addresses without a mask
+			}
+		}
+		out = append(out, h)
+	}
+	return out, true, nil
 }
 
 func osInterfaces() ([]capture.Interface, error) {

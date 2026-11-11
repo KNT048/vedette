@@ -461,6 +461,60 @@ func TestTheCardIsChosenAgainstTheHostNotTheSensor(t *testing.T) {
 	}
 }
 
+// Container-only install (D-168): no host answers, so the card is chosen against the cards in the sensor's latest heartbeat
+// (the real SPAN card of the host network), not against the container's own interfaces. Before the first heartbeat a card
+// cannot be chosen (bad_interface with a plain sentence); stopping the capture needs no heartbeat; a SPAN card with an IP in
+// the heartbeat is refused; the card in the heartbeat the host would have refused is accepted only because there is no host.
+func TestNoHostTheCardIsChosenAgainstTheHeartbeat(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, nil, false)
+	e.host.setNoHost(true)
+	link := linktest.New(t, linktest.Passive(e.svc))
+	pas := link.Client(t, sensorlink.Passive)
+	ctx := t.Context()
+	set := func(iface string, span bool) error {
+		return e.svc.SetInterface(ctx, "admin@example.org", sp.SensorID, iface, span)
+	}
+	err := set("enp3s0", true)
+	if !errors.Is(err, sp.ErrBadInterface) || !strings.Contains(err.Error(), "has not reported its network cards") {
+		t.Fatalf("no heartbeat yet: %v", err)
+	}
+	if err := set("", false); err != nil {
+		t.Fatalf("stopping the capture needs no heartbeat: %v", err)
+	}
+	card := func(name string, ips ...string) sensorlink.HeartbeatIface {
+		if ips == nil {
+			ips = []string{}
+		}
+		return sensorlink.HeartbeatIface{Name: name, MAC: "02:00:00:00:00:" + fmt.Sprintf("%02x", len(name)), Link: true, IPv4: ips}
+	}
+	if _, err := pas.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.2.3", Interfaces: []sensorlink.HeartbeatIface{card("enp3s0"), card("eno1", "10.0.0.5/24")}, Drops: map[string]int64{}}); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]struct {
+		iface string
+		span  bool
+	}{"a card the sensor does not report": {"eth0", false}, "SPAN on a card with an IP": {"eno1", true}, "SPAN with no card": {"", true}, "a name that is not an interface name": {"en p3s0;rm", false}} {
+		if err := set(c.iface, c.span); !errors.Is(err, sp.ErrBadInterface) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if err := set("enp3s0", true); err != nil {
+		t.Fatalf("the card the sensor reported: %v", err)
+	}
+	cfg, err := pas.Config(ctx, "", time.Second)
+	if err != nil || cfg.Config.Interface != "enp3s0" || !cfg.Config.Span {
+		t.Fatalf("config %+v %v", cfg, err)
+	}
+	e.host.setNoHost(false) // with a host nothing changes: the host's list decides, the heartbeat does not
+	if err := set("enp3s0", true); !errors.Is(err, sp.ErrBadInterface) {
+		t.Errorf("with a host, a card only the sensor reports: %v", err)
+	}
+	if err := set("eth1", true); err != nil {
+		t.Errorf("with a host, a card of the host: %v", err)
+	}
+}
+
 // What GET /inventory/sensors and the SPAN card show comes from the heartbeat, nothing else (D-112 (5)): online within 90 seconds,
 // version, devices, cards, the verdicts off / no_link / no_traffic / own_only / ok.
 func TestHeartbeatDrivesTheViews(t *testing.T) {

@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e fixtures clean
+.PHONY: host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -36,6 +36,7 @@ help:
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
+	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
 
@@ -163,7 +164,7 @@ oui:
 	go run ./scripts/oui
 
 clean:
-	rm -rf bin .dev/bin coverage.out web/dist internal/webui/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
+	rm -rf bin .dev/bin dist coverage.out web/dist internal/webui/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
@@ -213,6 +214,23 @@ scan-base-image: scan-pack
 # What vedette-host builds on the box, here for development and the check of the effect: scan-base + the pinned nmap from the OS repository.
 scan-image: scan-base-image
 	$(CONTAINER) build -f deploy/containers/scan/Containerfile.onbox $(PIN_ARGS) --build-arg BASE_IMAGE=localhost/vedette-scan-base:$(IMAGE_TAG) -t localhost/vedette-scan-nmap:$(IMAGE_TAG) .
+
+# The vedette-host package (WP-08g, D-155): a static binary (the version flag like the core image's) and nfpm. VERSION is SemVer without a v.
+# The binary goes to dist/host-deb/<arch>/, the package to dist/ (both removed by `make clean`).
+ARCH ?= amd64
+DEB_OUT ?= dist
+host-deb:
+	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "host-deb: VERSION must be SemVer without v (VERSION=0.1.0), got '$(VERSION)'" >&2; exit 1; }
+	@case "$(ARCH)" in amd64|arm64) ;; *) echo "host-deb: ARCH must be amd64 or arm64, got '$(ARCH)'" >&2; exit 1;; esac
+	mkdir -p $(DEB_OUT)/host-deb/$(ARCH)
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
+	go run ./scripts/hostlicenses -goos linux -goarch $(ARCH) -out $(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses
+	VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
+
+# Installs the package twice in a systemd container per target OS (Debian 13, Ubuntu 24.04, pinned by digest in deploy/deb/check-pins.env)
+# and checks the effects (scripts/dev/host-deb-check.sh). Pulls images and runs apt in them: opt-in, not in `make check` or CI.
+host-deb-check:
+	scripts/dev/host-deb-check.sh
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:

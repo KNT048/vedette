@@ -1,0 +1,29 @@
+#!/bin/sh
+# vedette-host postrm (WP-08g, D-155). Remove and purge delete the package's own files only. They NEVER delete the data:
+# /var/lib/vedette (database and key), the backups, /var/lib/vedette-host, /var/lib/vedette-honeypot, /etc/vedette
+# (host.conf), the Quadlet units, the users and groups, the /etc/subuid and /etc/subgid lines. Deleting them is a separate,
+# deliberate step (docs/RUNBOOK.md): Debian Policy 9.2.1 says never to remove system users, and the key cannot be re-created.
+set -eu
+UNIT=vedette-host.service
+
+case "${1:-}" in
+remove | purge)
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload || true
+	fi
+	if [ "$1" = purge ] && command -v deb-systemd-helper >/dev/null 2>&1; then
+		# forget the enable state so that a later install enables the unit again
+		deb-systemd-helper purge "$UNIT" >/dev/null || true
+		deb-systemd-helper unmask "$UNIT" >/dev/null || true
+	fi
+	if [ "$1" = purge ]; then
+		echo "vedette-host: the data was kept (/var/lib/vedette, /var/lib/vedette-host, /var/lib/vedette-honeypot, /etc/vedette, the users). See docs/RUNBOOK.md to delete it." >&2
+	fi
+	;;
+upgrade | failed-upgrade | abort-install | abort-upgrade | disappear) ;;
+*)
+	echo "vedette-host postrm: unknown action '${1:-}'" >&2
+	exit 1
+	;;
+esac
+exit 0

@@ -40,9 +40,9 @@ func (f *fakeLogs) Counts(_ context.Context, source, signature string, window ti
 
 const failedLogon = "4625: Failed logon"
 
-func logRule(sig string, n, win int) func(in *response.RuleInput) {
+func logRule(n, win int) func(in *response.RuleInput) {
 	return func(in *response.RuleInput) {
-		in.Conditions = []response.Condition{{Field: "signature", Op: "count_window", Value: sig, N: &n, WindowMin: &win}}
+		in.Conditions = []response.Condition{{Field: "signature", Op: "count_window", Value: failedLogon, N: &n, WindowMin: &win}}
 	}
 }
 
@@ -56,8 +56,8 @@ func logEnv(t *testing.T) (*env, *fakeLogs) {
 // window; the event names the log source, not an address, so an action that needs {{trigger.source_ip}} is not available.
 func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	e, l := logEnv(t)
-	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} failed logons on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(failedLogon, 10, 5))
-	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(failedLogon, 10, 5))
+	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} failed logons on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(10, 5))
+	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(10, 5))
 	l.counts["ls-fw|"+failedLogon] = 12
 	l.counts["ls-dc|"+failedLogon] = 9 // under the threshold
 	e.must(e.svc.PollLogs(e.ctx()))
@@ -104,8 +104,8 @@ func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 func TestLogThresholdEachThresholdItsOwnEvent(t *testing.T) {
 	e, l := logEnv(t)
 	msg := []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}}"}}}
-	e.rule("Ten", "log_threshold", msg, logRule(failedLogon, 10, 5))
-	e.rule("Twenty", "log_threshold", msg, logRule(failedLogon, 20, 5))
+	e.rule("Ten", "log_threshold", msg, logRule(10, 5))
+	e.rule("Twenty", "log_threshold", msg, logRule(20, 5))
 	l.counts["ls-fw|"+failedLogon] = 12
 	e.must(e.svc.PollLogs(e.ctx()))
 	_, err := e.svc.Evaluate(e.ctx())
@@ -123,7 +123,7 @@ func TestLogThresholdEachThresholdItsOwnEvent(t *testing.T) {
 // The logs module off (or not wired): no event and no error; the evaluate job goes on.
 func TestLogThresholdLogsOff(t *testing.T) {
 	e, l := logEnv(t)
-	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(failedLogon, 1, 5))
+	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(1, 5))
 	l.counts["ls-fw|"+failedLogon] = 5
 	l.off = true
 	e.must(e.svc.PollLogs(e.ctx()))

@@ -14,7 +14,7 @@
 #     minutes (default 120). An idle server costs memory, not CPU, and an agent may still be
 #     using it, so load does not shorten this.
 # Each stop: SIGTERM to the tree, SIGKILL after 5 s. Logged; macOS also shows a notification.
-# `--dry-run` only prints what it would stop. VEDETTE_REAPER_ONLY=<regex> (tests only) limits
+# `--dry-run` only prints what it would stop (roots and the whole tree pids). VEDETTE_REAPER_ONLY=<regex> (tests only) limits
 # victims to trees whose root command line matches it.
 set -uf # -f: command lines are split into words below and must never be globbed
 # launchd starts jobs with a minimal PATH; gh lives under Homebrew on macOS.
@@ -99,13 +99,11 @@ only=${VEDETTE_REAPER_ONLY:-}
 # line of process $1 from the snapshot
 pline() { echo "$snap" | awk -v p="$1" '$1 == p { print; exit }'; }
 
-# wrapper = a runner/shell started for the tree (not a login shell, whose argv0 starts with "-")
+# wrapper = the process that started the dev/test tree: a package-manager or tool launcher
+# (pnpm, npm, npx, yarn, tsx, vite, vitest, playwright), possibly under node or a shell. A
+# generic shell/node (an agent, tmux pane, watch loop) is never a wrapper, so the walk stops there.
 is_wrapper() {
-	local a0=${1%% *}
-	case "${a0##*/}" in
-	pnpm | npm | npx | yarn | node | sh | bash | dash | zsh | env | tsx) return 0 ;;
-	esac
-	return 1
+	echo "$1" | grep -Eq '(^|[ /])(pnpm|npm|npx|yarn|tsx)([ .]|$)|/pnpm\.c?js|vite|vitest|playwright'
 }
 
 victims=""
@@ -160,11 +158,6 @@ EOF
 [ -n "$victims" ] || exit 0
 
 stamp=$(date '+%Y-%m-%d %H:%M:%S')
-if [ "$dry" = "1" ]; then
-	echo "would stop (load5 $load5, $ncpu CPUs):$reasons"
-	exit 0
-fi
-
 all=""
 for p in $victims; do
 	# the snapshot may be old (check_issues waits on the network): skip a root whose pid was reused
@@ -173,6 +166,11 @@ for p in $victims; do
 	all="$all $(descendants "$p" | tr '\n' ' ') $p"
 done
 all=$(echo "$all" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ')
+if [ "$dry" = "1" ]; then
+	echo "would stop (load5 $load5, $ncpu CPUs):$reasons"
+	echo "tree pids: $all"
+	exit 0
+fi
 # shellcheck disable=SC2086 # word splitting of the PID list is intended
 kill -TERM $all 2>/dev/null
 i=0

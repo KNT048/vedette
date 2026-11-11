@@ -10266,7 +10266,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = CoreGetCoreDataBackupOperation
-								r.summary = "Download a backup (no passwords or keys)"
+								r.summary = "Download a backup (password hashes, never passwords or keys)"
 								r.operationID = "core_get_core_data_backup"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/backup"

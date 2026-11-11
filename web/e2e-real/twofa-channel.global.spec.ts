@@ -28,7 +28,7 @@ test('email channel off: choosing email codes is refused, and an email-code user
     await shot(page, 'real', 'twofa-email-disabled')
     const start = await api<{ error: { code: string } }>(page.request, 'POST', '/core/account/2fa/email/start', { password: who.pw })
     expect(start.status, JSON.stringify(start.body)).toBe(409)
-    expect(start.body.error.code, 'starting email codes: documented in API_CONVENTIONS; the sign-in answer is twofa_email_unavailable (below)').toBe('email_channel_not_ready')
+    expect(start.body.error.code, 'turning email codes on without a channel: core IMPACT.md (CodeMailer); the sign-in answer is twofa_email_unavailable (below)').toBe('email_channel_not_ready')
     expect((await api<{ twofa: boolean }>(page.request, 'GET', '/me')).body.twofa, 'a refused start turns nothing on').toBe(false)
 
     // channel on: the user turns email codes on

@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -28,6 +29,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/modules/feeds"
 )
 
 // e2eReady is ready.json: everything a spec needs to find the box.
@@ -124,6 +127,7 @@ func e2eBox(ctx context.Context, dir string) error {
 		return err
 	}
 	defer func() { _ = f.Close() }()
+	defer e2eOffline()()
 	ready := e2eReady{DataDir: data, HoneypotDir: hp}
 	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &ready)
 	if err != nil {
@@ -140,6 +144,30 @@ func e2eBox(ctx context.Context, dir string) error {
 	defer log.mu.Unlock()
 	return errors.Join(runErr, log.err)
 }
+
+// e2eOffline gives the box of the run no internet: the feeds client refuses every address that is not loopback at once, so the built-in
+// pulls (CISA, EPSS, the IOC lists) fail fast and a custom feed pointed at a 127.0.0.1 fake (feeds.spec.ts) still works. Without it the
+// box pulled the public feeds at start: ~80 MB written in one transaction that held the database writer for ~13 s, so the first sign-ins,
+// the first-run setup and the first user created after the start stalled past the 8 s expect timeout, and what the specs saw depended on
+// the network (D-170: specs are independent of feed content). The returned func puts the client back (the package var is shared with the
+// other tests of this package, which never run while this one does: it is not parallel).
+func e2eOffline() func() {
+	prev := feedsClient
+	c := feeds.NewClient(feeds.DefaultFetchTimeout)
+	inner := c.Transport
+	c.Transport = e2eRoundTrip(func(r *http.Request) (*http.Response, error) {
+		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
+			return inner.RoundTrip(r)
+		}
+		return nil, errors.New("the box of the end-to-end run has no internet")
+	})
+	feedsClient = c
+	return func() { feedsClient = prev }
+}
+
+type e2eRoundTrip func(*http.Request) (*http.Response, error)
+
+func (f e2eRoundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 // e2eStop is the context of the standalone box: SIGTERM or SIGINT, the death of the parent (the script that started it), or
 // VEDETTE_E2E_MAX (default 45m) end it. The orphan reaper does not match this binary, so the box has to stop itself.

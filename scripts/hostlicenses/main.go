@@ -1,0 +1,162 @@
+// Command hostlicenses writes the third-party license file that the vedette-host .deb ships as
+// /usr/share/doc/vedette-host/third-party-licenses (WP-08g, D-155): the Go license for the standard library and runtime that
+// the static binary contains, then the license files of every module linked into ./cmd/vedette-host (the main module
+// included), found with `go list -deps` in the module cache. A linked module without a license file is an error, so a new
+// dependency cannot ship unlicensed. Run by `make host-deb`; the file is generated into dist/, never committed.
+//
+//	go run ./scripts/hostlicenses -goos linux -goarch amd64 -out dist/host-deb/amd64/third-party-licenses
+package main
+
+import (
+	"bytes"
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec" //nolint:depguard // build helper outside the product: fixed argv (go), no shell
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+	"time"
+)
+
+const maxLicense = 1 << 20
+
+// licenseName matches the license files at the top of a module: LICENSE, LICENSE.md, COPYING, UNLICENSE, NOTICE...
+var licenseName = regexp.MustCompile(`(?i)^(licen[sc]e|copying|unlicense|notice)([-._].*)?$`)
+
+type module struct{ path, version, dir string }
+
+func main() {
+	goos := flag.String("goos", "linux", "target GOOS")
+	goarch := flag.String("goarch", "amd64", "target GOARCH")
+	out := flag.String("out", "", "file to write")
+	flag.Parse()
+	if *out == "" {
+		fmt.Fprintln(os.Stderr, "hostlicenses: -out is required")
+		os.Exit(2)
+	}
+	text, err := generate(*goos, *goarch)
+	if err == nil {
+		err = os.MkdirAll(filepath.Dir(*out), 0o755) //nolint:gosec // dist/ of the build, read by the packager
+	}
+	if err == nil {
+		err = os.WriteFile(*out, text, 0o644) //nolint:gosec // a public license file
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hostlicenses:", err)
+		os.Exit(1)
+	}
+}
+
+func goCmd(goos, goarch string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", args...) //nolint:gosec // fixed argv built in this file, no shell
+	// the same build the package makes: no cgo, so the set of linked packages is the set of the static binary
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+goarch)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	b, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return b, nil
+}
+
+// modules lists the modules that provide the packages linked into the host binary.
+func modules(goos, goarch string) ([]module, error) {
+	b, err := goCmd(goos, goarch, "list", "-deps", "-f", `{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}`, "github.com/knt048/vedette/cmd/vedette-host")
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var out []module
+	for l := range strings.SplitSeq(string(b), "\n") {
+		if l == "" || seen[l] {
+			continue
+		}
+		seen[l] = true
+		p := strings.Split(l, "|")
+		if len(p) != 3 || p[2] == "" {
+			return nil, fmt.Errorf("unexpected go list line %q", l)
+		}
+		out = append(out, module{p[0], p[1], p[2]})
+	}
+	slices.SortFunc(out, func(a, b module) int { return strings.Compare(a.path, b.path) })
+	return out, nil
+}
+
+func licenseFiles(dir string) (map[string][]byte, error) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]byte{}
+	for _, e := range ents {
+		if !e.Type().IsRegular() || !licenseName.MatchString(e.Name()) {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name())) //nolint:gosec // a license file found by name in a module directory
+		if err != nil {
+			return nil, err
+		}
+		if len(b) > maxLicense {
+			return nil, fmt.Errorf("%s is larger than %d bytes", filepath.Join(dir, e.Name()), maxLicense)
+		}
+		out[e.Name()] = b
+	}
+	return out, nil
+}
+
+func section(w *bytes.Buffer, title, dir string) error {
+	files, err := licenseFiles(dir)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("%s has no license file in %s", title, dir)
+	}
+	names := make([]string, 0, len(files))
+	for n := range files {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+	for _, n := range names {
+		fmt.Fprintf(w, "================================================================================\n== %s (%s)\n================================================================================\n", title, n)
+		w.Write(files[n])
+		if !bytes.HasSuffix(files[n], []byte("\n")) {
+			w.WriteByte('\n')
+		}
+		w.WriteByte('\n')
+	}
+	return nil
+}
+
+// generate returns the text of the file.
+func generate(goos, goarch string) ([]byte, error) {
+	mods, err := modules(goos, goarch)
+	if err != nil {
+		return nil, err
+	}
+	root, err := goCmd(goos, goarch, "env", "GOROOT")
+	if err != nil {
+		return nil, err
+	}
+	var w bytes.Buffer
+	w.WriteString("Third-party licenses of vedette-host\n\nThe Go standard library and runtime, then every Go module linked into the binary.\nVedette itself is Apache-2.0 (see copyright).\n\n")
+	if err := section(&w, "Go standard library and runtime", strings.TrimSpace(string(root))); err != nil {
+		return nil, err
+	}
+	for _, m := range mods {
+		title := m.path
+		if m.version != "" {
+			title += " " + m.version
+		}
+		if err := section(&w, title, m.dir); err != nil {
+			return nil, err
+		}
+	}
+	return w.Bytes(), nil
+}

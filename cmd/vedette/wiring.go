@@ -195,21 +195,12 @@ func (p findingsPublisher) Publish(ctx context.Context, name string, payload any
 	return p.bus.Publish(ctx, events.Event{Name: name, Data: payload})
 }
 
-// ---- inventory -> mitigation (mitigation.Vendors) and the ai stand-in ----
+// ---- inventory -> mitigation (mitigation.Vendors) ----
 
 type mitigationVendors struct{ inv *inventory.Service }
 
 func (a mitigationVendors) HasFirewallVendor(ctx context.Context, vendor string) (bool, error) {
 	return a.inv.HasDevice(ctx, []string{"firewall", "router"}, vendor)
-}
-
-// aiOff is mitigation's AI port until the ai module is wired (WP-25): never available, so the page offers no AI button
-// and POST /findings/{id}/ai answers 409 ai_unavailable.
-type aiOff struct{}
-
-func (aiOff) Available(context.Context, mitigation.Skill) bool { return false }
-func (aiOff) Run(context.Context, mitigation.AIRequest) (mitigation.AIOutput, error) {
-	return mitigation.AIOutput{}, mitigation.ErrAIUnavailable
 }
 
 // ---- building the services ----
@@ -236,7 +227,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("connection reader: %w", err)
 	}
 	d.Logs = logexport.New()
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn}, Conns: d.Conn}); err != nil {
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {
@@ -275,22 +266,24 @@ func buildServices(ctx context.Context, d *deps) error {
 		gate = d.Reg
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
-	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory}, aiOff{})
+	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
+	// unavailable while no profile is assigned, so the page offers no AI button then.
+	if d.AI, err = newAI(ctx, d, aiFacts{fs.Store(), d.Findings, inv}); err != nil {
+		return fmt.Errorf("ai: %w", err)
+	}
+	aiDoor := aiMitigation{d.AI}
+	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory}, aiDoor)
 	if err != nil {
 		return err
 	}
 	d.FindingHandlers.SetGuidance(provider)
-	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiOff{}, d.Clock); err != nil {
+	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
 	}
 	if d.Response, err = newResponse(d); err != nil {
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
-	d.AI, err = newAI(ctx, d)
-	if err != nil {
-		return fmt.Errorf("ai: %w", err)
-	}
 	subscribe(*d)
 	return nil
 }
@@ -352,11 +345,18 @@ func subscribe(d deps) {
 }
 
 // privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
-// no AI provider (aiOff), the NTP servers are the default ones (the host module is not built), no OIDC issuer
+// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), no OIDC issuer
 // (auth-oidc is not built). Each answer moves to its module's service when that module gets a backend.
-type privacyFacts struct{ conns *conn.Service }
+type privacyFacts struct {
+	conns *conn.Service
+	d     *deps // read lazily: the ai service is built after core, which takes this value
+}
 
-func (privacyFacts) AIConfigured(context.Context) bool   { return false }
+// AIConfigured: flow 3 is on while an AI profile can be used (a key, or a model inside the network).
+func (p privacyFacts) AIConfigured(context.Context) bool {
+	return p.d != nil && p.d.AI != nil && p.d.AI.Configured()
+}
+
 func (privacyFacts) NTPPublic(context.Context) bool      { return true }
 func (privacyFacts) OIDCConfigured(context.Context) bool { return false }
 

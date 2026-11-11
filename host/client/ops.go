@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 )
@@ -158,4 +159,35 @@ func ResultOf[T any](run api.Run) (T, error) {
 		return out, fmt.Errorf("host: decode result: %w", err)
 	}
 	return out, nil
+}
+
+// BackupPurge runs backup.purge (D-156): the host deletes every backup archive and its index, and
+// answers how many archives went. requestID is the idempotency key (a UUID v4; retry with the
+// same one). It waits for the run (a few files: a moment) and returns the run id as soon as the
+// host has accepted it, also when ctx ends or an error follows, so the caller can ask
+// GetRun(runID) later. A running write is a *Error with code busy; a failed run is an error
+// with the run's code.
+func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (deleted int, runID string, err error) {
+	run, err := c.Run(ctx, api.CmdBackupPurge, nil, requestID, actor)
+	runID = run.RunID
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return 0, runID, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+		run, err = c.GetRun(ctx, runID)
+	}
+	if err != nil {
+		return 0, runID, err
+	}
+	if run.Status != api.StatusSucceeded {
+		code := "command_failed"
+		if run.Error != nil {
+			code = run.Error.Code
+		}
+		return 0, runID, fmt.Errorf("host: backup.purge %s: %s", run.Status, code)
+	}
+	res, err := ResultOf[api.BackupPurgeResult](run)
+	return res.Deleted, runID, err
 }

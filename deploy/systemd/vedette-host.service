@@ -1,0 +1,43 @@
+[Unit]
+Description=Vedette host helper
+After=network-online.target
+Wants=network-online.target
+# The package enables the unit but the installer writes host.conf: without the file the unit is skipped at boot (not failed, no crash loop); the installer starts it after writing it (D-155)
+ConditionPathExists=/etc/vedette/host.conf
+# Restart=always would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back, so no limit, and RestartSteps below slows the loop (D-150)
+StartLimitIntervalSec=0
+
+[Service]
+# READY=1 after Ops.Start finished and the socket is open: namespace vedette-hp, decoys, interrupted runs (D-102)
+Type=notify
+ExecStart=/usr/lib/vedette/vedette-host
+RuntimeDirectory=vedette
+RuntimeDirectoryMode=0750
+# the run directory survives a stop or restart of the host: core mounts the directory /run/vedette and reconnects to the new socket (D-123)
+RuntimeDirectoryPreserve=yes
+# the host exits 70 when a command ignores its deadline; always restart it
+Restart=always
+# crash-loop back-off: 2 s growing to 5 min over 8 steps (systemd 254 or newer: Ubuntu 24.04 has 255, Debian 13 has 257)
+RestartSec=2s
+RestartSteps=8
+RestartMaxDelaySec=5min
+# control-group is systemd's default, kept to state the intent: a restart kills the apt/podman client processes still in this cgroup.
+# Containers are not in it: each lives in its own libpod scope and keeps running
+KillMode=control-group
+# bounds the Start steps (D-121): startHP 120 s + startup rollback 180 s + decoy re-apply 120 s + core check 60 s
+# + interrupted restore 300 s + core stop/start 120 s + half-written unit reset 60 s (D-123) = 960 s = 16 minutes
+TimeoutStartSec=16min
+# Hardening (D-150, DEPLOYMENT.md section 12). NO filesystem-namespace option here, ever (D-121): `ip netns add vedette-hp` bind-mounts on
+# /run/netns/vedette-hp and the honeypot container (podman, outside this unit) must see that mount. Only these, none of which makes a mount namespace
+# (systemd.exec(5): each is a seccomp filter or a personality/scheduler limit; they apply to the helper and its children, and a unit running as root
+# needs no NoNewPrivileges for a seccomp filter):
+# AF_PACKET: ARP probe and gateway check (D-101); AF_NETLINK: addresses, routes, nft; AF_UNIX: the host socket, journald, podman
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+# Left out on purpose: NoNewPrivileges and MemoryDenyWriteExecute (inherited by apt/dpkg scripts, netplan, podman and crun; not verifiable without the lab),
+# RestrictNamespaces (absent is allowed; the test requires net and mnt if it is ever set)
+
+[Install]
+WantedBy=multi-user.target

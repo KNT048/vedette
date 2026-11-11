@@ -72,6 +72,8 @@ func TestParseRejects(t *testing.T) {
 		"core_gid not sock":  strings.Replace(good, "socket_gid=10002", "socket_gid=990", 1),
 		"sensor_uid is 0":    strings.Replace(good, "10003", "0", 1),
 		"sensor_gid is 0":    strings.Replace(good, "10004", "0", 1),
+		"core_gid is 0":      strings.ReplaceAll(good, "10002", "0"),
+		"socket_gid is 0":    strings.Replace(good, "socket_gid=10002", "socket_gid=0", 1),
 		"sensor_uid is core": strings.Replace(good, "10003", "10001", 1),
 		"sensor_gid is core": strings.Replace(good, "10004", "10002", 1),
 		"hex sensor_uid":     strings.Replace(good, "10003", "0x10", 1),

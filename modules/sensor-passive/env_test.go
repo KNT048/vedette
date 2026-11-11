@@ -103,6 +103,14 @@ type openSource struct {
 	fail   bool // every open fails, like a card that vanished
 	tries  int
 	once   bool // play the recording once (a test that looks at timestamps or counts frames)
+	read   int  // sources that have handed out their last frame
+}
+
+// drained reports whether some opened source has handed out every frame of its recording.
+func (o *openSource) drained() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.read > 0
 }
 
 func (o *openSource) open(iface string) (capture.Source, error) {
@@ -148,6 +156,7 @@ type replaySource struct {
 	frames []pktgen.Frame
 	hold   bool
 	i      int
+	done   bool
 }
 
 func (r *replaySource) Next(ctx context.Context) (capture.Packet, error) {
@@ -158,6 +167,12 @@ func (r *replaySource) Next(ctx context.Context) (capture.Packet, error) {
 		f := r.frames[r.i]
 		r.i++
 		return capture.Packet{At: f.At, Data: f.Data}, nil
+	}
+	if !r.done {
+		r.done = true
+		r.owner.mu.Lock()
+		r.owner.read++
+		r.owner.mu.Unlock()
 	}
 	if !r.hold {
 		return capture.Packet{}, io.EOF

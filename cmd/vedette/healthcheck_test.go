@@ -383,8 +383,12 @@ func TestCoreAndHoneypotUnitsHealthCmdMatchTheRealCommands(t *testing.T) {
 		if start != wantStart {
 			t.Errorf("%s: HealthStartPeriod=%q, want %s", svc, start, wantStart)
 		}
-		if ro != "true" || tmpfs != "/tmp" {
-			t.Errorf("%s: ReadOnly=%q Tmpfs=%q, want true and /tmp", svc, ro, tmpfs)
+		wantTmpfs := "/tmp"
+		if svc == "core" {
+			wantTmpfs = "/tmp:size=64m" // core's tmpfs is bounded (D-150)
+		}
+		if ro != "true" || tmpfs != wantTmpfs {
+			t.Errorf("%s: ReadOnly=%q Tmpfs=%q, want true and /tmp (core: /tmp:size=64m)", svc, ro, tmpfs)
 		}
 		return health, publish, volumes
 	}

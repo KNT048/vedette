@@ -1,0 +1,84 @@
+# The vedette-host .deb (WP-08g, D-155). Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
+# `go tool -modfile=tools/go.mod nfpm pkg`; run from the repository root. VERSION, ARCH, BINARY and LICENSES come from the environment.
+# Nothing here is edited by hand on a box: the package installs the helper and its unit, creates the users and directories the
+# helper expects, and enables the unit without starting it. The installer (WP-08h) writes /etc/vedette/host.conf and starts it.
+name: vedette-host
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: KNT048 <KNT048@users.noreply.github.com>
+homepage: https://github.com/KNT048/vedette
+license: Apache-2.0
+description: |-
+  Vedette host helper
+   A small root service for the Vedette box: OS updates, the management
+   network, container updates and backups, run through a fixed list of
+   commands over a local socket. It starts nothing on its own account:
+   install /etc/vedette/host.conf (the Vedette installer does), then
+   start vedette-host.service.
+
+# Minimums, not exact versions (D-155). Why each one:
+#  podman (>= 4.4)   Quadlet units (/etc/containers/systemd) exist from 4.4; Ubuntu 24.04 has 4.9, Debian 13 has 5.x
+#  systemd (>= 254)  RestartSteps= and RestartMaxDelaySec= of vedette-host.service (D-150); Ubuntu 24.04 has 255
+#  nftables          the ruleset inside the namespace vedette-hp (nft, run through ip netns exec)
+#  iproute2          ip: decoy links and ip netns (D-102)
+#  procps            sysctl, run through ip netns exec in vedette-hp
+#  chrony            chronyc and the chrony sources the host writes (D-106)
+#  netplan.io        netplan apply: the host owns /etc/netplan/90-vedette.yaml (D-99)
+#  unattended-upgrades  the apt configuration the host writes (52vedette-unattended) does nothing without it (D-53)
+#  passwd            useradd and groupadd of the postinst
+depends:
+  - podman (>= 4.4)
+  - systemd (>= 254)
+  - nftables
+  - iproute2
+  - procps
+  - chrony
+  - netplan.io
+  - unattended-upgrades
+  - passwd
+
+contents:
+  - src: ${BINARY}
+    dst: /usr/lib/vedette/vedette-host
+    expand: true
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+  - src: deploy/systemd/vedette-host.service
+    dst: /usr/lib/systemd/system/vedette-host.service
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  - src: LICENSE
+    dst: /usr/share/doc/vedette-host/copyright
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  - src: NOTICE
+    dst: /usr/share/doc/vedette-host/NOTICE
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  # generated at build time by scripts/hostlicenses (the Go license and the license of every module linked into the binary), never committed
+  - src: ${LICENSES}
+    dst: /usr/share/doc/vedette-host/third-party-licenses
+    expand: true
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+
+scripts:
+  postinstall: deploy/deb/postinst
+  preremove: deploy/deb/prerm
+  postremove: deploy/deb/postrm
+
+deb:
+  compression: gzip

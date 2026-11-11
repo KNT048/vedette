@@ -274,7 +274,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 func (o *Ops) Commands() []server.Command {
 	return []server.Command{
 		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
-		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdLogsExport(),
+		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdBackupPurge(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),

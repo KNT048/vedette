@@ -1,6 +1,7 @@
 package sensorlink
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -35,16 +36,26 @@ const (
 	MaxBodiesPerRole = 2
 	MaxResultBodies  = 1
 	MaxConns         = 64
+	// MaxConnsPassive and MaxConnsActive split MaxConns by role (D-176 (4)): a connection is charged to its role at the TLS
+	// handshake (the verified certificate tells which), and a handshake over the share fails. 32 + 16 leaves 16 of the 64 for connections that are
+	// still in their handshake or are not a sensor, so a passive sensor can never hold the slots the scan worker needs (the
+	// worker keeps one long poll, one or two result uploads and a heartbeat: well under 16).
+	MaxConnsPassive = 32
+	MaxConnsActive  = 16
 
 	RatePerSecond = 10
 	RateBurst     = 20
 
 	ReadHeaderTimeout = 5 * time.Second
 	WriteTimeout      = 35 * time.Second
-	// BodyTimeout bounds reading one request body (a slow body is as much a slowloris as slow headers, and net/http has no
-	// body timeout that spares a long poll). IdleTimeout closes keep-alive connections nobody uses.
+	// BodyTimeout bounds reading one request body (a slow body is as much a slowloris as slow headers). The largest upload is
+	// MaxResultBody (11 MiB), so the whole request (headers plus body) is at most ReadHeaderTimeout + BodyTimeout, which is
+	// http.Server.ReadTimeout (D-176 (3)); a long poll lifts that deadline for itself (serve). IdleTimeout closes keep-alive
+	// connections nobody uses.
 	BodyTimeout = 10 * time.Second
 	IdleTimeout = 2 * time.Minute
+	// DrainGrace is how long a connection whose request was refused without reading its body may keep sending that body.
+	DrainGrace = time.Second
 
 	// Backoff of a sensor retrying (D-112 (4)).
 	BackoffStart = time.Second
@@ -116,10 +127,76 @@ func (l *limitListener) Close() error {
 type limitConn struct {
 	net.Conn
 	release func()
+
+	mu     sync.Mutex
+	closed bool
+	extra  []func() // run once when the connection closes: the role charge
 }
 
 func (c *limitConn) Close() error {
 	err := c.Conn.Close()
+	c.mu.Lock()
+	c.closed = true
+	extra := c.extra
+	c.extra = nil
+	c.mu.Unlock()
+	for _, f := range extra {
+		f()
+	}
 	c.release()
 	return err
+}
+
+// onClose runs f when the connection closes; false when it already has (f is not kept).
+func (c *limitConn) onClose(f func()) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return false
+	}
+	c.extra = append(c.extra, f)
+	return true
+}
+
+// connCap is the share of MaxConns a role may hold (0 for anything else: not tracked).
+func connCap(r Role) int {
+	switch r {
+	case Passive:
+		return MaxConnsPassive
+	case Active:
+		return MaxConnsActive
+	}
+	return 0
+}
+
+// roleTracker counts the connections each role holds. A connection is charged to its role at the TLS handshake (the verified
+// client certificate says which role it is) and the charge is given back when the connection closes, in the same place as its
+// LimitListener slot. A connection that is not one of LimitListener's (a test server) is not charged.
+type roleTracker struct {
+	mu sync.Mutex
+	n  map[Role]int
+}
+
+func newRoleTracker() *roleTracker { return &roleTracker{n: map[Role]int{}} }
+
+// charge takes one connection of role's share for c; an error (the handshake fails) when the role is at its share.
+func (t *roleTracker) charge(c net.Conn, r Role) error {
+	lc, ok := c.(*limitConn)
+	if !ok {
+		return nil
+	}
+	t.mu.Lock()
+	if t.n[r] >= connCap(r) {
+		t.mu.Unlock()
+		return fmt.Errorf("sensorlink: %s connections are at their share of %d", r, connCap(r))
+	}
+	t.n[r]++
+	t.mu.Unlock()
+	if !lc.onClose(func() { t.mu.Lock(); t.n[r]--; t.mu.Unlock() }) {
+		t.mu.Lock()
+		t.n[r]--
+		t.mu.Unlock()
+		return net.ErrClosed
+	}
+	return nil
 }

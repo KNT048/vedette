@@ -20,6 +20,11 @@ const KNOWN_501: Record<string, Record<string, string>> = {
   '/settings/siem': { 'GET /api/v1/logs/siem': 'Mlee (logs) · .ai/deferred/feat-e2e-real-specs-sal.md (SIEM forwarding, L5)' },
 }
 
+/** A 501 the page may or may not trigger (it depends on which module switches the other specs left): allowed, never required. */
+const MAYBE_501: Record<string, Record<string, string>> = {
+  '/logs': { 'GET /api/v1/ai/logs/digest': 'Mlee (ai) · .ai/deferred/feat-ai-activity.md:18 (the log digest, not built)' },
+}
+
 const SECTIONS = ['general', 'modules', 'users', 'connections', 'audit', 'updates', 'network', 'privacy', 'mcp', 'data', 'feeds', 'response', 'ai', 'siem']
 const ROUTES = ['/', '/lookup', '/devices', '/devices/setup', '/findings', '/honeypot', '/response', '/account', '/logs', '/scans', '/assistant', ...SECTIONS.map((s) => `/settings/${s}`)]
 
@@ -41,6 +46,7 @@ async function check(page: import('@playwright/test').Page, route: string, info:
     }
     if (r.status() < 500) return
     if (r.status() === 501 && key in (KNOWN_501[route] ?? {})) seen.add(key)
+    else if (r.status() === 501 && key in (MAYBE_501[route] ?? {})) return
     else server.push(`${key} -> ${r.status()}`)
   })
   await page.goto(route)

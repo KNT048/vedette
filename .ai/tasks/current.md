@@ -29,7 +29,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
   - Phía Kiên đã merge: core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response (13a, 13b lát 1–10), honeypot.
   - WP-08 đã merge các phần a, b, c, d, g, j.
   - WP-31 đã rà xong; các lát sửa R1, R2, S, I, H và M4/L10 đã merge.
-  - WP-30 lát 1–2 đã merge (#204, #210); feeds của Emily đã merge (#222).
+  - WP-30 xong (lát 1–10; `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`); feeds của Emily đã merge (#222).
   - Phía Emily đã merge: feeds, findings/mitigation, notify (phần lớn), exposure, scan S0–S5, ai lát 1–3, logs L1 và an toàn production (#226: giới hạn theo byte, trần export, kẹp thời điểm; D-200).
 - **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222, #226, #228, #233, #234, #235, #249, #254 (Mlee).
 - **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); Mlee: ai lát 4a rules + hook (`feat/ai-4a-rules-hooks`, D-204; đã qua rà Opus hai vòng, đang `make check`).

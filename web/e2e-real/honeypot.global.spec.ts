@@ -40,7 +40,7 @@ function watch5xx(page: Page): string[] {
   page.on('response', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.status() >= 500) seen.push(`${r.request().method()} ${u.pathname} -> ${r.status()}`) })
   return seen
 }
-const trapRow =(page: Page, service: string): Locator => page.getByRole('table', { name: 'Traps and their status' }).getByRole('row').filter({ has: sw(page, service) })
+const trapRow = (page: Page, service: string): Locator => page.getByRole('table', { name: 'Traps and their status' }).getByRole('row').filter({ has: sw(page, service) })
 
 // ---- the trap log: what the container would write ----
 const logPath = () => join(box().honeypot_dir, 'log', 'opencanary.jsonl')
@@ -100,6 +100,7 @@ test.beforeAll(async () => {
 
 // Every step runs whatever the one before did (a failed delete must not leave the LAN ranges or the module switch changed); what failed is thrown at the end.
 test.afterAll(async () => {
+  test.setTimeout(120_000) // the host may take up to 45 s to stop the container after a failed test; the module switch comes after it
   const problems: string[] = []
   const step = async (what: string, fn: () => Promise<unknown>) => { try { await fn() } catch (e) { problems.push(`${what}: ${(e as Error).message.split('\n')[0]}`) } }
   await step('host start knob', () => hostKnob('hp_start', 'ok'))

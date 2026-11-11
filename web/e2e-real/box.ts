@@ -33,11 +33,21 @@ export async function nmapRuns(): Promise<string[]> {
 }
 
 /** Turns a knob of the fake vedette-host: `lock` (dpkg lock held), `install_fail` (apt-get install exits 100), `reboot_required` (on/off),
- *  `updates` (`reset`: the packages are pending again), `boot` (a new boot id: a reboot is over). */
-export async function hostKnob(knob: 'lock' | 'install_fail' | 'reboot_required' | 'updates' | 'boot', value: string): Promise<void> {
+ *  `updates` (`reset`: the packages are pending again), `boot` (a new boot id: a reboot is over), `hp_start` (`fail`: starting the honeypot
+ *  container fails; `ok`: it works, slice 8b). */
+export async function hostKnob(knob: 'lock' | 'install_fail' | 'reboot_required' | 'updates' | 'boot' | 'hp_start', value: string): Promise<void> {
   const b = box()
   const r = await fetch(`${b.host_control}/host?${knob}=${value}`, { method: 'POST', headers: { Authorization: `Bearer ${b.host_token}` } })
   if (!r.ok) throw new Error(`host knob ${knob}=${value}: ${r.status}`)
+}
+
+/** What the fake vedette-host itself says about the honeypot (slice 8b): the state of its unit (`active`, `inactive`, ...), the decoy
+ *  addresses it holds with their MAC (GET /v1/state/net), and how many times the container was asked to start (failed ones too). */
+export async function hostHoneypot(): Promise<{ unit_state: string; decoys: { ip: string; mac: string }[]; restarts: number }> {
+  const b = box()
+  const r = await fetch(`${b.host_control}/honeypot`, { headers: { Authorization: `Bearer ${b.host_token}` } })
+  if (!r.ok) throw new Error(`host honeypot state: ${r.status}`)
+  return (await r.json()) as { unit_state: string; decoys: { ip: string; mac: string }[]; restarts: number }
 }
 
 let cached: Box | undefined

@@ -27,7 +27,7 @@ func TestPublicRequestsAreLimitedPerAddress(t *testing.T) {
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.Prefix+path, nil)
 		r.RemoteAddr = from
 		if user != "" {
-			r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user})
+			r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: user, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 		}
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

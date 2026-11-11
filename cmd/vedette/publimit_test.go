@@ -14,7 +14,7 @@ func TestPublicLimitOnlyOnAnAppliance(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	sock := filepath.Join(dir, "h.sock")
-	l, err := net.Listen("unix", sock)
+	l, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", sock)
 	if err != nil {
 		t.Skip("no unix socket here:", err)
 	}

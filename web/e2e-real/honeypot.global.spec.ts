@@ -4,6 +4,8 @@
 // the way the container would (append, newline), and the real run job reads them (poll every 15 s, honeypot.go).
 // Global project: the decoy address, the traps, the LAN range and the host's decoys are box-wide state; the last step puts back what it can
 // (traps off, tokens and devices deleted, LAN ranges and module switch as they were). Steps from e2e/qa/honeypot.spec.ts, minus the mock-only parts.
+// One run on a fresh box (D-172): this spec cannot be re-run on a HOLD=1 box. The secondary IP cannot be cleared once set (so the "clean box" check fails),
+// and lines written in the same 10-minute window join the hits of the earlier run instead of making new ones.
 // What the GUI does not show: the decoy's MAC (D-102 gives each decoy IP its own MAC, but neither GET /honeypot nor the page carries it), so the MAC
 // is checked on the host's side (GET /v1/state/net through the control endpoint) and the page is checked for the IP.
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
@@ -46,9 +48,9 @@ const confDir = () => join(box().honeypot_dir, 'config')
 /** OpenCanary's utc_time: UTC, "YYYY-MM-DD HH:MM:SS.ffffff". */
 const utc = () => new Date().toISOString().replace('T', ' ').replace('Z', '000')
 /** Appends lines to the log the way the container does: one write per line, newline at the end, the log folder made if the container has not yet. */
-function appendLog(...lines: string[]) {
+function appendLog(...lines: (string | Buffer)[]) {
   mkdirSync(dirname(logPath()), { recursive: true })
-  for (const l of lines) appendFileSync(logPath(), `${l}\n`, { mode: 0o644 })
+  for (const l of lines) appendFileSync(logPath(), Buffer.concat([typeof l === 'string' ? Buffer.from(l) : l, Buffer.from('\n')]), { mode: 0o644 })
 }
 interface Rec { logtype: number; src: string; srcPort: number; dst?: string; dstPort?: number; data?: Record<string, string> }
 const rec = (r: Rec) => JSON.stringify({
@@ -59,6 +61,7 @@ const rec = (r: Rec) => JSON.stringify({
 // ---- what the test made, so it can be put back ----
 const made = { devices: [] as string[], tokens: [] as string[] }
 let originalLan: string[] = []
+let lanChanged = false
 let originalModule = true
 let src: { id: string; ip: string; name: string }
 let src2: { id: string; ip: string; name: string }
@@ -77,6 +80,7 @@ test.beforeAll(async () => {
     // which the wizard's ranges do not hold): declare it, as an administrator does under Devices, Scope and sensors; put back at the end
     const cur = await get<Record<string, unknown> & { lan_ranges: string[] }>(admin, '/inventory/settings')
     originalLan = cur.lan_ranges
+    lanChanged = true // set before the PUT: afterAll puts the ranges back even if the answer is lost
     const next = { ...cur, lan_ranges: [...cur.lan_ranges, LAN], scope_confirmed: true }
     delete next.adjusted
     const put = await api(admin, 'PUT', '/inventory/settings', next)
@@ -94,21 +98,32 @@ test.beforeAll(async () => {
   } finally { await admin.dispose() }
 })
 
+// Every step runs whatever the one before did (a failed delete must not leave the LAN ranges or the module switch changed); what failed is thrown at the end.
 test.afterAll(async () => {
-  await hostKnob('hp_start', 'ok')
+  const problems: string[] = []
+  const step = async (what: string, fn: () => Promise<unknown>) => { try { await fn() } catch (e) { problems.push(`${what}: ${(e as Error).message.split('\n')[0]}`) } }
+  await step('host start knob', () => hostKnob('hp_start', 'ok'))
   const admin = await as('admin')
   try {
-    for (const svc of ['smb', 'rdp', 'ssh', 'mssql', 'http']) await api(admin, 'PATCH', `/honeypot/traps/${svc}`, { enabled: false })
-    for (const id of made.tokens) expect([204, 404], `delete token ${id}`).toContain((await api(admin, 'DELETE', `/honeypot/tokens/${id}`)).status)
-    for (const id of made.devices) expect([200, 204, 404], `delete device ${id}`).toContain((await api(admin, 'DELETE', `/inventory/devices/${id}`)).status)
-    if (originalLan.length) {
-      const cur = await get<Record<string, unknown>>(admin, '/inventory/settings')
-      const back = { ...cur, lan_ranges: originalLan, scope_confirmed: true }
-      delete back.adjusted
-      expect((await api(admin, 'PUT', '/inventory/settings', back)).status, 'LAN ranges put back').toBe(200)
+    for (const svc of ['smb', 'rdp', 'ssh', 'mssql', 'http']) {
+      await step(`trap ${svc} off`, async () => { const r = await api(admin, 'PATCH', `/honeypot/traps/${svc}`, { enabled: false }); expect(r.status, JSON.stringify(r.body)).toBe(200) })
     }
-    if (!originalModule) await api(admin, 'PATCH', '/modules/honeypot', { enabled: false })
+    for (const id of made.tokens) await step(`delete token ${id}`, async () => expect([204, 404]).toContain((await api(admin, 'DELETE', `/honeypot/tokens/${id}`)).status))
+    for (const id of made.devices) await step(`delete device ${id}`, async () => expect([200, 204, 404]).toContain((await api(admin, 'DELETE', `/inventory/devices/${id}`)).status))
+    if (lanChanged) {
+      await step('LAN ranges put back', async () => {
+        const cur = await get<Record<string, unknown>>(admin, '/inventory/settings')
+        const back = { ...cur, lan_ranges: originalLan, scope_confirmed: true }
+        delete back.adjusted
+        const r = await api(admin, 'PUT', '/inventory/settings', back)
+        expect(r.status, JSON.stringify(r.body)).toBe(200)
+      })
+    }
+    // the host has been told to stop before the module goes off
+    await step('host stopped and decoy dropped', () => expect.poll(async () => { const h = await hostHoneypot(); return `${h.unit_state} ${h.decoys.length}` }, { timeout: 45_000 }).toBe('inactive 0'))
+    if (!originalModule) await step('honeypot module off', async () => { const r = await api(admin, 'PATCH', '/modules/honeypot', { enabled: false }); expect(r.status, JSON.stringify(r.body)).toBe(200) })
   } finally { await admin.dispose() }
+  expect(problems, 'cleanup of the honeypot spec').toEqual([])
 })
 
 test('the page starts empty: the three steps, switches locked, and each wrong address says why (S-HP-1, INV-5)', async ({ page }) => {
@@ -186,8 +201,15 @@ test('a host that cannot start the container never makes a trap "Listening"; onc
   await hostKnob('hp_start', 'fail')
   const before = (await hostHoneypot()).restarts
   await page.goto('/honeypot')
-  await sw(page, SVC.ssh).click()
+  const [patched] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/honeypot/traps/ssh') && r.request().method() === 'PATCH'),
+    sw(page, SVC.ssh).click(),
+  ])
+  // the answer to the switch and the page right after it never claim "listening": the host has not said so (and cannot)
+  const answer = (await patched.json()) as Overview
+  expect(answer.traps.find((t) => t.service === 'ssh'), 'the PATCH answer').toMatchObject({ enabled: true, state: 'off' })
   await expect(sw(page, SVC.ssh)).toBeChecked()
+  await expect(trapRow(page, SVC.ssh), 'before any reload').not.toContainText('Listening')
   await toast(page, /SSH trap is on/)
   // the module placed the decoy on the host and asked for the container; the host's start failed
   await expect.poll(async () => (await hostHoneypot()).restarts, { message: 'the container was asked to start', timeout: 45_000 }).toBeGreaterThan(before)
@@ -226,12 +248,15 @@ test('the decoy IP and its MAC are on the host, the written files match what the
   const errors = collectErrors(page)
   const server = watch5xx(page)
   await page.goto('/honeypot')
+  const restartsBefore = (await hostHoneypot()).restarts
   await sw(page, SVC.smb).click()
   await expect(sw(page, SVC.smb)).toBeChecked()
   await expect(async () => {
     await page.reload()
     await expect(trapRow(page, SVC.smb)).toContainText('Listening', { timeout: 3_000 })
   }, 'SMB is Listening once the host restarted the container with the new file').toPass({ timeout: 60_000 })
+  // a new configuration file makes a running container restart (D-161): the host was asked once more
+  await expect.poll(async () => (await hostHoneypot()).restarts, { message: 'switching SMB on restarted the container' }).toBeGreaterThan(restartsBefore)
   await expect(page.getByLabel('Trap secondary IP')).toHaveValue(DECOY_IP)
 
   // D-102: one decoy IP, one MAC of its own: locally administered, unicast
@@ -276,7 +301,7 @@ test('plant a file token and a credential token, and test them (S-HP-2)', async 
   await page.getByLabel('User name', { exact: true }).fill(credName)
   await page.getByLabel('Where will you plant it?').fill('The IT password manager')
   await page.getByRole('button', { name: 'Create token' }).click()
-  await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Token created/ })).not.toHaveCount(0)
+  await expect(page.getByRole('list', { name: 'Honey tokens' }).getByRole('listitem').filter({ hasText: credName })).toHaveCount(1)
 
   const admin = await as('admin')
   const list = (await get<{ items: Tok[] }>(admin, '/honeypot/tokens')).items
@@ -307,7 +332,6 @@ test('plant a file token and a credential token, and test them (S-HP-2)', async 
   await toast(page, new RegExp(`Recorded a test trigger for ${fileName}`))
   await page.getByRole('button', { name: `Test trap ${SVC.smb}` }).click()
   await toast(page, /Recorded a test hit on the SMB \(file sharing\) trap/)
-  await expect(h1(page)).toHaveText(/trap hit|Traps were hit|No trap was hit/)
   await expect(h1(page), 'a test hit is not a hit').toHaveText(/No trap was hit in the last 7 days/)
   const row = page.locator('tr:visible, li:visible').filter({ hasText: 'Vedette box (test)' }).first()
   await expect(row.getByText('Test', { exact: true })).toBeVisible()
@@ -352,8 +376,9 @@ test('a real log line becomes a hit with the device name, on the timeline, and a
   expect(http).toMatchObject({ port: 80, src_name: src.name })
   expect(http.excerpt).toContain('GET /admin/login.php')
   expect(smb.port, 'the SMB line has no destination: the service port stands in').toBe(445)
-  expect(tokenHits.map((h) => h.label).join(' | ')).toMatch(/Credential token|Decoy file|file/i)
-  expect(tokenHits.length, 'one hit for the bait account, one for the bait file').toBe(2)
+  expect(tokenHits.some((h) => h.label.includes(k.name)), 'a token hit names the bait account').toBe(true)
+  expect(tokenHits.some((h) => h.label.includes(f.name)), 'a token hit names the bait file').toBe(true)
+  expect(tokenHits.length, 'one hit for the bait account, one for the bait file (a window edge could split one)').toBeGreaterThanOrEqual(2)
   expect(JSON.stringify(fresh), 'a typed password is never stored').not.toContain('hunter2-never-shown')
 
   // the token counters
@@ -414,7 +439,7 @@ test('hostile lines: a forged source, control characters, an oversized line, gar
     JSON.stringify({ logtype: 3000, src_host: src2.ip, src_port: 40011, dst_host: DECOY_IP, dst_port: 80, utc_time: utc(), logdata: { PATH: `/${marker}-ctl${bytes(0)}${bytes(27)}[31mRED${bytes(0x202e)}${bytes(0x200b)}evil\t\r`, USERAGENT: '<script>window.__pwned=1</script><img src=x onerror=window.__pwned=1>' } }),
     // not a JSON line, NUL bytes, a source that is not an IPv4 address, a command in the source, IPv6, no logtype
     `this is not json ${marker}`,
-    `${bytes(0, 0, 0, 0)}{{{${bytes(0xff, 0xfe)}`,
+    Buffer.concat([Buffer.from([0, 0, 0, 0]), Buffer.from('{{{'), Buffer.from([0xff, 0xfe, 0xc3])]), // NUL bytes and bytes that are not UTF-8
     JSON.stringify({ logtype: 4000, src_host: '192.168.1.71; touch /tmp/pwned', src_port: 1, dst_host: DECOY_IP, utc_time: utc(), logdata: {} }),
     JSON.stringify({ logtype: 4000, src_host: '$(id)', src_port: 1, dst_host: DECOY_IP, utc_time: utc(), logdata: {} }),
     JSON.stringify({ logtype: 4000, src_host: '::1', src_port: 1, dst_host: DECOY_IP, utc_time: utc(), logdata: {} }),
@@ -429,7 +454,9 @@ test('hostile lines: a forged source, control characters, an oversized line, gar
 
   const fresh = (await get<{ items: Hit[] }>(admin, '/honeypot/hits')).items.filter((h) => !known.has(h.id) && !h.is_test)
   const srcs = fresh.map((h) => h.src_ip).sort()
-  expect(srcs, 'the forged and the malformed sources made no hit').toEqual([src2.ip, src2.ip])
+  // (two hits normally: HTTP and SMB; a 10-minute window edge between two lines could make one more, from the same source)
+  expect(srcs.length).toBeGreaterThanOrEqual(2)
+  expect(srcs.every((s) => s === src2.ip), 'the forged and the malformed sources made no hit').toBe(true)
   for (const bad of ['192.168.1.99', '10.9.9.9', '192.168.1.71', '192.168.1.72', '192.168.1.73']) expect(srcs).not.toContain(bad)
   const hostile = fresh.find((h) => h.service === 'http')!
   expect(hostile, 'the two HTTP lines made one HTTP hit').toBeDefined()
@@ -440,12 +467,19 @@ test('hostile lines: a forged source, control characters, an oversized line, gar
   expect(shown, 'no control character, no bidi mark, no zero-width character is kept').not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f​‪-‮⁦-⁩]/)
   expect(JSON.stringify(detail)).not.toContain('\\u001b')
   expect(shown.length, 'the cuts keep the text short').toBeLessThan(4_000)
+  // positive: the text IS there, cleaned (INV-12): control characters became spaces, bidi and zero-width characters were dropped, markup stays text
+  expect(shown, 'the control-character line was read, not dropped or cut off').toContain(`${marker}-ctl`)
+  expect(shown).toContain('REDevil')
+  expect(shown, 'markup is kept as text').toContain('<script>window.__pwned=1</script>')
+  expect(shown, 'the forged source stays text inside the path').toContain('"src_host":"192.168.1.99')
 
   await page.goto(`/honeypot/hits/${hostile.id}`)
   await expect(h1(page)).toBeVisible()
   const text = await page.locator('main').innerText()
   // eslint-disable-next-line no-control-regex
   expect(text).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f​‪-‮⁦-⁩]/)
+  expect(text, 'the page shows the markup as text').toContain('<script>window.__pwned')
+  expect(text).toContain(`${marker}-ctl`)
   await noVietnamese(page, 'hostile hit')
   expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), 'markup from the network did not run').toBeUndefined()
   expect(dialogs).toBe(0)
@@ -469,11 +503,13 @@ test('switching traps off: the host is told, the container stops with the last t
   const server = watch5xx(page)
   const conf = () => JSON.parse(readFileSync(join(confDir(), 'opencanary.conf'), 'utf8')) as Record<string, unknown>
   await page.goto('/honeypot')
-  // one trap off: its service closes in the written file, the container and the decoy stay
+  // one trap off: its service closes in the written file, the container is restarted to read it, and the decoy stays
+  const restartsBefore = (await hostHoneypot()).restarts
   await sw(page, SVC.smb).click()
   await expect(sw(page, SVC.smb)).not.toBeChecked()
   await toast(page, /SMB \(file sharing\) trap is off/)
   await expect.poll(() => conf()['smb.enabled'], { message: 'opencanary.conf closes SMB', timeout: 30_000 }).toBe(false)
+  await expect.poll(async () => (await hostHoneypot()).restarts, { message: 'switching SMB off restarted the container', timeout: 30_000 }).toBeGreaterThan(restartsBefore)
   expect(conf()['ssh.enabled']).toBe(true)
   const mid = await hostHoneypot()
   expect(mid.unit_state).toBe('active')

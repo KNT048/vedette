@@ -176,7 +176,7 @@ func startE2EHost(t testing.TB) *e2eHost {
 	h.honeypotFakes(t)
 	h.autoSecurityFakes(t)
 
-	o :=h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
+	o := h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return h.lock.Load(), nil }
 		d.FreeBytes = func(string) (uint64, error) { return 100 << 30, nil }
 		// no timer fires during a run: a scheduled reboot never happens, and the 5-minute network revert is a Go test (D-118)

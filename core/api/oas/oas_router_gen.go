@@ -8914,7 +8914,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return r, true
 							case "POST":
 								r.name = AiPostAiKnowledgeOperation
-								r.summary = "Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size"
+								r.summary = "Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background"
 								r.operationID = "ai_post_ai_knowledge"
 								r.operationGroup = ""
 								r.pathPattern = "/ai/knowledge"

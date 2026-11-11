@@ -150,6 +150,9 @@ type Service struct {
 	degraded  string                          // why the saved settings could not be loaded; "" = loaded
 	mu        sync.Mutex                      // serialises changes
 	testSlot  chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
+	indexSlot chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
+	queued    atomic.Int64                    // uploads that hold their bytes in memory until they are read
+	indexing  sync.WaitGroup                  // the readers in flight: a test waits for them
 	snap      atomic.Pointer[snapshot]
 	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
@@ -182,7 +185,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)
@@ -224,6 +227,12 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 		if err := s.build(empty, loc); err != nil {
 			return nil, err
 		}
+	}
+	if err := s.checkFTS(ctx); err != nil {
+		cfg.Log.WarnContext(ctx, "ai: could not check the knowledge index", "error", err)
+	}
+	if err := s.recoverKnowledge(ctx); err != nil {
+		cfg.Log.WarnContext(ctx, "ai: could not end the documents a restart cut off; they stay unfinished until the next start", "error", err)
 	}
 	return s, nil
 }

@@ -52,6 +52,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 - **Chỉ mục**: SQLite **FTS5 (BM25)** ngay từ đầu — không phụ thuộc embedding; tuỳ chọn vector (`sqlite-vec`) với embedding từ provider của khách hoặc Ollama (bge-m3 tốt tiếng Việt). Lai (BM25 + vector) khi có vector.
 - **Chunk**: theo thực thể (1 asset = 1 doc; 1 CVE = 1 doc; advisory chia ~800 token có tiêu đề). Cập nhật tăng dần khi DB đổi.
 - **Truy xuất**: theo skill, top-k nhỏ (5–12), lọc theo site/tenant và quyền người hỏi; mỗi chunk mang `source` để AI trích dẫn; câu trả lời không có citation → UI gắn nhãn "không có nguồn".
+- **Tài liệu của khách (S-AI-7, lát 4c, D-209)**: MD/TXT/DOCX ≤ 10 MB (PDF chưa hỗ trợ: cần đọc trong tiến trình con có giới hạn, D-209) do quản trị viên tải lên, hộp đọc và cắt đoạn ~3200 byte, chỉ mục FTS5 (BM25) trên hộp, không embedding; mỗi lần gọi một việc mang dữ liệu nội bộ lấy tối đa 4 đoạn khớp câu hỏi, từng đoạn qua hook, thành khối dữ liệu có rào (không vào system prompt).
 - **Không RAG** cho dữ liệu mà hộp có thể đưa chính xác bằng truy vấn (asset theo IP…): dùng tool chỉ-đọc.
 
 ## 4. Ba mức token (S-AI-4)

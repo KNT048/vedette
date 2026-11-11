@@ -26,8 +26,11 @@ const memoryView = (): MemoryView => ({ suggest_enabled: memorySettings.get().su
 const memoryText = (v: unknown) => text(v, 3, 300)
 
 // ---- Knowledge
-const DOC_RE = /\.(pdf|md|txt|docx)$/i
+const DOC_RE = /\.(md|txt|docx)$/i
+const PDF_MSG = 'PDF is not supported yet. Save it as DOCX or text (TXT, MD) and upload that.'
 const MAX_DOC = 10 * 1024 * 1024
+// Bytes a base64 text decodes to; -1 when it is not base64 (standard alphabet, padded or not).
+const base64Len = (c: unknown) => (typeof c === 'string' && /^[A-Za-z0-9+/]*={0,2}$/.test(c) ? Math.floor((c.replace(/=+$/, '').length * 3) / 4) : -1)
 const indexProfile = () => { const id = knowledgeSettings.get().index_profile; return id && aiProfilesStore.get().some((p) => p.id === id) ? id : null }
 const knowledgeView = () => ({ index_profile: indexProfile(), items: knowledgeStore.get().map((d) => docView(d)) })
 
@@ -150,10 +153,13 @@ export const harnessHandlers = [
     const b = await body<KnowledgeInput>(request)
     const name = TIDY(String(b.name ?? ''))
     if (!name || name.length > 120 || /[\\/]/.test(name)) return fail(400, 'invalid_name', 'The file name is missing or contains a slash.')
-    if (!DOC_RE.test(name)) return fail(400, 'invalid_type', 'Only PDF, MD, TXT and DOCX files can be added.')
+    if (/\.pdf$/i.test(name)) return fail(400, 'invalid_type', PDF_MSG)
+    if (!DOC_RE.test(name)) return fail(400, 'invalid_type', 'Only MD, TXT and DOCX files can be added.')
     const size = Number(b.size)
     if (!Number.isInteger(size) || size < 1) return fail(400, 'invalid_size', 'The file is empty.')
     if (size > MAX_DOC) return fail(400, 'too_large', 'The file is larger than 10 MB. Split it or remove pictures, then upload again.')
+    if (typeof b.content !== 'string') return fail(400, 'invalid', 'The field "content" is missing or has a value that is not allowed. Fix it and try again.')
+    if (base64Len(b.content) !== size) return fail(400, 'invalid_size', 'The file arrived damaged or cut short. Pick it again.')
     if (b.jobs !== undefined && !jobsOk(b.jobs)) return fail(400, 'invalid_jobs', 'One of the chosen jobs is not an AI job. Pick from the list.')
     if (!indexProfile()) return fail(400, 'no_index_profile', 'Choose which AI profile builds the index before adding documents.')
     if (knowledgeStore.get().length >= 50) return fail(400, 'too_many', 'A box holds up to 50 documents. Delete the ones you no longer use.')

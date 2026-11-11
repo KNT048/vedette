@@ -537,3 +537,15 @@ func TestNewsAStatusChangeIsANewInput(t *testing.T) {
 		t.Fatalf("a stored answer that says the feed failed was served: %v", got["sources"])
 	}
 }
+
+func TestContract_INV10_TheNewsCarriesNoKnowledge(t *testing.T) {
+	a := newNewsAPI(t)
+	a.kbIndexProfile()
+	a.kbAdd("notes.md", []byte("KBSECRET our NAS for CVE-2022-27593 and Photo Station is at 192.168.10.40."), "[]")
+	a.svc.WaitIndexed()
+	a.news(200, "")
+	req := a.fake.lastRequest(t)
+	if user := req.Messages[0].Text; strings.Contains(user, "KBSECRET") || strings.Contains(user, "kind=document") {
+		t.Fatalf("a knowledge document reached the public news job: %s", user)
+	}
+}

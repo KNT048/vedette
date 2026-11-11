@@ -87,15 +87,27 @@ func (s *Service) telegramButtons(ctx context.Context, req ApprovalRequest, fiel
 	b := make([]byte, nonceBytes)
 	_, _ = rand.Read(b) // crypto/rand.Read never returns an error (Go 1.24+)
 	nonce := base64.RawURLEncoding.EncodeToString(b)
+	// One message with buttons per request (L3, #198 review): the row keeps where that message is, so its keyboard can be removed. A
+	// re-send of a request whose message is already in Telegram carries no buttons (the first keeps working and stays tracked); a row
+	// whose send never reached Telegram (no message_id) takes the new nonce.
+	var n int64
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO notify_tg_button (request_id, nonce_hash, expires_at) VALUES (?, ?, ?)
+		r, err := tx.ExecContext(ctx, `INSERT INTO notify_tg_button (request_id, nonce_hash, expires_at) VALUES (?, ?, ?)
 			ON CONFLICT (request_id) DO UPDATE SET nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at,
-				message_id = NULL, chat_id = NULL, state = 'none', tries = 0`,
+				message_id = NULL, chat_id = NULL, state = 'none', tries = 0
+			WHERE notify_tg_button.message_id IS NULL AND notify_tg_button.state = 'none'`,
 			req.ID, hashNonce(nonce), store.FormatTS(req.Expires))
+		if err != nil {
+			return err
+		}
+		n, err = r.RowsAffected()
 		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("notify: keep the telegram button nonce: %w", err)
+	}
+	if n == 0 {
+		return nil, nil
 	}
 	return []channel.Button{{Text: "Approve", Data: "a:" + req.ID + ":" + nonce}, {Text: "Reject", Data: "r:" + req.ID + ":" + nonce}}, nil
 }

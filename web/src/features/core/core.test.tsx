@@ -13,7 +13,6 @@ import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
 import { mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
-import { collection } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
 

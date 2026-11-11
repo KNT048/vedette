@@ -1,6 +1,6 @@
 module github.com/knt048/vedette
 
-go 1.26.10
+go 1.26.11
 
 tool github.com/ogen-go/ogen/cmd/ogen
 

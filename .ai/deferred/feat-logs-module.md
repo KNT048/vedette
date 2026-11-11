@@ -107,3 +107,65 @@ Issue texts for Kiên (open when the PR is opened; label owner:kien):
 - [ ] 2026-11-11 — **L2** clamp `Line.At` to [now - retention, now] (today only the future is clamped, so a listener bug can write lines that the next purge deletes at once), and cut a line to 4x `MaxLineBytes` before sanitizing (the sanitizer walks the whole string) — ở đâu: `modules/logs/ingest.go`.
 - [ ] 2026-11-11 — **L4** source attribution over UDP/TCP is best-effort (the sender IP can be spoofed on UDP, and any host on the LAN can claim an IP); plan TLS client-certificate pinning per source for the L2 TLS listener (6514) — ở đâu: `modules/logs/CONTRACT.md` FORBID-5.
 - [ ] 2026-11-11 — **L5** the purge job does not run while the module is off (SYS-5), so a box with logs switched off keeps its lines past the retention: run the purge anyway or say so on the page — ở đâu: `modules/logs/purge.go` `Jobs`, `web/src/features/logs` (GUI text needs a story).
+
+## Handoff (2026-11-11): where #186 stands and how to continue
+
+- **L1 is #186** (fix round pushed on top of the first push; the independent review said OK to merge, no High). **L2 to L7 are NOT started**: the plan for each is above ("Slices"), with stories, INV/POST, tests and the Kien-owned parts. Next slice is **L2** (syslog listeners, the `listen` package, in-process in core); do the deferred review lines of the section above (M2, L1, L2, L4, L5) before it opens a listener.
+- Decisions taken in L1 are in the "L1 outcome" section above and in the PR body (second SQLite file logs.db; purge started row plus end row; searches 2 at once and 5 s with 503 server_busy; ASCII-only keyword folding; every Cc/Cf/Zl/Zp character except tab becomes a space; AUTOINCREMENT ids).
+- D-151 (#187): logs.db is not in the backup; its migrations must be **add-only** (TestVolumeMigrationsAreAddOnly); an incompatible change means a new file logs-v2.db and a new decision.
+- Real-box check of the API: `web/src/features/logs/conformance.test.ts` with VITE_LOGS_REAL_URL and VITE_LOGS_QA_PASSWORD (box prepared with `web/e2e/qa/real-box.mjs`, BOX_MODULES=inventory,feeds,logs BOX_SKIP_DATA=1). Last result: one difference in 30 steps (a name with spaces: D-73 400 invalid).
+
+## Mutation evidence for L1 (re-run: `heavy bash .ai/deferred/feat-logs-module.mutate.sh` after pointing D= at a log folder; ONLY=regex runs some; the working tree must be clean)
+
+One behaviour broken at a time in the committed source, the package tests run, the file is restored. **40 source mutations: 39 killed, 1 equivalent survivor** (events-window-clamp: retention >= 7 days and window <= 7 days, so the clamp cannot change an answer). Plus 4 temporary non-add-only migrations (red) and 1 add-only (accepted).
+
+```
+baseline: green
+sanitize-no-Cc KILLED by 4 test(s) [FuzzSanitizeLine TestIngestMakesDeviceTextSafe TestIngestStripsBidiAndLineSeparators TestIngestStripsInvisibleCharacters ]: controls (C0, DEL 0x7f, C1 incl. NEL) no longer stripped
+sanitize-no-Cf KILLED by 3 test(s) [FuzzSanitizeLine TestIngestStripsBidiAndLineSeparators TestIngestStripsInvisibleCharacters ]: format characters (bidi, zero-width, BOM, soft hyphen) no longer stripped
+sanitize-no-Zl-Zp KILLED by 2 test(s) [FuzzSanitizeLine TestIngestStripsBidiAndLineSeparators ]: U+2028 and U+2029 line separators no longer stripped
+sanitize-tab-too KILLED by 1 test(s) [TestIngestMakesDeviceTextSafe ]: tab no longer allowed (control check without the tab exception)
+sanitize-length KILLED by 2 test(s) [FuzzSanitizeLine TestIngestMakesDeviceTextSafe ]: length cap raised from 2048 to 8192 bytes
+sanitize-utf8 KILLED by 2 test(s) [FuzzSanitizeLine TestIngestMakesDeviceTextSafe ]: invalid UTF-8 is kept
+events-like-wildcards KILLED by 1 test(s) [TestEventsInputsAreDataNotSQL ]: keyword matched with LIKE: % and _ become wildcards
+events-source-concat KILLED by 1 test(s) [TestEventsInputsAreDataNotSQL ]: the source filter is concatenated into the SQL, not bound
+events-case-ascii-vs-unicode KILLED by 1 test(s) [TestEventsKeywordIsCaseInsensitiveForASCIIOnly ]: keyword folded with Go's Unicode lowercasing (M5: SQLite folds ASCII only)
+events-case-none KILLED by 4 test(s) [TestContract_INV5_EventsWindowKeywordSourceAndPage TestEventsInputsAreDataNotSQL TestEventsKeywordIsCaseInsensitiveForASCIIOnly TestEventsRetentionAndDigestOverHTTP ]: keyword search no longer
+events-or-parentheses KILLED by 1 test(s) [TestEventsNameMatchRespectsTheWindowAndTheSourceFilter ]: no parentheses around the keyword OR: a source-name match ignores the window and the source filter
+events-source-filter KILLED by 3 test(s) [TestContract_INV5_EventsWindowKeywordSourceAndPage TestEventsInputsAreDataNotSQL TestEventsNameMatchRespectsTheWindowAndTheSourceFilter ]: source filter ignored
+events-window KILLED by 1 test(s) [TestContract_INV5_EventsWindowKeywordSourceAndPage ]: time window four times too wide
+events-window-clamp SURVIVED (no test red): window clamp to the retention changed (equivalent: retention >= 7 d and window <= 7 d)
+events-no-concurrency-cap KILLED by 1 test(s) [TestEventsSearchIsBoundedInTimeAndInNumber ]: any number of searches at once
+ingest-batch-limit KILLED by 1 test(s) [TestIngestDropsUnknownSourcesAndBoundsABatch ]: batch limit raised tenfold
+ingest-future-clamp KILLED by 1 test(s) [TestIngestDropsUnknownSourcesAndBoundsABatch ]: a timestamp in the future is kept
+ingest-writes-core-db KILLED by 21 test(s) [TestContract_INV3_SourceStateAndDeviceName TestContract_INV4_DeletingASourceKeepsItsLines TestContract_INV4_PurgeBoundaryIsStrict TestContract_INV4_RetentionChoicesAndPurge TestContract_
+ids-reused KILLED by 1 test(s) [TestEventIDsAreNeverReused ]: the line id is not AUTOINCREMENT: ids are reused after a purge
+purge-boundary KILLED by 1 test(s) [TestContract_INV4_PurgeBoundaryIsStrict ]: a line exactly at the retention boundary is purged
+purge-retention-days KILLED by 1 test(s) [TestContract_INV4_PurgeBoundaryIsStrict ]: retention counted as 23 hours a day
+purge-cap-off KILLED by 2 test(s) [TestPurgeChunksCapAndContext TestPurgeKeepsLiveMarksAndAuditsTheCapAlone ]: the cap on stored lines is not enforced
+purge-cap-off-by-one KILLED by 2 test(s) [TestPurgeChunksCapAndContext TestPurgeKeepsLiveMarksAndAuditsTheCapAlone ]: the cap keeps one line too many
+purge-chunk-size KILLED by 2 test(s) [TestPurgeAuditsEveryWayOut TestPurgeRunsInChunksAndStopsWhenCancelled ]: one transaction deletes everything instead of 10,000 rows
+purge-stops-after-first-chunk KILLED by 2 test(s) [TestPurgeAuditsEveryWayOut TestPurgeRunsInChunksAndStopsWhenCancelled ]: deleteChunks returns after the first chunk
+purge-ctx-ignored KILLED by 2 test(s) [TestPurgeAuditsEveryWayOut TestPurgeRunsInChunksAndStopsWhenCancelled ]: purge ignores a cancelled context
+purge-ctx-check-removed KILLED by 2 test(s) [TestPurgeAuditsEveryWayOut TestPurgeRunsInChunksAndStopsWhenCancelled ]: the ctx.Err check of deleteChunks removed (Write still honours ctx, but the context error is then wrapped)
+purge-dropstale-all KILLED by 1 test(s) [TestPurgeKeepsLiveMarksAndAuditsTheCapAlone ]: dropStale deletes every last-received mark, also those of sources that exist
+purge-audit-only-expired KILLED by 1 test(s) [TestPurgeKeepsLiveMarksAndAuditsTheCapAlone ]: no end audit row when only the cap removed lines
+purge-audit-started-always KILLED by 1 test(s) [TestContract_INV4_RetentionChoicesAndPurge ]: a purge with nothing to delete still writes audit rows
+purge-audit-never KILLED by 3 test(s) [TestContract_INV4_RetentionChoicesAndPurge TestPurgeAuditsEveryWayOut TestPurgeKeepsLiveMarksAndAuditsTheCapAlone ]: a purge that deletes lines writes no audit row
+purge-audit-needs-live-ctx KILLED by 2 test(s) [TestPurgeAuditsEveryWayOut TestPurgeRunsInChunksAndStopsWhenCancelled ]: the end audit row uses the purge's own context: lost when the purge is cancelled
+guard-two-databases KILLED by 1 test(s) [TestNewServiceRefusesTheMainDatabaseAsTheVolume ]: NewService accepts the main database as the volume
+export-inclusive KILLED by 1 test(s) [TestExportDeviceLogsWritesJSONLinesInRange ]: export range excludes both ends
+export-open-end KILLED by 1 test(s) [TestExportDeviceLogsWritesJSONLinesInRange ]: an open upper end of the export range stops in 2000
+export-order KILLED by 1 test(s) [TestExportDeviceLogsWritesJSONLinesInRange ]: export newest first instead of oldest first
+d151-drop-table KILLED by 27 test(s) [TestContract_INV3_EditAndDeleteSourceAreAudited TestContract_INV3_SourceStateAndDeviceName TestContract_INV3_SourceValidationFollowsTheMock TestContract_INV4_DeletingASourceKeepsItsLines TestC
+d151-rename-column KILLED by 24 test(s) [TestContract_INV3_SourceStateAndDeviceName TestContract_INV4_DeletingASourceKeepsItsLines TestContract_INV4_PurgeBoundaryIsStrict TestContract_INV4_RetentionChoicesAndPurge TestContract_INV
+d151-drop-column KILLED by 24 test(s) [TestContract_INV3_SourceStateAndDeviceName TestContract_INV4_DeletingASourceKeepsItsLines TestContract_INV4_PurgeBoundaryIsStrict TestContract_INV4_RetentionChoicesAndPurge TestContract_INV5_
+d151-delete-rows KILLED by 1 test(s) [TestVolumeMigrationsAreAddOnly ]: D-151 guard works
+d151-add-column PASSES as it should (add-only migration accepted)
+--- done
+--- redone after a first attempt that did not build, or that hung (the first script counted only '--- FAIL'):
+sanitize-boundary KILLED by 1 test(s) [FuzzSanitizeLine ]: a long line is cut in the middle of a character
+events-no-timeout KILLED by 1 test(s) []: a search has no 5 s deadline
+events-busy-not-mapped KILLED by 1 test(s) [TestEventsSearchIsBoundedInTimeAndInNumber ]: a search that hits its deadline answers a raw error, not 503 server_busy
+ingest-unknown-sender KILLED by 2 test(s) [TestContract_INV4_DeletingASourceKeepsItsLines TestIngestDropsUnknownSourcesAndBoundsABatch ]: lines of an undeclared source are stored
+```

@@ -5,6 +5,7 @@ go 1.26.11
 tool github.com/ogen-go/ogen/cmd/ogen
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/go-faster/errors v0.8.0
 	github.com/go-faster/jx v1.2.0
 	github.com/ogen-go/ogen v1.24.0
@@ -18,7 +19,6 @@ require (
 )
 
 require (
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect

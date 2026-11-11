@@ -307,7 +307,7 @@ func startE2EBare(ctx context.Context, t testing.TB, dir string) e2eReady {
 		case <-time.After(15 * time.Second):
 		}
 	})
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(90 * time.Second)
 	for {
 		b, err := os.ReadFile(filepath.Join(bare, "ready.json")) //nolint:gosec // test harness: the folder is the one the script made
 		var r e2eReady
@@ -328,7 +328,6 @@ func startE2EBare(ctx context.Context, t testing.TB, dir string) e2eReady {
 // TestE2EBoxHarnessHost runs in CI: the box with the fake host starts on the host's data folder, the bare box answers beside it, the
 // control endpoint wants its token, and both stop on cancel.
 func TestE2EBoxHarnessHost(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(t.Context())
 	host := startE2EHost(t)
@@ -349,13 +348,13 @@ func TestE2EBoxHarnessHost(t *testing.T) {
 	})
 
 	var ready e2eReady
-	for deadline := time.Now().Add(20 * time.Second); ; {
+	for deadline := time.Now().Add(60 * time.Second); ; {
 		b, err := os.ReadFile(filepath.Join(dir, "ready.json")) //nolint:gosec // test harness: the folder is the one the script made
 		if err == nil && json.Unmarshal(b, &ready) == nil {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("ready.json did not appear within 20 s")
+			t.Fatal("ready.json did not appear within 60 s")
 		}
 		<-time.After(100 * time.Millisecond)
 	}

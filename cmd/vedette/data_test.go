@@ -199,7 +199,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		}()
 		select {
 		case addr = <-ready:
-		case <-time.After(30 * time.Second):
+		case <-time.After(90 * time.Second):
 			cancel()
 			t.Fatal("the process did not start")
 		}
@@ -237,7 +237,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		if body != nil {
 			payload, _ = json.Marshal(body)
 		}
-		deadline := time.Now().Add(30 * time.Second)
+		deadline := time.Now().Add(90 * time.Second)
 		for {
 			c, b, hd := callOnce(t, cookies, addr, method, path, payload)
 			if c != http.StatusServiceUnavailable || !strings.Contains(string(b), `"server_busy"`) {

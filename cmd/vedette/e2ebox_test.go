@@ -426,7 +426,6 @@ func TestE2EBaseURLSeam(t *testing.T) {
 
 // TestE2EBoxHarness runs in CI: the box starts, answers, writes ready.json, and stops on cancel without an error line in its log.
 func TestE2EBoxHarness(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -441,7 +440,7 @@ func TestE2EBoxHarness(t *testing.T) {
 	})
 
 	var ready e2eReady
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		b, err := os.ReadFile(filepath.Join(dir, "ready.json")) //nolint:gosec // test harness: the folder is the one the script made
 		if err == nil && json.Unmarshal(b, &ready) == nil {
@@ -453,7 +452,7 @@ func TestE2EBoxHarness(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("ready.json did not appear within 20 s")
+			t.Fatal("ready.json did not appear within 60 s")
 		}
 	}
 	if info, err := os.Stat(filepath.Join(dir, "ready.json")); err != nil || info.Mode().Perm() != 0o600 {

@@ -10,16 +10,20 @@
 ARG DEBIAN_IMAGE
 ARG GOLANG_IMAGE
 
-FROM ${GOLANG_IMAGE} AS build
+# Multi-arch (D-158): every stage that has a RUN (build, nuclei, pack) runs on the BUILD machine ($BUILDPLATFORM) and produces files for
+# $TARGETARCH; the final stage, the only one of the target architecture, has COPY and metadata only, so no CPU emulation is needed.
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
 ARG VERSION
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
-    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor
 
-FROM ${DEBIAN_IMAGE} AS nuclei
+FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS nuclei
 ARG TARGETARCH
 ARG NUCLEI_VERSION
 ARG NUCLEI_ZIP_SHA256_AMD64
@@ -42,20 +46,25 @@ RUN set -eu; \
     echo "${bin_sha}  /out/nuclei" | sha256sum -c -; \
     chmod 0755 /out/nuclei
 
-FROM ${DEBIAN_IMAGE}
-ARG VERSION
+# The files of the image that are not binaries, with their modes set and the pack checked, on the build machine.
+# (podman's COPY --chmod takes octal only and would apply it to folders too, so the modes are set here, for docker and podman alike)
+FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS pack
 ARG SCAN_PACK_VERSION
-LABEL org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
-COPY --from=build /out/vedette-sensor /vedette-sensor
-COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICENSE.md
 COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
 COPY deploy/containers/scan-base/pack/index.json /usr/local/share/vedette/nuclei-pack/index.json
 COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/local/share/vedette/licenses/nuclei-templates-LICENSE.md
-# (podman's COPY --chmod takes octal only and would apply it to folders too, so the modes are set here, for docker and podman alike)
 RUN set -eu; \
     chmod -R a+rX /usr/share/vedette /usr/local/share/vedette; \
     [ -n "${SCAN_PACK_VERSION}" ] || exit 1; \
     grep -Fq "\"version\": \"${SCAN_PACK_VERSION}\"" /usr/local/share/vedette/nuclei-pack/index.json || { echo "index.json is not pack version ${SCAN_PACK_VERSION}: a stale pack (make scan-pack)" >&2; exit 1; }
+
+FROM ${DEBIAN_IMAGE}
+ARG VERSION
+LABEL org.opencontainers.image.title="vedette-scan-base" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND MIT"
+COPY --from=build /out/vedette-sensor /vedette-sensor
+COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
+COPY --from=pack /usr/share/vedette/ /usr/share/vedette/
+COPY --from=pack /usr/local/share/vedette/ /usr/local/share/vedette/
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

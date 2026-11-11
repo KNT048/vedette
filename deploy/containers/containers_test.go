@@ -3,12 +3,15 @@
 package containers
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"os/exec" //nolint:depguard // the test runs go and make with fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/ops"
 )
@@ -99,6 +102,9 @@ func TestContainerfilesUsePinnedBasesAndEndNonRoot(t *testing.T) {
 			}
 			switch strings.ToUpper(fields[0]) {
 			case "FROM":
+				if strings.HasPrefix(fields[1], "--") { // --platform=$BUILDPLATFORM (D-158)
+					fields = append(fields[:1], fields[2:]...)
+				}
 				if !strings.HasPrefix(fields[1], "${") && !stages[fields[1]] {
 					t.Errorf("%s: %q is not an ARG from pins.env or an earlier stage", f, l)
 				}
@@ -189,5 +195,139 @@ func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 	}
 	if strings.Contains(text, "nuclei -update") || strings.Contains(text, "-ut") {
 		t.Error("no template download or update in the image")
+	}
+}
+
+// containerStage is one FROM ... of a Containerfile: its FROM line and the text after it.
+type containerStage struct{ from, body string }
+
+func stagesOf(text string) []containerStage {
+	var out []containerStage
+	for _, l := range strings.Split(text, "\n") {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(l)), "FROM ") {
+			out = append(out, containerStage{from: l})
+			continue
+		}
+		if len(out) > 0 {
+			out[len(out)-1].body += l + "\n"
+		}
+	}
+	return out
+}
+
+func (s containerStage) hasRun() bool {
+	for _, l := range strings.Split(s.body, "\n") {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(l)), "RUN ") {
+			return true
+		}
+	}
+	return false
+}
+
+// Multi-arch without CPU emulation (WP-08d, D-158): a stage that runs anything (RUN) is on the build machine, so cross-compiling needs
+// no qemu; the last stage, the one of the target architecture, only COPYs. A Go build stage compiles for TARGETOS/TARGETARCH.
+func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{"sensor/Containerfile", "scan-base/Containerfile", "core/Containerfile"} {
+		stages := stagesOf(read(t, f))
+		if len(stages) < 2 {
+			t.Fatalf("%s: expected a build stage and a final stage", f)
+		}
+		for i, s := range stages {
+			last := i == len(stages)-1
+			if last {
+				if s.hasRun() {
+					t.Errorf("%s: the final (target-arch) stage has a RUN, which would need CPU emulation on a foreign architecture: %q", f, s.from)
+				}
+				if strings.Contains(s.from, "BUILDPLATFORM") {
+					t.Errorf("%s: the final stage must be the target platform: %q", f, s.from)
+				}
+				continue
+			}
+			if !strings.Contains(s.from, "--platform=$BUILDPLATFORM ") {
+				t.Errorf("%s: stage %q runs on the target platform; every stage before the last must be --platform=$BUILDPLATFORM", f, s.from)
+			}
+			if strings.Contains(s.body, "go build") {
+				for _, want := range []string{"ARG TARGETOS\n", "ARG TARGETARCH\n", `GOOS="${TARGETOS}"`, `GOARCH="${TARGETARCH}"`, "CGO_ENABLED=0"} {
+					if !strings.Contains(s.body, want) {
+						t.Errorf("%s: Go stage %q is missing %q", f, s.from, want)
+					}
+				}
+			}
+		}
+	}
+	// the nuclei asset follows the target architecture, with its own pinned hashes
+	scan := read(t, "scan-base/Containerfile")
+	if !strings.Contains(scan, "nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip") || !strings.Contains(scan, "arm64) zip_sha=") {
+		t.Error("scan-base: the nuclei asset and its hashes must be picked by TARGETARCH (amd64 and arm64)")
+	}
+}
+
+// The index sequence floor goes only where internal/release is linked. Core does not link it; if that changes, core must take
+// MIN_SEQUENCE too (Containerfile, Makefile) and this test is updated with it.
+func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
+	t.Parallel()
+	for bin, want := range map[string]bool{"vedette": false, "vedette-sensor": false, "vedette-host": true} {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/"+bin) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		cmd.Env = append(os.Environ(), "GOFLAGS=-mod=readonly")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("go list %s: %v", bin, err)
+		}
+		if got := strings.Contains(string(out), "\ngithub.com/knt048/vedette/internal/release\n"); got != want {
+			t.Errorf("%s links internal/release = %v, want %v: the Makefile and the Containerfiles pass MIN_SEQUENCE to vedette-host only", bin, got, want)
+		}
+	}
+}
+
+// MIN_SEQUENCE: a plain decimal, validated by make, and put on the vedette-host link line next to main.version.
+func TestMinSequenceFlag(t *testing.T) {
+	t.Parallel()
+	run := func(args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory"}, args...)...) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	for _, bad := range []string{"", "-1", "007", "1.5", "0x10", "1 2", "1234567890123456789", "7;id", "$(id)"} {
+		if out, err := run("check-min-sequence", "MIN_SEQUENCE="+bad); err == nil {
+			t.Errorf("MIN_SEQUENCE=%q was accepted: %s", bad, out)
+		}
+	}
+	for _, good := range []string{"0", "7", "1234567890123456"} {
+		if out, err := run("check-min-sequence", "MIN_SEQUENCE="+good); err != nil {
+			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
+		}
+	}
+	out, err := run("-n", "host-deb", "VERSION=1.2.3", "MIN_SEQUENCE=7")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "-X main.version=1.2.3 -X github.com/knt048/vedette/internal/release.MinSequenceText=7\"") {
+		t.Errorf("host-deb does not pass MIN_SEQUENCE to the linker:\n%s", out)
+	}
+	// by effect: a binary linked with exactly that -X token (cut from the make output) holds the number
+	_, tail, _ := strings.Cut(out, "-X github.com/knt048/vedette/internal/release.MinSequenceText=")
+	token := "github.com/knt048/vedette/internal/release.MinSequenceText=" + strings.SplitN(tail, "\"", 2)[0]
+	bin := filepath.Join(t.TempDir(), "release.test")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	build := exec.CommandContext(ctx, "go", "test", "-c", "-ldflags", "-X "+token, "-o", bin, "./internal/release") //nolint:gosec // test: the token is cut from our own make output
+	build.Dir = "../.."
+	if b, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go test -c: %v\n%s", err, b)
+	}
+	runBin := exec.CommandContext(ctx, bin, "-test.run", "^TestMinSequenceTextIsWhatTheLinkerSet$", "-test.v") //nolint:gosec // test: the binary we just built
+	runBin.Env = append(os.Environ(), "VEDETTE_WANT_MIN_SEQUENCE=7")
+	if b, err := runBin.CombinedOutput(); err != nil || !strings.Contains(string(b), "--- PASS") {
+		t.Errorf("the linker flag did not reach MinSequenceText: %v\n%s", err, b)
+	}
+	if out, err = run("-n", "host-deb", "VERSION=1.2.3"); err != nil || !strings.Contains(out, "MinSequenceText=0\"") {
+		t.Errorf("host-deb must default MIN_SEQUENCE to 0: %v\n%s", err, out)
 	}
 }

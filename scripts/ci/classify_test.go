@@ -23,6 +23,7 @@ func TestDecide(t *testing.T) {
 		"go only":                {"pull_request", []string{"core/chain/chain.go", "modules/host/x_test.go"}, true, Outputs{Go: true, Vuln: true}},
 		"web only":               {"pull_request", []string{"web/src/features/ai/AiSettings.tsx", "web/package.json"}, true, Outputs{Web: true}},
 		"web file go reads":      {"pull_request", []string{"web/src/features/core/testdata/keys/ed25519"}, true, all},
+		"audit labels file":      {"pull_request", []string{"web/src/locales/en/core.json"}, true, all},
 		"openapi":                {"pull_request", []string{"api/openapi.json"}, true, all},
 		"shared data":            {"pull_request", []string{"content/catalog/curated.json"}, true, all},
 		"Makefile":               {"pull_request", []string{"Makefile"}, true, all},

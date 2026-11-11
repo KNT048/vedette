@@ -26,9 +26,11 @@ const (
 	CodeMissingDeps     = "missing_dependencies"
 
 	// New codes (not yet in section 3.3, proposed [DX] in the WP-04a report).
-	CodeCSRFInvalid    = "csrf_invalid"
-	CodeNotImplemented = "not_implemented"
-	CodeInternal       = "internal"
+	CodeCSRFInvalid = "csrf_invalid"
+	// CodePasswordChangeRequired is the 403 of a session opened with an administrator-set password (D-180).
+	CodePasswordChangeRequired = "password_change_required"
+	CodeNotImplemented         = "not_implemented"
+	CodeInternal               = "internal"
 	// CodeMisdirected (421) answers a request whose Host header the box does not serve (WP-04b part 2).
 	CodeMisdirected = "misdirected_request"
 )
@@ -89,6 +91,12 @@ func Forbidden() *Error {
 // CSRFInvalid is 403: a state-changing request without a matching CSRF token.
 func CSRFInvalid() *Error {
 	return New(http.StatusForbidden, CodeCSRFInvalid, "The security token is missing or has expired. Reload the page and try again.")
+}
+
+// PasswordChangeRequired is 403: the session was opened with a password an administrator set, and only
+// GET /me, the password change and sign-out work until the user chooses their own (D-180).
+func PasswordChangeRequired() *Error {
+	return New(http.StatusForbidden, CodePasswordChangeRequired, "Choose a new password before you continue.")
 }
 
 // NotFound is 404. Also used for a disabled module's routes, so it looks like an unknown route (SYS-5).

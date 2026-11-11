@@ -18,10 +18,15 @@ RUN set -eu; \
     if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active
 
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
 LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=build /out/vedette /vedette
+# The data and credentials directories exist in the image, owned by the user below, so a NEW named volume mounted on one of them
+# starts with that owner (Docker and Podman copy the image's directory into an empty volume): the container-only compose needs no
+# root step (D-168 (5)). The appliance bind-mounts over these paths, so nothing changes there.
+COPY --from=build --chown=65532:65532 /out/dirs/ /
 USER 65532:65532
 ENTRYPOINT ["/vedette"]

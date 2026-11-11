@@ -357,3 +357,23 @@ func TestToolPinsAreExact(t *testing.T) {
 		t.Errorf("TRIVY_IMAGE=%q must be docker.io/aquasec/trivy:<MAJOR.MINOR.PATCH>@sha256:<64 hex>", got["TRIVY_IMAGE"])
 	}
 }
+
+// The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
+// new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN).
+func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
+	t.Parallel()
+	text := read(t, "core/Containerfile")
+	stages := stagesOf(text)
+	build, final := stages[0].body, stages[len(stages)-1].body
+	for _, d := range []string{"/out/dirs/var/lib/vedette ", "/out/dirs/var/lib/vedette-creds/passive ", "/out/dirs/var/lib/vedette-creds/active\n"} {
+		if !strings.Contains(build, d) {
+			t.Errorf("core/Containerfile: the build stage does not make %q", strings.TrimSpace(d))
+		}
+	}
+	if !strings.Contains(final, "COPY --from=build --chown=65532:65532 /out/dirs/ /\n") {
+		t.Error("core/Containerfile: the final stage must COPY the directories with --chown=65532:65532, the user of the image")
+	}
+	if !strings.Contains(final, "USER 65532:65532\n") {
+		t.Error("core/Containerfile: the image's user is 65532:65532, the owner of the directories and the uid of the compose file")
+	}
+}

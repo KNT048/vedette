@@ -1,0 +1,56 @@
+# Vedette, container-only install (D-55, D-168): core on the customer's Docker or Podman, no vedette-host. Docker Compose v2
+# (`docker compose`) and Podman (`podman compose` with a compose v2 provider). Read docs/INSTALL-CONTAINER.md first.
+#
+# You set two values in vedette.env, VEDETTE_BIND_IP (the address the web page is served on) and VEDETTE_HOSTS (the name or address your
+# browser uses); a release fills the image references. Until all are set the file refuses to start. Always `--env-file vedette.env`.
+#
+# Without vedette-host Vedette cannot update the operating system, change the network, or restart itself: those screens say so.
+# Add compose.sensors.yaml (Linux, root) for the passive sensor and the scan worker, compose.syslog.yaml to receive syslog.
+name: vedette
+
+services:
+  core:
+    image: "${VEDETTE_CORE_IMAGE:?VEDETTE_CORE_IMAGE is empty, use the vedette.env of a release (docs/INSTALL-CONTAINER.md)}"
+    container_name: vedette-core
+    hostname: vedette
+    user: "65532:65532"
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 2
+    pids_limit: 512
+    environment:
+      GOMEMLIMIT: 1800MiB
+    # -hosts: the names and addresses the box answers to (anything else gets 421) and the names of its self-signed certificate.
+    # -sensor-listen stays inside the bridge (8444 is published on 127.0.0.1 only); -host-socket "" says: no vedette-host.
+    # -syslog-port 5514: the syslog listener of the logs module (only while that module is on); compose.syslog.yaml publishes it as 514.
+    command:
+      - "-listen=:8443"
+      - "-hosts=${VEDETTE_HOSTS:?VEDETTE_HOSTS is empty: the name or address you open in the browser}"
+      - "-sensor-listen=:8444"
+      - "-sensor-creds=/var/lib/vedette-creds"
+      - "-host-socket="
+      - "-syslog-port=5514"
+    # Docker's -p goes around the firewall (UFW): bind to one address, never to all (DEPLOYMENT.md, Hardening).
+    ports:
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty: the address of this machine the web page is served on, 127.0.0.1 for a trial}:8443:8443"
+      - "127.0.0.1:8444:8444"
+    volumes:
+      - data:/var/lib/vedette
+      - creds-passive:/var/lib/vedette-creds/passive
+      - creds-active:/var/lib/vedette-creds/active
+    healthcheck:
+      test: ["CMD", "/vedette", "healthcheck"]
+      interval: 30s
+      start_period: 60s
+      retries: 3
+    # A purge ("Delete all data") makes core exit so that its supervisor starts a fresh box (D-154): without this the box stays stopped.
+    restart: unless-stopped
+
+volumes:
+  data:
+  creds-passive:
+  creds-active:

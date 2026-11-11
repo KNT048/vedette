@@ -1,0 +1,59 @@
+# Add-on for compose.yaml: the passive sensor and the scan worker, on the host network (they read the real network card).
+# Linux, Docker or Podman running as root. Not for rootless (a user namespace's NET_RAW does not reach the host's network) and not for
+# Docker Desktop (no host network). Prepare the card yourself first (SPAN card: promiscuous, no address): Vedette cannot do it here.
+#   docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up -d
+# The scan worker has no nmap in this install: the nmap package is installed on the box by vedette-host only (D-4, D-146).
+services:
+  sensor:
+    image: "${VEDETTE_SENSOR_IMAGE:?VEDETTE_SENSOR_IMAGE is empty, use the vedette.env of a release (docs/INSTALL-CONTAINER.md)}"
+    container_name: vedette-sensor
+    network_mode: host
+    user: "65532:65532"
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1
+    pids_limit: 256
+    command: ["passive", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
+    volumes:
+      - creds-passive:/var/lib/vedette-creds:ro
+    healthcheck:
+      test: ["CMD", "/vedette-sensor", "healthcheck"]
+      interval: 30s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      core: {condition: service_healthy}
+    restart: unless-stopped
+
+  scan:
+    image: "${VEDETTE_SCAN_IMAGE:?VEDETTE_SCAN_IMAGE is empty, use the vedette.env of a release (docs/INSTALL-CONTAINER.md)}"
+    container_name: vedette-scan
+    network_mode: host
+    user: "65532:65532"
+    init: true
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    pids_limit: 512
+    cpu_shares: 128
+    command: ["active", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
+    volumes:
+      - creds-active:/var/lib/vedette-creds:ro
+    healthcheck:
+      test: ["CMD", "/vedette-sensor", "healthcheck"]
+      interval: 30s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      core: {condition: service_healthy}
+    restart: unless-stopped

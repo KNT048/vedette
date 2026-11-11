@@ -193,6 +193,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
 | `invalid_contact` | 400 | Enter the name of the person in charge of data protection. | module reports (validator dùng chung) |
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
+| `invalid_content` | 400 | This is not a PDF file. Only PDF, MD, TXT and DOCX files can be added. (also: not a Word file, not UTF-8 text) | `POST /ai/knowledge` |
 | `invalid_cve` | 400 | A CVE ID looks like CVE-2022-27593. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 | `invalid_day` | 400 | Pick a day of the week. | module reports (validator dùng chung) |
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |
@@ -228,7 +229,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. Also: This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that. Also (13b-4): This private key could not be read. Paste the whole key, including the BEGIN and END lines.; This key type is not accepted. Use an Ed25519, ECDSA or RSA key of at least 2048 bits. | `PUT /core/oidc`; `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_sector` | 400 | Pick the field of activity. | module reports (validator dùng chung) |
 | `invalid_setting` | 400 | Say whether the AI may suggest new memories: on or off. | `PUT /ai/hooks/builtin/{id}`; `PUT /ai/memory/settings`; `PUT /ai/skills/{id}` |
-| `invalid_size` | 400 | The file is empty. | `POST /ai/knowledge` |
+| `invalid_size` | 400 | The file is empty. (also: The file arrived damaged or cut short. Pick it again.) | `POST /ai/knowledge` |
 | `invalid_style` | 400 | Pick the API style the server speaks: OpenAI Chat Completions, Anthropic Messages or Gemini. | module ai (validator dùng chung) |
 | `invalid_target` | 400 | Enter the SSH server as host or host:port, for example 192.168.10.30:22. Also: The address must start with https://. Vedette sends sign-in details and changes only over HTTPS.; Vedette never connects to ${why}. Enter the address of the device or service itself. (loopback, link-local, multicast, unspecified, `localhost`, non-standard numeric names, the box itself; D-94) | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_tax_code` | 400 | The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678. | module reports (validator dùng chung) |
@@ -374,7 +375,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
-| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared) |
+| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared); `POST /ai/knowledge` (documents still being read) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
@@ -738,7 +739,7 @@ Có **11** thao tác trả tệp (`response: 'file'` trong `contract.ts`, `appli
 
 ### 11.2 Tải lên
 
-Mock nhận **JSON có nội dung nhúng**, chưa có `multipart/form-data`: `POST /inventory/import` `{filename, size, sha256, text}`; `POST /core/updates/bundle` `{name, size, sha256, content}`; `POST /ai/knowledge` `{name, size, jobs?}` (chỉ siêu dữ liệu, chưa có nội dung).
+Mock nhận **JSON có nội dung nhúng**, chưa có `multipart/form-data`: `POST /inventory/import` `{filename, size, sha256, text}`; `POST /core/updates/bundle` `{name, size, sha256, content}`; `POST /ai/knowledge` `{name, size, content, jobs?}` (`content` là tệp dạng base64, giải mã đúng `size` byte; hộp chỉ giữ văn bản trích từ tệp, D-209).
 
 | Mục | Quy tắc [ĐX] |
 |---|---|

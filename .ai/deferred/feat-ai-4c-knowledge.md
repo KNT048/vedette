@@ -1,0 +1,11 @@
+# Deferred: feat/ai-4c-knowledge (WP-25 slice 4c)
+
+- [ ] GUI wording (Kiên's mock): the Knowledge tab still says "Choose which AI profile builds the index" and warns that a cloud profile "leaves your network", but the index is built on the box with FTS5 and the profile builds nothing (D-209). Reword (and decide whether the profile selector stays) when embeddings come; changing it now is a new story.
+- [ ] GUI: a document that could not be read (or has no text) shows as "Ready, 0 chunks"; the reason is only in the audit row (`ai.knowledge.failed`). Show the reason in the list when the GUI is next touched (needs an optional field, a contract change).
+- [ ] Mock: `invalid_content` (the bytes are not the type the name says) and `busy` exist only in the backend; the mock does not look at the bytes. Add if a GUI test needs them. `docs/API_CONVENTIONS.md` 3.3 got the two rows and the 11.2 sentence (shared doc: Kiên to confirm).
+- [ ] PDF reading in a child process with a memory limit (`core/exec`, a small reader binary): the library cannot be cancelled and a stream that expands a thousandfold can use the memory of the box (D-209, ponytail). Needs a binary and an allowlist entry, so not in this slice.
+- [ ] Vietnamese `đ`: `remove_diacritics 2` does not fold `đ` to `d`, so "duong" does not find "đường" (accented queries do). Fold `đ`/`Đ` in the indexed copy and the query when someone needs it (an extra normalised column or a custom tokenizer is not a dependency, but is more code than this slice).
+- [ ] Old Vietnamese code pages (TCVN3, Windows-1258) and other non-UTF-8 text are refused with `invalid_content`; transcoding needs `golang.org/x/text` (a new dependency, notices) if customers ask.
+- [ ] `web/e2e-real/ai.global.spec.ts` has a `test.fixme` for memory, skills and the knowledge base ("answer 501"): they answer now. Un-fixme and extend it (upload a markdown file, wait until `ready`, search) in the e2e-real harness owner's change; not touched here (harness is out of this slice).
+- [ ] Asking the box (slice 5, `ask-my-data`) will call `RunJob` and gets the documents for free; give it a `KnowledgeQuery` (the question is already the default).
+- [ ] Citation of the passages in the answer ("source: runbook.pdf") is not built: the model gets `[<document id>:<number>]` labels, the GUI shows no source link for a document passage yet.

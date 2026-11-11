@@ -144,11 +144,6 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		if len(out) >= MaxIocHitsPerBatch {
 			break
 		}
-		// A pair that already has a hit in the last 24 hours is not looked up and does not count toward the cap of the batch: a chatty device
-		// that keeps meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the transaction).
-		if s.hasRecentHit(ctx, k, cutoff) {
-			continue
-		}
 		ck := [2]string{k.kind, k.dest}
 		res, ok := cache[ck]
 		if !ok {
@@ -161,7 +156,10 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 			res = lookupResult{l, found}
 			cache[ck] = res
 		}
-		if !res.found || len(res.l.Feeds) == 0 {
+		// A listed pair that already has a hit in the last 24 hours does not count toward the cap of the batch: a chatty device that keeps
+		// meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the
+		// transaction). Only listed pairs are checked, after the cached lookup: nearly every pair of real traffic is unlisted (review r2 N1).
+		if !res.found || len(res.l.Feeds) == 0 || s.hasRecentHit(ctx, k, cutoff) {
 			continue
 		}
 		o := conns[k]

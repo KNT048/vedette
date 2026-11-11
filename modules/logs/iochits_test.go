@@ -717,10 +717,9 @@ func TestIOCChattyDeviceDoesNotHideAnotherDevicesFirstHit(t *testing.T) {
 		t.Fatalf("%d rows", hitCount(t, e))
 	}
 	for range 3 { // the same 50 pairs every batch, and another device that meets one of the addresses for the first time
-		before := len(ff.lookups())
 		e.feedAll(src, append(append([]string(nil), chatty...), traffic("192.168.10.77", "48.0.0.1")))
-		if n := len(ff.lookups()) - before; n > 1 {
-			t.Fatalf("%d lookups for pairs that already have a hit", n)
+		if n := hitCount(t, e); n != MaxIocHitsPerBatch+1 {
+			t.Fatalf("%d rows: a repeated pair was stored again or the new one is missing", n)
 		}
 		if count(t, e.vol, `SELECT count(*) FROM logs_ioc_hits WHERE src_ip = '192.168.10.77'`) != 1 {
 			t.Fatal("the first hit of another device is hidden")

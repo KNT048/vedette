@@ -15,6 +15,10 @@ const (
 	maxDevice = 200
 )
 
+// MaxApprovalWhat is how much of an approval message the text of the change may take (runes); the title, the question and the link
+// keep a Telegram message under its 4096 characters.
+const MaxApprovalWhat = 3000
+
 // clean makes untrusted text safe to print: invalid UTF-8 becomes U+FFFD,
 // control characters and Unicode format characters (bidi overrides, zero-width
 // marks) are dropped, tabs become spaces, and line separators become "\n" when
@@ -60,13 +64,17 @@ func truncRunes(s string, n int) string {
 func (m Message) norm() Message {
 	one := func(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, false)), n) }
 	multi := func(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, true)), n) }
+	what := maxLine
+	if m.Kind == "approval" {
+		what = MaxApprovalWhat // an approver reads the whole change before deciding (D-175)
+	}
 	out := Message{
 		ID:           one(m.ID, 100),
 		Kind:         one(m.Kind, 30),
 		Severity:     m.Severity,
 		Title:        one(m.Title, maxTitle),
 		Device:       one(m.Device, maxDevice),
-		What:         multi(m.What, maxLine),
+		What:         multi(m.What, what),
 		Action:       multi(m.Action, maxLine),
 		Link:         m.Link,
 		IncidentKind: one(m.IncidentKind, 30),

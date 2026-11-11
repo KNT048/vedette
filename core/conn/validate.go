@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/conn/internal/transport"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -73,6 +74,7 @@ func tidy(s string) string { return strings.Join(strings.Fields(s), " ") }
 type checked struct {
 	name, kind, target, authType string
 	username                     *string
+	header                       *string       // header name of a token sign-in, nil = Authorization: Bearer
 	secret                       secrets.Value // a new secret to store; unset = none given
 	keyFP                        *string       // fingerprint of the new SSH key
 	assetID                      *string
@@ -138,6 +140,16 @@ func check(in Input, existing *Connection, env checkEnv) (*checked, *apierr.Erro
 		}
 		username = &u
 	}
+	var header *string
+	if h := strings.TrimSpace(deref(in.AuthHeader)); h != "" {
+		if auth != AuthToken {
+			return nil, bad("invalid", "A header name belongs to a token sign-in only.", "auth_header")
+		}
+		if !transport.ValidAuthHeader(h) {
+			return nil, bad("invalid_auth_header", "The header name is not valid. Use letters, digits and hyphens, for example X-API-Key; Host, Content-Length, Transfer-Encoding and Connection cannot carry a token.", "auth_header")
+		}
+		header = &h
+	}
 	secret := in.Secret
 	if secret.IsSet() && utf8.RuneCountInString(secret.Reveal()) < 8 {
 		return nil, bad("invalid_secret", "The secret is too short. Copy the whole token, password or key again.", "secret")
@@ -182,7 +194,7 @@ func check(in Input, existing *Connection, env checkEnv) (*checked, *apierr.Erro
 		asset = in.AssetID
 	}
 	return &checked{
-		name: name, kind: in.Kind, target: target, authType: auth, username: username, secret: secret, keyFP: keyFP, assetID: asset,
+		name: name, kind: in.Kind, target: target, authType: auth, username: username, header: header, secret: secret, keyFP: keyFP, assetID: asset,
 		allow: allow, enabled: in.Enabled, clearPin: in.ClearPin, tools: in.Tools,
 		retarget: existing != nil && (existing.Kind != in.Kind || existing.Target != target), moved: existing != nil && (!sameKind || moved),
 	}, nil

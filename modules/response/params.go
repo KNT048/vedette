@@ -350,6 +350,18 @@ func forbiddenHeader(name string) bool {
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
 }
 
+// credentialHeader reports whether a header name carries a credential (D-174): the ones that ride on every request of a signed-in
+// client, and any name that ends in -Key, -Token or -Secret. A template may not hold a literal value for one: the connection's
+// sign-in (a token with a header name) sends it, and the request, its log and the backup never hold it.
+func credentialHeader(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	switch n {
+	case "authorization", "proxy-authorization", "cookie", "x-api-key", "x-auth-token", "api-key":
+		return true
+	}
+	return strings.HasSuffix(n, "-key") || strings.HasSuffix(n, "-token") || strings.HasSuffix(n, "-secret")
+}
+
 // ValidateTpl checks a template when it is saved (and again when it is loaded): only characters that cannot reach a
 // shell, only typed placeholders or runtime values, a path that cannot leave the connection, a body that is JSON.
 // It returns "" when the template is acceptable, otherwise a one-line reason in plain words.
@@ -383,6 +395,9 @@ func ValidateTpl(t Tpl, what string) string {
 			}
 			if name, _, _ := strings.Cut(l, ":"); forbiddenHeader(name) {
 				return what + ": the header " + name + " is set by the connection and cannot be part of a template."
+			}
+			if name, val, _ := strings.Cut(l, ":"); credentialHeader(name) && !strings.Contains(val, "{") {
+				return what + ": the header " + name + " looks like a credential. Do not put it in a template: give the connection a token with a header name (Settings, Connections) and it is sent from there."
 			}
 		}
 	}

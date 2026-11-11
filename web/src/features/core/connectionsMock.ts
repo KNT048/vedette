@@ -53,7 +53,7 @@ function fakeHash(seed: string, len: number, hex = false) {
 }
 
 /** The fields that decide what a request may do (D-93 (4)): a change in any of them while a Test runs makes its result void. */
-const securityKey = (c: Connector) => JSON.stringify([c.id, c.kind, c.target, c.auth.type, c.auth.last4, c.auth.key_fingerprint, c.username, c.allow, c.tools.map((t) => [t.name, t.access, t.enabled]), c.pin?.value ?? null])
+const securityKey = (c: Connector) => JSON.stringify([c.id, c.kind, c.target, c.auth.type, c.auth.header, c.auth.last4, c.auth.key_fingerprint, c.username, c.allow, c.tools.map((t) => [t.name, t.access, t.enabled]), c.pin?.value ?? null])
 
 const bad = (code: string, message: string, field: string) => fail(400, code, message, { field })
 
@@ -141,7 +141,7 @@ export async function keyFingerprint(secret: string): Promise<string> {
 }
 export const hasSecret = (c: Pick<Connector, 'auth'>) => c.auth.last4 !== null || c.auth.key_fingerprint !== null
 
-type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null; secret: string | null; retarget: boolean; moved: boolean }
+type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null; header: string | null; secret: string | null; retarget: boolean; moved: boolean }
 function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Checked {
   const name = TIDY(String(b.name ?? ''))
   if ([...name].length < 1 || [...name].length > 40) return bad('invalid_name', 'Give the connection a name of 1 to 40 characters, for example "Office firewall API".', 'name')
@@ -173,6 +173,9 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   const username = needsUser ? TIDY(String(b.username ?? '')) : ''
   if (needsUser && !username) return bad('username_required', 'Enter the user name the box signs in with.', 'username')
   if (username && !USER_RE.test(username)) return bad('invalid', 'The user name is 1 to 64 characters, with no spaces, colons or control characters.', 'username')
+  const header = TIDY(String(b.auth_header ?? ''))
+  if (header && auth !== 'token') return bad('invalid', 'A header name belongs to a token sign-in only.', 'auth_header')
+  if (header && (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(header) || /^(authorization|host|content-length|transfer-encoding|connection|cookie|set-cookie|te|trailer|upgrade|keep-alive|proxy-.*|forwarded|via|x-forwarded.*)$/i.test(header) && header.toLowerCase() !== 'authorization')) return bad('invalid_auth_header', 'The header name is not valid. Use letters, digits and hyphens, for example X-API-Key; Host, Content-Length, Transfer-Encoding and Connection cannot carry a token.', 'auth_header')
   const secret = b.secret === undefined || b.secret === '' ? null : String(b.secret)
   if (secret !== null && [...secret].length < 8) return bad('invalid_secret', 'The secret is too short. Copy the whole token, password or key again.', 'secret')
   if (secret !== null && auth === 'ssh-key' && encryptedKey(secret)) return bad('invalid_secret', 'This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that.', 'secret')
@@ -192,12 +195,12 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   if (b.asset_id && !assetsStore.get().some((a) => a.id === b.asset_id)) return bad('unknown_asset', 'The device you linked is not in the inventory.', 'asset_id')
   if (b.clear_pin !== undefined && typeof b.clear_pin !== 'boolean') return bad('invalid', 'Send clear_pin as true or false.', 'clear_pin')
   if (b.kind !== 'mcp-http' && (b.tools ?? []).some((x) => x.access !== undefined)) return bad('invalid_tool_access', 'Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed.', 'tools')
-  return { input: { ...b, name, target, auth_type: auth, allow, enabled: b.enabled !== false } as ConnectorInput, allow, username: username || null, secret, last4: auth === 'none' || auth === 'ssh-key' ? null : secret ? secret.slice(-4) : existing!.auth.last4, retarget: !!existing && (existing.kind !== b.kind || existing.target !== target), moved: !sameKind || moved }
+  return { input: { ...b, name, target, auth_type: auth, allow, enabled: b.enabled !== false } as ConnectorInput, allow, username: username || null, header: header || null, secret, last4: auth === 'none' || auth === 'ssh-key' ? null : secret ? secret.slice(-4) : existing!.auth.last4, retarget: !!existing && (existing.kind !== b.kind || existing.target !== target), moved: !sameKind || moved }
 }
 /** The auth block of a saved connection: an SSH key is told apart by its fingerprint, anything else by its last 4 characters. */
 async function authOf(r: Checked, existing?: Connector): Promise<Connector['auth']> {
   const keyFp = r.input.auth_type !== 'ssh-key' ? null : r.secret ? await keyFingerprint(r.secret) : existing?.auth.key_fingerprint ?? null
-  return { type: r.input.auth_type, last4: r.last4, key_fingerprint: keyFp }
+  return { type: r.input.auth_type, header: r.header, last4: r.last4, key_fingerprint: keyFp }
 }
 const toolsOf = (base: ConnectorTool[], input: ConnectorInput['tools'], mcp: boolean): ConnectorTool[] =>
   base.map((t) => { const x = input?.find((y) => y.name === t.name); return { ...t, enabled: x?.enabled ?? t.enabled, access: mcp && x?.access ? x.access : t.access } })

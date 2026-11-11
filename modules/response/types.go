@@ -1,5 +1,7 @@
 package response
 
+import "slices"
+
 // Wire types. Their JSON names are the names of web/src/features/response/contract.ts: handlers convert them to the
 // generated types through their JSON form (the same pattern as modules/notify). Slices and maps are never nil on
 // the wire.
@@ -214,6 +216,7 @@ type ApprovalView struct {
 	Status            *Status        `json:"status"`
 	RequiresApprovals *int           `json:"requires_approvals"`
 	ApprovedSoFar     *int           `json:"approved_so_far"`
+	AIGenerated       bool           `json:"ai_generated"` // an AI proposed the request: the page shows the label (rules/legal.md)
 }
 
 // ApprovalItem is one action as the page of a link shows it.
@@ -257,6 +260,52 @@ type ActionRequest struct {
 type request struct {
 	ActionRequest
 	recs []itemRec // the items with their values
+}
+
+// hiddenHeader is what stands in for a header value a reader may not see.
+const hiddenHeader = "(hidden)"
+
+// maskRest returns a copy of the call with header values hidden (D-174): every value for all, otherwise only those whose name carries
+// a credential (requests made before credential headers were refused keep running, but no read shows them).
+func maskRest(r *RestCall, all bool) *RestCall {
+	if r == nil {
+		return nil
+	}
+	c := *r
+	c.Headers = make(map[string]string, len(r.Headers))
+	for k, v := range r.Headers {
+		if all || credentialHeader(k) {
+			v = hiddenHeader
+		}
+		c.Headers[k] = v
+	}
+	return &c
+}
+
+func (c Change) masked(all bool) Change {
+	c.Rest, c.Rollback.Rest = maskRest(c.Rest, all), maskRest(c.Rollback.Rest, all)
+	return c
+}
+
+// masked is the request as a reader sees it: header values of every item's call and undo are hidden unless full (an administrator,
+// like the catalog's) and credential-named ones are hidden for everyone.
+func (a ActionRequest) masked(full bool) ActionRequest {
+	a.Items = slices.Clone(a.Items)
+	for i := range a.Items {
+		a.Items[i].Change = a.Items[i].Change.masked(!full)
+	}
+	return a
+}
+
+func (s Simulation) masked(full bool) Simulation {
+	s.Steps = slices.Clone(s.Steps)
+	for i := range s.Steps {
+		if c := s.Steps[i].Change; c != nil {
+			m := c.masked(!full)
+			s.Steps[i].Change = &m
+		}
+	}
+	return s
 }
 
 func (r request) view() ActionRequest {

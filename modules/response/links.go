@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
 )
@@ -28,8 +30,9 @@ import (
 const (
 	linkPostPerMin = 10 // POSTs on links per source address per minute
 	linkBadPerMin  = 20 // links that are not valid per source address per minute
-	// approvalWhatMax is the most of the change that goes into a message (spec 4.6, 11); the rest is "open Vedette".
-	approvalWhatMax = 4096
+	// approvalWhatMax is the most of the change that goes into one chat message (runes, counted with the characters the Telegram adapter adds to
+	// the ones it defangs): the title, the question and the link keep the message under Telegram's 4096 (notify channel.MaxApprovalWhat, D-175).
+	approvalWhatMax = 3000
 	// sendBudget is how long sending one request may take (D-96 (2)): SMTP is slow and a send must not hold a request for ever.
 	sendBudget = 60 * time.Second
 	// tokenKeep is how long a record stays after it ended (DATA_MODEL 4.11).
@@ -53,8 +56,11 @@ type ApprovalMessage struct {
 	What      string
 	Risk      Risk
 	InAppOnly bool
-	Channels  []string
-	Expires   time.Time
+	// NoChatButtons (D-175): no chat channel gets an Approve button, a code or a link-less shortcut, because the risk is high or the whole
+	// change does not fit one message. The text then says to open Vedette; notify only obeys.
+	NoChatButtons bool
+	Channels      []string
+	Expires       time.Time
 }
 
 // LinkBinding is what a link is bound to: the request, the person, the channel and the moment it ends.
@@ -307,8 +313,9 @@ func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalVie
 		return v, nil
 	}
 	for _, i := range r.recs {
-		v.Items = append(v.Items, ApprovalItem{Title: i.Title, Risk: i.Risk, Change: i.Change})
+		v.Items = append(v.Items, ApprovalItem{Title: i.Title, Risk: i.Risk, Change: i.Change.masked(true)}) // a link holder is not signed in: no header value
 	}
+	v.AIGenerated = r.AI != nil
 	title, expires := r.Title, store2(rec.expires)
 	v.Title, v.ExpiresAt = &title, &expires
 	if u, ok, err := s.cfg.Users.Lookup(ctx, rec.user); err == nil && ok && u.Name != "" {
@@ -620,8 +627,9 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 		s.noteSend(ctx, id, nil, "sent to the app only: no approval channel is ready")
 		return
 	}
-	msg := ApprovalMessage{RequestID: r.ID, Title: truncRunes(cleanLine(r.Title), 200), What: approvalText(r), Risk: r.Risk, InAppOnly: r.AI != nil && r.AI.InAppOnly,
-		Channels: types, Expires: parseTS(r.ExpiresAt)}
+	what, noButtons := approvalMessageText(r)
+	msg := ApprovalMessage{RequestID: r.ID, Title: truncRunes(cleanLine(r.Title), 200), What: what, Risk: r.Risk, InAppOnly: r.AI != nil && r.AI.InAppOnly,
+		NoChatButtons: noButtons, Channels: types, Expires: parseTS(r.ExpiresAt)}
 	sent, sendErr := s.cfg.Notifier.RequestApproval(ctx, msg)
 	detail := "Approval request sent to " + joinNonEmpty(sent...) + onEmpty(len(sent), "nobody")
 	if sendErr != nil {
@@ -640,11 +648,65 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 	s.noteSend(ctx, id, sent, detail)
 }
 
-// approvalText is what the approver reads in the message: each action, the exact call, and how many people must approve. Plain text, one
-// line per fact, cut at 4 KiB with a pointer to the app (spec 4.6). The change comes from the request, which holds only checked values.
+// aiLabel is the label every AI output carries (rules/legal.md; the text of the GUI's AiBlock).
+const aiLabel = "AI-generated, needs human review."
+
+// block writes a multi-line text indented and with its line breaks kept: an approver must see where one command ends and the next
+// begins. Invisible and bidirectional characters are dropped and other control characters become spaces (a command is shown as it is
+// sent, never reformatted).
+func block(s string) string {
+	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+	s = strings.Map(func(r rune) rune {
+		switch {
+		case r == '\n':
+			return r
+		case isInvisible(r):
+			return -1
+		case unicode.IsControl(r) || r == '\u2028' || r == '\u2029':
+			return ' '
+		}
+		return r
+	}, strings.ToValidUTF8(s, "?"))
+	lines := strings.Split(strings.TrimRight(s, "\n "), "\n")
+	for i, l := range lines {
+		lines[i] = "    " + strings.TrimRight(l, " ")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// restText is an API call in full: method, address, headers by name (the values are never shown) and the whole body.
+func restText(rest *RestCall) string {
+	t := rest.Method + " " + rest.URL
+	if len(rest.Headers) > 0 {
+		names := make([]string, 0, len(rest.Headers))
+		for k := range rest.Headers {
+			names = append(names, k)
+		}
+		slices.Sort(names)
+		t += " [headers: " + strings.Join(names, ", ") + "]"
+	}
+	if rest.Body != nil && *rest.Body != "" {
+		t += "\n" + *rest.Body
+	}
+	return t
+}
+
+// fullCall is a step as the approver reads it: the whole API call or the whole command, never its first line.
+func fullCall(rest *RestCall, cli string) string {
+	if rest != nil {
+		return restText(rest)
+	}
+	return cli
+}
+
+// approvalText is the whole change as the approver reads it in the message (D-175): each action with the full call, the full undo and
+// the check before it. Plain text; nothing is cut here: approvalMessageText decides whether it fits.
 func approvalText(r request) string {
 	var b strings.Builder
 	line := func(format string, a ...any) { fmt.Fprintf(&b, format+"\n", a...) }
+	if r.AI != nil {
+		line("%s An AI proposed this request.", aiLabel)
+	}
 	if r.AssetName != "" {
 		line("On: %s", truncRunes(cleanLine(r.AssetName), 120))
 	}
@@ -653,12 +715,53 @@ func approvalText(r request) string {
 		line("- %s (%s risk)", truncRunes(cleanLine(i.Title), 160), i.Risk)
 		line("  Before: %s", truncRunes(cleanLine(i.Change.Before), 200))
 		line("  After: %s", truncRunes(cleanLine(i.Change.After), 200))
-		line("  Exact call: %s", truncRunes(cleanLine(callText(i.Change.Rest, i.Change.CLI)), 400))
+		line("  Exact call:\n%s", block(fullCall(i.Change.Rest, i.Change.CLI)))
+		if rb := fullCall(i.Change.Rollback.Rest, i.Change.Rollback.CLI); strings.TrimSpace(rb) != "" {
+			line("  Undo:\n%s", block(rb))
+		} else {
+			line("  Undo: %s", truncRunes(cleanLine(i.Change.Rollback.Title), 200))
+		}
+		if p := strings.TrimSpace(i.Change.Precheck); p != "" {
+			line("  Check first:\n%s", block(p))
+			if i.Change.PrecheckRules != "" {
+				line("  %s", truncRunes(cleanLine(i.Change.PrecheckRules), 400))
+			}
+		}
 	}
-	out := b.String()
-	const more = "\n...open Vedette for the full change."
-	if len(out) > approvalWhatMax {
-		out = strings.ToValidUTF8(out[:approvalWhatMax-len(more)], "") + more
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// chatLen is the length of a text in a chat message, counting the zero-width joiner the Telegram adapter may add after each "@" and "/".
+func chatLen(s string) int {
+	n := utf8.RuneCountInString(s)
+	return n + strings.Count(s, "@") + strings.Count(s, "/")
+}
+
+// approvalMessageText is the text of the approval message and whether it may carry chat buttons (D-175): an approver approves only
+// what they can read in full. Buttons only for low and medium risk and only when the whole text fits one message; otherwise the
+// message says to open Vedette (the full text is there, and on the page of an emailed link) and has no button.
+func approvalMessageText(r request) (text string, noButtons bool) {
+	full := approvalText(r)
+	high := r.Risk != RiskLow && r.Risk != RiskMedium
+	if high {
+		full += "\nThis is a high-risk change: review and approve it in Vedette, not from chat."
 	}
-	return strings.TrimRight(out, "\n")
+	switch {
+	case chatLen(full) > approvalWhatMax:
+		var b strings.Builder
+		if r.AI != nil {
+			b.WriteString(aiLabel + " An AI proposed this request.\n")
+		}
+		fmt.Fprintf(&b, "Risk: %s. %d approver%s needed. Ends %s.", r.Risk, r.RequiresApprovals, plural(r.RequiresApprovals), r.ExpiresAt)
+		for n, i := range r.recs {
+			if n == 8 {
+				fmt.Fprintf(&b, "\n...and %d more", len(r.recs)-n)
+				break
+			}
+			fmt.Fprintf(&b, "\n- %s (%s risk)", truncRunes(cleanLine(i.Title), 160), i.Risk)
+		}
+		b.WriteString("\nThe whole change is too long for one message: open Vedette to read it and decide there.")
+		return b.String(), true
+	}
+	return full, high
 }

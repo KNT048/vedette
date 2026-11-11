@@ -31,6 +31,9 @@ type ApprovalRequest struct {
 	// InAppOnly is a high-risk request from the AI (INV-16 of response): every channel only gets a message that says
 	// to open Vedette. No approval link, no button, no reply code, and no token is made or recorded.
 	InAppOnly bool
+	// NoChatButtons: no chat channel gets Approve/Reject buttons, only a message that says to open Vedette (D-175: response decides, from
+	// the risk and from whether the whole change fits one message; notify only obeys).
+	NoChatButtons bool
 }
 
 const (
@@ -108,7 +111,10 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
 			}
 			m := base
-			if ac.Type == channel.Telegram { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
+			if req.NoChatButtons && !req.InAppOnly {
+				m.Action = "Open Vedette, review the whole change there, then approve or reject it. This message has no buttons."
+			}
+			if ac.Type == channel.Telegram && !req.NoChatButtons { // Approve/Reject buttons; their nonce is kept before the message goes out (spec 6)
 				if m.Buttons, err = s.telegramButtons(ctx, req, c.Fields); err != nil {
 					return nil, err
 				}

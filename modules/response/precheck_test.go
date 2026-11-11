@@ -405,9 +405,9 @@ func TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet(t *testing.T) {
 func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
 	e := precheckEnv(t)
 	in := apiAction()
-	in.Run.Headers, in.Rollback.Headers = "X-Api-Key: s3cretrun", "X-Api-Key: s3cretrollback"
-	in.Verify = response.Tpl{Method: "GET", Path: "/d/{domain}", Headers: "X-Api-Key: s3cretverify"}
-	in.Precheck, in.PrecheckRefuse = response.Tpl{Method: "GET", Path: "/d/{domain}", Headers: "X-Api-Key: s3cretvalue"}, []string{"already"}
+	in.Run.Headers, in.Rollback.Headers = "X-Trace: s3cretrun", "X-Trace: s3cretrollback"
+	in.Verify = response.Tpl{Method: "GET", Path: "/d/{domain}", Headers: "X-Trace: s3cretverify"}
+	in.Precheck, in.PrecheckRefuse = response.Tpl{Method: "GET", Path: "/d/{domain}", Headers: "X-Trace: s3cretvalue"}, []string{"already"}
 	_, err := e.svc.AddAction(e.ctx(), admin, in)
 	e.must(err)
 	seen := func(full bool) string {
@@ -421,7 +421,7 @@ func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
 		}
 		return all.String()
 	}
-	if got := seen(false); strings.Contains(got, "s3cret") || !strings.Contains(got, "X-Api-Key: (hidden)") {
+	if got := seen(false); strings.Contains(got, "s3cret") || !strings.Contains(got, "X-Trace: (hidden)") {
 		t.Errorf("a viewer sees header values, or loses the header names: %q", got)
 	}
 	if got := seen(true); !strings.Contains(got, "s3cretvalue") {

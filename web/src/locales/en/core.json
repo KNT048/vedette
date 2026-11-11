@@ -554,7 +554,7 @@
       },
       "5": {
         "name": "Notifications",
-        "what": "Alert content, and the 6-digit sign-in code for people who use two-step email codes. Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box.",
+        "what": "Alert content, and the 6-digit sign-in code for people who use two-step email codes. Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
         "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or your own SMTP server for email",
         "control": "Remove the channel, or turn off approvals in chat, to stop it.",
         "link": "Open alert channels"
@@ -603,7 +603,7 @@
       },
       "12": {
         "name": "Connections you add",
-        "what": "The requests and actions you set up are sent to the connection's own address, which you typed (a public address is allowed; you type it on purpose). The credentials you entered (token, or user name and password) go there too; an SSH key is used to sign in but not sent. Nothing else is added, nothing goes to any other host, and the device sees the box's IP address. Sent when you press Test on a connection that is on, when an approved action or its undo runs, and when the AI uses an allowed read tool. The AI can use only read tools on the allow-list; a write tool runs only through an action a person approves.",
+        "what": "The requests and actions you set up are sent to the connection's own address, which you typed (a public address is allowed; you type it on purpose). The credentials you entered (token, or user name and password) go there too (a token goes as Authorization: Bearer, or in the header you name for it); an SSH key is used to sign in but not sent. Nothing else is added, nothing goes to any other host, and the device sees the box's IP address. Sent when you press Test on a connection that is on, when an approved action or its undo runs, and when the AI uses an allowed read tool. The AI can use only read tools on the allow-list; a write tool runs only through an action a person approves.",
         "to": "Only the address you typed for each connection",
         "control": "Delete the connection, or turn it off. Nothing is sent to a connection that is off.",
         "link": "Open connections"
@@ -1255,6 +1255,8 @@
       "username": "User name",
       "usernameHintSsh": "The account the box signs in with on the device.",
       "usernameHintBasic": "Sent with the password. It is not a secret.",
+      "authHeader": "Header name (optional)",
+      "authHeaderHint": "Leave empty to send Authorization: Bearer",
       "pin": "Pinned key",
       "pinTls": "Certificate public key (SHA-256)",
       "pinRoots": "Trusted through a public certificate authority",
@@ -1277,6 +1279,7 @@
     "unsupportedBody": "Vedette does not start an MCP server from a command. Delete this connection and add the server by its web address instead.",
     "errUsername": "Enter the user name.",
     "asUser": "signs in as {{user}}",
+    "inHeader": "token sent in the {{header}} header",
     "edit": "Edit",
     "delete": "Delete",
     "editNamed": "Edit {{name}}",

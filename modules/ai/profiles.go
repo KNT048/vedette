@@ -146,7 +146,8 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	asg := cloneAssign(cur.assign)
 	var taken []Job
 	for _, j := range Jobs() {
-		if slot := asg.Jobs[j]; slot.Primary == "" && asg.Allowed(j, p) {
+		// response-plan runs by itself every 5 minutes and sends device data, so it is opt-in: the admin assigns a profile to it (D-181).
+		if slot := asg.Jobs[j]; j != JobResponsePlan && slot.Primary == "" && asg.Allowed(j, p) {
 			slot.Primary = p.ID
 			asg.Jobs[j] = slot
 			taken = append(taken, j)

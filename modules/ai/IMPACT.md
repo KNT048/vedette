@@ -5,7 +5,7 @@
 ## Modifying: `RunJob(ctx, job AiJob, in JobInput) (JobResult, error)` — 6 người gọi
 - **core UI handlers** (`/ai/cve/{id}/explain|news`, `/ai/ask`, `/ai/logs/digest`): đổi lỗi `ai_unavailable` → toàn bộ nút AI hiển thị sai trạng thái.
 - **reports** (`weekly-report`, `pdpl-assessment`): đổi `JobResult` → nhận xét AI trong báo cáo vỡ.
-- **response** (`response-plan`, qua cổng `Planner` của `response`, lát 13b-11): đổi cấu trúc kế hoạch → `/response/plans` và bước đề xuất hành động vỡ. Đề xuất hành động đi qua cổng Go `response.Service.Propose` với tác nhân `ai:response` (D-97), không qua HTTP.
+- **response** (`response-plan`, qua cổng `Planner` của `response`, lát 13b-11): đổi cấu trúc kế hoạch → `/response/plans` và bước đề xuất hành động vỡ. Đề xuất hành động đi qua cổng Go `response.Service.Propose` với tác nhân `ai:response` (D-97), không qua HTTP; lát 7: job `plan` của `response` gọi nó sau khi lưu kế hoạch (D-310), nên đổi schema `response_plan` (thêm `confidence`, `evidence`) hay khối "reads the box made" của `cmd/vedette/ai_plan.go` đổi cái `Propose` nhận. **`ConfigRead`/`RecentReads`/`RecordProposals` (lát 7, D-311..D-313)**: `response.Config.Evidence.ConfigRead` đọc `ai_read`; đổi hạn 24 giờ, dạng id hay việc ghi dòng trong `connectionTools` (ask_tools.go) đổi bằng chứng `config_read` mà `Propose` nhận (`TestWiringConfigReadIsTheAIRecordOfAReadThroughTheConnection`). Bảng mới `ai_read` có dòng chính sách export (`modules/core/export_policy.go`).
 - **mitigation** (`mitigation-config`, "Hỏi AI của tôi"), **logs** (`log-digest`): đổi nhãn "AI tạo" → vi phạm S-AI-6.
 - Thêm việc mới: thêm vào `AiJob`, bảng phân việc, ghi `data: internal|public` (quyết định INV-3), cập nhật GUI.
 

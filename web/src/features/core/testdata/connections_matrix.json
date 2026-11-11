@@ -177,6 +177,7 @@
     "asset_id": null,
     "auth": {
      "type": "token",
+     "header": null,
      "last4": "cdef",
      "key_fingerprint": null
     },
@@ -231,6 +232,7 @@
     "kind": "ssh",
     "auth": {
      "type": "ssh-key",
+     "header": null,
      "last4": null
     },
     "username": "vedette",
@@ -279,6 +281,7 @@
     "username": "admin",
     "auth": {
      "type": "basic",
+     "header": null,
      "last4": "cdef"
     },
     "tools": [
@@ -2084,6 +2087,7 @@
     "name": "Parity API 2",
     "auth": {
      "type": "token",
+     "header": null,
      "last4": "cdef"
     }
    },

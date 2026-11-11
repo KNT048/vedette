@@ -323,7 +323,7 @@ func (r *Reader) client(c conn.Connection, secret secrets.Value) (*transport.Cli
 		pin = c.Pin.Value
 	}
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: acc.Dialer, Pin: pin, TOFU: false, Roots: acc.Roots})
-	auth := transport.Auth{Type: c.Auth.Type, Secret: secret}
+	auth := transport.Auth{Type: c.Auth.Type, Header: deref(c.Auth.Header), Secret: secret}
 	if c.Username != nil {
 		auth.Username = *c.Username
 	}
@@ -809,4 +809,11 @@ func failure(err error, c conn.Connection, redact []string) error {
 		return errors.New(e)
 	}
 	return errors.New("the device could not be reached")
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e fixtures clean
+.PHONY: host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -29,6 +29,7 @@ help:
 	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
 	@echo "make contract      go test ./modules/... -run Contract"
 	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
+	@echo "make e2e-real      the real backend (release GUI inside core) + Playwright, web/e2e-real/; SPECS=..., E2E_WORKERS=n, HOLD=1; heavy, not in CI or check (D-170)"
 	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
 	@echo "make oui          dựng lại content/oui/oui.tsv.gz từ runZero mac-tracker (cần mạng tới raw.githubusercontent.com, D-83)"
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
@@ -155,6 +156,11 @@ audit: vuln
 
 e2e:
 	pnpm --dir web e2e
+
+# Real-backend end-to-end (WP-30, D-170): builds the release GUI and the box, runs web/e2e-real/ on desktop. The script removes its build
+# output on every exit path; the traces of a failed run stay in web/test-results/real until `make clean`.
+e2e-real:
+	bash scripts/dev/e2e-real.sh
 
 fixtures:
 	pnpm --dir web fixtures

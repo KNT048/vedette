@@ -16,6 +16,8 @@ Helper dùng chung: `web/src/test/formMatrix.ts` (thêm khi viết test đầu t
 ## 3. Đi kịch bản bằng tay ảo (Playwright, trên server dev)
 Mỗi story có ít nhất một kịch bản viết theo việc người dùng muốn làm, ví dụ "tạo hành động SSH thêm ACL chặn IP trên switch Cisco". Agent kiểm đi từng bước, chụp ảnh từng bước, và trả lời ở mỗi bước: ô nào thừa, ô nào thiếu, chữ nào khó hiểu, bước nào cụt (dead end), có đường quay lại không. Desktop + điện thoại, sáng + tối.
 
+Chạy trên backend thật (WP-30, D-170): `make e2e-real` dựng GUI release trong binary `core`, chạy các spec ở `web/e2e-real/` (desktop); khác biệt với mock là lỗi backend, đi theo D-171 (issue `owner:kien` `wp:30`, không nới assertion, không sửa GUI).
+
 ## 4. Danh mục form phải đi qua
 Danh sách mọi hộp thoại và form có bộ chọn, ghi kết quả lần kiểm gần nhất (ngày, người kiểm, kết quả). Form mới thêm vào danh sách trong cùng commit.
 

@@ -27004,6 +27004,10 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetCoreConnectionsOKItemsItemAuth) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("header")
+		s.Header.Encode(e)
+	}
+	{
 		e.FieldStart("key_fingerprint")
 		s.KeyFingerprint.Encode(e)
 	}
@@ -27017,10 +27021,11 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreConnectionsOKItemsItemAuth = [3]string{
-	0: "key_fingerprint",
-	1: "last4",
-	2: "type",
+var jsonFieldsNameOfCoreGetCoreConnectionsOKItemsItemAuth = [4]string{
+	0: "header",
+	1: "key_fingerprint",
+	2: "last4",
+	3: "type",
 }
 
 // Decode decodes CoreGetCoreConnectionsOKItemsItemAuth from json.
@@ -27032,8 +27037,18 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "key_fingerprint":
+		case "header":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Header.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"header\"")
+			}
+		case "key_fingerprint":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.KeyFingerprint.Decode(d); err != nil {
 					return err
@@ -27043,7 +27058,7 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"key_fingerprint\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Last4.Decode(d); err != nil {
 					return err
@@ -27053,7 +27068,7 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Type.Decode(d); err != nil {
 					return err
@@ -27072,7 +27087,7 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -43626,6 +43641,10 @@ func (s *CorePostCoreConnectionsCreatedAuth) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreConnectionsCreatedAuth) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("header")
+		s.Header.Encode(e)
+	}
+	{
 		e.FieldStart("key_fingerprint")
 		s.KeyFingerprint.Encode(e)
 	}
@@ -43639,10 +43658,11 @@ func (s *CorePostCoreConnectionsCreatedAuth) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreConnectionsCreatedAuth = [3]string{
-	0: "key_fingerprint",
-	1: "last4",
-	2: "type",
+var jsonFieldsNameOfCorePostCoreConnectionsCreatedAuth = [4]string{
+	0: "header",
+	1: "key_fingerprint",
+	2: "last4",
+	3: "type",
 }
 
 // Decode decodes CorePostCoreConnectionsCreatedAuth from json.
@@ -43654,8 +43674,18 @@ func (s *CorePostCoreConnectionsCreatedAuth) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "key_fingerprint":
+		case "header":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Header.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"header\"")
+			}
+		case "key_fingerprint":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.KeyFingerprint.Decode(d); err != nil {
 					return err
@@ -43665,7 +43695,7 @@ func (s *CorePostCoreConnectionsCreatedAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"key_fingerprint\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Last4.Decode(d); err != nil {
 					return err
@@ -43675,7 +43705,7 @@ func (s *CorePostCoreConnectionsCreatedAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Type.Decode(d); err != nil {
 					return err
@@ -43694,7 +43724,7 @@ func (s *CorePostCoreConnectionsCreatedAuth) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -44710,6 +44740,10 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("header")
+		s.Header.Encode(e)
+	}
+	{
 		e.FieldStart("key_fingerprint")
 		s.KeyFingerprint.Encode(e)
 	}
@@ -44723,10 +44757,11 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreConnectionsIDTestOKConnectorAuth = [3]string{
-	0: "key_fingerprint",
-	1: "last4",
-	2: "type",
+var jsonFieldsNameOfCorePostCoreConnectionsIDTestOKConnectorAuth = [4]string{
+	0: "header",
+	1: "key_fingerprint",
+	2: "last4",
+	3: "type",
 }
 
 // Decode decodes CorePostCoreConnectionsIDTestOKConnectorAuth from json.
@@ -44738,8 +44773,18 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) Decode(d *jx.Decoder) err
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "key_fingerprint":
+		case "header":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Header.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"header\"")
+			}
+		case "key_fingerprint":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.KeyFingerprint.Decode(d); err != nil {
 					return err
@@ -44749,7 +44794,7 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"key_fingerprint\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Last4.Decode(d); err != nil {
 					return err
@@ -44759,7 +44804,7 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Type.Decode(d); err != nil {
 					return err
@@ -44778,7 +44823,7 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -45337,6 +45382,12 @@ func (s *CorePostCoreConnectionsReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AuthHeader.Set {
+			e.FieldStart("auth_header")
+			s.AuthHeader.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("auth_type")
 		s.AuthType.Encode(e)
 	}
@@ -45386,18 +45437,19 @@ func (s *CorePostCoreConnectionsReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreConnectionsReq = [11]string{
+var jsonFieldsNameOfCorePostCoreConnectionsReq = [12]string{
 	0:  "allow",
 	1:  "asset_id",
-	2:  "auth_type",
-	3:  "clear_pin",
-	4:  "enabled",
-	5:  "kind",
-	6:  "name",
-	7:  "secret",
-	8:  "target",
-	9:  "tools",
-	10: "username",
+	2:  "auth_header",
+	3:  "auth_type",
+	4:  "clear_pin",
+	5:  "enabled",
+	6:  "kind",
+	7:  "name",
+	8:  "secret",
+	9:  "target",
+	10: "tools",
+	11: "username",
 }
 
 // Decode decodes CorePostCoreConnectionsReq from json.
@@ -45439,8 +45491,18 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_id\"")
 			}
+		case "auth_header":
+			if err := func() error {
+				s.AuthHeader.Reset()
+				if err := s.AuthHeader.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auth_header\"")
+			}
 		case "auth_type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.AuthType.Decode(d); err != nil {
 					return err
@@ -45460,7 +45522,7 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"clear_pin\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -45472,7 +45534,7 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -45482,7 +45544,7 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -45504,7 +45566,7 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -45552,8 +45614,8 @@ func (s *CorePostCoreConnectionsReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01110101,
-		0b00000001,
+		0b11101001,
+		0b00000010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -61225,6 +61287,10 @@ func (s *CorePutCoreConnectionsIDOKAuth) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreConnectionsIDOKAuth) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("header")
+		s.Header.Encode(e)
+	}
+	{
 		e.FieldStart("key_fingerprint")
 		s.KeyFingerprint.Encode(e)
 	}
@@ -61238,10 +61304,11 @@ func (s *CorePutCoreConnectionsIDOKAuth) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreConnectionsIDOKAuth = [3]string{
-	0: "key_fingerprint",
-	1: "last4",
-	2: "type",
+var jsonFieldsNameOfCorePutCoreConnectionsIDOKAuth = [4]string{
+	0: "header",
+	1: "key_fingerprint",
+	2: "last4",
+	3: "type",
 }
 
 // Decode decodes CorePutCoreConnectionsIDOKAuth from json.
@@ -61253,8 +61320,18 @@ func (s *CorePutCoreConnectionsIDOKAuth) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "key_fingerprint":
+		case "header":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Header.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"header\"")
+			}
+		case "key_fingerprint":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.KeyFingerprint.Decode(d); err != nil {
 					return err
@@ -61264,7 +61341,7 @@ func (s *CorePutCoreConnectionsIDOKAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"key_fingerprint\"")
 			}
 		case "last4":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Last4.Decode(d); err != nil {
 					return err
@@ -61274,7 +61351,7 @@ func (s *CorePutCoreConnectionsIDOKAuth) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last4\"")
 			}
 		case "type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Type.Decode(d); err != nil {
 					return err
@@ -61293,7 +61370,7 @@ func (s *CorePutCoreConnectionsIDOKAuth) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -61852,6 +61929,12 @@ func (s *CorePutCoreConnectionsIDReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AuthHeader.Set {
+			e.FieldStart("auth_header")
+			s.AuthHeader.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("auth_type")
 		s.AuthType.Encode(e)
 	}
@@ -61901,18 +61984,19 @@ func (s *CorePutCoreConnectionsIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreConnectionsIDReq = [11]string{
+var jsonFieldsNameOfCorePutCoreConnectionsIDReq = [12]string{
 	0:  "allow",
 	1:  "asset_id",
-	2:  "auth_type",
-	3:  "clear_pin",
-	4:  "enabled",
-	5:  "kind",
-	6:  "name",
-	7:  "secret",
-	8:  "target",
-	9:  "tools",
-	10: "username",
+	2:  "auth_header",
+	3:  "auth_type",
+	4:  "clear_pin",
+	5:  "enabled",
+	6:  "kind",
+	7:  "name",
+	8:  "secret",
+	9:  "target",
+	10: "tools",
+	11: "username",
 }
 
 // Decode decodes CorePutCoreConnectionsIDReq from json.
@@ -61954,8 +62038,18 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_id\"")
 			}
+		case "auth_header":
+			if err := func() error {
+				s.AuthHeader.Reset()
+				if err := s.AuthHeader.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auth_header\"")
+			}
 		case "auth_type":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.AuthType.Decode(d); err != nil {
 					return err
@@ -61975,7 +62069,7 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"clear_pin\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -61987,7 +62081,7 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -61997,7 +62091,7 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -62019,7 +62113,7 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -62067,8 +62161,8 @@ func (s *CorePutCoreConnectionsIDReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01110101,
-		0b00000001,
+		0b11101001,
+		0b00000010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -178366,6 +178460,10 @@ func (s *ResponseGetResponseApproveTokenOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ResponseGetResponseApproveTokenOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("ai_generated")
+		e.Bool(s.AiGenerated)
+	}
+	{
 		e.FieldStart("approved_so_far")
 		s.ApprovedSoFar.Encode(e)
 	}
@@ -178403,15 +178501,16 @@ func (s *ResponseGetResponseApproveTokenOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseApproveTokenOK = [8]string{
-	0: "approved_so_far",
-	1: "approver",
-	2: "expires_at",
-	3: "items",
-	4: "requires_approvals",
-	5: "state",
-	6: "status",
-	7: "title",
+var jsonFieldsNameOfResponseGetResponseApproveTokenOK = [9]string{
+	0: "ai_generated",
+	1: "approved_so_far",
+	2: "approver",
+	3: "expires_at",
+	4: "items",
+	5: "requires_approvals",
+	6: "state",
+	7: "status",
+	8: "title",
 }
 
 // Decode decodes ResponseGetResponseApproveTokenOK from json.
@@ -178419,12 +178518,24 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ResponseGetResponseApproveTokenOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "approved_so_far":
+		case "ai_generated":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.AiGenerated = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ai_generated\"")
+			}
+		case "approved_so_far":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.ApprovedSoFar.Decode(d); err != nil {
 					return err
@@ -178434,7 +178545,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"approved_so_far\"")
 			}
 		case "approver":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Approver.Decode(d); err != nil {
 					return err
@@ -178444,7 +178555,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"approver\"")
 			}
 		case "expires_at":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.ExpiresAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -178454,7 +178565,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"expires_at\"")
 			}
 		case "items":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Items = make([]ResponseGetResponseApproveTokenOKItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -178472,7 +178583,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
 		case "requires_approvals":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.RequiresApprovals.Decode(d); err != nil {
 					return err
@@ -178482,7 +178593,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"requires_approvals\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -178492,7 +178603,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "status":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -178502,7 +178613,7 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Title.Decode(d); err != nil {
 					return err
@@ -178520,8 +178631,9 @@ func (s *ResponseGetResponseApproveTokenOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

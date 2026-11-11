@@ -7515,6 +7515,13 @@
                                   "ssh-key"
                                 ]
                               },
+                              "header": {
+                                "description": "Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API wants a key header. null sends Authorization: Bearer <token>. The token itself stays in the vault",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
                               "last4": {
                                 "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
                                 "type": [
@@ -7532,6 +7539,7 @@
                             },
                             "required": [
                               "type",
+                              "header",
                               "last4",
                               "key_fingerprint"
                             ],
@@ -7751,6 +7759,18 @@
                       }
                     ]
                   },
+                  "auth_header": {
+                    "description": "Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or null sends Authorization: Bearer <token>. An RFC 7230 token that is not Host, Content-Length, Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400 invalid",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "clear_pin": {
                     "description": "true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it",
                     "type": "boolean"
@@ -7853,6 +7873,13 @@
                             "ssh-key"
                           ]
                         },
+                        "header": {
+                          "description": "Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API wants a key header. null sends Authorization: Bearer <token>. The token itself stays in the vault",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "last4": {
                           "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
                           "type": [
@@ -7870,6 +7897,7 @@
                       },
                       "required": [
                         "type",
+                        "header",
                         "last4",
                         "key_fingerprint"
                       ],
@@ -8131,6 +8159,18 @@
                       }
                     ]
                   },
+                  "auth_header": {
+                    "description": "Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or null sends Authorization: Bearer <token>. An RFC 7230 token that is not Host, Content-Length, Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400 invalid",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "clear_pin": {
                     "description": "true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it",
                     "type": "boolean"
@@ -8233,6 +8273,13 @@
                             "ssh-key"
                           ]
                         },
+                        "header": {
+                          "description": "Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API wants a key header. null sends Authorization: Bearer <token>. The token itself stays in the vault",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "last4": {
                           "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
                           "type": [
@@ -8250,6 +8297,7 @@
                       },
                       "required": [
                         "type",
+                        "header",
                         "last4",
                         "key_fingerprint"
                       ],
@@ -8482,6 +8530,13 @@
                                 "ssh-key"
                               ]
                             },
+                            "header": {
+                              "description": "Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API wants a key header. null sends Authorization: Bearer <token>. The token itself stays in the vault",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
                             "last4": {
                               "description": "Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)",
                               "type": [
@@ -8499,6 +8554,7 @@
                           },
                           "required": [
                             "type",
+                            "header",
                             "last4",
                             "key_fingerprint"
                           ],
@@ -45131,6 +45187,10 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "ai_generated": {
+                      "type": "boolean",
+                      "description": "true when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false unless state is ready"
                     }
                   },
                   "required": [
@@ -45141,7 +45201,8 @@
                     "expires_at",
                     "status",
                     "requires_approvals",
-                    "approved_so_far"
+                    "approved_so_far",
+                    "ai_generated"
                   ],
                   "additionalProperties": false
                 }

@@ -41,7 +41,7 @@ Hiện: phiên bản phần mềm/dữ liệu/gói nội dung, "cập nhật lú
 ## 4. Quy trình phát hành (CI, GitHub Actions)
 
 1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (không GPL/AGPL vào lõi).
-2. Build reproducible (`-trimpath`, `CGO_ENABLED=0`), đa kiến trúc (amd64/arm64), **image OCI** cho từng container (D-55) và gói `.deb` cho `vedette-host` (`make host-deb`, nfpm, D-155; thông số gói ở `DEPLOYMENT.md` §3.1).
+2. Build reproducible (`-trimpath`, `CGO_ENABLED=0`), đa kiến trúc (amd64/arm64: `make images`, một manifest list mỗi image, biên dịch chéo không qemu, D-158; `make host-deb MIN_SEQUENCE=<n>` đặt sàn `sequence` của chỉ mục trong `vedette-host`), **image OCI** cho từng container (D-55) và gói `.deb` cho `vedette-host` (`make host-deb`, nfpm, D-155; thông số gói ở `DEPLOYMENT.md` §3.1).
 3. SBOM CycloneDX (syft); quét SBOM (grype).
 4. Ký: **cosign** cho từng image (hộp xác minh khi kéo, D-55); **minisign** cho `release.json` và gói `vedette-host` (xác minh offline). Cosign theo khoá hay keyless: câu hỏi mở A3 trong `ARCHITECTURE.md`.
 5. Changelog từ commit; GitHub Release; `index.json` cập nhật qua builder; `beta` trước.

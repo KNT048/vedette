@@ -61,7 +61,11 @@ type Service struct {
 
 	applyMu sync.Mutex                   // one Apply or teardown at a time (they rewrite "applied" and talk to the host)
 	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)
-	pollMu  sync.Mutex                   // one Poll at a time
+	// restartDue: a configuration file was written and no start of the container was acknowledged since (guarded by
+	// applyMu). Memory only (INV-15: nothing in config/ is read back), so the first Apply after core starts asks for one
+	// restart. ponytail: one restart per core start, an upgrade is a hash of the file the container last read.
+	restartDue bool
+	pollMu     sync.Mutex // one Poll at a time
 }
 
 // New returns the service.

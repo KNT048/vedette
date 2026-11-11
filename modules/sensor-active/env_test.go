@@ -110,6 +110,7 @@ type fakeInv struct {
 	decision map[string]sa.Decision
 	marked   []string
 	addrs    map[netip.Addr]string
+	macs     []string // KnownMACs
 	checked  []netip.Addr
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
@@ -185,6 +186,12 @@ func (f *fakeInv) Addresses(context.Context) (map[netip.Addr]string, error) {
 		out[k] = v
 	}
 	return out, nil
+}
+
+func (f *fakeInv) KnownMACs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.macs), nil
 }
 
 func (f *fakeInv) ProtectedIPs(context.Context) ([]netip.Addr, error) {

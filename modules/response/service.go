@@ -112,6 +112,20 @@ type FindingInfo struct {
 	KEV      bool
 }
 
+// LogSource is a log source declared in the Logs module.
+type LogSource struct {
+	ID   string
+	Name string
+}
+
+// LogCounts is the read port of the Logs module for the log_threshold trigger (#332, D-287); cmd/vedette adapts logs.Service.
+// The counts are per declared log source and signature (5-minute buckets), not per address. Sources answers no source and no
+// error while the Logs module is off; an error is a failure, logged, and no event this round.
+type LogCounts interface {
+	Sources(ctx context.Context) ([]LogSource, error)
+	Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error)
+}
+
 // Directory resolves the ids an event carries. cmd/vedette adapts inventory and findings; the module never imports them.
 type Directory interface {
 	// DevicesOfKind lists the inventory devices of the given kinds (router, firewall: the never-touch gateways). An error means the
@@ -225,6 +239,7 @@ type Config struct {
 	Modules     ModuleGate  // nil = on (tests)
 	Bus         Bus         // nil = events are dropped
 	Directory   Directory   // nil = trigger events are logged and skipped
+	LogCounts   LogCounts   // nil = the log_threshold trigger has no events (#332)
 	Notifier    Notifier    // nil = no alert channel
 	Connections Connections // nil = no connection
 	Executor    Executor    // nil = no device can be changed
@@ -313,6 +328,7 @@ type Service struct {
 	hpMu         sync.Mutex   // guards hpHour and hpCount: the honeypot scan hits let through to the rules this clock hour
 	hpHour       time.Time
 	hpCount      int
+	logPolledAt  time.Time // the last PollLogs that asked the Logs module (only the evaluate job calls it)
 }
 
 // interfaces reads the addresses of the box's network interfaces.

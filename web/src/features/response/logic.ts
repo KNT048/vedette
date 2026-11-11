@@ -224,7 +224,9 @@ export const oneLine = (s: string, max = 80) => s.replace(/[\r\n\t]+/g, ' ').sli
 
 // ---- Conditions (IF) ----
 export interface Cond { field: string; op: string; value: string; n: number | null; window_min: number | null }
-export interface Ev { id: string; ts: string; fields: Record<string, string>; device_kind: string | null }
+export interface Ev { id: string; ts: string; fields: Record<string, string>; device_kind: string | null; trigger?: string }
+/** The counted signature of a log_threshold rule (D-287): pasted from the Logs digest, compared and counted, never filled into an action. */
+export const logSignature = (trigger: string | undefined, c: { op: string; field: string }) => trigger === 'log_threshold' && c.op === 'count_window' && c.field === 'signature'
 const lc = (s: string) => s.trim().toLowerCase()
 /** Pure test of one condition. `others` = the other events of the same trigger (for the counting tests). */
 export function evalCondition(c: Cond, ev: Ev, others: Ev[]): boolean {
@@ -238,6 +240,8 @@ export function evalCondition(c: Cond, ev: Ev, others: Ev[]): boolean {
     case 'lte': return f !== '' && Number(f) <= Number(c.value)
     case 'device_type': return !!ev.device_kind && list().includes(lc(ev.device_kind))
     case 'count_window': {
+      // a log count event is the count itself, made for exactly this signature, window and threshold (the box's PollLogs)
+      if (logSignature(ev.trigger, c)) return f !== '' && f === c.value && ev.fields.window === String(c.window_min ?? 0) && ev.fields.threshold === String(c.n ?? 0)
       const end = Date.parse(ev.ts), start = end - (c.window_min ?? 0) * 60e3
       const same = others.filter((o) => o.id !== ev.id && lc(o.fields[c.field] ?? '') === lc(f) && Date.parse(o.ts) >= start && Date.parse(o.ts) <= end).length + 1
       return f !== '' && same >= (c.n ?? 1)

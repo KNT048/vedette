@@ -110,10 +110,10 @@
     },
     {
       "id": "tpl-vpn-ban",
-      "name": "10 failed VPN logins in 5 minutes: ban the address",
-      "description": "Brute force against the VPN: ban the source address on FortiGate for 24 hours.",
+      "name": "10 failed VPN logins in 5 minutes: alert",
+      "description": "Brute force against the FortiGate SSL VPN: tell your alert channels when the firewall logs 10 failed logins in 5 minutes. Blocking the address comes back when the Logs module counts per address (issue #338).",
       "rule": {
-        "name": "Failed VPN logins: ban the address",
+        "name": "Failed VPN logins: alert",
         "enabled": false,
         "live": false,
         "trigger": "log_threshold",
@@ -121,24 +121,10 @@
         "conditions": [
           {
             "field": "signature",
-            "op": "eq",
-            "value": "vpn_login_failed",
-            "n": null,
-            "window_min": null
-          },
-          {
-            "field": "count",
-            "op": "gte",
-            "value": "10",
-            "n": null,
-            "window_min": null
-          },
-          {
-            "field": "window",
-            "op": "lte",
-            "value": "5",
-            "n": null,
-            "window_min": null
+            "op": "count_window",
+            "value": "logid=0101039426 action=ssl-login-fail",
+            "n": 10,
+            "window_min": 5
           }
         ],
         "pre_approved": false,
@@ -146,11 +132,11 @@
         "schedule_min": null,
         "actions": [
           {
-            "action_id": "fgt_ban_ip",
+            "action_id": "msg_send",
             "params": {
-              "ip": "{{trigger.source_ip}}"
+              "text": "{{trigger.count}} failed VPN logins in {{trigger.window}} minutes"
             },
-            "ttl_min": 1440
+            "ttl_min": null
           }
         ]
       }
@@ -402,10 +388,10 @@
     },
     {
       "id": "tpl-ssh-acl",
-      "name": "SSH brute force: deny the address on the switch",
-      "description": "20 or more failed SSH logins in the window: add a deny line for the source on the switch ACL for 12 hours.",
+      "name": "SSH brute force: alert",
+      "description": "20 or more failed SSH logins in 10 minutes on one log source: tell your alert channels. Blocking the address comes back when the Logs module counts per address (issue #338).",
       "rule": {
-        "name": "SSH brute force: switch ACL",
+        "name": "SSH brute force: alert",
         "enabled": false,
         "live": false,
         "trigger": "log_threshold",
@@ -413,17 +399,10 @@
         "conditions": [
           {
             "field": "signature",
-            "op": "eq",
-            "value": "ssh_login_failed",
-            "n": null,
-            "window_min": null
-          },
-          {
-            "field": "count",
-            "op": "gte",
-            "value": "20",
-            "n": null,
-            "window_min": null
+            "op": "count_window",
+            "value": "Failed password for <name> from <ip> port <n> ssh<n>",
+            "n": 20,
+            "window_min": 10
           }
         ],
         "pre_approved": false,
@@ -431,11 +410,11 @@
         "schedule_min": null,
         "actions": [
           {
-            "action_id": "cisco_acl_deny",
+            "action_id": "msg_send",
             "params": {
-              "ip": "{{trigger.source_ip}}"
+              "text": "{{trigger.count}} failed SSH logins in {{trigger.window}} minutes"
             },
-            "ttl_min": 720
+            "ttl_min": null
           }
         ]
       }

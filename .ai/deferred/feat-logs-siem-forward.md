@@ -1,0 +1,7 @@
+# Deferred: feat/logs-siem-forward (L5, D-290..D-294)
+
+- [ ] 2026-11-12 — show the SIEM drop counter (and the queue length) on Settings → SIEM: `GET /logs/siem` has no field for it (the mock is the contract), so it needs a story and a mock change; today it is a log line and the audit row `logs.siem_dropped` — ở đâu: `web/src/features/logs/SiemSettings.tsx`, `modules/logs/siem_run.go` `reportDrops`.
+- [ ] 2026-11-12 — TLS syslog and https webhooks verify against the system CAs only; a SIEM with a private CA fails the test with "certificate is not trusted". Needs a story (CA upload field, like rsyslog `StreamDriver.CAFile`) — ở đâu: `modules/logs/siem_send.go` `sendSyslog`, D-293.
+- [ ] 2026-11-12 — `logs.bad_address.detected` (bad_conn class) has no producer until L4 publishes it; re-check the payload keys (`id`, `src_ip`, `dest`, `dest_kind`, `seen_via`, `asset_id`) against L4's `BadAddressEvent` when L4 merges — ở đâu: `modules/logs/siem_run.go` `Subscribe`.
+- [ ] 2026-11-12 — `notify.incident.created` carries only `{id, kind, severity}`; a SIEM record for an incident has no title. If customers ask for more, notify adds fields to the event (Emily's module) — ở đâu: `modules/notify/incidents.go:111`.
+- [ ] 2026-11-12 — L6 `owner:kien` issue (sensor transport and SPAN metadata) is to be written now that L5 is in: see `.ai/deferred/feat-logs-module.md` L6 line — Supervisor/AI-Mlee.

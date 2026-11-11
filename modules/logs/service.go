@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/logs/listen"
 	"github.com/knt048/vedette/modules/logs/signature"
@@ -40,6 +42,11 @@ type Config struct {
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
 	Events Publisher
+	// Secrets seals the SIEM signing key (SYS-4). Required to save or read the SIEM configuration.
+	Secrets *secrets.Store
+	// BoxAddrs is the box's own addresses, which no SIEM may be at (SYS-7); known=false means the box does not know them yet, and then
+	// no connection is made (fail closed). Nil: no address is excluded (tests).
+	BoxAddrs func() (addrs []netip.Addr, known bool)
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -79,6 +86,14 @@ type Service struct {
 	snapMu  sync.Mutex
 	snap    *snapshot
 	snapGen uint64 // bumped by every dropSnapshot
+	// SIEM forwarding (siem*.go): the queue, whether the forwarder job runs, the configuration it works from (nil = not read yet or
+	// just changed) and the signal to read it again. allowLoopback is for tests only.
+	siemQ         *siemQueue
+	siemRunning   atomic.Bool
+	siemCache     atomic.Pointer[siemRow]
+	siemReload    chan struct{}
+	allowLoopback bool
+	siemSendFn    func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -97,7 +112,7 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
 		return nil, fmt.Errorf("logs: creating service: %w", err)
 	}
-	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

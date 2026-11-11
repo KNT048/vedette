@@ -32,6 +32,7 @@ import (
 	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/response"
 	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -134,6 +135,7 @@ func wiredModules() []moduleWiring {
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
 		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
 		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); the job prunes the activity log
+		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},    // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
 		{ID: "mcp-server", Migrations: mcpserver.Migrations},                  // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/response"
 	"github.com/knt048/vedette/modules/scan"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
@@ -44,6 +45,7 @@ type handler struct {
 	*scan.ScanHandlers
 	*ai.AIHandlers
 	*mcpserver.McpHandlers
+	*reports.ReportsHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -70,5 +72,6 @@ func newHandler(d deps) handler {
 		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
 		AIHandlers:       ai.NewAIHandlers(d.AI),
 		McpHandlers:      mcpHandlers(d),
+		ReportsHandlers:  reports.NewReportsHandlers(reportsService(d)),
 	}
 }

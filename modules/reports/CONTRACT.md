@@ -1,6 +1,6 @@
 # Reports Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-REP-1, S-REP-2 · Quyết định: D-18, D-23, D-29 · Last verified: 2026-11-09
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-REP-1, S-REP-2 · Quyết định: D-18, D-23, D-29, D-235…D-239 · Last verified: 2026-11-11 (mã Go `modules/reports`, test `Contract`)
 > Nguồn hành vi thực tế: `web/src/features/reports/{contract,types,mocks,weekly,pdpl}.ts`. Nội dung pháp lý đã đối chiếu 2026-11-06 (D-23): Luật 91/2025/QH15, NĐ 356/2025/NĐ-CP.
 
 ## Invariants (luôn đúng)
@@ -12,17 +12,19 @@
 - **INV-6** Báo cáo PDPL: chế độ nghĩa vụ (`Obligation.regime`: required/optional/exempt) cho `dpia`, `dpo` được **tính tất định** từ quy mô tổ chức (`size`, theo Điều 38 Luật 91/2025/QH15 và Điều 41 NĐ 356/2025/NĐ-CP), không do AI quyết; các nghĩa vụ còn lại luôn bắt buộc. Cấp độ hệ thống thông tin (`level` 1..5 hoặc rỗng) là chế độ riêng, không thuộc Luật BVDLCN.
 - **INV-7** Mọi báo cáo PDPL mang câu miễn trừ "hỗ trợ đánh giá, không phải tư vấn pháp lý" và nêu nguồn pháp lý; câu này không gỡ được (D-26, `LEGAL.md`).
 - **INV-8** `PdplOrg` kiểm từng trường khi lưu (`PUT /reports/pdpl/org`); `measures` (firewall, patching, eol, unapproved, remote, logging, honeypot, scan, backup) mang `status ∈ {ok, attention, unknown}` — thiếu dữ liệu vì module tắt là `unknown`, **không bao giờ `ok`**; `coverage[]` nêu module nào đang bật.
-- **INV-9** Báo cáo tuần chưa gồm số lần chạm bẫy và bất thường log (`sources` chỉ `inventory`, `findings`, `kev`) tới khi có interface dữ liệu từ `honeypot`/`logs` (câu hỏi mở 2).
+- **INV-9** Báo cáo tuần chưa gồm số lần chạm bẫy và bất thường log (`sources` chỉ `inventory`, `findings`, `kev`) tới khi có interface dữ liệu từ `honeypot`/`logs` (câu hỏi mở 2). `sources[].at` của `kev` là lần kéo CISA KEV thành công gần nhất (feeds tắt: giờ dựng báo cáo, không có số KEV).
+- **INV-11** Kích thước có trần (D-239): mỗi danh sách của báo cáo tuần ≤ 100 dòng, hệ thống trọng yếu PDPL ≤ 50, lịch sử gửi 52 mục; số đếm luôn của toàn bộ. Chuỗi từ mạng (tên thiết bị, sản phẩm) được làm sạch (ký tự điều khiển/bidi, một dòng, giới hạn độ dài) trước khi vào báo cáo.
+- **INV-12** Máy chủ không dựng HTML/PDF: thư gửi là bản tóm tắt chữ thường qua `notify.SendReport` kèm liên kết `/reports` (D-236). Lời nhắc AI của PDPL không chứa tên, mã số thuế, địa chỉ, người liên hệ (D-238).
 - **INV-10** Mọi mutation (lịch, thông tin tổ chức, gửi) ghi `core_audit` (SYS-3). PDF không sinh ở máy chủ: trang in `/reports/print/weekly[/:id]`, `/reports/print/pdpl` là route SPA.
 
 ## Preconditions (trước khi gọi)
-- **PRE-1** `PUT /reports/schedule`: vai admin. `POST /reports/weekly/send`: vai operator, có ≥ 1 người nhận và kênh email của `notify` bật; thiếu → lỗi nêu rõ, không gửi.
+- **PRE-1** `PUT /reports/schedule`: vai admin. `POST /reports/weekly/send`: vai operator, có ≥ 1 người nhận (400 `no_recipients`) và kênh email của `notify` bật (409 `email_not_ready`); thiếu → lỗi nêu rõ, không gửi, không ghi lịch sử.
 - **PRE-2** `POST /reports/*/ai-summary`: module `ai` bật và việc tương ứng có hồ sơ được phép (409 `ai_unavailable`).
-- **PRE-3** `POST /reports/pdpl/generate`: đã lưu thông tin tổ chức hợp lệ.
+- **PRE-3** `POST /reports/pdpl/generate`: đã lưu thông tin tổ chức hợp lệ (409 `org_required`). `POST /reports/pdpl/ai-summary` cần báo cáo đã sinh (409 `report_required`).
 
 ## Postconditions (sau khi xong)
 - **POST-1** Gửi xong: một mục `rep_history` (`sent`/`failed`), email tới đúng danh sách người nhận lúc gửi.
-- **POST-2** Lịch bật: đến `next_run` tự sinh và gửi, ghi `trigger=scheduled`; bỏ lỡ do hộp tắt → gửi bù tối đa một lần ở lần chạy kế (S-REP-1 "gửi tự động"). *(đề xuất, câu hỏi mở 3)*
+- **POST-2** Lịch bật: đến `next_run` tự sinh và gửi, ghi `trigger=scheduled`; mỗi ô giờ xử lý tối đa một lần (đánh dấu trước khi gửi); bỏ lỡ do hộp/module tắt → gửi bù đúng một lần nếu trễ ≤ 24 giờ, quá thì bỏ ô; lưu lịch đặt lại mốc, không gửi bù ô đã qua (D-235).
 - **POST-3** `generate` PDPL: sinh `PdplReport` từ kho thiết bị, findings, trạng thái module; có `generated_at`; mục "key_systems", "by_kind", "sources" khớp kho tại lúc sinh.
 - **POST-4** Nhận xét AI lưu tại `rep_weekly_ai`/`rep_pdpl`, ghi một mục `ai_activity` (D-48) qua module `ai`.
 
@@ -52,19 +54,22 @@
 `rep_schedule`, `rep_history`, `rep_weekly_ai`, `rep_pdpl`.
 
 ## Events
-- **Phát**: `report.sent` (tên đề xuất) cho nhật ký.
-- **Nhận**: tick lịch từ `core/jobs`. Không nhận sự kiện của module khác.
+- **Phát**: không phát sự kiện bus; mọi thay đổi và mỗi lần gửi ghi `core_audit` (`report.schedule`, `report.send`, `report.pdpl_org`, `report.pdpl_generate`, `report.ai_summary`). `notify` chưa đăng ký `reports.report.ready` (chưa có người cần).
+- **Nhận**: job `weekly-send` (1 phút một lần) từ `core/jobs`. Không nhận sự kiện của module khác.
 
 ## Khi tắt module (SYS-5)
 Không route `/reports/*`, không job gửi theo lịch. Trang Reports "module đang tắt". `rep_*` (lịch, lịch sử, thông tin tổ chức, báo cáo đã sinh) giữ nguyên; bật lại thì lịch tiếp tục, không gửi bù hàng loạt.
+
+## Ports (cmd/vedette/reports.go)
+`Inventory.Devices` (không kể hộp), `Findings.All`, `KEV.Entries` (+ giờ kéo), `Mailer.Ready/Send` (notify), `AI.Available/Summarize` (ai: việc `weekly-report`, `pdpl-assessment`), `Modules.Enabled`. Reports không đọc bảng của module khác.
 
 ## Dependencies
 - **DEPENDS ON**: `core` (jobs, audit), `inventory` (thiết bị, nguồn kiểm kê), `feeds` (KEV), `notify` (gửi, mềm nhưng cần để gửi), `ai` (nhận xét, mềm), `scan`/`logs`/`honeypot` (mềm, mở rộng số liệu).
 - **DEPENDED ON BY**: không module nào. `core/logs export` không dùng.
 
 ## Câu hỏi mở
-1. `docs/MODULES.md` liệt `reports` phụ thuộc `inventory, feeds (+scan, logs)` mà không có `notify`, trong khi gửi theo lịch cần kênh email. Đề xuất: thêm `notify` vào `depends` hoặc ghi rõ "không gửi được khi `notify` tắt" (đã làm ở `soft_depends`).
+1. *(đã chốt: `notify` là phụ thuộc mềm, không gửi được khi `notify` tắt — D-236)* `docs/MODULES.md` liệt `reports` phụ thuộc `inventory, feeds (+scan, logs)` mà không có `notify`, trong khi gửi theo lịch cần kênh email. Đề xuất: thêm `notify` vào `depends` hoặc ghi rõ "không gửi được khi `notify` tắt" (đã làm ở `soft_depends`).
 2. `honeypot`/`logs` cần phơi dữ liệu thống kê qua interface (số chạm bẫy, bất thường/tuần) nếu muốn đưa vào báo cáo tuần.
-3. Gửi bù khi hộp tắt đúng giờ lịch: có hay không?
-4. S-REP-2 nói "xuất PDF"; mock chỉ in qua trình duyệt (không có tệp PDF từ máy chủ). Chấp nhận in-to-PDF hay cần PDF phía máy chủ (khi đó thêm dependency → `THIRD_PARTY_NOTICES.md`)?
-5. `PdplOrg` có tên, email, điện thoại người liên hệ: có được đưa vào prompt của AI không? Hook `block-pii` sẽ che; cần quyết định có gửi trường này hay không.
+3. *(đã chốt: D-235 (4), một lần trong 24 giờ)* Gửi bù khi hộp tắt đúng giờ lịch: có hay không?
+4. *(đã chốt: in-ra-PDF của trình duyệt, D-236)* S-REP-2 nói "xuất PDF"; mock chỉ in qua trình duyệt (không có tệp PDF từ máy chủ). Chấp nhận in-to-PDF hay cần PDF phía máy chủ (khi đó thêm dependency → `THIRD_PARTY_NOTICES.md`)?
+5. *(đã chốt: không đưa vào lời nhắc AI, D-238)* `PdplOrg` có tên, email, điện thoại người liên hệ: có được đưa vào prompt của AI không? Hook `block-pii` sẽ che; cần quyết định có gửi trường này hay không.

@@ -263,13 +263,21 @@ EOT
 		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"
 		ok "D-267: --uninstall removed the four vedette-int rules and left the administrator's own rule"
 		# the fake Docker goes again, so that the checks below see the box as it was
-		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; command -v nft >/dev/null 2>&1 && nft delete table ip filter 2>/dev/null; true'
+		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; true'
 		fwd_checked=
+		# the chain was made by this case, so the uninstall rightly kept the nft table "ip filter" (warning: left the nft table); it goes
+		# once nft is there to remove it (below)
+		fwd_table=1
 	fi
 	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
 	x '! dpkg -s podman >/dev/null 2>&1 && ! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left podman or vedette-host"
 	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables and removed podman and vedette-host"
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends nftables >/dev/null 2>&1' || fail "cannot install nftables to look at the tables"
+	if [ -n "${fwd_table:-}" ]; then
+		grep -q "left the nft table ip filter" "$work/un2.log" || fail "D-267: the uninstall did not say it left the table of the fake Docker chain"
+		x 'nft delete table ip filter' || fail "cannot remove the nft table of the fake Docker chain"
+		fwd_table=
+	fi
 	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
 	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
 	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot

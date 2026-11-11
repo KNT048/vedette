@@ -23,7 +23,7 @@ func clean(s string) bool {
 }
 
 func TestSanitizeWeb(t *testing.T) {
-	in := "a‮b​c\x00d\te  f\r\n\n\n\ng\xff"
+	in := "a\u202eb\u200bc\x00d\te  f\r\n\n\n\ng\xff"
 	got := sanitizeWeb(in)
 	if got != "abcd e f\n\ng�" || !clean(got) {
 		t.Fatalf("sanitizeWeb = %q", got)
@@ -138,7 +138,7 @@ func FuzzParseFeed(f *testing.F) {
 }
 
 func FuzzParseNVD(f *testing.F) {
-	f.Add([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2024-3400","descriptions":[{"lang":"en","value":"x‮"}],"references":[{"url":"https://a.example","tags":["Patch"]}]}}]}`))
+	f.Add([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2024-3400","descriptions":[{"lang":"en","value":"x\u202e"}],"references":[{"url":"https://a.example","tags":["Patch"]}]}}]}`))
 	f.Add([]byte(`{"totalResults":0,"vulnerabilities":[]}`))
 	f.Fuzz(func(t *testing.T, b []byte) {
 		info, err := parseNVD(b, "CVE-2024-3400")
@@ -171,7 +171,7 @@ func FuzzParseGitHubSearch(f *testing.F) {
 
 func FuzzHTMLToText(f *testing.F) {
 	f.Add(`<p>CVE-2024-3400</p><script>x</script>`, 1000)
-	f.Add("<a href='x'>‮&#0;&#x202e;</a><br/>", 10)
+	f.Add("<a href='x'>\u202e&#0;&#x202e;</a><br/>", 10)
 	f.Fuzz(func(t *testing.T, s string, limit int) {
 		if limit < 0 || limit > 1<<20 {
 			return

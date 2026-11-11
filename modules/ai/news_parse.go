@@ -198,15 +198,14 @@ func htmlToText(src string, limit int) string {
 			}
 		case html.StartTagToken, html.SelfClosingTagToken, html.EndTagToken:
 			name, _ := z.TagName()
-			tag := string(name)
-			if htmlSkip[tag] && tt != html.SelfClosingTagToken {
+			if htmlSkip[string(name)] && tt != html.SelfClosingTagToken {
 				if tt == html.StartTagToken {
 					skip++
 				} else if skip > 0 {
 					skip--
 				}
 			}
-			if htmlBlock[tag] {
+			if htmlBlock[string(name)] {
 				b.WriteByte('\n')
 			} else {
 				b.WriteByte(' ')

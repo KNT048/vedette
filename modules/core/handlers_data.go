@@ -117,9 +117,11 @@ type querier interface {
 }
 
 // dataTables lists the tables that hold data, sorted by name: not SQLite's own and not the migration records, which are the
-// schema and stay in every reset. Each comes with its columns.
+// schema and stay in every reset. Each comes with its columns. Only ordinary tables count: a virtual table (an FTS5 index)
+// and its shadow tables are SQLite's bookkeeping of other tables' data, never deleted or exported row by row (wipe resets
+// them through the FTS5 commands, see resetFTS).
 func dataTables(ctx context.Context, q querier) (map[string][]column, []string, error) {
-	rows, err := q.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'core_migration_*' ORDER BY name`)
+	rows, err := q.QueryContext(ctx, `SELECT name FROM pragma_table_list WHERE schema = 'main' AND type = 'table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'core_migration_*' ORDER BY name`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("core: list tables: %w", err)
 	}

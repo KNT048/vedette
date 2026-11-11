@@ -9,7 +9,6 @@ Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Me
 - [ ] R1 leftover (D-174 covers headers only): a credential-looking key in a template's JSON body (`"password"`, `"api_key"`, `"token"`...) or a secret typed into CLI text ends up in the chain/audit rows and chat messages; add a body-JSON credential-key check at save → slice R2.
 - [ ] L1, L2, L3, L5 response execution path (re-check earlier approver, count unknown-state items, hash-check undo, emergency stop interrupts a running step) + L4 (latent SYS-8, MCP annotations) + L9 (BoxAddrs for decoy IPs) → slice R2, after R1.
 - [ ] L7 response/notify: approver channel identity is typed by an admin, never proven by the user → needs a story criterion (link step in My account) first; slice R3.
-- [ ] M3 core/sensorlink: one sensor can hold all 64 link slots (unread chunked body, no read deadline) → slice S (Mac).
 - [ ] M5 inventory: one SSDP/LLDP frame makes a device a router on response's never-touch list → slice I (Mac).
 - [ ] M6 inventory/cmd/vedette: "IP in use" and new-MAC budget read a list capped at 2000 → slice I.
 - [ ] L8 sensor-active: `recordSweep` has no new-device budget → slice I.

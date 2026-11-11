@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # make sbom / make vuln-scan (WP-08i, D-159): CycloneDX SBOMs and the vulnerability gate, with trivy run from its official container image
 # (pinned by digest in deploy/tools.env), on the LOCAL images of `make images` (tag IMAGE_TAG, every platform of PLATFORMS) and on the source tree.
-#   supply-chain.sh sbom   writes dist/sbom/<image>-<arch>.cdx.json for core, sensor, scan-base and dist/sbom/source.cdx.json
+#   supply-chain.sh sbom   writes dist/sbom/<image>-<arch>.cdx.json for core, sensor, scan-base, honeypot and dist/sbom/source.cdx.json
 #   supply-chain.sh scan   prints every finding (all severities), then fails when an image or the source has a HIGH or CRITICAL vulnerability
 #                          with a fix that .trivyignore.yaml does not except (the file is checked by scripts/trivyignore before this runs)
 # Env (set by the Makefile): CONTAINER (podman|docker), IMAGE_TAG, PLATFORMS, TRIVY_IMAGE, TRIVY_CACHE_DIR (the vulnerability database, 1.7 GB, lives there: on disk, never /tmp, which is RAM),
@@ -16,7 +16,7 @@ c=${CONTAINER:-podman}
 tag=${IMAGE_TAG:-dev}
 platforms=${PLATFORMS:-linux/amd64,linux/arm64}
 : "${TRIVY_IMAGE:?TRIVY_IMAGE is not set (deploy/tools.env, via make)}" "${TRIVY_CACHE_DIR:?TRIVY_CACHE_DIR is not set (via make)}"
-names="core sensor scan-base"
+names="core sensor scan-base honeypot"
 work=dist/supply-work
 sbom=dist/sbom
 vuln=dist/vuln

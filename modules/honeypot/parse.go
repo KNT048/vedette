@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -78,8 +79,8 @@ type rawLine struct {
 	LogType int  `json:"logtype"`
 	SrcHost text `json:"src_host"`
 	DstHost text `json:"dst_host"`
-	SrcPort int  `json:"src_port"`
-	DstPort int  `json:"dst_port"`
+	SrcPort text `json:"src_port"` // OpenCanary's SMB lines carry "-1" as a string; text takes a string or a number
+	DstPort text `json:"dst_port"`
 	UTCTime text `json:"utc_time"`
 	Data    struct {
 		User    text `json:"USERNAME"`
@@ -128,8 +129,14 @@ func ParseLine(line []byte) (Record, error) {
 	return rec, nil
 }
 
-func clampPort(p int) int {
-	if p < 1 || p > 65535 {
+// clampPort reads a port that may arrive as a number or a string; anything that is not 1-65535 (the "-1" of the SMB lines, text) is 0.
+func clampPort(t text) int {
+	s := strings.TrimSpace(string(t))
+	if s == "" || strings.Trim(s, "0123456789") != "" { // plain decimal digits only: no sign, exponent or fraction
+		return 0
+	}
+	p, err := strconv.Atoi(s)
+	if err != nil || p < 1 || p > 65535 {
 		return 0
 	}
 	return p

@@ -82,6 +82,7 @@
 
 ## Modifying: mẫu unit Quadlet, `container.start|stop|rollback` (D-104, D-105)
 - **core**: `User=<core_uid>:<core_gid>` (không `UserNS=auto`) là điều kiện của kiểm peer (`SO_PEERCRED`) và kiểm chủ sở hữu D-87; `PublishPort=8443:8443` không kèm IP để GUI còn tới được sau `net.apply`. Đổi một trong hai → mất GUI hoặc mọi lệnh bị `peer_not_allowed`.
+- **installer (`deploy/deb/postinst`) và `:U` của honeypot (D-162)**: unit honeypot gắn `log/` với `:U`, nên sau lần chạy đầu thư mục `/var/lib/vedette-honeypot/log` thuộc uid 1000 của image (một subuid trên host), không còn là của `vedette`. `postinst` chỉ tạo nó khi chưa có (0755, `vedette`) và **không bao giờ kiểm hay đổi chủ sau đó** (dùng `once` ở đây làm mọi lần nâng cấp sau lần chạy đầu dừng giữa chừng); `host-deb-check.sh` và `TestPostinst_HoneypotLogIsNotCheckedAfterFirstRun` giữ điều đó. Đổi `:U` hay uid của image là đổi hợp đồng này.
 - **sensor/scan/honeypot/greenbone**: capability và mạng nằm trong mẫu; test hợp đồng trên unit đã dựng chặn `--privileged`, `Network=host` ngoài `sensor`/`scan`. `snapshot` bắt buộc cho `container.start(core)`: `core` phải chụp bản trước khi gọi (như `os.install`).
 - **core/updates**: `container.rollback` của `core` khi `rollback.safe=false` khôi phục DB trong cùng run: GUI phải xin xác nhận mất dữ liệu trước khi gọi.
 

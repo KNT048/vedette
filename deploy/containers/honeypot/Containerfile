@@ -1,0 +1,103 @@
+# The `honeypot` image (WP-08e, D-162): OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
+# unit runs inside the network namespace vedette-hp (D-102) with every capability dropped, a read-only root and a tmpfs /tmp.
+# Build from the repository root: `make honeypot-image` (passes the pins of deploy/containers/pins.env as build arguments); `make images` builds it
+# for amd64 and arm64 with the others.
+#
+# What is in it, and where each part is pinned:
+#   * Debian 13 slim, by digest (pins.env DEBIAN_IMAGE), the same base as scan-base.
+#   * Python 3 and Samba: the Debian packages for the TARGET architecture, downloaded by apt on the build machine against the base image's own
+#     dpkg status (so only what the base lacks is added) and unpacked by assemble.py. Versions come from the Debian 13 repositories at build time
+#     (security fixes flow in, like nmap in D-146); the image holds the resulting package list at /usr/share/vedette/honeypot-inventory.txt and the
+#     build fails when Samba is below SAMBA_MIN_VERSION (pins.env). No package is installed by running dpkg on a foreign CPU.
+#   * OpenCanary and every Python dependency: `pip install --require-hashes --only-binary=:all:` of requirements.txt (made by lock.py from
+#     requirements.in: exact versions, every file hashed, wheels for amd64 AND arm64). Three pure-Python packages have no wheel on PyPI
+#     (requirements-sdist.txt): they are built from hash-checked sources into py3-none-any wheels, which the build verifies.
+#   * /vedette: the core binary (static, no cgo), only for the unit's `HealthCmd=["/vedette","honeypot","healthcheck"]` (D-137). See D-162 for
+#     why it is not a smaller binary.
+# Run: init.py is process 1 (see its header), uid 1000 gid 0 from the start; it reads Samba's audit from smbd's stdout (no syslog, no /dev/log, no root).
+#
+# Multi-arch (D-158): every stage with a RUN runs on the BUILD machine; the last stage only COPYs, so arm64 needs no qemu. The `base` stage has no RUN.
+ARG DEBIAN_IMAGE
+ARG GOLANG_IMAGE
+
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
+ARG VERSION
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src
+COPY . .
+RUN set -eu; \
+    printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+
+# The base of the target architecture: read only for its dpkg status, passwd and group (no RUN, so no emulation).
+FROM ${DEBIAN_IMAGE} AS base
+
+FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS rootfs
+ARG TARGETARCH
+ARG OPENCANARY_VERSION
+ARG SAMBA_MIN_VERSION
+COPY --from=base /var/lib/dpkg/status /target/status
+COPY --from=base /etc/passwd /target/passwd
+COPY deploy/containers/honeypot/assemble.py deploy/containers/honeypot/hpfeeds_stub.py deploy/containers/honeypot/requirements.txt deploy/containers/honeypot/requirements-sdist.txt /hp/
+RUN set -eu; \
+    case "${TARGETARCH}" in amd64) tag=x86_64 ;; arm64) tag=aarch64 ;; *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; esac; \
+    [ -n "${OPENCANARY_VERSION}" ] && [ -n "${SAMBA_MIN_VERSION}" ] || { echo "OPENCANARY_VERSION and SAMBA_MIN_VERSION come from pins.env" >&2; exit 1; }; \
+    grep -Eq "^opencanary==${OPENCANARY_VERSION} " /hp/requirements.txt || { echo "requirements.txt does not pin opencanary==${OPENCANARY_VERSION} (run lock.py)" >&2; exit 1; }; \
+    apt-get update -qq; \
+    apt-get install -y -qq --no-install-recommends ca-certificates python3 python3-pip python3-setuptools python3-wheel >/dev/null; \
+    py=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])'); \
+    [ "$py" = 3.13 ] || { echo "the wheels are locked for CPython 3.13, the build machine has $py" >&2; exit 1; }; \
+    # 1. the Debian packages for the target architecture, resolved against what the base already has
+    mkdir -p /dl/partial /var/lib/apt-target/lists/partial; \
+    A="-o APT::Architecture=${TARGETARCH} -o APT::Architectures=${TARGETARCH} -o Dir::State::status=/target/status -o Dir::Cache::archives=/dl -o Dir::State::lists=/var/lib/apt-target/lists -o Dir::Cache::pkgcache= -o Dir::Cache::srcpkgcache= -o Debug::NoLocking=1"; \
+    apt-get $A update -qq; \
+    apt-get $A install -y -qq --download-only --no-install-recommends samba python3 >/dev/null; \
+    mkdir -p /rootfs; \
+    python3 -I /hp/assemble.py debs /dl /target/status /rootfs; \
+    sv=$(dpkg-deb -f /dl/samba_*.deb Version); \
+    dpkg --compare-versions "$sv" ge "${SAMBA_MIN_VERSION}" || { echo "Samba $sv is below the floor ${SAMBA_MIN_VERSION}" >&2; exit 1; }; \
+    # 2. OpenCanary and its dependencies, hash-checked, for the target architecture
+    # (pip does not expand manylinux_2_41 to the older glibc tags: every tag Debian 13's glibc 2.41 accepts is named)
+    plat=""; for m in $(seq 5 41); do plat="$plat --platform manylinux_2_${m}_${tag}"; done; \
+    plat="$plat --platform manylinux2014_${tag} --platform manylinux2010_${tag} --platform manylinux1_${tag}"; \
+    pip install --quiet --no-cache-dir --require-hashes --no-deps --only-binary=:all: --target /rootfs/opt/opencanary/lib \
+      $plat --python-version 3.13 --implementation cp --abi cp313 --abi abi3 --abi none -r /hp/requirements.txt; \
+    # 3. the pure-Python packages without a wheel: built from hash-checked sources, which must give py3-none-any wheels (the same on both architectures)
+    pip wheel --quiet --no-cache-dir --require-hashes --no-deps --no-build-isolation -w /wheels -r /hp/requirements-sdist.txt; \
+    ls /wheels | grep -v -- '-none-any\.whl$' && { echo "a source-built package is not pure Python" >&2; exit 1; }; \
+    pip install --quiet --no-cache-dir --no-deps --no-index --target /rootfs/opt/opencanary/lib /wheels/*.whl; \
+    test -f /rootfs/opt/opencanary/lib/bin/opencanary.tac; \
+    # 4. what the image does not need: manuals, locales, changelogs (the copyright files stay)
+    rm -rf /rootfs/usr/share/man /rootfs/usr/share/info /rootfs/usr/share/locale /rootfs/usr/share/lintian /rootfs/usr/share/bash-completion \
+      /rootfs/opt/opencanary/lib/bin/__pycache__; \
+    find /rootfs/usr/share/doc -type f ! -name copyright -delete; \
+    # hpfeeds (GPL-3) is not shipped: OpenCanary imports it at the top of logger.py but only calls it for an hpfeeds logger, which core never configures
+    cp /hp/hpfeeds_stub.py /rootfs/opt/opencanary/lib/hpfeeds.py; \
+    python3 -I -m compileall -q -j 0 --invalidation-mode unchecked-hash /rootfs/usr/lib/python3.13 /rootfs/opt/opencanary/lib || true; \
+    # 5. the files of the image itself
+    mkdir -p /rootfs/etc/samba /rootfs/usr/share/vedette /rootfs/var/lib/vedette/honeypot/config /rootfs/var/lib/vedette/honeypot/log /rootfs/var/log; \
+    cp /target/passwd /rootfs/etc/passwd; \
+    echo 'hp:x:1000:0:honeypot:/tmp/home:/usr/sbin/nologin' >> /rootfs/etc/passwd; \
+    ln -s /var/lib/vedette/honeypot/config /rootfs/etc/opencanaryd; \
+    ln -s /tmp/samba-audit.log /rootfs/var/log/samba-audit.log; \
+    python3 -I /hp/assemble.py inventory /rootfs /rootfs/usr/share/vedette/honeypot-inventory.txt; \
+    find /rootfs -perm /6000 -exec chmod ug-s {} +; \
+    chmod -R a+rX,go-w /rootfs; \
+    test -x /rootfs/usr/sbin/smbd && test -x /rootfs/usr/bin/python3.13
+
+FROM base
+ARG VERSION
+LABEL org.opencontainers.image.title="vedette-honeypot" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause AND GPL-3.0-or-later"
+COPY --from=rootfs /rootfs/ /
+COPY --from=build /out/vedette /vedette
+COPY --chmod=0644 deploy/containers/honeypot/smb.conf /etc/samba/smb.conf
+COPY --chmod=0644 deploy/containers/honeypot/init.py /usr/local/lib/vedette-hp/init.py
+# OpenCanary 0.9.10 redirects GET / to /index.html and then reads skin/basicLogin/redirect.html, which its wheel does not ship (only nasLogin has it):
+# without this file the web trap answers 500 to the first request of every client. The page is the Apache one the banner claims.
+COPY --chmod=0644 deploy/containers/honeypot/basicLogin-redirect.html /opt/opencanary/lib/opencanary/modules/data/http/skin/basicLogin/redirect.html
+# uid 1000 gid 0 from the first instruction (no root start, no capability; the health command and `exec` run as this user too). gid 0 is the
+# group of the log volume (podman's :U). UserNS=auto maps a range that must contain 1000: the passwd line above is what tells podman.
+USER 1000:0
+ENTRYPOINT ["/usr/bin/python3", "-I", "/usr/local/lib/vedette-hp/init.py"]

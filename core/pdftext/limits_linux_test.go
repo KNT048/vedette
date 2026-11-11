@@ -4,7 +4,7 @@ package pdftext
 
 import (
 	"os"
-	"os/exec"
+	osexec "os/exec" //nolint:depguard // test harness: re-runs this test binary with fixed argv, no shell; SYS-1 is about the product
 	"strconv"
 	"strings"
 	"syscall"
@@ -19,17 +19,17 @@ const limitsHelper = "VEDETTE_PDFTEXT_LIMITS_HELPER"
 func TestMain(m *testing.M) {
 	if os.Getenv(limitsHelper) == "1" {
 		if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &syscall.Rlimit{Cur: 30, Max: 30}); err != nil { // a runner already below 30 s
-			os.Stdout.WriteString("lowering RLIMIT_CPU: " + err.Error())
+			_, _ = os.Stdout.WriteString("lowering RLIMIT_CPU: " + err.Error())
 			os.Exit(3)
 		}
 		if err := setLimits(); err != nil {
-			os.Stdout.WriteString("setLimits: " + err.Error())
+			_, _ = os.Stdout.WriteString("setLimits: " + err.Error())
 			os.Exit(4)
 		}
 		var cpu syscall.Rlimit
 		_ = syscall.Getrlimit(syscall.RLIMIT_CPU, &cpu)
 		score, _ := os.ReadFile("/proc/self/oom_score_adj")
-		os.Stdout.WriteString("cpu=" + strconv.FormatUint(cpu.Max, 10) + " oom=" + strings.TrimSpace(string(score)))
+		_, _ = os.Stdout.WriteString("cpu=" + strconv.FormatUint(cpu.Max, 10) + " oom=" + strings.TrimSpace(string(score)))
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 // silent), and makes itself the OOM killer's first pick, so a PDF that eats the cgroup's memory takes down the child, not core.
 func TestSetLimitsKeepsALowerUnitLimitAndRaisesTheOOMScore(t *testing.T) {
 	t.Parallel()
-	cmd := exec.Command(os.Args[0], "-test.run=^$") //nolint:gosec // the test binary itself
+	cmd := osexec.CommandContext(t.Context(), os.Args[0], "-test.run=^$") //nolint:gosec // the test binary itself
 	cmd.Env = append(os.Environ(), limitsHelper+"=1")
 	out, err := cmd.Output()
 	if err != nil {

@@ -4,7 +4,8 @@
 // - osquery TLS: cờ config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), enroll/config/logger_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
-// - osquery bảng: os_version, deb_packages, rpm_packages, programs, patches, system_info. https://osquery.io/schema/
+// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses. https://osquery.io/schema/
+//   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
 // - osquery cài Linux: kho pkg.osquery.io (deb/pubkey.gpg, rpm/GPG, osquery-s3-rpm.repo) — https://osquery.io/downloads/official (trang cứng không tải được lúc kiểm; lệnh khớp hướng dẫn Wazuh dùng cùng kho:
 //   https://documentation.wazuh.com/current/user-manual/capabilities/system-inventory/osquery.html) và https://osquery.readthedocs.io/en/stable/installation/install-linux/
 // - osquery cài Windows: C:\Program Files\osquery, manage-osqueryd.ps1 -install -startupArgs, Start-Service osqueryd. https://osquery.readthedocs.io/en/stable/installation/install-windows/
@@ -24,11 +25,11 @@ const hostOf = (serverUrl: string) => serverUrl.replace(/^https:\/\//, '')
 export const OSQUERY_SCHEDULE = JSON.stringify({
   schedule: {
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
-    system_info: { query: 'SELECT hostname, cpu_brand, physical_memory, hardware_vendor, hardware_model FROM system_info;', interval: 86400, snapshot: true },
+    system_info: { query: 'SELECT hostname, hardware_vendor, hardware_model FROM system_info;', interval: 86400, snapshot: true },
+    interfaces: { query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600, snapshot: true },
     deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     programs: { query: 'SELECT name, version, publisher, install_date FROM programs;', interval: 3600, snapshot: true, platform: 'windows' },
-    patches: { query: 'SELECT hotfix_id, description, installed_on FROM patches;', interval: 3600, snapshot: true, platform: 'windows' },
   },
 }, null, 2)
 

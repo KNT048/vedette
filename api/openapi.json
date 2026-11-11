@@ -29663,6 +29663,344 @@
         }
       }
     },
+    "/install/osquery/{file}": {
+      "get": {
+        "operationId": "inventory_get_install_osquery_file",
+        "summary": "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/intake/ca.pem": {
+      "get": {
+        "operationId": "inventory_get_intake_ca_pem",
+        "summary": "The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds the same text",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/intake/osquery/config": {
+      "post": {
+        "operationId": "inventory_post_intake_osquery_config",
+        "summary": "osquery config (machine to machine): the read-only snapshot schedule for an enrolled node; node_invalid: true makes osquery enroll again",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "node_key": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "node_key"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "query": {
+                            "type": "string"
+                          },
+                          "interval": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "snapshot": {
+                            "type": "boolean"
+                          },
+                          "platform": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "query",
+                          "interval"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "node_invalid": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/intake/osquery/enroll": {
+      "post": {
+        "operationId": "inventory_post_intake_osquery_enroll",
+        "summary": "osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key; node_invalid: true when the token is unknown, revoked or expired",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enroll_secret": {
+                    "description": "The enrollment token (osquery reads it from enroll_secret_path)",
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "host_identifier": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "host_details": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "host_identifier"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "node_key": {
+                      "description": "Returned once, only when enrollment succeeds; osquery sends it with every later call",
+                      "type": "string"
+                    },
+                    "node_invalid": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "node_invalid"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/intake/osquery/log": {
+      "post": {
+        "operationId": "inventory_post_intake_osquery_log",
+        "summary": "osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they update the inventory with source agent",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-4"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "node_key": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "log_type": {
+                    "type": "string",
+                    "enum": [
+                      "result",
+                      "status"
+                    ]
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": {}
+                    },
+                    "description": "Events: scheduled-query snapshots (result) or osquery own log lines (status, read for size and dropped)"
+                  }
+                },
+                "required": [
+                  "node_key",
+                  "log_type",
+                  "data"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "node_invalid": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "node_invalid"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/intake/osquery/status": {
       "post": {
         "operationId": "inventory_post_intake_osquery_status",

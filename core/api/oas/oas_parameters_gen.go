@@ -5335,6 +5335,71 @@ func decodeInventoryDeleteInventoryDevicesIDSoftwareSidParams(args [2]string, ar
 	return params, nil
 }
 
+// InventoryGetInstallOsqueryFileParams is parameters of inventory_get_install_osquery_file operation.
+type InventoryGetInstallOsqueryFileParams struct {
+	File string
+}
+
+func unpackInventoryGetInstallOsqueryFileParams(packed middleware.Parameters) (params InventoryGetInstallOsqueryFileParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "file",
+			In:   "path",
+		}
+		params.File = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryGetInstallOsqueryFileParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInstallOsqueryFileParams, _ error) {
+	// Decode path: file.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "file",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.File = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "file",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // InventoryGetInventoryCatalogParams is parameters of inventory_get_inventory_catalog operation.
 type InventoryGetInventoryCatalogParams struct {
 	Q string

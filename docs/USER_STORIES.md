@@ -42,6 +42,12 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-INV-3** (P2) `[đạt]` — Thiết bị mới xuất hiện trong LAN → tôi được báo (tuỳ chọn) và nó vào danh sách "chưa duyệt".
 
 **S-INV-4** (P4) `[đạt]` — Tôi cài osquery trên máy chủ Linux/Windows (mặc định), hoặc nối Wazuh có sẵn qua API chỉ đọc, để Vedette biết đúng gói/phiên bản và bớt "nghi" (D-33).
+- Kích hoạt: Inventory → Agents → tạo token, chạy một dòng lệnh trên máy chủ (hoặc nhập địa chỉ + tài khoản chỉ đọc của Wazuh). Thấy: dòng token có "last received" chuyển từ "never" sang một mốc giờ, thiết bị xuất hiện (chưa duyệt) với danh sách gói nguồn `agent`; thẻ Wazuh chuyển `connected` kèm số agent/gói. Bấm: duyệt thiết bị như mọi thiết bị khác; thu hồi token khi máy không còn dùng. Nhận: gói/phiên bản thật, khớp KEV theo gói, bớt "nghi".
+- Chấp nhận (D-169, WP-26 lát 0): token chỉ để đăng ký (osquery gửi token một lần lúc `enroll`, nhận `node_key` riêng của máy); token hết hạn **không** làm máy đã đăng ký ngừng báo, thu hồi token thì máy đó bị cắt ở lần gọi kế tiếp (dữ liệu đã nhận giữ nguyên); mọi lỗi thông tin xác thực trả HTTP 200 với `node_invalid: true`, không phân biệt "không có" với "đã thu hồi".
+- Chấp nhận (D-169): hộp nhận biết máy qua truy vấn `interfaces` (IPv4 và MAC, hiện trong "What Vedette asks osquery for") và qua địa chỉ TCP của kết nối: chỉ ghi gói khi địa chỉ kết nối nằm trong các IPv4 máy khai; không khớp (NAT, IPv6) thì không ghi gì (đóng kín). Lịch truy vấn không còn `cpu_brand`, `physical_memory`, `patches` (kho không có trường cho chúng).
+- Chấp nhận (D-169): chứng chỉ osquery ghim là CA riêng của hộp (CA ký chứng chỉ 8443 tự tạo; gia hạn hay đổi địa chỉ chỉ cấp lại chứng chỉ lá, máy đã đăng ký không phải chạy lại lệnh cài). Chứng chỉ chủ hộp tự đưa vào (`-tls-cert`) không bị đụng: script ghim chuỗi chứng chỉ chủ hộp đưa.
+- Chấp nhận (D-169): gói osquery chính thức do hộp phục vụ (đóng sẵn trong image, hash ghim, không tải lúc chạy, không luồng dữ liệu ra mới); tên khác ngoài danh sách là 404.
+- Chấp nhận (D-169): Wazuh chỉ đọc (một POST đăng nhập, còn lại GET trên danh sách đường dẫn cho phép); chứng chỉ Wazuh tự ký được ghim lần đầu (trust on first use) và bấm Save lại là tin chứng chỉ mới; Wazuh trả danh sách gói rỗng cho máy đã có gói thì không xoá dữ liệu cũ; luồng này có dòng riêng trong PRIVACY và Settings → Privacy.
 **S-INV-5** (P2) `[đạt]` (D-53) — Chính hộp Vedette là thiết bị đầu tiên trong danh sách, có danh sách gói thật, được khớp lỗ hổng như thiết bị khác và không xoá được.
 
 ## EXP — Bề mặt ngoài

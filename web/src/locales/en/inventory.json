@@ -456,7 +456,7 @@
       "advanced": "Advanced: manual setup",
       "advancedBody": "The same result step by step, for locked-down servers or your own packaging.",
       "queries": "What Vedette asks osquery for",
-      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it."
+      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device."
     },
     "steps": {
       "linux": {

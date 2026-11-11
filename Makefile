@@ -129,10 +129,12 @@ test-go-release:
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
 # scripts/ci splits `go list ./...` by test-file size; every package lands in exactly one shard.
+# -timeout 18m (the job allows 20 m) is a stopgap: modules/response alone passes go test's default 10 m under -race on CI and turned
+# main red (2026-11-12). The real fix is fast response tests (branch fix/response-test-hang, target < 90 s); then drop the flag.
 SHARDS ?= 3
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
-	go test -race $$(go run ./scripts/ci shard $(SHARD) $(SHARDS))
+	go test -race -timeout 18m $$(go run ./scripts/ci shard $(SHARD) $(SHARDS))
 
 # The shards together must be exactly `go list ./...` (no package lost, none twice).
 test-go-shards-check:

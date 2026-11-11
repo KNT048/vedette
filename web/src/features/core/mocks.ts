@@ -727,7 +727,7 @@ const dataHandlers = [
     if (denied) return denied
     audit('data.backup', 'backup')
     // Không đưa mật khẩu và khoá vào bản sao lưu mock (SYS-4).
-    return download(`vedette-backup-${stamp()}.json`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
+    return download(`vedette-backup-${stamp()}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
   }),
   http.get(`${API}/core/data/export`, () => {
     const denied = guard('admin')

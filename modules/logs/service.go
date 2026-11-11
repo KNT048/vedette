@@ -148,6 +148,29 @@ func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
 	return out, rows.Err()
 }
 
+// SourceName is the id, name and device kind of a declared source.
+type SourceName struct{ ID, Name, Kind string }
+
+// SourceNames lists the declared sources by creation time (id, name, kind) from logs_sources only: no inventory lookup, no volume read, no box
+// address. It is the narrow read for a caller that asks often (response, once a minute, to name the sources of its log rules); Sources is
+// the Logs page view and costs much more.
+func (s *Service) SourceNames(ctx context.Context) ([]SourceName, error) {
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, name, kind FROM logs_sources ORDER BY created_at, id`)
+	if err != nil {
+		return nil, fmt.Errorf("logs: reading sources: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []SourceName{}
+	for rows.Next() {
+		var n SourceName
+		if err := rows.Scan(&n.ID, &n.Name, &n.Kind); err != nil {
+			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
 // Sources lists the declared sources with their state, the box address and the retention (GET /logs/sources).
 func (s *Service) Sources(ctx context.Context) (SourcesView, error) {
 	rows, err := s.loadSources(ctx)

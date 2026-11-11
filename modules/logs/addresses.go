@@ -37,8 +37,9 @@ type AddressCount struct {
 
 // neverSet is the addresses that are never counted (the box, its gateway, the honeypot's decoys): what Config.NeverCount said.
 type neverSet struct {
-	at   time.Time
-	addr map[netip.Addr]struct{}
+	at      time.Time
+	addr    map[netip.Addr]struct{}
+	failing bool // the last ask failed
 }
 
 // neverCounted returns the test of "this address is the box" for a batch: the port is asked at most every neverCountTTL (a failed ask keeps
@@ -54,9 +55,10 @@ func (s *Service) neverCounted(ctx context.Context) func(netip.Addr) bool {
 		cctx, cancel := context.WithTimeout(ctx, neverCountTimeout)
 		list, err := s.cfg.NeverCount(cctx)
 		cancel()
-		if err != nil {
+		if err != nil && !s.never.failing { // said once for a run of failures, not every 30 seconds
 			s.cfg.Log.WarnContext(ctx, "logs: the addresses of the box are not known; the last set is used", "error", err)
 		}
+		s.never.failing = err != nil
 		if err == nil || s.never.addr == nil {
 			set := make(map[netip.Addr]struct{}, len(list))
 			for _, a := range list {

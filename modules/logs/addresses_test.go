@@ -538,3 +538,21 @@ func TestMeasureIngestCostOfAddresses(t *testing.T) {
 		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s tunnel refused from %s", words[i/2%25], spoof(i/2+300000))
 	})
 }
+
+// SourceNames is the narrow read: names and kinds from logs_sources, in creation order, and it asks the inventory nothing.
+func TestSourceNames(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Inventory = nil
+	if got, err := e.svc.SourceNames(t.Context()); err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("%v %v", got, err)
+	}
+	a := e.add("FW-HQ", "192.168.10.1")
+	e.advance(time.Second)
+	b := e.add("FW-B", "192.168.10.3")
+	got, err := e.svc.SourceNames(t.Context())
+	want := []SourceName{{a.ID, "FW-HQ", "fortigate"}, {b.ID, "FW-B", "fortigate"}}
+	if err != nil || len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("%v %v", got, err)
+	}
+}

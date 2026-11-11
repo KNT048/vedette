@@ -106,3 +106,21 @@ func listenPacket(network, addr string) (net.PacketConn, error) {
 	var lc net.ListenConfig
 	return lc.ListenPacket(context.Background(), network, addr)
 }
+
+// D-210: logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses
+// (an install without vedette-host has nothing more to ask; a host that has not answered is an error, which logs answers by keeping its last set).
+func TestLogsNeverCountListsTheBox(t *testing.T) {
+	t.Parallel()
+	d := &deps{Hosts: []string{"198.51.100.77", "[2001:db8::77]", "box.example"}}
+	got, err := logsNeverCount(d)(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]bool{}
+	for _, a := range got {
+		have[a.String()] = true
+	}
+	if !have["198.51.100.77"] || !have["2001:db8::77"] || have["box.example"] {
+		t.Fatalf("%v", got)
+	}
+}

@@ -199,13 +199,23 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 	// The first-run setup needs a box of its own.
 	w2 := newWorld(t)
 	code2 := w2.openSetup()
+	// The purge wipes the box it runs on, so it has a box of its own too.
+	w3 := newDataWorld(t)
+	admin3 := w3.setupAdmin()
 
 	var bobID string
 	var totpKey []byte
 	var connID string
 	const newPassword = "a brand new long password"
+	// The purge empties the log, so it leaves one data.purge row, fewer than before (INV-2's only exception): it is checked by that row.
+	wroteRow := map[string]func(*world) bool{
+		"core_post_core_data_purge": func(sw *world) bool {
+			return sw.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'data.purge'") == 1
+		},
+	}
 	steps := []auditStep{
 		{"core_post_core_setup", w2, func() reply { return w2.client().post("/core/setup", setupBody(code2)) }},
+		{"core_post_core_data_purge", w3.world, func() reply { return admin3.post("/core/data/purge", purgeBody()) }},
 		{"core_post_auth_login", nil, func() reply { return w.client().login(adminEmail) }},
 		{"core_delete_core_account_sessions_id", nil, func() reply { return admin.delete("/core/account/sessions/" + c2ID) }},
 		{"core_post_auth_logout", nil, func() reply { return c4.post("/auth/logout", nil) }},
@@ -290,6 +300,12 @@ func TestContract_INV2_EveryCoreMutationIsAudited(t *testing.T) {
 		r := st.run()
 		if r.Code >= 400 {
 			t.Fatalf("%s = %d %s", st.op, r.Code, r.Raw)
+		}
+		if wrote := wroteRow[st.op]; wrote != nil {
+			if !wrote(sw) {
+				t.Errorf("%s changed state and left no core_audit row", st.op)
+			}
+			continue
 		}
 		if sw.env.Count(t, "SELECT count(*) FROM core_audit") <= before {
 			t.Errorf("%s changed state and left no core_audit row", st.op)

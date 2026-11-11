@@ -18,7 +18,7 @@ import (
 )
 
 // AI plans (S-RESP-1). The plans are written by the AI job of part 13b into resp_plans; this part reads them and turns one
-// proposal into an approval request. Nothing here asks an AI anything.
+// proposal into an approval request. planner.go writes them; nothing in this file asks an AI anything.
 
 // storedProposal is what the plan job (part 13b) stores for one proposed action: the catalog action and the typed values of
 // its parameters, and nothing else. It never holds a command, an API path or a body: the change is rendered from the
@@ -142,7 +142,7 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 	if err != nil {
 		return PlanList{}, err
 	}
-	out := PlanList{Items: []Plan{}, Execution: st.Execution}
+	out := PlanList{Items: []Plan{}, Execution: st.Execution, AIAvailable: s.aiAvailable(ctx)}
 	for _, p := range plans {
 		if s.cfg.Directory != nil {
 			f, ok, err := s.cfg.Directory.Finding(ctx, p.FindingID)
@@ -154,7 +154,7 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 			}
 		}
 		pl := p.Plan
-		pl.SentTo = s.liveChannels(ctx)
+		pl.SentTo = []string{} // a plan is not sent anywhere: only a request is
 		for _, x := range p.steps {
 			step := PlanStep{Kind: x.Kind, Title: x.Title, Detail: x.Detail}
 			if x.Proposal != nil {
@@ -169,16 +169,6 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 		out.Items = append(out.Items, pl)
 	}
 	return out, nil
-}
-
-func (s *Service) liveChannels(ctx context.Context) []string {
-	out := []string{}
-	for _, n := range s.channelNames(ctx) {
-		if n != "the app" {
-			out = append(out, n)
-		}
-	}
-	return out
 }
 
 // planRefusal turns a planning failure into the API error of the request.
@@ -258,6 +248,10 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 				refusal = fail(http.StatusConflict, "execution_off", offMsg)
 				return nil
 			}
+			if e := checkAIPaused(st); e != nil { // a request made from an AI plan is an AI request (INV-15 (3))
+				refusal = e
+				return nil
+			}
 			if w := maintenanceNow(st, s.now()); w != nil {
 				refusal = fail(http.StatusConflict, "maintenance", "Held: maintenance window \""+oneLine(w.Name, 80)+"\" is active. Nothing was requested.")
 				return nil
@@ -291,6 +285,12 @@ func (s *Service) RequestProposal(ctx context.Context, who Actor, pid string) (A
 			if f != nil {
 				refusal = planRefusal(f)
 				return nil
+			}
+			if s.cfg.Directory != nil { // the stored values are checked again against the device the inventory says the finding is on
+				if why := aboutTheDevice(Values(pl.rec.Values), cats[prop.ActionID], subject); why != "" {
+					refusal = fail(http.StatusConflict, "evidence_mismatch", "This proposal is not about the device of the finding: "+why+". Nothing was requested.")
+					return nil
+				}
 			}
 			existing, err := loadReqs(ctx, tx, `WHERE proposal_id = ? AND status IN ('pending', 'approved', 'executed')`, pid)
 			if err != nil {

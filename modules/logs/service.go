@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -32,14 +33,27 @@ type Config struct {
 type Service struct {
 	cfg Config
 	now func() time.Time
-	// maxEvents is MaxEvents; a variable so that a test can lower it.
-	maxEvents int64
+	// maxBytes is MaxEventBytes and exportBytes is ExportMaxBytes; variables so that a test can lower them.
+	maxBytes, exportBytes int64
+	// kick wakes the purge job (capacity 1); Ingest sends without blocking when the volume is over the bound.
+	kick chan struct{}
+	// lastStart is when the last purge started; read and written only by the purge job's loop, which is safe only because there
+	// is exactly one loop per Service (one Run of the job at a time).
+	lastStart time.Time
+	// afterPass, when set by a test, runs each time the loop has handled a wake-up (ran: a purge ran, not skipped by the gap).
+	afterPass func(ran bool)
+	// resynced is true once the byte counter was recomputed from the rows in this process.
+	resynced atomic.Bool
 	// chunk is purgeChunk; afterChunk, when set by a test, runs after every purge transaction (the writer is free then).
 	chunk int
 	// searchSem holds MaxSearches tokens; searchTimeout is SearchTimeout (a field so that a test can shorten it).
 	searchSem     chan struct{}
 	searchTimeout time.Duration
 	afterChunk    func()
+	// afterStart, when set by a test, runs right after the "logs.purge_started" row is written.
+	afterStart func()
+	// afterSum, when set by a test, runs in resync after the sum is read, while the read transaction is still open.
+	afterSum func()
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -54,7 +68,7 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxEvents: MaxEvents, chunk: purgeChunk, searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

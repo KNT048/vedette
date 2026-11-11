@@ -4,15 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// The zone list of the box must not depend on the host (a slim container has none): PUT /core/general
 	// validates time zone names and the audit filters turn a day into hours with them.
 	_ "time/tzdata"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
@@ -47,6 +50,23 @@ type APIHandlers struct {
 	logsBusy bool
 	logsLast time.Time
 	logsGap  time.Duration // 0 = logExportGap; a test sets a negative value to turn the limit off
+
+	exporting atomic.Bool // one /core/data/export at a time, from the audit row until the body is closed
+	exportCap int64       // test hook: the size cap of /core/data/export (0 = exportMaxBytes)
+
+	// The factory reset (/core/data/purge, D-154).
+	dataDir    string      // core_data: where the module data files and snapshots/ are ("" = none to remove)
+	dataFiles  []string    // plain names of the module data files in dataDir (logs.db)
+	schema     []SchemaSet // migrations of every module, to learn what a fresh install holds
+	restart    func()      // asked to restart the process after a purge; nil = no restart
+	keyPath    string      // the encryption key file the purge replaces ("" = none)
+	purgeHost  PurgeHost   // vedette-host, for the backups; nil = no helper on this box
+	osBusy     func(context.Context) bool
+	beforeWipe func(context.Context) error
+	gate       *PurgeGate
+	alsoKept   []oas.CorePostCoreDataPurgeOKKeptItem
+	keepRows   []KeepRow
+	freezes    []*store.DB // other databases of the box (logs.db): frozen for the purge, thawed when it fails
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -64,6 +84,35 @@ type HandlersConfig struct {
 	SpoolDir string
 	Logs     *logexport.Registry // optional: where the modules register their log sources (INV-13); core adds "audit"; nil = a registry of its own
 	Clock    func() time.Time    // nil: time.Now
+
+	// The factory reset, POST /core/data/purge (D-154). DataDir is core_data (the directory of the database file); DataFiles are plain
+	// names of the data files the modules keep there besides vedette.db (today logs.db, D-151), checked against dataFileRE; both
+	// optional (no DataDir: no files are removed). Schema is the migrations of every module in order and is required for the purge.
+	// Restart, when not nil, is called shortly after a purge has answered: the process must start again, because what its modules
+	// hold in memory (the sensor CA, caches) belongs to the data that is gone; the supervisor (Quadlet, Restart=always) brings it back.
+	DataDir   string
+	DataFiles []string
+	Schema    []SchemaSet
+	Restart   func()
+	// KeyPath is the encryption key file (-key): the purge replaces it with a fresh key (D-154). Host is vedette-host as far as the purge
+	// needs it (nil = no helper: backups are not deleted and the answer says so). OSBusy reports a running OS update of core itself.
+	// BeforeWipe runs before anything is deleted and may refuse the purge with an error; cmd/vedette turns the honeypot off (decoy
+	// addresses leave the host) and empties its log there. All optional.
+	KeyPath    string
+	Host       PurgeHost
+	OSBusy     func(context.Context) bool
+	BeforeWipe func(context.Context) error
+	// Gate is shared with the OS and network handlers (OSConfig.Gate, NetworkConfig.Gate): shut while a purge runs (N4). nil = its own.
+	Gate *PurgeGate
+	// AlsoKept names what a purge leaves on the box besides what it always reports ("honeypot_log": the honeypot's raw log, which the
+	// honeypot container owns), and KeepRows the rows that must survive the wipe because they describe it (the honeypot's read position
+	// in that log, so old events are not read again). Both set by cmd/vedette.
+	AlsoKept []string
+	KeepRows []KeepRow
+	// AlsoFreeze are the other databases of the box whose files the purge removes or that must not take a write once it has wiped (logs.db,
+	// DataFiles): each is frozen under its own write lock (so a write in flight finishes first, and nothing is written after) before the
+	// files move, and thawed if the purge fails. After a success they stay frozen until the process stops.
+	AlsoFreeze []*store.DB
 }
 
 // NewAPIHandlers returns the handlers.
@@ -82,7 +131,23 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 			return nil, err
 		}
 	}
-	h := &APIHandlers{logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	if err := checkDataFiles(c.DataFiles); err != nil {
+		return nil, err
+	}
+	if c.DataDir != "" { // what an interrupted purge left behind: the old data in the trash, the scratch databases, a half-written new key
+		sweepPurgeLeftovers(c.DataDir, c.KeyPath)
+	}
+	if c.Gate == nil {
+		c.Gate = &PurgeGate{}
+	}
+	var alsoKept []oas.CorePostCoreDataPurgeOKKeptItem
+	for _, k := range c.AlsoKept {
+		if k != string(oas.CorePostCoreDataPurgeOKKeptItemHoneypotLog) {
+			return nil, fmt.Errorf("core: HandlersConfig.AlsoKept: %q is not a kept item a caller may add", k)
+		}
+		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
+	}
+	h := &APIHandlers{freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

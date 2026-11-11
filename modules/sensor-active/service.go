@@ -44,6 +44,7 @@ type Config struct {
 	Inventory Inventory
 	Observe   observe.Sink         // the inventory, through core/observe
 	Software  observe.SoftwareSink // the inventory, through core/observe
+	Services  observe.ServiceSink  // the inventory, through core/observe; nil: the open ports are not recorded
 	Events    Publisher
 	NmapPath  string // absolute path of the OS package's nmap; Health reads it, and the local Prober runs it
 	// Prober runs the nmap command the module has already checked. Nil means the local one, core/exec around
@@ -63,6 +64,7 @@ type Service struct {
 	inv    Inventory
 	obs    observe.Sink
 	sw     observe.SoftwareSink
+	svc    observe.ServiceSink // may be nil
 	events Publisher
 	path   string
 	prober Prober
@@ -95,7 +97,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Inventory == nil || cfg.Observe == nil || cfg.Software == nil {
 		return nil, errors.New("sensoractive: New needs DB, Inventory, Observe and Software")
 	}
-	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudgetLimits(sweepNewPerMinute, sweepNewPerHour)}
+	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, svc: cfg.Services, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudgetLimits(sweepNewPerMinute, sweepNewPerHour)}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -901,7 +903,8 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	return err
 }
 
-// recordDevice stores what a service scan found about ip. A host that did not answer changes nothing.
+// recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host
+// timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them.
 func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
@@ -915,8 +918,16 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host)
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
 		}
 	}
+	if h.timedOut {
+		return nil
+	}
 	if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
 		return fmt.Errorf("sensoractive: recording software: %w", err)
+	}
+	if s.svc != nil {
+		if err := s.svc.ReplaceServices(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
+			return fmt.Errorf("sensoractive: recording services: %w", err)
+		}
 	}
 	return nil
 }

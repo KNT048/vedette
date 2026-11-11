@@ -216,6 +216,7 @@
   },
   "services": {
     "title": "Open services",
+    "description": "Each scan replaces the ports it found. A port no scan has seen for 90 days is removed.",
     "caption": "Services open on the device",
     "port": "Port",
     "name": "Service",

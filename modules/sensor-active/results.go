@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/observe"
 )
@@ -13,6 +14,13 @@ import (
 const nmapCeiling = 0.95
 
 const maxSoftware = 200
+
+// The bounds of the service list the inventory accepts (inventory INV-23, D-350): nmap's normal scan reads its top 1000 ports.
+const (
+	maxServices   = 1000
+	maxSvcName    = 100
+	maxSvcVersion = 100
+)
 
 // accuracyConf scales nmap's accuracy (0..100) to a confidence below 1.
 func accuracyConf(acc int) float64 { return float64(clamp(acc, 0, 100)) / 100 * nmapCeiling }
@@ -153,6 +161,30 @@ func softwareOf(h host) []observe.Software {
 				}
 			}
 		}
+	}
+	return out
+}
+
+// servicesOf lists the open ports of the host for the inventory (D-350): tcp and udp only (the inventory has no other protocol),
+// at most maxServices. A name or version longer than the inventory keeps is left out, so one long banner does not refuse the
+// device's whole list; texts are already printable (text).
+func servicesOf(h host) []observe.Service {
+	out := []observe.Service{}
+	for _, p := range h.ports {
+		if len(out) == maxServices {
+			break
+		}
+		if p.number < 1 || (p.proto != "tcp" && p.proto != "udp") {
+			continue
+		}
+		s := observe.Service{Port: p.number, Proto: p.proto, Name: p.name, Product: p.product, Version: p.version, Confidence: serviceConf(p.conf)}
+		if utf8.RuneCountInString(s.Name) > maxSvcName {
+			s.Name = ""
+		}
+		if utf8.RuneCountInString(s.Version) > maxSvcVersion {
+			s.Version = ""
+		}
+		out = append(out, s)
 	}
 	return out
 }

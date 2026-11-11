@@ -211,7 +211,21 @@ type sink struct {
 	mu   sync.Mutex
 	obs  []observe.Observation
 	sw   map[string][]observe.Software // by IP
+	svc  map[string][]observe.Service  // by IP
 	fail error
+}
+
+func (s *sink) ReplaceServices(_ context.Context, h observe.AssetHint, src observe.Source, items []observe.Service) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if src != observe.Nmap {
+		return fmt.Errorf("source %q", src)
+	}
+	if s.svc == nil {
+		s.svc = map[string][]observe.Service{}
+	}
+	s.svc[h.IP.String()] = items
+	return nil
 }
 
 func (s *sink) Record(_ context.Context, o []observe.Observation) error {
@@ -338,7 +352,7 @@ func (e *env) prober() sa.Prober {
 func (e *env) build() {
 	e.t.Helper()
 	prober := e.prober()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: prober, Clock: e.clock, Location: e.loc})
 	if err != nil {
 		e.t.Fatal(err)
 	}

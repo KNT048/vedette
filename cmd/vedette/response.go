@@ -15,6 +15,7 @@ import (
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 	"github.com/knt048/vedette/modules/response"
@@ -438,7 +439,44 @@ func responseConfig(d *deps) (response.Config, error) {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Bus = d.Bus
 	}
+	if lg := logsService(*d); lg != nil { // nil without a logs.db (a test that builds deps by hand)
+		cfg.LogCounts = responseLogCounts{svc: lg, reg: d.Reg}
+	}
 	return cfg, nil
+}
+
+// responseLogCounts is response's read port of the Logs module for the log_threshold trigger (#332, D-287): the declared sources
+// and logs.Service.Counts. The Logs module off answers an error, so the trigger makes no event (SYS-5), like any trigger whose
+// module is off.
+type responseLogCounts struct {
+	svc *logs.Service
+	reg interface{ Enabled(id string) bool }
+}
+
+var errLogsOff = errors.New("the Logs module is off")
+
+func (r responseLogCounts) off() bool { return r.reg != nil && !r.reg.Enabled("logs") }
+
+func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, error) {
+	if r.off() {
+		return nil, errLogsOff
+	}
+	v, err := r.svc.Sources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]response.LogSource, 0, len(v.Sources))
+	for _, s := range v.Sources {
+		out = append(out, response.LogSource{ID: s.ID, Name: s.Name})
+	}
+	return out, nil
+}
+
+func (r responseLogCounts) Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error) {
+	if r.off() {
+		return 0, errLogsOff
+	}
+	return r.svc.Counts(ctx, sourceID, signature, window)
 }
 
 // responseJobs is the Jobs func of the response entry in wiredModules: the "evaluate" and "sweep" jobs.

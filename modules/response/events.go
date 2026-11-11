@@ -305,10 +305,13 @@ func (s *Service) channelNames(ctx context.Context) []string {
 }
 
 // Jobs returns the jobs of the module: "evaluate" runs the rules on new events and the due schedules; "sweep" expires old
-// requests and undoes changes whose undo time ended. Both run only while the module is on (SYS-5).
+// requests and undoes changes whose undo time ended. "evaluate" also polls the Logs counts for the log_threshold rules (PollLogs). Both run only while the module is on (SYS-5).
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "evaluate", Every: 10 * time.Second, Run: func(ctx context.Context) error {
+			if err := s.PollLogs(ctx); err != nil {
+				return err
+			}
 			if _, err := s.Evaluate(ctx); err != nil {
 				return err
 			}

@@ -6,7 +6,7 @@ import type { Finding } from '@/lib/types'
 import { KINDS, TRIGGERS } from './data'
 import { SEED_RULES, TEMPLATES } from './templates'
 import { exposingVip } from './templates/sample-firewall'
-import { checkValues, condText, evalCondition, isCidr, isIpv4, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
+import { checkValues, condText, evalCondition, isCidr, isIpv4, logSignature, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
 import {
   actionsStore, allowStore, approve, breakerOpen, BREAKER_MSG, buildChange, catById, checkBreaker, connById, doneStore, HOUR, isObj, maintenanceNow, newRequest, paramsOf, refuse, requiredApprovals,
   reversible, str, step, targetCount, TEXT_RE, unavailable, isOpen,
@@ -87,8 +87,9 @@ export function events(): Det[] {
       fields: { ip: a.ip, mac: a.mac ?? '', vendor: a.vendor?.value ?? 'Unknown vendor', kind: KINDS.includes(a.kind) ? a.kind : 'unknown' } })
   }
   if (sample) {
-    add({ id: 'det-s-log-1', trigger: 'log_threshold', ts: daysAgo(0, 0.4), device_kind: null, asset_id: null, summary: '12 failed VPN logins from 203.0.113.99 in 5 minutes', fields: { source_device: 'vpn-client-203', source_ip: '203.0.113.99', signature: 'vpn_login_failed', count: '12', window: '5' } })
-    add({ id: 'det-s-log-2', trigger: 'log_threshold', ts: daysAgo(0, 3), device_kind: null, asset_id: null, summary: '8 failed SSH logins from 203.0.113.45 in 10 minutes', fields: { source_device: 'ssh-scan', source_ip: '203.0.113.45', signature: 'ssh_login_failed', count: '8', window: '10' } })
+    // a log count names the log source, not an address (D-287): source_ip stays empty until Logs counts per address (#338)
+    add({ id: 'det-s-log-1', trigger: 'log_threshold', ts: daysAgo(0, 0.4), device_kind: null, asset_id: null, summary: '12 lines of "logid=0101039426 action=ssl-login-fail" from FW-HQ in 5 minutes (at least 10)', fields: { source_device: 'FW-HQ', source_ip: '', signature: 'logid=0101039426 action=ssl-login-fail', count: '12', window: '5', threshold: '10' } })
+    add({ id: 'det-s-log-2', trigger: 'log_threshold', ts: daysAgo(0, 3), device_kind: null, asset_id: null, summary: '24 lines of "Failed password for <name> from <ip> port <n> ssh<n>" from linux-bastion in 10 minutes (at least 20)', fields: { source_device: 'linux-bastion', source_ip: '', signature: 'Failed password for <name> from <ip> port <n> ssh<n>', count: '24', window: '10', threshold: '20' } })
     add({ id: 'det-s-port-1', trigger: 'new_port', ts: daysAgo(0, 5), device_kind: 'web', asset_id: null, summary: 'New open port 8080 on public IP 203.0.113.10 (http-alt)', fields: { ip: '203.0.113.10', port: '8080', service: 'http-alt', device: 'WEB-01' } })
   }
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
@@ -122,7 +123,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
     const f = trig.fields.find((x) => x.key === field)
     const n = Number.isInteger(c.n) ? (c.n as number) : null, win = Number.isInteger(c.window_min) ? (c.window_min as number) : null
     if (c.op === 'device_type') { if (!value.split(',').every((k) => KINDS.includes(k.trim()))) return 'Device type: use device types such as camera, nvr, iot.' } else if (!f) return `The field "${oneLine(field, 30)}" does not exist for this trigger.`
-    if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
+    if (logSignature(trig.id, { op: c.op, field })) { if (!value.trim() || value !== oneLine(value, 200)) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
     if (c.op === 'in_cidr' && !isCidr(value)) return 'In range: give a CIDR range such as 192.168.10.0/24.'
     if ((c.op === 'gte' || c.op === 'lte') && !(value !== '' && Number.isFinite(Number(value)))) return 'At least / at most: give a number.'
     if (c.op === 'count_window' && (n === null || n < 1 || n > 1000 || win === null || win < 1 || win > 1440)) return 'Count in window: give how many (1 to 1000) and the minutes (1 to 1440).'
@@ -130,6 +131,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
     if (!['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time'].includes(c.op)) return 'Unknown condition test.'
     conds.push({ field, op: c.op as Condition['op'], value, n: c.op === 'count_window' || c.op === 'first_time' ? n : null, window_min: c.op === 'count_window' ? win : null })
   }
+  if (trig.id === 'log_threshold') { const sigs = conds.filter((c) => logSignature(trig.id, c)); if (sigs.length !== 1 || (sigs[0]!.window_min ?? 0) < 5) return 'A log rule needs exactly one condition "signature seen at least N times within W minutes", with W from 5 to 1440 minutes (the log counters are 5 minutes wide).' }
   if (!Array.isArray(b.actions) || b.actions.length < 1 || b.actions.length > 6) return 'Add 1 to 6 actions (THEN).'
   const actions: RuleAction[] = []
   for (const a of b.actions) {
@@ -179,6 +181,8 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   if (!cat || !cat.enabled) return { ok: false, code: 'tool_not_allowed', error: `the action "${title}" is not enabled in the action catalog.`, title }
   const values: Partial<Record<ParamType, string>> = {}
   for (const p of paramsOf(cat)) values[p] = resolveParam(a.params[p] ?? '', ev.fields).trim()
+  // a log count names the log source, not an address (D-287): not available until logs counts per address (#338); other triggers keep INV-10 (invalid_target)
+  if (ev.trigger === 'log_threshold' && !values.ip && refsIn(a.params.ip ?? '').includes('source_ip')) return { ok: false, code: 'tool_unavailable', error: 'Not available: this event has no value for {{trigger.source_ip}}. Log counts are per log source, not per address (D-287, issue #338). Nothing was changed.', title }
   const bad = checkValues(paramsOf(cat), values)
   if (bad) return { ok: false, code: 'invalid_target', error: bad, title }
   // Never touch the gateway, DNS servers, domain controllers, this box or management IPs. For a finding the device itself must stay reachable.

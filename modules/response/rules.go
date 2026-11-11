@@ -25,6 +25,15 @@ var (
 
 var conditionOps = []string{"eq", "in", "in_cidr", "gte", "lte", "device_type", "count_window", "first_time"}
 
+// logMinWindow is the shortest window of a log_threshold rule: the logs counters are 5-minute buckets (logs.CountsMinWindow).
+const logMinWindow = 5
+
+// logSignature reports whether c is the counted signature of a log_threshold rule (D-287): its value is a signature of the
+// Logs digest, compared and counted, never filled into an action.
+func logSignature(trigger string, c Condition) bool {
+	return trigger == "log_threshold" && c.Op == "count_window" && c.Field == "signature"
+}
+
 func refsIn(spec string) []string {
 	var out []string
 	for _, m := range triggerRef.FindAllStringSubmatch(spec, -1) {
@@ -86,7 +95,11 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 		} else if !slices.ContainsFunc(trig.Fields, func(f TriggerField) bool { return f.Key == c.Field }) {
 			return b, invalid("The field \"" + oneLine(c.Field, 30) + "\" does not exist for this trigger.")
 		}
-		if !condValueRE.MatchString(c.Value) {
+		if logSignature(b.Trigger, c) {
+			if c.Value != oneLine(c.Value, 200) || strings.TrimSpace(c.Value) == "" { // pasted from the Logs digest as it is (=, <ip>); only compared, never filled
+				return b, invalid("Log signature: one line of up to 200 characters, as the Logs digest shows it.")
+			}
+		} else if !condValueRE.MatchString(c.Value) {
 			return b, invalid("Condition values: letters, numbers and . , : / @ # - only.")
 		}
 		switch c.Op {
@@ -115,6 +128,17 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 			x.WindowMin = c.WindowMin
 		}
 		conds = append(conds, x)
+	}
+	if b.Trigger == "log_threshold" {
+		var sigs []Condition
+		for _, c := range conds {
+			if logSignature(b.Trigger, c) {
+				sigs = append(sigs, c)
+			}
+		}
+		if len(sigs) != 1 || *sigs[0].WindowMin < logMinWindow {
+			return b, invalid("A log rule needs exactly one condition \"signature seen at least N times within W minutes\", with W from 5 to 1440 minutes (the log counters are 5 minutes wide).")
+		}
 	}
 	if len(b.Actions) < 1 || len(b.Actions) > 6 {
 		return b, invalid("Add 1 to 6 actions (THEN).")
@@ -247,6 +271,9 @@ func evalCondition(c Condition, ev Det, others []Det) bool {
 	case "device_type":
 		return ev.DeviceKind != "" && slices.Contains(csvList(c.Value), lc(ev.DeviceKind))
 	case "count_window":
+		if logSignature(ev.Trigger, c) { // the event is the count itself, made by PollLogs for this signature, window and threshold
+			return f != "" && f == c.Value && ev.Fields["window"] == itoa(intOr(c.WindowMin, 0)) && ev.Fields["threshold"] == itoa(intOr(c.N, 0))
+		}
 		end := parseTS(ev.TS)
 		start := end.Add(-time.Duration(intOr(c.WindowMin, 0)) * time.Minute)
 		same := 1

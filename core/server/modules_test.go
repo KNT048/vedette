@@ -80,8 +80,9 @@ var contractRoutes = map[string][]string{
 	},
 	"auth-oidc": {
 		"GET /core/oidc",
+		"POST /auth/oidc/callback",
+		"POST /auth/oidc/start",
 		"POST /core/oidc/test",
-		"POST /core/sso/login",
 		"PUT /core/oidc",
 	},
 	"core": {

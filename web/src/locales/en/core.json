@@ -133,34 +133,54 @@
       "title": "Reset two-step sign-in for {{name}}?",
       "body": "Two-step sign-in is turned off for this person, so the account is protected by the password alone until they set it up again. Use this when they lost their phone or can no longer read their mailbox. The reset is written to the audit log.",
       "confirm": "Reset two-step sign-in"
-    }
+    },
+    "sso": "Through SSO",
+    "ssoRole": "Set by SSO groups"
   },
   "oidc": {
     "title": "SSO sign-in (OIDC)",
-    "desc": "Let staff sign in with their company account (Keycloak, Entra ID, Google Workspace) and map groups to roles.",
+    "desc": "Let staff sign in with their company account (Keycloak, Entra ID, Okta, Authentik, Google Workspace). Their groups at the identity provider decide their role.",
     "off": "SSO sign-in is off. Turn it on to add a \"Sign in with SSO\" button on the sign-in page. Email and password accounts keep working.",
     "enable": "Turn on SSO sign-in",
     "disable": "Turn off SSO",
     "enabledToast": "SSO module is on. Fill in the settings below.",
     "disabledToast": "SSO sign-in is off. The settings are kept.",
-    "redirect": "Redirect URI, register it in your IdP",
+    "redirect": "Redirect URI: register this address at your identity provider",
     "issuer": "Issuer",
-    "issuerHint": "The https address of your IdP, where /.well-known/openid-configuration lives.",
+    "issuerHint": "The https address of your identity provider, where /.well-known/openid-configuration lives.",
     "clientId": "Client ID",
     "secret": "Client secret",
     "secretHint": "Enter to save. After saving only the last 4 characters show.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
-    "defaultRole": "Default role",
-    "defaultRoleHint": "Used when the signed-in person is in none of the groups below. Viewer is the safe choice.",
-    "map": "Group to role mapping",
-    "mapHint": "Which IdP group (the groups claim) gets which role. Up to 10 rows.",
+    "defaultRole": "People in none of these groups",
+    "defaultRoleHint": "No access is the safe choice: only people in a mapped group can sign in. A role here lets everyone at the identity provider in.",
+    "map": "Groups and roles",
+    "mapHint": "Which group at the identity provider gets which role. A person in several groups gets the highest role. Up to 10 rows. The role is set again at every SSO sign-in.",
     "group": "Group name, row {{n}}",
     "mapRole": "Role, row {{n}}",
     "mapRemove": "Remove row {{n}}",
     "mapAdd": "Add row",
     "test": "Test connection",
-    "testOk": "Read the IdP's OIDC configuration.",
-    "saveFirst": "Save the settings before testing"
+    "testOk": "Read the identity provider's OIDC configuration.",
+    "saveFirst": "Save the settings before testing",
+    "noAccess": "No access",
+    "scopes": "Scopes",
+    "scopesHint": "Separated by spaces; must include openid. Add groups if your identity provider needs it to send groups (Okta, Authentik).",
+    "claim": "Groups claim",
+    "claimHint": "Name of the ID token claim that lists the groups. Usually groups.",
+    "endpoints": "Endpoints read from the identity provider",
+    "endpoint": {
+      "authorization": "Authorization",
+      "token": "Token",
+      "jwks": "Signing keys"
+    },
+    "offAsk": {
+      "title": "Turn off SSO sign-in?",
+      "body": "The Sign in with SSO button goes away. Password accounts keep working and the settings are kept.",
+      "bodyUsers_one": "{{count}} person signs in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept.",
+      "bodyUsers_other": "{{count}} people sign in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept."
+    },
+    "redirectHint": "Set from the address you use now when you save. People must open Vedette at this address to sign in with SSO."
   },
   "audit": {
     "title": "{{count}} log lines match the filters",
@@ -242,7 +262,8 @@
         "disable": "Disable user",
         "enable": "Enable user",
         "password_reset": "Reset password",
-        "2fa_reset": "Reset two-step sign-in"
+        "2fa_reset": "Reset two-step sign-in",
+        "sso_relink": "Move an SSO account to a new identity provider"
       },
       "account": {
         "profile": "Change display name",
@@ -761,7 +782,7 @@
       },
       "11": {
         "name": "Single sign-on (OIDC)",
-        "what": "Only if you set up SSO: the box reads the discovery document and the signing keys from the issuer address you entered, and exchanges the one-time sign-in code for a token. It sends your client ID and client secret and the one-time code; the identity provider sees the box's IP address and its redirect address. No devices, findings, logs or AI data are sent.",
+        "what": "Only if you set up SSO: the box reads the discovery document and the signing keys from the issuer address you entered, and exchanges the one-time sign-in code for a token. It sends your client ID and client secret, the one-time code and the PKCE verifier; the identity provider sees the box's IP address and its redirect address. The person's browser goes to the identity provider to sign in and comes back to the box. The box keeps no token from the identity provider. No devices, findings, logs or AI data are sent.",
         "to": "The identity provider whose issuer address you entered (it can be inside your network)",
         "control": "Turn off the SSO module (auth-oidc). Password sign-in keeps working.",
         "link": "Open modules"
@@ -1015,6 +1036,10 @@
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
       "endedAll": "All other sessions ended."
+    },
+    "sso": {
+      "title": "Password and two-step sign-in",
+      "body": "You sign in through your company account (SSO). Your password and two-step sign-in are set at your identity provider, not in Vedette. Your role comes from your groups there and is updated each time you sign in."
     }
   },
   "changePassword": {
@@ -1032,7 +1057,8 @@
     "codeHintEmail": "We sent a 6-digit code to {{to}}. It expires in 10 minutes.",
     "resend": "Send a new code",
     "resendIn": "Send a new code in {{s}} s",
-    "resent": "A new code was sent to {{to}}."
+    "resent": "A new code was sent to {{to}}.",
+    "ssoStarting": "Opening your identity provider…"
   },
   "setup": {
     "title": "First-time Vedette setup",
@@ -1483,5 +1509,13 @@
     "testOff": "Turn the connection on to test it.",
     "toolAccess": "Access of {{tool}} on {{name}}",
     "errSecretMoved": "Enter the secret again: the address changed."
+  },
+  "sso": {
+    "title": "Signing you in",
+    "working": "Checking the answer from your identity provider…",
+    "failed": "SSO sign-in did not work",
+    "idpError": "Your identity provider did not sign you in ({{error}}). Try again from the sign-in page; if it keeps happening, ask an administrator.",
+    "missing": "This page needs the answer from your identity provider. Start again from the sign-in page.",
+    "back": "Back to sign in"
   }
 }

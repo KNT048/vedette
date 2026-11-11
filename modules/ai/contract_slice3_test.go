@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain/chainhead"
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -425,5 +426,46 @@ func TestContract_INV19_PruneStopsAtTheFirstRowThatIsNotOld(t *testing.T) {
 	}
 	if v := a.want("GET", "/ai/activity/verify", "operator", "", 200, ""); v["ok"] != true || v["count"] != float64(3) {
 		t.Fatalf("verify = %v", v)
+	}
+}
+
+type offGate struct{}
+
+func (offGate) Enabled(string) bool { return false }
+
+type doneRec struct{ ch chan jobs.Run }
+
+func (d doneRec) Record(_ context.Context, r jobs.Run) error { d.ch <- r; return nil }
+
+// D-160: the activity prune is housekeeping: with the module off the scheduler still runs it and it deletes the rows past
+// the retention.
+func TestThePruneJobRunsWhileTheModuleIsOff(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.explain("CVE-2022-27593", 200, "")
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
+	a.ageing(500)
+	rec := doneRec{make(chan jobs.Run, 8)}
+	sched := jobs.New(slog.New(slog.DiscardHandler), offGate{}, nil, jobs.WithRecorder(rec))
+	for _, j := range a.svc.Jobs() {
+		if err := sched.Add(j); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	select {
+	case run := <-rec.ch:
+		if run.Status != jobs.StatusOK {
+			t.Fatalf("run = %+v", run)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the prune job did not run while the module was off")
+	}
+	cancel()
+	<-done
+	if rows := a.activity(); len(rows) != 1 {
+		t.Fatalf("%d rows left, want only the newest: the prune did not run while the module was off", len(rows))
 	}
 }

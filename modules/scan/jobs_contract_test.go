@@ -1,10 +1,14 @@
 package scan
 
 import (
+	"context"
 	"database/sql"
+	"log/slog"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/jobs"
 )
 
 func (r *runEnv) advance(d time.Duration) {
@@ -306,5 +310,50 @@ func TestHandlers_Events(t *testing.T) {
 	items, _ := b["items"].([]any)
 	if code != 200 || b["auto_rescan"] != true || len(items) != 1 || items[0].(map[string]any)["result"] != "no_match" {
 		t.Fatalf("%d %v", code, b)
+	}
+}
+
+type offGate struct{}
+
+func (offGate) Enabled(string) bool { return false }
+
+type doneRec struct{ ch chan jobs.Run }
+
+func (d doneRec) Record(_ context.Context, r jobs.Run) error { d.ch <- r; return nil }
+
+// D-160: the retention job is housekeeping: with the module off the scheduler still runs it and it deletes what is past
+// the retention. The other two jobs of the module do not run.
+func TestTheRetentionJobRunsWhileTheModuleIsOff(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, ip, label, template, request, result) VALUES ('old', '2026-08-11T09:59:00.000Z', '1.1.1.1', 'x', 't', 'r', 'matched')`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := doneRec{make(chan jobs.Run, 8)}
+	sched := jobs.New(slog.New(slog.DiscardHandler), offGate{}, nil, jobs.WithRecorder(rec))
+	for _, j := range Jobs(r.svc) {
+		if err := sched.Add(j); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	select {
+	case run := <-rec.ch:
+		if run.Job != "retention" || run.Status != jobs.StatusOK {
+			t.Fatalf("run = %+v", run)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("no job ran while the module was off")
+	}
+	cancel()
+	<-done
+	if n := r.count(`SELECT count(*) FROM scan_probe`); n != 0 {
+		t.Fatalf("%d expired probe rows left: the retention job did not run while the module was off", n)
 	}
 }

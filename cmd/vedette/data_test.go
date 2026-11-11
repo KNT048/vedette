@@ -248,15 +248,31 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if c, b, _ := call("POST", "/core/setup", setup); c != 200 {
 		t.Fatalf("setup = %d %s", c, b)
 	}
-	logsDB := filepath.Join(dir, "logs.db")
+	logsDB := filepath.Join(dir, "logs.db") // the real volume of the logs module, open in the process (not a planted file)
 	snap := filepath.Join(dir, "snapshots", "0123456789abcdef0123456789abcdef")
-	for _, p := range []string{logsDB, logsDB + "-wal", logsDB + "-shm", filepath.Join(snap, "vedette.db")} {
+	for _, p := range []string{filepath.Join(snap, "vedette.db")} {
 		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(p, []byte("data"), 0o600); err != nil {
 			t.Fatal(err)
 		}
+	}
+
+	// A received log line in the live logs.db, written through a second handle (the process has its own): after the purge and the restart it
+	// must be gone, and nothing the process ingests after the commit may be read back as live.
+	side, err := store.Open(t.Context(), logsDB, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := side.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_events (ts, source_id, line) VALUES ('2026-11-09T08:00:00.000Z', 'src-1', 'a received line')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := side.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	// The export of the real box: every module's tables, and none of the secret ones.
@@ -422,6 +438,9 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		t.Fatalf("GET /setup after the restart = %d %s", c, b)
 	}
 	code2 := setupCode(lines2)
+	if n := rowValue(t, logsDB, `SELECT count(*) FROM logs_events`); n != "0" {
+		t.Errorf("the fresh logs.db holds %s lines after the restart, want none", n)
+	}
 	if code2 == "" || code2 == code {
 		t.Errorf("setup code after the restart = %q (before the purge %q)", code2, code)
 	}

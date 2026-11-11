@@ -7,9 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -658,6 +661,122 @@ func TestContract_INV14_FailureAfterTheHelperSaysTheBackupsAreGone(t *testing.T)
 		t.Error("the gate stayed shut")
 	}
 	wantOK(t, admin.get("/me"), 200)
+}
+
+// logs.db has a writer of its own (modules/logs): the purge freezes it under its own write lock before the file moves, so a write in
+// flight finishes first and no ingest lands afterwards, in the moved file or in the one the next start makes. A live handle with a
+// writer hammering it: after the purge the writer only gets ErrFrozen, the file and its sidecars are gone, and the file the next start
+// makes holds no table, so no lines.
+func TestContract_INV14_APurgeFreezesLogsDBAndLeavesNoLines(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	logsPath := filepath.Join(dir, "logs.db")
+	logsDB, err := store.Open(t.Context(), logsPath, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = logsDB.Close() })
+	insert := func(ctx context.Context) error {
+		return logsDB.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `INSERT INTO lines (line) VALUES ('a received line')`)
+			return err
+		})
+	}
+	if err := logsDB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `CREATE TABLE lines (id INTEGER PRIMARY KEY, line TEXT)`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	w := newDataWorldIn(t, dir, true, func(hc *core.HandlersConfig) { hc.AlsoFreeze = []*store.DB{logsDB} })
+	admin := w.setupAdmin()
+	ended := make(chan error, 1)
+	var accepted atomic.Int64
+	go func() { // the ingest: a write after write, until it is refused
+		for {
+			if err := insert(context.Background()); err != nil {
+				ended <- err
+				return
+			}
+			accepted.Add(1)
+		}
+	}()
+	for accepted.Load() < 5 { // the writer is in flight
+		runtime.Gosched()
+	}
+	wantOK(t, admin.post("/core/data/purge", purgeBody()), 200)
+	select {
+	case err := <-ended:
+		if !errors.Is(err, store.ErrFrozen) {
+			t.Errorf("the ingest ended with %v, want ErrFrozen", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the ingest was never refused: logs.db was not frozen")
+	}
+	<-w.restarts
+	if err := insert(t.Context()); !errors.Is(err, store.ErrFrozen) {
+		t.Errorf("a write after the purge = %v, want ErrFrozen", err)
+	}
+	for _, suf := range []string{"", "-wal", "-shm", "-journal"} {
+		if exists(logsPath + suf) {
+			t.Errorf("logs.db%s survived the purge", suf)
+		}
+	}
+	// The next start: the old handle is gone, the file is made again, and it holds nothing.
+	if err := logsDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := store.Open(t.Context(), logsPath, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = fresh.Close() })
+	var tables int
+	if err := fresh.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*'`).Scan(&tables); err != nil || tables != 0 {
+		t.Errorf("the fresh logs.db has %d tables (%v): lines survived the purge", tables, err)
+	}
+}
+
+// A purge that fails thaws logs.db and puts its file back: the lines are there and the ingest goes on.
+func TestContract_INV14_AFailedPurgeThawsLogsDB(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	logsPath := filepath.Join(dir, "logs.db")
+	logsDB, err := store.Open(t.Context(), logsPath, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = logsDB.Close() })
+	if err := logsDB.Write(t.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(t.Context(), `CREATE TABLE lines (id INTEGER PRIMARY KEY, line TEXT)`); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO lines (line) VALUES ('one'), ('two')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	w := newDataWorldIn(t, dir, true, func(hc *core.HandlersConfig) { hc.AlsoFreeze = []*store.DB{logsDB} })
+	admin := w.setupAdmin()
+	if err := os.Mkdir(filepath.Join(dir, "purge-compact-pending"), 0o700); err != nil { // makes the step after the moves fail
+		t.Fatal(err)
+	}
+	if r := admin.post("/core/data/purge", purgeBody()); r.Code != 500 {
+		t.Fatalf("purge = %d %s, want 500", r.Code, r.Raw)
+	}
+	if !exists(logsPath) {
+		t.Fatal("logs.db was not put back")
+	}
+	if err := logsDB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO lines (line) VALUES ('three')`)
+		return err
+	}); err != nil {
+		t.Errorf("the ingest after a failed purge = %v: logs.db was not thawed", err)
+	}
+	var n int
+	if err := logsDB.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM lines`).Scan(&n); err != nil || n != 3 {
+		t.Errorf("lines = %d, %v, want 3", n, err)
+	}
 }
 
 // A box configured without a helper but with a honeypot says in kept that the honeypot's raw log stays.

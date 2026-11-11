@@ -66,6 +66,7 @@ type APIHandlers struct {
 	gate       *PurgeGate
 	alsoKept   []oas.CorePostCoreDataPurgeOKKeptItem
 	keepRows   []KeepRow
+	freezes    []*store.DB // other databases of the box (logs.db): frozen for the purge, thawed when it fails
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -108,6 +109,10 @@ type HandlersConfig struct {
 	// in that log, so old events are not read again). Both set by cmd/vedette.
 	AlsoKept []string
 	KeepRows []KeepRow
+	// AlsoFreeze are the other databases of the box whose files the purge removes or that must not take a write once it has wiped (logs.db,
+	// DataFiles): each is frozen under its own write lock (so a write in flight finishes first, and nothing is written after) before the
+	// files move, and thawed if the purge fails. After a success they stay frozen until the process stops.
+	AlsoFreeze []*store.DB
 }
 
 // NewAPIHandlers returns the handlers.
@@ -142,7 +147,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 		}
 		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
 	}
-	h := &APIHandlers{gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	h := &APIHandlers{freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/knt048/vedette/core/store"
 	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
@@ -66,6 +67,15 @@ func purgeBeforeWipe(d *deps) func(context.Context) error {
 		}
 		return nil
 	}
+}
+
+// purgeFreezes are the databases besides vedette.db that the purge freezes (logs.db, the volume of the logs module, which has a writer of
+// its own and whose file the purge removes): no ingest can land in the moved file or in the one the next start makes.
+func purgeFreezes(d *deps) []*store.DB {
+	if d.LogsDB == nil {
+		return nil
+	}
+	return []*store.DB{d.LogsDB}
 }
 
 // purgeKeptRows and purgeAlsoKept: the honeypot's raw log (opencanary.jsonl under -honeypot-dir/log) stays, because the container owns it

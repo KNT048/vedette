@@ -136,7 +136,23 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 		_ = os.Remove(stagedKey)
 		return nil, err
 	}
+	// The other databases (logs.db) are frozen under their own write lock before their files move: a write in flight finishes first, and
+	// nothing can land in the moved file (or in a file made after) until the process has stopped. Thawed when the purge fails.
+	thaw := func() {
+		for _, x := range h.freezes {
+			x.Unfreeze()
+		}
+	}
+	for _, x := range h.freezes {
+		if err := x.Write(ctx, func(*sql.Tx) error { x.Freeze(); return nil }); err != nil {
+			thaw()
+			_ = os.Remove(stagedKey)
+			trash.discard()
+			return nil, fmt.Errorf("core: purge: freeze a database: %w", err)
+		}
+	}
 	abandon := func() { // nothing irreversible has happened: put the local prep away
+		thaw()
 		trash.discard()
 		if stagedKey != "" {
 			_ = os.Remove(stagedKey)
@@ -190,6 +206,7 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 	})
 	if err != nil {
 		h.db.Unfreeze()
+		thaw()
 		if rerr := trash.restore(); rerr != nil {
 			h.log.ErrorContext(ctx, "purge failed and the files could not be put back", "error", rerr, "trash", trash.dir)
 		} else {

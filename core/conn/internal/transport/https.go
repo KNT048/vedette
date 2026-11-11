@@ -185,10 +185,21 @@ func ForbiddenHeader(name string) bool {
 
 var authHeaderRE = regexp.MustCompile("^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$") // an RFC 7230 token
 
+// authHeaderRefused are headers besides ForbiddenHeader's that a token may not be put in: they say what the request is or who sent it, so
+// a token there would be wrong or be sent where it does not belong (D-174). The same list is in web/src/features/core/connectionsMock.ts;
+// web/src/features/core/testdata/auth_header_refused.json is the one set of names both sides are tested with.
+var authHeaderRefused = map[string]bool{"content-type": true, "user-agent": true, "referer": true, "mcp-session-id": true, "expect": true,
+	"accept": true, "accept-encoding": true, "range": true, "origin": true}
+
 // ValidAuthHeader reports whether name may carry a connection's token (D-174): an RFC 7230 token that is not one the transport owns
-// (Host, Content-Length, Transfer-Encoding, Connection and the rest of ForbiddenHeader, bar Authorization itself).
+// (Host, Content-Length, Transfer-Encoding, Connection and the rest of ForbiddenHeader, bar Authorization itself) and not in
+// authHeaderRefused.
 func ValidAuthHeader(name string) bool {
-	return authHeaderRE.MatchString(name) && (strings.EqualFold(name, "authorization") || !ForbiddenHeader(name))
+	if !authHeaderRE.MatchString(name) {
+		return false
+	}
+	n := strings.ToLower(name)
+	return n == "authorization" || !(ForbiddenHeader(name) || authHeaderRefused[n])
 }
 
 // Request is one HTTPS request. The URL is complete (the caller checked it is under the target and the allow-list).

@@ -313,7 +313,7 @@ func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalVie
 		return v, nil
 	}
 	for _, i := range r.recs {
-		v.Items = append(v.Items, ApprovalItem{Title: i.Title, Risk: i.Risk, Change: i.Change.masked(true)}) // a link holder is not signed in: no header value
+		v.Items = append(v.Items, ApprovalItem{Title: i.Title, Risk: i.Risk, Change: i.Change.masked(false)}) // a link holder is an approver: header values, but never a credential
 	}
 	v.AIGenerated = r.AI != nil
 	title, expires := r.Title, store2(rec.expires)
@@ -677,13 +677,15 @@ func block(s string) string {
 // restText is an API call in full: method, address, headers by name (the values are never shown) and the whole body.
 func restText(rest *RestCall) string {
 	t := rest.Method + " " + rest.URL
-	if len(rest.Headers) > 0 {
-		names := make([]string, 0, len(rest.Headers))
-		for k := range rest.Headers {
+	if shown := maskRest(rest, false).Headers; len(shown) > 0 { // the approver reads every value, except a credential's (D-174)
+		names := make([]string, 0, len(shown))
+		for k := range shown {
 			names = append(names, k)
 		}
 		slices.Sort(names)
-		t += " [headers: " + strings.Join(names, ", ") + "]"
+		for _, k := range names {
+			t += "\n" + k + ": " + cleanLine(shown[k])
+		}
 	}
 	if rest.Body != nil && *rest.Body != "" {
 		t += "\n" + *rest.Body
@@ -735,6 +737,12 @@ func approvalText(r request) string {
 func chatLen(s string) int {
 	n := utf8.RuneCountInString(s)
 	return n + strings.Count(s, "@") + strings.Count(s, "/")
+}
+
+// chatNoButtons is whether a request may not be decided from chat (D-175): high risk, or a text that does not fit one message.
+func chatNoButtons(r request) bool {
+	_, no := approvalMessageText(r)
+	return no
 }
 
 // approvalMessageText is the text of the approval message and whether it may carry chat buttons (D-175): an approver approves only

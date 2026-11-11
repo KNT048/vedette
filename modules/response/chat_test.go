@@ -306,11 +306,49 @@ func (c *chatEnv) highRiskAIFor(ch string) response.ActionRequest {
 	return a
 }
 
-func TestChat_SlackAndTelegramTakeHighRiskFromTwoPeople(t *testing.T) {
+// twoPersonMedium makes the request one that needs two people without being high risk (a request over the multi-target limit looks like
+// this): chat may take it, since only the risk and the length of the text decide the buttons (D-175).
+func (c *chatEnv) twoPersonMedium(a response.ActionRequest) {
+	c.t.Helper()
+	c.exec1(`UPDATE resp_actions SET risk = 'medium' WHERE id = ?`, a.ID)
+}
+
+// D-175: a high-risk request is never decided from chat (no button is attached, and an old button or a forged callback is refused).
+func TestChat_SlackAndTelegramRefuseHighRisk(t *testing.T) {
+	for _, ch := range [][2]string{{"slack", slackOp}, {"telegram", tgOp}} {
+		c := newChatEnv(t)
+		a := c.highRisk()
+		for _, approve := range []bool{true, false} {
+			_, err := c.button(ch[0], ch[1], a.ID, approve)
+			c.mustCode(err, 403, "channel_not_allowed")
+		}
+		if got := c.only(); got.Status != response.StatusPending || len(got.Approvals) != 0 || c.exec.count() != 0 {
+			t.Fatalf("%s: a chat decision went through: %+v", ch[0], got)
+		}
+	}
+}
+
+// D-175: a change too long to read in one message is not decided from chat either, whatever its risk.
+func TestChat_AnOverLengthChangeIsNotDecidedFromChat(t *testing.T) {
+	c := newChatEnv(t)
+	a := c.pending()
+	long := strings.Repeat("x", 3200)
+	c.exec1(`UPDATE resp_actions SET title = ? WHERE id = ?`, "t", a.ID)
+	c.exec1(`UPDATE resp_actions SET items = json_set(items, '$[0].change.after', ?) WHERE id = ?`, long, a.ID)
+	c.exec1(`UPDATE resp_actions SET items = json_set(items, '$[0].change.cli', ?) WHERE id = ?`, strings.Repeat("show version\n", 300), a.ID)
+	_, err := c.button("slack", slackOp, a.ID, true)
+	c.mustCode(err, 403, "channel_not_allowed")
+	if got := c.only(); got.Status != response.StatusPending {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestChat_SlackAndTelegramTakeTwoPeopleOnAMediumRequest(t *testing.T) {
 	for _, pair := range [][4]string{{"slack", slackOp, "slack", slackOp2}, {"telegram", tgOp, "telegram", tgOp2}, {"slack", slackOp, "telegram", tgOp2}} {
 		t.Run(pair[0]+"+"+pair[2], func(t *testing.T) {
 			c := newChatEnv(t)
 			a := c.highRisk()
+			c.twoPersonMedium(a)
 			first, err := c.button(pair[0], pair[1], a.ID, true)
 			c.must(err)
 			if first.Status != "pending" || first.Approvals != 1 || first.Required != 2 || first.Message == "" {

@@ -1,0 +1,39 @@
+{
+ "refused": [
+  "Host",
+  "Content-Length",
+  "Transfer-Encoding",
+  "Connection",
+  "Content-Type",
+  "User-Agent",
+  "Referer",
+  "Mcp-Session-Id",
+  "Expect",
+  "Cookie",
+  "Accept",
+  "Accept-Encoding",
+  "Range",
+  "Origin",
+  "Forwarded",
+  "X-Forwarded-For",
+  "X-Forwarded-Host",
+  "X-Real-Ip",
+  "X-Original-Url",
+  "X-Http-Method-Override",
+  "Proxy-Authorization",
+  "Set-Cookie",
+  "Via",
+  "Upgrade",
+  "Te",
+  "Keep-Alive",
+  "host",
+  "CONTENT-TYPE"
+ ],
+ "valid": [
+  "Authorization",
+  "X-API-Key",
+  "X-Auth-Token",
+  "Api-Key",
+  "X-PAN-KEY"
+ ]
+}

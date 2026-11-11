@@ -42,20 +42,43 @@ func actionsJSON(t *testing.T, e *env, role routes.Role) string {
 	return string(b)
 }
 
-// M1: GET /response/actions is a viewer's call. Header values are hidden from everyone but an admin; the names stay.
+// M1: GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
+// every value of what they approve, except a credential's (D-174, D-175).
 func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 	e := keyedRequest(t)
 	if got := e.only().Items[0].Change.Rest.Headers["X-Trace"]; got != "abc123secret" {
 		t.Fatalf("the service holds %q", got)
 	}
-	for _, role := range []routes.Role{routes.Viewer, routes.Operator} {
-		got := actionsJSON(t, e, role)
-		if strings.Contains(got, "abc123") || !strings.Contains(got, "X-Trace") || !strings.Contains(got, "(hidden)") {
-			t.Errorf("%v sees %s", role, got)
+	got := actionsJSON(t, e, routes.Viewer)
+	if strings.Contains(got, "abc123") || !strings.Contains(got, "X-Trace") || !strings.Contains(got, "(hidden)") {
+		t.Errorf("a viewer sees %s", got)
+	}
+	for _, role := range []routes.Role{routes.Operator, routes.Admin} {
+		if got := actionsJSON(t, e, role); !strings.Contains(got, "abc123secret") {
+			t.Errorf("%v does not see the header: %s", role, got)
 		}
 	}
-	if got := actionsJSON(t, e, routes.Admin); !strings.Contains(got, "abc123secret") {
-		t.Errorf("an admin does not see the header: %s", got)
+}
+
+// GET /response/plans is a viewer's call too: a proposal holds the exact change.
+func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
+	e := planEnv(t)
+	e.exec1(`UPDATE resp_catalog SET run = json_set(run, '$.headers', 'X-Trace: abc123secret') WHERE id = 'fgt_vip_disable'`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	pl, err := e.svc.Plans(e.ctx(), "")
+	e.must(err)
+	if b, _ := json.Marshal(pl); !strings.Contains(string(b), "abc123secret") {
+		t.Fatalf("the test plan carries no header: %s", b)
+	}
+	h := response.NewResponseHandlers(e.svc)
+	for role, want := range map[routes.Role]bool{routes.Viewer: false, routes.Operator: true, routes.Admin: true} {
+		res, err := h.ResponseGetResponsePlans(server.WithPrincipal(e.ctx(), server.Principal{ID: "u-x", Email: "x@acme.example", Role: role}), oas.ResponseGetResponsePlansParams{})
+		e.must(err)
+		b, err := res.MarshalJSON()
+		e.must(err)
+		if got := strings.Contains(string(b), "abc123secret"); got != want || !strings.Contains(string(b), "X-Trace") {
+			t.Errorf("%v: value shown %v, want %v: %s", role, got, want, b)
+		}
 	}
 }
 
@@ -70,11 +93,11 @@ func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
 	}
 }
 
-// The simulation of a rule shows the exact call, so it hides header values like the list does.
-func TestWP31_M1_SimulateHidesHeaderValuesFromNonAdmins(t *testing.T) {
+// The simulation of a rule shows the exact call: an operator or an administrator reads every value except a credential's.
+func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
 	e := precheckEnv(t)
 	in := apiAction()
-	in.Run.Headers = "X-Trace: abc123secret"
+	in.Run.Headers = "X-Trace: abc123secret\nX-Api-Key: {domain}"
 	act, err := e.svc.AddAction(e.ctx(), admin, in)
 	e.must(err)
 	rule := response.RuleInput{Name: "S", Enabled: true, Live: false, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, MaxPerHour: 10,
@@ -84,21 +107,23 @@ func TestWP31_M1_SimulateHidesHeaderValuesFromNonAdmins(t *testing.T) {
 	var req oas.ResponsePostResponseRulesSimulateReq
 	e.must(req.UnmarshalJSON(raw))
 	h := response.NewResponseHandlers(e.svc)
-	for role, wantSecret := range map[routes.Role]bool{routes.Operator: false, routes.Admin: true} {
+	for _, role := range []routes.Role{routes.Operator, routes.Admin} {
 		res, err := h.ResponsePostResponseRulesSimulate(server.WithPrincipal(e.ctx(), server.Principal{ID: "u-x", Email: "x@acme.example", Role: role}), &req)
 		e.must(err)
 		b, err := res.MarshalJSON()
 		e.must(err)
-		if got := strings.Contains(string(b), "abc123secret"); got != wantSecret || !strings.Contains(string(b), "X-Trace") {
-			t.Errorf("%v: secret shown %v, want %v: %s", role, got, wantSecret, b)
+		if !strings.Contains(string(b), "abc123secret") || !strings.Contains(string(b), `"X-Api-Key":"(hidden)"`) {
+			t.Errorf("%v: %s", role, b)
 		}
 	}
 }
 
-// D-174 (2): a template cannot hold a credential header with a literal value, in any step; a placeholder, or a header that is no credential, is fine.
+// D-174 (2): a template cannot hold a credential header with a literal value, in any step; its value is exactly one placeholder.
 func TestWP31_M1_TemplateWithACredentialHeaderIsRefused(t *testing.T) {
 	e := precheckEnv(t)
-	for _, h := range []string{"X-API-Key: abc", "x-api-key: abc", "X-Auth-Token: abc", "Api-Key: abc", "X-PAN-KEY: abc", "X-Vendor-Token: abc", "X-App-Secret: abc", "Cookie: a=b", "Proxy-Authorization: x", "Accept: json\nX-Api-Key: abc"} {
+	for _, h := range []string{"X-API-Key: abc", "x-api-key: abc", "X-ApiKey: abc", "Apikey: abc", "Token: abc", "X-Auth: abc", "X-Password: abc", "X-Session: abc", "X-Auth-Token: abc", "Api-Key: abc",
+		"X-PAN-KEY: abc", "X-Vendor-Token: abc", "X-App-Secret: abc", "Cookie: a=b", "Proxy-Authorization: x", "Accept: json\nX-Api-Key: abc",
+		"X-API-Key: realkey{", "X-API-Key: {domain}x", "X-API-Key: a{domain}", "X-API-Key: {domain}{domain}", "X-API-Key: {Domain}"} {
 		in := apiAction()
 		in.Run.Headers = h
 		_, err := e.svc.AddAction(e.ctx(), admin, in)
@@ -111,13 +136,13 @@ func TestWP31_M1_TemplateWithACredentialHeaderIsRefused(t *testing.T) {
 	if _, err := e.svc.AddAction(e.ctx(), admin, in); err == nil {
 		t.Error("a credential header in the read-back was accepted")
 	}
-	for _, h := range []string{"X-Trace: abc", "Accept: application/json", "X-Api-Key: {domain}"} {
+	for i, h := range []string{"X-Trace: abc", "Accept: application/json", "X-Api-Key: {domain}", "X-Keep-Going: yes"} {
 		in := apiAction()
+		in.Name += fmt.Sprint(" ", i)
 		in.Run.Headers = h
 		if _, err := e.svc.AddAction(e.ctx(), admin, in); err != nil {
 			t.Errorf("%q refused: %v", h, err)
 		}
-		in.Name += " " + h
 	}
 }
 
@@ -266,12 +291,12 @@ func TestWP31_L6_LinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
 	}
 }
 
-// The link page never shows a header value, whoever opens it.
-func TestWP31_M1_LinkPageAndDecisionHideHeaderValues(t *testing.T) {
+// The link page is an approver's: it shows the values of the call, never a credential's.
+func TestWP31_M1_LinkPageShowsValuesButNoCredential(t *testing.T) {
 	e := newLinkEnv(t)
 	e.conns.list = []response.ConnectionInfo{{Connection: response.Connection{ID: "cn-http", Name: "API", Enabled: true, Kind: "http", WriteTools: []string{"w"}}, Target: "https://api.lan"}}
 	in := apiAction()
-	in.Run.Headers = "X-Trace: abc123secret"
+	in.Run.Headers = "X-Trace: abc123secret\nX-Api-Key: {domain}"
 	act, err := e.svc.AddAction(e.ctx(), admin, in)
 	e.must(err)
 	e.turnOn()
@@ -283,7 +308,10 @@ func TestWP31_M1_LinkPageAndDecisionHideHeaderValues(t *testing.T) {
 	a := e.only()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
 	b, _ := json.Marshal(e.view(tok))
-	if strings.Contains(string(b), "abc123") || !strings.Contains(string(b), "X-Trace") {
+	if !strings.Contains(string(b), "abc123secret") || strings.Contains(string(b), `"X-Api-Key":"bad.example.com"`) || !strings.Contains(string(b), `"X-Api-Key":"(hidden)"`) {
 		t.Fatalf("the link page shows %s", b)
+	}
+	if m := e.note.requests(); len(m) == 1 && (!strings.Contains(m[0].What, "X-Trace: abc123secret") || !strings.Contains(m[0].What, "X-Api-Key: (hidden)")) {
+		t.Errorf("the approval message:\n%s", m[0].What)
 	}
 }

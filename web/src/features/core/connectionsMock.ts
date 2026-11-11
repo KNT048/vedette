@@ -141,6 +141,11 @@ export async function keyFingerprint(secret: string): Promise<string> {
 }
 export const hasSecret = (c: Pick<Connector, 'auth'>) => c.auth.last4 !== null || c.auth.key_fingerprint !== null
 
+// Names a token may not be sent in (D-174). One list with Go's (core/conn/internal/transport `ValidAuthHeader`): testdata/auth_header_refused.json is tested on both sides.
+const AUTH_HEADER_REFUSED = new Set(['host', 'connection', 'keep-alive', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'proxy-connection', 'forwarded', 'via', 'cookie', 'set-cookie', 'content-length', 'x-real-ip', 'x-original-url', 'x-rewrite-url', 'x-http-method-override', 'x-http-method', 'x-method-override',
+  'content-type', 'user-agent', 'referer', 'mcp-session-id', 'expect', 'accept', 'accept-encoding', 'range', 'origin'])
+export const validAuthHeader = (h: string) => /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(h) && (h.toLowerCase() === 'authorization' || !(AUTH_HEADER_REFUSED.has(h.toLowerCase()) || h.toLowerCase().startsWith('proxy-') || h.toLowerCase().startsWith('x-forwarded-')))
+
 type Checked = { input: ConnectorInput; allow: string[]; last4: string | null; username: string | null; header: string | null; secret: string | null; retarget: boolean; moved: boolean }
 function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Checked {
   const name = TIDY(String(b.name ?? ''))
@@ -175,7 +180,7 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   if (username && !USER_RE.test(username)) return bad('invalid', 'The user name is 1 to 64 characters, with no spaces, colons or control characters.', 'username')
   const header = TIDY(String(b.auth_header ?? ''))
   if (header && auth !== 'token') return bad('invalid', 'A header name belongs to a token sign-in only.', 'auth_header')
-  if (header && (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(header) || /^(authorization|host|content-length|transfer-encoding|connection|cookie|set-cookie|te|trailer|upgrade|keep-alive|proxy-.*|forwarded|via|x-forwarded.*)$/i.test(header) && header.toLowerCase() !== 'authorization')) return bad('invalid_auth_header', 'The header name is not valid. Use letters, digits and hyphens, for example X-API-Key; Host, Content-Length, Transfer-Encoding and Connection cannot carry a token.', 'auth_header')
+  if (header && !validAuthHeader(header)) return bad('invalid_auth_header', 'The header name is not valid. Use letters, digits and hyphens, for example X-API-Key; Host, Content-Length, Transfer-Encoding and Connection cannot carry a token.', 'auth_header')
   const secret = b.secret === undefined || b.secret === '' ? null : String(b.secret)
   if (secret !== null && [...secret].length < 8) return bad('invalid_secret', 'The secret is too short. Copy the whole token, password or key again.', 'secret')
   if (secret !== null && auth === 'ssh-key' && encryptedKey(secret)) return bad('invalid_secret', 'This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that.', 'secret')

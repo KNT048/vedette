@@ -287,14 +287,30 @@ func (c Change) masked(all bool) Change {
 	return c
 }
 
-// masked is the request as a reader sees it: header values of every item's call and undo are hidden unless full (an administrator,
-// like the catalog's) and credential-named ones are hidden for everyone.
+// masked is the request as a reader sees it: header values of every item's call and undo are hidden unless full (an operator or an
+// administrator, who approve) and credential-named ones are hidden for everyone.
 func (a ActionRequest) masked(full bool) ActionRequest {
 	a.Items = slices.Clone(a.Items)
 	for i := range a.Items {
 		a.Items[i].Change = a.Items[i].Change.masked(!full)
 	}
 	return a
+}
+
+// masked hides the header values of every proposal of every plan (a plan's proposal holds the exact change, like a request does).
+func (l PlanList) masked(full bool) PlanList {
+	l.Items = slices.Clone(l.Items)
+	for i := range l.Items {
+		l.Items[i].Steps = slices.Clone(l.Items[i].Steps)
+		for k, st := range l.Items[i].Steps {
+			if st.Proposal != nil {
+				p := *st.Proposal
+				p.Change = p.Change.masked(!full)
+				l.Items[i].Steps[k].Proposal = &p
+			}
+		}
+	}
+	return l
 }
 
 func (s Simulation) masked(full bool) Simulation {

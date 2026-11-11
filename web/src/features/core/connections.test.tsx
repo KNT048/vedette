@@ -14,6 +14,8 @@ import { networkStore } from '@/mocks/network'
 import { sessionStore } from '@/mocks/stores'
 import { CONNECTION_KINDS, KIND_AUTH } from '@/lib/connections'
 import type { Connector } from './types'
+import { validAuthHeader } from './connectionsMock'
+import refusedList from './testdata/auth_header_refused.json'
 
 void server
 const api = (path: string, init?: RequestInit) => fetch(`${location.origin}/api/v1${path}`, { headers: { 'Content-Type': 'application/json' }, ...init })
@@ -738,5 +740,10 @@ describe('Connections: the dialog', () => {
     await u.selectOptions(within(dlg).getByLabelText('Sign-in'), 'token')
     expect(within(dlg).getByLabelText('Header name (optional)')).toBeInTheDocument()
     expect(within(dlg).getByText('Leave empty to send Authorization: Bearer')).toBeInTheDocument()
+  })
+
+  it('D-174: the mock refuses the same header names as Go (shared list)', () => {
+    for (const n of refusedList.refused) expect(validAuthHeader(n), n).toBe(false)
+    for (const n of refusedList.valid) expect(validAuthHeader(n), n).toBe(true)
   })
 })

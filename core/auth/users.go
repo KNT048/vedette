@@ -24,6 +24,11 @@ func validRole(r routes.Role) bool {
 	return r == routes.Viewer || r == routes.Operator || r == routes.Admin
 }
 
+// ssoUser refuses what only a password account has: a password, Vedette two-step sign-in, a role set by hand (D-195).
+func ssoUser() *apierr.Error {
+	return apierr.New(409, CodeSSOUser, "This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider.")
+}
+
 func notFound() *apierr.Error { return apierr.New(404, apierr.CodeNotFound, "No such user.") }
 
 // NewUser is a account to create. PasswordHash comes from Service.HashPassword (which applies the policy),
@@ -138,6 +143,9 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSess
 		}
 		role, disabled := routes.Role(t.Role), t.Disabled != 0
 		if p.Role != nil {
+			if *p.Role != role && t.SsoIssuer != nil {
+				return User{}, ssoUser(), nil // D-195 (2): the groups at the identity provider set it at every sign-in
+			}
 			role = *p.Role
 		}
 		if p.Disabled != nil {
@@ -155,7 +163,7 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSess
 			stays = 1
 		}
 		if others+stays < 1 {
-			return User{}, apierr.New(400, CodeLastAdmin, "At least one active administrator must remain. Add another administrator first."), nil
+			return User{}, apierr.New(400, CodeLastAdmin, "At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first."), nil
 		}
 		if role != routes.Role(t.Role) {
 			if _, err := q.UpdateUserRole(ctx, coredb.UpdateUserRoleParams{Role: string(role), ID: t.ID}); err != nil {
@@ -202,6 +210,9 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 	}
 	if err != nil {
 		return "", fmt.Errorf("auth: read user: %w", err)
+	}
+	if t.SsoIssuer != nil {
+		return "", ssoUser() // D-195 (5): a password would open a way in around the identity provider
 	}
 	temp, err := NewTempPassword()
 	if err != nil {
@@ -362,6 +373,9 @@ func (s *Service) CheckAdmin(ctx context.Context, tx *sql.Tx, actorID, actorSess
 // goes away on the right password. A wrong password writes auth.reauth_failed, so a stolen session that
 // guesses the password leaves a trace for the administrator like a wrong sign-in does.
 func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, password, wrongMsg string) error {
+	if t.SsoIssuer != nil {
+		return ssoUser() // D-195 (5): no Vedette password to check; changing it or turning on two-step is the identity provider's
+	}
 	try, e := s.limit.begin(accountKey, t.Email)
 	if e != nil {
 		return e

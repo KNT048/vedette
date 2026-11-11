@@ -235,11 +235,14 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if err != nil {
 		return JobResult{}, err
 	}
-	if len(mem.ids) > 0 {
-		spec.Data = append([]DataBlock{mem.block}, spec.Data...)
-	}
+	// The memory block is not in guard's pass: each of its lines was checked by these same hooks, and a second pass over the joined
+	// block would let a pattern match across a line break and stop the call for two memories that touch. It is added after the pass,
+	// first, with the same fencing as any data block.
 	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
-	entry.Hooks = dedupe(append(hookNames, mem.names...))
+	entry.Hooks = dedupe(append(append(hookNames, mem.names...), mem.leftNames...))
+	if stop == "" && len(mem.ids) > 0 {
+		data = append([]DataBlock{mem.block}, data...)
+	}
 	if stop != "" {
 		entry.Result, entry.Summary, entry.InputHash = ResultBlockedByHook, "Not sent: "+stop, HashContent(stop)
 		if err := s.record(ctx, entry); err != nil {

@@ -316,7 +316,17 @@ func (s *Service) AcceptSuggestion(ctx context.Context, who, id string) (MemoryI
 	if err := s.harnessGuard(); err != nil {
 		return MemoryItem{}, err
 	}
-	hooks := s.Hooks()
+	// The hooks run before the write transaction, so a slow hook does not hold the one writer; the text is read again inside it and
+	// the accept is refused if the suggestion is not the one that was checked.
+	var checked string
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT text FROM ai_memory_suggestion WHERE id = ?`, id).Scan(&checked); errors.Is(err, sql.ErrNoRows) {
+		return MemoryItem{}, harnessNotFound("suggestion")
+	} else if err != nil {
+		return MemoryItem{}, fmt.Errorf("ai: suggestion: %w", err)
+	}
+	if why, bad := s.hookRefuses(ctx, s.Hooks(), checked); bad {
+		return MemoryItem{}, memoryBlocked(why)
+	}
 	mid, now := store.NewID("mem"), store.FormatTS(s.cfg.Clock())
 	var text string
 	var out MemoryItem
@@ -326,8 +336,8 @@ func (s *Service) AcceptSuggestion(ctx context.Context, who, id string) (MemoryI
 		} else if err != nil {
 			return fmt.Errorf("ai: suggestion: %w", err)
 		}
-		if why, bad := s.hookRefuses(ctx, hooks, text); bad {
-			return memoryBlocked(why)
+		if text != checked {
+			return harnessNotFound("suggestion") // replaced since it was checked: nothing is accepted
 		}
 		var have string
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM ai_memory WHERE text = ?`, text).Scan(&have); {
@@ -462,7 +472,9 @@ type memCall struct {
 	block DataBlock
 	ids   []string
 	left  []string // ids of memories a hook stopped (or that could not be checked): not sent
-	names []string // hooks that acted on the lines that were sent (a mask)
+	// leftNames are the hooks that stopped them, for the activity row.
+	leftNames []string
+	names     []string // hooks that acted on the lines that were sent (a mask)
 }
 
 // memoryForCall reads the enabled memories and runs the before-AI hooks on each line alone (INV-8): a line a hook blocks or holds is
@@ -504,6 +516,7 @@ func (s *Service) memoryForCall(ctx context.Context, hooks *HookRunner, job Job)
 		r, err := hooks.Run(hctx, BeforeAI, oneLine(l.text))
 		if err != nil || r.Outcome == OutcomeBlocked || r.Outcome == OutcomeHeld {
 			mc.left = append(mc.left, l.id)
+			mc.leftNames = append(mc.leftNames, r.Names()...)
 			continue
 		}
 		mc.names = append(mc.names, r.Names()...)

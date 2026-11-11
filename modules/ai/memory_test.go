@@ -554,3 +554,72 @@ func (f *fakeProviders) reqsSent() []provider.Request {
 	defer f.mu.Unlock()
 	return append([]provider.Request(nil), f.reqs...)
 }
+
+// Two memories that touch must not make a hook match across the line break: the lines were checked one by one and are sent as checked.
+func TestContract_INV8_TouchingMemoriesDoNotStopTheCall(t *testing.T) {
+	a := newAPI(t)
+	id := a.withProfile()
+	a.addMemory("Rotate the router admin password")
+	a.addMemory("NAS-PHOTOS is reachable from the Internet.")
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Block admin passwords", "before_ai", "regex", `password\s+\S+`, "block", "A password was found."), 200, "")
+	user := a.planRequest(ai.JobResponsePlan, id).Messages[0].Text // fails the test if the call is refused
+	if !strings.Contains(user, "- NAS-PHOTOS is reachable from the Internet.") || !strings.Contains(user, "- Rotate the router admin password") {
+		t.Fatalf("both lines should be sent: %s", user)
+	}
+	// digits split over two lines are not one ID number
+	b := newAPI(t)
+	bid := b.withProfile()
+	b.addMemory("Firewall support line ends with 079201")
+	b.addMemory("001234 is the rack of the NAS.")
+	if user := b.planRequest(ai.JobResponsePlan, bid).Messages[0].Text; !strings.Contains(user, "- 001234 is the rack of the NAS.") {
+		t.Fatalf("the call or a line was lost: %s", user)
+	}
+	// and a mask applies to the line, not across lines
+	c := newAPI(t)
+	cid := c.withProfile()
+	c.addMemory("Call the ISP on 0912")
+	c.addMemory("345 678 is the rack of the NAS.")
+	user = c.planRequest(ai.JobResponsePlan, cid).Messages[0].Text
+	if strings.Count(user, "- ") != 2 {
+		t.Fatalf("two lines expected: %s", user)
+	}
+}
+
+// A line a hook masks goes out masked, as its own line.
+func TestContract_INV8_AMaskedLineIsSentMasked(t *testing.T) {
+	a := newAPI(t)
+	id := a.withProfile()
+	a.addMemory("Reach the owner on 0912 345 678 for the NAS.")
+	a.addMemory("The camera VLAN is 192.168.20.0/24.")
+	user := a.planRequest(ai.JobResponsePlan, id).Messages[0].Text
+	if strings.Contains(user, "0912") || !strings.Contains(user, "- Reach the owner on [masked] for the NAS.") || !strings.Contains(user, "- The camera VLAN") {
+		t.Fatalf("user message: %s", user)
+	}
+	rows := a.activity()
+	if h := rows[len(rows)-1].Hooks; len(h) == 0 || h[0] != "Block personal data" {
+		t.Fatalf("hooks = %v", h)
+	}
+}
+
+// A hook that cannot finish is a block: the line is not sent and the text is not saved.
+func TestContract_INV8_AHookThatCannotFinishLeavesTheLineOutAndRefusesTheSave(t *testing.T) {
+	a := newAPI(t)
+	if err := a.exec(`INSERT INTO ai_memory (id, text, source, created_at, enabled) VALUES ('mem-a', 'The camera VLAN is 192.168.20.0/24.', 'user', '2026-11-10T03:00:00.000Z', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	a.hookTimeout = time.Nanosecond
+	slow := &api{env: a.env, h: a.handler(servertest.NewGate())}
+	a.svc = a.newService()
+	slow.h = a.handler(servertest.NewGate())
+	sent, left, err := a.svc.MemoryLinesForCall(a.ctx(), ai.JobResponsePlan)
+	if err != nil || sent != "" || len(left) != 1 || left[0] != "mem-a" {
+		t.Fatalf("sent %q, left %v, err %v: a line that could not be checked must not be sent", sent, left, err)
+	}
+	got := slow.want("POST", "/ai/memory", "admin", memBody("Backups run every night at 01:00."), 400, "invalid_memory")
+	if msg := got["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be checked") {
+		t.Fatalf("message = %s", msg)
+	}
+	if n := len(slow.memoryView()["items"].([]any)); n != 1 {
+		t.Fatalf("a text that could not be checked was saved: %d", n)
+	}
+}

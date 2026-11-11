@@ -41,7 +41,7 @@ var exportPolicy = map[string]tablePolicy{
 	"ai_hook":                {export: "id name name_key when match_type pattern action message enabled created_at updated_at"},
 	"ai_hook_state":          {export: "builtin_id enabled"},
 	"ai_memory":              {export: "id text source created_at last_used_at enabled"},
-	"ai_memory_rejected":     {export: "digest rejected_at"},
+	"ai_memory_rejected":     {skipAll: true, skip: "digest rejected_at"}, // the box's own memory of what not to suggest again, not data to take away
 	"ai_memory_suggestion":   {export: "id text created_at evidence"},
 	"ai_skill_state":         {export: "id enabled"},
 	"ai_rule":                {export: "id text enabled created_at updated_at", json: "jobs"},

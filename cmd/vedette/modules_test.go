@@ -115,14 +115,11 @@ func TestInventoryEventsReachTheBus(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), log)
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), log)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
-		t.Fatal(err)
-	}
 	d := deps{Log: log, DB: db, Audit: audit.New(nil), Clock: time.Now, Bus: events.NewBus(log)}
 	d.Inventory = newInventory(&d)
 	got := make(chan events.Event, 1)
@@ -165,7 +162,7 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.Open(ctx, filepath.Join(dir, "v.db"), log)
+	db, err := openMigrated(ctx, filepath.Join(dir, "v.db"), log)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,9 +173,6 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = logsDB.Close() })
 	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
 		t.Fatal(err)
 	}
 	aud := audit.New(nil)

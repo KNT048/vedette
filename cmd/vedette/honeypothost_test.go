@@ -125,7 +125,7 @@ func (e *hpHost) decoysFile() string {
 // Every one of the five calls is idempotent against the real host: a second add of a decoy, a second remove, the removal
 // of an address that was never added, a start of a container that runs and a stop of one that is stopped all succeed.
 func TestHoneypotHostCallsAreIdempotent(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	a := e.adapter()
 	ctx := t.Context()

@@ -64,7 +64,7 @@ func (e *hpHost) hasInstall(t *testing.T, service string) bool {
 }
 
 func TestModuleContainerFollowsTheModule(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	for _, c := range moduleContainers {
 		t.Run(c.service, func(t *testing.T) {
 			e := startHPHost(t, false)
@@ -103,7 +103,7 @@ func TestModuleContainerFollowsTheModule(t *testing.T) {
 // A switch between the guard's check and the host call wins: each func re-reads the module under the lock and does
 // nothing, not even a host call, when the module is already in the other state.
 func TestModuleContainerLooksAtTheModuleAgain(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
 	reg := &flagReg{}
@@ -128,7 +128,7 @@ func TestModuleContainerLooksAtTheModuleAgain(t *testing.T) {
 // A host that cannot stop the container is an error (the OffGuard retries, the module is not "off" yet); a box with no unit for
 // the service has nothing to start, which is done, not a retry loop.
 func TestModuleContainerHostFailuresAndNoUnit(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceScan, opstest.Digest('b'), true)
 	reg := &flagReg{}
@@ -183,7 +183,7 @@ func eventually(t *testing.T, what string, cond func() bool) {
 // module off stops its container and drops [Install]; a real Publish of a switch-on starts it with [Install]; a switch-off stops
 // it again. Without the OnChange subscription or without addContainerGuards one of these steps never happens.
 func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	ctx := t.Context()
 	e := startHPHost(t, false)
 	db := storetest.New(t)
@@ -236,7 +236,7 @@ func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
 // A unit that is active with [Install] is left alone whatever its health (systemd just started it on boot, it is in its health
 // start period): no restart, no write run. A unit that is stopped without [Install] is left alone by the stop.
 func TestModuleContainerSkipsWhatIsAlreadyRight(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
 	reg := &flagReg{}
@@ -277,7 +277,7 @@ func TestModuleContainerSkipsWhatIsAlreadyRight(t *testing.T) {
 // MED-4: the skips take only what the host vouches for. A unit that is there but is not byte-for-byte the host's own (the host
 // reports Installed=false) is not "nothing to stop": the stop goes out, is refused unit_unsafe, and the error makes the OffGuard retry.
 func TestModuleContainerDoesNotSkipAUnitTheHostDoesNotTrust(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
 	reg := &flagReg{}
@@ -310,7 +310,7 @@ func TestModuleContainerDoesNotSkipAUnitTheHostDoesNotTrust(t *testing.T) {
 // MED-4: a unit state the host cannot name ("unknown") is never taken for running: the module is on, the container is down,
 // the start goes out.
 func TestModuleContainerStartsWhenTheUnitStateIsUnknown(t *testing.T) {
-	t.Setenv("TZ", "UTC")
+	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
 	e.m.Rule("systemctl", "is-active vedette-sensor", "weird\n", 3, "weird-state", "")

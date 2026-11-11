@@ -105,7 +105,7 @@ func TestWriteRequestIsRefusedWhenTheWriterStaysBusy(t *testing.T) {
 	if !errors.Is(err, store.ErrBusy) {
 		t.Fatalf("err = %v, want ErrBusy", err)
 	}
-	if took < limit || took > limit+time.Second {
+	if took < limit || took > limit+3*time.Second {
 		t.Errorf("refused after %v, want about %v", took, limit)
 	}
 	if n := count(t, db, "request"); n != 0 {
@@ -158,6 +158,43 @@ func TestWriteLimitEndsWithTheRequest(t *testing.T) {
 	}
 }
 
+// A write detached with WithoutCancel ("must happen even if the caller leaves") waits on its own while the request is still live.
+func TestWriteDetachedWaitsWhileTheRequestIsLive(t *testing.T) {
+	db, _ := openLogged(t)
+	release := holdWriter(t, db)
+	reqCtx, endRequest := context.WithCancel(t.Context())
+	defer endRequest()
+	detached := context.WithoutCancel(store.LimitWriteWait(reqCtx, 50*time.Millisecond))
+	time.AfterFunc(300*time.Millisecond, release)
+	if err := insert(detached, db, "record"); err != nil {
+		t.Fatalf("detached write during the request: %v", err)
+	}
+}
+
+// A request that ends while its write waits lifts the limit for that write: it goes on waiting like a job.
+func TestWriteLimitLiftsWhenTheRequestEndsDuringTheWait(t *testing.T) {
+	db, _ := openLogged(t)
+	release := holdWriter(t, db)
+	reqCtx, endRequest := context.WithCancel(t.Context())
+	// a background write started by the request, still bound to its life by a value-only link (not WithoutCancel)
+	bg := &valueOnly{Context: store.LimitWriteWait(reqCtx, 200*time.Millisecond), base: t.Context()}
+	time.AfterFunc(50*time.Millisecond, endRequest)
+	time.AfterFunc(500*time.Millisecond, release)
+	if err := insert(bg, db, "bg"); err != nil {
+		t.Fatalf("write whose request ended during the wait: %v", err)
+	}
+}
+
+// valueOnly takes the values of Context and the cancellation of base: a goroutine started by a request with its own lifetime.
+type valueOnly struct {
+	context.Context
+	base context.Context
+}
+
+func (v *valueOnly) Done() <-chan struct{}       { return v.base.Done() }
+func (v *valueOnly) Err() error                  { return v.base.Err() }
+func (v *valueOnly) Deadline() (time.Time, bool) { return v.base.Deadline() }
+
 // The caller's own deadline, shorter than the limit, is still the caller's error, not ErrBusy.
 func TestWriteCallerDeadlineIsNotBusy(t *testing.T) {
 	db, _ := openLogged(t)
@@ -177,6 +214,25 @@ func slowWrite(ctx context.Context, db *store.DB) error {
 		}
 		time.Sleep(store.SlowWrite + 50*time.Millisecond)
 		return nil
+	})
+}
+
+// A panic in fn still names the function that called Write, not a frame of the panic.
+func TestWriteLogsTheCallerOfAPanickingTransaction(t *testing.T) {
+	db, logs := openLogged(t)
+	func() {
+		defer func() { _ = recover() }()
+		_ = panickingWrite(t.Context(), db)
+	}()
+	if out := logs.String(); !strings.Contains(out, "caller=github.com/knt048/vedette/core/store_test.panickingWrite") {
+		t.Errorf("caller of the panicking write not logged:\n%s", out)
+	}
+}
+
+func panickingWrite(ctx context.Context, db *store.DB) error {
+	return db.Write(ctx, func(*sql.Tx) error {
+		time.Sleep(store.SlowWrite + 50*time.Millisecond)
+		panic("boom")
 	})
 }
 

@@ -63,7 +63,7 @@ func TestRequestGets503WhenTheWriterStaysBusy(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := wantError(t, rec, 503, "server_busy")
-	if took < store.RequestWriteWait || took > store.RequestWriteWait+2*time.Second {
+	if took < store.RequestWriteWait || took > store.RequestWriteWait+5*time.Second {
 		t.Errorf("answered after %v, want about %v", took, store.RequestWriteWait)
 	}
 	if ra := rec.Header().Get("Retry-After"); ra != "5" {

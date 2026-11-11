@@ -381,6 +381,27 @@ func (s *Service) Tokens(ctx context.Context) ([]Token, error) {
 	return out, nil
 }
 
+// MaskTokens returns l with every bait password hidden except its last 4 characters (D-189, L14): what a viewer sees.
+// A password shorter than 8 characters shows no tail at all (the rule of secrets.Value.Last4). The input is not changed.
+func MaskTokens(l []Token) []Token {
+	out := make([]Token, len(l))
+	for i, t := range l {
+		out[i] = t
+		if t.Password != nil {
+			out[i].Password = ptr(maskPassword(*t.Password))
+		}
+	}
+	return out
+}
+
+func maskPassword(pw string) string {
+	r := []rune(pw)
+	if len(r) < 8 {
+		return "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+	}
+	return "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" + string(r[len(r)-4:])
+}
+
 func (s *Service) token(ctx context.Context, id string) (Token, error) {
 	all, err := s.Tokens(ctx)
 	if err != nil {

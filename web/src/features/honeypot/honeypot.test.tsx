@@ -220,6 +220,19 @@ describe('honeypot: device.panels slot', () => {
 })
 
 describe('honeypot: S-HP-2 decoys, tokens, scan, respond, coverage', () => {
+  it('a viewer sees the bait password masked (last 4 only), an administrator sees it in full (D-189, L14)', async () => {
+    const { unmount } = renderApp('/honeypot', { role: 'viewer' })
+    const list = await screen.findByRole('list', { name: 'Honey tokens' })
+    await within(list).findByText('svc-backup-old')
+    expect(list.textContent).toContain('\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-Lr9')
+    expect(list.textContent).not.toContain('Bk!7mQ2xv')
+    unmount()
+    renderApp('/honeypot', { role: 'admin' })
+    const full = await screen.findByRole('list', { name: 'Honey tokens' })
+    await within(full).findByText('svc-backup-old')
+    expect(full.textContent).toContain('Bk!7mQ2xv-Lr9')
+  })
+
   it('suggests decoy types from the inventory, lists tokens with last triggered, links Respond, shows coverage', async () => {
     renderApp('/honeypot')
     expect(await screen.findByText(/You have \d+ Synology or QNAP NAS/)).toBeInTheDocument()

@@ -1,7 +1,7 @@
 // Mock API of module honeypot (S-HP-1, S-HP-2). Tables: hp_config, hp_hits, hp_decoys, hp_tokens. The response module reads hp_hits with peek. Traps only listen, they never hit back (LEGAL §3).
 // Services/ports follow OpenCanary: SMB 445 (Samba-based), RDP 3389, SSH 22, MSSQL 1433, HTTP 80.
 import { http, HttpResponse } from 'msw'
-import { API, audit, body, fail, guard, IPV4_RE } from '@/mocks/http'
+import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import { personalityDef, PERSONALITIES } from './personalities'
@@ -110,6 +110,8 @@ const assetName = (a: { hostname: string | null; ip: string }) => a.hostname ?? 
 const conflictAsset = (ip: string | null) => (ip ? assetsStore.get().find((a) => a.ip === ip) : undefined)
 
 function decoyView(d: StoredDecoy): Decoy { return { ...d, services: personalityDef(d.personality).services } }
+
+const maskPassword = (pw: string) => '\u2022'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
 
 function tokenView(t: StoredToken): Token {
   const own = hitsStore.get().filter((h) => h.token_id === t.id).sort((a, b) => b.ts.localeCompare(a.ts))
@@ -324,7 +326,10 @@ export const handlers = [
   // --- S-HP-2: honey tokens ---
   http.get(`${API}/honeypot/tokens`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: tokens.get().map(tokenView) })
+    // D-189 (WP-31 L14): the bait password is in full for an operator and an administrator; a viewer sees the last 4 characters, as the backend does.
+    const role = currentUser()?.role
+    const reveal = role === 'operator' || role === 'admin' // fail closed, as the backend does for an unknown role
+    return HttpResponse.json({ items: tokens.get().map(tokenView).map((k) => (reveal || k.password === null ? k : { ...k, password: maskPassword(k.password) })) })
   }),
 
   http.post(`${API}/honeypot/tokens`, async ({ request }) => {

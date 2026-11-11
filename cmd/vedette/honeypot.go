@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -72,6 +73,14 @@ func honeypotJobs(d deps) []jobs.Job {
 			return err
 		}},
 	}
+}
+
+// honeypotEnsureOff is the EnsureOff func of the honeypot entry in wiredModules (D-189).
+func honeypotEnsureOff(d deps) modreg.Teardown {
+	if d.Honeypot == nil {
+		return nil
+	}
+	return d.Honeypot.EnsureOff
 }
 
 // notAnAppliance is the stand-in for vedette-host until it implements decoy_ip.add/remove and container.start/stop of

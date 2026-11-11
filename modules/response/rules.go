@@ -592,7 +592,7 @@ func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) 
 	}
 	var clean []AllowEntry
 	seen := map[string]bool{}
-	if len(in) > maxAllow {
+	if len(in) > maxAllow+len(derived) { // the GUI sends back the derived rows too; they are dropped below and do not count
 		err = invalid("Each entry needs an IP address, CIDR range or domain, and a label of up to 80 characters (up to 100 entries).")
 	}
 	for _, e := range in {
@@ -606,6 +606,9 @@ func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) 
 		}
 		seen[v] = true
 		clean = append(clean, AllowEntry{Value: v, Label: oneLine(e.Label, 80)})
+	}
+	if err == nil && len(clean) > maxAllow {
+		err = invalid("Each entry needs an IP address, CIDR range or domain, and a label of up to 80 characters (up to 100 entries).")
 	}
 	if err != nil {
 		return nil, s.refuse(ctx, err, "response.allowlist", who.Email)

@@ -131,7 +131,7 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
       for (const p of [`/exposure/targets/${NOPE}`, `/exposure/targets/${NOPE}/snapshots`]) expect(await api<ApiErr>(c, 'GET', p), p).toMatchObject(gone)
       expect(await api<ApiErr>(c, 'GET', `/exposure/targets/${NOPE}/snapshots/2026-01-01`)).toMatchObject(refused(404, 'not_found', 'No snapshot for this day.'))
       expect(await api<ApiErr>(c, 'GET', `/exposure/targets/${NOPE}/diff?from=2026-01-01&to=2026-01-02`)).toMatchObject(refused(404, 'not_found', 'There is no snapshot for one of the two selected days.'))
-      for (const p of ['/exposure/targets/x/snapshots/yesterday', '/exposure/targets/x/diff?from=a&to=b', '/exposure/targets/x/diff']) expect((await api(c, 'GET', p)).status, p).toBe(400)
+      for (const p of ['/exposure/targets/x/snapshots/yesterday', '/exposure/targets/x/diff?from=a&to=b', '/exposure/targets/x/diff']) expect(await api<ApiErr>(c, 'GET', p), p).toMatchObject({ status: 400, body: { error: { code: 'invalid' } } })
       for (const p of ['/me', '/exposure/targets', `/exposure/targets/${NOPE}`, '/exposure/targets/x/snapshots', '/exposure/targets/x/diff?from=2026-01-01&to=2026-01-02']) {
         expect(await api<ApiErr>(out, 'GET', p), `signed out: ${p}`).toMatchObject({ status: 401, body: { error: { code: 'unauthenticated' } } })
       }
@@ -145,7 +145,7 @@ test.describe('the page, read as a viewer (S-EXP-1)', () => {
   test('a target that does not exist: the page says so and offers the way back', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/exposure/xt-nosuchtarget')
-    await expect(page.getByRole('alert').first()).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'No such target. It may have been deleted.' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Back to external exposure' })).toHaveAttribute('href', '/exposure')
     await expect(page.locator('body')).not.toContainText(/undefined|\[object|goroutine|sql:/)
     await noVietnamese(page, 'target not found')
@@ -167,16 +167,21 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       for (const [value, status, code, message] of REFUSALS) {
         expect(await api<ApiErr>(admin, 'POST', '/exposure/targets', { value }), JSON.stringify(value)).toMatchObject(refused(status, code, message))
       }
-      for (const body of [{}, { value: 5 }, { value: null }]) expect((await api(admin, 'POST', '/exposure/targets', body)).status, JSON.stringify(body)).toBe(400)
+      for (const body of [{}, { value: 5 }, { value: null }]) expect(await api<ApiErr>(admin, 'POST', '/exposure/targets', body), JSON.stringify(body)).toMatchObject({ status: 400, body: { error: { code: 'invalid' } } })
       expect(await snapshot(admin), 'a refusal saves nothing').toBe(before)
       // the form shows the server's own sentence in the field, keeps what was typed, and Enter submits
       await page.goto('/exposure')
       await page.getByRole('button', { name: 'Add domain' }).first().click()
       const dlg = page.getByRole('dialog', { name: 'Add a domain' })
       const input = dlg.getByRole('textbox', { name: 'Domain' })
+      const posts: string[] = []
+      const onRequest = (r: { method(): string; url(): string }) => { if (r.method() === 'POST') posts.push(r.url()) }
+      page.on('request', onRequest)
       await input.press('Enter')
-      await expect(dlg.getByText(E_EMPTY, { exact: true })).toBeVisible() // checked in the form: no request leaves
-      for (const [value, , , message] of REFUSALS.filter((r) => ['https://example.com/', '203.0.113.5', '2001:db8::1', 'localhost'].includes(r[0]))) {
+      await expect(dlg.getByText(E_EMPTY, { exact: true })).toBeVisible()
+      page.off('request', onRequest)
+      expect(posts, 'an empty field is checked in the form: no request leaves').toEqual([])
+      for (const [value, , , message] of ['203.0.113.5', 'https://example.com/', '2001:db8::1', 'localhost'].map((v) => REFUSALS.find((r) => r[0] === v)!)) { // no two in a row share a message
         await input.fill(value)
         const reply = addPost(page)
         await input.press('Enter')
@@ -273,7 +278,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       // an unproven domain cannot be put on the Ignored list either (only an IP can)
       const listBefore = await snapshot(admin)
       expect(await api<ApiErr>(admin, 'DELETE', `/exposure/targets/${id}?ignore=true`)).toMatchObject(refused(400, 'bad_value', 'Only a public IP can go on the Ignored list.'))
-      expect((await api(admin, 'DELETE', `/exposure/targets/${id}?ignore=maybe`)).status).toBe(400)
+      expect(await api<ApiErr>(admin, 'DELETE', `/exposure/targets/${id}?ignore=maybe`)).toMatchObject({ status: 400, body: { error: { code: 'invalid' } } })
       expect(await snapshot(admin), 'the refused delete kept the domain and the Ignored list').toBe(listBefore)
 
       // the same name again, in any case, is a duplicate; the list does not grow
@@ -327,7 +332,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
 })
 
 test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
-  test('a viewer and an operator see the results, every admin action is locked with its reason, and the API refuses them without saving anything', async ({ browser }) => {
+  test('a viewer and an operator see the results, every admin action is locked with its reason, and the API refuses them without saving anything (box-wide settings and Detect now: exposure.global.spec.ts)', async ({ browser }) => {
     test.setTimeout(150_000)
     const value = domain()
     made.push(value)
@@ -387,12 +392,12 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
 
         // the API: the same refusals, role first (403 before anything is looked at), and nothing changes
         const c = await as(role)
+        const probe = domain()
+        made.push(probe) // swept even if the role check ever regressed and saved it
         try {
           const FORBIDDEN = refused(403, 'forbidden', 'Your account is not allowed to do this.')
           const admin_only: [Parameters<typeof api>[1], string, unknown?][] = [
-            ['POST', '/exposure/targets', { value: domain() }],
-            ['PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 15 }],
-            ['POST', '/exposure/box-ip/verify'],
+            ['POST', '/exposure/targets', { value: probe }],
             ['POST', `/exposure/targets/${id}/commitment`, { confirm: true }],
             ['DELETE', `/exposure/targets/${id}`],
             ['DELETE', `/exposure/targets/${id}?ignore=true`],

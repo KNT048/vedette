@@ -45,7 +45,7 @@ test('the check interval: 1 to 1440 minutes is saved and audited, anything else 
     const BAD = refused(400, 'bad_interval', 'Choose how often to check: every minute up to every 24 hours (1440 minutes).')
     for (const n of [0, -1, 1441, 100_000]) expect(await api<ApiErr>(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: n }), `interval ${n}`).toMatchObject(BAD)
     for (const body of [{ auto: false, interval_min: 1.5 }, { auto: false, interval_min: '60' }, { auto: false, interval_min: null }, { auto: false }, { interval_min: 15 }, { auto: 'no', interval_min: 15 }]) {
-      expect((await api(admin, 'PUT', '/exposure/box-ip/settings', body)).status, JSON.stringify(body)).toBe(400)
+      expect(await api<ApiErr>(admin, 'PUT', '/exposure/box-ip/settings', body), JSON.stringify(body)).toMatchObject({ status: 400, body: { error: { code: 'invalid' } } })
     }
     expect(await snapshot(admin), 'a refusal saves nothing').toBe(before)
     expect(await newRows(), 'a refusal is not an audit row').toEqual([])
@@ -135,5 +135,25 @@ test('twenty targets at most: the 21st is refused with the exact answer, in the 
     for (const r of added) expect([r.action, r.user]).toEqual(['exposure.target_add', ACCOUNTS.admin.email])
     await shot(page, 'real', 'exposure-twenty')
     noErrors(errors, /status of 400/)
+  } finally { await admin.dispose() }
+})
+
+test('the box-wide controls are the administrator\'s: a viewer and an operator are refused with the exact answer, and nothing changes or is detected (PRE-4)', async () => {
+  const admin = await as('admin')
+  try {
+    const before = await snapshot(admin)
+    const settingsBefore = (await list(admin)).box_ip
+    const auditBefore = await auditIds(admin, 'exposure.')
+    const FORBIDDEN = refused(403, 'forbidden', 'Your account is not allowed to do this.')
+    for (const role of ['viewer', 'operator'] as const) {
+      const c = await as(role)
+      try {
+        expect(await api<ApiErr>(c, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 15 }), `${role} PUT settings`).toMatchObject(FORBIDDEN)
+        expect(await api<ApiErr>(c, 'POST', '/exposure/box-ip/verify'), `${role} Detect now`).toMatchObject(FORBIDDEN)
+      } finally { await c.dispose() }
+    }
+    expect(await snapshot(admin), 'nothing was saved').toBe(before)
+    expect((await list(admin)).box_ip, 'the settings and the last detection are as they were').toEqual(settingsBefore)
+    expect([...(await auditIds(admin, 'exposure.'))].filter((x) => !auditBefore.has(x)), 'no audit row').toEqual([])
   } finally { await admin.dispose() }
 })

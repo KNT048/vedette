@@ -86,8 +86,6 @@ export function headline(items: Tgt[]): string {
   return 'No admin interface is exposed to the Internet'
 }
 
-/** The "Ownership" chip of a target (OwnerChip), without the day count of an expiring IP (an IP only comes from the public IP services, which no test reaches). */
-export const ownerText = (t: Pick<Tgt, 'status'>) => ({ unverified: 'Awaiting ownership proof', expired: 'Verification expired', verified: 'Ownership verified' })[t.status]
 /** The "Scan" cell of a target: the blocked label, or "Ready to scan". */
 export const blockedLabel: Record<string, string> = { unverified: 'Needs ownership proof', expired: 'Verification expired', txt_missing: 'TXT record missing', ip_not_current: 'Paused', no_commitment: 'Needs your confirmation' }
 export const scanCell = (t: Pick<Tgt, 'blocked_reason'>) => (t.blocked_reason ? blockedLabel[t.blocked_reason]! : 'Ready to scan')

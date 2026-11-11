@@ -602,22 +602,26 @@ type liveRun struct {
 	started time.Time
 }
 
-// finish records the end of the run in the required order: audit line, run file, then the write
-// lock is released, and only then the final state event ends the stream. A client that sees the
-// final event therefore also sees the lock free and the final run.
+// finish records the end of the run in the required order: audit line, then the run file and the
+// write lock release as one step (both under s.mu), and only then the final state event ends the
+// stream. A client that sees the terminal run (GET or event) therefore also sees the lock free.
 //
 // holdLock keeps the write lock after the run is recorded: used when the command goroutine could
 // not be stopped, so no second write can start while the first may still be touching the system.
 func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, rerr *api.RunError, holdLock bool) {
 	var once sync.Once
-	release := func() {
+	releaseLocked := func() { // s.mu held
 		once.Do(func() {
 			if lr.sr.Write && !holdLock {
-				s.releaseWrite(lr.sr.Run.RunID)
+				s.releaseLocked(lr.sr.Run.RunID)
 			}
 		})
 	}
-	defer release()
+	defer func() { // a panic below must not leave the lock held
+		s.mu.Lock()
+		releaseLocked()
+		s.mu.Unlock()
+	}()
 	now := s.now().UTC()
 	run := &lr.sr.Run
 	run.Status, run.FinishedAt, run.Result, run.Error, run.RevertAt = status, &now, result, rerr, nil
@@ -631,10 +635,17 @@ func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, 
 	if err := s.audit.append(e); err != nil {
 		s.log.Error("could not audit a finished run", "run_id", run.RunID)
 	}
-	if err := s.runs.put(lr.sr); err != nil {
+	// The terminal run becomes readable and the lock is freed as one step for anyone who asks the
+	// server: s.mu is held across both, and every writer and WriteActive takes s.mu, so a client
+	// that reads "failed" and at once sends the next write never gets 409 busy for the run it just
+	// saw end (the order s.mu then runs.mu is the one the accept path uses).
+	s.mu.Lock()
+	err := s.runs.put(lr.sr)
+	releaseLocked()
+	s.mu.Unlock()
+	if err != nil {
 		s.log.Error("could not save a finished run", "run_id", run.RunID)
 	}
-	release()
 	line := ""
 	if rerr != nil {
 		line = rerr.Message

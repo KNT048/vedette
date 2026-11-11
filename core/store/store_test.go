@@ -617,6 +617,48 @@ func TestSnapshotToDoesNotNeedTheWriter(t *testing.T) {
 	}
 }
 
+// Compact rewrites the file and truncates the log: after deleting a big table the bytes are gone from the disk (the factory reset needs
+// deleted rows not to linger in free pages), and the data that stays is still there.
+func TestCompactDropsDeletedBytes(t *testing.T) {
+	t.Parallel()
+	db := storetest.New(t)
+	err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(t.Context(), "CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)"); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), "INSERT INTO t (v) VALUES ('keep')"); err != nil {
+			return err
+		}
+		for range 2000 {
+			if _, err := tx.ExecContext(t.Context(), "INSERT INTO t (v) VALUES (?)", "SECRET-ROW-"+strings.Repeat("x", 500)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), "DELETE FROM t WHERE v <> 'keep'")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := db.Size()
+	if err := db.Compact(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := db.Size()
+	if after >= before/4 {
+		t.Errorf("size %d before, %d after Compact", before, after)
+	}
+	var n int
+	if err := db.Reader().QueryRowContext(t.Context(), "SELECT count(*) FROM t WHERE v = 'keep'").Scan(&n); err != nil || n != 1 {
+		t.Errorf("kept row: %d, %v", n, err)
+	}
+}
+
 // Pins today's behaviour (D-183): goose does not refuse a database newer than the binary, and that is intended.
 // An older binary must start on a newer database: D-151 (add-only volume migrations, logs.db is never restored)
 // and D-138 (rollback.safe=true means the previous version runs on the new database). Whoever adds a refusal

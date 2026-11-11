@@ -60,6 +60,10 @@ type deps struct {
 	// HostSocket is the unix socket of vedette-host ("" = this install has none: every OS endpoint answers 409 not_appliance).
 	// DataDir is core_data, the directory of the database file; KeyPath the master key file: both feed the snapshots of host-api 6.11.
 	HostSocket, DataDir, KeyPath string
+	// PurgeGate is shut while a factory reset runs; the core, OS and network handlers share it (N4). Set by buildServices.
+	PurgeGate *core.PurgeGate
+	// Restart ends the process after a data purge (POST /core/data/purge, D-154) so that the supervisor starts it on a fresh box; nil in tests.
+	Restart func()
 	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself
 	// for core/conn (D-94). HostNet is the one cached provider of every address vedette-host reports for the appliance's interfaces and its decoys
 	// (host-api state/net, as single-address prefixes); nil when this install has no host. conn, sensor-active and the honeypot's box
@@ -119,6 +123,22 @@ func wiredModules() []moduleWiring {
 		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
 		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); last: nothing depends on it; the job prunes the activity log
 	}
+}
+
+// moduleDataFiles are the data files modules keep in core_data besides vedette.db: plain names, which POST /core/data/purge removes
+// with their -wal, -shm and -journal files (D-151 (3), D-154). Add a name here when a module opens a file of its own; the logs module's
+// logs.db is listed before it exists so that no purge can leave log lines behind once it does.
+var moduleDataFiles = []string{"logs.db"}
+
+// schemaSets is the migrations of the wired modules in order, for the purge's picture of a fresh install.
+func schemaSets(wired []moduleWiring) []core.SchemaSet {
+	var out []core.SchemaSet
+	for _, w := range wired {
+		if w.Migrations != nil {
+			out = append(out, core.SchemaSet{Module: w.ID, FS: w.Migrations})
+		}
+	}
+	return out
 }
 
 // migrateAll applies every wired module's migrations, in order, whether the module is on or off

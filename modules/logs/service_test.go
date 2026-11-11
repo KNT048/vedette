@@ -1241,12 +1241,14 @@ func TestThePurgeRunsEveryPurgeEvery(t *testing.T) {
 	})
 }
 
-// D-201: with the module off the scheduler still runs the job, and a volume over the bound is purged on a kick.
+// D-201: with the module off the scheduler still runs the job, and a store that was left over the bound (by an earlier process:
+// it is seeded, not ingested through this one) is purged by the pass at the start.
 func TestAnOverBoundVolumeIsPurgedWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
 	e.svc.maxBytes = 1000
+	e.bulk(s.ID, 1500, *e.clock) // 1,500 one-byte lines and a counter of 1,500: over the bound, and the counter is right
 	sched := jobs.New(slog.New(slog.DiscardHandler), offGate{}, func() time.Time { return *e.clock })
 	for _, j := range Jobs(e.svc) {
 		if err := sched.Add(j); err != nil {
@@ -1257,18 +1259,16 @@ func TestAnOverBoundVolumeIsPurgedWhileTheModuleIsOff(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() { defer close(done); sched.Run(ctx) }()
-	e.pass(passes)
-	e.advance(time.Minute)
-	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 150)...)); err != nil {
-		t.Fatal(err)
-	}
 	if !e.pass(passes) {
-		t.Fatal("the kick did not run a purge while the module was off")
+		t.Fatal("the pass at the start did not purge while the module was off")
 	}
 	cancel()
 	<-done
 	if left := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); left > 900 {
 		t.Fatalf("%d bytes left, want at most 900", left)
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n > 900 {
+		t.Fatalf("%d lines left, want at most 900", n)
 	}
 }
 
@@ -1459,7 +1459,7 @@ func TestFirstPurgeStartedByIngestRecountsBeforeDeleting(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.advance(time.Minute)
-	stop, passes := e.runJob() // the kick is buffered: the first iteration recounts, the kicked one then finds nothing to delete
+	stop, passes := e.runJob() // the kick is buffered: the first iteration recounts and purges, and the kick then falls inside the minute gap and is deferred (ran false): nothing is deleted
 	e.pass(passes)
 	e.pass(passes)
 	_ = stop()

@@ -52,10 +52,14 @@ for t in $targets; do
 	$c image exists "$image" || pulled="$pulled $image"
 
 	# an image with systemd as init and nothing of the package's Depends: apt must resolve them from the .deb
+	# The official debian/ubuntu images ship /usr/sbin/policy-rc.d (exit 101) so that installs during an image build start no daemon;
+	# deb-systemd-invoke honours it, which would turn the upgrade restart (M2) into a no-op here. This container boots systemd and stands
+	# for a real box, which has no policy-rc.d, so the file is removed. (The postinst is right to honour it: that is Debian's behaviour.)
 	mkdir -p "$work/$name"
 	cat >"$work/$name/Containerfile" <<EOT
 FROM $image
 RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN rm -f /usr/sbin/policy-rc.d
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
 EOT

@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -214,7 +216,7 @@ func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
 		e.m.InstallUnit(c.service, opstest.Digest('b'), true) // as the bootstrap writes them: with [Install], not running
 		toggle(c.module, false)
 	}
-	stop := startGuards(ctx, reg, slog.New(slog.DiscardHandler), deps{HostSocket: e.h.Socket, Reg: reg}, wired)
+	stop := startGuards(ctx, reg, slog.New(slog.DiscardHandler), deps{HostSocket: e.h.Socket, Reg: reg, Log: testLogger()}, wired)
 	defer stop()
 	for _, c := range moduleContainers {
 		eventually(t, c.service+" stopped without [Install] at start with the module off", func() bool {
@@ -269,5 +271,56 @@ func TestModuleContainerSkipsWhatIsAlreadyRight(t *testing.T) {
 	}
 	if n := e.writes(); n != runs {
 		t.Fatalf("ensureOff sent %d write runs for a unit that was already stopped without [Install]", n-runs)
+	}
+}
+
+// MED-4: the skips take only what the host vouches for. A unit that is there but is not byte-for-byte the host's own (the host
+// reports Installed=false) is not "nothing to stop": the stop goes out, is refused unit_unsafe, and the error makes the OffGuard retry.
+func TestModuleContainerDoesNotSkipAUnitTheHostDoesNotTrust(t *testing.T) {
+	t.Setenv("TZ", "UTC")
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	ctx := t.Context()
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatal(err)
+	}
+	text, err := e.m.Unit(api.ServiceSensor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-sensor.container"), []byte(text+"# edited by hand\n"), 0o644); err != nil { //nolint:gosec // a unit file of the fake root, 0644 like the real ones
+		t.Fatal(err)
+	}
+	reg.on.Store(false)
+	if err := f.ensureOff(ctx); err == nil {
+		t.Fatal("ensureOff said done for a unit the host does not trust, while the container still runs")
+	}
+	if e.state(t, api.ServiceSensor) != api.UnitActive {
+		t.Fatalf("the container is %s", e.state(t, api.ServiceSensor))
+	}
+	reg.on.Store(true) // the same for the start: the refusal is an error to retry, not a silent skip
+	if err := f.ensureOn(ctx); err == nil {
+		t.Fatal("ensureOn said done for a unit the host does not trust")
+	}
+}
+
+// MED-4: a unit state the host cannot name ("unknown") is never taken for running: the module is on, the container is down,
+// the start goes out.
+func TestModuleContainerStartsWhenTheUnitStateIsUnknown(t *testing.T) {
+	t.Setenv("TZ", "UTC")
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
+	e.m.Rule("systemctl", "is-active vedette-sensor", "weird\n", 3, "weird-state", "")
+	e.m.Mark("weird-state", true)
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	before := e.writes()
+	_ = f.ensureOn(t.Context()) // the fake keeps printing "weird", so the host may not see it settle; what matters is that it tried
+	if e.writes() == before {
+		t.Fatal("ensureOn sent no write for a unit whose state is unknown")
 	}
 }

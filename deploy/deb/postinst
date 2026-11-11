@@ -127,7 +127,8 @@ enable_unit() {
 # unit that is stopped, so a first install, or an administrator's stop, is never turned into a start). The prerm leaves the
 # old daemon running on upgrade on purpose; this is where it is replaced. Core does not depend on the host, so it is not
 # restarted; the units that Require= the host (honeypot) come with it. Never fails the package: the installer starts the unit
-# and checks the effect (install.sh). The caller guarantees systemd is running.
+# and checks the effect (install.sh). The caller guarantees systemd is running. deb-systemd-invoke honours policy-rc.d (an
+# administrator or an image build that forbids starting daemons gets no restart): that is Debian's behaviour and is kept.
 restart_after_upgrade() {
 	[ -n "${1:-}" ] || return 0
 	if command -v deb-systemd-invoke >/dev/null 2>&1; then

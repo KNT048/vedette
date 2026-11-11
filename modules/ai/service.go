@@ -79,6 +79,12 @@ type Config struct {
 	// tables (core_chain_anchor, core_chain_head) and offers the helper (chainhead.Prune, issue #194); until then it is nil and
 	// the retention prune is off: the setting is saved, nothing is removed.
 	ChainPruner ChainPruner
+	// Data is what the read tools of "Ask your data" search (inventory, findings, feeds); nil = those tools are not offered.
+	Data Data
+	// Conns lists and calls the read tools of the connections (core/conn/read); nil = no connection tools.
+	Conns ConnReader
+	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
+	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
 	HookTimeout time.Duration
 }

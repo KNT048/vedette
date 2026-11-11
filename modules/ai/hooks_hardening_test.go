@@ -227,7 +227,7 @@ func TestContract_INV12_RegexTimeBound(t *testing.T) {
 	}
 }
 
-// Item 8: at most 50 custom hooks.
+// Item 8: at most MaxCustomHooks (30) custom hooks.
 func TestCustomHookCap(t *testing.T) {
 	t.Parallel()
 	mk := func(n int) []CustomHook {
@@ -384,5 +384,23 @@ func TestWriteToolNamesFoldCase(t *testing.T) {
 		if _, ok := Offered(JobAskMyData, tools, n); ok {
 			t.Errorf("%q dispatchable", n)
 		}
+	}
+}
+
+// A pattern that matches again and again is a block, not a slow run: leftmost-first `.*z|a` re-reads the text after each match.
+func TestRegexWithTooManyMatchesBlocks(t *testing.T) {
+	t.Parallel()
+	r := runner(t, nil, CustomHook{ID: "h", Name: "Slow", When: AfterAI, Match: HookMatch{MatchRegex, `.*z|a`}, Action: ActionMask, Message: "A is removed.", Enabled: true})
+	res, err := r.Run(bg, AfterAI, strings.Repeat("a ", MaxMatchesPerScan+1))
+	if err != nil || res.Outcome != OutcomeBlocked || len(res.Hits) != 1 || !strings.Contains(res.Text, "too many matches") {
+		t.Fatalf("%+v %v", res, err)
+	}
+	res, err = r.Run(bg, AfterAI, strings.Repeat("a ", MaxMatchesPerScan))
+	if err != nil || res.Outcome != OutcomeMasked {
+		t.Fatalf("at the cap: %+v %v", res, err)
+	}
+	// a long text of matches stops at the cap instead of reading to the end after every match (no wall clock here: a time bound flaked under -race)
+	if res, err := r.Run(bg, AfterAI, strings.Repeat("a", 2<<10)); err != nil || res.Outcome != OutcomeBlocked {
+		t.Fatalf("%+v %v", res, err)
 	}
 }

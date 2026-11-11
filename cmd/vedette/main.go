@@ -67,6 +67,10 @@ type options struct {
 	// sensorListen and sensorCreds are the sensor link (D-141): the mutual-TLS listener of the two sensor containers and the directory
 	// that holds their credentials, <creds>/<role>/sensor.pem. Empty sensorListen = no listener (a container-only install).
 	sensorListen, sensorCreds string
+	// syslogPort is the port the logs module listens on for syslog; 0 = 514, and 5514 when the process may not bind 514.
+	syslogPort int
+	// mcpListen is the loopback address of the read-only MCP server (mcp-server module, INV-5, D-230).
+	mcpListen string
 }
 
 // newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
@@ -87,6 +91,8 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
 	flags.StringVar(&o.sensorListen, "sensor-listen", "", "address of the sensor link, a mutual-TLS listener for the sensor and scan containers (D-109), e.g. :8444 inside the container (the unit publishes 127.0.0.1:8444 only); empty = none, and the sensors cannot reach core")
 	flags.StringVar(&o.sensorCreds, "sensor-creds", "", "directory where core writes the sensors' credentials, <dir>/passive/sensor.pem and <dir>/active/sensor.pem (needed with -sensor-listen); each role's folder is a volume shared with that container only")
+	flags.IntVar(&o.syslogPort, "syslog-port", 0, "port of the syslog listener of the logs module (UDP and TCP, only while the module is on and a source is declared); 0 = 514, or 5514 when this process may not bind 514")
+	flags.StringVar(&o.mcpListen, "mcp-listen", "127.0.0.1:8765", "loopback address and port of the read-only MCP server, open only while the mcp-server module is on; an address off loopback is refused (INV-5, D-230)")
 	return flags, showVersion
 }
 
@@ -108,6 +114,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	if (o.tlsCert == "") != (o.tlsKey == "") {
 		return errors.New("-tls-cert and -tls-key go together")
+	}
+	if o.syslogPort < 0 || o.syslogPort > 65535 {
+		return fmt.Errorf("-syslog-port %d is not a port", o.syslogPort)
 	}
 	if !sensorlink.ValidVersion(version) {
 		return fmt.Errorf("the build version %q is not SemVer: build with -ldflags \"-X main.version=<major.minor.patch>\"", version)
@@ -262,6 +271,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
 			cancel()
 		}}
+	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
+	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
+		return err
+	}
 	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}
@@ -295,6 +308,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	guard := modreg.NewOffGuard(offCtx, reg, log, nil)
 	defer func() { stopOff(); guard.Wait() }()
 	reg.OnChange(guard.ModuleChanged)
+	if err := startMCP(ctx, d); err != nil { // the port is open exactly while the module is on (POST-1)
+		return err
+	}
 	addOffGuards(guard, d, wired) //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
 
 	api, err := server.New(server.Config{

@@ -6,16 +6,35 @@ import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
-import { QueryState } from '@/components/common/States'
+import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import { useMcp, useMcpMutations } from './api'
+import { useMcp, useMcpMutations, useToggleModule } from './api'
+import { useModuleEnabled } from '@/lib/modules'
 import { errMsg, useGate } from './parts'
 import type { McpState, McpToken } from './types'
+
+/** The switch is the mcp-server module's own (PATCH /modules/mcp-server, D-230): the section reads /core/mcp only while it is on. */
+function McpSwitch({ on }: { on: boolean }) {
+  const { t } = useTranslation('core')
+  const gate = useGate('admin')
+  const toggle = useToggleModule()
+  async function flip(v: boolean) {
+    try { await toggle.mutateAsync({ id: 'mcp-server', enabled: v }); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
+  }
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+      <Switch id="mcp-switch" checked={on} disabled={gate.disabled || toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void flip(v)} />
+      <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
+      {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
+      <span className="text-[13px] text-muted">{on ? t('mcp.onHint') : t('mcp.offHint')}</span>
+    </div>
+  )
+}
 
 function Body({ s }: { s: McpState }) {
   const { t } = useTranslation('core')
@@ -25,10 +44,8 @@ function Body({ s }: { s: McpState }) {
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
   const [created, setCreated] = useState<{ token: string; name: string } | null>(null)
+  const [askRevoke, setAskRevoke] = useState<McpToken | null>(null)
 
-  async function toggle(v: boolean) {
-    try { await m.toggle.mutateAsync(v); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
-  }
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setFormErr(null)
@@ -37,7 +54,7 @@ function Body({ s }: { s: McpState }) {
     try { const r = await m.create.mutateAsync({ name: name.trim(), scopes }); setName(''); setCreated({ token: r.token, name: r.item.name }) } catch (err) { setFormErr(errMsg(err, t)) }
   }
   async function revoke(tk: McpToken) {
-    try { await m.revoke.mutateAsync(tk.id); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { toast.error(errMsg(e, t)) }
+    try { await m.revoke.mutateAsync(tk.id); setAskRevoke(null); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { setAskRevoke(null); toast.error(errMsg(e, t)) }
   }
 
   const tokenCols: ColumnDef<McpToken>[] = [
@@ -46,7 +63,7 @@ function Body({ s }: { s: McpState }) {
     { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-[12.5px]">…{row.original.last4}</span> },
     { id: 'created', header: t('mcp.token.col.created'), accessorFn: (x) => x.created_at, cell: ({ row }) => fmtDateTime(row.original.created_at) },
     { id: 'used', header: t('mcp.token.col.used'), accessorFn: (x) => x.last_used ?? '', cell: ({ row }) => (row.original.last_used ? fmtRelative(row.original.last_used) : t('mcp.token.never')) },
-    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={m.revoke.isPending} onClick={() => void revoke(row.original)}>{t('mcp.token.revoke')}</Button> },
+    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={gate.disabled || m.revoke.isPending} title={gate.title} onClick={() => setAskRevoke(row.original)}>{t('mcp.token.revoke')}</Button> },
   ]
   const toolCols: ColumnDef<{ name: string; scope: string }>[] = [
     { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.name}</span> },
@@ -56,15 +73,10 @@ function Body({ s }: { s: McpState }) {
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
-        <Switch id="mcp-switch" checked={s.enabled} disabled={gate.disabled || m.toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void toggle(v)} />
-        <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
-        {s.enabled ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
-        <span className="text-[13px] text-muted">{s.enabled ? t('mcp.onHint') : t('mcp.offHint')}</span>
-      </div>
-
+      <McpSwitch on />
       {s.enabled ? (
         <>
+          {!s.listening ? <p role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{s.listen_error ?? t('mcp.notListening')} {t('mcp.notListeningHint')}</p> : null}
           <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
             <KeyValue items={[
               { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
@@ -98,6 +110,15 @@ function Body({ s }: { s: McpState }) {
         </>
       ) : null}
 
+      <Dialog open={!!askRevoke} onOpenChange={(o) => !o && setAskRevoke(null)}>
+        <DialogContent title={t('mcp.token.revokeAsk.title', { name: askRevoke?.name ?? '' })} description={t('mcp.token.revokeAsk.body')}>
+          <DialogFooter>
+            <Button onClick={() => setAskRevoke(null)}>{t('common:cancel')}</Button>
+            <Button variant="danger" disabled={m.revoke.isPending} onClick={() => askRevoke && void revoke(askRevoke)}>{t('mcp.token.revoke')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!created} onOpenChange={(o) => !o && setCreated(null)}>
         <DialogContent title={t('mcp.token.createdTitle', { name: created?.name ?? '' })} description={t('mcp.token.createdBody')}>
           {created ? <CodeBlock label={t('mcp.token.label')} code={created.token} /> : null}
@@ -110,11 +131,13 @@ function Body({ s }: { s: McpState }) {
 
 export default function McpSection() {
   const { t } = useTranslation('core')
-  const q = useMcp()
+  const on = useModuleEnabled('mcp-server')
+  const q = useMcp(on === true)
+  const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
   return (
     <>
-      <PageHeader title={q.data ? (q.data.enabled ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('mcp.titleOff')) : t('settings.mcp')} meta={t('mcp.meta')} stories={['S-MCP-1']} />
-      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+      <PageHeader title={title} meta={t('mcp.meta')} stories={['S-MCP-1']} />
+      {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )
 }

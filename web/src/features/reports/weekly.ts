@@ -34,7 +34,9 @@ export function buildWeekly(asOf = Date.now()): WeeklyReport {
 
   const shift = Date.now() - asOf
   const end = new Date(data.generated_at).getTime() - shift
-  const kevWeek = data.vulns.filter((v) => { const ms = new Date(`${v.date_added}T23:59:59Z`).getTime(); return ms > end - 7 * DAY && ms <= end })
+  // The last seven calendar days up to today, today included (D-239; the backend counts the same way).
+  const startOfToday = Math.floor(end / DAY) * DAY
+  const kevWeek = data.vulns.filter((v) => { const ms = new Date(`${v.date_added}T00:00:00Z`).getTime(); return ms > startOfToday - 7 * DAY && ms <= end })
   const kevMatched = kevWeek.filter((v) => assets.some((a) => a.software.some((s) => s.kev.includes(kevKey(v))))).length
 
   const unapproved = assets.filter((a) => !a.approved).length

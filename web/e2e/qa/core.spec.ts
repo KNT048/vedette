@@ -322,7 +322,14 @@ test.describe('users and roles', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await logoutApi(page)
     await login(page, 'lan@example.test', temp)
-    await expect(h1(page)).toBeVisible()
+    // D-180: a password an administrator set is changed at the first sign-in
+    const lanPw = 'lan-chose-this-one-2026'
+    await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible()
+    await page.getByLabel('Temporary password').fill(temp)
+    await page.getByLabel('New password', { exact: true }).fill(lanPw)
+    await page.getByLabel('Repeat new password').fill(lanPw)
+    await page.getByRole('button', { name: 'Save and continue' }).click()
+    await expect(h1(page)).not.toHaveText('Choose a new password')
     await page.goto('/settings/users')
     await expect(page.getByText(/needs a higher role/)).toBeVisible()
     await logoutApi(page)
@@ -333,7 +340,7 @@ test.describe('users and roles', () => {
     await page.getByRole('button', { name: 'Disable Lan IT' }).filter(vis).click()
     await expect(page.getByText('Disabled').filter(vis).first()).toBeVisible()
     await logoutApi(page)
-    await login(page, 'lan@example.test', temp)
+    await login(page, 'lan@example.test', lanPw) // the right password: a disabled account still cannot sign in
     await expect(page.getByText('Wrong email or password.')).toBeVisible()
     await login(page, LOGIN.email, LOGIN.password)
     await page.goto('/settings/users')
@@ -445,14 +452,14 @@ test.describe('updates', () => {
 })
 
 test.describe('privacy', () => {
-  test('12 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
+  test('13 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
     await expect(h1(page)).toContainText('connects out only for the flows listed below')
     await expectAccessible(page, 'privacy')
     // table on desktop, list on a phone
-    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(12)
+    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(13)
     await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
     await shot(page, 'core', 'privacy')
     await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).toHaveCount(0)
@@ -488,6 +495,7 @@ test.describe('MCP server', () => {
     await page.reload()
     await expect(page.locator('body')).not.toContainText(token)
     await page.getByRole('button', { name: "Revoke token Nam's Claude" }).click()
+    await page.getByRole('dialog', { name: "Revoke token Nam's Claude?" }).getByRole('button', { name: 'Revoke' }).click()
     await expect(page.getByText(/No tokens yet/)).toBeVisible()
     await noVietnamese(page, 'mcp')
     noErrors(errors)

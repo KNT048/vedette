@@ -228,6 +228,7 @@
       "mitigation": "Mitigation",
       "network": "Network",
       "os": "Operating system",
+      "report": "Reports",
       "response": "Response",
       "scan": "Scans",
       "sensor": "Sensor",
@@ -290,6 +291,7 @@
         "update_check": "Change update check"
       },
       "mcp": {
+        "call": "MCP tool call",
         "token_create": "Create MCP token",
         "token_revoke": "Revoke MCP token"
       },
@@ -349,6 +351,11 @@
       "scan.stop": "Stop scan",
       "scan.schedule.missed": "Scheduled scan missed",
       "sensor.interface_set": "Set sensor interface",
+      "report.ai_summary": "Draft an AI commentary on a report",
+      "report.pdpl_generate": "Create the data protection self-assessment",
+      "report.pdpl_org": "Save organisation details for the self-assessment",
+      "report.schedule": "Change the weekly report schedule",
+      "report.send": "Send the weekly report",
       "response.ai": "AI response request refused",
       "response.ai_hint": "Save rejection reason for the AI",
       "response.ai_note": "AI note on a response",
@@ -375,6 +382,8 @@
       "response.execution.disable": "Turn response execution off",
       "response.expire": "Response request expired",
       "response.fail": "Response action failed",
+      "response.identity_link": "Approver linked a channel address",
+      "response.identity_unlink": "Approver unlinked a channel address",
       "response.proposal": "AI proposed a response",
       "response.refused": "Response action refused",
       "response.reject": "Reject response action",
@@ -393,9 +402,16 @@
       "ai.activity_pruned": "Delete old AI activity log lines",
       "ai.assign": "Choose AI profiles for jobs",
       "ai.config": "Change AI settings",
+      "ai.hook.add": "Add AI hook",
+      "ai.hook.builtin": "Turn a built-in AI hook on or off",
+      "ai.hook.edit": "Change AI hook",
+      "ai.hook.remove": "Delete AI hook",
       "ai.profile.add": "Add AI profile",
       "ai.profile.edit": "Change AI profile",
       "ai.profile.remove": "Delete AI profile",
+      "ai.rule.add": "Add AI rule",
+      "ai.rule.edit": "Change AI rule",
+      "ai.rule.remove": "Delete AI rule",
       "ai.test": "Test AI profile",
       "data.backup_failed": "Backup download failed",
       "exposure.box_ip_settings": "Change how the box public address is found",
@@ -730,7 +746,7 @@
       },
       "3": {
         "name": "AI assistant",
-        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call. Only hashes of what was sent are kept in the AI activity log.",
+        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call, unless an administrator turns off Block personal data; the company rules an administrator writes are sent with every call. Only hashes of what was sent are kept in the AI activity log.",
         "to": "The AI providers you add (one or more profiles), or a model inside your network",
         "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
         "link": "Open AI settings"
@@ -743,7 +759,7 @@
       },
       "5": {
         "name": "Notifications",
-        "what": "Alert content, and the 6-digit sign-in code for people who use two-step email codes. Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
+        "what": "Alert content, the 6-digit sign-in code for people who use two-step email codes, and a 6-digit link code when an approver links their address in My account (sent to that address, or answered privately to their button press in chat). Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling. Zalo personal (unofficial): the box signs in to Zalo with that account's session and sends alerts and approval codes. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
         "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or your own SMTP server for email",
         "control": "Remove the channel, or turn off approvals in chat, to stop it.",
         "link": "Open alert channels"
@@ -796,6 +812,13 @@
         "to": "Only the address you typed for each connection",
         "control": "Delete the connection, or turn it off. Nothing is sent to a connection that is off.",
         "link": "Open connections"
+      },
+      "13": {
+        "name": "MCP server, read by tools you connect",
+        "what": "Only while you turn on the MCP server. The box sends nothing by itself: an AI tool or SIEM you give a token to asks, and gets the devices, findings and vulnerability-feed entries its token's scopes allow. No passwords, keys, tokens, users, audit log, log lines, AI history or settings are ever in an answer. The box listens on this machine only (localhost); a tool on another machine reaches it only through a tunnel or proxy you set up. What the tool does with the answers, for example sending them to its own AI provider, is up to that tool.",
+        "to": "Only the tools you gave a token to, through this machine",
+        "control": "Revoke the token, or turn off the MCP server. Tokens stop working at once.",
+        "link": "Open MCP server"
       }
     },
     "telemetry": {
@@ -827,7 +850,9 @@
     "bindNote": "localhost only, not open to the network",
     "endpoint": "MCP address",
     "clientConfig": "Config for the MCP tool",
-    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN.",
+    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
+    "notListening": "The port is not open yet.",
+    "notListeningHint": "Do not give a token to this address until the port is open: another program listening there would receive it.",
     "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",
     "scope": {
       "assets": "Devices",
@@ -852,6 +877,10 @@
       "revoke": "Revoke",
       "revokeOf": "Revoke token {{name}}",
       "revoked": "Token {{name}} revoked.",
+      "revokeAsk": {
+        "title": "Revoke token {{name}}?",
+        "body": "The tool that uses it loses access at once. This cannot be undone: to connect it again, create a new token."
+      },
       "col": {
         "name": "Name",
         "scopes": "Scopes",

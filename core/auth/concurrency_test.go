@@ -234,14 +234,20 @@ func TestConfirmTOTPFifthWrongCodeDropsTheKey(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
 	u := env.User(t, "ann@acme.example", routes.Viewer)
-	if _, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password); err != nil {
+	setup, err := env.Svc.StartTOTP(t.Context(), u.ID, "", authtest.Password)
+	if err != nil {
 		t.Fatal(err)
 	}
+	secret, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(setup.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrong := authtest.WrongTOTP(secret, env.Clock.Now())
 	for range 4 {
-		_, err := env.Svc.ConfirmTOTP(t.Context(), u.ID, "", "000000")
+		_, err := env.Svc.ConfirmTOTP(t.Context(), u.ID, "", wrong)
 		wantAPI(t, err, 400, "wrong_code")
 	}
-	_, err := env.Svc.ConfirmTOTP(t.Context(), u.ID, "", "000000")
+	_, err = env.Svc.ConfirmTOTP(t.Context(), u.ID, "", wrong)
 	wantAPI(t, err, 400, "too_many_tries")
 	_, err = env.Svc.ConfirmTOTP(t.Context(), u.ID, "", "000000")
 	wantAPI(t, err, 409, "no_pending")

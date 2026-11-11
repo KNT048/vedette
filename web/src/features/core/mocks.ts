@@ -718,6 +718,7 @@ function privacyView() {
     { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
+    { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }
@@ -751,46 +752,48 @@ const MCP_TOOLS = [
   { name: 'lookup_cve', scope: 'feeds' }, { name: 'lookup_ioc', scope: 'feeds' }, { name: 'hot_vulnerabilities', scope: 'feeds' },
 ]
 const mcpTokens = collection<(McpToken & { secret_hash: string })[]>('mcp_tokens', () => [])
-const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
+const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: true, listen_error: null, tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
 
+// The mcp-server module owns /core/mcp*: while it is off every path answers 404 like the real server, after the role check (D-230).
+// The switch is PATCH /modules/mcp-server (the module toggle), as for single sign-on.
+const MCP_MAX_TOKENS = 10
+/** Like the server: signed in first, then 404 while the module is off, then the admin role. */
+function mcpGate() {
+  const anon = guard('viewer')
+  if (anon) return anon
+  if (!isOn('mcp-server')) return fail(404, 'not_found', 'Not found.')
+  return guard('admin')
+}
 const mcpHandlers = [
   http.get(`${API}/core/mcp`, () => {
-    const denied = guard('admin')
+    const denied = mcpGate()
     if (denied) return denied
-    return HttpResponse.json(mcpView())
-  }),
-  http.patch(`${API}/core/mcp`, async ({ request }) => {
-    const denied = guard('admin')
-    if (denied) return denied
-    const b = await body<{ enabled: boolean }>(request)
-    if (typeof b.enabled !== 'boolean') return fail(400, 'invalid', 'The value must be on or off.')
-    modulesStore.update((l) => l.map((m) => (m.id === 'mcp-server' ? { ...m, enabled: b.enabled as boolean, enabled_at: b.enabled ? nowIso() : m.enabled_at } : m)))
-    audit(b.enabled ? 'module.enable' : 'module.disable', 'mcp-server')
     return HttpResponse.json(mcpView())
   }),
   http.post(`${API}/core/mcp/tokens`, async ({ request }) => {
-    const denied = guard('admin')
+    const denied = mcpGate()
     if (denied) return denied
-    if (!isOn('mcp-server')) return fail(409, 'module_off', 'Turn on the MCP server before creating a token.')
     const b = await body<{ name: string; scopes: string[] }>(request)
     const name = String(b.name ?? '').trim()
     if (!/^[\p{L}\p{N} _.'-]{1,64}$/u.test(name)) return fail(400, 'invalid_name', 'The token name is 1 to 64 characters: letters, digits, spaces, apostrophes, dashes.')
-    const scopes = [...new Set(b.scopes ?? [])]
-    if (!scopes.length || scopes.some((s) => !MCP_SCOPES.includes(s))) return fail(400, 'invalid_scopes', 'Choose at least one read scope: devices, findings or vulnerability feeds.')
+    const asked = Array.isArray(b.scopes) ? b.scopes : []
+    const scopes = MCP_SCOPES.filter((x) => asked.includes(x))
+    if (!scopes.length || asked.some((x) => !MCP_SCOPES.includes(x))) return fail(400, 'invalid_scopes', 'Choose at least one read scope: devices, findings or vulnerability feeds.')
+    if (mcpTokens.get().length >= MCP_MAX_TOKENS) return fail(400, 'too_many', `A box holds up to ${MCP_MAX_TOKENS} MCP tokens. Revoke one you no longer use.`)
     const secret = `vmcp_${hex(16)}`
     const item: McpToken & { secret_hash: string } = { id: newId('t'), name, scopes, last4: secret.slice(-4), created_at: nowIso(), last_used: null, secret_hash: `h:${secret.length}` }
     mcpTokens.update((l) => [...l, item])
-    audit('mcp.token_create', name, scopes.join(','))
+    audit('mcp.token_create', name, `scopes ${scopes.join(',')}, last 4 ${item.last4}`)
     const { secret_hash: _h, ...pub } = item
     return HttpResponse.json({ token: secret, item: pub }, { status: 201 })
   }),
   http.delete(`${API}/core/mcp/tokens/:id`, ({ params }) => {
-    const denied = guard('admin')
+    const denied = mcpGate()
     if (denied) return denied
     const t = mcpTokens.get().find((x) => x.id === params.id)
     if (!t) return fail(404, 'not_found', 'No such token.')
     mcpTokens.update((l) => l.filter((x) => x.id !== t.id))
-    audit('mcp.token_revoke', t.name)
+    audit('mcp.token_revoke', t.name, `last 4 ${t.last4}`)
     return new HttpResponse(null, { status: 204 })
   }),
 ]

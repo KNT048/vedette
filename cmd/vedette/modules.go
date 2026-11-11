@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -20,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
+	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -27,8 +29,10 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
+	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/response"
 	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -45,8 +49,9 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Bus     *events.Bus   // in-process event bus (core/events); modules publish after commit and subscribe here
-	Auth    *auth.Service // sessions, sign-in and two-step (core/auth)
+	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	OIDC    *authoidc.Service // SSO sign-in (auth-oidc, D-194); its accounts and sessions are core/auth's
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
 	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
@@ -72,6 +77,10 @@ type deps struct {
 	HostNet *hostNetCache
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
 	CertKick func()
+	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
+	SyslogPort int
+	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen).
+	MCPListen netip.AddrPort
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
 	// module is off or the job runs. Never nil in serve.
 	Wake func(module, job string)
@@ -112,6 +121,7 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations, Jobs: coreJobs},
+		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
@@ -124,7 +134,9 @@ func wiredModules() []moduleWiring {
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
 		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
-		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); last: nothing depends on it; the job prunes the activity log
+		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); the job prunes the activity log
+		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},    // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
+		{ID: "mcp-server", Migrations: mcpserver.Migrations},                  // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
 	}
 }
 

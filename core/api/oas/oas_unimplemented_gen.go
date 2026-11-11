@@ -562,7 +562,9 @@ func (UnimplementedHandler) CoreGetCoreLogsExport(ctx context.Context, params Co
 
 // CoreGetCoreMcp implements core_get_core_mcp operation.
 //
-// MCP server state, tokens (last 4 characters only) and the read-only tool list.
+// MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the
+// mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every
+// /core/mcp path answers 404.
 //
 // GET /core/mcp
 func (UnimplementedHandler) CoreGetCoreMcp(ctx context.Context) (r *CoreGetCoreMcpOK, _ error) {
@@ -598,7 +600,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 12 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {
@@ -693,15 +695,6 @@ func (UnimplementedHandler) CoreGetSetup(ctx context.Context) (r *CoreGetSetupOK
 //
 // PATCH /core/account
 func (UnimplementedHandler) CorePatchCoreAccount(ctx context.Context, req *CorePatchCoreAccountReq) (r *CorePatchCoreAccountOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// CorePatchCoreMcp implements core_patch_core_mcp operation.
-//
-// Turn the MCP server on/off (binds to localhost).
-//
-// PATCH /core/mcp
-func (UnimplementedHandler) CorePatchCoreMcp(ctx context.Context, req *CorePatchCoreMcpReq) (r *CorePatchCoreMcpOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -909,7 +902,7 @@ func (UnimplementedHandler) CorePostCoreDataPurge(ctx context.Context, req *Core
 
 // CorePostCoreMcpTokens implements core_post_core_mcp_tokens operation.
 //
-// Create a read-only token by scope; returns the full token once.
+// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).
 //
 // POST /core/mcp/tokens
 func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (r *CorePostCoreMcpTokensCreated, _ error) {
@@ -2119,6 +2112,15 @@ func (UnimplementedHandler) ResponseDeleteResponseCatalogID(ctx context.Context,
 	return ht.ErrNotImplemented
 }
 
+// ResponseDeleteResponseMeIdentitiesChannel implements response_delete_response_me_identities_channel operation.
+//
+// Unlink my address on a channel: buttons and links from it stop counting until I link it again.
+//
+// DELETE /response/me/identities/{channel}
+func (UnimplementedHandler) ResponseDeleteResponseMeIdentitiesChannel(ctx context.Context, params ResponseDeleteResponseMeIdentitiesChannelParams) error {
+	return ht.ErrNotImplemented
+}
+
 // ResponseDeleteResponseRulesID implements response_delete_response_rules_id operation.
 //
 // Delete a rule.
@@ -2214,6 +2216,16 @@ func (UnimplementedHandler) ResponseGetResponseEvents(ctx context.Context) (r *R
 //
 // GET /response/log
 func (UnimplementedHandler) ResponseGetResponseLog(ctx context.Context) (r *ResponseGetResponseLogOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResponseGetResponseMeIdentities implements response_get_response_me_identities operation.
+//
+// My approver identities: each approval channel whose approver list names me, with the address,
+// whether I linked it myself and how to link it (D-191).
+//
+// GET /response/me/identities
+func (UnimplementedHandler) ResponseGetResponseMeIdentities(ctx context.Context) (r *ResponseGetResponseMeIdentitiesOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2387,6 +2399,26 @@ func (UnimplementedHandler) ResponsePostResponseEmergencyStop(ctx context.Contex
 //
 // POST /response/execution
 func (UnimplementedHandler) ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (r *ResponsePostResponseExecutionOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
+//
+// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
+// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
+// button on an approval message.
+//
+// POST /response/me/identities/{channel}/code
+func (UnimplementedHandler) ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (r *ResponsePostResponseMeIdentitiesChannelCodeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResponsePostResponseMeIdentitiesChannelConfirm implements response_post_response_me_identities_channel_confirm operation.
+//
+// Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it.
+//
+// POST /response/me/identities/{channel}/confirm
+func (UnimplementedHandler) ResponsePostResponseMeIdentitiesChannelConfirm(ctx context.Context, req *ResponsePostResponseMeIdentitiesChannelConfirmReq, params ResponsePostResponseMeIdentitiesChannelConfirmParams) (r *ResponsePostResponseMeIdentitiesChannelConfirmOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 var (
@@ -123,6 +124,18 @@ func hostForURL(h string) string {
 	return h
 }
 
+// notifyApproverLinks is notify's Config.ApproverLinks (D-191, notify INV-13): whether the person proved this address in My account, as the
+// response module keeps it. d.Response is read when asked (response is built after notify); a response that does not exist yet is an error, so
+// notify skips the approver (fail closed). The error never holds the address.
+type notifyApproverLinks struct{ d *deps }
+
+func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch channel.Type, address string) (bool, error) {
+	if l.d.Response == nil {
+		return false, errResponseNotReady
+	}
+	return l.d.Response.Linked(ctx, userID, string(ch), address)
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
@@ -138,7 +151,8 @@ func newNotify(d *deps) *notify.Service {
 		return s
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
-		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: notifyBoxAddrs(d.HostNet)} // unknown only while a configured vedette-host has never answered (#157)
+		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: notifyBoxAddrs(d.HostNet),
+		ApproverLinks: notifyApproverLinks{d}} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

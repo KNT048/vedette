@@ -65,6 +65,8 @@ type Receipt struct {
 	MessageID int64
 	// ChatID is the chat the provider says the message is in (Telegram: result.chat.id, a checked number); "" = unknown.
 	ChatID string
+	// TS is the Slack timestamp of a message posted with chat.postMessage (its id for later edits and for checking a press); "" = unknown.
+	TS string
 }
 
 // Sender sends one Message through one configured channel.

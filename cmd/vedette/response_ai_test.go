@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/response"
 )
@@ -104,7 +105,7 @@ func TestWiringApproveHighRiskAIRequestWithTwoStepCodes(t *testing.T) {
 	// No code: 400 code_required; a wrong code: 400 invalid_code; no two-step on the account: 403 twofa_required. Nothing is approved.
 	_, err = svc.Approve(ctx, ann.actor, a.ID, nil, "")
 	apiErr(t, err, 400, "code_required")
-	_, err = svc.Approve(ctx, ann.actor, a.ID, nil, "000000")
+	_, err = svc.Approve(ctx, ann.actor, a.ID, nil, authtest.WrongTOTP(ann.key, clock.now()))
 	apiErr(t, err, 400, "invalid_code")
 	_, err = svc.Approve(ctx, response.Actor{ID: none.ID, Email: none.Email, Name: none.Name, Via: response.ViaApp}, a.ID, nil, "123456")
 	apiErr(t, err, 403, "twofa_required")

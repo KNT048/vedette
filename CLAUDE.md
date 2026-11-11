@@ -20,7 +20,7 @@ Khởi tạo 2026-11-06. Có SPA `web/` chạy trên mock API (D-22); chưa có 
 10. **Ponytail — viết đúng cái cần.** Không abstraction không ai hỏi; xếp dưới mọi rule khác. → `rules/ponytail.md`
 11. **Pháp lý minh bạch.** Dependency/feed mới → `THIRD_PARTY_NOTICES.md`; luồng dữ liệu ra mới → `PRIVACY.md` + UI, cùng commit. → `rules/legal.md`
 12. **AI không tạo git tag.** kien tag tay. Nhánh `feat/…`, `fix/…`, `docs/…`; không push `main`.
-13. **`make check` trên máy, bộ đầy đủ trên CI.** Repo `KNT048/vedette` public, CI miễn phí (D-63). Trước khi push: `make check` (chỉ phần đã đổi, kể cả khi đổi file dùng chung; `make verify` chỉ để tái hiện CI đỏ, D-199); merge khi CI xanh. Linux/macOS; Windows dùng WSL2. Tối đa 2 việc nặng song song. → `rules/local-checks.md`
+13. **`make check` trên máy, bộ đầy đủ trên CI.** Repo `KNT048/vedette` public, CI miễn phí (D-63). Trước khi push: `make check` (chỉ phần đã đổi, kể cả khi đổi file dùng chung; `make verify` chỉ để tái hiện CI đỏ, D-199); merge khi CI xanh, qua merge queue (D-245). Linux/macOS; Windows dùng WSL2. Tối đa 2 việc nặng song song. → `rules/local-checks.md`
 14. **Phân vân → tham khảo top-tier rồi tự quyết.** Xem sản phẩm hàng đầu cùng loại làm thế nào, tự cân nhắc, ghi D-xx kèm nguồn; chỉ hỏi kien khi rất đặc biệt (tiền, pháp lý, đổi hướng sản phẩm, không hoàn tác). → `rules/decide-like-top-tier.md`
 
 ## Lệnh
@@ -47,7 +47,7 @@ Làm theo `docs/END_OF_SESSION.md`. Đọc file, không làm từ trí nhớ.
 | Kỹ thuật | `docs/ARCHITECTURE.md`, `docs/DATA_PIPELINE.md`, `docs/AI_ASSISTANT.md`, `docs/UPDATES.md` |
 | Làm gì tiếp | `docs/TEAM_PLAN.md` (chia việc Kiên/Emily), `.ai/tasks/kien.md`, `.ai/tasks/emily.md`, `docs/ROADMAP.md` |
 | Pháp lý, dữ liệu rời máy | `docs/LEGAL.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md` |
-| Vì sao quyết định thế | `docs/DECISIONS.md` |
+| Vì sao quyết định thế | `docs/DECISIONS.md` + `docs/decisions/` (chưa gộp) |
 | Đã làm gì | `docs/project-map/completion-log.md` |
 | Bài học | `docs/project-map/lessons.md` |
 | Kiểm giao diện (bắt buộc) | `docs/QA.md` |

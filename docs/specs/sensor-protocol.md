@@ -138,7 +138,7 @@ Trả `200 { "ack_seq": 41, "rejected": [ { "index": 3, "code": "budget_exhauste
 | `budget_exhausted` | vượt hạn mức chống ngập của `core` |
 | `refused` | inventory từ chối ở biên (`observe.ErrRejected`) |
 
-Kho bận (SQLite busy, `Write` hết hạn) → `503 store_busy` cho cả lô, không mục nào được ghi hay tính hạn mức.
+Kho bận (SQLite busy, `Write` hết hạn, hay kết nối ghi bị giữ quá 5 s: `store.ErrBusy`, D-246) → `503 store_busy` cho cả lô, không mục nào được ghi hay tính hạn mức.
 
 ### 6.3 `POST /sensor/v1/heartbeat` (cả hai vai)
 

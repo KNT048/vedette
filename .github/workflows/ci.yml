@@ -6,13 +6,16 @@
 #
 # Shape (D-140): `changes` decides what a pull request needs (scripts/ci, no third-party action);
 # go-static, go-test (3 shards) and go-release run in parallel; web-verify runs the web suite.
-# `go` and `web` always run and always report under those names (merge-step.sh and a future
-# required check rely on them): they succeed only when every job they need succeeded or was
+# `go` and `web` always run and always report under those names (the ruleset on main requires them,
+# and the merge queue runs this workflow on its merge_group ref, D-245): they succeed only when every job they need succeeded or was
 # skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
 name: ci
 
 on:
   pull_request:
+  # The merge queue (D-245) tests each queued PR merged onto main and the PRs ahead of it; `changes` runs
+  # everything for this event (scripts/ci Decide), so what lands on main passed the full suite as merged.
+  merge_group:
   push:
     branches: [main]
   schedule:

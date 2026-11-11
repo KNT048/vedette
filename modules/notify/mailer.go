@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -155,6 +156,52 @@ func (s *Service) ApprovalChannels(ctx context.Context) ([]ApprovalChannel, erro
 func unmarshalMessage(raw string, m *channel.Message) error {
 	if err := json.Unmarshal([]byte(raw), m); err != nil {
 		return fmt.Errorf("notify: stored message: %w", err)
+	}
+	return nil
+}
+
+// ReportMail is the weekly report as an email: a digest with the things left to do, and the page of Vedette that holds the full
+// report. The reports module builds it from the figures; every text field goes through the line cleaner of the channel package.
+type ReportMail struct {
+	Title, What, Action string
+	Items               []string
+	Path                string // a path on this box, for example "/reports"
+}
+
+// Fixed errors of SendReport: none of them holds an address or text from the server.
+var (
+	errReportAddress = errors.New("notify: report: a recipient address is not valid")
+	errReportSend    = errors.New("notify: report: the message could not be sent")
+)
+
+// SendReport mails a report digest to the given addresses (at most 20) through the saved SMTP settings (reports INV-4: the
+// email channel of notify, no mail path of its own). The message is not logged or put into the history of alerts. A failure is a
+// fixed error that may carry the numeric SMTP status and nothing else.
+func (s *Service) SendReport(ctx context.Context, to []string, r ReportMail) error {
+	if ok, _ := s.EmailReady(ctx); !ok {
+		return ErrEmailNotReady
+	}
+	rcpt, err := channel.ParseRecipients(strings.Join(to, ","))
+	if err != nil || len(rcpt) != len(to) {
+		return errReportAddress
+	}
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Email)
+	if err != nil {
+		return errCodeSettings
+	}
+	snd, err := s.savedSender(ctx, c, rcpt)
+	if err != nil {
+		return errCodeSettings
+	}
+	cctx, cancel := context.WithTimeout(ctx, codeSendTimeout)
+	defer cancel()
+	_, err = snd.Send(cctx, channel.Message{ID: store.NewID("rpt"), Kind: "report", Severity: string(Info), Title: r.Title, What: r.What, Action: r.Action, Items: r.Items, Link: s.link(r.Path)})
+	if err != nil {
+		var se *channel.StatusError
+		if errors.As(err, &se) {
+			return fmt.Errorf("notify: report: the mail server refused the message (SMTP status %d)", se.Code)
+		}
+		return errReportSend
 	}
 	return nil
 }

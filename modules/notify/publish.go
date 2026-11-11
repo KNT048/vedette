@@ -275,6 +275,9 @@ func (s *Service) Flush(ctx context.Context) error {
 	if err := s.clearButtons(ctx, now); err != nil {
 		errs = append(errs, err)
 	}
+	if err := s.clearSlackButtons(ctx, now); err != nil {
+		errs = append(errs, err)
+	}
 	if err := s.prune(ctx, now); err != nil {
 		errs = append(errs, err)
 	}
@@ -630,6 +633,9 @@ func (s *Service) prune(ctx context.Context, now time.Time) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_kev WHERE seen_at < ?`, cut); err != nil {
 			return fmt.Errorf("notify: prune exploited vulnerabilities: %w", err)
+		}
+		if err := pruneSlackButtons(ctx, tx, now); err != nil {
+			return err
 		}
 		return pruneButtons(ctx, tx, now)
 	})

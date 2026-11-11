@@ -98,11 +98,23 @@ func (q *Queries) CountEmailCodeSendsSince(ctx context.Context, arg CountEmailCo
 }
 
 const countOtherActiveAdmins = `-- name: CountOtherActiveAdmins :one
-SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND id <> ?
+SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND sso_issuer IS NULL AND id <> ?
 `
 
+// D-196 (3): only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
 func (q *Queries) CountOtherActiveAdmins(ctx context.Context, id string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countOtherActiveAdmins, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSSOUsers = `-- name: CountSSOUsers :one
+SELECT count(*) FROM core_user WHERE sso_issuer IS NOT NULL
+`
+
+func (q *Queries) CountSSOUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSSOUsers)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -309,7 +321,7 @@ func (q *Queries) GetTotp(ctx context.Context, userID string) (CoreUserTotp, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user WHERE email = ?
 `
 
@@ -328,12 +340,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (CoreUser, e
 		&i.CreatedAt,
 		&i.LastLogin,
 		&i.TempPasswordExpiresAt,
+		&i.SsoIssuer,
+		&i.SsoSubject,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user WHERE id = ?
 `
 
@@ -352,6 +366,39 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (CoreUser, error) 
 		&i.CreatedAt,
 		&i.LastLogin,
 		&i.TempPasswordExpiresAt,
+		&i.SsoIssuer,
+		&i.SsoSubject,
+	)
+	return i, err
+}
+
+const getUserBySSO = `-- name: GetUserBySSO :one
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
+FROM core_user WHERE sso_issuer = ? AND sso_subject = ?
+`
+
+type GetUserBySSOParams struct {
+	SsoIssuer  *string
+	SsoSubject *string
+}
+
+func (q *Queries) GetUserBySSO(ctx context.Context, arg GetUserBySSOParams) (CoreUser, error) {
+	row := q.db.QueryRowContext(ctx, getUserBySSO, arg.SsoIssuer, arg.SsoSubject)
+	var i CoreUser
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Role,
+		&i.PasswordHash,
+		&i.CredVersion,
+		&i.TwofaMethod,
+		&i.Disabled,
+		&i.CreatedAt,
+		&i.LastLogin,
+		&i.TempPasswordExpiresAt,
+		&i.SsoIssuer,
+		&i.SsoSubject,
 	)
 	return i, err
 }
@@ -368,6 +415,36 @@ type InsertEmailCodeSendParams struct {
 
 func (q *Queries) InsertEmailCodeSend(ctx context.Context, arg InsertEmailCodeSendParams) error {
 	_, err := q.db.ExecContext(ctx, insertEmailCodeSend, arg.UserID, arg.SentAt, arg.Kind)
+	return err
+}
+
+const insertSSOUser = `-- name: InsertSSOUser :exec
+INSERT INTO core_user (id, name, email, role, password_hash, created_at, sso_issuer, sso_subject)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertSSOUserParams struct {
+	ID           string
+	Name         string
+	Email        string
+	Role         string
+	PasswordHash string
+	CreatedAt    string
+	SsoIssuer    *string
+	SsoSubject   *string
+}
+
+func (q *Queries) InsertSSOUser(ctx context.Context, arg InsertSSOUserParams) error {
+	_, err := q.db.ExecContext(ctx, insertSSOUser,
+		arg.ID,
+		arg.Name,
+		arg.Email,
+		arg.Role,
+		arg.PasswordHash,
+		arg.CreatedAt,
+		arg.SsoIssuer,
+		arg.SsoSubject,
+	)
 	return err
 }
 
@@ -528,6 +605,24 @@ type RehashUserPasswordParams struct {
 
 func (q *Queries) RehashUserPassword(ctx context.Context, arg RehashUserPasswordParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, rehashUserPassword, arg.PasswordHash, arg.ID, arg.CredVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const relinkSSOUser = `-- name: RelinkSSOUser :execrows
+UPDATE core_user SET sso_issuer = ?, sso_subject = ? WHERE id = ? AND sso_issuer IS NOT NULL
+`
+
+type RelinkSSOUserParams struct {
+	SsoIssuer  *string
+	SsoSubject *string
+	ID         string
+}
+
+func (q *Queries) RelinkSSOUser(ctx context.Context, arg RelinkSSOUserParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, relinkSSOUser, arg.SsoIssuer, arg.SsoSubject, arg.ID)
 	if err != nil {
 		return 0, err
 	}

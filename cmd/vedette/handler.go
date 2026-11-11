@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/ai"
+	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -10,8 +11,10 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
+	mcpserver "github.com/knt048/vedette/modules/mcp-server"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/response"
 	"github.com/knt048/vedette/modules/scan"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
@@ -26,6 +29,7 @@ type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
 	*core.APIHandlers
+	*authoidc.OIDCHandlers
 	*core.OSHandlers
 	*core.NetworkHandlers
 	*inventory.Handlers
@@ -40,6 +44,8 @@ type handler struct {
 	*logs.LogsHandlers
 	*scan.ScanHandlers
 	*ai.AIHandlers
+	*mcpserver.McpHandlers
+	*reports.ReportsHandlers
 }
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
@@ -49,6 +55,7 @@ func newHandler(d deps) handler {
 		Fallback:        server.Fallback{Log: d.Log},
 		ModuleHandlers:  core.NewModuleHandlers(d.DB, d.Reg),
 		APIHandlers:     d.Core,
+		OIDCHandlers:    authoidc.NewHandlers(d.OIDC),
 		OSHandlers:      d.OS,
 		NetworkHandlers: d.Network,
 		Handlers:        inventory.NewHandlers(d.Inventory),
@@ -64,5 +71,7 @@ func newHandler(d deps) handler {
 		LogsHandlers:     logs.NewLogsHandlers(logsService(d)),
 		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
 		AIHandlers:       ai.NewAIHandlers(d.AI),
+		McpHandlers:      mcpHandlers(d),
+		ReportsHandlers:  reports.NewReportsHandlers(reportsService(d)),
 	}
 }

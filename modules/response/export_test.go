@@ -108,3 +108,12 @@ func (s *Service) ChatKeysForTest() int {
 	defer s.limitMu.Unlock()
 	return len(s.chatTimes)
 }
+
+// LinkForTest records that a person proved an address on a channel (D-191), as ConfirmLink does after a right code.
+func (s *Service) LinkForTest(ctx context.Context, userID, channel, address string) error {
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, ?, ?, ?)
+			ON CONFLICT (user_id, channel) DO UPDATE SET address = excluded.address`, userID, channel, address, s.ts())
+		return err
+	})
+}

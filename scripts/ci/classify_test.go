@@ -42,7 +42,7 @@ func TestDecide(t *testing.T) {
 		"diff failed":        {"pull_request", nil, false, all},
 		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, all},
 		"dispatch":           {"workflow_dispatch", nil, false, all},
-		"unknown event":      {"merge_group", []string{"docs/a.md"}, true, all},
+		"merge queue":        {"merge_group", []string{"docs/a.md"}, true, all},
 		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Vuln: true, Audit: true}},
 	} {
 		t.Run(name, func(t *testing.T) {

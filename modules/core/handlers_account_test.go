@@ -119,7 +119,7 @@ func TestAccount_TwofaApp(t *testing.T) {
 		t.Fatalf("start = %s", r.Raw)
 	}
 	wantStatus(t, c.post("/core/account/2fa/confirm", map[string]any{"code": "12"}), 400, "invalid_code")
-	wantStatus(t, c.post("/core/account/2fa/confirm", map[string]any{"code": "000000"}), 400, "wrong_code")
+	wantStatus(t, c.post("/core/account/2fa/confirm", map[string]any{"code": authtest.WrongTOTP(key, w.env.Clock.Now())}), 400, "wrong_code")
 	if got := c.get("/me"); got.JSON["twofa"] != false {
 		t.Fatal("two-step is on before it was confirmed")
 	}
@@ -162,7 +162,7 @@ func TestAccount_TwofaEmail(t *testing.T) {
 	}
 	wantStatus(t, c.post("/core/account/2fa/email/start", map[string]any{"password": authtest.Password}), 429, "resend_too_soon")
 	wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": "12"}), 400, "invalid_code")
-	wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": "000000"}), 400, "wrong_code")
+	wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": authtest.WrongCode(w.env.Mailer.LastCode())}), 400, "wrong_code")
 	wantOK(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": w.env.Mailer.LastCode()}), 200)
 	if me := c.get("/me"); me.JSON["twofa_method"] != "email" {
 		t.Fatalf("/me = %s", me.Raw)
@@ -172,10 +172,11 @@ func TestAccount_TwofaEmail(t *testing.T) {
 	wantOK(t, c.post("/core/account/2fa/disable", map[string]any{"password": authtest.Password}), 200)
 	w.env.Clock.Advance(2 * time.Minute)
 	wantOK(t, c.post("/core/account/2fa/email/start", map[string]any{"password": authtest.Password}), 200)
+	wrong := authtest.WrongCode(w.env.Mailer.LastCode())
 	for range 4 {
-		wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": "000000"}), 400, "wrong_code")
+		wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": wrong}), 400, "wrong_code")
 	}
-	wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": "000000"}), 400, "too_many_tries")
+	wantStatus(t, c.post("/core/account/2fa/email/confirm", map[string]any{"code": wrong}), 400, "too_many_tries")
 	w.env.Clock.Advance(2 * time.Minute)
 	wantOK(t, c.post("/core/account/2fa/email/start", map[string]any{"password": authtest.Password}), 200)
 	w.env.Clock.Advance(11 * time.Minute)

@@ -381,11 +381,22 @@ func responseBoxMACs(h *hostMACs) func() ([]string, error) {
 	}
 }
 
+// responseMailer is response's Config.Mailer (D-191): a link code goes out through notify's code mailer, the SMTP path of the sign-in and
+// step-up codes. The step-up message says what is asked, so the code cannot be taken for a sign-in code.
+type responseMailer struct{ m notify.CodeMailer }
+
+func (r responseMailer) Available(ctx context.Context) bool { return r.m.Available(ctx) }
+
+func (r responseMailer) SendLinkCode(ctx context.Context, to, code string) error {
+	return r.m.SendStepUpCode(ctx, to, code, "link this email address to your Vedette account, so approval links sent to it count as you")
+}
+
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
-		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
+		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
+		Mailer: responseMailer{n.CodeMailer()}}
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
 	var hostState netStateReader
 	if d.HostSocket != "" {

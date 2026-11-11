@@ -13,8 +13,6 @@ test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 /** route -> "METHOD /api/v1/path" -> owner and the deferred line. */
 const KNOWN_404: Record<string, Record<string, string>> = {
   '/devices/setup': { 'GET /api/v1/inventory/agents': 'Kiên (inventory) · .ai/deferred/feat-e2e-real-harness.md:17 (agent-intake is not wired, cmd/vedette/modules.go)' },
-  '/settings/users': { 'GET /api/v1/core/oidc': 'Kiên (core) · .ai/deferred/feat-e2e-real-harness.md:20 (OIDC is not wired)' },
-  '/settings/mcp': { 'GET /api/v1/core/mcp': 'Kiên (core) · .ai/deferred/feat-e2e-real-harness.md:21 (MCP is not wired)' },
 }
 const KNOWN_501: Record<string, Record<string, string>> = {
   '/settings/updates': { 'GET /api/v1/core/updates': 'Kiên (core) · .ai/deferred/feat-core-os-updates.md:3 (software updates /core/updates*)' },

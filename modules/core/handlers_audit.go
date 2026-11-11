@@ -316,6 +316,19 @@ func (h *APIHandlers) OrgTimeZone(ctx context.Context) (string, error) {
 	return org.Timezone, nil
 }
 
+// OrgName returns the organization name of the general settings ("" before first-run setup). The reports module offers it as the
+// default of the assessment form.
+func (h *APIHandlers) OrgName(ctx context.Context) (string, error) {
+	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
+	if isNoRows(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("core: read org: %w", err)
+	}
+	return org.Name, nil
+}
+
 // validTimezone accepts an IANA zone name this box knows (the compiled-in list of time/tzdata).
 func validTimezone(s string) bool {
 	if s == "" || len(s) > 64 || s == "Local" {

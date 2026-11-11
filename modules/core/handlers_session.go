@@ -70,10 +70,10 @@ func (h *APIHandlers) CorePostAuthLogout(ctx context.Context) error {
 	return nil
 }
 
-// CoreGetCoreAuthOptions implements GET /core/auth-options (public): the SSO button exists only with the
-// auth-oidc module, which is not built yet.
-func (h *APIHandlers) CoreGetCoreAuthOptions(context.Context) (*oas.CoreGetCoreAuthOptionsOK, error) {
-	return &oas.CoreGetCoreAuthOptionsOK{Oidc: false}, nil
+// CoreGetCoreAuthOptions implements GET /core/auth-options (public, auth-oidc INV-4): the SSO button exists only while the auth-oidc
+// module is on and has an issuer. Nothing else about the configuration is said here.
+func (h *APIHandlers) CoreGetCoreAuthOptions(ctx context.Context) (*oas.CoreGetCoreAuthOptionsOK, error) {
+	return &oas.CoreGetCoreAuthOptionsOK{Oidc: h.reg.Enabled("auth-oidc") && h.facts != nil && h.facts.OIDCConfigured(ctx)}, nil
 }
 
 // CoreGetMe implements GET /me (viewer).

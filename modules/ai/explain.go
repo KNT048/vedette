@@ -107,8 +107,9 @@ const (
 
 var cveRE = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 
-// cleanLine removes NUL and control characters and cuts s to n characters.
-func cleanLine(s string, n int) string {
+// cleanText removes control characters, turns line breaks and tabs into spaces and trims: the form in which a model's text is
+// stored. The after_ai hooks look at this form, so what they check is what is kept (INV-12).
+func cleanText(s string) string {
 	s = strings.Map(func(r rune) rune {
 		if r == '\n' || r == '\t' {
 			return ' '
@@ -118,8 +119,11 @@ func cleanLine(s string, n int) string {
 		}
 		return r
 	}, strings.ToValidUTF8(s, "�"))
-	return clipRunes(strings.TrimSpace(s), n)
+	return strings.TrimSpace(s)
 }
+
+// cleanLine is cleanText cut to n characters.
+func cleanLine(s string, n int) string { return clipRunes(cleanText(s), n) }
 
 func cleanList(in []string) []string {
 	out := []string{}

@@ -8,6 +8,6 @@ permissions: ["outbound:https"]     # discovery, token, JWKS tới IdP của kh�
 ports: []                           # /auth/oidc/* và trang /sso/callback trên cổng 8443 của core
 container: core        # D-55
 tables_prefix: oidc_
-tables: [oidc_config, oidc_flow, oidc_identity]
+tables: [oidc_config, oidc_flow]
 stories: [S-CORE-3]
 milestone: M7

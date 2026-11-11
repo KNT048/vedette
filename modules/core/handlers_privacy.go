@@ -87,6 +87,8 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 10, State: state(ntpPub), Control: rs},
 		{ID: 11, State: cond(h.reg.Enabled("auth-oidc") && oidcConf), Control: rs},
 		{ID: 12, State: state(connConf), Control: rs}, // core cannot be turned off, so there is no module condition
+		// D-233: the box sends nothing itself; an agent the administrator connects reads by token, and where it sends that is its own business
+		{ID: 13, State: cond(h.reg.Enabled("mcp-server")), Control: rs},
 	}
 }
 

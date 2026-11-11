@@ -100,6 +100,15 @@ func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
 	}
 	l = append(l, boxEntries(box)...)
+	macs, err := s.boxMACs()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
+	}
+	for _, m := range macs {
+		if mac, ok := CheckValue(PMAC, m); ok {
+			l = append(l, AllowEntry{Value: mac, Label: "This Vedette box"})
+		}
+	}
 	if s.cfg.Directory == nil {
 		return l, nil
 	}

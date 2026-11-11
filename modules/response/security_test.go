@@ -472,7 +472,9 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
-	if got.Items[0].Status != response.ItemExecuted || got.Items[1].Status != response.ItemFailed || !e.logHas("refused", "circuit_open") {
+	// D-179 (4): the step in flight is cancelled by the stop; this fake returns at the same moment, so it either got through (executed) or was cut
+	// off (failed, state unknown). What must hold is that the next item did not run.
+	if first := got.Items[0]; (first.Status != response.ItemExecuted && (first.Status != response.ItemFailed || !first.StateUnknown)) || got.Items[1].Status != response.ItemFailed || !e.logHas("refused", "circuit_open") {
 		t.Fatalf("items: %+v / %+v", got.Items[0], got.Items[1])
 	}
 	if e.count(`SELECT COUNT(*) FROM resp_block_entries`) != 0 {

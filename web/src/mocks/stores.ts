@@ -9,7 +9,11 @@ import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
 import { seedFindings } from './seed/findings'
 
-export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước (D-35); thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean }
+export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước (D-35); thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** D-180: the password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null }
+
+/** D-180: how long an administrator-set password works. */
+export const TEMP_PASSWORD_HOURS = 72
+export const tempExpiry = () => new Date(Date.now() + TEMP_PASSWORD_HOURS * 3_600_000).toISOString()
 
 export const DEMO_PASSWORD = 'vedette-demo'
 

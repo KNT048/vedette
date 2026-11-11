@@ -161,7 +161,9 @@ type Found struct {
 	StartedAt time.Time
 	LastSeen  time.Time
 	ExpiresAt time.Time
-	csrfHash  string
+	// PasswordChangeRequired: the user's password was set by an administrator and not replaced yet (D-180).
+	PasswordChangeRequired bool
+	csrfHash               string
 }
 
 // Lookup resolves a session cookie value. An unknown, malformed, revoked, expired or idle session is
@@ -185,6 +187,9 @@ func (s *Sessions) Lookup(ctx context.Context, token string) (Found, error) {
 	if r.Disabled != 0 {
 		return Found{}, apierr.New(403, CodeDisabled, "This account has been disabled.")
 	}
+	if tempExpired(r.TempPasswordExpiresAt, now) { // the temporary password ran out while this session was open (D-180)
+		return Found{}, server.ErrNoSession
+	}
 	role := routes.Role(r.Role)
 	if role != routes.Viewer && role != routes.Operator && role != routes.Admin {
 		return Found{}, fmt.Errorf("auth: user %s has unknown role %q", r.UserID, r.Role)
@@ -194,7 +199,7 @@ func (s *Sessions) Lookup(ctx context.Context, token string) (Found, error) {
 	}
 	return Found{
 		ID: r.ID, UserID: r.UserID, Email: r.Email, Role: role,
-		StartedAt: parseTS(r.StartedAt), LastSeen: parseTS(r.LastSeen), ExpiresAt: parseTS(r.ExpiresAt), csrfHash: r.CsrfHash,
+		StartedAt: parseTS(r.StartedAt), LastSeen: parseTS(r.LastSeen), ExpiresAt: parseTS(r.ExpiresAt), PasswordChangeRequired: r.TempPasswordExpiresAt != nil, csrfHash: r.CsrfHash,
 	}, nil
 }
 
@@ -244,7 +249,7 @@ func (s *Sessions) Authenticate(r *http.Request) (server.Principal, error) {
 	if err != nil {
 		return server.Principal{}, err
 	}
-	return server.Principal{ID: f.UserID, Email: f.Email, Role: f.Role}, nil
+	return server.Principal{ID: f.UserID, Email: f.Email, Role: f.Role, PasswordChangeRequired: f.PasswordChangeRequired}, nil
 }
 
 // CheckCSRF implements server.Authenticator: the X-CSRF-Token header must hash to the session's csrf_hash

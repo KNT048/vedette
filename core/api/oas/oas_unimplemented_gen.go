@@ -753,7 +753,7 @@ func (UnimplementedHandler) CorePatchModulesID(ctx context.Context, req *CorePat
 // CorePostAuthLogin implements core_post_auth_login operation.
 //
 // Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-// and 401 twofa_required).
+// and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180).
 //
 // POST /auth/login
 func (UnimplementedHandler) CorePostAuthLogin(ctx context.Context, req *CorePostAuthLoginReq) (r *CorePostAuthLoginOK, _ error) {
@@ -829,7 +829,8 @@ func (UnimplementedHandler) CorePostCoreAccount2FAStart(ctx context.Context, req
 
 // CorePostCoreAccountPassword implements core_post_core_account_password operation.
 //
-// Change password (needs the current password).
+// Change password (needs the current password). The same call ends the temporary-password limit of
+// D-180: the new password must differ from the temporary one.
 //
 // POST /core/account/password
 func (UnimplementedHandler) CorePostCoreAccountPassword(ctx context.Context, req *CorePostCoreAccountPasswordReq) (r *CorePostCoreAccountPasswordOK, _ error) {
@@ -996,7 +997,8 @@ func (UnimplementedHandler) CorePostCoreUpdatesRollback(ctx context.Context, req
 
 // CorePostCoreUsers implements core_post_core_users operation.
 //
-// Create a user with a role; returns a temporary password once.
+// Create a user with a role; returns a temporary password once. The user must change it at first
+// sign-in and it expires after 72 hours (D-180).
 //
 // POST /core/users
 func (UnimplementedHandler) CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (r *CorePostCoreUsersCreated, _ error) {
@@ -1015,7 +1017,8 @@ func (UnimplementedHandler) CorePostCoreUsersID2FAReset(ctx context.Context, par
 
 // CorePostCoreUsersIDResetPassword implements core_post_core_users_id_reset_password operation.
 //
-// Reset password: temporary password once, ends all of that user's sessions.
+// Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180),
+// ends all of that user's sessions.
 //
 // POST /core/users/{id}/reset-password
 func (UnimplementedHandler) CorePostCoreUsersIDResetPassword(ctx context.Context, params CorePostCoreUsersIDResetPasswordParams) (r *CorePostCoreUsersIDResetPasswordOK, _ error) {

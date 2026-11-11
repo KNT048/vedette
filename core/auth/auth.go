@@ -60,6 +60,7 @@ const (
 	CodeInvalidName        = "invalid_name"
 	CodeInvalidEmail       = "invalid_email"
 	CodeInvalidRole        = "invalid_role"
+	CodeTempExpired        = "temp_password_expired"
 	CodeBusy               = "server_busy" // 503: too many password checks at once (the 409 `busy` of the update module is another thing)
 )
 
@@ -170,10 +171,25 @@ type User struct {
 	Disabled    bool
 	CreatedAt   time.Time
 	LastLogin   *time.Time // nil: never signed in
+	// PasswordChangeRequired: an administrator set the password and the user has not replaced it yet (D-180).
+	PasswordChangeRequired bool
+}
+
+// TempPasswordLifetime is how long a password an administrator set can sign in (D-180). core/auth has no other
+// one-time credential with a window of hours (email codes and the pending TOTP key last 10 minutes), so the
+// window is the 72 hours of the decision.
+const TempPasswordLifetime = 72 * time.Hour
+
+// tempExpiry is the text stored in core_user.temp_password_expires_at for a password set now.
+func (s *Service) tempExpiry() *string { return ptr(store.FormatTS(s.now().Add(TempPasswordLifetime))) }
+
+// tempExpired reports whether a temporary password (expires != nil) is past its window.
+func tempExpired(expires *string, now time.Time) bool {
+	return expires != nil && *expires <= store.FormatTS(now)
 }
 
 func userFrom(r coredb.CoreUser) User {
-	u := User{ID: r.ID, Name: r.Name, Email: r.Email, Role: routes.Role(r.Role), Disabled: r.Disabled != 0, CreatedAt: parseTS(r.CreatedAt)}
+	u := User{ID: r.ID, Name: r.Name, Email: r.Email, Role: routes.Role(r.Role), Disabled: r.Disabled != 0, CreatedAt: parseTS(r.CreatedAt), PasswordChangeRequired: r.TempPasswordExpiresAt != nil}
 	if r.TwofaMethod != nil {
 		u.TwofaMethod = *r.TwofaMethod
 	}

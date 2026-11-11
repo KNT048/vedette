@@ -91,10 +91,10 @@ Cài đặt ban đầu làm hoàn toàn trong GUI (D-22), không SSH.
 ### 5.3 Khôi phục
 - chưa có: khôi phục từ GUI hay tải tệp lên (`backup.restore` của host chỉ được `core` gọi và `core` chưa có đường cho nó; `.ai/deferred/feat-core-os-updates.md:6`).
 - Khôi phục tay (làm đúng việc host làm; hộp ngừng phục vụ trong lúc làm). `<uid>` và `<gid>` là `core_uid` và `core_gid` trong `/etc/vedette/host.conf`.
-  1. `systemctl stop vedette-core`.
+  1. Trước khi dừng gì, kiểm bản sao lưu không mới hơn phần mềm đang chạy: `tar -xzOf <bản sao lưu>.tar.gz manifest.json` (xem `db_schema`; host làm kiểm này, `schema_newer`, làm tay thì phải tự kiểm); bản sao lưu mới hơn thì không khôi phục. Rồi `systemctl stop vedette-core`.
   2. Cất CSDL hiện tại ra chỗ ngoài `/var/lib/vedette`: `mkdir -p /root/vedette-before-restore && mv /var/lib/vedette/vedette.db* /root/vedette-before-restore/`.
   3. Giải nén vào thư mục tạm của root, **không** giải thẳng vào `/var/lib/vedette`: `mkdir -p /root/restore && tar -xzf <bản sao lưu>.tar.gz -C /root/restore vedette.db`.
-  4. Trước khi đặt, kiểm bản sao lưu không mới hơn phần mềm đang chạy: `tar -xzOf <bản sao lưu>.tar.gz manifest.json` (xem `db_schema`); nếu bản sao lưu mới hơn thì dừng (host làm kiểm này, `schema_newer`; làm tay thì phải tự kiểm). Rồi đặt vào chỗ: `install -m 0600 -o <uid> -g <gid> /root/restore/vedette.db /var/lib/vedette/vedette.db`. Cùng hộp: giữ nguyên `vedette.key` đang có. **Hộp mới:** chép cả `vedette.key` đã cất ngoài hộp (§5.1) bằng `install -m 0600 -o <uid> -g <gid>`. Không có khoá thì mọi bí mật phải nhập lại **và mọi người dùng đã bật hai bước không đăng nhập được** (khoá TOTP và mật khẩu SMTP mã hoá bằng khoá chủ); nếu mọi quản trị viên đều bật hai bước thì hộp không dùng được.
+  4. Đặt vào chỗ: `install -m 0600 -o <uid> -g <gid> /root/restore/vedette.db /var/lib/vedette/vedette.db`. Cùng hộp: giữ nguyên `vedette.key` đang có. **Hộp mới:** chép cả `vedette.key` đã cất ngoài hộp (§5.1) bằng `install -m 0600 -o <uid> -g <gid>`. Không có khoá thì mọi bí mật phải nhập lại **và mọi người dùng đã bật hai bước không đăng nhập được** (khoá TOTP và mật khẩu SMTP mã hoá bằng khoá chủ); nếu mọi quản trị viên đều bật hai bước thì hộp không dùng được.
   5. `systemctl start vedette-core`.
 - Xác minh: `podman inspect` báo `vedette-core` healthy và `/api/v1/setup` trả 200; đăng nhập; tra cứu một thiết bị đã biết; Settings → Alert channels → Send test nhận được. DB mới hơn phần mềm (schema lạ) hay hỏng thì `core` không lên: `journalctl -u vedette-core -n 100`; trả lại tệp cũ từ `/root/vedette-before-restore` rồi khởi động lại. Sau khôi phục `logs.db` vẫn là dữ liệu hiện tại: dòng log của nguồn mà cấu hình đã khôi phục không còn biết vẫn hiện theo id và hết hạn theo lưu giữ (vô hại).
 - IP egress của `exposure` hiệu lực 30 ngày kể từ lần thấy cuối (D-79): khôi phục sang máy khác thì hộp mới tự dò lại IP của nó (chế độ tự phát hiện), không cần xác nhận tay trừ khi tắt chế độ đó.
@@ -157,7 +157,8 @@ Kiểm theo thứ tự, từ rẻ đến đắt:
 
 ### 8.4 CPU cao
 1. Container nào: `podman stats --no-stream` (giới hạn mặc định: `core` 2 CPU, `sensor` 1, `honeypot` 0.5, `scan` 2 với trọng số thấp); `top` cho `vedette-host` và tiến trình ngoài container.
-2. `scan` (nuclei/nmap) đang chạy: trang "Vulnerability scans" (`/scans`) → "Stop now"; giảm "Speed" (tab "Schedule and safety"); dời vào cửa sổ giờ.3. `sensor` trên SPAN lưu lượng lớn: thêm "Exclusions", bớt mục ở "What Vedette reads" (Box network).
+2. `scan` (nuclei/nmap) đang chạy: trang "Vulnerability scans" (`/scans`) → "Stop now"; giảm "Speed" (tab "Schedule and safety"); dời vào cửa sổ giờ.
+3. `sensor` trên SPAN lưu lượng lớn: thêm "Exclusions", bớt mục ở "What Vedette reads" (Box network).
 4. `logs`: nhận syslog quá nhanh từ một nguồn: kiểm nguồn gửi vòng lặp (mỗi nguồn bị giới hạn tốc độ; dòng của nguồn chưa khai báo bị bỏ và đếm); `logs.db` có người ghi riêng, chạy dọn theo khúc 10.000 dòng; vượt trần 4 GiB thì dọn dòng cũ nhất tới 90%.
 5. `ai`: các lượt gọi nhà cung cấp theo trần token (`daily_cap`), xem nhật ký hoạt động. Ngay sau "Delete all data", lần khởi động kế nén CSDL (`VACUUM`) nên tốn CPU và đĩa vài phút.
 - Tắt module không cần (Settings → Modules: tắt = không route, không job, dữ liệu giữ nguyên) là cách giảm tải an toàn nhất; vài job dọn theo thời hạn lưu vẫn chạy khi tắt (§10).

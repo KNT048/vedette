@@ -119,8 +119,8 @@ type LogSource struct {
 }
 
 // LogCounts is the read port of the Logs module for the log_threshold trigger (#332, D-287); cmd/vedette adapts logs.Service.
-// The counts are per declared log source and signature (5-minute buckets), not per address. An error (the module off) means no
-// event this round.
+// The counts are per declared log source and signature (5-minute buckets), not per address. Sources answers no source and no
+// error while the Logs module is off; an error is a failure, logged, and no event this round.
 type LogCounts interface {
 	Sources(ctx context.Context) ([]LogSource, error)
 	Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error)

@@ -119,11 +119,12 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   const conds: Condition[] = []
   for (const c of b.conditions) {
     if (!isObj(c) || typeof c.op !== 'string') return 'Each condition needs a field, a test and a value.'
-    const field = typeof c.field === 'string' ? c.field : '', value = typeof c.value === 'string' ? c.value : ''
+    const field = typeof c.field === 'string' ? c.field : '', raw = typeof c.value === 'string' ? c.value : ''
+    const value = logSignature(trig.id, { op: c.op, field }) ? raw.trim() : raw // logs.Counts hashes the exact text: a pasted trailing space would never count
     const f = trig.fields.find((x) => x.key === field)
     const n = Number.isInteger(c.n) ? (c.n as number) : null, win = Number.isInteger(c.window_min) ? (c.window_min as number) : null
     if (c.op === 'device_type') { if (!value.split(',').every((k) => KINDS.includes(k.trim()))) return 'Device type: use device types such as camera, nvr, iot.' } else if (!f) return `The field "${oneLine(field, 30)}" does not exist for this trigger.`
-    if (logSignature(trig.id, { op: c.op, field })) { if (!value.trim() || value !== oneLine(value, 200)) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
+    if (logSignature(trig.id, { op: c.op, field })) { if (!value || /[\u0000-\u001f\u007f\u0085\u2028\u2029]/.test(value) || [...value].length > 200) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
     if (c.op === 'in_cidr' && !isCidr(value)) return 'In range: give a CIDR range such as 192.168.10.0/24.'
     if ((c.op === 'gte' || c.op === 'lte') && !(value !== '' && Number.isFinite(Number(value)))) return 'At least / at most: give a number.'
     if (c.op === 'count_window' && (n === null || n < 1 || n > 1000 || win === null || win < 1 || win > 1440)) return 'Count in window: give how many (1 to 1000) and the minutes (1 to 1440).'
@@ -131,6 +132,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
     if (!['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time'].includes(c.op)) return 'Unknown condition test.'
     conds.push({ field, op: c.op as Condition['op'], value, n: c.op === 'count_window' || c.op === 'first_time' ? n : null, window_min: c.op === 'count_window' ? win : null })
   }
+  if (trig.id === 'log_threshold' && b.match !== 'all') return 'A log rule matches all of its conditions: the counted signature always applies.'
   if (trig.id === 'log_threshold') { const sigs = conds.filter((c) => logSignature(trig.id, c)); if (sigs.length !== 1 || (sigs[0]!.window_min ?? 0) < 5) return 'A log rule needs exactly one condition "signature seen at least N times within W minutes", with W from 5 to 1440 minutes (the log counters are 5 minutes wide).' }
   if (!Array.isArray(b.actions) || b.actions.length < 1 || b.actions.length > 6) return 'Add 1 to 6 actions (THEN).'
   const actions: RuleAction[] = []
@@ -143,7 +145,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
       const spec = typeof given[p] === 'string' ? (given[p] as string).trim() : ''
       if (!spec || spec.length > 200) return `Action "${cat.name}": fill in {${p}}.`
       const refs = refsIn(spec)
-      for (const r of refs) { const f = trig.fields.find((x) => x.key === r); if (!f) return `Action "${cat.name}": the trigger has no field "${oneLine(r, 30)}".`; if (!compatible(p, f.type)) return `Action "${cat.name}": {${p}} needs ${p === 'text' ? 'text' : `a field of type ${p}`}, but ${r} is ${f.type}.` }
+      for (const r of refs) { const f = trig.fields.find((x) => x.key === r); if (!f) return `Action "${cat.name}": the trigger has no field "${oneLine(r, 30)}".`; if (trig.id === 'log_threshold' && r === 'signature') return `Action "${cat.name}": the log signature cannot be used in an action; use {{trigger.count}}, {{trigger.window}} or {{trigger.source_device}}.`; if (!compatible(p, f.type)) return `Action "${cat.name}": {${p}} needs ${p === 'text' ? 'text' : `a field of type ${p}`}, but ${r} is ${f.type}.` }
       if (refs.length) { if (p !== 'text' && !/^\{\{\s*trigger\.[a-z_]+\s*\}\}$/.test(spec)) return `Action "${cat.name}": {${p}} must be exactly one trigger field or a fixed value, not a mix.` } else if (!PARAM_CHECK[p](spec)) return `Action "${cat.name}": "${oneLine(spec, 40)}" is not a valid ${p} value.`
       params[p] = spec
     }

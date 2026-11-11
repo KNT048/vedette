@@ -96,7 +96,8 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 			return b, invalid("The field \"" + oneLine(c.Field, 30) + "\" does not exist for this trigger.")
 		}
 		if logSignature(b.Trigger, c) {
-			if c.Value != oneLine(c.Value, 200) || strings.TrimSpace(c.Value) == "" { // pasted from the Logs digest as it is (=, <ip>); only compared, never filled
+			c.Value = strings.TrimSpace(c.Value)                   // logs.Counts hashes the exact text: a pasted trailing space would never count
+			if c.Value != oneLine(c.Value, 200) || c.Value == "" { // pasted from the Logs digest as it is (=, <ip>); only compared, never filled
 				return b, invalid("Log signature: one line of up to 200 characters, as the Logs digest shows it.")
 			}
 		} else if !condValueRE.MatchString(c.Value) {
@@ -136,6 +137,9 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				sigs = append(sigs, c)
 			}
 		}
+		if b.Match != "all" {
+			return b, invalid("A log rule matches all of its conditions: the counted signature always applies.")
+		}
 		if len(sigs) != 1 || *sigs[0].WindowMin < logMinWindow {
 			return b, invalid("A log rule needs exactly one condition \"signature seen at least N times within W minutes\", with W from 5 to 1440 minutes (the log counters are 5 minutes wide).")
 		}
@@ -160,6 +164,9 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				i := slices.IndexFunc(trig.Fields, func(f TriggerField) bool { return f.Key == r })
 				if i < 0 {
 					return b, invalid("Action \"" + cat.Name + "\": the trigger has no field \"" + oneLine(r, 30) + "\".")
+				}
+				if b.Trigger == "log_threshold" && r == "signature" { // a signature is device text (=, <ip>): compared, never sent (D-287)
+					return b, invalid("Action \"" + cat.Name + "\": the log signature cannot be used in an action; use {{trigger.count}}, {{trigger.window}} or {{trigger.source_device}}.")
 				}
 				if ft := trig.Fields[i].Type; !compatible(p, ft) {
 					return b, invalid("Action \"" + cat.Name + "\": {" + string(p) + "} needs a field of type " + string(p) + ", but " + r + " is " + ft + ".")

@@ -69,7 +69,7 @@ type BreakerEvent struct {
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
 //	logs.ioc_hit.detected                                                    -> trigger ioc_connection (module not built yet)
-//	logs.threshold.exceeded                                                  -> trigger log_threshold (module not built yet)
+//	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold (#332, D-287)
 //	exposure.port.opened                                                     -> trigger new_port (module not built yet)
 const (
 	EventFindingCreated       = "findings.finding.created"

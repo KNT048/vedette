@@ -134,7 +134,7 @@
           {
             "action_id": "msg_send",
             "params": {
-              "text": "{{trigger.count}} failed VPN logins on {{trigger.source_device}} in {{trigger.window}} minutes"
+              "text": "{{trigger.count}} failed VPN logins in {{trigger.window}} minutes"
             },
             "ttl_min": null
           }
@@ -412,7 +412,7 @@
           {
             "action_id": "msg_send",
             "params": {
-              "text": "{{trigger.count}} failed SSH logins on {{trigger.source_device}} in {{trigger.window}} minutes"
+              "text": "{{trigger.count}} failed SSH logins in {{trigger.window}} minutes"
             },
             "ttl_min": null
           }

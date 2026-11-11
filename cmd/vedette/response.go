@@ -446,8 +446,9 @@ func responseConfig(d *deps) (response.Config, error) {
 }
 
 // responseLogCounts is response's read port of the Logs module for the log_threshold trigger (#332, D-287): the declared sources
-// and logs.Service.Counts. The Logs module off answers an error, so the trigger makes no event (SYS-5), like any trigger whose
-// module is off.
+// and logs.Service.Counts. The Logs module off answers no source (and Counts an error), so the trigger makes no event (SYS-5),
+// like any trigger whose module is off. ponytail: Sources is the full view of the Logs page (it also reads the inventory), once a
+// minute and only while a log rule is on; a narrow ids-and-names read in logs is the upgrade (.ai/deferred).
 type responseLogCounts struct {
 	svc *logs.Service
 	reg interface{ Enabled(id string) bool }
@@ -459,7 +460,7 @@ func (r responseLogCounts) off() bool { return r.reg != nil && !r.reg.Enabled("l
 
 func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, error) {
 	if r.off() {
-		return nil, errLogsOff
+		return nil, nil
 	}
 	v, err := r.svc.Sources(ctx)
 	if err != nil {

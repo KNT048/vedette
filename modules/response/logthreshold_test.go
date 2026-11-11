@@ -17,12 +17,16 @@ type fakeLogs struct {
 	sources []response.LogSource
 	counts  map[string]int // source id + "|" + signature
 	off     bool
+	broken  bool
 	windows []time.Duration
 }
 
 func (f *fakeLogs) Sources(context.Context) ([]response.LogSource, error) {
-	if f.off {
-		return nil, errors.New("logs: module off")
+	switch {
+	case f.broken:
+		return nil, errors.New("logs: reading sources: disk I/O error")
+	case f.off: // the adapter answers no source while the module is off
+		return nil, nil
 	}
 	return f.sources, nil
 }
@@ -52,7 +56,7 @@ func logEnv(t *testing.T) (*env, *fakeLogs) {
 // window; the event names the log source, not an address, so an action that needs {{trigger.source_ip}} is not available.
 func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	e, l := logEnv(t)
-	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} x {{trigger.signature}} on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(failedLogon, 10, 5))
+	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} failed logons on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(failedLogon, 10, 5))
 	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(failedLogon, 10, 5))
 	l.counts["ls-fw|"+failedLogon] = 12
 	l.counts["ls-dc|"+failedLogon] = 9 // under the threshold
@@ -66,7 +70,7 @@ func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	sum, err := e.svc.Evaluate(e.ctx())
 	e.must(err)
 	acts := e.actions()
-	if sum.Requests != 1 || sum.Refused != 1 || len(acts) != 1 || acts[0].Items[0].Change.CLI != "notify 12 x 4625: Failed logon on FortiGate in 5 min" {
+	if sum.Requests != 1 || sum.Refused != 1 || len(acts) != 1 || acts[0].Items[0].Change.CLI != "notify 12 failed logons on FortiGate in 5 min" {
 		t.Fatalf("summary %+v, requests %+v", sum, acts)
 	}
 	lg, err := e.svc.Log(e.ctx())
@@ -78,17 +82,20 @@ func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	if !refused {
 		t.Errorf("the ban was not refused as not available: %+v", lg)
 	}
-	// The same window: no second event, even when the count grows. The next window: a new one.
+	// While the lines of that burst still count (the window and one 5-minute bucket), no second event, even when the count grows
+	// or a fixed period boundary passes; after that, a new one.
 	l.counts["ls-fw|"+failedLogon] = 40
+	for _, step := range []time.Duration{2 * time.Minute, 4 * time.Minute, 3 * time.Minute} {
+		e.clock.Advance(step)
+		e.must(e.svc.PollLogs(e.ctx()))
+		if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'log_threshold'`); n != 1 {
+			t.Fatalf("%d log events for one burst, want 1", n)
+		}
+	}
 	e.clock.Advance(2 * time.Minute)
 	e.must(e.svc.PollLogs(e.ctx()))
-	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'log_threshold'`); n != 1 {
-		t.Fatalf("%d log events in one window, want 1", n)
-	}
-	e.clock.Advance(4 * time.Minute)
-	e.must(e.svc.PollLogs(e.ctx()))
 	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'log_threshold'`); n != 2 {
-		t.Fatalf("%d log events after the window, want 2", n)
+		t.Fatalf("%d log events after the burst left the window, want 2", n)
 	}
 }
 
@@ -120,8 +127,16 @@ func TestLogThresholdLogsOff(t *testing.T) {
 	l.counts["ls-fw|"+failedLogon] = 5
 	l.off = true
 	e.must(e.svc.PollLogs(e.ctx()))
+	l.off, l.broken = false, true
+	e.must(e.svc.PollLogs(e.ctx())) // a failure is logged, not returned: the evaluate job goes on
 	if n := e.count(`SELECT COUNT(*) FROM resp_events`); n != 0 {
-		t.Fatalf("%d events while logs is off", n)
+		t.Fatalf("%d events while logs is off or failing", n)
+	}
+	l.broken = false
+	e.clock.Advance(time.Minute)
+	e.must(e.svc.PollLogs(e.ctx()))
+	if n := e.count(`SELECT COUNT(*) FROM resp_events`); n != 1 {
+		t.Fatalf("%d events once logs answers again, want 1", n)
 	}
 	e2 := newEnv(t)
 	e2.must(e2.svc.PollLogs(e2.ctx()))
@@ -150,8 +165,19 @@ func TestLogThresholdRuleChecks(t *testing.T) {
 	wantCode(t, add(sig(failedLogon, &short)), 400, "invalid")
 	wantCode(t, add(sig(failedLogon, &w), sig("4720: A user account was created", &w)), 400, "invalid")
 	wantCode(t, add(sig("a\nb", &w)), 400, "invalid")
+	r, err := e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Trimmed", Enabled: true, Trigger: "log_threshold", Match: "all", Actions: msg, MaxPerHour: 5,
+		Conditions: []response.Condition{sig(" "+failedLogon+"  ", &w)}})
+	if err != nil || r.Conditions[0].Value != failedLogon {
+		t.Errorf("a pasted signature is not trimmed: %+v %v", r.Conditions, err)
+	}
+	_, err = e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Any", Enabled: true, Trigger: "log_threshold", Match: "any", Actions: msg, MaxPerHour: 5,
+		Conditions: []response.Condition{sig(failedLogon, &w), {Field: "count", Op: "gte", Value: "1"}}})
+	wantCode(t, err, 400, "invalid") // "any" would match the events made for other rules' signatures
+	_, err = e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Sig text", Enabled: true, Trigger: "log_threshold", Match: "all", MaxPerHour: 5,
+		Actions: []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.signature}}"}}}, Conditions: []response.Condition{sig(failedLogon, &w)}})
+	wantCode(t, err, 400, "invalid") // device text is compared, never sent
 	// other triggers keep the narrow value set
-	_, err := e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Other", Enabled: true, Trigger: "honeypot", Match: "all", Actions: msg, MaxPerHour: 5,
+	_, err = e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Other", Enabled: true, Trigger: "honeypot", Match: "all", Actions: msg, MaxPerHour: 5,
 		Conditions: []response.Condition{{Field: "decoy", Op: "eq", Value: "a=b"}}})
 	wantCode(t, err, 400, "invalid")
 }

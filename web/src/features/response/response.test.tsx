@@ -654,6 +654,10 @@ describe('response: safety envelope (D-51)', () => {
     expect((await addRule(log([sig('Failed password for <name> from <ip> port <n> ssh<n>')]))).status).toBe(201)
     for (const bad of [[], [sig('4625: Failed logon', 4)], [sig('a'), sig('b')]]) expect((await addRule(log(bad))).status).toBe(400)
     expect((await addRule({ ...RULE, conditions: [{ field: 'dest_kind', op: 'eq', value: 'a=b', n: null, window_min: null }] })).status).toBe(400) // other values stay narrow
+    expect((await addRule(log([sig('a\u2028b')]))).status).toBe(400) // one line, as the box counts it
+    expect((await addRule({ ...log([sig('x')]), match: 'any' })).status).toBe(400)
+    expect((await addRule(log([sig('x')], [{ action_id: 'msg_send', params: { text: '{{trigger.signature}}' }, ttl_min: null }]))).status).toBe(400)
+    expect((await addRule(log([sig('  logid=0101039426 action=ssl-login-fail ')]))).json.conditions[0]!.value).toBe('logid=0101039426 action=ssl-login-fail')
     const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: log([sig('logid=0101039426 action=ssl-login-fail')], [{ action_id: 'blocklist_add', params: { ip: '{{trigger.source_ip}}' }, ttl_min: 60 }]) })
     expect(sim.status).toBe(200)
     expect(sim.json.steps[0]!.error).toMatch(/^Not available: this event has no value for \{\{trigger\.source_ip\}\}\. Log counts are per log source/)

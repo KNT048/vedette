@@ -31,7 +31,7 @@ const (
 	binChronyc = "chronyc"
 	// binIP is iproute2's ip (slice 3-5): the decoy links and, through "ip netns exec", the sysctl
 	// and nft of the honeypot namespace. sysctl and nft have no entries of their own.
-	binIP = "i" + "p" // two parts: the contract test that looks for network literals would take "ip" for a raw socket
+	binIP = "ip" // a reviewed exception of the network-literal guard in modules/host (FORBID-2): a binary name
 	// binPodman is Podman: "container inspect <name>" (slice 3-6, the image digest and the health a
 	// service reports) and, for container.pull (slice 3-7), pull, image inspect and tag in the fixed
 	// shapes of podmanargv.go. rmi comes with the retention of slice 3-8.
@@ -48,6 +48,8 @@ var prodPaths = map[string]string{
 	binChronyc:   "/usr/bin/chronyc",
 	binIP:        "/usr/sbin/ip",
 	binPodman:    "/usr/bin/podman",
+	// binConntrack is conntrack-tools' conntrack (D-268): one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
+	binConntrack: "/usr/sbin/conntrack",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -94,6 +96,7 @@ func validateApt(args []string) error {
 }
 
 func exactly(want ...string) func([]string) error {
+	want = slices.Clone(want) // never alias the caller's slice
 	return func(args []string) error {
 		if !slices.Equal(args, want) {
 			return errors.New("not the fixed command line")
@@ -202,6 +205,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 		vexec.Binary{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
 		vexec.Binary{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
+		vexec.Binary{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
 	)
 }
 

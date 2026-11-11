@@ -728,15 +728,89 @@ func TestContract_FORBID1_NoShellNoGenericExec(t *testing.T) {
 	}
 }
 
-func TestContract_FORBID2_NoNetworkListener(t *testing.T) {
-	t.Parallel()
-	banned := []string{`"tcp"`, `"tcp4"`, `"tcp6"`, `"udp"`, `"udp4"`, `"udp6"`, `"ip"`, `"unixgram"`}
-	for path, f := range hostSources(t) {
-		ast.Inspect(f, func(n ast.Node) bool {
+// bannedNetworks are the network names no host source may mention, split or not.
+var bannedNetworks = []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip", "unixgram"}
+
+// networkLiteralExceptions are the reviewed places where a banned word is an argv word or a binary name, never a
+// socket network: "<file>:<top-level declaration>" -> why. Nothing else may carry one (D-268).
+var networkLiteralExceptions = map[string]string{
+	"host/ops/conntrack.go:argsConntrackSyslog": `"-p", "udp" of the one fixed conntrack argv`,
+	"host/ops/bins.go:binIP":                    `"ip" is the name of iproute2's binary in the command runner`,
+	"host/ops/decoy.go:fieldIP":                 `"ip" names the ip argument in errors and audit lines`,
+	"cmd/vedette-host/notify.go:unixDatagram":   `the sd_notify client sends one datagram on the unix socket systemd gave (no listener, no IP network)`,
+}
+
+// foldString evaluates a string literal or a "+" chain of them, so that "ud"+"p" is seen as "udp".
+func foldString(e ast.Expr) (string, bool) {
+	switch x := e.(type) {
+	case *ast.BasicLit:
+		if x.Kind != token.STRING {
+			return "", false
+		}
+		s, err := strconv.Unquote(x.Value)
+		return s, err == nil
+	case *ast.BinaryExpr:
+		if x.Op != token.ADD {
+			return "", false
+		}
+		l, lok := foldString(x.X)
+		r, rok := foldString(x.Y)
+		return l + r, lok && rok
+	case *ast.ParenExpr:
+		return foldString(x.X)
+	}
+	return "", false
+}
+
+type declUnit struct {
+	name string // the function, or the first name of one const/var spec ("" for others)
+	node ast.Node
+}
+
+// declUnits splits a file into functions and, for const/var/type groups, one unit per spec, so an exception for one
+// name never covers its neighbours in the same group.
+func declUnits(f *ast.File) []declUnit {
+	var out []declUnit
+	for _, d := range f.Decls {
+		switch x := d.(type) {
+		case *ast.FuncDecl:
+			out = append(out, declUnit{x.Name.Name, x})
+		case *ast.GenDecl:
+			for _, s := range x.Specs {
+				name := ""
+				switch sp := s.(type) {
+				case *ast.ValueSpec:
+					if len(sp.Names) > 0 {
+						name = sp.Names[0].Name
+					}
+				case *ast.TypeSpec:
+					name = sp.Name.Name
+				}
+				out = append(out, declUnit{name, s})
+			}
+		}
+	}
+	return out
+}
+
+// networkProblems lists what is wrong in one host source file: a banned network word (after folding concatenations)
+// outside the reviewed exceptions, and any listen that is not the unix-only one. file is the path below the repo root.
+func networkProblems(file string, f *ast.File) []string {
+	var out []string
+	for _, u := range declUnits(f) {
+		d, name := u.node, u.name
+		_, excepted := networkLiteralExceptions[file+":"+name]
+		check := func(s string) {
+			if slices.Contains(bannedNetworks, s) && !excepted {
+				out = append(out, fmt.Sprintf("%s (%s) mentions network %q", file, name, s))
+			}
+		}
+		ast.Inspect(d, func(n ast.Node) bool {
 			switch x := n.(type) {
-			case *ast.BasicLit:
-				if x.Kind == token.STRING && slices.Contains(banned, x.Value) {
-					t.Errorf("%s mentions network %s", path, x.Value)
+			case *ast.BasicLit, *ast.BinaryExpr:
+				if s, ok := foldString(x.(ast.Expr)); ok {
+					check(s)
+					return false
 				}
 			case *ast.CallExpr:
 				sel, ok := x.Fun.(*ast.SelectorExpr)
@@ -752,11 +826,67 @@ func TestContract_FORBID2_NoNetworkListener(t *testing.T) {
 				case sel.Sel.Name == "Listen" && !onPackage && len(x.Args) <= 1:
 					// our own Server.Listen(ctx), which itself is checked by the rule above
 				default:
-					t.Errorf("%s: %s is not a unix-only listen", path, sel.Sel.Name)
+					out = append(out, fmt.Sprintf("%s: %s is not a unix-only listen", file, sel.Sel.Name))
 				}
 			}
 			return true
 		})
+	}
+	return out
+}
+
+func TestContract_FORBID2_NoNetworkListener(t *testing.T) {
+	t.Parallel()
+	seen := map[string]bool{}
+	for path, f := range hostSources(t) {
+		file := strings.TrimPrefix(filepath.ToSlash(path), "../../")
+		for _, p := range networkProblems(file, f) {
+			t.Error(p)
+		}
+		for _, u := range declUnits(f) {
+			seen[file+":"+u.name] = true
+		}
+	}
+	for k := range networkLiteralExceptions {
+		if !seen[k] {
+			t.Errorf("the reviewed exception %s no longer exists: remove it", k)
+		}
+	}
+}
+
+// The guard has teeth: a new dial, a split literal, or a listen on a network is reported wherever it is, and an
+// exception covers only its own file and declaration.
+func TestContract_FORBID2_TheGuardCatchesDialsSplitsAndMisplacedExceptions(t *testing.T) {
+	t.Parallel()
+	parse := func(src string) *ast.File {
+		f, err := parser.ParseFile(token.NewFileSet(), "x.go", "package x\n"+src, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	for name, tc := range map[string]struct{ file, src string }{
+		"dial udp":    {"host/ops/other.go", `func f() { net.Dial("udp", "10.0.0.1:514") }`},
+		"dial tcp":    {"host/ops/other.go", `func f() { net.Dial("tcp", "10.0.0.1:514") }`},
+		"split udp":   {"host/ops/other.go", `func f() { net.Dial("ud"+"p", "x") }`},
+		"split ip":    {"host/ops/other.go", `var n = "i" + "p"`},
+		"three parts": {"host/ops/other.go", `var n = "u" + "d" + "p"`},
+		"the exception's literal elsewhere in its file":    {"host/ops/conntrack.go", `func g() { net.Dial("udp", "x") }`},
+		"the exception's declaration name in another file": {"host/ops/other.go", `var argsConntrackSyslog = []string{"udp"}`},
+		"listen on tcp": {"host/ops/other.go", `func f() { net.Listen("tcp", ":1") }`},
+	} {
+		if got := networkProblems(tc.file, parse(tc.src)); len(got) == 0 {
+			t.Errorf("%s: not reported", name)
+		}
+	}
+	for name, tc := range map[string]struct{ file, src string }{
+		"the reviewed conntrack argv": {"host/ops/conntrack.go", `var argsConntrackSyslog = []string{"-p", "udp"}`},
+		"the reviewed binary name":    {"host/ops/bins.go", `const binIP = "ip"`},
+		"an ordinary word":            {"host/ops/other.go", `func f() { net.Dial("unix", "/run/x") ; _ = "up" + "date" }`},
+	} {
+		if got := networkProblems(tc.file, parse(tc.src)); len(got) != 0 {
+			t.Errorf("%s: %v", name, got)
+		}
 	}
 }
 

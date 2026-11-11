@@ -162,6 +162,8 @@ EOT
 	x 'grep -qx "Subnet=172.30.77.0/24" /etc/containers/systemd/vedette-int.network' || fail "vedette-int.network has no subnet"
 	[ "$(x 'podman network inspect vedette-int --format "{{range .Subnets}}{{.Subnet}}{{end}}"')" = 172.30.77.0/24 ] || fail "podman's vedette-int is not on the subnet of the file"
 	ok "vedette-int on 172.30.77.0/24 (no clash on this box); the file and podman agree"
+	x '/usr/sbin/conntrack --version >/dev/null 2>&1' || fail "conntrack does not run at /usr/sbin/conntrack (vedette-host clears stale syslog UDP flows with it, D-268)"
+	ok "conntrack runs at /usr/sbin/conntrack"
 	[ "$(conf_sum)" != none ] || fail "no chrony.conf after the install"
 	if [ -n "$prechrony" ]; then
 		[ "$(conf_sum)" = "$chrony_conf_before" ] || fail "the administrator's chrony.conf was changed (M1)"

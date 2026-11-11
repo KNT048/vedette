@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
+	"regexp"
 	"slices"
 	"time"
 
@@ -26,6 +28,7 @@ const (
 	planEvery       = 5 * time.Minute // how often the job looks
 	maxPlanSteps    = 6               // steps in a plan
 	maxPlanActions  = 3               // steps of a plan that carry a proposal
+	maxPlanEvidence = 3               // reads one proposal of a plan may cite
 	planPath        = "From the inventory record of the device. No device connection was read."
 	planActor       = "ai:response"
 )
@@ -39,11 +42,14 @@ type PlanTarget struct {
 type DraftParam struct{ Name, Value string }
 
 // DraftStep is one step the AI drafted. ActionID and Params are empty for a step that only advises. Nothing else about a proposal comes
-// from the AI: no command, no path, no body, no undo time.
+// from the AI: no command, no path, no body, no undo time. Confidence (0 to 1) and Evidence (ids of reads the box made, listed to the
+// AI) are used only when the proposal is sent through Propose (D-310); they are not stored with the plan (INV-14e).
 type DraftStep struct {
 	Kind, Title, Detail string // Kind is contain, check or patch
 	ActionID            string
 	Params              []DraftParam
+	Confidence          float64
+	Evidence            []string
 }
 
 // PlanAsk is one call of the Planner: the finding, and the actions the AI may propose (AIActions that are available now).
@@ -60,10 +66,19 @@ type PlanDraft struct {
 
 // Planner is the ai module as this module needs it (cmd/vedette adapts ai.Service.RunJob for the job response-plan). Available is false
 // while the ai module is off or no profile is assigned and allowed for the job; then the job asks nothing. Plan answers ErrPlanUnavailable
-// when the AI cannot be used after all. A nil Planner means no plan is ever written; everything else in this module works.
+// when the AI cannot be used after all. Proposed is told what the job sent through Propose for a stored plan and what came of it, for
+// the activity log of the ai module (D-312); it is not called when nothing was sent. A nil Planner means no plan is ever written;
+// everything else in this module works.
 type Planner interface {
 	Available(ctx context.Context) bool
 	Plan(ctx context.Context, a PlanAsk) (PlanDraft, error)
+	Proposed(ctx context.Context, t PlanTarget, sent []SentProposal)
+}
+
+// SentProposal is one proposal of a stored plan that the plan job sent through Propose, and its outcome: request, suggestion or digest,
+// or the code of the refusal. RequestID is set for a request.
+type SentProposal struct {
+	ProposalID, ActionID, Outcome, RequestID string
 }
 
 // aiAvailable is the ai_available of GET /response/plans.
@@ -85,6 +100,10 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	if checkAIPaused(st) != nil { // the quality breaker paused the AI (INV-15 (3)): no plan is asked for either
 		return 0, nil
 	}
+	// The proposals of a new plan are also sent as AI requests when the admin lets the AI send requests for the finding trigger and the
+	// execution switch is on (off by default, INV-7): with it off, no request could run, and a person's RequestProposal is refused too
+	// (D-314).
+	send := st.Execution && slices.Contains(st.AI.Triggers, "finding")
 	targets, err := s.cfg.Critical(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("response: list the open critical findings: %w", err)
@@ -139,22 +158,89 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			s.planFailed(t.FindingID)
 			continue
 		}
-		ok, err := s.savePlan(ctx, t, d)
+		steps, err := s.savePlan(ctx, t, d)
 		if err != nil {
 			return saved, err
 		}
-		if ok {
-			saved++
-		} else {
+		if steps == nil {
 			s.planFailed(t.FindingID)
+			continue
+		}
+		saved++
+		if send {
+			if err := s.sendPlan(ctx, t, d, steps, actions); err != nil {
+				return saved, err
+			}
 		}
 	}
 	return saved, nil
 }
 
+// sendPlan sends each proposal of a plan just stored through Propose, as the AI (ai:response, D-310): the trigger is the finding, the
+// evidence is the finding and the reads the AI cited (citedReads), the confidence is the AI's. Every gate of INV-15 runs there, so a
+// refusal is logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the
+// run. The settings are read again first: the switch may have been turned off while the AI was writing the plan.
+func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) error {
+	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return err
+	}
+	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") || checkAIPaused(st) != nil {
+		return nil
+	}
+	var sent []SentProposal
+	for i, step := range steps {
+		if step.Proposal == nil {
+			continue
+		}
+		x := d.Steps[i] // savePlan keeps every step, in order
+		ev := append([]ProposedEvidence{{Kind: EvFinding, ID: t.FindingID}}, s.citedReads(ctx, x.Evidence, offered, step.Proposal.ActionID)...)
+		why := truncRunes(cleanLine(t.CVE+" on "+t.AssetName+": "+step.Title), maxProposeWhy)
+		res, err := s.Propose(ctx, ProposeBody{Trigger: "finding", ActionID: step.Proposal.ActionID, Params: step.Proposal.Params, Confidence: x.Confidence, Evidence: ev, Why: why})
+		sp := SentProposal{ProposalID: step.Proposal.ID, ActionID: step.Proposal.ActionID, Outcome: res.Outcome}
+		if err != nil {
+			ae, ok := asAPI(err)
+			if !ok {
+				return err
+			}
+			sp.Outcome = ae.Code
+		} else if res.Request != nil {
+			sp.RequestID = res.Request.ID
+		}
+		sent = append(sent, sp)
+	}
+	if len(sent) > 0 {
+		s.cfg.Planner.Proposed(ctx, t, sent)
+	}
+	return nil
+}
+
+// citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action (D-313):
+// a read of another connection could not count and would only look like support to the people who approve, and an id the box has no
+// record of would refuse a proposal the finding alone may carry. For a high-risk action no read is kept: a read is not about the
+// target, so it must not make the second check (two pieces of evidence about the target, INV-15 (9)) out of one finding and any
+// read of the same device by anyone in the last day; a high-risk action from a plan then needs a person (RequestProposal).
+func (s *Service) citedReads(ctx context.Context, ids []string, offered []AIAction, actionID string) []ProposedEvidence {
+	i := slices.IndexFunc(offered, func(a AIAction) bool { return a.ID == actionID })
+	port := s.cfg.Evidence.ConfigRead
+	if i < 0 || offered[i].ConnectionID == "" || offered[i].Risk == RiskHigh || port == nil {
+		return nil
+	}
+	var out []ProposedEvidence
+	for _, id := range ids {
+		if ref, ok, err := port(ctx, id); err == nil && ok && cleanLine(ref.Connection) == offered[i].ConnectionID {
+			out = append(out, ProposedEvidence{Kind: EvConfigRead, ID: id})
+		}
+	}
+	return out
+}
+
 // planBackoff is how long a finding waits after its 1st, 2nd and 3rd failed or refused plan; after the 4th it is not asked again.
 // ponytail: the counters live in memory, so a restart starts them again (the shared daily cap of the ai module bounds what that can
 // cost); a table is the upgrade if restarts turn out to be frequent.
+// planEvidenceRE is the form of the id of a read the AI cites (the ai module's ids); Propose looks every one up again.
+var planEvidenceRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,96}$`)
+
 var planBackoff = []time.Duration{time.Hour, 6 * time.Hour, 24 * time.Hour}
 
 type planAttempt struct {
@@ -200,9 +286,9 @@ func (s *Service) planCall(count bool) bool {
 }
 
 // savePlan checks the draft and, if it passes, stores it; if not, nothing is stored and the refusal is written to the log and the audit
-// (INV-19, FORBID-5). It returns whether a plan was stored.
-func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) (bool, error) {
-	saved := false
+// (INV-19, FORBID-5). It returns the stored steps (one per step of the draft, in order), or nil when no plan was stored.
+func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) ([]storedStep, error) {
+	var saved []storedStep
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		var n int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM resp_plans WHERE finding_id = ?`, t.FindingID).Scan(&n); err != nil {
@@ -240,11 +326,13 @@ func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) (bool
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES (?,?,?,?,?,?,?,?,?,'[]',?)`,
 			id, t.FindingID, t.CVE, t.AssetID, oneLine(t.AssetName, 120), s.ts(), oneLine(d.Model, 120), oneLine(d.Profile, 120), planPath, mustJSON(steps))
-		saved = err == nil
+		if err == nil {
+			saved = steps
+		}
 		return err
 	})
 	if err != nil {
-		return false, fmt.Errorf("response: store a plan: %w", err)
+		return nil, fmt.Errorf("response: store a plan: %w", err)
 	}
 	return saved, nil
 }
@@ -311,8 +399,19 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 			}
 			prop.Params = checked
 			st.Proposal = &prop
-		} else if len(x.Params) > 0 {
-			return nil, fmt.Sprintf("step %d gives parameters without an action", i+1)
+			if math.IsNaN(x.Confidence) || x.Confidence < 0 || x.Confidence > 1 {
+				return nil, fmt.Sprintf("step %d gives a confidence that is not a number from 0 to 1", i+1)
+			}
+			if len(x.Evidence) > maxPlanEvidence {
+				return nil, fmt.Sprintf("step %d cites more than %d reads", i+1, maxPlanEvidence)
+			}
+			for _, id := range x.Evidence {
+				if !planEvidenceRE.MatchString(id) {
+					return nil, fmt.Sprintf("step %d cites a read whose id is not valid", i+1)
+				}
+			}
+		} else if len(x.Params) > 0 || len(x.Evidence) > 0 {
+			return nil, fmt.Sprintf("step %d gives parameters or evidence without an action", i+1)
 		}
 		out = append(out, st)
 	}

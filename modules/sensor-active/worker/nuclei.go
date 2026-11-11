@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
@@ -58,7 +59,7 @@ func newNuclei(c Config) ([]exec.Binary, nucleiConfig, error) {
 		}
 	}
 	return []exec.Binary{
-		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, MaxStderr: 64 << 10, Env: []string{"HOME=" + nc.runHome}}, // stderr is never posted: 64 KiB of it is kept in memory, and it cannot make a run "truncated"
+		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, MaxStderr: nucleiout.MaxErrorLog, Env: []string{"HOME=" + nc.runHome}}, // stderr is never posted: it holds nuclei's error log (-elog), counted per target into host_errors (D-165); at most 1 MiB is kept in memory, and it cannot make a run "truncated"
 		{Name: nucleiVer, Path: c.NucleiPath, Validate: validNucleiVersionArgs, MaxOutput: 64 << 10, Env: []string{"HOME=" + probeHome}},
 	}, nc, nil
 }
@@ -237,7 +238,25 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
 	out, err := w.runner.Run(rctx, nucleiBin, argv, nil)
-	return w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
+	res = w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
+	if res.Status == "done" {
+		res.HostErrors = hostErrors(out.Stderr, cur.job.Nuclei)
+	}
+	return res
+}
+
+// hostErrors is what the result says about targets that stopped answering (INV-6, D-165): the timeouts per target that
+// nuclei's error log (-elog on stderr) holds, counted by nucleiout.ParseHostErrors. Stderr itself is never posted.
+func hostErrors(stderr []byte, nj *sensorlink.NucleiJob) []sensorlink.HostError {
+	targets := make([]string, len(nj.Targets))
+	for i, t := range nj.Targets {
+		targets[i] = t.Host + ":" + strconv.Itoa(t.Port)
+	}
+	var out []sensorlink.HostError
+	for _, h := range nucleiout.ParseHostErrors(stderr, targets, nj.MaxHostErrors) {
+		out = append(out, sensorlink.HostError{Target: h.Target, Errors: h.Errors, Unreachable: h.Unreachable})
+	}
+	return out
 }
 
 // ---- heartbeat ----

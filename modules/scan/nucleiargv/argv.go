@@ -25,6 +25,9 @@ import (
 // one file under it, named on the command line (M2): never the whole directory.
 const TemplatesDir = "/usr/share/vedette/nuclei-templates"
 
+// ErrorLog is where nuclei writes its error log: the worker's stderr pipe, never a file.
+const ErrorLog = "/dev/stderr"
+
 // Limits of a job (D-125 (1)).
 const (
 	MaxTemplates  = 32
@@ -54,6 +57,9 @@ func ForbiddenTags() []string { return slices.Clone(forbiddenTags) }
 //	-etags <ForbiddenTags>
 //	-pt http,tcp,ssl     only these protocols run (an allow-list): no dns or whois (they would ask public
 //	                     resolvers about the target), no javascript, websocket, headless, code or file templates
+//	-elog /dev/stderr    nuclei's own error log (one JSON object per failed request, with input, address, kind) on
+//	                     stderr: the worker counts network timeouts per target from it, so core learns that a device
+//	                     stopped answering although stdout holds matches only (INV-6, D-165)
 //	-c 1 -bs 1           one template and one target at a time, so -rl is the whole load on a device
 //	-timeout 10 -retries 1
 var fixedFlags = []string{
@@ -61,6 +67,7 @@ var fixedFlags = []string{
 	"-duc", "-ni", "-ms", "-dr", "-nh",
 	"-etags", strings.Join(forbiddenTags, ","),
 	"-pt", "http,tcp,ssl",
+	"-elog", ErrorLog,
 	"-c", "1", "-bs", "1",
 	"-timeout", "10", "-retries", "1",
 }

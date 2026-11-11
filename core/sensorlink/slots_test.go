@@ -63,7 +63,7 @@ func (rc *rawConn) expectClosed(t *testing.T, name string, status int) {
 
 func TestEarlyRefusalsCloseTheConnection(t *testing.T) {
 	t.Parallel()
-	proto := "X-Vedette-Proto: 2"
+	proto := "X-Vedette-Proto: " + sensorlink.ProtoVersion
 	ct := "Content-Type: application/json"
 	r := newRig(t, rigOpt{moduleOn: func(role sensorlink.Role) bool { return role != sensorlink.Active }})
 	pass := r.ca.leaf(t, leafOpts{serial: 100})
@@ -132,10 +132,10 @@ func TestEarlyRefusalsCloseTheConnection(t *testing.T) {
 		}
 		t.Cleanup(func() { close(release) })
 		first := r.dial(t, r.ca.leaf(t, leafOpts{serial: 100}))
-		first.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: 2"}, false)
+		first.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: " + sensorlink.ProtoVersion}, false)
 		<-started
 		second := r.dial(t, r.ca.leaf(t, leafOpts{serial: 100}))
-		second.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: 2"}, false)
+		second.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: " + sensorlink.ProtoVersion}, false)
 		_ = second.c.SetReadDeadline(time.Now().Add(3 * time.Second))
 		res, err := http.ReadResponse(second.r, nil)
 		if err != nil || res.StatusCode != 409 {
@@ -162,7 +162,7 @@ func TestBodylessRouteWithABodyIs400AndClosed(t *testing.T) {
 		{"jobs length", "/sensor/v1/jobs", act, []string{"Content-Length: 5"}, false},
 	} {
 		rc := r.dial(t, c.cert)
-		rc.send(t, "GET", c.path, append([]string{"X-Vedette-Proto: 2"}, c.hdr...), c.chunked)
+		rc.send(t, "GET", c.path, append([]string{"X-Vedette-Proto: " + sensorlink.ProtoVersion}, c.hdr...), c.chunked)
 		rc.expectClosed(t, c.name, 400)
 	}
 	if calls := r.be.Calls(); len(calls) != 0 {
@@ -222,7 +222,7 @@ func TestOnePassiveCertificateCannotHoldEverySlot(t *testing.T) {
 	var held []*rawConn
 	for range sensorlink.MaxConns {
 		c := dialTo(t, r, addr, pass)
-		c.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: 2"}, false)
+		c.send(t, "GET", "/sensor/v1/config", []string{"X-Vedette-Proto: " + sensorlink.ProtoVersion}, false)
 		held = append(held, c)
 		r.clk.Advance(time.Second)
 	}

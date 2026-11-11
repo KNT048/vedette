@@ -565,7 +565,8 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}
-	res, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
+	out, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
+	res := out.Results
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
@@ -593,7 +594,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		}
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; skipped.", mins)}), ""
 	}
-	if unresponsive(res) {
+	if unresponsive(res) || allUnreachable(out.HostErrors, job.Targets, res) {
 		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
 		if st.StopOnUnresponsive {
 			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteNoResp})
@@ -634,36 +635,54 @@ func recheckInput(ts []nucleiargv.Target, hostPort string) string {
 }
 
 // runJob runs the job on the engine, bounded by the device timeout; after Stop now it waits at most stopGrace.
-func (s *Service) runJob(ctx context.Context, job Job) ([]nucleiout.Result, error) {
+func (s *Service) runJob(ctx context.Context, job Job) (nucleiout.Outcome, error) {
 	jctx, cancel := context.WithTimeout(ctx, deviceTimeout)
 	defer cancel()
 	type result struct {
-		res []nucleiout.Result
+		out nucleiout.Outcome
 		err error
 	}
 	ch := make(chan result, 1)
 	s.busy.Add(1)
 	go func() {
 		defer s.busy.Add(-1)
-		res, err := s.cfg.Engine.Run(jctx, job)
-		ch <- result{res, err}
+		out, err := s.cfg.Engine.Run(jctx, job)
+		ch <- result{out, err}
 	}()
 	select {
 	case r := <-ch:
-		return r.res, r.err
+		return r.out, r.err
 	case <-ctx.Done():
 		select {
 		case r := <-ch:
-			return r.res, r.err
+			return r.out, r.err
 		case <-time.After(stopGrace):
-			return nil, ctx.Err()
+			return nucleiout.Outcome{}, ctx.Err()
 		}
 	}
 }
 
+// allUnreachable says every target of the job stopped answering: the engine counted at least max-host-errors timeouts on each
+// of them (nuclei itself stops sending to such a target), and no line of the output is an answer. The worker counts timeouts
+// from nuclei's error log, because with matches-only output a dead device prints nothing (INV-6, D-165). One target that did
+// not time out, or one line that is not an error, means the device answered something, so it is not this case.
+func allUnreachable(he []nucleiout.HostError, targets []nucleiargv.Target, res []nucleiout.Result) bool {
+	if len(targets) == 0 || slices.ContainsFunc(res, func(r nucleiout.Result) bool { return r.Error == "" }) {
+		return false
+	}
+	for _, t := range targets {
+		hp := t.Host + ":" + strconv.Itoa(t.Port)
+		if !slices.ContainsFunc(he, func(h nucleiout.HostError) bool { return h.Target == hp && h.Unreachable }) {
+			return false
+		}
+	}
+	return true
+}
+
 // unresponsive says the device answered nothing: it printed lines and every one is an error (INV-6). An empty output
-// is not that: nuclei may write JSONL only for matches (D-133 (5)), so silence means "no match reported". nuclei itself
-// stops sending after max_host_errors errors in a row (-mhe), so the device is not pushed further either way.
+// is not that: nuclei may write JSONL only for matches (D-133 (5)), so silence means "no match reported". The silent dead
+// device is caught by allUnreachable, from the worker's host errors. nuclei itself stops sending after max_host_errors
+// errors in a row (-mhe), so the device is not pushed further either way.
 func unresponsive(res []nucleiout.Result) bool {
 	return len(res) > 0 && !slices.ContainsFunc(res, func(r nucleiout.Result) bool { return r.Error == "" })
 }

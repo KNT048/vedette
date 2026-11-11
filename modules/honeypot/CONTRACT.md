@@ -70,7 +70,7 @@
 `hp_config` (IP phụ, hostname, trạng thái bẫy, `ignored_7d`), `hp_hits` (+ `kind`, `source_ip`, `token_id`), `hp_decoys`, `hp_tokens`. Không module nào khác đọc trực tiếp (modules.md); `response` đọc `hp_hits` qua interface (IMPACT).
 
 ## Events
-- **Phát**: `honeypot.hit.created` (tên 3 đoạn theo `core/events`, issue #62; `notify` đã nghe tên này). Chỉ cho hit thật **mới** (không phải mỗi kết nối), ngay sau khi commit của lô chứa nó; hit thử không phát gì (INV-4). Trường: `id, ts, kind, service, port, src_ip, label`.
+- **Phát**: `honeypot.hit.created` (tên 3 đoạn theo `core/events`, issue #62; `notify` đã nghe tên này). Chỉ cho hit thật **mới** (không phải mỗi kết nối), ngay sau khi commit của lô chứa nó; hit thử không phát gì (INV-4). Trường: `id, ts, kind, service, port, src_ip, label, decoy, src_asset_id` (`decoy` = tên thứ bị chạm: host name của bẫy, nhãn token, "Decoy sweep"; IP bẫy khi tên rỗng. `src_asset_id` = thiết bị inventory ở IP nguồn lúc lưu hit, rỗng khi không có; D-286).
 - **Nhận**: `inventory.asset.discovered|updated` (gợi ý: áp lại trạng thái lên host, thiết bị mới trùng IP phụ/IP bẫy → `conflict`). Đọc kho (`inventory`) qua cổng `Inventory` để tra nguồn và kiểm tra trùng IP.
 - **Đường vào của hit (D-89)**: tệp JSON-lines `opencanary.jsonl` trong `log/` dưới `-honeypot-dir`, core chỉ đọc; không cổng mạng nào vào core. Core ghi cấu hình vào `config/` (container gắn chỉ đọc), INV-15.
 

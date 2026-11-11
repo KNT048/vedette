@@ -184174,7 +184174,7 @@ func (s *ResponseGetResponseLogOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("ts")
-		json.EncodeDateTime(e, s.Ts)
+		e.Str(s.Ts)
 	}
 }
 
@@ -184270,8 +184270,8 @@ func (s *ResponseGetResponseLogOKItemsItem) Decode(d *jx.Decoder) error {
 		case "ts":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.Ts = v
+				v, err := d.Str()
+				s.Ts = string(v)
 				if err != nil {
 					return err
 				}
@@ -188410,9 +188410,13 @@ func (s *ResponseGetResponseSettingsOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("multi_target_max")
 		e.Int(s.MultiTargetMax)
 	}
+	{
+		e.FieldStart("stopped_at")
+		s.StoppedAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponseSettingsOK = [13]string{
+var jsonFieldsNameOfResponseGetResponseSettingsOK = [14]string{
 	0:  "accepted_at",
 	1:  "accepted_by",
 	2:  "ai",
@@ -188426,6 +188430,7 @@ var jsonFieldsNameOfResponseGetResponseSettingsOK = [13]string{
 	10: "maintenance",
 	11: "max_per_hour",
 	12: "multi_target_max",
+	13: "stopped_at",
 }
 
 // Decode decodes ResponseGetResponseSettingsOK from json.
@@ -188613,6 +188618,16 @@ func (s *ResponseGetResponseSettingsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"multi_target_max\"")
 			}
+		case "stopped_at":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.StoppedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopped_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -188624,7 +188639,7 @@ func (s *ResponseGetResponseSettingsOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -211911,9 +211926,13 @@ func (s *ResponsePostResponseBreakerResetOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("multi_target_max")
 		e.Int(s.MultiTargetMax)
 	}
+	{
+		e.FieldStart("stopped_at")
+		s.StoppedAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseBreakerResetOK = [13]string{
+var jsonFieldsNameOfResponsePostResponseBreakerResetOK = [14]string{
 	0:  "accepted_at",
 	1:  "accepted_by",
 	2:  "ai",
@@ -211927,6 +211946,7 @@ var jsonFieldsNameOfResponsePostResponseBreakerResetOK = [13]string{
 	10: "maintenance",
 	11: "max_per_hour",
 	12: "multi_target_max",
+	13: "stopped_at",
 }
 
 // Decode decodes ResponsePostResponseBreakerResetOK from json.
@@ -212114,6 +212134,16 @@ func (s *ResponsePostResponseBreakerResetOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"multi_target_max\"")
 			}
+		case "stopped_at":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.StoppedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopped_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -212125,7 +212155,7 @@ func (s *ResponsePostResponseBreakerResetOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -215735,9 +215765,13 @@ func (s *ResponsePostResponseExecutionOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("multi_target_max")
 		e.Int(s.MultiTargetMax)
 	}
+	{
+		e.FieldStart("stopped_at")
+		s.StoppedAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseExecutionOK = [13]string{
+var jsonFieldsNameOfResponsePostResponseExecutionOK = [14]string{
 	0:  "accepted_at",
 	1:  "accepted_by",
 	2:  "ai",
@@ -215751,6 +215785,7 @@ var jsonFieldsNameOfResponsePostResponseExecutionOK = [13]string{
 	10: "maintenance",
 	11: "max_per_hour",
 	12: "multi_target_max",
+	13: "stopped_at",
 }
 
 // Decode decodes ResponsePostResponseExecutionOK from json.
@@ -215938,6 +215973,16 @@ func (s *ResponsePostResponseExecutionOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"multi_target_max\"")
 			}
+		case "stopped_at":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.StoppedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopped_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -215949,7 +215994,7 @@ func (s *ResponsePostResponseExecutionOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -230358,9 +230403,13 @@ func (s *ResponsePutResponseSettingsOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("multi_target_max")
 		e.Int(s.MultiTargetMax)
 	}
+	{
+		e.FieldStart("stopped_at")
+		s.StoppedAt.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfResponsePutResponseSettingsOK = [13]string{
+var jsonFieldsNameOfResponsePutResponseSettingsOK = [14]string{
 	0:  "accepted_at",
 	1:  "accepted_by",
 	2:  "ai",
@@ -230374,6 +230423,7 @@ var jsonFieldsNameOfResponsePutResponseSettingsOK = [13]string{
 	10: "maintenance",
 	11: "max_per_hour",
 	12: "multi_target_max",
+	13: "stopped_at",
 }
 
 // Decode decodes ResponsePutResponseSettingsOK from json.
@@ -230561,6 +230611,16 @@ func (s *ResponsePutResponseSettingsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"multi_target_max\"")
 			}
+		case "stopped_at":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.StoppedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopped_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -230572,7 +230632,7 @@ func (s *ResponsePutResponseSettingsOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

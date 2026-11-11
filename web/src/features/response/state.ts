@@ -26,7 +26,7 @@ export const str = (v: unknown) => (typeof v === 'string' ? v : '')
 // ---- Settings ----
 const DEFAULTS = (): Settings => ({
   execution: false, accepted_by: null, accepted_at: null, max_per_hour: 3, expiry_min: 15, approval_channels: [],
-  breaker_max_per_hour: 20, breaker_tripped_at: null, breaker_notified: [], multi_target_max: 5, maintenance: [],
+  breaker_max_per_hour: 20, breaker_tripped_at: null, breaker_notified: [], stopped_at: null, multi_target_max: 5, maintenance: [],
   ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 2, budget_day: 5, paused_at: null, paused_reason: null },
 })
 export const settingsStore = collection<Settings>('resp_settings', DEFAULTS)

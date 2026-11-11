@@ -532,6 +532,13 @@ func TestContract_POST1_INV8_INV9_RealConnection(t *testing.T) {
 	if data.SrcIP != src || data.Service != "ssh" || data.Label != "SSH" || data.ID == "" || data.Port != 22 {
 		t.Fatalf("%+v", data)
 	}
+	// The response trigger (S-RESP-3) reads what was touched and the source device the inventory knew when the hit was stored.
+	if data.Decoy == "" || data.SrcAssetID != "a-pc07" {
+		t.Fatalf("decoy %q, source device %q", data.Decoy, data.SrcAssetID)
+	}
+	if d := pubs[1].Data.(honeypot.HitEventData); d.SrcAssetID != "" || d.Decoy == "" {
+		t.Fatalf("unknown source: %+v", d)
+	}
 	l, err := e.svc.Hits(e.ctx(), honeypot.HitFilter{})
 	if err != nil || len(l) != 2 || l[0].SrcIP != "192.168.10.157" {
 		t.Fatalf("%+v %v", l, err)

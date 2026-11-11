@@ -258,6 +258,47 @@ func TestEventIntakeFromTheBus(t *testing.T) {
 	}
 }
 
+// S-RESP-3, #304: a real honeypot hit (honeypot.hit.created) is an event of the honeypot trigger with the trigger fields filled; the
+// data came from the network, so an event without a valid source address or with an unknown kind is dropped.
+func TestHoneypotHitEvent(t *testing.T) {
+	e := newEnv(t)
+	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "192.168.10.107", Kind: "pc", Approved: true}
+	e.svc.Subscribe(e.bus)
+	e.rule("Trap", "honeypot", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.source_device}} {{trigger.source_ip}} touched {{trigger.decoy}} by {{trigger.kind}}"}}}, func(in *response.RuleInput) {
+		in.Conditions = []response.Condition{{Field: "kind", Op: "eq", Value: "service"}}
+	})
+	pub := func(data map[string]any) {
+		e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: data}))
+	}
+	pub(map[string]any{"id": "hit-1", "ts": "2026-11-11T10:00:00.250Z", "kind": "service", "service": "ssh", "port": 22, "src_ip": "192.168.10.107", "label": "SSH", "decoy": "FILESRV-OLD", "src_asset_id": "a-pc"})
+	pub(map[string]any{"id": "hit-1", "kind": "service", "src_ip": "192.168.10.107"})                     // the same hit again: one event
+	pub(map[string]any{"id": "hit-2", "kind": "token", "src_ip": "::ffff:192.168.10.9", "decoy": "Bait\naccount"}) // no rule matches a token
+	for _, bad := range []map[string]any{
+		{"id": "hit-3", "kind": "service", "src_ip": "192.168.10.107; reboot"},
+		{"id": "hit-4", "kind": "service", "src_ip": "fe80::1%eth0"},
+		{"id": "hit-5", "kind": "ssh", "src_ip": "192.168.10.107"},
+		{"id": "", "kind": "service", "src_ip": "192.168.10.107"},
+	} {
+		pub(bad)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'honeypot'`); n != 2 {
+		t.Fatalf("%d honeypot events stored, want 2", n)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'honeypot:hit-2' AND fields LIKE '%"source_ip":"192.168.10.9"%' AND fields NOT LIKE '%\\n%'`); n != 1 {
+		t.Fatal("the mapped IPv6 source is not kept as its IPv4 address, or the decoy name kept a line break")
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'honeypot:hit-1' AND ts = '2026-11-11T10:00:00.250Z' AND asset_id = 'a-pc' AND device_kind = 'pc'`); n != 1 {
+		t.Fatal("the hit's time or source device was not kept")
+	}
+	sum, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	l := e.actions()
+	if sum.Requests != 1 || len(l) != 1 || l[0].Items[0].Change.CLI != "notify PC-HR-01 192.168.10.107 touched FILESRV-OLD by service" {
+		lg, _ := e.svc.Log(e.ctx())
+		t.Fatalf("summary %+v, requests %+v, log %+v", sum, l, lg)
+	}
+}
+
 type gate struct{ on bool }
 
 func (g *gate) Enabled(string) bool { return g.on }

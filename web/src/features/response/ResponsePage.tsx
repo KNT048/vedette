@@ -40,7 +40,7 @@ function Content() {
       {s?.breaker_tripped_at ? (
         <div role="alert" className="mb-6 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('page.breakerTitle')}</p>
-          <p>{t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link></p>
+          <p>{s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link></p>
         </div>
       ) : null}
       {execution ? (

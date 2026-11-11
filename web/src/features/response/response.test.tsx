@@ -241,7 +241,13 @@ describe('response: security gates (S-RESP-2, D-41) G-1..G-8', () => {
     expect(a.status).toBe('rejected')
     expect(a.note).toContain('emergency stop')
     expect((await call('operator', 'POST', `/response/actions/${r.json.id}/approve`)).code).toBe('not_pending')
-    expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.execution).toBe(false)
+    const s = (await call<SettingsView>('admin', 'GET', '/response/settings')).json
+    expect(s.execution).toBe(false)
+    expect(s.stopped_at).not.toBeNull() // INV-8: the stop also opens the breaker, until an administrator resumes
+    expect(s.breaker_tripped_at).not.toBeNull()
+    expect((await call<SettingsView>('operator', 'POST', '/response/breaker/reset')).status).toBe(403)
+    const back = (await call<SettingsView>('admin', 'POST', '/response/breaker/reset')).json
+    expect([back.stopped_at, back.breaker_tripped_at]).toEqual([null, null])
     expect((await call('viewer', 'POST', '/response/emergency-stop')).status).toBe(403)
     expect(auditActions()).toContain('response.emergency_stop')
   })
@@ -517,6 +523,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect((await confirm('operator', 'email', sent.json.preview_code)).status).toBe(200)
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('already_linked')
     await call('operator', 'POST', '/response/emergency-stop')
+    await call('admin', 'POST', '/response/breaker/reset')
     await turnOn()
     const r = await request()
     const token = (await getAction(r.json.id)).email_links.at(-1)!.url.split('/').pop()!
@@ -875,6 +882,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     const before = (await call<AiState>('viewer', 'GET', '/response/ai')).json.quality
     expect((await propose()).status).toBe(201)
     expect((await call('operator', 'POST', '/response/emergency-stop')).status).toBe(200)
+    expect((await call('admin', 'POST', '/response/breaker/reset')).status).toBe(200) // the stop opens the breaker (INV-8); the AI asks again once resumed
     expect((await call<AiState>('viewer', 'GET', '/response/ai')).json.quality).toMatchObject({ decided: before.decided, rejected: before.rejected })
     expect((await propose()).status).toBe(201)
   })

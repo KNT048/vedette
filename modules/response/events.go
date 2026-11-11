@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -65,7 +66,7 @@ type BreakerEvent struct {
 //
 //	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
-//	honeypot.hit.created                                                     -> trigger honeypot (module not built yet)
+//	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
 //	logs.ioc_hit.detected                                                    -> trigger ioc_connection (module not built yet)
 //	logs.threshold.exceeded                                                  -> trigger log_threshold (module not built yet)
 //	exposure.port.opened                                                     -> trigger new_port (module not built yet)
@@ -73,6 +74,7 @@ const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
+	EventHoneypotHit          = "honeypot.hit.created"
 )
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: this module does not import the
@@ -103,6 +105,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventAssetDiscovered, s.assetEvent)
+	on(EventHoneypotHit, s.honeypotEvent)
 	return func() {
 		for _, u := range undo {
 			u()
@@ -182,6 +185,59 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	return s.StoreEvent(ctx, Det{ID: "device:" + d.ID, Trigger: "unknown_device", TS: store2(ts), DeviceKind: d.Kind, AssetID: d.ID,
 		Summary: oneLine("Unknown device "+who+" ("+vendor+") at "+d.IP, 300),
 		Fields:  map[string]string{"ip": d.IP, "mac": d.MAC, "vendor": oneLine(vendor, 80), "kind": kind}})
+}
+
+// honeypotEvent records a real trap hit for the honeypot trigger (S-RESP-3). Every field came from the network: the source is
+// kept only as a parsed address, the kind only from its three values, the decoy name as one cut line; anything else drops the event.
+// The source device is the one the honeypot named, read again from the inventory.
+func (s *Service) honeypotEvent(ctx context.Context, data any) error {
+	var e struct {
+		ID         string `json:"id"`
+		TS         string `json:"ts"`
+		Kind       string `json:"kind"`
+		SrcIP      string `json:"src_ip"`
+		Decoy      string `json:"decoy"`
+		SrcAssetID string `json:"src_asset_id"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	ip, err := netip.ParseAddr(e.SrcIP)
+	switch {
+	case e.ID == "" || len(e.ID) > 64 || err != nil || ip.Zone() != "":
+		s.cfg.Log.WarnContext(ctx, "response: honeypot hit skipped: no id or no valid source address")
+		return nil
+	case e.Kind != "service" && e.Kind != "token" && e.Kind != "scan":
+		s.cfg.Log.WarnContext(ctx, "response: honeypot hit skipped: unknown kind")
+		return nil
+	}
+	ip = ip.Unmap()
+	var dev DeviceInfo
+	if e.SrcAssetID != "" && s.cfg.Directory != nil {
+		d, ok, err := s.cfg.Directory.Device(ctx, e.SrcAssetID)
+		if err != nil {
+			return err
+		}
+		if ok {
+			dev = d
+		}
+	}
+	name := oneLine(dev.Name, 100)
+	who := name
+	if who == "" {
+		who = ip.String()
+	}
+	decoy := oneLine(e.Decoy, 100)
+	if decoy == "" {
+		decoy = "decoy"
+	}
+	ts := s.ts()
+	if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
+		ts = store2(t)
+	}
+	return s.StoreEvent(ctx, Det{ID: "honeypot:" + e.ID, Trigger: "honeypot", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
+		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300),
+		Fields:  map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}})
 }
 
 // message sends a notice to the alert channels, best effort: a failure is logged, never returned.

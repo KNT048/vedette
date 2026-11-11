@@ -31,14 +31,14 @@ describe.each(modules)('hợp đồng %s', (mod) => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     // an off module's paths are 404 by design (SYS-5; /core/mcp of mcp-server, D-230): the schema is checked with every module on
     modulesStore.update((l) => l.map((m) => ({ ...m, enabled: true })))
-    for (const e of eps.filter((x) => x.method === 'get' && x.response && x.response !== 'file')) {
+    for (const e of eps.filter((x) => x.method === 'get' && x.response && x.response !== 'file' && x.response !== 'text')) {
       if (e.path.includes('{') && !e.example?.params) continue
       sessionStore.set({ userId: e.role === 'public' ? null : 'u-admin' })
       const path = e.path.replace(/\{(\w+)\}/g, (_, k: string) => encodeURIComponent(e.example!.params![k]!))
       const qs = e.example?.query ? `?${new URLSearchParams(e.example.query)}` : ''
       const res = await fetch(`${location.origin}/api/v1${path}${qs}`)
       expect(res.status, `GET ${path}${qs}`).toBeLessThan(300)
-      const parsed = (e.response as Exclude<typeof e.response, null | 'file'>).safeParse(await res.json())
+      const parsed = (e.response as Exclude<typeof e.response, null | 'file' | 'text'>).safeParse(await res.json())
       expect(parsed.success ? [] : parsed.error.issues.slice(0, 5).map((i) => `${i.path.join('.')}: ${i.message}`), `GET ${path}${qs} khớp schema`).toEqual([])
     }
   })

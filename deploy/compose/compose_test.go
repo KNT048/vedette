@@ -45,7 +45,7 @@ type file struct {
 
 func read(t *testing.T, name string) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(dir, name))
+	b, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // test: fixed file names of this directory
 	if err != nil {
 		t.Fatal(err)
 	}

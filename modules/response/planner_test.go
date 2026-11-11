@@ -246,6 +246,9 @@ func (e *env) planRefused(why string) {
 	if n := e.count(`SELECT COUNT(*) FROM resp_plans`); n != 1 { // only the seeded plan of f1
 		e.t.Fatalf("a refused plan was stored (%d plans)", n)
 	}
+	if _, d := e.newest("refused"); !e.logHas("refused", why) {
+		e.t.Logf("refusal line: %s", d)
+	}
 	if !e.logHas("refused", why) || e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.plan_refused'`) == 0 {
 		e.t.Fatalf("the refusal (%s) is not in the response log and the audit", why)
 	}
@@ -423,7 +426,7 @@ func TestPlanEveryValueMustBeTheDeviceAddress(t *testing.T) {
 		pre    bool
 	}{
 		"ip and interface": {cli: "block {ip} on {interface}", pre: true, params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "interface", Value: "Gi1/0/48"}}},
-		"ip and cidr":      {cli: "deny {ip} {cidr}", params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "cidr", Value: "10.0.0.0/8"}}},
+		"ip and cidr":      {cli: "deny {ip} {cidr}", params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "cidr", Value: "192.168.10.0/24"}}},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

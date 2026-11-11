@@ -389,7 +389,7 @@ func TestPlansAndProposalRequest(t *testing.T) {
 	e.firewall("fgt_ban_ip")
 	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a-nas", CVE: "CVE-2024-3400", Severity: "critical", Status: "confirmed"}
 	e.dir.devices["a-nas"] = response.DeviceInfo{ID: "a-nas", Name: "NAS", IP: "192.168.10.21", Approved: true}
-	steps := `[{"kind":"contain","title":"Switch off the virtual IP","detail":"d","proposal":{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"asset_id":"a-nas","asset_name":"NAS"}},{"kind":"check","title":"Check","detail":"d","proposal":null}]`
+	steps := `[{"kind":"contain","title":"Switch off the virtual IP","detail":"d","proposal":{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}},{"kind":"check","title":"Check","detail":"d","proposal":null}]`
 	e.exec1(`INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES ('plan-f1','f1','CVE-2024-3400','a-nas','NAS','2026-11-09T09:00:00.000Z','m','p','path','[]',?)`, steps)
 	pl, err := e.svc.Plans(e.ctx(), "")
 	e.must(err)

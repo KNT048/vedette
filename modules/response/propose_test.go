@@ -1397,7 +1397,7 @@ func TestRequestProposal_LogsThePersonNotTheAI(t *testing.T) {
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
 	e.must(err)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1")
 	e.must(err)
 	if actor, _ := e.newest("request"); actor != "it@acme.example (app)" {

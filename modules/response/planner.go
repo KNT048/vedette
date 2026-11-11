@@ -325,11 +325,11 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 // to the device; an action with only free-text values is refused too (plans send no messages). "" = passes. The same words refuse a
 // proposal again when it is requested, against the inventory's own word about the device.
 func aboutTheDevice(vals Values, cat catRow, ip string) string {
-	if !offerable(cat.params()) {
-		return "the action takes values that nothing can tie to the device of the finding, or only free text (evidence_mismatch); a plan proposes only actions on the address of that device"
-	}
 	if ip == "" {
 		return "no address is known for the device of the finding, so the never-touch list cannot be checked for this action (never_touch)"
+	}
+	if !offerable(cat.params()) {
+		return "the action takes values that nothing can tie to the device of the finding, or only free text (evidence_mismatch); a plan proposes only actions on the address of that device"
 	}
 	f := foundEvidence{relates: []string{ip}}
 	for p, v := range vals {

@@ -64,7 +64,7 @@ func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
 	e := planEnv(t)
 	e.exec1(`UPDATE resp_catalog SET run = json_set(run, '$.headers', 'X-Trace: abc123secret') WHERE id = 'fgt_ban_ip'`)
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	pl, err := e.svc.Plans(e.ctx(), "")
 	e.must(err)
 	if b, _ := json.Marshal(pl); !strings.Contains(string(b), "abc123secret") {

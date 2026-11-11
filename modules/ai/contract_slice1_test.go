@@ -391,7 +391,7 @@ func TestFirstProfileIsNotAssignedToTheAutomaticResponsePlanJob(t *testing.T) {
 func TestSuggestionDoesNotFillTheAutomaticResponsePlanJob(t *testing.T) {
 	a := newAPI(t)
 	a.addProfile(cloudBody("One", keyA))
-	jobs := a.want("GET", "/ai/assignments/suggestion", "viewer", "", 200, "")["jobs"].(map[string]any)
+	jobs := a.want("GET", "/ai/assignments/suggestion?internal_only=false", "viewer", "", 200, "")["jobs"].(map[string]any)
 	if s := jobs["response-plan"].(map[string]any); s["primary"] != nil {
 		t.Fatalf("response-plan = %v", s)
 	}

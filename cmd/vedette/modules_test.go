@@ -195,3 +195,13 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 		}
 	}
 }
+
+// D-189: the honeypot's teardown is wired into core's lifecycle (SYS-5), not left to a job that only runs while the module is on.
+func TestHoneypotTeardownIsWired(t *testing.T) {
+	t.Parallel()
+	for _, w := range wiredModules() {
+		if w.ID == "honeypot" && w.EnsureOff == nil {
+			t.Fatal("honeypot has no EnsureOff")
+		}
+	}
+}

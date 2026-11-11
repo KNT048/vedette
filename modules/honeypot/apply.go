@@ -316,12 +316,23 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 }
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
-// listens. The data stays.
+// listens. The data stays. It is idempotent and safe to repeat; a failure leaves the module saying it is still turning
+// off, and core's OffGuard calls EnsureOff again until the host has confirmed (D-189).
 func (s *Service) Disable(ctx context.Context) error {
+	s.offMu.Lock()
+	defer s.offMu.Unlock()
+	return s.disable(ctx)
+}
+
+func (s *Service) disable(ctx context.Context) error {
 	st, err := s.cfg.Host.Status(ctx)
-	if err != nil || !st.Available || s.cfg.ConfigDir == "" {
-		s.setHost(hostCache{reason: "the module is off"})
+	if err != nil {
+		s.setHost(hostCache{reason: turningOff})
 		return err
+	}
+	if !st.Available || s.cfg.ConfigDir == "" {
+		s.setHost(hostCache{reason: "the module is off"})
+		return nil
 	}
 	var errs []error
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
@@ -329,8 +340,26 @@ func (s *Service) Disable(ctx context.Context) error {
 	}
 	_, _, err = s.syncIPs(ctx, nil, false)
 	errs = append(errs, err)
+	if err := errors.Join(errs...); err != nil {
+		s.setHost(hostCache{available: true, reason: turningOff})
+		return err
+	}
 	s.setHost(hostCache{available: true, reason: "the module is off"})
-	return errors.Join(errs...)
+	return nil
+}
+
+const turningOff = "the module is turning off: the host has not confirmed yet that the container stopped and the decoy addresses are gone"
+
+// EnsureOff is the Teardown core's OffGuard runs while the module is off, at start and after every switch-off, with
+// backoff until it returns nil (D-189, SYS-5): a failed teardown or a restart never leaves traps listening. It does
+// nothing, and returns nil, if the module is on again.
+func (s *Service) EnsureOff(ctx context.Context) error {
+	s.offMu.Lock()
+	defer s.offMu.Unlock()
+	if s.on() { // checked under the lock: a switch-on between the check and the host calls must not be undone
+		return nil
+	}
+	return s.disable(ctx)
 }
 
 // Bus is the part of core/events the module subscribes through.

@@ -68,7 +68,7 @@ func TestTailFIFOAtTheLogNameDoesNotBlockSwitchOff(t *testing.T) {
 	waitFor(t, "container started", e.host.isRunning)
 	mkfifo(t, e.logPath())
 	<-time.After(300 * time.Millisecond) // several polls meet the FIFO
-	e.gate.set(true)                     // the owner switches the module off; the scheduler cancels the job
+	e.gate.turnOff()                     // the owner switches the module off; the scheduler cancels the job
 	cancel()
 	select {
 	case err := <-done:

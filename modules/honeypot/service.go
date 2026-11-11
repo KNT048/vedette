@@ -62,6 +62,7 @@ type Service struct {
 	applyMu sync.Mutex                   // one Apply at a time
 	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)
 	pollMu  sync.Mutex                   // one Poll at a time
+	offMu   sync.Mutex                   // one Disable at a time (the run loop's and the OffGuard's)
 }
 
 // New returns the service.

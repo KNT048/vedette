@@ -103,6 +103,8 @@ type Service struct {
 
 	seedMu sync.Mutex
 	seeded bool
+
+	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
 }
 
 // NewService checks the dependencies.

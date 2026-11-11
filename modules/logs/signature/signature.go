@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -75,6 +76,9 @@ type Rule struct {
 	Shapes   map[string]string `json:"shapes,omitempty"`
 	SrcField string            `json:"src_field,omitempty"` // key that holds the source address
 	DstField string            `json:"dst_field,omitempty"` // key that holds the destination address
+	// RemoteFields are the keys that hold the address of the remote peer the line is about (the client of a login, the source of a
+	// blocked connection), in order of preference: the first that holds a countable address wins (D-210). Not the sender of the log.
+	RemoteFields []string `json:"remote_fields,omitempty"`
 	// event_id
 	Patterns []string          `json:"patterns,omitempty"` // each with a named group "id"; tried in order
 	Titles   map[string]string `json:"titles,omitempty"`   // id -> what the event is: the vocabulary, an id that is not here is not read
@@ -84,6 +88,9 @@ type Rule struct {
 	// template and event_id
 	SrcPattern string `json:"src_pattern,omitempty"` // named group "src"
 	DstPattern string `json:"dst_pattern,omitempty"` // named group "dst"
+	// RemotePatterns (any type) find the remote peer's address by a pattern with a named group "addr"; tried in order after RemoteFields.
+	// A line the profile does not settle goes to the generic reader (ParseAddr over the usual daemon layouts).
+	RemotePatterns []string `json:"remote_patterns,omitempty"`
 }
 
 // Sample is a documented line and what the rule must make of it; Load runs every sample.
@@ -92,6 +99,7 @@ type Sample struct {
 	Signature string `json:"signature"`
 	Src       string `json:"src,omitempty"`
 	Dest      string `json:"dest,omitempty"`
+	Remote    string `json:"remote,omitempty"` // the remote peer's address the rule must find (empty: none)
 }
 
 type profile struct {
@@ -99,6 +107,7 @@ type profile struct {
 	patterns  []*regexp.Regexp
 	prefix    *regexp.Regexp
 	src, dst  *regexp.Regexp
+	remote    []*regexp.Regexp
 	mined     map[string]bool
 	wanted    map[string]bool
 	vocab     map[string]map[string]bool
@@ -117,7 +126,10 @@ type Set struct {
 type Result struct {
 	Signature string // never empty
 	Src, Dest string // a plain address or name, or empty
-	Profile   string // the profile id, or GenericProfile
+	// Remote is the address of the remote peer the line is about (D-210): never the device that sent the log. Unmapped, no zone,
+	// Countable; the zero Addr when the line has none or the text is not an address.
+	Remote  netip.Addr
+	Profile string // the profile id, or GenericProfile
 	// Bounded says that the signature comes from a vocabulary that shipped data bounds (a known log id, a known event id): the number
 	// of signatures a device can make is small whatever it sends. Every other result (the miner, a profile whose text is free) is
 	// counted in the quota of the miner.
@@ -166,9 +178,13 @@ func Load(fsys fs.FS, dir string) (*Set, error) {
 	for _, p := range set.profiles {
 		for i, s := range p.Samples {
 			r := set.Of(p.Kinds[0], s.Line)
-			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest {
-				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q, the sample says signature %q src %q dest %q",
-					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, s.Signature, s.Src, s.Dest)
+			remote := ""
+			if r.Remote.IsValid() {
+				remote = r.Remote.String()
+			}
+			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest || remote != s.Remote {
+				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q remote %q, the sample says signature %q src %q dest %q remote %q",
+					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, remote, s.Signature, s.Src, s.Dest, s.Remote)
 			}
 		}
 	}
@@ -232,7 +248,7 @@ func compile(f File) (*profile, error) {
 			return nil, fmt.Errorf("a kv rule needs 1 to %d fields", MaxFields)
 		}
 		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" {
-			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field and dst_field")
+			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field, dst_field, remote_fields and remote_patterns")
 		}
 		for _, k := range r.Fields {
 			if !validKey(k) {
@@ -273,7 +289,10 @@ func compile(f File) (*profile, error) {
 		for _, k := range r.Fields {
 			p.bounded = p.bounded && p.vocab[k] != nil
 		}
-		for _, k := range []string{r.SrcField, r.DstField} {
+		if len(r.RemoteFields) > MaxFields {
+			return nil, fmt.Errorf("remote_fields takes at most %d keys", MaxFields)
+		}
+		for _, k := range append([]string{r.SrcField, r.DstField}, r.RemoteFields...) {
 			if k != "" {
 				if !validKey(k) {
 					return nil, fmt.Errorf("field %q is not a key name", k)
@@ -285,8 +304,8 @@ func compile(f File) (*profile, error) {
 		if len(r.Patterns) == 0 || len(r.Patterns) > MaxPatterns {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
-		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" {
-			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern and dst_pattern")
+		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" {
+			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d titles: they are its vocabulary", MaxTitles)
@@ -305,8 +324,8 @@ func compile(f File) (*profile, error) {
 			p.patterns = append(p.patterns, re)
 		}
 	case TypeTemplate:
-		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab) != 0 || r.SrcField != "" || r.DstField != "" {
-			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern and dst_pattern")
+		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab)+len(r.RemoteFields) != 0 || r.SrcField != "" || r.DstField != "" {
+			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.HeadVocab) > MaxVocab {
 			return nil, fmt.Errorf("head_vocab has more than %d words", MaxVocab)
@@ -325,6 +344,16 @@ func compile(f File) (*profile, error) {
 		}
 	default:
 		return nil, fmt.Errorf("unknown rule type %q", r.Type)
+	}
+	if len(r.RemotePatterns) > MaxPatterns {
+		return nil, fmt.Errorf("remote_patterns takes at most %d patterns", MaxPatterns)
+	}
+	for _, src := range r.RemotePatterns {
+		re, err := compileGroup(src, "addr")
+		if err != nil {
+			return nil, err
+		}
+		p.remote = append(p.remote, re)
 	}
 	if r.SrcPattern != "" {
 		if p.src, err = compileGroup(r.SrcPattern, "src"); err != nil {
@@ -396,10 +425,13 @@ func (s *Set) Of(kind, line string) Result {
 	msg := listen.ParseSyslog(line).Msg
 	if p := s.byKind[kind]; p != nil {
 		if r, ok := p.read(msg); ok {
+			if !r.Remote.IsValid() {
+				r.Remote = genericRemote(msg) // the profile does not name it: the layouts that daemons share
+			}
 			return r
 		}
 	}
-	return Result{Signature: Mine(msg), Profile: GenericProfile}
+	return Result{Signature: Mine(msg), Profile: GenericProfile, Remote: genericRemote(msg)}
 }
 
 // read applies the rule; ok is false when the line is not in the format of the profile.
@@ -437,6 +469,12 @@ func (p *profile) read(msg string) (Result, bool) {
 		}
 		r.Signature = strings.Join(parts, " ")
 		r.Src, r.Dest = addr(kv[p.Rule.SrcField]), addr(kv[p.Rule.DstField])
+		for _, k := range p.Rule.RemoteFields {
+			if a, ok := ParseAddr(kv[k]); ok && Countable(a) {
+				r.Remote = a
+				break
+			}
+		}
 		r.Bounded = bounded
 	case TypeEventID:
 		id, title := "", ""
@@ -484,6 +522,16 @@ func (p *profile) read(msg string) (Result, bool) {
 	r.Signature = clean(cut(r.Signature, MaxSignatureBytes))
 	if r.Signature == "" {
 		return Result{}, false
+	}
+	for _, re := range p.remote {
+		if r.Remote.IsValid() {
+			break
+		}
+		if m := re.FindStringSubmatch(msg); m != nil {
+			if a, ok := ParseAddr(m[re.SubexpIndex("addr")]); ok && Countable(a) {
+				r.Remote = a
+			}
+		}
 	}
 	r.Profile = p.ID
 	return r, true

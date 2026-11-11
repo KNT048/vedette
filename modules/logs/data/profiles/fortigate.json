@@ -64,6 +64,13 @@
     },
     "src_field": "srcip",
     "dst_field": "dstip",
+    "remote_fields": [
+      "remip",
+      "srcip"
+    ],
+    "remote_patterns": [
+      "\\bui=\\\\?\"?[A-Za-z]+\\((?P<addr>[^)\"]{2,64})\\)"
+    ],
     "shapes": {
       "logid": "^[0-9]{10}$"
     }
@@ -73,15 +80,27 @@
       "line": "<189>date=2026-11-09 time=10:00:00 devname=\"FW-HQ\" logid=\"0000000013\" type=\"traffic\" subtype=\"forward\" level=\"warning\" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action=\"deny\" policyid=3",
       "signature": "logid=0000000013 action=deny",
       "src": "45.9.148.20",
-      "dest": "192.168.10.1"
+      "dest": "192.168.10.1",
+      "remote": "45.9.148.20"
     },
     {
       "line": "date=2026-11-09 time=10:05:00 logid=\"0100032002\" type=\"event\" subtype=\"system\" level=\"alert\" user=\"admin\" action=\"login\" msg=\"Administrator admin login failed from https(10.0.0.9) because of invalid password\"",
-      "signature": "logid=0100032002 action=login"
+      "signature": "logid=0100032002 action=login",
+      "remote": "10.0.0.9"
     },
     {
       "line": "logid=\"0100044547\" type=\"event\" subtype=\"system\" action=\"Edit\" msg=\"Edit system.admin\"",
       "signature": "logid=0100044547 action=Edit"
+    },
+    {
+      "line": "logid=\"0101039426\" type=\"event\" subtype=\"vpn\" level=\"alert\" logdesc=\"SSL VPN login fail\" action=\"ssl-login-fail\" user=\"bob\" remip=203.0.113.7 reason=\"sslvpn_login_permission_denied\" msg=\"SSL user failed to logged in\"",
+      "signature": "logid=0101039426 action=ssl-login-fail",
+      "remote": "203.0.113.7"
+    },
+    {
+      "line": "logid=\"0100032002\" type=\"event\" subtype=\"system\" level=\"alert\" user=\"admin\" ui=\"https(198.51.100.4)\" action=\"login\" status=\"failed\" msg=\"Administrator admin login failed\"",
+      "signature": "logid=0100032002 action=login",
+      "remote": "198.51.100.4"
     }
   ]
 }

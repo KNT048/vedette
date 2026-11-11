@@ -38,7 +38,11 @@
       "4769": "A Kerberos service ticket was requested",
       "4771": "Kerberos pre-authentication failed",
       "4776": "The domain controller attempted to validate account credentials"
-    }
+    },
+    "remote_patterns": [
+      "(?i)(?:Source Network Address|Client Address|IpAddress|Source Address)[\\\"']?\\s*[:=]?\\s*\\\"?(?P<addr>[^\\s\\\"<>,;]{2,64})",
+      "(?i)Name=\\\"(?:IpAddress|SourceNetworkAddress)\\\">(?P<addr>[^<\\s]{2,64})<"
+    ]
   },
   "samples": [
     {
@@ -51,6 +55,25 @@
     },
     {
       "line": "<14>Nov  9 10:00:00 SRV MSWinEventLog\t1\tSecurity\t123\tMon Nov 09 10:00:00 2026\t4625\tMicrosoft-Windows-Security-Auditing\tCORP\\bob\tN/A\tFailure Audit\tSRV\tLogon\t\tAn account failed to log on.",
+      "signature": "4625: Failed logon"
+    },
+    {
+      "line": "<14>Nov  9 10:00:00 SRV-AD Microsoft-Windows-Security-Auditing: 4625: An account failed to log on.\tLogon Type:\t3\tNetwork Information:\tWorkstation Name:\tPC1\tSource Network Address:\t203.0.113.50\tSource Port:\t52311",
+      "signature": "4625: Failed logon",
+      "remote": "203.0.113.50"
+    },
+    {
+      "line": "<14>Nov  9 10:00:00 DC1 Security-Auditing: 4771: Kerberos pre-authentication failed. Client Address: ::ffff:198.51.100.9 Client Port: 49152",
+      "signature": "4771: Kerberos pre-authentication failed",
+      "remote": "198.51.100.9"
+    },
+    {
+      "line": "{\"EventID\":4625,\"Channel\":\"Security\",\"IpAddress\":\"2001:db8::5\",\"IpPort\":\"0\"}",
+      "signature": "4625: Failed logon",
+      "remote": "2001:db8::5"
+    },
+    {
+      "line": "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Source Network Address: -  Source Port: -",
       "signature": "4625: Failed logon"
     }
   ]

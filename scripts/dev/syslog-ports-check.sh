@@ -66,7 +66,7 @@ trap cleanup EXIT
 # 1. the helper, built by the invoking user (root's PATH may have no go, or an older one)
 work=$(sudo -u "$SUDO_USER" mktemp -d /tmp/vedette-slc.XXXXXX)
 chmod 0755 "$work"
-mkdir "$work/rootfs"
+sudo -u "$SUDO_USER" mkdir "$work/rootfs" # the helper is built by the invoking user into it
 gobin=$(sudo -u "$SUDO_USER" bash -lc 'command -v go' 2>/dev/null || true)
 [ -n "$gobin" ] || gobin=/usr/local/go/bin/go
 sudo -u "$SUDO_USER" env CGO_ENABLED=0 "$gobin" -C "$repo" build -o "$work/rootfs/peer" ./scripts/dev/syslogpeer

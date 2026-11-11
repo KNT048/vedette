@@ -20,7 +20,7 @@ modules/<tên>/*_contract_test.go   mỗi INV/POST một test
 - SYS-2: Input ở biên validate theo schema trước service.
 - SYS-3: Mọi mutation ghi `core_audit`.
 - SYS-4: Secret chỉ qua `core/secrets` (AES-GCM), không log, không export.
-- SYS-5: Module tắt: không route, không job, không cổng; dữ liệu giữ, trừ việc xoá theo thời hạn lưu khách đã đặt (job `Housekeeping` của `core/jobs`, D-160).
+- SYS-5: Module tắt: không route, không job, không cổng; dữ liệu giữ, trừ việc xoá dữ liệu quá thời hạn lưu khách đã đặt hoặc sản phẩm đã công bố (CONTRACT và GUI), hoặc vượt trần lưu trữ đã ghi trong tài liệu, kèm dòng audit của việc xoá đó (job `Housekeeping` của `core/jobs`, D-160, D-201, D-202).
 - SYS-6: Dữ liệu từ feed/log/web/agent là không tin cậy: parser fail-closed, giới hạn kích thước.
 - SYS-7: Mọi hành động mạng ra ngoài LAN (scan, fetch) phải nằm trong scope đã xác thực sở hữu hoặc nguồn feed khai báo.
 - SYS-8: AI không có tool ghi.

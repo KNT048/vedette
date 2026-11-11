@@ -95,31 +95,20 @@ test('a bad request is refused with a code and does not use the export slot', as
   await admin.dispose()
 })
 
-// test.fail (D-171): .ai/deferred/feat-e2e-real-harness.md ("Download logs ... from/to"): the Data page turns the day the person picks into a
-// full ISO time (`new Date(`${from}T00:00:00`).toISOString()`, DataSection.tsx), but the box (D-132) and the mock only take YYYY-MM-DD and
-// answer 400 invalid_range, so a person who picks dates gets an error toast. The GUI is never changed in this work; the spec turns red when it is.
-// It runs before the exports so that, once fixed, it takes the slot first and the tests after it wait for it.
+// The Data page sends the day the person picks (YYYY-MM-DD), as the box (D-132) takes it. It runs before the exports so it takes the slot first and the tests after it wait for it.
 test('the Data page downloads the days the person picks', async ({ page }) => {
   test.setTimeout(150_000)
-  test.fail(true, 'bug: DataSection sends from/to as ISO times, the box takes YYYY-MM-DD (.ai/deferred/feat-e2e-real-harness.md)')
   await slot()
   await page.goto('/settings/data')
   await expect(h1(page)).toBeVisible()
   const today = day(org.timezone)
   await page.getByLabel('From', { exact: true }).fill(today)
   await page.getByLabel('To', { exact: true }).fill(today)
-  const saved = page.waitForEvent('download', { timeout: 15_000 }).catch(() => null)
+  const saved = page.waitForEvent('download', { timeout: 15_000 })
   await page.getByRole('button', { name: 'Download logs' }).click()
   const file = await saved
-  if (!file) {
-    // Only the known bug may satisfy test.fail: the box's own 400 invalid_range message in the toast. Anything else (a renamed label, a
-    // timeout, another error) is a real failure of this test, so the expectation is switched off and the test is reported red.
-    const known = await page.locator('[data-sonner-toast]').filter({ hasText: 'Dates are written YYYY-MM-DD' }).first().isVisible()
-    if (!known) test.fail(false)
-    throw new Error(known ? 'no download: the box refused the day with 400 invalid_range (the known bug)' : 'no download and no invalid_range toast: not the known bug')
-  }
   expect(file.suggestedFilename()).toMatch(/^vedette-logs-/)
-  lastStart = Date.now() // only reached when the bug is fixed: the download used the slot
+  lastStart = Date.now() // the download used the slot
 })
 
 test('JSON: the days are whole days of the organization time zone, missing categories are named, the audit chain says where it starts and ends, and a second download within a minute is refused', async () => {

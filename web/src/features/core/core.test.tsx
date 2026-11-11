@@ -1264,6 +1264,24 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
   const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
   const osSection = () => within(document.getElementById('os') ?? document.body)
 
+  it('shows the operating system part even when the software part is not built yet (501, issue #230)', async () => {
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
+    expect(osSection().getByRole('button', { name: 'Check now' })).toBeInTheDocument()
+    expect(await screen.findByText('Not built yet.')).toBeInTheDocument()
+  })
+
+  it('a box that has not checked yet shows its message and Check now, which loads the page (issue #231)', async () => {
+    collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false })).set({ on: true })
+    const u = user()
+    renderApp('/settings/updates')
+    expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
+    await u.click(osSection().getByRole('button', { name: 'Check now' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
+    expect(osSection().getByRole('table', { name: 'Pending operating system updates' })).toBeInTheDocument()
+  })
+
   it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
@@ -1372,7 +1390,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check now' }, T))
-    expect(await screen.findByText('Checked the package mirrors.')).toBeInTheDocument()
+    expect(await screen.findByText('Checked the package mirrors.', undefined, T)).toBeInTheDocument()
     asAdmin()
     await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ update_check: false }) })
     const r = await post('/check')

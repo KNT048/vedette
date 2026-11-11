@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -167,7 +168,7 @@ func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep i
 }
 
 // resyncOnce recounts the byte counter the first time a purge runs in this process: a counter that drifted (a crash cannot do it,
-// an older binary can) would make that purge delete real lines. The caller holds the purging flag.
+// an older binary can) would make that purge delete real lines. Only the purge loop calls it.
 func (s *Service) resyncOnce(ctx context.Context) error {
 	if s.resynced.Load() {
 		return nil
@@ -229,20 +230,70 @@ func (s *Service) dropStale(ctx context.Context) error {
 	})
 }
 
-// Jobs returns the jobs of the module (core runs one only while the module is on). The purge shares the flag of the purge that
-// Ingest starts: when one is under way the job skips its turn. The first run after a start recomputes the byte counter from
-// the lines, so that a counter that drifted (a crash cannot do it, an older binary can) does not outlive a restart.
+// Jobs returns the jobs of the module (a Housekeeping job: core runs it whether the module is on or off). The purge job's Run is long-lived: it
+// lives until its context ends, which is when the process shuts down (the job is Housekeeping, D-160: it keeps purging past
+// the retention while the module is off, and a module toggle does not cancel it), so core/jobs cancels a purge in the middle
+// at shutdown and its panic recovery covers it. On entry it recounts the byte counter from the lines (a counter that
+// drifted, which an older binary can cause, must not make the first purge delete real lines); then it purges, and waits for
+// the next kick (Ingest, over the bound; skipped when the last purge started less than purgeGap ago) or PurgeEvery.
+// Core records one history row when Run ends, so the history shows one long run per process, not one per hour.
 func Jobs(svc *Service) []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: func(ctx context.Context) error {
-		if !svc.purging.CompareAndSwap(false, true) {
-			return nil
+	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop}}
+}
+
+// purgeLoop ends only when ctx does: nothing that goes wrong in a pass may stop it, or nobody would read kick until the
+// scheduler ran the job again (an hour later) and the flood guard would be off, on a full disk most of all.
+func (s *Service) purgeLoop(ctx context.Context) error {
+	for {
+		s.pass(ctx)
+		s.passed(true)
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		defer svc.purging.Store(false)
-		svc.lastStart = svc.now()
-		if err := svc.resyncOnce(ctx); err != nil {
-			return err
+		timer := time.NewTimer(PurgeEvery)
+	wait:
+		for {
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+				break wait
+			case <-s.kick:
+				since := s.now().Sub(s.lastStart)
+				if since >= purgeGap {
+					timer.Stop()
+					break wait
+				}
+				timer.Reset(purgeGap - since) // too early: deferred to the end of the gap, not dropped
+				s.passed(false)
+			}
 		}
-		_, err := svc.Purge(ctx)
-		return err
-	}}}
+	}
+}
+
+// pass is one turn of the loop: recount the byte counter once per process (before anything is deleted), then purge. A failure
+// is logged and costs this pass only (the recount is retried by the next one), and so does a panic.
+func (s *Service) pass(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.cfg.Log.ErrorContext(ctx, "logs: the purge panicked", "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+		}
+	}()
+	s.lastStart = s.now() // a failed pass counts too: a failing disk is not retried more than once a purgeGap
+	if err := s.resyncOnce(ctx); err != nil {
+		if ctx.Err() == nil {
+			s.cfg.Log.WarnContext(ctx, "logs: could not recount the stored bytes; no purge this time", "err", err)
+		}
+		return
+	}
+	if _, err := s.Purge(ctx); err != nil && ctx.Err() == nil {
+		s.cfg.Log.WarnContext(ctx, "logs: the purge failed", "err", err)
+	}
+}
+
+func (s *Service) passed(ran bool) {
+	if s.afterPass != nil {
+		s.afterPass(ran)
+	}
 }

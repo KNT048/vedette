@@ -134,10 +134,10 @@ type Service struct {
 	cfg      Config
 	router   *Router
 	meter    *Meter
-	loc      *time.Location // the box time zone: the day of the meter and of "today" in the usage view
-	hooks    *HookRunner    // the built-in hooks on; custom hooks and their switches arrive with the harness (slice 4a)
-	degraded string         // why the saved settings could not be loaded; "" = loaded
-	mu       sync.Mutex     // serialises changes
+	loc      *time.Location          // the box time zone: the day of the meter and of "today" in the usage view
+	harness  atomic.Pointer[harness] // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
+	degraded string                  // why the saved settings could not be loaded; "" = loaded
+	mu       sync.Mutex              // serialises changes
 	snap     atomic.Pointer[snapshot]
 }
 
@@ -164,14 +164,24 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 			return nil, err
 		}
 	}
-	hooks, err := NewHookRunner(nil, nil)
+	// Until the saved harness is loaded (and if it cannot be): no custom rules or hooks, every built-in hook on.
+	h0, err := newHarness(nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, hooks: hooks}
+	s := &Service{cfg: cfg, loc: loc}
+	s.harness.Store(h0)
 	sn, err := s.load(ctx)
 	if err == nil {
 		err = s.build(sn, loc)
+	}
+	if err == nil {
+		var h *harness
+		if h, err = s.loadHarness(ctx); err == nil {
+			s.harness.Store(h)
+		} else {
+			err = fmt.Errorf("load rules and hooks: %w", err)
+		}
 	}
 	if err == nil {
 		// today's usage comes back from ai_activity, so the level in force and the caps survive a restart (INV-4)

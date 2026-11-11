@@ -264,3 +264,125 @@ func (h *AIHandlers) AiPutAiActivitySettings(ctx context.Context, req *oas.AiPut
 	}
 	return &oas.AiPutAiActivitySettingsOK{RetentionDays: days}, nil
 }
+
+// AiGetAiRules implements GET /ai/rules (admin).
+func (h *AIHandlers) AiGetAiRules(context.Context) (*oas.AiGetAiRulesOK, error) {
+	return convert[oas.AiGetAiRulesOK](h.svc.RulesView())
+}
+
+// AiPostAiRules implements POST /ai/rules (admin).
+func (h *AIHandlers) AiPostAiRules(ctx context.Context, req *oas.AiPostAiRulesReq) (*oas.AiPostAiRulesOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[RuleInput](req)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.AddRule(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiRulesOK](v)
+}
+
+// AiPutAiRulesID implements PUT /ai/rules/{id} (admin).
+func (h *AIHandlers) AiPutAiRulesID(ctx context.Context, req *oas.AiPutAiRulesIDReq, params oas.AiPutAiRulesIDParams) (*oas.AiPutAiRulesIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[RuleInput](req)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.EditRule(ctx, who, params.ID, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPutAiRulesIDOK](v)
+}
+
+// AiDeleteAiRulesID implements DELETE /ai/rules/{id} (admin).
+func (h *AIHandlers) AiDeleteAiRulesID(ctx context.Context, params oas.AiDeleteAiRulesIDParams) error {
+	who, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	return h.svc.DeleteRule(ctx, who, params.ID)
+}
+
+// AiGetAiHooks implements GET /ai/hooks (admin).
+func (h *AIHandlers) AiGetAiHooks(context.Context) (*oas.AiGetAiHooksOK, error) {
+	return convert[oas.AiGetAiHooksOK](h.svc.HooksView())
+}
+
+// AiPostAiHooks implements POST /ai/hooks (admin).
+func (h *AIHandlers) AiPostAiHooks(ctx context.Context, req *oas.AiPostAiHooksReq) (*oas.AiPostAiHooksOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[HookJSON](req)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.AddHook(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiHooksOK](v)
+}
+
+// AiPutAiHooksID implements PUT /ai/hooks/{id} (admin).
+func (h *AIHandlers) AiPutAiHooksID(ctx context.Context, req *oas.AiPutAiHooksIDReq, params oas.AiPutAiHooksIDParams) (*oas.AiPutAiHooksIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[HookJSON](req)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.EditHook(ctx, who, params.ID, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPutAiHooksIDOK](v)
+}
+
+// AiDeleteAiHooksID implements DELETE /ai/hooks/{id} (admin).
+func (h *AIHandlers) AiDeleteAiHooksID(ctx context.Context, params oas.AiDeleteAiHooksIDParams) error {
+	who, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	return h.svc.DeleteHook(ctx, who, params.ID)
+}
+
+// AiPutAiHooksBuiltinID implements PUT /ai/hooks/builtin/{id} (admin).
+func (h *AIHandlers) AiPutAiHooksBuiltinID(ctx context.Context, req *oas.AiPutAiHooksBuiltinIDReq, params oas.AiPutAiHooksBuiltinIDParams) (*oas.AiPutAiHooksBuiltinIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SetBuiltinHook(ctx, who, params.ID, req.Enabled)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPutAiHooksBuiltinIDOK](v)
+}
+
+// AiPostAiHooksTest implements POST /ai/hooks/test (admin).
+func (h *AIHandlers) AiPostAiHooksTest(ctx context.Context, req *oas.AiPostAiHooksTestReq) (*oas.AiPostAiHooksTestOK, error) {
+	in, err := convert[HookTestInput](req)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.TestHook(ctx, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiHooksTestOK](v)
+}

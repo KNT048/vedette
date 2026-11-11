@@ -193,7 +193,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
 | `invalid_contact` | 400 | Enter the name of the person in charge of data protection. | module reports (validator dùng chung) |
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
-| `invalid_content` | 400 | This is not a Word (DOCX) file. Only MD, TXT and DOCX files can be added. (also: not UTF-8 text) | `POST /ai/knowledge` |
+| `invalid_content` | 400 | This is not a Word (DOCX) file. Only PDF, MD, TXT and DOCX files can be added. (also: this is not a PDF file; not UTF-8 text) | `POST /ai/knowledge` |
 | `invalid_cve` | 400 | A CVE ID looks like CVE-2022-27593. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 | `invalid_day` | 400 | Pick a day of the week. | module reports (validator dùng chung) |
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |

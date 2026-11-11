@@ -37,7 +37,7 @@ export default function KnowledgeTab() {
     e.target.value = ''
     if (!f) return
     setPickErr('')
-    if (!/\.(md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
+    if (!/\.(pdf|md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
     if (f.size > MAX) { setPickErr(t('harness.knowledge.errSize', { name: f.name })); return }
     if (f.size === 0) { setPickErr(t('harness.knowledge.errEmpty', { name: f.name })); return }
     let content: string

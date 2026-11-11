@@ -154,7 +154,7 @@ const purgeGap = time.Minute
 // startPurge wakes the purge job: a non-blocking send on the buffered kick channel, so a flood over the bound gives one
 // wake-up, not one per batch, and Ingest never waits (it holds no lock and may not wait for the core writer that the audit
 // rows of the purge need, INV-12). With the module off no job listens and the send just fills the buffer: nothing runs.
-// The purge itself runs in the job (Jobs), under core/jobs' context, so turning the module off or shutting down cancels it.
+// The purge itself runs in the job (Jobs), under core/jobs' context: shutting down cancels it (the job is Housekeeping, so turning the module off does not).
 func (s *Service) startPurge() {
 	select {
 	case s.kick <- struct{}{}:

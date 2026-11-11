@@ -37,7 +37,8 @@ type Service struct {
 	maxBytes, exportBytes int64
 	// kick wakes the purge job (capacity 1); Ingest sends without blocking when the volume is over the bound.
 	kick chan struct{}
-	// lastStart is when the last purge started; read and written only by the purge job's loop.
+	// lastStart is when the last purge started; read and written only by the purge job's loop, which is safe only because there
+	// is exactly one loop per Service (one Run of the job at a time).
 	lastStart time.Time
 	// afterPass, when set by a test, runs each time the loop has handled a wake-up (ran: a purge ran, not skipped by the gap).
 	afterPass func(ran bool)

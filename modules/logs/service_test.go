@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 	"unicode/utf8"
 
@@ -1094,45 +1095,192 @@ func TestPurgeResyncsAnOvercountedCounter(t *testing.T) {
 	}
 }
 
-// M-D: background purges start at least a minute apart: a kick within the gap is consumed and skipped.
+// next returns the next wake-up the loop handled, without waiting: a bubble must be idle (synctest.Wait) before it is called.
+func next(t *testing.T, passes <-chan bool) (ran, ok bool) {
+	t.Helper()
+	synctest.Wait()
+	select {
+	case ran = <-passes:
+		return ran, true
+	default:
+		return false, false
+	}
+}
+
+// M-D / L1: background purges start at least a minute apart; a kick within the gap is deferred to the end of it, not dropped.
 func TestKickedPurgesStartAMinuteApart(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := newEnv(t)
+		e.svc.now = time.Now // the bubble's clock: the timers and the gap agree
+		s := e.add("FW", "192.168.10.1")
+		e.svc.maxBytes = 1000
+		big := func() []Line { return lines(s.ID, time.Now(), slices.Repeat([]string{"0123456789"}, 150)...) } // 1,500 bytes: over on its own
+		started := func() int {
+			return count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`)
+		}
+		stop, passes := e.runJob()
+		if ran, ok := next(t, passes); !ok || !ran {
+			t.Fatal("the first iteration did not run")
+		}
+		<-time.After(time.Minute)
+		if _, err := e.svc.Ingest(t.Context(), big()); err != nil {
+			t.Fatal(err)
+		}
+		if ran, ok := next(t, passes); !ok || !ran || started() != 1 {
+			t.Fatalf("the first kick did not run a purge (ran %v, ok %v, started %d)", ran, ok, started())
+		}
+		if _, err := e.svc.Ingest(t.Context(), big()); err != nil { // over again at once
+			t.Fatal(err)
+		}
+		if ran, ok := next(t, passes); !ok || ran || started() != 1 {
+			t.Fatalf("a kick within a minute of the last start must be deferred (ran %v, ok %v, started %d)", ran, ok, started())
+		}
+		<-time.After(purgeGap + time.Second)
+		if ran, ok := next(t, passes); !ok || !ran || started() != 2 {
+			t.Fatalf("the deferred kick did not run a purge at the end of the gap (ran %v, ok %v, started %d)", ran, ok, started())
+		}
+		_ = stop()
+	})
+}
+
+// H1: the loop ends only when its context does: a failing purge (here the audit write is refused) costs one pass, and a
+// later kick purges.
+func TestTheLoopSurvivesAPurgeError(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 5, e.clock.Add(-60*24*time.Hour))
+	e.exec(e.cfg, `CREATE TRIGGER t BEFORE INSERT ON core_audit BEGIN SELECT RAISE(ABORT, 'x'); END`)
+	stop, passes := e.runJob()
+	e.pass(passes)
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 5 {
+		t.Fatalf("%d lines left, want 5: the purge ran without its audit row", n)
+	}
+	e.exec(e.cfg, `DROP TRIGGER t`)
+	e.advance(time.Minute)
+	e.svc.startPurge()
+	if !e.pass(passes) {
+		t.Fatal("the kick after the failed purge was not run")
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 0 {
+		t.Fatalf("%d lines left, want 0", n)
+	}
+	if err := stop(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run returned %v, want the context error and nothing earlier", err)
+	}
+}
+
+// H1: a recount that fails (a full disk, here the table is gone) skips the pass and does not end the loop: the flood guard
+// stays on, and the next kick retries the recount.
+func TestTheLoopSurvivesAFailedRecount(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 5, e.clock.Add(-60*24*time.Hour))
+	e.exec(e.vol, `ALTER TABLE logs_volume RENAME TO logs_volume_x`)
+	stop, passes := e.runJob()
+	e.pass(passes)
+	e.exec(e.vol, `ALTER TABLE logs_volume_x RENAME TO logs_volume`)
+	e.advance(time.Minute)
+	e.svc.startPurge()
+	if !e.pass(passes) {
+		t.Fatal("the kick after the failed recount was not run")
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 0 {
+		t.Fatalf("%d lines left, want 0: the recount was not retried", n)
+	}
+	if err := stop(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run returned %v, want the context error and nothing earlier", err)
+	}
+}
+
+// H1: a panic in a pass costs that pass, not the loop.
+func TestTheLoopSurvivesAPanic(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 5, e.clock.Add(-60*24*time.Hour))
+	boom := true
+	e.svc.afterSum = func() {
+		if boom {
+			boom = false
+			panic("boom")
+		}
+	}
+	stop, passes := e.runJob()
+	e.pass(passes)
+	e.advance(time.Minute)
+	e.svc.startPurge()
+	if !e.pass(passes) {
+		t.Fatal("the kick after the panic was not run")
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 0 {
+		t.Fatalf("%d lines left, want 0", n)
+	}
+	if err := stop(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run returned %v, want the context error and nothing earlier", err)
+	}
+}
+
+// The PurgeEvery timer runs a pass with no kick.
+func TestThePurgeRunsEveryPurgeEvery(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := newEnv(t)
+		e.svc.now = time.Now
+		stop, passes := e.runJob()
+		if ran, ok := next(t, passes); !ok || !ran {
+			t.Fatal("the first iteration did not run")
+		}
+		<-time.After(PurgeEvery + time.Second)
+		if ran, ok := next(t, passes); !ok || !ran {
+			t.Fatal("no pass after PurgeEvery without a kick")
+		}
+		_ = stop()
+	})
+}
+
+// D-201: with the module off the scheduler still runs the job, and a volume over the bound is purged on a kick.
+func TestAnOverBoundVolumeIsPurgedWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
 	e.svc.maxBytes = 1000
-	big := lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 150)...) // 1,500 bytes: over on its own
-	started := func() int {
-		return count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.purge_started'`)
+	sched := jobs.New(slog.New(slog.DiscardHandler), offGate{}, func() time.Time { return *e.clock })
+	for _, j := range Jobs(e.svc) {
+		if err := sched.Add(j); err != nil {
+			t.Fatal(err)
+		}
 	}
-	stop, passes := e.runJob()
-	e.pass(passes) // the first iteration
+	passes := e.passesOf()
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	e.pass(passes)
 	e.advance(time.Minute)
-	if _, err := e.svc.Ingest(t.Context(), big); err != nil {
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, slices.Repeat([]string{"0123456789"}, 150)...)); err != nil {
 		t.Fatal(err)
 	}
 	if !e.pass(passes) {
-		t.Fatal("the first kick did not run a purge")
+		t.Fatal("the kick did not run a purge while the module was off")
 	}
-	if _, err := e.svc.Ingest(t.Context(), big); err != nil { // over again at once
-		t.Fatal(err)
+	cancel()
+	<-done
+	if left := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); left > 900 {
+		t.Fatalf("%d bytes left, want at most 900", left)
 	}
-	if e.pass(passes) {
-		t.Fatal("a kick within a minute of the last start ran a purge")
+}
+
+// exec runs a statement on db's writer.
+func (e *env) exec(db *store.DB, q string) {
+	e.t.Helper()
+	if err := db.Write(e.t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.t.Context(), q)
+		return err
+	}); err != nil {
+		e.t.Fatal(err)
 	}
-	if n := started(); n != 1 {
-		t.Fatalf("%d purges started within a minute, want 1", n)
-	}
-	e.advance(time.Minute)
-	if _, err := e.svc.Ingest(t.Context(), big); err != nil {
-		t.Fatal(err)
-	}
-	if !e.pass(passes) {
-		t.Fatal("a kick after the minute did not run a purge")
-	}
-	if n := started(); n != 2 {
-		t.Fatalf("%d purges started after the minute, want 2", n)
-	}
-	_ = stop()
 }
 
 // M-D: turning the module off (the job's context ends) stops a purge in the middle; the started row still gets its end row.

@@ -14680,7 +14680,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 13 flows listed in PRIVACY.md.
+	// Exactly the 14 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -17827,7 +17827,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 13 flows listed in PRIVACY.md.
+	// Exactly the 14 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`

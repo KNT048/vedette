@@ -2,6 +2,7 @@ package agentintake_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -9,12 +10,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/core/store"
@@ -41,6 +45,7 @@ func (c *clock) Advance(d time.Duration) {
 type intakeOnly struct {
 	server.Fallback
 	*agentintake.IntakeHandlers
+	*agentintake.WazuhHandlers
 }
 
 type world struct {
@@ -53,7 +58,11 @@ type world struct {
 	clock *clock
 	logs  *bytes.Buffer
 	aud   *audit.Log
+	conn  *conn.Service
 }
+
+// boxAddr is the box's own address in the tests: the address policy refuses it as a Wazuh server.
+const boxAddr = "192.168.10.250"
 
 const (
 	peerA = "192.0.2.10" // the address most tests connect from
@@ -81,13 +90,22 @@ func newWorld(t *testing.T) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc, err := agentintake.New(agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Clock: clk.Now, Log: lg})
+	sec, err := secrets.New(bytes.Repeat([]byte{7}, secrets.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs, err := conn.New(conn.Config{DB: db, Secrets: sec, Audit: aud, Clock: clk.Now,
+		BoxAddrs: func(context.Context) []netip.Prefix { return []netip.Prefix{netip.MustParsePrefix(boxAddr + "/32")} }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := agentintake.New(agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg})
 	if err != nil {
 		t.Fatal(err)
 	}
 	gate := servertest.NewGate()
 	h, err := server.New(server.Config{
-		API:        intakeOnly{Fallback: server.Fallback{Log: lg}, IntakeHandlers: agentintake.NewIntakeHandlers(svc)},
+		API:        intakeOnly{Fallback: server.Fallback{Log: lg}, IntakeHandlers: agentintake.NewIntakeHandlers(svc), WazuhHandlers: agentintake.NewWazuhHandlers(svc)},
 		Auth:       &servertest.Auth{Users: servertest.StandardUsers()},
 		Modules:    gate,
 		Log:        lg,
@@ -96,7 +114,7 @@ func newWorld(t *testing.T) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud}
+	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud, conn: cs}
 }
 
 // reply is one HTTP answer.

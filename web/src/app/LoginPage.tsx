@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -9,6 +9,8 @@ import { Field, Input } from '@/components/ui/input'
 import { useAuthOptions } from '@/features/core/api'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
+import { saveSsoFlow, safeNext } from '@/features/core/ssoFlow'
+import type { OidcStart } from '@/features/core/types'
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -24,6 +26,14 @@ export default function LoginPage() {
   const [second, setSecond] = useState<{ method: 'app' | 'email'; sentTo?: string; preview?: string; resent?: boolean }>({ method: 'app' })
   const cooldown = useCountdown()
   const [busy, setBusy] = useState(false)
+  const [ssoError, setSsoError] = useState<string | null>(null)
+  const [ssoBusy, setSsoBusy] = useState(false)
+  // Back from the identity provider through the browser cache: the page comes back as it was left, still "busy".
+  useEffect(() => {
+    const back = (e: PageTransitionEvent) => { if (e.persisted) { setBusy(false); setSsoBusy(false) } }
+    window.addEventListener('pageshow', back)
+    return () => window.removeEventListener('pageshow', back)
+  }, [])
   // Gợi ý tài khoản mẫu chỉ khi đang chạy dữ liệu mẫu (cài sạch không có các tài khoản này).
   const setup = useSetup()
   const mock = import.meta.env.VITE_API_MOCK !== 'off' && setup.data?.data_mode === 'sample'
@@ -37,8 +47,7 @@ export default function LoginPage() {
       await api.post('/auth/login', needCode ? { email, password, code } : { email, password })
       qc.removeQueries({ queryKey: ['me'] }) // /me đã được lưu là "chưa đăng nhập"; bỏ hẳn để trang đích chờ dữ liệu mới thay vì bật về /login
       await qc.invalidateQueries()
-      const next = params.get('next')
-      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/', { replace: true })
+      navigate(safeNext(params.get('next')), { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'twofa_required') {
         const d = err.details
@@ -67,18 +76,20 @@ export default function LoginPage() {
     }
   }
 
+  // D-194: the box returns the identity provider's address and a binding; the binding stays in this tab's session storage until
+  // /sso/callback posts it back, so a sign-in can only finish in the tab that started it. No cookie is added.
   async function signInSso() {
     setBusy(true)
-    setError(null)
+    setSsoBusy(true)
+    setSsoError(null)
     try {
-      await api.post('/core/sso/login')
-      qc.removeQueries({ queryKey: ['me'] })
-      await qc.invalidateQueries()
-      navigate('/', { replace: true })
+      const r = await api.post<OidcStart>('/auth/oidc/start')
+      saveSsoFlow({ binding: r.binding, next: safeNext(params.get('next')) })
+      window.location.assign(r.authorize_url)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('error.unknown'))
-    } finally {
+      setSsoError(err instanceof ApiError ? err.message : t('error.unknown'))
       setBusy(false)
+      setSsoBusy(false)
     }
   }
 
@@ -108,8 +119,9 @@ export default function LoginPage() {
               ) : null}
             </>
           ) : null}
-          <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy ? t('login.signingIn') : t('login.signIn')}</Button>
-          {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{t('core:login.sso')}</Button> : null}
+          <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy && !ssoBusy ? t('login.signingIn') : t('login.signIn')}</Button>
+          {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{ssoBusy ? t('core:login.ssoStarting') : t('core:login.sso')}</Button> : null}
+          {ssoError ? <p role="alert" className="text-[13px] text-danger">{ssoError}</p> : null}
         </form>
         {mock ? <p className="mt-4 text-[13px] text-muted">{t('login.demoHint')}</p> : null}
       </div>

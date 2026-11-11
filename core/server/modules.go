@@ -14,7 +14,7 @@ var moduleOverrides = []struct{ prefix, module string }{
 	{"/scans", "scan"},
 	{"/scans/credentialed", "scan-credentialed"},
 	{"/core/oidc", "auth-oidc"},
-	{"/core/sso", "auth-oidc"},
+	{"/auth/oidc", "auth-oidc"}, // D-194: the SSO round trip; longer than /auth below
 	{"/core/mcp", "mcp-server"},
 	{"/install", "agent-intake"},
 	{"/intake", "agent-intake"},

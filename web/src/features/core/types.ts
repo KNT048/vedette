@@ -22,6 +22,8 @@ export type EmailCodeSent = z.infer<typeof C.EmailCodeSent>
 
 export type AdminUser = z.infer<typeof C.AdminUser>
 export type OidcConfig = z.infer<typeof C.OidcConfig>
+export type OidcSave = z.infer<typeof C.OidcSave>
+export type OidcStart = z.infer<typeof C.OidcStart>
 
 export type AuditRow = z.infer<typeof C.AuditRow>
 export type AuditResult = z.infer<typeof C.AuditResult>

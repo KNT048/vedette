@@ -220,7 +220,29 @@ func (s *Service) dropStale(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	days, err := s.Retention(ctx)
+	if err != nil {
+		return err
+	}
 	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		// The signature counters follow the retention, but never keep less than the 9 days that the baseline reads: older rows are
+		// deleted; rows older than the retention that remain (retention 7) lose their sample, which is a copy of a line.
+		now := s.now().UTC()
+		keep := max(days, BaselineDays+2)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_daily WHERE day < ?`, now.Add(-time.Duration(keep)*24*time.Hour).Format("2006-01-02")); err != nil {
+			return fmt.Errorf("logs: dropping old signature counters: %w", err)
+		}
+		if keep > days {
+			if _, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET sample = '' WHERE day < ? AND sample <> ''`, now.Add(-time.Duration(days)*24*time.Hour).Format("2006-01-02")); err != nil {
+				return fmt.Errorf("logs: dropping old samples: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_buckets WHERE bucket < ?`, now.Add(-48*time.Hour).Unix()/bucketSeconds); err != nil {
+			return fmt.Errorf("logs: dropping old signature counters: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_anomaly_sent WHERE sent_at < ?`, store.FormatTS(now.Add(-72*time.Hour))); err != nil {
+			return fmt.Errorf("logs: dropping old announcements: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_source_buckets WHERE bucket < ?`, s.now().Add(-48*time.Hour).Unix()/bucketSeconds); err != nil {
 			return fmt.Errorf("logs: dropping old counters: %w", err)
 		}
@@ -250,6 +272,8 @@ func Jobs(svc *Service) []jobs.Job {
 		{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop},
 		// The syslog listener is NOT housekeeping: it opens ports, so it runs only while the module is on (SYS-5).
 		{Module: ModuleID, Name: "syslog", Every: SyslogRetry, Run: svc.runSyslog},
+		// Not housekeeping either: it announces, so it runs only while the module is on (SYS-5).
+		anomalyJob(svc),
 	}
 }
 

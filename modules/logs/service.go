@@ -12,9 +12,17 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/logs/listen"
+	"github.com/knt048/vedette/modules/logs/signature"
 )
+
+// Publisher puts a module event on the bus: *events.Bus satisfies it, so wiring passes the real bus; nil drops events (the
+// anomaly job then does nothing).
+type Publisher interface {
+	Publish(ctx context.Context, e events.Event) error
+}
 
 // Config is what NewService needs. Config is the main database (configuration, audit), Volume is logs.db (lines and
 // counters): they must be two different databases, each with its own writer. Inventory and Box may be nil (no device
@@ -29,6 +37,8 @@ type Config struct {
 	Clock     func() time.Time // nil: time.Now
 	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
 	Syslog SyslogConfig
+	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
+	Events Publisher
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -36,6 +46,8 @@ type Config struct {
 type Service struct {
 	cfg Config
 	now func() time.Time
+	// sigs reads the signature of a line (the profiles in data/profiles, loaded and checked when the service is made).
+	sigs *signature.Set
 	// maxBytes is MaxEventBytes and exportBytes is ExportMaxBytes; variables so that a test can lower them.
 	maxBytes, exportBytes int64
 	// kick wakes the purge job (capacity 1); Ingest sends without blocking when the volume is over the bound.
@@ -76,7 +88,11 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	sigs, err := signature.Load(profileFiles, "data/profiles")
+	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
+		return nil, fmt.Errorf("logs: creating service: %w", err)
+	}
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
@@ -362,7 +378,7 @@ func (s *Service) SetRetention(ctx context.Context, user string, days int) (int,
 	return days, nil
 }
 
-// Digest is the answer of GET /logs/digest (L1: the line count of the last 24 hours; see Digest).
+// Digest is the answer of GET /logs/digest: the lines of the last 24 hours, the new kinds of line and the spikes (INV-6). The bad connections come with L4.
 func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	lines, err := s.linesSince(ctx, s.now().Add(-24*time.Hour))
 	if err != nil {
@@ -372,5 +388,11 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	for _, n := range lines {
 		total += n
 	}
-	return Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: 7, New: []struct{}{}, Spikes: []struct{}{}, BadConnections: []struct{}{}}, nil
+	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []struct{}{}}
+	found, names, err := s.anomalies(ctx, s.now())
+	if err != nil {
+		return Digest{}, err
+	}
+	d.New, d.Spikes, err = s.digestItems(ctx, found, names)
+	return d, err
 }

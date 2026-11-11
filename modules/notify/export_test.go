@@ -27,3 +27,6 @@ func ReplyCodeHashForTest(requestID, userID string, approve bool, code string) s
 
 // NewReplyCodesForTest makes the two codes of one approver.
 func NewReplyCodesForTest() (approve, reject string, err error) { return newReplyCodes() }
+
+// SetZaloRepliesForTest turns on sending Zalo reply codes, which waits for the listener (slice 4b) in production.
+func (s *Service) SetZaloRepliesForTest() { s.zaloReplies = true }

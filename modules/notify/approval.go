@@ -115,6 +115,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 				return nil, fmt.Errorf("notify: approval request: %s", userText(err))
 			}
 			expires := ApprovalExpiry(now, req.Expires)
+			planned := len(plan)
 			for _, a := range ac.Approvers {
 				if why := s.approverProblem(ctx, ac.Type, a); why != "" {
 					skips = append(skips, skipped{a.UserID, why})
@@ -131,7 +132,11 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 				}
 				plan = append(plan, outgoing{snd: direct, msg: m, recipient: a.Address})
 			}
-			continue
+			if len(plan) > planned {
+				continue
+			}
+			// every approver was skipped (left, demoted, or an address saved before D-242): the channel still hears about the
+			// request, with the message that says to open Vedette
 		}
 		if ac.Type != channel.Email {
 			snd, err := s.savedSender(ctx, c, nil)

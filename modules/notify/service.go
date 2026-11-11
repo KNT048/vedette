@@ -81,6 +81,9 @@ type Service struct {
 	webhookClient *http.Client
 	// zaloTo makes the direct Zalo sender of one approver (channel.ZaloPersonalTo); only export_test.go replaces it.
 	zaloTo func(channel.Sender, string) (channel.Sender, error)
+	// zaloReplies: something reads Zalo personal replies, so reply codes are sent (replycode.go). False until the listener
+	// (slice 4b) exists; only export_test.go sets it now.
+	zaloReplies bool
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool

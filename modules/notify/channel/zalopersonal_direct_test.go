@@ -123,3 +123,33 @@ func TestZaloPersonalToNeedsTheChatService(t *testing.T) {
 		t.Fatalf("the group alert: %v", err)
 	}
 }
+
+// A refusal of one direct message right after a sign-in is about that approver, not the account: no sign-in pause, so the next
+// approver and the channel's alerts still go out. A reused session that is refused still signs in again once, as for alerts.
+func TestZaloPersonalToRefusalDoesNotPauseTheChannel(t *testing.T) {
+	t.Parallel()
+	f := newZaloFake(t)
+	f.sendErr = func(n int) int {
+		if n == 1 {
+			return 114
+		}
+		return 0
+	}
+	s := newZPSender(t, f, nil)
+	d, err := ZaloPersonalTo(s, "2938475610293847561")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := sample
+	m.ReplyCodes = testCodes
+	var pe *ProviderError
+	if _, err := d.Send(context.Background(), m); !errors.As(err, &pe) || f.logins != 1 || f.sends != 1 {
+		t.Fatalf("first direct send: %v, logins %d, sends %d", err, f.logins, f.sends)
+	}
+	if _, err := d.Send(context.Background(), m); err != nil || f.logins != 1 {
+		t.Fatalf("second direct send: %v, logins %d", err, f.logins)
+	}
+	if _, err := s.Send(context.Background(), sample); err != nil || f.logins != 1 {
+		t.Fatalf("the alert after: %v, logins %d", err, f.logins)
+	}
+}

@@ -122,7 +122,7 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 	if m.ReplyCodes != nil { // codes are for one approver: never to the configured user or group (ZaloPersonalTo)
 		return Receipt{}, fmt.Errorf("%w: reply codes go only to the approver they belong to", ErrInvalidMessage)
 	}
-	return z.send(ctx, m, z.user, z.group)
+	return z.send(ctx, m, z.user, z.group, false)
 }
 
 // ZaloPersonalTo returns a sender that posts to one person, userID (the Zalo user ID, digits, never a phone number), through the
@@ -160,11 +160,11 @@ func (d *zaloDirect) Send(ctx context.Context, m Message) (Receipt, error) {
 	if err := m.check(); err != nil {
 		return Receipt{}, err
 	}
-	return d.z.send(ctx, m, d.user, false)
+	return d.z.send(ctx, m, d.user, false, true)
 }
 
-// send posts m to one user, or to one group when group is true.
-func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, group bool) (Receipt, error) {
+// send posts m to one user, or to one group when group is true. direct is a message to an approver (ZaloPersonalTo).
+func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, group, direct bool) (Receipt, error) {
 	link, _ := safeLink(m.Link)
 	lines := m.norm().mapText(defang).lines(link)
 	if m.ReplyCodes != nil { // the box's own text, not feed text: kept whole with the link line, which fit never cuts
@@ -202,6 +202,10 @@ func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, gro
 		case errors.As(err, &se) && (se.Code == http.StatusUnauthorized || se.Code == http.StatusForbidden):
 			z.li = nil // the session is refused: no retry, and the next sign-in waits
 			z.fail()
+			return Receipt{}, err
+		case errors.As(err, &pe) && pe.requestRefused && direct && fresh:
+			// The session was just accepted at sign-in, so the refusal is about this one approver (a wrong ID, a block, not a
+			// friend): a message failure. It must not pause sign-ins for the channel's alerts and the other approvers.
 			return Receipt{}, err
 		case errors.As(err, &pe) && pe.requestRefused:
 			z.li = nil

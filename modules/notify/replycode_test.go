@@ -87,6 +87,13 @@ func (d *zaloDirectFake) Send(_ context.Context, m channel.Message) (channel.Rec
 	return channel.Receipt{To: d.Dest()}, nil
 }
 
+// newZaloEnv is newEnv with what reply codes need: a Decisions port, and the listener switch on (export_test.go).
+func newZaloEnv(t *testing.T, opts ...func(*notify.Config)) *env {
+	e := newEnv(t, append([]func(*notify.Config){func(c *notify.Config) { c.Decisions = fakeDecisions{} }}, opts...)...)
+	e.svc.SetZaloRepliesForTest()
+	return e
+}
+
 func (e *env) zaloApprovals(approvers ...notify.Approver) *zaloRecorder {
 	e.t.Helper()
 	if approvers == nil {
@@ -102,7 +109,7 @@ func (e *env) zaloApprovals(approvers ...notify.Approver) *zaloRecorder {
 // Each approver gets their own direct message with their own two codes; the hash of each code is recorded before the message goes out
 // (spec 7.1), bound to the request, the person and the decision; the codes never reach the history or the configured group.
 func TestContract_PRE8_ZaloReplyCodesPerApprover(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	z := e.zaloApprovals()
 	req := e.approvalReq("req-z1", channel.ZaloPersonal)
 	req.Expires = e.clock.Now().Add(45 * time.Minute) // the codes still end 30 minutes from now
@@ -170,10 +177,11 @@ func TestContract_PRE8_ZaloNoCodesWhenNotAllowed(t *testing.T) {
 		"no chat buttons": {mod: func(r *notify.ApprovalRequest) { r.NoChatButtons = true }},
 		"unknown risk":    {mod: func(r *notify.ApprovalRequest) { r.Risk = "" }},
 		"no recorder":     {mod: func(*notify.ApprovalRequest) {}, opts: []func(*notify.Config){func(c *notify.Config) { c.Tokens = nil }}},
+		"no decisions":    {mod: func(*notify.ApprovalRequest) {}, opts: []func(*notify.Config){func(c *notify.Config) { c.Decisions = nil }}},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := newEnv(t, c.opts...)
+			e := newZaloEnv(t, c.opts...)
 			z := e.zaloApprovals()
 			req := e.approvalReq("req-z2", channel.ZaloPersonal)
 			c.mod(&req)
@@ -187,7 +195,7 @@ func TestContract_PRE8_ZaloNoCodesWhenNotAllowed(t *testing.T) {
 
 // An approver who no longer qualifies gets no code and no message, and is audited; the others still get theirs.
 func TestContract_POST4_ZaloSkippedApproverGetsNoCode(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	z := e.zaloApprovals()
 	e.users.mu.Lock()
 	u := e.users.users["u-admin"]
@@ -205,7 +213,7 @@ func TestContract_POST4_ZaloSkippedApproverGetsNoCode(t *testing.T) {
 
 // A code that could not be recorded is never sent: the request fails and nothing goes out.
 func TestContract_PRE8_ZaloCodeNotRecordedIsNotSent(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	z := e.zaloApprovals()
 	e.tokens.codeErr = errors.New("the request is no longer pending")
 	if _, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z4", channel.ZaloPersonal)); err == nil {
@@ -218,7 +226,7 @@ func TestContract_PRE8_ZaloCodeNotRecordedIsNotSent(t *testing.T) {
 
 // A failed direct message is recorded like any failed approval message (history row, not ok); the codes stay recorded and expire.
 func TestZaloReplyCodeSendFailureIsRecorded(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
 	z.fail = errors.New("zalo said no")
 	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z5", channel.ZaloPersonal))
@@ -229,7 +237,7 @@ func TestZaloReplyCodeSendFailureIsRecorded(t *testing.T) {
 
 // D-242: the Zalo approver is the user ID (a reply carries it), never a phone number; one address is one approver (UNIQUE).
 func TestContract_INV7_ZaloApproverIsAUserIDAndUnique(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	in := func(a ...notify.Approver) notify.ChannelInput {
 		return notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true, Approvers: a}
 	}
@@ -264,7 +272,7 @@ func TestContract_INV7_ZaloApproverIsAUserIDAndUnique(t *testing.T) {
 
 // A resend of an approver's own message goes to that approver again through the channel's session, without codes (they are not kept).
 func TestContract_INV11_ZaloApprovalResendGoesToTheSameApprover(t *testing.T) {
-	e := newEnv(t)
+	e := newZaloEnv(t)
 	z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
 	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z6", channel.ZaloPersonal))
 	if err != nil || len(sv) != 1 {
@@ -276,5 +284,33 @@ func TestContract_INV11_ZaloApprovalResendGoesToTheSameApprover(t *testing.T) {
 	}
 	if len(z.sent) != 2 || z.sent[1].to != zaloOp || z.sent[1].msg.ReplyCodes != nil || e.net.total() != 0 {
 		t.Fatalf("sent %+v, network calls %d", z.sent, e.net.total())
+	}
+}
+
+// Until the listener exists nothing reads a reply, so no code is sent: the channel gets the "open Vedette" message as before.
+func TestZaloNoCodesWhileNothingReadsTheReplies(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) { c.Decisions = fakeDecisions{} })
+	z := e.zaloApprovals()
+	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z7", channel.ZaloPersonal))
+	if err != nil || len(sv) != 1 || len(z.sent) != 0 || len(e.tokens.codes) != 0 {
+		t.Fatalf("sends %+v, %v, direct %d, codes %d", sv, err, len(z.sent), len(e.tokens.codes))
+	}
+}
+
+// When every approver is skipped, the channel still hears about the request (the "open Vedette" message to its recipient).
+func TestZaloAllApproversSkippedFallsBackToTheChannel(t *testing.T) {
+	e := newZaloEnv(t)
+	z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
+	e.users.mu.Lock()
+	u := e.users.users["u-op"]
+	u.Role = "viewer"
+	e.users.users["u-op"] = u
+	e.users.mu.Unlock()
+	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z8", channel.ZaloPersonal))
+	if err != nil || len(sv) != 1 || sv[0].To == "Zalo "+zaloOp || len(z.sent) != 0 || len(e.tokens.codes) != 0 {
+		t.Fatalf("sends %+v, %v, direct %d, codes %d", sv, err, len(z.sent), len(e.tokens.codes))
+	}
+	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.approval_skipped'`) != 1 {
+		t.Fatal("the skipped approver is not audited")
 	}
 }

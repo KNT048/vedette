@@ -490,6 +490,10 @@ func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow, keep []KeepRow) (map
 			return nil, fmt.Errorf("core: purge: drop trigger %s: %w", t.name, err)
 		}
 	}
+	fts, err := ftsTables(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
 	removed := make(map[string]float64, len(names))
 	for _, n := range names {
 		res, err := tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(n)) //nolint:gosec // the name comes from sqlite_master and is quoted
@@ -530,12 +534,86 @@ func wipe(ctx context.Context, tx *sql.Tx, seeds []seedRow, keep []KeepRow) (map
 			return nil, fmt.Errorf("core: purge: restore trigger %s: %w", t.name, err)
 		}
 	}
+	if err := resetFTS(ctx, tx, fts); err != nil {
+		return nil, err
+	}
 	for n, v := range removed {
 		if v <= 0 {
 			delete(removed, n)
 		}
 	}
 	return removed, nil
+}
+
+// ftsTable is an FTS5 index and how it keeps its text (https://sqlite.org/fts5.html#external_content_and_contentless_tables).
+type ftsTable struct {
+	name string
+	mode string // "regular" (its own content), "external" (content=<table>) or "contentless" (content='' or content="")
+}
+
+// fts5Create is the head of the CREATE statement SQLite keeps for an FTS5 table.
+var fts5Create = regexp.MustCompile(`(?is)^\s*create\s+virtual\s+table\s+(?:"(?:[^"]|"")*"|'(?:[^']|'')*'|\[[^\]]*\]|` + "`[^`]*`" + `|\S+)\s+using\s+fts5\s*\(`)
+
+// ftsTables lists the virtual tables and how each FTS5 one keeps its text, read from the CREATE statement SQLite kept: an
+// empty content= option is contentless, any other content= option names an external table, none is a regular table. A
+// virtual table that is not FTS5 (rtree, ...) fails the purge closed: wipe does not know how to empty it, and leaving its
+// rows would break "a new install" (INV-14).
+func ftsTables(ctx context.Context, tx *sql.Tx) ([]ftsTable, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT m.name, m.sql FROM pragma_table_list l JOIN sqlite_master m ON m.type = 'table' AND m.name = l.name
+		WHERE l.schema = 'main' AND l.type = 'virtual' ORDER BY m.name`)
+	if err != nil {
+		return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
+	}
+	var out []ftsTable
+	for rows.Next() {
+		var (
+			t    ftsTable
+			text string
+		)
+		if err := rows.Scan(&t.name, &text); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
+		}
+		loc := fts5Create.FindStringIndex(text)
+		if loc == nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("core: purge: virtual table %s is not FTS5 and the purge cannot empty it", t.name)
+		}
+		opts := strings.ToLower(strings.Join(strings.Fields(text[loc[1]:]), "")) // the options only, never the table name
+		switch {
+		case strings.Contains(opts, "content=''") || strings.Contains(opts, `content=""`):
+			t.mode = "contentless"
+		case strings.Contains(opts, "content="):
+			t.mode = "external"
+		default:
+			t.mode = "regular"
+		}
+		out = append(out, t)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
+	}
+	return out, nil
+}
+
+// resetFTS empties every FTS5 index through FTS5's own commands, after the data tables are emptied, the seeds put back and
+// the triggers restored: deleting rows of its shadow tables directly (what wipe did before) corrupts the index for good
+// ("fts5: corruption found"). A regular table holds its own text and is emptied with DELETE; an external-content table is
+// rebuilt from its content table, which then holds only seeds; a contentless one is emptied with delete-all.
+func resetFTS(ctx context.Context, tx *sql.Tx, tables []ftsTable) error {
+	for _, t := range tables {
+		q := "DELETE FROM " + quoteIdent(t.name) //nolint:gosec // the name comes from sqlite_master and is quoted
+		switch t.mode {
+		case "external":
+			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('rebuild')"
+		case "contentless":
+			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('delete-all')"
+		}
+		if _, err := tx.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("core: purge: reset the FTS5 index %s: %w", t.name, err)
+		}
+	}
+	return nil
 }
 
 // The trash (M3): what the purge deletes from the disk is first moved into core_data/tmp/purge-trash-<id>/, so that a failure

@@ -156,9 +156,9 @@ func TestShippedProfiles(t *testing.T) {
 	}
 	cases := []struct{ kind, line, sig, dest string }{
 		{"fortigate", `<189>date=2026-11-09 time=10:00:00 devname="FW-HQ" logid="0000000013" type="traffic" subtype="forward" level="warning" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action="deny" policyid=3`,
-			"type=traffic subtype=forward logid=0000000013 action=deny", "192.168.10.1"},
+			"logid=0000000013 action=deny", "192.168.10.1"},
 		{"fortigate", `type="event" subtype="system" logid="0100032001" level="alert" msg="Administrator admin login failed from https(10.0.0.9) because of invalid password"`,
-			"type=event subtype=system logid=0100032001 msg=Administrator admin login failed from https(<ip>) because of invalid password", ""},
+			"logid=0100032001", ""},
 		{"mikrotik", `<134>Nov  9 10:00:00 RT system,info,account user admin logged in from 192.168.10.113 via winbox`,
 			"system,info,account: user <name> logged in from <ip> via winbox", ""},
 		{"mikrotik", `firewall,info forward: in:ether1 out:ether2, proto TCP (SYN), 192.168.10.113:50922->8.8.8.8:53, len 60`,
@@ -167,10 +167,16 @@ func TestShippedProfiles(t *testing.T) {
 			"4625: Failed logon", ""},
 		{"windows", `EventID: 4720 Subject Account Name: admin.it`, "4720: A user account was created", ""},
 		{"windows", `{"EventID":4688,"Channel":"Security"}`, "4688: A new process was created", ""},
-		{"windows", `<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4999: something unlisted`, "4999: Windows Security event", ""},
+		{"windows", `<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4999: something unlisted`, "", ""}, // not in the table: the miner reads it
 	}
 	for _, c := range cases {
 		r := set.Of(c.kind, c.line)
+		if c.sig == "" {
+			if r.Profile != GenericProfile || r.Bounded {
+				t.Errorf("%s %q is read by %+v", c.kind, c.line, r)
+			}
+			continue
+		}
 		if r.Signature != c.sig || r.Dest != c.dest || r.Profile != c.kind {
 			t.Errorf("%s %q\n got  %+v\n want sig %q dest %q", c.kind, c.line, r, c.sig, c.dest)
 		}

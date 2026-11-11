@@ -1,24 +1,82 @@
 {
   "id": "fortigate",
-  "title": "FortiGate (FortiOS) traffic and event logs",
-  "kinds": ["fortigate"],
+  "title": "FortiGate (FortiOS) traffic and event logs, by log id",
+  "kinds": [
+    "fortigate"
+  ],
   "rule": {
     "type": "kv",
-    "fields": ["type", "subtype", "logid", "action", "msg"],
-    "mined": ["msg"],
+    "fields": [
+      "logid",
+      "action"
+    ],
+    "vocab": {
+      "logid": [
+        "0000000011",
+        "0000000013",
+        "0001000014",
+        "0100032001",
+        "0100032002",
+        "0100032003",
+        "0100040704",
+        "0100044546",
+        "0100044547",
+        "0101039426",
+        "0102043008",
+        "0102043009",
+        "0211008192",
+        "0316013056",
+        "0317013312",
+        "0419016384",
+        "1059028704",
+        "1059028705"
+      ],
+      "action": [
+        "accept",
+        "deny",
+        "close",
+        "timeout",
+        "start",
+        "ip-conn",
+        "client-rst",
+        "server-rst",
+        "dropped",
+        "blocked",
+        "passthrough",
+        "monitored",
+        "reset",
+        "detected",
+        "login",
+        "logout",
+        "ssl-login-fail",
+        "tunnel-up",
+        "tunnel-down",
+        "perf-stats",
+        "pass",
+        "block",
+        "Add",
+        "Edit",
+        "Delete",
+        "Move"
+      ]
+    },
     "src_field": "srcip",
     "dst_field": "dstip"
   },
   "samples": [
     {
       "line": "<189>date=2026-11-09 time=10:00:00 devname=\"FW-HQ\" logid=\"0000000013\" type=\"traffic\" subtype=\"forward\" level=\"warning\" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action=\"deny\" policyid=3",
-      "signature": "type=traffic subtype=forward logid=0000000013 action=deny",
+      "signature": "logid=0000000013 action=deny",
       "src": "45.9.148.20",
       "dest": "192.168.10.1"
     },
     {
-      "line": "date=2026-11-09 time=10:05:00 logid=\"0100032001\" type=\"event\" subtype=\"system\" level=\"alert\" msg=\"Administrator admin login failed from https(10.0.0.9) because of invalid password\"",
-      "signature": "type=event subtype=system logid=0100032001 msg=Administrator admin login failed from https(<ip>) because of invalid password"
+      "line": "date=2026-11-09 time=10:05:00 logid=\"0100032002\" type=\"event\" subtype=\"system\" level=\"alert\" user=\"admin\" action=\"login\" msg=\"Administrator admin login failed from https(10.0.0.9) because of invalid password\"",
+      "signature": "logid=0100032002 action=login"
+    },
+    {
+      "line": "logid=\"0100044547\" type=\"event\" subtype=\"system\" action=\"Edit\" msg=\"Edit system.admin\"",
+      "signature": "logid=0100044547 action=Edit"
     }
   ]
 }

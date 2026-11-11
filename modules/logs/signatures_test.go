@@ -18,13 +18,36 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 )
 
-// fw is a FortiGate traffic line with the log id n; its signature is sigFor(n). The port and the destination are not part of it.
+// fgLogids and fgActions are inside the vocabulary of the FortiGate profile (data/profiles/fortigate.json): a signature of the
+// profile needs a known log id, so the tests that want many distinct profile signatures take them from here.
+var (
+	fgLogids  = []string{"0000000013", "0001000014", "0000000011", "0100032001", "0100032002", "0100032003", "0100044546", "0100044547", "0100040704", "0101039426", "0102043008", "0102043009", "0316013056", "0419016384", "1059028704", "0211008192"}
+	fgActions = []string{"deny", "accept", "close", "timeout"}
+	fgMu      sync.Mutex
+	fgIndex   = map[int]int{}
+)
+
+// fgN gives each number a test uses its own log id and action (up to 64 of them), the same one in every test.
+func fgN(n int) (logid, action string) {
+	fgMu.Lock()
+	defer fgMu.Unlock()
+	i, ok := fgIndex[n]
+	if !ok {
+		i = len(fgIndex)
+		fgIndex[n] = i
+	}
+	return fgLogids[i%len(fgLogids)], fgActions[i/len(fgLogids)%len(fgActions)]
+}
+
+// fw is a FortiGate traffic line of the kind n; its signature is sigFor(n). The port and the destination are not part of it.
 func fw(n int, dst string) string {
-	return fmt.Sprintf(`type="traffic" subtype="forward" logid="%010d" srcip=45.9.148.20 dstip=%s dstport=443 action="deny"`, n, dst)
+	logid, action := fgN(n)
+	return fmt.Sprintf(`type="traffic" subtype="forward" logid="%s" srcip=45.9.148.20 dstip=%s dstport=443 action="%s"`, logid, dst, action)
 }
 
 func sigFor(n int) string {
-	return fmt.Sprintf("type=traffic subtype=forward logid=%010d action=deny", n)
+	logid, action := fgN(n)
+	return fmt.Sprintf("logid=%s action=%s", logid, action)
 }
 
 // feed ingests n copies of text from src at the clock's time.
@@ -45,6 +68,7 @@ func (e *env) feed(src Source, text string, n int) {
 
 func (e *env) digest() Digest {
 	e.t.Helper()
+	e.svc.dropSnapshot() // the digest of a test sees what the test has just fed
 	d, err := e.svc.Digest(e.t.Context())
 	if err != nil {
 		e.t.Fatal(err)
@@ -92,7 +116,7 @@ func TestContract_INV6_WarmUpIsSilent(t *testing.T) {
 		t.Fatalf("new after the warm-up = %v, want only %q", got, sigFor(25))
 	}
 	n := d.New[0]
-	if n.Count != 3 || n.SourceID != src.ID || n.SourceName != "FW-HQ" || !n.FirstSeen.Equal(*e.clock) || !strings.Contains(n.Sample, `logid="0000000025"`) || !strings.HasPrefix(n.ID, "n-") {
+	if n.Count != 3 || n.SourceID != src.ID || n.SourceName != "FW-HQ" || !n.FirstSeen.Equal(*e.clock) || !strings.Contains(n.Sample, "logid=") || !strings.HasPrefix(n.ID, "n-") {
 		t.Fatalf("%+v", n)
 	}
 }
@@ -315,7 +339,7 @@ func TestIngestCountsSignatures(t *testing.T) {
 	if n != 6 || first != "2026-11-09T10:00:00.000Z" || !strings.Contains(sample, "dstip=192.168.10.1 ") || len(sample) > MaxSampleBytes || dest != "192.168.10.9" || mined != 0 {
 		t.Fatalf("%d %s %q %s %d", n, first, sample, dest, mined)
 	}
-	if c := count(t, e.vol, `SELECT sum(count) FROM logs_signature_buckets WHERE signature = ?`, sigFor(3389)); c != 6 {
+	if c := count(t, e.vol, `SELECT sum(count) FROM logs_signature_buckets WHERE sig_hash = ?`, sigHash(sigFor(3389))); c != 6 {
 		t.Fatalf("buckets %d", c)
 	}
 	// a line of a source that is not declared leaves no counter
@@ -460,8 +484,10 @@ func TestContract_Events_GroupingAndRateLimit(t *testing.T) {
 	for _, ev := range p.events() {
 		perSource[ev.Source]++
 	}
-	if perSource["FW-HQ"] != 26 { // 1 + 25 targets: the 6 held back are sent now
-		t.Fatalf("after the hour: %v", perSource)
+	// 1 grouped event + 18 targets one by one + ONE summary of the 7 the hour had no room for: nothing is held back for later, and a
+	// burst is not an event for each of its signatures.
+	if perSource["FW-HQ"] != 20 || eventsAbout(p, "new kinds of message") != 1 {
+		t.Fatalf("after the hour: %v, %d summaries", perSource, eventsAbout(p, "new kinds of message"))
 	}
 }
 
@@ -535,7 +561,7 @@ func TestPurgeDropsOldSignatureCounters(t *testing.T) {
 			if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, ?, 'sig', '', 1, ?, 'a line', 0)`, at.Format("2006-01-02"), src.ID, ts); err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count, mined) VALUES (?, ?, 'sig', 1, 0)`, src.ID, at.Unix()/300); err != nil {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_buckets (source_id, bucket, sig_hash, count, mined) VALUES (?, ?, 1, 1, 0)`, src.ID, at.Unix()/300); err != nil {
 				return err
 			}
 			_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at) VALUES (?, 'new', 'sig', ?, 't', ?)`, src.ID, ts, ts)
@@ -603,7 +629,7 @@ func fwDeny(port int) string {
 	return fmt.Sprintf(`type="traffic" subtype="forward" logid="0000000013" srcip=45.9.148.20 dstip=203.0.113.1 dstport=%d action="deny"`, port)
 }
 
-const adminLoginFailed = `logid="0100032001" type="event" subtype="system" msg="Administrator admin login failed from https(10.0.0.9) because of invalid password"`
+const adminLoginFailed = `logid="0100032002" type="event" subtype="system" action="login" msg="Administrator admin login failed from https(10.0.0.9) because of invalid password"`
 
 func hasSignature(d Digest, part string) bool {
 	for _, n := range d.New {
@@ -634,7 +660,7 @@ func TestContract_INV6_ManyPortsDoNotBlindNew(t *testing.T) {
 	e.advance(time.Hour)
 	e.feed(src, adminLoginFailed, 1)
 	d := e.digest()
-	if !hasSignature(d, "login failed") {
+	if !hasSignature(d, "logid=0100032002") {
 		t.Fatalf("the administrator login failure is not in the digest: %+v", d.New)
 	}
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_signature_daily WHERE day = '2026-11-12'`); n > 3 {
@@ -662,7 +688,7 @@ func TestContract_INV1_MinerFloodCannotPushOutAProfileSignature(t *testing.T) {
 	}
 	e.feed(src, fw(77, "10.0.0.1"), 2)
 	d := e.digest()
-	if !hasSignature(d, "logid=0000000077") {
+	if !hasSignature(d, sigFor(77)) {
 		t.Fatalf("a profile signature was pushed out by the miner flood: %+v", d.New)
 	}
 	for _, n := range d.New {
@@ -700,7 +726,7 @@ func TestContract_INV1_UserNameBruteForceIsAFewSignatures(t *testing.T) {
 			flush()
 		}
 		batch = append(batch, Line{SourceID: s.ID, At: t0, Text: fmt.Sprintf("<38>Nov  9 10:00:00 srv sshd[%d]: Invalid user %s from 45.9.148.%d port %d", 1000+i, "u"+letters(i), i%250+1, 40000+i)})
-		batch = append(batch, Line{SourceID: s.ID, At: t0, Text: fmt.Sprintf("<38>Nov  9 10:00:00 srv sshd[%d]: Failed password for invalid user %s from 45.9.148.%d port %d ssh2", 2000+i, letters(i), i%250+1, 41000+i)})
+		batch = append(batch, Line{SourceID: s.ID, At: t0, Text: fmt.Sprintf("<38>Nov  9 10:00:00 srv sshd[%d]: Failed password for invalid user %s from 45.9.148.%d port %d ssh2", 2000+i, "v"+letters(i), i%250+1, 41000+i)})
 	}
 	flush()
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_signature_daily WHERE source_id = ?`, s.ID); n > 3 {
@@ -746,9 +772,9 @@ func TestContract_Events_PayloadFitsWhatNotifyAccepts(t *testing.T) {
 	e.feed(src, fw(22, "10.0.0.1"), 10)
 	*e.clock = t0.Add(25 * time.Hour)
 	long := strings.Repeat("x", 30)
-	for i := 0; i < 3; i++ { // three long new signatures that aim at one address: the probe of the review made 1,082 characters
+	for i := 0; i < 3; i++ { // three new signatures that aim at one address, with long lines
 		msg := strings.Repeat(fmt.Sprintf("word%c%s ", 'a'+i, long), 10)
-		e.feed(src, fmt.Sprintf(`logid="0100032001" type="event" subtype="system" dstip=203.0.113.7 msg=%q pad=%s`, msg, strings.Repeat("y", 200)), 2)
+		e.feed(src, fmt.Sprintf(`logid="%s" type="event" subtype="system" dstip=203.0.113.7 msg=%q pad=%s`, fgLogids[3+i], msg, strings.Repeat("y", 200)), 2)
 	}
 	e.feed(src, strings.Repeat("a", 30)+" "+strings.Repeat("z", 1900), 1)
 	e.detect()
@@ -865,7 +891,7 @@ func TestContract_INV1_BucketQuotaCountsTheRestUnderOther(t *testing.T) {
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_signature_buckets`); n != MaxMinedPerBucket+1 {
 		t.Fatalf("%d bucket rows", n)
 	}
-	if n := count(t, e.vol, `SELECT count FROM logs_signature_buckets WHERE signature = ?`, OtherSignature); n != 200 {
+	if n := count(t, e.vol, `SELECT count FROM logs_signature_buckets WHERE sig_hash = ?`, sigHash(OtherSignature)); n != 200 {
 		t.Fatalf("(other) %d", n)
 	}
 	if n, err := e.svc.Counts(t.Context(), src.ID, OtherSignature, 5*time.Minute); err != nil || n != 200 {
@@ -884,16 +910,20 @@ func TestContract_INV1_FloodThroughIngestIsOneRow(t *testing.T) {
 		batch[i] = Line{SourceID: src.ID, At: t0, Text: fw(22, "10.0.0.1")}
 	}
 	start := time.Now()
-	for range 40 { // 20,000 lines
+	batches := 6 // 3,000 lines: under -race every batch is slow
+	if os.Getenv("VEDETTE_MEASURE") != "" {
+		batches = 100
+	}
+	for range batches {
 		if _, err := e.svc.Ingest(t.Context(), batch); err != nil {
 			t.Fatal(err)
 		}
 	}
-	t.Logf("20,000 identical lines through Ingest: %v", time.Since(start))
+	t.Logf("identical lines through Ingest: %v", time.Since(start))
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_signature_daily`); n != 1 {
 		t.Fatalf("%d rows", n)
 	}
-	if n := count(t, e.vol, `SELECT count FROM logs_signature_daily`); n != 20_000 {
+	if n := count(t, e.vol, `SELECT count FROM logs_signature_daily`); n != batches*MaxBatch {
 		t.Fatalf("count %d", n)
 	}
 }
@@ -902,12 +932,18 @@ func TestContract_INV1_FloodThroughIngestIsOneRow(t *testing.T) {
 // kept are measured (the numbers go to D-206).
 func TestMeasureDigestCost(t *testing.T) {
 	t.Parallel()
-	t.Run("a busy box", func(t *testing.T) { measureDigest(t, 300) })
+	t.Run("a busy box", func(t *testing.T) { // the plan only, on a few rows: seconds under -race otherwise
+		if os.Getenv("VEDETTE_MEASURE") == "" {
+			measureDigest(t, 20)
+			return
+		}
+		measureDigest(t, 300)
+	})
 	t.Run("every quota full", func(t *testing.T) { // 270,000 rows: seconds to build, so only when asked (VEDETTE_MEASURE=1)
 		if os.Getenv("VEDETTE_MEASURE") == "" {
 			t.Skip("set VEDETTE_MEASURE=1 to measure the worst case")
 		}
-		measureDigest(t, MaxMinedPerDay+MaxProfilePerDay)
+		measureDigest(t, MaxMinedPerDay+MaxBoundedPerDay)
 	})
 }
 
@@ -996,4 +1032,349 @@ func TestMeasureIngestCost(t *testing.T) {
 	run("identical", false, 20, 0)
 	run("distinct under quota", true, 2, 0)
 	run("distinct at quota", true, 20, 100000)
+}
+
+// H2 at the limit: a group of five signatures of 240 characters and a sample of 512 still makes a "what" of at most 1,000 characters.
+func TestEventForClipsEveryPart(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	g := &group{target: strings.Repeat("t", 300)}
+	det := map[string]detail{}
+	for i := 0; i < 5; i++ {
+		sig := fmt.Sprintf("%d", i) + strings.Repeat("s", 239)
+		g.items = append(g.items, anomaly{Kind: "new", SourceID: "ls-x", Signature: sig, Count: 9})
+		det[sig] = detail{sample: strings.Repeat("é", 512)}
+	}
+	ev := e.svc.eventFor(t.Context(), sourceRow{ID: "ls-x", Name: "FW-HQ", SenderIP: "192.168.10.1"}, g, det)
+	notifyAccepts(t, ev)
+}
+
+// ---- the second review: what ordinary or hostile traffic can do to the quotas, the digest and the events ----
+
+const realNew = `logid="0100044547" type="event" subtype="system" action="Edit" msg="Edit system.admin"`
+
+func adminFail(name string) string {
+	return fmt.Sprintf(`logid="0100032002" type="event" subtype="system" level="alert" user="%s" action="login" status="failed" msg="Administrator %s login failed from https(45.9.148.20) because of invalid user name"`, name, name)
+}
+
+// ingestAll ingests n lines made by f, reps times each, in batches.
+func ingestAll(e *env, src Source, n int, f func(i int) string, reps int) {
+	e.t.Helper()
+	var batch []Line
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		if _, err := e.svc.Ingest(e.t.Context(), batch); err != nil {
+			e.t.Fatal(err)
+		}
+		batch = batch[:0]
+	}
+	for i := 0; i < n; i++ {
+		for r := 0; r < reps; r++ {
+			batch = append(batch, Line{SourceID: src.ID, At: e.svc.now(), Text: f(i)})
+			if len(batch) == MaxBatch {
+				flush()
+			}
+		}
+	}
+	flush()
+}
+
+// warmSource is a source with a 3-day baseline, the clock at 12:00 on day 3.
+func (e *env) warmSource(kind, ip string) Source {
+	e.t.Helper()
+	s, err := e.svc.AddSource(e.t.Context(), "admin@acme.example", Input{Kind: kind, Name: "SRC-" + kind, SenderIP: ip, Proto: "udp", Port: 514})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	e.history(s, 3)
+	*e.clock = t0.Add(3*24*time.Hour + 2*time.Hour)
+	return s
+}
+
+func profileRows(t *testing.T, e *env, src Source) int {
+	t.Helper()
+	return count(t, e.vol, `SELECT count(*) FROM logs_signature_daily WHERE source_id = ? AND day = ? AND mined = 0 AND signature <> ?`, src.ID, e.svc.now().Format("2006-01-02"), OtherSignature)
+}
+
+// H-1: the profile quota is filled by nothing a device can type. FortiGate keeps no free text in the signature, so an admin-UI
+// brute force with 2,100 user names is one signature, and a configuration change that comes after it is in the digest.
+func TestContract_INV1_FortiAdminBruteForceIsOneSignature(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.warmSource("fortigate", "192.168.10.1")
+	ingestAll(e, src, 2100, func(i int) string { return adminFail("u" + letters(i)) }, 1)
+	e.advance(time.Hour)
+	e.feed(src, realNew, 5)
+	if rows := profileRows(t, e, src); rows > 3 {
+		t.Fatalf("%d profile rows from one kind of event", rows)
+	}
+	if d := e.digest(); !hasSignature(d, "logid=0100044547") {
+		t.Fatalf("the configuration change is not in the digest: %+v", d.New)
+	}
+}
+
+// H-1: a spoofed log id is not in the vocabulary of the profile: the line is read by the miner, in the miner's quota, and cannot
+// push a real event out of the profile's.
+func TestContract_INV1_SpoofedLogidGoesToTheMiner(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.warmSource("fortigate", "192.168.10.1")
+	ingestAll(e, src, 2100, func(i int) string { return fmt.Sprintf(`logid="9%09d" type="x" subtype="y" action="z"`, i) }, 1)
+	e.feed(src, realNew, 5)
+	if rows := profileRows(t, e, src); rows > 2 { // the line of the history and the real event
+		t.Fatalf("%d profile rows from spoofed log ids", rows)
+	}
+	if d := e.digest(); !hasSignature(d, "logid=0100044547") {
+		t.Fatalf("the real event is not in the digest: %+v", d.New)
+	}
+}
+
+// H-1: the same for a RouterOS line (its message is free text, so it is read in the miner's quota) and for a Windows event id
+// that is not in the table of the profile.
+func TestContract_INV1_OtherProfilesAreBoundedToo(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	mk := e.warmSource("mikrotik", "192.168.10.2")
+	ingestAll(e, mk, 1500, func(i int) string {
+		return fmt.Sprintf("system,info,account user x logged in from 1.2.3.4 word%s", letters(i))
+	}, 1)
+	if rows := profileRows(t, e, mk); rows > 3 {
+		t.Fatalf("%d profile rows of RouterOS lines with free text", rows)
+	}
+	*e.clock = t0.Add(3*24*time.Hour + 2*time.Hour)
+	win, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "windows", Name: "SRV-AD", SenderIP: "192.168.10.10", Proto: "udp", Port: 514})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingestAll(e, win, 1500, func(i int) string {
+		return fmt.Sprintf("<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: %d: junk", 10000+i)
+	}, 1)
+	if rows := profileRows(t, e, win); rows != 0 {
+		t.Fatalf("%d profile rows of event ids that are not in the table", rows)
+	}
+}
+
+// H-3: a burst of new kinds of line must not crowd out one real event, in the digest and in the events, without any quota being hit.
+func TestContract_INV6_BurstDoesNotCrowdTheDigest(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ name, real string }{
+		{"the real event is a profile signature", realNew},
+		{"the real event is mined and sorts after the flood", "zzz a real new event"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			src := e.warmSource("fortigate", "192.168.10.1")
+			ingestAll(e, src, 25, func(i int) string { return "aaa" + letters(i) + " hello" }, 2)
+			e.feed(src, c.real, 1)
+			d := e.digest()
+			if len(d.New) != DigestMax || (!hasSignature(d, "logid=0100044547") && !hasSignature(d, "zzz")) {
+				t.Fatalf("%d items, the real event is not among them: %+v", len(d.New), newItems(d))
+			}
+		})
+	}
+}
+
+func eventsAbout(p *pubs, part string) (n int) {
+	for _, ev := range p.events() {
+		if strings.Contains(ev.What, part) || strings.Contains(ev.Title, part) || strings.Contains(ev.Target, part) {
+			n++
+		}
+	}
+	return n
+}
+
+// H-3: 600 new kinds of line and one real event, detection every hour for 25 hours: the real event is announced, no hour sends
+// more than 20 events, and what the burst leaves over is one summary event for the source, not one event per signature.
+func TestContract_Events_BurstDoesNotStarveARealEvent(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name, real string
+		reps       int
+	}{
+		{"profile signature", realNew, 1},
+		{"mined signature", "zzz a real new event", 2},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			p := &pubs{}
+			e.svc.cfg.Events = p
+			src := e.warmSource("fortigate", "192.168.10.1")
+			ingestAll(e, src, 600, func(i int) string { return "aaa" + letters(i) + " hello" }, c.reps)
+			e.feed(src, c.real, 1)
+			perHour := 0
+			for h := 0; h < 25; h++ {
+				before := len(p.events())
+				e.detect()
+				if n := len(p.events()) - before; n > EventsPerHour {
+					t.Fatalf("hour %d sent %d events", h, n)
+				} else if n > perHour {
+					perHour = n
+				}
+				e.advance(time.Hour)
+			}
+			if eventsAbout(p, "0100044547")+eventsAbout(p, "zzz a real") == 0 {
+				t.Fatalf("the real event was never announced (%d events)", len(p.events()))
+			}
+			if eventsAbout(p, "new kinds of message") != 1 {
+				t.Fatalf("want one summary event, got %d of %d", eventsAbout(p, "new kinds of message"), len(p.events()))
+			}
+			if len(p.events()) > EventsPerHour {
+				t.Fatalf("%d events for one burst", len(p.events()))
+			}
+			for _, ev := range p.events() {
+				notifyAccepts(t, ev)
+			}
+		})
+	}
+}
+
+// M-3: the digest and the events are one snapshot: detect stores what it found, and a digest read within DetectEvery serves it.
+func TestContract_INV6_DigestSharesTheSnapshotOfDetect(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src := e.warmSource("fortigate", "192.168.10.1")
+	e.feed(src, fw(30, "10.0.0.1"), 3)
+	e.detect()
+	e.feed(src, fw(31, "10.0.0.1"), 3) // after the pass
+	d, err := e.svc.Digest(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := newItems(d); len(got) != 1 || got[0] != sigFor(30) {
+		t.Fatalf("a digest within DetectEvery shows the snapshot of the last pass: %v", got)
+	}
+	e.advance(DetectEvery + time.Second)
+	d, err = e.svc.Digest(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := newItems(d); len(got) != 2 {
+		t.Fatalf("an older snapshot is computed again: %v", got)
+	}
+	e.feed(src, fw(32, "10.0.0.1"), 3)
+	if d, _ := e.svc.Digest(t.Context()); len(newItems(d)) != 2 { // and that one is stored
+		t.Fatalf("%v", newItems(d))
+	}
+	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", src.ID, Input{Kind: "fortigate", Name: "FW-NEW", SenderIP: "192.168.10.1", Proto: "udp", Port: 514}); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := e.svc.Digest(t.Context()); len(newItems(d)) != 3 || d.New[0].SourceName != "FW-NEW" {
+		t.Fatalf("a change of the sources drops the snapshot: %+v", d.New)
+	}
+}
+
+// M-1: the 5-minute counters are kept for 24 hours and one bucket (Counts reads 24 hours at most), and Counts finds them through
+// an index of its own: it does not read the other sources.
+func TestContract_Counts_BucketsAreKeptOneDay(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.add("FW-HQ", "192.168.10.1")
+	for _, h := range []int{0, 23, 25, 47} {
+		at := t0.Add(-time.Duration(h) * time.Hour)
+		*e.clock = at
+		e.feed(src, fw(22, "10.0.0.1"), 1)
+	}
+	*e.clock = t0
+	if _, err := e.svc.Purge(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_signature_buckets`); n != 2 {
+		t.Fatalf("%d bucket rows, want 2 (0 h and 23 h)", n)
+	}
+	if n, err := e.svc.Counts(t.Context(), src.ID, sigFor(22), 24*time.Hour); err != nil || n != 2 {
+		t.Fatalf("%d %v", n, err)
+	}
+	r, err := e.vol.Reader().QueryContext(t.Context(), `EXPLAIN QUERY PLAN `+countsSQL, src.ID, int64(1), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan strings.Builder
+	for r.Next() {
+		var a, b, c int
+		var s string
+		_ = r.Scan(&a, &b, &c, &s)
+		plan.WriteString(s + "; ")
+	}
+	_ = r.Close()
+	if !strings.Contains(plan.String(), "logs_signature_buckets_source") {
+		t.Fatalf("Counts does not use its index: %s", plan.String())
+	}
+}
+
+// NIT: a sample is blanked by a range of the primary key, not by a scan of every row.
+func TestPurgeBlanksSamplesByRange(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r, err := e.vol.Reader().QueryContext(t.Context(), `EXPLAIN QUERY PLAN `+blankSamplesSQL, "2026-11-02", "2026-11-02T10:00:00.000Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan strings.Builder
+	for r.Next() {
+		var a, b, c int
+		var s string
+		_ = r.Scan(&a, &b, &c, &s)
+		plan.WriteString(s + "; ")
+	}
+	_ = r.Close()
+	if strings.Contains(plan.String(), "SCAN") {
+		t.Fatalf("a full scan: %s", plan.String())
+	}
+}
+
+// M-1: what the counters of one source can take at most, in bytes of logs.db (the numbers go to D-206): every quota full, every value
+// at its largest, for the 10 days of daily rows and the 289 buckets of the 5-minute counters. VEDETTE_MEASURE=1.
+func TestMeasureCeilings(t *testing.T) {
+	if os.Getenv("VEDETTE_MEASURE") == "" {
+		t.Skip("set VEDETTE_MEASURE=1 to measure")
+	}
+	e := newEnv(t)
+	src := e.add("FW-HQ", "192.168.10.1")
+	size := func() int {
+		return count(t, e.vol, `SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()`)
+	}
+	sig := func(k int) string { return fmt.Sprintf("%04d", k) + strings.Repeat("s", MaxSignatureLen-4) }
+	b0 := size()
+	rowsPerDay := MaxMinedPerDay + MaxBoundedPerDay + 1
+	if err := e.svc.cfg.Volume.Write(t.Context(), func(tx *sql.Tx) error {
+		for d := 0; d < BaselineDays+3; d++ {
+			for k := 0; k < rowsPerDay; k++ {
+				if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, ?, ?, ?, 1, '2026-11-01T00:00:00.000Z', ?, ?)`,
+					fmt.Sprintf("2026-11-%02d", d+1), src.ID, sig(k), strings.Repeat("d", MaxDestLen), strings.Repeat("x", MaxSampleBytes), k%2); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b1 := size()
+	now := e.svc.now().Unix() / bucketSeconds
+	buckets := int(CountsMaxWindow/(bucketSeconds*time.Second)) + 1
+	rowsPerBucket := MaxMinedPerBucket + MaxBoundedPerBucket + 1
+	if err := e.svc.cfg.Volume.Write(t.Context(), func(tx *sql.Tx) error {
+		for b := 0; b < buckets; b++ {
+			for k := 0; k < rowsPerBucket; k++ {
+				if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_buckets (source_id, bucket, sig_hash, count, mined) VALUES (?, ?, ?, 1, ?)`, src.ID, now-int64(b), sigHash(sig(k)), k%2); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b2 := size()
+	t.Logf("daily: %d rows, %d bytes/row, %.1f MiB per source; buckets: %d rows, %d bytes/row, %.1f MiB per source",
+		(BaselineDays+3)*rowsPerDay, (b1-b0)/((BaselineDays+3)*rowsPerDay), float64(b1-b0)/(1<<20), buckets*rowsPerBucket, (b2-b1)/(buckets*rowsPerBucket), float64(b2-b1)/(1<<20))
+	start := time.Now()
+	n, err := e.svc.Counts(t.Context(), src.ID, sig(5), CountsMaxWindow)
+	t.Logf("Counts 24h: %d in %v %v", n, time.Since(start), err)
 }

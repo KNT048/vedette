@@ -228,17 +228,19 @@ func (s *Service) dropStale(ctx context.Context) error {
 		// The signature counters are kept for exactly BaselineDays+2 days whatever the retention (the baseline reads them and nothing
 		// else does, and a longer retention must not grow them: with the caps they are bounded, see MaxMinedPerDay). The sample is a
 		// copy of a line, so it goes when the line would: a sample whose row is older than the retention is blanked (only with a
-		// retention of 7 days, the one shorter than the 9 days kept).
+		// retention of 7 days, the one shorter than the days kept), by a range of the key and not by a scan.
 		now := s.now().UTC()
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_daily WHERE day < ?`, now.Add(-(BaselineDays+2)*24*time.Hour).Format("2006-01-02")); err != nil {
 			return fmt.Errorf("logs: dropping old signature counters: %w", err)
 		}
 		if days < BaselineDays+2 {
-			if _, err := tx.ExecContext(ctx, `UPDATE logs_signature_daily SET sample = '' WHERE first_seen < ? AND sample <> ''`, store.FormatTS(now.Add(-time.Duration(days)*24*time.Hour))); err != nil {
+			cut := now.Add(-time.Duration(days) * 24 * time.Hour)
+			if _, err := tx.ExecContext(ctx, blankSamplesSQL, cut.Format("2006-01-02"), store.FormatTS(cut)); err != nil {
 				return fmt.Errorf("logs: dropping old samples: %w", err)
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_buckets WHERE bucket < ?`, now.Add(-48*time.Hour).Unix()/bucketSeconds); err != nil {
+		// The 5-minute counters are read for 24 hours at most (Counts): the bucket that holds now-24h is the oldest one kept.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_buckets WHERE bucket < ?`, now.Add(-CountsMaxWindow).Unix()/bucketSeconds); err != nil {
 			return fmt.Errorf("logs: dropping old signature counters: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_anomaly_sent WHERE sent_at < ?`, store.FormatTS(now.Add(-72*time.Hour))); err != nil {

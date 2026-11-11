@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"time"
 	"unicode/utf8"
 
@@ -14,18 +15,21 @@ import (
 
 // Limits of the signature counters (INV-1: a device is an untrusted source, so what it can add to the tables is bounded).
 const (
-	// MaxMinedPerDay and MaxProfilePerDay are how many signature rows one source can have in a UTC day, for the lines read by the
-	// generic miner and for the lines read by a device profile: separate quotas, so that a flood of mined lines cannot push a profile
-	// signature out. The lines past a quota are counted under OtherSignature. ponytail: 1,000 and 2,000, one constant each; a real
-	// device has tens to hundreds of kinds of line. Worst case per source: 3,001 rows of at most about 700 bytes (signature 240,
-	// destination 64, sample 300, key and overhead) = about 2 MiB a day, 20 MiB over the 10 days that are kept.
+	// MaxMinedPerDay and MaxBoundedPerDay are how many signature rows one source can have in a UTC day, for the signatures that the
+	// miner or a free-text profile makes and for the signatures that a vocabulary of shipped data bounds (a known log id, a known event
+	// id): separate quotas, so that a flood of the first cannot push the second out. The lines past a quota are counted under
+	// OtherSignature. ponytail: 1,000 and 2,000, one constant each; a real device has tens to hundreds of kinds of line, and the
+	// vocabularies make fewer than 500. The bytes this can take are measured in TestMeasureCeilings and written in D-206.
 	MaxMinedPerDay   = 1000
-	MaxProfilePerDay = 2000
-	// MaxMinedPerBucket and MaxProfilePerBucket are the same for one 5-minute bucket of the counters that Counts reads.
-	MaxMinedPerBucket   = 500
-	MaxProfilePerBucket = 500
+	MaxBoundedPerDay = 2000
+	// MaxMinedPerBucket and MaxBoundedPerBucket are the same for one 5-minute bucket of the counters that Counts reads.
+	MaxMinedPerBucket   = 200
+	MaxBoundedPerBucket = 500
 	// OtherSignature is where the lines past the caps are counted.
 	OtherSignature = "(other)"
+	// MaxSignatureLen and MaxDestLen are the longest signature and destination a row holds (the signature package's limits).
+	MaxSignatureLen = signature.MaxSignatureBytes
+	MaxDestLen      = signature.MaxDestBytes
 	// MaxSampleBytes is how much of the first line of a row is kept as its sample.
 	MaxSampleBytes = 300
 	// CountsMinWindow and CountsMaxWindow bound what Counts answers (the counters are 5 minutes wide and kept 48 hours).
@@ -76,7 +80,7 @@ func (s *Service) tally(kinds map[string]string, keep []Line) sigBatch {
 			r = s.sigs.Of(kind, l.Text)
 			memo[memoKey{kind, l.Text}] = r
 		}
-		mined := r.Profile == signature.GenericProfile
+		mined := !r.Bounded
 		k := dailyKey{l.At.UTC().Format("2006-01-02"), l.SourceID, r.Signature}
 		if v := b.daily[k]; v != nil {
 			v.n++
@@ -126,14 +130,25 @@ const (
 		ON CONFLICT (day, source_id, signature) DO UPDATE SET count = count + excluded.count, first_seen = min(first_seen, excluded.first_seen)`
 	rowsDaily = `SELECT count(*) FROM (SELECT 1 FROM logs_signature_daily WHERE day = ?1 AND source_id = ?2 AND mined = ?3 AND signature <> ?4 LIMIT ?5)`
 
-	upsertBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
-		ON CONFLICT (source_id, bucket, signature) DO UPDATE SET count = count + excluded.count
+	upsertBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, sig_hash, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
+		ON CONFLICT (bucket, source_id, sig_hash) DO UPDATE SET count = count + excluded.count
 		RETURNING count = ?4`
-	updateBucket      = `UPDATE logs_signature_buckets SET count = count + ?4 WHERE source_id = ?1 AND bucket = ?2 AND signature = ?3`
-	upsertOtherBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, signature, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
-		ON CONFLICT (source_id, bucket, signature) DO UPDATE SET count = count + excluded.count`
-	rowsBucket = `SELECT count(*) FROM (SELECT 1 FROM logs_signature_buckets WHERE bucket = ?1 AND source_id = ?2 AND mined = ?3 AND signature <> ?4 LIMIT ?5)`
+	updateBucket      = `UPDATE logs_signature_buckets SET count = count + ?4 WHERE source_id = ?1 AND bucket = ?2 AND sig_hash = ?3`
+	upsertOtherBucket = `INSERT INTO logs_signature_buckets (source_id, bucket, sig_hash, count, mined) VALUES (?1, ?2, ?3, ?4, ?5)
+		ON CONFLICT (bucket, source_id, sig_hash) DO UPDATE SET count = count + excluded.count`
+	rowsBucket = `SELECT count(*) FROM (SELECT 1 FROM logs_signature_buckets WHERE bucket = ?1 AND source_id = ?2 AND mined = ?3 AND sig_hash <> ?4 LIMIT ?5)`
+	// countsSQL is what Counts runs: one source, one signature (by hash), the buckets of the window: the index logs_signature_buckets_source.
+	countsSQL = `SELECT sum(count) FROM logs_signature_buckets WHERE source_id = ?1 AND sig_hash = ?2 AND bucket >= ?3`
+	// blankSamplesSQL blanks the sample of a row whose first line is older than the retention; the day bounds it to a range of the key.
+	blankSamplesSQL = `UPDATE logs_signature_daily SET sample = '' WHERE day <= ?1 AND first_seen < ?2 AND sample <> ''`
 )
+
+// sigHash is the 64-bit FNV-1a hash of a signature: what the 5-minute counters store instead of its text.
+func sigHash(sig string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(sig))
+	return int64(h.Sum64()) //nolint:gosec // the bits are the hash: a negative number is as good a key as a positive one
+}
 
 func flag(b bool) int {
 	if b {
@@ -145,13 +160,13 @@ func flag(b bool) int {
 // storeSignatures adds a batch to the counters inside the transaction of the batch (the writer of logs.db, never the main one).
 func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) error {
 	rows := map[[3]string]int{} // rows of a class of a day (or bucket) and source, read when first needed and followed here
-	rowsOf := func(q, a, src string, mined bool, quota int) (int, error) {
+	rowsOf := func(q, a, src string, mined bool, quota int, other any) (int, error) {
 		k := [3]string{a, src, fmt.Sprint(mined)}
 		if n, ok := rows[k]; ok {
 			return n, nil
 		}
 		var n int
-		if err := tx.QueryRowContext(ctx, q, a, src, flag(mined), OtherSignature, quota).Scan(&n); err != nil {
+		if err := tx.QueryRowContext(ctx, q, a, src, flag(mined), other, quota).Scan(&n); err != nil {
 			return 0, fmt.Errorf("logs: counting signature rows: %w", err)
 		}
 		rows[k] = n
@@ -159,11 +174,11 @@ func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) e
 	}
 	for k, v := range b.daily {
 		first := store.FormatTS(v.first)
-		quota := MaxProfilePerDay
+		quota := MaxBoundedPerDay
 		if v.mined {
 			quota = MaxMinedPerDay
 		}
-		n, err := rowsOf(rowsDaily, k.day, k.source, v.mined, quota)
+		n, err := rowsOf(rowsDaily, k.day, k.source, v.mined, quota, OtherSignature)
 		if err != nil {
 			return err
 		}
@@ -190,18 +205,18 @@ func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) e
 		}
 	}
 	for k, v := range b.bucket {
-		quota := MaxProfilePerBucket
+		quota := MaxBoundedPerBucket
 		if v.mined {
 			quota = MaxMinedPerBucket
 		}
 		bk := fmt.Sprint(k.bucket)
-		n, err := rowsOf(rowsBucket, bk, k.source, v.mined, quota)
+		n, err := rowsOf(rowsBucket, bk, k.source, v.mined, quota, sigHash(OtherSignature))
 		if err != nil {
 			return err
 		}
 		if n < quota {
 			var old int
-			if err := tx.QueryRowContext(ctx, upsertBucket, k.source, k.bucket, k.signature, v.n, flag(v.mined)).Scan(&old); err != nil {
+			if err := tx.QueryRowContext(ctx, upsertBucket, k.source, k.bucket, sigHash(k.signature), v.n, flag(v.mined)).Scan(&old); err != nil {
 				return fmt.Errorf("logs: counting signatures: %w", err)
 			}
 			if old == 1 && k.signature != OtherSignature {
@@ -209,14 +224,14 @@ func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) e
 			}
 			continue
 		}
-		res, err := tx.ExecContext(ctx, updateBucket, k.source, k.bucket, k.signature, v.n)
+		res, err := tx.ExecContext(ctx, updateBucket, k.source, k.bucket, sigHash(k.signature), v.n)
 		if err != nil {
 			return fmt.Errorf("logs: counting signatures: %w", err)
 		}
 		if c, _ := res.RowsAffected(); c > 0 {
 			continue
 		}
-		if _, err := tx.ExecContext(ctx, upsertOtherBucket, k.source, k.bucket, OtherSignature, v.n, flag(v.mined)); err != nil {
+		if _, err := tx.ExecContext(ctx, upsertOtherBucket, k.source, k.bucket, sigHash(OtherSignature), v.n, flag(v.mined)); err != nil {
 			return fmt.Errorf("logs: counting signatures: %w", err)
 		}
 	}
@@ -232,9 +247,7 @@ func (s *Service) Counts(ctx context.Context, source, signature string, window t
 		return 0, ErrBadWindow
 	}
 	var n sql.NullInt64
-	err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT sum(count) FROM logs_signature_buckets WHERE source_id = ? AND signature = ? AND bucket >= ?`,
-		source, signature, s.now().Add(-window).Unix()/bucketSeconds).Scan(&n)
-	if err != nil {
+	if err := s.cfg.Volume.Reader().QueryRowContext(ctx, countsSQL, source, sigHash(signature), s.now().Add(-window).Unix()/bucketSeconds).Scan(&n); err != nil {
 		return 0, fmt.Errorf("logs: counting a signature: %w", err)
 	}
 	return int(n.Int64), nil

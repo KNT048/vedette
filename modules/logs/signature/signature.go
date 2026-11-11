@@ -34,6 +34,7 @@ const (
 	MaxPatterns       = 8
 	MaxPatternBytes   = 256
 	MaxTitles         = 256
+	MaxVocab          = 512
 	MaxSamples        = 8
 	// GenericProfile is the Result.Profile of a line read by the template miner.
 	GenericProfile = "generic"
@@ -63,16 +64,20 @@ type File struct {
 type Rule struct {
 	Type string `json:"type"`
 	// kv
-	Fields   []string `json:"fields,omitempty"`    // keys that make the signature, in order; the line matches when the first is present
-	Mined    []string `json:"mined,omitempty"`     // keys (among Fields) whose value is mined instead of kept as it is
-	SrcField string   `json:"src_field,omitempty"` // key that holds the source address
-	DstField string   `json:"dst_field,omitempty"` // key that holds the destination address
+	Fields []string `json:"fields,omitempty"` // keys that make the signature, in order; the line matches when the first is present
+	Mined  []string `json:"mined,omitempty"`  // keys (among Fields) whose value is mined instead of kept as it is
+	// Vocab lists, for a key of Fields, the only values the signature takes: a value that is not listed is left out of the signature (for
+	// the first field, which decides whether the line is in the format, the line is not read by the profile). A rule whose every field
+	// has a vocabulary and none is mined has a signature that shipped data bounds: Result.Bounded.
+	Vocab    map[string][]string `json:"vocab,omitempty"`
+	SrcField string              `json:"src_field,omitempty"` // key that holds the source address
+	DstField string              `json:"dst_field,omitempty"` // key that holds the destination address
 	// event_id
 	Patterns []string          `json:"patterns,omitempty"` // each with a named group "id"; tried in order
-	Titles   map[string]string `json:"titles,omitempty"`   // id -> what the event is
-	Unknown  string            `json:"unknown,omitempty"`  // title of an id that is not in Titles
+	Titles   map[string]string `json:"titles,omitempty"`   // id -> what the event is: the vocabulary, an id that is not here is not read
 	// template
-	Prefix string `json:"prefix,omitempty"` // matches at the start, with a named group "head"
+	Prefix    string   `json:"prefix,omitempty"`     // matches at the start, with a named group "head"
+	HeadVocab []string `json:"head_vocab,omitempty"` // the words the head (split at commas) is made of; a head with another word is not read
 	// template and event_id
 	SrcPattern string `json:"src_pattern,omitempty"` // named group "src"
 	DstPattern string `json:"dst_pattern,omitempty"` // named group "dst"
@@ -88,11 +93,14 @@ type Sample struct {
 
 type profile struct {
 	File
-	patterns []*regexp.Regexp
-	prefix   *regexp.Regexp
-	src, dst *regexp.Regexp
-	mined    map[string]bool
-	wanted   map[string]bool
+	patterns  []*regexp.Regexp
+	prefix    *regexp.Regexp
+	src, dst  *regexp.Regexp
+	mined     map[string]bool
+	wanted    map[string]bool
+	vocab     map[string]map[string]bool
+	headVocab map[string]bool
+	bounded   bool
 }
 
 // Set is the loaded profiles, by device kind.
@@ -106,6 +114,10 @@ type Result struct {
 	Signature string // never empty
 	Src, Dest string // a plain address or name, or empty
 	Profile   string // the profile id, or GenericProfile
+	// Bounded says that the signature comes from a vocabulary that shipped data bounds (a known log id, a known event id): the number
+	// of signatures a device can make is small whatever it sends. Every other result (the miner, a profile whose text is free) is
+	// counted in the quota of the miner.
+	Bounded bool
 }
 
 var idRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
@@ -215,8 +227,8 @@ func compile(f File) (*profile, error) {
 		if len(r.Fields) == 0 || len(r.Fields) > MaxFields {
 			return nil, fmt.Errorf("a kv rule needs 1 to %d fields", MaxFields)
 		}
-		if len(r.Patterns)+len(r.Titles) != 0 || r.Unknown != "" || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" {
-			return nil, errors.New("a kv rule takes only fields, mined, src_field and dst_field")
+		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" {
+			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field and dst_field")
 		}
 		for _, k := range r.Fields {
 			if !validKey(k) {
@@ -230,6 +242,23 @@ func compile(f File) (*profile, error) {
 			}
 			p.mined[k] = true
 		}
+		p.vocab = map[string]map[string]bool{}
+		for k, values := range r.Vocab {
+			if !slices.Contains(r.Fields, k) || len(values) == 0 || len(values) > MaxVocab {
+				return nil, fmt.Errorf("vocab of %q: a field of the rule and 1 to %d values", k, MaxVocab)
+			}
+			p.vocab[k] = map[string]bool{}
+			for _, v := range values {
+				if v == "" || len(v) > maxValue || clean(v) != v {
+					return nil, fmt.Errorf("vocab of %q: %q is not a plain value", k, v)
+				}
+				p.vocab[k][v] = true
+			}
+		}
+		p.bounded = len(r.Mined) == 0
+		for _, k := range r.Fields {
+			p.bounded = p.bounded && p.vocab[k] != nil
+		}
 		for _, k := range []string{r.SrcField, r.DstField} {
 			if k != "" {
 				if !validKey(k) {
@@ -242,12 +271,13 @@ func compile(f File) (*profile, error) {
 		if len(r.Patterns) == 0 || len(r.Patterns) > MaxPatterns {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
-		if len(r.Fields)+len(r.Mined) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" {
-			return nil, errors.New("an event_id rule takes only patterns, titles, unknown, src_pattern and dst_pattern")
+		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" {
+			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern and dst_pattern")
 		}
-		if r.Unknown == "" || len(r.Unknown) > 80 || len(r.Titles) > MaxTitles {
-			return nil, errors.New("an event_id rule needs an unknown title (at most 80 bytes) and at most 256 titles")
+		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
+			return nil, fmt.Errorf("an event_id rule needs 1 to %d titles: they are its vocabulary", MaxTitles)
 		}
+		p.bounded = true
 		for id, title := range r.Titles {
 			if !validID(id) || title == "" || len(title) > 80 {
 				return nil, fmt.Errorf("title of %q: an id is 1 to 6 digits and a title 1 to 80 bytes", id)
@@ -261,8 +291,20 @@ func compile(f File) (*profile, error) {
 			p.patterns = append(p.patterns, re)
 		}
 	case TypeTemplate:
-		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles) != 0 || r.SrcField != "" || r.DstField != "" || r.Unknown != "" {
-			return nil, errors.New("a template rule takes only prefix, src_pattern and dst_pattern")
+		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab) != 0 || r.SrcField != "" || r.DstField != "" {
+			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern and dst_pattern")
+		}
+		if len(r.HeadVocab) > MaxVocab {
+			return nil, fmt.Errorf("head_vocab has more than %d words", MaxVocab)
+		}
+		if len(r.HeadVocab) > 0 {
+			p.headVocab = map[string]bool{}
+			for _, v := range r.HeadVocab {
+				if !validKey(v) {
+					return nil, fmt.Errorf("head_vocab: %q is not a word", v)
+				}
+				p.headVocab[v] = true
+			}
 		}
 		if p.prefix, err = compileGroup(r.Prefix, "head"); err != nil {
 			return nil, err
@@ -356,9 +398,15 @@ func (p *profile) read(msg string) (Result, bool) {
 			return r, false
 		}
 		var parts []string
-		for _, k := range p.Rule.Fields {
+		for i, k := range p.Rule.Fields {
 			v, has := kv[k]
 			if !has {
+				continue
+			}
+			if voc := p.vocab[k]; voc != nil && !voc[v] {
+				if i == 0 {
+					return r, false // the key of the format is not one the data knows: not this profile's line
+				}
 				continue
 			}
 			if p.mined[k] {
@@ -370,27 +418,25 @@ func (p *profile) read(msg string) (Result, bool) {
 		}
 		r.Signature = strings.Join(parts, " ")
 		r.Src, r.Dest = addr(kv[p.Rule.SrcField]), addr(kv[p.Rule.DstField])
+		r.Bounded = p.bounded
 	case TypeEventID:
-		id := ""
+		id, title := "", ""
 		for _, re := range p.patterns {
 			if m := re.FindStringSubmatch(msg); m != nil {
 				if v := m[re.SubexpIndex("id")]; validID(v) {
-					id = strings.TrimLeft(v, "0")
-					if id == "" {
-						id = "0"
+					v = strings.TrimLeft(v, "0")
+					if t, known := p.Rule.Titles[v]; known {
+						id, title = v, t
+						break
 					}
-					break
 				}
 			}
 		}
 		if id == "" {
-			return r, false
-		}
-		title, known := p.Rule.Titles[id]
-		if !known {
-			title = p.Rule.Unknown
+			return r, false // not an event id the table knows: the miner reads the line
 		}
 		r.Signature = id + ": " + title
+		r.Bounded = true
 	case TypeTemplate:
 		m := p.prefix.FindStringSubmatchIndex(msg)
 		if m == nil || m[0] != 0 {
@@ -400,7 +446,15 @@ func (p *profile) read(msg string) (Result, bool) {
 		if m[2*i] < 0 {
 			return r, false
 		}
-		r.Signature = clean(cut(msg[m[2*i]:m[2*i+1]], 64)) + ": " + Mine(msg[m[1]:])
+		head := msg[m[2*i]:m[2*i+1]]
+		if p.headVocab != nil {
+			for _, w := range strings.Split(head, ",") {
+				if !p.headVocab[w] {
+					return r, false
+				}
+			}
+		}
+		r.Signature = clean(cut(head, 64)) + ": " + Mine(msg[m[1]:])
 	}
 	if p.src != nil {
 		r.Src = group(p.src, msg, "src")

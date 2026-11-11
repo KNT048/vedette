@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -74,6 +75,9 @@ type Service struct {
 	// loadForListener, when set by a test, replaces the read of the sources that feeds the listener.
 	loadForListener func(context.Context) ([]sourceRow, error)
 	listening       atomic.Pointer[listen.Server]
+	// snap is the last reading of the signature counters, shared by the digest and the events (anomaly.go).
+	snapMu sync.Mutex
+	snap   *snapshot
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -396,7 +400,7 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 		total += n
 	}
 	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []struct{}{}}
-	found, names, err := s.anomalies(ctx, s.now())
+	found, names, err := s.snapshotted(ctx)
 	if err != nil {
 		return Digest{}, err
 	}

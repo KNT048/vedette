@@ -1,14 +1,16 @@
 {
   "id": "windows",
   "title": "Windows Security event log (by event id, through NXLog, Snare or similar)",
-  "kinds": ["windows"],
+  "kinds": [
+    "windows"
+  ],
   "rule": {
     "type": "event_id",
     "patterns": [
       "(?i)\\bEvent ?(?:ID|Code)\\W{1,4}(?P<id>\\d{1,6})\\b",
+      "^MSWinEventLog\\t\\d+\\t[^\\t]+\\t\\d+\\t[^\\t]+\\t(?P<id>\\d{1,6})\\t",
       "^(?P<id>\\d{4,5}): "
     ],
-    "unknown": "Windows Security event",
     "titles": {
       "1102": "The audit log was cleared",
       "4624": "Successful logon",
@@ -46,6 +48,10 @@
     {
       "line": "{\"EventID\":4720,\"Channel\":\"Security\"}",
       "signature": "4720: A user account was created"
+    },
+    {
+      "line": "<14>Nov  9 10:00:00 SRV MSWinEventLog\t1\tSecurity\t123\tMon Nov 09 10:00:00 2026\t4625\tMicrosoft-Windows-Security-Auditing\tCORP\\bob\tN/A\tFailure Audit\tSRV\tLogon\t\tAn account failed to log on.",
+      "signature": "4625: Failed logon"
     }
   ]
 }

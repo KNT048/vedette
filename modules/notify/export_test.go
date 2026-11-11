@@ -16,7 +16,9 @@ func (s *Service) ApproverProblemForTest(ctx context.Context, ch channel.Type, a
 }
 
 // SetZaloToForTest replaces how the direct Zalo sender of an approver is made (channel.ZaloPersonalTo in production).
-func (s *Service) SetZaloToForTest(f func(channel.Sender, string) (channel.Sender, error)) { s.zaloTo = f }
+func (s *Service) SetZaloToForTest(f func(channel.Sender, string) (channel.Sender, error)) {
+	s.zaloTo = f
+}
 
 // ReplyCodeHashForTest is the code_hash of spec approval-tokens.md 7.1.
 func ReplyCodeHashForTest(requestID, userID string, approve bool, code string) string {

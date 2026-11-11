@@ -1,0 +1,9 @@
+# Deferred — feat-agent-intake-osquery (WP-26 lát 2)
+
+- [ ] 2026-11-11 — Danh sách gói đến trước `interfaces` ở một yêu cầu `log` khác (osquery tách log theo `logger_tls_max`) bị bỏ tới lần báo kế (≤ 1 giờ) vì chưa có cặp địa chỉ-MAC; nếu osqueryd thật cho thấy hay xảy ra thì giữ danh sách chờ — vì sao để sau: cần osqueryd thật — ở đâu: lát 5, modules/agent-intake/ingest.go `binding`
+- [ ] 2026-11-11 — Máy giữ khoá hợp lệ có thể khai MAC của máy khác trên địa chỉ của chính nó (D-265 (4)); nâng cấp: đối chiếu MAC với cảm biến thụ động hoặc từ chối MAC mà kho đã gắn với IP khác — vì sao để sau: cần câu hỏi mới ở `core/observe`, ngoài lát 2 — ở đâu: modules/agent-intake/ingest.go `binding`
+- [ ] 2026-11-11 — Hạt giống fuzz là mẫu theo tài liệu osquery, chưa phải bản chụp osqueryd 5.12 thật; lưu bản chụp enroll/config/log vào `modules/agent-intake/testdata/` — vì sao để sau: cần osqueryd thật — ở đâu: lát 5, fuzz_test.go
+- [ ] 2026-11-11 — Mã lỗi mới `too_many_tokens`, `bad_name`, `bad_expiry`, `too_many_nodes`, `rate_limited` (osquery) cần dòng trong bảng lỗi `docs/API_CONVENTIONS.md` — vì sao để sau: lát 3 thêm các đường admin dùng chúng — ở đâu: lát 3
+- [ ] 2026-11-11 — `linux-image-*` đã cài nhưng không chạy cũng hiện là Linux Kernel (nhiễu "nghi"); thêm truy vấn `uname`/`os_version` nhân đang chạy khi story cho phép — vì sao để sau: đổi lịch truy vấn = đổi chữ GUI (story) — ở đâu: modules/agent-intake/pkgmap.json
+- [ ] 2026-11-11 — `pkgmap.json` ~100 mục, lớn dần theo test; nhiều gói Windows theo tiền tố tên hiển thị — vì sao để sau: ponytail, bảng lớn hơn khi có dữ liệu thật — ở đâu: modules/agent-intake/mapper.go
+- [ ] 2026-11-11 — Hạn mức trong bộ nhớ, mất khi khởi động lại (D-265 (2)); nâng cấp: bảng + job dọn — vì sao để sau: ponytail — ở đâu: modules/agent-intake/limit.go

@@ -1,6 +1,6 @@
 # Agent-intake Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-INV-4 · Quyết định: D-33, D-34, D-55, D-169 · Last verified: 2026-11-11 (WP-26 lát 0: hợp đồng, chưa có mã Go)
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-INV-4 · Quyết định: D-33, D-34, D-55, D-169, D-265 · Last verified: 2026-11-11 (WP-26 lát 2: osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, bảng, ánh xạ gói; chưa có đường admin, script, Wazuh)
 > GUI nằm dưới `inventory` (`web/src/features/inventory/{contract,AgentsSection,installScripts,agentConfig}.ts*`). Backend là module riêng.
 
 ## Invariants (luôn đúng)
@@ -15,8 +15,10 @@
 - **INV-9** Mọi mutation (tạo/thu hồi token, lưu/xoá Wazuh) ghi `core_audit` (SYS-3).
 - **INV-10** Điểm cuối `.../sample-data` là **chỉ bản xem trước (mock)**; trong bản dựng thật chúng vẫn nằm trong hợp đồng và bảng route (sinh từ OpenAPI) nhưng handler trả 404 `not_found` như đường không tồn tại, và nút trong GUI không hiện (`MOCK_BUILD`).
 - **INV-11** (D-169 (9)) Chứng chỉ osquery ghim là một **CA riêng của hộp** (khoá riêng, `CA:TRUE`, `pathlen 0`, sống lâu) ký chứng chỉ lá 8443 tự tạo; D-139 chỉ cấp lại lá bằng cùng CA nên gia hạn hay đổi địa chỉ không làm máy đã đăng ký mất kết nối. Lá **không** được là CA (trình duyệt từ chối). `GET /intake/ca.pem` và script nhúng đúng chứng chỉ CA đó. Chứng chỉ chủ hộp đưa vào (`-tls-cert`) không bị đụng: `ca.pem` là chuỗi chủ hộp đưa vào (lá nếu tệp chỉ có lá; chủ hộp tự chạy lại lệnh cài khi đổi chứng chỉ của mình); từng kiểu (lá tự ký, CA riêng, CA công cộng) có test `openssl verify` ở lát 1.
-- **INV-12** (D-169 (5)) Hộp chỉ ghi gói của một máy khi địa chỉ TCP của kết nối nằm trong các IPv4 máy khai ở truy vấn `interfaces`; MAC dùng là của đúng card đó. Không khớp = không ghi, máy ghi nhận `unmatched` (đóng kín). Chỉ IPv4 (kho chỉ có IPv4).
-- **INV-13** (D-169 (8)) Giao thức osquery: mọi lỗi thông tin xác thực (token lạ/thu hồi/hết hạn, `node_key` sai) = HTTP 200 + `{"node_invalid": true}`, không phân biệt lý do; thân quá lớn, không phải JSON, quá tần suất = 413/400/429 với envelope chuẩn. Không có `distributed` (không chạy truy vấn từ xa): đường đó không tồn tại.
+- **INV-12** (D-169 (5), D-265 (3)) Hộp chỉ ghi gói và quan sát của một máy khi địa chỉ TCP của kết nối (`r.RemoteAddr`, không đọc header chuyển tiếp) nằm trong các IPv4 máy khai ở truy vấn `interfaces` (của chính yêu cầu `log` đó, hoặc cặp đã gắn lần trước nếu yêu cầu không có `interfaces` và địa chỉ vẫn đúng); MAC dùng là của đúng card đó. Không khớp (địa chỉ giả, NAT, IPv6, loopback/link-local) = không ghi gì, cặp gắn bị xoá (`bound_ip`/`bound_mac` NULL), có một dòng log mỗi giờ cho mỗi máy (đóng kín). Chỉ IPv4 (kho chỉ có IPv4). **Giới hạn đã biết** (D-265 (4)): máy giữ khoá hợp lệ vẫn có thể khai MAC của máy khác trên địa chỉ của chính nó; hộp không kiểm lớp 2.
+- **INV-13** (D-169 (8)) Giao thức osquery: mọi lỗi thông tin xác thực (token lạ/thu hồi/hết hạn, `node_key` sai hoặc sai dạng, `host_identifier` rỗng/không sạch) = HTTP 200 + `{"node_invalid": true}`, không phân biệt lý do; thân quá lớn, không phải JSON, sai dạng, quá tần suất = 413/400/429 với envelope chuẩn (`Retry-After` ở 429). Ngoại lệ của riêng `status` (D-265 (1)): 403 `invalid_token` / `token_expired` như mock đã duyệt, vì kiểu trả lời không có `node_invalid`. Không có `distributed` (không chạy truy vấn từ xa): đường đó không tồn tại.
+- **INV-14** (D-265 (2)) Hạn mức công khai: > 10 lần sai thông tin xác thực/phút từ một nguồn (IPv6 gộp /64) → chặn 30 giây rồi nhân đôi tới 10 phút (429 `rate_limited`, kể cả cuộc gọi đúng của nguồn đó); mỗi máy 6 `config` + 12 `log` mỗi phút; đăng ký lại cùng (token, `host_identifier`) trong 60 giây = 429; 500 máy mỗi token, 5.000 máy cả hộp = 429 `too_many_nodes`; 50 token = 409 `too_many_tokens`.
+- **INV-15** Danh sách gói rỗng (hoặc mọi dòng bị bỏ) không bao giờ thay danh sách cũ; chỉ truy vấn trong lịch (`schedule.go`, bằng đúng chữ GUI, có test so khớp) với cột trong danh sách cho phép được đọc; kết quả `status` của osquery bị bỏ; kết quả vi sai (`added`/`removed`) bị bỏ.
 
 ## Preconditions (trước khi gọi)
 - **PRE-1** Tạo token / cấu hình Wazuh: vai admin (`/inventory/agents*`).
@@ -58,7 +60,10 @@
 Giao thức osquery TLS: `enroll`, `config`, `log` có trong `contract.ts` từ WP-26 lát 0 (câu hỏi mở 2 đã đóng); `distributed` không có (INV-13). Đường dẫn osquery nằm trong cờ `*_tls_endpoint` của script (`/api/v1/intake/osquery/{enroll,config,log}`).
 
 ## Tables owned
-`intake_agent_tokens` (băm token, tên, hết hạn, `last_received`, số host), `intake_osquery_nodes` (băm `node_key`, token, `host_identifier`, hostname, hệ điều hành, `last_seen`, IP/MAC đã gắn; D-169 (2), thêm ở lát 2), `intake_wazuh` (url, user, mật khẩu mã hoá, chu kỳ, trạng thái, dấu vân tay ghim `tls_pin`). Thiết bị/gói/quan sát thuộc `inventory` (`inv_*`).
+`intake_agent_tokens` (băm token, tên, hết hạn, `last_received`, số host), `intake_osquery_nodes` (băm `node_key`, token FK CASCADE, `host_identifier` duy nhất theo token, hostname, nền tảng, phiên bản osquery, `enrolled_at`, `last_seen`, `last_result_at`, `bound_ip`/`bound_mac`; D-169 (2), lát 2; số máy mỗi token tính lúc đọc, không có cột `hosts`), `intake_wazuh` (url, user, mật khẩu mã hoá, chu kỳ, trạng thái, dấu vân tay ghim `tls_pin`). Thiết bị/gói/quan sát thuộc `inventory` (`inv_*`).
+
+## Dịch vụ (Go, `modules/agent-intake`, lát 2)
+`IssueToken(ctx, actor, name, ttlDays) (Token, secret, error)` · `RevokeToken(ctx, actor, id)` · `ListTokens(ctx)` (các đường admin HTTP là lát 3) · `Enroll`/`Config`/`Log`/`Status` (qua `IntakeHandlers`) · `Prune` (job `node-prune`, Housekeeping, D-160: máy im 90 ngày, token hết hạn quá 30 ngày không còn máy) · `BodyLimits` (đăng ký 64 KiB, config 4 KiB, log 4 MiB, status 1 KiB). Ghi vào kho chỉ qua `core/observe` (`Sink.Record`, `SoftwareSink.ReplaceSoftware`, nguồn `agent`, độ tin cậy 0.95; MAC của card 0.9). Ánh xạ gói → khoá KEV: `pkgmap.json`, test đối chiếu catalog. Nguồn `agent` dùng chung với Wazuh sau này: bên ghi sau thắng (D-169 (6)).
 
 ## Events
 - **Phát**: `inventory.observation` (tên có trong ARCHITECTURE) với `source=agent`.

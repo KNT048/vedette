@@ -29,6 +29,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | Library | Version | License | How used |
 |---|---|---|---|
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | embedded: SQLite engine transpiled to Go (database/sql driver) in `core/store`; also carries musl and SQLite's public-domain code, see the module's `LICENSE-3RD-PARTY.md` |
+| github.com/ledongthuc/pdf | v0.0.0-20261020125853-5e46805f718e | BSD-3-Clause | embedded, but run only in a child process: reads the text of a PDF that an administrator adds to the AI knowledge base (`core/pdftext`, started by `vedette pdftext` through `core/exec`, D-264); a fork of `rsc.io/pdf`, no dependency of its own; the file is read in memory, never run; the child has RLIMIT_AS (start-up size + 512 MiB), RLIMIT_CPU 60 s, a 60 s wall-clock kill and capped output, because the library has fatal errors and endless loops that `recover()` cannot stop |
 | github.com/pressly/goose/v3 | v3.29.0 | MIT | embedded: runs the embedded SQL migrations at start-up (`core/store.Migrate`); forward-only, no Down |
 | modernc.org/libc, modernc.org/mathutil, modernc.org/memory | v1.79.0, v1.7.1, v1.12.1 | BSD-3-Clause | embedded: runtime of modernc.org/sqlite |
 | github.com/ncruces/go-strftime | v1.1.0 | MIT | embedded: via modernc.org/sqlite |
@@ -65,7 +66,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | gopkg.in/yaml.v2 | v2.4.0 | Apache-2.0 and MIT | YAML parsing used by `ghodss/yaml` |
 | github.com/fatih/color, github.com/mattn/go-colorable, github.com/mattn/go-isatty | v1.19.0, v0.1.14, v0.0.24 | MIT | terminal colour in ogen's logger (linked, not used at run time) |
 | go.uber.org/zap, go.uber.org/multierr | v1.28.0, v1.11.0 | MIT | logging inside ogen's spec packages (linked, not used at run time) |
-| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, v0.0.0-20261011100332-faecfb24eb49 | BSD-3-Clause | HTTP header and IDNA checks, Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
+| golang.org/x/net, golang.org/x/text, golang.org/x/sys, golang.org/x/sync, golang.org/x/exp | v0.62.0, v0.43.0, v0.49.0, v0.24.0, v0.0.0-20261011100332-faecfb24eb49 | BSD-3-Clause | HTTP header and IDNA checks, the HTML tokenizer of `golang.org/x/net/html` (text of the vendor pages read for CVE news, D-281), Unicode tables, system calls, errgroup, generic helpers; `golang.org/x/net/publicsuffix` (embedded Public Suffix List) refuses IOC domains that are public suffixes such as `com.vn` or `github.io` (`modules/feeds`, issue #29) |
 
 ## Protocol knowledge re-implemented in Go (no third-party code linked)
 
@@ -170,6 +171,17 @@ Release builder (WP-08f, D-164, maintainer's machine only, never shipped): `scri
 | Spamhaus DROP | separate terms, **pending confirmation** | name not used in marketing |
 
 Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CISA KEV (CC0), FIRST EPSS (attribution), the CVE list of nuclei-templates (MIT). Sources are shown on every screen.
+
+## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3, D-280, D-281)
+
+Read on the box, never stored or redistributed as they are: the box keeps only the AI's summary and the links. No library added; `golang.org/x/net/html` (already linked, row above) reads the advisory pages.
+
+| Source | Terms | How it is used |
+|---|---|---|
+| NVD CVE API 2.0 (`services.nvd.nist.gov`) | NVD terms of use; NVD data is in the public domain | data: one record per CVE, no key; the source row carries the notice the terms require: "This product uses the NVD API but is not endorsed or certified by the NVD." |
+| GitHub REST API, repository search (`api.github.com`) | GitHub Terms of Service (API) | data: names, descriptions, stars and dates of public repositories that name the CVE; no token, no code downloaded |
+| Vendor advisory pages (the 16 hosts in PRIVACY.md flow 8) | each vendor's site terms | data: the visible text of one advisory page the CVE links to, cut to 6000 bytes |
+| Feeds of watchTowr Labs, GreyNoise, SANS Internet Storm Center, Rapid7, Unit 42, Google Project Zero | each site's terms; public RSS/Atom | data: the posts that name the CVE (title, date, link, text around the mention) |
 
 ## Data each box fetches with the user's own key (never through the project)
 

@@ -323,8 +323,7 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 
 // CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6), but only one that was made from
 // the feed entry and the devices the box holds now. After a device is patched or added, or the entry changes, nothing is cached:
-// "affected" is the box's own decision and must not be served from a state that no longer exists (review M2). The news half
-// arrives with slice 6.
+// "affected" is the box's own decision and must not be served from a state that no longer exists (review M2). News is CachedNews.
 func (s *Service) CachedCVE(ctx context.Context, id string) (*ExplainResult, error) {
 	cve := strings.ToUpper(id)
 	if !cveRE.MatchString(cve) {

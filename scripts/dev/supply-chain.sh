@@ -6,6 +6,7 @@
 #                          with a fix that .trivyignore.yaml does not except (the file is checked by scripts/trivyignore before this runs)
 # Env (set by the Makefile): CONTAINER (podman|docker), IMAGE_TAG, PLATFORMS, TRIVY_IMAGE, TRIVY_CACHE_DIR (the vulnerability database, 1.7 GB, lives there: on disk, never /tmp, which is RAM),
 # RELEASE=1 keeps dist/sbom and dist/vuln for the release job. The image archives made for trivy are always removed (rules/build-artifacts.md).
+# Needs: podman or docker, jq (to pick one platform out of a manifest list), git.
 # The database download is this machine's own egress (ghcr.io); no image, source or SBOM leaves the machine. Linux or macOS.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -64,6 +65,27 @@ export_image() {
 	esac
 }
 
+# The path (inside the trivy container) of the image of one architecture. trivy ignores --platform for a local --input, so it would scan
+# the same variant twice (measured: identical layers in the amd64 and arm64 SBOMs): for the OCI layout of a manifest list, a copy of the
+# layout (hard links, no extra disk) whose index.json names only that platform's manifest. An archive (docker, or the podman fallback) is
+# passed as it is, with --platform; there the per-architecture result is NOT verified.
+image_input() { # $1 = image name, $2 = arch
+	local n=$1 arch=$2 idx digest size
+	if [ ! -d "$work/$n" ]; then echo "/dist/supply-work/$n.tar"; return; fi
+	if [ "$(jq -r '.manifests[0].mediaType' "$work/$n/index.json")" = application/vnd.oci.image.manifest.v1+json ]; then # one platform only
+		echo "/dist/supply-work/$n"
+		return
+	fi
+	idx=$work/$n/blobs/sha256/$(jq -r '.manifests[0].digest | ltrimstr("sha256:")' "$work/$n/index.json")
+	read -r digest size < <(jq -r --arg a "$arch" '.manifests[] | select(.platform.architecture == $a) | "\(.digest) \(.size)"' "$idx")
+	[ -n "${digest:-}" ] || fail "$n has no linux/$arch variant: run make images with PLATFORMS=$platforms"
+	rm -rf "$work/$n-$arch"
+	cp -al "$work/$n" "$work/$n-$arch"
+	printf '{"schemaVersion":2,"manifests":[{"mediaType":"application/vnd.oci.image.manifest.v1+json","digest":"%s","size":%s}]}\n' "$digest" "$size" >"$work/$n-$arch/index.json.new"
+	mv -f "$work/$n-$arch/index.json.new" "$work/$n-$arch/index.json"
+	echo "/dist/supply-work/$n-$arch"
+}
+
 src_flags=(--skip-dirs /src/dist --skip-dirs '**/node_modules' --skip-dirs /src/tools --skip-dirs /src/.git)
 
 if [ "$mode" = sbom ]; then
@@ -71,8 +93,7 @@ if [ "$mode" = sbom ]; then
 		export_image "$n"
 		for p in ${platforms//,/ }; do
 			arch=${p#linux/}
-			in=/dist/supply-work/$n
-			[ -d "$work/$n" ] || in=$in.tar
+			in=$(image_input "$n" "$arch")
 			trivy image --input "$in" --platform "$p" --format cyclonedx --output "/dist/sbom/$n-$arch.cdx.json"
 			[ -s "$sbom/$n-$arch.cdx.json" ] || fail "no SBOM for $n $arch"
 			say "ok   sbom $n $arch: $(grep -c '"bom-ref"' "$sbom/$n-$arch.cdx.json") components"
@@ -106,8 +127,7 @@ for n in $names; do
 	export_image "$n"
 	for p in ${platforms//,/ }; do
 		arch=${p#linux/}
-		in=/dist/supply-work/$n
-		[ -d "$work/$n" ] || in=$in.tar
+		in=$(image_input "$n" "$arch")
 		scan_one "$n-$arch" trivy image --input "$in" --platform "$p"
 	done
 done

@@ -25,9 +25,11 @@ const MaxDays = 90
 const dateLayout = "2006-01-02"
 
 type entry struct {
-	ID        string `yaml:"id"`
-	Statement string `yaml:"statement"`
-	ExpiredAt string `yaml:"expired_at"`
+	ID        string   `yaml:"id"`
+	Paths     []string `yaml:"paths"`
+	PURLs     []string `yaml:"purls"`
+	Statement string   `yaml:"statement"`
+	ExpiredAt string   `yaml:"expired_at"`
 }
 
 func main() {

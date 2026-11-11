@@ -79,3 +79,11 @@ func TestUnknownKeysAreErrors(t *testing.T) {
 		}
 	}
 }
+
+// paths and purls narrow an entry to one binary or package (trivy's own fields); the strict decoder must accept them.
+func TestPathsAndPURLsAreAccepted(t *testing.T) {
+	doc := "vulnerabilities:\n  - id: CVE-2026-0001\n    paths: [\"usr/local/bin/nuclei\"]\n    purls: [\"pkg:golang/example.com/m@v1.0.0\"]\n    statement: not ours\n    expired_at: 2026-12-11\n"
+	if p := probs(t, doc); len(p) != 0 {
+		t.Errorf("unexpected problems: %v", p)
+	}
+}

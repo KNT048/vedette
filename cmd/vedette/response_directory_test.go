@@ -15,6 +15,7 @@ import (
 // gateway, must still be a never-touch device. A cap here dropped it silently, with no error to make the fail-closed path trigger.
 // The inventory is filled through the real observation path, so this test is slow on purpose (about 2000 rows).
 func TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap(t *testing.T) {
+	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
 	fg := s.addFortiGate()
@@ -67,6 +68,7 @@ func TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap(t *testing.T) {
 // D-177 (M5): one passive frame (an SSDP NOTIFY or an LLDP frame that says "router") must not put an intruder's device on the never-touch
 // list; a router whose kind came from nmap does, and so does an approved one.
 func TestResponseDirectoryIgnoresARouterOnlyAPassiveFrameClaimed(t *testing.T) {
+	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
 	dir := responseDirectory{inv: s.d.Inventory, fnd: s.d.Findings}

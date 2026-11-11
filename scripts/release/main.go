@@ -7,7 +7,8 @@
 //	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
-//	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup] [-passphrase-stdin]
+//	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
+//	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
@@ -228,10 +229,17 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	rollout := fs.Int("rollout", -1, "rollout percent of the channel (default 100)")
 	days := fs.Int("valid-days", 14, "days until expires_at (at most 14)")
 	now := fs.String("now", "", "RFC 3339 generated_at (default now)")
+	var revoke []string
+	fs.Func("revoke-key", "revoke this key id (repeatable; counts only once the backup key signs the index, D-108, D-259)", func(v string) error {
+		revoke = append(revoke, v)
+		return nil
+	})
+	reason := fs.String("revoke-reason", "", "why the keys of -revoke-key are revoked (one line)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	p := IndexParams{Now: time.Now(), Sequence: *seq, Rollout: *rollout, ValidFor: time.Duration(*days) * 24 * time.Hour}
+	p := IndexParams{Now: time.Now(), Sequence: *seq, Rollout: *rollout, ValidFor: time.Duration(*days) * 24 * time.Hour,
+		RevokeKeys: revoke, RevokeReason: *reason}
 	if *days <= 0 {
 		return errors.New("-valid-days must be positive")
 	}
@@ -256,13 +264,19 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		}
 	}
 	var prevIndex *release.Index
+	if len(revoke) > 0 && *prev == "" {
+		return errors.New("-revoke-key needs -prev-index: a rescue index carries on from the last published index (D-259)")
+	}
 	if *prev != "" {
 		trust, err := LoadTrust(*keys)
 		if err != nil {
 			return err
 		}
-		if prevIndex, err = LoadPrevIndex(*prev, trust); err != nil {
-			return err
+		p.BackupKeyID = trust.Backup.KeyID()
+		if *prev != "" {
+			if prevIndex, err = LoadPrevIndex(*prev, trust); err != nil {
+				return err
+			}
 		}
 	}
 	if *manifest != "" {
@@ -300,16 +314,29 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	dir := fs.String("dir", "dist/release", "directory with the documents")
 	key := fs.String("key", "", "minisign secret key file (mode 600, outside the repository)")
 	bin := fs.String("minisign", "", "absolute path of the pinned minisign (scripts/release/minisign.sh prints it)")
-	slot := fs.String("slot", "active", "active: index and manifest; backup: indexes only, into .backup.minisig (offline key, D-103)")
+	slot := fs.String("slot", slotActive, "active: index and manifest; backup: indexes only, into .backup.minisig (offline key, D-103); rescue: the backup key signs index and manifest into .minisig after the active key leaked (D-259)")
 	pass := fs.Bool("passphrase-stdin", false, "read the key's passphrase from the first line of stdin (default: minisign asks on the terminal)")
+	prev := fs.String("prev-index", "", "-slot rescue: directory of the last index published before the rescue")
+	keys := fs.String("keys-dir", "", "-slot rescue: the public keys the installed boxes trust (the ones before the leak)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *key == "" || *bin == "" {
 		return errors.New("-key and -minisign are required")
 	}
-	if *slot != "active" && *slot != "backup" {
-		return errors.New("-slot is active or backup")
+	if *slot != slotActive && *slot != slotBackup && *slot != slotRescue {
+		return errors.New("-slot is active, backup or rescue")
+	}
+	rescue := *slot == slotRescue
+	if rescue != (*prev != "" && *keys != "") || (!rescue && (*prev != "" || *keys != "")) {
+		return errors.New("-slot rescue takes -prev-index and -keys-dir, and only it does (D-259)")
+	}
+	var trust release.Trust
+	if rescue {
+		var err error
+		if trust, err = LoadTrust(*keys); err != nil {
+			return err
+		}
 	}
 	s := MinisignCLI{Bin: *bin, KeyPath: *key, Interactive: true}
 	if root, err := RepoRoot(ctx, "."); err == nil {
@@ -323,7 +350,13 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 		defer clear(line)
 		s.Passphrase, s.Interactive = line, false
 	}
-	written, err := SignRelease(ctx, s, *dir, *slot == "backup")
+	var written []string
+	var err error
+	if rescue {
+		written, err = SignRescue(ctx, s, *dir, *prev, trust)
+	} else {
+		written, err = SignRelease(ctx, s, *dir, *slot)
+	}
 	for _, w := range written {
 		say(stdout, "signed %s", w)
 	}
@@ -374,6 +407,9 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	if s.IndexOnly {
 		say(stdout, "verified: index-only refresh, sequence %d signed by %s, channels unchanged, backup signature %t", s.Sequence, s.IndexKeyID, s.BackupSig)
 		return nil
+	}
+	if s.Rescue {
+		say(stdout, "verified: RESCUE release: index and manifest signed by the backup key %s, which revokes the active key of these keys", s.IndexKeyID)
 	}
 	say(stdout, "verified: index sequence %d signed by %s, release %s (%s), backup signature %t", s.Sequence, s.IndexKeyID, s.Version, s.Channel, s.BackupSig)
 	for _, im := range s.Images {

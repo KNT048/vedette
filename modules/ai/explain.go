@@ -183,10 +183,19 @@ func affectedOf(assets []AssetFact) string {
 	return "unknown"
 }
 
+// feedBlock is the exploited-list entry as a data block. Every text field came from a feed, so each goes through sanitizeWeb like the
+// pages of CVE news do: valid UTF-8, no control or format characters (bidi overrides, zero-width), blank runs collapsed. A link is
+// cleaned and then kept only when it is still one http(s) token.
 func feedBlock(f CVEFacts) DataBlock {
+	links := make([]string, 0, len(f.Links))
+	for _, l := range f.Links {
+		if l = sanitizeWeb(l); l != "" && !strings.ContainsAny(l, " \n") {
+			links = append(links, l)
+		}
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nRequired action (CISA): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
-		f.CVE, f.Vendor, f.Product, f.Name, f.Description, f.RequiredAction, f.DateAdded, f.Ransomware, f.HasTemplate, strings.Join(f.Links, " "))
+		sanitizeWeb(f.CVE), sanitizeWeb(f.Vendor), sanitizeWeb(f.Product), sanitizeWeb(f.Name), sanitizeWeb(f.Description), sanitizeWeb(f.RequiredAction), sanitizeWeb(f.DateAdded), f.Ransomware, f.HasTemplate, strings.Join(links, " "))
 	return DataBlock{Kind: DataFeed, Source: "exploited list entry " + f.CVE, Text: b.String()}
 }
 
@@ -323,8 +332,7 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 
 // CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6), but only one that was made from
 // the feed entry and the devices the box holds now. After a device is patched or added, or the entry changes, nothing is cached:
-// "affected" is the box's own decision and must not be served from a state that no longer exists (review M2). The news half
-// arrives with slice 6.
+// "affected" is the box's own decision and must not be served from a state that no longer exists (review M2). News is CachedNews.
 func (s *Service) CachedCVE(ctx context.Context, id string) (*ExplainResult, error) {
 	cve := strings.ToUpper(id)
 	if !cveRE.MatchString(cve) {

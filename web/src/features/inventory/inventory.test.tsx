@@ -1287,6 +1287,8 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(await screen.findByText('https://wazuh-manager:55000', undefined, T)).toBeInTheDocument()
     expect(screen.getByText(/vedette, ••••pass/)).toBeInTheDocument()
     expect(screen.getByText('Connected, waiting for the first sync')).toBeInTheDocument()
+    const flow14 = async () => ((await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()) as { flows: { id: number; state: string }[] }).flows.find((f) => f.id === 14)?.state
+    expect(await flow14()).toBe('on') // Settings → Privacy flow 14 while a Wazuh server is saved (D-309)
     await user.click(screen.getByRole('button', { name: 'Send sample data' })) // the card's own button (token rows say "for <name>")
     await waitFor(async () => expect(((await call('GET', '/agents')).json!.wazuh).status).toBe('connected'), T)
     expect((await call('GET', '/agents')).json!.wazuh.agents).toBeGreaterThan(0)
@@ -1295,6 +1297,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(await screen.findByRole('dialog', { name: 'Disconnect Wazuh?' }, T)).getByRole('button', { name: 'Disconnect' }))
     await waitFor(async () => expect((await call('GET', '/agents')).json!.wazuh).toBeNull(), T)
     expect(await screen.findByRole('button', { name: 'Connect Wazuh' }, T)).toBeInTheDocument()
+    expect(await flow14()).toBe('off')
   })
 
   it('Wazuh API: validation, test does not store, password kept when left empty, only the last 4 returned, audited without the password', async () => {

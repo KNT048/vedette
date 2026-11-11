@@ -12,6 +12,7 @@ import (
 // The log sources of the binary (core INV-13): audit from core, response, honeypot, scan_probes and ai_activity from their
 // modules; the rest have no source yet and the file says so instead of pretending to be complete.
 func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
+	t.Parallel()
 	s := newStack(t)
 	for _, id := range []string{"audit", "response", "honeypot", "scan_probes", "ai_activity"} {
 		if !s.d.Logs.Has(id) {

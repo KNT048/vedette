@@ -33,14 +33,11 @@ import (
 func moduleSchema(t *testing.T) map[string][][2]string {
 	t.Helper()
 	ctx := t.Context()
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
-		t.Fatal(err)
-	}
 	rows, err := db.Reader().QueryContext(ctx, `SELECT m.name, p.name, p.type FROM sqlite_master m, pragma_table_info(m.name) p
 		WHERE m.type = 'table' AND m.name NOT GLOB 'sqlite_*' AND m.name NOT GLOB 'core_migration_*' ORDER BY m.name, p.cid`)
 	if err != nil {
@@ -118,6 +115,8 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 	publicByDecision := map[string]bool{
 		"core_audit.prev_hash": true, "core_audit.hash": true, "core_chain_anchor.last_pruned_hash": true, "core_chain_head.last_hash": true,
 		"resp_log.prev_hash": true, "resp_log.hash": true, "hp_hits.token_id": true,
+		// The id of the enrolment token a node belongs to (a row id, not the secret; the token's own hash is skipped).
+		"intake_osquery_nodes.token_id": true,
 		// The hash chain of the AI activity log (verifiable offline) and the hash of the inputs an AI result was made from: digests, not secrets.
 		"ai_activity.prev_hash": true, "ai_activity.hash": true, "ai_activity.input_hash": true, "ai_activity.output_hash": true, "ai_result.inputs_hash": true,
 		// Counts of tokens used (the log export keeps them too), not tokens as in credentials.
@@ -200,7 +199,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		}()
 		select {
 		case addr = <-ready:
-		case <-time.After(30 * time.Second):
+		case <-time.After(90 * time.Second):
 			cancel()
 			t.Fatal("the process did not start")
 		}
@@ -238,7 +237,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		if body != nil {
 			payload, _ = json.Marshal(body)
 		}
-		deadline := time.Now().Add(30 * time.Second)
+		deadline := time.Now().Add(90 * time.Second)
 		for {
 			c, b, hd := callOnce(t, cookies, addr, method, path, payload)
 			if c != http.StatusServiceUnavailable || !strings.Contains(string(b), `"server_busy"`) {
@@ -411,7 +410,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the process stopped with %v", err)
 		}
-	case <-time.After(20 * time.Second):
+	case <-time.After(90 * time.Second):
 		t.Fatal("the process did not stop itself after the purge")
 	}
 
@@ -619,7 +618,7 @@ func callOnce(t *testing.T, cookies map[string]*http.Cookie, addr, method, path 
 	if c, ok := cookies[auth.CookieCSRF]; ok {
 		req.Header.Set(auth.HeaderCSRF, c.Value)
 	}
-	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

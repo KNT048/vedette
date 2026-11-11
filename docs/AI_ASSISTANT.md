@@ -34,7 +34,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 | Skill | Story | Input (hộp chuẩn bị, không để AI tự tìm) | Output (schema) | Tier |
 |---|---|---|---|---|
 | `explain-finding` | S-AI-2 | bản ghi CVE (cvelist JSON rút gọn), tín hiệu feed (KEV/EPSS/PoC/sightings), asset + software + version + vendor firewall đã khai, 24h log liên quan (gộp), mitigation pack nếu có | `{affected: yes/no/unknown, why, patch_steps[], temp_mitigations[], config_snippets{vendor: text}, detection_hints[], citations[]}` | 1 lần/CVE/asset, cache theo hash |
-| `cve-news` | S-AI-3 | văn bản hộp đã fetch: advisory vendor, GitHub search `CVE-…` (PoC?), RSS watchTowr/Rapid7/Huntress/GreyNoise/SANS/NCSC, commit Nuclei; đã qua bộ lọc injection | `{exploited: bool/unknown, poc_public, workaround, fixed_versions[], dates, sources[]}` | theo yêu cầu; mức max cho phép web search native |
+| `cve-news` | S-AI-3 | văn bản hộp đã fetch (D-280): bản ghi NVD, một advisory của hãng trong danh sách host, tìm kiếm kho GitHub `CVE-…` (PoC?), 6 feed watchTowr/GreyNoise/SANS ISC/Rapid7/Unit 42/Project Zero; làm sạch, có giới hạn, trong khối có rào | `{exploited, public_exploit, workaround, other[]}` → `lines` có nhãn do hộp gắn; `sources`, `citations` do hộp dựng | theo yêu cầu; không web search của nhà cung cấp ở mức nào (FORBID-6) |
 | `log-digest` | S-AI-4 | bảng gộp (signature, src, dst, count, Δ so baseline), hit IOC, asset liên quan | `{items: [{severity, evidence_lines[], recommendation}], summary}` | min: 1/ngày · med: 1/giờ · max: theo alert mới |
 | `log-investigate` | S-AI-4 (max) | như trên + **tool chỉ-đọc**: `search_assets`, `events_around(ip, window)`, `lookup_ioc`, `lookup_cve` | như trên + `tool_calls[]` ghi lại | max |
 | `mitigation-config` | S-MIT-1 | CVE + vendor firewall + model/phiên bản + topology ngắn (WAN/LAN) | `{snippets{vendor: text}, side_effects[], verify_steps[]}` | theo yêu cầu |
@@ -61,7 +61,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 |---|---|---|---|
 | Tối thiểu | 1 digest/ngày: top-N bất thường đã gộp + hit IOC; `explain-finding` chỉ khi bấm | model đắt hoặc local nhỏ | ~10k token/ngày |
 | Trung bình | mỗi giờ: lô sự kiện **mới** + cửa sổ bất thường, kèm asset; `explain-finding` tự chạy cho phát hiện mới mức cao | mặc định | ~60k/ngày |
-| Tối đa | theo từng alert mới; `log-investigate` với tool; `cve-news` tự chạy; web search native nếu provider có | khách có SOC/IT | khách đặt |
+| Tối đa | theo từng alert mới; `log-investigate` với tool; `cve-news` tự chạy (chưa làm) | khách có SOC/IT | khách đặt |
 
 Vượt trần → hạ mức → ghi thông báo. Mọi lần gọi ghi `ai_run` (skill, token, model, hash input) để tra và cache.
 

@@ -182,7 +182,7 @@
       "ok": "Fetched",
       "failed": "Could not fetch"
     },
-    "newsMeta": "Summarised {{time}}. Fetched text was filtered for injected instructions before reaching the AI."
+    "newsMeta": "Summarised {{time}}. Fetched text is marked as data, stripped of control characters and checked by your hooks before it reaches the AI."
   },
   "logs": {
     "title": "AI log digest",

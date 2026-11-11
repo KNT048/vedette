@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/internal/release"
@@ -40,7 +42,16 @@ type IndexParams struct {
 	Channel         string // channel of the manifest
 	ManifestVersion string // empty: no new manifest
 	ManifestRaw     []byte // the signed bytes of that manifest: the index carries their SHA-256
+
+	// RevokeKeys are key ids (minisign: 16 upper-case hex; cosign: CosignKeyID) to revoke, with RevokeReason. A key revocation
+	// counts only in an index the backup key signs (D-108 M1), and it is never dropped again; BackupKeyID can never be revoked.
+	RevokeKeys   []string
+	RevokeReason string
+	BackupKeyID  string
 }
+
+// keyIDRE is the form of a key id in a key revocation (internal/release Revocation.validate).
+var keyIDRE = regexp.MustCompile(`^(?:[0-9A-F]{16}|[0-9a-f]{64})$`)
 
 // maxSequenceJump is the largest step of an explicit -sequence.
 const maxSequenceJump = 10
@@ -83,6 +94,9 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 		x.Revoked = append(x.Revoked, prev.Revoked...)
 		x.Advisories = append(x.Advisories, prev.Advisories...)
 		x.Keys = append(x.Keys, prev.Keys...)
+	}
+	if err := addKeyRevocations(&x, p); err != nil {
+		return nil, err
 	}
 	x.Sequence = p.Sequence
 	if x.Sequence == 0 {
@@ -153,4 +167,32 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 		files = append(files, IndexFile{fmt.Sprintf("index.v%d.json", s), b})
 	}
 	return files, nil
+}
+
+// addKeyRevocations appends the key revocations of p to x (D-259): the rescue index revokes the leaked active key.
+func addKeyRevocations(x *release.Index, p IndexParams) error {
+	if len(p.RevokeKeys) == 0 {
+		if p.RevokeReason != "" {
+			return errors.New("a revocation reason without a key to revoke")
+		}
+		return nil
+	}
+	if p.RevokeReason == "" || len(p.RevokeReason) > 256 || strings.IndexFunc(p.RevokeReason, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+		return errors.New("a key revocation needs a reason: one line of at most 256 bytes")
+	}
+	if p.BackupKeyID == "" {
+		return errors.New("revoking a key needs the backup key id, which can never be revoked")
+	}
+	for _, id := range p.RevokeKeys {
+		switch {
+		case !keyIDRE.MatchString(id):
+			return fmt.Errorf("%q is not a key id (minisign: 16 upper-case hex; cosign: 64 lower-case hex)", id)
+		case id == p.BackupKeyID:
+			return fmt.Errorf("%s is the backup key: no index can revoke it (D-108)", id)
+		case x.KeyRevoked(id):
+			return fmt.Errorf("key %s is already revoked", id)
+		}
+		x.Revoked = append(x.Revoked, release.Revocation{Kind: release.KindKey, ID: id, Reason: p.RevokeReason, Since: x.GeneratedAt, Action: "block_install"})
+	}
+	return nil
 }

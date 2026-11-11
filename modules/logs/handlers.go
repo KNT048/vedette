@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// LogsHandlers implements the operations of the logs module that are built so far: the sources, the events, the retention
-// and the digest. The SIEM operations (L5) are answered by server.Fallback until then. Embed it in the composite handler.
+// LogsHandlers implements the operations of the logs module: the sources, the events, the retention, the digest and the SIEM
+// forwarding. Embed it in the composite handler.
 // Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -120,4 +120,43 @@ func (h *LogsHandlers) LogsGetLogsDigest(ctx context.Context) (*oas.LogsGetLogsD
 		return nil, err
 	}
 	return into[oas.LogsGetLogsDigestOK](v)
+}
+
+// LogsGetLogsSiem implements logs_get_logs_siem (admin).
+func (h *LogsHandlers) LogsGetLogsSiem(ctx context.Context) (*oas.LogsGetLogsSiemOK, error) {
+	v, err := h.svc.Siem(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.LogsGetLogsSiemOK](v)
+}
+
+// LogsPutLogsSiem implements logs_put_logs_siem (admin).
+func (h *LogsHandlers) LogsPutLogsSiem(ctx context.Context, req *oas.LogsPutLogsSiemReq) (*oas.LogsPutLogsSiemOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in := SiemInput{Enabled: req.Enabled, Format: string(req.Format), Host: req.Host, Port: req.Port, Proto: string(req.Proto), URL: req.URL, Secret: req.Secret.Or("")}
+	for _, e := range req.Events {
+		in.Events = append(in.Events, string(e))
+	}
+	v, err := h.svc.SetSiem(ctx, user, in)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.LogsPutLogsSiemOK](v)
+}
+
+// LogsPostLogsSiemTest implements logs_post_logs_siem_test (admin).
+func (h *LogsHandlers) LogsPostLogsSiemTest(ctx context.Context) (*oas.LogsPostLogsSiemTestOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.TestSiem(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.LogsPostLogsSiemTestOK](v)
 }

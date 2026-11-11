@@ -45,7 +45,7 @@ func TestWiringLogsSourcesLinesAndExport(t *testing.T) {
 	if err := svc.ExportDeviceLogs(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"line":"type=traffic srcip=10.0.0.1"`) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
-	if jobs := logsJobs(*s.d); len(jobs) != 3 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping || jobs[2].Name != "anomaly" || jobs[2].Housekeeping {
+	if jobs := logsJobs(*s.d); len(jobs) != 4 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping || jobs[2].Name != "anomaly" || jobs[2].Housekeeping || jobs[3].Name != "siem" || jobs[3].Housekeeping {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	box, err := (logsBox{*s.d}).Info(ctx)
@@ -145,5 +145,23 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 	lo, _, _, _, err := transport(options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
 	if err != nil || syslogTLS(lo) != nil {
 		t.Fatalf("a loopback box has no certificate: %v", err)
+	}
+}
+
+// D-210: logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses
+// (an install without vedette-host has nothing more to ask; a host that has not answered is an error, which logs answers by keeping its last set).
+func TestLogsNeverCountListsTheBox(t *testing.T) {
+	t.Parallel()
+	d := &deps{Hosts: []string{"198.51.100.77", "[2001:db8::77]", "box.example"}}
+	got, err := logsNeverCount(d)(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]bool{}
+	for _, a := range got {
+		have[a.String()] = true
+	}
+	if !have["198.51.100.77"] || !have["2001:db8::77"] || have["box.example"] {
+		t.Fatalf("%v", got)
 	}
 }

@@ -127,9 +127,9 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(13), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(14), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 13 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 14 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
@@ -260,7 +260,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // quyền riêng tư
-  { method: 'get', path: '/core/privacy', summary: 'The 13 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The 14 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
   { method: 'get', path: '/core/connections', summary: 'Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF, automation platform, MCP server', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', response: z.object({ items: z.array(Connector) }) },

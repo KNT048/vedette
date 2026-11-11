@@ -79,6 +79,15 @@ type Config struct {
 	// tables (core_chain_anchor, core_chain_head) and offers the helper (chainhead.Prune, issue #194); until then it is nil and
 	// the retention prune is off: the setting is saved, nothing is removed.
 	ChainPruner ChainPruner
+	// Data is what the read tools of "Ask your data" search (inventory, findings, feeds); nil = those tools are not offered.
+	Data Data
+	// Conns lists and calls the read tools of the connections (core/conn/read); nil = no connection tools.
+	Conns ConnReader
+	// ConnTargets returns the address of each connection by id (core/conn List). While the privacy rule is on, only the tools of a
+	// connection whose address is inside the network are offered; nil = none are (fail closed, D-212).
+	ConnTargets func(ctx context.Context) (map[string]string, error)
+	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
+	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
 	HookTimeout time.Duration
 }
@@ -154,6 +163,7 @@ type Service struct {
 	queued    atomic.Int64                    // uploads that hold their bytes in memory until they are read
 	indexing  sync.WaitGroup                  // the readers in flight: a test waits for them
 	snap      atomic.Pointer[snapshot]
+	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -184,7 +194,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)

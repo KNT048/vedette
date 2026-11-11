@@ -108,7 +108,10 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice_finding":  {export: "notice_id finding_id"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient", json: "message", url: "to"},
-	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"}, // the hash never leaves (mcp-server INV-3)
+	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received", skip: "token_hash"},                                                                                                                              // the hash never leaves (agent-intake INV-3)
+	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac", skip: "node_key_hash"},                                                            // the key hash never leaves
+	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
@@ -116,6 +119,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},
 	"notify_slack_team":      {skipAll: true, skip: "id rev team_id"},
 	"logs_retention":         {export: "id days"},
+	"logs_siem":              {export: "id enabled format host port proto secret_last4", json: "events last_test", url: "url", skip: "secret_id"},
 	"logs_sources":           {export: "id kind name sender_ip proto port created_at signatures_since"},
 	"rep_history":            {export: "id ts trigger status error", json: "recipients report"},
 	"rep_pdpl":               {export: "id", json: "org report"},

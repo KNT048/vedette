@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -14,16 +15,31 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 )
 
 // newAI builds the ai service once, in buildServices (deps.AI): the handlers and the mitigation door share one router and one
 // meter. It reads the box time zone from core's general settings once, at start (the meter's day boundary); a change of zone
 // applies after a restart. The data it explains from comes through aiFacts, the ports of feeds, findings and the inventory.
-func newAI(ctx context.Context, d *deps, facts ai.Facts) (*ai.Service, error) {
+func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Service, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}}
+	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data}
+	if d.ConnReader != nil { // the read tools of the connections (core/conn/read, D-127); a nil *read.Reader in the interface would not compare equal to nil
+		cfg.Conns = d.ConnReader
+		cfg.ConnTargets = func(ctx context.Context) (map[string]string, error) {
+			cs, err := d.Conn.List(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("ai: connections: %w", err)
+			}
+			m := make(map[string]string, len(cs))
+			for _, c := range cs {
+				m[c.ID] = c.Target
+			}
+			return m, nil
+		}
+	}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg
 	}
@@ -146,3 +162,128 @@ func (aiChainPruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID,
 
 // aiJobs is the Jobs func of the ai entry in wiredModules: the "activity-prune" job.
 func aiJobs(d deps) []jobs.Job { return d.AI.Jobs() }
+
+// aiAsk implements ai.Data for the read tools of "Ask your data": devices from the inventory, findings from findings and indicators
+// from feeds. Reads only, through the exported reads of those modules (S-AI-5).
+type aiAsk struct {
+	feeds    *feeds.Store
+	findings *findings.Service
+	inv      *inventory.Service
+}
+
+func aiStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+func aiObserved(o *inventory.Observed) string {
+	if o == nil {
+		return ""
+	}
+	return o.Value
+}
+
+func aiDeviceName(d inventory.Device) string {
+	switch {
+	case d.Hostname != nil && *d.Hostname != "":
+		return *d.Hostname
+	case d.Model != nil && d.Model.Value != "":
+		return d.Model.Value
+	}
+	return d.IP
+}
+
+func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
+	devs, err := a.inv.AllDevices(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ai ask: devices: %w", err)
+	}
+	out := make([]ai.AssetRow, 0, len(devs))
+	for _, d := range devs {
+		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen}
+		for _, sv := range d.Services {
+			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
+		}
+		for _, sw := range d.Software {
+			r.Software = append(r.Software, strings.TrimSpace(sw.Display+" "+aiStr(sw.Version)))
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (a aiAsk) names(ctx context.Context) (map[string]inventory.Device, error) {
+	devs, err := a.inv.AllDevices(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ai ask: devices: %w", err)
+	}
+	m := make(map[string]inventory.Device, len(devs))
+	for _, d := range devs {
+		m[d.ID] = d
+	}
+	return m, nil
+}
+
+func aiFindingRow(r findings.Record, devs map[string]inventory.Device) ai.FindingRow {
+	f := ai.FindingRow{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Basis: string(r.Basis), Confidence: r.Confidence,
+		FirstSeen: r.FirstSeen.UTC().Format(time.RFC3339), LastSeen: r.LastSeen.UTC().Format(time.RFC3339)}
+	if d, ok := devs[r.AssetID]; ok {
+		f.Asset, f.AssetIP = aiDeviceName(d), d.IP
+	}
+	if r.Evidence != nil {
+		f.Evidence = r.Evidence.Summary
+	}
+	return f
+}
+
+func (a aiAsk) Findings(ctx context.Context) ([]ai.FindingRow, error) {
+	recs, err := a.findings.List(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("ai ask: findings: %w", err)
+	}
+	devs, err := a.names(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ai.FindingRow, len(recs))
+	for i, r := range recs {
+		out[i] = aiFindingRow(r, devs)
+	}
+	return out, nil
+}
+
+func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, error) {
+	r, err := a.findings.Get(ctx, id)
+	if errors.Is(err, findings.ErrNotFound) {
+		return ai.FindingRow{}, false, nil
+	}
+	if err != nil {
+		return ai.FindingRow{}, false, fmt.Errorf("ai ask: finding: %w", err)
+	}
+	devs := map[string]inventory.Device{}
+	if d, err := a.inv.Device(ctx, r.AssetID); err == nil {
+		devs[r.AssetID] = d
+	}
+	return aiFindingRow(r, devs), true, nil
+}
+
+func (a aiAsk) IOC(ctx context.Context, kind, value string) (ai.IOCFact, bool, error) {
+	key, ok := feeds.IOCKey(kind, value) // a private or reserved address, or a name that cannot be public, is never an indicator
+	if !ok {
+		return ai.IOCFact{}, false, nil
+	}
+	rec, found, err := a.feeds.IOCLookup(ctx, kind, key)
+	if err != nil {
+		return ai.IOCFact{}, false, fmt.Errorf("ai ask: indicator: %w", err)
+	}
+	if !found {
+		return ai.IOCFact{}, false, nil
+	}
+	out := ai.IOCFact{Kind: rec.Type, Value: rec.Value, FirstSeen: rec.FirstSeen.UTC().Format(time.RFC3339), LastSeen: rec.LastSeen.UTC().Format(time.RFC3339)}
+	for _, g := range rec.Sightings {
+		out.Sources = append(out.Sources, g.SourceName)
+	}
+	return out, true, nil
+}

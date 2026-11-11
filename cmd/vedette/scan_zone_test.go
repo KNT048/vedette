@@ -11,7 +11,6 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/scan"
 )
@@ -36,14 +35,11 @@ func TestScanReadsTheOrgTimeZone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.Open(ctx, filepath.Join(dir, "v.db"), log)
+	db, err := openMigrated(ctx, filepath.Join(dir, "v.db"), log)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
-		t.Fatal(err)
-	}
 	aud := audit.New(nil)
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {

@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -254,6 +254,13 @@ honeypot-image:
 # (scripts/dev/honeypot-check.sh), then removes the image and the containers. Opt-in, like images-check.
 honeypot-check:
 	scripts/dev/honeypot-check.sh
+
+# Does core's published syslog port (514 -> 5514, rootful podman) keep the real sender address for UDP and TCP, and survive a core restart (#266, D-167)?
+# Opt-in, run as root from your own account: `sudo make syslog-ports-check`. While it runs it changes the host: a podman network and container (with
+# netavark's nftables DNAT of <LAN address>:514), a netns vedette-slc-peer with a veth pair on 10.231.77.0/30, and net.ipv4.ip_forward is read and
+# written back; the trap undoes all of it. Never netplan, NetworkManager, the LAN interface or other firewall rules. Needs 514 free (scripts/dev/syslog-ports-check.sh).
+syslog-ports-check:
+	scripts/dev/syslog-ports-check.sh
 
 # The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
 scan-base-image: scan-pack

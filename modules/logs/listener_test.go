@@ -270,8 +270,11 @@ func TestTheListenerJobIsNotTheHousekeepingOne(t *testing.T) {
 		if j.Name == "purge" && !j.Housekeeping {
 			t.Error("the purge job must stay housekeeping")
 		}
+		if j.Name == "siem" && j.Housekeeping { // it sends data out: never while the module is off (SYS-5, FORBID-3)
+			t.Error("the siem job must not be housekeeping")
+		}
 	}
-	if len(names) != 3 { // purge, syslog, anomaly (L3)
+	if len(names) != 4 { // purge, syslog, anomaly (L3), siem (L5)
 		t.Errorf("jobs %v", names)
 	}
 }

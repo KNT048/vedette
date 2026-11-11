@@ -670,7 +670,7 @@ func TestContract_SYS5_ModuleOffIs404(t *testing.T) {
 func TestContract_PruneRetention(t *testing.T) {
 	w := newWorld(t)
 	jobs := w.svc.Jobs()
-	if len(jobs) != 1 || jobs[0].Name != "node-prune" || jobs[0].Module != "agent-intake" || jobs[0].Housekeeping {
+	if len(jobs) != 2 || jobs[0].Name != "node-prune" || jobs[1].Name != "wazuh-pull" || jobs[0].Module != "agent-intake" || jobs[0].Housekeeping || jobs[1].Housekeeping {
 		t.Fatalf("jobs %+v", jobs)
 	}
 	_, s1 := w.token("keeps-nodes", 1)

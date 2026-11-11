@@ -21,9 +21,13 @@ const (
 
 // Jobs returns the jobs of the module. node-prune is a normal job, not Housekeeping: while the module is off every route is 404, so every
 // node is silent by construction, and silence must not count (a box left off for 90 days would otherwise cut every enrolled machine
-// for good, MEDIUM-1 of the round 1 review; modules.md: off keeps the data).
+// for good, MEDIUM-1 of the round 1 review; modules.md: off keeps the data). wazuh-pull ticks every minute and pulls when the interval
+// of the saved connection is due (D-169 (13)); a normal job too, so nothing is pulled while the module is off (SYS-5).
 func (s *Service) Jobs() []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "node-prune", Every: pruneEvery, Run: s.Prune}}
+	return []jobs.Job{
+		{Module: ModuleID, Name: "node-prune", Every: pruneEvery, Run: s.Prune},
+		{Module: ModuleID, Name: "wazuh-pull", Every: wazuhPullEvery, Run: s.WazuhPull},
+	}
 }
 
 // Prune deletes the nodes silent for NodeSilentDays and the tokens that expired more than 30 days ago and have no node left. A token with

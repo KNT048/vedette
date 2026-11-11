@@ -60,7 +60,7 @@ func newTestRenewer(t *testing.T, m *fakeMgmt) (*selfSignedRenewer, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &selfSignedRenewer{certPath: crt, keyPath: key, hosts: []string{"box.acme.example"}, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1), gap: 300 * time.Millisecond}
+	r := &selfSignedRenewer{certPath: crt, keyPath: key, hosts: []string{"box.acme.example"}, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1), gap: 3 * time.Second} // long enough that a loaded CI runner cannot let the gap pass between two statements of a test
 	if m != nil {
 		r.mgmt = m.get
 	}
@@ -221,7 +221,7 @@ func TestKickIsRateLimited(t *testing.T) {
 	defer func() { cancel(); <-done }()
 	waitFor := func(what string, ok func() bool) {
 		t.Helper()
-		for i := 0; i < 200; i++ {
+		for i := 0; i < 1000; i++ { // 20 s: the kick after the gap waits for the 3 s gap
 			if ok() {
 				return
 			}

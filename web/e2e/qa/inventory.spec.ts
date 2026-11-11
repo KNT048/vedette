@@ -23,7 +23,7 @@ async function patchDb(page: Page, table: string, patch: Record<string, unknown>
 }
 /** Đổi người dùng đăng nhập. */
 const loginAs = (page: Page, userId: UserId) => patchDb(page, 'core_session', { userId })
-const SETTINGS_FALLBACK = { active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] }, fragile_kinds: ['printer'] }
+const SETTINGS_FALLBACK = { active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] }, fragile_kinds: ['printer'], regular_scan_kinds: [] }
 async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((t) => localStorage.setItem('vedette-theme', t), theme)
   await page.reload()
@@ -104,12 +104,14 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     const dialog = page.getByRole('dialog')
     const picker = dialog.getByRole('combobox')
     await picker.focus()
+    await expect(dialog.getByRole('listbox')).toHaveCount(0) // no list until the user types: a fixed list on open reads as "only these are supported"
+    await picker.fill('forti')
     await expect(dialog.getByRole('listbox')).toBeVisible()
     await shot(page, 'inventory', 'add-dialog-picker')
     await page.keyboard.press('Escape')
     await expect(dialog.getByRole('listbox')).toBeHidden()
     await expect(dialog).toBeVisible() // first Escape only closes the suggestion list
-    await picker.fill('forti')
+    await picker.press('ArrowDown') // the arrow key opens the list again
     await dialog.getByRole('option').first().click()
     await dialog.getByLabel('Name (optional)').fill('Test firewall')
     await dialog.getByLabel('IP address (optional)').fill('192.168.10.1')
@@ -117,20 +119,21 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await expect(dialog.getByRole('alert')).toContainText('192.168.10.1')
     await expect(dialog.getByLabel('Name (optional)')).toHaveValue('Test firewall')
     await shot(page, 'inventory', 'add-dialog-error')
-    await dialog.getByLabel('IP address (optional)').fill('192.168.10.250')
+    await dialog.getByLabel('IP address (optional)').fill('192.168.10.99') // free in the sample data (.250 is the box itself, other addresses belong to sample devices)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(h1(page)).toContainText(String(before + 1))
-    // opening the dialog shows suggestions at once; Escape twice closes everything
+    // typing shows suggestions; Escape twice closes everything
     await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await expect(page.getByRole('dialog').getByRole('listbox')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog').getByRole('listbox')).toBeHidden()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toBeHidden()
-    // exactly 3 clicks: open, pick the first suggestion, Add
+    // exactly 3 clicks (plus the typing): open, pick the first suggestion, Add
     await page.getByRole('button', { name: 'Add a device' }).click()
-    await page.getByRole('dialog').getByRole('combobox').focus()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
@@ -154,7 +157,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     }
     await picker.fill('microsoft')
     expect(await dialog.getByRole('option').count()).toBeLessThanOrEqual(30)
-    await expect(dialog.getByText(/Showing 30 of \d+/)).toBeVisible()
+    await expect(dialog.getByText(/\d+ more match(es)?\. Keep typing to narrow the list\./)).toBeVisible()
     await shot(page, 'inventory', 'picker-many')
     await expectAccessible(page, 'picker open')
     await picker.fill('zzzzqqq')
@@ -411,7 +414,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
   })
 
-  test('the sensor on this box: choose interface and SPAN; no multi-site controls', async ({ page }) => {
+  test('the sensor on this box: shows the SPAN status and links to Settings → Box network; no multi-site controls', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/devices/setup')
     await expect(page.getByRole('heading', { name: 'Sensor on this box' })).toBeVisible()
@@ -419,10 +422,13 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByText(/enrol|enroll/i)).toHaveCount(0)
     await page.getByRole('button', { name: 'Configure sensor vedette-hq' }).click()
     const dlg = page.getByRole('dialog')
-    await dlg.getByLabel('Network interface').selectOption('eth1')
-    await dlg.getByLabel(/receives a copy of traffic/).check()
+    // The card and SPAN are set in Settings → Box network; the dialog shows the status and links there (no switch here).
+    await expect(dlg.getByText('Receiving')).toBeVisible()
+    await expect(dlg.getByText('eth1')).toBeVisible()
+    await expect(dlg.getByRole('switch')).toHaveCount(0)
     await shot(page, 'inventory', 'sensor-config')
-    await dlg.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(dlg.getByRole('link', { name: 'Configure SPAN in Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+    await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
     const row = page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)
     await expect(row).toContainText('eth1')
@@ -520,7 +526,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
 })
 
 test.describe('Clean install: first-time user', () => {
-  test('first-run wizard: a bare address is refused (no guessing), then a /24 range works; list starts empty with a clear first step; subnets can be added, edited, deleted', async ({ page }) => {
+  test('first-run wizard: a bare address is refused (no guessing), then a /24 range works; list holds only the box itself; subnets can be added, edited, deleted', async ({ page }) => {
     const errors = collectErrors(page)
     await cleanInstall(page, '192.168.18.0')
     await expect(page.getByText(/no prefix length/i).first()).toBeVisible() // the wizard keeps the owner on this step with a message
@@ -528,10 +534,9 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText('No devices yet')
-    await expect(page.getByText(/Plug the box into your LAN/)).toBeVisible()
+    await expect(h1(page)).toHaveText(/^1 device,/) // only the box itself: it is always the first device (INV-3)
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
-    await expect(page.getByRole('table')).toHaveCount(0)
+    await expect(page.getByRole('table').getByRole('row')).toHaveCount(2) // header + the box
     await shot(page, 'inventory', 'clean-empty')
     await expectAccessible(page, 'clean list')
     await expectEnglishOnly(page, 'clean list')
@@ -551,10 +556,10 @@ test.describe('Clean install: first-time user', () => {
     await expect(rows).toHaveText([/^10\.5\.0\.0\/16/])
     await page.goto('/devices')
     await page.getByRole('button', { name: 'Add a device' }).last().click()
-    await page.getByRole('dialog').getByRole('combobox').focus()
+    await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(h1(page)).toContainText('1 device')
+    await expect(h1(page)).toContainText('2 devices') // the box and the one just added
     expect(errors).toEqual([])
   })
 

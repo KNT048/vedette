@@ -10,7 +10,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { sessionStore } from '@/mocks/stores'
 import AiSettings from './AiSettings'
-import { activeDefs, builtinHookState, customHooksStore, runHooks } from './harness'
+import { activeDefs, builtinHookState, customHooksStore, knowledgeStore, runHooks } from './harness'
 import type { AskResult } from './types'
 
 void server
@@ -114,6 +114,17 @@ describe('Settings, AI assistant tabs', () => {
     const sel = await screen.findByLabelText('AI profile that builds the index')
     await userEvent.selectOptions(sel, 'p-haiku')
     expect(await screen.findByText(/leaves your network and goes to api\.anthropic\.com/)).toBeInTheDocument()
+  })
+  it('knowledge tab: a PDF is picked and uploaded; another type is refused on the page (S-AI-7, INV-10)', async () => {
+    renderAt('/settings/ai?tab=knowledge')
+    await userEvent.selectOptions(await screen.findByLabelText('AI profile that builds the index'), 'p-haiku')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Upload document' })).toBeEnabled())
+    const input = screen.getByTestId('kb-file')
+    await userEvent.upload(input, new File(['%PDF-1.4\n%fake but named right\n'], 'runbook.pdf', { type: 'application/pdf' }), { applyAccept: false })
+    await waitFor(() => expect(knowledgeStore.get().some((d) => d.name === 'runbook.pdf')).toBe(true))
+    expect(screen.queryByText(/cannot be added/)).toBeNull()
+    await userEvent.upload(input, new File(['x'], 'photo.png', { type: 'image/png' }), { applyAccept: false })
+    expect(await screen.findByText(/photo\.png cannot be added/)).toBeInTheDocument()
   })
 })
 

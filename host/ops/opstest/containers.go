@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/host/ops"
@@ -100,6 +101,7 @@ case "$1" in
     [ "$svc" = core ] && [ -e "$REC/mark.migrate-db" ] && [ "$(cat "$REC/mark.migrate-db")" = "$ud" ] && printf 'db: migrated' > "$CORE/vedette.db"
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
+    echo $(( $(cat "$S/$svc.gen" 2>/dev/null || echo 0) + 1 )) > "$S/$svc.gen"
     [ -e "$REC/mark.lock-containers" ] && chmod 500 "$STATE/containers"
     [ -e "$REC/mark.plant-aside-dir" ] && { rm -f "$CORE/vedette.db.rollback"; mkdir -p "$CORE/vedette.db.rollback"; }
     ;;
@@ -111,6 +113,7 @@ case "$1" in
     [ -e "$REC/mark.start-fails" ] && exit 1
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
+    echo $(( $(cat "$S/$svc.gen" 2>/dev/null || echo 0) + 1 )) > "$S/$svc.gen"
     ;;
   is-active)
     if [ -e "$S/$svc.active" ]; then echo active; exit 0; fi
@@ -134,7 +137,9 @@ if [ -s "$S/$svc.seq" ]; then
   health=$(head -n 1 "$S/$svc.seq"); tail -n +2 "$S/$svc.seq" > "$S/$svc.seq.tmp"; mv "$S/$svc.seq.tmp" "$S/$svc.seq"
 fi
 [ -e "$S/bad.$digest" ] && health=unhealthy
-printf '[{"Name":"%s","ImageDigest":"%s","Image":"%s","State":{"Status":"running","Running":true,"Health":{"Status":"%s"}}}]\n' "$3" "$digest" "${digest#sha256:}" "$health"
+gen=$(cat "$S/$svc.gen" 2>/dev/null || echo 0)
+cid=$(printf '%064x' "$gen"); started=$(printf '2026-11-11T00:00:00.%09dZ' "$gen")
+printf '[{"Name":"%s","Id":"%s","ImageDigest":"%s","Image":"%s","State":{"Status":"running","Running":true,"StartedAt":"%s","Health":{"Status":"%s"}}}]\n' "$3" "$cid" "$digest" "${digest#sha256:}" "$started" "$health"
 `
 
 // MigratesDatabaseOn makes a restart of core with that image digest replace core's database file by
@@ -222,6 +227,18 @@ func (m *Machine) SetRunning(service string, on bool) {
 	m.must(os.WriteFile(filepath.Join(d, service+".unit"), b, 0o600)) //nolint:gosec // test support: a path under the fake rec dir
 	m.must(os.WriteFile(run, nil, 0o600))
 	m.must(os.WriteFile(act, nil, 0o600))
+}
+
+// ContainerRestarted makes the fake podman report a new run (a new ID and StartedAt) of the service's container, as after a
+// restart systemd did on its own; the unit file and the running state stay as they are.
+func (m *Machine) ContainerRestarted(service string) {
+	m.t.Helper()
+	p := filepath.Join(m.ctr(), service+".gen")
+	n := 0
+	if b, err := os.ReadFile(p); err == nil { //nolint:gosec // test support: a path under the fake rec dir
+		n, _ = strconv.Atoi(strings.TrimSpace(string(b)))
+	}
+	m.must(os.WriteFile(p, []byte(strconv.Itoa(n+1)+"\n"), 0o600))
 }
 
 // IsRunning says whether the fake machine runs the service.
@@ -494,4 +511,11 @@ func (m *Machine) PresentBuilt(id, version string) {
 func (m *Machine) ImageRepoOnly() {
 	m.t.Helper()
 	m.must(os.WriteFile(filepath.Join(m.img(), "repoonly"), nil, 0o600))
+}
+
+// ConntrackSays makes the fake conntrack print text on stderr (where the real one prints "N flow entries have been
+// deleted") and exit with code.
+func (m *Machine) ConntrackSays(code int, text string) {
+	m.t.Helper()
+	m.writeFakeWith(ops.BinConntrack, "printf '%s\\n' '"+strings.ReplaceAll(text, "'", "")+"' >&2\nexit "+strconv.Itoa(code)+"\n")
 }

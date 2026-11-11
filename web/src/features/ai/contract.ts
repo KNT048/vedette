@@ -99,7 +99,7 @@ export const Skill = z.object({ id: z.string(), name: z.string(), what: z.string
 export const KnowledgeStatus = z.enum(['uploading', 'indexing', 'ready'])
 export const KnowledgeDoc = z.object({ id: z.string(), name: z.string(), size: z.number().int(), status: KnowledgeStatus, chunks: z.number().int().nullable().describe('null until the document is indexed'), jobs: z.array(AiJob), uploaded_at: iso })
 export const KnowledgeView = z.object({ index_profile: z.string().nullable().describe('AI profile id that builds the index; null = none chosen'), items: z.array(KnowledgeDoc) })
-export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size: z.number().int().min(1).describe('Bytes of the file; 10 MB at most. MD, TXT or DOCX'), content: z.string().min(1).describe('The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The box keeps only the text it finds in it, never the file'), jobs: z.array(AiJob).optional() })
+export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size: z.number().int().min(1).describe('Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX'), content: z.string().min(1).describe('The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The box keeps only the text it finds in it, never the file'), jobs: z.array(AiJob).optional() })
 export const KnowledgeSettings = z.object({ index_profile: z.string().nullable() })
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
 
@@ -148,7 +148,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/skills', summary: 'Product skills the AI uses, with the jobs that use them', stories: ['S-AI-7'], role: 'admin', response: z.object({ items: z.array(Skill) }) },
   { method: 'put', path: '/ai/skills/{id}', summary: 'Turn a skill on or off', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: z.object({ enabled: z.boolean() }), response: Skill },
   { method: 'get', path: '/ai/knowledge', summary: 'Knowledge base documents with indexing status, and the profile that builds the index', stories: ['S-AI-7'], role: 'admin', response: KnowledgeView },
-  { method: 'post', path: '/ai/knowledge', summary: 'Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background', stories: ['S-AI-7'], role: 'admin', body: KnowledgeInput, response: KnowledgeDoc },
+  { method: 'post', path: '/ai/knowledge', summary: 'Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background', stories: ['S-AI-7'], role: 'admin', body: KnowledgeInput, response: KnowledgeDoc },
   { method: 'put', path: '/ai/knowledge/settings', summary: 'Choose the AI profile that builds the index', stories: ['S-AI-7'], role: 'admin', body: KnowledgeSettings, response: KnowledgeView },
   { method: 'put', path: '/ai/knowledge/{id}', summary: 'Choose which jobs may use a document', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: KnowledgePatch, response: KnowledgeDoc },
   { method: 'delete', path: '/ai/knowledge/{id}', summary: 'Delete a document and its index', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), response: null },

@@ -1,0 +1,4 @@
+# fix/host-netns-ioctl (#349) — deferred
+- [ ] The honeypot path after the namespace check (configureHP sysctls + nft load, egressDropLoaded/hasEgressDrop on real `nft list ruleset`, failClosed listNS/dropOrphans, decoy links in vedette-hp) has never run on a real host; only fakes covered it. Proven by WP-08h step (d): honeypot + decoy re-run on 192.168.18.141 after the artifacts are rebuilt (install-test session).
+- [ ] Optional hardening from the review: isNetNS could also refuse /proc/1/ns/net, in case a future unit change moves vedette-host into another network namespace (today the unit sets no PrivateNetwork, so /proc/self = the box's own).
+- [ ] TestIsNetNSAcceptsAnotherNamespace skips where unprivileged user namespaces are blocked (AppArmor on Ubuntu 24.04+ runners); TestNSTypeReadsTheKernelsAnswer still covers the regression everywhere.

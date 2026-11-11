@@ -6997,7 +6997,7 @@ type AiPostAiKnowledgeReq struct {
 	Content string                         `json:"content"`
 	Jobs    []AiPostAiKnowledgeReqJobsItem `json:"jobs"`
 	Name    string                         `json:"name"`
-	// Bytes of the file; 10 MB at most. MD, TXT or DOCX.
+	// Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX.
 	Size int `json:"size"`
 }
 
@@ -14680,7 +14680,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 13 flows listed in PRIVACY.md.
+	// Exactly the 14 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -17827,7 +17827,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 13 flows listed in PRIVACY.md.
+	// Exactly the 14 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`

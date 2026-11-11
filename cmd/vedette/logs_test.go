@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -43,7 +45,7 @@ func TestWiringLogsSourcesLinesAndExport(t *testing.T) {
 	if err := svc.ExportDeviceLogs(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"line":"type=traffic srcip=10.0.0.1"`) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
-	if jobs := logsJobs(*s.d); len(jobs) != 3 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping || jobs[2].Name != "anomaly" || jobs[2].Housekeeping {
+	if jobs := logsJobs(*s.d); len(jobs) != 4 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping || jobs[2].Name != "anomaly" || jobs[2].Housekeeping || jobs[3].Name != "siem" || jobs[3].Housekeeping {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	box, err := (logsBox{*s.d}).Info(ctx)
@@ -105,4 +107,61 @@ func dialCtx(network, addr string) (net.Conn, error) {
 func listenPacket(network, addr string) (net.PacketConn, error) {
 	var lc net.ListenConfig
 	return lc.ListenPacket(context.Background(), network, addr)
+}
+
+// #266 item 2: the TLS seam. On a box that serves TLS, deps.SyslogTLS is the HTTPS listener's own certificate source (a renewal is picked
+// up: it is the same GetCertificate), without the HTTPS-only ALPN, TLS 1.2 or later, no client certificate; on a loopback box it is nil.
+func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
+	t.Parallel()
+	if got := syslogTLS(nil); got != nil {
+		t.Fatalf("no HTTPS TLS must give no syslog TLS, got %v", got)
+	}
+	dir := t.TempDir()
+	cfg, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
+	if err != nil || cfg == nil || renew == nil {
+		t.Fatalf("transport: cfg=%v renew=%v err=%v", cfg, renew, err)
+	}
+	got := syslogTLS(cfg)
+	if got == nil || got == cfg {
+		t.Fatalf("syslogTLS = %p, want a clone of %p", got, cfg)
+	}
+	if got.GetCertificate == nil || len(got.Certificates) != 0 {
+		t.Fatal("the box-made pair must be served through GetCertificate, so a renewal needs no restart")
+	}
+	c1, err := got.GetCertificate(&tls.ClientHelloInfo{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c2, err := cfg.GetCertificate(&tls.ClientHelloInfo{})
+	if err != nil || c1 != c2 {
+		t.Fatalf("the syslog listener and HTTPS serve different certificates (%p, %p, %v)", c1, c2, err)
+	}
+	if got.NextProtos != nil || got.MinVersion < tls.VersionTLS12 || got.ClientAuth != tls.NoClientCert {
+		t.Errorf("NextProtos=%v MinVersion=%x ClientAuth=%v", got.NextProtos, got.MinVersion, got.ClientAuth)
+	}
+	if cfg.NextProtos == nil {
+		t.Error("cloning must not change the HTTPS configuration")
+	}
+	lo, _, _, _, err := transport(options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
+	if err != nil || syslogTLS(lo) != nil {
+		t.Fatalf("a loopback box has no certificate: %v", err)
+	}
+}
+
+// D-210: logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses
+// (an install without vedette-host has nothing more to ask; a host that has not answered is an error, which logs answers by keeping its last set).
+func TestLogsNeverCountListsTheBox(t *testing.T) {
+	t.Parallel()
+	d := &deps{Hosts: []string{"198.51.100.77", "[2001:db8::77]", "box.example"}}
+	got, err := logsNeverCount(d)(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]bool{}
+	for _, a := range got {
+		have[a.String()] = true
+	}
+	if !have["198.51.100.77"] || !have["2001:db8::77"] || have["box.example"] {
+		t.Fatalf("%v", got)
+	}
 }

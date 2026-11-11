@@ -298,7 +298,7 @@ test.describe('users and roles', () => {
     const vis = { visible: true }
     await expect(page.getByRole('button', { name: /Disable Alex Admin/ }).filter(vis)).toBeDisabled()
     await page.getByLabel('Role of Alex Admin').filter(vis).selectOption('viewer')
-    await expect(page.getByText(/At least one active administrator must remain/).first()).toBeVisible()
+    await expect(page.getByText(/At least one active administrator who signs in with a password must remain/).first()).toBeVisible()
     await expect(page.getByLabel('Role of Alex Admin').filter(vis)).toHaveValue('admin')
     await page.getByRole('button', { name: 'Add user' }).click()
     await page.getByRole('button', { name: 'Create account' }).click()
@@ -452,14 +452,14 @@ test.describe('updates', () => {
 })
 
 test.describe('privacy', () => {
-  test('13 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
+  test('14 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
     await expect(h1(page)).toContainText('connects out only for the flows listed below')
     await expectAccessible(page, 'privacy')
     // table on desktop, list on a phone
-    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(13)
+    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(14)
     await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
     await shot(page, 'core', 'privacy')
     await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).toHaveCount(0)

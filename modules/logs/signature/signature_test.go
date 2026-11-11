@@ -19,7 +19,7 @@ func profileFS(files map[string]string) fstest.MapFS {
 const goodProfile = `{
   "id": "demo", "title": "Demo", "kinds": ["demo"],
   "rule": {"type": "kv", "fields": ["type", "action", "msg"], "mined": ["msg"], "src_field": "srcip", "dst_field": "dstip"},
-  "samples": [{"line": "type=traffic action=deny srcip=10.0.0.5 dstip=8.8.8.8", "signature": "type=traffic action=deny", "src": "10.0.0.5", "dest": "8.8.8.8"}]
+  "samples": [{"line": "type=traffic action=deny srcip=10.0.0.5 dstip=8.8.8.8", "signature": "type=traffic action=deny", "src": "10.0.0.5", "dest": "8.8.8.8", "remote": "10.0.0.5"}]
 }`
 
 func TestMineMasksIPsNumbersAndHex(t *testing.T) {
@@ -97,7 +97,7 @@ func TestLoaderRejectsBadProfiles(t *testing.T) {
 		"bad id":               {"demo.json": strings.Replace(goodProfile, `"id": "demo"`, `"id": "Demo!"`, 1)},
 		"unknown rule type":    {"demo.json": strings.Replace(goodProfile, `"kv"`, `"magic"`, 1)},
 		"sample mismatch":      {"demo.json": strings.Replace(goodProfile, `"signature": "type=traffic action=deny"`, `"signature": "something else"`, 1)},
-		"no samples":           {"demo.json": strings.Replace(goodProfile, `"samples": [{"line": "type=traffic action=deny srcip=10.0.0.5 dstip=8.8.8.8", "signature": "type=traffic action=deny", "src": "10.0.0.5", "dest": "8.8.8.8"}]`, `"samples": []`, 1)},
+		"no samples":           {"demo.json": strings.Replace(goodProfile, `"samples": [{"line": "type=traffic action=deny srcip=10.0.0.5 dstip=8.8.8.8", "signature": "type=traffic action=deny", "src": "10.0.0.5", "dest": "8.8.8.8", "remote": "10.0.0.5"}]`, `"samples": []`, 1)},
 		"same kind twice":      {"a.json": goodProfile, "b.json": strings.Replace(goodProfile, `"id": "demo"`, `"id": "demo2"`, 1)},
 		"same id twice":        {"a.json": goodProfile, "b.json": strings.Replace(goodProfile, `["demo"]`, `["other"]`, 1)},
 		"kv with a pattern":    {"demo.json": strings.Replace(goodProfile, `"mined"`, `"patterns": ["(?P<id>1)"], "mined"`, 1)},

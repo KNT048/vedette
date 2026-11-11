@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net/netip"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 )
@@ -33,7 +36,8 @@ func logsService(d deps) *logs.Service {
 	if s := logsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock}
+	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock,
+		Secrets: d.Secrets, BoxAddrs: notifyBoxAddrs(d.HostNet)} // the SIEM key is sealed; no SIEM may be at an address of the box (D-208 rule)
 	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
 		cfg.Events = d.Bus
 	}
@@ -41,12 +45,63 @@ func logsService(d deps) *logs.Service {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}
 	cfg.Syslog.Host = syslogHost
+	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}
+	if d.Bus != nil {
+		svc.Subscribe(d.Bus) // the handlers queue only while the forwarder job runs, i.e. while the module is on; the box lives as long as the process
+	}
 	logsServices[d.DB] = svc
 	return svc
+}
+
+// logsNeverCount is logs' Config.NeverCount: the addresses that the per-address counters never count, from the sources the box already has
+// for "is this the box" (core/conn's boxSources, response's responseBoxAddrs): what vedette-host reports for the appliance and the
+// decoys of the honeypot (an error while the host has not answered or the decoy record cannot be read: logs keeps its last set), plus the
+// container's own addresses, the container's gateway, the LAN default gateway from the host's network state and the -hosts literals. Subnets are not listed (an interface of the container may sit
+// on the LAN): only the addresses of the box itself.
+func logsNeverCount(d *deps) func(context.Context) ([]netip.Addr, error) {
+	host := notifyBoxAddrs(d.HostNet)
+	decoys := lateDecoys{d}
+	var state netStateReader
+	if d.HostSocket != "" {
+		state = hostclient.New(d.HostSocket)
+	}
+	return func(ctx context.Context) ([]netip.Addr, error) {
+		out, known := host()
+		var err error
+		if !known {
+			err = errHostNetUnknown
+		}
+		if more, derr := decoys.DecoyIPsRead(ctx); derr != nil {
+			err = derr
+		} else {
+			out = append(out, more...)
+		}
+		for _, p := range containerAddrs() {
+			out = append(out, p.Addr())
+		}
+		if g, ok := procGateway(); ok { // the container's gateway: the bridge of the host
+			out = append(out, g)
+		}
+		if state != nil { // the LAN default gateway, which only the host can see (host-api state/net default_route)
+			if st, serr := state.StateNet(ctx); serr != nil {
+				err = serr
+			} else if st.DefaultRoute != nil {
+				if g, perr := netip.ParseAddr(st.DefaultRoute.Gateway); perr == nil {
+					out = append(out, g)
+				}
+			}
+		}
+		for _, h := range d.Hosts {
+			if a, perr := netip.ParseAddr(strings.Trim(h, "[]")); perr == nil {
+				out = append(out, a)
+			}
+		}
+		return out, err
+	}
 }
 
 // logsJobs is the Jobs func of the logs entry in wiredModules.
@@ -117,4 +172,22 @@ func (b logsBox) Info(ctx context.Context) (logs.BoxInfo, error) {
 		}
 	}
 	return info, nil
+}
+
+// syslogTLS is the TLS configuration of the syslog-over-TLS listener (port 6514, D-203 (3), #266 item 2): the HTTPS listener's own,
+// cloned, so it presents the same certificate; the clone keeps the GetCertificate of a box-made pair, so a renewal (D-139) is picked up with
+// no restart, and the HTTPS-only parts (the "http/1.1" ALPN) are left behind. nil when the box serves no TLS (loopback or dev): there is
+// no certificate to serve, so nothing may listen for TLS. Only deps carries it: modules/logs does not read it yet (logs.Config has no field
+// for it; that is the module's change, with the 6514 listener and the lifting of the `tls_unavailable` refusal, .ai/deferred/feat-logs-l2-syslog.md).
+func syslogTLS(https *tls.Config) *tls.Config {
+	if https == nil {
+		return nil
+	}
+	c := https.Clone()
+	c.NextProtos = nil
+	c.ClientAuth = tls.NoClientCert
+	if c.MinVersion < tls.VersionTLS12 {
+		c.MinVersion = tls.VersionTLS12
+	}
+	return c
 }

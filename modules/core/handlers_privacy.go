@@ -26,6 +26,8 @@ type PrivacyFacts interface {
 	// ConnectionsConfigured: flow 12 (D-93), at least one enabled connection exists, so requests may go to the
 	// address an administrator typed. Core stores the connections itself from slice 13b-4; until then the binary says false.
 	ConnectionsConfigured(ctx context.Context) bool
+	// WazuhConnected: flow 14 (D-169 (12), D-309), a Wazuh server is saved in agent-intake, so the box pulls from it while the module is on.
+	WazuhConnected(ctx context.Context) bool
 }
 
 // The update check is on when absent from the stored setting. The anonymous signal is never on (D-82, D-154): nothing sends
@@ -52,9 +54,10 @@ func (h *APIHandlers) privacySetting(ctx context.Context, q *coredb.Queries) (pr
 }
 
 func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.CoreGetCorePrivacyOKFlowsItem {
-	aiConf, ntpPub, oidcConf, connConf := false, true, false, false
+	aiConf, ntpPub, oidcConf, connConf, wazuh := false, true, false, false, false
 	if h.facts != nil {
 		aiConf, ntpPub, oidcConf, connConf = h.facts.AIConfigured(ctx), h.facts.NTPPublic(ctx), h.facts.OIDCConfigured(ctx), h.facts.ConnectionsConfigured(ctx)
+		wazuh = h.facts.WazuhConnected(ctx)
 	}
 	state := func(on bool) oas.CoreGetCorePrivacyOKFlowsItemState {
 		if on {
@@ -89,6 +92,8 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 12, State: state(connConf), Control: rs}, // core cannot be turned off, so there is no module condition
 		// D-233: the box sends nothing itself; an agent the administrator connects reads by token, and where it sends that is its own business
 		{ID: 13, State: cond(h.reg.Enabled("mcp-server")), Control: rs},
+		// D-309: the pull runs only while agent-intake is on and a Wazuh server is saved; disconnect or turn the module off to stop it
+		{ID: 14, State: state(wazuh && h.reg.Enabled("agent-intake")), Control: rs},
 	}
 }
 

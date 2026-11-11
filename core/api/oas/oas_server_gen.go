@@ -173,8 +173,8 @@ type Handler interface {
 	AiPostAiHooksTest(ctx context.Context, req *AiPostAiHooksTestReq) (*AiPostAiHooksTestOK, error)
 	// AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 	//
-	// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
-	// background.
+	// Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it
+	// in the background.
 	//
 	// POST /ai/knowledge
 	AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (*AiPostAiKnowledgeOK, error)
@@ -404,7 +404,7 @@ type Handler interface {
 	CoreGetCoreOidc(ctx context.Context) (*CoreGetCoreOidcOK, error)
 	// CoreGetCorePrivacy implements core_get_core_privacy operation.
 	//
-	// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
+	// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
 	//
 	// GET /core/privacy
 	CoreGetCorePrivacy(ctx context.Context) (*CoreGetCorePrivacyOK, error)

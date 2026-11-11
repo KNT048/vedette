@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/logs/listen"
 	"github.com/knt048/vedette/modules/logs/signature"
@@ -40,6 +42,17 @@ type Config struct {
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
 	Events Publisher
+	// NeverCount lists the addresses that the address counters (TopAddresses) never count: the box's own addresses, its gateway and the
+	// honeypot's decoys, whatever an untrusted line says (D-210). Wiring passes the sources the box already has for "is this the box"
+	// (cmd/vedette). It is asked at most every 30 seconds with a short timeout. An error (a set that is not known yet, an unreadable decoy
+	// record) keeps the last set that was known, and the addresses it returned with the error are used only while there is none. Nil: none is
+	// listed (the loopback, unspecified, multicast, link-local and broadcast addresses are never counted in any case).
+	NeverCount func(ctx context.Context) ([]netip.Addr, error)
+	// Secrets seals the SIEM signing key (SYS-4). Required to save or read the SIEM configuration.
+	Secrets *secrets.Store
+	// BoxAddrs is the box's own addresses, which no SIEM may be at (SYS-7); known=false means the box does not know them yet, and then
+	// no connection is made (fail closed). Nil: no address is excluded (tests).
+	BoxAddrs func() (addrs []netip.Addr, known bool)
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -79,6 +92,22 @@ type Service struct {
 	snapMu  sync.Mutex
 	snap    *snapshot
 	snapGen uint64 // bumped by every dropSnapshot
+	// never is the answer of Config.NeverCount, asked again after neverCountTTL.
+	neverMu sync.Mutex
+	never   neverSet
+	// pend is the exact count of the addresses that have no row in the open buckets (addresses.go); pendMu guards it.
+	pendMu  sync.Mutex
+	pend    map[pendKey]pendVal
+	pendSeq uint64
+	// SIEM forwarding (siem*.go): the queue, whether the forwarder job runs, the configuration it works from (nil = not read yet or
+	// just changed) and the signal to read it again. allowLoopback is for tests only.
+	siemQ         *siemQueue
+	siemRunning   atomic.Bool
+	siemCache     atomic.Pointer[siemRow]
+	siemReload    chan struct{}
+	siemMu        sync.Mutex // makes "bump the generation and forget the cache" and "check the generation and store the cache" one step
+	allowLoopback bool
+	siemSendFn    func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -97,7 +126,7 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
 		return nil, fmt.Errorf("logs: creating service: %w", err)
 	}
-	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
@@ -134,6 +163,29 @@ func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
 			}
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// SourceName is the id, name and device kind of a declared source.
+type SourceName struct{ ID, Name, Kind string }
+
+// SourceNames lists the declared sources by creation time (id, name, kind) from logs_sources only: no inventory lookup, no volume read, no box
+// address. It is the narrow read for a caller that asks often (response, once a minute, to name the sources of its log rules); Sources is
+// the Logs page view and costs much more.
+func (s *Service) SourceNames(ctx context.Context) ([]SourceName, error) {
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, name, kind FROM logs_sources ORDER BY created_at, id`)
+	if err != nil {
+		return nil, fmt.Errorf("logs: reading sources: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []SourceName{}
+	for rows.Next() {
+		var n SourceName
+		if err := rows.Scan(&n.ID, &n.Name, &n.Kind); err != nil {
+			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		}
+		out = append(out, n)
 	}
 	return out, rows.Err()
 }

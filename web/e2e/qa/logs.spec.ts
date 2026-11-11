@@ -144,7 +144,7 @@ test.describe('logs: log sources (S-LOG-1)', () => {
     await find.fill('synology')
     await find.press('Enter')
     await expect(d.getByText('Device type: Synology DSM (Log Center)')).toBeVisible()
-    await expect(d.getByText(/Stored and searchable only/)).toBeVisible()
+    await expect(d.getByText(/Stored and searchable\./)).toBeVisible()
     await d.getByRole('button', { name: 'Change device type' }).click()
     await expect(find).toBeVisible()
   })

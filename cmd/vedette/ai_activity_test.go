@@ -46,6 +46,7 @@ func seedActivity(t *testing.T, s *stack, at time.Time, n int) ai.ActivityEntry 
 // The retention prune is wired: the ai job is registered, it prunes through core's chainhead.Prune, the log still verifies from the
 // anchor, and the export of the pruned log verifies on its own and says where the chain starts.
 func TestAIActivityPruneEndToEnd(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 11, 11, 3, 0, 0, 0, time.UTC)
 	s := newStackWith(t, func(d *deps) { d.Clock = func() time.Time { return now } })
 	var job func(context.Context) error

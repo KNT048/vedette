@@ -400,6 +400,11 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		return NewsResult{}, apierr.New(http.StatusNotFound, "unknown_cve", "This CVE is not on the exploited list the box holds, so the box has no source to fetch.")
 	}
 	facts.CVE = cve
+	unlock, err := s.news.lockCVE(ctx, cve)
+	if err != nil {
+		return NewsResult{}, err
+	}
+	defer unlock()
 
 	srcs := s.news.gather(ctx, facts)
 	har := s.harness.Load()
@@ -431,7 +436,13 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		}
 	}
 	if miss.Len() > 0 {
-		data = append(data, DataBlock{Kind: "sources", Source: "sources the box could not read", Text: miss.String()})
+		// The box's own words, but they hold hosts from untrusted links: checked by the hooks like the fetched blocks, left out if
+		// a hook stops them (the summary then just does not name the missing sources).
+		unread := []newsSource{{block: &DataBlock{Kind: "sources", Source: "sources the box could not read", Text: miss.String()}}}
+		s.newsHookCheck(ctx, har.runner, unread)
+		if unread[0].block != nil {
+			data = append(data, *unread[0].block)
+		}
 	}
 	var rules []string
 	for _, r := range har.rules {

@@ -7,9 +7,8 @@ import (
 )
 
 // unixDatagram is the network of a systemd notification: a client sends one datagram, nothing
-// listens. It is written in two parts so that the contract test that forbids network listeners
-// (which looks for the literal) does not take it for one.
-const unixDatagram = "unix" + "gram"
+// listens. It is a reviewed exception of the network-literal guard in modules/host (FORBID-2).
+const unixDatagram = "unixgram"
 
 // sdNotify tells systemd the host is ready (Type=notify, D-102 (1)): one datagram "READY=1" to the
 // socket named by NOTIFY_SOCKET, which systemd sets for a Type=notify unit. The unit of the

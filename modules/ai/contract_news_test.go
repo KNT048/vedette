@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -547,5 +548,115 @@ func TestContract_INV10_TheNewsCarriesNoKnowledge(t *testing.T) {
 	req := a.fake.lastRequest(t)
 	if user := req.Messages[0].Text; strings.Contains(user, "KBSECRET") || strings.Contains(user, "kind=document") {
 		t.Fatalf("a knowledge document reached the public news job: %s", user)
+	}
+}
+
+// The news job may run on a cloud profile whatever the privacy rule says, so it never receives what the box holds: not the memory of an
+// administrator and not a passage of a document of the knowledge base, even one assigned to every job (INV-3, INV-8, INV-10, S-AI-3).
+func TestContract_INV10_TheNewsNeverGetsAKnowledgeDocumentOrMemory(t *testing.T) {
+	a := newNewsAPI(t)
+	a.addMemory("Our NAS-PHOTOS holds the family photos")
+	a.kbIndexProfile()
+	a.kbAdd("photo-policy.md", []byte("# Photo Station\n\nThe Photo Station on NAS-PHOTOS is exposed through a port forward. QNAP updates are applied monthly.\n"), "[]") // [] = every job
+	a.news(200, "")
+	req := a.fake.lastRequest(t)
+	all := req.System + req.Messages[0].Text
+	for _, never := range []string{"kind=document", "kind=memory", "port forward", "family photos", "NAS-PHOTOS", "documents kept by an administrator"} {
+		if strings.Contains(all, never) {
+			t.Errorf("%q reached the provider of a public job", never)
+		}
+	}
+}
+
+// D-284 (1): two presses on one CVE at the same time fetch once and ask once; the second waits for the first and reads its result.
+func TestContract_INV6_TwoPressesAtOnceAskOnce(t *testing.T) {
+	a := newNewsAPI(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	a.fake.mu.Lock()
+	a.fake.onCall = func() { once.Do(func() { close(started); <-release }) } // the first call holds the provider until the second press waits
+	a.fake.mu.Unlock()
+	done := make(chan int, 2)
+	go func() { s, _, _ := a.do("POST", "/ai/cve/"+newsCVE+"/news", "operator", ""); done <- s }()
+	<-started
+	go func() { s, _, _ := a.do("POST", "/ai/cve/"+newsCVE+"/news", "operator", ""); done <- s }()
+	for deadline := time.Now().Add(5 * time.Second); a.svc.NewsCallsFor(newsCVE) < 2; runtime.Gosched() { // the second press waits on the lock
+		if time.Now().After(deadline) {
+			t.Fatal("the second press never reached the lock")
+		}
+	}
+	close(release)
+	for range 2 {
+		if s := <-done; s != 200 {
+			t.Fatalf("status %d", s)
+		}
+	}
+	if n := a.fake.total(); n != 1 {
+		t.Fatalf("%d AI calls for two presses at once", n)
+	}
+	nvd := 0
+	for _, r := range a.net.requests() {
+		if r.Host == "services.nvd.nist.gov" {
+			nvd++
+		}
+	}
+	if nvd != 1 {
+		t.Fatalf("NVD asked %d times", nvd)
+	}
+}
+
+// D-284 (2): GitHub's limit for requests without a key is remembered for a minute, per host: presses in that minute, for any CVE,
+// do not ask GitHub again.
+func TestNewsRateLimitIsRemembered(t *testing.T) {
+	a := newNewsAPI(t)
+	a.net.set("api.github.com/search/repositories", fakePage{status: http.StatusForbidden, header: map[string]string{"X-RateLimit-Remaining": "0"}})
+	github := func() int {
+		n := 0
+		for _, r := range a.net.requests() {
+			if r.Host == "api.github.com" {
+				n++
+			}
+		}
+		return n
+	}
+	a.news(200, "")
+	a.clock.Add(31 * time.Minute) // past both the fetch cache and the minute: GitHub is asked again
+	a.news(200, "")
+	if github() != 2 {
+		t.Fatalf("GitHub asked %d times across two presses 31 minutes apart", github())
+	}
+	a.clock.Add(30 * time.Second)
+	a.net.set("api.github.com/search/repositories", fakePage{body: ghBody})
+	src := sourcesOf(t, a.news(200, ""))
+	if github() != 2 || !strings.Contains(src["GitHub: search "+newsCVE]["note"].(string), "limit") {
+		t.Fatalf("GitHub asked %d times within the minute; source %v", github(), src["GitHub: search "+newsCVE])
+	}
+	// The limit is GitHub's, for the whole box: another CVE in the same minute does not ask either.
+	a.facts.mu.Lock()
+	other := a.facts.cves[newsCVE]
+	other.CVE = "CVE-2022-27594"
+	a.facts.cves[other.CVE] = other
+	a.facts.mu.Unlock()
+	a.do("POST", "/ai/cve/CVE-2022-27594/news", "operator", "") // the fake Internet has no page about it: only the GitHub count matters
+	if github() != 2 {
+		t.Fatalf("GitHub asked for another CVE within the minute (%d)", github())
+	}
+	a.clock.Add(31 * time.Second)
+	a.news(200, "")
+	if github() != 3 {
+		t.Fatalf("GitHub not asked again after the minute (%d)", github())
+	}
+}
+
+// D-284 (3): the box's own list of sources it could not read goes through the before-AI hooks like the fetched blocks: a hook that
+// stops it leaves it out, and the call goes on.
+func TestNewsHookLeavesOutTheUnreadSourcesList(t *testing.T) {
+	a := newNewsAPI(t)
+	a.addBlockHook("No source notes", "before_ai", "source skipped")
+	a.net.set("www.rapid7.com/rss.xml", fakePage{status: http.StatusServiceUnavailable})
+	a.news(200, "")
+	if user := a.fake.lastRequest(t).Messages[0].Text; strings.Contains(user, "source skipped") {
+		t.Fatalf("a hooked list was sent: %s", user)
 	}
 }

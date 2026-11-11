@@ -139,7 +139,7 @@
     "customHint": "entered by hand",
     "backToList": "Back to the list",
     "more_one": "{{count}} more match. Keep typing to narrow the list.",
-    "more_other": "{{count}} more match. Keep typing to narrow the list."
+    "more_other": "{{count}} more matches. Keep typing to narrow the list."
   },
   "import": {
     "open": "Import CSV",

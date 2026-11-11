@@ -24,7 +24,7 @@ func (h *APIHandlers) CoreGetCoreUsers(ctx context.Context) (*oas.CoreGetCoreUse
 	for _, u := range list {
 		it := oas.CoreGetCoreUsersOKItemsItem{
 			ID: u.ID, Name: u.Name, Email: u.Email, Role: oas.CoreGetCoreUsersOKItemsItemRole(u.Role), Twofa: u.TwofaMethod != "",
-			Disabled: u.Disabled, CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin),
+			Disabled: u.Disabled, CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin), SSO: u.SSO,
 			TwofaMethod: oas.NilCoreGetCoreUsersOKItemsItemTwofaMethod{Null: true},
 		}
 		if m, ok := methodOf(u); ok {
@@ -89,7 +89,7 @@ func (h *APIHandlers) CorePatchCoreUsersID(ctx context.Context, req *oas.CorePat
 	}
 	it := oas.CorePatchCoreUsersIDOKUser{
 		ID: u.ID, Name: u.Name, Email: u.Email, Role: oas.CorePatchCoreUsersIDOKUserRole(u.Role), Twofa: u.TwofaMethod != "",
-		Disabled: u.Disabled, CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin),
+		Disabled: u.Disabled, CreatedAt: u.CreatedAt, LastLogin: nilTime(u.LastLogin), SSO: u.SSO,
 		TwofaMethod: oas.NilCorePatchCoreUsersIDOKUserTwofaMethod{Null: true},
 	}
 	if m, ok := methodOf(u); ok {

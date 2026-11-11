@@ -82,6 +82,7 @@ func newLinkEnv(t *testing.T) *linkEnv {
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 2}}
 	e.note.approvers = map[string][]response.Approver{"email": {{UserID: "u-op", Address: "it@acme.example"}, {UserID: "u-op2", Address: "it2@acme.example"}}}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
+	e.linkAll()
 	return &linkEnv{env: e, links: fl}
 }
 
@@ -1055,6 +1056,7 @@ func TestContract_INV4_RejectReadsTheAccountAgain(t *testing.T) {
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 2}}
 	e.note.approvers = map[string][]response.Approver{"email": {{UserID: "u-op", Address: "it@acme.example"}}}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
+	e.linkAll()
 	l := &linkEnv{env: e, links: fl}
 	fu.mu.Lock()
 	fu.left = 1000 // rule creation and minting read the account too

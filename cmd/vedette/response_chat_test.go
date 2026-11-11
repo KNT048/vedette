@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -52,6 +53,16 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	}
 	if s.count(`SELECT count(*) FROM resp_log WHERE kind = 'refused' AND actor = '999 via telegram'`) != 1 || s.count(`SELECT count(*) FROM resp_block_entries`) != 0 {
 		t.Fatal("the refusal is not logged, or something ran")
+	}
+	// D-191: the person on the list has not linked the ID yet: nothing is decided, the private answer holds a link code, which Bao types in
+	// My account.
+	r, err = port.Decide(ctx, notify.Decision{Channel: channel.Telegram, ExternalID: "100200", RequestID: a.ID, Approve: true})
+	lc := regexp.MustCompile(`code (\d{6})`).FindStringSubmatch(r.Message)
+	if err != nil || r.Status != "approver_not_linked" || lc == nil {
+		t.Fatalf("unlinked: %+v %v", r, err)
+	}
+	if _, err := svc.ConfirmLink(ctx, response.Actor{ID: bao.ID, Email: "bao@acme.example", Via: response.ViaApp}, "telegram", lc[1]); err != nil {
+		t.Fatal(err)
 	}
 	// The person on the list decides, once.
 	r, err = port.Decide(ctx, notify.Decision{Channel: channel.Telegram, ExternalID: "100200", RequestID: a.ID, Approve: true})

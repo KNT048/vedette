@@ -1436,6 +1436,12 @@ type Handler interface {
 	//
 	// DELETE /response/catalog/{id}
 	ResponseDeleteResponseCatalogID(ctx context.Context, params ResponseDeleteResponseCatalogIDParams) error
+	// ResponseDeleteResponseMeIdentitiesChannel implements response_delete_response_me_identities_channel operation.
+	//
+	// Unlink my address on a channel: buttons and links from it stop counting until I link it again.
+	//
+	// DELETE /response/me/identities/{channel}
+	ResponseDeleteResponseMeIdentitiesChannel(ctx context.Context, params ResponseDeleteResponseMeIdentitiesChannelParams) error
 	// ResponseDeleteResponseRulesID implements response_delete_response_rules_id operation.
 	//
 	// Delete a rule.
@@ -1504,6 +1510,13 @@ type Handler interface {
 	//
 	// GET /response/log
 	ResponseGetResponseLog(ctx context.Context) (*ResponseGetResponseLogOK, error)
+	// ResponseGetResponseMeIdentities implements response_get_response_me_identities operation.
+	//
+	// My approver identities: each approval channel whose approver list names me, with the address,
+	// whether I linked it myself and how to link it (D-191).
+	//
+	// GET /response/me/identities
+	ResponseGetResponseMeIdentities(ctx context.Context) (*ResponseGetResponseMeIdentitiesOK, error)
 	// ResponseGetResponseMetrics implements response_get_response_metrics operation.
 	//
 	// Acceptance rate, time to approve and rejected requests, for the AI and for rules.
@@ -1623,6 +1636,20 @@ type Handler interface {
 	//
 	// POST /response/execution
 	ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (*ResponsePostResponseExecutionOK, error)
+	// ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
+	//
+	// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
+	// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
+	// button on an approval message.
+	//
+	// POST /response/me/identities/{channel}/code
+	ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (*ResponsePostResponseMeIdentitiesChannelCodeOK, error)
+	// ResponsePostResponseMeIdentitiesChannelConfirm implements response_post_response_me_identities_channel_confirm operation.
+	//
+	// Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it.
+	//
+	// POST /response/me/identities/{channel}/confirm
+	ResponsePostResponseMeIdentitiesChannelConfirm(ctx context.Context, req *ResponsePostResponseMeIdentitiesChannelConfirmReq, params ResponsePostResponseMeIdentitiesChannelConfirmParams) (*ResponsePostResponseMeIdentitiesChannelConfirmOK, error)
 	// ResponsePostResponseProposalsIDRequest implements response_post_response_proposals_id_request operation.
 	//
 	// Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is

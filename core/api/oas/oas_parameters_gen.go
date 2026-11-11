@@ -6820,6 +6820,91 @@ func decodeResponseDeleteResponseCatalogIDParams(args [1]string, argsEscaped boo
 	return params, nil
 }
 
+// ResponseDeleteResponseMeIdentitiesChannelParams is parameters of response_delete_response_me_identities_channel operation.
+type ResponseDeleteResponseMeIdentitiesChannelParams struct {
+	Channel string
+}
+
+func unpackResponseDeleteResponseMeIdentitiesChannelParams(packed middleware.Parameters) (params ResponseDeleteResponseMeIdentitiesChannelParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "channel",
+			In:   "path",
+		}
+		params.Channel = packed[key].(string)
+	}
+	return params
+}
+
+func decodeResponseDeleteResponseMeIdentitiesChannelParams(args [1]string, argsEscaped bool, r *http.Request) (params ResponseDeleteResponseMeIdentitiesChannelParams, _ error) {
+	// Decode path: channel.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "channel",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Channel = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z-]{1,20}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.Channel)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "channel",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ResponseDeleteResponseRulesIDParams is parameters of response_delete_response_rules_id operation.
 type ResponseDeleteResponseRulesIDParams struct {
 	ID string
@@ -7497,6 +7582,176 @@ func decodeResponsePostResponseApproveTokenParams(args [1]string, argsEscaped bo
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "token",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ResponsePostResponseMeIdentitiesChannelCodeParams is parameters of response_post_response_me_identities_channel_code operation.
+type ResponsePostResponseMeIdentitiesChannelCodeParams struct {
+	Channel string
+}
+
+func unpackResponsePostResponseMeIdentitiesChannelCodeParams(packed middleware.Parameters) (params ResponsePostResponseMeIdentitiesChannelCodeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "channel",
+			In:   "path",
+		}
+		params.Channel = packed[key].(string)
+	}
+	return params
+}
+
+func decodeResponsePostResponseMeIdentitiesChannelCodeParams(args [1]string, argsEscaped bool, r *http.Request) (params ResponsePostResponseMeIdentitiesChannelCodeParams, _ error) {
+	// Decode path: channel.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "channel",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Channel = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z-]{1,20}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.Channel)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "channel",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ResponsePostResponseMeIdentitiesChannelConfirmParams is parameters of response_post_response_me_identities_channel_confirm operation.
+type ResponsePostResponseMeIdentitiesChannelConfirmParams struct {
+	Channel string
+}
+
+func unpackResponsePostResponseMeIdentitiesChannelConfirmParams(packed middleware.Parameters) (params ResponsePostResponseMeIdentitiesChannelConfirmParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "channel",
+			In:   "path",
+		}
+		params.Channel = packed[key].(string)
+	}
+	return params
+}
+
+func decodeResponsePostResponseMeIdentitiesChannelConfirmParams(args [1]string, argsEscaped bool, r *http.Request) (params ResponsePostResponseMeIdentitiesChannelConfirmParams, _ error) {
+	// Decode path: channel.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "channel",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Channel = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^[a-z-]{1,20}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.Channel)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "channel",
 			In:   "path",
 			Err:  err,
 		}

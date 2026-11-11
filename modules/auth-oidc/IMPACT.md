@@ -1,22 +1,25 @@
 # Auth-OIDC — Change Impact Map
 
-> Chưa có mã Go (PR 2 của WP-27); chữ ký là kế hoạch (package `modules/authoidc`). Hợp đồng GUI đã chốt: `web/src/features/core/contract.ts` (D-194..D-196).
+> Package `modules/auth-oidc` (Go package `authoidc`), WP-27 PR 2 (D-194..D-197). Hợp đồng GUI: `web/src/features/core/contract.ts`.
 
-## Modifying: `OidcConfig` / `OidcSave` (GET/PUT `/core/oidc`)
-- **web/features/core (UsersSection)**: form SSO; đổi → sinh lại `api/openapi.json` + `make generate-api` + sửa mock.
-- **core (`auth-options`)**: chỉ đọc cờ "module bật và đã có issuer".
+## Modifying: `Service.Store(ctx, actor, origin, Save)` / `View(ctx, origin)` (PUT/GET `/core/oidc`)
+- **web/features/core (UsersSection)**: form SSO; đổi trường → sinh lại `api/openapi.json` + `make generate-api` + sửa mock.
+- **cmd/vedette `privacyFacts.OIDCConfigured`** đọc `Service.Configured`: luồng 11 của Privacy và `GET /core/auth-options` (nút SSO). Đổi nghĩa "đã cấu hình" → nút và trang Privacy đổi theo.
+- `Store` ghim `redirect_uri` theo nguồn của người lưu (INV-6): đổi cách tính → mọi hộp phải đăng ký lại địa chỉ ở IdP.
 
-## Modifying: `POST /auth/oidc/start`, `POST /auth/oidc/callback`
-- **web/app/LoginPage**, **web/features/core/SsoCallbackPage**, **ssoFlow.ts** (sessionStorage `vedette-sso-flow`). Đổi tên trường `binding` hay đường `/sso/callback` → `redirect_uri` đã đăng ký ở IdP của khách không còn khớp: mọi hộp đang chạy phải đăng ký lại.
+## Modifying: `Service.Start` / `Service.Callback` (POST `/auth/oidc/start`, `/auth/oidc/callback`)
+- **web/app/LoginPage**, **web/features/core/SsoCallbackPage**, **ssoFlow.ts** (sessionStorage `vedette-sso-flow`). Đổi tên trường `binding` hay đường `/sso/callback` → redirect URI đã đăng ký ở IdP của khách không còn khớp.
+- **core/auth `SSOSignIn`**: Callback chuyển (`iss`, `sub`, email, `email_verified`, name, vai) sau khi đã kiểm ID token. Đổi những gì được kiểm trước khi gọi → `core/auth` tin dữ liệu chưa kiểm (INV-1).
+- **modules/core codes/catalogue test**: mã lỗi mới phải có trong `docs/API_CONVENTIONS.md` (đếm theo mỗi bảng trạng thái).
 
-## Modifying: `Login.Callback(ctx, code, state, binding) (userID, error)` — 1 người gọi (route callback)
-- **core/session**: tạo phiên, ghi `auth.login`. Đổi lỗi/trả về → trang `/sso/callback` hiển thị sai; đổi cách lấy vai → quyền người dùng SSO đổi ở lần đăng nhập kế tiếp (test INV-7).
+## Modifying: `MapRole(groups, rows, def)` và `idClaims.groups(claim)`
+- Vai của mọi tài khoản SSO ở lần đăng nhập kế tiếp; đổi quy tắc (cao nhất, khớp đúng tên, bỏ nhóm > 256 ký tự, 200 nhóm đầu) → nâng/hạ quyền hàng loạt và kết thúc phiên của người bị đổi vai.
 
-## Modifying: `MapRole(groups []string, cfg) (Role, ok)`
-- **core/users**: vai hiển thị trong Users; đổi quy tắc chọn (cao nhất) → nâng/hạ quyền hàng loạt ở lần đăng nhập kế tiếp.
+## Modifying: `newClient` / `discover` (mọi lời gọi tới IdP)
+- INV-11: https, không chuyển hướng, 1 MiB, 10 s, danh sách thuật toán. Nới bất kỳ điều nào → `TestContract_INV11_Discovery` và rà bảo mật.
 
-## Modifying: interface của `core` cho tài khoản SSO (`EnsureSSOUser`, cờ `core_users.sso`)
-- **core/users**: luật quản trị viên cuối (chỉ tính tài khoản mật khẩu), chặn đặt lại/đổi mật khẩu, bật hai bước, đổi vai (409 `sso_user`); `AdminUser.sso`, `Account.user.sso`. Đổi khoá định danh (`iss`, `sub`) → nhân đôi người dùng hoặc gộp nhầm.
+## Depends on core (interface)
+- `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers`; `core/secrets` (purpose `oidc_config.client_secret`); `core/audit`; bảng `core_user.sso_issuer/sso_subject` (core sở hữu, migration core 0010).
 
 ## Disabling this module
-- Nút SSO biến mất; người đang đăng nhập bằng SSO giữ phiên đến hết hạn; tài khoản SSO không vào được tới khi bật lại (GUI nêu `sso_users` trước khi tắt). `oidc_config`, `oidc_identity` giữ nguyên; `oidc_flow` hết hạn tự nhiên.
+- Server trả 404 cho `/auth/oidc/*`, `/core/oidc*` (SYS-5); `auth-options.oidc=false`; không gọi IdP. Tài khoản SSO không vào được tới khi bật lại (GUI nêu `sso_users` trước khi tắt). `oidc_config` giữ nguyên; `oidc_flow` hết hạn và bị dọn ở lần `start` kế tiếp.

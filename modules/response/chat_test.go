@@ -61,6 +61,7 @@ func newChatEnv(t *testing.T) *chatEnv {
 	l.saveSettings(func(in *response.SettingsInput) {
 		in.ApprovalChannels = []string{"email", "slack", "telegram", "zalo-personal"}
 	})
+	l.linkAll()
 	return &chatEnv{l}
 }
 

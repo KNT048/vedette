@@ -12,7 +12,7 @@ const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1366, height:
 
 export default defineConfig({
   testDir: './e2e-real',
-  outputDir: 'test-results/real',
+  outputDir: process.env.E2E_OUT ?? 'test-results/real', // `make e2e-real` gives each run its own folder (two runs at once)
   timeout: 60_000,
   globalTimeout: 25 * 60_000,
   expect: { timeout: 8_000 },

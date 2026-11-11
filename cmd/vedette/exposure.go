@@ -9,6 +9,10 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
+// exposureTestConfig is a seam for the end-to-end box (cmd/vedette/e2eexposure_test.go, WP-30, #263): a test binary sets it to swap the
+// prober, the resolver and the scan runner for loopback fakes. It is nil in the production binary, which keeps the real ones.
+var exposureTestConfig func(*exposure.Config)
+
 var (
 	exposureMu       sync.Mutex
 	exposureServices = map[*store.DB]*exposure.Service{}
@@ -31,6 +35,9 @@ func exposureService(d deps) *exposure.Service {
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Log: d.Log, Clock: d.Clock}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
+	}
+	if exposureTestConfig != nil {
+		exposureTestConfig(&cfg)
 	}
 	svc, err := exposure.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve

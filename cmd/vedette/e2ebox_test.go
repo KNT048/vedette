@@ -424,6 +424,7 @@ func TestE2EBoxHarness(t *testing.T) {
 //	GET  /smtp          -> {"messages": ["<raw message>", ...]}, every message the sink received, oldest first
 //	POST /expire-codes  {"email": "..."} -> 204; the pending email code of that user is made to expire (the box has no fake clock, and the
 //	                    real lifetime is 10 minutes), by writing core_email_code.expires_at through a second connection to the box's database
+//	POST /exposure/prober, /exposure/txt, /exposure/scan: the exposure fakes (e2eexposure_test.go, #263)
 //
 // It fills ready.SMTPPort, Control and ControlToken. Everything here is in a _test.go file: the production binary has none of it.
 func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop func(), err error) {
@@ -467,6 +468,7 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop 
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+	e2eExposureRoutes(mux)
 	srv := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -482,6 +484,7 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop 
 		return nil, err
 	}
 	go func() { _ = srv.Serve(ln) }()
+	releaseExposure := e2eExposureFakes()
 	ready.Control, ready.ControlToken, ready.SMTPPort = "http://"+ln.Addr().String(), token, sink.port()
-	return func() { _ = srv.Close() }, nil
+	return func() { _ = srv.Close(); releaseExposure() }, nil
 }

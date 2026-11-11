@@ -260,7 +260,7 @@ func TestHoneypotJobsAndHostStandIn(t *testing.T) {
 	if err != nil || st.Available || st.Running || st.Reason == "" {
 		t.Fatalf("%+v %v", st, err)
 	}
-	if err := (notAnAppliance{}).StartContainer(t.Context()); err == nil {
+	if err := (notAnAppliance{}).StartContainer(t.Context(), false); err == nil {
 		t.Fatal("the stand-in started a container")
 	}
 	var _ honeypot.Host = notAnAppliance{}

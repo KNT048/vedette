@@ -115,7 +115,7 @@ func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 	if r.str("error", "method") != "app" || c.signedIn() {
 		t.Fatalf("twofa_required = %s", r.Raw)
 	}
-	bad := c.post("/auth/login", map[string]any{"email": "app@acme.example", "password": authtest.Password, "code": "000000"})
+	bad := c.post("/auth/login", map[string]any{"email": "app@acme.example", "password": authtest.Password, "code": authtest.WrongTOTP(secret, w.env.Clock.Now())})
 	wantStatus(t, bad, 400, "invalid_code")
 	if c.signedIn() {
 		t.Fatal("a wrong code created a session")
@@ -146,7 +146,7 @@ func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 	if strings.Contains(r.Raw, code) || strings.Contains(r.Raw, "preview_code") {
 		t.Fatal("the mailed code is in the response")
 	}
-	wantStatus(t, c3.post("/auth/login", map[string]any{"email": e.Email, "password": authtest.Password, "code": "000000"}), 400, "wrong_code")
+	wantStatus(t, c3.post("/auth/login", map[string]any{"email": e.Email, "password": authtest.Password, "code": authtest.WrongCode(code)}), 400, "wrong_code")
 	wantStatus(t, c3.post("/auth/login", map[string]any{"email": e.Email, "password": authtest.Password, "code": "12"}), 400, "invalid_code")
 	if c3.signedIn() {
 		t.Fatal("a wrong email code created a session")

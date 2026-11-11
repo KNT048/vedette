@@ -6,3 +6,7 @@
 - [ ] 2026-11-11 — L4: in the child write 1000 to /proc/self/oom_score_adj and raise nice, so the cgroup OOM killer picks the child, not core; consider maxActive = 1 (the indexer is serial); fold into the container check above — why later: LOW, needs the container unit — where: core/pdftext/child.go, deploy/containers
 - [ ] 2026-11-11 — L5: run `vedette pdftext` from the CGO_ENABLED=0 release build under the real unit and check the normal and hostile samples (testdata/child links only core/pdftext; start-up VSZ and thread model differ) — why later: needs the image — where: docs/INSTALL-CONTAINER.md
 - [ ] 2026-11-11 — L7: when fuzzing, fuzz `extract` in-process under -short with tiny inputs, not the binary — why later: LOW — where: core/pdftext/child.go
+- [ ] 2026-11-12 — (Opus r2 L-a) `withMarker` should also refuse text over 4 MiB after the marker (a wrongly registered child could pass marker + 4 MiB + 1 as success; the vedette child cannot).
+- [ ] 2026-11-12 — (Opus r2 L-b) the e2e-real box registers no child: when PDFs are wired, call `pdftexttest.BuildChild` there, or uploads end as `ErrNoChild` with 0 chunks.
+- [ ] 2026-11-12 — (Opus r2 L-c) Mlee's wiring: map `ErrNoChild` to a WARN + "ready, 0 chunks" too (add to the #324 comment).
+- [ ] 2026-11-12 — (Opus r2 L-d) depguard: `pdftexttest` only from `_test.go`; `SetChild`/`UseSelf` only from `cmd/vedette` and `pdftexttest`.

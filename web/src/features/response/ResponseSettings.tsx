@@ -160,7 +160,7 @@ export default function ResponseSettings() {
             </div>
             {s.execution ? <EmergencyStop /> : null}
           </Panel>
-          {s.breaker_tripped_at ? (
+          {s.breaker_tripped_at || s.stopped_at ? (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
               <span><span className="font-medium">{t('safety.tripped')}</span> {s.stopped_at ? t('safety.stoppedBody', { time: fmtDateTime(s.stopped_at) }) : t('safety.trippedBody', { max: s.breaker_max_per_hour, time: fmtDateTime(s.breaker_tripped_at), who: s.breaker_notified.join(', ') })}</span>
               <Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>

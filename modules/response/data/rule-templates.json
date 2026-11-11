@@ -12,7 +12,15 @@
         "live": false,
         "trigger": "honeypot",
         "match": "all",
-        "conditions": [],
+        "conditions": [
+          {
+            "field": "kind",
+            "op": "in",
+            "value": "service,token",
+            "n": null,
+            "window_min": null
+          }
+        ],
         "pre_approved": false,
         "max_per_hour": 5,
         "schedule_min": null,
@@ -289,7 +297,15 @@
         "live": false,
         "trigger": "honeypot",
         "match": "all",
-        "conditions": [],
+        "conditions": [
+          {
+            "field": "kind",
+            "op": "in",
+            "value": "service,token",
+            "n": null,
+            "window_min": null
+          }
+        ],
         "pre_approved": false,
         "max_per_hour": 5,
         "schedule_min": null,

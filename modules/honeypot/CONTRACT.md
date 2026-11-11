@@ -67,7 +67,7 @@
 | POST | `/honeypot/tokens/{id}/test` | operator | S-HP-2 |
 
 ## Tables owned
-`hp_config` (IP phụ, hostname, trạng thái bẫy, `ignored_7d`), `hp_hits` (+ `kind`, `source_ip`, `token_id`), `hp_decoys`, `hp_tokens`. Không module nào khác đọc trực tiếp (modules.md); `response` đọc `hp_hits` qua interface (IMPACT).
+`hp_config` (IP phụ, hostname, trạng thái bẫy, `ignored_7d`), `hp_hits` (+ `kind`, `source_ip`, `token_id`), `hp_decoys`, `hp_tokens`. Không module nào khác đọc trực tiếp (modules.md); `response` nhận hit qua sự kiện `honeypot.hit.created` (D-286), không đọc `hp_hits`.
 
 ## Events
 - **Phát**: `honeypot.hit.created` (tên 3 đoạn theo `core/events`, issue #62; `notify` đã nghe tên này). Chỉ cho hit thật **mới** (không phải mỗi kết nối), ngay sau khi commit của lô chứa nó; hit thử không phát gì (INV-4). Trường: `id, ts, kind, service, port, src_ip, label, decoy, src_asset_id` (`decoy` = tên thứ bị chạm: host name của bẫy, nhãn token, "Decoy sweep"; IP bẫy khi tên rỗng. `src_asset_id` = thiết bị inventory ở IP nguồn lúc lưu hit, rỗng khi không có; D-286).

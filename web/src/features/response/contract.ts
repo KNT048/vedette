@@ -226,7 +226,7 @@ export const LogKind = z.enum(['rule_fired', 'proposal', 'request', 'approved', 
 export const LogEntry = z.object({
   id, ts: z.string().describe('Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be re-encoded and break the hash'), kind: LogKind, actor: z.string(), detail: z.string(),
   prev_hash: z.string().describe('hash of the previous entry; 64 zeros for the first'),
-  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify([id, ts, kind, actor, detail])'),
+  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts exactly as served'),
 })
 export const LogList = z.object({ items: z.array(LogEntry).describe('Oldest first, so the chain can be checked from the start') })
 

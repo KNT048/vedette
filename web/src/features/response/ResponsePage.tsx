@@ -37,7 +37,7 @@ function Content() {
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
         meta={t('page.meta')}
         actions={<><SampleDataNote />{execution ? <EmergencyStop /> : null}</>} />
-      {s?.breaker_tripped_at ? (
+      {s?.breaker_tripped_at || s?.stopped_at ? (
         <div role="alert" className="mb-6 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('page.breakerTitle')}</p>
           <p>{s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link></p>

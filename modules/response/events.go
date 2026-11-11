@@ -2,6 +2,7 @@ package response
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/netip"
@@ -212,13 +213,16 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		return nil
 	}
 	ip = ip.Unmap()
+	if !s.honeypotRoom(ctx) {
+		return nil
+	}
 	var dev DeviceInfo
 	if e.SrcAssetID != "" && s.cfg.Directory != nil {
 		d, ok, err := s.cfg.Directory.Device(ctx, e.SrcAssetID)
-		if err != nil {
-			return err
-		}
-		if ok {
+		switch {
+		case err != nil: // the hit still counts; it only names no device
+			s.cfg.Log.WarnContext(ctx, "response: honeypot hit: the source device could not be read", "error", err)
+		case ok && d.IP == ip.String(): // the device may have moved since the hit was stored
 			dev = d
 		}
 	}
@@ -238,6 +242,36 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 	return s.StoreEvent(ctx, Det{ID: "honeypot:" + e.ID, Trigger: "honeypot", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
 		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300),
 		Fields:  map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}})
+}
+
+// maxHoneypotPerHour bounds the honeypot hits that reach the rules in one clock hour. A scan hit's source can be forged, so a LAN
+// host can make up to the honeypot's own cap (2000 new hits an hour) of them, and every hit a rule sees writes permanent lines to
+// the append-only logs. ponytail: a flat cap per hour, one log line when it is reached; upgrade path: coalesce the per-rule lines.
+const maxHoneypotPerHour = 60
+
+// honeypotRoom counts a honeypot hit against this hour's cap and reports whether it may reach the rules. The first hit over the
+// cap writes one line to the response log (never a silent loss); the hits stay on the honeypot page.
+func (s *Service) honeypotRoom(ctx context.Context) bool {
+	hour := s.now().Truncate(time.Hour)
+	s.hpMu.Lock()
+	if !s.hpHour.Equal(hour) {
+		s.hpHour, s.hpCount = hour, 0
+	}
+	s.hpCount++
+	n := s.hpCount
+	s.hpMu.Unlock()
+	if n <= maxHoneypotPerHour {
+		return true
+	}
+	if n == maxHoneypotPerHour+1 {
+		s.cfg.Log.WarnContext(ctx, "response: more honeypot hits than the hourly cap; the rest of this hour's hits do not reach the rules", "cap", maxHoneypotPerHour)
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "honeypot_cap: more than "+itoa(maxHoneypotPerHour)+" honeypot hits this hour; the rest of this hour's hits are on the Honeypot page but do not run the rules.", "system")
+		}); err != nil {
+			s.cfg.Log.WarnContext(ctx, "response: log the honeypot cap", "error", err)
+		}
+	}
+	return false
 }
 
 // message sends a notice to the alert channels, best effort: a failure is logged, never returned.

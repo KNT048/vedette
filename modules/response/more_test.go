@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -271,7 +272,7 @@ func TestHoneypotHitEvent(t *testing.T) {
 		e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: data}))
 	}
 	pub(map[string]any{"id": "hit-1", "ts": "2026-11-11T10:00:00.250Z", "kind": "service", "service": "ssh", "port": 22, "src_ip": "192.168.10.107", "label": "SSH", "decoy": "FILESRV-OLD", "src_asset_id": "a-pc"})
-	pub(map[string]any{"id": "hit-1", "kind": "service", "src_ip": "192.168.10.107"})                     // the same hit again: one event
+	pub(map[string]any{"id": "hit-1", "kind": "service", "src_ip": "192.168.10.107"})                              // the same hit again: one event
 	pub(map[string]any{"id": "hit-2", "kind": "token", "src_ip": "::ffff:192.168.10.9", "decoy": "Bait\naccount"}) // no rule matches a token
 	for _, bad := range []map[string]any{
 		{"id": "hit-3", "kind": "service", "src_ip": "192.168.10.107; reboot"},
@@ -296,6 +297,44 @@ func TestHoneypotHitEvent(t *testing.T) {
 	if sum.Requests != 1 || len(l) != 1 || l[0].Items[0].Change.CLI != "notify PC-HR-01 192.168.10.107 touched FILESRV-OLD by service" {
 		lg, _ := e.svc.Log(e.ctx())
 		t.Fatalf("summary %+v, requests %+v, log %+v", sum, l, lg)
+	}
+}
+
+// Review of #304 (D-286 (4)): the source of a port-scan hit can be forged, so a pre-approved rule asks a person for it; a service hit is
+// carried out. At most maxHoneypotPerHour hits an hour reach the rules, and the first one over writes one line to the log.
+func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	e.rule("Trap", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}},
+		func(in *response.RuleInput) { in.PreApproved = true })
+	pub := func(id, kind, ip string) {
+		e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: map[string]any{"id": id, "kind": kind, "src_ip": ip}}))
+	}
+	pub("hit-scan", "scan", "185.220.101.47")
+	pub("hit-svc", "service", "185.220.101.48")
+	_, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	got := map[string]response.ActionRequest{}
+	for _, a := range e.actions() {
+		got[a.Items[0].Title] = a
+	}
+	if len(got) != 2 {
+		t.Fatalf("requests: %+v", got)
+	}
+	for title, a := range got {
+		scan := strings.Contains(title, "185.220.101.47")
+		if scan && (a.Status != "pending" || a.PreApproved) || !scan && (a.Status == "pending" || !a.PreApproved) {
+			t.Errorf("%s: status %s, pre-approved %v", title, a.Status, a.PreApproved)
+		}
+	}
+	for i := 0; i < 70; i++ {
+		pub("flood-"+strconv.Itoa(i), "scan", "185.220.102."+strconv.Itoa(i))
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'honeypot'`); n != 60 {
+		t.Errorf("%d honeypot events stored this hour, want the cap of 60", n)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE detail LIKE 'honeypot_cap:%'`); n != 1 {
+		t.Errorf("%d cap lines in the log, want 1", n)
 	}
 }
 

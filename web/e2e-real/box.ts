@@ -6,6 +6,8 @@ import { expect, type APIRequestContext } from '@playwright/test'
 
 export interface Box {
   base_url: string; setup_code: string; data_dir: string; honeypot_dir: string
+  /** The control server of the box (slice 3): the SMTP sink's port and the bearer token for /smtp and /expire-codes. */
+  control: string; control_token: string; smtp_port: string
   /** The fake vedette-host's knobs and the second box with no host (slice 4, D-163). */
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
 }
@@ -82,4 +84,50 @@ export async function createUser(admin: APIRequestContext, request: APIRequestCo
   expect(first.status, `first sign-in of ${who.email}`).toBe(200)
   const changed = await api(request, 'POST', '/core/account/password', { current: made.body.temp_password, next: pw })
   expect(changed.status, `password change of ${who.email}: ${JSON.stringify(changed.body)}`).toBe(200)
+}
+
+// ---- the fakes that live in the box process (WP-30 slice 3): the SMTP sink behind the control server of cmd/vedette/e2ebox_test.go ----
+
+async function control(method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response> {
+  const b = box()
+  return fetch(`${b.control}${path}`, { method, headers: { Authorization: `Bearer ${b.control_token}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10_000) })
+}
+
+/** Every message the sink received, oldest first, as raw text. */
+export async function mailbox(): Promise<string[]> {
+  const r = await control('GET', '/smtp')
+  expect(r.status, 'GET /smtp on the control server').toBe(200)
+  return ((await r.json()) as { messages: string[] }).messages
+}
+
+/** The 6-digit sign-in codes mailed to one address so far, oldest first. */
+export async function codesFor(email: string): Promise<string[]> {
+  return (await mailbox()).filter((m) => m.toLowerCase().includes(email.toLowerCase())).flatMap((m) => /sign-in code is (\d{6})/.exec(m)?.[1] ?? [])
+}
+
+/** The code mailed to `email` after `seen` codes had already been read: polls until a new one arrives (the box mails it in the same request, so this is short). */
+export async function nextCode(email: string, seen: number): Promise<string> {
+  let codes: string[] = []
+  await expect.poll(async () => (codes = await codesFor(email)).length, { message: `a new code mailed to ${email}`, timeout: 15_000 }).toBeGreaterThan(seen)
+  return codes[codes.length - 1]!
+}
+
+/** Makes the pending email code of that user expire now (the box has no fake clock; the real lifetime is 10 minutes). */
+export async function expirePendingCode(email: string): Promise<void> {
+  const r = await control('POST', '/expire-codes', { email })
+  expect(r.status, `expire the pending code of ${email}: ${await r.text()}`).toBe(204)
+}
+
+/** Saves the email channel through notify's real API, pointed at the sink: a precondition of the email-code specs, not what they test. Idempotent. */
+export async function ensureEmailChannel(admin: APIRequestContext): Promise<void> {
+  const mod = await api<{ modules: { id: string; enabled: boolean }[] }>(admin, 'GET', '/modules')
+  if (!mod.body.modules?.find((m) => m.id === 'notify')?.enabled) {
+    const on = await api(admin, 'PATCH', '/modules/notify', { enabled: true, with_dependencies: true })
+    expect(on.status, `enable notify: ${JSON.stringify(on.body)}`).toBe(200)
+  }
+  const saved = await api(admin, 'PUT', '/notify/channels/email', {
+    enabled: true, min_severity: 'high', secret: 'relay-secret-for-e2e',
+    fields: { host: '127.0.0.1', port: box().smtp_port, security: 'none', username: 'alerts@e2e.test', from: 'alerts@e2e.test', to: 'it@e2e.test' },
+  })
+  expect(saved.status, `save the email channel: ${JSON.stringify(saved.body)}`).toBe(200)
 }

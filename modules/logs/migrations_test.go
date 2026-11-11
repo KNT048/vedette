@@ -27,11 +27,16 @@ var (
 		{regexp.MustCompile(`(?i)\binsert\s+or\s+replace\b`), "INSERT OR REPLACE overwrites rows"},
 		{regexp.MustCompile(`(?i)\bcreate\s+(temp\w*\s+)?trigger\b`), "a trigger changes what an older binary's statements do"},
 		{regexp.MustCompile(`(?i)\bcreate\s+unique\s+index\b`), "a unique index makes an older binary's inserts fail"},
+		{regexp.MustCompile(`(?i)\bif\s+not\s+exists\b`), "IF NOT EXISTS may find an older shape of the table and carry on: a migration creates what is not there"},
+		{regexp.MustCompile(`(?i)\b(attach|detach)\b`), "ATTACH reaches outside logs.db"},
 	}
 	pragma     = regexp.MustCompile(`(?i)\bpragma\b`)
 	checkWord  = regexp.MustCompile(`(?i)\bcheck\b`)
-	createTab  = regexp.MustCompile(`(?i)\bcreate\s+(?:temp\w*\s+)?table\s+(?:if\s+not\s+exists\s+)?([A-Za-z_]\w*)`)
+	createTab  = regexp.MustCompile(`(?i)\bcreate\s+(?:temp\w*\s+)?table\s+([A-Za-z_]\w*)`)
 	insertInto = regexp.MustCompile(`(?i)\binsert\s+(?:or\s+\w+\s+)?into\s+(\S+)`)
+	createIdx  = regexp.MustCompile(`(?is)^\s*create\s+index\s+[^(]*?\bon\s+[^(]*\((.*)\)\s*(?:where\b.*)?$`)
+	plainCol   = regexp.MustCompile(`(?i)^\s*(?:[A-Za-z_]\w*|""|\[\])(?:\s+collate\s+\w+)?(?:\s+(?:asc|desc))?\s*$`)
+	references = regexp.MustCompile(`(?i)\breferences\b`)
 	alterAdd   = regexp.MustCompile(`(?i)^\s*alter\s+table\s+\S+\s+add\s+column\s`)
 )
 
@@ -113,10 +118,38 @@ func addOnlyViolations(sql string) []string {
 				out = append(out, "ALTER TABLE may only ADD COLUMN: "+t)
 			} else if checkWord.MatchString(stmt) {
 				out = append(out, "a CHECK on an added column fails an older binary's writes: "+t)
+			} else if references.MatchString(stmt) {
+				out = append(out, "a REFERENCES on an added column ties the table to another: "+t)
+			}
+		}
+		if m := createIdx.FindStringSubmatch(stmt); m != nil {
+			for _, col := range splitTop(m[1]) {
+				if !plainCol.MatchString(col) {
+					out = append(out, "an index on an expression is not a column of the table an older binary reads: "+strings.TrimSpace(stmt))
+					break
+				}
 			}
 		}
 	}
 	return out
+}
+
+// splitTop splits an index's column list at the commas that are not inside parentheses.
+func splitTop(list string) []string {
+	var out []string
+	depth, from := 0, 0
+	for i, c := range list {
+		switch {
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+		case c == ',' && depth == 0:
+			out = append(out, list[from:i])
+			from = i + 1
+		}
+	}
+	return append(out, list[from:])
 }
 
 func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
@@ -157,6 +190,18 @@ func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
 		`INSERT OR REPLACE INTO logs_source_seen (source_id) VALUES ('a');`:                          false,
 		`CREATE TRIGGER logs_t AFTER INSERT ON logs_events BEGIN SELECT 1; END;`:                     false,
 		`CREATE UNIQUE INDEX logs_u ON logs_events (source_id, ts);`:                                 false,
+		// L-1 remainder (re-review of 4911f0e)
+		`CREATE TABLE IF NOT EXISTS logs_events (id INTEGER); INSERT INTO logs_events (id) VALUES (1);`: false,
+		`CREATE TABLE IF NOT EXISTS logs_q (a TEXT);`:                                                   false,
+		`CREATE INDEX IF NOT EXISTS logs_i ON logs_events (ts);`:                                        false,
+		`CREATE INDEX logs_j ON logs_events (json_extract(line, '$.a'));`:                               false,
+		`CREATE INDEX logs_k ON logs_events (lower(source_id));`:                                        false,
+		`CREATE INDEX logs_l ON logs_events (ts + 1);`:                                                  false,
+		`CREATE INDEX logs_m ON logs_events (source_id, ts DESC);`:                                      true,
+		`CREATE INDEX logs_n ON logs_events (source_id COLLATE NOCASE);`:                                true,
+		`ALTER TABLE logs_events ADD COLUMN s TEXT REFERENCES logs_sources (id);`:                       false,
+		`ATTACH DATABASE 'x.db' AS x;`:                                                                  false,
+		`attach 'x.db' as x; CREATE TABLE x.logs_t (a);`:                                                false,
 	} {
 		if got := len(addOnlyViolations(sql)) == 0; got != want {
 			t.Errorf("%q: add-only = %t, want %t (%v)", sql, got, want, addOnlyViolations(sql))

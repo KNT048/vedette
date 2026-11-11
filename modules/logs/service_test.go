@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -747,9 +748,14 @@ func TestPurgeKeepsLiveMarksAndAuditsTheCapAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.svc.maxBytes, e.svc.chunk = 3, 1 // five bytes of lines, one line per chunk: two lines go
+	chunks := 0
+	e.svc.afterChunk = func() { chunks++ }
 	res, err := e.svc.Purge(t.Context())
 	if err != nil || res.Over != 2 || res.Expired != 0 {
 		t.Fatalf("%+v %v", res, err)
+	}
+	if chunks != 2 { // L-6: the expired step must not run (even an empty delete is a transaction) when nothing is expired
+		t.Fatalf("%d delete transactions, want 2 (the two over-bound chunks only)", chunks)
 	}
 	if count(t, e.vol, `SELECT count(*) FROM logs_source_seen WHERE source_id = ?`, s.ID) != 1 {
 		t.Fatal("the mark of a source that exists was dropped")
@@ -1087,5 +1093,68 @@ func TestBackgroundPurgesStartAMinuteApart(t *testing.T) {
 	e.wait()
 	if n := started(); n != 2 {
 		t.Fatalf("%d purges started after the minute, want 2", n)
+	}
+}
+
+// N1: a batch committed between the last chunk and the end of the over-bound step is not drift: no warning, no recount.
+func TestPurgeOverBoundStopIsNotDriftWhenIngestCommitsMeanwhile(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	var logged bytes.Buffer
+	e.svc.cfg.Log = slog.New(slog.NewTextHandler(&logged, nil))
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "1", "2", "3", "4", "5")); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.purging.Store(true)          // Ingest below must not start a purge of its own
+	e.svc.maxBytes, e.svc.chunk = 3, 1 // keep 3: two chunks, the second one reaches it
+	calls := 0
+	e.svc.afterChunk = func() {
+		if calls++; calls == 2 { // right after the chunk that met the target
+			if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "x")); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+	if res, err := e.svc.Purge(t.Context()); err != nil || res.Over != 2 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if logged.Len() != 0 {
+		t.Fatalf("a normal stop was taken for drift: %s", logged.String())
+	}
+}
+
+// N2: the recount of the first job run reads the sum and the counter in one read transaction (the writer of logs.db is free
+// while the sum runs) and then applies only the difference, so a batch committed meanwhile is not lost.
+func TestFirstJobRunRecountsWithoutHoldingTheWriter(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "0123456789", "0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE logs_volume SET line_bytes = 1000`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ran := false
+	e.svc.afterSum = func() { // the sum is known and the reader is still open: the writer must be free
+		ran = true
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		if _, err := e.svc.Ingest(ctx, lines(s.ID, *e.clock, "hello")); err != nil {
+			t.Errorf("ingest while the recount sums: %v", err)
+		}
+	}
+	if err := Jobs(e.svc)[0].Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if !ran {
+		t.Fatal("the sum was not read in a read transaction of its own")
+	}
+	if got := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); got != 25 {
+		t.Fatalf("counter %d, want 25 (20 recounted + 5 ingested meanwhile)", got)
 	}
 }

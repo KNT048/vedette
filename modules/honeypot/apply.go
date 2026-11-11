@@ -199,6 +199,11 @@ func (s *Service) Apply(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	// One time budget for everything this Apply asks of the host: a host that is slow must not keep the run loop from
+	// reading the log (Poll runs in the same loop). What the budget cuts off is an unknown outcome, retried next Apply.
+	parent := ctx
+	ctx, cancelBudget := context.WithTimeout(ctx, hostBudget)
+	defer cancelBudget()
 	st, err := s.cfg.Host.Status(ctx)
 	if err != nil {
 		s.setHost(hostCache{reason: "the host does not answer"})
@@ -217,8 +222,8 @@ func (s *Service) Apply(ctx context.Context) error {
 		return errors.Join(errs...)
 	}
 	placed, refused, err := s.syncIPs(ctx, ips, filesOK)
-	if ctx.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
-		return errors.Join(append(errs, err, ctx.Err())...)
+	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
+		return errors.Join(append(errs, err, parent.Err())...)
 	}
 	if err != nil {
 		errs = append(errs, err)
@@ -277,6 +282,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 	have := map[netip.Addr]bool{}
 	var errs []error
 	refused = map[netip.Addr]string{}
+	unknown := map[netip.Addr]bool{} // asked, outcome unknown: on record, not placed, not a conflict
 	for _, p := range prev {
 		if a, err := netip.ParseAddr(p); err == nil {
 			have[a] = true
@@ -311,10 +317,16 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 			save()
 		}
 		if err := s.cfg.Host.AddDecoyIP(ctx, ip); err != nil {
-			refused[ip] = err.Error()
-			if ctx.Err() != nil { // unknown whether the host took it: keep it on record and stop asking
+			if ctx.Err() != nil || !errors.Is(err, ErrRefused) {
+				// Unknown whether the host took it (cancelled, out of time, busy, an answer lost): keep it on record so
+				// the teardown removes it, show no conflict, do not call it placed, and stop asking this Apply (the next
+				// one asks again). Treating this as a refusal would forget an address the host may hold (SYS-5).
+				// An address the host took at an earlier Apply stays placed: one slow answer must not stop the traps.
+				unknown[ip] = !wasHeld
+				errs = append(errs, fmt.Errorf("honeypot: decoy IP %s: %w", ip, err))
 				break
 			}
+			refused[ip] = err.Error()
 			if !wasHeld { // the host said no: it does not hold it
 				delete(have, ip)
 				save()
@@ -332,7 +344,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 		}
 	}
 	for _, ip := range want {
-		if have[ip] {
+		if have[ip] && !unknown[ip] {
 			placed = append(placed, ip)
 		}
 	}
@@ -367,8 +379,17 @@ func (s *Service) disable(ctx context.Context) error {
 			return err
 		}
 		if len(applied) > 0 || st.Running {
-			s.setHost(hostCache{reason: turningOff})
-			return errors.New("honeypot: the host is not available and may still hold decoy addresses or the container")
+			// The host answered (no error from Status) but cannot run the container, for example its unit is missing:
+			// the addresses it was handed can still be removed, and a decoy must not answer forever (M2). Done only when
+			// every one is gone and the container is not running.
+			var rerr error
+			if len(applied) > 0 {
+				_, _, rerr = s.syncIPs(ctx, nil, false)
+			}
+			if rerr != nil || st.Running {
+				s.setHost(hostCache{reason: turningOff})
+				return errors.Join(rerr, errors.New("honeypot: the host is not available and may still hold decoy addresses or the container"))
+			}
 		}
 		s.setHost(hostCache{reason: "the module is off"})
 		return nil
@@ -428,6 +449,10 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 
 // applyEvery is how often the state is applied again whatever happened.
 const applyEvery = time.Minute
+
+// hostBudget is the time one Apply may spend asking the host (its status, the addresses, the container). The loop
+// applies every applyEvery; a host that is slower than this is an unknown outcome, retried at the next Apply.
+const hostBudget = 2 * time.Minute
 
 // Run is the job of the module: it applies the state, then tails the OpenCanary log until ctx ends (the scheduler
 // cancels it when the module is switched off, SYS-5). It returns nil on cancellation.

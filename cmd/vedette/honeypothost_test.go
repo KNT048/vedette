@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,16 +24,21 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 	hostserver "github.com/knt048/vedette/host/server"
 	"github.com/knt048/vedette/host/server/servertest"
+	"github.com/knt048/vedette/modules/honeypot"
 )
 
 // The honeypot over the real vedette-host (D-161, WP-30 slice 8a): the real host server and the real client on a unix
 // socket, a fake machine under them (opstest), the module and the adapter as cmd/vedette wires them. Nothing here runs
 // a container or touches a network card.
 
-// hpProber says nothing else answers on the LAN.
-type hpProber struct{}
+// hpProber says nothing else answers on the LAN, after delay (the real ARP probe takes about 4 s).
+type hpProber struct{ delay time.Duration }
 
-func (hpProber) Probe(context.Context, string, netip.Addr) (ops.ProbeResult, error) {
+func (p hpProber) Probe(ctx context.Context, _ string, _ netip.Addr) (ops.ProbeResult, error) {
+	select {
+	case <-time.After(p.delay):
+	case <-ctx.Done():
+	}
 	return ops.ProbeResult{}, nil
 }
 func (hpProber) GatewayCheck(context.Context, string, netip.Addr, netip.Addr) error { return nil }
@@ -41,7 +49,11 @@ type hpHost struct {
 	h *servertest.Harness
 }
 
-func startHPHost(t *testing.T, noUnit bool) *hpHost {
+func startHPHost(t *testing.T, noUnit bool) *hpHost { return startHPHostWith(t, noUnit, false, 0) }
+
+// startHPHostWith can give the host its real limits (60 requests and 10 writes a minute for all of core, on a clock that
+// never advances, so nothing is ever forgiven) and a slow ARP probe.
+func startHPHostWith(t *testing.T, noUnit, realLimits bool, probeDelay time.Duration) *hpHost {
 	t.Helper()
 	m := opstest.NewMachine(t)
 	clock := servertest.NewClock(time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC))
@@ -59,11 +71,14 @@ func startHPHost(t *testing.T, noUnit bool) *hpHost {
 		d.Interfaces = func() ([]ops.HostIface, error) {
 			return []ops.HostIface{{Name: "eth0", MAC: "02:00:00:00:00:01", Addrs: []netip.Prefix{netip.MustParsePrefix("192.168.10.250/24")}}}, nil
 		}
-		d.Probe = hpProber{}
+		d.Probe = hpProber{delay: probeDelay}
 		d.NetPoll, d.NetWait, d.NetRetryGap = time.Millisecond, 30*time.Millisecond, time.Millisecond
 	})
 	h := servertest.Start(t, o.Commands(), func(op *hostserver.Options) {
 		op.StateDir, op.Readers, op.Now, op.WriteGate, op.Resume = m.State, o.Readers(), clock.Now, o.WriteGate, o.Resume
+		if realLimits {
+			op.RequestsPerMinute, op.WritesPerMinute = 60, 10
+		}
 	})
 	o.Start(context.Background(), h.Server)
 	t.Cleanup(o.Close)
@@ -72,7 +87,7 @@ func startHPHost(t *testing.T, noUnit bool) *hpHost {
 
 // adapter is the real adapter on this host's socket.
 func (e *hpHost) adapter() *honeypotHost {
-	return &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Millisecond, busyFor: 5 * time.Second, runFor: 30 * time.Second}
+	return &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
 }
 
 func (e *hpHost) decoyLinks() []string { return e.m.IPLinks("ns") }
@@ -196,7 +211,7 @@ func TestHoneypotOverTheRealHostEnableAndSwitchOff(t *testing.T) {
 	if ssh := field(t, o, "traps").([]any)[2].(map[string]any); ssh["state"] != "listening" {
 		t.Fatalf("ssh trap: %v", ssh)
 	}
-	// The files were written, so the first start restarted; an Apply with nothing new asks the host for no write at all;
+	// The files were written, so the first start restarted; an Apply with nothing new asks the host to add no address and to start nothing;
 	// a changed configuration restarts the container once so it reads it.
 	if n := e.systemctl("restart"); n != 1 {
 		t.Fatalf("%d restarts after the first Apply", n)
@@ -361,58 +376,76 @@ func (b *busyAPI) Run(ctx context.Context, command string, args any, requestID, 
 	return b.hostAPI.Run(ctx, command, args, requestID, actor)
 }
 
-// A busy host is waited for under one request id and the call then goes through; a host that stays busy past the bound
-// makes the call fail with a plain error and changes nothing, and the next call (the next loop) succeeds.
-func TestHoneypotHostBusyIsRetried(t *testing.T) {
+// A busy or rate-limiting host is not waited for and not spun on: one Run call, errHostBusy at once, no refusal, no
+// change; the next call (the next Apply) goes through.
+func TestHoneypotHostBusyIsNotSpunOn(t *testing.T) {
 	e := startHPHost(t, false)
 	ip := netip.MustParseAddr("192.168.10.240")
-
-	b := &busyAPI{hostAPI: e.h.Client, busy: 3}
-	a := &honeypotHost{api: b, log: testLogger(), poll: time.Millisecond, busyFor: 5 * time.Second, runFor: 30 * time.Second}
-	if err := a.AddDecoyIP(t.Context(), ip); err != nil {
-		t.Fatalf("add through a busy host: %v", err)
-	}
-	if b.calls != 4 || len(slices.Compact(slices.Clone(b.ids))) != 1 {
-		t.Fatalf("%d calls with ids %v: want 4 calls, one request id", b.calls, b.ids)
-	}
-	if got := e.decoyLinks(); len(got) != 1 {
-		t.Fatalf("links: %v", got)
-	}
-	if err := a.RemoveDecoyIP(t.Context(), ip); err != nil {
-		t.Fatal(err)
-	}
-
-	b = &busyAPI{hostAPI: e.h.Client, busy: -1} // busy for good
-	a = &honeypotHost{api: b, log: testLogger(), poll: time.Millisecond, busyFor: 30 * time.Millisecond, runFor: 30 * time.Second}
-	start := time.Now()
-	err := a.AddDecoyIP(t.Context(), ip)
-	if !errors.Is(err, errHostBusy) || !strings.Contains(err.Error(), "busy") {
-		t.Fatalf("a host that stays busy: %v", err)
-	}
-	if time.Since(start) > 2*time.Second || len(e.decoyLinks()) != 0 {
-		t.Fatalf("it took %v, links %v", time.Since(start), e.decoyLinks())
-	}
-	b.mu.Lock()
-	b.busy = 0
-	b.mu.Unlock()
-	if err := a.AddDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 1 {
-		t.Fatalf("the next call: %v, links %v", err, e.decoyLinks())
-	}
-
-	// A host that rate-limits (10 writes a minute) is waited for its Retry-After, inside the same bound.
-	b = &busyAPI{hostAPI: e.h.Client, rate: 1}
-	a = &honeypotHost{api: b, log: testLogger(), poll: time.Millisecond, busyFor: 10 * time.Second, runFor: 30 * time.Second}
-	if err := a.RemoveDecoyIP(t.Context(), ip); err != nil || b.calls != 2 || len(e.decoyLinks()) != 0 {
-		t.Fatalf("rate limited: %v after %d calls, links %v", err, b.calls, e.decoyLinks())
+	for name, mk := range map[string]func() *busyAPI{
+		"busy":         func() *busyAPI { return &busyAPI{hostAPI: e.h.Client, busy: 1} },
+		"rate limited": func() *busyAPI { return &busyAPI{hostAPI: e.h.Client, rate: 1} },
+	} {
+		b := mk()
+		a := &honeypotHost{api: b, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
+		start := time.Now()
+		err := a.AddDecoyIP(t.Context(), ip)
+		if !errors.Is(err, errHostBusy) || errors.Is(err, honeypot.ErrRefused) || b.calls != 1 || time.Since(start) > time.Second || len(e.decoyLinks()) != 0 {
+			t.Fatalf("%s: %v after %d calls in %v, links %v", name, err, b.calls, time.Since(start), e.decoyLinks())
+		}
+		if err := a.AddDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 1 {
+			t.Fatalf("%s: the next call: %v, links %v", name, err, e.decoyLinks())
+		}
+		if err := a.RemoveDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 0 {
+			t.Fatalf("%s: remove: %v", name, err)
+		}
 	}
 }
 
-// A run that does not end within runFor gives up with a plain error (the host goes on; the next call finds it busy and
-// waits for it), and a cancelled context is the caller's error, not a refusal.
+// With the host's real limits (60 requests and 10 writes a minute for all of core, the clock never advances) and a slow
+// ARP probe, adding several addresses, starting the container and the steady state of many Applies stay inside them:
+// a run is followed over its event stream, not polled, and addresses and container state are read once.
+func TestHoneypotHostStaysInsideTheHostLimits(t *testing.T) {
+	e := startHPHostWith(t, false, true, time.Second)
+	a := e.adapter()
+	ctx := t.Context()
+	for i := range 4 {
+		if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+i))); err != nil {
+			t.Fatalf("add %d: %v", i, err)
+		}
+	}
+	if err := a.StartContainer(ctx, true); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	for i := range 12 { // twelve Applies in steady state: a status read, every address already held, the container running
+		if st, err := a.Status(ctx); err != nil || !st.Running {
+			t.Fatalf("apply %d status: %+v %v", i, st, err)
+		}
+		for j := range 4 {
+			if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+j))); err != nil {
+				t.Fatalf("apply %d add: %v", i, err)
+			}
+		}
+		if err := a.StartContainer(ctx, false); err != nil {
+			t.Fatalf("apply %d start: %v", i, err)
+		}
+	}
+	if got := len(e.decoyLinks()); got != 4 {
+		t.Fatalf("%d links", got)
+	}
+	// What is left of the minute is still there for the rest of core (an OS check, net.confirm).
+	for range 10 {
+		if _, err := e.h.Client.StateContainers(ctx); err != nil {
+			t.Fatalf("the adapter used up the host's requests: %v", err)
+		}
+	}
+}
+
+// A run that does not end within runFor is an unknown outcome, not a refusal; a cancelled context is the caller's error.
 func TestHoneypotHostSlowRunAndCancel(t *testing.T) {
-	e := startHPHost(t, false)
-	a := &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Millisecond, busyFor: time.Second, runFor: time.Nanosecond}
-	if err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240")); err != nil && !errors.Is(err, errHostTooLong) {
+	e := startHPHostWith(t, false, false, 300*time.Millisecond) // the add is still running when the answer comes
+	a := &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Millisecond, runFor: time.Nanosecond}
+	err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240"))
+	if !errors.Is(err, errHostTooLong) || errors.Is(err, honeypot.ErrRefused) {
 		t.Fatalf("slow run: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -423,3 +456,79 @@ func TestHoneypotHostSlowRunAndCancel(t *testing.T) {
 }
 
 func testLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
+
+// breakingProxy forwards to the host's socket; while broken is set every read of a run (its stored state, its events)
+// answers 500, as a host that dies or a rate limit that bites after it accepted a command.
+func breakingProxy(t *testing.T, target string, broken *atomic.Bool) string {
+	t.Helper()
+	sock := filepath.Join(shortTemp(t), "p.sock")
+	rp := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.Out.URL = &url.URL{Scheme: "http", Host: "host", Path: r.In.URL.Path, RawQuery: r.In.URL.RawQuery}
+		},
+		Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", target)
+		}},
+		FlushInterval: -1,
+	}
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{ReadHeaderTimeout: time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if broken.Load() && strings.HasPrefix(r.URL.Path, "/v1/runs/") {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rp.ServeHTTP(w, r)
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	return sock
+}
+
+// H2 (SYS-5): the host accepted the add, then the follow-up reads failed: the outcome is unknown, not a refusal. The module
+// keeps the address on record and shows no conflict, so switching off still removes it and no decoy is left on the host.
+func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
+	e := startHPHost(t, false)
+	var broken atomic.Bool
+	s := newStackWith(t, func(d *deps) {
+		d.HoneypotDir, d.HostSocket = t.TempDir(), breakingProxy(t, e.h.Socket, &broken)
+		d.DataDir, d.KeyPath = t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	s.saveScope(t)
+	s.setModule("honeypot", true)
+	if code, b := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
+		t.Fatalf("%d %v", code, b)
+	}
+	if code, b := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
+		t.Fatalf("%d %v", code, b)
+	}
+	broken.Store(true)
+	if err := s.d.Honeypot.Apply(t.Context()); err == nil || errors.Is(err, honeypot.ErrRefused) {
+		t.Fatalf("Apply with a host whose answers are lost: %v", err)
+	}
+	deadline := time.Now().Add(10 * time.Second) // the run goes on at the host after core stopped following it
+	for len(e.decoyLinks()) != 1 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got := e.decoyLinks(); len(got) != 1 {
+		t.Fatalf("the host did take the address, links: %v", got)
+	}
+	_, o := s.do("GET", "/honeypot", "viewer", "")
+	if ssh := field(t, o, "traps").([]any)[2].(map[string]any); ssh["state"] == "conflict" || ssh["state"] == "listening" {
+		t.Fatalf("an unknown outcome shows as %v", ssh["state"])
+	}
+	s.setModule("honeypot", false)
+	teardown := honeypotEnsureOff(*s.d)
+	if err := teardown(t.Context()); err == nil {
+		t.Fatal("the teardown said done while it could not read what the host did")
+	}
+	broken.Store(false)
+	if err := teardown(t.Context()); err != nil {
+		t.Fatalf("teardown: %v", err)
+	}
+	if got := e.decoyLinks(); len(got) != 0 || strings.Contains(e.decoysFile(), "192.168.10.240") {
+		t.Fatalf("a decoy is left on the host after the teardown: links %v, %s", got, e.decoysFile())
+	}
+}

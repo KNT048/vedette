@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -82,18 +81,15 @@ func checkDocJobs(jobs []string) ([]string, error) {
 }
 
 // checkDocName tidies a file name and checks it: 1 to 120 characters, no slash, no control or invisible character, one of the four
-// types.
+// types (PDF, MD, TXT, DOCX).
 func checkDocName(name string) (string, string, error) {
 	name = tidy(name)
 	if n := utf8.RuneCountInString(name); n < 1 || n > 120 || strings.ContainsAny(name, `/\`) || auth.HasInvisible(name) {
 		return "", "", badInput("invalid_name", "The file name is missing or contains a slash.")
 	}
 	kind := docKind(name)
-	if strings.EqualFold(path.Ext(name), ".pdf") {
-		return "", "", badInput("invalid_type", "PDF is not supported yet. Save it as DOCX or text (TXT, MD) and upload that.")
-	}
 	if kind == "" {
-		return "", "", badInput("invalid_type", "Only MD, TXT and DOCX files can be added.")
+		return "", "", badInput("invalid_type", "Only PDF, MD, TXT and DOCX files can be added.")
 	}
 	return name, kind, nil
 }
@@ -259,7 +255,7 @@ func (s *Service) AddDoc(ctx context.Context, who string, in KnowledgeUpload) (K
 		return KnowledgeDoc{}, badInput("invalid_size", "The file arrived damaged or cut short. Pick it again.")
 	}
 	if err := sniffDoc(kind, data); err != nil {
-		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
+		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only PDF, MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
 	}
 	jobs := []string{"explain-finding", "ask-my-data"}
 	if in.Jobs != nil {
@@ -339,6 +335,9 @@ func (s *Service) index(ctx context.Context, id, name, kind string, data []byte)
 	switch {
 	case perr != nil:
 		action, detail = "ai.knowledge.failed", errReason(perr)
+		if errors.Is(perr, errDocNoReader) { // the binary is miswired (no child registered): an operator problem, not a bad file
+			s.cfg.Log.ErrorContext(ctx, "ai: no PDF reader is registered in this binary", "doc", id)
+		}
 	case len(chunks) == 0:
 		action, detail = "ai.knowledge.failed", errDocEmpty.Error()
 	case truncated:

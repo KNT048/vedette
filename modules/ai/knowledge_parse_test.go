@@ -35,7 +35,7 @@ func wordDoc(body string) []byte {
 }
 
 func TestDocKind(t *testing.T) {
-	for name, want := range map[string]string{"a.pdf": "", "A.PDF": "", "x.md": "md", "x.txt": "txt", "x.DOCX": "docx", "x.doc": "", "x": "", "x.pdf.exe": "", ".md": "md", "x.": ""} {
+	for name, want := range map[string]string{"a.pdf": "pdf", "A.PDF": "pdf", "x.md": "md", "x.txt": "txt", "x.DOCX": "docx", "x.doc": "", "x": "", "x.pdf.exe": "", ".md": "md", "x.": ""} {
 		if got := docKind(name); got != want {
 			t.Errorf("docKind(%q) = %q, want %q", name, got, want)
 		}

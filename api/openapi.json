@@ -3291,7 +3291,7 @@
       },
       "post": {
         "operationId": "ai_post_ai_knowledge",
-        "summary": "Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
+        "summary": "Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
         "tags": [
           "ai"
         ],
@@ -3315,7 +3315,7 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991,
-                    "description": "Bytes of the file; 10 MB at most. MD, TXT or DOCX"
+                    "description": "Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX"
                   },
                   "content": {
                     "type": "string",

@@ -189,8 +189,8 @@ func TestContract_INV10_UploadChecksInTheMocksOrder(t *testing.T) {
 		{"not base64", `{"name":"a.txt","size":5,"content":"%%%%%"}`, "invalid_size"},
 		{"too large", fmt.Sprintf(`{"name":"a.txt","size":%d,"content":"QQ=="}`, ai.MaxDocBytes+1), "too_large"},
 		{"jobs", kbBody("a.txt", ok, `["nope"]`), "invalid"},
-		{"pdf", kbBody("a.pdf", ok, ""), "invalid_type"},
-		{"PDF upper", kbBody("A.PDF", []byte("%PDF-1.4"), ""), "invalid_type"},
+		{"pdf that is text", kbBody("a.pdf", ok, ""), "invalid_content"},
+		{"PDF upper that is text", kbBody("A.PDF", []byte("%PD-1.4"), ""), "invalid_content"},
 		{"fake docx", kbBody("a.docx", ok, ""), "invalid_content"},
 		{"latin-1 text", kbBody("a.txt", []byte("caf\xe9 \xe0 la carte"), ""), "invalid_content"},
 		{"nul text", kbBody("a.md", []byte("a\x00b"), ""), "invalid_content"},
@@ -669,16 +669,6 @@ func TestKnowledgePrivacyTextsSayWhatIsSent(t *testing.T) {
 		if !strings.Contains(what, want) {
 			t.Errorf("privacy.flow.3.what lacks %q", want)
 		}
-	}
-}
-
-func TestKnowledgePDFIsRefusedWithAClearMessage(t *testing.T) {
-	a := newAPI(t)
-	a.kbIndexProfile()
-	_, m, raw := a.do("POST", "/ai/knowledge", "admin", kbBody("diagram.pdf", []byte("%PDF-1.4 x"), ""))
-	msg, _ := m["error"].(map[string]any)["message"].(string)
-	if errCode(m) != "invalid_type" || !strings.Contains(msg, "PDF is not supported yet") || !strings.Contains(msg, "DOCX") {
-		t.Fatalf("pdf upload = %s", raw)
 	}
 }
 

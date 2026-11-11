@@ -77,7 +77,15 @@ func (h *hostMACs) get(ctx context.Context, fresh bool) ([]string, error) {
 	for _, d := range st.Decoys {
 		out = append(out, strings.ToLower(d.MAC))
 	}
-	h.at, h.failedAt, h.last, h.infra = h.now(), time.Time{}, out, hostInfraOf(st)
+	infra := hostInfraOf(st)
+	if !hasGateway(infra) { // a lease being renewed or a pending net.apply has no default route for a moment: the gateway is still the gateway
+		for _, x := range h.infra {
+			if x.Kind == "gateway" {
+				infra = append(infra, x)
+			}
+		}
+	}
+	h.at, h.failedAt, h.last, h.infra = h.now(), time.Time{}, out, infra
 	return out, nil
 }
 
@@ -93,6 +101,15 @@ func (h *hostMACs) Infra(ctx context.Context) ([]response.HostInfra, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return append([]response.HostInfra(nil), h.infra...), nil
+}
+
+func hasGateway(l []response.HostInfra) bool {
+	for _, x := range l {
+		if x.Kind == "gateway" {
+			return true
+		}
+	}
+	return false
 }
 
 // hostInfraOf reads the kernel's default gateway and the gateway and DNS servers the host saved for the management card. With DHCP the

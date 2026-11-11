@@ -38,3 +38,41 @@ func TestD325_TheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
 		t.Fatal("an unreadable gateway/DNS source did not refuse (it must fail closed, not check a shorter list)")
 	}
 }
+
+// D-325 review (MEDIUM): the GUI sends back the whole list GET showed. The seeded entries come back unchanged and are not stored (a stored
+// copy would outlive a gateway that changed); GET shows one row per value; the same address under the administrator's own label is a
+// declared entry and stays.
+func TestD325_SavingTheShownListDoesNotStoreTheSeededEntries(t *testing.T) {
+	gw := netip.MustParseAddr("192.168.10.1")
+	e := newEnv(t, func(c *response.Config) {
+		c.HostInfra = func() ([]response.HostInfra, error) {
+			return []response.HostInfra{{Addr: gw, Kind: "gateway"}, {Addr: netip.MustParseAddr("192.168.10.53"), Kind: "dns"}}, nil
+		}
+	})
+	shown, err := e.svc.Allowlist(e.ctx())
+	e.must(err)
+	shown = append(shown, response.AllowEntry{Value: "198.51.100.0/24", Label: "Declared service"})
+	_, err = e.svc.SetAllowlist(e.ctx(), admin, shown)
+	e.must(err)
+	var stored int
+	e.must(e.db.Reader().QueryRowContext(e.ctx(), `SELECT count(*) FROM resp_allowlist`).Scan(&stored))
+	if stored != 1 {
+		t.Fatalf("%d rows stored, want only the declared one (the seeded entries were saved back)", stored)
+	}
+	_, err = e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.1", Label: "Core router"}})
+	e.must(err)
+	l, err := e.svc.Allowlist(e.ctx())
+	e.must(err)
+	n := 0
+	for _, x := range l {
+		if x.Value == "192.168.10.1" {
+			n++
+			if x.Label != "Core router" {
+				t.Errorf("the administrator's label was replaced: %q", x.Label)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("192.168.10.1 is shown %d times, want once", n)
+	}
+}

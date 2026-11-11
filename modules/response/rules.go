@@ -577,16 +577,18 @@ func (s *Service) Allowlist(ctx context.Context) ([]AllowEntry, error) {
 	return s.neverTouch(ctx, s.cfg.DB.Reader())
 }
 
-// SetAllowlist is PUT /response/allowlist: replace the declared entries. The box's own addresses are not stored: they
-// always count.
+// SetAllowlist is PUT /response/allowlist: replace the declared entries. The entries that count without being listed (the box's own
+// addresses and MACs, its gateway and DNS servers, the inventory's routers and firewalls) are not stored when they come back as GET showed
+// them (same value and label): the GUI sends back the whole list, and a stored copy would outlive a gateway that changed (D-325 review).
+// The same value under a label the administrator wrote is a declared entry and is kept.
 func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) ([]AllowEntry, error) {
-	box := map[string]bool{}
-	addrs, err := s.boxAddrs()
+	derived, err := s.derivedNeverTouch(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, e := range boxEntries(addrs) {
-		box[e.Value] = true
+	box := map[string]bool{}
+	for _, e := range derived {
+		box[e.Value+"\x00"+e.Label] = true
 	}
 	var clean []AllowEntry
 	seen := map[string]bool{}
@@ -599,7 +601,7 @@ func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) 
 			err = invalid("Each entry needs an IP address, CIDR range or domain, and a label of up to 80 characters (up to 100 entries).")
 			break
 		}
-		if seen[v] || box[v] {
+		if seen[v] || box[v+"\x00"+oneLine(e.Label, 80)] {
 			continue
 		}
 		seen[v] = true

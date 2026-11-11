@@ -89,17 +89,38 @@ var errNeverTouchUnread = errors.New("response: the never-touch list could not b
 var neverTouchGateways = []string{"router", "firewall"}
 
 // neverTouch is the declared list, the box's own addresses, the gateway and DNS servers the box uses, and every inventory router and
-// firewall (INV-10). Each source is read at every call. When one cannot be read the error wraps errNeverTouchUnread.
+// firewall (INV-10). Each source is read at every call. When one cannot be read the error wraps errNeverTouchUnread. A derived entry
+// whose value is already declared is not repeated (one row per value in GET /response/allowlist).
 func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 	l, err := loadAllow(ctx, q)
 	if err != nil {
 		return nil, err
 	}
+	derived, err := s.derivedNeverTouch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool, len(l)+len(derived))
+	for _, e := range l {
+		seen[e.Value] = true
+	}
+	for _, e := range derived {
+		if !seen[e.Value] {
+			seen[e.Value] = true
+			l = append(l, e)
+		}
+	}
+	return l, nil
+}
+
+// derivedNeverTouch is what counts as never-touch without being listed: the box's addresses and MACs, the gateway and DNS servers the
+// box uses (D-325) and the inventory's routers and firewalls.
+func (s *Service) derivedNeverTouch(ctx context.Context) ([]AllowEntry, error) {
 	box, err := s.boxAddrs()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
 	}
-	l = append(l, boxEntries(box)...)
+	l := boxEntries(box)
 	macs, err := s.boxMACs()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
@@ -148,7 +169,7 @@ func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 func (s *Service) neverTouchOrRefusal(ctx context.Context, q dbq) ([]AllowEntry, *apierr.Error, error) {
 	l, err := s.neverTouch(ctx, q)
 	if errors.Is(err, errNeverTouchUnread) {
-		return nil, fail(http.StatusConflict, "never_touch", "The never-touch list could not be read in full (this box's own addresses or the inventory are not available), so nothing was changed."), nil
+		return nil, fail(http.StatusConflict, "never_touch", "The never-touch list could not be read in full (this box's own addresses, its gateway and DNS servers, or the inventory are not available), so nothing was changed."), nil
 	}
 	return l, nil, err
 }

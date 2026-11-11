@@ -112,9 +112,14 @@ func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
 	if !slices.Equal(have, want) {
 		t.Fatalf("infra %v, want %v", have, want)
 	}
+	f.st = api.NetState{} // a moment with no default route (a lease renewing): the last gateways stay
+	now = now.Add(time.Minute)
+	if got, err := h.Infra(t.Context()); err != nil || len(got) != 2 || got[0].Kind != "gateway" {
+		t.Fatalf("an answer without a default route: %v, %v", got, err)
+	}
 	f.err = errors.New("host down")
 	now = now.Add(time.Minute)
-	if got, err := h.Infra(t.Context()); err != nil || len(got) != 3 {
+	if got, err := h.Infra(t.Context()); err != nil || len(got) != 2 {
 		t.Fatalf("after a failed refresh: %v, %v", got, err)
 	}
 	if _, err := (&hostMACs{r: f, now: func() time.Time { return now }}).Infra(t.Context()); err == nil {

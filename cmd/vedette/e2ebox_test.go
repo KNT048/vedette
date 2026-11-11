@@ -152,8 +152,6 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 		return err
 	}
 	seed.SyslogPort = strconv.Itoa(syslogPort)
-	defer func(prev string) { syslogHost = prev }(syslogHost)
-	syslogHost = "127.0.0.1" // the listener of the logs module binds this address only: a test box does not open a syslog port on the LAN
 	seed.DataDir, seed.HoneypotDir = data, hp
 	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &seed)
 	if err != nil {
@@ -171,6 +169,10 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	defer log.mu.Unlock()
 	return errors.Join(runErr, log.err)
 }
+
+// The listener of the logs module binds loopback only in this test binary: a test box does not open a syslog port on the LAN. Set once, before any box starts (two boxes
+// run in one process and read it from their own goroutines).
+func init() { syslogHost = "127.0.0.1" }
 
 // e2eFreePort returns a port that is free for both TCP and UDP on loopback right now (the syslog listener needs one number for both).
 func e2eFreePort() (int, error) {

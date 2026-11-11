@@ -126,7 +126,7 @@ func wiredModules() []moduleWiring {
 		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
-		{ID: "agent-intake", Migrations: agentintake.Migrations, Jobs: agentIntakeJobs, BodyLimits: agentintake.BodyLimits}, // depends on core and inventory (MANIFEST); node-prune is Housekeeping (D-160)
+		{ID: "agent-intake", Migrations: agentintake.Migrations, Jobs: agentIntakeJobs, BodyLimits: agentintake.BodyLimits}, // depends on core and inventory (MANIFEST); node-prune is a normal job (D-265 (8))
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},

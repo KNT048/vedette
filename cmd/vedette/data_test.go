@@ -96,6 +96,8 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 	publicByDecision := map[string]bool{
 		"core_audit.prev_hash": true, "core_audit.hash": true, "core_chain_anchor.last_pruned_hash": true, "core_chain_head.last_hash": true,
 		"resp_log.prev_hash": true, "resp_log.hash": true, "hp_hits.token_id": true,
+		// The id of the enrolment token a node belongs to (a row id, not the secret; the token's own hash is skipped).
+		"intake_osquery_nodes.token_id": true,
 		// The hash chain of the AI activity log (verifiable offline) and the hash of the inputs an AI result was made from: digests, not secrets.
 		"ai_activity.prev_hash": true, "ai_activity.hash": true, "ai_activity.input_hash": true, "ai_activity.output_hash": true, "ai_result.inputs_hash": true,
 		// Counts of tokens used (the log export keeps them too), not tokens as in credentials.

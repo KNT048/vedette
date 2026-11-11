@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
@@ -20,6 +21,10 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
+	// One machine is one address: the nodes bound to one source share a log bucket with the numbers of a single node (D-265 (2b)).
+	if ok, wait := s.node.allow(srcKey(src), "src", logPerMin); !ok {
+		return rateLimited(wait)
+	}
 	if !in.result {
 		return s.touch(ctx, n)
 	}
@@ -32,7 +37,42 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
 		return nil
 	}
-	return s.deliver(ctx, observe.AssetHint{IP: ip, MAC: mac}, mac, n.id, in)
+	// The hint is the TCP address only. The MAC is the node's own claim, and the inventory resolves a device by MAC first: with it in
+	// the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only, which the inventory
+	// refuses when another device owns that MAC (D-265 (4)).
+	return s.deliver(ctx, src.Unmap().WithZone(""), observe.AssetHint{IP: ip}, mac, n.id, in)
+}
+
+// sourceWindow is how often one source address may replace a software list (D-265 (2b)): one machine is one bound IPv4, so a
+// hundred nodes enrolled by one host cannot multiply the writer's work. Later lists in the window are dropped, not queued.
+const sourceWindow = 5 * time.Minute
+
+type replaceState struct {
+	last   time.Time
+	warned bool
+}
+
+// allowReplace says whether the source may replace a software list now; the first drop of a window is logged once.
+func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node string) bool {
+	now := s.now()
+	key := srcKey(src)
+	s.warnMu.Lock()
+	if len(s.replaced) > limiterKeys {
+		clear(s.replaced)
+	}
+	st := s.replaced[key]
+	if st == nil || now.Sub(st.last) >= sourceWindow {
+		s.replaced[key] = &replaceState{last: now}
+		s.warnMu.Unlock()
+		return true
+	}
+	warn := !st.warned
+	st.warned = true
+	s.warnMu.Unlock()
+	if warn {
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a second software list from one source address within 5 minutes was dropped", "src", key, "node", node)
+	}
+	return false
 }
 
 // binding is the anti-spoofing rule of D-169 (5): the inventory is written only for the device whose address is the one this connection
@@ -62,9 +102,15 @@ func binding(n nodeRow, src netip.Addr, in logIn) (ip netip.Addr, mac string, up
 // markResult stores that the node delivered a result log, and its new binding when the request had an interfaces result.
 func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac string, update bool) error {
 	ts := store.FormatTS(s.now())
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?, last_result_at = ? WHERE id = ?`, ts, ts, n.id); err != nil {
+	gone := false
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?, last_result_at = ? WHERE id = ?`, ts, ts, n.id)
+		if err != nil {
 			return fmt.Errorf("agentintake: mark node: %w", err)
+		}
+		if c, _ := r.RowsAffected(); c == 0 { // revoked or pruned since the key was read: this result is not taken
+			gone = true
+			return nil
 		}
 		if update {
 			var bip, bmac any
@@ -80,11 +126,15 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 		}
 		return nil
 	})
+	if err == nil && gone {
+		return errNodeInvalid
+	}
+	return err
 }
 
 // deliver hands the device facts and the package list to the inventory. An empty package list never replaces the stored one
 // (POST-2 of the plan): a node whose package table failed or is empty must not wipe what was known.
-func (s *Service) deliver(ctx context.Context, hint observe.AssetHint, mac, node string, in logIn) error {
+func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.AssetHint, mac, node string, in logIn) error {
 	if obs := observations(hint, in.snaps, mac); len(obs) > 0 {
 		if err := s.record(ctx, obs); err != nil {
 			return err
@@ -98,6 +148,9 @@ func (s *Service) deliver(ctx context.Context, hint observe.AssetHint, mac, node
 		if hasPackageQuery(in) {
 			s.cfg.Log.InfoContext(ctx, "agent-intake: an empty package list kept the stored one", "node", node)
 		}
+		return nil
+	}
+	if !s.allowReplace(ctx, src, node) {
 		return nil
 	}
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {

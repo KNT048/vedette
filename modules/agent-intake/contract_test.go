@@ -1,12 +1,17 @@
 package agentintake_test
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"net/netip"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store/storetest"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/core"
@@ -204,7 +209,7 @@ func TestContract_POST3_RevokeCutsNodesAndKeepsData(t *testing.T) {
 	if err := w.svc.RevokeToken(t.Context(), "admin@acme.example", id); err != nil {
 		t.Fatal(err)
 	}
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	for _, p := range []struct {
 		path string
 		body any
@@ -363,7 +368,7 @@ func TestContract_RateLimits(t *testing.T) {
 	if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 429 || r.header.Get("Retry-After") == "" {
 		t.Fatalf("seventh config in a minute: %d", r.code)
 	}
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	for i := 0; i < 12; i++ {
 		if r := w.post("/intake/osquery/log", peerA, logBody(key)); r.code != 200 {
 			t.Fatalf("log %d: %d", i, r.code)
@@ -497,7 +502,7 @@ func TestContract_INV12_Binding(t *testing.T) {
 		if w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE bound_ip = ? AND bound_mac = ?`, peerA, macA) != 1 {
 			t.Fatal("binding not stored")
 		}
-		w.clock.Advance(time.Minute)
+		w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 		// a later result without interfaces, from the same address: written
 		w.post("/intake/osquery/log", peerA, logBody(key, snap("deb_packages", debRow("openssh-server", "1:9.7p1-1"))))
 		d, _ := w.device(peerA)
@@ -505,7 +510,7 @@ func TestContract_INV12_Binding(t *testing.T) {
 			t.Fatalf("software after a result without interfaces: %+v", d.Software)
 		}
 		// the same key from another address (a copied key): nothing is written
-		w.clock.Advance(time.Minute)
+		w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 		w.post("/intake/osquery/log", "192.0.2.77", logBody(key, snap("deb_packages", debRow("openssh-server", "1:9.8p1-1"))))
 		d, _ = w.device(peerA)
 		if s, _ := swByProduct(d, "OpenSSH"); *s.Version != "9.7p1" {
@@ -515,7 +520,7 @@ func TestContract_INV12_Binding(t *testing.T) {
 			t.Fatal("a device appeared at the thief's address")
 		}
 		// an interfaces result that no longer holds the address clears the binding
-		w.clock.Advance(time.Minute)
+		w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 		w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, "10.1.1.1")), snap("deb_packages", debRow("openssh-server", "1:9.9p1-1"))))
 		d, _ = w.device(peerA)
 		if s, _ := swByProduct(d, "OpenSSH"); *s.Version != "9.7p1" {
@@ -531,7 +536,7 @@ func TestContract_INV12_Binding(t *testing.T) {
 		good := w.enroll(secret, "srv-1", peerA)
 		evil := w.enroll(secret, "evil", "192.0.2.66")
 		w.post("/intake/osquery/log", peerA, fullLog(good))
-		w.clock.Advance(time.Minute)
+		w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 		w.post("/intake/osquery/log", "192.0.2.66", logBody(evil, snap("interfaces", ifaceRow("52:54:00:ee:ee:01", peerA)), snap("deb_packages", debRow("openssh-server", "1:0.1-1"))))
 		d, _ := w.device(peerA)
 		if s, _ := swByProduct(d, "OpenSSH"); *s.Version != "9.6p1" {
@@ -549,7 +554,7 @@ func TestContract_INV7_DirtyRowsAndEmptyListNeverWipes(t *testing.T) {
 	_, secret := w.token("srv", 7)
 	key := w.enroll(secret, "srv-1", peerA)
 	w.post("/intake/osquery/log", peerA, fullLog(key))
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	// an empty deb list, an unknown query, a differential event, a status type, rows of the wrong type or with unclean text
 	hostile := logBody(key,
 		snap("interfaces", ifaceRow(macA, peerA)),
@@ -565,7 +570,7 @@ func TestContract_INV7_DirtyRowsAndEmptyListNeverWipes(t *testing.T) {
 	if len(d.Software) != 3 {
 		t.Fatalf("an empty list wiped the software: %d rows", len(d.Software))
 	}
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	dirty := logBody(key,
 		snap("interfaces", ifaceRow(macA, peerA)),
 		map[string]any{"name": "deb_packages", "action": "snapshot", "snapshot": []any{
@@ -596,7 +601,7 @@ func TestContract_INV7_DirtyRowsAndEmptyListNeverWipes(t *testing.T) {
 		t.Fatalf("a row with an unknown column was lost: %v", names)
 	}
 	// status lines are discarded, differential results ignored
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	st := map[string]any{"node_key": key, "log_type": "status", "data": []any{map[string]any{"message": strings.Repeat("m", 1000), "severity": 0}}}
 	if r := w.post("/intake/osquery/log", peerA, st); r.code != 200 || r.invalid() {
 		t.Fatalf("status log: %d %s", r.code, r.raw)
@@ -613,7 +618,7 @@ func TestContract_INV8_ManualSoftwareStays(t *testing.T) {
 	if _, err := w.inv.AddSoftware(t.Context(), "admin@acme.example", d.ID, inventory.AddInput{Vendor: "Veeam", Product: "Backup & Replication", Version: "12.1"}); err != nil {
 		t.Fatal(err)
 	}
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("deb_packages", debRow("htop", "3.3.0-4build1"))))
 	d, _ = w.device(peerA)
 	var manual, agent int
@@ -654,17 +659,18 @@ func TestContract_SYS5_ModuleOffIs404(t *testing.T) {
 		t.Fatal("data lost while off")
 	}
 	w.gate.Set("agent-intake", true)
-	w.clock.Advance(time.Minute)
+	w.clock.Advance(6 * time.Minute) // past the 5-minute window of one software replace per source address
 	if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 200 || r.invalid() {
 		t.Fatalf("after turning on again: %d %s", r.code, r.raw)
 	}
 }
 
-// The node-prune job: a node silent for 90 days goes, an expired token goes only when no node uses it; it is a Housekeeping job.
+// The node-prune job: a node silent for 90 days goes, an expired token goes only when no node uses it; it is a normal job (D-265 (8)),
+// and the 90 days count only while it runs unbroken.
 func TestContract_PruneRetention(t *testing.T) {
 	w := newWorld(t)
 	jobs := w.svc.Jobs()
-	if len(jobs) != 1 || jobs[0].Name != "node-prune" || jobs[0].Module != "agent-intake" || !jobs[0].Housekeeping {
+	if len(jobs) != 1 || jobs[0].Name != "node-prune" || jobs[0].Module != "agent-intake" || jobs[0].Housekeeping {
 		t.Fatalf("jobs %+v", jobs)
 	}
 	_, s1 := w.token("keeps-nodes", 1)
@@ -672,20 +678,14 @@ func TestContract_PruneRetention(t *testing.T) {
 	_ = s2
 	w.token("never", 0)
 	k := w.enroll(s1, "srv-1", peerA)
-	w.clock.Advance(31*24*time.Hour + 48*time.Hour)
-	if err := jobs[0].Run(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	w.pruneFor(33 * 24 * time.Hour)
 	if n := w.count(`SELECT count(*) FROM intake_agent_tokens`); n != 2 { // "no-nodes" is gone, "keeps-nodes" has a node, "never" never expires
 		t.Fatalf("%d tokens", n)
 	}
 	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 1 {
 		t.Fatalf("%d nodes", n)
 	}
-	w.clock.Advance(90 * 24 * time.Hour)
-	if err := w.svc.Prune(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	w.pruneFor(60 * 24 * time.Hour) // 93 days of an unbroken job in all
 	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 0 {
 		t.Fatalf("a node silent for 90 days stayed (%d)", n)
 	}
@@ -694,6 +694,150 @@ func TestContract_PruneRetention(t *testing.T) {
 	}
 	if n := w.count(`SELECT count(*) FROM intake_agent_tokens`); n != 1 { // the expired token lost its last node in the same run, so it went too; "never" stays
 		t.Fatalf("%d tokens", n)
+	}
+}
+
+// pruneFor runs node-prune every two hours of the manual clock for d, as the scheduler would while the module is on.
+func (w *world) pruneFor(d time.Duration) {
+	w.t.Helper()
+	for end := w.clock.Now().Add(d); w.clock.Now().Before(end); w.clock.Advance(2 * time.Hour) {
+		if err := w.svc.Prune(w.t.Context()); err != nil {
+			w.t.Fatal(err)
+		}
+	}
+	if err := w.svc.Prune(w.t.Context()); err != nil {
+		w.t.Fatal(err)
+	}
+}
+
+// MEDIUM-1: a box left off for more than 90 days keeps its nodes. The real scheduler does not run a normal job while its module is off,
+// and the first run after turning on starts the 90 days again, so no node is cut by the time the module was off.
+func TestContract_PruneModuleOffKeepsNodes(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 0)
+	key := w.enroll(secret, "srv-1", peerA)
+	w.gate.Set("agent-intake", false)
+	ran := make(chan struct{}, 4)
+	job := w.svc.Jobs()[0]
+	run := job.Run
+	job.Run = func(ctx context.Context) error { err := run(ctx); ran <- struct{}{}; return err } // signals when a run has finished
+	sched := jobs.New(slog.New(slog.DiscardHandler), w.gate, nil)
+	if err := sched.Add(job); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { sched.Run(ctx); close(done) }()
+	t.Cleanup(func() { cancel(); <-done })
+	w.clock.Advance(91 * 24 * time.Hour)
+	select {
+	case <-ran:
+		t.Fatal("node-prune ran while the module was off")
+	case <-time.After(500 * time.Millisecond):
+	}
+	w.gate.Set("agent-intake", true)
+	sched.ModuleChanged("agent-intake", true)
+	select {
+	case <-ran:
+	case <-time.After(5 * time.Second):
+		t.Fatal("node-prune did not run after the module was turned on")
+	}
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes`); n != 1 {
+		t.Fatalf("the time the module was off cut %d node(s) away", 1-n)
+	}
+	if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 200 || r.invalid() {
+		t.Fatalf("a node after the module came back: %d %s", r.code, r.raw)
+	}
+}
+
+// HIGH-1 (round 1 review): a node on its own IP that declares another device's MAC must not touch that device: not its IP, name,
+// software or KEV match. The MAC is a claim; the hint for the inventory is the connection's address only.
+func TestContract_INV12_MACClaimCannotWriteOnAnotherDevice(t *testing.T) {
+	w := newWorld(t)
+	const victimIP, victimMAC = "192.0.2.50", "52:54:00:de:ad:01"
+	hint := observe.AssetHint{IP: netip.MustParseAddr(victimIP), MAC: victimMAC}
+	if err := w.inv.Record(t.Context(), []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: "dc01", Source: observe.Agent, Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	err := w.inv.ReplaceSoftware(t.Context(), hint, observe.Agent, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, secret := w.token("srv", 7)
+	key := w.enroll(secret, "attacker", peerA)
+	w.post("/intake/osquery/log", peerA, logBody(key,
+		snap("interfaces", ifaceRow(victimMAC, peerA)),
+		snap("system_info", map[string]string{"hostname": "pwned"}),
+		snap("deb_packages", debRow("htop", "3.3.0-4build1"))))
+	v, ok := w.device(victimIP)
+	if !ok || v.MAC == nil || *v.MAC != victimMAC || v.Hostname == nil || *v.Hostname != "dc01" {
+		t.Fatalf("the victim was changed: %v mac=%v host=%v", ok, v.MAC, v.Hostname)
+	}
+	if s, ok := swByProduct(v, "OpenSSH"); !ok || len(s.Kev) != 1 || s.Kev[0] != "openbsd|openssh" || *s.Version != "8.0p1" || len(v.Software) != 1 {
+		t.Fatalf("the victim's software was replaced: %+v", v.Software)
+	}
+	a, ok := w.device(peerA)
+	if !ok {
+		t.Fatal("the attacker's own address has no device")
+	}
+	if a.MAC != nil && *a.MAC == victimMAC {
+		t.Fatal("the attacker's device took the victim's MAC")
+	}
+	if a.Hostname == nil || *a.Hostname != "pwned" {
+		t.Fatalf("what the node says about its own address is not recorded: %v", a.Hostname)
+	}
+	if _, ok := swByProduct(a, "htop"); !ok || w.deviceCount() != 2 {
+		t.Fatalf("attacker software %+v, %d devices", a.Software, w.deviceCount())
+	}
+}
+
+// MEDIUM-2: nodes enrolled by one machine share its address: one log bucket (12 a minute) and one software replace every 5 minutes.
+func TestContract_FiftyNodesOnOneAddressReplaceSoftwareOncePerWindow(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 7)
+	keys := make([]string, 50)
+	for i := range keys {
+		keys[i] = w.enroll(secret, fmt.Sprintf("node-%d", i), peerA)
+	}
+	send := func(i int) reply {
+		return w.post("/intake/osquery/log", peerA, logBody(keys[i], snap("interfaces", ifaceRow(macA, peerA)), snap("deb_packages", debRow(fmt.Sprintf("pkg-%d", i), "1.0-1"))))
+	}
+	products := func() []string {
+		d, _ := w.device(peerA)
+		var out []string
+		for _, s := range d.Software {
+			out = append(out, s.Product)
+		}
+		return out
+	}
+	for i := 0; i < 12; i++ {
+		if r := send(i); r.code != 200 {
+			t.Fatalf("log %d: %d %s", i, r.code, r.raw)
+		}
+	}
+	if got := products(); len(got) != 1 || got[0] != "pkg-0" {
+		t.Fatalf("software after 12 nodes: %v (only the first replace of the window may land)", got)
+	}
+	if r := send(12); r.code != 429 {
+		t.Fatalf("a 13th log from one address in a minute: %d", r.code)
+	}
+	if n := strings.Count(w.logs.String(), "second software list from one source address"); n != 1 {
+		t.Fatalf("%d warnings in one window, want 1", n)
+	}
+	w.clock.Advance(90 * time.Second) // the log bucket is free again, the replace window is not
+	if r := send(13); r.code != 200 {
+		t.Fatalf("log after the bucket emptied: %d", r.code)
+	}
+	if got := products(); len(got) != 1 || got[0] != "pkg-0" {
+		t.Fatalf("software inside the window: %v", got)
+	}
+	w.clock.Advance(6 * time.Minute)
+	send(14)
+	if got := products(); len(got) != 1 || got[0] != "pkg-14" {
+		t.Fatalf("software after the window: %v", got)
+	}
+	if strings.Contains(w.logs.String(), "pkg-1") {
+		t.Fatal("a package list reached the log")
 	}
 }
 

@@ -11,8 +11,9 @@ import (
 )
 
 // IntakeHandlers implement the public osquery operations of the module (CONTRACT "Endpoints owned"). The server answers 404 for all
-// of them while the module is off (SYS-5) and cuts the body at the caps of BodyLimits before these methods run. They never
-// return an error for a bad credential: that is HTTP 200 + node_invalid (INV-13); the 4xx are the server's (413, 400) and the 429 here.
+// of them while the module is off (SYS-5) and cuts the body at the caps of BodyLimits before these methods run. enroll, config
+// and log never return an error for a bad credential: that is HTTP 200 + node_invalid (INV-13); status answers 403 (D-265 (1)); the other
+// 4xx are the server's (413, 400) and the 429 here.
 type IntakeHandlers struct{ s *Service }
 
 // NewIntakeHandlers wraps the service; nil gives 501 for every operation (server.Fallback), like a module that is not wired.

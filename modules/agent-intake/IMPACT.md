@@ -32,10 +32,10 @@
 - Máy chủ khách đã cài: script chỉ chạy một lần; đổi **nội dung** thì SHA-256 trên GUI đổi (người dùng so lại), đổi **tham số** thì lệnh một dòng trong GUI + hướng dẫn gỡ phải sửa cùng lúc.
 - **core/updates**: gói osquery nằm trong `managed`; đổi phiên bản = đổi `osquery_version` trong `AgentsResponse.install`.
 
-## Modifying: job `node-prune` (`Prune`, Housekeeping, D-160)
-- Chạy cả khi module tắt (chỉ xoá dữ liệu quá hạn lưu, không mở route/cổng). Đổi 90 ngày (`NodeSilentDays`) hay 30 ngày = đổi lời hứa trong CONTRACT POST-4 và DATA_MODEL.
+## Modifying: job `node-prune` (`Prune`, job thường, D-265 (8))
+- Không chạy khi module tắt: khi tắt mọi máy đều "im" nên im lặng không được tính; chuỗi 90 ngày chỉ tính khi job chạy liền (bắt đầu lại sau khoảng tắt hoặc khởi động lại, trong bộ nhớ). Đổi sang Housekeeping = hộp tắt 90 ngày cắt mọi máy vĩnh viễn. Đổi 90 ngày (`NodeSilentDays`) hay 30 ngày = đổi lời hứa trong CONTRACT POST-4 và DATA_MODEL.
 
 ## Disabling this module
 - Mục Agents trong Inventory hiện "module đang tắt"; script cài và `/intake/*` trả 404 (cổng SYS-5, test `TestContract_SYS5_ModuleOffIs404`); osquery trên máy chủ khách nhận 404 ở config/log (osquery tự thử lại; rẻ, qua cổng); không đăng ký/báo được.
-- `inventory`: thiết bị nguồn `agent` không cập nhật nữa; phát hiện (findings) dựa trên gói cũ có thể lỗi thời, UI hiện tuổi dữ liệu. Token, máy, dữ liệu giữ nguyên (chỉ `node-prune` còn xoá dữ liệu quá hạn).
+- `inventory`: thiết bị nguồn `agent` không cập nhật nữa; phát hiện (findings) dựa trên gói cũ có thể lỗi thời, UI hiện tuổi dữ liệu. Token, máy, dữ liệu giữ nguyên (`node-prune` cũng dừng; thời gian tắt không tính vào 90 ngày im lặng).
 - `reports` (PDPL): mục nguồn kiểm kê không còn `agent` mới.

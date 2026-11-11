@@ -51,8 +51,13 @@ type Service struct {
 	fail *failLimiter
 	node *nodeLimiter
 
-	warnMu   sync.Mutex
+	warnMu   sync.Mutex // guards lastWarn and replaced
 	lastWarn map[string]time.Time
+	replaced map[string]*replaceState // by source address: the last software replace (ingest.go allowReplace)
+
+	pruneMu   sync.Mutex
+	pruneLast time.Time // the previous node-prune run; a long gap means the module was off (or the box down)
+	onSince   time.Time // the start of the current unbroken run of node-prune runs
 }
 
 // New returns the service.
@@ -66,7 +71,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}}
+	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
 	return s, nil

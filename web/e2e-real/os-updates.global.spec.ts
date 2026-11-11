@@ -67,25 +67,16 @@ test('a box that was never checked says so in words and with the right code, and
   noErrors(errors, /status of 4\d\d/)
 })
 
-// test.fail (D-171) 1: the operating system part of Settings -> Updates is drawn only after GET /core/updates (software updates) answers, and that
-// answers 501 (unbuilt, .ai/deferred/feat-core-os-updates.md:3). On the real box, with nothing stood in, the page is "Could not load data"
-// and the whole of S-CORE-7 is out of reach. Issue: https://github.com/KNT048/vedette/issues/230.
+// Issue #230 (fixed in #247): the operating system part of Settings -> Updates no longer waits for GET /core/updates (software updates, 501).
 test('without any stand-in, Settings -> Updates draws the operating system part', async ({ page }) => {
-  test.fail(true, 'GUI gap: the OS part waits for GET /core/updates, which answers 501 (issue #230, .ai/deferred/feat-core-os-updates.md:3)')
   await page.goto('/settings/updates')
   await expect(h1(page)).toBeVisible()
-  knownSymptom(await page.getByRole('alert').filter({ hasText: 'Could not load data' }).first().isVisible({ timeout: 8_000 }).catch(() => false))
   await expect(osHeading(page)).toBeVisible()
 })
 
-// test.fail (D-171) 2: on a box that was never checked the page shows only the error, and the error says "Click Check now" while the page has
-// no such button. Nothing checks by itself, so on a fresh box the OS part cannot be used from the GUI even once item 1 is fixed.
-// Issue: https://github.com/KNT048/vedette/issues/231, .ai/deferred/feat-core-os-updates.md:7 and :8.
+// Issue #231 (fixed in #247): a box that was never checked offers the Check now button its message talks about.
 test('on a box that was never checked the page offers the Check now button its message talks about', async ({ page }) => {
-  test.fail(true, 'GUI gap: no_check_yet shows an error with no Check now button (issue #231, .ai/deferred/feat-core-os-updates.md:7-8)')
   await open(page)
-  const said = await page.getByRole('alert').filter({ hasText: 'Click Check now.' }).first().isVisible({ timeout: 8_000 }).catch(() => false)
-  knownSymptom(said && (await page.getByRole('button', { name: 'Check now' }).count()) === 0)
   await expect(page.getByRole('button', { name: 'Check now' })).toBeVisible()
 })
 

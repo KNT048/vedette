@@ -73,7 +73,7 @@ Không dùng: Zeek, Suricata (D-43), builder trung tâm/Cloudflare/CDN (D-36), A
 
 ## 4. Bản đồ module
 
-Module bật/tắt riêng (D-10; `MODULES.md`, `rules/modules.md`): tắt = không route, không job, không cổng, dữ liệu giữ (SYS-5). Cột "Container" cho biết tiến trình thực chạy.
+Module bật/tắt riêng (D-10; `MODULES.md`, `rules/modules.md`): tắt = không route, không job, không cổng, dữ liệu giữ (SYS-5; trừ job xoá theo thời hạn lưu, D-160). Cột "Container" cho biết tiến trình thực chạy.
 
 | Module | Tier | Container | Phụ thuộc | Cổng/quyền | Story |
 |---|---|---|---|---|---|

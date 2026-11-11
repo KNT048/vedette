@@ -78,11 +78,8 @@ test('the Download backup button saves an archive of the box (a stored secret is
   noErrors(errors, /status of 4\d\d/)
 })
 
-// test.fail (D-171): the GUI names the file vedette-backup-<day>.json (DataSection.tsx, `download(path, file)`) but the backend sends a tar.gz
-// whose own name is in Content-Disposition (INV-19). Issue: https://github.com/KNT048/vedette/issues/232, .ai/deferred/feat-e2e-real-harness.md.
+// Issue #232 (fixed in #247): the saved file is named like the tar.gz the backend sends (INV-19).
 test('the saved file is named like the archive it is: vedette-backup-<day>.tar.gz', async () => {
-  test.fail(true, 'GUI gap: the file is saved as .json although it is a tar.gz (issue #232)')
-  knownSymptom(/^vedette-backup-\d{4}-\d\d-\d\d\.json$/.test(savedAs))
   expect(savedAs).toMatch(/^vedette-backup-\d{4}-\d\d-\d\d\.tar\.gz$/)
 })
 

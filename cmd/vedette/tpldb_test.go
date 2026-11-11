@@ -58,11 +58,11 @@ func openMigrated(ctx context.Context, path string, log *slog.Logger) (*store.DB
 	if err != nil {
 		return nil, err
 	}
-	b, err := os.ReadFile(tpl)
+	b, err := os.ReadFile(tpl) //nolint:gosec // tpl is the template this process made in its own temp directory
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, b, 0o600); err != nil {
+	if err := os.WriteFile(path, b, 0o600); err != nil { //nolint:gosec // path is a test's own t.TempDir() file
 		return nil, err
 	}
 	return store.Open(ctx, path, log)

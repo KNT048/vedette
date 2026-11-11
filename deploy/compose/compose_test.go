@@ -114,8 +114,13 @@ func TestEveryServiceIsHardenedLikeTheAppliance(t *testing.T) {
 			// uid 0 only for the host-network sensor with exactly NET_RAW: Docker gives an added capability only to root, Podman to any user
 			// (measured, D-168 (3)); D-114 (3) planned this fallback. Everything else runs as a non-root uid.
 			rootSensor := sname == "sensor" && s.NetworkMode == "host" && slices.Equal(s.CapAdd, []string{"NET_RAW"})
-			if u, _, _ := strings.Cut(s.User, ":"); u == "" || ((u == "0" || u == "root") && !rootSensor) {
+			u, g, _ := strings.Cut(s.User, ":")
+			if u == "" || ((u == "0" || u == "root") && !rootSensor) {
 				t.Errorf("%s: user %q must be a non-root uid (only the host-network sensor with cap_add [NET_RAW] may be 0)", where, s.User)
+			}
+			// uid 0 with every capability dropped has no DAC override: it reads core's sensor credentials (0640, 65532:65532) only through group 65532
+			if (u == "0" || u == "root") && g != "65532" {
+				t.Errorf("%s: user %q: the root sensor must run with group 65532 to read core's credentials (0640), got group %q", where, s.User, g)
 			}
 			if sname == "scan" && len(s.CapAdd) > 0 {
 				t.Errorf("%s: the scan worker has no nmap here and needs no capability, got cap_add %v", where, s.CapAdd)

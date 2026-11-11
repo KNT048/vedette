@@ -6997,7 +6997,7 @@ type AiPostAiKnowledgeReq struct {
 	Content string                         `json:"content"`
 	Jobs    []AiPostAiKnowledgeReqJobsItem `json:"jobs"`
 	Name    string                         `json:"name"`
-	// Bytes of the file; 10 MB at most. MD, TXT or DOCX.
+	// Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX.
 	Size int `json:"size"`
 }
 

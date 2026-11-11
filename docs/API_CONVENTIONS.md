@@ -239,7 +239,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_timezone` | 400 | The time zone is not in the list. | `PUT /core/general` |
 | `invalid_to` | 400 | The end of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T23:59:59Z. | `GET /core/audit`; `GET /core/audit/export`. Như `invalid_from` |
 | `invalid_tool_access` | 400 | Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed. | `POST /core/connections`; `PUT /core/connections/{id}` |
-| `invalid_type` | 400 | Only MD, TXT and DOCX files can be added. (a .pdf: PDF is not supported yet. Save it as DOCX or text (TXT, MD) and upload that.) | `POST /ai/knowledge` |
+| `invalid_type` | 400 | Only PDF, MD, TXT and DOCX files can be added. | `POST /ai/knowledge` |
 | `invalid_url` | 400 | Use an https:// address (http:// is only allowed for internal addresses). | `PUT /feeds/sources/{id}` |
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
 | `invalid_when` | 400 | Pick when the hook runs: before sending to the AI, after the AI answers, or before a tool call. | `POST /ai/hooks/test`; `POST /core/updates/os/reboot` |

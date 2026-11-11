@@ -235,8 +235,11 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 	if len(events) != len(dedupe(in.Events)) {
 		return SiemView{}, apierr.New(400, "bad_events", "Choose at least one event type to forward.")
 	}
-	if in.Secret != "" && (utf8.RuneCountInString(in.Secret) < minSiemKey || len(in.Secret) > 512 || siemText(in.Secret, 512) != in.Secret) {
+	if in.Secret != "" && utf8.RuneCountInString(in.Secret) < minSiemKey {
 		return SiemView{}, apierr.New(400, "bad_secret", "The signing key needs at least 16 characters. Press Generate if you want a random one.")
+	}
+	if in.Secret != "" && (len(in.Secret) > 512 || siemText(in.Secret, 512) != in.Secret) {
+		return SiemView{}, apierr.New(400, "bad_secret", "The signing key can be at most 512 bytes, with no control characters and no space at either end.")
 	}
 	if s.cfg.Secrets == nil {
 		return SiemView{}, errors.New("logs: saving the SIEM configuration: no secret store is wired")

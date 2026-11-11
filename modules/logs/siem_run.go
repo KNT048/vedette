@@ -124,8 +124,8 @@ func (q *siemQueue) droppedCount() uint64 {
 // destination or a class that was just switched off) and the job reads the new one.
 func (s *Service) siemChanged() {
 	s.siemMu.Lock()
-	s.siemQ.reset() // records queued for the old setting are not sent to a new destination, and none built for it is added
-	s.siemCache.Store(nil)
+	s.siemCache.Store(nil) // first: a handler that reads the new generation then reads no configuration
+	s.siemQ.reset()        // records queued for the old setting are not sent to a new destination, and none built for it is added
 	s.siemMu.Unlock()
 	select {
 	case s.siemReload <- struct{}{}:
@@ -251,16 +251,19 @@ func (s *Service) runSiem(ctx context.Context) error {
 				continue
 			}
 			backoff = 0
-		}
-		select { // a reload signal that arrived with the cache already fresh is spent
-		case <-s.siemReload:
-		default:
+			select { // a reload signal that arrived before this read is spent; one that arrives later finds the cache nil
+			case <-s.siemReload:
+			default:
+			}
 		}
 		lastDrop, lastAudit = s.reportDrops(ctx, lastDrop, lastAudit)
 		cfg := s.siemCache.Load()
 		var recs []siemRecord
 		var upTo uint64
-		if cfg != nil && cfg.Enabled {
+		if cfg == nil { // a save came in since the check above: read again, do not sleep
+			continue
+		}
+		if cfg.Enabled {
 			recs, upTo = s.siemQ.peek(siemBatch)
 		}
 		if len(recs) == 0 {

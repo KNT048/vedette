@@ -72,6 +72,9 @@ type deps struct {
 	HostNet *hostNetCache
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
 	CertKick func()
+	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
+	// module is off or the job runs. Never nil in serve.
+	Wake func(module, job string)
 
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.

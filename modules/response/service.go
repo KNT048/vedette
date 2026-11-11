@@ -250,6 +250,9 @@ type Service struct {
 	// it is one database transaction and the next step re-reads the switch.
 	mu     sync.Mutex
 	execMu sync.Mutex
+	// inflight holds the cancel of every device step being sent (a run or an undo); the emergency stop cancels them (D-179 (4)).
+	inflightMu sync.Mutex
+	inflight   map[*context.CancelCauseFunc]struct{}
 
 	cat       []builtinDef
 	catNote   string

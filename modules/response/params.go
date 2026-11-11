@@ -3,6 +3,7 @@ package response
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
 	"net/url"
 	"regexp"
@@ -431,7 +432,63 @@ func ValidateTpl(t Tpl, what string) string {
 	if t.Body != "" && !json.Valid([]byte(placeholderRE.ReplaceAllString(t.Body, "0"))) {
 		return what + ": the API body must be valid JSON."
 	}
+	if key := credentialBodyKey(t.Body); key != "" {
+		return what + ": the API body key " + key + " looks like a credential. Do not put it in a template: give the connection a token and it is sent from there. A value in a template is exactly one placeholder."
+	}
 	return ""
+}
+
+// bodySentinel stands for a placeholder while a JSON body is read; a body that already holds it is refused (its value could pass for one).
+const bodySentinel = "8191919191919191919"
+
+// credentialBodyKey is the first key of a JSON body (D-179 (7), the body half of D-174) whose name marks a credential, without hyphens or
+// underscores and in lower case (api_key, apiKey, token, password, secret, auth, session...), and whose value is a literal, not exactly one
+// placeholder. "" when there is none (or the body is not JSON: ValidateTpl refuses that on its own). Everything under such a key counts.
+func credentialBodyKey(body string) string {
+	if body == "" {
+		return ""
+	}
+	if strings.Contains(body, bodySentinel) {
+		return "(a reserved number)"
+	}
+	dec := json.NewDecoder(strings.NewReader(placeholderRE.ReplaceAllString(body, bodySentinel)))
+	dec.UseNumber()
+	var v any
+	if dec.Decode(&v) != nil {
+		return ""
+	}
+	var walk func(v any, under string) string
+	walk = func(v any, under string) string {
+		switch x := v.(type) {
+		case map[string]any:
+			for _, k := range slices.Sorted(maps.Keys(x)) {
+				n := strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(k))
+				u := under
+				if u == "" && slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) }) {
+					u = k
+				}
+				if r := walk(x[k], u); r != "" {
+					return r
+				}
+			}
+		case []any:
+			for _, e := range x {
+				if r := walk(e, under); r != "" {
+					return r
+				}
+			}
+		case string:
+			if under != "" && x != bodySentinel {
+				return under
+			}
+		case json.Number:
+			if under != "" && x.String() != bodySentinel {
+				return under
+			}
+		}
+		return "" // null and true/false carry no secret
+	}
+	return walk(v, "")
 }
 
 // precheckProblem checks the check before with its refusal texts and its required text as a group (D-95): a read-only template (a

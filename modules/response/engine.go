@@ -122,6 +122,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		if rec.Exec, err = s.buildExec(cat, vals, conn, a.TTLMin); err != nil {
 			return planned{}, &planFail{"invalid_target", "The action could not be rendered from its template. Nothing was changed.", title}
 		}
+		rec.ExecHash = execHash(rec.Exec)
 		if why := rec.Exec.addressProblem(*conn); why != "" { // an action that could never be sent is not available, with the reason (L6)
 			return planned{}, &planFail{"tool_unavailable", why, title}
 		}

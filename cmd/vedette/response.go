@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"time"
 
@@ -331,12 +332,39 @@ func newResponse(d *deps) (*response.Service, error) {
 	return svc, nil
 }
 
+// decoyIPs is what responseBoxAddrs asks for the decoy addresses: the honeypot's DecoyIPs.
+type decoyIPs interface {
+	DecoyIPs(ctx context.Context) []netip.Addr
+}
+
+// lateDecoys is the honeypot of deps, read when asked: it is built after response, and there may be none.
+type lateDecoys struct{ d *deps }
+
+func (l lateDecoys) DecoyIPs(ctx context.Context) []netip.Addr {
+	if l.d.Honeypot == nil {
+		return nil
+	}
+	return l.d.Honeypot.DecoyIPs(ctx)
+}
+
+// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache, read without waiting) and the
+// decoy addresses of the honeypot, the same sources as core/conn's boxSources.
+func responseBoxAddrs(host func() ([]netip.Addr, bool), decoys decoyIPs) func() []netip.Addr {
+	return func() []netip.Addr {
+		out, _ := host()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Config.BoxAddrs has no context; the honeypot read is one short query
+		defer cancel()
+		return append(out, decoys.DecoyIPs(ctx)...)
+	}
+}
+
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
-	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
+	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
+	if d.Conn != nil {                                                        // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
 		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An
 		// ioc_hit or a config_read in an AI proposal is refused 422 evidence_invalid (fail closed, D-119).

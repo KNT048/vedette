@@ -62,6 +62,7 @@ func (s *Service) execMatches(cat catRow, it itemRec, conn ConnectionInfo) bool 
 // before runs for a minute. A run needs the switch on, the breaker closed, no stop, no maintenance window and the action still enabled. An
 // undo is the safe direction (D-88 (4)): the execution switch and the breaker do not stop it; the emergency stop does.
 func (s *Service) recheck(ctx context.Context, undo bool, actionID string) *apierr.Error {
+	ctx = context.WithoutCancel(ctx) // the emergency stop cancels the step's context (D-179 (4)); the answer "the stop is on" must still be read
 	rdb := s.cfg.DB.Reader()
 	st, err := loadSettings(ctx, rdb)
 	if err != nil {
@@ -200,6 +201,11 @@ func (s *Service) undoOnDevice(ctx context.Context, reqID string, it itemRec, co
 	ex := it.Exec
 	if ex == nil || ex.Rollback == nil {
 		return undoOutcome{failure: "This change was made by an older version of Vedette, so it cannot be undone from here. Undo it on the device."}
+	}
+	// D-179 (3): the rollback that goes out is the one that was rendered and approved. The TTL sweep sends it unattended, and the catalog
+	// may have been edited since (then execMatches is not asked), so the stored steps are held to the hash taken when the request was made.
+	if it.ExecHash == "" || execHash(ex) != it.ExecHash {
+		return undoOutcome{failure: "The steps stored with this change do not match the hash taken when the request was made (the stored request was altered, or it is from an older version), so the undo was not sent. Undo it on the device.", unclear: it.UndoUnclear}
 	}
 	if e := s.recheck(ctx, true, it.ActionID); e != nil {
 		return undoOutcome{failure: "The undo was not sent: " + e.Message, unclear: it.UndoUnclear}

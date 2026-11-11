@@ -34110,6 +34110,10 @@ func (s *CoreGetCoreUpdatesOsRunOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetCoreUpdatesOsRunOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("error")
+		s.Error.Encode(e)
+	}
+	{
 		e.FieldStart("finished_at")
 		s.FinishedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -34147,15 +34151,16 @@ func (s *CoreGetCoreUpdatesOsRunOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreUpdatesOsRunOK = [8]string{
-	0: "finished_at",
-	1: "id",
-	2: "lines",
-	3: "result",
-	4: "scope",
-	5: "started_at",
-	6: "status",
-	7: "user",
+var jsonFieldsNameOfCoreGetCoreUpdatesOsRunOK = [9]string{
+	0: "error",
+	1: "finished_at",
+	2: "id",
+	3: "lines",
+	4: "result",
+	5: "scope",
+	6: "started_at",
+	7: "status",
+	8: "user",
 }
 
 // Decode decodes CoreGetCoreUpdatesOsRunOK from json.
@@ -34163,12 +34168,22 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOsRunOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "finished_at":
+		case "error":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		case "finished_at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.FinishedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -34178,7 +34193,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"finished_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -34190,7 +34205,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "lines":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Lines = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -34210,7 +34225,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines\"")
 			}
 		case "result":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Result.Decode(d); err != nil {
 					return err
@@ -34220,7 +34235,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"result\"")
 			}
 		case "scope":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -34230,7 +34245,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -34242,7 +34257,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "status":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -34252,7 +34267,7 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "user":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.User = string(v)
@@ -34272,8 +34287,9 @@ func (s *CoreGetCoreUpdatesOsRunOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -34666,6 +34682,8 @@ func (s *CoreGetCoreUpdatesOsRunOKStatus) Decode(d *jx.Decoder) error {
 		*s = CoreGetCoreUpdatesOsRunOKStatusRunning
 	case CoreGetCoreUpdatesOsRunOKStatusDone:
 		*s = CoreGetCoreUpdatesOsRunOKStatusDone
+	case CoreGetCoreUpdatesOsRunOKStatusFailed:
+		*s = CoreGetCoreUpdatesOsRunOKStatusFailed
 	default:
 		*s = CoreGetCoreUpdatesOsRunOKStatus(v)
 	}
@@ -57168,6 +57186,10 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreUpdatesOsInstallAccepted) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("error")
+		s.Error.Encode(e)
+	}
+	{
 		e.FieldStart("finished_at")
 		s.FinishedAt.Encode(e, json.EncodeDateTime)
 	}
@@ -57205,15 +57227,16 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesOsInstallAccepted = [8]string{
-	0: "finished_at",
-	1: "id",
-	2: "lines",
-	3: "result",
-	4: "scope",
-	5: "started_at",
-	6: "status",
-	7: "user",
+var jsonFieldsNameOfCorePostCoreUpdatesOsInstallAccepted = [9]string{
+	0: "error",
+	1: "finished_at",
+	2: "id",
+	3: "lines",
+	4: "result",
+	5: "scope",
+	6: "started_at",
+	7: "status",
+	8: "user",
 }
 
 // Decode decodes CorePostCoreUpdatesOsInstallAccepted from json.
@@ -57221,12 +57244,22 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CorePostCoreUpdatesOsInstallAccepted to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "finished_at":
+		case "error":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		case "finished_at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.FinishedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -57236,7 +57269,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"finished_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -57248,7 +57281,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "lines":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Lines = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -57268,7 +57301,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines\"")
 			}
 		case "result":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Result.Decode(d); err != nil {
 					return err
@@ -57278,7 +57311,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"result\"")
 			}
 		case "scope":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -57288,7 +57321,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -57300,7 +57333,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "status":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -57310,7 +57343,7 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "user":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.User = string(v)
@@ -57330,8 +57363,9 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -57724,6 +57758,8 @@ func (s *CorePostCoreUpdatesOsInstallAcceptedStatus) Decode(d *jx.Decoder) error
 		*s = CorePostCoreUpdatesOsInstallAcceptedStatusRunning
 	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
 		*s = CorePostCoreUpdatesOsInstallAcceptedStatusDone
+	case CorePostCoreUpdatesOsInstallAcceptedStatusFailed:
+		*s = CorePostCoreUpdatesOsInstallAcceptedStatusFailed
 	default:
 		*s = CorePostCoreUpdatesOsInstallAcceptedStatus(v)
 	}

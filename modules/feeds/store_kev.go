@@ -2,9 +2,11 @@ package feeds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 // The reads below are for the modules that use the CISA list through their own ports (inventory.KEV,
@@ -107,4 +109,17 @@ func (s *Store) KevVulnsByCVE(ctx context.Context, cves []string) ([]VulnRow, er
 		out = append(out, rows...)
 	}
 	return out, nil
+}
+
+// KevPulledAt is when the CISA list was last pulled successfully (zero = never). The weekly report names it as the source time of
+// its exploited-list figures.
+func (s *Store) KevPulledAt(ctx context.Context) (time.Time, error) {
+	r, err := s.source(ctx, "cisa-kev")
+	if errors.Is(err, ErrNotFound) || (err == nil && r.LastSuccess == nil) {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, fmt.Errorf("feeds: read KEV pull time: %w", err)
+	}
+	return *r.LastSuccess, nil
 }

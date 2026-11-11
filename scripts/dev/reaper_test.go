@@ -57,7 +57,8 @@ func tree(t *testing.T, orphan bool) (dir string, pids []int) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		for _, p := range pidsMatching(t, dir) {
+		ps := pidsMatching(t, dir)
+		for _, p := range append(ps, childrenOf(ps)...) {
 			_ = exec.Command("kill", "-KILL", strconv.Itoa(p)).Run()
 		}
 	})
@@ -135,8 +136,9 @@ func TestReapsOrphanedPnpmTree(t *testing.T) {
 	if ppidOf(root) != 1 {
 		t.Skipf("orphan was not reparented to pid 1 (ppid %d): subreaper environment", ppidOf(root))
 	}
+	all := append(pids, childrenOf(pids)...)
 	log := reap(t, dir)
-	if left := waitDead(append(pids, childrenOf(pids)...)); left != nil {
+	if left := waitDead(all); left != nil {
 		t.Fatalf("still alive after reaper: %v\nlog: %s", left, log)
 	}
 	if !strings.Contains(log, "stopped") || !strings.Contains(log, "orphaned dev server") {

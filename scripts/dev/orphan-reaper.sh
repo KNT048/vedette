@@ -47,6 +47,15 @@ minutes() {
 	}'
 }
 
+# etime -> seconds
+secs() {
+	echo "$1" | awk -F'[-:]' '{
+		if (NF == 4) print $1 * 86400 + $2 * 3600 + $3 * 60 + $4
+		else if (NF == 3) print $1 * 3600 + $2 * 60 + $3
+		else print $1 * 60 + $2
+	}'
+}
+
 descendants() {
 	local c
 	for c in $(pgrep -P "$1" 2>/dev/null); do
@@ -84,7 +93,7 @@ ISSUES
 	fi
 }
 
-snap=$(ps -U "$(id -u)" -o pid=,ppid=,etime=,command=)
+snap=$(ps -ww -U "$(id -u)" -o pid=,ppid=,etime=,command=)
 only=${VEDETTE_REAPER_ONLY:-}
 
 # line of process $1 from the snapshot
@@ -121,6 +130,8 @@ while read -r pid ppid etime cmd; do
 		shift 3
 		wcmd=$*
 		is_wrapper "$wcmd" || break
+		# started for this tree: a long-lived daemon that merely spawned the child is not a wrapper
+		[ $(($(secs "$wetime") - $(secs "$retime"))) -le 60 ] || break
 		root=$wpid rppid=$wppid retime=$wetime rcmd=$wcmd
 		depth=$((depth + 1))
 	done
@@ -156,6 +167,9 @@ fi
 
 all=""
 for p in $victims; do
+	# the snapshot may be old (check_issues waits on the network): skip a root whose pid was reused
+	cur=$(ps -ww -p "$p" -o ppid=,command= 2>/dev/null) || continue
+	[ "$(echo "$cur" | awk '{print $1}')" = "$(pline "$p" | awk '{print $2}')" ] || continue
 	all="$all $(descendants "$p" | tr '\n' ' ') $p"
 done
 all=$(echo "$all" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ')

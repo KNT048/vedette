@@ -171,7 +171,14 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 	if !wazuhUserRE.MatchString(user) {
 		return checked{}, bad400("bad_username", "Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters).")
 	}
-	prev, err := s.loadWazuh(ctx, s.db.Reader())
+	// The row and its password are read in one read-only transaction: the password is always the one of the address it is checked
+	// against, even when another Save commits in between (round 2, LOW-A).
+	tx, err := s.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return checked{}, fmt.Errorf("agentintake: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	prev, err := s.loadWazuh(ctx, tx)
 	if err != nil {
 		return checked{}, err
 	}
@@ -191,7 +198,7 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 		return checked{}, bad400("bad_interval", "Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes.")
 	}
 	if !c.typed {
-		raw, err := s.wazuhSecrets.Open(ctx, s.db.Reader(), prev.secretID)
+		raw, err := s.wazuhSecrets.Open(ctx, tx, prev.secretID)
 		if err != nil {
 			return checked{}, fmt.Errorf("agentintake: open wazuh password: %w", err)
 		}
@@ -485,8 +492,12 @@ func (s *Service) pull(ctx context.Context, c *wazuhClient, w *savedWazuh) (pull
 		if id, _ := strconv.Atoi(a.ID); w.resumeAfter != "" && id <= after {
 			continue
 		}
-		if ok, err := s.current(ctx, w.generation); err != nil || !ok {
-			return res, errors.Join(errSuperseded, err)
+		ok, err := s.current(ctx, w.generation)
+		if err != nil {
+			return res, err // a deadline here keeps the cursor like any other (round 2, LOW-B)
+		}
+		if !ok {
+			return res, errSuperseded
 		}
 		n, err := s.pullAgent(ctx, c, a)
 		var we *wazuhErr

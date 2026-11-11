@@ -559,7 +559,9 @@ func TestWazuh_RetriesTooManyRequestsAndAnExpiredToken(t *testing.T) {
 func TestWazuh_SaveDuringAPullWins(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
+	r.fake.mu.Lock()
 	r.fake.onPackage = func() { r.exec(`UPDATE intake_wazuh SET generation = generation + 1`) }
+	r.fake.mu.Unlock()
 	r.pull()
 	if st, _, agents, _ := r.state(); st != "never" || agents != 0 {
 		t.Fatalf("a pull wrote its result over a newer Save: %s agents=%d", st, agents)
@@ -645,7 +647,9 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
 	r.svc.SetWazuhBudgetForTest(500 * time.Millisecond)
+	r.fake.mu.Lock()
 	r.fake.onPackage = func() { time.Sleep(300 * time.Millisecond) } // each agent's package page takes 300 ms
+	r.fake.mu.Unlock()
 	r.pull()
 	var resume *string
 	var pass int
@@ -655,7 +659,9 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	if st, e, _, _ := r.state(); st != "connected" || e != "" || resume == nil || *resume != "001" || pass != 2 {
 		t.Fatalf("after a pass cut by the budget: %s %q resume=%v pass=%d", st, e, resume, pass)
 	}
+	r.fake.mu.Lock() // the cut request may still be in the fake's handler
 	r.fake.onPackage = nil
+	r.fake.mu.Unlock()
 	r.svc.SetWazuhBudgetForTest(time.Hour)
 	r.clock.Advance(time.Minute) // the next tick, not the next interval
 	r.pull()

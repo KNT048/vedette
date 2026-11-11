@@ -187,14 +187,17 @@ func (h *e2eHost) control() http.Handler {
 func startE2EBare(ctx context.Context, t testing.TB, dir string) e2eReady {
 	t.Helper()
 	bare := filepath.Join(dir, "bare")
-	if err := os.MkdirAll(bare, 0o700); err != nil {
+	if err := os.MkdirAll(bare, 0o700); err != nil { //nolint:gosec // test harness: dir is t.TempDir() or the folder the script made
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- e2eBoxWith(ctx, bare, "", "", e2eReady{}) }()
 	t.Cleanup(func() {
 		select {
-		case <-done:
+		case err := <-done:
+			if err != nil {
+				t.Logf("bare box: %v", err)
+			}
 		case <-time.After(15 * time.Second):
 		}
 	})
@@ -230,7 +233,10 @@ func TestE2EBoxHarnessHost(t *testing.T) {
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			if err != nil {
+				t.Logf("box: %v", err)
+			}
 		case <-time.After(15 * time.Second):
 		}
 	})
@@ -244,7 +250,7 @@ func TestE2EBoxHarnessHost(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("ready.json did not appear within 20 s")
 		}
-		time.Sleep(100 * time.Millisecond)
+		<-time.After(100 * time.Millisecond)
 	}
 	if ready.DataDir != host.dataDir || ready.HostControl == "" || ready.HostToken == "" || !strings.HasPrefix(ready.BareURL, "http://127.0.0.1:") || ready.BareURL == ready.BaseURL {
 		t.Fatalf("ready.json = %+v", ready)

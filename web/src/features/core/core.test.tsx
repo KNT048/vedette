@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
+import { toast } from 'sonner'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { encode } from 'uqr'
@@ -445,6 +446,16 @@ describe('core: dữ liệu', () => {
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('confirm_mismatch')
     expect(assetsStore.get().length).toBeGreaterThan(0)
+  })
+
+  it('the release build (VITE_API_MOCK=off) does not offer to restore sample data a real box does not have (issue #244)', async () => {
+    vi.stubEnv('VITE_API_MOCK', 'off')
+    try {
+      renderApp('/settings/data')
+      await screen.findByRole('button', { name: 'Download backup' })
+      expect(screen.queryByRole('button', { name: 'Restore sample data' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/Trial build only/)).not.toBeInTheDocument()
+    } finally { vi.unstubAllEnvs() }
   })
 
   it('khôi phục dữ liệu mẫu gọi reset rồi tải lại', async () => {
@@ -1078,6 +1089,39 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     await u.click(osSection().getByRole('button', { name: 'Check now' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
     expect(osSection().getByRole('table', { name: 'Pending operating system updates' })).toBeInTheDocument()
+  })
+
+  it('says "1 security update" in the singular (issue #240)', async () => {
+    asAdmin()
+    const os = await (await fetch(BASE)).json()
+    server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ ...os, pending: os.pending.slice(0, 1).map((p: object) => ({ ...p, security: true })) })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { level: 1, name: /: 1 security update waiting$/ }, T)).toBeInTheDocument()
+  })
+
+  it('a container-only install: the 409 is titled for what it is and the page still numbers 1, 2, 3 (issues #239, #241)', async () => {
+    server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ error: { code: 'not_appliance', message: 'This install has no operating system helper (container-only install).' } }, { status: 409 })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText('Not available on this install', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText('Invalid request')).not.toBeInTheDocument()
+    expect(screen.getByText('This install has no operating system helper (container-only install).')).toBeInTheDocument()
+    expect(osSection().getByRole('heading', { level: 2, name: 'Operating system of this box' })).toBeInTheDocument()
+    const nums = Array.from(document.querySelectorAll('span[aria-hidden="true"]')).map((n) => n.textContent).filter((x) => /^[123]$/.test(x ?? ''))
+    expect(nums).toEqual(['1', '2', '3'])
+  })
+
+  it('a failed install says Failed with the reason and no success toast (issue #238)', async () => {
+    collection<{ on: boolean }>('core_os_install_fails', () => ({ on: false })).set({ on: true })
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: /^Install security updates/ }, T))
+    const log = await screen.findByRole('log', { name: 'apt output' })
+    expect(await within(log.parentElement!).findByText('Failed', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(within(log.parentElement!).getByRole('alert')).toHaveTextContent(/package manager failed/)
+    expect(log).toHaveTextContent('run failed: apt_failed')
+    expect(within(log.parentElement!).queryByText('Finished')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Finished: /)).not.toBeInTheDocument()
+    toast.dismiss()
   })
 
   it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {

@@ -525,7 +525,8 @@
       "body": "Software updates come only from signed GitHub releases. Feeds (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds and your own) are fetched by the box directly from each source, never through GitHub. Confirmed recommendation packs ship inside updates.",
       "link": "Open Settings, Feeds"
     },
-    "titleOs": "{{name}}: {{count}} security updates waiting",
+    "titleOs_one": "{{name}}: {{count}} security update waiting",
+    "titleOs_other": "{{name}}: {{count}} security updates waiting",
     "titleOsClean": "{{name}}: no security updates waiting",
     "managed": {
       "title": "Packages managed by Vedette",
@@ -663,6 +664,8 @@
         "backup": "Database backup before the run",
         "health": "Health check after the run",
         "failed": "failed",
+        "failedChip": "Failed",
+        "failedToast": "The update failed. Nothing was installed.",
         "reboot": "Reboot"
       },
       "upgrade": {
@@ -1206,6 +1209,8 @@
       "dnsHint": "One to three addresses, separated by commas.",
       "save": "Save management settings",
       "saved": "Management settings saved.",
+      "pendingSaved": "Applied. Confirm the new address in time or the box goes back to the old one.",
+      "revertedNow": "The box went back to the old settings.",
       "restartNote": "If the box restarts before you confirm, it comes back on the old address.",
       "reverted": "The change was not confirmed in time, so the box went back to the old settings."
     },

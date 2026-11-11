@@ -15275,7 +15275,8 @@
                       "type": "string",
                       "enum": [
                         "running",
-                        "done"
+                        "done",
+                        "failed"
                       ]
                     },
                     "started_at": {
@@ -15361,6 +15362,13 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "error": {
+                      "description": "Only for a failed run: why, in words (the lines keep the raw output)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -15371,7 +15379,8 @@
                     "finished_at",
                     "user",
                     "lines",
-                    "result"
+                    "result",
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -15934,7 +15943,8 @@
                           "type": "string",
                           "enum": [
                             "running",
-                            "done"
+                            "done",
+                            "failed"
                           ]
                         },
                         "started_at": {
@@ -16020,6 +16030,13 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "error": {
+                          "description": "Only for a failed run: why, in words (the lines keep the raw output)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
@@ -16030,7 +16047,8 @@
                         "finished_at",
                         "user",
                         "lines",
-                        "result"
+                        "result",
+                        "error"
                       ],
                       "additionalProperties": false
                     },

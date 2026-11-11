@@ -107,8 +107,9 @@ export const OsRunResult = z.object({
   health: z.array(z.object({ name: z.string(), ok: z.boolean() })).describe('Checks after the run'), reboot_required: z.boolean(),
 })
 export const OsRun = z.object({
-  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
+  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done', 'failed']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
   lines: z.array(z.string()).describe('apt output so far'), result: OsRunResult.nullable(),
+  error: z.string().nullable().describe('Only for a failed run: why, in words (the lines keep the raw output)'),
 })
 export const OsRebootBody = z.object({ when: z.enum(['now', 'window', 'custom']), at: z.string().optional().describe('Local time HH:MM, only for "custom"; must fall inside the maintenance window') })
 export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('Items installed automatically in automatic mode') })

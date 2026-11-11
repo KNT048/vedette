@@ -9761,6 +9761,8 @@ func (s CoreGetCoreUpdatesOsRunOKStatus) Validate() error {
 		return nil
 	case "done":
 		return nil
+	case "failed":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -15673,6 +15675,8 @@ func (s CorePostCoreUpdatesOsInstallAcceptedStatus) Validate() error {
 	case "running":
 		return nil
 	case "done":
+		return nil
+	case "failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

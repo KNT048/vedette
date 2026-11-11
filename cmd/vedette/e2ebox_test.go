@@ -147,7 +147,7 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer func() { _ = f.Close() }()
 	defer e2eOffline()()
-	syslogPort, err := e2eFreePort()
+	syslogPort, err := e2eFreePort(ctx)
 	if err != nil {
 		return err
 	}
@@ -175,15 +175,15 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 func init() { syslogHost = "127.0.0.1" }
 
 // e2eFreePort returns a port that is free for both TCP and UDP on loopback right now (the syslog listener needs one number for both).
-func e2eFreePort() (int, error) {
+func e2eFreePort(ctx context.Context) (int, error) {
 	for range 20 {
-		tl, err := new(net.ListenConfig).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+		tl, err := new(net.ListenConfig).Listen(ctx, "tcp4", "127.0.0.1:0")
 		if err != nil {
 			return 0, err
 		}
 		port := tl.Addr().(*net.TCPAddr).Port
 		_ = tl.Close()
-		ul, err := new(net.ListenConfig).ListenPacket(context.Background(), "udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		ul, err := new(net.ListenConfig).ListenPacket(ctx, "udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 		if err != nil {
 			continue
 		}

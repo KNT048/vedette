@@ -157,11 +157,17 @@ func (c *Config) set(k, v string) error {
 		if err != nil {
 			return fmt.Errorf("core_gid: %w", err)
 		}
+		if n == 0 {
+			return errors.New("core_gid must not be 0: core never runs in the root group")
+		}
 		c.CoreGID = n
 	case "socket_gid":
 		n, err := id(v)
 		if err != nil {
 			return fmt.Errorf("socket_gid: %w", err)
+		}
+		if n == 0 {
+			return errors.New("socket_gid must not be 0: the socket would be open to the root group")
 		}
 		c.SocketGID = n
 	case "core_unit":

@@ -1,0 +1,24 @@
+#!/bin/sh
+# vedette-host prerm (WP-08g, D-155). Stops and disables the unit when the package is removed. NOT on upgrade: the running
+# helper (and the dpkg it may have started itself) is left alone.
+set -eu
+UNIT=vedette-host.service
+
+case "${1:-}" in
+remove | deconfigure)
+	if [ -d /run/systemd/system ]; then
+		systemctl --system stop "$UNIT" || true
+	fi
+	if command -v deb-systemd-helper >/dev/null 2>&1; then
+		deb-systemd-helper disable "$UNIT" >/dev/null || true
+	elif command -v systemctl >/dev/null 2>&1; then
+		systemctl disable "$UNIT" >/dev/null 2>&1 || true
+	fi
+	;;
+upgrade | failed-upgrade) ;;
+*)
+	echo "vedette-host prerm: unknown action '${1:-}'" >&2
+	exit 1
+	;;
+esac
+exit 0

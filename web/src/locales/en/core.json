@@ -791,7 +791,7 @@
       },
       "7": {
         "name": "Forwarding to a SIEM",
-        "what": "The Vedette events you choose (findings, incidents, trap touches, connections to known-bad addresses) as syslog, CEF or JSON. Each record has the event name, time, severity and IDs, addresses and short labels from the event; no log lines.",
+        "what": "The Vedette events you choose (findings, incidents, trap touches, connections to known-bad addresses) as syslog, CEF or JSON. Each record has the event name, time, severity, identifiers, addresses and short labels from the event; no log lines.",
         "to": "The SIEM or webhook target you enter",
         "control": "No configuration, no flow. Remove the target to turn it off.",
         "link": "Open SIEM settings"

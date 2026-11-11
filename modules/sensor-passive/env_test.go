@@ -31,6 +31,7 @@ type fakeHost struct {
 	ifaces  []capture.Interface
 	filters []sensorlink.Filter
 	optErr  error // SpanOptions fails: the filters cannot be read
+	noHost  bool  // no vedette-host answers (container-only)
 }
 
 func newHost() *fakeHost {
@@ -45,6 +46,20 @@ func (h *fakeHost) Interfaces(context.Context) ([]capture.Interface, error) {
 	defer h.mu.Unlock()
 	return append([]capture.Interface(nil), h.ifaces...), nil
 }
+
+// HostCards answers like a host that knows the cards, or, with noHost set, like an install without vedette-host.
+func (h *fakeHost) HostCards(ctx context.Context) ([]capture.Interface, bool, error) {
+	h.mu.Lock()
+	no := h.noHost
+	h.mu.Unlock()
+	if no {
+		return nil, false, nil
+	}
+	c, err := h.Interfaces(ctx)
+	return c, true, err
+}
+
+func (h *fakeHost) setNoHost(v bool) { h.mu.Lock(); h.noHost = v; h.mu.Unlock() }
 
 func (h *fakeHost) SpanOptions(context.Context) (sensorlink.Extract, []sensorlink.Filter, error) {
 	h.mu.Lock()

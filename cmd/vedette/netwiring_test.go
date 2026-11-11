@@ -126,6 +126,49 @@ func TestWiringSensorCardsWithoutAHostFallBackToTheOperatingSystem(t *testing.T)
 	}
 }
 
+// M1 (D-263): HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured host
+// that gives no list (socket absent, or failing with nothing cached) is an error, so the sensor's heartbeat never decides
+// on an appliance; Interfaces keeps its operating-system fallback and never fails for it.
+func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {
+	t.Parallel()
+	t.Run("no socket configured", func(t *testing.T) {
+		t.Parallel()
+		s := newStackWith(t, func(*deps) {})
+		cards, ok, err := netHost{box: s.d.Network}.HostCards(t.Context())
+		if ok || err != nil || cards != nil {
+			t.Fatalf("HostCards = %v %v %v, want no host and no error", cards, ok, err)
+		}
+	})
+	t.Run("socket path set but absent", func(t *testing.T) {
+		t.Parallel()
+		s := newStackWith(t, func(d *deps) {
+			d.HostSocket, d.DataDir, d.KeyPath = filepath.Join(t.TempDir(), "absent.sock"), t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+		})
+		nh := netHost{box: s.d.Network}
+		if _, ok, err := nh.HostCards(t.Context()); ok || err == nil {
+			t.Fatalf("HostCards ok=%v err=%v, want an error", ok, err)
+		}
+		if _, err := nh.Interfaces(t.Context()); err != nil {
+			t.Fatalf("Interfaces must keep the operating-system fallback: %v", err)
+		}
+	})
+	t.Run("host failing with nothing cached", func(t *testing.T) {
+		t.Parallel()
+		f := startFakeHost(t, boxState())
+		f.failing.Store(true) // answers an error from the first look: nothing is cached
+		s := newStackWith(t, func(d *deps) {
+			d.HostSocket, d.DataDir, d.KeyPath = f.sock, t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+		})
+		nh := netHost{box: s.d.Network}
+		if _, ok, err := nh.HostCards(t.Context()); ok || err == nil {
+			t.Fatalf("HostCards ok=%v err=%v, want an error", ok, err)
+		}
+		if _, err := nh.Interfaces(t.Context()); err != nil {
+			t.Fatalf("Interfaces must keep the operating-system fallback: %v", err)
+		}
+	})
+}
+
 // The module being off means nothing is measured; a missing service too. Both are ErrNoSensor, which the page
 // answers from the host's counters.
 func TestWiringSpanSensorIsAbsentWhileTheModuleIsOff(t *testing.T) {

@@ -1,6 +1,6 @@
 # Nhật ký quyết định
 
-Đo số cao nhất trước khi thêm: `grep -oE '^\| D-[0-9]+' docs/DECISIONS.md | sort -t- -k2 -n | tail -1`. Ghi **lý do**, không chỉ kết quả.
+**Quyết định mới không thêm vào bảng này** (D-250): tạo file `docs/decisions/D-nnn.md` chứa đúng một hàng bảng như dưới (`| D-nnn | quyết định | lý do + nguồn | ngày |`). File mới không bao giờ xung đột khi nhiều PR cùng vào merge queue; supervisor gộp các file đó vào bảng này định kỳ. Đọc cả bảng lẫn `docs/decisions/`. Dùng số trong dải D của mình (`.ai/tasks/current.md`); số cao nhất: `cat docs/DECISIONS.md docs/decisions/D-*.md 2>/dev/null | grep -oE '^\| D-[0-9]+' | sort -t- -k2 -n | tail -1`. Ghi **lý do**, không chỉ kết quả.
 
 | # | Quyết định | Lý do | Ngày |
 |---|---|---|---|

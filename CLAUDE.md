@@ -47,7 +47,7 @@ Làm theo `docs/END_OF_SESSION.md`. Đọc file, không làm từ trí nhớ.
 | Kỹ thuật | `docs/ARCHITECTURE.md`, `docs/DATA_PIPELINE.md`, `docs/AI_ASSISTANT.md`, `docs/UPDATES.md` |
 | Làm gì tiếp | `docs/TEAM_PLAN.md` (chia việc Kiên/Emily), `.ai/tasks/kien.md`, `.ai/tasks/emily.md`, `docs/ROADMAP.md` |
 | Pháp lý, dữ liệu rời máy | `docs/LEGAL.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md` |
-| Vì sao quyết định thế | `docs/DECISIONS.md` |
+| Vì sao quyết định thế | `docs/DECISIONS.md` + `docs/decisions/` (chưa gộp) |
 | Đã làm gì | `docs/project-map/completion-log.md` |
 | Bài học | `docs/project-map/lessons.md` |
 | Kiểm giao diện (bắt buộc) | `docs/QA.md` |

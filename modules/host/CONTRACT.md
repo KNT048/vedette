@@ -230,7 +230,7 @@ Thiết kế: `docs/specs/host-api.md` §6.5–§6.10 và §18; quyết định 
 Không có "tắt" (không phải module). Phía `core`, `host/client` trả `client.ErrUnreachable` khi socket vắng hoặc không nối được: đó là tín hiệu "không phải appliance / host không chạy", khác với lỗi của host (`*client.Error` có mã §11). Kiểu "Chỉ container": mọi tính năng cần `host` trả `unsupported` có lý do. Appliance mà `host` không phản hồi: Settings → Updates và Box network hiện "Không liên lạc được với vedette-host" kèm trạng thái cuối cùng biết được; các module khác chạy bình thường nhưng không thay đổi được OS/mạng/image.
 
 ## Dependencies
-- **DEPENDS ON**: systemd, apt, Podman (Quadlet), netplan (renderer `networkd`, D-99), iproute2 (`ip`), nftables (`nft`), procps (`sysctl`), chrony (`chronyc`, D-106), socket `AF_PACKET` của kernel (D-101); installer (WP-08) cài và giao quyền (`THIRD_PARTY_NOTICES.md`); `core` chỉ là **người gọi**.
+- **DEPENDS ON**: systemd, apt, Podman (Quadlet), netplan (renderer `networkd`, D-99), iproute2 (`ip`), nftables (`nft`), procps (`sysctl`), chrony (`chronyc`, D-106), conntrack (`conntrack`, D-268), socket `AF_PACKET` của kernel (D-101); installer (WP-08) cài và giao quyền (`THIRD_PARTY_NOTICES.md`); `core` chỉ là **người gọi**.
 - **DEPENDED ON BY**: `core` (Updates, Box network, sao lưu), `honeypot` (IP phụ), `sensor-passive`/`logs` (card SPAN), `inventory` ("This box", INV-9; lệnh chưa có), `scan`/`scan-credentialed`/`honeypot`/`sensor` (vòng đời container).
 
 ## Câu hỏi mở
@@ -269,3 +269,8 @@ Không có "tắt" (không phải module). Phía `core`, `host/client` trả `cl
 - **INV-23**: `TestContract_Restore_IsTheWayOutOfCoreDataUnrecoverable` (mọi lệnh khác của `core` vẫn `transition_pending`; nhật ký chưa `unrecoverable` vẫn chặn khôi phục), `…_AFailedRecoveryKeepsTheJournal`.
 - Fake `systemctl` của `opstest.StatefulContainers` biết thêm `start` (khôi phục `backup.restore`), marker `start-fails`.
 - Mã mới chỉ của dòng lệnh (không phải của socket): `already_installed`, `unit_foreign`, `invalid_args`, `bootstrap_failed`; mã thoát 0 xong, 1 hỏng, 2 dùng sai, 3 bị từ chối bởi một kiểm tra, 4 `already_installed`, 5 `unit_foreign`/`unit_unsafe`, 6 `daemon_running`.
+
+## Lát D-268: xoá flow UDP cũ của cổng syslog sau khi `core` chạy lại
+- **POST**: khi host thấy `core` chạy lại (health wait của một lần khởi động do host làm; hoặc, mỗi `Deps.CoreWatch` = 30 s, ID + `StartedAt` của container `vedette-core` đổi) nó chạy **đúng một lần** `/usr/sbin/conntrack -D -f ipv4 -p udp --orig-port-dst 514` (flow UDP đích cổng 514 trỏ về container cũ; review M1 của D-167). Lần nhìn đầu sau khi host khởi động chỉ ghi nhớ, không xoá (trừ khi chính host vừa khởi động `core`). Mã thoát 1 ("0 flow entries") là thành công; ghi log một dòng kèm số đã xoá; thiếu binary: một dòng log mỗi lần host chạy, không làm gì thêm; lỗi khác: log, không ảnh hưởng lệnh đang chạy.
+- **INV**: validator của `conntrack` chấp nhận đúng argv trên (không `-F`, không bộ lọc khác); không shell. Chỉ IPv4, cổng 514 cố định theo unit của `core`.
+- Test: `modules/host/contract_conntrack_test.go` (`TestContract_Conntrack_*`), `host/ops/conntrack_test.go`.

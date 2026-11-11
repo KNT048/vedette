@@ -323,6 +323,9 @@ type inspectInfo struct {
 	Digest  string // the image digest the container was made from
 	Running bool
 	Health  string // api.Health*
+	// Started names this run of the container: its ID and StartedAt, each only when it has the expected shape; "" when
+	// neither does. It changes whenever the container is made or started again (conntrack.go).
+	Started string
 }
 
 type inspectHealth struct {
@@ -333,12 +336,14 @@ type inspectHealth struct {
 // places (the health block is "Health" in some, "Healthcheck" in others), so both are read.
 type inspectDoc struct {
 	Name        string `json:"Name"`
+	ID          string `json:"Id"`
 	ImageDigest string `json:"ImageDigest"`
 	// Image is the ID of the image the container was made from: for scan, whose image is built on the box and has no registry digest,
 	// it is the "digest" the host compares (D-147).
 	Image string `json:"Image"`
 	State struct {
 		Running     bool           `json:"Running"`
+		StartedAt   string         `json:"StartedAt"`
 		Health      *inspectHealth `json:"Health"`
 		Healthcheck *inspectHealth `json:"Healthcheck"`
 	} `json:"State"`
@@ -398,7 +403,7 @@ func parseInspect(out []byte, service string) (inspectInfo, error) {
 			health = api.HealthUnknown
 		}
 	}
-	return inspectInfo{Digest: d.ImageDigest, Running: d.State.Running, Health: health}, nil
+	return inspectInfo{Digest: d.ImageDigest, Running: d.State.Running, Health: health, Started: runIdentity(d.ID, d.State.StartedAt)}, nil
 }
 
 // inspect asks Podman about the service's container. A container that does not exist (non-zero exit)
@@ -430,6 +435,9 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 		if err == nil {
 			seen = fmt.Sprintf("health %s, running %t, image matches %t", info.Health, info.Running, info.Digest == digest)
 			if info.Digest == digest && info.Running && info.Health == api.HealthHealthy {
+				if service == api.ServiceCore {
+					o.coreLooked(ctx, info, true) // the host just (re)started core: stale syslog flows go now, not at the next poll (D-268)
+				}
 				return true
 			}
 		}

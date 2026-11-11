@@ -92,12 +92,14 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | nftables (`nft`) | GPL-2.0 (some files GPL-2.0-or-later) | appliance only: OS package; `vedette-host` loads one constant ruleset inside `vedette-hp` and lists it to check the effect (D-102) |
 | procps (`sysctl`) | GPL-2.0-or-later (`sysctl`), LGPL-2.1-or-later (library) | appliance only: OS package; `vedette-host` runs `sysctl -w` with constant keys and values inside `vedette-hp` (D-102) |
 | chrony (`chronyd`, `chronyc`) | GPL-2.0 | appliance only: installed by the installer only when missing, with the distribution's own `chrony.conf` left as it is (D-166); `vedette-host` writes `/etc/chrony/sources.d/vedette.sources` and runs `chronyc` (D-106) |
+| conntrack-tools (`conntrack`) | GPL-2.0-or-later | appliance only: system package `conntrack`, separate process (not linked), installed by the installer when missing; `vedette-host` runs one fixed command, `conntrack -D -f ipv4 -p udp --orig-port-dst 514`, after core runs again, to delete stale UDP entries of the syslog port (D-268) |
 
 Packages that `install.sh` asks apt for when they are missing (WP-08h, D-166). All come from the distribution's own repository, run as separate processes, are never redistributed by the project, and are removed again by `install.sh --uninstall` when nothing else needs them:
 
 | Component | License | How it is used |
 |---|---|---|
 | iptables | GPL-2.0-or-later | appliance only: OS package; netavark (Podman's network backend, Ubuntu 24.04) programs the container firewall through it; Vedette never runs it |
+| conntrack (conntrack-tools) | GPL-2.0-or-later | appliance only: OS package, separate process; `vedette-host` runs the one fixed delete of the stale UDP syslog entries after core runs again (D-268); see its row above |
 | netavark | Apache-2.0 | appliance only: OS package; Podman's container network backend, creates the `vedette-int` network and the port forwards of core |
 | aardvark-dns | Apache-2.0 | appliance only: OS package; Podman's DNS for container networks (netavark companion) |
 | catatonit | GPL-2.0-or-later | appliance only: OS package; the init process Podman runs for the `scan` container (`--init`, D-113) |

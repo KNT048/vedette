@@ -11,13 +11,17 @@
 #            `logger -n <box> -P 514 -T x`); the script waits VEDETTE_SYSLOG_WAIT seconds (default 90) for both a udp and a tcp line from it.
 # PASS only if the listener prints exactly the peer's address for udp and for tcp (any other source, the gateway, 10.88.x, 127.0.0.1, is a
 # FAIL with the line printed), and (default mode) lines from a sender that keeps ONE source port reach the new container within 10 s of
-# a `podman restart` (UDP conntrack must not pin them to the old one, M1).
+# a `podman restart` followed by the delete of the UDP conntrack entries of port 514 (M1: a stale entry pins the flow to the old container; the
+# script runs `conntrack -D -f ipv4 -p udp --orig-port-dst 514` itself, which emulates what vedette-host does after core starts, D-268). Needs
+# the `conntrack` package (/usr/sbin/conntrack) in the default mode; without it the script stops at the preflight with "install conntrack".
 #
 # WHAT IT CHANGES ON THE HOST while it runs (the EXIT trap undoes all of it; a SIGKILL skips the trap, see "leftovers" below):
 #   * podman: one network (a bridge, /etc/containers/networks/<name>.json, a /24 chosen by netavark) and one container, with the nftables
 #     rules netavark adds for them (DNAT of <LAN address>:514 only);
 #   * default mode: the netns vedette-slc-peer, the veth pair vslc-h/vslc-p, 10.231.77.1/30 on vslc-h (refuses to run if a route already
 #     overlaps that /30 or the names exist);
+#   * default mode, step 5: ONCE it deletes the UDP conntrack entries whose destination port is 514 (conntrack -D; on a box that receives real
+#     syslog over UDP those devices' flows are re-created by their next datagram; nothing else is touched);
 #   * net.ipv4.ip_forward is read first and written back at the end (netavark turns it on);
 #   * a work folder under /tmp (the helper binary), removed at the end;
 #   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed, D-266; the product side is D-267): two ACCEPT rules at the top of
@@ -87,6 +91,7 @@ if ss -H -lunt 'sport = :514' | grep -q .; then
 	fail "port 514 is already in use on this host (rsyslog imudp/imtcp?): podman could not publish it; free it first (docs/DEPLOYMENT.md, syslog port)"
 fi
 if [ -z "$peer" ]; then
+	[ -x /usr/sbin/conntrack ] || fail "install conntrack (sudo apt-get install conntrack): the restart step runs it the way vedette-host does after core restarts (D-268)"
 	if [ -n "$(ip -4 route show to match "$hip/30" | grep -v "^default")$(ip -4 route show to root "$hip/30")" ] || [ "$(ip netns list | grep -c "^$ns\b")" -gt 0 ] || ip link show "$hveth" >/dev/null 2>&1; then
 		fail "10.231.77.0/30, the netns $ns or the link $hveth already exists on this host; nothing was changed"
 	fi
@@ -170,6 +175,10 @@ ip netns exec "$ns" "$peerbin" loop "$lan:514" "$sport" &
 loop_pid=$!
 sleep 3
 podman restart -t 2 "$name" >/dev/null
+# what vedette-host does once it sees core run again (D-268): delete the UDP conntrack entries of port 514, fixed argv, exit 1 = nothing to delete
+rc=0
+/usr/sbin/conntrack -D -f ipv4 -p udp --orig-port-dst 514 >/dev/null 2>&1 || rc=$?
+[ "$rc" -le 1 ] || fail "conntrack -D exited $rc (needs root and the nf_conntrack netlink; vedette-host runs it as root)"
 got=
 for _ in $(seq 1 10); do # lines after the LAST "ready" are the new container's
 	if [ "$(podman logs "$name" 2>&1 | tac | sed '/^ready$/q' | grep -c -x "udp $pip")" -gt 0 ]; then got=1; break; fi
@@ -177,7 +186,7 @@ for _ in $(seq 1 10); do # lines after the LAST "ready" are the new container's
 done
 kill "$loop_pid" >/dev/null 2>&1 || true
 loop_pid=
-[ -n "$got" ] || fail "after 'podman restart' no datagram from the peer (fixed source port $sport, 1/s) reached the new container in 10 s: a stale UDP conntrack entry pins the flow to the old one (vedette-host must clear it after core starts)"
+[ -n "$got" ] || fail "after 'podman restart' no datagram from the peer (fixed source port $sport, 1/s) reached the new container in 10 s even after conntrack -D: the delete did not clear the entry that pins the flow to the old one (D-268)"
 only_peer "$pip"
 ok "after a restart, a sender that never pauses reaches the new container within 10 s"
 echo "syslog-ports-check: PASS"

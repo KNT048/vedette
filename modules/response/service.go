@@ -118,6 +118,9 @@ type LogSource struct {
 	Name string
 }
 
+// ErrLogsOff is what a LogCounts adapter answers while the Logs module is off: no event, not a failure (SYS-5).
+var ErrLogsOff = errors.New("the Logs module is off")
+
 // LogAddress is a remote address and how many lines of one signature it sent (logs.AddressCount).
 type LogAddress struct {
 	Addr  netip.Addr

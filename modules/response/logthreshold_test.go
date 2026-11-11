@@ -22,6 +22,7 @@ type fakeLogs struct {
 	off       bool
 	broken    bool
 	topBroken bool
+	topOff    bool // the Logs module turned off between Counts and TopAddresses
 	windows   []time.Duration
 	asked     []int // the n of every TopAddresses
 }
@@ -49,6 +50,9 @@ func (f *fakeLogs) TopAddresses(_ context.Context, source, signature string, _ t
 	f.asked = append(f.asked, n)
 	if f.topBroken {
 		return nil, errors.New("logs: reading addresses: disk I/O error")
+	}
+	if f.topOff {
+		return nil, response.ErrLogsOff
 	}
 	a := f.addrs[source+"|"+signature]
 	return a[:min(n, len(a))], nil
@@ -282,5 +286,17 @@ func TestLogThresholdAddressesUnreadable(t *testing.T) {
 	e2.must(e2.svc.PollLogs(e2.ctx()))
 	if got := e2.logEvents(); !slices.Equal(got, []string{""}) {
 		t.Fatalf("events %q with the addresses unreadable, want one source-only event", got)
+	}
+}
+
+// The Logs module turned off between the count and the addresses: no event at all, not a source-only one (SYS-5).
+func TestLogThresholdLogsOffBeforeTheAddresses(t *testing.T) {
+	e, l := logEnv(t)
+	e.rule("Alert", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(10))
+	l.counts["ls-fw|"+failedLogon] = 12
+	l.topOff = true
+	e.must(e.svc.PollLogs(e.ctx()))
+	if got := e.logEvents(); len(got) != 0 {
+		t.Fatalf("events %q while the Logs module is off", got)
 	}
 }

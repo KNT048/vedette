@@ -454,8 +454,6 @@ type responseLogCounts struct {
 	reg interface{ Enabled(id string) bool }
 }
 
-var errLogsOff = errors.New("the Logs module is off")
-
 func (r responseLogCounts) off() bool { return r.reg != nil && !r.reg.Enabled("logs") }
 
 func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, error) {
@@ -475,14 +473,14 @@ func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, e
 
 func (r responseLogCounts) Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error) {
 	if r.off() {
-		return 0, errLogsOff
+		return 0, response.ErrLogsOff
 	}
 	return r.svc.Counts(ctx, sourceID, signature, window)
 }
 
 func (r responseLogCounts) TopAddresses(ctx context.Context, sourceID, signature string, window time.Duration, n int) ([]response.LogAddress, error) {
 	if r.off() {
-		return nil, errLogsOff
+		return nil, response.ErrLogsOff
 	}
 	v, err := r.svc.TopAddresses(ctx, sourceID, signature, window, n)
 	if err != nil {

@@ -246,7 +246,7 @@
   {
    "id": "log_threshold",
    "name": "A log rule matched or a threshold was exceeded",
-   "description": "Needs the Logs module. A declared log source received at least N lines of one signature (paste it from the Logs digest) within W minutes, for example 10 failed VPN logins in 5 minutes. Each address that alone sent N of those lines is an event of its own with its source IP address, so a rule can block it; when no single address did, the event names the log source only and actions that block an address are not available.",
+   "description": "Needs the Logs module. A declared log source received at least N lines of one signature (paste it from the Logs digest) within W minutes, for example 10 failed VPN logins in 5 minutes. Each address that alone sent N of those lines is an event of its own with its source IP address, so a rule can block it; when no single address did, the event names the log source only and actions that block an address are not available. Block on lines of a completed session (a failed login), not on dropped packets: the source of a dropped packet can be forged.",
    "fields": [
     {
      "key": "source_device",

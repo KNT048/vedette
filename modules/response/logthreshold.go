@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -93,7 +94,10 @@ func (s *Service) PollLogs(ctx context.Context) error {
 			// 2001:db8::1:5), and the source's key never a prefix of an address's.
 			key := fmt.Sprintf("log:%s:%s:%d:%d:", oneLine(src.ID, 64), hex.EncodeToString(sum[:8]), w.window, w.n)
 			name := oneLine(src.Name, 100)
-			hits := s.logAddresses(ctx, src.ID, w.sig, win, w.n)
+			hits, ok := s.logAddresses(ctx, src.ID, w.sig, win, w.n)
+			if !ok {
+				continue
+			}
 			if len(hits) == 0 {
 				hits = []logHit{{count: n}} // no single address reached N: the source's own event, no address
 			}
@@ -130,19 +134,22 @@ type logHit struct {
 
 // logAddresses returns the remote addresses that alone sent at least n lines of the signature in the window, as single
 // addresses (IPv4-mapped as IPv4, like the honeypot's source; one with a zone, or not valid, is never an address to act on).
-// The addresses could not be read: none, with a warning, so the count still makes the source's event.
-func (s *Service) logAddresses(ctx context.Context, source, signature string, window time.Duration, n int) []logHit {
+// The addresses could not be read: none, with a warning, so the count still makes the source's event. The Logs module turned
+// off since the count (ErrLogsOff): ok is false, and no event at all (SYS-5).
+func (s *Service) logAddresses(ctx context.Context, source, signature string, window time.Duration, n int) (hits []logHit, ok bool) {
 	top, err := s.cfg.LogCounts.TopAddresses(ctx, source, signature, window, logTopAddrs)
+	if errors.Is(err, ErrLogsOff) {
+		return nil, false
+	}
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "response: the addresses of a log count could not be read; the event names the log source only", "source", source, "error", err)
-		return nil
+		return nil, true
 	}
-	var out []logHit
 	for _, a := range top {
 		if a.Count < n || !a.Addr.IsValid() || a.Addr.Zone() != "" {
 			continue
 		}
-		out = append(out, logHit{a.Addr.Unmap(), a.Count})
+		hits = append(hits, logHit{a.Addr.Unmap(), a.Count})
 	}
-	return out
+	return hits, true
 }

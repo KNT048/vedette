@@ -162,6 +162,7 @@ func TestBinaryDependencies(t *testing.T) {
 		"core/sensorlink",
 		"internal/jsonstrict",
 		"modules/scan/nucleiargv", // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
+		"modules/scan/nucleiout",  // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
 		"modules/scan/pack",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",

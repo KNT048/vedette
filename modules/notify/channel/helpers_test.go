@@ -21,12 +21,17 @@ var sample = Message{
 
 // rewrite sends every request to the fake server instead of the real host, so
 // adapters with a fixed https host (Slack) can be tested without a base-URL knob.
-type rewrite struct{ to *url.URL }
+// It owns its transport: httptest.Server.Close calls CloseIdleConnections on
+// http.DefaultTransport, which would break a parallel test's in-flight request.
+type rewrite struct {
+	to *url.URL
+	rt http.RoundTripper
+}
 
 func (r rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
 	c := req.Clone(req.Context())
 	c.URL.Scheme, c.URL.Host = r.to.Scheme, r.to.Host
-	return http.DefaultTransport.RoundTrip(c)
+	return r.rt.RoundTrip(c)
 }
 
 func clientTo(t *testing.T, base string) *http.Client {
@@ -35,7 +40,9 @@ func clientTo(t *testing.T, base string) *http.Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &http.Client{Transport: rewrite{u}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	tr := &http.Transport{}
+	t.Cleanup(tr.CloseIdleConnections)
+	return &http.Client{Transport: rewrite{u, tr}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 
 func mustNot(t *testing.T, haystack string, needles ...string) {

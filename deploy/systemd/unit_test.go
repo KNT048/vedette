@@ -25,7 +25,7 @@ var forbidden = []string{
 
 // allowed is every key the unit may have, per section. A new option is a decision: add it here on purpose (like `known` in TestContract_INV17).
 var allowed = map[string][]string{
-	"Unit":    {"Description", "After", "Wants", "StartLimitIntervalSec"},
+	"Unit":    {"Description", "After", "Wants", "ConditionPathExists", "StartLimitIntervalSec"},
 	"Service": {"Type", "ExecStart", "RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "Restart", "RestartSec", "RestartSteps", "RestartMaxDelaySec", "KillMode", "TimeoutStartSec", "RestrictAddressFamilies", "LockPersonality", "RestrictRealtime", "SystemCallArchitectures"},
 	"Install": {"WantedBy"},
 }
@@ -158,7 +158,8 @@ func TestUnitKeepsWhatTheHostNeeds(t *testing.T) {
 		"RuntimeDirectoryPreserve": "yes",
 		"ExecStart":                "/usr/lib/vedette/vedette-host", // where the .deb installs the binary (DEPLOYMENT.md section 6.1)
 		"WantedBy":                 "multi-user.target",
-		"StartLimitIntervalSec":    "0", // with Restart=always the default limit would stop a crash loop for good
+		"ConditionPathExists":      "/etc/vedette/host.conf", // enabled by the package, skipped (not crash-looping) until the installer writes host.conf (D-155)
+		"StartLimitIntervalSec":    "0",                      // with Restart=always the default limit would stop a crash loop for good
 		"TimeoutStartSec":          "16min",
 	} {
 		if got := opts[k]; len(got) != 1 || got[0] != want {

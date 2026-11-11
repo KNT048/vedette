@@ -472,7 +472,9 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
-	if got.Items[0].Status != response.ItemExecuted || got.Items[1].Status != response.ItemFailed || !e.logHas("refused", "circuit_open") {
+	// D-179 (4): the step in flight is cancelled by the stop; this fake returns at the same moment, so it either got through (executed) or was cut
+	// off (failed, state unknown). What must hold is that the next item did not run.
+	if first := got.Items[0]; (first.Status != response.ItemExecuted && (first.Status != response.ItemFailed || !first.StateUnknown)) || got.Items[1].Status != response.ItemFailed || !e.logHas("refused", "circuit_open") {
 		t.Fatalf("items: %+v / %+v", got.Items[0], got.Items[1])
 	}
 	if e.count(`SELECT COUNT(*) FROM resp_block_entries`) != 0 {
@@ -966,7 +968,7 @@ func TestEvaluatorTestsTheStoredRuleAgain(t *testing.T) {
 // names only, except to an admin.
 func TestCatalogHidesHeaderValuesFromNonAdmins(t *testing.T) {
 	e := newEnv(t)
-	act := e.httpAction("X-Api-Key: abc123secret\nAccept: application/json")
+	act := e.httpAction("X-Trace: abc123secret\nAccept: application/json")
 	find := func(c response.Catalog) response.CatalogAction {
 		for _, a := range c.Items {
 			if a.ID == act.ID {
@@ -978,12 +980,12 @@ func TestCatalogHidesHeaderValuesFromNonAdmins(t *testing.T) {
 	}
 	full, err := e.svc.Catalog(e.ctx(), true)
 	e.must(err)
-	if h := find(full).Run.Headers; h != "X-Api-Key: abc123secret\nAccept: application/json" {
+	if h := find(full).Run.Headers; h != "X-Trace: abc123secret\nAccept: application/json" {
 		t.Fatalf("an admin sees %q", h)
 	}
 	masked, err := e.svc.Catalog(e.ctx(), false)
 	e.must(err)
-	if h := find(masked).Run.Headers; h != "X-Api-Key: (hidden)\nAccept: (hidden)" || strings.Contains(h, "abc123") {
+	if h := find(masked).Run.Headers; h != "X-Trace: (hidden)\nAccept: (hidden)" || strings.Contains(h, "abc123") {
 		t.Fatalf("a viewer sees %q", h)
 	}
 }

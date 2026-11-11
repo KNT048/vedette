@@ -93,8 +93,11 @@ try {
     await page.getByRole('dialog').waitFor({ timeout: 8000 })
     console.log(`  dialog opened: ${JSON.stringify(((await page.getByRole('dialog').innerText()) || '').replace(/\s+/g, ' ').slice(0, 80))}`)
     await page.keyboard.press('Escape')
-    await page.goto(base + '/settings', { waitUntil: 'networkidle' })
-    console.log(`  /settings: ${JSON.stringify((await rootText(page)).slice(0, 100))}`)
+    // /settings, and the four routes where zod's eval probe used to be reported (issue #201).
+    for (const route of ['/settings', '/devices/setup', '/response', '/settings/connections', '/settings/response']) {
+      await page.goto(base + route, { waitUntil: 'networkidle' })
+      console.log(`  ${route}: ${JSON.stringify((await rootText(page)).slice(0, 100))}`)
+    }
     await report(page, log, 'signed in')
     await ctx.close()
   } else {

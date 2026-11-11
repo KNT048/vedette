@@ -277,7 +277,7 @@ func (s *Service) probe(ctx context.Context, c Connection, secret secrets.Value)
 	// Trust on first use is for the first Test only: with any pin (a key, or "a public authority vouches for it") a certificate that
 	// does not fit is refused. The first success records which of the two it was.
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: s.dialer(), Pin: tlsPin(c.Pin), TOFU: c.Pin == nil, Roots: s.roots})
-	auth := transport.Auth{Type: c.Auth.Type, Username: deref(c.Username), Secret: secret}
+	auth := transport.Auth{Type: c.Auth.Type, Header: deref(c.Auth.Header), Username: deref(c.Username), Secret: secret}
 	var out outcome
 	switch c.Kind {
 	case KindMCP:
@@ -376,7 +376,7 @@ func discovered(found []transport.MCPTool) []Tool {
 		}
 		seen[f.Name] = true
 		d := cleanDescription(f.Description)
-		out = append(out, Tool{Name: f.Name, Access: "write", Description: d, Ident: ToolIdent(d, f.Schema)})
+		out = append(out, Tool{Name: f.Name, Access: "write", Description: d, Ident: ToolIdent(d, f.Schema, f.MayWrite())})
 	}
 	return out
 }
@@ -392,7 +392,10 @@ func cleanDescription(s string) string {
 
 // ToolIdent is the identity of an MCP tool: a hash of its cleaned description and its input schema in a canonical form (keys sorted;
 // "" for no schema, or one that is not an object or too large). The reader computes the same from what the server says now.
-func ToolIdent(description string, schema json.RawMessage) string {
+//
+// mayWrite is whether the server's annotations say the tool may change something (destructiveHint, or readOnlyHint false): it is part of the
+// identity, so a tool that starts to say so is a new tool, and a tool that says so can never be marked read (Tool.MayWrite, D-179 (5)).
+func ToolIdent(description string, schema json.RawMessage, mayWrite bool) string {
 	canon := ""
 	var v map[string]any
 	dec := json.NewDecoder(bytes.NewReader(schema))
@@ -403,8 +406,15 @@ func ToolIdent(description string, schema json.RawMessage) string {
 		}
 	}
 	h := sha256.Sum256([]byte(cleanDescription(description) + "\x00" + canon))
-	return hex.EncodeToString(h[:16])
+	id := hex.EncodeToString(h[:16])
+	if mayWrite {
+		id += identMayWrite
+	}
+	return id
 }
+
+// identMayWrite ends the Ident of a tool whose server says it may change something.
+const identMayWrite = "+w"
 
 // mergeFound is the tool list after a Test of an MCP server: the tools the server lists now, in its order, at most maxTools. A tool
 // the connection already had keeps what the administrator set (on, read or write); one it did not have is new (write, off); one the

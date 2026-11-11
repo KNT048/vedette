@@ -146,6 +146,21 @@ Bất biến (kiểm bằng test hợp đồng ở `modules/core/`):
 - Không có logic nghiệp vụ, không đọc DB của `core`.
 - Idempotent: gọi lại cùng lệnh không đổi trạng thái đã đạt.
 
+### 3.1 Gói `.deb` của `vedette-host` (WP-08g, D-155)
+
+`make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` dựng `dist/vedette-host_<version>_<arch>.deb` bằng nfpm (`deploy/deb/nfpm.yaml`, ba script POSIX `deploy/deb/{postinst,prerm,postrm}`); installer (08h) cài gói này bằng `apt-get install ./…deb` để apt giải `Depends`.
+
+| | |
+|---|---|
+| **Cài** | `/usr/lib/vedette/vedette-host` (binary tĩnh, 0755), unit `vedette-host.service` vào `/usr/lib/systemd/system/` (nguyên văn `deploy/systemd/vedette-host.service`), `/usr/share/doc/vedette-host/{copyright,NOTICE,third-party-licenses}` (file cuối do `scripts/hostlicenses` sinh lúc dựng). Không conffile. |
+| **Từ chối** (postinst, trước khi tạo gì; D-155 (11)-(13)) | tài khoản `vedette`/`vedette-sensor` có sẵn mà không phải tài khoản hệ thống (id ngoài dải `login.defs`, nhóm có thành viên, shell đăng nhập, nhóm chính khác); thư mục là liên kết tượng trưng; `core_data` hay `log/` có sẵn mà sai chủ/quyền; dải `/etc/subuid` của chủ khác chồng lên dải của podman |
+| **Depends** (tối thiểu) | `podman (>= 4.4)`, `systemd (>= 254)`, `nftables`, `iproute2`, `procps`, `chrony`, `netplan.io`, `unattended-upgrades`, `passwd` (lý do từng gói: D-155 (3)) |
+| **Tạo** (postinst, chạy lại không đổi gì) | nhóm+người dùng hệ thống `vedette` (`core_uid`, `core_gid` = `socket_gid`) và `vedette-sensor` (`sensor_uid`/`sensor_gid`), id do hệ thống cấp; `/etc/vedette` 0755 root; `/var/lib/vedette-host` 0700 root; `/etc/containers/systemd` 0755 root; `/var/lib/vedette` (`core_data`) 0700 `vedette`; `/var/lib/vedette-honeypot` 0755 root với `config/` 0755 và `log/` 0750 của `vedette`; một dòng `containers:2147483647:2147483648` trong `/etc/subuid` và `/etc/subgid` nếu chưa có dòng `containers:` (cho `UserNS=auto` của honeypot) |
+| **Bật, không khởi động** | `deb-systemd-helper enable` (lần cài đầu; nâng cấp giữ việc quản trị viên đã tắt) và `daemon-reload`; unit chưa chạy cho tới khi installer ghi `/etc/vedette/host.conf` (từ `getent`, gói không ghi nó) và khởi động; `ConditionPathExists=/etc/vedette/host.conf` làm unit bị bỏ qua lúc khởi động máy khi chưa có tệp (không vòng lặp sập). Nâng cấp gói không khởi động lại host. |
+| **Gỡ** | `remove`: dừng và tắt unit, xoá binary và unit. `purge`: thêm quên trạng thái bật. **Cả hai giữ dữ liệu**: `/var/lib/vedette` (CSDL, khoá chủ), bản sao lưu, `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/etc/vedette`, unit Quadlet, người dùng/nhóm, dòng subuid/subgid. Cách xoá hẳn: `RUNBOOK.md` §1.3. |
+
+Kiểm: test Go `deploy/deb` (trong `make check`) đọc lại gói đã dựng; `make host-deb-check` (tuỳ chọn, kéo image) cài hai lần trong container systemd Debian 13 và Ubuntu 24.04 và so trạng thái. Việc còn mở: chủ của `log/` honeypot dưới `UserNS=auto` (D-155 (5)); tự nâng cấp phải chạy dpkg qua `systemd-run` (D-155 (8)).
+
 ## 4. Ma trận hỗ trợ OS và phần cứng
 
 Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài dở). `vedette-host` và `vedette-host -bootstrap` chỉ chạy trên Debian/Ubuntu của bảng này (Linux, root): OS khác → từ chối `not_appliance` (mã thoát 3), không ghi gì (D-142).
@@ -361,6 +376,8 @@ Thư mục trên hộp là hằng `/var/lib/vedette-honeypot` (D-123 (1)); `core
 Description=Vedette host helper
 After=network-online.target
 Wants=network-online.target
+# The package enables the unit but the installer writes host.conf: without the file the unit is skipped at boot (not failed, no crash loop); the installer starts it after writing it (D-155)
+ConditionPathExists=/etc/vedette/host.conf
 # Restart=always would hit the default start limit (5 starts in 10 s) in a crash loop and stay down; the helper must come back, so no limit, and RestartSteps below slows the loop (D-150)
 StartLimitIntervalSec=0
 

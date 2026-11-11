@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
-	"github.com/knt048/vedette/modules/scan/nucleiargv"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
 
 // t0 is a Tuesday, 10:00 UTC.
@@ -62,7 +62,7 @@ type fakeEngine struct {
 func (f *fakeEngine) Ready(context.Context) error { f.mu.Lock(); defer f.mu.Unlock(); return f.down }
 func (f *fakeEngine) setDown(err error)           { f.mu.Lock(); f.down = err; f.mu.Unlock() }
 
-func (f *fakeEngine) Run(context.Context, nucleiargv.Job) (Output, error) { return Output{}, nil }
+func (f *fakeEngine) Run(context.Context, Job) ([]nucleiout.Result, error) { return nil, nil }
 
 var errNoHeartbeat = errors.New("no heartbeat from the scan worker for 90 s")
 

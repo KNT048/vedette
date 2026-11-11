@@ -53,7 +53,10 @@ func (c Connection) hasSecret() bool { return c.secretID != nil }
 
 // Auth is how the box signs in. Last4 is set for a token or password, KeyFingerprint for an SSH key; never both.
 type Auth struct {
-	Type           string  `json:"type"`
+	Type string `json:"type"`
+	// Header is the name of the header a token is sent in (D-174); nil sends it as "Authorization: Bearer <token>". Kept in the
+	// username column of core_connection (a token sign-in has no user name).
+	Header         *string `json:"header"`
 	Last4          *string `json:"last4"`
 	KeyFingerprint *string `json:"key_fingerprint"`
 }
@@ -81,6 +84,10 @@ type Tool struct {
 	Ident string `json:"-"`
 }
 
+// MayWrite reports whether the server said, when the tool was last seen, that it may change something (destructiveHint, or readOnlyHint
+// false). Such a tool is never access=read (D-179 (5)).
+func (t Tool) MayWrite() bool { return strings.HasSuffix(t.Ident, identMayWrite) }
+
 // Input is what an administrator sends to add or change a connection.
 type Input struct {
 	Name     string
@@ -90,10 +97,12 @@ type Input struct {
 	AuthType string
 	Secret   secrets.Value // unset on an edit keeps the saved one; prints, formats and marshals as a placeholder
 	Username *string
-	ClearPin bool
-	Allow    []string
-	Enabled  bool
-	Tools    []ToolInput // tools not listed keep their state
+	// AuthHeader is the optional header name of a token sign-in (D-174); empty = Authorization: Bearer.
+	AuthHeader *string
+	ClearPin   bool
+	Allow      []string
+	Enabled    bool
+	Tools      []ToolInput // tools not listed keep their state
 }
 
 // ToolInput turns one tool on or off. Access may be set for an MCP server only.
@@ -265,7 +274,7 @@ func (s *Service) Create(ctx context.Context, tx *sql.Tx, actor string, in Input
 	}
 	row := coredb.InsertConnectionParams{
 		ID: store.NewID("cn"), Name: chk.name, NameKey: nameKey(chk.name), Kind: chk.kind, Target: chk.target, AssetID: chk.assetID, AuthType: chk.authType,
-		Username: chk.username, KeyFp: chk.keyFP, Allow: encodeAllow(chk.allow), Enabled: chk.enabled, Status: "untested",
+		Username: userColumn(chk.authType, chk.username, chk.header), KeyFp: chk.keyFP, Allow: encodeAllow(chk.allow), Enabled: chk.enabled, Status: "untested",
 		UpdatedAt: store.FormatTS(s.now()),
 	}
 	if chk.secret.IsSet() {
@@ -319,7 +328,7 @@ func (s *Service) Update(ctx context.Context, tx *sql.Tx, actor, id string, in I
 	next := cur
 	next.Name, next.Kind, next.Target, next.AssetID = chk.name, chk.kind, chk.target, chk.assetID
 	next.Username, next.Enabled, next.Allow = chk.username, chk.enabled, chk.allow
-	next.Auth.Type = chk.authType
+	next.Auth.Type, next.Auth.Header = chk.authType, chk.header
 	if chk.retarget {
 		next.Status = "untested"
 	}
@@ -418,6 +427,7 @@ func changedSecurityFields(a, b Connection, secretChanged bool) []string {
 	add(a.Target != b.Target, "target")
 	add(a.Auth.Type != b.Auth.Type, "auth_type")
 	add(deref(a.Username) != deref(b.Username), "username")
+	add(deref(a.Auth.Header) != deref(b.Auth.Header), "auth_header")
 	add(secretChanged, "secret")
 	add(pinValue(a.Pin) != pinValue(b.Pin), "pin") // the value, not only whether there is one: a pin that changed is another server
 	add(!slices.Equal(a.Allow, b.Allow), "allow")

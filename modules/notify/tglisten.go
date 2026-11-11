@@ -89,7 +89,8 @@ func (s *Service) telegramButtons(ctx context.Context, req ApprovalRequest, fiel
 	nonce := base64.RawURLEncoding.EncodeToString(b)
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `INSERT INTO notify_tg_button (request_id, nonce_hash, expires_at) VALUES (?, ?, ?)
-			ON CONFLICT (request_id) DO UPDATE SET nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at`,
+			ON CONFLICT (request_id) DO UPDATE SET nonce_hash = excluded.nonce_hash, expires_at = excluded.expires_at,
+				message_id = NULL, chat_id = NULL, state = 'none', tries = 0`,
 			req.ID, hashNonce(nonce), store.FormatTS(req.Expires))
 		return err
 	})
@@ -112,14 +113,16 @@ func parseButtonData(data string) (requestID, nonce string, approve, ok bool) {
 	return requestID, nonce, data[0] == 'a', true
 }
 
-// checkButton says whether data is a button notify sent: its nonce matches the one kept for the request (constant time).
+// checkButton says whether data is a button notify sent: its nonce matches the one kept for the request (constant time), and the
+// request is not over (its buttons are not marked for removal or removed, and it has not ended: review of #198, L2).
 func (s *Service) checkButton(ctx context.Context, data string) (requestID string, approve, ok bool, err error) {
 	requestID, nonce, approve, ok := parseButtonData(data)
 	if !ok {
 		return "", false, false, nil
 	}
 	var stored string
-	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT nonce_hash FROM notify_tg_button WHERE request_id = ?`, requestID).Scan(&stored)
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT nonce_hash FROM notify_tg_button
+		WHERE request_id = ? AND state NOT IN ('remove', 'removed') AND expires_at > ?`, requestID, store.FormatTS(s.now())).Scan(&stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, false, nil
 	}

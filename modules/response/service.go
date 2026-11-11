@@ -2,16 +2,20 @@ package response
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain"
@@ -230,8 +234,13 @@ type Config struct {
 	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
-	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets.
-	BoxAddrs func() []netip.Addr
+	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets. An error
+	// means the set is not known (a configured host that has never answered, an unreadable honeypot record): the callers fail closed
+	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set (D-179 (8)).
+	BoxAddrs func() ([]netip.Addr, error)
+	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
+	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
+	BoxMACs func() ([]string, error)
 	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443). It is the start of the block list address;
 	// empty = the address is shown from /api/v1 on.
 	BaseURL string
@@ -247,6 +256,9 @@ type Service struct {
 	// it is one database transaction and the next step re-reads the switch.
 	mu     sync.Mutex
 	execMu sync.Mutex
+	// inflight holds the cancel of every device step being sent (a run or an undo); the emergency stop cancels them (D-179 (4)).
+	inflightMu sync.Mutex
+	inflight   map[*context.CancelCauseFunc]struct{}
 
 	cat       []builtinDef
 	catNote   string
@@ -283,6 +295,7 @@ type Service struct {
 	budget       time.Duration                // how long sending one request may take (sendBudget; only export_test.go changes it)
 	beforeLock   func()                       // only export_test.go sets it: runs just before a decision through a link takes the service lock
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
+	macFn        func() ([]string, error)     // reads the MACs of the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it
 	stepLimit    time.Duration                // bound of one item; only export_test.go replaces it
 	dropMu       sync.Mutex                   // guards dropUnlogged and dropLoggedAt (coalesced drop lines)
@@ -297,6 +310,40 @@ func (s *Service) interfaces() ([]netip.Addr, error) {
 		return s.interfaceFn()
 	}
 	return interfaceAddrs()
+}
+
+// interfaceMACs reads the MAC addresses of the box's network interfaces, in the canonical lower-case colon form.
+func (s *Service) interfaceMACs() ([]string, error) {
+	if s.macFn != nil {
+		return s.macFn()
+	}
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("response: read the box interfaces: %w", err)
+	}
+	var out []string
+	for _, i := range ifs {
+		if len(i.HardwareAddr) == 6 {
+			out = append(out, i.HardwareAddr.String())
+		}
+	}
+	return out, nil
+}
+
+// boxMACs lists this box's own MACs: its interfaces and Config.BoxMACs.
+func (s *Service) boxMACs() ([]string, error) {
+	out, err := s.interfaceMACs()
+	if err != nil {
+		return nil, err
+	}
+	if s.cfg.BoxMACs != nil {
+		more, err := s.cfg.BoxMACs()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, more...)
+	}
+	return out, nil
 }
 
 // DroppedEvents counts the unprocessed trigger events dropped because the backlog was full since the box started. Every drop is
@@ -360,7 +407,11 @@ func (s *Service) flush(ctx context.Context, ob *events.Outbox) {
 func (s *Service) boxAddrs() ([]netip.Addr, error) {
 	var out []netip.Addr
 	if s.cfg.BoxAddrs != nil {
-		out = append(out, s.cfg.BoxAddrs()...)
+		more, err := s.cfg.BoxAddrs()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, more...)
 	}
 	own, err := s.interfaces()
 	if err != nil {
@@ -438,11 +489,25 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, auditAction, target stri
 	if actor == "" {
 		actor = "system"
 	}
-	detail = oneLine(detail, 1500)
+	detail = capDetail(detail)
 	if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: auditAction, Target: target, Detail: detail}); err != nil {
 		return fmt.Errorf("response: audit %s: %w", auditAction, err)
 	}
 	return s.appendLog(ctx, tx, kind, actor, detail)
+}
+
+// maxDetail is the size cap of a log line (runes).
+const maxDetail = 1500
+
+// capDetail makes a detail one line and cuts it to the cap. A text that the cap cuts keeps its SHA-256 at the end, so the hash-chained row
+// still commits to the whole text (D-175: the row of a request and of an execution holds the full call, or its hash).
+func capDetail(detail string) string {
+	if utf8.RuneCountInString(detail) <= maxDetail {
+		return oneLine(detail, maxDetail)
+	}
+	sum := sha256.Sum256([]byte(detail))
+	tail := " [cut; SHA-256 of the full text " + hex.EncodeToString(sum[:]) + "]"
+	return oneLine(detail, maxDetail-utf8.RuneCountInString(tail)) + tail
 }
 
 // LogKind is the kind of a resp_log line (INV-19).

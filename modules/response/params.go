@@ -3,6 +3,7 @@ package response
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
 	"net/url"
 	"regexp"
@@ -350,6 +351,23 @@ func forbiddenHeader(name string) bool {
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
 }
 
+// credentialWords are the parts of a header name that mark a credential (D-174), matched on the name without hyphens, in lower case.
+var credentialWords = []string{"key", "token", "secret", "auth", "pass", "session"}
+
+// credentialHeader reports whether a header name carries a credential (D-174): its name, without hyphens, contains key, token, secret,
+// auth, pass or session (X-API-Key, X-ApiKey, Api-Key, X-Auth-Token, X-Password, X-Session, Proxy-Authorization, Cookie...). A template
+// may not hold a literal value for one: the connection's sign-in (a token with a header name) sends it, and the request, its log and the
+// backup never hold it. Its value in a template is exactly one placeholder.
+func credentialHeader(name string) bool {
+	n := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "")
+	if n == "cookie" {
+		return true
+	}
+	return slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) })
+}
+
+var onePlaceholderRE = regexp.MustCompile(`^\{[a-z_]+\}$`)
+
 // ValidateTpl checks a template when it is saved (and again when it is loaded): only characters that cannot reach a
 // shell, only typed placeholders or runtime values, a path that cannot leave the connection, a body that is JSON.
 // It returns "" when the template is acceptable, otherwise a one-line reason in plain words.
@@ -384,6 +402,9 @@ func ValidateTpl(t Tpl, what string) string {
 			if name, _, _ := strings.Cut(l, ":"); forbiddenHeader(name) {
 				return what + ": the header " + name + " is set by the connection and cannot be part of a template."
 			}
+			if name, val, _ := strings.Cut(l, ":"); credentialHeader(name) && !onePlaceholderRE.MatchString(strings.TrimSpace(val)) {
+				return what + ": the header " + name + " looks like a credential. Do not put it in a template: give the connection a token with a header name (Settings, Connections) and it is sent from there."
+			}
 		}
 	}
 	if t.Expect != "" {
@@ -411,7 +432,111 @@ func ValidateTpl(t Tpl, what string) string {
 	if t.Body != "" && !json.Valid([]byte(placeholderRE.ReplaceAllString(t.Body, "0"))) {
 		return what + ": the API body must be valid JSON."
 	}
+	if key := duplicateBodyKey(t.Body); key != "" {
+		return what + ": the API body repeats the key " + key + ". Servers disagree on which value wins, so a key may appear once."
+	}
+	if key := credentialBodyKey(t.Body); key != "" {
+		return what + ": the API body key " + key + " looks like a credential. Do not put it in a template: give the connection a token and it is sent from there. A value in a template is exactly one placeholder."
+	}
 	return ""
+}
+
+// duplicateBodyKey is the first key that an object of a JSON body holds twice ("" when none, or when the body is not JSON): parsers keep the first
+// or the last value, so a credential could hide behind a duplicate of a key that looks harmless. It reads tokens, which a map does not.
+func duplicateBodyKey(body string) string {
+	if body == "" {
+		return ""
+	}
+	dec := json.NewDecoder(strings.NewReader(placeholderRE.ReplaceAllString(body, "0")))
+	var seen []map[string]bool // one per open object; nil for an array
+	var wantKey []bool         // whether the next string token in this container is a key
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return ""
+		}
+		top := len(seen) - 1
+		switch v := tok.(type) {
+		case json.Delim:
+			switch v {
+			case '{':
+				seen, wantKey = append(seen, map[string]bool{}), append(wantKey, true)
+			case '[':
+				seen, wantKey = append(seen, nil), append(wantKey, false)
+			default:
+				seen, wantKey = seen[:top], wantKey[:top]
+				if top > 0 && seen[top-1] != nil {
+					wantKey[top-1] = true // the value of a member ended: the next token is a key
+				}
+			}
+			continue
+		case string:
+			if top >= 0 && seen[top] != nil && wantKey[top] {
+				if seen[top][v] {
+					return v
+				}
+				seen[top][v] = true
+				wantKey[top] = false
+				continue
+			}
+		}
+		if top >= 0 && seen[top] != nil {
+			wantKey[top] = true // a scalar value ended
+		}
+	}
+}
+
+// bodySentinel stands for a placeholder while a JSON body is read; a body that already holds it is refused (its value could pass for one).
+const bodySentinel = "8191919191919191919"
+
+// credentialBodyKey is the first key of a JSON body (D-179 (7), the body half of D-174) whose name marks a credential, without hyphens or
+// underscores and in lower case (api_key, apiKey, token, password, secret, auth, session...), and whose value is a literal, not exactly one
+// placeholder. "" when there is none (or the body is not JSON: ValidateTpl refuses that on its own). Everything under such a key counts.
+func credentialBodyKey(body string) string {
+	if body == "" {
+		return ""
+	}
+	if strings.Contains(body, bodySentinel) {
+		return "(a reserved number)"
+	}
+	dec := json.NewDecoder(strings.NewReader(placeholderRE.ReplaceAllString(body, bodySentinel)))
+	dec.UseNumber()
+	var v any
+	if dec.Decode(&v) != nil {
+		return ""
+	}
+	var walk func(v any, under string) string
+	walk = func(v any, under string) string {
+		switch x := v.(type) {
+		case map[string]any:
+			for _, k := range slices.Sorted(maps.Keys(x)) {
+				n := strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(k))
+				u := under
+				if u == "" && (strings.Contains(n, "cookie") || slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) })) {
+					u = k
+				}
+				if r := walk(x[k], u); r != "" {
+					return r
+				}
+			}
+		case []any:
+			for _, e := range x {
+				if r := walk(e, under); r != "" {
+					return r
+				}
+			}
+		case string:
+			if under != "" && x != bodySentinel {
+				return under
+			}
+		case json.Number:
+			if under != "" && x.String() != bodySentinel {
+				return under
+			}
+		}
+		return "" // null and true/false carry no secret
+	}
+	return walk(v, "")
 }
 
 // precheckProblem checks the check before with its refusal texts and its required text as a group (D-95): a read-only template (a

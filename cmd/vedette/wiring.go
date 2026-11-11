@@ -283,7 +283,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
 	}
-	if d.Response, err = newResponse(d); err != nil {
+	if d.Response, err = newResponse(d); err != nil { //nolint:contextcheck // response's BoxAddrs port has no context: it reads the decoys with its own short budget
 		return fmt.Errorf("response: %w", err)
 	}
 	registerLogSources(d)
@@ -427,14 +427,5 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 	if inv == nil {
 		return false, nil
 	}
-	list, err := inv.Devices(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, dev := range list.Items {
-		if !dev.IsBox && dev.IP == ip.String() {
-			return true, nil
-		}
-	}
-	return false, nil
+	return inv.AddressInUse(ctx, ip.String()) // uncapped (D-178): the 2000 row list forgets the oldest device
 }

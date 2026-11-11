@@ -76,7 +76,15 @@ func (h *ResponseHandlers) ResponseGetResponsePlans(ctx context.Context, params 
 	if err != nil {
 		return nil, err
 	}
+	v = v.masked(h.seesValues(ctx))
 	return convert[oas.ResponseGetResponsePlansOK](v)
+}
+
+// seesValues reports whether the caller may read the header values of a request: the people who approve (operators and administrators)
+// read everything they approve (D-175), except what carries a credential (D-174); a viewer reads names only.
+func (h *ResponseHandlers) seesValues(ctx context.Context) bool {
+	p, ok := server.PrincipalFrom(ctx)
+	return ok && (p.Role == routes.Admin || p.Role == routes.Operator)
 }
 
 // ResponseGetResponseActions implements GET /response/actions (viewer).
@@ -84,6 +92,10 @@ func (h *ResponseHandlers) ResponseGetResponseActions(ctx context.Context) (*oas
 	l, err := h.svc.Actions(ctx)
 	if err != nil {
 		return nil, err
+	}
+	full := h.seesValues(ctx)
+	for i := range l {
+		l[i] = l[i].masked(full)
 	}
 	return convert[oas.ResponseGetResponseActionsOK](struct {
 		Items []ActionRequest `json:"items"`
@@ -100,7 +112,7 @@ func (h *ResponseHandlers) ResponsePostResponseProposalsIDRequest(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseProposalsIDRequestCreated](r)
+	return convert[oas.ResponsePostResponseProposalsIDRequestCreated](r.masked(h.seesValues(ctx)))
 }
 
 // ResponsePostResponseActionsIDApprove implements POST /response/actions/{id}/approve (operator).
@@ -113,7 +125,7 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDApprove(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseActionsIDApproveOK](r)
+	return convert[oas.ResponsePostResponseActionsIDApproveOK](r.masked(h.seesValues(ctx)))
 }
 
 // ResponsePostResponseActionsIDReject implements POST /response/actions/{id}/reject (operator).
@@ -126,7 +138,7 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDReject(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseActionsIDRejectOK](r)
+	return convert[oas.ResponsePostResponseActionsIDRejectOK](r.masked(h.seesValues(ctx)))
 }
 
 // linkRequest is what both link routes check first (D-96 (4), spec approval-tokens.md 14.8): a browser that says the request comes from
@@ -167,7 +179,7 @@ func (h *ResponseHandlers) ResponsePostResponseApproveToken(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseApproveTokenOK](r)
+	return convert[oas.ResponsePostResponseApproveTokenOK](r.masked(true)) // a link holder is an approver: values, but never a credential
 }
 
 // ResponseGetResponseAi implements GET /response/ai (viewer).
@@ -202,7 +214,7 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDRollback(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseActionsIDRollbackOK](r)
+	return convert[oas.ResponsePostResponseActionsIDRollbackOK](r.masked(h.seesValues(ctx)))
 }
 
 // ResponsePostResponseActionsIDChatDecision answers 404: the operation exists only in the preview build (FORBID-5).
@@ -368,7 +380,7 @@ func (h *ResponseHandlers) ResponsePostResponseRulesSimulate(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.ResponsePostResponseRulesSimulateOK](v)
+	return convert[oas.ResponsePostResponseRulesSimulateOK](v.masked(h.seesValues(ctx)))
 }
 
 // ResponsePostResponseRulesIDManual implements POST /response/rules/{id}/manual (operator).

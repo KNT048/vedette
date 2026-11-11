@@ -136,7 +136,7 @@ export const ConnectorPin = z.object({
 export const Connector = z.object({
   id: z.string(), name: z.string(), kind: ConnectorKind, target: z.string().describe('Base URL or host:port. "mcp-stdio" rows are not supported (D-94)'), asset_id: z.string().nullable(),
   auth: z.object({
-    type: ConnectorAuthType, last4: z.string().nullable().describe('Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)'),
+    type: ConnectorAuthType, header: z.string().nullable().describe('Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API wants a key header. null sends Authorization: Bearer <token>. The token itself stays in the vault'), last4: z.string().nullable().describe('Last 4 characters of a token or password; null for an SSH key and for no sign-in. The full secret is never returned (SYS-4)'),
     key_fingerprint: z.string().nullable().describe('SSH key only: SHA256:<base64> fingerprint of the saved private key, like GitHub shows for a key. The mock uses a hash of the key body; the backend computes the public-key fingerprint'),
   }),
   username: z.string().nullable().describe('User name for SSH and for Basic sign-in; null for the other sign-ins'),
@@ -148,6 +148,7 @@ export const ConnectorInput = z.object({
   name: z.string().min(1).max(40), kind: ConnectorKind, target: z.string(), asset_id: z.string().nullable().optional(),
   auth_type: ConnectorAuthType, secret: z.string().optional().describe('Leave blank when editing to keep the old secret'),
   username: z.string().regex(/^[^\s:\p{Cc}\p{Cf}]{1,64}$/u).nullable().optional().describe('Required for SSH and for Basic sign-in (400 username_required); 1 to 64 characters without spaces, colons or control characters; ignored for the other sign-ins'),
+  auth_header: z.string().max(64).nullable().optional().describe('Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or null sends Authorization: Bearer <token>. An RFC 7230 token that is not Host, Content-Length, Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400 invalid'),
   clear_pin: z.boolean().optional().describe('true = forget the pinned certificate or host key; the next Test pins again. It is also forgotten when the kind changes or the host or port changes (a trailing slash or path does not count); a change of sign-in keeps it'),
   allow: z.array(z.string()), enabled: z.boolean(), tools: z.array(z.object({ name: z.string(), enabled: z.boolean(), access: z.enum(['read', 'write']).optional().describe('Only for an MCP server (mcp-http): other kinds answer 400 invalid_tool_access, their tools are fixed. A tool found on an MCP server starts as write and off') })).optional().describe('Per-tool enable; tools not listed keep their state'),
 })

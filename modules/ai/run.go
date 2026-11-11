@@ -108,6 +108,7 @@ func attemptReasons(res CallResult, ue *UnavailableError) []string {
 func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntry) (ActivityEntry, error) {
 	prev := Genesis
 	err := tx.QueryRowContext(ctx, `SELECT hash FROM ai_activity ORDER BY seq DESC LIMIT 1`).Scan(&prev)
+	// No row means a new log. A prune never removes the newest row (chainhead.Prune), so the table is not empty after one.
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return ActivityEntry{}, fmt.Errorf("ai: read activity head: %w", err)
 	}
@@ -306,6 +307,16 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		// The caller gave up (a closed tab, a timeout). If the request had reached the provider the data has left the box and tokens
 		// may be spent, so the call still gets its row; if it had not, nothing was sent and there is nothing to record.
 		if len(res.Attempts) > 0 {
+			// say which profile the request went to: the last attempt that sent a request is the one running when the caller left
+			for i := len(res.Attempts) - 1; i >= 0; i-- {
+				if last := res.Attempts[i]; !last.Skipped {
+					entry.Profile, entry.ProfileID = last.Profile, last.ProfileID
+					if st, ok := s.snap.Load().find(last.ProfileID); ok {
+						entry.Model = st.Model
+					}
+					break
+				}
+			}
 			entry.Summary = "The request was cancelled while the AI was being asked."
 			if rerr := s.record(ctx, entry); rerr != nil {
 				return rerr

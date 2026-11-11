@@ -201,7 +201,7 @@ export const handlers = [
     const u = t ? usersStore.get().find((x) => x.id === t.user_id) : undefined
     const ready = state === 'ready'
     const view: ApprovalView = { state, title: ready ? a!.title : null, items: ready ? a!.items.map((i) => ({ title: i.title, risk: i.risk, change: i.change })) : [], approver: ready ? (u?.name ?? null) : null, expires_at: ready ? t!.expires_at : null, status: a?.status ?? null,
-      requires_approvals: a?.requires_approvals ?? null, approved_so_far: a ? a.approvals.length : null }
+      requires_approvals: a?.requires_approvals ?? null, approved_so_far: a ? a.approvals.length : null, ai_generated: ready && !!a!.ai }
     return HttpResponse.json(view)
   }),
 

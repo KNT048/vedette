@@ -67,6 +67,10 @@ type Config struct {
 	Facts Facts
 	// Modules says whether the ai module is on (the module registry); nil = on. It is asked by the doors other modules use.
 	Modules interface{ Enabled(id string) bool }
+	// ChainPruner moves the anchor and the head of a hash chain when old rows are removed, in the caller's transaction. Core owns those
+	// tables (core_chain_anchor, core_chain_head) and offers the helper (chainhead.Prune, issue #194); until then it is nil and
+	// the retention prune is off: the setting is saved, nothing is removed.
+	ChainPruner ChainPruner
 }
 
 // stored is a profile as the service holds it: the library profile (with its key opened) and the id of its sealed key.

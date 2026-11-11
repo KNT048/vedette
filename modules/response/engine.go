@@ -122,6 +122,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		if rec.Exec, err = s.buildExec(cat, vals, conn, a.TTLMin); err != nil {
 			return planned{}, &planFail{"invalid_target", "The action could not be rendered from its template. Nothing was changed.", title}
 		}
+		rec.ExecHash = execHash(rec.Exec)
 		if why := rec.Exec.addressProblem(*conn); why != "" { // an action that could never be sent is not available, with the reason (L6)
 			return planned{}, &planFail{"tool_unavailable", why, title}
 		}
@@ -374,7 +375,7 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 		sum.DryRun++
 		var would []string
 		for _, p := range fresh {
-			would = append(would, p.rec.Title+" ("+firstLine(callText(p.rec.Change.Rest, p.rec.Change.CLI))+")")
+			would = append(would, p.rec.Title+" ("+firstLine(callFirstLine(p.rec.Change.Rest, p.rec.Change.CLI))+")")
 		}
 		return "", s.step(ctx, tx, "response.dry_run", rule.ID, LogDryRun, rule.Name+": dry run, nothing was requested or run. Would do: "+strings.Join(would, "; "), actor)
 	}

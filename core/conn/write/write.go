@@ -400,7 +400,7 @@ func (w *Writer) https(ctx context.Context, c conn.Connection, secret secrets.Va
 	acc := w.c.WriteAccess(cred.Grant())
 	// TOFU is never on here: a certificate is trusted by the pin the first Test took, or by the system roots when that is what it recorded.
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: acc.Dialer, Pin: tlsPin(c.Pin), TOFU: false, Roots: acc.Roots})
-	auth := transport.Auth{Type: c.Auth.Type, Secret: secret}
+	auth := transport.Auth{Type: c.Auth.Type, Header: deref(c.Auth.Header), Secret: secret}
 	if c.Username != nil {
 		auth.Username = *c.Username
 	}
@@ -450,6 +450,25 @@ func (w *Writer) mcp(ctx context.Context, cl *transport.Client, auth transport.A
 	if err := m.Initialize(ctx); err != nil {
 		return failure(err, false, false, c, redact) // nothing was called yet
 	}
+	// D-179 (5): the tool is the one the administrator vouched for, as the server describes it now (the reader does the same).
+	tools, err := m.ListTools(ctx)
+	if err != nil {
+		return failure(err, false, false, c, redact) // nothing was called yet
+	}
+	var found *transport.MCPTool
+	for i := range tools {
+		if tools[i].Name == s.Tool {
+			found = &tools[i]
+		}
+	}
+	if found == nil {
+		return res(StatusNotSent, "the server no longer offers the tool %s", s.Tool)
+	}
+	for _, t := range c.Tools {
+		if t.Name == s.Tool && t.Ident != conn.ToolIdent(found.Description, found.Schema, found.MayWrite()) {
+			return res(StatusNotSent, "the server changed the tool %s since it was tested; test the connection again and set it again", s.Tool)
+		}
+	}
 	out, err := m.CallTool(ctx, s.Tool, a)
 	if err != nil {
 		return failure(err, true, false, c, redact)
@@ -486,6 +505,12 @@ func (w *Writer) ssh(ctx context.Context, c conn.Connection, secret secrets.Valu
 	defer sess.Close()
 	var out []string
 	for i, l := range s.Lines {
+		if ctx.Err() != nil { // the step was cancelled (the emergency stop, the deadline): no further line goes out (D-179 (4))
+			if i == 0 || reads {
+				return res(StatusNotSent, "the step was cancelled; no further command was sent")
+			}
+			return res(StatusUnknown, "the step was cancelled after %d of %d commands were sent, so it may be half applied", i, len(s.Lines))
+		}
 		o, err := sess.Run(ctx, l)
 		if err != nil {
 			r := failure(err, true, reads, c, redact)
@@ -545,4 +570,11 @@ func failure(err error, sent, reads bool, c conn.Connection, redact []string) Re
 		return res(StatusFailed, "%s", msg)
 	}
 	return res(StatusUnknown, "%s: %s; the step may or may not have been applied", c.Target, msg)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

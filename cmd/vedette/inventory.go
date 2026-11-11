@@ -51,7 +51,8 @@ func newInventory(d *deps) *inventory.Service {
 }
 
 // inventoryJobs keeps the box in the inventory as its first device (INV-3, D-53): the job runs as soon as the
-// module is on (start-up, or when it is switched on), creates the device once and refreshes it after.
+// module is on (start-up, or when it is switched on), creates the device once and refreshes it after. "retention" deletes services and
+// agent software past their retention (D-327).
 func inventoryJobs(d deps) []jobs.Job {
 	svc := d.Inventory
 	return []jobs.Job{{Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -63,5 +64,5 @@ func inventoryJobs(d deps) []jobs.Job {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)
-	}}}
+	}}, {Module: "inventory", Name: "retention", Every: time.Hour, Run: svc.Prune}} // a normal job: nothing goes while the module is off (D-327)
 }

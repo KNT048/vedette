@@ -1,7 +1,7 @@
 // Mock API module logs (S-LOG-1/2/3). Nguồn log, digest "mới / tăng đột biến / kết nối xấu", tìm sự kiện, lưu giữ, chuyển tiếp SIEM.
 // Dòng log và digest là dữ liệu mẫu cố định; thiết bị nguồn tra theo IP trong assetsStore (kiểm kê). Mọi văn bản người dùng thấy bằng tiếng Anh (D-28).
 import { http, HttpResponse } from 'msw'
-import { API, audit, body, DOMAIN_RE, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
+import { API, audit, body, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
 import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
 import { CATALOG } from './catalog'

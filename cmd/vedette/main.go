@@ -255,7 +255,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
+	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db))) // before the services: deps.Wake hands them sched.Wake
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
 		Restart: func() {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
@@ -286,7 +287,6 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}
 		defer func() { _ = link.ln.Close() }() // only matters when a later step fails before serveUntilDone owns it
 	}
-	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db)))
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {
 		return err

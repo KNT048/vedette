@@ -313,7 +313,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := startMCP(ctx, d); err != nil { // the port is open exactly while the module is on (POST-1)
 		return err
 	}
-	addOffGuards(guard, d, wired) //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
+	addOffGuards(guard, d, wired)         //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
 	addContainerGuards(onGuard, guard, d) //nolint:contextcheck // as above: the follower's start (module on) and stop (module off) at core start
 
 	api, err := server.New(server.Config{

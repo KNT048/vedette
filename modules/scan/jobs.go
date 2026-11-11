@@ -35,12 +35,13 @@ const (
 
 const noteWindowEnded = "The scan window ended; the devices not reached are scanned at the next scheduled run."
 
-// Jobs are the module's background work; core/jobs runs them only while the module is on (SYS-5).
+// Jobs are the module's background work; core/jobs runs them only while the module is on (SYS-5), except retention: it only
+// deletes rows past the retention (INV-7), so it is housekeeping and keeps its timer while the module is off (D-160).
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "rescan", Every: JobTick, Run: svc.RunRescans},
 		{Module: ModuleID, Name: "schedule", Every: JobTick, Run: svc.RunSchedule},
-		{Module: ModuleID, Name: "retention", Every: time.Hour, Run: svc.RunRetention},
+		{Module: ModuleID, Name: "retention", Every: time.Hour, Housekeeping: true, Run: svc.RunRetention},
 		{Module: ModuleID, Name: "recover", Every: RecoverEvery, Run: svc.RunRecover},
 	}
 }

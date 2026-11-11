@@ -173,9 +173,16 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer stopControl()
 	log := &e2eLog{file: f, dir: dir, ready: seed}
+	// D-173: the box listens on a port chosen here, so notify can build approval links that reach it (see testBaseURL)
+	listenPort, err := e2eFreePort(ctx)
+	if err != nil {
+		return err
+	}
+	listen := net.JoinHostPort("127.0.0.1", strconv.Itoa(listenPort))
+	defer e2eBaseURL(listen, "http://"+listen)()
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
-		"-listen", "127.0.0.1:0", "-host-socket", hostSocket, "-honeypot-dir", hp,
+		"-listen", listen, "-host-socket", hostSocket, "-honeypot-dir", hp,
 		"-syslog-port", seed.SyslogPort, // not 514/5514: two runs at once, and a Mac may not bind 514 (logs spec)
 	}
 	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
@@ -186,6 +193,33 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	return errors.Join(runErr, log.err)
+}
+
+var (
+	e2eBaseMu sync.Mutex
+	e2eBases  = map[string]string{}
+)
+
+// Set once, before any box starts: boxes of one process read it from their own goroutines. An address no box registered gets "" and the production derivation.
+func init() {
+	testBaseURL = func(l string) string {
+		e2eBaseMu.Lock()
+		defer e2eBaseMu.Unlock()
+		return e2eBases[l]
+	}
+}
+
+// e2eBaseURL tells boxBaseURL (notify.go, D-173) which address people open the box at when it listens on `listen`; the returned func forgets it.
+// Two boxes run in one process (the bare box), each with a listen address of its own, so the seam is a lookup, not one value.
+func e2eBaseURL(listen, base string) func() {
+	e2eBaseMu.Lock()
+	defer e2eBaseMu.Unlock()
+	e2eBases[listen] = base
+	return func() {
+		e2eBaseMu.Lock()
+		defer e2eBaseMu.Unlock()
+		delete(e2eBases, listen)
+	}
 }
 
 // The listener of the logs module binds loopback only in this test binary: a test box does not open a syslog port on the LAN. Set once, before any box starts (two boxes
@@ -368,6 +402,25 @@ func TestE2EBox(t *testing.T) {
 	}
 	if err := e2eBoxWith(ctx, dir, data, sock, seed); err != nil {
 		t.Fatalf("the box ended with an error: %v", err)
+	}
+}
+
+// TestE2EBaseURLSeam pins D-173: a listen address a test box registered gets the loopback URL, every other address keeps the production
+// derivation (loopback without a seam answers "", a public name gets https), and the seam is forgotten when the box stops.
+func TestE2EBaseURLSeam(t *testing.T) {
+	forget := e2eBaseURL("127.0.0.1:41999", "http://127.0.0.1:41999")
+	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41999"); got != "http://127.0.0.1:41999" {
+		t.Fatalf("registered listen = %q", got)
+	}
+	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41998"); got != "" {
+		t.Fatalf("another loopback listen = %q, want the production answer \"\"", got)
+	}
+	if got := boxBaseURL([]string{"box.corp.example"}, "10.0.0.5:8443"); got != "https://box.corp.example:8443" {
+		t.Fatalf("a LAN listen = %q", got)
+	}
+	forget()
+	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41999"); got != "" {
+		t.Fatalf("after the box stopped = %q", got)
 	}
 }
 

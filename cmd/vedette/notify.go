@@ -116,6 +116,21 @@ func baseURL(hosts []string, listen string) string {
 	return ""
 }
 
+// testBaseURL is the test seam of D-173 (WP-30 slice 9b): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
+// every approval request, so the box of `make e2e-real` answers http://127.0.0.1:<port> for its own listen address. Unexported, no flag, nil in the
+// shipped binary: only a _test.go file sets it, so the production derivation above is the only one a real box ever runs.
+var testBaseURL func(listen string) string
+
+// boxBaseURL is baseURL, unless a test box has said otherwise for this listen address.
+func boxBaseURL(hosts []string, listen string) string {
+	if testBaseURL != nil {
+		if u := testBaseURL(listen); u != "" {
+			return u
+		}
+	}
+	return baseURL(hosts, listen)
+}
+
 // hostForURL brackets an IPv6 literal.
 func hostForURL(h string) string {
 	if a, err := netip.ParseAddr(h); err == nil && a.Is6() {

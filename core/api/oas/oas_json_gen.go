@@ -35040,6 +35040,10 @@ func (s *CoreGetMeOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Org)
 	}
 	{
+		e.FieldStart("password_change_required")
+		e.Bool(s.PasswordChangeRequired)
+	}
+	{
 		e.FieldStart("role")
 		s.Role.Encode(e)
 	}
@@ -35053,14 +35057,15 @@ func (s *CoreGetMeOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetMeOK = [7]string{
+var jsonFieldsNameOfCoreGetMeOK = [8]string{
 	0: "email",
 	1: "id",
 	2: "name",
 	3: "org",
-	4: "role",
-	5: "twofa",
-	6: "twofa_method",
+	4: "password_change_required",
+	5: "role",
+	6: "twofa",
+	7: "twofa_method",
 }
 
 // Decode decodes CoreGetMeOK from json.
@@ -35120,8 +35125,20 @@ func (s *CoreGetMeOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"org\"")
 			}
-		case "role":
+		case "password_change_required":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.PasswordChangeRequired = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password_change_required\"")
+			}
+		case "role":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Role.Decode(d); err != nil {
 					return err
@@ -35131,7 +35148,7 @@ func (s *CoreGetMeOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"role\"")
 			}
 		case "twofa":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Bool()
 				s.Twofa = bool(v)
@@ -35143,7 +35160,7 @@ func (s *CoreGetMeOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"twofa\"")
 			}
 		case "twofa_method":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.TwofaMethod.Decode(d); err != nil {
 					return err
@@ -35162,7 +35179,7 @@ func (s *CoreGetMeOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

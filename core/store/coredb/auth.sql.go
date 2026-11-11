@@ -46,7 +46,7 @@ func (q *Queries) AdvanceTotpStep(ctx context.Context, arg AdvanceTotpStepParams
 }
 
 const changeUserPassword = `-- name: ChangeUserPassword :execrows
-UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?
+UPDATE core_user SET password_hash = ?, temp_password_expires_at = NULL, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?
 `
 
 type ChangeUserPasswordParams struct {
@@ -230,22 +230,23 @@ func (q *Queries) GetLiveSession(ctx context.Context, arg GetLiveSessionParams) 
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.user_id, s.csrf_hash, s.started_at, s.last_seen, s.expires_at, s.revoked_at,
-       u.email, u.role, u.disabled
+       u.email, u.role, u.disabled, u.temp_password_expires_at
 FROM core_session s JOIN core_user u ON u.id = s.user_id
 WHERE s.token_hash = ?
 `
 
 type GetSessionByTokenHashRow struct {
-	ID        string
-	UserID    string
-	CsrfHash  string
-	StartedAt string
-	LastSeen  string
-	ExpiresAt string
-	RevokedAt *string
-	Email     string
-	Role      string
-	Disabled  int64
+	ID                    string
+	UserID                string
+	CsrfHash              string
+	StartedAt             string
+	LastSeen              string
+	ExpiresAt             string
+	RevokedAt             *string
+	Email                 string
+	Role                  string
+	Disabled              int64
+	TempPasswordExpiresAt *string
 }
 
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash string) (GetSessionByTokenHashRow, error) {
@@ -262,6 +263,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash string) (
 		&i.Email,
 		&i.Role,
 		&i.Disabled,
+		&i.TempPasswordExpiresAt,
 	)
 	return i, err
 }
@@ -307,7 +309,7 @@ func (q *Queries) GetTotp(ctx context.Context, userID string) (CoreUserTotp, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
 FROM core_user WHERE email = ?
 `
 
@@ -325,12 +327,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (CoreUser, e
 		&i.Disabled,
 		&i.CreatedAt,
 		&i.LastLogin,
+		&i.TempPasswordExpiresAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
 FROM core_user WHERE id = ?
 `
 
@@ -348,6 +351,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (CoreUser, error) 
 		&i.Disabled,
 		&i.CreatedAt,
 		&i.LastLogin,
+		&i.TempPasswordExpiresAt,
 	)
 	return i, err
 }
@@ -400,17 +404,18 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 }
 
 const insertUser = `-- name: InsertUser :exec
-INSERT INTO core_user (id, name, email, role, password_hash, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO core_user (id, name, email, role, password_hash, temp_password_expires_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertUserParams struct {
-	ID           string
-	Name         string
-	Email        string
-	Role         string
-	PasswordHash string
-	CreatedAt    string
+	ID                    string
+	Name                  string
+	Email                 string
+	Role                  string
+	PasswordHash          string
+	TempPasswordExpiresAt *string
+	CreatedAt             string
 }
 
 func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
@@ -420,6 +425,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 		arg.Email,
 		arg.Role,
 		arg.PasswordHash,
+		arg.TempPasswordExpiresAt,
 		arg.CreatedAt,
 	)
 	return err
@@ -641,16 +647,17 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLog
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :execrows
-UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ?
+UPDATE core_user SET password_hash = ?, temp_password_expires_at = ?, cred_version = cred_version + 1 WHERE id = ?
 `
 
 type UpdateUserPasswordParams struct {
-	PasswordHash string
-	ID           string
+	PasswordHash          string
+	TempPasswordExpiresAt *string
+	ID                    string
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	result, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.TempPasswordExpiresAt, arg.ID)
 	if err != nil {
 		return 0, err
 	}

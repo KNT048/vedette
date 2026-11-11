@@ -1,6 +1,6 @@
 package auth
 
-import "time"
+import "runtime"
 
 // SetHashProbe makes the service call f(+1) when an argon2 run starts and f(-1) when it ends.
 func SetHashProbe(s *Service, f func(delta int)) { s.probe = f }
@@ -21,6 +21,6 @@ func VerifyPassword(encoded, password string) (ok, needsRehash bool, err error) 
 // refresh, so a test that then moves a fake clock could outrun the write on a slow machine.
 func WaitTouched(s *Sessions) {
 	for s.touching.Load() {
-		time.Sleep(time.Millisecond)
+		runtime.Gosched()
 	}
 }

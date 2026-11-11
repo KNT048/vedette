@@ -176,8 +176,14 @@ func FuzzIDNextToIP(f *testing.F) {
 		}
 		id := []string{"079012345678", "123456789", "079 012 345 678", "123 456 789"}[rng.IntN(4)]
 		for _, in := range []string{id + sep + ip, ip + sep + id} {
-			if res := run(t, r, BeforeAI, in); res.Outcome != OutcomeBlocked {
-				t.Fatalf("%q: not blocked as an ID number: %+v", in, res)
+			res := run(t, r, BeforeAI, in)
+			if res.Outcome == OutcomeBlocked {
+				continue
+			}
+			// "...:841\t123456789" can also be read as a phone number that swallows the ID: masked, then no group of the ID may survive.
+			out := (&scanText{orig: res.Text}).normalized()
+			if res.Outcome != OutcomeMasked || strings.Contains(out, strings.Fields(id)[0]) || strings.Contains(out, strings.Fields(id)[len(strings.Fields(id))-1]) {
+				t.Fatalf("%q: neither blocked as an ID number nor masked: %+v", in, res)
 			}
 		}
 	})

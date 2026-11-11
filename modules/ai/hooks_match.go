@@ -629,14 +629,14 @@ func blankV6(s string, a, z int, edges bool, blank func(a, z int)) {
 	}
 }
 
-// phoneFollows reports whether the address s[a:e] ends in a group of digits only that is followed by up to three phone
+// phoneFollows reports whether the address s[a:e] ends in a group of digits only (or digits and dots) that is followed by up to three phone
 // separators and another digit: the group may be the start of a phone number.
 func phoneFollows(s string, a, e int) bool {
 	g := e
-	for g > a && isDigitByte(s[g-1]) {
+	for g > a && (isDigitByte(s[g-1]) || s[g-1] == '.') { // the last group, or an IPv4 tail (::0.21.22.160 062)
 		g--
 	}
-	if g == e || g == a || s[g-1] != ':' {
+	if g == e || g == a || s[g-1] != ':' || !isDigitByte(s[e-1]) {
 		return false
 	}
 	return digitAfterSeps(s, e)

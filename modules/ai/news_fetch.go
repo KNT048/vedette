@@ -82,6 +82,7 @@ const (
 	newsMaxRedirects = 3
 	newsCacheTTL     = 30 * time.Minute
 	newsCacheMax     = 128
+	newsLimitTTL     = time.Minute // a host's rate-limit answer is remembered this long: no request goes to that host meanwhile, for any CVE
 )
 
 // Errors of one fetch. The note a person sees is chosen from them (fetchNote); the text of the error itself is never shown, as it
@@ -109,8 +110,15 @@ type newsFetcher struct {
 	timeout time.Duration // one request; newsFetchTimeout (tests shorten it)
 	total   time.Duration // every fetch of one news call; newsTotalTimeout
 
-	mu    sync.Mutex
-	cache map[string]newsCacheEntry
+	mu       sync.Mutex
+	cache    map[string]newsCacheEntry
+	inflight map[string]*cveLock   // the news calls running or waiting, per CVE (lockCVE)
+	limited  map[string]limitEntry // per host: a rate-limit answer, remembered newsLimitTTL (D-284)
+}
+
+type limitEntry struct {
+	err *statusError
+	at  time.Time
 }
 
 type newsCacheEntry struct {
@@ -120,11 +128,13 @@ type newsCacheEntry struct {
 
 func newNewsFetcher(now func() time.Time) *newsFetcher {
 	return &newsFetcher{
-		client:  &http.Client{Transport: newsTransport(systemResolve, nil), CheckRedirect: newsRedirect},
-		now:     now,
-		timeout: newsFetchTimeout,
-		total:   newsTotalTimeout,
-		cache:   map[string]newsCacheEntry{},
+		client:   &http.Client{Transport: newsTransport(systemResolve, nil), CheckRedirect: newsRedirect},
+		now:      now,
+		timeout:  newsFetchTimeout,
+		total:    newsTotalTimeout,
+		cache:    map[string]newsCacheEntry{},
+		inflight: map[string]*cveLock{},
+		limited:  map[string]limitEntry{},
 	}
 }
 
@@ -235,6 +245,13 @@ func (f *newsFetcher) get(ctx context.Context, raw, accept string) ([]byte, erro
 	if !newsHostAllowed(u.Hostname()) {
 		return nil, errNewsHost
 	}
+	host := strings.ToLower(u.Hostname())
+	f.mu.Lock()
+	lim, isLimited := f.limited[host]
+	f.mu.Unlock()
+	if age := f.now().Sub(lim.at); isLimited && age >= 0 && age < newsLimitTTL {
+		return nil, lim.err // the host said "too many requests" a moment ago: not asked again, whatever the CVE
+	}
 	ctx, cancel := context.WithTimeout(ctx, f.timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -255,7 +272,13 @@ func (f *newsFetcher) get(ctx context.Context, raw, accept string) ([]byte, erro
 		limited := strings.EqualFold(u.Hostname(), githubHost) && (resp.StatusCode == http.StatusTooManyRequests ||
 			(resp.StatusCode == http.StatusForbidden && resp.Header.Get("X-RateLimit-Remaining") == "0"))
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
-		return nil, &statusError{code: resp.StatusCode, limited: limited}
+		se := &statusError{code: resp.StatusCode, limited: limited}
+		if limited || resp.StatusCode == http.StatusTooManyRequests {
+			f.mu.Lock()
+			f.limited[host] = limitEntry{err: se, at: f.now()} // one entry per allowed host: bounded by the list
+			f.mu.Unlock()
+		}
+		return nil, se
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, newsMaxBody+1))
 	if err != nil {
@@ -269,7 +292,8 @@ func (f *newsFetcher) get(ctx context.Context, raw, accept string) ([]byte, erro
 
 // cached returns what fn made for key in the last newsCacheTTL, or runs fn and keeps a result that is not an error. Asking again
 // within the window reads the same inputs, so the stored answer is reused and no tokens are spent (INV-6); it also keeps the box
-// under GitHub's limit for requests without a key.
+// under GitHub's limit for requests without a key. Errors are not kept here (a timeout is worth retrying at once); a site's
+// rate-limit answer is remembered per host by get (newsLimitTTL).
 func cachedFetch[T any](f *newsFetcher, key string, fn func() (T, error)) (T, error) {
 	now := f.now()
 	f.mu.Lock()
@@ -287,16 +311,53 @@ func cachedFetch[T any](f *newsFetcher, key string, fn func() (T, error)) (T, er
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if len(f.cache) >= newsCacheMax {
-		oldest := ""
-		for k, e := range f.cache {
-			if oldest == "" || e.at.Before(f.cache[oldest].at) {
-				oldest = k
+		victim := ""
+		for k, e := range f.cache { // an expired entry first, else the oldest
+			if age := now.Sub(e.at); age < 0 || age >= newsCacheTTL {
+				victim = k
+				break
+			}
+			if victim == "" || e.at.Before(f.cache[victim].at) {
+				victim = k
 			}
 		}
-		delete(f.cache, oldest)
+		delete(f.cache, victim)
 	}
 	f.cache[key] = newsCacheEntry{v: v, at: now}
 	return v, nil
+}
+
+// lockCVE serialises the news calls of one CVE (D-284): a second press while the first is fetching or asking waits for it, then
+// finds the fetched pages in the cache and the answer stored, so it fetches nothing and spends no tokens. A caller that gives up
+// while waiting gets its context's error.
+func (f *newsFetcher) lockCVE(ctx context.Context, cve string) (unlock func(), err error) {
+	f.mu.Lock()
+	l, ok := f.inflight[cve]
+	if !ok {
+		l = &cveLock{ch: make(chan struct{}, 1)}
+		f.inflight[cve] = l
+	}
+	l.n++
+	f.mu.Unlock()
+	release := func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if l.n--; l.n == 0 {
+			delete(f.inflight, cve)
+		}
+	}
+	select {
+	case l.ch <- struct{}{}:
+		return func() { <-l.ch; release() }, nil
+	case <-ctx.Done():
+		release()
+		return nil, ctx.Err()
+	}
+}
+
+type cveLock struct {
+	ch chan struct{} // holds one token while a call of the CVE runs
+	n  int           // calls holding or waiting for it, under newsFetcher.mu
 }
 
 // fetchNote is what a person sees for a source that could not be used. It never quotes the remote site.

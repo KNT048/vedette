@@ -69,7 +69,7 @@ type BreakerEvent struct {
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
 //	logs.ioc_hit.detected                                                    -> trigger ioc_connection (module not built yet)
-//	logs.threshold.exceeded                                                  -> trigger log_threshold (module not built yet)
+//	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold (#332, D-287)
 //	exposure.port.opened                                                     -> trigger new_port (module not built yet)
 const (
 	EventFindingCreated       = "findings.finding.created"
@@ -305,10 +305,13 @@ func (s *Service) channelNames(ctx context.Context) []string {
 }
 
 // Jobs returns the jobs of the module: "evaluate" runs the rules on new events and the due schedules; "sweep" expires old
-// requests and undoes changes whose undo time ended. Both run only while the module is on (SYS-5).
+// requests and undoes changes whose undo time ended. "evaluate" also polls the Logs counts for the log_threshold rules (PollLogs). Both run only while the module is on (SYS-5).
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "evaluate", Every: 10 * time.Second, Run: func(ctx context.Context) error {
+			if err := s.PollLogs(ctx); err != nil {
+				return err
+			}
 			if _, err := s.Evaluate(ctx); err != nil {
 				return err
 			}

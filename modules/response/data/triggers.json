@@ -246,27 +246,27 @@
   {
    "id": "log_threshold",
    "name": "A log rule matched or a threshold was exceeded",
-   "description": "For example 10 failed VPN logins from one address in 5 minutes.",
+   "description": "Needs the Logs module. A declared log source received at least N lines of one signature (paste it from the Logs digest) within W minutes, for example 10 failed VPN logins in 5 minutes. The counts are per log source: the address the lines are about is not known yet, so actions that block an address are not available.",
    "fields": [
     {
      "key": "source_device",
-     "label": "Source device",
+     "label": "Log source",
      "type": "text",
-     "example": "vpn-client-203",
+     "example": "FW-HQ",
      "choices": []
     },
     {
      "key": "source_ip",
-     "label": "Source IP address",
+     "label": "Source IP address (not known yet)",
      "type": "ip",
-     "example": "203.0.113.99",
+     "example": "",
      "choices": []
     },
     {
      "key": "signature",
      "label": "Log signature",
      "type": "text",
-     "example": "vpn_login_failed",
+     "example": "logid=0101039426 action=ssl-login-fail",
      "choices": []
     },
     {

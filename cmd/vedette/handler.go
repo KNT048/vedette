@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/knt048/vedette/core/server"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/ai"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
@@ -33,6 +34,7 @@ type handler struct {
 	*core.OSHandlers
 	*core.NetworkHandlers
 	*inventory.Handlers
+	*agentintake.IntakeHandlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
 	*mitigation.ActionHandlers
@@ -59,6 +61,7 @@ func newHandler(d deps) handler {
 		OSHandlers:      d.OS,
 		NetworkHandlers: d.Network,
 		Handlers:        inventory.NewHandlers(d.Inventory),
+		IntakeHandlers:  agentintake.NewIntakeHandlers(d.AgentIntake),
 		FeedHandlers:    feedsHandlers(d),
 
 		FindingHandlers:  d.FindingHandlers,

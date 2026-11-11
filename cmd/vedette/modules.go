@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/ai"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
@@ -88,6 +89,7 @@ type deps struct {
 	// Module services other modules use through their own ports (issue #38, #39). Built once in serve,
 	// after the fields above, so every handler, job and subscriber shares one instance.
 	Inventory          *inventory.Service
+	AgentIntake        *agentintake.Service // osquery intake (S-INV-4): needs the inventory as the sink of devices and software
 	Findings           *findings.Service
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
@@ -124,6 +126,7 @@ func wiredModules() []moduleWiring {
 		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
+		{ID: "agent-intake", Migrations: agentintake.Migrations, Jobs: agentIntakeJobs, BodyLimits: agentintake.BodyLimits}, // depends on core and inventory (MANIFEST); node-prune is a normal job (D-265 (8))
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},

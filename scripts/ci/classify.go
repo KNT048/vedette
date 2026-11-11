@@ -17,17 +17,18 @@ type rule struct {
 // step reads: guard_test.go fails when Go or web code starts reading one (D-140).
 var rules = []rule{
 	// Read by a test, so they come before the broad "none" prefixes below.
-	{"docs/API_CONVENTIONS.md", Result{Go: true}},                // core/apierr, modules/core codes and connections tests
-	{"docs/specs/host-api.md", Result{Go: true}},                 // modules/host contract tests
-	{"docs/DEPLOYMENT.md", Result{Go: true}},                     // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
-	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},              // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
-	{"modules/core/testdata/", Result{true, true}},               // chain_vectors.json is a vector for Go and web
-	{"web/src/features/response/templates/", Result{true, true}}, // Go reads the *.sample.json files
-	{"web/src/features/core/testdata/", Result{true, true}},      // Go reads connections_matrix.json and keys/
-	{"web/src/features/core/bundles.ts", Result{true, true}},     // modules/core/handlers_setup_test.go
-	{"web/src/locales/en/core.json", Result{true, true}},         // modules/core/auditlabels_test.go: every audit action has a label
-	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                 // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
-	{"web/package.json", Result{true, true}},                     // the same check reads the web production dependencies
+	{"docs/API_CONVENTIONS.md", Result{Go: true}},                     // core/apierr, modules/core codes and connections tests
+	{"docs/specs/host-api.md", Result{Go: true}},                      // modules/host contract tests
+	{"docs/DEPLOYMENT.md", Result{Go: true}},                          // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
+	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                   // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
+	{"modules/core/testdata/", Result{true, true}},                    // chain_vectors.json is a vector for Go and web
+	{"web/src/features/response/templates/", Result{true, true}},      // Go reads the *.sample.json files
+	{"web/src/features/core/testdata/", Result{true, true}},           // Go reads connections_matrix.json and keys/
+	{"web/src/features/core/bundles.ts", Result{true, true}},          // modules/core/handlers_setup_test.go
+	{"web/src/features/inventory/agentConfig.ts", Result{true, true}}, // modules/agent-intake/schedule_test.go: the Go schedule equals the GUI list
+	{"web/src/locales/en/core.json", Result{true, true}},              // modules/core/auditlabels_test.go: every audit action has a label
+	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                      // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
+	{"web/package.json", Result{true, true}},                          // the same check reads the web production dependencies
 
 	// No test reads these.
 	{".ai/", Result{}},

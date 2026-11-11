@@ -41,8 +41,9 @@
 - **Sửa nguồn** (`UpdateSource`): đổi `kind` hoặc `sender_ip` đặt `logs_sources.signatures_since` và khởi động lại 24 giờ của nguồn; một đường sửa nguồn mới (import hàng loạt) phải làm như vậy.
 - **cmd/vedette** (`logs.go`): `Config.Events` là `d.Bus`; thiếu thì job không làm gì.
 
-## Modifying: `SiemForward(ctx, Event) error` — 4 nguồn sự kiện
-- **core** (finding), **incident/alert**, **honeypot**, **logs** (bad_conn): đổi enum `SiemEvent` hoặc định dạng CEF/JSON → SIEM của khách phân tích sai; cần ghi vào CONTRACT và thông báo khách.
+## Modifying: `Subscribe(bus)`, job `siem`, `SiemEvents/SiemFormats` — 4 lớp sự kiện
+- **findings** (`findings.finding.created|status_changed`), **notify** (`notify.incident.created`), **honeypot** (`honeypot.hit.created`), **logs** (`logs.bad_address.detected`, L4 phát): đổi tên hay trường của các sự kiện này làm bản ghi SIEM thiếu trường (handler đọc JSON, không import module khác). Đổi enum `SiemEvent`, định dạng syslog/CEF/JSON hay chữ ký → SIEM của khách phân tích sai; ghi vào CONTRACT, D-291 và thông báo khách. Đổi `core/secrets` purpose `logs_siem.secret` → mất khoá đã niêm.
+- **cmd/vedette** (`logs.go`): `Config.Secrets`, `Config.BoxAddrs` (= `notifyBoxAddrs`, địa chỉ hộp mà SIEM không được là), `svc.Subscribe(d.Bus)`. **core/export_policy**: bảng `logs_siem`. **PRIVACY.md** luồng 7 và `privacy.flow.7.*`: đổi dữ liệu gửi đi thì sửa cùng lúc.
 
 ## Modifying: `Sources` CRUD / `SourceKind` (`KIND_IDS`)
 - **web/features/logs** (`catalog.ts` bắt buộc có mục cho mỗi mã; `logs.test.tsx` kiểm). Thêm loại: thêm parser + mục catalog + test, không phải sửa chỗ khác.

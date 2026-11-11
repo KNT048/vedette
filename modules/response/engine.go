@@ -74,6 +74,11 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	for _, p := range cat.params() {
 		raw[p] = strings.TrimSpace(resolveParam(a.Params[string(p)], ev.Fields))
 	}
+	if ev.Trigger == "log_threshold" && raw[PIP] == "" && slices.Contains(refsIn(a.Params[string(PIP)]), "source_ip") {
+		// a log count names the log source, not an address (D-287): not a bad value, not available until logs counts per address (#338).
+		// Other triggers keep INV-10: an empty address is invalid_target.
+		return planned{}, &planFail{"tool_unavailable", "Not available: this event has no value for {{trigger.source_ip}}. Log counts are per log source, not per address (D-287, issue #338). Nothing was changed.", title}
+	}
 	vals, bad := CheckValues(cat.params(), raw)
 	if bad != "" {
 		return planned{}, &planFail{"invalid_target", bad, title}

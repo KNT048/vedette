@@ -280,6 +280,8 @@ func Jobs(svc *Service) []jobs.Job {
 		{Module: ModuleID, Name: "syslog", Every: SyslogRetry, Run: svc.runSyslog},
 		// Not housekeeping either: it announces, so it runs only while the module is on (SYS-5).
 		anomalyJob(svc),
+		// Not housekeeping: it sends data out, so it runs only while the module is on (SYS-5, FORBID-3).
+		{Module: ModuleID, Name: "siem", Every: SyslogRetry, Run: svc.runSiem},
 	}
 }
 

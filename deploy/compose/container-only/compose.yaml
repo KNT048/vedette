@@ -49,6 +49,8 @@ services:
       retries: 3
     # A purge ("Delete all data") makes core exit so that its supervisor starts a fresh box (D-154): without this the box stays stopped.
     restart: unless-stopped
+    # The appliance logs to journald, which bounds itself; Docker's default json-file never rotates, so bound it here.
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
 
 volumes:
   data:

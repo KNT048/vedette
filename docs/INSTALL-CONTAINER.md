@@ -10,7 +10,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 |---|---|---|
 | Web page, users, feeds, inventory (by hand or import), findings, notifications, AI (your key), osquery, response | yes | yes |
 | Syslog receiver | yes, add `compose.syslog.yaml` | yes |
-| Passive sensor (SPAN) and scan worker | yes, add `compose.sensors.yaml`: Linux, run as root, you prepare the card | yes, set up in the page |
+| Passive sensor (SPAN) and scan worker | yes, add `compose.sensors.yaml`: Linux, run as root (the sensor is uid 0 with only `NET_RAW`), you prepare the card | yes, set up in the page |
 | Honeypot (traps) | **no** | yes |
 | Nmap in the scan worker | **no** (nuclei only) | yes |
 | Operating system updates, reboot | **you**, on your machine | in the page |
@@ -21,7 +21,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 
 ## What you need
 
-- Docker Engine with Compose v2 (`docker compose`), or Podman with `podman compose` and a compose v2 provider (`podman compose version` names it). Tested here: Docker Engine 29.1.3 with Compose 2.40.3, Podman 5.7.0 with that provider. Older versions are not claimed to work until the lab matrix says so.
+- Docker Engine with Compose v2 (`docker compose`), or Podman with `podman compose` and a compose v2 provider (`podman compose version` names it). Tested here: Docker Engine 29.1.3 with Compose 2.40.3, Podman 5.7.0 with that provider. Older versions are not claimed to work until the lab matrix says so; Docker before 28 also let neighbours on your LAN reach ports published on `127.0.0.1` (here 8444, which is mutual TLS).
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
 - About 4 CPU cores and 8 GB of memory for a network of up to 1,000 devices (`docs/DEPLOYMENT.md` section 4). Core is limited to 2 GB, the sensor to 512 MB, the scan worker to 1 GB.
@@ -29,7 +29,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 
 ## 1. Get the files and check them
 
-A release will publish `compose.yaml`, `compose.sensors.yaml`, `compose.syslog.yaml` and `vedette.env` next to its other files, each with a minisign signature, and the container images at `ghcr.io/knt048/vedette-core`, `-sensor` and `-scan`, signed with cosign. The release builder fills the image lines of `vedette.env` with the digest of each image. Until the first release exists (WP-08k) take the files from `deploy/compose/container-only/` of the repository and use images you built yourself (`make core-image sensor-image scan-base-image`, tagged `localhost/vedette-<service>:dev`).
+A release will publish `compose.yaml`, `compose.sensors.yaml`, `compose.syslog.yaml` and `vedette.env` next to its other files, each with a minisign signature, and the container images at `ghcr.io/knt048/vedette-core`, `-sensor` and `-scan`, signed with cosign. The release builder fills the image lines of `vedette.env` with the digest of each image. Until the first release exists (WP-08k) take the files from `deploy/compose/container-only/` of the repository and use images you built yourself (`make core-image sensor-image scan-base-image`, tagged `localhost/vedette-core:dev`, `localhost/vedette-sensor:dev` and `localhost/vedette-scan-base:dev`).
 
 Check a downloaded release:
 
@@ -38,7 +38,7 @@ minisign -Vm vedette.env -p vedette.pub          # and the same for each compose
 cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<the digest in vedette.env>
 ```
 
-The public keys are on the release page and in the repository. The verifier of the appliance does the same two checks for you (`docs/DEPLOYMENT.md` section 5).
+The public keys will be on the release page and in the repository (WP-08k: they do not exist yet). The verifier of the appliance does the same two checks for you (`docs/DEPLOYMENT.md` section 5).
 
 ## 2. Say where it lives
 
@@ -49,9 +49,9 @@ VEDETTE_BIND_IP=192.168.10.5        # the address of THIS machine the web page i
 VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browser; comma separated for several
 ```
 
-Why two: Docker's `-p` opens a port in the firewall by itself, around UFW and similar tools, so the compose file never publishes on all addresses; you name one. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
+Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443 or 514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
-Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`.
+Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
 ## 3. Start, and sign in the first time
 
@@ -74,7 +74,7 @@ docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up
 docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
 ```
 
-Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor and scan worker run with only `NET_RAW`, on the host network, and read the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees).
+Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0 with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees).
 
 ## 5. Update, and check what you run
 
@@ -96,7 +96,21 @@ Everything Vedette keeps, including the key that unlocks its secrets, is in the 
 
 ```sh
 docker compose --env-file vedette.env stop core
-docker run --rm -v vedette_data:/data:ro -v "$PWD":/backup docker.io/library/alpine tar czf /backup/vedette-data.tgz -C /data .
+docker run --rm --network none -v vedette_data:/data:ro -v "$PWD":/backup \
+  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  sh -c 'umask 077 && tar czf /backup/vedette-data.tgz -C /data .'
+docker compose --env-file vedette.env start core
+```
+
+The image is the Debian image the project pins for its own builds (`deploy/containers/pins.env`, `DEBIAN_IMAGE`; a test keeps the two in step); it runs without a network. The file `vedette-data.tgz` is owned by root with mode 0600: it holds the key, so keep it that way.
+
+To restore into a fresh machine or after `down --volumes`: create the volume without starting core, unpack, then start (same image, core stopped).
+
+```sh
+docker compose --env-file vedette.env create core
+docker run --rm --network none -v vedette_data:/data -v "$PWD":/backup:ro \
+  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  sh -c 'cd /data && tar xzf /backup/vedette-data.tgz'
 docker compose --env-file vedette.env start core
 ```
 
@@ -104,7 +118,7 @@ docker compose --env-file vedette.env start core
 
 ## What each limit looks like in the page
 
-Settings → Updates (operating system part), Settings → Box network and Settings → Data → Download backup answer with the title "Not available on this install" and the sentence "This install has no operating system helper (container-only install), so Vedette ...". The honeypot page and the package list of "This box" say why they are empty. Short sentences that tell you what to do instead are planned (S-CORE-9, criteria G1 to G6).
+Settings → Updates (operating system part), Settings → Box network and Settings → Data → Download backup answer with the title "Not available on this install" and the sentence "This install has no operating system helper (container-only install), so Vedette ...". The honeypot page and the package list of "This box" do not yet say why they are empty (planned: S-CORE-9 G5, S-INV-5 G3). Short sentences that tell you what to do instead are planned (S-CORE-9, criteria G1 to G6).
 
 ## Not tested yet (the lab does)
 

@@ -36,9 +36,20 @@ type service struct {
 	Healthcheck   map[string]any `yaml:"healthcheck"`
 	MemLimit      string         `yaml:"mem_limit"`
 	PidsLimit     int            `yaml:"pids_limit"`
+	// The rest are the keys in use. The files are decoded with KnownFields(true): a key that is not here (pid, ipc, userns_mode, devices,
+	// volumes_from, extra_hosts, sysctls ...) fails the test until someone adds it on purpose.
+	Tmpfs        []string          `yaml:"tmpfs"`
+	MemswapLimit string            `yaml:"memswap_limit"`
+	Cpus         any               `yaml:"cpus"`
+	CPUShares    int               `yaml:"cpu_shares"`
+	Init         bool              `yaml:"init"`
+	Environment  map[string]string `yaml:"environment"`
+	DependsOn    map[string]any    `yaml:"depends_on"`
+	Logging      map[string]any    `yaml:"logging"`
 }
 
 type file struct {
+	Name     string             `yaml:"name"`
 	Services map[string]service `yaml:"services"`
 	Volumes  map[string]any     `yaml:"volumes"`
 }
@@ -56,7 +67,7 @@ func load(t *testing.T, name string) file {
 	t.Helper()
 	var f file
 	dec := yaml.NewDecoder(strings.NewReader(read(t, name)))
-	dec.KnownFields(false)
+	dec.KnownFields(true)
 	if err := dec.Decode(&f); err != nil {
 		t.Fatalf("%s: %v", name, err)
 	}
@@ -65,31 +76,57 @@ func load(t *testing.T, name string) file {
 
 var imageRef = regexp.MustCompile(`^\$\{VEDETTE_(CORE|SENSOR|SCAN)_IMAGE:\?[^}]+\}$`)
 
-// Every service of every file: an image that only a release can fill, no root, no privilege, nothing but NET_RAW and only on the host
-// network of the two workers, no docker socket (no bind mount at all), ports only on an address, a restart policy.
+// The syslog file is an add-on of core's ports and nothing else: merged over compose.yaml, any other key of it (read_only: false, a
+// command without -hosts, pid: host ...) would silently change core. It is read as raw maps, so even an absent-versus-false key shows.
+func TestSyslogFileHoldsOnlyCorePorts(t *testing.T) {
+	t.Parallel()
+	var raw map[string]map[string]map[string]any
+	if err := yaml.Unmarshal([]byte(read(t, "compose.syslog.yaml")), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) != 1 || raw["services"] == nil || len(raw["services"]) != 1 || raw["services"]["core"] == nil {
+		t.Fatalf("compose.syslog.yaml: only services.core, got %v", raw)
+	}
+	core := raw["services"]["core"]
+	if _, ok := core["ports"]; !ok || len(core) != 1 {
+		t.Errorf("compose.syslog.yaml: the keys of core must be exactly [ports], got %v", core)
+	}
+	for _, p := range load(t, "compose.syslog.yaml").Services["core"].Ports {
+		if !strings.HasPrefix(p, "${VEDETTE_BIND_IP:?") {
+			t.Errorf("compose.syslog.yaml: port %q must name an address", p)
+		}
+	}
+}
+
+// Every service of the two main files: an image that only a release can fill (the variable of its own service), no root (the one
+// exception below), no privilege, nothing but NET_RAW and only on the host network of the sensor, no docker socket (no bind mount at
+// all), ports only on an address, a restart policy, bounded logs.
 func TestEveryServiceIsHardenedLikeTheAppliance(t *testing.T) {
 	t.Parallel()
 	seen := 0
-	for _, name := range files {
+	for _, name := range files[:2] {
 		for sname, s := range load(t, name).Services {
 			where := name + " " + sname
-			if name == "compose.syslog.yaml" { // an add-on of core's ports: the rest comes from compose.yaml
-				if len(s.Ports) == 0 || s.Image != "" || s.User != "" || s.NetworkMode != "" || len(s.CapAdd) > 0 || s.Privileged || len(s.Volumes) > 0 {
-					t.Errorf("%s: only ports (on an address) belong in this file", where)
-				}
-				for _, p := range s.Ports {
-					if !strings.HasPrefix(p, "${VEDETTE_BIND_IP:?") {
-						t.Errorf("%s: port %q must name an address", where, p)
-					}
-				}
-				continue
-			}
 			seen++
-			if !imageRef.MatchString(s.Image) {
-				t.Errorf("%s: image %q must be ${VEDETTE_<SERVICE>_IMAGE:?message}: the release fills the digest, the repository copy refuses to start (D-166 (2))", where, s.Image)
+			if m := imageRef.FindStringSubmatch(s.Image); m == nil || !strings.EqualFold(m[1], sname) {
+				t.Errorf("%s: image %q must be ${VEDETTE_%s_IMAGE:?message}: the release fills the digest, the repository copy refuses to start (D-166 (2))", where, s.Image, strings.ToUpper(sname))
 			}
-			if u, _, _ := strings.Cut(s.User, ":"); u == "" || u == "0" || u == "root" {
-				t.Errorf("%s: user %q must be a non-root uid", where, s.User)
+			// uid 0 only for the host-network sensor with exactly NET_RAW: Docker gives an added capability only to root, Podman to any user
+			// (measured, D-168 (3)); D-114 (3) planned this fallback. Everything else runs as a non-root uid.
+			rootSensor := sname == "sensor" && s.NetworkMode == "host" && slices.Equal(s.CapAdd, []string{"NET_RAW"})
+			if u, _, _ := strings.Cut(s.User, ":"); u == "" || ((u == "0" || u == "root") && !rootSensor) {
+				t.Errorf("%s: user %q must be a non-root uid (only the host-network sensor with cap_add [NET_RAW] may be 0)", where, s.User)
+			}
+			if sname == "scan" && len(s.CapAdd) > 0 {
+				t.Errorf("%s: the scan worker has no nmap here and needs no capability, got cap_add %v", where, s.CapAdd)
+			}
+			if len(s.Tmpfs) == 0 || s.Healthcheck == nil {
+				t.Errorf("%s: tmpfs and healthcheck are set", where)
+			}
+			if s.Logging["driver"] != "json-file" {
+				t.Errorf("%s: logging driver must be json-file with a bound (the appliance's journald bounds itself), got %v", where, s.Logging)
+			} else if o, _ := s.Logging["options"].(map[string]any); o["max-size"] == nil || o["max-file"] == nil {
+				t.Errorf("%s: logging needs max-size and max-file, got %v", where, s.Logging)
 			}
 			if !s.ReadOnly {
 				t.Errorf("%s: read_only must be true", where)
@@ -100,8 +137,8 @@ func TestEveryServiceIsHardenedLikeTheAppliance(t *testing.T) {
 			if !slices.Equal(s.CapDrop, []string{"ALL"}) {
 				t.Errorf("%s: cap_drop must be [ALL], got %v", where, s.CapDrop)
 			}
-			if !slices.Contains(s.SecurityOpt, "no-new-privileges:true") {
-				t.Errorf("%s: security_opt must contain no-new-privileges:true", where)
+			if !slices.Equal(s.SecurityOpt, []string{"no-new-privileges:true"}) {
+				t.Errorf("%s: security_opt must be exactly [no-new-privileges:true] (no seccomp=unconfined, no apparmor opt-out), got %v", where, s.SecurityOpt)
 			}
 			if s.Restart != "unless-stopped" {
 				t.Errorf("%s: restart must be unless-stopped (a purge makes core exit and expects a supervisor, D-154), got %q", where, s.Restart)
@@ -229,5 +266,29 @@ func TestEnvFileNamesEveryVariableAndIsEmptyInTheRepository(t *testing.T) {
 		if v != "" {
 			t.Errorf("%s=%q: the repository copy is empty (a release or the customer fills it)", k, v)
 		}
+	}
+}
+
+// The backup and restore commands of the install guide run the Debian image the project pins for its builds, by the same digest
+// (no floating tag may read the key of the box).
+func TestInstallGuideUsesThePinnedDebianImage(t *testing.T) {
+	t.Parallel()
+	pins, err := os.ReadFile(filepath.Join("..", "containers", "pins.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^DEBIAN_IMAGE=(\S+)$`).FindSubmatch(pins)
+	if m == nil {
+		t.Fatal("DEBIAN_IMAGE not found in deploy/containers/pins.env")
+	}
+	guide, err := os.ReadFile(filepath.Join("..", "..", "docs", "INSTALL-CONTAINER.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(guide), string(m[1])); n < 2 {
+		t.Errorf("docs/INSTALL-CONTAINER.md must name %s in the backup and in the restore command, found %d", m[1], n)
+	}
+	if strings.Contains(string(guide), "alpine") {
+		t.Error("docs/INSTALL-CONTAINER.md: no unpinned third-party image")
 	}
 }

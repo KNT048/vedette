@@ -370,8 +370,16 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 			t.Errorf("core/Containerfile: the build stage does not make %q", strings.TrimSpace(d))
 		}
 	}
-	if !strings.Contains(final, "COPY --from=build --chown=65532:65532 /out/dirs/ /\n") {
-		t.Error("core/Containerfile: the final stage must COPY the directories with --chown=65532:65532, the user of the image")
+	for _, l := range []string{
+		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/\n",
+		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/\n",
+	} {
+		if !strings.Contains(final, l) {
+			t.Errorf("core/Containerfile: the final stage must contain %q (one COPY per leaf, owner 65532, the user of the image)", strings.TrimSpace(l))
+		}
+	}
+	if regexp.MustCompile(`(?m)^COPY .* /$`).MatchString(final) {
+		t.Error("core/Containerfile: a COPY to / rewrites the owner of the existing parents (/var, /var/lib)")
 	}
 	if !strings.Contains(final, "USER 65532:65532\n") {
 		t.Error("core/Containerfile: the image's user is 65532:65532, the owner of the directories and the uid of the compose file")

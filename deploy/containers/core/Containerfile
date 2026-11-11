@@ -26,7 +26,11 @@ LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.ver
 COPY --from=build /out/vedette /vedette
 # The data and credentials directories exist in the image, owned by the user below, so a NEW named volume mounted on one of them
 # starts with that owner (Docker and Podman copy the image's directory into an empty volume): the container-only compose needs no
-# root step (D-168 (5)). The appliance bind-mounts over these paths, so nothing changes there.
-COPY --from=build --chown=65532:65532 /out/dirs/ /
+# root step (D-168 (5)). The appliance bind-mounts /var/lib/vedette, and its two creds volumes are Quadlet volumes with an explicit
+# User=/Group= (host/ops/testdata/units/vedette-creds-*.volume), which Podman keeps; the lab confirms it (deferred line).
+# One COPY per leaf directory, each to a destination that does not exist yet: a COPY of /out/dirs/ to / would also give /var and
+# /var/lib (root-owned in distroless) to 65532 (BuildKit and buildah both overwrite the owner of existing parents).
+COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/
+COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/
 USER 65532:65532
 ENTRYPOINT ["/vedette"]

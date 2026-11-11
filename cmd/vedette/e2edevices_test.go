@@ -15,7 +15,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/conn/conntest"
@@ -29,6 +31,7 @@ type e2eDeviceLogin struct {
 }
 
 type e2eDevices struct {
+	fw    *e2eFirewall
 	https *conntest.HTTPS
 	ssh   *conntest.SSH
 	mcp   *conntest.MCP
@@ -43,8 +46,8 @@ const (
 
 // startE2EDevices starts the three fakes. Their names are in the returned map (ready.json "devices").
 func startE2EDevices(t testing.TB) (*e2eDevices, map[string]e2eDeviceLogin) {
-	d := &e2eDevices{t: t}
-	d.https = conntest.NewHTTPS(t, nil)
+	d := &e2eDevices{t: t, fw: &e2eFirewall{state: "ready", banned: map[string]bool{}}}
+	d.https = conntest.NewHTTPS(t, d.fw)
 	d.ssh = conntest.NewSSH(t, conntest.SSHOpts{User: e2eSSHUser, Password: e2eSSHPass, Prompt: "E2E-Switch"})
 	d.mcp = conntest.NewMCP(t, conntest.MCPOpts{})
 	return d, map[string]e2eDeviceLogin{
@@ -64,7 +67,7 @@ func (d *e2eDevices) routes(mux *http.ServeMux) {
 			for _, q := range d.https.Requests() {
 				reqs = append(reqs, map[string]string{"method": q.Method, "path": q.Path, "authorization": q.Header.Get("Authorization")})
 			}
-			out = map[string]any{"requests": reqs}
+			out = map[string]any{"requests": reqs, "banned": d.fw.list()}
 		case "ssh":
 			out = map[string]any{"lines": append([]string{}, d.ssh.Lines()...), "logins": d.ssh.Logins(), "auth_calls": d.ssh.AuthCalls()}
 		case "mcp":
@@ -79,6 +82,15 @@ func (d *e2eDevices) routes(mux *http.ServeMux) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("POST /devices/http/state", func(w http.ResponseWriter, r *http.Request) { // ?value=ready|maintenance: what GET /api/e2e/status answers
+		v := r.URL.Query().Get("value")
+		if v != "ready" && v != "maintenance" {
+			http.Error(w, "value must be ready or maintenance", http.StatusBadRequest)
+			return
+		}
+		d.fw.setState(v)
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /devices/{name}/rotate", func(w http.ResponseWriter, r *http.Request) {
 		switch r.PathValue("name") {
@@ -122,5 +134,89 @@ func TestE2EDevicesRoutes(t *testing.T) {
 	}
 	if w := call("GET", "/devices/nope/requests"); w.Code != 404 {
 		t.Errorf("unknown device = %d", w.Code)
+	}
+}
+
+// e2eFirewall is what the HTTP device does for the response specs (WP-30 slice 9a, S-RESP-3): a ban list the specs' own actions write and read
+// back, and a status that can say "maintenance". Every other path answers {"ok":true} as before, so the Connections specs see no change.
+//
+//	POST /api/e2e/ban    {"ip": ...}  -> the address is banned
+//	POST /api/e2e/unban  {"ip": ...}  -> it is not
+//	GET  /api/e2e/bans                -> {"banned":[...]}   (the read-back)
+//	GET  /api/e2e/status              -> {"state":"ready"}  (the check before; "maintenance" after POST /devices/http/state)
+type e2eFirewall struct {
+	mu     sync.Mutex
+	state  string
+	banned map[string]bool
+}
+
+func (f *e2eFirewall) setState(v string) { f.mu.Lock(); f.state = v; f.mu.Unlock() }
+
+func (f *e2eFirewall) list() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := []string{}
+	for ip := range f.banned {
+		out = append(out, ip)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (f *e2eFirewall) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	switch {
+	case r.Method == http.MethodPost && (r.URL.Path == "/api/e2e/ban" || r.URL.Path == "/api/e2e/unban"):
+		var b struct {
+			IP string `json:"ip"`
+		}
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&b) != nil || b.IP == "" {
+			http.Error(w, `{"error":"bad body"}`, http.StatusBadRequest)
+			return
+		}
+		f.mu.Lock()
+		if strings.HasSuffix(r.URL.Path, "/unban") {
+			delete(f.banned, b.IP)
+		} else {
+			f.banned[b.IP] = true
+		}
+		f.mu.Unlock()
+	case r.Method == http.MethodGet && r.URL.Path == "/api/e2e/bans":
+		_ = json.NewEncoder(w).Encode(map[string]any{"banned": f.list()})
+		return
+	case r.Method == http.MethodGet && r.URL.Path == "/api/e2e/status":
+		f.mu.Lock()
+		st := f.state
+		f.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]string{"state": st})
+		return
+	}
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+// TestE2EFirewall (runs in CI): ban, read back, unban, and the status knob.
+func TestE2EFirewall(t *testing.T) {
+	f := &e2eFirewall{state: "ready", banned: map[string]bool{}}
+	call := func(method, path, body string) string {
+		w := httptest.NewRecorder()
+		f.ServeHTTP(w, httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body)))
+		return strings.TrimSpace(w.Body.String())
+	}
+	if got := call("POST", "/api/e2e/ban", `{"ip":"198.51.100.7"}`); got != `{"ok":true}` {
+		t.Fatalf("ban = %s", got)
+	}
+	if got := call("GET", "/api/e2e/bans", ""); got != `{"banned":["198.51.100.7"]}` {
+		t.Fatalf("bans = %s", got)
+	}
+	call("POST", "/api/e2e/unban", `{"ip":"198.51.100.7"}`)
+	if got := call("GET", "/api/e2e/bans", ""); got != `{"banned":[]}` {
+		t.Fatalf("bans after unban = %s", got)
+	}
+	f.setState("maintenance")
+	if got := call("GET", "/api/e2e/status", ""); got != `{"state":"maintenance"}` {
+		t.Fatalf("status = %s", got)
+	}
+	if got := call("GET", "/anything", ""); got != `{"ok":true}` {
+		t.Fatalf("default = %s", got)
 	}
 }

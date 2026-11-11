@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
+	"github.com/knt048/vedette/core/store"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -72,7 +73,18 @@ func openSensorLink(ctx context.Context, d *deps, addr, creds string) (*sensorLi
 	if err != nil {
 		return nil, fmt.Errorf("sensor link: listen: %w", err)
 	}
-	return &sensorLink{srv: srv.HTTPServer(addr), ln: ln}, nil
+	hs := srv.HTTPServer(addr)
+	hs.Handler = limitWrites(hs.Handler, store.RequestWriteWait)
+	return &sensorLink{srv: hs, ln: ln}, nil
+}
+
+// limitWrites gives every request the database writer wait limit d (D-246): past it a write answers store.ErrBusy, which the
+// sensor backends answer with 503 store_busy, instead of holding the sensor's request for its whole deadline. It sits here
+// because core/sensorlink imports nothing of core.
+func limitWrites(next http.Handler, d time.Duration) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(store.LimitWriteWait(r.Context(), d)))
+	})
 }
 
 // Addr is the address the listener is bound to.

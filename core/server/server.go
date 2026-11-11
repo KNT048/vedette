@@ -85,7 +85,7 @@ func New(cfg Config) (http.Handler, error) {
 		return nil, fmt.Errorf("server: build api: %w", err)
 	}
 	a.oas = srv
-	return Envelope(cfg.Log, a.checkOrigin(a.limitBody(http.HandlerFunc(a.route)))), nil
+	return Envelope(cfg.Log, a.checkOrigin(a.limitBody(limitWrites(http.HandlerFunc(a.route))))), nil
 }
 
 // Envelope is the outermost layer of every response the process produces: panic recovery, a fresh
@@ -95,6 +95,14 @@ func New(cfg Config) (http.Handler, error) {
 func Envelope(log *slog.Logger, next http.Handler) http.Handler {
 	a := &api{cfg: Config{Log: log}}
 	return a.recoverPanic(a.requestID(a.secureHeaders(next)))
+}
+
+// limitWrites gives every request the database writer wait limit: a request never waits for the writer longer than
+// store.RequestWriteWait; past it, 503 server_busy (D-246).
+func limitWrites(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(store.LimitWriteWait(r.Context(), store.RequestWriteWait)))
+	})
 }
 
 // checkOrigin refuses a state-changing request, public ones included, whose Origin header names

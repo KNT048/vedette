@@ -532,3 +532,66 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 		t.Fatalf("a decoy is left on the host after the teardown: links %v, %s", got, e.decoysFile())
 	}
 }
+
+// cutOffAPI lets the real host run every command, then reports each run as cut off (failed host_restarted): the host did
+// the work, its answer was lost in a restart.
+type cutOffAPI struct{ hostAPI }
+
+func (c cutOffAPI) GetRun(ctx context.Context, runID string) (api.Run, error) {
+	run, err := c.hostAPI.GetRun(ctx, runID)
+	if err != nil {
+		return run, err
+	}
+	run.Status, run.Error = api.StatusFailed, &api.RunError{Code: api.CodeHostRestarted, Message: "vedette-host restarted during this run"}
+	return run, nil
+}
+
+// A run cut off by a host restart (or a timeout, a failure of the host itself) may have done its work: it is an unknown
+// outcome, never a refusal, so the module keeps the address on record and the teardown removes the decoy the host made.
+func TestHoneypotHostCutOffRunIsUnknown(t *testing.T) {
+	e := startHPHost(t, false)
+	ip := netip.MustParseAddr("192.168.10.241")
+	a := &honeypotHost{api: cutOffAPI{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
+	err := a.AddDecoyIP(t.Context(), ip)
+	if err == nil || errors.Is(err, honeypot.ErrRefused) || errors.Is(err, errHostBusy) {
+		t.Fatalf("cut-off add: %v, want an unknown outcome", err)
+	}
+	if got := e.decoyLinks(); len(got) != 1 {
+		t.Fatalf("the host did the add: links %v", got)
+	}
+	if err := e.adapter().RemoveDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 0 {
+		t.Fatalf("remove: %v, links %v", err, e.decoyLinks())
+	}
+}
+
+// A module on with no trap (or every address refused) asks for the stop at every Apply: after the first persisted stop,
+// with the container seen not running, the next stops cost no write; a start in between makes the next stop real again.
+func TestHoneypotHostStopIsNotRepeated(t *testing.T) {
+	e := startHPHostWith(t, false, true, 0)
+	a := e.adapter()
+	ctx := t.Context()
+	if err := a.StopContainer(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stops := e.systemctl("stop")
+	for i := range 20 { // twenty Applies with no trap: a status read and a stop each, inside 60 requests and 10 writes
+		if st, err := a.Status(ctx); err != nil || st.Running {
+			t.Fatalf("apply %d status: %+v %v", i, st, err)
+		}
+		if err := a.StopContainer(ctx); err != nil {
+			t.Fatalf("apply %d stop: %v", i, err)
+		}
+	}
+	if got := e.systemctl("stop"); got != stops {
+		t.Fatalf("systemctl stop ran %d more times in steady state", got-stops)
+	}
+	if err := a.StartContainer(ctx, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Status(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.StopContainer(ctx); err != nil || e.systemctl("stop") != stops+1 || e.unitState(t) == api.UnitActive {
+		t.Fatalf("stop after a start: %v, stops %d, unit %s", err, e.systemctl("stop")-stops, e.unitState(t))
+	}
+}

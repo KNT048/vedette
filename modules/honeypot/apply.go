@@ -249,7 +249,7 @@ func (s *Service) Apply(ctx context.Context) error {
 	case !filesOK:
 		s.setHost(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts})
 	default:
-		if err := s.cfg.Host.StartContainer(ctx, s.restartDue); err != nil {
+		if err := s.cfg.Host.StartContainer(parent, s.restartDue); err != nil { // not the budget: a restart plus its health wait can take 4 minutes, and a cut-off start would restart again next Apply
 			s.setHost(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts})
 			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
 			break

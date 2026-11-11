@@ -42,8 +42,11 @@ type honeypotHost struct {
 	// real host); runFor bounds the wait for one accepted run.
 	poll, runFor time.Duration
 
-	mu        sync.Mutex
-	status    stateAt // the container state the last Status read
+	mu     sync.Mutex
+	status stateAt // the container state the last Status read
+	// stopped: a persisted container.stop succeeded in this process and nothing was started since; with a fresh Status
+	// that saw the container not running, the next stop costs no write (it starts false, so the first Apply still stops).
+	stopped   bool
 	decoyAt   time.Time
 	decoys    map[netip.Addr]bool
 	lastWarns map[string]time.Time
@@ -191,6 +194,9 @@ func (h *honeypotHost) forgetDecoys() {
 func (h *honeypotHost) StartContainer(ctx context.Context, restart bool) error {
 	h.mu.Lock()
 	skip := !restart && h.status.running && time.Since(h.status.at) < stateTTL
+	if !skip {
+		h.stopped = false
+	}
 	h.mu.Unlock()
 	if skip {
 		return nil
@@ -205,12 +211,26 @@ func (h *honeypotHost) StartContainer(ctx context.Context, restart bool) error {
 
 // StopContainer persists the stop (the unit loses its [Install] section): it is only asked when the module is off or no
 // trap is on, and a reboot must not bring the traps back.
+// A stop already done in this process, with a fresh Status that saw the container not running, costs no write: a module
+// on with no trap, or with every address refused, asks for the stop at every Apply.
 func (h *honeypotHost) StopContainer(ctx context.Context) error {
+	h.mu.Lock()
+	skip := h.stopped && !h.status.running && !h.status.at.IsZero() && time.Since(h.status.at) < stateTTL
+	h.mu.Unlock()
+	if skip {
+		return nil
+	}
 	if err := h.do(ctx, api.CmdContainerStop, api.ContainerStopArgs{Service: api.ServiceHoneypot, Persist: true}, ""); err != nil {
+		h.mu.Lock()
+		h.stopped = false
+		h.mu.Unlock()
 		h.setStale()
 		return err
 	}
 	h.setRunning(false)
+	h.mu.Lock()
+	h.stopped = true
+	h.mu.Unlock()
 	return nil
 }
 
@@ -229,7 +249,7 @@ func (h *honeypotHost) do(ctx context.Context, command string, args any, ok stri
 		if ok != "" && he.Code == ok {
 			return nil
 		}
-		return h.refusal(ctx, command, he.Code, he.Message)
+		return h.outcome(ctx, command, he.Code, he.Message)
 	case err != nil:
 		return err // unknown outcome
 	case run.Status == api.StatusSucceeded:
@@ -238,9 +258,25 @@ func (h *honeypotHost) do(ctx context.Context, command string, args any, ok stri
 		if ok != "" && run.Error.Code == ok {
 			return nil
 		}
-		return h.refusal(ctx, command, run.Error.Code, run.Error.Message)
+		return h.outcome(ctx, command, run.Error.Code, run.Error.Message)
 	}
-	return h.refusal(ctx, command, api.CodeCommandFailed, "run ended "+string(run.Status))
+	h.warn(ctx, command+" ended", "honeypot: a host run ended without a result", "command", command, "status", string(run.Status))
+	return fmt.Errorf("honeypot: %s ended %s with no result; outcome unknown, will check again at the next apply", command, run.Status)
+}
+
+// outcome sorts a code of the host. A run that was cut off (the host restarted or is stopping, a timeout, a failure of
+// the host itself) may have done its work, so it is an unknown outcome, never a refusal: a refusal drops the address from
+// the record and a decoy the host re-creates at start would then outlive the teardown (SYS-5). A host busy with a network
+// change or an install is errHostBusy. Everything else is the host saying no.
+func (h *honeypotHost) outcome(ctx context.Context, command, code, hostMsg string) error {
+	switch code {
+	case api.CodeHostRestarted, api.CodeShuttingDown, api.CodeTimeout, api.CodeCommandFailed, api.CodeInternal:
+		h.warn(ctx, command+" "+code, "honeypot: a host run was cut off; outcome unknown", "command", command, "code", code, "message", hostMsg)
+		return fmt.Errorf("honeypot: %s was cut off (%s); outcome unknown, will check again at the next apply", command, code)
+	case api.CodePendingConfirm, api.CodeNetPendingConfirm, api.CodeInstallInProgress:
+		return errHostBusy
+	}
+	return h.refusal(ctx, command, code, hostMsg)
 }
 
 var (
@@ -343,8 +379,6 @@ func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg strin
 		what = "the honeypot container's unit is missing or not one the host trusts"
 	case api.CodeNotAppliance:
 		what = notApplianceReason
-	case api.CodeShuttingDown:
-		what = "the host is restarting; will try again"
 	}
 	return refusedError{what: what, code: code}
 }

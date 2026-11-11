@@ -419,7 +419,7 @@ type refuseOneIP struct {
 
 func (h refuseOneIP) AddDecoyIP(ctx context.Context, ip netip.Addr) error {
 	if ip == h.bad {
-		return errors.New("ip_in_use: an ARP probe got an answer")
+		return fmt.Errorf("ip_in_use: an ARP probe got an answer: %w", honeypot.ErrRefused)
 	}
 	return h.fakeHost.AddDecoyIP(ctx, ip)
 }

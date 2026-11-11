@@ -318,13 +318,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	stopGuards = startGuards(ctx, reg, log, d, wired)
+	perMinute := publicPerMinute(o.hostSocket)
+	log.InfoContext(ctx, "per-address limit of public requests without a session (D-320)", "per_minute", perMinute, "on", perMinute > 0)
 	api, err := server.New(server.Config{
 		API:             newHandler(d),
 		Auth:            d.Auth.Sessions,
 		Modules:         reg,
 		Log:             log,
 		BodyLimits:      bodyLimits(wired),
-		PublicPerMinute: publicPerMinute(o.hostSocket), // D-320
+		PublicPerMinute: perMinute, // D-320
 	})
 	if err != nil {
 		return err

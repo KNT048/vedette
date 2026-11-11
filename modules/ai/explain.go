@@ -280,6 +280,7 @@ type explainInputs struct {
 	feed   DataBlock
 	inv    DataBlock
 	hash   string
+	know   knowCall // the passages the hash was made with; the call uses these, not a second retrieval
 }
 
 func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs, bool, error) {
@@ -317,7 +318,7 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 		}
 	}
 	hash := HashContent("explain-v2\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
-	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash}, true, nil
+	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash, know: know}, true, nil
 }
 
 // CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6), but only one that was made from
@@ -365,6 +366,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		return ExplainResult{}, apierr.New(http.StatusNotFound, "unknown_cve", "This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for.")
 	}
 	facts, assets, feed, inv, hash := in.facts, in.assets, in.feed, in.inv, in.hash
+	know := in.know
 	if r, ok, err := s.loadExplain(ctx, cve, hash); err != nil {
 		return ExplainResult{}, err
 	} else if ok {
@@ -380,6 +382,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		Question:       fmt.Sprintf("Explain %s for this company. The box has decided the affected status is %q.", cve, affected),
 		Data:           []DataBlock{feed, inv},
 		KnowledgeQuery: explainKnowledgeQuery(facts, assets),
+		knowledge:      &know,
 		Schema:         &provider.Schema{Name: "explain_cve", JSON: json.RawMessage(explainSchema)},
 		MaxTokens:      1200,
 		Summary:        fmt.Sprintf("Explained %s for %d matching devices", cve, len(assets)),

@@ -73,7 +73,13 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 	if match == "" {
 		return kc, nil
 	}
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `
+	type piece struct {
+		ref, text string
+	}
+	var found []piece
+	read := func() error {
+		found = found[:0]
+		rows, err := s.cfg.DB.Reader().QueryContext(ctx, `
 		SELECT c.doc_id, c.seq, c.text
 		FROM ai_knowledge_chunk_fts f
 		JOIN ai_knowledge_chunk c ON c.id = f.rowid
@@ -82,27 +88,23 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		  AND (d.jobs = '[]' OR EXISTS (SELECT 1 FROM json_each(d.jobs) WHERE value = ?))
 		ORDER BY bm25(ai_knowledge_chunk_fts), c.id
 		LIMIT ?`, match, string(job), ragCandidates)
-	if err != nil {
-		return kc, fmt.Errorf("ai: knowledge: %w", err)
-	}
-	type piece struct {
-		ref, text string
-	}
-	var found []piece
-	for rows.Next() {
-		var doc, text string
-		var seq int
-		if err := rows.Scan(&doc, &seq, &text); err != nil {
-			_ = rows.Close()
-			return kc, fmt.Errorf("ai: knowledge: %w", err)
+		if err != nil {
+			return err //nolint:wrapcheck // wrapped below
 		}
-		found = append(found, piece{fmt.Sprintf("%s:%d", doc, seq), text})
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var doc, text string
+			var seq int
+			if err := rows.Scan(&doc, &seq, &text); err != nil {
+				return err //nolint:wrapcheck // wrapped below
+			}
+			found = append(found, piece{fmt.Sprintf("%s:%d", doc, seq), text})
+		}
+		return rows.Err() //nolint:wrapcheck // wrapped below
 	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
+	if err := s.withFTSRepair(ctx, read); err != nil {
 		return kc, fmt.Errorf("ai: knowledge: %w", err)
 	}
-	_ = rows.Close()
 	hctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
 	var out strings.Builder

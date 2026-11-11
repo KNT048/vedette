@@ -189,7 +189,8 @@ func TestContract_INV10_UploadChecksInTheMocksOrder(t *testing.T) {
 		{"not base64", `{"name":"a.txt","size":5,"content":"%%%%%"}`, "invalid_size"},
 		{"too large", fmt.Sprintf(`{"name":"a.txt","size":%d,"content":"QQ=="}`, ai.MaxDocBytes+1), "too_large"},
 		{"jobs", kbBody("a.txt", ok, `["nope"]`), "invalid"},
-		{"fake pdf", kbBody("a.pdf", ok, ""), "invalid_content"},
+		{"pdf", kbBody("a.pdf", ok, ""), "invalid_type"},
+		{"PDF upper", kbBody("A.PDF", []byte("%PDF-1.4"), ""), "invalid_type"},
 		{"fake docx", kbBody("a.docx", ok, ""), "invalid_content"},
 		{"latin-1 text", kbBody("a.txt", []byte("caf\xe9 \xe0 la carte"), ""), "invalid_content"},
 		{"nul text", kbBody("a.md", []byte("a\x00b"), ""), "invalid_content"},
@@ -352,10 +353,6 @@ func TestContract_INV10_ADocumentThatCannotBeReadIsReadyWithNoChunks(t *testing.
 	empty := a.kbAdd("blank.md", []byte("   \n\n  \u200b\u200b "), "")
 	if empty["status"] != "ready" || empty["chunks"] != float64(0) {
 		t.Fatalf("blank text = %v", empty)
-	}
-	scanned := a.kbAdd("scan.pdf", []byte("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"), "")
-	if scanned["status"] != "ready" || scanned["chunks"] != float64(0) {
-		t.Fatalf("pdf with no text = %v", scanned)
 	}
 	rows := strings.Join(a.auditRows(), "\n")
 	for _, want := range []string{"ai.knowledge.failed broken.docx it could not be read", "ai.knowledge.failed blank.md no text was found"} {
@@ -685,5 +682,76 @@ func TestKnowledgePrivacyTextsSayWhatIsSent(t *testing.T) {
 		if !strings.Contains(what, want) {
 			t.Errorf("privacy.flow.3.what lacks %q", want)
 		}
+	}
+}
+
+func TestKnowledgePDFIsRefusedWithAClearMessage(t *testing.T) {
+	a := newAPI(t)
+	a.kbIndexProfile()
+	_, m, raw := a.do("POST", "/ai/knowledge", "admin", kbBody("diagram.pdf", []byte("%PDF-1.4 x"), ""))
+	msg, _ := m["error"].(map[string]any)["message"].(string)
+	if errCode(m) != "invalid_type" || !strings.Contains(msg, "PDF is not supported yet") || !strings.Contains(msg, "DOCX") {
+		t.Fatalf("pdf upload = %s", raw)
+	}
+}
+
+// What core's "Delete all data" does to the full-text index: it empties the shadow tables of the virtual table as if they were
+// data tables. Every insert after that fails with an FTS5 corruption error unless the module repairs the index.
+func (a *api) purgeLikeCore() {
+	a.t.Helper()
+	for _, tbl := range []string{"ai_knowledge_chunk", "ai_knowledge_doc", "ai_knowledge_chunk_fts_data", "ai_knowledge_chunk_fts_idx", "ai_knowledge_chunk_fts_docsize", "ai_knowledge_chunk_fts_config"} {
+		if err := a.exec("DELETE FROM " + tbl); err != nil {
+			a.t.Fatalf("%s: %v", tbl, err)
+		}
+	}
+}
+
+func TestKnowledgeIndexHealsAfterAPurgeThatEmptiedItsShadowTables(t *testing.T) {
+	a := newAPI(t)
+	a.kbIndexProfile()
+	a.kbAdd("backups.md", []byte(mdBackup), "")
+	a.purgeLikeCore()
+	d := a.kbAdd("firewall.md", []byte(mdFirewall), "")
+	if d["chunks"] != float64(1) {
+		t.Fatalf("the document after the purge = %v", d)
+	}
+	if n := a.count(`SELECT COUNT(*) FROM ai_knowledge_chunk_fts WHERE ai_knowledge_chunk_fts MATCH 'tuong'`); n != 1 {
+		t.Fatalf("the index does not find the new document (%d)", n)
+	}
+	if _, used, _, err := a.svc.KnowledgeForCall(a.ctx(), ai.JobExplainFinding, "tuong lua"); err != nil || len(used) != 1 {
+		t.Fatalf("retrieval after the purge: %v %v", used, err)
+	}
+	// reading and deleting after a purge heal as well
+	a.purgeLikeCore()
+	if _, _, _, err := a.svc.KnowledgeForCall(a.ctx(), ai.JobExplainFinding, "tuong lua"); err != nil {
+		t.Fatalf("read after a purge: %v", err)
+	}
+	a.kbAdd("backups.md", []byte(mdBackup), "")
+	a.purgeLikeCore()
+	if err := a.exec(`INSERT INTO ai_knowledge_doc (id, name, size, status, chunks, jobs, uploaded_at) VALUES ('kd-z', 'z.md', 5, 'ready', 0, '[]', '2026-11-10T03:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	a.want("DELETE", "/ai/knowledge/kd-z", "admin", "", 204, "")
+	// a restart repairs a damaged index before anybody uses it
+	a.kbAdd("backups.md", []byte(mdBackup), "")
+	a.purgeLikeCore()
+	a.svc = a.newService()
+	if err := a.exec(`INSERT INTO ai_knowledge_doc (id, name, size, status, chunks, jobs, uploaded_at) VALUES ('kd-y', 'y.md', 5, 'ready', 1, '[]', '2026-11-10T03:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.exec(`INSERT INTO ai_knowledge_chunk (doc_id, seq, text) VALUES ('kd-y', 1, 'restart worked')`); err != nil {
+		t.Fatalf("the index was not repaired at start: %v", err)
+	}
+}
+
+func TestKnowledgeAHeldPieceIsLeftOut(t *testing.T) {
+	a := newAPI(t)
+	a.kbIndexProfile()
+	pad := strings.Repeat("The gateway log shows the same login problem again. ", 40)
+	a.kbAdd("router.md", []byte("KEEPPIECE router notes. "+pad+"\n\nHOLDPIECE router approval-needed text. "+pad), "")
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Hold approvals", "before_ai", "keywords", "approval-needed", "approve", "A person must approve this."), 200, "")
+	sent, used, left, err := a.svc.KnowledgeForCall(a.ctx(), ai.JobExplainFinding, "router notes approval-needed")
+	if err != nil || strings.Contains(sent, "HOLDPIECE") || !strings.Contains(sent, "KEEPPIECE") || len(used) != 1 || len(left) != 1 {
+		t.Fatalf("held piece: sent %q used %v left %v err %v", sent, used, left, err)
 	}
 }

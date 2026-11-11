@@ -34,6 +34,7 @@ type JobSpec struct {
 	Data     []DataBlock
 	// KnowledgeQuery is the text the documents of the knowledge base are searched with (S-AI-7); "" = the question and the data.
 	KnowledgeQuery string
+	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
 	Schema         *provider.Schema
 	MaxTokens      int
 	Summary        string // what the activity row says on success; no secrets, no customer data
@@ -242,9 +243,13 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	// first, with the same fencing as any data block.
 	// The documents of the knowledge base come the same way: pieces found for this job, each one through the hooks alone, added after
 	// the pass as a data block (S-AI-7, INV-10).
-	know, err := s.knowledgeForCall(ctx, hooks, spec.Job, knowledgeQuery(spec))
-	if err != nil {
-		return JobResult{}, err
+	know := spec.knowledge // already retrieved by a caller that needed it for its cache key (explain): one retrieval, one hook pass
+	if know == nil {
+		k, err := s.knowledgeForCall(ctx, hooks, spec.Job, knowledgeQuery(spec))
+		if err != nil {
+			return JobResult{}, err
+		}
+		know = &k
 	}
 	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
 	entry.Hooks = dedupe(append(append(append(append(hookNames, mem.names...), mem.leftNames...), know.names...), know.leftNames...))
@@ -304,7 +309,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	werr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		ctx := wctx
 		if bad == nil {
-			entry.Summary = spec.Summary + leftOutNote(mem.left) + knowledgeNote(know)
+			entry.Summary = spec.Summary + leftOutNote(mem.left) + knowledgeNote(*know)
 			if res.Fallback {
 				entry.Summary += " (answered by the fallback profile)"
 			}

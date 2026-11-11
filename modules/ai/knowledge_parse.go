@@ -8,13 +8,10 @@ import (
 	"errors"
 	"io"
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
-
-	"github.com/ledongthuc/pdf"
 
 	"github.com/knt048/vedette/core/observe"
 )
@@ -32,8 +29,6 @@ const (
 	docxRatio      = 200      // uncompressed to compressed size of the text part; Word text compresses 5 to 20 times
 	docxXMLTokens  = 5_000_000
 	docxXMLDepth   = 100
-	pdfPages       = 3000
-	pdfTimeout     = 60 * time.Second
 	extractTimeout = 90 * time.Second
 )
 
@@ -43,21 +38,16 @@ var (
 	errDocBad     = errors.New("it could not be read as a document of its type")
 	errDocBomb    = errors.New("it is too large when unpacked")
 	errDocTimeout = errors.New("reading it took too long")
-	errDocCrypt   = errors.New("it is protected with a password")
 )
 
-var pdfRunning atomic.Int32 // PDF readers in flight, those let go of after a timeout included
-
-const pdfStuckMax = 3
-
-// docKind is the type of a document, from the extension of its name: "pdf", "md", "txt" or "docx"; "" for any other.
+// docKind is the type of a document, from the extension of its name: "md", "txt" or "docx"; "" for any other.
 func docKind(name string) string {
 	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		return ""
 	}
 	switch k := strings.ToLower(name[i+1:]); k {
-	case "pdf", "md", "txt", "docx":
+	case "md", "txt", "docx":
 		return k
 	}
 	return ""
@@ -67,10 +57,6 @@ func docKind(name string) string {
 // nothing deep, so a file that passes can still fail in the indexer (the audit row says why).
 func sniffDoc(kind string, data []byte) error {
 	switch kind {
-	case "pdf":
-		if !bytes.Contains(data[:min(len(data), 1024)], []byte("%PDF-")) {
-			return errors.New("this is not a PDF file")
-		}
 	case "docx":
 		if !bytes.HasPrefix(data, []byte("PK\x03\x04")) {
 			return errors.New("this is not a Word (DOCX) file")
@@ -153,7 +139,6 @@ func cleanDocText(s string) string {
 }
 
 // extractText reads the text of a document of the kind. truncated is true when the text was longer than maxStoredText and was cut.
-// The reader of a PDF runs a library that has no way to be stopped: after pdfTimeout it is let go of (it ends on its own).
 func extractText(ctx context.Context, kind string, data []byte) (text string, truncated bool, err error) {
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
 	defer cancel()
@@ -163,8 +148,6 @@ func extractText(ctx context.Context, kind string, data []byte) (text string, tr
 		raw, err = decodeText(data)
 	case "docx":
 		raw, err = docxText(ctx, data)
-	case "pdf":
-		raw, err = pdfText(ctx, data)
 	default:
 		err = errDocBad
 	}
@@ -268,92 +251,6 @@ func docxText(ctx context.Context, data []byte) (string, error) {
 	return out.String(), nil
 }
 
-// pdfText returns the text of a PDF, page by page, in a goroutine that recovers from the panics the library raises on malformed
-// files and is abandoned after pdfTimeout. Encrypted files are refused (no password is ever asked for).
-func pdfText(ctx context.Context, data []byte) (string, error) {
-	type result struct {
-		text string
-		err  error
-	}
-	// The library cannot be stopped: a reader that is let go of after pdfTimeout may run on. Three of them at once are the most the box
-	// carries; then PDFs are refused until a restart (ponytail: reading in a child process with a limit is the way out).
-	if pdfRunning.Load() >= pdfStuckMax {
-		return "", errDocTimeout
-	}
-	done := make(chan result, 1)
-	pctx, cancel := context.WithTimeout(ctx, pdfTimeout)
-	defer cancel()
-	pdfRunning.Add(1)
-	go func() {
-		var res result
-		defer pdfRunning.Add(-1)
-		defer func() {
-			if r := recover(); r != nil {
-				res = result{err: errDocBad}
-			}
-			done <- res
-		}()
-		res.text, res.err = readPDF(pctx, data)
-	}()
-	select {
-	case r := <-done:
-		return r.text, r.err
-	case <-pctx.Done():
-		return "", errDocTimeout
-	}
-}
-
-func readPDF(ctx context.Context, data []byte) (string, error) {
-	r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "password") {
-			return "", errDocCrypt
-		}
-		return "", errDocBad
-	}
-	var out strings.Builder
-	for _, page := range pdfPageList(r.Trailer().Key("Root").Key("Pages")) {
-		if ctx.Err() != nil {
-			return "", errDocTimeout
-		}
-		s, err := pdf.Page{V: page}.GetPlainText(nil)
-		if err != nil {
-			continue // one page that cannot be read does not lose the others
-		}
-		out.WriteString(strings.ToValidUTF8(s, " "))
-		out.WriteByte('\n')
-		if out.Len() > 2*maxStoredText {
-			break
-		}
-	}
-	return out.String(), nil
-}
-
-// pdfPageList walks the page tree itself, with a depth limit and a budget of nodes, instead of asking the library for page number
-// n: the library's lookup loops for ever on a tree that points to itself, and a file can say so.
-func pdfPageList(root pdf.Value) []pdf.Value {
-	var pages []pdf.Value
-	budget := 4 * pdfPages
-	var walk func(node pdf.Value, depth int)
-	walk = func(node pdf.Value, depth int) {
-		kids := node.Key("Kids")
-		for i := 0; i < kids.Len() && budget > 0 && len(pages) < pdfPages; i++ {
-			budget--
-			kid := kids.Index(i)
-			switch kid.Key("Type").Name() {
-			case "Pages":
-				if depth < 24 {
-					walk(kid, depth+1)
-				}
-			case "Page":
-				pages = append(pages, kid)
-			}
-		}
-	}
-	walk(root, 0)
-	return pages
-}
-
 // chunkText cuts text into pieces of at most chunkBytes, at a blank line, a line end, a sentence end or a space, in that order of
 // preference, never inside a character. The text is already clean (cleanDocText).
 func chunkText(text string) []string {
@@ -405,7 +302,7 @@ func cutPoint(s string, limit int) int {
 
 // errReason is the sentence the audit row carries for a document that could not be indexed.
 func errReason(err error) string {
-	for _, known := range []error{errDocEmpty, errDocBad, errDocBomb, errDocTimeout, errDocCrypt} {
+	for _, known := range []error{errDocEmpty, errDocBad, errDocBomb, errDocTimeout} {
 		if errors.Is(err, known) {
 			return known.Error()
 		}

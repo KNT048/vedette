@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -88,8 +89,11 @@ func checkDocName(name string) (string, string, error) {
 		return "", "", badInput("invalid_name", "The file name is missing or contains a slash.")
 	}
 	kind := docKind(name)
+	if strings.EqualFold(path.Ext(name), ".pdf") {
+		return "", "", badInput("invalid_type", "PDF is not supported yet. Save it as DOCX or text (TXT, MD) and upload that.")
+	}
 	if kind == "" {
-		return "", "", badInput("invalid_type", "Only PDF, MD, TXT and DOCX files can be added.")
+		return "", "", badInput("invalid_type", "Only MD, TXT and DOCX files can be added.")
 	}
 	return name, kind, nil
 }
@@ -255,7 +259,7 @@ func (s *Service) AddDoc(ctx context.Context, who string, in KnowledgeUpload) (K
 		return KnowledgeDoc{}, badInput("invalid_size", "The file arrived damaged or cut short. Pick it again.")
 	}
 	if err := sniffDoc(kind, data); err != nil {
-		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only PDF, MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
+		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
 	}
 	jobs := []string{"explain-finding", "ask-my-data"}
 	if in.Jobs != nil {
@@ -305,6 +309,9 @@ func (s *Service) index(ctx context.Context, id, name, kind string, data []byte)
 	defer s.queued.Add(-1)
 	s.indexSlot <- struct{}{}
 	defer func() { <-s.indexSlot }()
+	if !s.moduleOn() { // module off stops the job (SYS-5); the document stays unfinished and the next start ends it (recoverKnowledge)
+		return
+	}
 	wctx, cancel := context.WithTimeout(ctx, extractTimeout+writeTimeout)
 	defer cancel()
 	moved := false
@@ -337,20 +344,25 @@ func (s *Service) index(ctx context.Context, id, name, kind string, data []byte)
 	case truncated:
 		detail += fmt.Sprintf(", only the first %d MB of the text was kept", maxStoredText>>20)
 	}
-	err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(wctx, `UPDATE ai_knowledge_doc SET status = 'ready', chunks = ? WHERE id = ? AND status = 'indexing'`, len(chunks), id)
-		if err != nil {
-			return fmt.Errorf("ai: document status: %w", err)
-		}
-		if n, _ := res.RowsAffected(); n != 1 {
-			return nil // deleted while it was read: nothing to keep
-		}
-		for i, c := range chunks {
-			if _, err := tx.ExecContext(wctx, `INSERT INTO ai_knowledge_chunk (doc_id, seq, text) VALUES (?, ?, ?)`, id, i+1, c); err != nil {
-				return fmt.Errorf("ai: save chunk: %w", err)
+	if !s.moduleOn() {
+		return
+	}
+	err := s.withFTSRepair(wctx, func() error {
+		return s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+			res, err := tx.ExecContext(wctx, `UPDATE ai_knowledge_doc SET status = 'ready', chunks = ? WHERE id = ? AND status = 'indexing'`, len(chunks), id)
+			if err != nil {
+				return fmt.Errorf("ai: document status: %w", err)
 			}
-		}
-		return s.auditTx(wctx, tx, "system", action, name, detail)
+			if n, _ := res.RowsAffected(); n != 1 {
+				return nil // deleted while it was read: nothing to keep
+			}
+			for i, c := range chunks {
+				if _, err := tx.ExecContext(wctx, `INSERT INTO ai_knowledge_chunk (doc_id, seq, text) VALUES (?, ?, ?)`, id, i+1, c); err != nil {
+					return fmt.Errorf("ai: save chunk: %w", err)
+				}
+			}
+			return s.auditTx(wctx, tx, "system", action, name, detail)
+		})
 	})
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "ai: could not store a document", "doc", id, "error", err)
@@ -441,17 +453,19 @@ func (s *Service) DeleteDoc(ctx context.Context, who, id string) error {
 	if err := s.harnessGuard(); err != nil {
 		return err
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		d, err := s.docByID(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM ai_knowledge_chunk WHERE doc_id = ?`, id); err != nil {
-			return fmt.Errorf("ai: delete chunks: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM ai_knowledge_doc WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("ai: delete document: %w", err)
-		}
-		return s.auditTx(ctx, tx, who, "ai.knowledge.remove", d.Name, "")
+	return s.withFTSRepair(ctx, func() error {
+		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			d, err := s.docByID(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM ai_knowledge_chunk WHERE doc_id = ?`, id); err != nil {
+				return fmt.Errorf("ai: delete chunks: %w", err)
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM ai_knowledge_doc WHERE id = ?`, id); err != nil {
+				return fmt.Errorf("ai: delete document: %w", err)
+			}
+			return s.auditTx(ctx, tx, who, "ai.knowledge.remove", d.Name, "")
+		})
 	})
 }

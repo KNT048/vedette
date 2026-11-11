@@ -227,6 +227,9 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 			return nil, err
 		}
 	}
+	if err := s.checkFTS(ctx); err != nil {
+		cfg.Log.WarnContext(ctx, "ai: could not check the knowledge index", "error", err)
+	}
 	if err := s.recoverKnowledge(ctx); err != nil {
 		cfg.Log.WarnContext(ctx, "ai: could not end the documents a restart cut off; they stay unfinished until the next start", "error", err)
 	}

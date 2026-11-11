@@ -193,7 +193,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
 | `invalid_contact` | 400 | Enter the name of the person in charge of data protection. | module reports (validator dùng chung) |
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
-| `invalid_content` | 400 | This is not a PDF file. Only PDF, MD, TXT and DOCX files can be added. (also: not a Word file, not UTF-8 text) | `POST /ai/knowledge` |
+| `invalid_content` | 400 | This is not a Word (DOCX) file. Only MD, TXT and DOCX files can be added. (also: not UTF-8 text) | `POST /ai/knowledge` |
 | `invalid_cve` | 400 | A CVE ID looks like CVE-2022-27593. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 | `invalid_day` | 400 | Pick a day of the week. | module reports (validator dùng chung) |
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |
@@ -239,7 +239,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_timezone` | 400 | The time zone is not in the list. | `PUT /core/general` |
 | `invalid_to` | 400 | The end of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T23:59:59Z. | `GET /core/audit`; `GET /core/audit/export`. Như `invalid_from` |
 | `invalid_tool_access` | 400 | Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed. | `POST /core/connections`; `PUT /core/connections/{id}` |
-| `invalid_type` | 400 | Only PDF, MD, TXT and DOCX files can be added. | `POST /ai/knowledge` |
+| `invalid_type` | 400 | Only MD, TXT and DOCX files can be added. (a .pdf: PDF is not supported yet. Save it as DOCX or text (TXT, MD) and upload that.) | `POST /ai/knowledge` |
 | `invalid_url` | 400 | Use an https:// address (http:// is only allowed for internal addresses). | `PUT /feeds/sources/{id}` |
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
 | `invalid_when` | 400 | Pick when the hook runs: before sending to the AI, after the AI answers, or before a tool call. | `POST /ai/hooks/test`; `POST /core/updates/os/reboot` |

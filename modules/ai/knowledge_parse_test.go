@@ -34,39 +34,8 @@ func wordDoc(body string) []byte {
 	return docx(map[string]string{"word/document.xml": `<?xml version="1.0" encoding="UTF-8"?><w:document ` + wordNS + `><w:body>` + body + `</w:body></w:document>`})
 }
 
-// pdfOf makes a one-page PDF with the text lines, the way a plain generator does (one uncompressed content stream).
-func pdfOf(lines ...string) []byte {
-	var content strings.Builder
-	content.WriteString("BT /F1 12 Tf 72 720 Td 14 TL\n")
-	for _, l := range lines {
-		content.WriteString("(" + strings.NewReplacer(`\`, `\\`, "(", `\(`, ")", `\)`).Replace(l) + ") Tj T*\n")
-	}
-	content.WriteString("ET")
-	objs := []string{
-		"<</Type/Catalog/Pages 2 0 R>>",
-		"<</Type/Pages/Kids[3 0 R]/Count 1>>",
-		"<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
-		fmt.Sprintf("<</Length %d>>\nstream\n%s\nendstream", content.Len(), content.String()),
-		"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>",
-	}
-	var b bytes.Buffer
-	b.WriteString("%PDF-1.4\n")
-	offs := make([]int, len(objs))
-	for i, o := range objs {
-		offs[i] = b.Len()
-		fmt.Fprintf(&b, "%d 0 obj\n%s\nendobj\n", i+1, o)
-	}
-	x := b.Len()
-	fmt.Fprintf(&b, "xref\n0 %d\n0000000000 65535 f \n", len(objs)+1)
-	for _, o := range offs {
-		fmt.Fprintf(&b, "%010d 00000 n \n", o)
-	}
-	fmt.Fprintf(&b, "trailer\n<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n", len(objs)+1, x)
-	return b.Bytes()
-}
-
 func TestDocKind(t *testing.T) {
-	for name, want := range map[string]string{"a.pdf": "pdf", "A.PDF": "pdf", "x.md": "md", "x.txt": "txt", "x.DOCX": "docx", "x.doc": "", "x": "", "x.pdf.exe": "", ".md": "md", "x.": ""} {
+	for name, want := range map[string]string{"a.pdf": "", "A.PDF": "", "x.md": "md", "x.txt": "txt", "x.DOCX": "docx", "x.doc": "", "x": "", "x.pdf.exe": "", ".md": "md", "x.": ""} {
 		if got := docKind(name); got != want {
 			t.Errorf("docKind(%q) = %q, want %q", name, got, want)
 		}
@@ -169,49 +138,6 @@ func TestDocxHostile(t *testing.T) {
 	// text that packs far tighter than any document does is refused as well
 	if _, _, err := extractText(t.Context(), "docx", docx(map[string]string{"word/document.xml": "<w:document " + wordNS + "><w:t>" + strings.Repeat("a", 30<<20) + "</w:t></w:document>"})); !errors.Is(err, errDocBomb) {
 		t.Errorf("30 MB of one letter: %v", err)
-	}
-}
-
-func TestPDFGoodAndHostile(t *testing.T) {
-	text, _, err := extractText(t.Context(), "pdf", pdfOf("Firewall change policy", "Every change needs a ticket (approved)."))
-	if err != nil || !strings.Contains(text, "Firewall change policy") || !strings.Contains(text, "Every change needs a ticket (approved).") {
-		t.Fatalf("%q %v", text, err)
-	}
-	good := pdfOf("Some text here")
-	for name, data := range map[string][]byte{
-		"truncated":     good[:len(good)/2],
-		"header only":   []byte("%PDF-1.4\n"),
-		"garbage":       append([]byte("%PDF-1.7\n"), bytes.Repeat([]byte{0xFF, 0x00, '<', '>'}, 400)...),
-		"no xref":       bytes.ReplaceAll(good, []byte("startxref"), []byte("starxxxxx")),
-		"zero bytes":    append([]byte("%PDF-1.4\n"), make([]byte, 4096)...),
-		"huge count":    bytes.ReplaceAll(good, []byte("/Count 1"), []byte("/Count 9999999999")),
-		"bad filter":    bytes.ReplaceAll(good, []byte("<</Length"), []byte("<</Filter/NoSuchFilter/Length")),
-		"loop in pages": bytes.ReplaceAll(good, []byte("/Kids[3 0 R]"), []byte("/Kids[2 0 R]")),
-	} {
-		done := make(chan error, 1)
-		go func() { _, _, err := extractText(t.Context(), "pdf", data); done <- err }()
-		select {
-		case err := <-done:
-			if err == nil && name != "huge count" {
-				t.Errorf("%s: read without an error", name)
-			}
-		case <-time.After(20 * time.Second):
-			t.Errorf("%s: no answer in 20 s", name)
-		}
-	}
-	// no text at all (a scanned page: a picture only)
-	if _, _, err := extractText(t.Context(), "pdf", pdfOf()); !errors.Is(err, errDocEmpty) {
-		t.Errorf("empty page: %v", err)
-	}
-	// a PDF is not run: a script in it is only bytes
-	if text, _, err := extractText(t.Context(), "pdf", pdfOf("/JS (app.alert(1)) /OpenAction")); err != nil || !strings.Contains(text, "app.alert") {
-		t.Errorf("script text: %q %v", text, err)
-	}
-	// a cancelled request stops the read
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	if _, _, err := extractText(ctx, "pdf", good); err == nil {
-		t.Error("a cancelled read went on")
 	}
 }
 
@@ -334,21 +260,6 @@ func FuzzDocx(f *testing.F) {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		text, _, err := extractText(ctx, "docx", data)
-		if err == nil && (!cleanOK(text) || len(text) > maxStoredText) {
-			t.Fatalf("bad text %q", text)
-		}
-	})
-}
-
-func FuzzPDF(f *testing.F) {
-	f.Add(pdfOf("Hello (world)"))
-	f.Add(pdfOf())
-	f.Add([]byte("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"))
-	f.Add(bytes.ReplaceAll(pdfOf("x"), []byte("/Count 1"), []byte("/Count 99999")))
-	f.Fuzz(func(t *testing.T, data []byte) {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		text, _, err := extractText(ctx, "pdf", data)
 		if err == nil && (!cleanOK(text) || len(text) > maxStoredText) {
 			t.Fatalf("bad text %q", text)
 		}

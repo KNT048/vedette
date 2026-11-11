@@ -37,7 +37,7 @@ export default function KnowledgeTab() {
     e.target.value = ''
     if (!f) return
     setPickErr('')
-    if (!/\.(pdf|md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
+    if (!/\.(md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
     if (f.size > MAX) { setPickErr(t('harness.knowledge.errSize', { name: f.name })); return }
     if (f.size === 0) { setPickErr(t('harness.knowledge.errEmpty', { name: f.name })); return }
     let content: string
@@ -66,7 +66,7 @@ export default function KnowledgeTab() {
             </Section>
             <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')}
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
-                <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".pdf,.md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
+                <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
               <div className="grid gap-3">
                 {pickErr ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{pickErr}</p> : null}
                 <ActionError error={add.error} />

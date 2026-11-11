@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — đọc file này trước
 
-Cập nhật: 2026-11-11 (trưa, giờ VN). Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
+Cập nhật: 2026-11-12. Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
 
 **Mục tiêu cuối:** app chạy đủ chức năng trên backend thật. Mọi WP đã merge, E2E xanh, bản phát hành ký được và cài được (định nghĩa "xong" ở cuối file).
 
@@ -23,45 +23,52 @@ Cập nhật: 2026-11-11 (trưa, giờ VN). Repo: `KNT048/vedette` (public, D-63
 
 Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã hết) rồi D-230…D-259 · Mlee D-200…D-229. Số đã ghi nằm trong `docs/DECISIONS.md`.
 
-## Hiện trạng (2026-11-11)
+## Hiện trạng (2026-11-12)
 - **M1 xong:** giao diện đầy đủ trên mock API; bản build release không mang mock (#184).
-- **M2 (backend):**
-  - Phía Kiên đã merge: core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response (13a, 13b lát 1–10), honeypot.
-  - WP-08 đã merge các phần a, b, c, d, g, j.
-  - WP-31 đã rà xong; các lát sửa R1, R2, S, I, H và M4/L10 đã merge.
-  - WP-30 lát 1–2 đã merge (#204, #210); feeds của Emily đã merge (#222).
-  - Phía Emily đã merge: feeds, findings/mitigation, notify (phần lớn), exposure, scan S0–S5, ai lát 1–3, logs L1 và an toàn production (#226: giới hạn theo byte, trần export, kẹp thời điểm; D-200).
-- **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222, #226, #228, #233, #234, #235, #249, #254 (Mlee).
-- **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); Mlee: ai lát 4a rules + hook (`feat/ai-4a-rules-hooks`, D-204; đã qua rà Opus hai vòng, đang `make check`).
+- **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` và `logs` còn các lát cuối (bên dưới).
+- **WP-30 (`make e2e-real`):** lát 1–9b đã merge (#204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311); lát 10 (chạy toàn bộ + `@mobile`) đang mở (#335).
+- **WP-31:** R1, R2, S, I, H, M3, M4/L10 đã merge; R3 (định danh kênh người duyệt, L7) đã merge (#234, #259); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
+- **Đang mở (PR):** #335 (WP-30 lát 10, Mac) · #336 (gộp D-xx vào `DECISIONS.md`, supervisor) · #331 (logs L3: chữ ký, baseline 7 ngày, bất thường; Mlee) · #326 (ai: tin CVE; Mlee) · #297 (logs: core mở syslog 514, Mlee/Trưởng).
+- **Issue mở:** #332 (response `log_threshold` nối `logs.Service.Counts`) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; PR #297). #115 đã đóng 2026-11-12 (đã xong qua #116, #119, #138, #151, #176, #208…).
 
-## Còn lại tới "app chạy đủ chức năng"
+## Đã xong (đến 2026-11-12)
 **Phía Kiên — AI-Trưởng**
-- [x] #218 core purge (đóng #187) đã merge. - [ ] #225 job dọn dẹp chạy cả khi module tắt (D-160, đóng #223), rồi `Scheduler.Wake` cho logs (nhánh `feat/jobs-wake`).
-- [ ] WP-08i SBOM và quét lỗ hổng (D-159, PR này; scan-base còn 28 ngoại lệ hết hạn 2026-12-11: ghim lại Debian, nâng nuclei) · 08e image honeypot (đang làm, D-162) · 08f bộ build release (cần khoá của kien) · 08m compose · 08h `install.sh` (cần VM lab của kien).
-- [ ] WP-30 lát 4 (os-updates và network qua host giả; đang làm) · lát 8a (adapter host thật cho honeypot, D-161; đang sửa theo rà Opus) · lát 8b (honeypot.spec).
-- [ ] WP-32 RUNBOOK (cả hai phần, D-198) · WP-26 `agent-intake`.
-- [ ] scan (từ Mlee, D-198): tự dừng khi thiết bị không phản hồi; #189 L3; lý do trên GUI; kiểm trong LAB với nuclei v3.11.1.
-- [ ] WP-08h: thử cài trên box Mlee (Ubuntu 26.04, có LAN; kien 2026-11-11); Mac cài độc lập qua SSH theo README rồi kiểm.
+- [x] #218 core purge (#329 FTS5 nguyên vẹn khi xoá hết) · #225 job dọn dẹp chạy khi module tắt (D-160) · #236 `Scheduler.Wake`.
+- [x] WP-08: a, b, c, d, g, j; 08i SBOM + trivy (#229); 08e image honeypot (#288); 08f bản build release (#269) + khoá ký thật nhúng, nghi thức khoá thành code (#313, D-256..D-258); 08m compose container-only (#315, #334); 08h `install.sh` (#296; sửa 26.04: #321); nâng cấp khởi động lại `vedette-host` (#318, D-260).
+- [x] WP-30 lát 4 (#257) · 8a (#250) · 8b (#287) · scan: tự dừng khi thiết bị im (#299, D-165), 4 trạng thái im lặng (#317, D-261).
+- [x] WP-32 RUNBOOK cả hai phần (#303, cập nhật #322) · WP-26 `agent-intake`: lát 0 (#314), lát 1 CA riêng của box cho 8443 (#328, D-262).
 
 **Phía Kiên — session phụ trên Mac**
-- [ ] #221 13b-11.
-- [ ] WP-30 lát 3 (đăng nhập hai bước), 5 (connections), 6 (inventory), 7 (sensors), 9a/9b (response), 10 (chạy toàn bộ, có `@mobile`).
-- [ ] WP-31 R3 (L7); WP-31 danh sách kiểm trong LAB (cần VM).
-- [x] WP-27 `auth-oidc`: #248 (story, D-194..D-196, GUI trên mock), #261 (backend, D-197). Việc còn lại: IdP sau CA riêng (cần story), spec e2e-real SSO (WP-30), xem `.ai/deferred/feat-auth-oidc.md`.
-- [x] Sửa `scripts/dev/orphan-reaper.sh`: xét gốc cây, bắt `pnpm dev` mồ côi (nhánh `fix/reaper-tree-root`; mỗi máy chạy lại `make reaper-install`).
-- [ ] Lỗi GUI Settings của core: #237–#244 (PR 2 của `fix/core-settings-gui`); #251 giới hạn chờ writer của `core/store`.
-- [ ] Từ Mlee (D-198): `notify` lát 3 (Slack Socket Mode), 3b, 4 (mã trả lời Zalo cá nhân), Telegram L1/L3/L4 · WP-27 `reports`, `mcp-server` · spec WP-30 cho scan, ai, logs.
+- [x] #221 13b-11 (và #289) · WP-30 lát 3, 5, 6, 7, 9a, 9b (#253, #284, #293, #291, #311, #307).
+- [x] WP-31 R3 (#234, #259) · WP-27 `auth-oidc` (#248, #261), `reports` (#279), `mcp-server` (#280).
+- [x] `notify`: Slack lát 3 (#265), 3b (#282); Zalo lát 4 gửi (#292), 4b listener mã trả lời (#316, D-243, thử nghiệm); Telegram L1 (#198, #319), L3 (#325), L4 (#327).
+- [x] Lỗi GUI Settings của core: #247, #256, #215; #251 giới hạn chờ writer (#283, D-246); orphan-reaper (#252); feeds không tự kết nối box (#309, D-208).
 
 **Phía Emily — AI-Mlee**
-- [ ] WP-24 logs: L3–L7. Đã xong: an toàn production (#226, D-200), N1/N2 (#233), vòng purge + housekeeping (#249, D-201), L2 listener syslog UDP/TCP (#267; TLS 6514 bị từ chối rõ ràng tới khi có, D-203; phía Kiên: #266 cổng container + seam TLS).
-- [x] notify: cổng `Config.ApproverLinks` (#234). Phía Kiên (WP-31 R3, #259) nối `Linked` vào `response`.
-- [x] Job dọn của ai và scan là housekeeping (#254, D-202).
-- [ ] WP-25 ai: lát 4a (rules và hook, công tắc Block personal data là thật, D-204; đang review/PR) → 4a-2 (bí danh khôi phục được để kế hoạch xử lý đề xuất được hành động khi đang che dữ liệu cá nhân) → 4b → 4c → 6 → 5 → 7.
-- [x] Việc đang dở đã xong: feeds chia nhỏ IOC apply (#260), spec e2e exposure (#262; seam prober/resolver/runner cho phần còn lại: #263, Mac). WP-30 của Emily đã xong: feeds (#222), findings + mitigation (#228), notify (#235), exposure (#262). (notify, scan, reports, mcp-server, spec WP-30 scan/ai/logs và WP-32 phần Emily đã chuyển đi theo D-198.)
+- [x] feeds (#222, #260), findings + mitigation (#228), notify (#235), exposure (#262), scan S0–S5 (#208, #189/#190), `ai` lát 1–4c: 1 (#123), 2 (#179), 3 (#205), 4a (#273), 4a-2 (#289), 4b (#310), 4c kho tri thức FTS5 (#323); logs L1 (#186), an toàn production (#226), N1/N2 (#233), purge (#249), L2 syslog UDP/TCP (#267).
+
+## Còn lại tới "app chạy đủ chức năng"
+**AI-Trưởng (Ubuntu `byn`)**
+- [ ] WP-08 phần còn lại: kiểm `install.sh` trên box Mlee (Ubuntu 26.04, LAN) và Mac độc lập qua SSH (#298 chặn bước dựng artifact trên Mac; xem `docs/INSTALL-TEST`); scan-base còn 28 ngoại lệ trivy hết hạn 2026-12-11 (ghim lại Debian, nâng nuclei).
+- [ ] #297 (logs: core mở syslog 514, kèm #266) — cùng Mlee (logs L3–L7).
+- [ ] #324 (core/exec: đọc PDF trong tiến trình con giới hạn tài nguyên, cho `ai`) · scan: kiểm trong LAB với nuclei v3.11.1 (`.ai/deferred/feat-scan-autostop.md`).
+- [ ] WP-26 `agent-intake`: các lát sau lát 1.
+
+**Session phụ trên Mac**
+- [ ] #335 WP-30 lát 10 (chạy toàn bộ, `@mobile`; đóng `test.fail` cũ).
+- [ ] #332 nối `logs.Service.Counts` vào `response log_threshold` (sau logs L3).
+- [ ] #336 gộp các D-xx (supervisor).
+- [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) và spec e2e-real SSO (WP-30) — xem `.ai/deferred/feat-auth-oidc.md`.
+
+**AI-Mlee (Ubuntu `byn2`)**
+- [ ] WP-24 logs: L3 (#331, đang mở) → L4–L7.
+- [ ] WP-25 ai: tin CVE (#326, đang mở) → lát 5 → lát 7. (Các lát 4b, 4c đã merge.)
 
 **Chờ kien (người)**
-- [ ] Khoá ký phát hành offline: minisign chính và dự phòng, cosign.
-- [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198). Cần trước khi phát hành cho WP-08h, LAB của WP-31 và kiểm scan trong lab.
+- [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.
+- [ ] Thử listener Zalo cá nhân trong lab (#316, thử nghiệm).
+- [ ] Ghi chú phát hành (release note) cho migration `notify` 0006.
+- [x] Khoá ký phát hành: đã nhúng khoá thật (#313; nghi thức khoá đã thành code).
 
 ## Định nghĩa "xong" (M2 → bản phát hành đầu tiên)
 1. Mọi WP trong `docs/TEAM_PLAN.md` §3 đã merge, CI xanh trên `main`.

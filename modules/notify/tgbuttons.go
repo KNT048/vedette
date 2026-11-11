@@ -67,8 +67,9 @@ type buttonRow struct {
 
 // clearButtons is the part of the deliver job that removes buttons: it marks the messages of requests that ended, then removes the
 // buttons of at most buttonsPerRun marked messages. A 400 from Telegram is final (gone already, deleted, too old); other failures are
-// tried again at the next run, at most buttonTries times in all. Without a configured Telegram channel nothing is sent (the rows are
-// pruned a week after their request).
+// tried again at the next run, at most buttonTries times in all, and end the run's removals (L1, as on Slack): this runs inside the
+// deliver job, so a Telegram that fails or does not answer costs one edit (≤ 15 s) per run, not one per message. Without a configured
+// Telegram channel nothing is sent (the rows are pruned a week after their request).
 func (s *Service) clearButtons(ctx context.Context, now time.Time) error {
 	var rows []buttonRow
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -126,6 +127,9 @@ func (s *Service) clearButtons(ctx context.Context, now time.Time) error {
 		})
 		if werr != nil {
 			return fmt.Errorf("notify: record a button removal: %w", werr)
+		}
+		if !done {
+			return nil // Telegram failed or did not answer: the rest wait for the next run
 		}
 	}
 	return nil

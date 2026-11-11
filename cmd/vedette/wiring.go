@@ -346,7 +346,8 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
-	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
@@ -354,6 +355,65 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))
+}
+
+// rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips
+// of a template pull (hundreds at once). Each is announced (inventory.match.changed) to the devices that run its current product and do
+// not already have a finding for it, so a CVE whose vendor or product changed reaches its new devices, and a change that moved no key
+// announces nothing. A finding on a device of the old product stays: findings' matcher only adds (its INV-6), and a person or a scan
+// closes a finding. With findings off nothing is left out (its own subscription is off too).
+func rematchUpdated(d deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
+		ev, ok := data.(feeds.VulnUpdatedEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		st, ok := feedsKEV{&d}.store()
+		if !ok || len(ev.CVEs) == 0 {
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		rows, err := st.KevVulnsByCVE(ctx, ev.CVEs)
+		if err != nil {
+			return err
+		}
+		known := findingKnown(d)
+		var errs []error
+		for _, v := range rows {
+			if _, err := d.Inventory.RematchCVEExcept(ctx, v.CVE, v.Vendor, v.Product, known); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", v.CVE, err))
+				if ctx.Err() != nil {
+					break
+				}
+			}
+		}
+		return errors.Join(errs...)
+	}
+}
+
+// findingKnown says whether the device already has a finding for the CVE, open or closed (findings never re-creates a pair, INV-6); nil
+// when findings is off or absent, so nothing is left out. Make one per event: it remembers what it read.
+func findingKnown(d deps) func(ctx context.Context, assetID, cve string) (bool, error) {
+	if d.Findings == nil || (d.Reg != nil && !d.Reg.Enabled("findings")) {
+		return nil
+	}
+	have := map[string]map[string]bool{} // one read per device for the whole event: a flip of hundreds of CVEs reads each device once
+	return func(ctx context.Context, assetID, cve string) (bool, error) {
+		cves, ok := have[assetID]
+		if !ok {
+			recs, err := d.Findings.List(ctx, assetID)
+			if err != nil {
+				return false, err
+			}
+			cves = make(map[string]bool, len(recs))
+			for _, r := range recs {
+				cves[r.CVE] = true
+			}
+			have[assetID] = cves
+		}
+		return cves[cve], nil
+	}
 }
 
 // privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:

@@ -658,3 +658,31 @@ func TestCompactDropsDeletedBytes(t *testing.T) {
 		t.Errorf("kept row: %d, %v", n, err)
 	}
 }
+
+// Pins today's behaviour (D-183): goose does not refuse a database newer than the binary, and that is intended.
+// An older binary must start on a newer database: D-151 (add-only volume migrations, logs.db is never restored)
+// and D-138 (rollback.safe=true means the previous version runs on the new database). Whoever adds a refusal
+// here must revisit D-138 and D-151 first.
+func TestMigrateStartsOnADatabaseNewerThanTheBinary(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db := storetest.New(t)
+	newer := fstest.MapFS{
+		"0001_init.sql": {Data: []byte(goodMigration)},
+		"0002_more.sql": {Data: []byte("-- +goose Up\nCREATE TABLE zed_more (id TEXT PRIMARY KEY);\n")},
+	}
+	if err := store.Migrate(ctx, db, "my-mod", newer); err != nil {
+		t.Fatal(err)
+	}
+	before := objects(ctx, t, db)
+	if err := store.Migrate(ctx, db, "my-mod", migrations(goodMigration)); err != nil { // the older binary: only 0001
+		t.Fatalf("an older binary must start on a newer database: %v", err)
+	}
+	if after := objects(ctx, t, db); fmt.Sprint(after) != fmt.Sprint(before) {
+		t.Fatalf("Migrate on a newer database changed the schema:\n%v\n%v", before, after)
+	}
+	var top int
+	if err := db.Reader().QueryRowContext(ctx, "SELECT max(version_id) FROM core_migration_my_mod WHERE is_applied = 1").Scan(&top); err != nil || top != 2 {
+		t.Fatalf("applied version = %d (%v), want 2 untouched", top, err)
+	}
+}

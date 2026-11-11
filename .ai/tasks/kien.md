@@ -133,7 +133,7 @@ kien 2026-11-09 (đã chuyển cho Emily): "tôi muốn box có thêm chế đ�
 - ogen: thao tác tạo trả 201 → tên kiểu Go đổi khi hợp đồng đổi `status`; sinh lại (`make generate-api`) sau mỗi rebase có đổi `api/openapi.json`.
 - Chuỗi hash: một công thức D-57 (14), khoá sắp theo code point, NULL giữ `null`; vector `modules/core/testdata/chain_vectors.json`.
 - golangci-lint chỉ báo một lỗi mỗi dòng; `bodyclose` không thấy body đóng trong hàm phụ → trả status/header thay vì `*http.Response`.
-- Go cục bộ cũ → `go.mod` ghim 1.26.10, go tự tải toolchain. Công cụ dev ở `tools/go.mod`; ogen là `tool` trong `go.mod` chính.
+- Go cục bộ cũ → `go.mod` ghim 1.26.11, go tự tải toolchain. Công cụ dev ở `tools/go.mod`; ogen là `tool` trong `go.mod` chính.
 - (Ubuntu) `pgrep -f scripts/check.sh` khớp chính vòng chờ: neo mẫu, `pgrep -f "^bash scripts/check.sh"`.
 - (Ubuntu) umask 0002 mặc định của người dùng Ubuntu làm thư mục con của `t.TempDir` group-writable, test `host/ops TestOpenCore*` đỏ với `db_unreadable` (code cố ý từ chối cha group-writable). `~/.profile` và `~/.bashrc` đặt umask 022. Ý tưởng cứng hoá: các test đó `chmod 0700` thư mục gốc.
 - `DECISIONS.md` từng thiếu xuống dòng cuối: heredoc dính hàng D-143 vào D-140, bộ giải xung đột làm mất nó (#155/#156). Merge-step nay dừng nếu một hàng D-nn của `main` bị mất; vẫn kiểm `tail -c1` trước khi thêm hàng.

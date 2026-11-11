@@ -10961,7 +10961,7 @@ func (s *Server) handleCorePatchModulesIDRequest(args [1]string, argsEscaped boo
 // handleCorePostAuthLoginRequest handles core_post_auth_login operation.
 //
 // Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-// and 401 twofa_required).
+// and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180).
 //
 // POST /auth/login
 func (s *Server) handleCorePostAuthLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10999,7 +10999,7 @@ func (s *Server) handleCorePostAuthLoginRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostAuthLoginOperation,
-			OperationSummary: "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required)",
+			OperationSummary: "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180)",
 			OperationID:      "core_post_auth_login",
 			Body:             request,
 			RawBody:          rawBody,
@@ -11936,7 +11936,8 @@ func (s *Server) handleCorePostCoreAccount2FAStartRequest(args [0]string, argsEs
 
 // handleCorePostCoreAccountPasswordRequest handles core_post_core_account_password operation.
 //
-// Change password (needs the current password).
+// Change password (needs the current password). The same call ends the temporary-password limit of
+// D-180: the new password must differ from the temporary one.
 //
 // POST /core/account/password
 func (s *Server) handleCorePostCoreAccountPasswordRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12020,7 +12021,7 @@ func (s *Server) handleCorePostCoreAccountPasswordRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreAccountPasswordOperation,
-			OperationSummary: "Change password (needs the current password)",
+			OperationSummary: "Change password (needs the current password). The same call ends the temporary-password limit of D-180: the new password must differ from the temporary one",
 			OperationID:      "core_post_core_account_password",
 			Body:             request,
 			RawBody:          rawBody,
@@ -14287,7 +14288,8 @@ func (s *Server) handleCorePostCoreUpdatesRollbackRequest(args [0]string, argsEs
 
 // handleCorePostCoreUsersRequest handles core_post_core_users operation.
 //
-// Create a user with a role; returns a temporary password once.
+// Create a user with a role; returns a temporary password once. The user must change it at first
+// sign-in and it expires after 72 hours (D-180).
 //
 // POST /core/users
 func (s *Server) handleCorePostCoreUsersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14371,7 +14373,7 @@ func (s *Server) handleCorePostCoreUsersRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUsersOperation,
-			OperationSummary: "Create a user with a role; returns a temporary password once",
+			OperationSummary: "Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours (D-180)",
 			OperationID:      "core_post_core_users",
 			Body:             request,
 			RawBody:          rawBody,
@@ -14570,7 +14572,8 @@ func (s *Server) handleCorePostCoreUsersID2FAResetRequest(args [1]string, argsEs
 
 // handleCorePostCoreUsersIDResetPasswordRequest handles core_post_core_users_id_reset_password operation.
 //
-// Reset password: temporary password once, ends all of that user's sessions.
+// Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180),
+// ends all of that user's sessions.
 //
 // POST /core/users/{id}/reset-password
 func (s *Server) handleCorePostCoreUsersIDResetPasswordRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14649,7 +14652,7 @@ func (s *Server) handleCorePostCoreUsersIDResetPasswordRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUsersIDResetPasswordOperation,
-			OperationSummary: "Reset password: temporary password once, ends all of that user's sessions",
+			OperationSummary: "Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180), ends all of that user's sessions",
 			OperationID:      "core_post_core_users_id_reset_password",
 			Body:             nil,
 			RawBody:          rawBody,

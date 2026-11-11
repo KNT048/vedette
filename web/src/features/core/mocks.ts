@@ -2,7 +2,7 @@
 import { http, HttpResponse } from 'msw'
 import { logExportHandlers } from './logExport'
 import { API, audit, body, currentUser, fail, guard, EMAIL_RE } from '@/mocks/http'
-import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, isOn, modulesStore, orgStore, sessionStore, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
+import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, isOn, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
 import { collection, dataMode, daysAgo, newId, nowIso, resetMockDb, setDataMode } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
@@ -152,7 +152,7 @@ const accountHandlers = [
     return HttpResponse.json({ ok: true })
   }),
   http.post(`${API}/core/account/password`, async ({ request }) => {
-    const denied = guard('viewer')
+    const denied = guard('viewer', true)
     if (denied) return denied
     const u = currentUser()!
     const b = await body<{ current: string; next: string }>(request)
@@ -160,8 +160,8 @@ const accountHandlers = [
     const next = String(b.next ?? '')
     if (next.length < MIN_PASSWORD) return fail(400, 'weak_password', `The new password needs at least ${MIN_PASSWORD} characters.`)
     if (next === u.password) return fail(400, 'same_password', 'The new password must differ from the current one.')
-    usersStore.update((l) => l.map((x) => (x.id === u.id ? { ...x, password: next } : x)))
-    audit('account.password', u.email)
+    usersStore.update((l) => l.map((x) => (x.id === u.id ? { ...x, password: next, temp_password_expires_at: null } : x)))
+    audit('account.password', u.email, u.temp_password_expires_at ? 'temporary password replaced' : undefined)
     return HttpResponse.json({ ok: true })
   }),
   http.post(`${API}/core/account/2fa/start`, async ({ request }) => {
@@ -272,7 +272,7 @@ const usersHandlers = [
     if (!ROLES.includes(b.role as Role)) return fail(400, 'invalid_role', 'Choose a role: view only, operator or administrator.')
     if (usersStore.get().some((x) => x.email === email)) return fail(409, 'duplicate', 'This email already has an account.')
     const temp = tempPassword()
-    const u: User = { id: newId('u'), name, email, role: b.role as Role, password: temp, twofa: false, created_at: nowIso(), last_login: null }
+    const u: User = { id: newId('u'), name, email, role: b.role as Role, password: temp, temp_password_expires_at: tempExpiry(), twofa: false, created_at: nowIso(), last_login: null }
     usersStore.update((l) => [...l, u])
     audit('user.create', email, `vai ${u.role}`)
     return HttpResponse.json({ user: adminOf(u), temp_password: temp }, { status: 201 })
@@ -323,9 +323,9 @@ const usersHandlers = [
     const target = usersStore.get().find((x) => x.id === params.id)
     if (!target) return fail(404, 'not_found', 'No such user.')
     const temp = tempPassword()
-    usersStore.update((l) => l.map((x) => (x.id === target.id ? { ...x, password: temp } : x)))
+    usersStore.update((l) => l.map((x) => (x.id === target.id ? { ...x, password: temp, temp_password_expires_at: tempExpiry() } : x)))
     sessionsStore.update((all) => { const n = { ...all }; delete n[target.id]; return n })
-    audit('user.reset_password', target.email)
+    audit('user.password_reset', target.email)
     return HttpResponse.json({ temp_password: temp })
   }),
 

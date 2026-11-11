@@ -18,20 +18,31 @@ import (
 // The three public services are httptest servers; no test contacts the real ones.
 
 type fakeService struct {
-	srv *httptest.Server
-	mu  sync.Mutex
-	hit []string // remote addresses of the requests
+	srv   *httptest.Server
+	mu    sync.Mutex
+	hit   []string // remote addresses of the requests
+	conns int      // connections the server accepted
 }
 
 func newFakeService(t *testing.T, h http.HandlerFunc) *fakeService {
 	t.Helper()
 	f := &fakeService{}
-	f.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	f.srv = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.hit = append(f.hit, r.RemoteAddr)
 		f.mu.Unlock()
 		h(w, r)
 	}))
+	// Count accepted connections on the server side: a client port can come back for a later connection
+	// (to this or another fake service), so remote addresses alone cannot tell connections apart.
+	f.srv.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			f.mu.Lock()
+			f.conns++
+			f.mu.Unlock()
+		}
+	}
+	f.srv.StartTLS()
 	t.Cleanup(f.srv.Close)
 	return f
 }
@@ -189,16 +200,13 @@ func TestProbe_NoRedirectsAndOwnConnections(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	seen := map[string]bool{}
-	for _, f := range []*fakeService{x, y, z} {
+	for i, f := range []*fakeService{x, y, z} {
 		f.mu.Lock()
-		for _, h := range f.hit {
-			seen[h] = true
-		}
+		reqs, conns := len(f.hit), f.conns
 		f.mu.Unlock()
-	}
-	if len(seen) != 6 {
-		t.Fatalf("%d distinct connections for 6 requests", len(seen))
+		if reqs != 2 || conns != 2 {
+			t.Fatalf("service %d: %d connections for %d requests, want 2 for 2", i, conns, reqs)
+		}
 	}
 }
 

@@ -2,7 +2,7 @@ package core
 
 import "strings"
 
-// The export policy of GET /core/data/export (INV-26, D-154): every column of every table of every module is listed here with what
+// The export policy of GET /core/data/export (INV-28, D-154): every column of every table of every module is listed here with what
 // the export does with it. It is explicit on purpose, and fail-closed: a table or column that is not listed is NOT exported, and
 // cmd/vedette's TestExport_PolicyClassifiesEveryColumn fails until whoever adds a column (any module) classifies it. The classes:
 //

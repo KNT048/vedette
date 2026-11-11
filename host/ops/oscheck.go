@@ -176,6 +176,9 @@ func (o *Ops) cmdOSInstall() server.Command {
 			if _, err := o.platform(); err != nil {
 				return err
 			}
+			if err := o.coreFree(); err != nil { // the pre_os_update backup is a backup of core: same rule as backup.create (D-157)
+				return err
+			}
 			if o.dpkgLocked() {
 				return lockedRefusal()
 			}

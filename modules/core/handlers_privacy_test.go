@@ -157,7 +157,7 @@ func TestPrivacy_Roles(t *testing.T) {
 			}
 		}
 		pw := admin.post("/core/users/"+id+"/reset-password", nil).str("temp_password")
-		wantOK(t, c.post("/auth/login", map[string]any{"email": role + "@acme.example", "password": pw}), 200)
+		c.loginTemp(role+"@acme.example", pw)
 		wantOK(t, c.get("/core/privacy"), 200)
 		wantStatus(t, c.patch("/core/privacy", map[string]any{"telemetry": false}), 403, "forbidden")
 	}

@@ -940,7 +940,7 @@ func exportOf(t *testing.T, c *client) (reply, map[string]any) {
 
 // GET /core/data/export: a dated attachment that is never cached, written for the administrator in core_audit, with the data
 // of the box and no secret in it. Secrets are planted in every table and column that holds one; the file is searched for each.
-func TestContract_INV26_ExportHoldsNoSecretMaterial(t *testing.T) {
+func TestContract_INV28_ExportHoldsNoSecretMaterial(t *testing.T) {
 	t.Parallel()
 	w := newDataWorld(t)
 	admin := w.setupAdmin()
@@ -1043,7 +1043,7 @@ func TestContract_INV26_ExportHoldsNoSecretMaterial(t *testing.T) {
 
 // The export is written row by row and stops at its cap: over it the file ends early with truncated:true and the table it
 // stopped in, is still valid JSON and never longer than the cap.
-func TestContract_INV26_ExportStopsAtItsCap(t *testing.T) {
+func TestContract_INV28_ExportStopsAtItsCap(t *testing.T) {
 	t.Parallel()
 	w := newDataWorld(t)
 	t.Cleanup(func() {

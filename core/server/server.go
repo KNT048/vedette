@@ -275,6 +275,10 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 			apierr.Write(w, apierr.Forbidden())
 			return
 		}
+		if p.PasswordChangeRequired && !limitedSessionOps[route.OperationID()] {
+			apierr.Write(w, apierr.PasswordChangeRequired())
+			return
+		}
 		if !slices.Contains(safeMethods, r.Method) {
 			if err := a.cfg.Auth.CheckCSRF(r, p); err != nil {
 				if e, ok := apierr.As(err); ok {

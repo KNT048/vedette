@@ -1,20 +1,20 @@
 -- name: InsertUser :exec
-INSERT INTO core_user (id, name, email, role, password_hash, created_at)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO core_user (id, name, email, role, password_hash, temp_password_expires_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
 FROM core_user WHERE email = ?;
 
 -- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
 FROM core_user WHERE id = ?;
 
 -- name: CountOtherActiveAdmins :one
-SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND id <> ?;
+SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND id <> ?;
 
 -- name: UpdateUserPassword :execrows
-UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ?;
+UPDATE core_user SET password_hash = ?, temp_password_expires_at = ?, cred_version = cred_version + 1 WHERE id = ?;
 
 -- name: UpdateUserRole :execrows
 UPDATE core_user SET role = ? WHERE id = ?;
@@ -35,7 +35,7 @@ UPDATE core_user SET twofa_method = ? WHERE id = ? AND twofa_method IS NULL;
 UPDATE core_user SET password_hash = ? WHERE id = ? AND cred_version = ?;
 
 -- name: ChangeUserPassword :execrows
-UPDATE core_user SET password_hash = ?, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?;
+UPDATE core_user SET password_hash = ?, temp_password_expires_at = NULL, cred_version = cred_version + 1 WHERE id = ? AND cred_version = ?;
 
 -- name: UpsertTotp :exec
 INSERT INTO core_user_totp (user_id, secret_id, confirmed, last_step, created_at)
@@ -95,7 +95,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetSessionByTokenHash :one
 SELECT s.id, s.user_id, s.csrf_hash, s.started_at, s.last_seen, s.expires_at, s.revoked_at,
-       u.email, u.role, u.disabled
+       u.email, u.role, u.disabled, u.temp_password_expires_at
 FROM core_session s JOIN core_user u ON u.id = s.user_id
 WHERE s.token_hash = ?;
 

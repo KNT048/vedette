@@ -12,6 +12,12 @@
 ## Modifying: `Profiles.Resolve(job) ([]Profile, error)` (chọn chính/dự phòng, INV-3)
 - Mọi `RunJob`. Đổi logic loại hồ sơ cloud → có thể rò dữ liệu nội bộ; test INV-3 bắt buộc xanh.
 
+## Modifying: vòng công cụ của `ask-my-data` (`ask_loop.go`, `ask_tools.go`, lát 5a, INV-22)
+- Thêm một công cụ đọc = thêm bề mặt dữ liệu rời hộp tới nhà cung cấp AI: ghi vào `toolImpl` (đối số schema đóng, trần số hàng/byte, `Cite`), cập nhật PRIVACY.md luồng 3 và `privacy.flow.3.what` trong `web/src/locales/en/core.json` cùng commit; việc thêm `log-investigate` (lát 5b) thêm công cụ log vào đúng danh sách này (`Jobs`).
+- Đổi `Config.Data` (cmd/vedette `aiAsk`) hoặc `Config.Conns` (`core/conn/read`): đổi dữ liệu AI thấy; đổi `ConnReader` = đổi bề mặt INV-14. `RunJob` có thêm `JobSpec.tools`/`AnswerWhenBlocked` và `JobResult.Hits/Blocked/Downgrade` (người gọi khác không bị ảnh hưởng).
+- GUI: `AskResult` khớp `web/src/features/ai/contract.ts`; đổi hình dạng = đổi cả mock, `api/openapi.json` và `core/api/oas`.
+- `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).
+
 ## Modifying: `Tools.ForModel(job) []Tool` (INV-14)
 - **mcp-server**: không dùng. **ask-my-data / log-investigate**: thêm công cụ chỉ-đọc mới = đổi bề mặt dữ liệu AI thấy; công cụ `write` không bao giờ vào danh sách.
 

@@ -35,9 +35,14 @@ type JobSpec struct {
 	// KnowledgeQuery is the text the documents of the knowledge base are searched with (S-AI-7); "" = the question and the data.
 	KnowledgeQuery string
 	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
-	Schema         *provider.Schema
-	MaxTokens      int
-	Summary        string // what the activity row says on success; no secrets, no customer data
+	// tools is the read-tool loop of a job that lets the model read the box (ask-my-data, D-211); nil = one call, no tools.
+	tools *toolSession
+	// AnswerWhenBlocked makes an answer that an after_ai hook stops a result (JobResult.Blocked, text = the hook's message) instead of
+	// a 409; the row of the call still says blocked_by_hook.
+	AnswerWhenBlocked bool
+	Schema            *provider.Schema
+	MaxTokens         int
+	Summary           string // what the activity row says on success; no secrets, no customer data
 	// Check validates the answer before anything is stored; an error is ErrBadOutput.
 	Check func(text string) error
 	// Store runs in the same transaction as the activity row, so a result and its record commit together.
@@ -53,6 +58,11 @@ type JobResult struct {
 	TokensOut  int
 	Fallback   bool
 	ActivityID string
+	// Hits are the hooks that acted on the answer (after_ai); Blocked is set when one stopped it (AnswerWhenBlocked); Downgrade is the
+	// automatic drop of the token level this call caused, if any.
+	Hits      []HookHit
+	Blocked   bool
+	Downgrade *Downgrade
 }
 
 func apiUnavailable(msg string) error { return apierr.New(http.StatusConflict, "ai_unavailable", msg) }
@@ -266,14 +276,25 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		return JobResult{}, apiUnavailable("The AI was not asked: " + stop)
 	}
-	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Data: data})
+	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Data: data, WithTools: spec.tools != nil})
 	if err != nil {
 		return JobResult{}, fmt.Errorf("ai: build prompt: %w", err)
 	}
 	entry.InputHash = HashContent(prompt.System + "\n" + prompt.User)
 	req := provider.Request{System: prompt.System, Messages: []provider.Message{{Role: provider.RoleUser, Text: prompt.User}}, Schema: spec.Schema, MaxTokens: spec.MaxTokens}
 
-	res, err := s.router.Call(ctx, spec.Job, req)
+	var res CallResult
+	if spec.tools != nil {
+		res, err = s.converse(ctx, spec, hooks, prompt, req)
+		entry.Tools = spec.tools.acts
+		entry.Hooks = dedupe(append(entry.Hooks, spec.tools.names...))
+		if err != nil && res.Profile != "" { // a turn answered before the failure: its tokens are spent and its profile is known
+			entry.Profile, entry.ProfileID, entry.Model = res.Profile, res.ProfileID, res.Model
+			entry.TokensIn, entry.TokensOut = res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+		}
+	} else {
+		res, err = s.router.Call(ctx, spec.Job, req)
+	}
 	if err != nil {
 		s.touchSent(ctx, mem.ids, res)
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
@@ -296,9 +317,12 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	defer wcancel()
 	text := after.Text
 	var bad error
+	blocked := false
 	switch {
 	case herr != nil:
 		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiUnavailable("The AI answered, but the answer could not be checked, so it was not used.")
+	case (after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld) && spec.AnswerWhenBlocked:
+		entry.Result, entry.Summary, blocked = ResultBlockedByHook, "The answer was not used: "+after.Text, true
 	case after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld:
 		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: "+after.Text, apiUnavailable("The AI answered, but a rule stopped the answer: "+after.Text)
 	case spec.Check != nil && spec.Check(text) != nil:
@@ -308,8 +332,8 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	storeFailed := false
 	werr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		ctx := wctx
-		if bad == nil {
-			entry.Summary = spec.Summary + leftOutNote(mem.left) + knowledgeNote(*know)
+		if bad == nil && !blocked {
+			entry.Summary = spec.Summary + spec.tools.note() + leftOutNote(mem.left) + knowledgeNote(*know)
 			if res.Fallback {
 				entry.Summary += " (answered by the fallback profile)"
 			}
@@ -328,7 +352,8 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 			}
 		}
 		if bad == nil && spec.Store != nil {
-			if err := spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}); err != nil {
+			if err := spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
+				Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade}); err != nil {
 				storeFailed = true
 				return err
 			}
@@ -347,7 +372,8 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if bad != nil {
 		return JobResult{}, bad
 	}
-	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}, nil
+	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
+		Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade}, nil
 }
 
 // leftOutNote names the memories a hook kept out of the call (ids, never text).
@@ -402,6 +428,25 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 	}
 	var ue *UnavailableError
 	switch {
+	case errors.Is(err, errAskDeadline), errors.Is(err, ErrBadOutput) && spec.tools != nil:
+		// the question ran out of time, or the model kept asking for tools and never answered: the calls that were made keep their row
+		s.nameLastProfile(&entry, res)
+		entry.Summary = "Stopped: the question used up its time."
+		msg := "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+		if !errors.Is(err, errAskDeadline) {
+			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
+			msg = "The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job."
+		}
+		if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return apiUnavailable(msg)
+	case spec.tools != nil && errors.As(err, &ue) && toolsRefused(res):
+		entry.Summary = "No profile accepted tool calls: " + strings.Join(attemptReasons(res, ue), "; ")
+		if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return apiUnavailable("The AI profile did not accept tool calls, which asking your data needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
 	case errors.Is(err, ErrCapped):
 		entry.Summary = "Not sent: today's token cap is used up and the level is already the minimum."
 		if rerr := s.record(ctx, entry); rerr != nil {
@@ -430,6 +475,38 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		return s.unavailable(spec.Job, reasons)
 	}
 	return err
+}
+
+// nameLastProfile fills the profile of the row from the last attempt that sent a request, when no answer did.
+func (s *Service) nameLastProfile(entry *ActivityEntry, res CallResult) {
+	if entry.Profile != "" {
+		return
+	}
+	for i := len(res.Attempts) - 1; i >= 0; i-- {
+		if a := res.Attempts[i]; !a.Skipped {
+			entry.Profile, entry.ProfileID = a.Profile, a.ProfileID
+			if st, ok := s.snap.Load().find(a.ProfileID); ok {
+				entry.Model = st.Model
+			}
+			return
+		}
+	}
+}
+
+// toolsRefused reports whether every request that was sent was refused by the provider as a bad request: what a profile that does not
+// take tools answers (provider.ErrRequest), and nothing else did.
+func toolsRefused(res CallResult) bool {
+	sent := 0
+	for _, a := range res.Attempts {
+		if a.Skipped {
+			continue
+		}
+		sent++
+		if !errors.Is(a.Err, provider.ErrRequest) {
+			return false
+		}
+	}
+	return sent > 0
 }
 
 // writeDowngrade records an automatic drop of the token level in ai_downgrade and in the audit log (INV-4).

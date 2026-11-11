@@ -20,6 +20,9 @@ const (
 	MaxAddrRowsPerBucket = 500
 	// MaxTopAddresses is the most addresses TopAddresses returns; a larger n is cut to it.
 	MaxTopAddresses = 50
+	// MaxPendingAddrs is how many addresses that have no row yet (the quota was full, and they did not have more lines than the least counted
+	// row) the service remembers the exact count of, in memory, for the buckets that are still open; past it the lowest counts go.
+	MaxPendingAddrs = 4096
 	// neverCountTTL is how long the set of addresses that are never counted is used before it is asked for again.
 	neverCountTTL = 30 * time.Second
 	// neverCountTimeout bounds one ask of the port.
@@ -40,6 +43,7 @@ type neverSet struct {
 	at      time.Time
 	addr    map[netip.Addr]struct{}
 	failing bool // the last ask failed
+	known   bool // an ask has been answered without an error: the set is the whole box
 }
 
 // neverCounted returns the test of "this address is the box" for a batch: the port is asked at most every neverCountTTL (a failed ask keeps
@@ -51,7 +55,9 @@ func (s *Service) neverCounted(ctx context.Context) func(netip.Addr) bool {
 	s.neverMu.Lock()
 	defer s.neverMu.Unlock()
 	now := s.now()
-	if s.never.addr == nil || now.Sub(s.never.at) >= neverCountTTL || now.Before(s.never.at) {
+	// Until a full answer has been had (the host has not answered, the decoy record could not be read) the port is asked again at every call:
+	// the set is smaller than the box, and each lines of the box's address that are stored meanwhile are dropped again when read (TopAddresses).
+	if !s.never.known || now.Sub(s.never.at) >= neverCountTTL || now.Before(s.never.at) {
 		cctx, cancel := context.WithTimeout(ctx, neverCountTimeout)
 		list, err := s.cfg.NeverCount(cctx)
 		cancel()
@@ -69,6 +75,9 @@ func (s *Service) neverCounted(ctx context.Context) func(netip.Addr) bool {
 			s.never.addr = set
 		}
 		s.never.at = now
+		if err == nil {
+			s.never.known = true
+		}
 	}
 	set := s.never.addr
 	return func(a netip.Addr) bool { _, ok := set[a]; return ok }
@@ -109,14 +118,77 @@ func (b *addrBucket) least() (sig int64, row addrRow, ok bool) {
 	return sig, row, ok
 }
 
+// pendKey is an address of a signature of a source in a bucket that has no row.
+type pendKey struct {
+	source string
+	bucket int64
+	sig    int64
+	addr   netip.Addr
+}
+
+// pendingUpdate is what storeAddrs changes in the in-memory counts, applied only after the batch is stored (a transaction that is retried or
+// rolled back must not count its lines twice, or at all): a count of 0 deletes the entry.
+type pendingUpdate struct{ set map[pendKey]int }
+
+// apply puts the update into the service's memory and keeps it small: buckets older than two before now go, and past MaxPendingAddrs the
+// lowest counts go.
+func (u *pendingUpdate) apply(s *Service) {
+	if u == nil || len(u.set) == 0 {
+		return
+	}
+	s.pendMu.Lock()
+	defer s.pendMu.Unlock()
+	if s.pend == nil {
+		s.pend = map[pendKey]int{}
+	}
+	for k, n := range u.set {
+		if n == 0 {
+			delete(s.pend, k)
+		} else {
+			s.pend[k] = n
+		}
+	}
+	if len(s.pend) <= MaxPendingAddrs {
+		return
+	}
+	oldest := s.now().Unix()/bucketSeconds - 2
+	for k := range s.pend {
+		if k.bucket < oldest {
+			delete(s.pend, k)
+		}
+	}
+	if len(s.pend) <= MaxPendingAddrs {
+		return
+	}
+	keys := make([]pendKey, 0, len(s.pend))
+	for k := range s.pend {
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b pendKey) int {
+		return cmp.Or(cmp.Compare(s.pend[a], s.pend[b]), cmp.Compare(a.bucket, b.bucket), cmp.Compare(a.sig, b.sig), a.addr.Compare(b.addr), cmp.Compare(a.source, b.source))
+	})
+	for _, k := range keys[:len(keys)-MaxPendingAddrs] {
+		delete(s.pend, k)
+	}
+}
+
+func (s *Service) pendingOf(k pendKey) int {
+	s.pendMu.Lock()
+	defer s.pendMu.Unlock()
+	return s.pend[k]
+}
+
 // storeAddrs adds the addresses of a batch to the address counters inside the transaction of the batch. Per source and bucket the
 // table holds at most MaxAddrsPerSignature rows of a signature and MaxAddrRowsPerBucket rows in all. An address already in a table
 // is counted up. A new one is inserted when there is room; at a quota it takes the place of the row with the fewest lines when it has
-// more lines in this batch than that row has (the quota of the signature looks at the rows of the signature, the quota of the bucket at
-// all of them), and is otherwise not stored. A row is therefore a lower bound of what the address sent (an address that was pushed out and
-// came back starts again), never more: nothing is invented to fill a row, so a one-line spoof can never look like an attacker. Groups
-// are handled in key order, so that the same input gives the same table.
-func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketKey]addrGroup) error {
+// more lines than that row has, and is otherwise not stored. "Its lines" are exact: the ones of this batch and the ones of the earlier
+// batches of the same bucket that did not get a row, which the service remembers in memory (at most MaxPendingAddrs, the lowest counts go
+// first; a restart loses the memory of one bucket at most). So an attacker that sends one line per batch behind a flood of one-line addresses
+// gets its row at its second line, with the count it really sent; and a row is never above the lines its address sent (nothing is invented
+// to fill a row), so a one-line spoof can never look like an attacker. Groups are handled in key order, so that the same input gives the
+// same table. commit gets the new in-memory counts: the caller applies them when the batch is stored.
+func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketKey]addrGroup, commit *pendingUpdate) error {
+	commit.set = map[pendKey]int{}
 	keys := make([]bucketKey, 0, len(groups))
 	for k := range groups {
 		keys = append(keys, k)
@@ -133,6 +205,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 		h := sigHash(k.signature)
 		have := sb.bySig[h]
 		var fresh []addrRow
+		pk := func(a netip.Addr) pendKey { return pendKey{k.source, k.bucket, h, a} }
 		for a, n := range groups[k] {
 			if i := slices.IndexFunc(have, func(r addrRow) bool { return r.addr == a }); i >= 0 {
 				if _, err := tx.ExecContext(ctx, bumpAddr, k.bucket, k.source, h, a.AsSlice(), n); err != nil {
@@ -141,7 +214,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 				have[i].count += n
 				continue
 			}
-			fresh = append(fresh, addrRow{a, n})
+			fresh = append(fresh, addrRow{a, n + s.pendingOf(pk(a))})
 		}
 		slices.SortFunc(fresh, func(a, b addrRow) int { return cmp.Or(cmp.Compare(b.count, a.count), a.addr.Compare(b.addr)) })
 		for _, c := range fresh {
@@ -150,6 +223,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 			case len(have) >= MaxAddrsPerSignature: // the signature is full: the least counted row of the signature may go
 				i := leastOf(have)
 				if c.count <= have[i].count {
+					commit.set[pk(c.addr)] = c.count
 					continue
 				}
 				if _, err := tx.ExecContext(ctx, deleteAddr, k.bucket, k.source, h, have[i].addr.AsSlice()); err != nil {
@@ -163,6 +237,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 				vh, v, ok := sb.least()
 				if !ok || c.count <= v.count {
 					sb.bySig[h] = sig
+					commit.set[pk(c.addr)] = c.count
 					continue
 				}
 				if _, err := tx.ExecContext(ctx, deleteAddr, k.bucket, k.source, vh, v.addr.AsSlice()); err != nil {
@@ -177,6 +252,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 			if _, err := tx.ExecContext(ctx, insertAddr, k.bucket, k.source, h, c.addr.AsSlice(), c.count); err != nil {
 				return fmt.Errorf("logs: counting an address: %w", err)
 			}
+			commit.set[pk(c.addr)] = 0 // it has a row now
 			have = append(have, c)
 			sb.total++
 		}
@@ -231,7 +307,7 @@ func leastOf(rows []addrRow) int {
 // TopAddresses is the read port of response's log_threshold for the question "which address": the n remote addresses that sent the most
 // lines of one signature from one source in the last window, most first (ties by address, so the answer is the same every time). The
 // address is the remote peer the line is about (the client of a failed login, the source of a blocked connection), never the device
-// that sent the log, and never the box itself, its gateway or a honeypot decoy (Config.NeverCount); a private LAN address does count.
+// that sent the log, and never the box itself, its gateway or a honeypot decoy (Config.NeverCount, applied again when reading: a line stored before the box's address was known is not returned once it is); a private LAN address does count.
 // source and signature are as for Counts, and so is the window (5 minutes to 24 hours, rounded out to whole buckets: ErrBadWindow
 // otherwise). n under 1 is ErrBadCount, and n over MaxTopAddresses is MaxTopAddresses. Counts are lower bounds when the quotas were reached (see
 // storeAddrs): an address is never counted for lines it did not send, and one beyond a quota may be missing. A signature never seen,
@@ -249,6 +325,7 @@ func (s *Service) TopAddresses(ctx context.Context, source, signature string, wi
 		return nil, fmt.Errorf("logs: reading addresses: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	never := s.neverCounted(ctx) // asked now: lines stored before the box's address was known (a host that had not answered) are not returned
 	var out []AddressCount
 	for rows.Next() {
 		var raw []byte
@@ -256,7 +333,7 @@ func (s *Service) TopAddresses(ctx context.Context, source, signature string, wi
 		if err := rows.Scan(&raw, &c); err != nil {
 			return nil, fmt.Errorf("logs: reading addresses: %w", err)
 		}
-		if a, ok := netip.AddrFromSlice(raw); ok {
+		if a, ok := netip.AddrFromSlice(raw); ok && !never(a) {
 			out = append(out, AddressCount{a, c})
 		}
 	}

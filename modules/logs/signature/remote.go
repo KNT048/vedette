@@ -87,9 +87,14 @@ var remoteKeys = set("rhost", "rip", "remip", "remote", "remote_ip", "remote_add
 var remoteWords = set("from", "by")
 
 // genericRemote finds the peer address of a line that no profile settled, by the layouts that daemons share: key=value with a key of
-// remoteKeys, the word after "from" or "by", host[addr] (postfix) and name/addr:port (OpenVPN). The first countable address, left to
-// right, wins. It does not use regular expressions (it runs on every line of a device without a profile).
+// remoteKeys, the word after "from" or "by", host[addr] (postfix) and name/addr:port (OpenVPN). It returns the address only when every
+// countable candidate of the line is the same address: with two different ones it returns none (D-210). A user name, a workstation or a
+// URL is text an attacker writes ("src=8.8.8.8", "from 8.8.8.8", "a[8.8.8.8]"), and the first match from the left would name an innocent
+// address for a ban (fail2ban CVE-2007-4321, DenyHosts CVE-2007-4323); a line with a second address is one in which no word can be
+// trusted to be the peer. The price is that an attacker can hide by adding an address of its own to the line; it cannot be framed by it.
+// It does not use regular expressions (it runs on every line of a device without a profile).
 func genericRemote(msg string) netip.Addr {
+	var found netip.Addr
 	prev := ""
 	words := 0
 	for i := 0; i < len(msg) && words < maxRemoteWords; {
@@ -108,27 +113,34 @@ func genericRemote(msg string) netip.Addr {
 			prev = ""
 			continue
 		}
-		var cand string
-		switch eq := strings.IndexByte(w, '='); {
-		case eq > 0 && eq < 24:
+		var cands [3]string // a word can be a candidate in more than one way: "x[8.8.8.8]/203.0.113.40:5" is two
+		if eq := strings.IndexByte(w, '='); eq > 0 && eq < 24 {
 			if remoteKeys[lowerKey(w[:eq])] {
-				cand = w[eq+1:]
+				cands[0] = w[eq+1:]
 			}
-		case remoteWords[prev]:
-			cand = w
-		case strings.IndexByte(w, '[') > 0 && strings.IndexByte(w, ']') > 0: // unknown[1.2.3.4]:
-			cand = w
-		case strings.IndexByte(w, '/') > 0: // bob/1.2.3.4:5555
-			cand = w[strings.LastIndexByte(w, '/')+1:]
+		} else if remoteWords[prev] && (prev != "by" || strings.HasPrefix(msg[j:], " port ")) { // sshd "closed by 1.2.3.4 port 22"
+			cands[0] = w
 		}
-		if cand != "" {
+		if b := strings.IndexByte(w, '['); b > 0 && strings.IndexByte(w, ']') > b { // unknown[1.2.3.4]:
+			cands[1] = w
+		}
+		if s := strings.IndexByte(w, '/'); s > 0 { // bob/1.2.3.4:5555
+			cands[2] = w[strings.LastIndexByte(w, '/')+1:]
+		}
+		for _, cand := range cands {
+			if cand == "" {
+				continue
+			}
 			if a, ok := ParseAddr(cand); ok && Countable(a) {
-				return a
+				if found.IsValid() && found != a {
+					return netip.Addr{}
+				}
+				found = a
 			}
 		}
 		prev = lowerKey(strings.TrimRight(w, ":"))
 	}
-	return netip.Addr{}
+	return found
 }
 
 // lowerKey lower-cases a short ASCII word without allocating when it is already lower case.

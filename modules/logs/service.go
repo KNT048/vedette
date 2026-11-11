@@ -89,6 +89,9 @@ type Service struct {
 	// never is the answer of Config.NeverCount, asked again after neverCountTTL.
 	neverMu sync.Mutex
 	never   neverSet
+	// pend is the exact count of the addresses that have no row in the open buckets (addresses.go); pendMu guards it.
+	pendMu sync.Mutex
+	pend   map[pendKey]int
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

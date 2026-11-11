@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 	"unicode"
@@ -73,7 +74,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(lines) == 0 {
 		return res, nil
 	}
-	known, err := s.sourceKinds(ctx)
+	known, senders, err := s.sourceKinds(ctx)
 	if err != nil {
 		return res, err
 	}
@@ -109,7 +110,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(keep) == 0 {
 		return res, nil
 	}
-	sigs := s.tally(known, keep, s.neverCounted(ctx))
+	sigs := s.tally(known, senders, keep, s.neverCounted(ctx))
 	var stored int64
 	err = s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
 		ins, err := tx.PrepareContext(ctx, `INSERT INTO logs_events (ts, source_id, line) VALUES (?, ?, ?)`)
@@ -142,6 +143,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if err != nil {
 		return IngestResult{}, err
 	}
+	sigs.commit.apply(s) // the exact counts of the addresses that did not get a row, now that the batch is stored
 	res.Stored = len(keep)
 	if stored > s.maxBytes {
 		s.startPurge()
@@ -163,22 +165,26 @@ func (s *Service) startPurge() {
 	}
 }
 
-// sourceKinds maps the id of every declared source to its device kind (one small read on the main database).
-func (s *Service) sourceKinds(ctx context.Context) (map[string]string, error) {
-	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind FROM logs_sources`)
+// sourceKinds maps the id of every declared source to its device kind, and to the address that it sends from (one small read on the main
+// database): the sender is the log sender, never the peer a line is about (D-210).
+func (s *Service) sourceKinds(ctx context.Context) (map[string]string, map[string]netip.Addr, error) {
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, sender_ip FROM logs_sources`)
 	if err != nil {
-		return nil, fmt.Errorf("logs: reading sources: %w", err)
+		return nil, nil, fmt.Errorf("logs: reading sources: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[string]string{}
+	out, senders := map[string]string{}, map[string]netip.Addr{}
 	for rows.Next() {
-		var id, kind string
-		if err := rows.Scan(&id, &kind); err != nil {
-			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		var id, kind, ip string
+		if err := rows.Scan(&id, &kind, &ip); err != nil {
+			return nil, nil, fmt.Errorf("logs: reading sources: %w", err)
 		}
 		out[id] = kind
+		if a, err := netip.ParseAddr(ip); err == nil {
+			senders[id] = a.Unmap()
+		}
 	}
-	return out, rows.Err()
+	return out, senders, rows.Err()
 }
 
 // sourceIDs is the set of declared source ids (one small read on the main database; reads do not wait for its writer).

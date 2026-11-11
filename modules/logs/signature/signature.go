@@ -43,6 +43,8 @@ const (
 	maxScan  = 4096 // bytes of a line that a rule looks at (lines are stored at 2 KiB; this is the bound for a caller that passes more)
 	maxValue = 48   // bytes of a plain key=value value in a signature
 	maxPairs = 256  // key=value pairs looked at in one line
+
+	maxRemoteMatches = 8 // matches of one remote pattern that are looked at
 )
 
 // Rule types.
@@ -425,10 +427,13 @@ func (s *Set) Of(kind, line string) Result {
 	msg := listen.ParseSyslog(line).Msg
 	if p := s.byKind[kind]; p != nil {
 		if r, ok := p.read(msg); ok {
-			if !r.Remote.IsValid() {
-				r.Remote = genericRemote(msg) // the profile does not name it: the layouts that daemons share
+			if !r.Remote.IsValid() && !p.hasRemote() {
+				r.Remote = genericRemote(msg) // a profile with no rule for it: the layouts that daemons share
 			}
 			return r
+		}
+		if p.hasRemote() { // a line the profile does not read has no address: nothing it says about one is a field of the format
+			return Result{Signature: Mine(msg), Profile: GenericProfile}
 		}
 	}
 	return Result{Signature: Mine(msg), Profile: GenericProfile, Remote: genericRemote(msg)}
@@ -437,9 +442,10 @@ func (s *Set) Of(kind, line string) Result {
 // read applies the rule; ok is false when the line is not in the format of the profile.
 func (p *profile) read(msg string) (Result, bool) {
 	var r Result
+	settled := false // the remote address is decided (found, or ambiguous): the patterns do not run
 	switch p.Rule.Type {
 	case TypeKV:
-		kv := kvFind(msg, p.wanted)
+		kv, dup := kvFind(msg, p.wanted)
 		if _, has := kv[p.Rule.Fields[0]]; !has {
 			return r, false
 		}
@@ -469,9 +475,13 @@ func (p *profile) read(msg string) (Result, bool) {
 		}
 		r.Signature = strings.Join(parts, " ")
 		r.Src, r.Dest = addr(kv[p.Rule.SrcField]), addr(kv[p.Rule.DstField])
-		for _, k := range p.Rule.RemoteFields {
+		for _, k := range p.Rule.RemoteFields { // in order of preference; a key written twice with two values is ambiguous: no address (D-210)
+			if dup[k] {
+				settled = true
+				break
+			}
 			if a, ok := ParseAddr(kv[k]); ok && Countable(a) {
-				r.Remote = a
+				r.Remote, settled = a, true
 				break
 			}
 		}
@@ -523,18 +533,35 @@ func (p *profile) read(msg string) (Result, bool) {
 	if r.Signature == "" {
 		return Result{}, false
 	}
-	for _, re := range p.remote {
-		if r.Remote.IsValid() {
-			break
-		}
-		if m := re.FindStringSubmatch(msg); m != nil {
-			if a, ok := ParseAddr(m[re.SubexpIndex("addr")]); ok && Countable(a) {
-				r.Remote = a
-			}
-		}
+	if !settled && len(p.remote) > 0 {
+		r.Remote = p.remoteByPatterns(msg)
 	}
 	r.Profile = p.ID
 	return r, true
+}
+
+// hasRemote says whether the profile has rules of its own for the remote address: then no other reader looks at its lines.
+func (p *profile) hasRemote() bool { return len(p.Rule.RemoteFields)+len(p.remote) > 0 }
+
+// remoteByPatterns collects every countable address that every remote pattern finds, every match of each: the address is the one there is
+// when all of them are the same, and none when there are two (D-210: text that an attacker writes into the line, a user name or a
+// workstation name, must not be able to name another address, and a second address in the line means that one of them is not the peer).
+func (p *profile) remoteByPatterns(msg string) netip.Addr {
+	var found netip.Addr
+	for _, re := range p.remote {
+		i := re.SubexpIndex("addr")
+		for _, m := range re.FindAllStringSubmatch(msg, maxRemoteMatches) {
+			a, ok := ParseAddr(m[i])
+			if !ok || !Countable(a) {
+				continue
+			}
+			if found.IsValid() && found != a {
+				return netip.Addr{}
+			}
+			found = a
+		}
+	}
+	return found
 }
 
 func group(re *regexp.Regexp, msg, name string) string {
@@ -571,8 +598,8 @@ func clean(s string) string {
 }
 
 // kvFind reads key=value pairs ("key=value" and key="quoted value", the first of a key wins) and returns the wanted ones.
-func kvFind(s string, want map[string]bool) map[string]string {
-	out := map[string]string{}
+func kvFind(s string, want map[string]bool) (out map[string]string, dup map[string]bool) {
+	out, dup = map[string]string{}, map[string]bool{}
 	pairs := 0
 	for i := 0; i < len(s) && pairs < maxPairs; {
 		if s[i] == ' ' {
@@ -618,13 +645,15 @@ func kvFind(s string, want map[string]bool) map[string]string {
 			val, j = s[j:k], k
 		}
 		if want[key] {
-			if _, dup := out[key]; !dup {
+			if prev, seen := out[key]; !seen {
 				out[key] = val
+			} else if prev != val {
+				dup[key] = true // written twice with two values: which one is the device's is not known
 			}
 		}
 		i = j
 	}
-	return out
+	return out, dup
 }
 
 func isKeyByte(c byte) bool { return isAtomByte(c) && c != ':' }

@@ -135,6 +135,26 @@ func TestGenericRemote(t *testing.T) {
 		{"app: from", ""},
 		{"app: 192.168.1.5 is mentioned with no layout", ""},
 		{"app: gw=203.0.113.99 dst=1.1.1.1", ""}, // dst and gw are not the peer
+		// H1 (D-210): text that an attacker writes (a user name, a URL) must not name another address. Two different candidates in one line:
+		// no address at all (the line still counts everywhere else); the same address twice is one.
+		{"sshd[1]: Invalid user src=8.8.8.8 from 203.0.113.5 port 22", ""},
+		{"sshd[1]: Invalid user x from 8.8.8.8 from 203.0.113.5 port 22", ""},
+		{"sshd[1]: Failed password for invalid user rhost=8.8.8.8 from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Failed password for invalid user a/8.8.8.8:1 from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Failed password for invalid user a[8.8.8.8] from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Failed password for invalid user ip=10.0.0.1 from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Failed password for invalid user rip=8.8.8.8 from 203.0.113.5 port 22 ssh2", ""},
+		{"sshd[1]: Connection closed by invalid user by 8.8.8.8 203.0.113.5 port 22 [preauth]", ""}, // "by" counts only before "addr port"
+		{"sshd[1]: Failed password for root from 203.0.113.5 port 22 ssh2 rhost=203.0.113.5", "203.0.113.5"},
+		{"nginx: 203.0.113.5 - - \"GET /login?client=8.8.8.8 HTTP/1.1\" 401", ""},
+		{"app: GET /a/8.8.8.8:80 from 203.0.113.5", "203.0.113.5"},
+		{"app: GET http://x/8.8.8.8 from 203.0.113.5", ""},
+		{"dovecot: imap-login: Disconnected (auth failed): user=<a rip=8.8.8.8>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", ""},
+		{"dovecot: imap-login: Disconnected (auth failed): user=<a/8.8.8.8:1>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", ""},
+		{"postfix/smtpd[7]: NOQUEUE: reject: RCPT from unknown[203.0.113.30]: 554 5.7.1 <x[8.8.8.8]>: Relay access denied", ""},
+		{"openvpn[1]: x[8.8.8.8]/203.0.113.40:51820 TLS Error", ""},
+		{"openvpn[1]: by/203.0.113.40:51820 from 8.8.8.8", ""},
+		{"app: login failed from 192.168.10.2 from 203.0.113.70", ""}, // the evasion: the peer adds the box's address, and the line has no address
 	} {
 		r := set.Of("syslog", "<38>Nov  9 10:00:00 host "+c.line)
 		if r.Profile != GenericProfile {
@@ -157,7 +177,15 @@ func TestShippedProfilesRemote(t *testing.T) {
 		{"fortigate", `logid="0101039426" type="event" action="tunnel-up" remip=127.0.0.1 srcip=203.0.113.3`, "203.0.113.3"}, // loopback remip is skipped
 		{"fortigate", `logid="0100032002" type="event" user="admin" ui="https(198.51.100.4)" action="login" status="failed"`, "198.51.100.4"},
 		{"fortigate", `logid="0100032002" type="event" user="admin" ui="ssh(2001:db8::4)" action="login" status="failed"`, "2001:db8::4"},
-		{"fortigate", `logid="0100032002" type="event" action="login" msg="Administrator admin login failed from https(198.51.100.5) because of invalid password"`, "198.51.100.5"},
+		{"fortigate", `logid="0100032002" type="event" action="login" msg="Administrator admin login failed from https(198.51.100.5) because of invalid password"`, ""}, // msg is free text: no profile field, no generic reader
+		// H1: a user name written into the line cannot be the address; a key written twice with two values is no address; msg is text.
+		{"fortigate", `logid="0100032002" type="event" subtype="system" user="ui=https(8.8.8.8)" ui="https(203.0.113.4)" action="login" status="failed"`, "203.0.113.4"},
+		{"fortigate", `logid="0100032002" type="event" subtype="system" user="x" action="login" status="failed" msg="Administrator x from 8.8.8.8 login failed"`, ""},
+		{"fortigate", `logid="0101039426" type="event" subtype="vpn" action="ssl-login-fail" user="a\" remip=8.8.8.8 x=\"" remip=203.0.113.7`, "203.0.113.7"},
+		{"fortigate", `logid="0101039426" type="event" subtype="vpn" action="ssl-login-fail" user="a" remip=8.8.8.8 x="" remip=203.0.113.7`, ""},
+		{"fortigate", `logid="0100032002" type="event" subtype="system" user="a" srcip=8.8.8.8 x="" ui="https(203.0.113.4)" srcip=203.0.113.4 action="login"`, "203.0.113.4"},
+		{"fortigate", `logid="0000000013" type="traffic" srcip=8.8.8.8 dstip=10.0.0.1 srcip=203.0.113.4 action="deny"`, ""},
+		{"fortigate", `logid="0000000013" type="traffic" srcip=203.0.113.4 dstip=10.0.0.1 srcip=203.0.113.4 action="deny"`, "203.0.113.4"},
 		{"fortigate", `logid="0100032002" type="event" action="login" ui="console" msg="Administrator admin login failed"`, ""},
 		{"fortigate", `logid="0000000013" type="traffic" srcip=0.0.0.0 dstip=10.0.0.1 action="deny"`, ""},
 		{"fortigate", `logid="0000000013" type="traffic" srcip="not an address" dstip=10.0.0.1 action="deny"`, ""},
@@ -170,10 +198,23 @@ func TestShippedProfilesRemote(t *testing.T) {
 		{"windows", "<14>Nov  9 10:00:00 DC1 Security-Auditing: 4768: A Kerberos authentication ticket (TGT) was requested. Client Address: 2001:db8::99", "2001:db8::99"},
 		{"windows", `{"EventID":4625,"Channel":"Security","IpAddress":"2001:db8::5","IpPort":"0"}`, "2001:db8::5"},
 		{"windows", `<Event><EventData><Data Name="IpAddress">203.0.113.51</Data></EventData><System><EventID>4625</EventID></System></Event>`, "203.0.113.51"},
+		// H1: the labels are exact and anchored; a user or workstation name that carries a label makes a second candidate.
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on.\tAccount Name:\tIpAddress=8.8.8.8\tSource Network Address:\t203.0.113.50\tSource Port:\t1", "203.0.113.50"},
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Account Name: x Workstation Name: Client\tAddress:8.8.8.8 Source Network Address: 203.0.113.50 Source Port: 1", "203.0.113.50"},
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on.\tAccount Name:\tx Source Network Address:\t8.8.8.8\tSource Network Address:\t203.0.113.50", ""},
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Account Name: src=8.8.8.8 Source Network Address: - Source Port: -", ""},
+		{"windows", `{"EventID":4625,"TargetUserName":"IpAddress:8.8.8.8","WorkstationName":"W","IpAddress":"203.0.113.50","IpPort":"1"}`, "203.0.113.50"},
+		{"windows", `{"EventID":4625,"TargetUserName":"x\",\"IpAddress\":\"8.8.8.8","IpAddress":"203.0.113.50"}`, "203.0.113.50"},
+		{"windows", `{"EventID":4625,"IpAddress":"8.8.8.8","TargetUserName":"x","IpAddress":"203.0.113.50"}`, ""},
+		{"windows", `<Event><System><EventID>4625</EventID></System><EventData><Data Name="TargetUserName">Source Address=8.8.8.8</Data><Data Name="IpAddress">203.0.113.51</Data></EventData></Event>`, "203.0.113.51"},
 		{"windows", "<14>Nov  9 10:00:00 DC1 Security-Auditing: 4776: The domain controller attempted to validate account credentials. Source Workstation: PC1", ""},
 		// MikroTik: a firewall line has src:port->dst:port, an account line says "from addr".
 		{"mikrotik", `firewall,info input: in:ether1 out:(unknown 0), proto TCP (SYN), 203.0.113.60:50922->192.168.88.1:22, len 60`, "203.0.113.60"},
 		{"mikrotik", `system,error,critical login failure for user admin from 203.0.113.61 via ssh`, "203.0.113.61"},
+		// H1: the firewall pattern is for firewall lines (after "proto"); a user name with an arrow or a second "from" gives no address.
+		{"mikrotik", `system,error,critical login failure for user 8.8.8.8:1-> from 203.0.113.61 via ssh`, "203.0.113.61"},
+		{"mikrotik", `system,error,critical login failure for user a from 8.8.8.8 via ssh from 203.0.113.61 via ssh`, ""},
+		{"mikrotik", `system,info,account user 8.8.8.8:5->1.1.1.1 logged in`, ""},
 		{"mikrotik", `system,info,account user admin logged in from 192.168.10.113 via winbox`, "192.168.10.113"},
 		{"mikrotik", `dhcp,info dhcp1 assigned 192.168.88.100 to AA:BB:CC:DD:EE:FF`, ""},
 	} {
@@ -192,12 +233,21 @@ func TestShippedProfilesRemote(t *testing.T) {
 func TestRemoteFallsBackToTheGenericReader(t *testing.T) {
 	t.Parallel()
 	set := shipped(t)
+	// A kind whose profile has rules for the address reads no other layout: an unlisted event or a line that is not its format has none.
 	r := set.Of("windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4999: unlisted event from 203.0.113.80")
-	if r.Profile != GenericProfile || r.Remote != addrOf(t, "203.0.113.80") {
+	if r.Profile != GenericProfile || r.Remote.IsValid() {
 		t.Fatalf("%+v", r)
 	}
 	r = set.Of("fortigate", "something from 203.0.113.81 port 22")
-	if r.Profile != GenericProfile || r.Remote != addrOf(t, "203.0.113.81") {
+	if r.Profile != GenericProfile || r.Remote.IsValid() {
+		t.Fatalf("%+v", r)
+	}
+	// A profile without such rules leaves its lines to the generic reader.
+	demo, err := Load(profileFS(map[string]string{"demo.json": goodProfile}), "profiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := demo.Of("demo", `type="traffic" action="deny" from 203.0.113.82`); r.Profile != "demo" || r.Remote != addrOf(t, "203.0.113.82") {
 		t.Fatalf("%+v", r)
 	}
 }

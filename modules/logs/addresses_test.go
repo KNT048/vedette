@@ -19,7 +19,9 @@ func sshFail(ip string) string {
 }
 
 // sshSig is the signature of sshFail (a mined one: the address, the user and the port are masked).
-func (e *env) sshSig() string { return e.svc.sigs.Of("fortigate", sshFail("203.0.113.1")).Signature }
+func (e *env) sshSig() string {
+	return e.svc.sigs.Of("linux-rsyslog", sshFail("203.0.113.1")).Signature
+}
 
 func (e *env) feedAll(src Source, texts []string) {
 	e.t.Helper()
@@ -53,6 +55,16 @@ func (e *env) top(src Source, sig string, window time.Duration, n int) []Address
 	return got
 }
 
+// addLinux is a source of a kind that no profile reads: its lines go to the generic reader of the remote address.
+func (e *env) addLinux(name, ip string) Source {
+	e.t.Helper()
+	s, err := e.svc.AddSource(e.t.Context(), "admin@acme.example", Input{Kind: "linux-rsyslog", Name: name, SenderIP: ip, Proto: "udp", Port: 514})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return s
+}
+
 func fmtTop(l []AddressCount) string {
 	var b strings.Builder
 	for _, c := range l {
@@ -65,7 +77,7 @@ func fmtTop(l []AddressCount) string {
 func TestContract_TopAddresses_RanksByCountThenAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	var lines []string
 	for ip, n := range map[string]int{"203.0.113.9": 5, "203.0.113.8": 3, "203.0.113.30": 3, "198.51.100.7": 1} {
 		lines = append(lines, repeat(sshFail(ip), n)...)
@@ -84,7 +96,7 @@ func TestContract_TopAddresses_RanksByCountThenAddress(t *testing.T) {
 		t.Fatalf("Counts %d: the lines count whatever their address", n)
 	}
 	// IPv6 is an address like another (the miner reads its line as another signature: it masks it as hex).
-	v6 := e.svc.sigs.Of("fortigate", sshFail("2001:db8::1")).Signature
+	v6 := e.svc.sigs.Of("linux-rsyslog", sshFail("2001:db8::1")).Signature
 	e.feedAll(src, append(repeat(sshFail("2001:db8::1"), 4), repeat(sshFail("::ffff:198.51.100.7"), 2)...))
 	if got := fmtTop(e.top(src, v6, time.Hour, 10)); got != "2001:db8::1=4" && got != "2001:db8::1=4 198.51.100.7=2" {
 		t.Fatalf("%q", got)
@@ -94,7 +106,7 @@ func TestContract_TopAddresses_RanksByCountThenAddress(t *testing.T) {
 func TestTopAddressesWindowsAndBounds(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	e.feedAll(src, repeat(sshFail("203.0.113.1"), 4))
 	e.advance(10 * time.Minute)
 	e.feedAll(src, repeat(sshFail("203.0.113.2"), 2))
@@ -148,6 +160,17 @@ func TestContract_TopAddresses_NeverTheSender(t *testing.T) {
 	if fmtTop(got) != "45.9.148.20=3" {
 		t.Fatalf("%q", fmtTop(got))
 	}
+	// A line of the device itself (a FortiGate local-out line names its own address as srcip) is not counted, in any form of the address.
+	logid, action := fgN(23)
+	for _, sender := range []string{"192.168.10.1", `"192.168.10.1"`} {
+		e.feed(src, fmt.Sprintf(`type="traffic" subtype="local" logid="%s" srcip=%s dstip=8.8.8.8 action="%s"`, logid, sender, action), 20)
+	}
+	if got := e.top(src, sigFor(23), time.Hour, 10); len(got) != 0 {
+		t.Fatalf("the log sender is counted: %q", fmtTop(got))
+	}
+	if n, _ := e.svc.Counts(t.Context(), src.ID, sigFor(23), time.Hour); n != 40 {
+		t.Fatalf("Counts %d", n)
+	}
 }
 
 // Addresses that are never counted: the ones the port lists (box, gateway, decoy), whatever the form the line writes them in, and the
@@ -155,7 +178,7 @@ func TestContract_TopAddresses_NeverTheSender(t *testing.T) {
 func TestContract_TopAddresses_NeverTheBoxTheGatewayADecoyOrASpecialAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	e.svc.cfg.NeverCount = func(context.Context) ([]netip.Addr, error) {
 		return []netip.Addr{
 			netip.MustParseAddr("192.168.10.2"),          // the box
@@ -196,7 +219,7 @@ func TestContract_TopAddresses_NeverTheBoxTheGatewayADecoyOrASpecialAddress(t *t
 func TestNeverCountPortIsCachedAndFailsSafe(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	var asks atomic.Int32
 	var fail atomic.Bool
 	box := netip.MustParseAddr("192.168.10.2")
@@ -232,7 +255,7 @@ func TestNeverCountPortIsCachedAndFailsSafe(t *testing.T) {
 	}
 	// No earlier set and an error: what the port returned with it is used (the container's own addresses are known even when the host is not).
 	e2 := newEnv(t)
-	s2 := e2.add("FW-HQ", "192.168.10.1")
+	s2 := e2.addLinux("FW-HQ", "192.168.10.1")
 	e2.svc.cfg.NeverCount = func(context.Context) ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("192.168.10.2")}, errors.New("host unknown")
 	}
@@ -252,7 +275,7 @@ func (e *env) addrRows(src Source) (perSig, perBucket int) {
 func sigsOf(e *env, lines []string) map[string]bool {
 	out := map[string]bool{}
 	for _, l := range lines {
-		out[e.svc.sigs.Of("fortigate", l).Signature] = true
+		out[e.svc.sigs.Of("linux-rsyslog", l).Signature] = true
 	}
 	return out
 }
@@ -301,7 +324,7 @@ func TestContract_TopAddresses_SpoofedFloodIsBoundedAndTheRealAttackerWins(t *te
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t)
-			src := e.add("FW-HQ", "192.168.10.1")
+			src := e.addLinux("FW-HQ", "192.168.10.1")
 			order(e, src)
 			sig := e.sshSig()
 			got := e.top(src, sig, time.Hour, 5)
@@ -327,7 +350,7 @@ func TestContract_TopAddresses_SpoofedFloodIsBoundedAndTheRealAttackerWins(t *te
 func TestTopAddressesCountsAreNeverInflated(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	for i := 0; i < 4000; i += 500 {
 		var l []string
 		for k := 0; k < 500; k++ {
@@ -347,7 +370,7 @@ func TestTopAddressesCountsAreNeverInflated(t *testing.T) {
 func TestContract_TopAddresses_BucketQuotaCoversEverySignature(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	words := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet"}
 	line := func(k int, ip string) string {
 		return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s", words[k%10], words[k/10%10], ip)
@@ -358,14 +381,14 @@ func TestContract_TopAddresses_BucketQuotaCoversEverySignature(t *testing.T) {
 		for a := 0; a < 50; a++ {
 			l = append(l, line(k, spoof(k*50+a)))
 		}
-		sigs[e.svc.sigs.Of("fortigate", l[0]).Signature] = true
+		sigs[e.svc.sigs.Of("linux-rsyslog", l[0]).Signature] = true
 		e.feedAll(src, l)
 	}
 	if len(sigs) < 60 {
 		t.Fatalf("only %d signatures: the test does not spread the rows", len(sigs))
 	}
-	if _, perBucket := e.addrRows(src); perBucket != MaxAddrRowsPerBucket {
-		t.Fatalf("%d rows in the bucket, want exactly the quota %d", perBucket, MaxAddrRowsPerBucket)
+	if _, perBucket := e.addrRows(src); perBucket != 500 { // the number itself: a quota that moves is a change of the ceiling that CONTRACT states
+		t.Fatalf("%d rows in the bucket, want exactly the quota 500", perBucket)
 	}
 	e.feedAll(src, repeat(sshFail("203.0.113.201"), 10))
 	if got := e.top(src, e.sshSig(), time.Hour, 3); len(got) != 1 || got[0].Count != 10 {
@@ -380,8 +403,8 @@ func TestContract_TopAddresses_BucketQuotaCoversEverySignature(t *testing.T) {
 func TestTopAddressesQuotasArePerSourceAndBucket(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	a := e.add("FW-A", "192.168.10.1")
-	b := e.add("FW-B", "192.168.10.3")
+	a := e.addLinux("FW-A", "192.168.10.1")
+	b := e.addLinux("FW-B", "192.168.10.3")
 	var l []string
 	for i := 0; i < 200; i++ {
 		l = append(l, sshFail(spoof(i)))
@@ -391,7 +414,7 @@ func TestTopAddressesQuotasArePerSourceAndBucket(t *testing.T) {
 	if got := fmtTop(e.top(b, e.sshSig(), time.Hour, 5)); got != "203.0.113.9=2" {
 		t.Fatalf("%q", got)
 	}
-	if got := e.top(a, e.sshSig(), time.Hour, 50); len(got) != MaxAddrsPerSignature {
+	if got := e.top(a, e.sshSig(), time.Hour, 50); len(got) != 50 {
 		t.Fatalf("%d", len(got))
 	}
 	e.advance(10 * time.Minute) // a new bucket has an empty quota
@@ -406,7 +429,7 @@ func TestTopAddressesQuotasArePerSourceAndBucket(t *testing.T) {
 func TestPurgeDropsOldAddressCounters(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	for _, h := range []int{0, 23, 25, 47} {
 		*e.clock = t0.Add(-time.Duration(h) * time.Hour)
 		e.feedAll(src, []string{sshFail("203.0.113.9")})
@@ -428,7 +451,7 @@ func TestPurgeDropsOldAddressCounters(t *testing.T) {
 func TestContract_SYS5_AddressCountersAreWrittenOnlyByJobsThatStopWithTheModule(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	e.feedAll(src, repeat(sshFail("203.0.113.9"), 3))
 	for _, j := range Jobs(e.svc) {
 		if j.Housekeeping != (j.Name == "purge") {
@@ -471,7 +494,7 @@ func TestMeasureAddressCeilings(t *testing.T) {
 		t.Skip("set VEDETTE_MEASURE=1 to measure")
 	}
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	size := func() int {
 		return count(t, e.vol, `SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()`)
 	}
@@ -514,7 +537,7 @@ func TestMeasureIngestCostOfAddresses(t *testing.T) {
 		t.Skip("set VEDETTE_MEASURE=1 to measure")
 	}
 	e := newEnv(t)
-	src := e.add("FW-HQ", "192.168.10.1")
+	src := e.addLinux("FW-HQ", "192.168.10.1")
 	words := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whiskey", "xray", "yankee"}
 	run := func(name string, n int, f func(i int) string) {
 		start := time.Now()
@@ -554,5 +577,177 @@ func TestSourceNames(t *testing.T) {
 	want := []SourceName{{a.ID, "FW-HQ", "fortigate"}, {b.ID, "FW-B", "fortigate"}}
 	if err != nil || len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("%v %v", got, err)
+	}
+}
+
+// M1: an attacker that sends one line at a time (batches close every 2 seconds) behind a signature full of one-line addresses is not hidden: the
+// exact count of an address that has no row is kept in memory, and the address gets its row at its second line with the count it sent.
+func TestContract_TopAddresses_SlowAttackerBehindAFullSignatureIsKept(t *testing.T) {
+	t.Parallel()
+	for _, prefill := range []int{50, 60} {
+		t.Run(fmt.Sprint(prefill), func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			src := e.addLinux("FW-HQ", "192.168.10.1")
+			var l []string
+			for i := 0; i < prefill; i++ {
+				l = append(l, sshFail(spoof(i)))
+			}
+			e.feedAll(src, l)
+			spoofs := prefill
+			for step := 0; step < 90; step++ { // 15 minutes: three buckets
+				e.advance(10 * time.Second)
+				e.feedAll(src, []string{sshFail("203.0.113.200"), sshFail(spoof(spoofs)), sshFail(spoof(spoofs + 1))}) // 10 noise lines a minute
+				spoofs += 2
+			}
+			got := e.top(src, e.sshSig(), CountsMaxWindow, 3)
+			if len(got) == 0 || got[0].Addr != netip.MustParseAddr("203.0.113.200") || got[0].Count != 90 {
+				t.Fatalf("got %q, want the attacker with 90", fmtTop(got))
+			}
+			if perSig, _ := e.addrRows(src); perSig > 50 {
+				t.Fatalf("%d rows of a signature", perSig)
+			}
+		})
+	}
+}
+
+// The same behind a bucket that is full across signatures (500 rows of one-line addresses in 100 signatures).
+func TestContract_TopAddresses_SlowAttackerBehindAFullBucketIsKept(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.addLinux("FW-HQ", "192.168.10.1")
+	for k := 0; k < 100; k++ {
+		var l []string
+		for a := 0; a < 50; a++ {
+			l = append(l, vpnLine(k, spoof(k*50+a)))
+		}
+		e.feedAll(src, l)
+	}
+	if _, perBucket := e.addrRows(src); perBucket != 500 {
+		t.Fatalf("%d rows", perBucket)
+	}
+	for step := 0; step < 10; step++ {
+		e.advance(10 * time.Second)
+		e.feedAll(src, []string{sshFail("203.0.113.200"), vpnLine(3, spoof(900000+step))})
+	}
+	got := e.top(src, e.sshSig(), time.Hour, 3)
+	if len(got) != 1 || got[0].Count != 10 {
+		t.Fatalf("got %q, want the attacker with 10", fmtTop(got))
+	}
+	if _, perBucket := e.addrRows(src); perBucket != 500 {
+		t.Fatalf("%d rows", perBucket)
+	}
+}
+
+func vpnLine(k int, ip string) string {
+	words := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet"}
+	return fmt.Sprintf("<38>Nov  9 10:00:00 gw vpn: %s %s tunnel refused from %s", words[k%10], words[k/10%10], ip)
+}
+
+// The memory of the addresses without a row is bounded.
+func TestPendingAddressesAreBounded(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.addLinux("FW-HQ", "192.168.10.1")
+	for i := 0; i < 6000; i += 500 {
+		var l []string
+		for k := 0; k < 500; k++ {
+			l = append(l, sshFail(spoof(i+k)))
+		}
+		e.feedAll(src, l)
+	}
+	e.svc.pendMu.Lock()
+	n := len(e.svc.pend)
+	e.svc.pendMu.Unlock()
+	if n == 0 || n > MaxPendingAddrs {
+		t.Fatalf("%d addresses in memory", n)
+	}
+}
+
+// A tie keeps the old row, at the quota of a signature and at the quota of a bucket: a newcomer needs more lines than the least counted row.
+func TestTopAddressesTieKeepsTheOldRow(t *testing.T) {
+	t.Parallel()
+	t.Run("signature", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		src := e.addLinux("FW-HQ", "192.168.10.1")
+		var l []string
+		for i := 0; i < 50; i++ {
+			l = append(l, sshFail(spoof(i)), sshFail(spoof(i)))
+		}
+		e.feedAll(src, l)
+		e.feedAll(src, []string{sshFail("203.0.113.201"), sshFail("203.0.113.201")}) // 2 lines = the least row
+		if got := e.top(src, e.sshSig(), time.Hour, 50); len(got) != 50 || fmtTop(got[:0]) != "" || has(got, "203.0.113.201") {
+			t.Fatalf("a tie replaced a row: %d rows, newcomer in: %v", len(got), has(got, "203.0.113.201"))
+		}
+		e.feedAll(src, repeat(sshFail("203.0.113.202"), 3))
+		if got := e.top(src, e.sshSig(), time.Hour, 1); len(got) != 1 || got[0].Count != 3 {
+			t.Fatalf("%q", fmtTop(got))
+		}
+	})
+	t.Run("bucket", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		src := e.addLinux("FW-HQ", "192.168.10.1")
+		for k := 0; k < 100; k++ {
+			var l []string
+			for a := 0; a < 50; a++ {
+				l = append(l, vpnLine(k, spoof(k*50+a)), vpnLine(k, spoof(k*50+a)))
+			}
+			e.feedAll(src, l)
+		}
+		e.feedAll(src, []string{sshFail("203.0.113.201"), sshFail("203.0.113.201")})
+		if got := e.top(src, e.sshSig(), time.Hour, 5); len(got) != 0 {
+			t.Fatalf("a tie replaced a row of the bucket: %q", fmtTop(got))
+		}
+		e.feedAll(src, repeat(sshFail("203.0.113.202"), 3))
+		if got := e.top(src, e.sshSig(), time.Hour, 5); len(got) != 1 || got[0].Count != 3 {
+			t.Fatalf("%q", fmtTop(got))
+		}
+		if _, perBucket := e.addrRows(src); perBucket != 500 {
+			t.Fatalf("%d rows", perBucket)
+		}
+	})
+}
+
+func has(l []AddressCount, ip string) bool {
+	for _, c := range l {
+		if c.Addr == netip.MustParseAddr(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// M3: lines stored while the box's address was not known (the host had not answered) are not returned once it is, and until a whole answer has
+// been had the port is asked at every batch.
+func TestContract_TopAddresses_BoxAddressStoredBeforeItWasKnownIsNotReturned(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.addLinux("FW-HQ", "192.168.10.1")
+	known := false
+	var asks atomic.Int32
+	e.svc.cfg.NeverCount = func(context.Context) ([]netip.Addr, error) {
+		asks.Add(1)
+		if !known {
+			return []netip.Addr{netip.MustParseAddr("172.18.0.5")}, errors.New("host unknown") // the container's own address only
+		}
+		return []netip.Addr{netip.MustParseAddr("172.18.0.5"), netip.MustParseAddr("192.168.10.2")}, nil
+	}
+	e.feedAll(src, repeat(sshFail("192.168.10.2"), 20)) // the box's LAN address, while the host has not answered
+	e.feedAll(src, repeat(sshFail("203.0.113.9"), 2))
+	e.feedAll(src, repeat(sshFail("203.0.113.9"), 2))
+	if asks.Load() != 3 {
+		t.Fatalf("asked %d times in 3 batches while the set is not known, want every batch", asks.Load())
+	}
+	known = true
+	if got := fmtTop(e.top(src, e.sshSig(), time.Hour, 5)); got != "203.0.113.9=4" {
+		t.Fatalf("the box's address is returned: %q", got)
+	}
+	before := asks.Load()
+	e.feedAll(src, repeat(sshFail("203.0.113.9"), 1))
+	e.feedAll(src, repeat(sshFail("203.0.113.9"), 1))
+	if asks.Load() != before {
+		t.Fatalf("asked again within the TTL of a whole answer")
 	}
 }

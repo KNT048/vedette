@@ -30,7 +30,8 @@
 
 ## Modifying: `TopAddresses(ctx, source, signature, window, n) ([]AddressCount, error)` (D-210, #338) — 1 người gọi (sau này)
 - **response** (Kiên): cổng cho các mẫu cấm theo địa chỉ `tpl-vpn-ban` và `tpl-ssh-acl` (D-287 (4)): `log_threshold` điền `source_ip` của sự kiện từ đây. Wiring qua `cmd/vedette` (`responseLogCounts`) là việc của Kiên (issue `owner:kien`). Số đếm là cận dưới khi hạn mức bucket đầy (50 địa chỉ mỗi chữ ký, 500 hàng mỗi nguồn): ngưỡng vẫn đúng theo hướng an toàn (không bao giờ cấm vì dòng địa chỉ không gửi), nhưng một kẻ chậm giữa trận lụt địa chỉ giả có thể vắng. Đổi hạn mức hay độ rộng bucket là đổi câu trả lời và trần đĩa (28,6 MiB mỗi nguồn). Địa chỉ của hộp, gateway, mồi (`Config.NeverCount`, wiring `logsNeverCount`) không bao giờ có trong danh sách: bỏ nguồn đó là mở lại khả năng một dòng giả khiến response nhắm vào hộp (response vẫn kiểm never-touch).
-- **Đổi luật `remote_fields`/`remote_patterns` của profile hay bộ đọc chung** (`signature/remote.go`) đổi địa chỉ nào được đếm cho mọi dòng của loại đó, không đổi chữ ký.
+- **Đổi luật `remote_fields`/`remote_patterns` của profile hay bộ đọc chung** (`signature/remote.go`) đổi địa chỉ nào được đếm cho mọi dòng của loại đó, không đổi chữ ký. Luật "đúng một ứng viên khác nhau, nếu hai thì không có địa chỉ" (D-210) là cái giữ cho chữ do kẻ tấn công viết không vu được một địa chỉ vô tội (đầu ra dẫn tới cấm tự động): nới nó là mở lại lỗi fail2ban CVE-2007-4321; một mẫu mới phải neo vào nhãn đúng và có dòng thù địch trong `TestShippedProfilesRemote`.
+- **Địa chỉ của thiết bị gửi (`sender_ip`)** được loại ở `tally`, nên đổi `sender_ip` của nguồn đổi ngay điều được đếm.
 - **`SourceNames`** (đọc hẹp `logs_sources`): `response` mỗi phút; đổi trường là đổi bộ điều hợp của response.
 
 ## Modifying: job `anomaly` và sự kiện `logs.anomaly.detected` (L3)

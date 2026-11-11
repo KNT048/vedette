@@ -69,15 +69,16 @@ type sigBatch struct {
 	daily  map[dailyKey]*dailyVal
 	bucket map[bucketKey]*bucketVal
 	addrs  map[bucketKey]addrGroup // the remote addresses of the lines, by the same key as bucket (D-210)
+	commit *pendingUpdate          // what storeAddrs leaves in memory once the batch is stored
 }
 
 // tally turns a batch of sanitized lines (in receive order) into counter increments. kinds maps a declared source id to its device
-// kind. never says whether an address is one that is never counted (the box, its gateway, a decoy). Pure: no database (the memo makes a
+// kind and senders to the address it sends from. never says whether an address is one that is never counted (the box, its gateway, a decoy). Pure: no database (the memo makes a
 // flood of identical lines cost one signature, not one per line).
-func (s *Service) tally(kinds map[string]string, keep []Line, never func(netip.Addr) bool) sigBatch {
+func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, keep []Line, never func(netip.Addr) bool) sigBatch {
 	type memoKey struct{ kind, text string }
 	memo := map[memoKey]signature.Result{}
-	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]*bucketVal{}, addrs: map[bucketKey]addrGroup{}}
+	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]*bucketVal{}, addrs: map[bucketKey]addrGroup{}, commit: &pendingUpdate{}}
 	for _, l := range keep {
 		kind := kinds[l.SourceID]
 		r, ok := memo[memoKey{kind, l.Text}]
@@ -104,7 +105,7 @@ func (s *Service) tally(kinds map[string]string, keep []Line, never func(netip.A
 		} else {
 			b.bucket[bk] = &bucketVal{n: 1, mined: mined}
 		}
-		if r.Remote.IsValid() && !never(r.Remote) { // a line that names no address, or the box, counts everywhere else but here
+		if r.Remote.IsValid() && r.Remote != senders[l.SourceID] && !never(r.Remote) { // a line that names no address, the log sender or the box counts everywhere else but here
 			g := b.addrs[bk]
 			if g == nil {
 				g = addrGroup{}
@@ -247,7 +248,7 @@ func (s *Service) storeSignatures(ctx context.Context, tx *sql.Tx, b sigBatch) e
 			return fmt.Errorf("logs: counting signatures: %w", err)
 		}
 	}
-	return s.storeAddrs(ctx, tx, b.addrs)
+	return s.storeAddrs(ctx, tx, b.addrs, b.commit)
 }
 
 // Counts is the read port of response's log_threshold: how many lines of one signature a source received in the last window.

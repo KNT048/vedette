@@ -49,9 +49,21 @@ func TestPhoneFinderLeavesIPAddressesAlone(t *testing.T) {
 			t.Errorf("%q -> %q, want %q", in, res.Text, want)
 		}
 	}
-	// an ID number next to an address is still blocked
-	if res := run(t, r, BeforeAI, "ID 079012345678 on 192.168.1.20"); res.Outcome != OutcomeBlocked {
-		t.Errorf("ID number next to an IP: %+v", res)
+	// An ID number next to an address is blocked however they are joined: the address is never part of the ID's digit run.
+	for _, in := range []string{
+		"ID 079012345678 on 192.168.1.20",
+		"192.168.1.20 079012345678",
+		"079012345678 192.168.1.20",
+		"192.168.1.20, 123456789",
+		"192.168.1.20:079012345678",
+		"192.168.1.20 (079012345678)",
+		"192.168.1.20 079 012 345 678",
+		"fe80::1 079012345678",
+		"079012345678 fe80::1",
+	} {
+		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomeBlocked {
+			t.Errorf("%q: %+v, want blocked as an ID number", in, res)
+		}
 	}
 }
 
@@ -86,13 +98,19 @@ func FuzzPhoneFinderIPLiteral(f *testing.F) {
 			t.Fatalf("%q -> %q", ip, res.Text)
 		}
 		// A phone number joined to it: the phone digits never reach the output, the address does.
-		phone := []string{"0912345678", "0912 345 678", "+84 912 345 678", "(028) 3822 1234", "+1 415-555-2671"}[rng.IntN(5)]
 		seps := []string{" ", ", ", " - ", ";", "\n", "\t", " (", ") ", "-", "|", "/"}
 		sep := seps[rng.IntN(len(seps))]
+		id := []string{"079012345678", "123456789", "079 012 345 678", "123 456 789"}[rng.IntN(4)]
+		for _, in := range []string{id + sep + ip, ip + sep + id} {
+			if res := run(t, r, BeforeAI, in); res.Outcome != OutcomeBlocked {
+				t.Fatalf("%q: not blocked as an ID number: %+v", in, res)
+			}
+		}
+		phone := []string{"0912345678", "0912 345 678", "+84 912 345 678", "(028) 3822 1234", "+1 415-555-2671"}[rng.IntN(5)]
 		for _, in := range []string{phone + sep + ip, ip + sep + phone} {
 			res := run(t, r, BeforeAI, in)
-			if res.Outcome == OutcomeBlocked { // a digit run that reads as an ID number stops the text: nothing is sent
-				continue
+			if res.Outcome != OutcomeMasked {
+				t.Fatalf("%q: %+v, want the phone masked", in, res)
 			}
 			out := res.Text
 			if !strings.Contains(out, ip) {

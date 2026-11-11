@@ -322,6 +322,7 @@ func isIDSep(b byte) bool {
 // left alone. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
 // spaces between them, is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
+	s = blankIPs(s) // an IP literal is never part of an ID number's digit run (D-205); blanked byte for byte, offsets are unchanged
 	var out []span
 	for i := 0; i < len(s); {
 		if !isDigitByte(s[i]) {
@@ -369,7 +370,7 @@ func findIDNumbers(s string) []span {
 		}
 		out = append(out, span{start, end})
 	}
-	return dropInside(out, findPhones(s))
+	return dropInside(out, findPhones(s)) // findPhones blanks the addresses again: a no-op on the blanked text
 }
 
 func isIPv4(s string) bool {

@@ -252,7 +252,13 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	}
 	syncDir(o.backupDir())
 	ix.Backups = append(ix.Backups, rec)
-	dropped := retain(&ix)
+	dropped := retain(&ix, o.referencedBackups())
+	if slices.Contains(dropped, rec.ID) {
+		// A clock stepped back can make the new backup the oldest: it would be deleted at once, and the update or
+		// restore that asked for it would go on without a backup (D-157). Fail the run; nothing was indexed.
+		_ = os.Remove(dst)
+		return errors.New("ops: retention would drop the backup just made")
+	}
 	if err := o.saveIndexLocked(ix); err != nil {
 		_ = os.Remove(dst)
 		return err
@@ -265,9 +271,30 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	return nil
 }
 
+// referencedBackups is the set of backup ids that something still needs: the pre_update backup a service's
+// current or previous version was entered with (container.rollback restores it for rollback.safe=false), and
+// the backup of a transition journal (the revert after a failed or interrupted start). Retention never drops
+// these (D-157, WP-31 M4).
+func (o *Ops) referencedBackups() map[string]bool {
+	ref := map[string]bool{}
+	for _, svc := range api.Services {
+		s := o.loadVersions(svc)
+		for _, r := range []*versionRecord{s.Current, s.Previous} {
+			if r != nil && r.BackupID != "" {
+				ref[r.BackupID] = true
+			}
+		}
+		if t, st, _ := o.loadJournal(svc); st == jOK && t.BackupID != "" {
+			ref[t.BackupID] = true
+		}
+	}
+	return ref
+}
+
 // retain applies the retention rule to the index and returns the ids to delete: the newest 3
-// pre_* backups, at most 10 manual ones (oldest dropped first).
-func retain(ix *backupIndex) []string {
+// pre_* backups, at most 10 manual ones (oldest dropped first). A backup in keep is never dropped and
+// does not count toward the quota; keep is bounded (three ids per service), so the total stays bounded.
+func retain(ix *backupIndex, keep map[string]bool) []string {
 	byAge := func(a, b backupRecord) int {
 		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
 			return c
@@ -280,6 +307,7 @@ func retain(ix *backupIndex) []string {
 	pre, manual := 0, 0
 	for _, r := range ix.Backups {
 		switch {
+		case keep[r.ID]:
 		case isPreKind(r.Kind):
 			if pre++; pre > keepPre {
 				dropped = append(dropped, r.ID)

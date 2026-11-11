@@ -385,10 +385,8 @@ StartLimitIntervalSec=0
 # READY=1 after Ops.Start finished and the socket is open: namespace vedette-hp, decoys, interrupted runs (D-102)
 Type=notify
 ExecStart=/usr/lib/vedette/vedette-host
-RuntimeDirectory=vedette
-RuntimeDirectoryMode=0750
-# the run directory survives a stop or restart of the host: core mounts the directory /run/vedette and reconnects to the new socket (D-123)
-RuntimeDirectoryPreserve=yes
+# No RuntimeDirectory= (D-157): systemd would make /run/vedette root:root and re-own it at every start, but the host refuses a directory that is not owned by root and socket_gid (the gid is in host.conf, not in the unit).
+# The host creates /run/vedette (0750 root:socket_gid) itself when it is absent, and checks it when it is there. Nothing removes it at a stop or restart: core mounts the directory /run/vedette and reconnects to the new socket (D-123)
 # the host exits 70 when a command ignores its deadline; always restart it
 Restart=always
 # crash-loop back-off: 2 s growing to 5 min over 8 steps (systemd 254 or newer: Ubuntu 24.04 has 255, Debian 13 has 257)

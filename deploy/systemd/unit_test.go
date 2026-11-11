@@ -26,7 +26,7 @@ var forbidden = []string{
 // allowed is every key the unit may have, per section. A new option is a decision: add it here on purpose (like `known` in TestContract_INV17).
 var allowed = map[string][]string{
 	"Unit":    {"Description", "After", "Wants", "ConditionPathExists", "StartLimitIntervalSec"},
-	"Service": {"Type", "ExecStart", "RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "Restart", "RestartSec", "RestartSteps", "RestartMaxDelaySec", "KillMode", "TimeoutStartSec", "RestrictAddressFamilies", "LockPersonality", "RestrictRealtime", "SystemCallArchitectures"},
+	"Service": {"Type", "ExecStart", "Restart", "RestartSec", "RestartSteps", "RestartMaxDelaySec", "KillMode", "TimeoutStartSec", "RestrictAddressFamilies", "LockPersonality", "RestrictRealtime", "SystemCallArchitectures"},
 	"Install": {"WantedBy"},
 }
 
@@ -150,20 +150,24 @@ func TestUnitKeepsWhatTheHostNeeds(t *testing.T) {
 	t.Parallel()
 	opts := options(unitText(t))
 	for k, want := range map[string]string{
-		"Type":                     "notify",
-		"Restart":                  "always",
-		"KillMode":                 "control-group",
-		"RuntimeDirectory":         "vedette",
-		"RuntimeDirectoryMode":     "0750",
-		"RuntimeDirectoryPreserve": "yes",
-		"ExecStart":                "/usr/lib/vedette/vedette-host", // where the .deb installs the binary (DEPLOYMENT.md section 6.1)
-		"WantedBy":                 "multi-user.target",
-		"ConditionPathExists":      "/etc/vedette/host.conf", // enabled by the package, skipped (not crash-looping) until the installer writes host.conf (D-155)
-		"StartLimitIntervalSec":    "0",                      // with Restart=always the default limit would stop a crash loop for good
-		"TimeoutStartSec":          "16min",
+		"Type":                  "notify",
+		"Restart":               "always",
+		"KillMode":              "control-group",
+		"ExecStart":             "/usr/lib/vedette/vedette-host", // where the .deb installs the binary (DEPLOYMENT.md section 6.1)
+		"WantedBy":              "multi-user.target",
+		"ConditionPathExists":   "/etc/vedette/host.conf", // enabled by the package, skipped (not crash-looping) until the installer writes host.conf (D-155)
+		"StartLimitIntervalSec": "0",                      // with Restart=always the default limit would stop a crash loop for good
+		"TimeoutStartSec":       "16min",
 	} {
 		if got := opts[k]; len(got) != 1 || got[0] != want {
 			t.Errorf("%s = %q, want exactly %q", k, got, want)
+		}
+	}
+	// No RuntimeDirectory* (D-157, WP-31 L10): systemd would make /run/vedette root:root at every start and the host
+	// (Listen) refuses a directory that is not owned by root and socket_gid; the host creates and checks it itself.
+	for _, k := range []string{"RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "User", "Group"} {
+		if len(opts[k]) != 0 {
+			t.Errorf("%s is set: /run/vedette is the host's to create, not systemd's (D-157)", k)
 		}
 	}
 	// Crash-loop back-off (systemd 254 or newer): the keys must be there, with a value.

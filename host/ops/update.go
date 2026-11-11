@@ -3,6 +3,7 @@ package ops
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -217,6 +218,17 @@ func (o *Ops) putUnitBack(ctx context.Context, rc *server.RunContext, service st
 // pre_update backup of the change, "aside" brings back the files the change moved aside. It is the same
 // descriptor path as backup.restore (extract, swap; D-87).
 func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
+	var bk backupRecord
+	if t.DBRevert == dbBackup {
+		// A backup that is not in the index or whose archive is gone is not coming back: no retry can cure it
+		// (errUnrecoverable stops the loop, D-142's way out is backup.restore). Checked before core is stopped,
+		// so a hopeless revert does not stop core at all (D-157, WP-31 M4).
+		rec, ok := o.lookupBackup(t.BackupID)
+		if !ok || !o.archiveThere(rec.ID) {
+			return fmt.Errorf("%w: the pre_update backup is gone", errUnrecoverable)
+		}
+		bk = rec
+	}
 	if err := o.stopCore(ctx); err != nil {
 		return err
 	}
@@ -229,11 +241,7 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 		defer tree.close()
 		return tree.putAsideBack(t.Aside)
 	case dbBackup:
-		rec, ok := o.lookupBackup(t.BackupID)
-		if !ok {
-			return errors.New("ops: the pre_update backup is not in the index")
-		}
-		ex, cleanup, err := o.unpackBackup(rec, "rv-")
+		ex, cleanup, err := o.unpackBackup(bk, "rv-")
 		if err != nil {
 			return err
 		}

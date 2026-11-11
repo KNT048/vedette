@@ -646,8 +646,8 @@ describe('response: safety envelope (D-51)', () => {
     expect(auditActions()).not.toContain('response.execute')
   })
 
-  it('a log rule counts one pasted signature in 5 to 1440 minutes, and an action that needs the address is not available (D-287)', async () => {
-    const sig = (value: string, window_min = 5) => ({ field: 'signature', op: 'count_window' as const, value, n: 10, window_min })
+  it('a log rule counts one pasted signature in 5 to 1440 minutes; it bans the address that sent N lines, and with none the ban is not available (D-287, D-288)', async () => {
+    const sig = (value: string, window_min = 5, n = 10) => ({ field: 'signature', op: 'count_window' as const, value, n, window_min })
     const log = (conditions: RuleInput['conditions'], actions: RuleInput['actions'] = [{ action_id: 'msg_send', params: { text: '{{trigger.count}}' }, ttl_min: null }]) =>
       ({ ...RULE, trigger: 'log_threshold' as const, conditions, actions })
     expect((await addRule(log([sig('logid=0101039426 action=ssl-login-fail')]))).status).toBe(201)
@@ -658,9 +658,13 @@ describe('response: safety envelope (D-51)', () => {
     expect((await addRule({ ...log([sig('x')]), match: 'any' })).status).toBe(400)
     expect((await addRule(log([sig('x')], [{ action_id: 'msg_send', params: { text: '{{trigger.signature}}' }, ttl_min: null }]))).status).toBe(400)
     expect((await addRule(log([sig('  logid=0101039426 action=ssl-login-fail ')]))).json.conditions[0]!.value).toBe('logid=0101039426 action=ssl-login-fail')
-    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: log([sig('logid=0101039426 action=ssl-login-fail')], [{ action_id: 'blocklist_add', params: { ip: '{{trigger.source_ip}}' }, ttl_min: 60 }]) })
+    const ban = [{ action_id: 'blocklist_add', params: { ip: '{{trigger.source_ip}}' }, ttl_min: 60 }]
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: log([sig('logid=0101039426 action=ssl-login-fail')], ban) })
     expect(sim.status).toBe(200)
-    expect(sim.json.steps[0]!.error).toMatch(/^Not available: this event has no value for \{\{trigger\.source_ip\}\}\. Log counts are per log source/)
+    expect(sim.json.steps[0]!.change?.cli).toBe('blocklist add 203.0.113.99')
+    const spread = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: log([sig('Failed password for <name> from <ip> port <n> ssh<n>', 10, 20)], ban), event_id: 'det-s-log-2' })
+    expect(spread.status).toBe(200)
+    expect(spread.json.steps[0]!.error).toMatch(/^Not available: no single address sent at least 20 lines of this signature/)
   })
 
   it('simulate shows the rendered commands and requests and executes nothing', async () => {

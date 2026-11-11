@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,9 +76,13 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		raw[p] = strings.TrimSpace(resolveParam(a.Params[string(p)], ev.Fields))
 	}
 	if ev.Trigger == "log_threshold" && raw[PIP] == "" && slices.Contains(refsIn(a.Params[string(PIP)]), "source_ip") {
-		// a log count names the log source, not an address (D-287): not a bad value, not available until logs counts per address (#338).
-		// Other triggers keep INV-10: an empty address is invalid_target.
-		return planned{}, &planFail{"tool_unavailable", "Not available: this event has no value for {{trigger.source_ip}}. Log counts are per log source, not per address (D-287, issue #338). Nothing was changed.", title}
+		// no single address reached the threshold (D-288): the count is the log source's, spread over many addresses or naming none.
+		// Not a bad value: nothing to act on. Other triggers keep INV-10: an empty address is invalid_target.
+		n := "N"
+		if v, err := strconv.Atoi(ev.Fields["threshold"]); err == nil && v > 0 {
+			n = strconv.Itoa(v)
+		}
+		return planned{}, &planFail{"tool_unavailable", "Not available: no single address sent at least " + n + " lines of this signature in the window (they came from many addresses, or name none), so {{trigger.source_ip}} has no value. Nothing was changed.", title}
 	}
 	vals, bad := CheckValues(cat.params(), raw)
 	if bad != "" {

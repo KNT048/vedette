@@ -448,16 +448,14 @@ func responseConfig(d *deps) (response.Config, error) {
 	return cfg, nil
 }
 
-// responseLogCounts is response's read port of the Logs module for the log_threshold trigger (#332, D-287): the declared sources
-// and logs.Service.Counts. The Logs module off answers no source (and Counts an error), so the trigger makes no event (SYS-5),
-// like any trigger whose module is off. ponytail: Sources is the full view of the Logs page (it also reads the inventory), once a
-// minute and only while a log rule is on; a narrow ids-and-names read in logs is the upgrade (.ai/deferred).
+// responseLogCounts is response's read port of the Logs module for the log_threshold trigger (#332, D-287, D-288): the declared
+// sources (logs.Service.SourceNames, the narrow read of logs_sources), logs.Service.Counts and logs.Service.TopAddresses. The
+// Logs module off answers no source (and Counts, TopAddresses an error), so the trigger makes no event (SYS-5), like any trigger
+// whose module is off.
 type responseLogCounts struct {
 	svc *logs.Service
 	reg interface{ Enabled(id string) bool }
 }
-
-var errLogsOff = errors.New("the Logs module is off")
 
 func (r responseLogCounts) off() bool { return r.reg != nil && !r.reg.Enabled("logs") }
 
@@ -465,12 +463,12 @@ func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, e
 	if r.off() {
 		return nil, nil
 	}
-	v, err := r.svc.Sources(ctx)
+	v, err := r.svc.SourceNames(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]response.LogSource, 0, len(v.Sources))
-	for _, s := range v.Sources {
+	out := make([]response.LogSource, 0, len(v))
+	for _, s := range v {
 		out = append(out, response.LogSource{ID: s.ID, Name: s.Name})
 	}
 	return out, nil
@@ -478,9 +476,24 @@ func (r responseLogCounts) Sources(ctx context.Context) ([]response.LogSource, e
 
 func (r responseLogCounts) Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error) {
 	if r.off() {
-		return 0, errLogsOff
+		return 0, response.ErrLogsOff
 	}
 	return r.svc.Counts(ctx, sourceID, signature, window)
+}
+
+func (r responseLogCounts) TopAddresses(ctx context.Context, sourceID, signature string, window time.Duration, n int) ([]response.LogAddress, error) {
+	if r.off() {
+		return nil, response.ErrLogsOff
+	}
+	v, err := r.svc.TopAddresses(ctx, sourceID, signature, window, n)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]response.LogAddress, 0, len(v))
+	for _, a := range v {
+		out = append(out, response.LogAddress{Addr: a.Addr, Count: a.Count})
+	}
+	return out, nil
 }
 
 // responseJobs is the Jobs func of the response entry in wiredModules: the "evaluate" and "sweep" jobs.

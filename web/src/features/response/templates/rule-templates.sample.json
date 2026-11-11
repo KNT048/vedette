@@ -110,10 +110,10 @@
     },
     {
       "id": "tpl-vpn-ban",
-      "name": "10 failed VPN logins in 5 minutes: alert",
-      "description": "Brute force against the FortiGate SSL VPN: tell your alert channels when the firewall logs 10 failed logins in 5 minutes. Blocking the address comes back when the Logs module counts per address (issue #338).",
+      "name": "10 failed VPN logins in 5 minutes: ban the address",
+      "description": "Brute force against the FortiGate SSL VPN: ban on FortiGate, for 24 hours, each address that failed 10 logins in 5 minutes.",
       "rule": {
-        "name": "Failed VPN logins: alert",
+        "name": "Failed VPN logins: ban the address",
         "enabled": false,
         "live": false,
         "trigger": "log_threshold",
@@ -132,11 +132,11 @@
         "schedule_min": null,
         "actions": [
           {
-            "action_id": "msg_send",
+            "action_id": "fgt_ban_ip",
             "params": {
-              "text": "{{trigger.count}} failed VPN logins in {{trigger.window}} minutes"
+              "ip": "{{trigger.source_ip}}"
             },
-            "ttl_min": null
+            "ttl_min": 1440
           }
         ]
       }
@@ -388,10 +388,10 @@
     },
     {
       "id": "tpl-ssh-acl",
-      "name": "SSH brute force: alert",
-      "description": "20 or more failed SSH logins in 10 minutes on one log source: tell your alert channels. Blocking the address comes back when the Logs module counts per address (issue #338).",
+      "name": "SSH brute force: deny the address on the switch",
+      "description": "20 or more failed SSH logins in 10 minutes from one address: add a deny line for it on the switch ACL for 12 hours.",
       "rule": {
-        "name": "SSH brute force: alert",
+        "name": "SSH brute force: switch ACL",
         "enabled": false,
         "live": false,
         "trigger": "log_threshold",
@@ -410,11 +410,11 @@
         "schedule_min": null,
         "actions": [
           {
-            "action_id": "msg_send",
+            "action_id": "cisco_acl_deny",
             "params": {
-              "text": "{{trigger.count}} failed SSH logins in {{trigger.window}} minutes"
+              "ip": "{{trigger.source_ip}}"
             },
-            "ttl_min": null
+            "ttl_min": 720
           }
         ]
       }

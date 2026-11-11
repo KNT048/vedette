@@ -35,6 +35,7 @@ type handler struct {
 	*core.NetworkHandlers
 	*inventory.Handlers
 	*agentintake.IntakeHandlers
+	*agentintake.WazuhHandlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
 	*mitigation.ActionHandlers
@@ -62,6 +63,7 @@ func newHandler(d deps) handler {
 		NetworkHandlers: d.Network,
 		Handlers:        inventory.NewHandlers(d.Inventory),
 		IntakeHandlers:  agentintake.NewIntakeHandlers(d.AgentIntake),
+		WazuhHandlers:   agentintake.NewWazuhHandlers(d.AgentIntake),
 		FeedHandlers:    feedsHandlers(d),
 
 		FindingHandlers:  d.FindingHandlers,

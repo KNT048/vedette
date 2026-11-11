@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -50,9 +51,14 @@ type e2eReady struct {
 	HostToken     string `json:"host_token,omitempty"`
 	BareURL       string `json:"bare_url,omitempty"`
 	BareSetupCode string `json:"bare_setup_code,omitempty"`
+	// sensorBin (slice 7, VEDETTE_E2E_SENSOR) is the vedette-sensor binary: set, the box opens its sensor link and the control endpoint
+	// starts the sensors (e2esensor_test.go). Not part of ready.json.
+	sensorBin string
 	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
-	devs    *e2eDevices               // not in ready.json: the control routes of this box (nil: the bare box has none)
+	// the port of the syslog listener of the logs module (UDP and TCP, loopback): a spec declares a source with sender 127.0.0.1 and feeds it lines
+	SyslogPort string      `json:"syslog_port,omitempty"`
+	devs       *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -67,6 +73,8 @@ type e2eLog struct {
 	sent  bool
 	dir   string
 	err   error
+	// onLink gets the address of the sensor link when core logs that it listens (slice 7); nil without sensors
+	onLink func(addr string)
 }
 
 func (l *e2eLog) Write(p []byte) (int, error) {
@@ -99,6 +107,10 @@ func (l *e2eLog) line(b []byte) {
 	switch {
 	case e.SetupCode != "":
 		l.ready.SetupCode, l.code = e.SetupCode, true
+	case e.Msg == "sensor link listening" && e.Addr != "":
+		if l.onLink != nil {
+			l.onLink(e.Addr)
+		}
 	case e.Msg == "listening" && e.Addr != "":
 		l.ready.BaseURL, l.addr = "http://"+e.Addr, true
 	}
@@ -144,8 +156,18 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer func() { _ = f.Close() }()
 	defer e2eOffline()()
+	syslogPort, err := e2eFreePort(ctx)
+	if err != nil {
+		return err
+	}
+	seed.SyslogPort = strconv.Itoa(syslogPort)
 	seed.DataDir, seed.HoneypotDir = data, hp
-	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &seed)
+	var sensors *e2eSensors
+	if seed.sensorBin != "" {
+		sensors = newE2ESensors(ctx, seed.sensorBin, dir)
+		defer sensors.stopAll()
+	}
+	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &seed, sensors)
 	if err != nil {
 		return err
 	}
@@ -154,11 +176,39 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", "127.0.0.1:0", "-host-socket", hostSocket, "-honeypot-dir", hp,
+		"-syslog-port", seed.SyslogPort, // not 514/5514: two runs at once, and a Mac may not bind 514 (logs spec)
+	}
+	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
+		log.onLink = sensors.linkUp
+		args = append(args, "-sensor-listen", "127.0.0.1:0", "-sensor-creds", sensors.creds)
 	}
 	runErr := run(ctx, args, io.Discard, log)
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	return errors.Join(runErr, log.err)
+}
+
+// The listener of the logs module binds loopback only in this test binary: a test box does not open a syslog port on the LAN. Set once, before any box starts (two boxes
+// run in one process and read it from their own goroutines).
+func init() { syslogHost = "127.0.0.1" }
+
+// e2eFreePort returns a port that is free for both TCP and UDP on loopback right now (the syslog listener needs one number for both).
+func e2eFreePort(ctx context.Context) (int, error) {
+	for range 20 {
+		tl, err := new(net.ListenConfig).Listen(ctx, "tcp4", "127.0.0.1:0")
+		if err != nil {
+			return 0, err
+		}
+		port := tl.Addr().(*net.TCPAddr).Port
+		_ = tl.Close()
+		ul, err := new(net.ListenConfig).ListenPacket(ctx, "udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		if err != nil {
+			continue
+		}
+		_ = ul.Close()
+		return port, nil
+	}
+	return 0, errors.New("no port free for TCP and UDP on loopback")
 }
 
 // e2eKEV is the CISA catalog the box of the run "downloads": one entry, so the Home title is the loaded one ("Today: N ..."), the same
@@ -304,6 +354,7 @@ func TestE2EBox(t *testing.T) {
 		bare := startE2EBare(ctx, t, dir)
 		seed = e2eReady{HostControl: host.ctlURL, HostToken: host.ctlToken, BareURL: bare.BaseURL, BareSetupCode: bare.SetupCode}
 	}
+	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
 	seed.Devices, seed.devs = logins, devs
 	data, sock := "", ""
 	if host != nil {
@@ -432,7 +483,7 @@ func TestE2EBoxHarness(t *testing.T) {
 //	POST /exposure/prober, /exposure/txt, /exposure/scan: the exposure fakes (e2eexposure_test.go, #263)
 //
 // It fills ready.SMTPPort, Control and ControlToken. Everything here is in a _test.go file: the production binary has none of it.
-func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop func(), err error) {
+func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady, sensors *e2eSensors) (stop func(), err error) {
 	sink, err := listenSMTPSink(ctx)
 	if err != nil {
 		return nil, err
@@ -474,6 +525,9 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop 
 		w.WriteHeader(http.StatusNoContent)
 	})
 	e2eExposureRoutes(mux)
+	if sensors != nil {
+		sensors.routes(mux)
+	}
 	if ready.devs != nil {
 		ready.devs.routes(mux)
 	}

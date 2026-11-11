@@ -4,7 +4,7 @@ Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56
 
 Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/host-api.md) (lệnh của `vedette-host`) · `specs/*.md` · [`UPDATES.md`](UPDATES.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · `../PRIVACY.md`.
 
-Đường dẫn file ship trong repo (đề xuất): `deploy/install.sh`, `deploy/quadlet/*.tmpl` (unit sinh ra từ mẫu), `deploy/compose/compose.yaml`, `deploy/containers/*/Containerfile`.
+Đường dẫn file ship trong repo (đề xuất): `install.sh` (ở gốc kho, D-166; bản phát hành mang phiên bản và sha256 của `.deb` bên trong), `deploy/quadlet/*.tmpl` (unit sinh ra từ mẫu), `deploy/compose/compose.yaml`, `deploy/containers/*/Containerfile`.
 
 ## 1. Nguyên tắc
 
@@ -188,7 +188,7 @@ Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài d
 
 | | **Appliance** | **Chỉ container** |
 |---|---|---|
-| Cài bằng | `deploy/install.sh` trên Ubuntu 24.04/26.04 hoặc Debian 13 sạch (sau: ISO/VM image) | Compose/Quadlet trên Docker hoặc Podman sẵn có của khách |
+| Cài bằng | `install.sh` trên Ubuntu 24.04/26.04 hoặc Debian 13 sạch (sau: ISO/VM image) | Compose/Quadlet trên Docker hoặc Podman sẵn có của khách |
 | Runtime | Podman + Quadlet, rootful | Docker hoặc Podman, khách chọn |
 | `vedette-host` | có | không |
 | Cập nhật OS, reboot (S-CORE-7) | trong GUI | **không**; GUI hiện hướng dẫn, không có nút |
@@ -529,7 +529,7 @@ Không có `vedette-host` trong compose: dev/CI dùng **host giả** (`vedette-h
 
 ## 8. Lần khởi động đầu (first boot)
 
-Kiểu Appliance, `deploy/install.sh` (idempotent; chạy lại không đổi gì khi đã đạt trạng thái):
+Kiểu Appliance, `install.sh` (D-166; idempotent; chạy lại không đổi gì khi đã đạt trạng thái; `--uninstall --yes` đưa hộp về như trước; bàn giao netplan chỉ khi có `--network-handover` và cổng quản trị có dây DHCP; kênh cài thử `--test-artifacts` chỉ để thử, `docs/INSTALL-TEST.md`). Bảng dưới là thứ tự các bước; script gộp bước 2 và 3 thành "gói apt + `.deb`, rồi `host.conf`":
 
 | Bước | Việc | Xác minh bằng hiệu ứng |
 |---|---|---|

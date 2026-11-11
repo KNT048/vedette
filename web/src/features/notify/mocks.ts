@@ -125,7 +125,8 @@ const ADDRESS: Record<string, { re: RegExp; msg: string }> = {
   slack: { re: /^[UW][A-Z0-9]{8,12}$/, msg: 'A Slack member ID looks like U04ABCD1234 (Profile, More, Copy member ID).' },
   telegram: { re: /^\d{5,15}$/, msg: 'A Telegram user ID is a number of 5 to 15 digits. A bot such as @userinfobot can show it.' },
   email: { re: EMAIL_RE, msg: 'An approver email is not valid, for example name@company.com.' },
-  'zalo-personal': { re: /^(\d{6,25}|\+?84\d{9}|0\d{9})$/, msg: 'Enter the approver Zalo user ID (digits) or the phone number registered on Zalo.' },
+  // D-242: the user ID, never a phone number (a reply carries the user ID, so a phone number would never match).
+  'zalo-personal': { re: /^(?!(?:\+?84\d{9}|0\d{9})$)\d{6,25}$/, msg: "Enter the approver's Zalo user ID, not a phone number: a reply in Zalo carries the sender's user ID, never the phone number, so a phone number would never match. The user ID is the long number of the Zalo account, for example 2938475610293847561." },
 }
 function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   if (b.approvals !== true) return null
@@ -134,13 +135,19 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   const list = b.approvers ?? []
   if (!list.length) return fail(400, 'approvers_required', 'Add at least one approver, or turn off "Approve actions from this channel".')
   const seen = new Set<string>()
+  const addrs = new Map<string, string>() // address → email of the user it belongs to (D-242: one address is one approver)
   for (const a of list) {
     const u = usersStore.get().find((x) => x.id === a.user_id && !x.disabled)
     if (!u) return fail(400, 'no_such_user', 'One of the approvers does not exist or is disabled.')
     if (u.role === 'viewer') return fail(400, 'viewer_not_allowed', `${u.email} is a viewer. Only operators and administrators can approve actions.`)
     if (seen.has(u.id)) return fail(400, 'duplicate_user', `${u.email} is listed twice.`)
     seen.add(u.id)
-    if (!rule.re.test((a.address ?? '').trim())) return fail(400, 'bad_approver_address', `${u.email}: ${rule.msg}`)
+    const addr = (a.address ?? '').trim()
+    if (!rule.re.test(addr)) return fail(400, 'bad_approver_address', `${u.email}: ${rule.msg}`)
+    const key = type === 'email' ? addr.toLowerCase() : addr
+    const other = addrs.get(key)
+    if (other) return fail(400, 'duplicate_address', `${u.email}: ${addr} is already the address of ${other}. One address can belong to one approver only.`)
+    addrs.set(key, u.email)
   }
   return null
 }

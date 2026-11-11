@@ -16,10 +16,12 @@ const KNOWN_404: Record<string, Record<string, string>> = {
 }
 const KNOWN_501: Record<string, Record<string, string>> = {
   '/settings/updates': { 'GET /api/v1/core/updates': 'Kiên (core) · .ai/deferred/feat-core-os-updates.md:3 (software updates /core/updates*)' },
+  '/assistant': { 'GET /api/v1/ai/asks': 'Mlee (ai) · .ai/deferred/feat-e2e-real-specs-sal.md (the "Ask your data" history and POST /ai/ask)' },
+  '/settings/siem': { 'GET /api/v1/logs/siem': 'Mlee (logs) · .ai/deferred/feat-e2e-real-specs-sal.md (SIEM forwarding, L5)' },
 }
 
-const SECTIONS = ['general', 'modules', 'users', 'connections', 'audit', 'updates', 'network', 'privacy', 'mcp', 'data', 'feeds', 'response']
-const ROUTES = ['/', '/lookup', '/devices', '/devices/setup', '/findings', '/honeypot', '/response', '/account', ...SECTIONS.map((s) => `/settings/${s}`)]
+const SECTIONS = ['general', 'modules', 'users', 'connections', 'audit', 'updates', 'network', 'privacy', 'mcp', 'data', 'feeds', 'response', 'ai', 'siem']
+const ROUTES = ['/', '/lookup', '/devices', '/devices/setup', '/findings', '/honeypot', '/response', '/account', '/logs', '/scans', '/assistant', ...SECTIONS.map((s) => `/settings/${s}`)]
 
 async function check(page: import('@playwright/test').Page, route: string, info: import('@playwright/test').TestInfo) {
   const errors = collectErrors(page)

@@ -12,6 +12,26 @@ export interface Box {
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
   /** The loopback devices a connection can be saved against (slice 5): the target, the user name and the secret to type, by kind. */
   devices?: Record<'http' | 'ssh' | 'mcp', { target: string; username?: string; secret?: string }>
+  /** The port of the syslog listener of the logs module (UDP and TCP on loopback): a source declared with sender 127.0.0.1 receives what a spec sends there. */
+  syslog_port?: string
+}
+
+/** The sensors of the run (slice 7): the REAL vedette-sensor binary, started as a child of the box through its control endpoint. `passive` replays a
+ *  recording of modules/sensor-passive/testdata (no card needed); `active` runs with a fake nmap that scans nothing and answers from the fixtures of
+ *  modules/sensor-active/testdata by the shape of the argv it gets. `stop` ends one; `argv` is every nmap run the fake saw, oldest first. */
+export async function sensorCtl(call: { start: 'passive'; replay: 'lan-discovery' | 'span-metadata' | 'span-own-only' | 'malformed-pcap' } | { start: 'active' } | { stop: 'passive' | 'active' }): Promise<void> {
+  const b = box()
+  const h = { Authorization: `Bearer ${b.control_token}`, 'Content-Type': 'application/json' }
+  const r = 'stop' in call
+    ? await fetch(`${b.control}/sensors/${call.stop}`, { method: 'DELETE', headers: h })
+    : await fetch(`${b.control}/sensors/${call.start}`, { method: 'POST', headers: h, body: JSON.stringify(call.start === 'passive' ? { replay: call.replay } : {}) })
+  if (!r.ok) throw new Error(`sensor ${JSON.stringify(call)}: ${r.status} ${await r.text()}`)
+}
+export async function nmapRuns(): Promise<string[]> {
+  const b = box()
+  const r = await fetch(`${b.control}/sensors/active/argv`, { headers: { Authorization: `Bearer ${b.control_token}` } })
+  if (!r.ok) throw new Error(`nmap runs: ${r.status}`)
+  return ((await r.json()) as { lines: string[] }).lines
 }
 
 /** Turns a knob of the fake vedette-host: `lock` (dpkg lock held), `install_fail` (apt-get install exits 100), `reboot_required` (on/off),

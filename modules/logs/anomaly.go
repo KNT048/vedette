@@ -37,9 +37,15 @@ const (
 	// MaxAnomaliesPerPass is how many unannounced anomalies of one source one pass looks at one by one (the best ranked first); the others of
 	// the pass are counted in the summary event.
 	MaxAnomaliesPerPass = 200
-	// SummaryTarget is the start of the target of the flood summary of an hour ("new kinds of message 2026-11-12T14": different every hour, so
-	// notify opens a new incident each time).
+	// SummaryTarget is the start of the target of the flood summary of an hour when it carries new kinds of message ("new kinds of
+	// message 2026-11-12T14": different every hour, so notify opens a new incident each time); a summary of spikes only says
+	// "spiking kinds of message", both "new and spiking kinds of message". BacklogTarget is the same for the bounded backlog summary.
 	SummaryTarget = "new kinds of message"
+	// BoundedPrefix starts the target of every event of a bounded signature ("sig:<signature>"): its own namespace in notify's
+	// dedupe key (kind, source, target), so a mined incident aimed at the same destination can never absorb it. A mined target is an
+	// address or a masked text and cannot hold "sig:" followed by a bounded signature (those contain "=").
+	BoundedPrefix = "sig:"
+	BacklogTarget = "waiting events"
 	// MaxEventText, MaxEventKey, MaxEventTitle, MaxDeviceID and MaxDeviceName are what notify accepts (modules/notify/incidents.go
 	// validate): what and action at most 1,000 characters, source and target 200, the title 200, a device id 96 bytes and a name 253.
 	MaxEventText  = 1000
@@ -91,7 +97,7 @@ type anomaly struct {
 // (a log id or an event id the product knows is what a person needs to see; what the miner made can be a list of user names), and
 // then the rarest first: a burst of new kinds of line (a brute force, a scan) is many signatures of about the same count, and the one
 // real event is the one with one line. A spike is the opposite: the one with most lines first. So the order is: bounded new, bounded
-// spike, mined new (the rarest first), mined spike (the most lines first), and last the text, so that the order is fixed.
+// spike, mined new (the rarest first), mined spike (the most lines first), and last the text, so that the order is fixed (among new items of the same count the one first seen last goes first: a real event is not behind a flood).
 func rank(a, b anomaly) int {
 	switch {
 	case a.Bounded != b.Bounded:
@@ -108,6 +114,11 @@ func rank(a, b anomaly) int {
 		return a.Count - b.Count
 	case a.Count != b.Count:
 		return b.Count - a.Count
+	case a.Kind == "new" && !a.First.Equal(b.First): // equal counts: the one first seen last goes first, so a real new event is not behind a flood
+		if a.First.After(b.First) {
+			return -1
+		}
+		return 1
 	}
 	return strings.Compare(a.SourceID+"\x00"+a.Signature, b.SourceID+"\x00"+b.Signature)
 }
@@ -259,31 +270,61 @@ func (s *Service) detailOf(ctx context.Context, source, sig string, now time.Tim
 	return d, rows.Err()
 }
 
-// digestItems turns the anomalies into the lists of the digest: at most DigestMax of each, in the order of rank (bounded first, the rarest new first).
+// digestItems turns the anomalies into the lists of the digest: at most DigestMax of each, taken round-robin across the sources (the
+// best ranked of each source first, then the second of each, and so on), so that one source's flood cannot hide another source's
+// items; within a source the order of rank (bounded first, the rarest new first).
 func (s *Service) digestItems(ctx context.Context, found []anomaly, names map[string]sourceRow) ([]NewItem, []SpikeItem, error) {
 	news, spikes := []NewItem{}, []SpikeItem{}
 	if len(found) == 0 {
 		return news, spikes, nil
 	}
-	found = slices.Clone(found) // the snapshot is shared: it is sorted here, not in place
-	slices.SortFunc(found, rank)
 	now := s.now()
-	for _, a := range found {
-		if a.Kind == "new" && len(news) >= DigestMax || a.Kind == "spike" && len(spikes) >= DigestMax {
-			continue
-		}
+	for _, a := range roundRobin(found, "new", DigestMax) {
 		d, err := s.detailOf(ctx, a.SourceID, a.Signature, now)
 		if err != nil {
 			return nil, nil, err
 		}
-		id := itemID(a)
-		if a.Kind == "new" {
-			news = append(news, NewItem{ID: "n-" + id, Signature: a.Signature, SourceID: a.SourceID, SourceName: names[a.SourceID].Name, Count: a.Count, FirstSeen: a.First, Sample: d.sample})
-		} else {
-			spikes = append(spikes, SpikeItem{ID: "s-" + id, Signature: a.Signature, SourceID: a.SourceID, SourceName: names[a.SourceID].Name, Count: a.Count, BaselinePerDay: a.Base, Sample: d.sample})
+		news = append(news, NewItem{ID: "n-" + itemID(a), Signature: a.Signature, SourceID: a.SourceID, SourceName: names[a.SourceID].Name, Count: a.Count, FirstSeen: a.First, Sample: d.sample})
+	}
+	for _, a := range roundRobin(found, "spike", DigestMax) {
+		d, err := s.detailOf(ctx, a.SourceID, a.Signature, now)
+		if err != nil {
+			return nil, nil, err
 		}
+		spikes = append(spikes, SpikeItem{ID: "s-" + itemID(a), Signature: a.Signature, SourceID: a.SourceID, SourceName: names[a.SourceID].Name, Count: a.Count, BaselinePerDay: a.Base, Sample: d.sample})
 	}
 	return news, spikes, nil
+}
+
+// roundRobin picks up to limit anomalies of one kind: each source's items in the order of rank, the sources in the order of their id,
+// one item of each source in turn.
+func roundRobin(found []anomaly, kind string, limit int) []anomaly {
+	by := map[string][]anomaly{}
+	for _, a := range found { // found is the shared snapshot: it is read here, never sorted in place
+		if a.Kind == kind {
+			by[a.SourceID] = append(by[a.SourceID], a)
+		}
+	}
+	ids := make([]string, 0, len(by))
+	for id := range by {
+		slices.SortFunc(by[id], rank)
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	var out []anomaly
+	for i := 0; len(out) < limit; i++ {
+		added := false
+		for _, id := range ids {
+			if i < len(by[id]) && len(out) < limit {
+				out = append(out, by[id][i])
+				added = true
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return out
 }
 
 func itemID(a anomaly) string {
@@ -294,7 +335,9 @@ func itemID(a anomaly) string {
 // group is the anomalies of one source that aim at one target: one event.
 type group struct {
 	target  string
+	dest    string // where the lines were aimed (the latest line), for the text and the device lookup; target is the key notify groups by
 	items   []anomaly
+	latest  time.Time // the newest first_seen of its items
 	count   int
 	rarest  int // the fewest lines of an item
 	spike   bool
@@ -337,23 +380,13 @@ func (s *Service) detect(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
+// sentKey is the key of what logs_anomaly_sent holds in the maps of detectSource.
+func sentKey(kind, sig, ref string) string { return kind + "\x00" + sig + "\x00" + ref }
+
 func (s *Service) detectSource(ctx context.Context, now time.Time, src sourceRow, items []anomaly) error {
-	vol := s.cfg.Volume
-	sent := map[string]bool{}
-	rows, err := vol.Reader().QueryContext(ctx, `SELECT kind, signature, ref FROM logs_anomaly_sent WHERE source_id = ?`, src.ID)
+	sent, covered, err := s.readSent(ctx, src.ID)
 	if err != nil {
-		return fmt.Errorf("logs: reading what was announced: %w", err)
-	}
-	for rows.Next() {
-		var k, sig, ref string
-		if err := rows.Scan(&k, &sig, &ref); err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("logs: reading what was announced: %w", err)
-		}
-		sent[k+"\x00"+sig+"\x00"+ref] = true
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("logs: reading what was announced: %w", err)
+		return err
 	}
 	ref := func(a anomaly) string {
 		if a.Kind == "new" {
@@ -364,7 +397,7 @@ func (s *Service) detectSource(ctx context.Context, now time.Time, src sourceRow
 	var bounded, mined []anomaly // the two classes have a room of their own (D-206)
 	for _, a := range items {
 		switch {
-		case sent[a.Kind+"\x00"+a.Signature+"\x00"+ref(a)]:
+		case sent[sentKey(a.Kind, a.Signature, ref(a))]:
 		case a.Bounded:
 			bounded = append(bounded, a)
 		default:
@@ -374,73 +407,212 @@ func (s *Service) detectSource(ctx context.Context, now time.Time, src sourceRow
 	if len(bounded)+len(mined) == 0 {
 		return nil
 	}
-	// The sender of the log is looked up once for every event of the source in this pass.
-	base := s.devicesOf(ctx, src, "")
-	var errs []error
-	// Signatures of shipped data (at most about 500 exist): each its own event, never in a summary; what does not fit in the room of the
-	// hour waits for the next one.
-	if len(bounded) > 0 {
-		inHour, err := s.sentInHour(ctx, src.ID, now, true)
-		if err != nil {
-			return err
+	// The sender of the log is looked up once for every event of the source in this pass, and not at all when nothing is announced.
+	var baseDevices []DeviceInfo
+	haveBase := false
+	base := func() []DeviceInfo {
+		if !haveBase {
+			baseDevices, haveBase = s.devicesOf(ctx, src), true
 		}
-		if room := EventsPerHour - inHour; room > 0 {
-			slices.SortFunc(bounded, rank)
-			if len(bounded) > MaxAnomaliesPerPass {
-				bounded = bounded[:MaxAnomaliesPerPass]
-			}
-			groups, det, err := s.groupsOf(ctx, src, now, bounded)
-			if err != nil {
-				return err
-			}
-			for _, g := range groups[:min(room, len(groups))] {
-				errs = append(errs, s.announce(ctx, src, now, ref, g, s.eventFor(ctx, src, g, det, base), true))
-			}
+		return baseDevices
+	}
+	hour := now.Format("2006-01-02T15")
+	pass := &sourcePass{s: s, src: src, now: now, hour: hour, ref: ref, sent: sent, covered: covered, base: base}
+	return errors.Join(pass.bounded(ctx, bounded), pass.mined(ctx, mined))
+}
+
+// readSent reads what has been announced for a source: sent is every row by (kind, signature, ref), covered is the items that a summary
+// has named (kind "covered", key signature + ref).
+func (s *Service) readSent(ctx context.Context, source string) (sent, covered map[string]bool, err error) {
+	sent, covered = map[string]bool{}, map[string]bool{}
+	rows, err := s.cfg.Volume.Reader().QueryContext(ctx, `SELECT kind, signature, ref FROM logs_anomaly_sent WHERE source_id = ?`, source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("logs: reading what was announced: %w", err)
+	}
+	for rows.Next() {
+		var k, sig, ref string
+		if err := rows.Scan(&k, &sig, &ref); err != nil {
+			_ = rows.Close()
+			return nil, nil, fmt.Errorf("logs: reading what was announced: %w", err)
+		}
+		if k == "covered" {
+			covered[sig+"\x00"+ref] = true
+		} else {
+			sent[sentKey(k, sig, ref)] = true
 		}
 	}
-	// Everything else is best effort: one event for each group when there are few, and when there are more groups than the hour has room
-	// for (a brute force, a scan, a device that sends a different line every time) ONE summary of the source, with a target that is
-	// different every hour so that notify opens a new incident, listing the rarest items. What a summary covers is not marked as
-	// announced: when the flood is over the items that are still new are announced one by one.
-	if len(mined) > 0 {
-		inHour, err := s.sentInHour(ctx, src.ID, now, false)
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, nil, fmt.Errorf("logs: reading what was announced: %w", err)
+	}
+	return sent, covered, nil
+}
+
+// sourcePass is one pass of detect over one source.
+type sourcePass struct {
+	s       *Service
+	src     sourceRow
+	now     time.Time
+	hour    string
+	ref     func(anomaly) string
+	sent    map[string]bool
+	covered map[string]bool
+	base    func() []DeviceInfo
+}
+
+func (p *sourcePass) isCovered(a anomaly) bool { return p.covered[a.Signature+"\x00"+p.ref(a)] }
+
+func (p *sourcePass) uncovered(items []anomaly) []anomaly {
+	var out []anomaly
+	for _, a := range items {
+		if !p.isCovered(a) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// bounded announces the signatures of shipped data (at most about 540 exist): each its own event, with a target of its own
+// ("sig:<signature>"), never in a mined summary. When more wait than the hour has room for, room-1 go out one by one (the best
+// ranked: the rarest, and among equals the newest) and the last place of the hour is ONE backlog summary of the source, naming the
+// waiting items that no earlier summary has named, so that none ages out unannounced; what a summary names is still announced one
+// by one when there is room (it is not marked as sent).
+func (p *sourcePass) bounded(ctx context.Context, waiting []anomaly) error {
+	if len(waiting) == 0 {
+		return nil
+	}
+	inHour, err := p.s.sentInHour(ctx, p.src.ID, p.now, true)
+	if err != nil {
+		return err
+	}
+	room := EventsPerHour - inHour
+	if room <= 0 {
+		return nil
+	}
+	slices.SortFunc(waiting, rank)
+	n := min(room, len(waiting))
+	var fresh []anomaly
+	if len(waiting) > room && room >= 2 && !p.sent[sentKey("summary", BacklogTarget, p.hour)] {
+		if fresh = p.uncovered(waiting[room-1:]); len(fresh) > 0 {
+			n = room - 1
+		}
+	}
+	var errs []error
+	for _, a := range waiting[:n] {
+		d, err := p.s.detailOf(ctx, p.src.ID, a.Signature, p.now)
 		if err != nil {
-			return err
+			return errors.Join(append(errs, err)...)
 		}
-		room := EventsPerHour - inHour
-		slices.SortFunc(mined, rank)
+		g := &group{target: clipRunes(BoundedPrefix+a.Signature, MaxEventKey), dest: d.dest, items: []anomaly{a}, count: a.Count, rarest: a.Count, spike: a.Kind == "spike", bounded: true, latest: a.First}
+		errs = append(errs, p.s.announce(ctx, p.src, p.now, p.ref, g, p.s.eventFor(ctx, p.src, g, map[string]detail{a.Signature: d}, p.base()), true))
+	}
+	if len(fresh) > 0 {
+		errs = append(errs, p.backlog(ctx, fresh, len(waiting)-n))
+	}
+	return errors.Join(errs...)
+}
+
+// backlog announces the backlog summary of the hour: how many bounded events are waiting, and the rarest of those no summary has named.
+func (p *sourcePass) backlog(ctx context.Context, fresh []anomaly, waiting int) error {
+	ev, named := backlogEvent(p.src, p.hour, fresh, waiting, p.base())
+	if err := p.s.cfg.Events.Publish(ctx, events.Event{Name: EventAnomalyDetected, Data: ev}); err != nil {
+		return fmt.Errorf("logs: announcing a backlog: %w", err)
+	}
+	return p.s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at, bounded) VALUES (?, 'summary', ?, ?, ?, ?, 1)`,
+			p.src.ID, BacklogTarget, p.hour, ev.Target, store.FormatTS(p.now)); err != nil {
+			return fmt.Errorf("logs: recording a backlog: %w", err)
+		}
+		return markCovered(ctx, tx, p.src.ID, named, p.ref, p.now, true)
+	})
+}
+
+// markCovered records that a summary has named the items (kind "covered"): the next summary leaves them out, and they are still
+// announced one by one when there is room.
+func markCovered(ctx context.Context, tx *sql.Tx, source string, items []anomaly, ref func(anomaly) string, now time.Time, bounded bool) error {
+	for _, a := range items {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at, bounded) VALUES (?, 'covered', ?, ?, '', ?, ?)`,
+			source, a.Signature, ref(a), store.FormatTS(now), flag(bounded)); err != nil {
+			return fmt.Errorf("logs: recording a summary: %w", err)
+		}
+	}
+	return nil
+}
+
+// mined is best effort for everything the miner made (spikes included): one event for each group when there are few, and when there
+// are more groups than the hour has room for (a brute force, a scan, a device that sends a different line every time) ONE summary of
+// the source, with a target that is different every hour so that notify opens a new incident. A summary covers only the items that
+// no earlier summary has covered (a one-off burst of 21 kinds is one summary, not one every hour); when the flood is over and the
+// rest fit in the room, they are announced one by one. Once this hour's summary has gone out the pass does nothing.
+func (p *sourcePass) mined(ctx context.Context, waiting []anomaly) error {
+	if len(waiting) == 0 || p.sent[sentKey("summary", SummaryTarget, p.hour)] {
+		return nil
+	}
+	inHour, err := p.s.sentInHour(ctx, p.src.ID, p.now, false)
+	if err != nil {
+		return err
+	}
+	room := EventsPerHour - inHour
+	if room <= 0 {
+		return nil
+	}
+	slices.SortFunc(waiting, rank)
+	picks := [][]anomaly{waiting}
+	if fresh := p.uncovered(waiting); len(fresh) > 0 && len(fresh) < len(waiting) { // all of it, or only what no summary has named
+		picks = append(picks, fresh)
+	} else if len(fresh) == 0 {
+		picks = picks[:1]
+	}
+	for i, pick := range picks {
 		var tail []anomaly // past the best MaxAnomaliesPerPass: counted in the summary, not looked at one by one
-		if len(mined) > MaxAnomaliesPerPass {
-			tail, mined = mined[MaxAnomaliesPerPass:], mined[:MaxAnomaliesPerPass]
+		if len(pick) > MaxAnomaliesPerPass {
+			tail, pick = pick[MaxAnomaliesPerPass:], pick[:MaxAnomaliesPerPass]
 		}
-		groups, det, err := s.groupsOf(ctx, src, now, mined)
+		groups, det, err := p.s.groupsOf(ctx, p.src, p.now, pick)
 		if err != nil {
 			return err
 		}
 		if len(groups) <= room && len(tail) == 0 {
+			var errs []error
 			for _, g := range groups {
-				errs = append(errs, s.announce(ctx, src, now, ref, g, s.eventFor(ctx, src, g, det, base), false))
+				errs = append(errs, p.s.announce(ctx, p.src, p.now, p.ref, g, p.s.eventFor(ctx, p.src, g, det, p.base()), false))
 			}
-		} else if room > 0 {
-			hour := now.Format("2006-01-02T15")
-			if !sent["summary\x00"+SummaryTarget+"\x00"+hour] {
-				all := append([]anomaly(nil), tail...)
-				for _, g := range groups {
-					all = append(all, g.items...)
-				}
-				slices.SortFunc(all, rank)
-				sum := &group{target: SummaryTarget + " " + hour, items: all}
-				errs = append(errs, s.announceSummary(ctx, src, now, hour, sum, det, base))
-			}
+			return errors.Join(errs...)
 		}
+		if i < len(picks)-1 {
+			continue
+		}
+		all := append([]anomaly(nil), tail...)
+		for _, g := range groups {
+			all = append(all, g.items...)
+		}
+		if len(p.uncovered(all)) == 0 {
+			return nil // everything was named by an earlier summary
+		}
+		slices.SortFunc(all, rank)
+		return p.summary(ctx, all, det)
 	}
-	return errors.Join(errs...)
+	return nil
+}
+
+// summary announces the flood summary of the hour and covers what it carries.
+func (p *sourcePass) summary(ctx context.Context, all []anomaly, det map[string]detail) error {
+	ev, target := summaryEvent(p.src, p.hour, all, det, p.base())
+	if err := p.s.cfg.Events.Publish(ctx, events.Event{Name: EventAnomalyDetected, Data: ev}); err != nil {
+		return fmt.Errorf("logs: announcing a flood: %w", err)
+	}
+	return p.s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at, bounded) VALUES (?, 'summary', ?, ?, ?, ?, 0)`,
+			p.src.ID, SummaryTarget, p.hour, target, store.FormatTS(p.now)); err != nil {
+			return fmt.Errorf("logs: recording a summary: %w", err)
+		}
+		return markCovered(ctx, tx, p.src.ID, all, p.ref, p.now, false)
+	})
 }
 
 // sentInHour counts the events a source has sent in the last hour in one class (bounded, or the rest including the summaries).
 func (s *Service) sentInHour(ctx context.Context, source string, now time.Time, bounded bool) (int, error) {
 	var n int
-	err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (SELECT DISTINCT target, sent_at FROM logs_anomaly_sent WHERE source_id = ? AND bounded = ? AND sent_at > ?)`,
+	err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (SELECT DISTINCT target, sent_at FROM logs_anomaly_sent WHERE source_id = ? AND bounded = ? AND kind <> 'covered' AND sent_at > ?)`,
 		source, flag(bounded), store.FormatTS(now.Add(-time.Hour))).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("logs: counting what was announced: %w", err)
@@ -465,8 +637,11 @@ func (s *Service) groupsOf(ctx context.Context, src sourceRow, now time.Time, it
 		}
 		g := groups[target]
 		if g == nil {
-			g = &group{target: target}
+			g = &group{target: target, dest: d.dest}
 			groups[target] = g
+		}
+		if a.First.After(g.latest) {
+			g.latest = a.First
 		}
 		g.items = append(g.items, a)
 		g.count += a.Count
@@ -489,6 +664,11 @@ func (s *Service) groupsOf(ctx context.Context, src sourceRow, now time.Time, it
 			return -1
 		case a.rarest != b.rarest:
 			return a.rarest - b.rarest
+		case !a.latest.Equal(b.latest): // equal counts: the newest first, as rank does
+			if a.latest.After(b.latest) {
+				return -1
+			}
+			return 1
 		}
 		return strings.Compare(a.target, b.target)
 	})
@@ -511,61 +691,84 @@ func (s *Service) announce(ctx context.Context, src sourceRow, now time.Time, re
 	})
 }
 
-// announceSummary publishes the summary of a flood and records that this hour has had its summary, and nothing about the items.
-func (s *Service) announceSummary(ctx context.Context, src sourceRow, now time.Time, hour string, g *group, det map[string]detail, base []DeviceInfo) error {
-	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAnomalyDetected, Data: s.summaryEvent(src, g, det, base)}); err != nil {
-		return fmt.Errorf("logs: announcing a flood: %w", err)
-	}
-	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO logs_anomaly_sent (source_id, kind, signature, ref, target, sent_at, bounded) VALUES (?, 'summary', ?, ?, ?, ?, 0)`,
-			src.ID, SummaryTarget, hour, g.target, store.FormatTS(now))
-		if err != nil {
-			return fmt.Errorf("logs: recording a summary: %w", err)
-		}
-		return nil
-	})
-}
-
-// summaryEvent is the one event that stands for the flood of an hour. Its target is different every hour, so notify opens a new incident
-// for each (the same target would be counted up in an old one, silently). The title says what it carries: new kinds of message, spikes, or
-// both; the text lists the rarest items first (g.items is in the order of rank).
-func (s *Service) summaryEvent(src sourceRow, g *group, det map[string]detail, base []DeviceInfo) AnomalyEvent {
+// summaryEvent is the one event that stands for the flood of an hour, and the target it was sent with. The target is different every
+// hour, so notify opens a new incident for each (the same target would be counted up in an old one, silently). Title and target say
+// what it carries (new kinds of message, spikes, or both) and the real span: "since <time of the first new kind>" and "in the last 24
+// hours" for a spike (the estimate is over 24 hours). items is in the order of rank (the rarest first).
+func summaryEvent(src sourceRow, hour string, items []anomaly, det map[string]detail, base []DeviceInfo) (AnomalyEvent, string) {
 	news, spikes := 0, 0
-	for _, a := range g.items {
+	var since time.Time
+	for _, a := range items {
 		if a.Kind == "new" {
 			news++
+			if since.IsZero() || a.First.Before(since) {
+				since = a.First
+			}
 		} else {
 			spikes++
 		}
 	}
-	const why = "in the last hour (possible brute force or scan)"
-	var title string
+	const why = "(possible brute force or scan)"
+	from := since.UTC().Format("2006-01-02 15:04") + " UTC"
+	var title, target string
 	switch {
 	case spikes == 0:
-		title = fmt.Sprintf("%s logged %d new kinds of message %s", src.Name, news, why)
+		title, target = fmt.Sprintf("%s logged %d new kinds of message since %s %s", src.Name, news, from, why), SummaryTarget
 	case news == 0:
-		title = fmt.Sprintf("%s: %d kinds of message spiked %s", src.Name, spikes, why)
+		title, target = fmt.Sprintf("%s: %d kinds of message spiked in the last 24 hours %s", src.Name, spikes, why), "spiking kinds of message"
 	default:
-		title = fmt.Sprintf("%s logged %d new kinds of message and %d spikes %s", src.Name, news, spikes, why)
+		title, target = fmt.Sprintf("%s logged %d new kinds of message since %s and %d spikes in the last 24 hours %s", src.Name, news, from, spikes, why), "new and spiking kinds of message"
 	}
+	target += " " + hour
 	var what strings.Builder
-	for i, a := range g.items {
+	for i, a := range items {
 		if i == 3 {
-			fmt.Fprintf(&what, "and %d more.\n", len(g.items)-3)
+			fmt.Fprintf(&what, "and %d more.\n", len(items)-3)
 			break
 		}
 		what.WriteString(clipRunes(fmt.Sprintf("%s: %s (%d lines)", map[string]string{"new": "New", "spike": "Spike"}[a.Kind], a.Signature, a.Count), 250) + "\n")
 	}
-	if sample := det[g.items[0].Signature].sample; sample != "" {
+	if sample := det[items[0].Signature].sample; sample != "" {
 		what.WriteString("Example line: " + clipRunes(sample, 300))
 	}
 	sev := "low"
 	if spikes > 0 {
 		sev = "medium"
 	}
-	return AnomalyEvent{Source: clipRunes(src.Name, MaxEventKey), Target: clipRunes(g.target, MaxEventKey), Title: clipRunes(title, MaxEventTitle),
+	return AnomalyEvent{Source: clipRunes(src.Name, MaxEventKey), Target: clipRunes(target, MaxEventKey), Title: clipRunes(title, MaxEventTitle),
 		What:   clipRunes(strings.TrimSpace(what.String()), MaxEventText),
-		Action: "Open Logs, search for this device, and check whether a scan or a brute force is aimed at it.", Severity: sev, Devices: base}
+		Action: "Open Logs, search for this device, and check whether a scan or a brute force is aimed at it.", Severity: sev, Devices: base}, target
+}
+
+// backlogEvent is the summary of the bounded events that are waiting for room: waiting is how many there are in all, fresh the ones
+// no earlier summary has named (in the order of rank). It names as many as fit in the text, taken from the END of the order, the ones
+// that would wait longest (the head is announced one by one as the room comes), and lists them rarest first; it returns the ones it
+// named. Its target is in the bounded namespace and different every hour.
+func backlogEvent(src sourceRow, hour string, fresh []anomaly, waiting int, base []DeviceInfo) (AnomalyEvent, []anomaly) {
+	var lines []string
+	size := 0
+	for i := len(fresh) - 1; i >= 0; i-- {
+		a := fresh[i]
+		line := clipRunes(fmt.Sprintf("%s: %s (%d lines)\n", map[string]string{"new": "New", "spike": "Spike"}[a.Kind], a.Signature, a.Count), 120)
+		if size+len(line)+60 > MaxEventText {
+			break
+		}
+		lines, size = append(lines, line), size+len(line)
+	}
+	named := fresh[len(fresh)-len(lines):]
+	slices.Reverse(lines)
+	var what strings.Builder
+	for _, l := range lines {
+		what.WriteString(l)
+	}
+	if rest := waiting - len(named); rest > 0 {
+		fmt.Fprintf(&what, "and %d more waiting.", rest)
+	}
+	target := BoundedPrefix + BacklogTarget + " " + hour
+	return AnomalyEvent{Source: clipRunes(src.Name, MaxEventKey), Target: clipRunes(target, MaxEventKey),
+		Title:  clipRunes(fmt.Sprintf("%s has %d more events of known kinds waiting to be announced", src.Name, waiting), MaxEventTitle),
+		What:   clipRunes(strings.TrimSpace(what.String()), MaxEventText),
+		Action: "Open Logs and read the digest: these events are announced one by one as the hourly limit allows.", Severity: "low", Devices: base}, named
 }
 
 // eventFor writes the event of a group (never of a summary: see summaryEvent). base is the device that sends the log.
@@ -595,6 +798,9 @@ func (s *Service) eventFor(ctx context.Context, src sourceRow, g *group, det map
 			what.WriteString(clipRunes(fmt.Sprintf("Spike: %s (%d lines, usually %g a day)", a.Signature, a.Count, a.Base), 250) + "\n")
 		}
 	}
+	if g.bounded && g.dest != "" { // the target of a bounded event is its signature: where the lines went is said here
+		what.WriteString("Destination: " + clipRunes(g.dest, 64) + "\n")
+	}
 	if sample := det[first.Signature].sample; sample != "" {
 		what.WriteString("Example line: " + clipRunes(sample, 300))
 	}
@@ -603,7 +809,7 @@ func (s *Service) eventFor(ctx context.Context, src sourceRow, g *group, det map
 		sev = "medium"
 	}
 	devices := base
-	if a, err := netip.ParseAddr(g.target); err == nil && a.Is4() && a.String() != src.SenderIP { // the device that has the address, too
+	if a, err := netip.ParseAddr(g.dest); err == nil && a.Is4() && a.String() != src.SenderIP { // the device that has the address, too
 		devices = append(append([]DeviceInfo(nil), base...), s.devicesAt(ctx, a.String(), base)...)
 	}
 	return AnomalyEvent{Source: clipRunes(src.Name, MaxEventKey), Target: clipRunes(g.target, MaxEventKey), Title: clipRunes(title, MaxEventTitle), What: clipRunes(strings.TrimSpace(what.String()), MaxEventText), Severity: sev,
@@ -612,7 +818,7 @@ func (s *Service) eventFor(ctx context.Context, src sourceRow, g *group, det map
 }
 
 // devicesOf returns the inventory device that sends the log of a source (nil Inventory or a failed read: none; the event is still worth sending).
-func (s *Service) devicesOf(ctx context.Context, src sourceRow, _ string) []DeviceInfo {
+func (s *Service) devicesOf(ctx context.Context, src sourceRow) []DeviceInfo {
 	return s.devicesByIP(ctx, []string{src.SenderIP}, nil)
 }
 

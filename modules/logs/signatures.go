@@ -20,12 +20,13 @@ const (
 	// miner or a free-text profile makes and for the signatures that a vocabulary of shipped data bounds (a known log id, a known event
 	// id): separate quotas, so that a flood of the first cannot push the second out. The lines past a quota are counted under
 	// OtherSignature. ponytail: 1,000 and 2,000, one constant each; a real device has tens to hundreds of kinds of line, and the
-	// vocabularies make fewer than 500. The bytes this can take are measured in TestMeasureCeilings and written in D-206.
+	// vocabularies make at most 540. The bytes this can take are measured in TestMeasureCeilings and written in D-206.
 	MaxMinedPerDay   = 1000
 	MaxBoundedPerDay = 2000
-	// MaxMinedPerBucket and MaxBoundedPerBucket are the same for one 5-minute bucket of the counters that Counts reads.
+	// MaxMinedPerBucket and MaxBoundedPerBucket are the same for one 5-minute bucket of the counters that Counts reads. 600 is at least
+	// the largest bounded vocabulary (FortiGate: 20 log ids x (26 actions + none) = 540), so every bounded signature has its own row.
 	MaxMinedPerBucket   = 200
-	MaxBoundedPerBucket = 500
+	MaxBoundedPerBucket = 600
 	// OtherSignature is where the lines past the caps are counted.
 	OtherSignature = "(other)"
 	// MaxSignatureLen and MaxDestLen are the longest signature and destination a row holds (the signature package's limits).
@@ -33,7 +34,7 @@ const (
 	MaxDestLen      = signature.MaxDestBytes
 	// MaxSampleBytes is how much of the first line of a row is kept as its sample.
 	MaxSampleBytes = 300
-	// CountsMinWindow and CountsMaxWindow bound what Counts answers (the counters are 5 minutes wide and kept 48 hours).
+	// CountsMinWindow and CountsMaxWindow bound what Counts answers (the counters are 5 minutes wide and kept 24 hours and one bucket).
 	CountsMinWindow = 5 * time.Minute
 	CountsMaxWindow = 24 * time.Hour
 )

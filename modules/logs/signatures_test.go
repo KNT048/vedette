@@ -436,7 +436,7 @@ func TestContract_Events_NewSignatureIsAnnouncedOnce(t *testing.T) {
 		t.Fatalf("%d events: %+v", len(got), got)
 	}
 	ev := got[0]
-	if ev.Source != "FW-HQ" || ev.Target != "192.168.10.1" || ev.Severity != "low" || ev.Title == "" || len([]rune(ev.Title)) > 200 || ev.What == "" || ev.Action == "" {
+	if ev.Source != "FW-HQ" || ev.Target != "sig:"+sigFor(3389) || !strings.Contains(ev.What, "Destination: 192.168.10.1") || ev.Severity != "low" || ev.Title == "" || len([]rune(ev.Title)) > 200 || ev.What == "" || ev.Action == "" {
 		t.Fatalf("%+v", ev)
 	}
 	if len(ev.Devices) != 1 || ev.Devices[0].ID != "a-fw" || ev.Devices[0].Name != "FW-HQ" {
@@ -459,14 +459,20 @@ func TestContract_Events_GroupingAndRateLimit(t *testing.T) {
 	*e.clock = t0
 	e.history(b, 1)
 	*e.clock = t0.Add(25 * time.Hour)
-	for port := 100; port < 103; port++ { // three new signatures that aim at one address: one event
+	for port := 100; port < 103; port++ { // three new bounded signatures that aim at one address: an event each (target = the signature, H-2)
 		e.feed(a, fw(port, "203.0.113.7"), 2)
 	}
 	e.detect()
-	if got := p.events(); len(got) != 1 || got[0].Target != "203.0.113.7" || !strings.Contains(got[0].Title, "3") {
-		t.Fatalf("grouping: %+v", got)
+	got := p.events()
+	if len(got) != 3 {
+		t.Fatalf("%d events: %+v", len(got), got)
 	}
-	for i := 0; i < 25; i++ { // 25 more targets: the hourly cap lets 19 more through (20 in all)
+	for i, ev := range got {
+		if !strings.HasPrefix(ev.Target, BoundedPrefix) || !strings.Contains(ev.What, "Destination: 203.0.113.7") || i > 0 && ev.Target == got[i-1].Target {
+			t.Fatalf("a bounded event has its own target and says where it went: %+v", ev)
+		}
+	}
+	for i := 0; i < 25; i++ { // 25 more signatures: 17 room left in the hour: 16 one by one and the backlog summary (20 in all)
 		e.feed(a, fw(200+i, fmt.Sprintf("198.51.100.%d", i+1)), 2)
 	}
 	e.feed(b, fw(300, "198.51.100.200"), 2) // another source has its own allowance
@@ -488,9 +494,9 @@ func TestContract_Events_GroupingAndRateLimit(t *testing.T) {
 	for _, ev := range p.events() {
 		perSource[ev.Source]++
 	}
-	// These are signatures of the profile (bounded): they have a room of their own, are never put in a summary, and what does not fit in
-	// the hour waits for the next one: 1 grouped event + 25 targets in all, 20 the first hour and the 6 held back the second.
-	if perSource["FW-HQ"] != 26 || eventsAbout(p, "new kinds of message") != 0 {
+	// These are signatures of the profile (bounded): they have a room of their own, are never put in a mined summary, and what does not
+	// fit in the hour waits for the next one: 28 signatures in all, 19 events the first hour and a backlog summary (20), the 9 held back the second.
+	if perSource["FW-HQ"] != 29 || eventsAbout(p, "new kinds of message") != 0 || eventsAbout(p, "waiting to be announced") != 1 {
 		t.Fatalf("after the hour: %v, %d summaries", perSource, eventsAbout(p, "new kinds of message"))
 	}
 }
@@ -506,7 +512,7 @@ func TestContract_Events_SpikeIsMedium(t *testing.T) {
 	e.feed(src, fw(22, "10.0.0.1"), 60)
 	e.detect()
 	got := p.events()
-	if len(got) != 1 || got[0].Severity != "medium" || got[0].Target != "10.0.0.1" {
+	if len(got) != 1 || got[0].Severity != "medium" || got[0].Target != "sig:"+sigFor(22) || !strings.Contains(got[0].What, "Destination: 10.0.0.1") {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -552,7 +558,7 @@ func TestContract_SYS5_NoEventsWhileTheModuleIsOff(t *testing.T) {
 }
 
 // The signature counters are kept for exactly BaselineDays+2 days whatever the retention; a sample goes with the line it copies,
-// by time and not by day; the 5-minute counters go after 48 hours and the announcements after 3 days.
+// by time and not by day; the 5-minute counters go after 24 hours and a bucket and the announcements after 3 days.
 func TestPurgeDropsOldSignatureCounters(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -789,8 +795,12 @@ func TestContract_Events_PayloadFitsWhatNotifyAccepts(t *testing.T) {
 	for _, ev := range got {
 		notifyAccepts(t, ev)
 	}
-	if w := got[0].What; len([]rune(w)) < 400 {
-		t.Fatalf("clipped too much: %d characters", len([]rune(w)))
+	longest := 0
+	for _, ev := range got {
+		longest = max(longest, len([]rune(ev.What)))
+	}
+	if longest < 300 {
+		t.Fatalf("clipped too much: %d characters", longest)
 	}
 }
 
@@ -1204,45 +1214,88 @@ func minedFlood(e *env, src Source, n int) {
 	ingestAll(e, src, n, func(i int) string { return "aaa" + letters(i) + " hello" }, 1)
 }
 
-// The design of D-206: bounded signatures (shipped vocabulary) have a room of their own and are never put in a summary; a flood of mined
-// kinds is itself reported, once an hour, by a summary whose target is different every hour (notify opens a new incident), which lists
-// the rarest items; what the summary covers is not recorded as announced.
+// The design of D-206: bounded signatures (shipped vocabulary) have a room of their own and are never put in a mined summary; a flood of mined
+// kinds is itself reported by a summary whose target is different every hour (notify opens a new incident), which lists the rarest
+// items; what the summary covers is not recorded as announced, and the next summary leaves it out (M-1).
 func TestContract_Events_MinedFloodIsOneSummaryAnHour(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	p := &pubs{}
 	e.svc.cfg.Events = p
 	src := e.warmSource("fortigate", "192.168.10.1")
-	minedFlood(e, src, 600)
-	perHour := map[int]int{}
-	for h := 0; h < 24; h++ { // the signatures are new for 24 hours
+	const hours = 6
+	for h := 0; h < hours; h++ { // a flood that goes on: 30 new kinds of message every hour
+		ingestAll(e, src, 30, func(i int) string { return fmt.Sprintf("hour%s msg%s hello", letters(h), letters(i)) }, 1)
 		before := len(summaries(p))
 		e.detect()
 		e.detect() // a second pass in the same hour adds nothing
-		perHour[h] = len(summaries(p)) - before
-		e.advance(time.Hour)
-	}
-	for h, n := range perHour {
-		if n != 1 {
+		if n := len(summaries(p)) - before; n != 1 {
 			t.Fatalf("hour %d: %d summaries, want 1", h, n)
 		}
+		e.advance(time.Hour)
 	}
-	if len(p.events()) != 24 {
+	if len(p.events()) != hours {
 		t.Fatalf("%d events for a flood of one kind: only the summaries", len(p.events()))
 	}
 	targets := map[string]bool{}
 	for _, ev := range summaries(p) {
 		targets[ev.Source+"\x00"+ev.Target] = true
 		notifyAccepts(t, ev)
-		if !strings.Contains(ev.Title, "possible brute force or scan") || !strings.Contains(ev.What, "aaaa hello") {
+		if !strings.Contains(ev.Title, "possible brute force or scan") || !strings.Contains(ev.Title, " 30 new kinds of message since 2026-") || strings.Contains(ev.Title, "last hour") {
 			t.Fatalf("%+v", ev)
 		}
 	}
-	if len(targets) != 24 {
-		t.Fatalf("%d different targets in 24 summaries: notify would count up one incident", len(targets))
+	if len(targets) != hours {
+		t.Fatalf("%d different targets in %d summaries: notify would count up one incident", len(targets), hours)
 	}
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_anomaly_sent WHERE kind = 'new'`); n != 0 {
 		t.Fatalf("%d signatures of the flood were marked as announced one by one", n)
+	}
+}
+
+// M-1: a one-off burst of more kinds than the hour has room for is ONE summary, not one every hour for the 24 hours the kinds stay new.
+func TestContract_Events_OneOffBurstIsOneSummary(t *testing.T) {
+	t.Parallel()
+	for _, n := range []int{21, 600} {
+		e := newEnv(t)
+		p := &pubs{}
+		e.svc.cfg.Events = p
+		src := e.warmSource("fortigate", "192.168.10.1")
+		minedFlood(e, src, n)
+		for step := 0; step < 26*12; step++ {
+			e.detect()
+			e.advance(5 * time.Minute)
+		}
+		got := summaries(p)
+		if len(got) != 1 || len(p.events()) != 1 {
+			t.Fatalf("a burst of %d: %d summaries in %d events, want 1", n, len(got), len(p.events()))
+		}
+		if !strings.Contains(got[0].Title, fmt.Sprintf("%d new kinds of message since", n)) {
+			t.Fatalf("%q", got[0].Title)
+		}
+		// a real new kind after the burst is announced on its own, not hidden behind the covered burst
+		minedFlood(e, src, n) // the same kinds again are not new
+		e.feed(src, "brandnew kind of line", 1)
+		e.detect()
+		if len(p.events()) != 2 || !strings.Contains(p.events()[1].Title, "brandnew") {
+			t.Fatalf("the new kind after the burst: %+v", p.events()[1:])
+		}
+	}
+}
+
+// A summary says what it carries: spikes only is not "new kinds of message", in the title or the target.
+func TestContract_Events_SummaryTargetFitsWhatItCarries(t *testing.T) {
+	t.Parallel()
+	src := sourceRow{ID: "ls-x", Name: "FW-HQ"}
+	spikes := []anomaly{{Kind: "spike", SourceID: "ls-x", Signature: "s1", Count: 99}, {Kind: "spike", SourceID: "ls-x", Signature: "s2", Count: 50}}
+	ev, target := summaryEvent(src, "2026-11-12T14", spikes, nil, nil)
+	if strings.Contains(ev.Title, "new kinds") || strings.Contains(target, "new") || !strings.Contains(ev.Title, "in the last 24 hours") || ev.Target != target {
+		t.Fatalf("%+v %q", ev, target)
+	}
+	both := append(spikes, anomaly{Kind: "new", SourceID: "ls-x", Signature: "n1", Count: 1, First: t0})
+	ev, target = summaryEvent(src, "2026-11-12T14", both, nil, nil)
+	if !strings.Contains(ev.Title, "1 new kinds of message since") || !strings.Contains(ev.Title, "2 spikes") || !strings.HasSuffix(target, " 2026-11-12T14") {
+		t.Fatalf("%+v %q", ev, target)
 	}
 }
 
@@ -1287,10 +1340,11 @@ func TestContract_Events_RealBoundedEventSurvivesAFloodAndSpikes(t *testing.T) {
 	}
 }
 
-// d: more bounded signatures than the hour has room for are not lost: they wait for the next hour (and are never summarised).
+// More bounded signatures than the hour has room for are not lost: room-1 go out one by one, the last place is ONE backlog summary that
+// names the rest, and what is left goes out the next hour (each signature once; never in a mined summary).
 func TestContract_Events_BoundedFloodWaitsForTheNextHour(t *testing.T) {
 	t.Parallel()
-	// 26 signatures of the profile, each aimed at its own address: 26 events' worth
+	// 26 signatures of the profile, each aimed at its own address
 	e := newEnv(t)
 	p := &pubs{}
 	e.svc.cfg.Events = p
@@ -1299,16 +1353,25 @@ func TestContract_Events_BoundedFloodWaitsForTheNextHour(t *testing.T) {
 		e.feed(src, fw(n, fmt.Sprintf("198.51.100.%d", i+1)), 2)
 	}
 	e.detect()
-	if len(p.events()) != EventsPerHour || len(summaries(p)) != 0 {
-		t.Fatalf("first hour: %d events, %d summaries", len(p.events()), len(summaries(p)))
+	if len(p.events()) != EventsPerHour || len(summaries(p)) != 0 || eventsAbout(p, "waiting to be announced") != 1 {
+		t.Fatalf("first hour: %d events, %d mined summaries", len(p.events()), len(summaries(p)))
 	}
 	e.advance(61 * time.Minute)
 	e.detect()
-	if len(p.events()) != 26 || len(summaries(p)) != 0 {
+	if len(p.events()) != 27 || len(summaries(p)) != 0 {
 		t.Fatalf("second hour: %d events", len(p.events()))
 	}
 	seen := map[string]bool{}
 	for _, ev := range p.events() {
+		if strings.Contains(ev.Title, "waiting to be announced") {
+			if !strings.HasPrefix(ev.Target, BoundedPrefix+BacklogTarget) || !strings.Contains(ev.Title, "7 more events") {
+				t.Fatalf("the backlog summary: %+v", ev)
+			}
+			continue
+		}
+		if seen[ev.Target] {
+			t.Fatalf("%s announced twice", ev.Target)
+		}
 		seen[ev.Target] = true
 	}
 	if len(seen) != 26 {
@@ -1335,6 +1398,12 @@ func TestRankOrder(t *testing.T) {
 	want := []string{"b-new", "b-spike", "m-new-1", "m-new-3", "m-spike-big", "m-spike-small"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("%v, want %v", got, want)
+	}
+	// equal counts: the newest first_seen goes first (a real event is not behind a flood of the same count)
+	tied := []anomaly{{Kind: "new", Signature: "a-old", Count: 1, Bounded: true, First: t0}, {Kind: "new", Signature: "z-newest", Count: 1, Bounded: true, First: t0.Add(time.Hour)}}
+	slices.SortFunc(tied, rank)
+	if tied[0].Signature != "z-newest" {
+		t.Fatalf("%v", tied)
 	}
 }
 

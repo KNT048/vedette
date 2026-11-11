@@ -25,9 +25,9 @@ CREATE TABLE logs_signature_daily (
 CREATE INDEX logs_signature_daily_source ON logs_signature_daily (source_id, signature, day);
 
 -- The same count per 5 minutes, kept 24 hours and one bucket (Counts is the only reader, with a window of 24 hours at most): the read port of
--- response's log_threshold ("10 failed logins in 5 minutes"), which a daily row cannot answer. The signature is a 64-bit hash (FNV-1a) and
--- not the text: a row is small, and Counts is given the same text and hashes it. Caps per source and bucket: 200 mined and 500 bounded
--- rows, the rest under the hash of "(other)". The primary key starts with the bucket (the purge is a range delete); the index serves Counts
+-- response's log_threshold ("10 failed logins in 5 minutes"), which a daily row cannot answer. The signature is a 64-bit hash (the first 64 bits of the SHA-256) and
+-- not the text: a row is small, and Counts is given the same text and hashes it. Caps per source and bucket: 200 mined and 600 bounded
+-- rows (600 is at least the largest bounded vocabulary, the 540 signatures of FortiGate), the rest under the hash of "(other)". The primary key starts with the bucket (the purge is a range delete); the index serves Counts
 -- (one source, one signature, a range of buckets), which must not read the other sources.
 CREATE TABLE logs_signature_buckets (
     source_id TEXT    NOT NULL CHECK (length(source_id) BETWEEN 1 AND 64),
@@ -41,10 +41,12 @@ CREATE INDEX logs_signature_buckets_source ON logs_signature_buckets (source_id,
 
 -- What logs.anomaly.detected has already announced, so that a restart does not announce again and so that "at most 20 an hour per
 -- source" can be counted: one row per signature announced (ref is the first time for "new", the UTC day for "spike"), and the
--- events sent in the last hour are the distinct (target, sent_at) of a source. Kept 3 days.
+-- events sent in the last hour are the distinct (target, sent_at) of a source. Kept 3 days. Kind 'summary' is the one summary of an
+-- hour (a flood of mined kinds, or the backlog of bounded events), and 'covered' marks an item that a summary has named (it is not
+-- announced one by one yet, and the next summary leaves it out).
 CREATE TABLE logs_anomaly_sent (
     source_id TEXT NOT NULL CHECK (length(source_id) BETWEEN 1 AND 64),
-    kind      TEXT NOT NULL CHECK (kind IN ('new', 'spike', 'summary')),
+    kind      TEXT NOT NULL CHECK (kind IN ('new', 'spike', 'summary', 'covered')),
     signature TEXT NOT NULL CHECK (length(signature) BETWEEN 1 AND 256),
     ref       TEXT NOT NULL,
     target    TEXT NOT NULL,

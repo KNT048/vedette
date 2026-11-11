@@ -26,11 +26,11 @@
 - Gói `signature` không được import `database/sql` hay `core/store` (sẽ chuyển sang sensor cùng `listen`).
 
 ## Modifying: `Counts(ctx, source, signature, window) (int, error)` (L3) — 1 người gọi (sau này)
-- **response** (`log_threshold`, Kiên): cổng đọc duy nhất vào bộ đếm chữ ký. Cửa sổ [5 phút, 24 giờ], làm tròn ra bucket 5 phút (phủ cả cửa sổ và tối đa 5 phút trước nó: ngưỡng "≥ N trong 5 phút" có thể thấy tới 10 phút dòng). Đổi độ rộng bucket (`bucketSeconds`, dùng chung với `logs_source_buckets`) hay thời gian giữ (48 giờ) là đổi mọi câu trả lời. Module tắt thì không còn dòng mới nên `Counts` chỉ trả số cũ.
+- **response** (`log_threshold`, Kiên): cổng đọc duy nhất vào bộ đếm chữ ký. Cửa sổ [5 phút, 24 giờ], làm tròn ra bucket 5 phút (phủ cả cửa sổ và tối đa 5 phút trước nó: ngưỡng "≥ N trong 5 phút" có thể thấy tới 10 phút dòng). Đổi độ rộng bucket (`bucketSeconds`, dùng chung với `logs_source_buckets`) hay thời gian giữ (24 giờ và một bucket) là đổi mọi câu trả lời. Module tắt thì không còn dòng mới nên `Counts` chỉ trả số cũ.
 
 ## Modifying: job `anomaly` và sự kiện `logs.anomaly.detected` (L3)
 - **notify** (`logEvent`): đọc `source`, `target`, `title` (≤ 200 ký tự), `what`, `action`, `severity`, `devices[{id,name}]`; `source` + `target` là khoá gộp incident. Đổi tên trường hay nghĩa của `target` là đổi cách notify gộp. Tối đa 20 sự kiện mỗi giờ mỗi nguồn: nâng trần là nâng lượng thông báo của khách.
-- Hai phòng 20 sự kiện mỗi giờ mỗi nguồn (bounded; bộ tìm mẫu) và một bản tóm tắt mỗi giờ khi bộ tìm mẫu có nhiều nhóm hơn phòng; `target` của bản tóm tắt có giờ UTC để notify mở incident mới. Đổi cách đặt `target` hay bỏ giờ khỏi nó là làm notify cộng dồn lặng lẽ.
+- Hai phòng 20 sự kiện mỗi giờ mỗi nguồn (bounded; bộ tìm mẫu), một bản tóm tắt mỗi giờ khi bộ tìm mẫu có nhiều nhóm hơn phòng (chỉ bao trùm mục chưa được bao trùm: dòng `covered`), và một bản tóm tắt tồn đọng mỗi giờ khi chữ ký bounded chờ nhiều hơn phòng; `target` của bản tóm tắt có giờ UTC để notify mở incident mới, `target` của sự kiện bounded là `sig:<chữ ký>` (vùng tên riêng, không bao giờ trùng đích của incident bộ tìm mẫu). Đổi cách đặt `target` hay bỏ giờ khỏi nó là làm notify cộng dồn lặng lẽ (khoá gộp của notify là loại + nguồn + target, `modules/notify/incidents.go` `dedupeKey`).
 - Không `Housekeeping`: biến nó thành housekeeping là gửi sự kiện khi module tắt (SYS-5); `TestContract_SYS5_NoEventsWhileTheModuleIsOff` chặn.
 - **Sửa nguồn** (`UpdateSource`): đổi `kind` hoặc `sender_ip` đặt `logs_sources.signatures_since` và khởi động lại 24 giờ của nguồn; một đường sửa nguồn mới (import hàng loạt) phải làm như vậy.
 - **cmd/vedette** (`logs.go`): `Config.Events` là `d.Bus`; thiếu thì job không làm gì.

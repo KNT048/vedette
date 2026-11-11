@@ -549,3 +549,20 @@ func TestContract_INV10_TheNewsCarriesNoKnowledge(t *testing.T) {
 		t.Fatalf("a knowledge document reached the public news job: %s", user)
 	}
 }
+
+// The news job may run on a cloud profile whatever the privacy rule says, so it never receives what the box holds: not the memory of an
+// administrator and not a passage of a document of the knowledge base, even one assigned to every job (INV-3, INV-8, INV-10, S-AI-3).
+func TestContract_INV10_TheNewsNeverGetsAKnowledgeDocumentOrMemory(t *testing.T) {
+	a := newNewsAPI(t)
+	a.addMemory("Our NAS-PHOTOS holds the family photos")
+	a.kbIndexProfile()
+	a.kbAdd("photo-policy.md", []byte("# Photo Station\n\nThe Photo Station on NAS-PHOTOS is exposed through a port forward. QNAP updates are applied monthly.\n"), "[]") // [] = every job
+	a.news(200, "")
+	req := a.fake.lastRequest(t)
+	all := req.System + req.Messages[0].Text
+	for _, never := range []string{"kind=document", "kind=memory", "port forward", "family photos", "NAS-PHOTOS", "documents kept by an administrator"} {
+		if strings.Contains(all, never) {
+			t.Errorf("%q reached the provider of a public job", never)
+		}
+	}
+}

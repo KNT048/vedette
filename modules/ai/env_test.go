@@ -44,6 +44,8 @@ type fakeProviders struct {
 	answer            string   // the text of every answer that is not a probe
 	usageIn, usageOut int      // tokens of every answer that is not a probe; 0 = the default 14 in and 3 out
 	reqs              []provider.Request
+	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
+	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
@@ -77,7 +79,7 @@ type fakeProvider struct {
 	p ai.Profile
 }
 
-func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provider.Response, error) {
+func (p fakeProvider) Complete(ctx context.Context, req provider.Request) (provider.Response, error) {
 	p.f.mu.Lock()
 	defer p.f.mu.Unlock()
 	p.f.calls = append(p.f.calls, p.p.Name)
@@ -91,6 +93,9 @@ func (p fakeProvider) Complete(_ context.Context, req provider.Request) (provide
 	}
 	if len(req.Tools) > 0 && !p.f.tools {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrRequest, Status: 400}
+	}
+	if p.f.script != nil && req.Schema == nil {
+		return p.f.script(ctx, p.p, req)
 	}
 	text := "ok"
 	if req.Schema != nil {
@@ -137,6 +142,9 @@ type env struct {
 	facts       *fakeFacts
 	pruner      *fakePruner
 	hookTimeout time.Duration // 0 = the default; a test sets a tiny one to run out of time
+	askTimeout  time.Duration // 0 = the default
+	data        *fakeData
+	conns       *fakeConns
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -155,7 +163,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}, data: newFakeData(), conns: &fakeConns{}}
 	e.svc = e.newService()
 	return e
 }
@@ -163,7 +171,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Conns: e.conns, AskTimeout: e.askTimeout})
 	if err != nil {
 		e.t.Fatal(err)
 	}

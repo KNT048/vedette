@@ -288,7 +288,21 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 		return explainInputs{}, false, fmt.Errorf("ai: read devices: %w", err)
 	}
 	feed, inv := feedBlock(facts), inventoryBlock(assets)
-	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: HashContent("explain-v1\n" + feed.Text + "\n" + inv.Text)}, true, nil
+	// The answer also depends on what the prompt carries besides the data: the memory lines that would be sent now (after the hooks)
+	// and the company rules of the job. Editing either makes the cached explanation a miss.
+	har := s.harness.Load()
+	mem, err := s.memoryForCall(ctx, har.runner, JobExplainFinding)
+	if err != nil {
+		return explainInputs{}, false, err
+	}
+	var rules []string
+	for _, r := range har.rules {
+		if r.Enabled && r.appliesTo(JobExplainFinding) {
+			rules = append(rules, r.Text)
+		}
+	}
+	hash := HashContent("explain-v2\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + "\nrules:" + strings.Join(rules, "\n"))
+	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash}, true, nil
 }
 
 // CachedCVE returns the explanation generated before for a CVE, without calling the AI (INV-6), but only one that was made from

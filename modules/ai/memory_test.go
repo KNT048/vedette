@@ -2,11 +2,13 @@ package ai_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/modules/ai"
@@ -388,12 +390,146 @@ func TestContract_INV8_MemoryGoesThroughTheBeforeAIHooks(t *testing.T) {
 	if user := a.planRequest(ai.JobResponsePlan, id).Messages[0].Text; !strings.Contains(user, "admin@example.com") {
 		t.Fatalf("with the hook off the text is sent as it is: %s", user)
 	}
-	// a custom hook that blocks stops the call: nothing is sent
+	// a custom hook that blocks keeps that memory out; the call still runs without it
 	a.addBlockHook("No NAS", "before_ai", "NAS-PHOTOS")
-	before := len(a.fake.reqsSent())
-	_, err := a.newService().RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Do it.", Question: "Go.", Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
-	if err == nil || len(a.fake.reqsSent()) != before {
-		t.Fatalf("err = %v, requests %d -> %d: a blocked memory was sent", err, before, len(a.fake.reqsSent()))
+	if user := a.planRequest(ai.JobResponsePlan, id).Messages[0].Text; strings.Contains(user, "NAS-PHOTOS") || strings.Contains(user, "kind=memory") {
+		t.Fatalf("a blocked memory was sent: %s", user)
+	}
+}
+
+// One memory a hook stops must not stop every call: it is left out, named in the row (never its text), and the others are sent.
+func TestContract_INV8_ABlockedMemoryIsLeftOutNotTheCall(t *testing.T) {
+	a := newAPI(t)
+	id := a.withProfile()
+	a.addMemory("The camera VLAN is 192.168.20.0/24.")
+	if err := a.exec(`INSERT INTO ai_memory (id, text, source, created_at, enabled) VALUES ('mem-serial', 'The firewall serial is 079201001234; support ends in March.', 'user', '2026-11-10T03:00:00.000Z', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	req := a.planRequest(ai.JobResponsePlan, id) // fails the test if the call is refused
+	user := req.Messages[0].Text
+	if strings.Contains(user, "079201001234") || !strings.Contains(user, "camera VLAN") {
+		t.Fatalf("the blocked memory was sent, or the good one was not: %s", user)
+	}
+	rows := a.activity()
+	last := rows[len(rows)-1]
+	if !strings.Contains(last.Summary, "mem-serial") || strings.Contains(last.Summary, "079201001234") || last.Result != ai.ResultOK {
+		t.Fatalf("activity row = %+v", last.ActivityEntry)
+	}
+	// with nothing left to send there is no block at all (the camera memory is the older one)
+	a.want("DELETE", "/ai/memory/"+a.memoryView()["items"].([]any)[1].(map[string]any)["id"].(string), "admin", "", 204, "")
+	if user := a.planRequest(ai.JobResponsePlan, id).Messages[0].Text; strings.Contains(user, "kind=memory") {
+		t.Fatalf("an empty block was sent: %s", user)
+	}
+}
+
+func TestContract_INV8_MemoryTheHooksWouldStopIsRefusedWhenSaved(t *testing.T) {
+	a := newAPI(t)
+	bad := "The firewall serial is 079201001234; support ends in March."
+	for _, body := range []struct{ method, path string }{{"POST", "/ai/memory"}} {
+		got := a.want(body.method, body.path, "admin", memBody(bad), 400, "invalid_memory")
+		if msg := got["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Block personal data") {
+			t.Errorf("the message does not name the hook: %s", msg)
+		}
+	}
+	id := a.addMemory("The camera VLAN is 192.168.20.0/24.")["id"].(string)
+	a.want("PUT", "/ai/memory/"+id, "admin", memBody(bad), 400, "invalid_memory")
+	a.suggest("sg-bad", bad)
+	a.want("POST", "/ai/memory/suggestions/sg-bad/accept", "admin", "", 400, "invalid_memory")
+	v := a.memoryView()
+	if len(v["items"].([]any)) != 1 || len(v["suggestions"].([]any)) != 1 || v["items"].([]any)[0].(map[string]any)["text"] != "The camera VLAN is 192.168.20.0/24." {
+		t.Fatalf("a refused request changed something: %v", v)
+	}
+	// a mask is fine: the text is sent masked
+	a.addMemory("Ask admin@example.com about it.")
+	// with the hook off the text is allowed
+	a.want("PUT", "/ai/hooks/builtin/block-pii", "admin", `{"enabled":false}`, 200, "")
+	a.addMemory(bad)
+}
+
+func TestContract_INV8_HiddenCharacterHasItsOwnMessage(t *testing.T) {
+	a := newAPI(t)
+	got := a.want("POST", "/ai/memory", "admin", memBody("abc\u200bdef"), 400, "invalid_memory")
+	if msg := got["error"].(map[string]any)["message"].(string); strings.Contains(msg, "3 to 300") || !strings.Contains(msg, "invisible") {
+		t.Fatalf("message = %s", msg)
+	}
+}
+
+func TestContract_INV8_ARejectedSuggestionIsNotProposedAgainFor30Days(t *testing.T) {
+	a := newAPI(t)
+	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
+	const text = "Backups run every night at 01:00."
+	if err := a.svc.SuggestMemory(a.ctx(), text, "x"); err != nil {
+		t.Fatal(err)
+	}
+	id := a.memoryView()["suggestions"].([]any)[0].(map[string]any)["id"].(string)
+	a.want("POST", "/ai/memory/suggestions/"+id+"/reject", "admin", "", 204, "")
+	if err := a.svc.SuggestMemory(a.ctx(), " "+text, "again"); err != nil || len(a.memoryView()["suggestions"].([]any)) != 0 {
+		t.Fatalf("the rejected text came back: %v", err)
+	}
+	var n int
+	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT COUNT(*) FROM ai_memory_rejected WHERE digest = ?`, ai.HashContent(text)).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("the rejection is kept as a hash: %d %v", n, err)
+	}
+	a.clock.Add(31 * 24 * time.Hour)
+	if err := a.svc.SuggestMemory(a.ctx(), text, "later"); err != nil || len(a.memoryView()["suggestions"].([]any)) != 1 {
+		t.Fatalf("after 30 days the text may be suggested again: %v", err)
+	}
+	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT COUNT(*) FROM ai_memory_rejected`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("the old rejection was not purged: %d", n)
+	}
+	// a text the hooks would stop is not stored as a suggestion
+	if err := a.svc.SuggestMemory(a.ctx(), "The firewall serial is 079201001234.", "x"); err != nil || len(a.memoryView()["suggestions"].([]any)) != 1 {
+		t.Fatalf("a blocked suggestion was stored: %v", err)
+	}
+}
+
+func TestContract_INV8_AcceptingADuplicateReturnsTheExistingMemory(t *testing.T) {
+	a := newAPI(t)
+	have := a.addMemory("Backups run every night at 01:00.")
+	a.suggest("sg-dup", "Backups run every night at 01:00.")
+	got := a.want("POST", "/ai/memory/suggestions/sg-dup/accept", "admin", "", 200, "")
+	v := a.memoryView()
+	if got["id"] != have["id"] || len(v["items"].([]any)) != 1 || len(v["suggestions"].([]any)) != 0 {
+		t.Fatalf("got %v, view %v", got, v)
+	}
+}
+
+// A request that reached the provider has carried the memory out of the box, answer or not.
+func TestContract_INV8_LastUsedIsWrittenWhenTheProviderFailed(t *testing.T) {
+	a := newAPI(t)
+	id := a.withProfile()
+	a.addMemory("The camera VLAN is 192.168.20.0/24.")
+	a.fake.failWith("Claude", errors.New("boom"))
+	a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"response-plan": {id, ""}}), 200, "")
+	if _, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "x", Question: "Go.", Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100}); err == nil {
+		t.Fatal("the call should fail")
+	}
+	if a.fake.total() == 0 {
+		t.Fatal("no request reached the provider; the test proves nothing")
+	}
+	if a.memoryView()["items"].([]any)[0].(map[string]any)["last_used_at"] == nil {
+		t.Fatal("last_used_at was not written")
+	}
+}
+
+// Editing a memory (or a rule) changes what the prompt carries, so a cached explanation made with the old one is not served.
+func TestContract_INV8_EditingMemoryMakesTheExplanationAMiss(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	mid := a.addMemory("The camera VLAN is 192.168.20.0/24.")["id"].(string)
+	a.explain("CVE-2022-27593", 200, "")
+	calls := a.fake.total()
+	if again := a.explain("CVE-2022-27593", 200, ""); again["cached"] != true || a.fake.total() != calls {
+		t.Fatal("the explanation was not cached")
+	}
+	a.want("PUT", "/ai/memory/"+mid, "admin", memBody("The camera VLAN is 192.168.30.0/24."), 200, "")
+	if got := a.explain("CVE-2022-27593", 200, ""); got["cached"] != false || a.fake.total() != calls+1 {
+		t.Fatalf("a changed memory was served from the cache: %v", got["cached"])
+	}
+	calls = a.fake.total()
+	a.want("POST", "/ai/rules", "admin", ruleBody("Name every device."), 200, "")
+	if got := a.explain("CVE-2022-27593", 200, ""); got["cached"] != false || a.fake.total() != calls+1 {
+		t.Fatalf("a new rule was served from the cache: %v", got["cached"])
 	}
 }
 

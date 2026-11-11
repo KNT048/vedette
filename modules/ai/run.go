@@ -229,16 +229,17 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	// One generation of the rules and hooks for the whole call: the answer is checked by the hooks that checked the question.
 	har := s.harness.Load()
 	hooks := har.runner
-	// What an administrator keeps in memory goes with the data, so the before-AI hooks see it as they see every other block (INV-8).
-	memBlock, memIDs, err := s.memoryBlock(ctx, spec.Job)
+	// What an administrator keeps in memory goes with the data, line by line through the before-AI hooks (INV-8): a line a hook stops
+	// is left out and named in the row, the rest is sent.
+	mem, err := s.memoryForCall(ctx, hooks, spec.Job)
 	if err != nil {
 		return JobResult{}, err
 	}
-	if len(memIDs) > 0 {
-		spec.Data = append([]DataBlock{memBlock}, spec.Data...)
+	if len(mem.ids) > 0 {
+		spec.Data = append([]DataBlock{mem.block}, spec.Data...)
 	}
 	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
-	entry.Hooks = hookNames
+	entry.Hooks = dedupe(append(hookNames, mem.names...))
 	if stop != "" {
 		entry.Result, entry.Summary, entry.InputHash = ResultBlockedByHook, "Not sent: "+stop, HashContent(stop)
 		if err := s.record(ctx, entry); err != nil {
@@ -255,6 +256,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 
 	res, err := s.router.Call(ctx, spec.Job, req)
 	if err != nil {
+		s.touchSent(ctx, mem.ids, res)
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
 	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
@@ -288,7 +290,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	werr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		ctx := wctx
 		if bad == nil {
-			entry.Summary = spec.Summary
+			entry.Summary = spec.Summary + leftOutNote(mem.left)
 			if res.Fallback {
 				entry.Summary += " (answered by the fallback profile)"
 			}
@@ -298,7 +300,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 			return err
 		}
 		id = sealed.ID
-		if err := touchMemory(ctx, tx, memIDs, store.FormatTS(s.cfg.Clock())); err != nil {
+		if err := touchMemory(ctx, tx, mem.ids, store.FormatTS(s.cfg.Clock())); err != nil {
 			return err
 		}
 		if res.Downgrade != nil {
@@ -327,6 +329,33 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, bad
 	}
 	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}, nil
+}
+
+// leftOutNote names the memories a hook kept out of the call (ids, never text).
+func leftOutNote(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	return " (memory left out because a hook stopped it: " + strings.Join(ids, ", ") + ")"
+}
+
+// touchSent records the use of the memories when a request was actually sent to a provider but no answer came back: the text has
+// left the box all the same. A write that fails is logged, not returned: the caller already has an error to report.
+func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
+	sent := false
+	for _, a := range res.Attempts {
+		sent = sent || !a.Skipped
+	}
+	if !sent || len(ids) == 0 {
+		return
+	}
+	wctx, cancel := detached(ctx)
+	defer cancel()
+	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		return touchMemory(wctx, tx, ids, store.FormatTS(s.cfg.Clock()))
+	}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "ai: could not record the use of memory", "error", err)
+	}
 }
 
 // failed records a call that got no answer and returns the error the person sees.

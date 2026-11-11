@@ -39,6 +39,13 @@ BEGIN
 END;
 -- +goose StatementEnd
 
+-- Text an administrator rejected, as a SHA-256 digest, for 30 days: SuggestMemory does not bring it back at once. Purged by Go on every reject
+-- and every suggestion.
+CREATE TABLE ai_memory_rejected (
+    digest      TEXT NOT NULL PRIMARY KEY CHECK (length(digest) = 64),
+    rejected_at TEXT NOT NULL CHECK (rejected_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
+
 -- The switch of each product skill. The list of skills is in code; a skill with no row is on.
 CREATE TABLE ai_skill_state (
     id      TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 40),

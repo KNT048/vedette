@@ -118,11 +118,16 @@ type fakeTokens struct {
 	ids   []notify.TokenID
 	addrs []string
 	codes []notify.ReplyCode
+	// codeErr, when set, is what RecordReplyCode answers (nothing is recorded).
+	codeErr error
 }
 
 func (f *fakeTokens) RecordReplyCode(_ context.Context, c notify.ReplyCode) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.codeErr != nil {
+		return f.codeErr
+	}
 	f.codes = append(f.codes, c)
 	return nil
 }

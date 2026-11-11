@@ -35177,7 +35177,7 @@
                                 },
                                 "address": {
                                   "type": "string",
-                                  "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone"
+                                  "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
                                 }
                               },
                               "required": [
@@ -35435,7 +35435,7 @@
                         },
                         "address": {
                           "type": "string",
-                          "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone"
+                          "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
                         }
                       },
                       "required": [
@@ -35558,7 +35558,7 @@
                           },
                           "address": {
                             "type": "string",
-                            "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone"
+                            "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
                           }
                         },
                         "required": [

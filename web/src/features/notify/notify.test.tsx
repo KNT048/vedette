@@ -413,6 +413,25 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect((await put('telegram', { ...base, fields: { chat_id: '-100123' }, approvers: [{ user_id: 'u-view', address: '123456' }] })).status).toBe(400)
   })
 
+  it('Zalo personal: an approver is a Zalo user ID, never a phone number, and one address is one approver (S-NOT-1, D-242)', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const put = (approvers: unknown) => fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8412345678901' }, secret: 'zl-session', approvals: true, approvers }) })
+    for (const phone of ['0912345678', '84912345678', '+84912345678']) {
+      const res = await put([{ user_id: 'u-op', address: phone }])
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error: { code: string; message: string } }
+      expect(body.error.code).toBe('bad_approver_address')
+      expect(body.error.message).toBe("it@acme.example: Enter the approver's Zalo user ID, not a phone number: a reply in Zalo carries the sender's user ID, never the phone number, so a phone number would never match. The user ID is the long number of the Zalo account, for example 2938475610293847561.")
+    }
+    const dup = await put([{ user_id: 'u-op', address: '2938475610293847561' }, { user_id: 'u-admin', address: ' 2938475610293847561 ' }])
+    expect(dup.status).toBe(400)
+    expect((await dup.json() as { error: { code: string; message: string } }).error).toEqual({ code: 'duplicate_address',
+      message: 'admin@acme.example: 2938475610293847561 is already the address of it@acme.example. One address can belong to one approver only.' })
+    expect((await put([{ user_id: 'u-op', address: '2938475610293847561' }, { user_id: 'u-admin', address: '3847561029384756102' }])).status).toBe(200)
+  })
+
   it('Telegram: approvals need a numeric chat ID; a public @name is refused and the message says why (S-NOT-1)', async () => {
     renderChannels()
     await screen.findByRole('table')
@@ -439,13 +458,13 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     await userEvent.click(within(dlg).getByRole('switch', { name: APPROVE_LABEL }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
-    const ids = within(dlg).getAllByLabelText('Zalo user ID or phone')
+    const ids = within(dlg).getAllByLabelText('Zalo user ID')
     expect(ids).toHaveLength(2)
-    await userEvent.type(ids[0]!, '0912345678')
+    await userEvent.type(ids[0]!, '2938475610293847561')
     await userEvent.type(ids[1]!, 'not a number')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
     expect(await within(dlg).findByRole('alert')).toHaveTextContent(/Zalo user ID/)
-    await userEvent.clear(ids[1]!); await userEvent.type(ids[1]!, '84987654321')
+    await userEvent.clear(ids[1]!); await userEvent.type(ids[1]!, '3847561029384756102')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; approvers: unknown[] }[] }).channels.find((c) => c.type === 'zalo-personal')!

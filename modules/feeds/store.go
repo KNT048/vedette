@@ -40,7 +40,7 @@ const (
 const defaultConfidence = 0.5
 
 // Store is the module's database access. Reads use the read-only pool; every write goes through
-// DB.Write, so the pieces of one pull share one transaction (no partial write, INV-3).
+// DB.Write. A pull is one transaction, except an indicator list: that goes in chunks (applyIOCs).
 type Store struct{ db *store.DB }
 
 // NewStore wraps a migrated database.
@@ -699,40 +699,123 @@ type iocInput struct {
 	FirstSeen   string // YYYY-MM-DD or ""
 }
 
+// iocChunkRows is how many listings one write transaction stores. The writer is one connection shared by the
+// whole box, so a 250 000-row list in one transaction stalled every other write for ~20 s; between chunks a
+// waiting write gets the connection.
+const iocChunkRows = 2000
+
 // applyIOCs stores the full listing of one feed: every indicator it lists now, with the other feeds' listings
 // of the same value merged in, and drops the feed's listings that vanished. It returns how many listings were
 // added and removed.
-func applyIOCs(ctx context.Context, tx *sql.Tx, now time.Time, source string, recs []iocInput) (added, removed int, err error) {
+//
+// The list goes in as one transaction per iocChunkRows records, each re-reading the feed row: a feed edited,
+// switched off or deleted meanwhile stops the pull (stale) and no later chunk writes. Every upsert stamps
+// last_seen with this pull's stamp, so the last transactions drop the listings that carry any other stamp (<>, not <:
+// a clock set back leaves older pulls stamped in the future; chunk 0 moves the stamp up by 1 ms until no listing of
+// the feed already has it), 2 000 at a time, and the last one runs finish (the outcome row, the audit entry) with the counts. Until then a reader sees the old and the new
+// list together, never fewer listings; a pull cut off halfway leaves extra rows that the next pull removes.
+// hook, when not nil, runs after each chunk has committed (tests).
+func applyIOCs(ctx context.Context, db *store.DB, now time.Time, src sourceRow, recs []iocInput, hook func(chunk int), finish func(tx *sql.Tx, added, removed int) error) (added, removed int, stale bool, err error) {
 	stamp := store.FormatTS(now)
-	count := func() (int, error) {
+	live := func(tx *sql.Tx) (bool, error) { // false: edited or switched off meanwhile
+		cur, err := sourceTx(ctx, tx, src.ID)
+		if err != nil {
+			return false, err // ErrNotFound: deleted meanwhile
+		}
+		return cur.Rev == src.Rev && cur.Enabled, nil
+	}
+	count := func(tx *sql.Tx) (int, error) {
 		var n int
-		err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_ioc_source WHERE source_id = ?`, source).Scan(&n)
+		err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_ioc_source WHERE source_id = ?`, src.ID).Scan(&n)
 		return n, err
 	}
-	before, err := count()
-	if err != nil {
-		return 0, 0, fmt.Errorf("feeds: count listings: %w", err)
+	var before int
+	for i, chunk := 0, 0; i == 0 || i < len(recs); chunk++ {
+		end := min(i+iocChunkRows, len(recs))
+		part := recs[i:end]
+		err = db.Write(ctx, func(tx *sql.Tx) error {
+			ok, err := live(tx)
+			if err != nil || !ok {
+				stale = !ok
+				return err
+			}
+			if chunk == 0 {
+				if before, err = count(tx); err != nil {
+					return fmt.Errorf("feeds: count listings: %w", err)
+				}
+				for { // a stamp no earlier pull of this feed used, so "any other stamp" means "not in this list"
+					var one int
+					err := tx.QueryRowContext(ctx, `SELECT 1 FROM feeds_ioc_source WHERE source_id = ? AND last_seen = ? LIMIT 1`, src.ID, stamp).Scan(&one)
+					if errors.Is(err, sql.ErrNoRows) {
+						break
+					}
+					if err != nil {
+						return fmt.Errorf("feeds: check stamp: %w", err)
+					}
+					now = now.Add(time.Millisecond)
+					stamp = store.FormatTS(now)
+				}
+			}
+			return upsertIOCs(ctx, tx, stamp, src.ID, part)
+		})
+		if err != nil || stale {
+			return 0, 0, stale, err
+		}
+		if hook != nil {
+			hook(chunk)
+		}
+		i = end
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE feeds_ioc_source SET seen = 0 WHERE source_id = ?`, source); err != nil {
-		return 0, 0, fmt.Errorf("feeds: mark listings: %w", err)
+	for last := false; !last; {
+		err = db.Write(ctx, func(tx *sql.Tx) error {
+			ok, err := live(tx)
+			if err != nil || !ok {
+				stale = !ok
+				return err
+			}
+			res, err := tx.ExecContext(ctx, `DELETE FROM feeds_ioc_source WHERE source_id = ?1 AND ioc_id IN (
+SELECT ioc_id FROM feeds_ioc_source WHERE source_id = ?1 AND last_seen <> ?2 LIMIT ?3)`, src.ID, stamp, iocChunkRows)
+			if err != nil {
+				return fmt.Errorf("feeds: drop listings: %w", err)
+			}
+			n, _ := res.RowsAffected()
+			removed += int(n)
+			if last = n < iocChunkRows; !last {
+				return nil
+			}
+			after, err := count(tx)
+			if err != nil {
+				return fmt.Errorf("feeds: count listings: %w", err)
+			}
+			added = after - (before - removed)
+			return finish(tx, added, removed)
+		})
+		if err != nil || stale {
+			return 0, 0, stale, err
+		}
 	}
+	return added, removed, false, nil
+}
+
+// upsertIOCs stores one chunk of a feed's listing, stamping every row with the pull's stamp.
+func upsertIOCs(ctx context.Context, tx *sql.Tx, stamp, source string, recs []iocInput) error {
 	upsertIOC, err := tx.PrepareContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(type, value) DO UPDATE SET last_seen = excluded.last_seen, first_seen = min(first_seen, excluded.first_seen)
 RETURNING id`)
 	if err != nil {
-		return 0, 0, fmt.Errorf("feeds: prepare indicator: %w", err)
+		return fmt.Errorf("feeds: prepare indicator: %w", err)
 	}
 	defer func() { _ = upsertIOC.Close() }()
-	upsertSrc, err := tx.PrepareContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence, seen) VALUES (?, ?, ?, ?, 1)
-ON CONFLICT(ioc_id, source_id) DO UPDATE SET last_seen = excluded.last_seen, confidence = excluded.confidence, seen = 1`)
+	upsertSrc, err := tx.PrepareContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES (?, ?, ?, ?)
+ON CONFLICT(ioc_id, source_id) DO UPDATE SET last_seen = excluded.last_seen, confidence = excluded.confidence`)
 	if err != nil {
-		return 0, 0, fmt.Errorf("feeds: prepare listing: %w", err)
+		return fmt.Errorf("feeds: prepare listing: %w", err)
 	}
 	defer func() { _ = upsertSrc.Close() }()
 	for i, r := range recs {
 		if i%1024 == 0 {
 			if err := ctx.Err(); err != nil {
-				return 0, 0, err
+				return err
 			}
 		}
 		first := stamp
@@ -744,27 +827,17 @@ ON CONFLICT(ioc_id, source_id) DO UPDATE SET last_seen = excluded.last_seen, con
 		}
 		var id string
 		if err := upsertIOC.QueryRowContext(ctx, store.NewID("ioc"), r.Kind, r.Value, first, stamp).Scan(&id); err != nil {
-			return 0, 0, fmt.Errorf("feeds: store indicator: %w", err)
+			return fmt.Errorf("feeds: store indicator: %w", err)
 		}
 		conf := defaultConfidence
 		if r.Confidence != nil {
 			conf = *r.Confidence
 		}
 		if _, err := upsertSrc.ExecContext(ctx, id, source, stamp, conf); err != nil {
-			return 0, 0, fmt.Errorf("feeds: store listing: %w", err)
+			return fmt.Errorf("feeds: store listing: %w", err)
 		}
 	}
-	res, err := tx.ExecContext(ctx, `DELETE FROM feeds_ioc_source WHERE source_id = ? AND seen = 0`, source)
-	if err != nil {
-		return 0, 0, fmt.Errorf("feeds: drop listings: %w", err)
-	}
-	r64, _ := res.RowsAffected()
-	removed = int(r64)
-	after, err := count()
-	if err != nil {
-		return 0, 0, fmt.Errorf("feeds: count listings: %w", err)
-	}
-	return after - (before - removed), removed, nil
+	return nil
 }
 
 // IOCSighting is one feed's listing of an indicator.

@@ -236,6 +236,9 @@ func template(migs []Migration) ([]byte, error) {
 	}
 	templatesMu.Unlock()
 	m.once.Do(func() { m.b, m.err = buildTemplate(migs) })
+	if m.err == nil && len(m.b) == 0 {
+		return nil, errors.New("the template database was not built (an earlier build panicked)")
+	}
 	return m.b, m.err
 }
 

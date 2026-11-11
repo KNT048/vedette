@@ -465,8 +465,7 @@ func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
 	}
 }
 
-func TestCatalogSearchCapsTheTerms(t *testing.T) {
-	t.Parallel()
+func TestCatalogSearchCapsTheTerms(t *testing.T) { // not parallel: it compares wall-clock times of two runs
 	e := newEnv(t)
 	run := func(words int) time.Duration {
 		start := time.Now()

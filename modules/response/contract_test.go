@@ -368,7 +368,7 @@ func TestContract_INV9_GatesAgainRightBeforeRunning(t *testing.T) {
 // INV-10: never-touch at planning: a listed address, a range that holds it, the box itself, a domain and its subdomains.
 func TestContract_INV10_NeverTouchAtPlanning(t *testing.T) {
 	e := newEnv(t, func(c *response.Config) {
-		c.BoxAddrs = func() []netipAddr { return []netipAddr{mustAddr("203.0.113.250")} }
+		c.BoxAddrs = func() ([]netipAddr, error) { return []netipAddr{mustAddr("203.0.113.250")}, nil }
 	})
 	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "1.1.1.1", Label: "Public DNS"}, {Value: "192.168.99.0/24", Label: "Management"}, {Value: "Mail.Acme.Example", Label: "Mail"}})
 	e.must(err)

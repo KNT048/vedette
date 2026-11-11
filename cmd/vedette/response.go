@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/knt048/vedette/core/conn/write"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
@@ -334,11 +336,62 @@ func newResponse(d *deps) (*response.Service, error) {
 	return svc, nil
 }
 
+// decoyIPs is what responseBoxAddrs asks for the decoy addresses: the honeypot's DecoyIPsRead.
+type decoyIPs interface {
+	DecoyIPsRead(ctx context.Context) ([]netip.Addr, error)
+}
+
+// lateDecoys is the honeypot of deps, read when asked: it is built after response, and there may be none.
+type lateDecoys struct{ d *deps }
+
+func (l lateDecoys) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
+	if l.d.Honeypot == nil {
+		return nil, nil
+	}
+	return l.d.Honeypot.DecoyIPsRead(ctx)
+}
+
+var errHostNetUnknown = errors.New("vedette-host has not reported the addresses of the box yet")
+
+// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache, read without waiting) and the
+// decoy addresses of the honeypot, the same sources as core/conn's boxSources. A set that is not known (a configured host that has never answered,
+// an unreadable honeypot record) is an error, so response refuses instead of checking against a smaller set (D-179 (8), as notify since #157).
+func responseBoxAddrs(host func() ([]netip.Addr, bool), decoys decoyIPs) func() ([]netip.Addr, error) {
+	return func() ([]netip.Addr, error) {
+		out, known := host()
+		if !known {
+			return nil, errHostNetUnknown
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Config.BoxAddrs has no context; the honeypot read is one short query
+		defer cancel()
+		more, err := decoys.DecoyIPsRead(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return append(out, more...), nil
+	}
+}
+
+// responseBoxMACs is response's Config.BoxMACs: the MACs of the decoys and cards that vedette-host reports.
+func responseBoxMACs(h *hostMACs) func() ([]string, error) {
+	return func() ([]string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)
+		defer cancel()
+		return h.Get(ctx)
+	}
+}
+
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings}}
+	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
+	var hostState netStateReader
+	if d.HostSocket != "" {
+		hostState = hostclient.New(d.HostSocket)
+	}
+	cfg.BoxMACs = responseBoxMACs(&hostMACs{r: hostState, now: d.Clock})
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
 		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An

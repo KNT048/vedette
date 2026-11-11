@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -187,6 +188,17 @@ func check(in Input, existing *Connection, env checkEnv) (*checked, *apierr.Erro
 			if t.Access != nil {
 				return nil, bad("invalid_tool_access", "Only tools of an MCP server can be marked read or write; the built-in tools of this kind are fixed.", "tools")
 			}
+		}
+	}
+	for _, t := range in.Tools { // D-179 (5): a tool the server says may change something can never be marked read
+		if t.Access == nil {
+			continue
+		}
+		if *t.Access != "read" && *t.Access != "write" {
+			return nil, bad("invalid_tool_access", "A tool is read or write.", "tools")
+		}
+		if existing != nil && *t.Access == "read" && slices.ContainsFunc(existing.Tools, func(x Tool) bool { return x.Name == t.Name && x.MayWrite() }) {
+			return nil, bad("invalid_tool_access", "The server says the tool "+t.Name+" can change something (its destructive or not-read-only hint), so it cannot be marked read.", "tools")
 		}
 	}
 	var asset *string

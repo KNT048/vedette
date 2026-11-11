@@ -2,8 +2,6 @@
 
 Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Medium, 17 Low). One line per finding; a line goes when its PR merges.
 
-- [ ] R1 leftover (D-174 covers headers only): a credential-looking key in a template's JSON body (`"password"`, `"api_key"`, `"token"`...) or a secret typed into CLI text ends up in the chain/audit rows and chat messages; add a body-JSON credential-key check at save → slice R2.
-- [ ] L1, L2, L3, L5 response execution path (re-check earlier approver, count unknown-state items, hash-check undo, emergency stop interrupts a running step) + L4 (latent SYS-8, MCP annotations) + L9 (BoxAddrs for decoy IPs) → slice R2, after R1.
 - [ ] L7 response/notify: approver channel identity is typed by an admin, never proven by the user → needs a story criterion (link step in My account) first; slice R3.
 - [ ] L11 honeypot: failed teardown never retried while the module is off (SYS-5) → slice H (Mac).
 - [ ] L13 honeypot: `clean()` keeps variation selectors → slice H.

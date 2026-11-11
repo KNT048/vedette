@@ -294,7 +294,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `sso_failed` | 400 | The identity provider's answer could not be verified. Ask an administrator to check the SSO settings; the audit log has the reason. | `POST /auth/oidc/callback`: code exchange refused, or the ID token fails a check (signature, alg, iss, aud/azp, exp, nonce); `auth.login_failed` says which (D-194 (3)) |
 | `temp_password_expired` | 400 | This temporary password has expired. Ask an administrator for a new one. | `POST /auth/login` (D-180) |
 | `telemetry_unavailable` | 400 | This version of Vedette does not send an anonymous signal, so it cannot be turned on. | `PATCH /core/privacy` với `telemetry: true` (backend; D-154. Không có trong mock; GUI không gửi từ D-153) |
-| `tls_unavailable` | 400 | Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP. | module logs (D-203) |
+| `tls_unavailable` | 400 | Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP. | module logs (D-203, D-214): chỉ trên hộp không có cấu hình TLS (loopback/dev) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
 | `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections`; `POST /core/mcp/tokens`: "A box holds up to 10 MCP tokens. Revoke one you no longer use." (D-231) |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |

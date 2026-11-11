@@ -362,7 +362,7 @@ func TestLoginAuthenticatorApp(t *testing.T) {
 	if e.Extra["method"] != "app" || len(e.Extra) != 1 {
 		t.Fatalf("extra = %v", e.Extra)
 	}
-	_, err = env.Login(t, "ann@acme.example", "000000")
+	_, err = env.Login(t, "ann@acme.example", authtest.WrongTOTP(secret, env.Clock.Now()))
 	wantAPI(t, err, 400, "invalid_code")
 	_, err = env.Login(t, "ann@acme.example", "abc")
 	wantAPI(t, err, 400, "invalid_code")

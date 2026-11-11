@@ -585,7 +585,7 @@ func TestContract_INV14_NeedsThePasswordAndTheTwoStepCode(t *testing.T) {
 	w2.env.Clock.Advance(time.Minute) // a code for a later step: the one that confirmed the enrolment is used up
 	wantStatus(t, admin2.post("/core/data/purge", purgeBody()), 400, "code_required")
 	bad := purgeBody()
-	bad["code"] = "000000"
+	bad["code"] = authtest.WrongTOTP(key, w2.env.Clock.Now())
 	if r := admin2.post("/core/data/purge", bad); r.Code != 400 || r.code() == "" {
 		t.Fatalf("wrong code = %d %s", r.Code, r.Raw)
 	}

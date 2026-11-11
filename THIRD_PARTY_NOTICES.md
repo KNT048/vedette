@@ -45,7 +45,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | github.com/coreos/go-oidc/v3 (package `oidc`) | v3.21.0 | Apache-2.0 | embedded: OpenID Connect discovery and ID-token verification for SSO sign-in (`modules/auth-oidc`, D-194, D-197): issuer match, signature with the issuer's JWKS, alg allowlist, aud, exp |
 | github.com/go-jose/go-jose/v4 | v4.1.4 | Apache-2.0 | embedded: via go-oidc, JWS parsing and signature checks of the ID token (also used by the tests' fake identity provider) |
 | golang.org/x/oauth2 | v0.37.0 | BSD-3-Clause | embedded: the authorization-code request and token exchange with PKCE S256 of SSO sign-in (`modules/auth-oidc`, D-197) |
-| github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; the first importer (WP-22) turns the `// indirect` mark into a direct requirement |
+| github.com/coder/websocket | v1.8.15 | ISC | embedded: outward WebSocket client for notify approvals: Slack Socket Mode (D-38) and the Zalo personal reply-code listener (D-46); no dependencies of its own. Added for issue #43; a direct requirement since the Slack Socket Mode listener (notify slice 3) |
 
 ### Generated API server (`core/api/oas`, ogen, D-60)
 

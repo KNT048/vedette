@@ -2380,7 +2380,8 @@ func (s *AiGetAiHooksOKCustomItemAction) UnmarshalText(data []byte) error {
 }
 
 type AiGetAiHooksOKCustomItemMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                            `json:"pattern"`
 	Type    AiGetAiHooksOKCustomItemMatchType `json:"type"`
 }
@@ -5775,7 +5776,8 @@ func (s *AiPostAiHooksOKAction) UnmarshalText(data []byte) error {
 }
 
 type AiPostAiHooksOKMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                   `json:"pattern"`
 	Type    AiPostAiHooksOKMatchType `json:"type"`
 }
@@ -6013,7 +6015,8 @@ func (s *AiPostAiHooksReqAction) UnmarshalText(data []byte) error {
 }
 
 type AiPostAiHooksReqMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                    `json:"pattern"`
 	Type    AiPostAiHooksReqMatchType `json:"type"`
 }
@@ -6595,7 +6598,8 @@ func (s *AiPostAiHooksTestReqHookAction) UnmarshalText(data []byte) error {
 }
 
 type AiPostAiHooksTestReqHookMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                            `json:"pattern"`
 	Type    AiPostAiHooksTestReqHookMatchType `json:"type"`
 }
@@ -9453,7 +9457,8 @@ func (s *AiPutAiHooksIDOKAction) UnmarshalText(data []byte) error {
 }
 
 type AiPutAiHooksIDOKMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                    `json:"pattern"`
 	Type    AiPutAiHooksIDOKMatchType `json:"type"`
 }
@@ -9691,7 +9696,8 @@ func (s *AiPutAiHooksIDReqAction) UnmarshalText(data []byte) error {
 }
 
 type AiPutAiHooksIDReqMatch struct {
-	// Keywords: comma-separated words; regex: JavaScript regular expression.
+	// Keywords: comma-separated words; regex: RE2 regular expression (Go syntax; no lookahead, lookbehind
+	// or backreferences).
 	Pattern string                     `json:"pattern"`
 	Type    AiPutAiHooksIDReqMatchType `json:"type"`
 }

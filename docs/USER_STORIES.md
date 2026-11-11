@@ -116,7 +116,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 ## REP — Báo cáo
 
 **S-REP-1** (P1, P3) `[đạt]` — Báo cáo tuần 1 trang tiếng Việt: có gì mới, đã xử lý gì, còn gì, gửi tự động.
-**S-REP-2** (P1, P2) `[đạt]` — Báo cáo tự đánh giá bảo vệ dữ liệu cá nhân theo Luật 91/2025/QH15 + Nghị định 356/2025/NĐ-CP (áp dụng theo quy mô tổ chức; cấp độ hệ thống thông tin là chế độ riêng, tuỳ chọn) từ kiểm kê + scan, xuất PDF để lưu; có câu miễn trừ và nguồn pháp lý.
+**S-REP-2** (P1, P2) `[đạt]` — Báo cáo tự đánh giá bảo vệ dữ liệu cá nhân theo Luật 91/2025/QH15 + Nghị định 356/2025/NĐ-CP (áp dụng theo quy mô tổ chức; cấp độ hệ thống thông tin là chế độ riêng, tuỳ chọn) từ kiểm kê + scan, xuất PDF để lưu; có câu miễn trừ và nguồn pháp lý. Biện pháp kỹ thuật thiếu dữ liệu vì module tắt (nhật ký, bẫy, quét) hiện "chưa có dữ liệu", không bao giờ "ổn" hay "cần cải thiện" (D-237).
 
 ## NOTIFY / CORE / FLEET
 

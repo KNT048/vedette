@@ -45,7 +45,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [x] Lỗi GUI Settings của core: #247, #256, #215; #251 giới hạn chờ writer (#283, D-246); orphan-reaper (#252); feeds không tự kết nối box (#309, D-208).
 
 **Phía Emily — AI-Mlee**
-- [x] feeds (#222, #260), findings + mitigation (#228), notify (#235), exposure (#262), scan S0–S5 (#208, #189/#190), `ai` lát 1–4c và 6: 1 (#123), 2 (#179), 3 (#205), 4a (#273), 4a-2 (#289), 4b (#310), 4c kho tri thức FTS5 (#323), 6 tin CVE (#326, bản Mac); feeds SSRF cổng riêng (#309, D-208); logs L1 (#186), an toàn production (#226), N1/N2 (#233), purge (#249), L2 syslog UDP/TCP (#267), L3 chữ ký (#331); core purge FTS (#329).
+- [x] feeds (#222, #260), findings + mitigation (#228), notify (#235), exposure (#262), scan S0–S5 (#208, #189/#190), `ai` lát 1–4c và 6: 1 (#123), 2 (#179), 3 (#205), 4a (#273), 4a-2 (#289), 4b (#310), 4c kho tri thức FTS5 (#323), 6 tin CVE (#326, bản Mac); feeds SSRF cổng riêng (#309, D-208); logs L1 (#186), an toàn production (#226), N1/N2 (#233), purge (#249), L2 syslog UDP/TCP (#267), L3 chữ ký (#331), TopAddresses (#347, #338, D-210), L4 IOC + kết nối xấu (PR này, D-213), L5 SIEM (#344, bản Mac), L7 GUI thật (#351, #355, bản Mac); `ai` 5a hỏi dữ liệu + công cụ đọc (#346, D-211, D-212), 4c PDF qua tiến trình con (#357); core purge FTS (#329).
 
 ## Còn lại tới "app chạy đủ chức năng"
 **AI-Trưởng (Ubuntu `byn`)**
@@ -60,8 +60,8 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) và spec e2e-real SSO (WP-30) — xem `.ai/deferred/feat-auth-oidc.md`.
 
 **AI-Mlee (Ubuntu `byn2`)**
-- [ ] WP-24 logs: L4–L7 (L3 #331 đã merge).
-- [ ] WP-25 ai: lát 5a (hỏi dữ liệu + công cụ đọc của hộp và kết nối, đang làm) → 5b (log digest, `log-investigate`, `events_around`) → lát 7. (Các lát 4b, 4c, 6 đã merge.)
+- [ ] WP-24 logs: L6 (sensor SPAN, issue cho Kiên) và listener TLS 6514; L1–L5, L7 xong.
+- [ ] WP-25 ai: 5b (log digest, `log-investigate`, `events_around`) tiếp theo; lát 7 (đề xuất qua `Propose`, `ConfigRead`) giao cho Mac (handover-mac4, D-310..D-314). (1–4c, 5a, 6 đã merge.)
 
 **Chờ kien (người)**
 - [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.

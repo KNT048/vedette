@@ -374,7 +374,7 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 		sum.DryRun++
 		var would []string
 		for _, p := range fresh {
-			would = append(would, p.rec.Title+" ("+firstLine(callText(p.rec.Change.Rest, p.rec.Change.CLI))+")")
+			would = append(would, p.rec.Title+" ("+firstLine(callFirstLine(p.rec.Change.Rest, p.rec.Change.CLI))+")")
 		}
 		return "", s.step(ctx, tx, "response.dry_run", rule.ID, LogDryRun, rule.Name+": dry run, nothing was requested or run. Would do: "+strings.Join(would, "; "), actor)
 	}

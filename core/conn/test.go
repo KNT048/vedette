@@ -277,7 +277,7 @@ func (s *Service) probe(ctx context.Context, c Connection, secret secrets.Value)
 	// Trust on first use is for the first Test only: with any pin (a key, or "a public authority vouches for it") a certificate that
 	// does not fit is refused. The first success records which of the two it was.
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: s.dialer(), Pin: tlsPin(c.Pin), TOFU: c.Pin == nil, Roots: s.roots})
-	auth := transport.Auth{Type: c.Auth.Type, Username: deref(c.Username), Secret: secret}
+	auth := transport.Auth{Type: c.Auth.Type, Header: deref(c.Auth.Header), Username: deref(c.Username), Secret: secret}
 	var out outcome
 	switch c.Kind {
 	case KindMCP:

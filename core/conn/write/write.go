@@ -400,7 +400,7 @@ func (w *Writer) https(ctx context.Context, c conn.Connection, secret secrets.Va
 	acc := w.c.WriteAccess(cred.Grant())
 	// TOFU is never on here: a certificate is trusted by the pin the first Test took, or by the system roots when that is what it recorded.
 	cl := transport.NewHTTPS(transport.HTTPSConfig{Dialer: acc.Dialer, Pin: tlsPin(c.Pin), TOFU: false, Roots: acc.Roots})
-	auth := transport.Auth{Type: c.Auth.Type, Secret: secret}
+	auth := transport.Auth{Type: c.Auth.Type, Header: deref(c.Auth.Header), Secret: secret}
 	if c.Username != nil {
 		auth.Username = *c.Username
 	}
@@ -545,4 +545,11 @@ func failure(err error, sent, reads bool, c conn.Connection, redact []string) Re
 		return res(StatusFailed, "%s", msg)
 	}
 	return res(StatusUnknown, "%s: %s; the step may or may not have been applied", c.Target, msg)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

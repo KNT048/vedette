@@ -12856,6 +12856,9 @@ func (s *CoreGetCoreConnectionsOKItemsItem) SetUsername(val NilString) {
 }
 
 type CoreGetCoreConnectionsOKItemsItemAuth struct {
+	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
+	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
 	KeyFingerprint NilString `json:"key_fingerprint"`
@@ -12863,6 +12866,11 @@ type CoreGetCoreConnectionsOKItemsItemAuth struct {
 	// never returned (SYS-4).
 	Last4 NilString                                 `json:"last4"`
 	Type  CoreGetCoreConnectionsOKItemsItemAuthType `json:"type"`
+}
+
+// GetHeader returns the value of Header.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetHeader() NilString {
+	return s.Header
 }
 
 // GetKeyFingerprint returns the value of KeyFingerprint.
@@ -12878,6 +12886,11 @@ func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CoreGetCoreConnectionsOKItemsItemAuth) GetType() CoreGetCoreConnectionsOKItemsItemAuthType {
 	return s.Type
+}
+
+// SetHeader sets the value of Header.
+func (s *CoreGetCoreConnectionsOKItemsItemAuth) SetHeader(val NilString) {
+	s.Header = val
 }
 
 // SetKeyFingerprint sets the value of KeyFingerprint.
@@ -20986,6 +20999,9 @@ func (s *CorePostCoreConnectionsCreated) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsCreatedAuth struct {
+	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
+	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
 	KeyFingerprint NilString `json:"key_fingerprint"`
@@ -20993,6 +21009,11 @@ type CorePostCoreConnectionsCreatedAuth struct {
 	// never returned (SYS-4).
 	Last4 NilString                              `json:"last4"`
 	Type  CorePostCoreConnectionsCreatedAuthType `json:"type"`
+}
+
+// GetHeader returns the value of Header.
+func (s *CorePostCoreConnectionsCreatedAuth) GetHeader() NilString {
+	return s.Header
 }
 
 // GetKeyFingerprint returns the value of KeyFingerprint.
@@ -21008,6 +21029,11 @@ func (s *CorePostCoreConnectionsCreatedAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePostCoreConnectionsCreatedAuth) GetType() CorePostCoreConnectionsCreatedAuthType {
 	return s.Type
+}
+
+// SetHeader sets the value of Header.
+func (s *CorePostCoreConnectionsCreatedAuth) SetHeader(val NilString) {
+	s.Header = val
 }
 
 // SetKeyFingerprint sets the value of KeyFingerprint.
@@ -21590,6 +21616,9 @@ func (s *CorePostCoreConnectionsIDTestOKConnector) SetUsername(val NilString) {
 }
 
 type CorePostCoreConnectionsIDTestOKConnectorAuth struct {
+	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
+	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
 	KeyFingerprint NilString `json:"key_fingerprint"`
@@ -21597,6 +21626,11 @@ type CorePostCoreConnectionsIDTestOKConnectorAuth struct {
 	// never returned (SYS-4).
 	Last4 NilString                                        `json:"last4"`
 	Type  CorePostCoreConnectionsIDTestOKConnectorAuthType `json:"type"`
+}
+
+// GetHeader returns the value of Header.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetHeader() NilString {
+	return s.Header
 }
 
 // GetKeyFingerprint returns the value of KeyFingerprint.
@@ -21612,6 +21646,11 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) GetType() CorePostCoreConnectionsIDTestOKConnectorAuthType {
 	return s.Type
+}
+
+// SetHeader sets the value of Header.
+func (s *CorePostCoreConnectionsIDTestOKConnectorAuth) SetHeader(val NilString) {
+	s.Header = val
 }
 
 // SetKeyFingerprint sets the value of KeyFingerprint.
@@ -21986,9 +22025,14 @@ func (s *CorePostCoreConnectionsIDTestOKConnectorToolsItemAccess) UnmarshalText(
 }
 
 type CorePostCoreConnectionsReq struct {
-	Allow    []string                           `json:"allow"`
-	AssetID  OptNilString                       `json:"asset_id"`
-	AuthType CorePostCoreConnectionsReqAuthType `json:"auth_type"`
+	Allow   []string     `json:"allow"`
+	AssetID OptNilString `json:"asset_id"`
+	// Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or
+	// null sends Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length,
+	// Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400
+	// invalid.
+	AuthHeader OptNilString                       `json:"auth_header"`
+	AuthType   CorePostCoreConnectionsReqAuthType `json:"auth_type"`
 	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
 	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
 	// change of sign-in keeps it.
@@ -22014,6 +22058,11 @@ func (s *CorePostCoreConnectionsReq) GetAllow() []string {
 // GetAssetID returns the value of AssetID.
 func (s *CorePostCoreConnectionsReq) GetAssetID() OptNilString {
 	return s.AssetID
+}
+
+// GetAuthHeader returns the value of AuthHeader.
+func (s *CorePostCoreConnectionsReq) GetAuthHeader() OptNilString {
+	return s.AuthHeader
 }
 
 // GetAuthType returns the value of AuthType.
@@ -22069,6 +22118,11 @@ func (s *CorePostCoreConnectionsReq) SetAllow(val []string) {
 // SetAssetID sets the value of AssetID.
 func (s *CorePostCoreConnectionsReq) SetAssetID(val OptNilString) {
 	s.AssetID = val
+}
+
+// SetAuthHeader sets the value of AuthHeader.
+func (s *CorePostCoreConnectionsReq) SetAuthHeader(val OptNilString) {
+	s.AuthHeader = val
 }
 
 // SetAuthType sets the value of AuthType.
@@ -29579,6 +29633,9 @@ func (s *CorePutCoreConnectionsIDOK) SetUsername(val NilString) {
 }
 
 type CorePutCoreConnectionsIDOKAuth struct {
+	// Token sign-in only: the name of the header the token is sent in (D-174), for a device whose API
+	// wants a key header. null sends Authorization: Bearer . The token itself stays in the vault.
+	Header NilString `json:"header"`
 	// SSH key only: SHA256: fingerprint of the saved private key, like GitHub shows for a key. The mock
 	// uses a hash of the key body; the backend computes the public-key fingerprint.
 	KeyFingerprint NilString `json:"key_fingerprint"`
@@ -29586,6 +29643,11 @@ type CorePutCoreConnectionsIDOKAuth struct {
 	// never returned (SYS-4).
 	Last4 NilString                          `json:"last4"`
 	Type  CorePutCoreConnectionsIDOKAuthType `json:"type"`
+}
+
+// GetHeader returns the value of Header.
+func (s *CorePutCoreConnectionsIDOKAuth) GetHeader() NilString {
+	return s.Header
 }
 
 // GetKeyFingerprint returns the value of KeyFingerprint.
@@ -29601,6 +29663,11 @@ func (s *CorePutCoreConnectionsIDOKAuth) GetLast4() NilString {
 // GetType returns the value of Type.
 func (s *CorePutCoreConnectionsIDOKAuth) GetType() CorePutCoreConnectionsIDOKAuthType {
 	return s.Type
+}
+
+// SetHeader sets the value of Header.
+func (s *CorePutCoreConnectionsIDOKAuth) SetHeader(val NilString) {
+	s.Header = val
 }
 
 // SetKeyFingerprint sets the value of KeyFingerprint.
@@ -29975,9 +30042,14 @@ func (s *CorePutCoreConnectionsIDOKToolsItemAccess) UnmarshalText(data []byte) e
 }
 
 type CorePutCoreConnectionsIDReq struct {
-	Allow    []string                            `json:"allow"`
-	AssetID  OptNilString                        `json:"asset_id"`
-	AuthType CorePutCoreConnectionsIDReqAuthType `json:"auth_type"`
+	Allow   []string     `json:"allow"`
+	AssetID OptNilString `json:"asset_id"`
+	// Token sign-in only (D-174): the header name the token is sent in, for example X-API-Key; empty or
+	// null sends Authorization: Bearer . An RFC 7230 token that is not Host, Content-Length,
+	// Transfer-Encoding, Connection and the like (400 invalid_auth_header); with another sign-in 400
+	// invalid.
+	AuthHeader OptNilString                        `json:"auth_header"`
+	AuthType   CorePutCoreConnectionsIDReqAuthType `json:"auth_type"`
 	// True = forget the pinned certificate or host key; the next Test pins again. It is also forgotten
 	// when the kind changes or the host or port changes (a trailing slash or path does not count); a
 	// change of sign-in keeps it.
@@ -30003,6 +30075,11 @@ func (s *CorePutCoreConnectionsIDReq) GetAllow() []string {
 // GetAssetID returns the value of AssetID.
 func (s *CorePutCoreConnectionsIDReq) GetAssetID() OptNilString {
 	return s.AssetID
+}
+
+// GetAuthHeader returns the value of AuthHeader.
+func (s *CorePutCoreConnectionsIDReq) GetAuthHeader() OptNilString {
+	return s.AuthHeader
 }
 
 // GetAuthType returns the value of AuthType.
@@ -30058,6 +30135,11 @@ func (s *CorePutCoreConnectionsIDReq) SetAllow(val []string) {
 // SetAssetID sets the value of AssetID.
 func (s *CorePutCoreConnectionsIDReq) SetAssetID(val OptNilString) {
 	s.AssetID = val
+}
+
+// SetAuthHeader sets the value of AuthHeader.
+func (s *CorePutCoreConnectionsIDReq) SetAuthHeader(val OptNilString) {
+	s.AuthHeader = val
 }
 
 // SetAuthType sets the value of AuthType.
@@ -94885,6 +94967,9 @@ func (s *ResponseGetResponseAllowlistOKItemsItem) SetValue(val string) {
 }
 
 type ResponseGetResponseApproveTokenOK struct {
+	// True when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false
+	// unless state is ready.
+	AiGenerated       bool                                         `json:"ai_generated"`
 	ApprovedSoFar     NilInt                                       `json:"approved_so_far"`
 	Approver          NilString                                    `json:"approver"`
 	ExpiresAt         NilDateTime                                  `json:"expires_at"`
@@ -94893,6 +94978,11 @@ type ResponseGetResponseApproveTokenOK struct {
 	State             ResponseGetResponseApproveTokenOKState       `json:"state"`
 	Status            NilResponseGetResponseApproveTokenOKStatus   `json:"status"`
 	Title             NilString                                    `json:"title"`
+}
+
+// GetAiGenerated returns the value of AiGenerated.
+func (s *ResponseGetResponseApproveTokenOK) GetAiGenerated() bool {
+	return s.AiGenerated
 }
 
 // GetApprovedSoFar returns the value of ApprovedSoFar.
@@ -94933,6 +95023,11 @@ func (s *ResponseGetResponseApproveTokenOK) GetStatus() NilResponseGetResponseAp
 // GetTitle returns the value of Title.
 func (s *ResponseGetResponseApproveTokenOK) GetTitle() NilString {
 	return s.Title
+}
+
+// SetAiGenerated sets the value of AiGenerated.
+func (s *ResponseGetResponseApproveTokenOK) SetAiGenerated(val bool) {
+	s.AiGenerated = val
 }
 
 // SetApprovedSoFar sets the value of ApprovedSoFar.

@@ -15261,6 +15261,10 @@ func (s *AiPostAiKnowledgeReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *AiPostAiKnowledgeReq) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("content")
+		e.Str(s.Content)
+	}
+	{
 		if s.Jobs != nil {
 			e.FieldStart("jobs")
 			e.ArrStart()
@@ -15280,10 +15284,11 @@ func (s *AiPostAiKnowledgeReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiPostAiKnowledgeReq = [3]string{
-	0: "jobs",
-	1: "name",
-	2: "size",
+var jsonFieldsNameOfAiPostAiKnowledgeReq = [4]string{
+	0: "content",
+	1: "jobs",
+	2: "name",
+	3: "size",
 }
 
 // Decode decodes AiPostAiKnowledgeReq from json.
@@ -15295,6 +15300,18 @@ func (s *AiPostAiKnowledgeReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "content":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Content = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"content\"")
+			}
 		case "jobs":
 			if err := func() error {
 				s.Jobs = make([]AiPostAiKnowledgeReqJobsItem, 0)
@@ -15313,7 +15330,7 @@ func (s *AiPostAiKnowledgeReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"jobs\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -15325,7 +15342,7 @@ func (s *AiPostAiKnowledgeReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "size":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Size = int(v)
@@ -15346,7 +15363,7 @@ func (s *AiPostAiKnowledgeReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000110,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

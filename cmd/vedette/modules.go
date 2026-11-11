@@ -129,14 +129,14 @@ func wiredModules() []moduleWiring {
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
-		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},          // no capture job: packets are read in the sensor container only (D-141)
-		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
-		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
-		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
-		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
-		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); the job prunes the activity log
-		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},    // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
-		{ID: "mcp-server", Migrations: mcpserver.Migrations},                  // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only (D-141)
+		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs},          // after notify and inventory (manifest depends)
+		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs},          // depends on core and inventory (MANIFEST)
+		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},                      // depends on core, inventory and feeds (MANIFEST)
+		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},                // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
+		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs, BodyLimits: ai.BodyLimits}, // depends on core only (MANIFEST); the job prunes the activity log
+		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},             // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
+		{ID: "mcp-server", Migrations: mcpserver.Migrations},                           // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
 	}
 }
 

@@ -57,6 +57,27 @@ func moduleSchema(t *testing.T) map[string][][2]string {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
+	// A full-text index (FTS5, ai_knowledge_chunk_fts) is a virtual table with shadow tables of its own (<name>_data, _idx, _docsize,
+	// _config). It holds nothing that its content table does not, and the content table is classified: the index is never exported.
+	virt, err := db.Reader().QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = virt.Close() }()
+	for virt.Next() {
+		var v string
+		if err := virt.Scan(&v); err != nil {
+			t.Fatal(err)
+		}
+		for tbl := range out {
+			if tbl == v || strings.HasPrefix(tbl, v+"_") {
+				delete(out, tbl)
+			}
+		}
+	}
+	if err := virt.Err(); err != nil {
+		t.Fatal(err)
+	}
 	return out
 }
 

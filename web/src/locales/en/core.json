@@ -333,6 +333,9 @@
       "logs.purge": "Delete received log lines",
       "logs.purge_started": "Start deleting received log lines",
       "logs.retention": "Change log retention",
+      "logs.siem_dropped": "SIEM queue full, records dropped",
+      "logs.siem_save": "Save SIEM forwarding",
+      "logs.siem_test": "Send a SIEM test record",
       "logs.source_add": "Add log source",
       "logs.source_edit": "Change log source",
       "logs.source_delete": "Delete log source",
@@ -791,7 +794,7 @@
       },
       "7": {
         "name": "Forwarding to a SIEM",
-        "what": "Vedette events (alerts, trap touches, merged logs) as syslog, CEF or JSON.",
+        "what": "The Vedette events you choose (findings, incidents, trap touches, connections to known-bad addresses) as syslog, CEF or JSON. Each record has the event name, time, severity, identifiers, addresses and short labels from the event; no log lines.",
         "to": "The SIEM or webhook target you enter",
         "control": "No configuration, no flow. Remove the target to turn it off.",
         "link": "Open SIEM settings"

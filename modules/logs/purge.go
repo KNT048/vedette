@@ -229,20 +229,52 @@ func (s *Service) dropStale(ctx context.Context) error {
 	})
 }
 
-// Jobs returns the jobs of the module (core runs one only while the module is on). The purge shares the flag of the purge that
-// Ingest starts: when one is under way the job skips its turn. The first run after a start recomputes the byte counter from
-// the lines, so that a counter that drifted (a crash cannot do it, an older binary can) does not outlive a restart.
+// Jobs returns the jobs of the module (core runs one only while the module is on). The purge job's Run is long-lived: it
+// lives until its context ends, which is when the module is turned off or the process shuts down, so core/jobs cancels a
+// purge in the middle and its panic recovery covers it. On entry it recounts the byte counter from the lines (a counter that
+// drifted, which an older binary can cause, must not make the first purge delete real lines); then it purges, and waits for
+// the next kick (Ingest, over the bound; skipped when the last purge started less than purgeGap ago) or PurgeEvery.
+// Core records one history row when Run ends, so the history shows one long run per time the module was on, not one per hour.
 func Jobs(svc *Service) []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: func(ctx context.Context) error {
-		if !svc.purging.CompareAndSwap(false, true) {
-			return nil
-		}
-		defer svc.purging.Store(false)
-		svc.lastStart = svc.now()
-		if err := svc.resyncOnce(ctx); err != nil {
-			return err
-		}
-		_, err := svc.Purge(ctx)
+	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: svc.purgeLoop}}
+}
+
+func (s *Service) purgeLoop(ctx context.Context) error {
+	if err := s.resyncOnce(ctx); err != nil {
 		return err
-	}}}
+	}
+	for {
+		s.lastStart = s.now()
+		if _, err := s.Purge(ctx); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			s.cfg.Log.WarnContext(ctx, "logs: the purge failed", "err", err)
+		}
+		s.passed(true)
+		timer := time.NewTimer(PurgeEvery)
+	wait:
+		for {
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+				break wait
+			case <-s.kick:
+				if now := s.now(); now.Sub(s.lastStart) < purgeGap {
+					s.passed(false)
+					continue
+				}
+				timer.Stop()
+				break wait
+			}
+		}
+	}
+}
+
+func (s *Service) passed(ran bool) {
+	if s.afterPass != nil {
+		s.afterPass(ran)
+	}
 }

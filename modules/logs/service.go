@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -32,14 +33,22 @@ type Config struct {
 type Service struct {
 	cfg Config
 	now func() time.Time
-	// maxEvents is MaxEvents; a variable so that a test can lower it.
-	maxEvents int64
+	// maxBytes is MaxEventBytes and exportBytes is ExportMaxBytes; variables so that a test can lower them.
+	maxBytes, exportBytes int64
+	// purging is true while a purge that Ingest started is under way: at most one at a time.
+	purging atomic.Bool
+	// lastStart is when the last purge started (the job's or Ingest's); read and written only by the holder of purging.
+	lastStart time.Time
+	// resynced is true once the byte counter was recomputed from the rows in this process.
+	resynced atomic.Bool
 	// chunk is purgeChunk; afterChunk, when set by a test, runs after every purge transaction (the writer is free then).
 	chunk int
 	// searchSem holds MaxSearches tokens; searchTimeout is SearchTimeout (a field so that a test can shorten it).
 	searchSem     chan struct{}
 	searchTimeout time.Duration
 	afterChunk    func()
+	// afterStart, when set by a test, runs right after the "logs.purge_started" row is written.
+	afterStart func()
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -54,7 +63,7 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxEvents: MaxEvents, chunk: purgeChunk, searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

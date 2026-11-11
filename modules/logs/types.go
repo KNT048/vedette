@@ -15,8 +15,20 @@ const (
 	MaxLineBytes = 2048
 	// MaxBatch is the most lines one Ingest call takes (like the 500 items of the observation wire, D-112).
 	MaxBatch = 500
-	// MaxEvents is how many events the purge job keeps at most, whatever the retention: the disk guard against a flood.
-	MaxEvents = 20_000_000
+	// MaxEventBytes is how many bytes of line text the module keeps at most, whatever the retention: the disk guard against a
+	// flood. Ingest starts a purge when it is passed, and the purge goes down to 90% of it so a purge is not started by every
+	// batch. The files are larger than this (row overhead and two indexes, about 1.6x).
+	// ponytail: 4 GiB of line text, one constant; make it a setting only when a customer's disk asks for another number.
+	MaxEventBytes = 4 << 30
+	// maxIngestLineBytes is where a line is cut before it is sanitized: the sanitizer walks the whole string, and a line of
+	// megabytes would be walked for 2,048 bytes of result.
+	maxIngestLineBytes = 4 * MaxLineBytes
+	// ExportMaxBytes caps what the device_logs export source writes: core caps the whole export at 128 MiB (D-132) and one
+	// source must not use it all. A line is counted as 2 x its bytes + 128, which is an upper bound of what it writes: the JSON
+	// object is {"id":"le-<up to 19 digits>","ts":<24>,"source_id":"ls-<26>"=29 characters,"line":"..."} plus a newline, a fixed
+	// part of at most 118 bytes, and the line text, already sanitized (no control character but the tab), at most doubles when it
+	// is written (a quote, a backslash and a tab become two bytes; the rest is written as it is: no HTML or \u escaping).
+	ExportMaxBytes = 32 << 20
 	// EventsPage is how many of the newest events GET /logs/events returns.
 	EventsPage = 200
 	// CountCap is where the "total" of a search stops counting (a count of millions would make every search slow).

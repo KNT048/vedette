@@ -413,8 +413,8 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err() // the module was turned off, or the box is stopping: nothing more is written
 	}
-	if perr != nil && pctx.Err() != nil && !errors.Is(perr, context.DeadlineExceeded) {
-		perr = fmt.Errorf("%w: %w", context.DeadlineExceeded, perr) // only the budget ends pctx and not ctx, whatever the cut call returned
+	if pctx.Err() != nil && errors.Is(perr, context.Canceled) {
+		perr = fmt.Errorf("%w: %w", context.DeadlineExceeded, perr) // only the budget ends pctx and not ctx (a test's budget is a cancel)
 	}
 	if errors.Is(perr, errSuperseded) {
 		return nil // a Save or a Delete came in: the pull stopped and writes nothing

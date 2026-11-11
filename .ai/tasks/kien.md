@@ -4,6 +4,8 @@
 > - **AI-Supervisor trên máy Mac:** điều phối cả ba phía. Mỗi lát việc của Mac chạy thành một session phụ của Claude Desktop. Trạng thái nằm ở `vedette-wt/LEAD-STATE.md` và `vedette-wt/sessions/*.md` trên máy Mac.
 > - **AI-Trưởng trên box Ubuntu** (`byn`, tmux `claude`). Trạng thái nằm ở `~/vedette-wt/LEAD-STATE.md` trên box.
 >
+> **Chia lại 2026-11-11 chiều (D-198):** Mac nhận thêm `notify` (phần còn lại), WP-27 `reports`/`mcp-server`, spec WP-30 cho scan/ai/logs; AI-Trưởng nhận thêm `scan` (phần còn lại), cả WP-32, và thử cài WP-08h trên chính box của mình. Cổng kiểm `make check` ở mọi nơi (D-199). Dải số quyết định mới của Mac: D-230…D-259.
+>
 > Chia việc còn lại và định nghĩa "xong": `.ai/tasks/current.md`. Các mục bên dưới là lịch sử và quy trình; trạng thái mới nhất nằm trong `current.md`.
 
 Cập nhật đầu file: 2026-11-11. Phần thân viết ngày 2026-11-10 tối, từ phiên Ubuntu của anh Trưởng.

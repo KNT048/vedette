@@ -1027,8 +1027,13 @@ func TestPurgeResyncsAnOvercountedCounter(t *testing.T) {
 	}
 	set(1_000_000)
 	e.svc.maxBytes = 100
+	var logged bytes.Buffer
+	e.svc.cfg.Log = slog.New(slog.NewTextHandler(&logged, nil))
 	if _, err := e.svc.Purge(t.Context()); err != nil {
 		t.Fatal(err)
+	}
+	if !strings.Contains(logged.String(), "recomputed") || !strings.Contains(logged.String(), "counter=999980") { // L4, L3: the Warn fires and says the wrong value
+		t.Fatalf("no Warn with the wrong counter: %q", logged.String())
 	}
 	if got, want := count(t, e.vol, `SELECT line_bytes FROM logs_volume`), count(t, e.vol, `SELECT coalesce(sum(length(line)), 0) FROM logs_events`); got != want {
 		t.Fatalf("counter %d after the purge, rows hold %d: not recomputed", got, want)
@@ -1156,5 +1161,53 @@ func TestFirstJobRunRecountsWithoutHoldingTheWriter(t *testing.T) {
 	}
 	if got := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); got != 25 {
 		t.Fatalf("counter %d, want 25 (20 recounted + 5 ingested meanwhile)", got)
+	}
+}
+
+// L4: the last chunk deletes exactly chunk lines, the next one finds none: the over-counted counter is still recomputed.
+func TestPurgeResyncsWhenTheLastChunkIsExactlyFull(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "1", "2")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE logs_volume SET line_bytes = 1000000`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.maxBytes, e.svc.chunk = 1, 2
+	if res, err := e.svc.Purge(t.Context()); err != nil || res.Over != 2 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if got := count(t, e.vol, `SELECT line_bytes FROM logs_volume`); got != 0 {
+		t.Fatalf("counter %d with no lines left, want 0", got)
+	}
+}
+
+// M1: an over-counted counter must not make the first purge after a start delete real lines: the purge that Ingest starts
+// recounts first, like the job does.
+func TestFirstPurgeStartedByIngestRecountsBeforeDeleting(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "0123456789", "0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE logs_volume SET line_bytes = 1000000`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.maxBytes = 100 // the real lines (21 bytes) are far under it
+	if _, err := e.svc.Ingest(t.Context(), lines(s.ID, *e.clock, "x")); err != nil {
+		t.Fatal(err)
+	}
+	e.wait()
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 3 {
+		t.Fatalf("%d lines left, want 3: real lines were deleted on a wrong counter", n)
 	}
 }

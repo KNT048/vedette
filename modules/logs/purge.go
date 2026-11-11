@@ -77,12 +77,12 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 		}
 		if over {
 			keep := s.maxBytes - s.maxBytes/10
-			var exhausted bool
-			if res.Over, exhausted, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events ORDER BY id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, nil, keep); err != nil {
+			var wrong int64
+			if res.Over, wrong, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events ORDER BY id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, nil, keep); err != nil {
 				return res, err
 			}
-			if exhausted { // no lines left to delete and the counter still said over: it counted bytes that are not there
-				s.cfg.Log.WarnContext(ctx, "logs: the byte counter was higher than the lines it counts; recomputed")
+			if wrong > 0 { // no lines left to delete and the counter still said over: it counted bytes that are not there
+				s.cfg.Log.WarnContext(ctx, "logs: the byte counter was higher than the lines it counts; recomputed", "counter", wrong)
 			}
 		}
 	}
@@ -95,14 +95,14 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 // deleteChunks runs a "delete up to s.chunk rows, returning the bytes of each" statement until it deletes fewer rows, or, when
 // keep > 0, until the stored bytes are at most keep (then the statement takes only the chunk size). arg is the statement's
 // first argument when it is not nil; the chunk size is the last. It subtracts the deleted bytes from logs_volume in the same
-// transaction and returns the rows deleted. exhausted is true when, with keep > 0, the last chunk found no more lines and the
-// counter was still over keep: the counter counted bytes that are not there, so that chunk's transaction recomputes it from the
-// lines (decided from the counter of that same transaction, not from a read outside it that a batch could have changed).
-func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep int64) (total int, exhausted bool, err error) {
+// transaction and returns the rows deleted. wrong is not 0 when, with keep > 0, the last chunk found no more lines and the
+// counter was still over keep (wrong is that value): the counter counted bytes that are not there, so that chunk's transaction
+// resets it to 0, the table being empty (decided from the counter of that same transaction, not from a read outside it that a batch could have changed).
+func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep int64) (total int, wrong int64, err error) {
 	var left int64
 	for {
 		if err := ctx.Err(); err != nil {
-			return total, false, err
+			return total, 0, err
 		}
 		args := []any{s.chunk}
 		if arg != nil {
@@ -141,33 +141,41 @@ func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep i
 			if err := tx.QueryRowContext(ctx, `UPDATE logs_volume SET line_bytes = max(0, line_bytes - ?) WHERE id = 1 RETURNING line_bytes`, freed).Scan(&left); err != nil {
 				return fmt.Errorf("logs: counting bytes: %w", err)
 			}
-			if exhausted = keep > 0 && n < s.chunk && left > keep; exhausted {
-				return recount(ctx, tx)
+			wrong = 0
+			if keep > 0 && n < s.chunk && left > keep { // fewer rows than asked: the table is empty, and the counter says otherwise
+				wrong = left
+				if _, err := tx.ExecContext(ctx, `UPDATE logs_volume SET line_bytes = 0 WHERE id = 1`); err != nil {
+					return fmt.Errorf("logs: resetting the stored bytes: %w", err)
+				}
 			}
 			return nil
 		})
 		if err != nil {
-			return total, false, err
+			return total, 0, err
 		}
 		if skip {
-			return total, false, nil
+			return total, 0, nil
 		}
 		total += n
 		if s.afterChunk != nil {
 			s.afterChunk()
 		}
 		if n < s.chunk || (keep > 0 && left <= keep) {
-			return total, exhausted, nil
+			return total, wrong, nil
 		}
 	}
 }
 
-// recount sets the byte counter to what the lines hold: a full scan, run in tx (the writer is held meanwhile), so only where the
-// counter is known to be wrong and nothing is left to delete.
-func recount(ctx context.Context, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `UPDATE logs_volume SET line_bytes = (SELECT coalesce(sum(length(CAST(line AS BLOB))), 0) FROM logs_events) WHERE id = 1`); err != nil {
-		return fmt.Errorf("logs: recomputing the stored bytes: %w", err)
+// resyncOnce recounts the byte counter the first time a purge runs in this process: a counter that drifted (a crash cannot do it,
+// an older binary can) would make that purge delete real lines. The caller holds the purging flag.
+func (s *Service) resyncOnce(ctx context.Context) error {
+	if s.resynced.Load() {
+		return nil
 	}
+	if err := s.resync(ctx); err != nil {
+		return err
+	}
+	s.resynced.Store(true)
 	return nil
 }
 
@@ -231,11 +239,8 @@ func Jobs(svc *Service) []jobs.Job {
 		}
 		defer svc.purging.Store(false)
 		svc.lastStart = svc.now()
-		if !svc.resynced.Load() {
-			if err := svc.resync(ctx); err != nil {
-				return err
-			}
-			svc.resynced.Store(true)
+		if err := svc.resyncOnce(ctx); err != nil {
+			return err
 		}
 		_, err := svc.Purge(ctx)
 		return err

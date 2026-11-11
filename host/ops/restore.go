@@ -40,7 +40,9 @@ func (o *Ops) cmdBackupRestore() server.Command {
 			if err := o.coreFreeForRestore(); err != nil {
 				return err
 			}
-			if _, ok := o.lookupBackup(a.BackupID); !ok {
+			if _, ok, err := o.lookupBackup(a.BackupID); err != nil {
+				return refuse412(api.CodeRestoreFailed, "The backup index cannot be read.")
+			} else if !ok {
 				return server.Refuse(404, api.CodeBackupUnknown, "There is no such backup.")
 			}
 			if o.cfg.CoreUnit == "" {
@@ -64,6 +66,13 @@ type extracted struct {
 func (e extracted) db() string  { return filepath.Join(e.Dir, memberDB) }
 func (e extracted) key() string { return filepath.Join(e.Dir, memberKey) }
 
+// What extract says of an archive that is there but is not the backup the index describes. No retry
+// cures these (the file does not change by itself): they wrap errBadArchive, so errors.Is tells them from
+// I/O errors and a full disk. The wrapped refusal or failure is still what the client sees (errors.As).
+var errBadArchive = errors.New("ops: the backup archive is not the backup the index describes")
+
+func badArchive(inner error) error { return fmt.Errorf("%w: %w", errBadArchive, inner) }
+
 // extract verifies the archive against the index (size and SHA-256 of the file, so a file that
 // changed on disk is refused) and unpacks it into dir. Members are written by this function under
 // fixed names, never under names from the archive.
@@ -74,7 +83,7 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 		return extracted{}, refuse412(api.CodeChecksumMismatch, "The backup file cannot be read.")
 	}
 	if sum != rec.SHA256 || size != rec.Size {
-		return extracted{}, refuse412(api.CodeChecksumMismatch, "The backup file does not match its recorded checksum.")
+		return extracted{}, badArchive(refuse412(api.CodeChecksumMismatch, "The backup file does not match its recorded checksum."))
 	}
 	f, err := os.Open(path) //nolint:gosec // archive path built from a validated hex id
 	if err != nil {
@@ -84,7 +93,7 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 	// The space the members will take is what their headers declare; read those first (the stream
 	// is discarded), so a disk too small for the archive is refused before a byte is written.
 	if need, err := o.declaredSize(f); err != nil {
-		return extracted{}, fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup.")
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup."))
 	} else if err := o.checkRestoreSpace(dir, need); err != nil {
 		return extracted{}, err
 	}
@@ -125,11 +134,14 @@ func (o *Ops) extract(rec backupRecord, dir string) (extracted, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return extracted{}, fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup.")
+	if errors.Is(err, ErrArchive) {
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is not a valid Vedette backup."))
+	}
+	if err != nil { // writing a member failed (disk, I/O): not the archive's fault
+		return extracted{}, fail(api.CodeRestoreFailed, "The backup could not be unpacked.")
 	}
 	if !manifestSeen || !dbSeen || ex.Manifest.IncludesSecrets != ex.HasKey {
-		return extracted{}, fail(api.CodeRestoreFailed, "The backup archive is incomplete.")
+		return extracted{}, badArchive(fail(api.CodeRestoreFailed, "The backup archive is incomplete."))
 	}
 	return ex, nil
 }
@@ -193,7 +205,10 @@ func lowSpace(free uint64, declared int64) error {
 // put the pre_restore copy back (status reverted). snapshot is core's snapshot of its state right
 // now, which becomes the pre_restore backup.
 func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot string) (any, error) {
-	rec, ok := o.lookupBackup(id)
+	rec, ok, err := o.lookupBackup(id)
+	if err != nil {
+		return nil, fail(api.CodeRestoreFailed, "The backup index cannot be read.")
+	}
 	if !ok {
 		return nil, server.Refuse(404, api.CodeBackupUnknown, "There is no such backup.")
 	}
@@ -402,7 +417,10 @@ func dirSize(ex extracted) int64 {
 // putBack restores the pre_restore backup over core's data and starts core. It uses its own
 // context: the run's may already be over.
 func (o *Ops) putBack(ctx context.Context, preID string) error {
-	rec, ok := o.lookupBackup(preID)
+	rec, ok, err := o.lookupBackup(preID)
+	if err != nil {
+		return fmt.Errorf("read backup index: %w", err)
+	}
 	if !ok {
 		return errors.New("pre_restore backup is not in the index")
 	}

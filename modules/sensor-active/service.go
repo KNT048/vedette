@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
+	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
 const (
@@ -64,6 +65,9 @@ type Service struct {
 	clock  func() time.Time
 	log    *slog.Logger
 	loc    func() *time.Location
+	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
+	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
+	budget *capture.FloodBudget
 
 	runMu sync.Mutex // one nmap job at a time on the box
 
@@ -87,7 +91,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Inventory == nil || cfg.Observe == nil || cfg.Software == nil {
 		return nil, errors.New("sensoractive: New needs DB, Inventory, Observe and Software")
 	}
-	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location}
+	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudget()}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -708,22 +712,42 @@ func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.A
 	defer cancel()
 	var obs []observe.Observation
 	var fresh []netip.Addr
+	var claims []capture.Claim // the hosts new to the inventory: they must fit the budget of new devices (L8)
+	var claimObs [][]observe.Observation
 	for _, h := range onlyTargets(hosts, batch) {
 		o := sweepObservations(h)
 		if len(o) == 0 {
 			continue
 		}
-		obs = append(obs, o...)
-		if _, had := known[h.addr]; !had {
-			fresh = append(fresh, h.addr)
+		if _, had := known[h.addr]; had {
+			obs = append(obs, o...)
+			continue
 		}
+		claims = append(claims, capture.Claim{MAC: h.mac, IP: h.addr, Field: observe.MAC, Value: h.mac})
+		claimObs = append(claimObs, o)
+	}
+	now := s.clock()
+	verdicts := s.budget.Decide(claims, now)
+	var admitted []capture.Claim
+	var admittedV []capture.Verdict
+	for i, c := range claims {
+		if !verdicts[i].Admit {
+			continue
+		}
+		obs = append(obs, claimObs[i]...)
+		fresh = append(fresh, c.IP)
+		admitted, admittedV = append(admitted, c), append(admittedV, verdicts[i])
+	}
+	if n := len(claims) - len(admitted); n > 0 {
+		s.log.WarnContext(ctx, "sensoractive: new devices over the budget were not recorded", "dropped", n)
 	}
 	if len(obs) == 0 {
 		return 0, nil
 	}
 	if err := s.obs.Record(ctx, obs); err != nil {
-		return 0, fmt.Errorf("sensoractive: recording hosts: %w", err)
+		return 0, fmt.Errorf("sensoractive: recording hosts: %w", err) // the budget is not spent: the next try meets the same budget
 	}
+	s.budget.Commit(admitted, admittedV, now)
 	for _, a := range fresh {
 		known[a] = ""
 	}

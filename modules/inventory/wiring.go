@@ -137,6 +137,24 @@ type KindDevice struct {
 	IP       string  // "—" when unknown, like the API
 	MAC      *string // lower case aa:bb:cc:dd:ee:ff
 	Kind     string
+	// Approved: a person approved the device. KindSource is the source of the observation the kind came from ("" when the kind
+	// has none: the default unknown). Passive-only kinds (SSDP, LLDP, DHCP, mDNS) are self-announced hints (D-177): see TrustedKind.
+	Approved   bool
+	KindSource string
+}
+
+// TrustedKind says whether the kind may feed a safety list (the never-touch gateways, D-177): the device is approved, or the kind came
+// from a person, an agent, SNMP or nmap. A kind that only a passive frame (or the scan container) claimed is a hint any host on the
+// wire can send, so it is not enough: an intruder announcing InternetGatewayDevice would otherwise become a router nobody may block.
+func (d KindDevice) TrustedKind() bool {
+	if d.Approved {
+		return true
+	}
+	switch d.KindSource {
+	case "manual", "agent", "snmp", "nmap":
+		return true
+	}
+	return false
 }
 
 // AssetIDs returns the id of every device, with no kind filter and no row cap, ordered by id: the list a reconcile compares
@@ -173,7 +191,7 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	for i, k := range kinds {
 		args[i] = k
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, hostname, ip, mac, kind FROM inv_asset WHERE kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) ORDER BY id`, args...)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.kind, a.approved, o.source FROM inv_asset a LEFT JOIN inv_observation o ON o.id = a.kind_obs_id WHERE a.kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) ORDER BY a.id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 	}
@@ -181,11 +199,11 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	var out []KindDevice
 	for rows.Next() {
 		var d KindDevice
-		var host, ip, mac sql.NullString
-		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Kind); err != nil {
+		var host, ip, mac, src sql.NullString
+		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Kind, &d.Approved, &src); err != nil {
 			return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 		}
-		d.Hostname, d.MAC, d.IP = ptr(host), ptr(mac), noIP
+		d.Hostname, d.MAC, d.IP, d.KindSource = ptr(host), ptr(mac), noIP, src.String
 		if ip.Valid {
 			d.IP = ip.String
 		}
@@ -195,6 +213,45 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 	}
 	return out, nil
+}
+
+// AddressInUse says whether a device other than the box has the address: an indexed read (inv_asset_ip_uq), with no row cap (D-178;
+// Devices stops at MaxListed and would forget the oldest device). A read error is returned and the caller must fail closed.
+func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_asset WHERE ip = ? AND is_box = 0`, ip).Scan(&n); err != nil {
+		return false, fmt.Errorf("inventory: read address: %w", err)
+	}
+	return n > 0, nil
+}
+
+// KnownMACs returns the MAC of every device that has one, with no row cap (D-178): the sensor's new-device budget counts a device
+// absent from it as new, so a capped list would make old devices eat the budget of real new ones. Lower case, ordered; a read error is
+// returned, never a short list.
+func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT mac FROM inv_asset WHERE mac IS NOT NULL ORDER BY mac`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read macs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var m string
+		if err := rows.Scan(&m); err != nil {
+			return nil, fmt.Errorf("inventory: read macs: %w", err)
+		}
+		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read macs: %w", err)
+	}
+	return out, nil
+}
+
+// AllDevices lists every device with no row cap (D-178), for readers that must see them all (the honeypot's conflict and spare-IP
+// checks). Devices is the capped list of the API.
+func (s *Service) AllDevices(ctx context.Context) ([]Device, error) {
+	return s.loadDevices(ctx, s.db.Reader(), "", 0)
 }
 
 // ProductQuery is a vendor and product pair of KEV.

@@ -1,6 +1,7 @@
 # Sensor-active — Change Impact Map
 
 ## Modifying: `sensoractive.Service` — `DiscoverRanges(ctx)`, `ScanDevice(ctx, assetID, reason)`, `Tick`, `Enqueue`, `SettingsChanged`
+- (L8, D-178) `recordSweep` dùng `capture.FloodBudget` của `modules/sensor-passive/capture` (gói lá chỉ phụ thuộc `core/observe`; import chéo module đầu tiên, theo yêu cầu của rà WP-31): đổi 60/phút, 200/giờ ở đó là đổi cả hai module. `ponytail: một thiết bị đã biết theo MAC nhưng đổi IP (DHCP) cũng tính là mới; nâng cấp = Seed ngân sách bằng inventory.KnownMACs.`
 - **core/jobs** (`window-tick` mỗi phút, `prune-probes` mỗi ngày: `cmd/vedette/sensoractive.go`), **inventory** (không gọi trực tiếp: sự kiện `inventory.asset.discovered` và `inventory.settings.changed` đi qua `core/events`, đăng ký ở `cmd/vedette/sensoractive.go`). Đổi điều kiện từ chối hoặc cửa sổ = đổi số gói thực sự rời hộp: sửa CONTRACT + test INV-1…5 (`TestContract_INV*`, `TestWindow`).
 
 ## Modifying: dựng argv nmap (`buildNmapArgs`, `ValidateNmapArgs`, `NmapBinary`)

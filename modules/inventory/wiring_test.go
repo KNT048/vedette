@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/netip"
 	"slices"
 	"testing"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -240,6 +242,85 @@ INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' |
 	cancel()
 	if l, err := e.svc.DevicesOfKind(ctx, []string{"router"}); err == nil || l != nil {
 		t.Fatalf("a failed read answered %d devices without an error", len(l))
+	}
+}
+
+// D-177 (M5): the never-touch gateway list must not take a router that only a passive frame (SSDP, LLDP) claimed; an approved one, or one
+// whose kind came from a person, an agent, SNMP or nmap, counts.
+func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
+	e := newEnv(t)
+	trusted := func(ip string) (inventory.KindDevice, bool) {
+		l, err := e.svc.DevicesOfKind(e.ctx(), []string{"router"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range l {
+			if d.IP == ip {
+				return d, d.TrustedKind()
+			}
+		}
+		t.Fatalf("no router at %s in %v", ip, l)
+		return inventory.KindDevice{}, false
+	}
+	ssdp := netip.MustParseAddr("192.168.10.66")
+	if err := e.svc.Record(e.ctx(), []observe.Observation{
+		{AssetHint: observe.AssetHint{IP: ssdp, MAC: "02:66:66:66:66:66"}, Field: observe.MAC, Value: "02:66:66:66:66:66", Source: observe.Passive, Confidence: 0.9},
+		{AssetHint: observe.AssetHint{IP: ssdp, MAC: "02:66:66:66:66:66"}, Field: observe.Kind, Value: "router", Source: observe.Passive, Confidence: 0.9},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d, ok := trusted("192.168.10.66")
+	if ok || d.Approved || d.KindSource != "passive" {
+		t.Fatalf("a passive-only router is trusted: %+v", d)
+	}
+	e.exec(`UPDATE inv_asset SET approved = 1 WHERE id = ?`, d.ID)
+	if _, ok := trusted("192.168.10.66"); !ok {
+		t.Fatal("an approved router is not trusted")
+	}
+	nm := netip.MustParseAddr("192.168.10.67")
+	if err := e.svc.Record(e.ctx(), []observe.Observation{
+		{AssetHint: observe.AssetHint{IP: nm, MAC: "02:67:67:67:67:67"}, Field: observe.MAC, Value: "02:67:67:67:67:67", Source: observe.Nmap, Confidence: 0.9},
+		{AssetHint: observe.AssetHint{IP: nm, MAC: "02:67:67:67:67:67"}, Field: observe.Kind, Value: "router", Source: observe.Nmap, Confidence: 0.9},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := trusted("192.168.10.67"); !ok || d.Approved || d.KindSource != "nmap" {
+		t.Fatalf("an nmap router is not trusted: %+v", d)
+	}
+}
+
+// D-178 (M6): AddressInUse and KnownMACs read the whole table: with more than MaxListed newer devices the oldest one still counts. The box
+// is not "in use" (it is the page's own address).
+func TestAddressInUseAndKnownMACsAreUncapped(t *testing.T) {
+	e := newEnv(t)
+	old := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.1"})
+	e.exec(`UPDATE inv_asset SET mac = 'aa:bb:cc:dd:ee:ff', first_seen = '2020-01-01T00:00:00.000Z' WHERE id = ?`, old)
+	e.exec(`WITH RECURSIVE c(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM c WHERE n < ?)
+INSERT INTO inv_asset (id, ip, mac, kind, origin, first_seen, last_seen) SELECT 'bulk-' || n, '10.' || (n / 65536) || '.' || ((n / 256) % 256) || '.' || (n % 256), printf('02:00:00:00:%02x:%02x', n / 256, n % 256), 'pc', 'discovered', '2026-11-09T10:00:00.000Z', '2026-11-09T10:00:00.000Z' FROM c`, inventory.MaxListed+10)
+	l, err := e.svc.Devices(e.ctx())
+	if err != nil || slices.ContainsFunc(l.Items, func(d inventory.Device) bool { return d.ID == old }) {
+		t.Fatalf("premise: the capped list still holds the oldest device (%v)", err)
+	}
+	if in, err := e.svc.AddressInUse(e.ctx(), "192.168.10.1"); err != nil || !in {
+		t.Fatalf("the oldest device's address is not in use: %v %v", in, err)
+	}
+	if in, err := e.svc.AddressInUse(e.ctx(), "192.168.10.250"); err != nil || in {
+		t.Fatalf("a free address is in use: %v %v", in, err)
+	}
+	macs, err := e.svc.KnownMACs(e.ctx())
+	if err != nil || len(macs) < inventory.MaxListed+10 || !slices.Contains(macs, "aa:bb:cc:dd:ee:ff") {
+		t.Fatalf("%d macs, oldest present %v: %v", len(macs), slices.Contains(macs, "aa:bb:cc:dd:ee:ff"), err)
+	}
+	if all, err := e.svc.AllDevices(e.ctx()); err != nil || len(all) < inventory.MaxListed+10 {
+		t.Fatalf("AllDevices %d: %v", len(all), err)
+	}
+	ctx, cancel := context.WithCancel(e.ctx())
+	cancel()
+	if _, err := e.svc.AddressInUse(ctx, "192.168.10.1"); err == nil {
+		t.Fatal("a failed read answered")
+	}
+	if m, err := e.svc.KnownMACs(ctx); err == nil || m != nil {
+		t.Fatal("a failed read answered")
 	}
 }
 

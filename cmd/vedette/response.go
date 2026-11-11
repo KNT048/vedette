@@ -253,6 +253,9 @@ func (r responseDirectory) DevicesOfKind(ctx context.Context, kinds ...string) (
 	}
 	out := make([]response.DeviceInfo, 0, len(l))
 	for _, d := range l {
+		if !d.TrustedKind() { // D-177: a kind only a passive frame claimed (SSDP, LLDP, DHCP, mDNS) is a hint, not a gateway nobody may block
+			continue
+		}
 		i := response.DeviceInfo{ID: d.ID, IP: d.IP, Kind: d.Kind}
 		if d.IP == "—" { // unknown address
 			i.IP = ""

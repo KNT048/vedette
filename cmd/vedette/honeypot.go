@@ -100,12 +100,12 @@ type honeypotInventory struct {
 }
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
-	l, err := a.inv.Devices(ctx)
+	l, err := a.inv.AllDevices(ctx) // uncapped (D-178): a decoy must never be offered the address of a device the capped list forgot
 	if err != nil {
 		return nil, err
 	}
-	out := make([]honeypot.Device, 0, len(l.Items))
-	for _, d := range l.Items {
+	out := make([]honeypot.Device, 0, len(l))
+	for _, d := range l {
 		ip, _ := netip.ParseAddr(d.IP) // "—" (no IP known) gives the zero Addr
 		x := honeypot.Device{ID: d.ID, IP: ip, Name: d.IP, Kind: d.Kind, Approved: d.Approved, IsBox: d.IsBox}
 		if d.Hostname != nil {

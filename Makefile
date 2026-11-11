@@ -47,6 +47,8 @@ help:
 	@echo "make sbom         CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
+	@echo "make release-cosign-plan / release-manifest / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless every migration since RELEASE_PREV is add-only, D-183), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -304,3 +306,46 @@ dev-sensors-down:
 # Up, a device that only the sensor can have seen appears in the inventory within a bound, down (D-146: not in CI yet).
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
+
+# ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
+# Flow: build and push the images (08k) -> write release.in.json -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
+# (release-manifest.json + index.json, unsigned) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only) ->
+# release-verify (the box's verifier over the output, with the keys of RELEASE_KEYS or, when unset, the ones compiled into the build).
+#   RELEASE_IN     release description (default release.in.json)
+#   RELEASE_PREV   directory of the previous release's index, manifest and .minisig (omit for the first release)
+#   RELEASE_PREV_REF  git ref of the previous release (default v<its version>); the D-183 guard compares migrations against it
+#   RELEASE_KEYS   directory with minisign.pub, minisign-backup.pub, cosign.pub
+#   COSIGN_KEY / MINISIGN_KEY  paths of the private key files (outside the repo, mode 600); passphrases are never arguments:
+#                  cosign reads COSIGN_PASSWORD from your shell, minisign asks on the terminal (PASSPHRASE_STDIN=1 reads one line of stdin)
+#   MINISIGN_BIN   a minisign you trust (default: the pinned one, fetched by scripts/release/minisign.sh)
+.PHONY: release-cosign-plan release-manifest release-sign release-verify release-interop
+RELEASE_OUT := dist/release
+RELEASE_IN ?= release.in.json
+RELEASE_PREV ?=
+RELEASE_PREV_REF ?=
+RELEASE_KEYS ?=
+RELEASE_SLOT ?= active
+RELEASE_GO = go run ./scripts/release
+RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
+
+release-cosign-plan:
+	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }
+	$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign
+
+release-manifest:
+	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV),-prev $(RELEASE_PREV) $(if $(RELEASE_PREV_REF),-prev-ref $(RELEASE_PREV_REF))) $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV),-prev $(RELEASE_PREV)) $(RELEASE_KEYS_ARG)
+
+release-sign:
+	@test -n "$$MINISIGN_KEY" || { echo "release-sign: set MINISIGN_KEY to the path of the minisign secret key (outside the repo)" >&2; exit 1; }
+	$(RELEASE_GO) sign -dir $(RELEASE_OUT) -key "$$MINISIGN_KEY" -minisign "$${MINISIGN_BIN:-$$(scripts/release/minisign.sh)}" -slot $(RELEASE_SLOT) $(if $(PASSPHRASE_STDIN),-passphrase-stdin)
+
+# A failed verify leaves dist/release for inspection; a good one removes it unless RELEASE=1 (rules/build-artifacts.md).
+release-verify:
+	$(RELEASE_GO) verify -dir $(RELEASE_OUT) $(if $(RELEASE_PREV),-prev $(RELEASE_PREV)) $(RELEASE_KEYS_ARG)
+	@if [ "$(RELEASE)" != 1 ]; then rm -rf $(RELEASE_OUT); rmdir dist 2>/dev/null || true; fi
+
+# The builder and the verifier against the real, pinned minisign (fails when the tool is missing, unlike `go test`, which skips).
+release-interop:
+	scripts/release/minisign.sh > /dev/null
+	VEDETTE_REQUIRE_MINISIGN=1 go test -count=1 -run 'Interop|Pin' ./scripts/release

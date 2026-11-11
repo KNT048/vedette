@@ -3,111 +3,62 @@ package release
 import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/asn1"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"golang.org/x/crypto/blake2b"
+	"github.com/knt048/vedette/internal/release/releasetest"
 )
 
-// ---- a minisign signer for tests (the verifier is checked against the real tool in vectors_test.go) ----
+// ---- the test signers live in releasetest (shared with the tests of the release builder); these are thin adapters ----
 
 type msigner struct {
+	*releasetest.Minisign
 	id   [8]byte
 	priv ed25519.PrivateKey
 }
 
 func newMsigner(t testing.TB) *msigner {
 	t.Helper()
-	pub, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &msigner{priv: priv}
-	if _, err := rand.Read(s.id[:]); err != nil {
-		t.Fatal(err)
-	}
-	_ = pub
-	return s
+	s := releasetest.NewMinisign(t)
+	return &msigner{Minisign: s, id: s.ID, priv: s.Priv}
 }
 
 func (s *msigner) key() MinisignKey {
 	return MinisignKey{ID: s.id, Key: s.priv.Public().(ed25519.PublicKey)}
 }
 
+func (s *msigner) sign(msg []byte) []byte { return s.Sign(msg) }
+
+func (s *msigner) signC(msg []byte, tc string) []byte { return s.SignComment(msg, tc) }
+
 // sigFile builds a .minisig from parts, so tests can break each part separately.
 func sigFile(alg string, id [8]byte, sig []byte, trustedComment string, global []byte) []byte {
-	raw := append(append([]byte(alg), id[:]...), sig...)
-	return []byte("untrusted comment: test\n" + base64.StdEncoding.EncodeToString(raw) + "\ntrusted comment: " +
-		trustedComment + "\n" + base64.StdEncoding.EncodeToString(global) + "\n")
+	return releasetest.SigFile(alg, id, sig, trustedComment, global)
 }
 
-func (s *msigner) sign(msg []byte) []byte { return s.signC(msg, "t") }
+type csigner struct{ *releasetest.Cosign }
 
-func (s *msigner) signC(msg []byte, tc string) []byte {
-	h := blake2b.Sum512(msg)
-	sig := ed25519.Sign(s.priv, h[:])
-	return sigFile("ED", s.id, sig, tc, ed25519.Sign(s.priv, append(append([]byte{}, sig...), tc...)))
-}
+func newCsigner(t testing.TB) *csigner { return &csigner{releasetest.NewCosign(t)} }
 
-// ---- a cosign signer for tests ----
+func (c *csigner) pub() *ecdsa.PublicKey { return c.Public() }
 
-type csigner struct{ priv *ecdsa.PrivateKey }
-
-func newCsigner(t testing.TB) *csigner {
-	t.Helper()
-	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &csigner{k}
-}
-
-func (c *csigner) pub() *ecdsa.PublicKey { return &c.priv.PublicKey }
-
-func (c *csigner) signRaw(t testing.TB, payload []byte) []byte {
-	t.Helper()
-	h := sha256.Sum256(payload)
-	sig, err := ecdsa.SignASN1(rand.Reader, c.priv, h[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sig
-}
+func (c *csigner) signRaw(t testing.TB, payload []byte) []byte { return c.SignRaw(t, payload) }
 
 func (c *csigner) sign(t testing.TB, payload []byte) CosignSig {
-	return CosignSig{base64.StdEncoding.EncodeToString(payload), base64.StdEncoding.EncodeToString(c.signRaw(t, payload))}
+	p, s := c.Sign(t, payload)
+	return CosignSig{p, s}
 }
 
 func payloadFor(service, digest string) []byte {
-	return []byte(`{"critical":{"identity":{"docker-reference":"` + RegistryPrefix + service + `"},"image":{"docker-manifest-digest":"` +
-		digest + `"},"type":"cosign container image signature"},"optional":null}`)
+	return releasetest.Payload(RegistryPrefix+service, digest)
 }
 
 // flipS returns sig with S replaced by N-S (the other, equally valid form), and whether it is now high.
-func flipS(t testing.TB, sig []byte) (out []byte, high bool) {
-	t.Helper()
-	var rs struct{ R, S *big.Int }
-	if rest, err := asn1.Unmarshal(sig, &rs); err != nil || len(rest) != 0 {
-		t.Fatal("bad der", err)
-	}
-	n := elliptic.P256().Params().N
-	rs.S = new(big.Int).Sub(n, rs.S)
-	b, err := asn1.Marshal(rs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b, rs.S.Cmp(new(big.Int).Rsh(n, 1)) > 0
-}
+func flipS(t testing.TB, sig []byte) (out []byte, high bool) { return releasetest.FlipS(t, sig) }
 
 // ---- a whole signing environment ----
 

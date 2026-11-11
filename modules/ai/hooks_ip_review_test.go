@@ -18,6 +18,11 @@ func TestDottedPhoneNumbersThatLookLikeAnIPv4AreMasked(t *testing.T) {
 		"+33 6.12.34.56.78", "+33.6.12.34.56.78", "+33 1.23.45.67.89", "+41 79.123.45.67",
 		"+84 ９１．２３４．５６．７８", "+84 91。234。56。78", "+84 91.2\u200b34.56.78", "+٨٤ ٩١.٢٣٤.٥٦.٧٨",
 		"0 91.234.56.78", "+33 6 12.34.56.78", "06.12.34.56.78",
+		// a label glued to the prefix is no reason to read the number as an address (R2 H-1)
+		"Tel-84 91.234.56.78", "Phone-84 91.234.56.78", "Zalo-0 98.123.45.67", "SDT-0 91.234.56.78", "Tel-84-91.234.56.78",
+		"Tel-84 9 1.234.56.78", "Tel-84 (91.234.56.78)", "Tel-84.91.234.56.78", "Tel\u200b-84 91.234.56.78", "Tel-\u200b84 91.234.56.78",
+		"Tel-８４ ９１.２３４.５６.７８", "X-0912.345.67.89", "a-b-0 91.234.56.78",
+		"(84) 91.234.56.78", "84 91.234.56.78", "(0) 91.234.56.78", "84\n91.234.56.78",
 	} {
 		res := run(t, r, BeforeAI, in)
 		if res.Outcome == OutcomePass || strings.IndexFunc(res.Text, unicode.IsDigit) >= 0 {
@@ -26,16 +31,53 @@ func TestDottedPhoneNumbersThatLookLikeAnIPv4AreMasked(t *testing.T) {
 	}
 }
 
-// A phone number written right after "::" is not part of the address (L1).
+// A phone number written right after "::" is not part of the address (L1), nor one right before it (R2 M-1).
 func TestPhoneAfterDoubleColonIsMasked(t *testing.T) {
 	t.Parallel()
 	r := runner(t, nil)
-	for _, in := range []string{"2001:db8::0912 345 678", "Tel::0912 345 678", "a:b:c:d:e:f:1:0912 345 678", "fe80::1 0912345678"} {
+	for in, forbidden := range map[string][]string{
+		"2001:db8::0912 345 678":     {"0912", "912", "345", "678"},
+		"Tel::0912 345 678":          {"0912", "912", "345", "678"},
+		"a:b:c:d:e:f:1:0912 345 678": {"0912", "912", "345", "678"},
+		"fe80::1 0912345678":         {"0912", "912", "345", "678"},
+		"0912 345 678::1":            {"0912", "912", "345", "678"},
+		"call 0912 345 678:: now":    {"0912", "912", "345", "678"},
+		"+84 912 345 678::1":         {"912", "345", "678"},
+		"+8451-035. 003::":           {"8451", "035", "003"},
+		"0912.345.678::1":            {"0912", "912", "345", "678"},
+	} {
 		res := run(t, r, BeforeAI, in)
-		for _, d := range []string{"0912", "912", "345", "678"} {
+		for _, d := range forbidden {
 			if strings.Contains(res.Text, d) {
 				t.Errorf("%q -> %q: phone digits %q survive", in, res.Text, d)
 			}
+		}
+	}
+}
+
+// An ID number next to "::" or inside an address's edge group is still an ID number (R2 M-2).
+func TestIDNumbersNextToAnIPv6AreBlocked(t *testing.T) {
+	t.Parallel()
+	r := runner(t, nil)
+	for _, in := range []string{"::123 456 789", "fe80::123 456 789", "2001:db8::0790 1234 5678", "123 456 789::1", "0790 1234 5678::1", "::079 012 345 678"} {
+		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomeBlocked {
+			t.Errorf("%q -> %+v, want blocked", in, res)
+		}
+	}
+}
+
+// The device lines the AI is sent (cmd/vedette/ai_plan.go and ai.go: "Device: <name>, IP <ip>, kind <kind>") keep the address; the
+// address is never glued to the name, so a name can not be read as the start of a number.
+func TestDeviceLinesKeepTheAddress(t *testing.T) {
+	t.Parallel()
+	r := runner(t, nil)
+	for _, in := range []string{
+		"Device: NAS-01, IP 192.168.1.20, kind nas", "Device: Camera 0042, IP 192.168.100.42, kind camera", "Device: srv-0, IP 84.32.175.88, kind server",
+		"Device: NAS 01, IP fe80::1, kind nas", "Device: NAS-0912, IP 10.0.0.5, kind nas", "Device: cam-2, IP 2001:db8::0912, kind camera",
+		"Device: NAS-01, IP 192.168.1.20, kind nas, Fortinet FortiGate\nFinding status: open, severity critical, matched by cpe, confidence 0.90\n",
+	} {
+		if res := run(t, r, BeforeAI, in); res.Text != in {
+			t.Errorf("%q -> %q, want it kept", in, res.Text)
 		}
 	}
 }
@@ -52,11 +94,11 @@ func TestDottedIDNumbersAreBlocked(t *testing.T) {
 	}
 }
 
-// Linear time on hostile input (M1, M1b): 512 KiB of it costs about what 512 KiB of plain text costs. Compared with plain text of the
+// Linear time on hostile input (M1, M1b): hostileSize bytes of it cost about what as much plain text costs. Compared with plain text of the
 // same size, not with a fixed time, so it holds under -race and on a loaded box; the quadratic versions took 3-25 s here against
 // a fraction of a second.
 func TestHostileInputIsLinear(t *testing.T) {
-	const top = 1<<19 - 16
+	const top = hostileSize - 16
 	timeOf := func(in string) time.Duration {
 		start := time.Now()
 		if _, err := runner(t, nil).Run(bg, BeforeAI, in); err != nil {
@@ -70,6 +112,7 @@ func TestHostileInputIsLinear(t *testing.T) {
 		"dots after a colon": "1:" + strings.Repeat(".", top),
 		"hex groups":         strings.Repeat("1:", top/2),
 		"ids among zeros":    strings.Repeat("123456789, ", top/22) + strings.Repeat("0 ", top/4),
+		"zeros and spaces":   strings.Repeat("0 ", top/2),
 		"ids and phones":     strings.Repeat("123456789, 0912345678, ", top/23),
 		"dotted digits":      strings.Repeat("1.", top/2),
 		"addresses":          strings.Repeat("10.0.0.1 ", top/9),

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"regexp"
 	"regexp/syntax"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -322,7 +323,15 @@ func isIDSep(b byte) bool {
 // first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
 // spaces between them, is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
-	s = blankIPs(s, false) // an IP literal is never part of an ID number's digit run (D-205); blanked byte for byte, offsets are unchanged
+	// Two readings, and an ID in either is an ID: one with every address blanked (an address is never part of a digit run), and one
+	// that keeps the addresses whose first or last group is only digits touching other digits (123 456 789::1, ::123 456 789: the
+	// group may be the ID's own).
+	out := append(idRuns(blankIPs(s, false, false)), idRuns(blankIPs(s, false, true))...)
+	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
+	return dropInside(out, findPhones(s))
+}
+
+func idRuns(s string) []span {
 	var out []span
 	for i := 0; i < len(s); {
 		if !isDigitByte(s[i]) {
@@ -466,7 +475,7 @@ func allDigits(s string) bool {
 // start, so a number that begins inside an earlier, longer candidate (the "01" of NAS-01 before "(0912 345 678)") is masked
 // too: spans overlap and maskSpans merges them (when in doubt, mask). Time is linear: at most ten digits are read at each byte.
 func findPhones(s string) []span {
-	s = blankIPs(s, true)
+	s = blankIPs(s, true, true)
 	var out []span
 	for i := 0; i < len(s); i++ {
 		if c := s[i]; c == '+' || c == '(' || isDigitByte(c) {
@@ -489,13 +498,7 @@ func isAddrByte(c byte) bool {
 	return c == ':' || c == '.' || isDigitByte(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
-// nameBefore reports whether the digits at i are glued to a name: a letter or digit right before them, or a letter and a hyphen
-// (NAS-01, Camera-0042): a device number, not the start of a phone number.
-func nameBefore(s string, i int) bool {
-	return i > 0 && (isWordByte(s[i-1]) || (s[i-1] == '-' && i >= 2 && isWordByte(s[i-2])))
-}
-
-// phoneBefore (bare: also the prefixes without a plus; only the phone finder asks for these) reports whether a country code or trunk prefix (+cc, or digits that start with 84 or 0 and are not glued to a name) stands
+// phoneBefore (bare: also the prefixes without a plus; only the phone finder asks for these) reports whether a country code or trunk prefix (+cc, or digits that start with 84 or 0) stands
 // before s[a:], with only digits and up to
 // phone separators in between: then the digits at a are the rest of a phone number, not an address ("+84 91.234.56.78").
 func phoneBefore(s string, a int, bare bool) bool {
@@ -516,7 +519,7 @@ func phoneBefore(s string, a int, bare bool) bool {
 			e++
 		}
 		run := s[i:e]
-		if (i > 0 && s[i-1] == '+') || (bare && (strings.HasPrefix(run, "0") || strings.HasPrefix(run, "84")) && !nameBefore(s, i)) {
+		if (i > 0 && s[i-1] == '+') || (bare && (strings.HasPrefix(run, "0") || strings.HasPrefix(run, "84"))) {
 			return true
 		}
 		i = e
@@ -557,7 +560,7 @@ func digitAfterSeps(s string, e int) bool {
 // separators and more digits (2001:db8::0912 345 678: the digits are a phone number). The ID finder passes phones=false: it
 // wants the whole address out of any digit run, so it keeps only the '+' and chain rules. IPv6 runs longer than an address are skipped without parsing, so the pass is
 // linear.
-func blankIPs(s string, phones bool) string {
+func blankIPs(s string, phones, edges bool) string {
 	if !strings.ContainsAny(s, ".:") {
 		return s
 	}
@@ -592,7 +595,7 @@ func blankIPs(s string, phones bool) string {
 			j++
 		}
 		if j-i <= maxIPv6+4 {
-			blankV6(s, i, j, phones, blank)
+			blankV6(s, i, j, edges, blank)
 		}
 		i = j
 	}
@@ -604,12 +607,12 @@ func blankIPs(s string, phones bool) string {
 
 // blankV6 tries the address-byte run s[a:z]: whole, then with up to three trailing ':' or '.' (a sentence's full stop) trimmed,
 // then without one leading ':' (as in "ip:fe80::1"). At most five parses of at most 45 bytes each.
-func blankV6(s string, a, z int, phones bool, blank func(a, z int)) {
+func blankV6(s string, a, z int, edges bool, blank func(a, z int)) {
 	for try := 0; try < 2 && a < z; try++ {
 		if a == 0 || !isWordByte(s[a-1]) {
 			for e, trims := z, 0; e > a && trims <= 3 && e-a <= maxIPv6; e, trims = e-1, trims+1 {
 				if addr, err := netip.ParseAddr(s[a:e]); err == nil && addr.Is6() && (e != z || z == len(s) || !isWordByte(s[z])) {
-					if !phones || !phoneFollows(s, a, e) {
+					if !edges || (!phoneFollows(s, a, e) && !phonePrecedes(s, a, e)) {
 						blank(a, e)
 					}
 					return
@@ -662,4 +665,22 @@ func dropInside(spans, guards []span) []span {
 		}
 	}
 	return out
+}
+
+// phonePrecedes is phoneFollows turned around: the address s[a:e] starts with a group of digits only, and a digit and up to three
+// phone separators come right before it (0912 345 678::1: the "678" is the number's, not the address's).
+func phonePrecedes(s string, a, e int) bool {
+	g := a
+	for g < e && isDigitByte(s[g]) {
+		g++
+	}
+	if g == a || g == e || s[g] != ':' {
+		return false
+	}
+	k, n := a, 0
+	for k > 0 && n < 3 && isPhoneSep(s[k-1]) {
+		k--
+		n++
+	}
+	return n > 0 && k > 0 && isDigitByte(s[k-1])
 }

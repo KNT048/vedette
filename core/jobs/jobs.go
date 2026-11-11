@@ -36,8 +36,9 @@ type Job struct {
 	Name   string                          // unique within the module, for example "pull-kev"
 	Every  time.Duration                   // delay between the end of one run and the start of the next
 	Run    func(ctx context.Context) error // ctx is cancelled when the module is turned off (unless Housekeeping) or the scheduler stops
-	// Housekeeping runs the job while its module is off too (SYS-5 exception, D-160). Only for a job that deletes data past
-	// the retention the customer set: it never opens a port or a route, never calls out, and its Run must not need the module on.
+	// Housekeeping runs the job while its module is off too (SYS-5 exception, D-160, D-201). Only for a job that deletes data
+	// past the retention the customer set, or over a documented storage cap (logs: D-200): it never opens a port or a route,
+	// never calls out, and its Run must not need the module on.
 	Housekeeping bool
 }
 

@@ -72,24 +72,28 @@ func (s *Service) slackApprovalSender(ctx context.Context, c channelRow, req App
 	return snd, []channel.Button{{Text: "Approve", Data: "a:" + req.ID}, {Text: "Reject", Data: "r:" + req.ID}}
 }
 
-// slackButtonShown records the message with buttons of a request (in the transaction that records its send).
+// slackButtonShown records the message with buttons of a request (in the transaction that records its send). When the final decision
+// of the request arrived before (notify_slack_final), the message is marked for removal at once.
 func slackButtonShown(ctx context.Context, tx *sql.Tx, requestID, channelID, ts string, expires time.Time) error {
-	_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO notify_slack_button (request_id, channel_id, ts, expires_at) VALUES (?, ?, ?, ?)`,
-		requestID, channelID, ts, store.FormatTS(expires))
+	_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO notify_slack_button (request_id, channel_id, ts, expires_at, state, outcome)
+		SELECT ?, ?, ?, ?, CASE WHEN f.outcome IS NULL THEN 'shown' ELSE 'remove' END, f.outcome
+		FROM (SELECT 1) LEFT JOIN notify_slack_final f ON f.request_id = ?`,
+		requestID, channelID, ts, store.FormatTS(expires), requestID)
 	if err != nil {
 		return fmt.Errorf("notify: record the slack approval message: %w", err)
 	}
 	return nil
 }
 
-// checkSlackButton says whether the press came from a message notify posted for this request (channel and ts) and the request has not ended.
+// checkSlackButton says whether the press came from a message notify posted for this request (channel and ts), the request has not
+// ended and is not finally decided (its buttons are being removed).
 func (s *Service) checkSlackButton(ctx context.Context, p channel.SlackPress) (bool, error) {
 	if !idRE.MatchString(p.RequestID) {
 		return false, nil
 	}
 	var one int
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT 1 FROM notify_slack_button WHERE request_id = ? AND channel_id = ? AND ts = ? AND expires_at > ?`,
-		p.RequestID, p.ChannelID, p.TS, store.FormatTS(s.now())).Scan(&one)
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT 1 FROM notify_slack_button WHERE request_id = ? AND channel_id = ? AND ts = ?
+		AND state = 'shown' AND expires_at > ?`, p.RequestID, p.ChannelID, p.TS, store.FormatTS(s.now())).Scan(&one)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -99,10 +103,15 @@ func (s *Service) checkSlackButton(ctx context.Context, p channel.SlackPress) (b
 	return true, nil
 }
 
-// pruneSlackButtons forgets posted messages a week after their request ended (called with the hourly prune).
+// pruneSlackButtons forgets posted messages a week after their request ended, and final decisions a week after they arrived (called
+// with the hourly prune).
 func pruneSlackButtons(ctx context.Context, tx *sql.Tx, now time.Time) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM notify_slack_button WHERE expires_at < ?`, store.FormatTS(now.Add(-buttonKeep))); err != nil {
+	cut := store.FormatTS(now.Add(-buttonKeep))
+	if _, err := tx.ExecContext(ctx, `DELETE FROM notify_slack_button WHERE expires_at < ?`, cut); err != nil {
 		return fmt.Errorf("notify: prune slack approval messages: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM notify_slack_final WHERE at < ?`, cut); err != nil {
+		return fmt.Errorf("notify: prune slack final decisions: %w", err)
 	}
 	return nil
 }

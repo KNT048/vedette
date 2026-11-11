@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/coder/websocket"
 
@@ -29,6 +30,8 @@ const (
 	slackAnswerMax     = 300 // runes of a private reply
 	slackAckWait       = 3 * time.Second
 	slackDialWait      = 15 * time.Second
+	slackUnreadable    = "the answer could not be read"
+	slackSectionMax    = 3000 // characters of the text of a Block Kit section
 )
 
 // Action ids of the Approve and Reject buttons.
@@ -99,7 +102,7 @@ func (b *SlackBot) call(ctx context.Context, token secrets.Value, method string,
 	}
 	var env map[string]json.RawMessage
 	if json.Unmarshal(ans, &env) != nil {
-		return nil, &ProviderError{Channel: Slack, Reason: "the answer could not be read"}
+		return nil, &ProviderError{Channel: Slack, Reason: slackUnreadable}
 	}
 	var ok bool
 	if json.Unmarshal(env["ok"], &ok) != nil || !ok {
@@ -390,6 +393,9 @@ func (s *slackBotSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	link, _ := safeLink(m.Link)
 	text := slackText(m.norm(), link)
+	if utf8.RuneCountInString(text) > slackSectionMax {
+		return Receipt{}, fmt.Errorf("%w: the message is too long for one Slack section", ErrInvalidMessage)
+	}
 	blocks := []any{map[string]any{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": text}}}
 	var elems []any
 	for _, b := range m.Buttons {
@@ -417,4 +423,64 @@ func (s *slackBotSender) Send(ctx context.Context, m Message) (Receipt, error) {
 		r.TS, r.ChatID = ts, ch
 	}
 	return r, nil
+}
+
+// SlackFits says whether m, rendered for Slack (escaped, with its link line), fits in the one Block Kit section of an approval message
+// (3000 characters). A message that does not fit goes through the webhook without buttons: chat.postMessage would refuse it.
+func SlackFits(m Message) bool {
+	if m.check() != nil {
+		return false
+	}
+	link, _ := safeLink(m.Link)
+	return utf8.RuneCountInString(slackText(m.norm(), link)) <= slackSectionMax
+}
+
+// errNoSlackMessage is UpdateApproval refusing before any call (no bot token, or a kept channel or ts out of form): final.
+var errNoSlackMessage = errors.New("notify: slack: no message to update")
+
+// slackRetryCodes are the ok:false answers that may pass later (Slack is busy), and the refusals of the token or app as a whole
+// (nothing passes until the channel is fixed): both stop a run of edits instead of using up every message.
+var slackRetryCodes = map[string]bool{
+	"internal_error": true, "fatal_error": true, "service_unavailable": true, "request_timeout": true, "ratelimited": true,
+	slackUnreadable: true, "invalid_auth": true, "not_authed": true, "token_revoked": true, "token_expired": true,
+	"account_inactive": true, "missing_scope": true, "no_permission": true, "not_allowed_token_type": true,
+	"team_access_not_granted": true, "ekm_access_denied": true, "access_denied": true,
+}
+
+// SlackEditFinal says whether an error of UpdateApproval is final for that message (nil, refused before any call, or Slack refused
+// this edit: the message is gone, too old to edit, or the bot left the channel). false means try the message again later and stop
+// the run: Slack did not answer, answered 429 or 5xx, could not be read, is busy, or refuses the token or app as a whole.
+func SlackEditFinal(err error) bool {
+	var se *StatusError
+	var pe *ProviderError
+	switch {
+	case err == nil, errors.Is(err, errNoSlackMessage):
+		return true
+	case errors.As(err, &pe):
+		return !slackRetryCodes[pe.Reason]
+	case errors.As(err, &se):
+		return se.Code >= 400 && se.Code < 500 && se.Code != http.StatusTooManyRequests && se.Code != http.StatusUnauthorized && se.Code != http.StatusForbidden
+	}
+	return false
+}
+
+// UpdateApproval rewrites a posted approval message without its buttons (chat.update with the bot token, slice 3b, D-241): the same
+// text when m is the message that was posted (m with an empty title = it is not known any more: only the end line is left), and the
+// fixed line end saying how the request ended. SlackEditFinal says what an error means.
+func (b *SlackBot) UpdateApproval(ctx context.Context, channelID, ts string, m Message, end string) error {
+	if b.bot.Reveal() == "" || !slackChannelRE.MatchString(channelID) || !slackTSRE.MatchString(ts) {
+		return errNoSlackMessage
+	}
+	endLine := slackEscape(Line(end, slackAnswerMax))
+	blocks := []any{map[string]any{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": endLine}}}
+	text := endLine
+	if m.check() == nil {
+		link, _ := safeLink(m.Link)
+		body := slackText(m.norm(), link)
+		blocks = []any{map[string]any{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": body}},
+			map[string]any{"type": "context", "elements": []any{map[string]any{"type": "mrkdwn", "text": endLine}}}}
+		text = body + "\n" + endLine
+	}
+	_, err := b.call(ctx, b.bot, "chat.update", map[string]any{"channel": channelID, "ts": ts, "text": text, "blocks": blocks}, false)
+	return err
 }

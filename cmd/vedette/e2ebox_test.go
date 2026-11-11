@@ -53,6 +53,9 @@ type e2eReady struct {
 	// sensorBin (slice 7, VEDETTE_E2E_SENSOR) is the vedette-sensor binary: set, the box opens its sensor link and the control endpoint
 	// starts the sensors (e2esensor_test.go). Not part of ready.json.
 	sensorBin string
+	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
+	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
+	devs    *e2eDevices               // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -313,12 +316,14 @@ func TestE2EBox(t *testing.T) {
 	ctx := e2eStop(t)
 	var host *e2eHost
 	var seed e2eReady
+	devs, logins := startE2EDevices(t)        // slice 5: the loopback devices of the Connections specs
 	if os.Getenv("VEDETTE_E2E_HOST") == "1" { // slice 4: the fake host in this process, and the second box that has none
 		host = startE2EHost(t)
 		bare := startE2EBare(ctx, t, dir)
 		seed = e2eReady{HostControl: host.ctlURL, HostToken: host.ctlToken, BareURL: bare.BaseURL, BareSetupCode: bare.SetupCode}
 	}
 	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
+	seed.Devices, seed.devs = logins, devs
 	data, sock := "", ""
 	if host != nil {
 		data, sock = host.dataDir, host.socket
@@ -490,6 +495,9 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady, sensor
 	e2eExposureRoutes(mux)
 	if sensors != nil {
 		sensors.routes(mux)
+	}
+	if ready.devs != nil {
+		ready.devs.routes(mux)
 	}
 	srv := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,

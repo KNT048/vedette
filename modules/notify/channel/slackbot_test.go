@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -100,4 +101,40 @@ func FuzzParseSlackEnvelope(f *testing.F) {
 			t.Fatalf("envelope id %q", e.EnvelopeID)
 		}
 	})
+}
+
+func TestSlackEditFinal(t *testing.T) {
+	for _, c := range []struct {
+		err   error
+		final bool
+	}{
+		{nil, true}, {errNoSlackMessage, true},
+		{&ProviderError{Channel: Slack, Reason: "message_not_found"}, true},
+		{&ProviderError{Channel: Slack, Reason: "cant_update_message"}, true},
+		{&ProviderError{Channel: Slack, Reason: "edit_window_closed"}, true},
+		{&StatusError{Channel: Slack, Code: 404}, true},
+		{&ProviderError{Channel: Slack, Reason: "internal_error"}, false},
+		{&ProviderError{Channel: Slack, Reason: slackUnreadable}, false},
+		{&ProviderError{Channel: Slack, Reason: "token_revoked"}, false},
+		{&ProviderError{Channel: Slack, Reason: "invalid_auth"}, false},
+		{&StatusError{Channel: Slack, Code: 429}, false},
+		{&StatusError{Channel: Slack, Code: 401}, false},
+		{&StatusError{Channel: Slack, Code: 503}, false},
+		{errors.New("notify: slack: send failed: timeout"), false},
+	} {
+		if got := SlackEditFinal(c.err); got != c.final {
+			t.Errorf("%v: final = %v, want %v", c.err, got, c.final)
+		}
+	}
+}
+
+func TestSlackFits(t *testing.T) {
+	m := Message{Kind: "approval", Severity: "medium", Title: "Block 203.0.113.9", What: strings.Repeat("a", 2800)}
+	if !SlackFits(m) {
+		t.Fatal("2800 plain characters must fit")
+	}
+	m.What = strings.Repeat("a&b ", 700) // each & becomes &amp; once escaped
+	if SlackFits(m) {
+		t.Fatal("escaped text over 3000 characters must not fit")
+	}
 }

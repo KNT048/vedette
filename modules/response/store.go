@@ -85,11 +85,11 @@ func loadAllow(ctx context.Context, q dbq) ([]AllowEntry, error) {
 var errNeverTouchUnread = errors.New("response: the never-touch list could not be read in full")
 
 // neverTouchGateways are the inventory kinds whose devices count as never-touch without being listed: in practice they are
-// the gateways (INV-10). The gateway and DNS addresses read from the host's network state come with WP-07b part 3.
+// the gateways (INV-10). The box's own gateway and DNS servers come from the host's network state (Config.HostInfra, D-325).
 var neverTouchGateways = []string{"router", "firewall"}
 
-// neverTouch is the declared list, the box's own addresses and every inventory router and firewall (INV-10). The box's
-// addresses and the inventory are read at every call. When either cannot be read the error wraps errNeverTouchUnread.
+// neverTouch is the declared list, the box's own addresses, the gateway and DNS servers the box uses, and every inventory router and
+// firewall (INV-10). Each source is read at every call. When one cannot be read the error wraps errNeverTouchUnread.
 func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 	l, err := loadAllow(ctx, q)
 	if err != nil {
@@ -107,6 +107,21 @@ func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 	for _, m := range macs {
 		if mac, ok := CheckValue(PMAC, m); ok {
 			l = append(l, AllowEntry{Value: mac, Label: "This Vedette box"})
+		}
+	}
+	if s.cfg.HostInfra != nil {
+		infra, err := s.cfg.HostInfra()
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", errNeverTouchUnread, err)
+		}
+		for _, h := range infra {
+			label := "DNS server of this box"
+			if h.Kind == "gateway" {
+				label = "Default gateway of this box"
+			}
+			if ip, ok := CheckValue(PIP, h.Addr.Unmap().WithZone("").String()); ok && h.Addr.IsValid() {
+				l = append(l, AllowEntry{Value: ip, Label: label})
+			}
 		}
 	}
 	if s.cfg.Directory == nil {

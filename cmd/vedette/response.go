@@ -418,7 +418,13 @@ func responseConfig(d *deps) (response.Config, error) {
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)
 	}
-	cfg.BoxMACs = responseBoxMACs(&hostMACs{r: hostState, now: d.Clock})
+	hm := &hostMACs{r: hostState, now: d.Clock}
+	cfg.BoxMACs = responseBoxMACs(hm)
+	cfg.HostInfra = func() ([]response.HostInfra, error) { // D-325: the box's gateway and DNS servers are never-touch too
+		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)
+		defer cancel()
+		return hm.Infra(ctx)
+	}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
 		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An

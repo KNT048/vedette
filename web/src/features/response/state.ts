@@ -331,7 +331,7 @@ export function newRequest(o: ReqInit, notify: boolean): ActionRequest {
   const id = newId('act')
   const sending = notify ? rawChans().filter((c) => c.configured && c.enabled && s.approval_channels.includes(c.type) && chanReady(c)) : []
   for (const c of sending.filter((x) => LINK_TYPES.includes(x.type))) {
-    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id))) { // as notify does today: the link of an unproved address is dead on use (D-191 (6))
+    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id) && isLinked(x.user_id, c.type, x.address))) { // notify INV-13: no mail, no link for an unproved address (D-191)
       tokensStore.update((l) => [...l, { token: approvalToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
     }
   }

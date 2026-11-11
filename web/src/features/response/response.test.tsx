@@ -488,9 +488,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     await turnOn()
     setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }], false)
     await saveSettings({ approval_channels: ['email'] })
-    const dead = (await getAction((await request()).json.id)).email_links[0]!.url.split('/').pop()!
-    sessionStore.set({ userId: null })
-    expect((await (await fetch(`${location.origin}/api/v1/response/approve/${dead}`)).json() as { state: string }).state).toBe('unknown') // notify mails it; it is dead (D-191 (6))
+    expect((await getAction((await request()).json.id)).email_links).toHaveLength(0) // notify INV-13: no mail and no link for an unproved address
     expect((await call('operator', 'POST', '/response/me/identities/slack/code')).code).toBe('not_listed')
     const sent = await call<{ sent_to: string; preview_code: string }>('operator', 'POST', '/response/me/identities/email/code')
     expect(sent.status).toBe(200)

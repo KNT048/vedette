@@ -117,6 +117,26 @@ func (s *Service) isLinked(ctx context.Context, u User, channel, address string)
 	return sameAddress(channel, got, address), nil
 }
 
+// Linked says whether the person proved exactly this address on the channel (D-191). notify asks it before it mails an approval link to an
+// approver (notify INV-13, Config.ApproverLinks): an unproved address gets no mail. The error never holds the address (notify logs it).
+func (s *Service) Linked(ctx context.Context, userID, channel, address string) (bool, error) {
+	if s.cfg.Users == nil {
+		return false, nil
+	}
+	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
+	if err != nil {
+		return false, errors.New("response: the user directory could not be read")
+	}
+	if !ok {
+		return false, nil
+	}
+	linked, err := s.isLinked(ctx, u, channel, address)
+	if err != nil {
+		return false, errors.New("response: the approver identities could not be read")
+	}
+	return linked, nil
+}
+
 // noteLinkCode counts a code made for (person, channel) and says whether it is within linkCodesPerHour. ponytail: the count lives in memory, a restart
 // starts it again; a restart is not something a sender can cause.
 func (s *Service) noteLinkCode(userID, channel string) bool {

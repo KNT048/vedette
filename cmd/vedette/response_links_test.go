@@ -333,3 +333,96 @@ func TestWiringApprovalLinkNeedsNotifyOn(t *testing.T) {
 		t.Errorf("POST with notify on again: %d %v", code, v)
 	}
 }
+
+// D-191, notify INV-13: notify asks response (Config.ApproverLinks) before it mails an approval link. An approver who has not proved the
+// address gets no mail at all; once they link it in My account, the next request reaches them.
+func TestWiringNotifySkipsAnUnlinkedEmailApprover(t *testing.T) {
+	t.Parallel()
+	clock := newManualClock(time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC))
+	s := newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = "https://box.example:8443" })
+	for _, m := range []string{"notify", "inventory", "response"} {
+		s.setModule(m, true)
+	}
+	ctx := t.Context()
+	svc := s.d.Response
+	boss := response.Actor{ID: "u-admin", Name: "Admin", Email: "admin@acme.example", Via: response.ViaApp}
+	lan := s.addUser("lan@acme.example", routes.Operator)
+	sink := newSMTPSink(t)
+	s.email(sink, notify.Approver{UserID: lan.ID, Address: "lan@acme.example"})
+	st, err := svc.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := response.SettingsInput{MaxPerHour: st.MaxPerHour, ExpiryMin: 15, ApprovalChannels: []string{"email"}, BreakerMaxPerHour: 100, MultiTargetMax: st.MultiTargetMax, Maintenance: st.Maintenance}
+	in.AI.Triggers, in.AI.BudgetHour, in.AI.BudgetDay = st.AI.Triggers, st.AI.BudgetHour, st.AI.BudgetDay
+	if _, err := svc.SaveSettings(ctx, boss, in); err != nil {
+		t.Fatal(err)
+	}
+	ttl := 60
+	ri := response.RuleInput{Name: "Block", Enabled: true, Live: true, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, MaxPerHour: 10,
+		Actions: []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: &ttl}}}
+	rule, err := svc.AddRule(ctx, boss, ri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ChangeRule(ctx, boss, rule.ID, ri); err != nil {
+		t.Fatal(err)
+	}
+	// The request goes out in the background: wait until notify has written its outcome for it (a skip or a send line).
+	waitFor := func(cond func() bool) {
+		t.Helper()
+		for range 1000 {
+			if cond() {
+				return
+			}
+			select {
+			case <-t.Context().Done():
+				t.Fatal("stopped")
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+		t.Fatal("timed out")
+	}
+	fire := func(id, ip string) {
+		t.Helper()
+		ev := response.Det{ID: id, Trigger: "ioc_connection", TS: store.FormatTS(clock.now()), Summary: "PC-SALES-02 connected to " + ip,
+			Fields: map[string]string{"src_ip": "192.168.10.105", "device": "PC-SALES-02", "dest": ip, "dest_kind": "ip", "dest_ip": ip, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
+		if err := svc.StoreEvent(ctx, ev); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := svc.Evaluate(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fire("e1", "198.51.100.7")
+	waitFor(func() bool {
+		return s.count(`SELECT count(*) FROM core_audit WHERE action = 'notify.approval_skipped'`) > 0
+	})
+	if n := len(sink.messages()); n != 0 {
+		t.Fatalf("%d mails to an approver who has not linked the address", n)
+	}
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'notify.approval_skipped' AND detail LIKE '%has not linked this address in My account%'`) != 1 {
+		t.Fatal("the skip is not in the audit log")
+	}
+	if s.count(`SELECT count(*) FROM resp_tokens`) != 0 {
+		t.Fatal("a link was minted for an unlinked address")
+	}
+
+	me := response.Actor{ID: lan.ID, Email: "lan@acme.example", Via: response.ViaApp}
+	if _, err := svc.SendLinkCode(ctx, me, "email"); err != nil {
+		t.Fatal(err)
+	}
+	lc := regexp.MustCompile(`code is (\d{6})`).FindStringSubmatch(mailBody(t, sink.messages()[0]))
+	if lc == nil {
+		t.Fatal("no link code mail")
+	}
+	if _, err := svc.ConfirmLink(ctx, me, "email", lc[1]); err != nil {
+		t.Fatal(err)
+	}
+	fire("e2", "198.51.100.8")
+	waitFor(func() bool { return len(sink.messages()) >= 2 })
+	msgs := sink.messages()
+	if len(msgs) != 2 || !approveLinkRE.MatchString(mailBody(t, msgs[1])) {
+		t.Fatalf("after linking, %d mails; the second has no approval link", len(msgs))
+	}
+}

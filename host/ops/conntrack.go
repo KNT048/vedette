@@ -13,16 +13,17 @@ import (
 
 // Stale syslog flows after core restarts (D-268). core publishes the syslog port 514 -> 5514 (udp and tcp) through
 // netavark's DNAT. A device that sends UDP from one fixed source port and never pauses keeps hitting the conntrack entry
-// made before core restarted; that entry still DNATs to the OLD container address, so nothing reaches the new core and
-// the entry never times out while the device keeps sending (measured, review M1 of D-167). TCP opens new connections
-// and is not affected. Like kube-proxy and Docker's libnetwork, the host deletes the UDP entries whose original
-// destination port is the published one, once, right after it sees core run again.
+// made before core restarted; a stale entry (one that DNATs to the old container, or one created without DNAT while
+// core's rules were gone) keeps the flow, so nothing reaches the new core, and it never times out while the device
+// keeps sending (measured, review M1 of D-167; which of the two it is, the rootful lab run will say). TCP opens new
+// connections and is not affected. Like kube-proxy for UDP services, the host deletes the UDP entries whose original
+// destination port is the published one, once, right after it sees core run again; that clears both kinds.
 //
 // The host sees core run again in two ways: the health wait of a start it ran itself (coreLooked from waitHealthy),
 // and a look at core's container every coreWatchEvery (watchCore), which also covers a systemd restart after a crash
-// and a start by backup.restore. A "run" is the container's ID plus StartedAt; the first look only remembers it
-// (a host that starts next to a core that has run for days has nothing to clear), except after a start the host ran
-// itself, where an unknown earlier run counts as changed.
+// and a start by backup.restore. A "run" is the container's ID plus StartedAt. The FIRST look after the host starts
+// always deletes once: at boot core starts after vedette-host, and a core that restarted while the host was down is
+// unseen; a correct entry that is deleted is re-created by the next datagram, so the cost is one log line.
 //
 // ponytail: IPv4 only (-f ipv4: netavark publishes through IPv4 DNAT here), one fixed port; the port is the constant
 // of core's unit (quadlet.go PublishPort=514:5514), not read from it.
@@ -37,8 +38,8 @@ const (
 
 // argsConntrackSyslog is the one conntrack command line: delete the UDP flows of IPv4 whose original destination port
 // is the published syslog port. "conntrack" prints "N flow entries have been deleted" on stderr and exits 1 when N is 0.
-// "ud"+"p" is in two parts so that the contract test that looks for network literals does not take it for a socket.
-var argsConntrackSyslog = []string{"-D", "-f", "ipv4", "-p", "ud" + "p", "--orig-port-dst", syslogPublishedPort}
+// The literal "udp" is a reviewed exception of the network-literal guard in modules/host (FORBID-2): it is an argv word.
+var argsConntrackSyslog = []string{"-D", "-f", "ipv4", "-p", "udp", "--orig-port-dst", syslogPublishedPort}
 
 var (
 	// validateConntrack accepts exactly argsConntrackSyslog and nothing else: no other filter, no -F (flush all), no -U.
@@ -73,11 +74,11 @@ func (o *Ops) observeCore(ctx context.Context) {
 	if err != nil {
 		return // no container, or output the host cannot read: nothing to compare
 	}
-	o.coreLooked(ctx, info, false)
+	o.coreLooked(ctx, info)
 }
 
-// coreLooked takes what a look at core's container showed. hostStarted says the host itself had just started core.
-func (o *Ops) coreLooked(ctx context.Context, info inspectInfo, hostStarted bool) {
+// coreLooked takes what a look at core's container showed: a run not seen before (the first look included) clears.
+func (o *Ops) coreLooked(ctx context.Context, info inspectInfo) {
 	if !info.Running || info.Started == "" {
 		return
 	}
@@ -85,14 +86,15 @@ func (o *Ops) coreLooked(ctx context.Context, info inspectInfo, hostStarted bool
 	defer o.ctMu.Unlock()
 	prev := o.ctSeen
 	o.ctSeen = info.Started
-	if prev == info.Started || (prev == "" && !hostStarted) {
+	if prev == info.Started {
 		return
 	}
 	o.clearSyslogFlows(ctx)
 }
 
 // clearSyslogFlows runs the conntrack delete once and logs once. A missing binary is logged once per host run and
-// nothing else happens; exit 1 is "0 entries", not a failure. Called under ctMu.
+// nothing else happens; exit 1 is "0 entries" only when conntrack says so on stderr (it also exits 1 on real errors).
+// Called under ctMu.
 func (o *Ops) clearSyslogFlows(ctx context.Context) {
 	cctx, cancel := context.WithTimeout(ctx, probeLimit)
 	defer cancel()
@@ -105,7 +107,7 @@ func (o *Ops) clearSyslogFlows(ctx context.Context) {
 		}
 	case err != nil:
 		o.log.ErrorContext(ctx, "conntrack could not clear the stale syslog flows", "error", err.Error())
-	case code != 0 && code != 1:
+	case code > 1, code == 1 && !ctDeletedRE.Match(res.Stderr):
 		o.log.ErrorContext(ctx, "conntrack failed while clearing the stale syslog flows", "exit_code", code)
 	default:
 		n := 0

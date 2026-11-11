@@ -512,3 +512,10 @@ func (m *Machine) ImageRepoOnly() {
 	m.t.Helper()
 	m.must(os.WriteFile(filepath.Join(m.img(), "repoonly"), nil, 0o600))
 }
+
+// ConntrackSays makes the fake conntrack print text on stderr (where the real one prints "N flow entries have been
+// deleted") and exit with code.
+func (m *Machine) ConntrackSays(code int, text string) {
+	m.t.Helper()
+	m.writeFakeWith(ops.BinConntrack, "printf '%s\\n' '"+strings.ReplaceAll(text, "'", "")+"' >&2\nexit "+strconv.Itoa(code)+"\n")
+}

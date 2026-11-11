@@ -82,15 +82,17 @@ func TestContract_Conntrack_ARestartTheHostDidNotMakeIsSeenByTheLook(t *testing.
 	e, _ := startConntrack(t)
 	e.m.SetRunning(api.ServiceCore, true)
 	ctx := context.Background()
-	e.o.ObserveCore(ctx) // the first look only remembers the run
+	// The first look after the host starts always clears once (a boot: core started after the host; or core ran again
+	// while the host was down), and the same run is never cleared twice.
 	e.o.ObserveCore(ctx)
-	if got := conntrackCalls(e); len(got) != 0 {
-		t.Fatalf("a first look ran conntrack: %v", got)
+	e.o.ObserveCore(ctx)
+	if got := conntrackCalls(e); len(got) != 1 || !slices.Equal(got[0], wantConntrack) {
+		t.Fatalf("conntrack calls after the first looks: %v", got)
 	}
 	e.m.ContainerRestarted(api.ServiceCore) // systemd restarted core after a crash
 	e.o.ObserveCore(ctx)
 	e.o.ObserveCore(ctx)
-	if got := conntrackCalls(e); len(got) != 1 || !slices.Equal(got[0], wantConntrack) {
+	if got := conntrackCalls(e); len(got) != 2 || !slices.Equal(got[1], wantConntrack) {
 		t.Fatalf("conntrack calls after a crash restart: %v", got)
 	}
 }
@@ -100,25 +102,28 @@ func TestContract_Conntrack_NoContainerNoCall(t *testing.T) {
 	e, _ := startConntrack(t)
 	ctx := context.Background()
 	e.o.ObserveCore(ctx) // core was never started: podman says there is no such container
+	if got := conntrackCalls(e); len(got) != 0 {
+		t.Fatalf("conntrack ran with no container: %v", got)
+	}
 	e.m.SetRunning(api.ServiceCore, true)
 	e.o.ObserveCore(ctx)
+	if got := conntrackCalls(e); len(got) != 1 {
+		t.Fatalf("the first look at a running core: %v", got)
+	}
 	e.m.SetRunning(api.ServiceCore, false) // stopped: nothing to compare
 	e.m.ContainerRestarted(api.ServiceCore)
 	e.o.ObserveCore(ctx)
-	if got := conntrackCalls(e); len(got) != 0 {
-		t.Fatalf("conntrack ran without a core that runs again: %v", got)
-	}
 	e.m.InspectRaw(api.ServiceCore, "not json") // hostile output
 	e.o.ObserveCore(ctx)
-	if got := conntrackCalls(e); len(got) != 0 {
-		t.Fatalf("conntrack ran on unreadable podman output: %v", got)
+	if got := conntrackCalls(e); len(got) != 1 {
+		t.Fatalf("conntrack ran without a core that runs again, or on unreadable podman output: %v", got)
 	}
 }
 
-func TestContract_Conntrack_ExitOneMeansNothingToDeleteAndIsNotAFailure(t *testing.T) {
+func TestContract_Conntrack_ExitOneWithTheZeroLineIsNotAFailureButWithoutItIs(t *testing.T) {
 	t.Parallel()
 	e, logs := startConntrack(t)
-	e.m.Rule(ops.BinConntrack, "", "", 1, "", "")
+	e.m.ConntrackSays(1, "conntrack v1.4.8 (conntrack-tools): 0 flow entries have been deleted.")
 	r := e.start(t, api.ServiceCore, false)
 	if r.Status != api.StatusSucceeded {
 		t.Fatalf("%+v", r)
@@ -126,12 +131,21 @@ func TestContract_Conntrack_ExitOneMeansNothingToDeleteAndIsNotAFailure(t *testi
 	if len(conntrackCalls(e)) != 1 || !strings.Contains(logs.String(), "deleted=0") || strings.Contains(logs.String(), "level=ERROR") {
 		t.Fatalf("exit 1 was handled as a failure or not logged as 0 entries:\n%s", logs.String())
 	}
+	// Exit 1 is also what conntrack returns for a real error: that one is logged as an error.
+	e2, logs2 := startConntrack(t)
+	e2.m.ConntrackSays(1, "conntrack v1.4.8 (conntrack-tools): Operation failed: Operation not permitted")
+	if r := e2.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
+		t.Fatalf("%+v", r)
+	}
+	if !strings.Contains(logs2.String(), "level=ERROR") || strings.Contains(logs2.String(), "deleted=") {
+		t.Fatalf("exit 1 without the zero line was taken for success:\n%s", logs2.String())
+	}
 }
 
 func TestContract_Conntrack_AnotherExitCodeIsLoggedAndTheStartStillSucceeds(t *testing.T) {
 	t.Parallel()
 	e, logs := startConntrack(t)
-	e.m.Rule(ops.BinConntrack, "", "", 2, "", "")
+	e.m.ConntrackSays(2, "boom")
 	if r := e.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
 		t.Fatalf("%+v", r)
 	}

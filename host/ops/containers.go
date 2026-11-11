@@ -436,7 +436,7 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 			seen = fmt.Sprintf("health %s, running %t, image matches %t", info.Health, info.Running, info.Digest == digest)
 			if info.Digest == digest && info.Running && info.Health == api.HealthHealthy {
 				if service == api.ServiceCore {
-					o.coreLooked(ctx, info, true) // the host just (re)started core: stale syslog flows go now, not at the next poll (D-268)
+					o.coreLooked(ctx, info) // the host just (re)started core: stale syslog flows go now, not at the next poll (D-268)
 				}
 				return true
 			}

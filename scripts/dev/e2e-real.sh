@@ -81,14 +81,18 @@ password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)
 workers=${E2E_WORKERS:-$([ "$ncpu" -ge 8 ] && echo 2 || echo 1)}
 export E2E_BOX="$tmp/box/ready.json" E2E_PASSWORD="$password" E2E_WORKERS="$workers"
 
-set -m
-# shellcheck disable=SC2086 # SPECS is a list of paths
-pnpm --dir web exec playwright test -c playwright.real.config.ts ${SPECS:-} &
-pw=$!
-set +m
+# Two passes (a red parallel test must not skip the global specs and the restore logic in them): pass 1 is setup, seed and parallel; pass 2 is
+# the global project alone (--no-deps, the seeded storageState files are in the run folder). The exit code is non-zero when either failed.
 status=0
-wait "$pw" || status=$?
-pw=
+for pass in "--project=parallel" "--project=global --no-deps"; do
+	set -m
+	# shellcheck disable=SC2086 # SPECS is a list of paths, pass is two words
+	pnpm --dir web exec playwright test -c playwright.real.config.ts $pass --pass-with-no-tests ${SPECS:-} &
+	pw=$!
+	set +m
+	wait "$pw" || status=1
+	pw=
+done
 lap "playwright"
 
 if [ -n "$hold" ]; then

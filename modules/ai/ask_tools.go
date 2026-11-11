@@ -596,6 +596,8 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 				case err != nil:
 					return toolOut{}, errToolFailed{"the read failed: " + clip(err.Error(), 200)}
 				}
+				// The box's own record of the read, the only thing a config_read evidence can name (D-311). Its id is not shown to the model.
+				s.recordRead(ctx, JobAskMyData, connID, connName, tool)
 				return toolOut{Text: sanitizeWeb(text), Summary: fmt.Sprintf("read %d bytes", len(text)), Cite: connName + ": " + clip(tool, 60)}, nil
 			},
 		})

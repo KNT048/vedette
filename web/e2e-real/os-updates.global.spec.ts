@@ -292,6 +292,7 @@ test('an install that apt refuses is a run whose lines say why, with nothing ins
     runsAtHost++
     const panel = runPanel(page)
     await expect(panel.getByRole('log', { name: 'apt output' })).toContainText('failed: apt_failed')
+    await expect(panel.getByText('Running', { exact: true }), 'the page has caught up with the end of the run').toHaveCount(0)
     failedShown.finishedChip = await panel.getByText('Finished', { exact: true }).isVisible()
     failedShown.successToast = await page.locator('[data-sonner-toast]').filter({ hasText: 'Finished: 0 packages installed.' }).first().isVisible()
     failedShown.inWords = await panel.getByText(/install (did not finish|failed)/i).first().isVisible()

@@ -48,8 +48,11 @@ test.afterAll(async () => { // whatever a failed test left: cancel a waiting cha
   if ((await api<Net>(c, 'GET', '/core/network')).body.pending) await api(c, 'POST', '/core/network/management/revert')
   const back = await api(c, 'PUT', '/core/network/management', { mode: 'static', address: '192.168.1.50', prefix: 24, gateway: '192.168.1.1', dns: ['1.1.1.1'], confirm: true })
   if (back.status === 200) await api(c, 'POST', '/core/network/management/confirm')
-  await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })
-  await api(c, 'PUT', '/core/network/span', { enabled: false, interface: null, extract: { dns: true, tls_sni: true, http_host: false, flows: true }, filters: [], cpu_percent: 25, memory_mb: 512 })
+  expect((await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })).status, 'NTP put back').toBe(200)
+  expect((await api(c, 'PUT', '/core/network/span', { enabled: false, interface: null, extract: { dns: true, tls_sni: true, http_host: false, flows: true }, filters: [], cpu_percent: 25, memory_mb: 512 })).status, 'SPAN off').toBe(200)
+  // eth1 back to unused, so a later global spec (sensor-active, slice 7) starts from the box as it came
+  const roles = Object.fromEntries((await api<Net>(c, 'GET', '/core/network')).body.interfaces.map((i) => [i.name, i.name === 'eth1' ? 'unused' : i.role]))
+  expect((await api(c, 'PUT', '/core/network/interfaces', { roles })).status, 'eth1 unused').toBe(200)
   await c.dispose()
 })
 

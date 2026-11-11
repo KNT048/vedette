@@ -4,7 +4,21 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { expect, type APIRequestContext } from '@playwright/test'
 
-export interface Box { base_url: string; setup_code: string; data_dir: string; honeypot_dir: string; control: string; control_token: string; smtp_port: string }
+export interface Box {
+  base_url: string; setup_code: string; data_dir: string; honeypot_dir: string
+  /** The control server of the box (slice 3): the SMTP sink's port and the bearer token for /smtp and /expire-codes. */
+  control: string; control_token: string; smtp_port: string
+  /** The fake vedette-host's knobs and the second box with no host (slice 4, D-163). */
+  host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
+}
+
+/** Turns a knob of the fake vedette-host: `lock` (dpkg lock held), `install_fail` (apt-get install exits 100), `reboot_required` (on/off),
+ *  `updates` (`reset`: the packages are pending again), `boot` (a new boot id: a reboot is over). */
+export async function hostKnob(knob: 'lock' | 'install_fail' | 'reboot_required' | 'updates' | 'boot', value: string): Promise<void> {
+  const b = box()
+  const r = await fetch(`${b.host_control}/host?${knob}=${value}`, { method: 'POST', headers: { Authorization: `Bearer ${b.host_token}` } })
+  if (!r.ok) throw new Error(`host knob ${knob}=${value}: ${r.status}`)
+}
 
 let cached: Box | undefined
 /** What TestE2EBox wrote to ready.json: the base URL, the one-time setup code, the data and honeypot folders. */

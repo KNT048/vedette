@@ -88,9 +88,6 @@ const Body = memo(function Body({ s }: { s: UpdatesState }) {
 
   return (
     <>
-      <ReadOnlyNote role="admin" />
-      <OsBlock />
-
       <section id="managed" aria-labelledby="managed-band" className="mt-12">
         <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} />
         <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
@@ -189,6 +186,9 @@ export default function UpdatesSection() {
   return (
     <>
       <PageHeader title={title} meta={t('updates.meta')} stories={['S-CORE-2', 'S-CORE-7']} />
+      <ReadOnlyNote role="admin" />
+      <OsBlock />
+      {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}
       <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
     </>
   )

@@ -118,6 +118,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       } : null,
     }
   }
+  const neverChecked = collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false }))
   function state(): OsState {
     settle()
     let s = store.get()
@@ -155,7 +156,12 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   }
 
   return [
-    http.get(`${API}/core/updates/os`, () => { const denied = guard('viewer'); if (denied) return denied; return HttpResponse.json(state()) }),
+    http.get(`${API}/core/updates/os`, () => {
+      const denied = guard('viewer'); if (denied) return denied
+      // A box that has never run a check (the real box answers 409 until the first one, issue #231). Off by default; a test turns it on.
+      if (neverChecked.get().on) return fail(409, 'no_check_yet', 'The box has not looked for operating system updates yet. Click Check now.')
+      return HttpResponse.json(state())
+    }),
     http.get(`${API}/core/updates/os/run`, () => {
       const denied = guard('viewer'); if (denied) return denied
       settle()
@@ -166,6 +172,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       const denied = guard('operator'); if (denied) return denied
       if (!deps.updateCheckOn()) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on to look for operating system updates.')
       if (running(runStore.get())) return fail(409, 'busy', 'An update run is in progress. Wait for it to finish, then check again.')
+      neverChecked.set({ on: false })
       store.update((s) => ({ ...s, last_check: nowIso() }))
       audit('os.check', 'operating system')
       return HttpResponse.json(state())

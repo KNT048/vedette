@@ -978,13 +978,13 @@ func TestPost5_UnsureSendIsSaidInTheLog(t *testing.T) {
 func TestPost5_RequestProposalHoldsNoLockWhileSending(t *testing.T) {
 	e := planEnv(t)
 	on := true
-	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_vip_disable", response.CatalogUpdate{AIMayPropose: &on})
+	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
 	e.must(err)
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
 	e.note.sendSent = []string{"Email"}
 	e.note.block = make(chan struct{})
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
-	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_vip_disable","params":{"name":"NAS-PHOTO-443"},"asset_id":"a-nas","asset_name":"NAS"}`)
+	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1") // returns while the send waits on the blackhole
 	e.must(err)
 	eventually(t, "the send started", func() bool { return len(e.note.requests()) == 1 })

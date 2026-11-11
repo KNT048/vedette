@@ -223,5 +223,6 @@ func (s *Service) Jobs() []jobs.Job {
 			return s.RunSchedules(ctx)
 		}},
 		{Module: ModuleID, Name: "sweep", Every: 30 * time.Second, Run: s.Sweep},
+		s.planJob(),
 	}
 }

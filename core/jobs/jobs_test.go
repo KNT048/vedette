@@ -310,3 +310,124 @@ func TestShutdownWaitsAndRecords(t *testing.T) {
 		}
 	})
 }
+
+// D-160: a housekeeping job (retention purge) runs on its timer whether its module is on or off, and turning the module
+// off neither cancels its run nor runs it again; an ordinary job of the same module still stops.
+func TestHousekeepingRunsWhileModuleIsOff(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		g := newGate("logs")
+		s := jobs.New(quiet(), g, nil)
+		var purge, ingest atomic.Int32
+		var cancelled atomic.Bool
+		release := make(chan struct{})
+		if err := s.Add(jobs.Job{Module: "logs", Name: "purge", Every: time.Hour, Housekeeping: true, Run: func(ctx context.Context) error {
+			if purge.Add(1) == 2 {
+				select {
+				case <-release:
+				case <-ctx.Done():
+					cancelled.Store(true)
+				}
+			}
+			return ctx.Err()
+		}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Add(jobs.Job{Module: "logs", Name: "ingest", Every: time.Hour, Run: func(context.Context) error { ingest.Add(1); return nil }}); err != nil {
+			t.Fatal(err)
+		}
+		stop := start(s)
+		defer stop()
+		if purge.Load() != 1 || ingest.Load() != 1 {
+			t.Fatalf("at start: purge %d, ingest %d, want 1 and 1", purge.Load(), ingest.Load())
+		}
+
+		advance(time.Hour + time.Second) // the second purge run blocks on release
+		g.set("logs", false)
+		s.ModuleChanged("logs", false)
+		synctest.Wait()
+		if cancelled.Load() {
+			t.Fatal("turning the module off cancelled the housekeeping run")
+		}
+		close(release)
+		synctest.Wait()
+		if purge.Load() != 2 {
+			t.Fatalf("purge runs after turning off = %d, want 2 (no extra run on the change)", purge.Load())
+		}
+		advance(3 * time.Hour)
+		if purge.Load() != 5 {
+			t.Fatalf("purge runs while off = %d, want 5", purge.Load())
+		}
+		if ingest.Load() != 2 {
+			t.Fatalf("the ordinary job ran %d times, want 2 (stops when the module is off)", ingest.Load())
+		}
+		g.set("logs", true)
+		s.ModuleChanged("logs", true)
+		synctest.Wait()
+		if purge.Load() != 5 {
+			t.Fatalf("turning the module on ran the housekeeping job out of turn: %d", purge.Load())
+		}
+	})
+}
+
+// Wake runs the job at once and restarts its timer; it does nothing while the module is off, while the job runs, or for an
+// unknown job (issue #223, logs purge past its byte bound).
+func TestWakeRunsNowUnlessOffOrRunning(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		g := newGate("logs")
+		s := jobs.New(quiet(), g, nil)
+		var n atomic.Int32
+		hold := make(chan struct{})
+		var holding atomic.Bool
+		_ = s.Add(jobs.Job{Module: "logs", Name: "purge", Every: time.Hour, Run: func(ctx context.Context) error {
+			n.Add(1)
+			if holding.Load() {
+				select {
+				case <-hold:
+				case <-ctx.Done():
+				}
+			}
+			return nil
+		}})
+		stop := start(s)
+		defer stop()
+		if n.Load() != 1 {
+			t.Fatalf("runs at start = %d, want 1", n.Load())
+		}
+		advance(10 * time.Minute)
+		s.Wake("logs", "purge")
+		synctest.Wait()
+		if n.Load() != 2 {
+			t.Fatalf("runs after Wake = %d, want 2", n.Load())
+		}
+		advance(59 * time.Minute) // the timer restarted at the woken run: 69 min after start, no run yet
+		if n.Load() != 2 {
+			t.Fatalf("runs 59 min after the woken run = %d, want 2 (timer restarts from Wake)", n.Load())
+		}
+		advance(time.Minute + time.Second)
+		if n.Load() != 3 {
+			t.Fatalf("runs 1 h after the woken run = %d, want 3", n.Load())
+		}
+
+		holding.Store(true)
+		s.Wake("logs", "purge") // run 4 starts and blocks
+		synctest.Wait()
+		s.Wake("logs", "purge") // running: ignored
+		s.Wake("logs", "nope")  // unknown: ignored
+		close(hold)
+		synctest.Wait()
+		if n.Load() != 4 {
+			t.Fatalf("runs after a Wake during a run = %d, want 4 (no queued extra run)", n.Load())
+		}
+
+		g.set("logs", false)
+		s.ModuleChanged("logs", false)
+		synctest.Wait()
+		s.Wake("logs", "purge")
+		synctest.Wait()
+		if n.Load() != 4 {
+			t.Fatalf("Wake ran the job while its module was off: %d", n.Load())
+		}
+	})
+}

@@ -522,7 +522,21 @@ test.describe('data', () => {
     await dlg.getByLabel(/Type the organization name/).fill('Test Company')
     await dlg.getByLabel(/Type the organization name/).press('Enter') // Enter alone must not delete
     await expect(dlg).toBeVisible()
+    // D-154: the box says exactly what goes and what stays, and wants the current password as well as the name
+    await expect(dlg).toContainText('Deleted: all data, users and backups')
+    await expect(dlg).toContainText('The decryption key is replaced')
+    await expect(dlg).toContainText('Kept: the TLS certificate, the system journal')
+    await expect(go).toBeDisabled() // right name, no password yet
+    await dlg.getByLabel('Your current password').fill('not the password')
     await go.click()
+    await expect(dlg).toContainText('The password is needed to delete all data')
+    await expect(dlg).toBeVisible()
+    await dlg.getByLabel('Your current password').fill(PW)
+    await go.click()
+    // what stays on the box is said before the page leaves (the honeypot's raw log)
+    const done = page.getByRole('dialog', { name: 'All data deleted' })
+    await expect(done).toContainText("honeypot's raw log")
+    await done.getByRole('button', { name: 'Continue to setup' }).click()
     await expect(page).toHaveURL(/\/setup/)
     await expect(page.getByRole('heading', { level: 1, name: 'First-time Vedette setup' })).toBeVisible()
     await login(page, LOGIN.email, LOGIN.password)

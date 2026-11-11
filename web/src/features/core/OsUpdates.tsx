@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
+import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
@@ -279,7 +280,22 @@ function Body({ s }: { s: OsState }) {
 }
 
 /** Khối a của Settings → Updates: hệ điều hành của chính hộp (D-53, S-CORE-7). */
+/** The box has not looked for updates yet (409 no_check_yet): keep its message and offer Check now, which is what the message says to do (issue #231). */
+function NoCheckYet({ error }: { error: ApiError }) {
+  const { t } = useTranslation('core')
+  const operator = useGate('operator')
+  const m = useOsMutations()
+  return (
+    <section id="os" aria-labelledby="os-band">
+      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')}
+        actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
+      <p role="status" className="text-sm">{error.message}</p>
+    </section>
+  )
+}
+
 export function OsBlock() {
   const q = useOsState()
+  if (q.error instanceof ApiError && q.error.code === 'no_check_yet') return <NoCheckYet error={q.error} />
   return <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
 }

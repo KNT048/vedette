@@ -209,12 +209,13 @@ func migrationsDir(t testing.TB) string {
 // WrongCode returns a 6-digit code that is none of real, for a test that needs a code the box refuses. A fixed "000000" is
 // what a random mailed code is, about once in a million sends (#268).
 func WrongCode(real ...string) string {
-	for d := byte('0'); ; d++ {
+	for d := byte('0'); d <= '9'; d++ {
 		c := string(bytes.Repeat([]byte{d}, 6))
 		if !slices.Contains(real, c) {
 			return c
 		}
 	}
+	panic("authtest: WrongCode was given all ten repeated-digit codes")
 }
 
 // WrongTOTP returns a 6-digit code that auth.VerifyTOTP refuses for secret at now: none of the codes of the steps it accepts.

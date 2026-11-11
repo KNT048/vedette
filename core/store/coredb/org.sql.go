@@ -61,7 +61,7 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) error {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user
 ORDER BY created_at, id
 `
@@ -87,6 +87,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]CoreUser, error) {
 			&i.CreatedAt,
 			&i.LastLogin,
 			&i.TempPasswordExpiresAt,
+			&i.SsoIssuer,
+			&i.SsoSubject,
 		); err != nil {
 			return nil, err
 		}

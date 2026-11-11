@@ -17,7 +17,7 @@ ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.up
 UPDATE core_user SET name = ? WHERE id = ?;
 
 -- name: ListUsers :many
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user
 ORDER BY created_at, id;
 

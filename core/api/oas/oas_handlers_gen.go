@@ -11226,6 +11226,182 @@ func (s *Server) handleCorePostAuthLogoutRequest(args [0]string, argsEscaped boo
 	}
 }
 
+// handleCorePostAuthOidcCallbackRequest handles core_post_auth_oidc_callback operation.
+//
+// Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its
+// binding; the box exchanges the code, checks the ID token and signs the person in like a password
+// sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403
+// email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable.
+//
+// POST /auth/oidc/callback
+func (s *Server) handleCorePostAuthOidcCallbackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostAuthOidcCallbackOperation,
+			ID:   "core_post_auth_oidc_callback",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostAuthOidcCallbackRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostAuthOidcCallbackOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostAuthOidcCallbackOperation,
+			OperationSummary: "Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable",
+			OperationID:      "core_post_auth_oidc_callback",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostAuthOidcCallbackReq
+			Params   = struct{}
+			Response = *CorePostAuthOidcCallbackOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostAuthOidcCallback(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostAuthOidcCallback(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostAuthOidcCallbackResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePostAuthOidcStartRequest handles core_post_auth_oidc_start operation.
+//
+// Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a
+// PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not
+// set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited.
+//
+// POST /auth/oidc/start
+func (s *Server) handleCorePostAuthOidcStartRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response *CorePostAuthOidcStartOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostAuthOidcStartOperation,
+			OperationSummary: "Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited",
+			OperationID:      "core_post_auth_oidc_start",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *CorePostAuthOidcStartOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostAuthOidcStart(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostAuthOidcStart(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostAuthOidcStartResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCorePostCoreAccount2FAConfirmRequest handles core_post_core_account_2fa_confirm operation.
 //
 // Authenticator app: confirm the TOTP key with a 6-digit code to turn on two-step sign-in.
@@ -13147,82 +13323,6 @@ func (s *Server) handleCorePostCoreOidcTestRequest(args [0]string, argsEscaped b
 	}
 
 	if err := encodeCorePostCoreOidcTestResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleCorePostCoreSSOLoginRequest handles core_post_core_sso_login operation.
-//
-// SSO sign-in (mock for the OIDC redirect round trip).
-//
-// POST /core/sso/login
-func (s *Server) handleCorePostCoreSSOLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err error
-	)
-
-	var rawBody []byte
-
-	var response *CorePostCoreSSOLoginOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    CorePostCoreSSOLoginOperation,
-			OperationSummary: "SSO sign-in (mock for the OIDC redirect round trip)",
-			OperationID:      "core_post_core_sso_login",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = struct{}
-			Response = *CorePostCoreSSOLoginOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CorePostCoreSSOLogin(ctx)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.CorePostCoreSSOLogin(ctx)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeCorePostCoreSSOLoginResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

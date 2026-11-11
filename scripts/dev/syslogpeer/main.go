@@ -8,6 +8,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -18,16 +19,18 @@ import (
 const line = "<14>1 2026-11-11T00:00:00Z syslogpeer check - - - hello\n"
 
 func main() {
+	ctx := context.Background()
 	a := os.Args
 	switch {
 	case len(a) == 3 && a[1] == "listen":
-		listen(a[2])
+		listen(ctx, a[2])
 	case len(a) == 4 && a[1] == "send":
-		c, err := net.DialTimeout(a[2], a[3], 5*time.Second)
+		d := net.Dialer{Timeout: 5 * time.Second}
+		c, err := d.DialContext(ctx, a[2], a[3])
 		die(err)
 		_, err = c.Write([]byte(line))
 		die(err)
-		time.Sleep(200 * time.Millisecond)
+		<-time.After(200 * time.Millisecond) // let a UDP datagram leave before the socket closes
 		_ = c.Close()
 	case len(a) == 4 && a[1] == "loop":
 		sp, err := strconv.Atoi(a[3])
@@ -36,9 +39,8 @@ func main() {
 		die(err)
 		c, err := net.DialUDP("udp4", &net.UDPAddr{Port: sp}, dst)
 		die(err)
-		for {
+		for t := time.NewTicker(time.Second); ; <-t.C {
 			_, _ = c.Write([]byte(line)) // a refused or lost datagram is the point of the test, not an error
-			time.Sleep(time.Second)
 		}
 	default:
 		fmt.Fprintln(os.Stderr, "usage: syslogpeer listen <port> | send <udp|tcp> <host:port> | loop <host:port> <sourceport>")
@@ -53,10 +55,11 @@ func die(err error) {
 	}
 }
 
-func listen(port string) {
-	pc, err := net.ListenPacket("udp4", ":"+port)
+func listen(ctx context.Context, port string) {
+	var lc net.ListenConfig
+	pc, err := lc.ListenPacket(ctx, "udp4", ":"+port)
 	die(err)
-	ln, err := net.Listen("tcp4", ":"+port)
+	ln, err := lc.Listen(ctx, "tcp4", ":"+port)
 	die(err)
 	fmt.Println("ready")
 	go func() {

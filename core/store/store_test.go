@@ -616,3 +616,37 @@ func TestSnapshotToDoesNotNeedTheWriter(t *testing.T) {
 		t.Errorf("snapshot file mode: %v %v", info, err)
 	}
 }
+
+// A database migrated by a NEWER binary must not be opened by an older one (downgrade and host rollback, D-138,
+// D-183): Migrate refuses it and names both versions, and it leaves the database as it found it.
+func TestMigrateRefusesADatabaseNewerThanTheBinary(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db := storetest.New(t)
+	newer := fstest.MapFS{
+		"0001_init.sql": {Data: []byte(goodMigration)},
+		"0002_more.sql": {Data: []byte("-- +goose Up\nCREATE TABLE zed_more (id TEXT PRIMARY KEY);\n")},
+	}
+	if err := store.Migrate(ctx, db, "my-mod", newer); err != nil {
+		t.Fatal(err)
+	}
+	before := objects(ctx, t, db)
+	err := store.Migrate(ctx, db, "my-mod", migrations(goodMigration)) // the older binary: only 0001
+	if err == nil {
+		t.Fatal("Migrate accepted a database one version past the binary's migrations")
+	}
+	if !errors.Is(err, store.ErrNewerDatabase) {
+		t.Fatalf("error = %v, want one wrapping ErrNewerDatabase", err)
+	}
+	for _, want := range []string{"my-mod", "2", "1"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+	if after := objects(ctx, t, db); fmt.Sprint(after) != fmt.Sprint(before) {
+		t.Fatalf("a refused Migrate changed the schema:\n%v\n%v", before, after)
+	}
+	if err := store.Migrate(ctx, db, "my-mod", newer); err != nil {
+		t.Fatalf("the newer binary on its own database: %v", err)
+	}
+}

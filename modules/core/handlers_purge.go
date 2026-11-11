@@ -552,7 +552,7 @@ type ftsTable struct {
 }
 
 // ftsTables lists the FTS5 virtual tables. The mode is read from the CREATE statement SQLite kept: a regular table has a
-// <name>_content shadow table, content='' (or "") is contentless, any other content= option names an external table.
+// <name>_content shadow table, content=” (or "") is contentless, any other content= option names an external table.
 func ftsTables(ctx context.Context, tx *sql.Tx) ([]ftsTable, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT m.name, m.sql, EXISTS (SELECT 1 FROM sqlite_master c WHERE c.type = 'table' AND c.name = m.name || '_content')
 		FROM sqlite_master m JOIN pragma_table_list l ON l.schema = 'main' AND l.name = m.name
@@ -597,9 +597,9 @@ func resetFTS(ctx context.Context, tx *sql.Tx, tables []ftsTable) error {
 		q := "DELETE FROM " + quoteIdent(t.name) //nolint:gosec // the name comes from sqlite_master and is quoted
 		switch t.mode {
 		case "external":
-			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('rebuild')" //nolint:gosec // as above
+			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('rebuild')"
 		case "contentless":
-			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('delete-all')" //nolint:gosec // as above
+			q = "INSERT INTO " + quoteIdent(t.name) + "(" + quoteIdent(t.name) + ") VALUES ('delete-all')"
 		}
 		if _, err := tx.ExecContext(ctx, q); err != nil {
 			return fmt.Errorf("core: purge: reset the FTS5 index %s: %w", t.name, err)

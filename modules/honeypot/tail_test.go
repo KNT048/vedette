@@ -266,7 +266,7 @@ func TestRunAppliesPollsAndSwitchesOff(t *testing.T) {
 		b, _ := os.ReadFile(filepath.Join(e.dir, "config", honeypot.ConfFile))
 		return strings.Contains(string(b), `"rdp.enabled": true`)
 	})
-	e.gate.set(true) // the module is switched off, then the scheduler cancels the job
+	e.gate.turnOff() // the module is switched off, then the scheduler cancels the job
 	cancel()
 	wg.Wait()
 	if runErr != nil {

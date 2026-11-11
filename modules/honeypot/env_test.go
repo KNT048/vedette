@@ -78,6 +78,9 @@ type fakeHost struct {
 	running   bool
 	calls     []string
 	failStart error
+	failStop  error
+	failRm    error
+	onAdd     func() // called after an address was accepted
 }
 
 func newHost(available bool) *fakeHost {
@@ -95,6 +98,9 @@ func (h *fakeHost) AddDecoyIP(_ context.Context, ip netip.Addr) error {
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "add "+ip.String())
 	h.ips[ip] = true
+	if h.onAdd != nil {
+		h.onAdd()
+	}
 	return nil
 }
 
@@ -102,6 +108,9 @@ func (h *fakeHost) RemoveDecoyIP(_ context.Context, ip netip.Addr) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "remove "+ip.String())
+	if h.failRm != nil {
+		return h.failRm
+	}
 	delete(h.ips, ip)
 	return nil
 }
@@ -121,6 +130,9 @@ func (h *fakeHost) StopContainer(context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "stop")
+	if h.failStop != nil {
+		return h.failStop
+	}
 	h.running = false
 	return nil
 }
@@ -147,7 +159,7 @@ func (g *gate) Enabled(id string) bool {
 	defer g.mu.Unlock()
 	return !g.off || id != "honeypot"
 }
-func (g *gate) set(off bool) { g.mu.Lock(); g.off = off; g.mu.Unlock() }
+func (g *gate) turnOff() { g.mu.Lock(); g.off = true; g.mu.Unlock() }
 
 type pubs struct {
 	mu   sync.Mutex

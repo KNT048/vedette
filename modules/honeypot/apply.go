@@ -177,6 +177,9 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 func (s *Service) Apply(ctx context.Context) error {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
+	if !s.on() { // checked under the lock the teardown also holds: an Apply that waited behind a switch-off must not bring the traps back (D-189)
+		return nil
+	}
 	w, err := s.load(ctx)
 	if err != nil {
 		return err
@@ -277,15 +280,45 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 			have[a] = true
 		}
 	}
+	// The record is written with a context that a switch-off cannot cancel, and BEFORE the host is asked to add an address:
+	// an address the host took while core was being stopped must still be known, so the teardown removes it (M1, D-189).
+	saved := slices.Clone(prev)
+	save := func() {
+		now := make([]string, 0, len(have))
+		for ip := range have {
+			now = append(now, ip.String())
+		}
+		sort.Strings(now)
+		if slices.Equal(saved, now) {
+			return
+		}
+		wctx := context.WithoutCancel(ctx)
+		if err := s.db.Write(wctx, func(tx *sql.Tx) error { return s.saveJSON(wctx, tx, "applied", now, "system") }); err != nil {
+			errs = append(errs, err)
+			return
+		}
+		saved = now
+	}
 	for _, ip := range want {
 		if !add { // no configuration was written: nothing new is handed over
 			continue
 		}
+		wasHeld := have[ip]
+		if !wasHeld {
+			have[ip] = true
+			save()
+		}
 		if err := s.cfg.Host.AddDecoyIP(ctx, ip); err != nil {
 			refused[ip] = err.Error()
+			if ctx.Err() != nil { // unknown whether the host took it: keep it on record and stop asking
+				break
+			}
+			if !wasHeld { // the host said no: it does not hold it
+				delete(have, ip)
+				save()
+			}
 			continue
 		}
-		have[ip] = true
 	}
 	for ip := range have {
 		if !slices.Contains(want, ip) {
@@ -301,27 +334,42 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 			placed = append(placed, ip)
 		}
 	}
-	now := make([]string, 0, len(have))
-	for ip := range have {
-		now = append(now, ip.String())
-	}
-	sort.Strings(now)
-	if !slices.Equal(prev, now) {
-		err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.saveJSON(ctx, tx, "applied", now, "system") })
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
+	save()
 	return placed, refused, errors.Join(errs...)
 }
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
-// listens. The data stays.
+// listens. The data stays. It is idempotent and safe to repeat; a failure leaves the module saying it is still turning
+// off, and core's OffGuard calls EnsureOff again until the host has confirmed (D-189).
 func (s *Service) Disable(ctx context.Context) error {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+	return s.disable(ctx)
+}
+
+func (s *Service) disable(ctx context.Context) error {
 	st, err := s.cfg.Host.Status(ctx)
-	if err != nil || !st.Available || s.cfg.ConfigDir == "" {
-		s.setHost(hostCache{reason: "the module is off"})
+	if err != nil {
+		s.setHost(hostCache{reason: turningOff})
 		return err
+	}
+	if s.cfg.ConfigDir == "" { // nothing was ever started without a configuration folder
+		s.setHost(hostCache{reason: "the module is off"})
+		return nil
+	}
+	if !st.Available {
+		// A host that is unreachable or rebooting is not a host with nothing on it: say "done" only when the record
+		// of what was handed over is empty and the host does not report the container running (H1).
+		var applied []string
+		if err := loadJSON(ctx, s.db.Reader(), "applied", &applied); err != nil {
+			return err
+		}
+		if len(applied) > 0 || st.Running {
+			s.setHost(hostCache{reason: turningOff})
+			return errors.New("honeypot: the host is not available and may still hold decoy addresses or the container")
+		}
+		s.setHost(hostCache{reason: "the module is off"})
+		return nil
 	}
 	var errs []error
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
@@ -329,8 +377,26 @@ func (s *Service) Disable(ctx context.Context) error {
 	}
 	_, _, err = s.syncIPs(ctx, nil, false)
 	errs = append(errs, err)
+	if err := errors.Join(errs...); err != nil {
+		s.setHost(hostCache{available: true, reason: turningOff})
+		return err
+	}
 	s.setHost(hostCache{available: true, reason: "the module is off"})
-	return errors.Join(errs...)
+	return nil
+}
+
+const turningOff = "the module is turning off: the host has not confirmed yet that the container stopped and the decoy addresses are gone"
+
+// EnsureOff is the Teardown core's OffGuard runs while the module is off, at start and after every switch-off, with
+// backoff until it returns nil (D-189, SYS-5): a failed teardown or a restart never leaves traps listening. It does
+// nothing, and returns nil, if the module is on again.
+func (s *Service) EnsureOff(ctx context.Context) error {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+	if s.on() { // checked under the lock: a switch-on between the check and the host calls must not be undone
+		return nil
+	}
+	return s.disable(ctx)
 }
 
 // Bus is the part of core/events the module subscribes through.

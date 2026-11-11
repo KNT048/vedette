@@ -206,12 +206,12 @@ func migrationsDir(t testing.TB) string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "..", "modules", "core", "migrations", "sqlite")
 }
 
-// WrongCode returns a 6-digit code that is none of real, for a test that needs a code the box refuses. A fixed "000000" is
+// WrongCode returns a 6-digit code that is none of valid, for a test that needs a code the box refuses. A fixed "000000" is
 // what a random mailed code is, about once in a million sends (#268).
-func WrongCode(real ...string) string {
+func WrongCode(valid ...string) string {
 	for d := byte('0'); d <= '9'; d++ {
 		c := string(bytes.Repeat([]byte{d}, 6))
-		if !slices.Contains(real, c) {
+		if !slices.Contains(valid, c) {
 			return c
 		}
 	}
@@ -221,9 +221,9 @@ func WrongCode(real ...string) string {
 // WrongTOTP returns a 6-digit code that auth.VerifyTOTP refuses for secret at now: none of the codes of the steps it accepts.
 func WrongTOTP(secret []byte, now time.Time) string {
 	cur := auth.TOTPStep(now)
-	var real []string
+	var valid []string
 	for s := cur - 2; s <= cur+2; s++ {
-		real = append(real, auth.TOTPCode(secret, s))
+		valid = append(valid, auth.TOTPCode(secret, s))
 	}
-	return WrongCode(real...)
+	return WrongCode(valid...)
 }

@@ -80,9 +80,12 @@ function Form({ s }: { s: SettingsView }) {
         <legend className="text-sm font-medium">{t('form.channels')}</legend>
         <p className="text-[13px] text-muted">{t('form.channelsHint')}</p>
         {ready.length ? ready.map((c) => (
-          <div key={c.type} className="flex items-center gap-2.5">
+          <div key={c.type} className="grid gap-1">
+          <div className="flex items-center gap-2.5">
             <Checkbox id={`ch-${c.type}`} checked={chans.includes(c.type)} onCheckedChange={(v) => setChans(toggle(chans, c.type, v === true))} />
-            <label htmlFor={`ch-${c.type}`} className="text-sm">{c.label} <span className="text-muted">({t('form.approverCount', { count: c.approvers })}{c.link ? `, ${t('form.byLink')}` : ''})</span></label>
+            <label htmlFor={`ch-${c.type}`} className="text-sm">{c.label} <span className="text-muted">({t('form.approverCount', { count: c.approvers })}, {t('form.linkedCount', { linked: c.linked, count: c.approvers })}{c.link ? `, ${t('form.byLink')}` : ''})</span></label>
+          </div>
+          {c.unlinked.length ? <p className="ml-7 text-[13px] text-warn">{t('form.notLinkedYet', { names: c.unlinked.join(', ') })}</p> : null}
           </div>
         )) : <p className="text-sm text-muted">{t('form.noChannels')} <Link className="text-accent underline underline-offset-4" to="/settings/channels">{t('form.toChannels')}</Link></p>}
         <p className="text-[13px] text-muted">{t('form.approversRule')}</p>

@@ -458,8 +458,8 @@ func (s *Service) linkUsed(ctx context.Context, hash string) bool {
 }
 
 // approverValid is the check of D-96 (4) made again when the link is used (spec 3.5): the person is still an active operator or admin,
-// the address the link went to is still their sign-in email, they are still on the list of the channel, and the channel is ready and
-// one of the approval channels of this module. A directory or notify that cannot answer is an error: the decision is not made.
+// the address the link went to is still their sign-in email, they are still on the list of the channel, the channel is ready and
+// one of the approval channels of this module, and the person linked that address themselves (D-191). A directory or notify that cannot answer is an error: the decision is not made.
 func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) (User, bool, error) {
 	if s.cfg.Users == nil || s.cfg.Notifier == nil {
 		return User{}, false, nil
@@ -478,9 +478,13 @@ func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) 
 	if err != nil {
 		return u, false, err
 	}
-	return u, slices.ContainsFunc(list, func(a Approver) bool {
+	if !slices.ContainsFunc(list, func(a Approver) bool {
 		return a.UserID == rec.user && strings.EqualFold(strings.TrimSpace(a.Address), strings.TrimSpace(rec.address))
-	}), nil
+	}) {
+		return u, false, nil
+	}
+	linked, err := s.isLinked(ctx, u, rec.channel, rec.address) // D-191: the person proved this address in My account
+	return u, linked, err
 }
 
 // channelReady is true when the channel is one of the approval channels of this module and is ready to take approvals.

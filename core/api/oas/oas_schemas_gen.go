@@ -93161,6 +93161,9 @@ func (s *ReportsPutReportsScheduleReq) SetRecipients(val []string) {
 // ResponseDeleteResponseCatalogIDNoContent is response for ResponseDeleteResponseCatalogID operation.
 type ResponseDeleteResponseCatalogIDNoContent struct{}
 
+// ResponseDeleteResponseMeIdentitiesChannelNoContent is response for ResponseDeleteResponseMeIdentitiesChannel operation.
+type ResponseDeleteResponseMeIdentitiesChannelNoContent struct{}
+
 // ResponseDeleteResponseRulesIDNoContent is response for ResponseDeleteResponseRulesID operation.
 type ResponseDeleteResponseRulesIDNoContent struct{}
 
@@ -98059,6 +98062,157 @@ func (s *ResponseGetResponseLogOKItemsItemKind) UnmarshalText(data []byte) error
 	}
 }
 
+type ResponseGetResponseMeIdentitiesOK struct {
+	Items []ResponseGetResponseMeIdentitiesOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ResponseGetResponseMeIdentitiesOK) GetItems() []ResponseGetResponseMeIdentitiesOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ResponseGetResponseMeIdentitiesOK) SetItems(val []ResponseGetResponseMeIdentitiesOKItemsItem) {
+	s.Items = val
+}
+
+type ResponseGetResponseMeIdentitiesOKItemsItem struct {
+	// The address or ID on the approver list of the channel, as an administrator saved it.
+	Address string `json:"address"`
+	Channel string `json:"channel"`
+	// A code was sent or shown and can be entered now.
+	CodeWaiting bool   `json:"code_waiting"`
+	Label       string `json:"label"`
+	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
+	Linked   bool        `json:"linked"`
+	LinkedAt NilDateTime `json:"linked_at"`
+	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
+	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+	// privately yet, so it cannot be linked (approve in Vedette).
+	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
+}
+
+// GetAddress returns the value of Address.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetChannel returns the value of Channel.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetCodeWaiting returns the value of CodeWaiting.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetCodeWaiting() bool {
+	return s.CodeWaiting
+}
+
+// GetLabel returns the value of Label.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetLinked returns the value of Linked.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetLinked() bool {
+	return s.Linked
+}
+
+// GetLinkedAt returns the value of LinkedAt.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetLinkedAt() NilDateTime {
+	return s.LinkedAt
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetMethod() ResponseGetResponseMeIdentitiesOKItemsItemMethod {
+	return s.Method
+}
+
+// SetAddress sets the value of Address.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetCodeWaiting sets the value of CodeWaiting.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetCodeWaiting(val bool) {
+	s.CodeWaiting = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetLinked sets the value of Linked.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetLinked(val bool) {
+	s.Linked = val
+}
+
+// SetLinkedAt sets the value of LinkedAt.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetLinkedAt(val NilDateTime) {
+	s.LinkedAt = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetResponseMeIdentitiesOKItemsItemMethod) {
+	s.Method = val
+}
+
+// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
+// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+// privately yet, so it cannot be linked (approve in Vedette).
+type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
+
+const (
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
+)
+
+// AllValues returns all ResponseGetResponseMeIdentitiesOKItemsItemMethod values.
+func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGetResponseMeIdentitiesOKItemsItemMethod {
+	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
+		return []byte(s), nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		return []byte(s), nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []byte) error {
+	switch ResponseGetResponseMeIdentitiesOKItemsItemMethod(data) {
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
+		return nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+		return nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ResponseGetResponseMetricsOK struct {
 	Ai          ResponseGetResponseMetricsOKAi             `json:"ai"`
 	Digested    int                                        `json:"digested"`
@@ -100045,9 +100199,14 @@ type ResponseGetResponseSettingsOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
+	// Approvers who proved this address themselves in My account (D-191); only they can approve with
+	// buttons or links.
+	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
 	Type  string `json:"type"`
+	// Names of the approvers who have not linked their address yet.
+	Unlinked []string `json:"unlinked"`
 }
 
 // GetApprovers returns the value of Approvers.
@@ -100065,6 +100224,11 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) GetLink() bool {
 	return s.Link
 }
 
+// GetLinked returns the value of Linked.
+func (s *ResponseGetResponseSettingsOKChannelsItem) GetLinked() int {
+	return s.Linked
+}
+
 // GetReady returns the value of Ready.
 func (s *ResponseGetResponseSettingsOKChannelsItem) GetReady() bool {
 	return s.Ready
@@ -100073,6 +100237,11 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) GetReady() bool {
 // GetType returns the value of Type.
 func (s *ResponseGetResponseSettingsOKChannelsItem) GetType() string {
 	return s.Type
+}
+
+// GetUnlinked returns the value of Unlinked.
+func (s *ResponseGetResponseSettingsOKChannelsItem) GetUnlinked() []string {
+	return s.Unlinked
 }
 
 // SetApprovers sets the value of Approvers.
@@ -100090,6 +100259,11 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) SetLink(val bool) {
 	s.Link = val
 }
 
+// SetLinked sets the value of Linked.
+func (s *ResponseGetResponseSettingsOKChannelsItem) SetLinked(val int) {
+	s.Linked = val
+}
+
 // SetReady sets the value of Ready.
 func (s *ResponseGetResponseSettingsOKChannelsItem) SetReady(val bool) {
 	s.Ready = val
@@ -100098,6 +100272,11 @@ func (s *ResponseGetResponseSettingsOKChannelsItem) SetReady(val bool) {
 // SetType sets the value of Type.
 func (s *ResponseGetResponseSettingsOKChannelsItem) SetType(val string) {
 	s.Type = val
+}
+
+// SetUnlinked sets the value of Unlinked.
+func (s *ResponseGetResponseSettingsOKChannelsItem) SetUnlinked(val []string) {
+	s.Unlinked = val
 }
 
 type ResponseGetResponseSettingsOKMaintenanceItem struct {
@@ -112718,9 +112897,14 @@ type ResponsePostResponseBreakerResetOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
+	// Approvers who proved this address themselves in My account (D-191); only they can approve with
+	// buttons or links.
+	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
 	Type  string `json:"type"`
+	// Names of the approvers who have not linked their address yet.
+	Unlinked []string `json:"unlinked"`
 }
 
 // GetApprovers returns the value of Approvers.
@@ -112738,6 +112922,11 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetLink() bool {
 	return s.Link
 }
 
+// GetLinked returns the value of Linked.
+func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetLinked() int {
+	return s.Linked
+}
+
 // GetReady returns the value of Ready.
 func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetReady() bool {
 	return s.Ready
@@ -112746,6 +112935,11 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetReady() bool {
 // GetType returns the value of Type.
 func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetType() string {
 	return s.Type
+}
+
+// GetUnlinked returns the value of Unlinked.
+func (s *ResponsePostResponseBreakerResetOKChannelsItem) GetUnlinked() []string {
+	return s.Unlinked
 }
 
 // SetApprovers sets the value of Approvers.
@@ -112763,6 +112957,11 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetLink(val bool) {
 	s.Link = val
 }
 
+// SetLinked sets the value of Linked.
+func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetLinked(val int) {
+	s.Linked = val
+}
+
 // SetReady sets the value of Ready.
 func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetReady(val bool) {
 	s.Ready = val
@@ -112771,6 +112970,11 @@ func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetReady(val bool) {
 // SetType sets the value of Type.
 func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetType(val string) {
 	s.Type = val
+}
+
+// SetUnlinked sets the value of Unlinked.
+func (s *ResponsePostResponseBreakerResetOKChannelsItem) SetUnlinked(val []string) {
+	s.Unlinked = val
 }
 
 type ResponsePostResponseBreakerResetOKMaintenanceItem struct {
@@ -115040,9 +115244,14 @@ type ResponsePostResponseExecutionOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
+	// Approvers who proved this address themselves in My account (D-191); only they can approve with
+	// buttons or links.
+	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
 	Type  string `json:"type"`
+	// Names of the approvers who have not linked their address yet.
+	Unlinked []string `json:"unlinked"`
 }
 
 // GetApprovers returns the value of Approvers.
@@ -115060,6 +115269,11 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) GetLink() bool {
 	return s.Link
 }
 
+// GetLinked returns the value of Linked.
+func (s *ResponsePostResponseExecutionOKChannelsItem) GetLinked() int {
+	return s.Linked
+}
+
 // GetReady returns the value of Ready.
 func (s *ResponsePostResponseExecutionOKChannelsItem) GetReady() bool {
 	return s.Ready
@@ -115068,6 +115282,11 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) GetReady() bool {
 // GetType returns the value of Type.
 func (s *ResponsePostResponseExecutionOKChannelsItem) GetType() string {
 	return s.Type
+}
+
+// GetUnlinked returns the value of Unlinked.
+func (s *ResponsePostResponseExecutionOKChannelsItem) GetUnlinked() []string {
+	return s.Unlinked
 }
 
 // SetApprovers sets the value of Approvers.
@@ -115085,6 +115304,11 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) SetLink(val bool) {
 	s.Link = val
 }
 
+// SetLinked sets the value of Linked.
+func (s *ResponsePostResponseExecutionOKChannelsItem) SetLinked(val int) {
+	s.Linked = val
+}
+
 // SetReady sets the value of Ready.
 func (s *ResponsePostResponseExecutionOKChannelsItem) SetReady(val bool) {
 	s.Ready = val
@@ -115093,6 +115317,11 @@ func (s *ResponsePostResponseExecutionOKChannelsItem) SetReady(val bool) {
 // SetType sets the value of Type.
 func (s *ResponsePostResponseExecutionOKChannelsItem) SetType(val string) {
 	s.Type = val
+}
+
+// SetUnlinked sets the value of Unlinked.
+func (s *ResponsePostResponseExecutionOKChannelsItem) SetUnlinked(val []string) {
+	s.Unlinked = val
 }
 
 type ResponsePostResponseExecutionOKMaintenanceItem struct {
@@ -115165,6 +115394,195 @@ func (s *ResponsePostResponseExecutionReq) SetEnabled(val bool) {
 // SetPhrase sets the value of Phrase.
 func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 	s.Phrase = val
+}
+
+type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
+	// Preview build only; never sent by a real box.
+	PreviewCode OptString `json:"preview_code"`
+	ResendAfter int       `json:"resend_after"`
+	// The address, masked.
+	SentTo string `json:"sent_to"`
+}
+
+// GetPreviewCode returns the value of PreviewCode.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetPreviewCode() OptString {
+	return s.PreviewCode
+}
+
+// GetResendAfter returns the value of ResendAfter.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetResendAfter() int {
+	return s.ResendAfter
+}
+
+// GetSentTo returns the value of SentTo.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetSentTo() string {
+	return s.SentTo
+}
+
+// SetPreviewCode sets the value of PreviewCode.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetPreviewCode(val OptString) {
+	s.PreviewCode = val
+}
+
+// SetResendAfter sets the value of ResendAfter.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetResendAfter(val int) {
+	s.ResendAfter = val
+}
+
+// SetSentTo sets the value of SentTo.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetSentTo(val string) {
+	s.SentTo = val
+}
+
+type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
+	// The address or ID on the approver list of the channel, as an administrator saved it.
+	Address string `json:"address"`
+	Channel string `json:"channel"`
+	// A code was sent or shown and can be entered now.
+	CodeWaiting bool   `json:"code_waiting"`
+	Label       string `json:"label"`
+	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
+	Linked   bool        `json:"linked"`
+	LinkedAt NilDateTime `json:"linked_at"`
+	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
+	// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+	// privately yet, so it cannot be linked (approve in Vedette).
+	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
+}
+
+// GetAddress returns the value of Address.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetAddress() string {
+	return s.Address
+}
+
+// GetChannel returns the value of Channel.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetChannel() string {
+	return s.Channel
+}
+
+// GetCodeWaiting returns the value of CodeWaiting.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetCodeWaiting() bool {
+	return s.CodeWaiting
+}
+
+// GetLabel returns the value of Label.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetLabel() string {
+	return s.Label
+}
+
+// GetLinked returns the value of Linked.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetLinked() bool {
+	return s.Linked
+}
+
+// GetLinkedAt returns the value of LinkedAt.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetLinkedAt() NilDateTime {
+	return s.LinkedAt
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetMethod() ResponsePostResponseMeIdentitiesChannelConfirmOKMethod {
+	return s.Method
+}
+
+// SetAddress sets the value of Address.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetCodeWaiting sets the value of CodeWaiting.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetCodeWaiting(val bool) {
+	s.CodeWaiting = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetLinked sets the value of Linked.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetLinked(val bool) {
+	s.Linked = val
+}
+
+// SetLinkedAt sets the value of LinkedAt.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetLinkedAt(val NilDateTime) {
+	s.LinkedAt = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) {
+	s.Method = val
+}
+
+// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
+// message and Vedette answers you privately with a code. unavailable: this channel cannot answer
+// privately yet, so it cannot be linked (approve in Vedette).
+type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
+
+const (
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
+)
+
+// AllValues returns all ResponsePostResponseMeIdentitiesChannelConfirmOKMethod values.
+func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod {
+	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
+		return []byte(s), nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		return []byte(s), nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(data) {
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
+		return nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+		return nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseMeIdentitiesChannelConfirmReq struct {
+	Code string `json:"code"`
+}
+
+// GetCode returns the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) GetCode() string {
+	return s.Code
+}
+
+// SetCode sets the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmReq) SetCode(val string) {
+	s.Code = val
 }
 
 type ResponsePostResponseProposalsIDRequestCreated struct {
@@ -122782,9 +123200,14 @@ type ResponsePutResponseSettingsOKChannelsItem struct {
 	Label     string `json:"label"`
 	// Approves through a one-time link (email, Zalo OA).
 	Link bool `json:"link"`
+	// Approvers who proved this address themselves in My account (D-191); only they can approve with
+	// buttons or links.
+	Linked int `json:"linked"`
 	// Configured, enabled, approvals on and at least one approver.
 	Ready bool   `json:"ready"`
 	Type  string `json:"type"`
+	// Names of the approvers who have not linked their address yet.
+	Unlinked []string `json:"unlinked"`
 }
 
 // GetApprovers returns the value of Approvers.
@@ -122802,6 +123225,11 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) GetLink() bool {
 	return s.Link
 }
 
+// GetLinked returns the value of Linked.
+func (s *ResponsePutResponseSettingsOKChannelsItem) GetLinked() int {
+	return s.Linked
+}
+
 // GetReady returns the value of Ready.
 func (s *ResponsePutResponseSettingsOKChannelsItem) GetReady() bool {
 	return s.Ready
@@ -122810,6 +123238,11 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) GetReady() bool {
 // GetType returns the value of Type.
 func (s *ResponsePutResponseSettingsOKChannelsItem) GetType() string {
 	return s.Type
+}
+
+// GetUnlinked returns the value of Unlinked.
+func (s *ResponsePutResponseSettingsOKChannelsItem) GetUnlinked() []string {
+	return s.Unlinked
 }
 
 // SetApprovers sets the value of Approvers.
@@ -122827,6 +123260,11 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) SetLink(val bool) {
 	s.Link = val
 }
 
+// SetLinked sets the value of Linked.
+func (s *ResponsePutResponseSettingsOKChannelsItem) SetLinked(val int) {
+	s.Linked = val
+}
+
 // SetReady sets the value of Ready.
 func (s *ResponsePutResponseSettingsOKChannelsItem) SetReady(val bool) {
 	s.Ready = val
@@ -122835,6 +123273,11 @@ func (s *ResponsePutResponseSettingsOKChannelsItem) SetReady(val bool) {
 // SetType sets the value of Type.
 func (s *ResponsePutResponseSettingsOKChannelsItem) SetType(val string) {
 	s.Type = val
+}
+
+// SetUnlinked sets the value of Unlinked.
+func (s *ResponsePutResponseSettingsOKChannelsItem) SetUnlinked(val []string) {
+	s.Unlinked = val
 }
 
 type ResponsePutResponseSettingsOKMaintenanceItem struct {

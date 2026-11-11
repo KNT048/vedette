@@ -20,8 +20,7 @@ var (
 // logsService builds the logs service once per database, so the handlers, the purge job and the log export share it
 // (nil without a logs.db: a test that builds deps by hand; serve always opens it).
 // The volume (lines and counters) is deps.LogsDB, a file of its own next to the main database, so that a flood of syslog
-// never waits for the writer of the main one. ponytail: no listener yet (L2), so nothing arrives except through
-// Service.Ingest.
+// never waits for the writer of the main one. The syslog listener is a job of the module (logs.Jobs): no source, or the module off, no socket.
 func logsService(d deps) *logs.Service {
 	if d.LogsDB == nil { // only a test that builds deps by hand: serve always opens logs.db (run in main.go)
 		return nil
@@ -31,7 +30,11 @@ func logsService(d deps) *logs.Service {
 	if s := logsServices[d.DB]; s != nil {
 		return s
 	}
-	svc, err := logs.NewService(logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock})
+	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock}
+	if d.SyslogPort != 0 {
+		cfg.Syslog.Ports = []int{d.SyslogPort}
+	}
+	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}

@@ -31,8 +31,8 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã d
   - WP-31 đã rà xong; các lát sửa R1, R2, S, I, H và M4/L10 đã merge.
   - WP-30 lát 1–2 đã merge (#204, #210); feeds của Emily đã merge (#222).
   - Phía Emily đã merge: feeds, findings/mitigation, notify (phần lớn), exposure, scan S0–S5, ai lát 1–3, logs L1 và an toàn production (#226: giới hạn theo byte, trần export, kẹp thời điểm; D-200).
-- **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222, #226.
-- **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); Mlee: e2e-real findings + mitigation (`feat/e2e-real-findings`), logs N1/N2 (`fix/logs-purge-n1-n2`).
+- **Hôm nay đã merge:** #203–#217, #219, #220 (Go 1.26.11 vá GO-2026-6859), #222, #226, #228, #233, #234, #235, #249, #254 (Mlee).
+- **Đang mở:** #218 (core purge, Trưởng); #221 (13b-11 AI viết kế hoạch xử lý, Mac); WP-30 lát 3 (session phụ `wp30-s3`); Mlee: logs L2 syslog (`feat/logs-l2-syslog`), feeds chunked IOC apply (`fix/feeds-chunked-ioc-apply`: hagezi giữ writer ~15 s, chặn đăng nhập lúc khởi động và mỗi 6 giờ), e2e-real exposure (`feat/e2e-real-exposure`, chờ bản sửa feeds).
 
 ## Còn lại tới "app chạy đủ chức năng"
 **Phía Kiên — AI-Trưởng**
@@ -49,12 +49,13 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã d
 - [x] Sửa `scripts/dev/orphan-reaper.sh`: xét gốc cây, bắt `pnpm dev` mồ côi (nhánh `fix/reaper-tree-root`; mỗi máy chạy lại `make reaper-install`).
 
 **Phía Emily — AI-Mlee**
-- [ ] WP-24 logs: N1/N2 (chặn listener L2) → L2 listener (cần `Scheduler.Wake` hoặc vòng kick trong module, #223) → L3–L7. M2, trần export, kẹp thời điểm và các ý rà của #186 đã xong (#226).
-- [ ] notify: cổng tuỳ chọn `Config.ApproverLinks` cho WP-31 R3/L7 (D-191, Mac nối dây sau khi merge).
+- [ ] WP-24 logs: L2 listener (đang làm) → L3–L7. Đã xong: an toàn production (#226, D-200), N1/N2 (#233), vòng purge + housekeeping (#249, D-201).
+- [x] notify: cổng `Config.ApproverLinks` (#234). Còn mở phía Kiên: `response` chatGate/approverValid chưa gọi `Linked`; D-191 chưa có trên main.
+- [x] Job dọn của ai và scan là housekeeping (#254, D-202).
 - [ ] WP-25 ai: lát 4a (rules và hook; kèm bí danh khôi phục được để kế hoạch xử lý đề xuất được hành động khi đang che dữ liệu cá nhân) → 4b → 4c → 6 → 5 → 7.
 - [ ] notify: lát 3 (Slack), 3b, 4 (mã trả lời Zalo cá nhân), Telegram L1/L3/L4.
 - [ ] scan: tự dừng khi thiết bị không phản hồi; #189 L3; kiểm trong LAB với nuclei v3.11.1.
-- [ ] WP-30 cho findings, notify, exposure, scan, ai, logs · WP-32 phần Emily · WP-27 `reports`, `mcp-server`.
+- [ ] WP-30: feeds (#222), findings + mitigation (#228), notify (#235) xong; còn exposure (đang làm), scan, ai, logs · WP-32 phần Emily · WP-27 `reports`, `mcp-server`.
 
 **Chờ kien (người)**
 - [ ] Khoá ký phát hành offline: minisign chính và dự phòng, cosign.

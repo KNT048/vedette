@@ -186,7 +186,7 @@ func TestApplyVulnsWritesNothingWhenTheTransactionFails(t *testing.T) {
 		if _, _, err := applyVulns(t.Context(), tx, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-0001", "A", "B", "2026-11-03")}, false); err != nil {
 			return err
 		}
-		if _, _, err := applyIOCs(t.Context(), tx, epoch0, "ipsum", []iocInput{{Kind: "ip", Value: "185.220.101.47"}}); err != nil {
+		if err := upsertIOCs(t.Context(), tx, store.FormatTS(epoch0), "ipsum", []iocInput{{Kind: "ip", Value: "185.220.101.47"}}); err != nil {
 			return err
 		}
 		return boom
@@ -243,10 +243,14 @@ func listed(t testing.TB, db *store.DB, source string) int {
 
 func applyI(t testing.TB, db *store.DB, at time.Time, source string, recs []iocInput) (added, removed int) {
 	t.Helper()
-	write(t, db, func(tx *sql.Tx) (err error) {
-		added, removed, err = applyIOCs(t.Context(), tx, at, source, recs)
-		return err
-	})
+	src, err := NewStore(db).source(t.Context(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, removed, stale, err := applyIOCs(t.Context(), db, at, src, recs, nil, func(*sql.Tx, int, int) error { return nil })
+	if err != nil || stale {
+		t.Fatalf("apply: stale=%v err=%v", stale, err)
+	}
 	return added, removed
 }
 

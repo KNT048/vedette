@@ -53,7 +53,7 @@ Common to every slice: module code in `modules/logs/` only; cmd additive lines i
 - Tests: golden bytes per format; key never in any response, log or export; SSRF table; disabled sends nothing; retry/backoff with `synctest`; a slow SIEM does not slow ingest.
 - Touches: `PRIVACY.md` flow 7 (ours; edit only if the table text changes) and the Settings -> Privacy UI line; `core/secrets` use only. Event names consumed from other modules are read-only.
 
-### L6: sensor transport and SPAN metadata (Kiên-heavy; our side is thin)
+### L6: sensor transport and SPAN metadata (Kiên-heavy; our side is thin) — post-v1, D-297, issue #363
 - Stories: S-LOG-4 (SPAN half), S-LOG-1 on boxes where the listener must keep the sender IP.
 - Does (ours): move `listen` into `vedette-sensor syslog`; core accepts `POST /sensor/v1/logs {epoch, seq, items[1..500]}` through the existing `Ingest`; SPAN-derived DNS/SNI/HTTP/flow observations arrive as `seen_via span_*` items and take the same IOC path as L4.
 - Needs from Kiên (issue text written at the start of L6): route and limits in `core/sensorlink` and `sensor-protocol.md` (new section, `capabilities` gains `syslog`), `cmd/vedette-sensor` subcommand, `NET_BIND_SERVICE` in the sensor Quadlet (D-114 (3) dropped it), the SPAN extractor output on the wire (D-112 (7) removed it), the Quadlet port publishing. Not started before his decision; L1..L5 do not depend on it.
@@ -83,7 +83,7 @@ Order and size: L1 (M), L2 (L), L3 (L), L4 (M), L5 (M), L7 (M) are ours and need
 
 - [ ] 2026-11-10 — measure the writer load and `q` search cost with 5M rows before L1 merges; decide whether `logs_events` needs its own SQLite file — ở đâu: L1, `modules/logs/store.go`.
 - [ ] 2026-11-10 — a "who is sending?" hint for dropped unknown senders needs a story (S-LOG-1 criterion) — ở đâu: Quyết định 2.
-- [ ] 2026-11-10 — L6 sensor transport and SPAN metadata: write the `owner:kien` issue when L5 merges — ở đâu: sensor-protocol 12 q4/q5, D-112 (7), D-114 (3).
+- [x] 2026-11-12 — L6 sensor transport and SPAN metadata: deferred past v1 (D-297); the owner:kien issue is [#363](https://github.com/KNT048/vedette/issues/363) "L6 (post-v1)" — ở đâu: sensor-protocol 12 q4/q5, D-112 (7), D-114 (3).
 - [ ] 2026-11-10 — `response` reads `IocHits` and `Counts` (13b-10 `Evidence.IocHit`, `log_threshold`): issue text at the end of L3 and L4 — Kiên.
 - [x] 2026-11-10 — check by-IP device lookup in inventory for `asset_id`: Done in L1: there is none; `cmd/vedette/logs.go` `logsInventory` lists every device with `DevicesOfKind(inventory.Kinds)` (uncapped) and picks the addresses. Issue text for Kiên below.
 

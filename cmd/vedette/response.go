@@ -427,8 +427,8 @@ func responseConfig(d *deps) (response.Config, error) {
 	}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
-		// cfg.Evidence stays empty: IocHit until logs (WP-24) offers a lookup, ConfigRead until ai offers a lookup of the reads it made. An
-		// ioc_hit or a config_read in an AI proposal is refused 422 evidence_invalid (fail closed, D-119).
+		// cfg.Evidence.IocHit stays nil until logs (WP-24) offers a lookup: an ioc_hit in an AI proposal is refused 422 evidence_invalid
+		// (fail closed, D-119). ConfigRead is set below with the ai module.
 		w, err := write.New(write.Config{Conns: d.Conn})
 		if err != nil {
 			return cfg, err
@@ -436,8 +436,11 @@ func responseConfig(d *deps) (response.Config, error) {
 		cfg.Executor = responseExecutor{w}
 	}
 	if d.AI != nil && d.Findings != nil && d.Inventory != nil { // plans for open critical findings (13b-11): the AI has no tool, response checks every proposal
-		cfg.Planner = responsePlanner{svc: d.AI, facts: d.AIFacts}
+		cfg.Planner = responsePlanner{svc: d.AI, facts: d.AIFacts, log: d.Log}
 		cfg.Critical = responseCritical{fnd: d.Findings, inv: findingsInventory{d.Inventory}}.list
+	}
+	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names (D-311)
+		cfg.Evidence.ConfigRead = aiConfigRead(d.AI)
 	}
 	if d.Reg != nil {
 		cfg.Modules = d.Reg

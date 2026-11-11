@@ -19,8 +19,11 @@
 #   * default mode: the netns vedette-slc-peer, the veth pair vslc-h/vslc-p, 10.231.77.1/30 on vslc-h (refuses to run if a route already
 #     overlaps that /30 or the names exist);
 #   * net.ipv4.ip_forward is read first and written back at the end (netavark turns it on);
-#   * a work folder under /tmp (the helper binary), removed at the end.
-# It never touches netplan, NetworkManager, the LAN interface, or firewall rules other than what netavark itself adds for the test container.
+#   * a work folder under /tmp (the helper binary), removed at the end;
+#   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed, D-266): two ACCEPT rules at the top of
+#     DOCKER-USER, published (conntrack DNAT) packets to the test network's subnet and their replies (Docker's policy drops forwarded
+#     packets that netavark's own nftables table accepts), deleted by the trap. FORWARD DROP without DOCKER-USER (ufw?): the script stops with a message, changes nothing.
+# It never touches netplan, NetworkManager, the LAN interface, or firewall rules other than the two above and what netavark adds for the test container.
 # Leftovers after a kill: `ip netns del vedette-slc-peer; ip link del vslc-h; podman rm -f vedette-syslog-check; podman network rm
 # vedette-syslog-net`. Port 514 must be free on the host (podman holds it for the container): the script refuses to run if it is not.
 set -euo pipefail
@@ -48,12 +51,17 @@ fwd_old=
 loop_pid=
 made_podman= # set once this run created the podman objects
 made_ns= # set once this run created the netns and the veth: the trap never touches a name it did not create
+fw_rules=() # DOCKER-USER rules this run inserted (each one a word list for iptables -D)
 cleanup() {
 	[ -z "$loop_pid" ] || kill "$loop_pid" >/dev/null 2>&1 || true
 	if [ -n "$made_podman" ]; then
 		podman rm -f "$name" >/dev/null 2>&1 || true
 		podman network rm -f "$net" >/dev/null 2>&1 || true
 	fi
+	for r in "${fw_rules[@]}"; do
+		# shellcheck disable=SC2086 # a rule is a word list on purpose
+		iptables -D DOCKER-USER $r >/dev/null 2>&1 || true
+	done
 	if [ -n "$made_ns" ]; then
 		ip netns del "$ns" >/dev/null 2>&1 || true
 		ip link del "$hveth" >/dev/null 2>&1 || true
@@ -98,6 +106,18 @@ for _ in $(seq 1 30); do
 done
 [ "$(podman logs "$name" 2>&1 | grep -c -x ready)" -gt 0 ] || fail "the listener did not print ready: $(podman logs --tail 5 "$name" 2>&1 | tr '\n' ' ')"
 ok "listener up (uid 1000, no capability), host $lan:514 -> container 5514 udp+tcp, ip_forward was $fwd_old"
+# Docker sets iptables' FORWARD policy to DROP; in nftables a packet netavark's table accepts is still dropped there (D-266)
+if command -v iptables >/dev/null 2>&1 && [ "$(iptables -S FORWARD 2>/dev/null | grep -c -x -- '-P FORWARD DROP')" -gt 0 ]; then
+	iptables -S DOCKER-USER >/dev/null 2>&1 || fail "iptables' FORWARD policy is DROP and there is no DOCKER-USER chain (ufw's forward policy?): forwarded packets to the test container would be dropped; nothing was changed by this step"
+	sub=$(podman network inspect "$net" --format '{{range .Subnets}}{{.Subnet}}{{end}}')
+	[[ $sub =~ ^[0-9.]+/[0-9]+$ ]] || fail "cannot read the subnet of $net ('$sub')"
+	for r in "-d $sub -m conntrack --ctstate DNAT -j ACCEPT" "-s $sub -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"; do
+		# shellcheck disable=SC2086
+		iptables -I DOCKER-USER 1 $r
+		fw_rules+=("$r")
+	done
+	ok "Docker's FORWARD DROP found: DOCKER-USER accepts published (DNAT) traffic to $sub and its replies, for this run only"
+fi
 
 seen() { podman logs "$name" 2>&1 | grep -v -x ready || true; } # every source line so far
 has() { [ "$(seen | grep -c -x -- "$1")" -gt 0 ]; } # grep -c reads everything: no SIGPIPE under pipefail

@@ -669,6 +669,23 @@ start_and_wait() {
 	fi
 }
 
+# forward_drop_warning: Docker (and an enabled ufw) set iptables' FORWARD policy to DROP. In nftables a packet that netavark's own table
+# accepts is still dropped by that policy, so the LAN cannot reach the published ports (8443, 514) and the containers cannot reach the
+# internet (feeds). The box does not change another product's firewall: it says so and how to fix it (D-266, docs/DEPLOYMENT.md 12).
+forward_drop_warning() {
+	have iptables || return 0
+	[ "$(iptables -S FORWARD 2>/dev/null | grep -c -x -- '-P FORWARD DROP')" -gt 0 ] || return 0
+	sub=$(sed -n 's/^Subnet=//p' "$NETWORK_FILE" | head -n 1)
+	if iptables -S DOCKER-USER >/dev/null 2>&1; then
+		warn "Docker is installed and sets the FORWARD policy to DROP: the LAN cannot reach this box's interface (8443) or syslog (514), and Vedette cannot pull feeds. Allow Vedette's container network ($sub) in Docker's DOCKER-USER chain, and make the two rules permanent (docs/DEPLOYMENT.md section 12, D-266):
+    iptables -I DOCKER-USER -d $sub -m conntrack --ctstate DNAT -j ACCEPT
+    iptables -I DOCKER-USER -s $sub -j ACCEPT
+or, if this box does not route for Docker's containers, set \"ip-forward-no-drop\": true in /etc/docker/daemon.json and restart Docker."
+	else
+		warn "the FORWARD policy is DROP (ufw's DEFAULT_FORWARD_POLICY?): the LAN cannot reach this box's interface (8443) or syslog (514), and Vedette cannot pull feeds. Allow Vedette's container network ($sub) to be forwarded (docs/DEPLOYMENT.md section 12, D-266)."
+	fi
+}
+
 summary() {
 	ip=$mgmt_ip
 	[ -n "$ip" ] || ip="<address of this box>"
@@ -698,6 +715,7 @@ do_install() {
 	start_registry
 	bootstrap
 	start_and_wait
+	forward_drop_warning
 	summary
 }
 

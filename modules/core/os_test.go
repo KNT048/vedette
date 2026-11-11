@@ -217,7 +217,7 @@ func (e *osEnv) waitRunDone(c *client) reply {
 	var r reply
 	eventuallyOS(e.t, "the install run to finish", func() bool {
 		r = c.get("/core/updates/os/run")
-		return r.Code == 200 && r.str("status") == "done"
+		return r.Code == 200 && r.str("status") != "running"
 	})
 	return r
 }
@@ -462,6 +462,10 @@ func TestOSInstallRunThatFailsSaysSoInItsLinesAndResult(t *testing.T) {
 	}
 	if getVal(done, "result", "installed") != float64(0) {
 		t.Errorf("result = %v", done.JSON["result"])
+	}
+	// The page must not call a refused install "done" (issue #238): the run says failed, and why in words.
+	if done.str("status") != "failed" || !strings.Contains(done.str("error"), "package manager failed") {
+		t.Errorf("status %q, error %q", done.str("status"), done.str("error"))
 	}
 	eventuallyOS(t, "the snapshot directory to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 	eventuallyOS(t, "the audit row of the end", func() bool { return slices.Contains(e.actions(), "os.install_done") })

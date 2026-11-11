@@ -36,6 +36,12 @@
 ## Modifying: `GET /feeds/hot` trường `you_have`, `matched_assets`
 - **SPA** `HomePage`, `YouHaveCell`; **notify** không đọc trực tiếp.
 
+## Modifying: the way a pull applies an IOC list (`applyIOCs`, `iocChunkRows`, `Service.afterChunk`)
+- **core** (`core/store` writer, one connection): every write of the box queues behind the transaction that is open. Raising `iocChunkRows` or going back to one transaction per list makes boot, login, setup and every other module's write stall for as long as the list takes (~20 s for 250 000 rows). Keep each transaction short.
+- **logs / honeypot / response** (future `IOCLookup` readers): during a pull they see the old and the new listings together, never fewer; a pull cut off halfway leaves extra listings until the next pull (`maintain` never touches `feeds_ioc_source`). A feed switched off mid-pull keeps the committed chunks until it is pulled again (switched-off feeds' listings are kept anyway). A new reader must not assume a list is applied atomically.
+- **core export** (`export_policy.go`): `feeds_ioc_source.seen` stays in the export list but nothing reads or writes it now.
+- Not chunked: `applyVulns`, `applyTemplates`, `applyEPSS` (a custom vulnerability list is capped at 50 000 rows, about 3 s). Raise that cap and these need the same treatment.
+
 ## Modifying: `feeds.Inventory` (`MatchProducts`, `AddManualDevice`), `feeds.Deps`, `feeds.Service` (`Seed`, `Jobs`, `Fetch`, `Store`), `feeds.Handlers`
 - **inventory** (Kiên) implements `Inventory`: `MatchProducts` keyed by `Product.Key()` (= `ProductKey`) gives `you_have`/`matched_assets` of the hot board and the CVE page, `how` ∈ yes|maybe; `AddManualDevice` runs inside feeds' write transaction (it must not open its own `Write`). Change a signature = the "Do you have it?" column and "I have it" stop compiling in `cmd/vedette`.
 - **cmd/vedette** (`feeds.go`, `wiring.go`, `modules.go`, `handler.go`): builds `Service` once per database; `Deps.Events` is `deps.Bus` and `Deps.Inventory` is `feedsInventory{deps.Inventory}` (so `deps.Inventory` must be built before the first `feedsService` call: `buildServices` does it). `Inventory` may also implement `TxSettler`; the real one does, so its events follow the commit of feeds' transaction. `Seed` must run after the migrations, on every start.

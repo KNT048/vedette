@@ -36,7 +36,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 			return nil
 		}
 		return d.Honeypot.DecoyIPs(ctx)
-	}}, Host: notAnAppliance{},
+	}}, Host: newHoneypotHost(d),
 		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
 	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
@@ -83,19 +83,20 @@ func honeypotEnsureOff(d deps) modreg.Teardown {
 	return d.Honeypot.EnsureOff
 }
 
-// notAnAppliance is the stand-in for vedette-host until it implements decoy_ip.add/remove and container.start/stop of
-// the `honeypot` service (WP-07b parts 2 and 3, host-api 6.6-6.9): nothing can listen, and the module says why. Replace it
-// with an adapter over host/client when those commands exist (deferred: .ai/deferred/feat-honeypot.md).
+// notAnAppliance is the Host of a core without -host-socket (dev, a bare box, D-55): nothing can listen, and the module
+// says why. With a socket, honeypotHost (honeypothost.go, D-161) talks to vedette-host.
 type notAnAppliance struct{}
 
-var errNoHost = errors.New("honeypot: vedette-host cannot run decoys yet")
+const notApplianceReason = "this machine is not an appliance: there is no vedette-host to run the honeypot container"
+
+var errNoHost = errors.New("honeypot: there is no vedette-host on this machine")
 
 func (notAnAppliance) Status(context.Context) (honeypot.HostStatus, error) {
-	return honeypot.HostStatus{Reason: "vedette-host does not run the honeypot container yet (not an appliance)"}, nil
+	return honeypot.HostStatus{Reason: notApplianceReason}, nil
 }
 func (notAnAppliance) AddDecoyIP(context.Context, netip.Addr) error    { return errNoHost }
 func (notAnAppliance) RemoveDecoyIP(context.Context, netip.Addr) error { return errNoHost }
-func (notAnAppliance) StartContainer(context.Context) error            { return errNoHost }
+func (notAnAppliance) StartContainer(context.Context, bool) error      { return errNoHost }
 func (notAnAppliance) StopContainer(context.Context) error             { return errNoHost }
 
 // honeypotInventory implements honeypot.Inventory over inventory.Service, converting to the module's types so the

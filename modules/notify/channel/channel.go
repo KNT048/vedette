@@ -61,6 +61,10 @@ type DeviceRef struct {
 type Receipt struct {
 	To     string // destination label for SendRecord.to (never a secret)
 	Detail string // short, secret-free text, shown as the test-send result
+	// MessageID is the id the provider gave the message (Telegram: message_id, 1 to 2^53), so it can be edited later; 0 = unknown.
+	MessageID int64
+	// ChatID is the chat the provider says the message is in (Telegram: result.chat.id, a checked number); "" = unknown.
+	ChatID string
 }
 
 // Sender sends one Message through one configured channel.

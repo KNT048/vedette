@@ -3,6 +3,8 @@ package response_test
 import (
 	"context"
 	"errors"
+	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -11,14 +13,17 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// fakeLogs is the logs module's read port: declared sources and a count per (source, signature).
+// fakeLogs is the logs module's read port: declared sources, a count per (source, signature) and the addresses behind it.
 type fakeLogs struct {
-	mu      sync.Mutex
-	sources []response.LogSource
-	counts  map[string]int // source id + "|" + signature
-	off     bool
-	broken  bool
-	windows []time.Duration
+	mu        sync.Mutex
+	sources   []response.LogSource
+	counts    map[string]int                   // source id + "|" + signature
+	addrs     map[string][]response.LogAddress // the same key, most first (logs.TopAddresses)
+	off       bool
+	broken    bool
+	topBroken bool
+	windows   []time.Duration
+	asked     []int // the n of every TopAddresses
 }
 
 func (f *fakeLogs) Sources(context.Context) ([]response.LogSource, error) {
@@ -38,6 +43,37 @@ func (f *fakeLogs) Counts(_ context.Context, source, signature string, window ti
 	return f.counts[source+"|"+signature], nil
 }
 
+func (f *fakeLogs) TopAddresses(_ context.Context, source, signature string, _ time.Duration, n int) ([]response.LogAddress, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.asked = append(f.asked, n)
+	if f.topBroken {
+		return nil, errors.New("logs: reading addresses: disk I/O error")
+	}
+	a := f.addrs[source+"|"+signature]
+	return a[:min(n, len(a))], nil
+}
+
+func addr(s string, n int) response.LogAddress {
+	return response.LogAddress{Addr: netip.MustParseAddr(s), Count: n}
+}
+
+func (e *env) logEvents() []string {
+	e.t.Helper()
+	rows, err := e.db.Reader().QueryContext(e.ctx(), `SELECT json_extract(fields, '$.source_ip') FROM resp_events WHERE trigger = 'log_threshold' ORDER BY id`)
+	e.must(err)
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var ip string
+		e.must(rows.Scan(&ip))
+		out = append(out, ip)
+	}
+	e.must(rows.Err())
+	slices.Sort(out)
+	return out
+}
+
 const failedLogon = "4625: Failed logon"
 
 // logRule counts failedLogon in a 5-minute window.
@@ -50,12 +86,13 @@ func logRule(n int) func(in *response.RuleInput) {
 
 func logEnv(t *testing.T) (*env, *fakeLogs) {
 	t.Helper()
-	l := &fakeLogs{sources: []response.LogSource{{ID: "ls-fw", Name: "FortiGate"}, {ID: "ls-dc", Name: "DC01"}}, counts: map[string]int{}}
+	l := &fakeLogs{sources: []response.LogSource{{ID: "ls-fw", Name: "FortiGate"}, {ID: "ls-dc", Name: "DC01"}}, counts: map[string]int{}, addrs: map[string][]response.LogAddress{}}
 	return newEnv(t, func(c *response.Config) { c.LogCounts = l }), l
 }
 
-// #332, D-287: a log_threshold rule fires when a declared log source reached N lines of the signature in W minutes, once per
-// window; the event names the log source, not an address, so an action that needs {{trigger.source_ip}} is not available.
+// #332, D-287, D-288: a log_threshold rule fires when a declared log source reached N lines of the signature in W minutes, once per
+// burst; when no single address sent N of them (spread over many, or lines that name none) the event names the log source only,
+// so an action that needs {{trigger.source_ip}} is not available.
 func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	e, l := logEnv(t)
 	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} failed logons on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(10))
@@ -79,7 +116,7 @@ func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 	e.must(err)
 	refused := false
 	for _, l := range lg {
-		refused = refused || l.Kind == "refused" && strings.Contains(l.Detail, "Not available: this event has no value for {{trigger.source_ip}}")
+		refused = refused || l.Kind == "refused" && strings.Contains(l.Detail, "Not available: no single address sent at least 10 lines")
 	}
 	if !refused {
 		t.Errorf("the ban was not refused as not available: %+v", lg)
@@ -182,4 +219,68 @@ func TestLogThresholdRuleChecks(t *testing.T) {
 	_, err = e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Other", Enabled: true, Trigger: "honeypot", Match: "all", Actions: msg, MaxPerHour: 5,
 		Conditions: []response.Condition{{Field: "decoy", Op: "eq", Value: "a=b"}}})
 	wantCode(t, err, 400, "invalid")
+}
+
+// #348, D-288: every address that alone sent N lines of the signature in the window is an event of its own with source_ip, so
+// a ban rule bans each attacker (fail2ban maxretry, Wazuh same_srcip); an address under N is never banned for the others' lines.
+// One burst of one address is one event; a second address reaching N in the same burst is a new event.
+func TestLogThresholdBansEachAddressThatReachedTheThreshold(t *testing.T) {
+	e, l := logEnv(t)
+	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(10))
+	key := "ls-fw|" + failedLogon
+	l.counts[key] = 40
+	l.addrs[key] = []response.LogAddress{addr("203.0.113.9", 14), addr("::ffff:198.51.100.7", 11), addr("192.0.2.5", 9), addr("192.0.2.6", 6)}
+	e.must(e.svc.PollLogs(e.ctx()))
+	if got := e.logEvents(); !slices.Equal(got, []string{"198.51.100.7", "203.0.113.9"}) {
+		t.Fatalf("events for %q, want the two addresses over 10 (IPv4-mapped as IPv4) and no source-only event", got)
+	}
+	if len(l.asked) != 1 || l.asked[0] != 50 {
+		t.Fatalf("TopAddresses asked for %v, want 50 once", l.asked)
+	}
+	_, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	var clis []string
+	for _, a := range e.actions() {
+		clis = append(clis, a.Items[0].Change.CLI)
+	}
+	slices.Sort(clis)
+	if !slices.Equal(clis, []string{"blocklist add 198.51.100.7", "blocklist add 203.0.113.9"}) {
+		t.Fatalf("requests %q", clis)
+	}
+	// the same burst: no second event for the two; the third address now over 10 is its own event
+	l.addrs[key][2].Count = 10
+	e.clock.Advance(time.Minute)
+	e.must(e.svc.PollLogs(e.ctx()))
+	if got := e.logEvents(); !slices.Equal(got, []string{"192.0.2.5", "198.51.100.7", "203.0.113.9"}) {
+		t.Fatalf("events %q after a third address reached 10", got)
+	}
+	// once the burst left the counted window (5 + 5 minutes), the same addresses are new events
+	e.clock.Advance(10 * time.Minute)
+	e.must(e.svc.PollLogs(e.ctx()))
+	if got := e.logEvents(); len(got) != 6 {
+		t.Fatalf("events %q after the window, want 6", got)
+	}
+}
+
+// The addresses could not be read (a failure, not "none"): the count still makes its source-only event, said once as a warning.
+// An address with a zone, or not valid, is never an event.
+func TestLogThresholdAddressesUnreadable(t *testing.T) {
+	e, l := logEnv(t)
+	e.rule("Alert", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} on {{trigger.source_device}} from {{trigger.source_ip}}"}}}, logRule(10))
+	key := "ls-fw|" + failedLogon
+	l.counts[key] = 12
+	l.addrs[key] = []response.LogAddress{{Addr: netip.MustParseAddr("fe80::1%eth0"), Count: 12}, {Count: 12}}
+	e.must(e.svc.PollLogs(e.ctx()))
+	if got := e.logEvents(); !slices.Equal(got, []string{""}) {
+		t.Fatalf("events %q, want one source-only event (a zoned or invalid address is never one)", got)
+	}
+	e2, l2 := logEnv(t)
+	e2.rule("Alert", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(10))
+	l2.counts[key] = 12
+	l2.addrs[key] = []response.LogAddress{addr("203.0.113.9", 12)}
+	l2.topBroken = true
+	e2.must(e2.svc.PollLogs(e2.ctx()))
+	if got := e2.logEvents(); !slices.Equal(got, []string{""}) {
+		t.Fatalf("events %q with the addresses unreadable, want one source-only event", got)
+	}
 }

@@ -50,7 +50,7 @@ func sanitizeWeb(s string) string {
 		case unicode.IsSpace(r):
 			space = true
 			continue
-		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || (r >= 0xFFF9 && r <= 0xFFFB):
+		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || invisible(r):
 			continue
 		}
 		if space && newlines == 0 && b.Len() > 0 {
@@ -60,6 +60,13 @@ func sanitizeWeb(s string) string {
 		b.WriteRune(r)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// invisible lists the characters outside Cc/Cf that render as nothing and can hide text: variation selectors, the combining
+// grapheme joiner, the Hangul fillers, Mongolian variation selectors and the interlinear annotation marks.
+func invisible(r rune) bool {
+	return (r >= 0xFE00 && r <= 0xFE0F) || (r >= 0xE0100 && r <= 0xE01EF) || r == 0x034F || r == 0x115F || r == 0x1160 || r == 0x3164 ||
+		r == 0xFFA0 || (r >= 0x180B && r <= 0x180F) || (r >= 0xFFF9 && r <= 0xFFFB)
 }
 
 // webLine is one field of fetched data on one line, cut to n bytes.
@@ -147,9 +154,14 @@ func excerpt(text, cve string, limit int) string {
 	return clipBytes(b.String(), limit)
 }
 
-// safeLink returns u when it is a plain https address of a reasonable length (and, with host set, on that host), else "".
+// safeLink returns u when it is a plain printable-ASCII https address of a reasonable length (and, with host set, on that host), else "".
 func safeLink(u, host string) string {
 	u = strings.TrimSpace(u)
+	for i := 0; i < len(u); i++ {
+		if u[i] < 0x21 || u[i] > 0x7e { // a real link is percent-encoded; raw bytes could hide bidi or zero-width characters
+			return ""
+		}
+	}
 	p, err := url.Parse(u)
 	if err != nil || p.Scheme != "https" || p.Host == "" || p.User != nil || len(u) > 500 || strings.ContainsAny(u, " \t\r\n<>\"'`") {
 		return ""

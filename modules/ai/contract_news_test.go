@@ -445,6 +445,9 @@ func TestNewsRedirectsSizesTimeoutsAndLimits(t *testing.T) {
 			t.Fatal("the redirect was followed off the host")
 		}
 	}
+	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "- Rapid7 blog (RSS): The site answered HTTP 503, source skipped") {
+		t.Errorf("the failed sources are not told to the AI: %s", user)
+	}
 	if strings.Contains(fmt.Sprint(got), "IGNORE ALL") || strings.Contains(fmt.Sprint(got), "<script>") {
 		t.Fatalf("remote text in the result: %v", got)
 	}
@@ -478,7 +481,7 @@ func TestNewsFetchedTextCannotBreakTheFence(t *testing.T) {
 	blocks := regexp.MustCompile(`(?s)<<<DATA-`+m[1]+` kind=(\w+) .*?>>>\n(.*?)\n<<<END-DATA-`+m[1]+`>>>`).FindAllStringSubmatch(user, -1)
 	outside := user
 	for _, b := range blocks {
-		if b[1] != "web" && b[1] != "feed" {
+		if b[1] != "web" && b[1] != "feed" && b[1] != "data" {
 			t.Errorf("block kind %s", b[1])
 		}
 		outside = strings.Replace(outside, b[0], "", 1)
@@ -503,5 +506,34 @@ func TestNewsBadAnswersAreDiscarded(t *testing.T) {
 	}
 	if c := a.want("GET", "/ai/cve/"+newsCVE+"/cached", "viewer", "", 200, ""); c["news"] != nil {
 		t.Fatalf("a bad answer was stored: %v", c)
+	}
+}
+
+func TestNewsUntrustedLinksAreCleaned(t *testing.T) {
+	a := newNewsAPI(t)
+	a.facts.mu.Lock()
+	f := a.facts.cves[newsCVE]
+	f.Links = []string{"https://ex\u202eample.com/a", "https://fortiguard.fortinet.com/psirt/FG-IR-22-001?x=\u202eevil\u200b"}
+	a.facts.cves[newsCVE] = f
+	a.facts.mu.Unlock()
+	got := a.news(200, "")
+	user := a.fake.lastRequest(t).Messages[0].Text
+	for _, bad := range []string{"\u202e", "\u200b"} {
+		if strings.Contains(user, bad) || strings.Contains(fmt.Sprint(got["sources"]), bad) {
+			t.Errorf("%q reached the prompt or the sources", bad)
+		}
+	}
+}
+
+func TestNewsAStatusChangeIsANewInput(t *testing.T) {
+	a := newNewsAPI(t)
+	a.net.set("www.rapid7.com/rss.xml", fakePage{status: http.StatusServiceUnavailable})
+	a.news(200, "")
+	calls := a.fake.total()
+	a.net.set("www.rapid7.com/rss.xml", fakePage{body: rss()}) // now read, and no post names the CVE: still no block
+	a.clock.Add(31 * time.Minute)
+	got := a.news(200, "")
+	if a.fake.total() != calls+1 || sourcesOf(t, got)["Rapid7 blog (RSS)"]["status"] != "ok" {
+		t.Fatalf("a stored answer that says the feed failed was served: %v", got["sources"])
 	}
 }

@@ -165,7 +165,7 @@ func (f *newsFetcher) vendorSource(ctx context.Context, cve string, links []stri
 			continue
 		}
 		p, _ := url.Parse(u)
-		host := strings.ToLower(p.Hostname())
+		host := webLine(strings.ToLower(p.Hostname()), 253) // the host of an untrusted link: shown, so cleaned
 		if first == "" {
 			first = u
 		}
@@ -174,27 +174,28 @@ func (f *newsFetcher) vendorSource(ctx context.Context, cve string, links []stri
 		}
 		title := "Vendor advisory (" + strings.TrimPrefix(host, "www.") + ")"
 		type res struct {
-			text string
-			size int
+			text  string // the excerpt for this CVE, not the whole page (the cache holds 128 entries)
+			names bool
+			size  int
 		}
-		r, err := cachedFetch(f, "page "+u, func() (res, error) {
+		r, err := cachedFetch(f, "page "+cve+" "+u, func() (res, error) {
 			body, err := f.get(ctx, u, "text/html,application/xhtml+xml")
 			if err != nil {
 				return res{}, err
 			}
-			return res{htmlToText(string(body), 512<<10), len(body)}, nil
+			page := htmlToText(string(body), 512<<10)
+			return res{excerpt(page, cve, maxSourceText), containsCVE(page, cve), len(body)}, nil
 		})
 		if err != nil {
 			return f.failedSource("advisory", title, u, err), true
 		}
-		text := excerpt(r.text, cve, maxSourceText)
 		note := sizeNote(r.size)
-		if !containsCVE(r.text, cve) {
+		if !r.names {
 			note += "; the page does not name this CVE"
 		}
 		return newsSource{
 			row:   FetchedSource{Kind: "advisory", Title: title, URL: u, Status: "ok", Note: note},
-			block: &DataBlock{Kind: DataWeb, Source: "vendor advisory " + host, Text: "Vendor page " + u + "\n" + text},
+			block: &DataBlock{Kind: DataWeb, Source: "vendor advisory " + host, Text: sanitizeWeb("Vendor page "+u) + "\n" + r.text},
 			cites: []Citation{{Title: title, URL: u}},
 		}, true
 	}
@@ -202,7 +203,7 @@ func (f *newsFetcher) vendorSource(ctx context.Context, cve string, links []stri
 		return newsSource{}, false
 	}
 	p, _ := url.Parse(first)
-	host := strings.TrimPrefix(strings.ToLower(p.Hostname()), "www.")
+	host := webLine(strings.TrimPrefix(strings.ToLower(p.Hostname()), "www."), 253)
 	return newsSource{row: FetchedSource{Kind: "advisory", Title: "Vendor advisory (" + host + ")", URL: first, Status: "failed",
 		Note: "Not fetched: " + host + " is not on the box's list of advisory sites (or needs JavaScript); open it yourself"}}, true
 }
@@ -403,7 +404,9 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 	srcs := s.news.gather(ctx, facts)
 	har := s.harness.Load()
 	s.newsHookCheck(ctx, har.runner, srcs)
-	data := []DataBlock{feedBlock(facts)}
+	kev := feedBlock(facts)
+	kev.Text = sanitizeWeb(kev.Text) // the entry's links are untrusted too
+	data := []DataBlock{kev}
 	body := newsBody{Sources: []FetchedSource{}, Citations: []Citation{}}
 	for _, src := range srcs {
 		body.Sources = append(body.Sources, src.row)
@@ -419,6 +422,17 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 	if len(data) == 1 {
 		return NewsResult{}, apiUnavailable("Vedette could not fetch any source about this CVE, so the AI was not asked and no tokens were spent. Try again in a few minutes.")
 	}
+	fetched := len(data) - 1
+	// The box says which sources it could not read, so the summary can say so; titles and notes are the box's own words.
+	var miss strings.Builder
+	for _, src := range body.Sources {
+		if src.Status != "ok" {
+			fmt.Fprintf(&miss, "- %s: %s\n", src.Title, src.Note)
+		}
+	}
+	if miss.Len() > 0 {
+		data = append(data, DataBlock{Kind: "sources", Source: "sources the box could not read", Text: miss.String()})
+	}
 	var rules []string
 	for _, r := range har.rules {
 		if r.Enabled && r.appliesTo(JobCVENews) {
@@ -426,7 +440,10 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		}
 	}
 	var in strings.Builder
-	in.WriteString("news-v1")
+	in.WriteString("news-v2")
+	for _, src := range body.Sources { // a failed source and one that does not name the CVE both send no block
+		in.WriteString("\nsource:" + src.Title + "|" + src.Status + "|" + src.Note)
+	}
 	for _, d := range data {
 		in.WriteString("\n<" + d.Source + ">\n" + d.Text)
 	}
@@ -445,7 +462,7 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		Data:      data,
 		Schema:    &provider.Schema{Name: "cve_news", JSON: json.RawMessage(newsSchema)},
 		MaxTokens: 2000, // a real answer runs to about 600 tokens; a cut-off answer is not JSON and is discarded
-		Summary:   fmt.Sprintf("Summarised %d public sources about %s", len(data)-1, cve),
+		Summary:   fmt.Sprintf("Summarised %d public sources about %s", fetched, cve),
 		Check: func(text string) error {
 			var perr error
 			answer, perr = parseNews(text)

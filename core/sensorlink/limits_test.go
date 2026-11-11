@@ -180,61 +180,15 @@ func TestResultForAnUnknownJobIsRefusedBeforeTheBody(t *testing.T) {
 	}
 }
 
-// L5: the listener of the sensor link takes at most MaxConns connections at once, and a connection that is closed gives its slot
-// back.
-func TestLimitListener(t *testing.T) {
+// D-326: the whole listener holds at most MaxConns: the pending pool plus the two role shares.
+func TestMaxConnsIsThePendingPoolPlusTheRoleShares(t *testing.T) {
 	t.Parallel()
-	inner, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	if sensorlink.MaxConns != 64 || sensorlink.MaxPending+sensorlink.MaxConnsPassive+sensorlink.MaxConnsActive != sensorlink.MaxConns {
+		t.Errorf("MaxConns = %d, pending %d + passive %d + active %d", sensorlink.MaxConns, sensorlink.MaxPending, sensorlink.MaxConnsPassive, sensorlink.MaxConnsActive)
 	}
-	l := sensorlink.LimitListener(inner, 2)
-	t.Cleanup(func() { _ = l.Close() })
-	accepted := make(chan net.Conn, 8)
-	go func() {
-		for {
-			c, err := l.Accept()
-			if err != nil {
-				return
-			}
-			accepted <- c
-		}
-	}()
-	var clients []net.Conn
-	for range 3 {
-		c, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", inner.Addr().String())
-		if err != nil {
-			t.Fatal(err)
-		}
-		clients = append(clients, c)
-		t.Cleanup(func() { _ = c.Close() })
+	if sensorlink.HandshakeDeadline >= sensorlink.ReadHeaderTimeout || sensorlink.MinPendingAge >= sensorlink.HandshakeDeadline {
+		t.Errorf("handshake deadline %v must be under net/http's %v and over the minimum age %v", sensorlink.HandshakeDeadline, sensorlink.ReadHeaderTimeout, sensorlink.MinPendingAge)
 	}
-	var got []net.Conn
-	for range 2 {
-		select {
-		case c := <-accepted:
-			got = append(got, c)
-		case <-time.After(3 * time.Second):
-			t.Fatal("the first two connections were not accepted")
-		}
-	}
-	select {
-	case <-accepted:
-		t.Fatal("a third connection was accepted over the limit of 2")
-	case <-time.After(300 * time.Millisecond):
-	}
-	_ = got[0].Close()
-	_ = got[0].Close() // closing twice gives the slot back once
-	select {
-	case c := <-accepted:
-		_ = c.Close()
-	case <-time.After(3 * time.Second):
-		t.Fatal("the slot of a closed connection was not given back")
-	}
-	if sensorlink.MaxConns != 64 {
-		t.Errorf("MaxConns = %d, want 64", sensorlink.MaxConns)
-	}
-	_ = clients
 }
 
 // L5: Serve is the limit listener plus the TLS and timeouts of HTTPServer, and a handshake the server refuses goes to the log

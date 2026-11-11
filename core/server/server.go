@@ -240,6 +240,8 @@ var safeMethods = []string{http.MethodGet, http.MethodHead, http.MethodOptions}
 // same body (SYS-5). Non-public operations: authentication (401), module gate (404), role (403), CSRF
 // (403). Public operations: module gate (404) first. Then the generated server.
 func (a *api) route(w http.ResponseWriter, r *http.Request) {
+	// A request never waits for the database writer longer than this; past it, 503 server_busy (D-246).
+	r = r.WithContext(store.LimitWriteWait(r.Context(), store.RequestWriteWait))
 	route, ok := a.oas.FindPath(r.Method, r.URL)
 	if !ok {
 		apierr.Write(w, apierr.NotFound())

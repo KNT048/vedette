@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -147,11 +148,118 @@ func (db *DB) Close() error {
 // Reader returns the read-only pool. Writes through it fail (query_only).
 func (db *DB) Reader() *sql.DB { return db.r }
 
+// RequestWriteWait is how long a request waits for the writer before it is refused with ErrBusy (D-246). The HTTP servers set it
+// on every request context with LimitWriteWait; jobs and other background work wait on their own context.
+const RequestWriteWait = 5 * time.Second
+
+// SlowWrite is the time holding the writer past which Write logs a warning with its caller (D-246): every other write waits
+// that long.
+const SlowWrite = time.Second
+
+// ErrBusy is what Write answers when ctx carries a write wait limit (LimitWriteWait) and the writer stayed taken by another
+// transaction for that long. Nothing was written. The HTTP layer answers it with 503 server_busy and Retry-After.
+var ErrBusy = errors.New("store: the database writer is busy")
+
+type waitKey struct{}
+
+type waitLimit struct {
+	d    time.Duration
+	done <-chan struct{} // of the request: once it is closed, the limit no longer applies
+}
+
+// LimitWriteWait returns ctx with a limit of d on the time a Write waits for the writer; past it Write answers ErrBusy. The
+// limit lasts as long as ctx itself: work detached from a request (context.WithoutCancel) keeps the value, but once the request
+// has ended its writes wait on their own context again, like a job's.
+func LimitWriteWait(ctx context.Context, d time.Duration) context.Context {
+	return context.WithValue(ctx, waitKey{}, waitLimit{d: d, done: ctx.Done()})
+}
+
+// writeWait is the wait limit ctx carries, if any is in force.
+func writeWait(ctx context.Context) (time.Duration, bool) {
+	l, ok := ctx.Value(waitKey{}).(waitLimit)
+	if !ok || l.d <= 0 {
+		return 0, false
+	}
+	select {
+	case <-l.done: // nil (never closes) for a context that cannot be cancelled: the limit stays
+		return 0, false
+	default:
+		return l.d, true
+	}
+}
+
+var errWaitLimit = errors.New("store: write wait limit")
+
+// writer takes the single writer connection, within the wait limit of ctx when it has one.
+func (db *DB) writer(ctx context.Context) (*sql.Conn, error) {
+	d, limited := writeWait(ctx)
+	if !limited {
+		c, err := db.w.Conn(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("store: begin: %w", err)
+		}
+		return c, nil
+	}
+	// The context only bounds the wait for the connection: sql.Conn does not keep it.
+	wctx, cancel := context.WithTimeoutCause(ctx, d, errWaitLimit)
+	defer cancel()
+	c, err := db.w.Conn(wctx)
+	if err == nil {
+		return c, nil
+	}
+	if ctx.Err() == nil && errors.Is(context.Cause(wctx), errWaitLimit) {
+		mod, fn := caller()
+		db.log.WarnContext(ctx, "store: request refused, the database writer stayed busy", "module", mod, "caller", fn, "waited", d)
+		return nil, ErrBusy
+	}
+	return nil, fmt.Errorf("store: begin: %w", err)
+}
+
+const repoPrefix = "github.com/knt048/vedette/"
+
+// caller names the first function outside this package (and the runtime: a panic unwinding through Write) on the stack, and its module: "feeds" for modules/feeds, else the
+// package path in the repository ("core/jobs"). Only names, never arguments.
+func caller() (module, fn string) {
+	pcs := make([]uintptr, 16)
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
+	for {
+		f, more := frames.Next()
+		if f.Function != "" && !strings.HasPrefix(f.Function, repoPrefix+"core/store.") && !strings.HasPrefix(f.Function, "runtime.") {
+			fn = f.Function
+			pkg := fn
+			if i := strings.LastIndex(pkg, "/"); i >= 0 {
+				if j := strings.Index(pkg[i:], "."); j >= 0 {
+					pkg = pkg[:i+j]
+				}
+			}
+			pkg = strings.TrimPrefix(pkg, repoPrefix)
+			return strings.TrimPrefix(pkg, "modules/"), fn
+		}
+		if !more {
+			return "", ""
+		}
+	}
+}
+
 // Write runs fn in a BEGIN IMMEDIATE transaction on the single writer connection.
 // It commits only when fn returns nil. On an error, a panic (re-raised) or runtime.Goexit
 // (t.FailNow in a test) the transaction is rolled back, so the writer connection is never leaked.
+// When ctx carries a wait limit (LimitWriteWait) and the writer stays taken past it, Write answers ErrBusy without running fn.
+// A transaction that holds the writer longer than SlowWrite is logged with its caller (no SQL, no values).
 func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
-	tx, err := db.w.BeginTx(ctx, nil)
+	conn, err := db.writer(ctx)
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	defer func() { // runs last: after the commit or the rollback below, also on a panic
+		_ = conn.Close() // back to the pool
+		if held := time.Since(start); held > SlowWrite {
+			mod, fn := caller()
+			db.log.WarnContext(ctx, "store: a write transaction held the database writer", "module", mod, "caller", fn, "held", held.Round(time.Millisecond))
+		}
+	}()
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("store: begin: %w", err)
 	}

@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (225 mã)
+#### HTTP 400 (228 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -187,6 +187,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_cap` | 400 | The profile\ | `PUT /ai/config` |
 | `invalid_categories` | 400 | Unknown or empty log category in the download request. | `GET /core/logs/export` |
 | `invalid_channel` | 400 | The channel is stable or beta. | `PATCH /core/updates` |
+| `invalid_claim` | 400 | Enter the name of the groups claim, for example groups (letters, digits and _ . : / -, at most 64). | `PUT /core/oidc` (D-195 (1)) |
 | `invalid_client` | 400 | Enter the Client ID (at most 200 characters). | `PUT /core/oidc` |
 | `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |
@@ -223,7 +224,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_role` | 400 | Choose a role: view only, operator or administrator. | `PATCH /core/users/{id}`; `POST /core/users`; `PUT /core/oidc` |
 | `invalid_rule` | 400 | Write the rule in 3 to 300 characters, for example "Always name devices by hostname and IP address". | module ai (validator dùng chung) |
 | `invalid_scope` | 400 | Choose security updates or all updates. | `POST /core/updates/os/install` |
-| `invalid_scopes` | 400 | Choose at least one read scope: devices, findings or vulnerability feeds. | `POST /core/mcp/tokens` |
+| `invalid_scopes` | 400 | Choose at least one read scope: devices, findings or vulnerability feeds. | `POST /core/mcp/tokens`; `PUT /core/oidc` with its own message: "Scopes are words separated by spaces, at most 10, and must include openid." (D-194 (7)) |
 | `invalid_secret` | 400 | The secret is too short. Copy the whole token, password or key again. Also: This private key is protected by a passphrase, which Vedette cannot type. Save a copy without one and paste that. Also (13b-4): This private key could not be read. Paste the whole key, including the BEGIN and END lines.; This key type is not accepted. Use an Ed25519, ECDSA or RSA key of at least 2048 bits. | `PUT /core/oidc`; `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_sector` | 400 | Pick the field of activity. | module reports (validator dùng chung) |
 | `invalid_setting` | 400 | Say whether the AI may suggest new memories: on or off. | `PUT /ai/hooks/builtin/{id}`; `PUT /ai/memory/settings`; `PUT /ai/skills/{id}` |
@@ -247,7 +248,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_outside_lan` | 400 | The secondary IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `key_required` | 400 | The API key is required (changing the provider type needs the key again). | module ai (validator dùng chung) |
 | `kind_unsupported` | 400 | An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)"). | `POST /core/connections`; `PUT /core/connections/{id}`; `POST /core/connections/{id}/test` (D-94) |
-| `last_admin` | 400 | At least one active administrator must remain. Add another administrator first. | `PATCH /core/users/{id}` |
+| `last_admin` | 400 | At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first. | `PATCH /core/users/{id}` (only password accounts count, D-196 (3)) |
 | `locked` | 400 | "Write tools need approval" is always on. A tool that changes something can only run through an action a person approves | `PUT /ai/hooks/builtin/{id}` |
 | `missing_dependencies` | 400/409 | Module ${id} also needs: ${lacking.join(', ')}. | `PATCH /modules/{id}`; `POST /core/setup` |
 | `no_code` | 400 | No code is waiting. Ask for a new code. | module core (validator dùng chung) |
@@ -270,7 +271,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
 | `note_required` | 400 | Write why this is a false positive or not relevant (at least 3 characters) so the next person understands. | `POST /findings/{id}/status` |
 | `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}`; `POST /findings/{id}/status` |
-| `oidc_off` | 400 | SSO sign-in is not enabled. Ask an administrator to enable it under Settings, Users. | `POST /core/sso/login` |
+| `oidc_off` | 400 | SSO sign-in is not set up. Sign in with your email and password, or ask an administrator. | `POST /auth/oidc/start`; `POST /auth/oidc/callback` (D-194) |
 | `out_of_scope` | 400 | The target is outside the approved scope. | `POST /scans/credentialed`; `POST /scans/runs` |
 | `outside_window` | 400 | The chosen reboot time is outside the maintenance window. | `POST /core/updates/os/reboot` |
 | `overlap_range` | 400 | Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one. | `PUT /inventory/settings` |
@@ -288,6 +289,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. Also: Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for. | `POST /core/connections`; `PUT /core/connections/{id}`; module notify (validator dùng chung) |
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
+| `sso_expired` | 400 | This sign-in has expired or was already used. Start again from the sign-in page. / This sign-in was started in another tab or browser. Start again from the sign-in page. | `POST /auth/oidc/callback`: state unknown, used or older than 10 minutes, or the binding is wrong (D-194 (4)); the flow is spent either way |
+| `sso_failed` | 400 | The identity provider's answer could not be verified. Ask an administrator to check the SSO settings; the audit log has the reason. | `POST /auth/oidc/callback`: code exchange refused, or the ID token fails a check (signature, alg, iss, aud/azp, exp, nonce); `auth.login_failed` says which (D-194 (3)) |
 | `temp_password_expired` | 400 | This temporary password has expired. Ask an administrator for a new one. | `POST /auth/login` (D-180) |
 | `telemetry_unavailable` | 400 | This version of Vedette does not send an anonymous signal, so it cannot be turned on. | `PATCH /core/privacy` với `telemetry: true` (backend; D-154. Không có trong mock; GUI không gửi từ D-153) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
@@ -327,18 +330,20 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `twofa_required` | 401/403/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution`; 403 từ `core/auth.VerifyTwoStep` khi người duyệt chưa bật hai bước (D-98) |
 | `unauthenticated` | 401 | Not signed in. | `GET /me`; mọi endpoint không công khai khi không có phiên, phiên hết hạn hoặc bị thu hồi; ở các thao tác ghi, phiên bị thu hồi **giữa chừng** cũng là 401 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` |
 
-#### HTTP 403 (11 mã)
+#### HTTP 403 (13 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `approver_not_listed` | 403 | Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or ad | `POST /response/actions/{id}/chat-decision`; `POST /response/approve/{token}` |
 | `channel_not_allowed` | 403 | Approvals from ${b.channel} are not turned on for response. | `POST /response/actions/{id}/chat-decision` |
 | `csrf_invalid` | 403 | The request could not be verified. Reload the page and try again. | mọi POST/PUT/PATCH/DELETE đã xác thực (`core/server`, §7.2; WP-04a) |
-| `disabled` | 403 | This account has been disabled. | `POST /core/sso/login`; `POST /auth/login`; `POST /auth/login/resend-code`; mọi yêu cầu có phiên của tài khoản bị khoá; ở các thao tác ghi, tài khoản bị khoá giữa chừng cũng là 403 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` (quản trị viên đang thực hiện bị khoá) |
+| `disabled` | 403 | This account has been disabled. | `POST /auth/oidc/callback` (even when the identity provider lets the person in); `POST /auth/login`; `POST /auth/login/resend-code`; mọi yêu cầu có phiên của tài khoản bị khoá; ở các thao tác ghi, tài khoản bị khoá giữa chừng cũng là 403 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` (quản trị viên đang thực hiện bị khoá) |
+| `email_unverified` | 403 | Your identity provider says this email address is not verified. Verify it there, or ask an administrator. | `POST /auth/oidc/callback`, new account: `email_verified` is false, or the ID token has no email (D-195 (4)) |
 | `forbidden` | 403 | Your account is not allowed to do this. | module core (validator dùng chung) |
 | `in_app_required` | 403 | A high-risk AI request can only be approved in the app with your two-step code, not from chat or email. | module response (validator dùng chung) |
 | `invalid_token` | 403 | This enrollment token is not valid. Create a new one in Vedette. | `POST /intake/osquery/status` |
 | `invalid_setup_code` | 403 | The setup code is missing or wrong. Find it in the box's log: it is printed there each time Vedette starts while setup is open. | `POST /core/setup`. Mã mới của backend [ĐX] (D-75). Mã sai tính theo địa chỉ máy khách như đăng nhập (10 lần, rồi `rate_limited` 30 s nhân đôi tới 10 phút; IPv6 thêm bộ đếm /64 với trần 100), không có trần chung cho cả hộp (D-75, đã sửa sau hai lượt rà bảo mật: trần chung là đòn khoá chủ hộp) |
+| `no_access` | 403 | Your company account is not in a group that may use Vedette. Ask an administrator. | `POST /auth/oidc/callback`: no mapped group and the default role is No access (D-195 (1)) |
 | `password_change_required` | 403 | Choose a new password before you continue. | mọi yêu cầu có phiên của người dùng có mật khẩu tạm, trừ `GET /me`, `POST /core/account/password` (D-180) |
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
 | `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
@@ -353,7 +358,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (79 mã)
+#### HTTP 409 (82 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -376,6 +381,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `duplicate_ip` | 409 | IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one. | module inventory (validator dùng chung) |
 | `duplicate_software` | 409 | This software is already on the device. | `POST /inventory/devices/{id}/software` |
 | `email_channel_not_ready` | 409 | Email codes need the email alert channel. An administrator has to set it up and turn it on first. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start` |
+| `email_in_use` | 409 | A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator. | `POST /auth/oidc/callback` (D-195 (3)) |
 | `execution_off` | 409 | Execution is off (Settings, AI response). | `POST /response/actions/{id}/chat-decision`; `POST /response/proposals/{id}/request` |
 | `exists` | 409 | This target already has a scan account. | `POST /scans/credentialed` |
 | `expired` | 409 | Verification of ${t.value} has expired. Verify it again first. | `POST /exposure/targets/{id}/commitment`; `POST /exposure/targets/{id}/scan` |
@@ -411,6 +417,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `same_approver` | 409 | You already approved this request. A second, different person must approve it. | module response (validator dùng chung) |
 | `selection_differs` | 409 | The second approver must approve the same actions as the first. | module response (validator dùng chung) |
 | `skill_off` | 409 | The "Ask your data" skill is turned off. Turn it on in Settings, AI assistant, Skills. | `POST /ai/ask` |
+| `sso_user` | 409 | This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider. | `PATCH /core/users/{id}` (role), `POST /core/users/{id}/reset-password`, `POST /core/account/password`, `POST /core/account/2fa/start`, `POST /core/account/2fa/email/start` (D-195 (2), (5)) |
+| `sso_wrong_address` | 409 | SSO sign-in works at ${address}. Open Vedette there to sign in with SSO. | `POST /auth/oidc/start` from an address other than the redirect URI saved in Settings, Users (D-194 (5)); `address` in the body |
 | `tool_unavailable` | 409 | The tool of the action is missing, disabled or its connection is off; or the write tool (or undo tool) of the action was changed after the request was made. | `POST /response/proposals/{id}/request`; `POST /response/actions/{id}/approve`; `POST /response/actions/{id}/rollback` |
 | `trap_off` | 409 | The ${LABEL[service]} trap is off. Turn it on before testing. | `POST /honeypot/test-hit` |
 | `txt_missing` | 409 | The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, t | `POST /exposure/targets/{id}/scan` |
@@ -470,10 +478,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 
-#### HTTP 502 (19 mã)
+#### HTTP 502 (20 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `idp_unreachable` | 502 | Vedette cannot reach the identity provider at ${issuer}. Try again; if it keeps failing, sign in with your email and password or ask an administrator. | `POST /auth/oidc/start` (discovery), `POST /auth/oidc/callback` (token endpoint, keys) |
 | `provider_error` | 502 | The AI provider answered, but not in a way Vedette can use. Check the model name and the address. | `POST /ai/profiles/test` và các lời gọi AI sau (D-129 (3)); khác `unreachable` (không kết nối được) |
 | `address_refused` | 502 | ${cur.target} now points to a loopback address, so Vedette did not connect. Check the name in your DNS. (the address policy of D-94 at dial time: loopback, link-local including the metadata address, multicast, unspecified, the box itself, IPv6 forms that carry an IPv4 address) | `POST /core/connections/{id}/test` |
 | `device_error` | 502 | ${cur.target} was reached, but the device refused the sign-in (HTTP 401). (the device answered and said no: refused sign-in, an HTTP status, an answer over the cap, a CLI error line, an MCP error; one cleaned line, never a secret) | `POST /core/connections/{id}/test` |
@@ -585,7 +594,7 @@ Hai người quản trị sửa cùng một cấu hình không được âm th�
 | Thu hồi | `DELETE /core/account/sessions/{id}`, `POST /core/account/sessions/revoke-others`; không thu hồi chính phiên đang dùng (400 `current_session`, dùng `POST /auth/logout`). Thu hồi phiên khi đổi bảo mật (WP-04b, đã cài trong `core/auth`; quy tắc, không còn là đề xuất): đổi mật khẩu → **mọi** phiên của người đó kết thúc và phản hồi đặt lại `__Host-vedette_session` + `__Host-vedette_csrf` của một phiên mới cho đúng trình duyệt đó (người dùng vẫn đăng nhập; bản sao cookie cũ thì không: đổi định danh phiên sau thay đổi đặc quyền, OWASP); nếu yêu cầu mang cookie thiết bị `__Secure-vedette_device` còn hợp lệ trước khi đổi thì phản hồi cũng đặt cookie thiết bị mới cho mật khẩu mới (D-77: chủ vừa chứng minh mật khẩu); quản trị viên đặt lại mật khẩu hoặc đặt lại 2 bước → **mọi** phiên của người đó kết thúc trong cùng giao dịch; chính người dùng bật hoặc tắt 2 bước → mọi phiên của họ kết thúc và trình duyệt đang dùng nhận cookie của phiên mới như trên. Đổi mật khẩu, tắt 2 bước, bật 2 bước: trong giao dịch ghi, tài khoản bị khoá → 403 `disabled`, phiên đang dùng đã bị thu hồi hoặc hết hạn → 401 `unauthenticated`, mật khẩu đã bị đổi/đặt lại kể từ lúc được kiểm (`cred_version` đổi) → 400 `wrong_password` (mã đã có trong §3.3; "mật khẩu bạn vừa chứng minh không còn là mật khẩu hiện tại"). Một lần đăng nhập đang chạy mà mật khẩu (`cred_version`), trạng thái khoá hoặc kiểu 2 bước đổi trước khi nó ghi bị từ chối (400 `invalid_credentials`, hoặc 403 `disabled`), không tạo phiên. |
 | Đăng xuất | `POST /auth/logout` công khai (không lỗi khi phiên đã hết), xoá cookie, 204. |
 | Thiết lập lần đầu | `GET /setup` (công khai) cho biết `complete`; `POST /core/setup` chỉ chạy khi chưa thiết lập (sau đó 409 `already_setup`); tạo tổ chức, quản trị viên đầu tiên và một phiên cho họ (đặt `__Host-vedette_session` + `__Host-vedette_csrf`), bật gói module đã chọn, ghi `core_audit`, tất cả trong một giao dịch. **Mã cài đặt một lần (D-75)**: khi chưa có quản trị viên, hộp sinh một mã ngẫu nhiên (100 bit, dạng `XXXXX-XXXXX-XXXXX-XXXXX`), lưu qua `core/secrets`, in vào nhật ký của core mỗi lần khởi động còn mở cài đặt và xoá trong giao dịch tạo quản trị viên; thiếu hoặc sai mã → 403 `invalid_setup_code`, mã được xét **trước** mọi trường khác, so sánh thời gian hằng, mỗi lần đoán sai tính theo địa chỉ máy khách như đăng nhập (10 lần rồi 429 `rate_limited`; IPv6 thêm /64) và không có trần chung cho cả hộp (D-75, đã sửa sau rà bảo mật lần 2: trần chung là đòn khoá chủ hộp); sau khi cài đặt xong mọi `POST /core/setup` là 409 `already_setup` (cả `sample:true`). |
-| SSO | `GET /core/auth-options` (công khai) `{oidc:boolean}`; `POST /core/sso/login` (công khai) bắt đầu OIDC. Đường gọi lại của nhà cung cấp OIDC chưa có trong hợp đồng (câu hỏi mở 5). |
+| SSO | `GET /core/auth-options` (công khai) `{oidc:boolean}`; `POST /auth/oidc/start` (công khai) trả `{authorize_url, binding}`; IdP đưa trình duyệt về trang SPA `/sso/callback`, trang gửi `POST /auth/oidc/callback` `{code, state, binding}` (công khai) và nhận cookie phiên như đăng nhập mật khẩu (D-194). |
 
 ### 7.2 CSRF
 
@@ -595,7 +604,7 @@ Mock không có CSRF. Quy ước **[ĐX]** (ARCH §5: cookie phiên + CSRF):
 2. Mọi `POST/PUT/PATCH/DELETE` đã xác thực phải gửi header `X-CSRF-Token` bằng giá trị cookie đó (SPA đọc cookie, gắn header trong `request()` của `lib/api.ts`). Máy chủ so sánh SHA-256 của header với `csrf_hash`, so sánh thời gian hằng. Thiếu/sai → 403 `csrf_invalid` (mã mới).
 3. Kiểm thêm `Origin` (hoặc `Referer`) bằng nguồn của hộp với các yêu cầu đổi trạng thái.
 4. `GET` không bao giờ đổi trạng thái nên không cần CSRF (SSE `GET /events` vì thế an toàn).
-5. **Miễn:** các POST công khai (`/auth/login`, `/auth/login/resend-code`, `/auth/logout`, `/core/sso/login`, `/core/setup`, `/response/approve/{token}`, `/intake/osquery/*`). Chúng được bảo vệ bằng thông tin xác thực/ token một lần trong chính yêu cầu, và `SameSite=Strict` cho trình duyệt.
+5. **Miễn:** các POST công khai (`/auth/login`, `/auth/login/resend-code`, `/auth/logout`, `/auth/oidc/start`, `/auth/oidc/callback`, `/core/setup`, `/response/approve/{token}`, `/intake/osquery/*`). Chúng được bảo vệ bằng thông tin xác thực/ token một lần trong chính yêu cầu, và `SameSite=Strict` cho trình duyệt.
 6. CSP nghiêm, không script nội tuyến (ARCH §6); không CORS (SPA cùng nguồn); `Cache-Control: no-store` cho mọi phản hồi API có dữ liệu riêng.
 
 ### 7.3 Token
@@ -745,7 +754,7 @@ Mười bốn thao tác `role: 'public'`:
 | Endpoint | Mục đích | Bảo vệ |
 |---|---|---|
 | `POST /auth/login`, `/auth/login/resend-code`, `/auth/logout` | Đăng nhập, gửi lại mã, đăng xuất | giới hạn tần suất; `resend-code` đòi cả mật khẩu để người lạ không bắt hộp thư người khác nhận mã |
-| `GET /core/auth-options`, `POST /core/sso/login` | Cho trang đăng nhập biết có SSO; bắt đầu OIDC | không lộ cấu hình, chỉ `{oidc:boolean}` |
+| `GET /core/auth-options`, `POST /auth/oidc/start`, `POST /auth/oidc/callback` | Cho trang đăng nhập biết có SSO; bắt đầu và kết thúc OIDC (D-194) | không lộ cấu hình, chỉ `{oidc:boolean}` |
 | `GET /setup`, `GET /core/setup/modules`, `POST /core/setup` | Thiết lập lần đầu | `POST` chỉ khi chưa thiết lập (409 `already_setup` sau đó) |
 | `GET /install/osquery.sh`, `/install/osquery.ps1` | Script cài osquery do hộp phục vụ (D-34) | không chứa bí mật; kèm SHA-256 (hiện ở trang Agent); `Cache-Control: no-cache` |
 | `POST /intake/osquery/status` | Script cài hỏi "máy đã báo về chưa". Spec `docs/specs/osquery-intake.md` còn có `GET /intake/ca.pem` (công khai) và `POST /intake/osquery/enroll\|config\|log` (giao thức TLS của osquery): **chưa có trong `contract.ts`** (câu hỏi mở 8) | xác thực bằng token đăng ký / `node_key` trong yêu cầu; giới hạn kích thước thân |
@@ -812,7 +821,7 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 | 2 | **Khai mã lỗi theo thao tác** (`errors: [...]`) để bảng 3.3 sinh tự động thay vì trích tĩnh bằng regex (hạn chế: nhiều mã gắn "validator dùng chung"). Có làm không? | Giảm công bảo trì bảng 313 mã; cần sửa toàn bộ `contract.ts` |
 | 3 | **Phân trang `GET /inventory/devices`, `/findings`:** SPA tải toàn bộ và lọc ở client. Chuyển sang phân trang/ lọc ở máy chủ ở M2 hay giữ tới khi vượt ngưỡng? | Mục tiêu 1.000 thiết bị vẫn chạy được không phân trang; cần xác nhận |
 | 4 | **Hạn phiên** (idle, tuyệt đối), khoá đăng nhập sai, chính sách "ghi nhớ thiết bị": mock chưa có. Giá trị mặc định? | Cũng là câu hỏi mở số 7 của DATA_MODEL |
-| 5 | **Đường gọi lại OIDC** (`/core/sso/callback` hoặc tương đương) và đăng xuất SSO chưa có trong `contract.ts` dù `core_oidc` có `POST /core/oidc/test` và `POST /core/sso/login`. Thêm endpoint nào, thuộc story nào? | Cần trước khi xây `auth-oidc` |
+| 5 | ~~Đường gọi lại OIDC và đăng xuất SSO~~ — đã trả lời: `POST /auth/oidc/start`, trang `/sso/callback`, `POST /auth/oidc/callback` (D-194); không đăng xuất phía IdP (D-194 (8)) | Xong |
 | 6 | **Token REST theo phạm vi** (ARCH §5) chưa có story. Có làm không (ai cần gọi REST bên ngoài ngoài MCP)? | Nếu có: cần story, bảng `core_api_token`, quy tắc phạm vi theo module |
 | 7 | **Biểu diễn SSE và `multipart` trong `openapi.json`** (kiểu `text/event-stream`, `multipart/form-data`) để Go sinh được khung; hoặc để ngoài hợp đồng và viết tay. | Gắn với đề xuất mở rộng `Endpoint` (mục 12) |
 | 8 | **Endpoint osquery TLS** (`enroll`, `config`, `log`, `GET /intake/ca.pem`) đã có trong `docs/specs/osquery-intake.md` nhưng **chưa khai trong `contract.ts`/`openapi.json`** (chỉ có `status`). Đây là giao thức của osquery (JSON, không theo lược đồ lỗi chuẩn): khai vào hợp đồng hay giữ ngoài hợp đồng với test riêng? | Là hợp đồng sống lâu (mục 9); ảnh hưởng đếm 14 điểm công khai ở mục 11.3 |

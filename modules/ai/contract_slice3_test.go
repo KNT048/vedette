@@ -399,3 +399,31 @@ func TestPruneFailureLeavesTheLogAlone(t *testing.T) {
 		t.Fatalf("verify after the prune = %v", v)
 	}
 }
+
+// A row is old when its time is before now minus the retention: a row exactly at that moment stays, and the prune stops at the first
+// row that is not old, whatever the rows after it are.
+func TestContract_INV19_PruneStopsAtTheFirstRowThatIsNotOld(t *testing.T) {
+	a := newAPI(t)
+	var rows []actRow
+	for range 4 {
+		a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
+		a.clock.Add(10 * time.Minute)
+	}
+	rows = a.activity()
+	if len(rows) != 4 {
+		t.Fatalf("rows = %d", len(rows))
+	}
+	// the clock is 10 minutes after the fourth row; move it so that the retention ends exactly at the second row
+	second := mustTime(t, rows[1].TS)
+	a.clock.Add(second.Add(90 * 24 * time.Hour).Sub(a.clock.Now()))
+	a.want("PUT", "/ai/activity/settings", "admin", `{"retention_days":90}`, 200, "")
+	if n, err := a.svc.PruneActivity(a.ctx()); err != nil || n != 1 {
+		t.Fatalf("pruned %d, %v; want only the first row (the second is exactly as old as the retention and stays)", n, err)
+	}
+	if left := a.activity(); len(left) != 3 || left[0].ID != rows[1].ID {
+		t.Fatalf("rows left = %+v", left)
+	}
+	if v := a.want("GET", "/ai/activity/verify", "operator", "", 200, ""); v["ok"] != true || v["count"] != float64(3) {
+		t.Fatalf("verify = %v", v)
+	}
+}

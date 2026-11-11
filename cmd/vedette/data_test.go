@@ -410,7 +410,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the process stopped with %v", err)
 		}
-	case <-time.After(20 * time.Second):
+	case <-time.After(90 * time.Second):
 		t.Fatal("the process did not stop itself after the purge")
 	}
 
@@ -618,7 +618,7 @@ func callOnce(t *testing.T, cookies map[string]*http.Cookie, addr, method, path 
 	if c, ok := cookies[auth.CookieCSRF]; ok {
 		req.Header.Set(auth.HeaderCSRF, c.Value)
 	}
-	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,3 +1,4 @@
+//nolint:gosec // test code: every path is in a directory the test made, and the subprocess is the repo's own script with fixed argv
 package main
 
 import (

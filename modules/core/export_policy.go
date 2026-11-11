@@ -56,7 +56,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_sensor_cert":       {skipAll: true, skip: "serial role not_after retired_at"},
 	"core_session":           {skipAll: true, skip: "id user_id token_hash csrf_hash device ip started_at last_seen expires_at revoked_at"},
 	"core_setting":           {export: "key updated_at updated_by", json: "value"},
-	"core_user":              {export: "id name email role cred_version twofa_method disabled created_at last_login", skip: "password_hash"},
+	"core_user":              {export: "id name email role cred_version twofa_method disabled created_at last_login", skip: "password_hash temp_password_expires_at"},
 	"core_user_totp":         {skipAll: true, skip: "user_id secret_id confirmed last_step created_at"},
 	"exp_attempt":            {export: "id ts"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},

@@ -184,7 +184,10 @@ func TestZaloListenerRunsOnlyWhenReady(t *testing.T) {
 
 	none := newEnv(t)
 	opened := false
-	none.svc.SetZaloListenForTest(func(context.Context, channel.Sender) (notify.ZaloInboxForTest, error) { opened = true; return &fakeInbox{}, nil })
+	none.svc.SetZaloListenForTest(func(context.Context, channel.Sender) (notify.ZaloInboxForTest, error) {
+		opened = true
+		return &fakeInbox{}, nil
+	})
 	none.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
 		Approvers: []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}}})
 	if err := none.svc.ListenZaloForTest(none.ctx()); err != nil || opened {

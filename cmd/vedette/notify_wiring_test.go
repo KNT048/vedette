@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -40,12 +41,21 @@ type smtpSink struct {
 
 func newSMTPSink(t *testing.T) *smtpSink {
 	t.Helper()
-	ln, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	s, err := listenSMTPSink(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
+	return s
+}
+
+// listenSMTPSink starts the sink on a loopback port and closes it when ctx ends (the box of the real-backend run has no *testing.T to hang it on).
+func listenSMTPSink(ctx context.Context) (*smtpSink, error) {
+	ln, err := new(net.ListenConfig).Listen(ctx, "tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
 	s := &smtpSink{ln: ln}
-	t.Cleanup(func() { _ = ln.Close() })
+	go func() { <-ctx.Done(); _ = ln.Close() }()
 	go func() {
 		for {
 			c, err := ln.Accept()
@@ -55,7 +65,7 @@ func newSMTPSink(t *testing.T) *smtpSink {
 			go s.serve(c)
 		}
 	}()
-	return s
+	return s, nil
 }
 
 func (s *smtpSink) port() string { _, p, _ := net.SplitHostPort(s.ln.Addr().String()); return p }

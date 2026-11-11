@@ -9,11 +9,17 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -30,6 +36,11 @@ type e2eReady struct {
 	SetupCode   string `json:"setup_code"`
 	DataDir     string `json:"data_dir"`
 	HoneypotDir string `json:"honeypot_dir"`
+	// Control is the base URL of the loopback control server (WP-30 slice 3) and ControlToken the bearer token it asks for; SMTPPort is the
+	// port of the fake SMTP server the specs point the email channel at (host 127.0.0.1, security none).
+	Control      string `json:"control"`
+	ControlToken string `json:"control_token"`
+	SMTPPort     string `json:"smtp_port"`
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -113,7 +124,13 @@ func e2eBox(ctx context.Context, dir string) error {
 		return err
 	}
 	defer func() { _ = f.Close() }()
-	log := &e2eLog{file: f, dir: dir, ready: e2eReady{DataDir: data, HoneypotDir: hp}}
+	ready := e2eReady{DataDir: data, HoneypotDir: hp}
+	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &ready)
+	if err != nil {
+		return err
+	}
+	defer stopControl()
+	log := &e2eLog{file: f, dir: dir, ready: ready}
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", "127.0.0.1:0", "-host-socket", "", "-honeypot-dir", hp,
@@ -226,6 +243,29 @@ func TestE2EBoxHarness(t *testing.T) {
 		t.Fatalf("GET /api/v1/setup = %d complete=%v err=%v", resp.StatusCode, setup.Complete, err)
 	}
 
+	// the control server wants its token, and starts with an empty sink
+	for token, want := range map[string]int{"": http.StatusUnauthorized, "Bearer wrong": http.StatusUnauthorized, "Bearer " + ready.ControlToken: http.StatusOK} {
+		creq, err := http.NewRequestWithContext(reqCtx, http.MethodGet, ready.Control+"/smtp", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if token != "" {
+			creq.Header.Set("Authorization", token)
+		}
+		cresp, err := (&http.Client{Transport: &http.Transport{DisableKeepAlives: true}}).Do(creq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(cresp.Body)
+		_ = cresp.Body.Close()
+		if cresp.StatusCode != want || (want == http.StatusOK && strings.TrimSpace(string(body)) != `{"messages":[]}`) {
+			t.Fatalf("GET /smtp with %q = %d %s", token, cresp.StatusCode, body)
+		}
+	}
+	if ready.SMTPPort == "" {
+		t.Fatalf("ready.json has no smtp_port: %+v", ready)
+	}
+
 	cancel()
 	select {
 	case err := <-done:
@@ -253,4 +293,72 @@ func TestE2EBoxHarness(t *testing.T) {
 	if err := sc.Err(); err != nil {
 		t.Fatal(fmt.Errorf("read box.log: %w", err))
 	}
+}
+
+// startE2EControl starts the fakes that live next to the box and the small loopback server the specs reach them through (WP-30 slice 3): the
+// SMTP sink that receives the two-step codes, and two calls, both behind a bearer token that only ready.json (0600) holds:
+//
+//	GET  /smtp          -> {"messages": ["<raw message>", ...]}, every message the sink received, oldest first
+//	POST /expire-codes  {"email": "..."} -> 204; the pending email code of that user is made to expire (the box has no fake clock, and the
+//	                    real lifetime is 10 minutes), by writing core_email_code.expires_at through a second connection to the box's database
+//
+// It fills ready.SMTPPort, Control and ControlToken. Everything here is in a _test.go file: the production binary has none of it.
+func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop func(), err error) {
+	sink, err := listenSMTPSink(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tok := make([]byte, 24)
+	if _, err := rand.Read(tok); err != nil {
+		return nil, err
+	}
+	token := hex.EncodeToString(tok)
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /smtp", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		msgs := append([]string{}, sink.messages()...) // [] and not null when nothing came yet
+		_ = json.NewEncoder(w).Encode(map[string]any{"messages": msgs})
+	})
+	mux.HandleFunc("POST /expire-codes", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Email string `json:"email"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&in); err != nil || in.Email == "" {
+			http.Error(w, "email is required", http.StatusBadRequest)
+			return
+		}
+		db, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: dbPath, RawQuery: url.Values{"_pragma": {"busy_timeout(5000)"}}.Encode()}).String())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer func() { _ = db.Close() }()
+		res, err := db.ExecContext(r.Context(), `UPDATE core_email_code SET expires_at = '2000-01-01T00:00:00.000Z' WHERE user_id IN (SELECT id FROM core_user WHERE lower(email) = lower(?))`, in.Email)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if n, _ := res.RowsAffected(); n != 1 {
+			http.Error(w, "that user has no pending code", http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := &http.Server{
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			mux.ServeHTTP(w, r)
+		}),
+	}
+	ln, err := new(net.ListenConfig).Listen(ctx, "tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+	go func() { _ = srv.Serve(ln) }()
+	ready.Control, ready.ControlToken, ready.SMTPPort = "http://"+ln.Addr().String(), token, sink.port()
+	return func() { _ = srv.Close() }, nil
 }

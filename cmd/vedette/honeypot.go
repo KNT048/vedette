@@ -100,12 +100,12 @@ type honeypotInventory struct {
 }
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
-	l, err := a.inv.Devices(ctx)
+	l, err := a.inv.AllDevices(ctx) // uncapped (D-178): a decoy must never be offered the address of a device the capped list forgot
 	if err != nil {
 		return nil, err
 	}
-	out := make([]honeypot.Device, 0, len(l.Items))
-	for _, d := range l.Items {
+	out := make([]honeypot.Device, 0, len(l))
+	for _, d := range l {
 		ip, _ := netip.ParseAddr(d.IP) // "—" (no IP known) gives the zero Addr
 		x := honeypot.Device{ID: d.ID, IP: ip, Name: d.IP, Kind: d.Kind, Approved: d.Approved, IsBox: d.IsBox}
 		if d.Hostname != nil {
@@ -139,7 +139,7 @@ func (a honeypotInventory) LANRanges(ctx context.Context) ([]netip.Prefix, error
 // Box is the box device of the inventory; when it has no IP there (nothing has reported one yet) the address of one of
 // its own interfaces inside a declared LAN range stands in, so the scanner of the box can still be told from a hit.
 func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
-	l, err := a.inv.Devices(ctx)
+	host, ip, found, err := a.inv.BoxName(ctx)
 	if err != nil {
 		return honeypot.Box{}, err
 	}
@@ -147,15 +147,12 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 	if h, err := os.Hostname(); err == nil && h != "" {
 		b.Name = h
 	}
-	for _, d := range l.Items {
-		if !d.IsBox {
-			continue
+	if found {
+		if host != "" {
+			b.Name = host
 		}
-		if d.Hostname != nil {
-			b.Name = *d.Hostname
-		}
-		if ip, err := netip.ParseAddr(d.IP); err == nil {
-			b.IP = ip
+		if a, err := netip.ParseAddr(ip); err == nil {
+			b.IP = a
 		}
 	}
 	if b.IP.IsValid() {

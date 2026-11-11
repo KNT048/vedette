@@ -221,7 +221,7 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() { defer close(done); sched.Run(ctx) }()
-	defer func() { cancel(); <-done }()
+	defer func() { cancel(); err := <-done; _ = err }()
 
 	if e.svc.listening.Load() != nil { // the scheduler is running and the gate is off: nothing may have started
 		t.Fatal("the listener runs while the module is off")
@@ -295,7 +295,7 @@ func TestABusyTCPPortDoesNotStopUDPAndIsRetried(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- e.svc.runSyslog(ctx) }()
-	defer func() { cancel(); <-done }()
+	defer func() { cancel(); err := <-done; _ = err }()
 	waitUntil(t, "UDP up and TCP reported down", func() bool { st := e.svc.ListenStatus(); return st.UDP && !st.TCP && st.TCPErr != "" })
 	select {
 	case err := <-done:
@@ -322,7 +322,7 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- e.svc.runSyslog(ctx) }()
-	defer func() { cancel(); <-done }()
+	defer func() { cancel(); err := <-done; _ = err }()
 	waitUntil(t, "UDP", func() bool { return e.svc.ListenStatus().UDP })
 	fail.Store(true)
 	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {

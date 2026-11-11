@@ -729,7 +729,7 @@ func (s *slowSink) sink(_ context.Context, lines []Line) error {
 
 func (s *slowSink) stored() int { s.mu.Lock(); defer s.mu.Unlock(); return s.got }
 
-func newBlockedRig(t *testing.T, proto string) (*Server, *slowSink, context.CancelFunc) {
+func newBlockedRig(t *testing.T, proto string) (*Server, *slowSink) {
 	t.Helper()
 	ss := &slowSink{gate: make(chan struct{})}
 	srv, err := New(Config{Host: "127.0.0.1", Ports: []int{0}, Sink: ss.sink, Log: slog.New(slog.DiscardHandler), Limits: Limits{Queue: 1, BatchLines: 1, BatchWait: time.Millisecond, Rate: 1e6, Burst: 1e6}})
@@ -751,11 +751,11 @@ func newBlockedRig(t *testing.T, proto string) (*Server, *slowSink, context.Canc
 		cancel()
 		<-done
 	})
-	return srv, ss, cancel
+	return srv, ss
 }
 
 func TestAFullQueueDropsDatagramsAndCountsThem(t *testing.T) {
-	srv, ss, _ := newBlockedRig(t, "udp")
+	srv, ss := newBlockedRig(t, "udp")
 	var a net.Addr
 	waitFor(t, "the socket", func() bool { a, _ = srv.Addrs(); return a != nil })
 	c, err := dialCtx("udp4", a.String())
@@ -772,7 +772,7 @@ func TestAFullQueueDropsDatagramsAndCountsThem(t *testing.T) {
 }
 
 func TestATCPSenderIsHeldBackNotDroppedWhenTheQueueIsFull(t *testing.T) {
-	srv, ss, _ := newBlockedRig(t, "tcp")
+	srv, ss := newBlockedRig(t, "tcp")
 	var a net.Addr
 	waitFor(t, "the socket", func() bool { _, a = srv.Addrs(); return a != nil })
 	c := dialTCP(t, a.String())

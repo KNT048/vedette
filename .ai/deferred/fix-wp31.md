@@ -2,10 +2,6 @@
 
 Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Medium, 17 Low). One line per finding; a line goes when its PR merges.
 
-- [ ] M1 response: template header values (API keys) visible to viewers and in the backup → slice R1 `fix/wp31-response-approver` (D-174).
-- [ ] M2 response/notify: Telegram Approve shows line 1 of a multi-line call; chain log keeps line 1 → R1 (D-175).
-- [ ] L6 response: approval messages and the email-link page lack the "AI-generated" label → R1.
-- [ ] L16 PRIVACY flow 5: the `webhook_call` action posts request text to the notify webhook → R1. R1 `make check` note: web, generate-check, golangci-lint (0 issues) and the contract tests passed; the final `go test -race ./...` of `make verify` hit the 10 min cap on this machine (load), so the targeted Go tests of the touched packages were run instead.
 - [ ] R1 leftover (D-174 covers headers only): a credential-looking key in a template's JSON body (`"password"`, `"api_key"`, `"token"`...) or a secret typed into CLI text ends up in the chain/audit rows and chat messages; add a body-JSON credential-key check at save → slice R2.
 - [ ] L1, L2, L3, L5 response execution path (re-check earlier approver, count unknown-state items, hash-check undo, emergency stop interrupts a running step) + L4 (latent SYS-8, MCP annotations) + L9 (BoxAddrs for decoy IPs) → slice R2, after R1.
 - [ ] L7 response/notify: approver channel identity is typed by an admin, never proven by the user → needs a story criterion (link step in My account) first; slice R3.

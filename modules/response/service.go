@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -233,8 +234,13 @@ type Config struct {
 	Evidence    EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
-	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets.
-	BoxAddrs func() []netip.Addr
+	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets. An error
+	// means the set is not known (a configured host that has never answered, an unreadable honeypot record): the callers fail closed
+	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set (D-179 (8)).
+	BoxAddrs func() ([]netip.Addr, error)
+	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
+	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
+	BoxMACs func() ([]string, error)
 	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443). It is the start of the block list address;
 	// empty = the address is shown from /api/v1 on.
 	BaseURL string
@@ -250,6 +256,9 @@ type Service struct {
 	// it is one database transaction and the next step re-reads the switch.
 	mu     sync.Mutex
 	execMu sync.Mutex
+	// inflight holds the cancel of every device step being sent (a run or an undo); the emergency stop cancels them (D-179 (4)).
+	inflightMu sync.Mutex
+	inflight   map[*context.CancelCauseFunc]struct{}
 
 	cat       []builtinDef
 	catNote   string
@@ -286,6 +295,7 @@ type Service struct {
 	budget       time.Duration                // how long sending one request may take (sendBudget; only export_test.go changes it)
 	beforeLock   func()                       // only export_test.go sets it: runs just before a decision through a link takes the service lock
 	interfaceFn  func() ([]netip.Addr, error) // reads the box interfaces; only export_test.go replaces it
+	macFn        func() ([]string, error)     // reads the MACs of the box interfaces; only export_test.go replaces it
 	maxBacklog   int                          // unprocessed events kept; only export_test.go replaces it
 	stepLimit    time.Duration                // bound of one item; only export_test.go replaces it
 	dropMu       sync.Mutex                   // guards dropUnlogged and dropLoggedAt (coalesced drop lines)
@@ -300,6 +310,40 @@ func (s *Service) interfaces() ([]netip.Addr, error) {
 		return s.interfaceFn()
 	}
 	return interfaceAddrs()
+}
+
+// interfaceMACs reads the MAC addresses of the box's network interfaces, in the canonical lower-case colon form.
+func (s *Service) interfaceMACs() ([]string, error) {
+	if s.macFn != nil {
+		return s.macFn()
+	}
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("response: read the box interfaces: %w", err)
+	}
+	var out []string
+	for _, i := range ifs {
+		if len(i.HardwareAddr) == 6 {
+			out = append(out, i.HardwareAddr.String())
+		}
+	}
+	return out, nil
+}
+
+// boxMACs lists this box's own MACs: its interfaces and Config.BoxMACs.
+func (s *Service) boxMACs() ([]string, error) {
+	out, err := s.interfaceMACs()
+	if err != nil {
+		return nil, err
+	}
+	if s.cfg.BoxMACs != nil {
+		more, err := s.cfg.BoxMACs()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, more...)
+	}
+	return out, nil
 }
 
 // DroppedEvents counts the unprocessed trigger events dropped because the backlog was full since the box started. Every drop is
@@ -363,7 +407,11 @@ func (s *Service) flush(ctx context.Context, ob *events.Outbox) {
 func (s *Service) boxAddrs() ([]netip.Addr, error) {
 	var out []netip.Addr
 	if s.cfg.BoxAddrs != nil {
-		out = append(out, s.cfg.BoxAddrs()...)
+		more, err := s.cfg.BoxAddrs()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, more...)
 	}
 	own, err := s.interfaces()
 	if err != nil {

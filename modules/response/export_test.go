@@ -23,6 +23,17 @@ func (s *Service) GuardedClientForTest() *http.Client { return s.guardedClient()
 // SetInterfacesForTest replaces the read of the box's network interfaces (a failing one proves the fail-closed paths).
 func (s *Service) SetInterfacesForTest(f func() ([]netip.Addr, error)) { s.interfaceFn = f }
 
+// SetMACsForTest replaces the read of the MACs of the box's network interfaces.
+func (s *Service) SetMACsForTest(f func() ([]string, error)) { s.macFn = f }
+
+// RecheckForTest runs the re-check right before a step goes out and returns the code of the refusal ("" = the step may go).
+func (s *Service) RecheckForTest(ctx context.Context, undo bool, actionID string) string {
+	if e := s.recheck(ctx, undo, actionID); e != nil {
+		return e.Code
+	}
+	return ""
+}
+
 // SetBacklogForTest sets how many unprocessed trigger events are kept before the oldest are dropped.
 func (s *Service) SetBacklogForTest(n int) { s.maxBacklog = n }
 

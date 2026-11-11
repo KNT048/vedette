@@ -1,37 +1,39 @@
 # Auth-OIDC Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-35 (đối chiếu hai bước), D-18 · Last verified: 2026-11-09
-> GUI nằm dưới `core` (`web/src/features/core/{contract,UsersSection,mocks}.ts`, mục Settings → Users). Backend là module riêng.
-> Mock chỉ mô phỏng vòng chuyển hướng IdP (`POST /core/sso/login`); bản thật dùng authorization code + PKCE.
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-194 (luồng), D-195 (tài khoản, vai), D-196 (hai bước, dự phòng), D-35, D-71, D-77 · Last verified: 2026-11-11
+> GUI nằm dưới `core` (`web/src/features/core/{contract,UsersSection,SsoCallbackPage,ssoFlow,mocks}.ts`, mục Settings → Users, trang `/sso/callback`). Backend là module riêng.
+> Mock bỏ qua IdP: `authorize_url` của mock là chính trang `/sso/callback` kèm một mã, người dùng ở IdP là `MOCK_IDP_USER`.
 
 ## Invariants (luôn đúng)
-- **INV-1** Luồng đăng nhập là **authorization code + PKCE**; kiểm `state`, `nonce`, chữ ký ID token theo JWKS của IdP, `iss` = `issuer` đã lưu, `aud` chứa `client_id`, chưa hết hạn. Sai bất kỳ điều nào → từ chối, không tạo phiên.
-- **INV-2** `issuer` bắt buộc là địa chỉ **https** (bỏ `/` cuối); `client_id` 1..200 ký tự; `client_secret` tối thiểu 8 ký tự; `default_role` ∈ {viewer, operator, admin}; `role_map` tối đa 10 dòng, mỗi dòng `{group, role}` với role hợp lệ. Sai → 400 (`invalid_issuer`, `invalid_client`, `invalid_secret`, `invalid_role`, `too_many`).
-- **INV-3** `client_secret` lưu qua `core/secrets` (AES-GCM), API chỉ trả `secret_last4`; để trống khi sửa = giữ bí mật cũ (SYS-4). Không vào log/export/sao lưu.
-- **INV-4** Nút SSO trên trang đăng nhập chỉ hiện khi module bật **và** đã có `issuer` (`GET /core/auth-options` → `{oidc: true}`); endpoint này công khai và không lộ gì khác (không issuer, không client).
-- **INV-5** Vai của người SSO chỉ nằm trong {viewer, operator, admin}; lấy từ `role_map` theo nhóm của IdP, không khớp nhóm nào thì `default_role`. Vai không bao giờ tăng theo dữ liệu người dùng cung cấp ngoài claim đã ký. *(cách chọn khi khớp nhiều nhóm: câu hỏi mở 2)*
-- **INV-6** Lần đầu đăng nhập SSO tạo người dùng (khoá theo email của IdP, kiểm `email_verified` nếu IdP cung cấp); người dùng `disabled` bị từ chối (403 `disabled`) kể cả khi IdP cho qua. Quản trị viên vô hiệu hoá/đổi vai người dùng SSO trong Users như người khác; không xoá được quản trị viên cuối cùng (luật của `core`).
-- **INV-7** Mọi đăng nhập thành công/thất bại, lưu cấu hình, thử cấu hình ghi `core_audit` (SYS-3) với `auth.login` ... `SSO`, `oidc.update`, `oidc.test`.
-- **INV-8** Tài khoản mật khẩu của `core` **vẫn đăng nhập được** khi bật SSO (không khoá quản trị viên ra ngoài khi IdP hỏng); hai bước của D-35 vẫn áp dụng cho đăng nhập mật khẩu. Hộp không buộc hai bước cho người SSO (IdP chịu trách nhiệm MFA). *(xác nhận: câu hỏi mở 3)*
-- **INV-9** Dữ liệu từ IdP (claim, discovery, JWKS) là không tin cậy (SYS-6): kích thước giới hạn, kiểm kiểu, fail-closed.
-- **INV-10** Chỉ gọi tới các endpoint lấy từ discovery của `issuer` đã khai (SYS-7); không theo chuyển hướng sang host khác không thuộc discovery.
+- **INV-1** Luồng đăng nhập là **authorization code + PKCE S256**, luôn có `state` và `nonce` 256 bit (D-194). Kiểm ID token: chữ ký theo JWKS của issuer với **thuật toán bất đối xứng** RS256/384/512, PS256/384/512, ES256/384/512 (giao với `id_token_signing_alg_values_supported`; `none` và HS* luôn bị từ chối), `iss` = issuer đã lưu, `aud` chứa `client_id` (nhiều `aud` thì `azp` = `client_id`), `exp` chưa qua (lệch giờ 1 phút), `nonce` = nonce của luồng. Sai bất kỳ điều nào → 400 `sso_failed`, không tạo phiên, `auth.login_failed` chi tiết `SSO: id_token`.
+- **INV-2** `issuer` bắt buộc **https** (bỏ `/` cuối); `client_id` 1..200 ký tự; `client_secret` ≥ 8 ký tự; `scopes` 1..10 từ theo RFC 6749 §3.3, phải có `openid`; `groups_claim` khớp `^[A-Za-z0-9_.:/-]{1,64}$`; `default_role` ∈ {viewer, operator, admin, null}; `role_map` ≤ 10 dòng `{group ≤ 256 ký tự, role hợp lệ}`, dòng nhóm rỗng bị bỏ. Sai → 400 (`invalid_issuer`, `invalid_client`, `invalid_secret`, `invalid_scopes`, `invalid_claim`, `invalid_role`, `too_many`).
+- **INV-3** `client_secret` lưu qua `core/secrets` (AES-GCM), API chỉ trả `secret_last4`; để trống khi sửa = giữ bí mật cũ (SYS-4). Bí mật và mọi token của IdP (code, access, ID, refresh) không vào log, export, sao lưu, audit.
+- **INV-4** Nút SSO chỉ hiện khi module bật **và** đã có `issuer` (`GET /core/auth-options` → `{oidc: true}`); endpoint công khai này không lộ gì khác.
+- **INV-5** **Ràng buộc trình duyệt, không cookie mới** (D-194 (4)): `POST /auth/oidc/start` lưu một luồng `oidc_flow` (SHA-256 của `state` và `binding`, nonce, PKCE verifier, `redirect_uri`, hạn 10 phút) và trả `{authorize_url, binding}`; `POST /auth/oidc/callback` cần đúng `binding`; luồng bị xoá ở lần gọi lại đầu tiên dù đúng hay sai; luồng lạ, đã dùng, quá hạn hay sai binding → 400 `sso_expired`. Tối đa 1000 luồng chưa xong (bỏ cái cũ nhất); `start` theo địa chỉ 30 lần / 15 phút → 429 `rate_limited`.
+- **INV-6** `redirect_uri` = nguồn của yêu cầu `start` (scheme của tiến trình + `Host` đã qua danh sách cho phép) + `/sso/callback`; dùng lại đúng giá trị đó ở bước đổi mã. `GET /core/oidc` trả `redirect_uri` tính cùng cách.
+- **INV-7** **Định danh là (`iss`, `sub`)** (D-195). Vai = vai cao nhất trong các dòng `role_map` có nhóm nằm trong claim `groups_claim` của ID token (chuỗi hoặc mảng chuỗi; tối đa 200 nhóm × 256 ký tự, quá thì bỏ phần thừa); không dòng nào khớp → `default_role`; `null` → 403 `no_access`, không tạo tài khoản. Vai ghi lại ở **mỗi** lần đăng nhập SSO (`user.role`, chi tiết `SSO groups`).
+- **INV-8** Lần đầu: tạo tài khoản `sso` (không mật khẩu dùng được, `user.create` chi tiết `SSO`). Email (claim `email`, bắt buộc; `email_verified=false` → 403 `email_unverified`) trùng tài khoản mật khẩu, hoặc tài khoản SSO cùng issuer khác `sub` → 409 `email_in_use`, không nối; trùng tài khoản SSO của issuer khác → gắn lại sang (`iss`, `sub`) mới. Tài khoản bị vô hiệu → 403 `disabled` dù IdP cho qua.
+- **INV-9** Đăng nhập SSO thành công tạo phiên **như đăng nhập mật khẩu** (`__Host-vedette_session` + `__Host-vedette_csrf`, D-71); **không** đặt hay đọc `__Secure-vedette_device` (D-196 (2)); không qua hai bước của hộp (IdP lo MFA).
+- **INV-10** Mọi đăng nhập SSO thành công/thất bại, lưu và thử cấu hình ghi `core_audit` (SYS-3): `auth.login` `SSO`, `auth.login_failed` `SSO: <state|binding|token|id_token|no_access|email_in_use|email_unverified|disabled>`, `oidc.update`, `oidc.test`, `user.create` `SSO`, `user.role` `SSO groups`.
+- **INV-11** Dữ liệu từ IdP (discovery, JWKS, phản hồi token, claim) là không tin cậy (SYS-6): ≤ 1 MiB, 10 s, kiểm kiểu, fail-closed; `issuer` trong discovery phải trùng issuer đã lưu; điểm authorization/token/jwks phải https; không theo chuyển hướng (SYS-7).
 
 ## Preconditions (trước khi gọi)
-- **PRE-1** `PUT /core/oidc`, `POST /core/oidc/test`: vai admin.
+- **PRE-1** `PUT /core/oidc`, `POST /core/oidc/test`, `GET /core/oidc`: vai admin, module bật.
 - **PRE-2** `POST /core/oidc/test`: đã lưu cấu hình (400 `not_configured`).
-- **PRE-3** Đăng nhập SSO: module bật và có `issuer` (400 `oidc_off`).
+- **PRE-3** `POST /auth/oidc/start` và `callback`: module bật và có `issuer` (400 `oidc_off`).
 
 ## Postconditions (sau khi xong)
-- **POST-1** `test` thành công trả `{ok:true, endpoints}` gồm `authorization`, `token`, `jwks` đọc từ `/.well-known/openid-configuration`; không đọc được → 502 `discovery_failed` với lý do nêu rõ đường mạng từ hộp tới IdP.
-- **POST-2** Đăng nhập thành công: tạo phiên như đăng nhập mật khẩu (cookie `__Host-vedette_session`, không cookie khác, legal.md), ghi audit.
-- **POST-3** Lưu cấu hình: lần đăng nhập kế tiếp dùng cấu hình mới; phiên đang có không bị ngắt.
+- **POST-1** `test` thành công trả `{ok:true, endpoints:{authorization, token, jwks}}` đọc từ `/.well-known/openid-configuration`; không đọc được → 502 `discovery_failed` nêu đường mạng từ hộp tới IdP.
+- **POST-2** Đăng nhập thành công: phiên như POST-1 của đăng nhập mật khẩu, `last_login` cập nhật, audit theo INV-10; SPA tới `next` đã giữ trong sessionStorage (chỉ đường dẫn trong app).
+- **POST-3** Lưu cấu hình: lần đăng nhập kế tiếp dùng cấu hình mới; phiên đang có không bị ngắt; luồng đang chờ vẫn dùng cấu hình lúc bắt đầu cho `redirect_uri` và verifier, nhưng kiểm token theo issuer/client hiện tại.
 
 ## Forbidden (không bao giờ)
-- **FORBID-1** Luồng implicit hoặc password grant; bỏ PKCE.
+- **FORBID-1** Luồng implicit, hybrid, password grant; bỏ PKCE; PKCE `plain`.
 - **FORBID-2** Trả `client_secret` hoặc token IdP qua API/log/export.
-- **FORBID-3** Cấp vai cao hơn kết quả `role_map`/`default_role`.
+- **FORBID-3** Cấp vai cao hơn kết quả `role_map`/`default_role`; nối vào tài khoản mật khẩu theo email.
 - **FORBID-4** Gọi IdP khi module tắt hoặc chưa có `issuer`.
-- **FORBID-5** Chấp nhận `issuer` không phải https.
+- **FORBID-5** Chấp nhận `issuer` hoặc điểm discovery không phải https; chấp nhận `alg` đối xứng hay `none`.
+- **FORBID-6** Thêm cookie (legal.md); đặt mật khẩu cho tài khoản SSO (đặt lại, đổi mật khẩu, bật hai bước → 409 `sso_user`); đổi vai tài khoản SSO trong Users (409 `sso_user`).
 
 ## Endpoints owned
 | Method | Path | Vai tối thiểu | Story |
@@ -40,26 +42,23 @@
 | PUT | `/core/oidc` | admin | S-CORE-3 |
 | POST | `/core/oidc/test` | admin | S-CORE-3 |
 | GET | `/core/auth-options` | public | S-CORE-3 |
-| POST | `/core/sso/login` | public | S-CORE-3 (mock cho vòng chuyển hướng) |
+| POST | `/auth/oidc/start` | public | S-CORE-3 |
+| POST | `/auth/oidc/callback` | public | S-CORE-3 |
 
-Bản thật cần thêm cặp điểm vào/gọi lại (redirect + callback) của luồng code; **chưa có trong `contract.ts`** (câu hỏi mở 1).
+Trang SPA `/sso/callback` là `redirect_uri` (D-194 (4)): IdP đưa trình duyệt về đó, trang gửi `POST /auth/oidc/callback`.
 
 ## Tables owned
-`oidc_config` (issuer, client_id, bí mật mã hoá, default_role, role_map). Mock: `oidc_config` (đã đổi tên, WP-06). Người dùng và phiên thuộc `core` (`core_users`, `core_session`).
+`oidc_config` (issuer, client_id, bí mật mã hoá qua `core/secrets`, scopes, groups_claim, default_role, role_map), `oidc_flow` (luồng đang chờ, INV-5), `oidc_identity` (user_id, iss, sub). Người dùng, cờ `sso` và phiên thuộc `core` (`core_users`, `core_session`), qua interface của `core`.
 
 ## Events
 - **Phát**: không (audit qua `core`). **Nhận**: không.
 
 ## Khi tắt module (SYS-5)
-Không route SSO, nút SSO biến mất khỏi trang đăng nhập (`auth-options.oidc=false`), không gọi tới IdP. Cấu hình giữ nguyên. Người dùng đã tạo qua SSO **vẫn tồn tại nhưng không có mật khẩu dùng được** (mật khẩu tạm ngẫu nhiên) nên không đăng nhập được cho tới khi quản trị viên đặt lại mật khẩu hoặc bật lại module; UI phải nêu số người bị ảnh hưởng trước khi tắt (S-CORE-1); `ToggleResponse.affected` hiện chỉ liệt kê module phụ thuộc nên cần mở rộng.
+Không route SSO (`/auth/oidc/*`, `/core/oidc*`), nút SSO biến mất (`auth-options.oidc=false`), không gọi IdP. Cấu hình giữ nguyên. Tài khoản SSO vẫn tồn tại nhưng không đăng nhập được cho tới khi bật lại (không có mật khẩu); GUI nói số tài khoản này (`sso_users`) trong hộp thoại tắt. Phiên đang có giữ tới khi hết hạn.
 
 ## Dependencies
-- **DEPENDS ON**: `core` (người dùng, phiên, vai, audit, `core/secrets`).
-- **DEPENDED ON BY**: `core` (trang đăng nhập hỏi `auth-options`). Không module khác.
+- **DEPENDS ON**: `core` (người dùng, phiên, vai, audit, `core/secrets`, giới hạn theo địa chỉ).
+- **DEPENDED ON BY**: `core` (trang đăng nhập hỏi `auth-options`; luật quản trị viên cuối chỉ tính quản trị viên dùng mật khẩu, D-196 (3)).
 
 ## Câu hỏi mở
-1. Điểm vào/gọi lại của luồng code (đường dẫn, tên cookie `state`) chưa có trong `contract.ts`; OpenAPI sẽ thiếu.
-2. `role_map`: tên claim nhóm (`groups`?), và khi khớp nhiều nhóm chọn vai cao nhất hay đầu tiên. Mock không áp `role_map` (luôn `default_role`).
-3. Người SSO có phải qua hai bước của hộp không (D-35 chỉ nói về đăng nhập mật khẩu)? Đề xuất: không, IdP lo.
-4. Luồng dữ liệu ra mới (discovery, token, JWKS tới IdP khách khai): `legal.md` yêu cầu cập nhật `PRIVACY.md` (đang liệt 9 luồng, chưa có) và UI Cài đặt → Quyền riêng tư, cùng commit với backend.
-5. Đăng xuất một phía (RP-initiated logout) có hỗ trợ không?
+Không còn (trả lời bởi D-194..D-196). RP-initiated logout: không làm (D-194 (8)).

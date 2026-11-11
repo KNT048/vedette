@@ -20,7 +20,8 @@ import type { AccountSession, AdminUser, Advisory, AuditQuery, AuditRow, Managed
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
-const adminOf = (u: User): AdminUser => ({ id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), disabled: !!u.disabled, created_at: u.created_at, last_login: u.last_login })
+const adminOf = (u: User): AdminUser => ({ id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), disabled: !!u.disabled, created_at: u.created_at, last_login: u.last_login, sso: !!u.sso })
+const ssoOnly = () => fail(409, 'sso_user', 'This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider.')
 /** Mã cài đặt một lần (D-75): hộp thật in nó vào nhật ký lúc khởi động khi chưa có quản trị viên; mock dùng một mã cố định. */
 export const MOCK_SETUP_CODE = 'setup-code-demo'
 const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
@@ -138,7 +139,7 @@ const accountHandlers = [
     if (denied) return denied
     const u = currentUser()!
     const reason = !isOn('notify') ? 'module_off' : !emailChannelReady() ? 'channel_not_ready' : null
-    return HttpResponse.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), created_at: u.created_at, last_login: u.last_login }, twofa_email: { available: reason === null, reason, sent_to: maskEmail(u.email) }, sessions: sessionsOf(u.id) })
+    return HttpResponse.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), created_at: u.created_at, last_login: u.last_login, sso: !!u.sso }, twofa_email: { available: reason === null, reason, sent_to: maskEmail(u.email) }, sessions: sessionsOf(u.id) })
   }),
   http.patch(`${API}/core/account`, async ({ request }) => {
     const denied = guard('viewer')
@@ -154,6 +155,7 @@ const accountHandlers = [
   http.post(`${API}/core/account/password`, async ({ request }) => {
     const denied = guard('viewer', true)
     if (denied) return denied
+    if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
     const b = await body<{ current: string; next: string }>(request)
     if (b.current !== u.password) return fail(400, 'wrong_password', 'The current password is wrong.')
@@ -167,6 +169,7 @@ const accountHandlers = [
   http.post(`${API}/core/account/2fa/start`, async ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
+    if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
     // D-76: turning two-step on needs the current password, like turning it off.
     if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
@@ -194,6 +197,7 @@ const accountHandlers = [
   http.post(`${API}/core/account/2fa/email/start`, async ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
+    if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
     if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
@@ -251,9 +255,32 @@ const accountHandlers = [
 ]
 
 // ---------- Người dùng, OIDC ----------
-const oidcStore = collection<{ issuer: string; client_id: string; secret: string; default_role: Role; role_map: { group: string; role: Role }[] }>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', default_role: 'viewer', role_map: [] }))
-const oidcView = (): OidcConfig => { const c = oidcStore.get(); return { issuer: c.issuer, client_id: c.client_id, secret_last4: c.secret ? c.secret.slice(-4) : null, default_role: c.default_role, role_map: c.role_map } }
-const activeAdmins = (l: User[]) => l.filter((x) => x.role === 'admin' && !x.disabled).length
+interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[] }
+const oidcStore = collection<OidcStored>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [] }))
+const oidcView = (): OidcConfig => {
+  const c = oidcStore.get()
+  return {
+    issuer: c.issuer, client_id: c.client_id, secret_last4: c.secret ? c.secret.slice(-4) : null, scopes: c.scopes ?? 'openid email profile', groups_claim: c.groups_claim ?? 'groups',
+    default_role: c.default_role ?? null, role_map: c.role_map, redirect_uri: `${location.origin}/sso/callback`, sso_users: usersStore.get().filter((u) => u.sso).length,
+  }
+}
+// Luồng đăng nhập SSO đang chờ gọi lại (D-194): state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
+const oidcFlows = collection<{ state: string; binding: string; expires: number }[]>('oidc_flow', () => [])
+// Người dùng ở IdP mẫu: mock không có IdP thật, nên bước đăng nhập ở IdP được bỏ qua và trả về ngay một mã.
+export const MOCK_IDP_USER = { sub: 'mock-sub-1', email: 'sso.user@acme.example', name: 'SSO user', groups: ['vedette-operators', 'staff'] }
+/** D-195: vai cao nhất trong các dòng khớp nhóm; không khớp dòng nào → vai mặc định (null = không có quyền). */
+export function ssoRole(groups: string[], c: Pick<OidcStored, 'role_map' | 'default_role'>): Role | null {
+  const hits = c.role_map.filter((m) => groups.includes(m.group)).map((m) => m.role)
+  if (!hits.length) return c.default_role ?? null
+  return hits.reduce((a, b) => (ROLES.indexOf(b) > ROLES.indexOf(a) ? b : a))
+}
+// RFC 6749 §3.3 scope-token; tên claim chỉ chữ, số và _ . : / -
+const SCOPE_RE = /^[\x21\x23-\x5B\x5D-\x7E]{1,64}$/
+const CLAIM_RE = /^[A-Za-z0-9_.:/-]{1,64}$/
+const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')
+const OIDC_OFF = 'SSO sign-in is not set up. Sign in with your email and password, or ask an administrator.'
+// D-196: đường vào dự phòng là quản trị viên dùng mật khẩu, nên chỉ họ được tính.
+const activeAdmins = (l: User[]) => l.filter((x) => x.role === 'admin' && !x.disabled && !x.sso).length
 
 const usersHandlers = [
   http.get(`${API}/core/users`, () => {
@@ -286,7 +313,8 @@ const usersHandlers = [
     if (!target) return fail(404, 'not_found', 'No such user.')
     const b = await body<{ role: Role; disabled: boolean }>(request)
     const next: User = { ...target }
-    if (b.role !== undefined) {
+    if (b.role !== undefined && b.role !== target.role) {
+      if (target.sso) return ssoOnly()
       if (!ROLES.includes(b.role)) return fail(400, 'invalid_role', 'Choose a role: view only, operator or administrator.')
       next.role = b.role
     }
@@ -295,7 +323,7 @@ const usersHandlers = [
       next.disabled = b.disabled === true
     }
     const after = list.map((x) => (x.id === target.id ? next : x))
-    if (activeAdmins(after) < 1) return fail(400, 'last_admin', 'At least one active administrator must remain. Add another administrator first.')
+    if (activeAdmins(after) < 1) return fail(400, 'last_admin', 'At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first.')
     usersStore.set(after)
     if (next.role !== target.role) audit('user.role', target.email, `${target.role} sang ${next.role}`)
     if (!!next.disabled !== !!target.disabled) audit(next.disabled ? 'user.disable' : 'user.enable', target.email)
@@ -322,6 +350,7 @@ const usersHandlers = [
     if (denied) return denied
     const target = usersStore.get().find((x) => x.id === params.id)
     if (!target) return fail(404, 'not_found', 'No such user.')
+    if (target.sso) return ssoOnly()
     const temp = tempPassword()
     usersStore.update((l) => l.map((x) => (x.id === target.id ? { ...x, password: temp, temp_password_expires_at: tempExpiry() } : x)))
     sessionsStore.update((all) => { const n = { ...all }; delete n[target.id]; return n })
@@ -337,7 +366,7 @@ const usersHandlers = [
   http.put(`${API}/core/oidc`, async ({ request }) => {
     const denied = guard('admin')
     if (denied) return denied
-    const b = await body<{ issuer: string; client_id: string; client_secret: string; default_role: Role; role_map: { group: string; role: Role }[] }>(request)
+    const b = await body<Partial<OidcStored> & { client_secret?: string }>(request)
     const cur = oidcStore.get()
     let issuer = String(b.issuer ?? '').trim().replace(/\/+$/, '')
     try { if (new URL(issuer).protocol !== 'https:') throw new Error('x') } catch { issuer = '' }
@@ -346,11 +375,15 @@ const usersHandlers = [
     if (!clientId || clientId.length > 200) return fail(400, 'invalid_client', 'Enter the Client ID (at most 200 characters).')
     const secret = b.client_secret ? String(b.client_secret) : cur.secret
     if (secret.length < 8) return fail(400, 'invalid_secret', 'Enter the Client secret (at least 8 characters).')
-    if (!ROLES.includes(b.default_role as Role)) return fail(400, 'invalid_role', 'Choose a default role.')
+    const scopes = String(b.scopes ?? '').trim().split(/\s+/).filter(Boolean)
+    if (!scopes.includes('openid') || scopes.length > 10 || !scopes.every((x) => SCOPE_RE.test(x))) return fail(400, 'invalid_scopes', 'Scopes are words separated by spaces, at most 10, and must include openid.')
+    const claim = String(b.groups_claim ?? '').trim()
+    if (!CLAIM_RE.test(claim)) return fail(400, 'invalid_claim', 'Enter the name of the groups claim, for example groups (letters, digits and _ . : / -, at most 64).')
+    if (b.default_role !== null && !ROLES.includes(b.default_role as Role)) return fail(400, 'invalid_role', 'Choose a default role, or No access.')
     const map = (b.role_map ?? []).filter((m) => String(m.group ?? '').trim())
     if (map.length > 10) return fail(400, 'too_many', 'At most 10 role mapping rows.')
-    if (map.some((m) => !ROLES.includes(m.role))) return fail(400, 'invalid_role', 'One mapping row has an invalid role.')
-    oidcStore.set({ issuer, client_id: clientId, secret, default_role: b.default_role as Role, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })) })
+    if (map.some((m) => !ROLES.includes(m.role) || m.group.trim().length > 256)) return fail(400, 'invalid_role', 'One mapping row has an invalid role or a group name longer than 256 characters.')
+    oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })) })
     audit('oidc.update', issuer)
     return HttpResponse.json(oidcView())
   }),
@@ -367,19 +400,47 @@ const usersHandlers = [
 
   // Công khai: trang đăng nhập hỏi để biết có nút SSO không.
   http.get(`${API}/core/auth-options`, () => HttpResponse.json({ oidc: isOn('auth-oidc') && !!oidcStore.get().issuer })),
-  // Mock cho vòng chuyển hướng IdP: đăng nhập thẳng bằng một tài khoản SSO mẫu với vai mặc định. Bản thật dùng authorization code + PKCE.
-  http.post(`${API}/core/sso/login`, () => {
-    if (!isOn('auth-oidc') || !oidcStore.get().issuer) return fail(400, 'oidc_off', 'SSO sign-in is not enabled. Ask an administrator to enable it under Settings, Users.')
+  // D-194: bắt đầu đăng nhập SSO. Bản thật trả điểm authorization của IdP; mock bỏ qua IdP và đưa thẳng về trang gọi lại kèm một mã.
+  http.post(`${API}/auth/oidc/start`, () => {
+    if (!isOn('auth-oidc') || !oidcStore.get().issuer) return fail(400, 'oidc_off', OIDC_OFF)
+    const state = randomToken()
+    const binding = randomToken()
+    const now = Date.now()
+    oidcFlows.update((l) => [...l.filter((f) => f.expires > now).slice(-999), { state, binding, expires: now + 10 * 60_000 }])
+    return HttpResponse.json({ authorize_url: `${location.origin}/sso/callback?code=mock-${randomToken().slice(0, 16)}&state=${state}`, binding })
+  }),
+  // D-194, D-195: gọi lại. Luồng dùng một lần; vai theo nhóm; không nối vào tài khoản mật khẩu cùng email.
+  http.post(`${API}/auth/oidc/callback`, async ({ request }) => {
+    if (!isOn('auth-oidc') || !oidcStore.get().issuer) return fail(400, 'oidc_off', OIDC_OFF)
+    const b = await body<{ code?: string; state?: string; binding?: string }>(request)
     const cfg = oidcStore.get()
-    const email = 'sso.user@acme.example'
-    let u = usersStore.get().find((x) => x.email === email)
-    if (u?.disabled) return fail(403, 'disabled', 'This account has been disabled.')
+    const refuse = (reason: string, status: number, code: string, msg: string, who = cfg.issuer) => { audit('auth.login_failed', who, `SSO: ${reason}`); return fail(status, code, msg) }
+    const flow = oidcFlows.get().find((f) => f.state === b.state)
+    oidcFlows.update((l) => l.filter((f) => f.state !== b.state)) // dùng một lần, kể cả khi binding sai
+    if (!flow || flow.expires < Date.now()) return refuse('state', 400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
+    if (flow.binding !== b.binding) return refuse('binding', 400, 'sso_expired', 'This sign-in was started in another tab or browser. Start again from the sign-in page.')
+    if (!b.code) return refuse('token', 400, 'sso_failed', 'The identity provider\'s answer could not be verified. Ask an administrator to check the SSO settings; the audit log has the reason.')
+    const idp = MOCK_IDP_USER
+    const role = ssoRole(idp.groups, cfg)
+    if (!role) return refuse('no_access', 403, 'no_access', 'Your company account is not in a group that may use Vedette. Ask an administrator.', idp.email)
+    const list = usersStore.get()
+    let u = list.find((x) => x.sso?.iss === cfg.issuer && x.sso.sub === idp.sub)
     if (!u) {
-      u = { id: newId('u'), name: 'SSO user', email, role: cfg.default_role, password: tempPassword(), twofa: false, created_at: nowIso(), last_login: nowIso() }
-      usersStore.update((l) => [...l, u as User])
+      const same = list.find((x) => x.email.toLowerCase() === idp.email)
+      // Tài khoản mật khẩu, hay tài khoản SSO của cùng issuer với sub khác: không nối. Tài khoản SSO của issuer cũ: gắn lại (đổi IdP).
+      if (same && (!same.sso || same.sso.iss === cfg.issuer)) return refuse('email_in_use', 409, 'email_in_use', `A Vedette account already uses ${idp.email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator.`, idp.email)
+      if (same) u = { ...same, sso: { iss: cfg.issuer, sub: idp.sub } }
     }
-    sessionStore.set({ userId: u.id })
-    audit('auth.login', email, 'SSO')
+    if (u?.disabled) return refuse('disabled', 403, 'disabled', 'This account has been disabled. Ask an administrator.', idp.email)
+    if (!u) {
+      u = { id: newId('u'), name: idp.name, email: idp.email, role, password: '', twofa: false, created_at: nowIso(), last_login: null, sso: { iss: cfg.issuer, sub: idp.sub } }
+      usersStore.update((l) => [...l, u as User])
+      audit('user.create', idp.email, 'SSO')
+    } else if (u.role !== role) audit('user.role', idp.email, `${u.role} sang ${role} (SSO groups)`)
+    const signed: User = { ...u, role, last_login: nowIso() }
+    usersStore.update((l) => l.map((x) => (x.id === signed.id ? signed : x)))
+    sessionStore.set({ userId: signed.id })
+    audit('auth.login', idp.email, 'SSO')
     return HttpResponse.json({ ok: true })
   }),
 ]

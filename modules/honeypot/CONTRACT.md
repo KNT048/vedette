@@ -86,13 +86,15 @@ Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy đư�
 3. URL token/DNS token kích hoạt bằng cách nào khi người chạm ở ngoài LAN (cần tên miền/điểm thu của dự án)? Nếu cần thì thêm luồng ra → `PRIVACY.md` (legal.md).
 4. Hit thử có kích hoạt trigger `response` không? Hợp đồng đề xuất: không (INV-4).
 
-## Bộ chuyển `Host` phía `core` (việc của `core`, chưa có mã)
-`cmd/vedette/honeypot.go` hiện dùng `notAnAppliance`. Khi `vedette-host` có lệnh phần 3, bộ chuyển trên `host/client` phải:
-- `Status`: appliance khi `/v1/info.commands` có `decoy_ip.add` và `container.start`; socket vắng (`client.ErrUnreachable`) → không phải appliance.
-- **`AddDecoyIP`/`RemoveDecoyIP` so với `decoys` của `GET /v1/state/net`, chỉ gửi phần khác.** `Service.syncIPs` (`apply.go`) gọi `AddDecoyIP` cho **mọi** IP mong muốn ở mỗi `Apply`; host nhận 10 lệnh ghi/phút, nên 32 decoy sẽ chạm `rate_limited` ở mỗi lần áp lại. IP đã có trong `state/net` là no-op ở bộ chuyển (không gọi host); `duplicate_decoy` từ host cũng tính là thành công. Đây là việc của bộ chuyển `core`, không đổi `syncIPs`.
-- `StartContainer` → `container.start {service: "honeypot", restart: true}` khi `opencanary.conf`/`honeytokens.json` vừa đổi (băm trong bộ nhớ, INV-15), không thì không `restart`; không có `version` (bản hiện tại, `host-api.md` §6.8).
-- `StopContainer` → `container.stop {service: "honeypot", persist: true}` (module tắt hoặc không bẫy nào bật).
-- `oui`: cổng `Host` chưa có tham số; `core` chọn OUI theo vai từ bảng OUI của D-83 để sau. Tới lúc đó decoy dùng MAC local-administered mặc định.
+## Bộ chuyển `Host` phía `core` (D-161, `cmd/vedette/honeypothost.go`)
+Có `-host-socket` → `honeypotHost` trên `host/client`; không có (dev, hộp trần D-55) → `notAnAppliance` (không bẫy nào nghe, lý do "not an appliance"). Cổng `Host` đổi ở D-161: `StartContainer(ctx, restart bool)`.
+- `Status`: `GET /v1/state/containers`; service `honeypot` có unit (`installed`) → `Available`, `Running` = `unit_state` `active`. Socket vắng (`ErrUnreachable` + `fs.ErrNotExist`) → `Available=false`, lý do "not an appliance"; host không trả lời (`ErrUnreachable`/`ErrDenied`) → `Available=false`, "not answering" (không phải lỗi); chưa cài unit → `Available=false`, "not installed". Lỗi khác của host → error.
+- **`AddDecoyIP` chỉ gửi phần khác.** `Service.syncIPs` gọi `AddDecoyIP` cho **mọi** IP mong muốn ở mỗi `Apply`; host nhận 10 lệnh ghi/phút. Bộ chuyển đọc `decoys` của `GET /v1/state/net`: IP đã có → không ghi; `duplicate_decoy` cũng là thành công. Không `oui` (MAC local-administered mặc định); chọn OUI theo vai (D-83) để sau.
+- `RemoveDecoyIP` → `decoy_ip.remove` (host: IP không có → thành công).
+- `StartContainer(ctx, restart)` → `container.start {service: "honeypot", restart}`, không `version`. `Service` đặt `restart=true` khi có tệp `opencanary.conf`/`honeytokens.json` được ghi kể từ lần khởi động mà host đã xác nhận (cờ trong bộ nhớ, INV-15; nên lần `Apply` đầu sau mỗi lần core khởi động restart container một lần); khởi động hỏng giữ cờ.
+- `StopContainer` → `container.stop {service: "honeypot", persist: true}`.
+- Mỗi lệnh dùng `actor: "system"` và một request id UUID cho mọi lần thử lại của lệnh đó. Host bận (`busy`) hoặc `rate_limited` được chờ tối đa 90 giây rồi trả lỗi "host is busy… will try again" (vòng sau thử lại); run được chờ tối đa 5 phút (quá hạn → "did not finish in time", vòng sau gặp `busy` và chờ run đó). Từ chối của host thành một câu rõ kèm mã (`ip_not_in_mgmt_subnet`, `ip_in_use`…), lời của host chỉ vào log.
+- Giới hạn đã biết: một `AddDecoyIP` lỗi tạm (host bận quá 90 giây) vẫn hiện thành `conflict` của IP đó tới vòng sau (module coi mọi lỗi thêm là từ chối); một unit bị gỡ khi còn IP đã giao thì `disable` báo lỗi đến khi unit về (không thể hỏi IP của host qua `Status` khi chưa có unit).
 
 ## Giới hạn (cố hữu, ghi rõ)
 - Container `honeypot` đối mặt với kẻ tấn công và có thể bị chiếm: nó ghi được mọi thứ vào `log/`. INV-16..18 chặn việc làm treo, chuyển hướng, làm tràn hoặc bơm dòng vô lý; **một dòng giả đủ hợp lý** (nguồn là một IP bất kỳ ngoài danh sách loại, đích là IP bẫy, đúng giờ) vẫn thành hit. Mỗi poll tối đa 500 và mỗi giờ tối đa 2.000 hit mới giới hạn thiệt hại, không loại bỏ nó.

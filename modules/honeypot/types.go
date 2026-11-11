@@ -287,7 +287,9 @@ type Host interface {
 	Status(ctx context.Context) (HostStatus, error)
 	AddDecoyIP(ctx context.Context, ip netip.Addr) error
 	RemoveDecoyIP(ctx context.Context, ip netip.Addr) error
-	StartContainer(ctx context.Context) error
+	// StartContainer starts the container; restart is true when core wrote opencanary.conf or honeytokens.json since the
+	// last start the host acknowledged, so a container that already runs must read them again (host-api 6.8 restart).
+	StartContainer(ctx context.Context, restart bool) error
 	StopContainer(ctx context.Context) error // persist: the module is off or no trap is on
 }
 

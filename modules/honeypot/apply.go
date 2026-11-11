@@ -161,6 +161,7 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 		if old, ok := s.written[f.name]; ok && old == sum {
 			continue
 		}
+		s.restartDue = true // set before the write: a write cut short may still have replaced the file
 		if err := writeInRoot(s.cfg.ConfigDir, f.name, f.data); err != nil {
 			return err
 		}
@@ -243,11 +244,12 @@ func (s *Service) Apply(ctx context.Context) error {
 	case !filesOK:
 		s.setHost(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts})
 	default:
-		if err := s.cfg.Host.StartContainer(ctx); err != nil {
+		if err := s.cfg.Host.StartContainer(ctx, s.restartDue); err != nil {
 			s.setHost(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts})
 			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
 			break
 		}
+		s.restartDue = false
 		m := map[ServiceName]bool{}
 		for _, svc := range services {
 			m[svc] = true

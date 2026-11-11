@@ -77,6 +77,7 @@ type fakeHost struct {
 	ips       map[netip.Addr]bool
 	running   bool
 	calls     []string
+	restarts  []bool // the restart flag of every StartContainer
 	failStart error
 	failStop  error
 	failRm    error
@@ -115,10 +116,11 @@ func (h *fakeHost) RemoveDecoyIP(_ context.Context, ip netip.Addr) error {
 	return nil
 }
 
-func (h *fakeHost) StartContainer(context.Context) error {
+func (h *fakeHost) StartContainer(_ context.Context, restart bool) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "start")
+	h.restarts = append(h.restarts, restart)
 	if h.failStart != nil {
 		return h.failStart
 	}

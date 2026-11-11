@@ -85,6 +85,19 @@ export const chanReady = (c: NChan) => c.configured && c.enabled && c.approvals 
 export const readyChan = (type: string) => rawChans().find((c) => c.type === type && chanReady(c))
 export const userCanApprove = (id: string) => { const u = usersStore.get().find((x) => x.id === id); return !!u && !u.disabled && (u.role === 'operator' || u.role === 'admin') ? u : undefined }
 
+// ---- Approver identities (D-191): the person proved the address or ID an administrator typed for them ----
+export interface LinkedId { user_id: string; channel: string; address: string; linked_at: string }
+// Sample data: the administrator linked Slack and email; the operator (U04OPS00001) has not linked Slack yet.
+export const identityStore = collection<LinkedId[]>('resp_identity', () => [
+  { user_id: 'u-admin', channel: 'slack', address: 'U04ABCD1234', linked_at: daysAgo(20) },
+  { user_id: 'u-admin', channel: 'email', address: 'admin@acme.example', linked_at: daysAgo(20) },
+], () => [])
+/** Linked for exactly this address; on email the address must also still be the sign-in email. */
+export const isLinked = (userId: string, channel: string, address: string) => {
+  if (channel === 'email' && usersStore.get().find((u) => u.id === userId)?.email.toLowerCase() !== address.toLowerCase()) return false
+  return identityStore.get().some((x) => x.user_id === userId && x.channel === channel && x.address === address)
+}
+
 // ---- Email approval links (D-46): one token per approver, single use, 30 minutes, bound to request and approver ----
 export interface Token { token: string; action_id: string; user_id: string; address: string; channel: string; expires_at: string; used_at: string | null }
 export const tokensStore = collection<Token[]>('resp_tokens', () => [])
@@ -314,7 +327,7 @@ export function newRequest(o: ReqInit, notify: boolean): ActionRequest {
   const id = newId('act')
   const sending = notify ? rawChans().filter((c) => c.configured && c.enabled && s.approval_channels.includes(c.type) && chanReady(c)) : []
   for (const c of sending.filter((x) => LINK_TYPES.includes(x.type))) {
-    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id))) {
+    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id) && isLinked(x.user_id, c.type, x.address))) { // D-191: no link for an address its person has not proved
       tokensStore.update((l) => [...l, { token: approvalToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
     }
   }
@@ -462,6 +475,9 @@ export function actionsView(): ActionRequest[] {
 export function settingsView(): SettingsView {
   return {
     ...settings(),
-    channels: APPROVAL_TYPES.flatMap((type) => { const c = rawChans().find((x) => x.type === type && x.configured); return c ? [{ type, label: chanLabel(c), ready: chanReady(c), approvers: approversOf(c).length, link: LINK_TYPES.includes(type) }] : [] }),
+    channels: APPROVAL_TYPES.flatMap((type) => { const c = rawChans().find((x) => x.type === type && x.configured); if (!c) return []
+      const aps = approversOf(c), open = aps.filter((a) => !isLinked(a.user_id, type, a.address))
+      return [{ type, label: chanLabel(c), ready: chanReady(c), approvers: aps.length, link: LINK_TYPES.includes(type), linked: aps.length - open.length, unlinked: open.map((a) => usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id) }]
+    }),
   }
 }

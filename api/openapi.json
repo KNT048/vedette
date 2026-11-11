@@ -46455,6 +46455,19 @@
                           "link": {
                             "type": "boolean",
                             "description": "Approves through a one-time link (email, Zalo OA)"
+                          },
+                          "linked": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links"
+                          },
+                          "unlinked": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Names of the approvers who have not linked their address yet"
                           }
                         },
                         "required": [
@@ -46462,7 +46475,9 @@
                           "label",
                           "ready",
                           "approvers",
-                          "link"
+                          "link",
+                          "linked",
+                          "unlinked"
                         ],
                         "additionalProperties": false
                       }
@@ -48693,6 +48708,19 @@
                           "link": {
                             "type": "boolean",
                             "description": "Approves through a one-time link (email, Zalo OA)"
+                          },
+                          "linked": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links"
+                          },
+                          "unlinked": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Names of the approvers who have not linked their address yet"
                           }
                         },
                         "required": [
@@ -48700,7 +48728,9 @@
                           "label",
                           "ready",
                           "approvers",
-                          "link"
+                          "link",
+                          "linked",
+                          "unlinked"
                         ],
                         "additionalProperties": false
                       }
@@ -48829,6 +48859,323 @@
                   },
                   "required": [
                     "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/response/me/identities": {
+      "get": {
+        "operationId": "response_get_response_me_identities",
+        "summary": "My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it (D-191)",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "operator",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "channel": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string",
+                            "description": "The address or ID on the approver list of the channel, as an administrator saved it"
+                          },
+                          "linked": {
+                            "type": "boolean",
+                            "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
+                          },
+                          "linked_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "email_code",
+                              "chat_code"
+                            ],
+                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code"
+                          },
+                          "code_waiting": {
+                            "type": "boolean",
+                            "description": "A code was sent or shown and can be entered now"
+                          }
+                        },
+                        "required": [
+                          "channel",
+                          "label",
+                          "address",
+                          "linked",
+                          "linked_at",
+                          "method",
+                          "code_waiting"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/response/me/identities/{channel}": {
+      "delete": {
+        "operationId": "response_delete_response_me_identities_channel",
+        "summary": "Unlink my address on a channel: buttons and links from it stop counting until I link it again",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z-]{1,20}$"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/response/me/identities/{channel}/code": {
+      "post": {
+        "operationId": "response_post_response_me_identities_channel_code",
+        "summary": "Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a button on an approval message",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z-]{1,20}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent_to": {
+                      "type": "string",
+                      "description": "The address, masked"
+                    },
+                    "resend_after": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "preview_code": {
+                      "description": "Preview build only; never sent by a real box",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sent_to",
+                    "resend_after"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/response/me/identities/{channel}/confirm": {
+      "post": {
+        "operationId": "response_post_response_me_identities_channel_confirm",
+        "summary": "Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z-]{1,20}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channel": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string",
+                      "description": "The address or ID on the approver list of the channel, as an administrator saved it"
+                    },
+                    "linked": {
+                      "type": "boolean",
+                      "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
+                    },
+                    "linked_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "email_code",
+                        "chat_code"
+                      ],
+                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code"
+                    },
+                    "code_waiting": {
+                      "type": "boolean",
+                      "description": "A code was sent or shown and can be entered now"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "label",
+                    "address",
+                    "linked",
+                    "linked_at",
+                    "method",
+                    "code_waiting"
                   ],
                   "additionalProperties": false
                 }
@@ -52249,6 +52596,19 @@
                           "link": {
                             "type": "boolean",
                             "description": "Approves through a one-time link (email, Zalo OA)"
+                          },
+                          "linked": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links"
+                          },
+                          "unlinked": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Names of the approvers who have not linked their address yet"
                           }
                         },
                         "required": [
@@ -52256,7 +52616,9 @@
                           "label",
                           "ready",
                           "approvers",
-                          "link"
+                          "link",
+                          "linked",
+                          "unlinked"
                         ],
                         "additionalProperties": false
                       }
@@ -52618,6 +52980,19 @@
                           "link": {
                             "type": "boolean",
                             "description": "Approves through a one-time link (email, Zalo OA)"
+                          },
+                          "linked": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links"
+                          },
+                          "unlinked": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Names of the approvers who have not linked their address yet"
                           }
                         },
                         "required": [
@@ -52625,7 +53000,9 @@
                           "label",
                           "ready",
                           "approvers",
-                          "link"
+                          "link",
+                          "linked",
+                          "unlinked"
                         ],
                         "additionalProperties": false
                       }

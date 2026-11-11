@@ -152,7 +152,9 @@
     "approverCount_one": "{{count}} approver",
     "approverCount_other": "{{count}} approvers",
     "byLink": "approves through a one-time link",
-    "approversRule": "A decision counts only if the sender is on that channel's approver list and is an operator or admin in Vedette. Several approvers are allowed; the first valid decision wins."
+    "approversRule": "A decision counts only if the sender is on that channel's approver list, is an operator or admin in Vedette, and linked that address in My account. Several approvers are allowed; the first valid decision wins.",
+    "linkedCount": "{{linked}} of {{count}} linked",
+    "notLinkedYet": "Not linked yet: {{names}}. Their buttons and links do not count until they link in My account."
   },
   "tabs": {
     "rules": "Rules",
@@ -688,5 +690,25 @@
       "suggestion": "Saved as a suggestion note",
       "digest": "Added to the digest"
     }
+  },
+  "identity": {
+    "title": "Approval channels",
+    "desc": "An administrator added you as an approver on these channels. Buttons and email links count only after you prove the address or ID below is yours. Approving in the app always works.",
+    "none": "You are not an approver on any channel.",
+    "linked": "Linked",
+    "notLinked": "Not linked",
+    "linkedAt": "Linked {{at}}. Buttons and links from this address count as you.",
+    "unlink": "Unlink",
+    "howEmail": "Send a code to this address and enter it here. It is your sign-in email; if it is wrong, ask an administrator to correct it.",
+    "howChat": "Press Approve or Reject on the next approval message in {{channel}}. Nothing is decided: Vedette answers only you with a 6-digit code. Enter it here, then press the button again.",
+    "sent": "Code sent to {{to}}. It expires in 10 minutes.",
+    "send": "Send code",
+    "resend": "Send a new code",
+    "resendIn": "New code in {{s}} s",
+    "code": "Code",
+    "codeShape": "The code is 6 digits.",
+    "confirm": "Link",
+    "linkedToast": "{{channel}} linked.",
+    "unlinkedToast": "{{channel}} unlinked. Its buttons and links no longer count as you."
   }
 }

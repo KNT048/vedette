@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
+import { useModuleEnabled } from '@/lib/modules'
+import { ApproverIdentities } from '@/features/response/ApproverIdentities'
 import { toast } from 'sonner'
 import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -214,10 +216,13 @@ function Sessions({ a }: { a: Account }) {
 export default function AccountPage() {
   const { t } = useTranslation('core')
   const q = useAccount()
+  const operator = useCan('operator')
+  const responseOn = useModuleEnabled('response') === true
+  const approver = operator && responseOn // S-RESP-2, D-191: approvers prove their approval channel addresses
   return (
     <>
       <PageHeader title={q.data ? t('account.title', { name: q.data.user.name }) : t('account.titleLoading')} meta={t('account.meta')} stories={['S-CORE-3']} />
-      <QueryState query={q}>{(a) => <><Profile a={a} /><Password /><TwoFactor a={a} /><Sessions a={a} /></>}</QueryState>
+      <QueryState query={q}>{(a) => <><Profile a={a} /><Password /><TwoFactor a={a} /><Sessions a={a} />{approver ? <ApproverIdentities /> : null}</>}</QueryState>
     </>
   )
 }

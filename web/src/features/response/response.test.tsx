@@ -17,7 +17,7 @@ import ResponseSettings from './ResponseSettings'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
-import { actionsStore, buildChange, catalogStore } from './state'
+import { actionsStore, buildChange, catalogStore, identityStore } from './state'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
@@ -43,8 +43,13 @@ const auditActions = () => auditStore.get().map((a) => a.action)
 const list = <T,>(role: Role, path: string) => call<{ items: T[] }>(role, 'GET', path).then((r) => r.json.items)
 const logList = () => list<LogEntry>('admin', '/response/log')
 const getAction = async (id: string) => (await list<ActionRequest>('admin', '/response/actions')).find((a) => a.id === id)!
+/** The notify channels of a test; every approver on them has linked their address (D-191), unless `linked` is false. */
+function setChannels(list: { type: string; approvers?: { user_id: string; address: string }[] }[], linked = true) {
+  collection<unknown>('notify_channels', () => []).set(list)
+  identityStore.set(linked ? list.flatMap((c) => (c.approvers ?? []).map((a) => ({ user_id: a.user_id, channel: c.type, address: a.address, linked_at: new Date().toISOString() }))) : [])
+}
 function mapChat() {
-  collection<unknown>('notify_channels', () => []).set([
+  setChannels([
     { type: 'slack', configured: true, enabled: true, approvals: true, fields: { label: '#security' }, approvers: [{ user_id: 'u-op', address: 'U0OPS' }, { user_id: 'u-view', address: 'U0VIEW' }] },
     { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-admin', address: '777' }] },
   ])
@@ -354,7 +359,7 @@ describe('response: approval model (D-51)', () => {
 
   it('email approval links stay single use; opening one approves nothing', async () => {
     await turnOn()
-    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
     await saveSettings({ approval_channels: ['email'] })
     const r = await request()
     const links = (await getAction(r.json.id)).email_links
@@ -377,7 +382,7 @@ describe('response: approval model (D-51)', () => {
 
   it('a link of a person who may no longer approve reads as no link (spec 8)', async () => {
     await turnOn()
-    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
     await saveSettings({ approval_channels: ['email'] })
     const r = await request()
     const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!
@@ -392,7 +397,7 @@ describe('response: approval model (D-51)', () => {
 
   it('two people, at most one by email link (D-124)', async () => {
     await turnOn()
-    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
     await saveSettings({ approval_channels: ['email'] })
     const r = await request()
     actionsStore.update((l) => l.map((a) => (a.id === r.json.id ? { ...a, items: a.items.map((i) => ({ ...i, targets: 99 })) } : a))) // more targets than the limit: two people
@@ -406,6 +411,122 @@ describe('response: approval model (D-51)', () => {
     expect((await getAction(r.json.id)).approvals).toHaveLength(1)
     const done = await call<ActionRequest>('admin', 'POST', `/response/actions/${r.json.id}/approve`) // the other person, in the app
     expect(done.json.approvals.map((a) => a.via)).toEqual(['email', 'app'])
+  })
+})
+
+describe('response: approvers prove their channel identity (S-RESP-2, D-191)', () => {
+  const ids = (role: Role) => list<{ channel: string; address: string; linked: boolean; method: string; code_waiting: boolean }>(role, '/response/me/identities')
+  const codeOf = (msg: string) => /code (\d{6})/.exec(msg)?.[1]
+  const confirm = (role: Role, channel: string, code: string) => call(role, 'POST', `/response/me/identities/${channel}/confirm`, { code })
+  async function unlinkedChat() {
+    await turnOn(); mapChat(); identityStore.set([])
+    await saveSettings({ approval_channels: ['slack', 'telegram'] })
+    return (await request()).json.id
+  }
+
+  it('a press from a listed ID that is not linked decides nothing and answers a private code; the person links it in My account', async () => {
+    const id = await unlinkedChat()
+    const r = await chat(id, 'U0OPS')
+    expect(r.status).toBe(403)
+    expect(r.code).toBe('approver_not_linked')
+    const code = codeOf(r.json.error!.message)!
+    expect(code).toMatch(/^\d{6}$/)
+    expect((await getAction(id)).approvals).toHaveLength(0)
+    expect((await getAction(id)).status).toBe('pending')
+    expect((await logList()).map((l) => l.detail).join('\n')).not.toContain(code) // the log never holds the code
+    expect(await ids('operator')).toEqual([expect.objectContaining({ channel: 'slack', address: 'U0OPS', linked: false, method: 'chat_code', code_waiting: true })])
+    expect((await confirm('admin', 'slack', code)).code).toBe('no_code') // the code is bound to the listed person, not to whoever types it
+    expect((await confirm('operator', 'slack', code)).status).toBe(200)
+    expect(auditActions()).toContain('response.identity_link')
+    expect((await ids('operator'))[0]).toMatchObject({ linked: true, code_waiting: false })
+    expect((await confirm('operator', 'slack', code)).code).toBe('no_code') // single use
+    const ok = await chat(id, 'U0OPS')
+    expect(ok.status).toBe(200)
+    expect(ok.json.approvals[0]!.via).toBe('slack')
+  })
+
+  it('five wrong codes cancel it; a new press replaces it; at most 5 codes an hour', async () => {
+    const id = await unlinkedChat()
+    const first = codeOf((await chat(id, 'U0OPS')).json.error!.message)!
+    const wrong = first === '000000' ? '111111' : '000000'
+    for (let i = 0; i < 4; i++) expect((await confirm('operator', 'slack', wrong)).code).toBe('wrong_code')
+    expect((await confirm('operator', 'slack', 'abc')).code).toBe('invalid_code')
+    expect((await confirm('operator', 'slack', wrong)).code).toBe('too_many_tries')
+    expect((await confirm('operator', 'slack', first)).code).toBe('no_code')
+    for (let i = 0; i < 4; i++) expect(codeOf((await chat(id, 'U0OPS')).json.error!.message)).toMatch(/^\d{6}$/)
+    const capped = await chat(id, 'U0OPS')
+    expect(capped.code).toBe('approver_not_linked')
+    expect(codeOf(capped.json.error!.message)).toBeUndefined()
+  })
+
+  it('a changed ID or an unlink drops the proof', async () => {
+    const id = await unlinkedChat()
+    await confirm('operator', 'slack', codeOf((await chat(id, 'U0OPS')).json.error!.message)!)
+    setChannels([{ type: 'slack', configured: true, enabled: true, approvals: true, fields: { label: '#security' }, approvers: [{ user_id: 'u-op', address: 'U0OPS2' }] }], false)
+    identityStore.update((l) => l) // the stored proof is still for U0OPS
+    expect((await chat(id, 'U0OPS2')).code).toBe('approver_not_linked')
+    mapChat()
+    expect((await ids('operator'))[0]!.linked).toBe(true)
+    expect((await call('operator', 'DELETE', '/response/me/identities/slack')).status).toBe(204)
+    expect(auditActions()).toContain('response.identity_unlink')
+    expect((await chat(id, 'U0OPS')).code).toBe('approver_not_linked')
+    expect((await call('operator', 'DELETE', '/response/me/identities/slack')).code).toBe('not_linked')
+  })
+
+  it('email: a code to the sign-in email links it; a changed sign-in email unlinks it; no link is made for an unlinked address', async () => {
+    await turnOn()
+    setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }], false)
+    await saveSettings({ approval_channels: ['email'] })
+    expect((await getAction((await request()).json.id)).email_links).toHaveLength(0) // not linked: no link is minted
+    expect((await call('operator', 'POST', '/response/me/identities/slack/code')).code).toBe('not_listed')
+    const sent = await call<{ sent_to: string; preview_code: string }>('operator', 'POST', '/response/me/identities/email/code')
+    expect(sent.status).toBe(200)
+    expect(sent.json.sent_to).toBe('i•••@acme.example')
+    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('resend_too_soon')
+    expect((await confirm('operator', 'email', sent.json.preview_code)).status).toBe(200)
+    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('already_linked')
+    await call('operator', 'POST', '/response/emergency-stop')
+    await turnOn()
+    const r = await request()
+    const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!
+    sessionStore.set({ userId: null })
+    expect((await (await fetch(`${location.origin}/api/v1/response/approve/${token}`)).json() as { state: string }).state).toBe('ready')
+    usersStore.update((l) => l.map((u) => (u.id === 'u-op' ? { ...u, email: 'it2@acme.example' } : u)))
+    expect((await (await fetch(`${location.origin}/api/v1/response/approve/${token}`)).json() as { state: string }).state).toBe('unknown')
+    expect((await ids('operator'))[0]!.linked).toBe(false)
+    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('address_mismatch')
+  })
+
+  it('email not set up: no code; chat channels have no send button; viewers have no identities', async () => {
+    setChannels([{ type: 'email', configured: true, enabled: false, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }, { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '42' }] }], false)
+    expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('email_not_ready')
+    expect((await call('operator', 'POST', '/response/me/identities/telegram/code')).code).toBe('chat_channel')
+    expect((await call('viewer', 'GET', '/response/me/identities')).status).toBe(403)
+  })
+
+  it('settings show how many approvers linked and who has not', async () => {
+    await turnOn(); mapChat(); identityStore.set([])
+    const v = await call<SettingsView>('admin', 'GET', '/response/settings')
+    expect(v.json.channels.find((c) => c.type === 'slack')).toMatchObject({ approvers: 2, linked: 0, unlinked: ['IT Operator', expect.any(String)] })
+  })
+
+  it('My account: an operator links a chat ID with the code from the press', async () => {
+    const id = await unlinkedChat()
+    const code = codeOf((await chat(id, 'U0OPS')).json.error!.message)!
+    const u = userEvent.setup()
+    renderApp('/account', { role: 'operator' })
+    const card = await screen.findByRole('region', { name: 'Approval channels' })
+    expect(await within(card).findByText('Not linked')).toBeTruthy()
+    await u.type(within(card).getByLabelText('Code'), code)
+    await u.click(within(card).getByRole('button', { name: 'Link' }))
+    expect(await within(card).findByText('Linked')).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Unlink' })).toBeTruthy()
+  })
+
+  it('My account: no card for a viewer', async () => {
+    renderApp('/account', { role: 'viewer' })
+    await screen.findByRole('heading', { name: 'Change password' })
+    expect(screen.queryByText('Approval channels')).toBeNull()
   })
 })
 
@@ -1192,7 +1313,7 @@ describe('response: screens', () => {
 
   it('the public approval page shows the change on load and decides only on the button', async () => {
     await turnOn()
-    collection<unknown>('notify_channels', () => []).set([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
+    setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
     await saveSettings({ approval_channels: ['email'] })
     const r = await request()
     const token = (await getAction(r.json.id)).email_links[0]!.url.split('/').pop()!

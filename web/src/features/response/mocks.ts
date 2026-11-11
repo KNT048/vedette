@@ -15,11 +15,12 @@ import { TEMPLATES } from './templates'
 import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
 import { isCidr, isDomain, isIpv4, TOKEN_RE, type Tpl } from './logic'
 import {
-  actionsStore, actionsView, allowStore, approve, approversOf, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
+  actionsStore, actionsView, allowStore, approve, approversOf, isLinked, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
   newRequest, OFF_MSG, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who, writeToolsOf,
   type Allow, type CatErr, randomToken, reversible, TEXT_RE,
 } from './state'
 import type { ActionRequest, ApprovalView, BlockEntry, Plan, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
+import { chatNotLinked, identityHandlers } from './identity'
 
 // ---- Plans (S-RESP-1): what the AI drafts for an unresolved critical finding, deterministic here ----
 import { sampleContainment, type StoredStep } from './templates/sample-firewall'
@@ -69,10 +70,10 @@ function blockEntries(): BlockEntry[] {
 const blockUrl = (token: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
-/** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin. */
+/** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves (D-191). */
 function linkApproverValid(t: { user_id: string; channel: string; address: string }) {
   const ch = rawChans().find((c) => c.type === t.channel)
-  return !!ch && chanReady(ch) && settings().approval_channels.includes(t.channel) && approversOf(ch).some((x) => x.user_id === t.user_id && x.address === t.address) && !!userCanApprove(t.user_id)
+  return !!ch && chanReady(ch) && settings().approval_channels.includes(t.channel) && approversOf(ch).some((x) => x.user_id === t.user_id && x.address === t.address) && !!userCanApprove(t.user_id) && isLinked(t.user_id, t.channel, t.address)
 }
 
 /** State of an emailed approval link. Used by the read-only GET and re-checked by the POST. */
@@ -90,6 +91,7 @@ const iso = (v: unknown) => typeof v === 'string' && !Number.isNaN(Date.parse(v)
 const TRIGGER_IDS = TRIGGERS.map((t) => t.id as string)
 
 export const handlers = [
+  ...identityHandlers,
   http.get(`${API}/response/plans`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
     sweep()
@@ -184,6 +186,7 @@ export const handlers = [
     const u = ap ? userCanApprove(ap.user_id) : undefined
     if (!ch || !ap || !u) return refuse(403, 'approver_not_listed', `Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or admin.`, a.id)
     if (!settings().approval_channels.includes(b.channel) || !chanReady(ch)) return refuse(403, 'channel_not_allowed', `Approvals from ${b.channel} are not turned on for response.`, a.id)
+    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(u.id, ch.type, ap.address, a.id) // D-191: the answer only the presser sees holds a link code
     const w = who(u, b.channel, b.external_id)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected in ${b.channel} by ${u.name}`)
     if (isResp(r)) return r

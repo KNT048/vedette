@@ -190,6 +190,9 @@ EOT
 	done
 	ok "Quadlet units written for: $services"
 	[ "$(x 'systemctl cat vedette-host.service | grep -c "^ExecStart=/usr/lib/vedette/vedette-host$"')" = 1 ] || fail "vedette-host.service is not the packaged unit"
+	# core starts the sensor and scan containers by itself a little after the install (its module reconcile), so the box is only compared once
+	# the containers have stopped coming: the same set of containers, none still "starting", on three looks 10 s apart
+	x 'prev=; same=0; i=0; while [ $i -lt 40 ] && [ $same -lt 3 ]; do cur=$(podman ps -a --format "{{.ID}} {{.Status}}" | sort | tr "\n" ";"); case $cur in *starting*) same=0 ;; *) if [ "$cur" = "$prev" ]; then same=$((same + 1)); else same=0; fi ;; esac; prev=$cur; sleep 10; i=$((i + 1)); done; [ $same -ge 3 ]' || fail "the containers did not settle within 400 s of the install"
 	snap_files "$work/$n.installed"
 	core_id=$(x 'podman inspect --format "{{.Id}} {{.State.StartedAt}}" vedette-core')
 

@@ -212,6 +212,9 @@ scan-pack: $(PACK_DIR)/index.json
 $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go)
 	rm -rf $(PACK_DIR)
 	go run ./scripts/scanpack -src-version $(NUCLEI_TEMPLATES_VERSION) -src-sha256 $(NUCLEI_TEMPLATES_SHA256) -version $(SCAN_PACK_VERSION) -out $(PACK_DIR)
+	# core plans jobs against the same index (scan S5): a committed copy, embedded by content/nucleipack; a test holds it to pins.env
+	cp $(PACK_DIR)/index.json content/nucleipack/index.json
+	printf 'nuclei_templates_version: %s\nnuclei_templates_sha256: %s\nscan_pack_version: %s\n' '$(NUCLEI_TEMPLATES_VERSION)' '$(NUCLEI_TEMPLATES_SHA256)' '$(SCAN_PACK_VERSION)' > content/nucleipack/index.source
 
 # The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
 scan-base-image: scan-pack

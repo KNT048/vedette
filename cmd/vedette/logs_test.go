@@ -43,7 +43,7 @@ func TestWiringLogsSourcesLinesAndExport(t *testing.T) {
 	if err := svc.ExportDeviceLogs(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"line":"type=traffic srcip=10.0.0.1"`) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
-	if jobs := logsJobs(*s.d); len(jobs) != 2 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping {
+	if jobs := logsJobs(*s.d); len(jobs) != 3 || jobs[0].Module != "logs" || jobs[0].Name != "purge" || jobs[1].Module != "logs" || jobs[1].Name != "syslog" || jobs[1].Housekeeping || jobs[2].Name != "anomaly" || jobs[2].Housekeeping {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	box, err := (logsBox{*s.d}).Info(ctx)

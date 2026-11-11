@@ -287,10 +287,9 @@ test('window open: a sweep of the confirmed range only, then one scan per device
     expect(everything.map((d) => d.mac), 'nor is its MAC').not.toContain('aa:bb:cc:00:00:99')
     expect(everything.length, 'the box, and the four devices').toBe(base.length + 4)
     // the gentle first scan is recorded for the devices that got it; the router (a known type that is not fragile) had none, only the normal scan
-    for (const d of list) {
-      if (d.ip === ROUTER.ip) expect(d.first_scan_at, 'the router had no gentle first scan').toBeNull()
-      else expect(d.first_scan_at, `${d.ip}: the first scan is recorded`).not.toBeNull()
-    }
+    // (recorded when the scan's answer is processed, a moment after nmap exited: polled)
+    await expect.poll(async () => made(await devices(c)).filter((d) => d.ip !== ROUTER.ip && d.first_scan_at === null).map((d) => d.ip), { message: 'the first scan is recorded for every device that got the gentle one', timeout: 20_000 }).toEqual([])
+    expect(made(await devices(c)).find((d) => d.ip === ROUTER.ip)!.first_scan_at, 'the router had no gentle first scan').toBeNull()
   } finally { await c.dispose() }
 })
 

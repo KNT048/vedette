@@ -34,6 +34,9 @@ func logsService(d deps) *logs.Service {
 		return s
 	}
 	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock}
+	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
+		cfg.Events = d.Bus
+	}
 	if d.SyslogPort != 0 {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}

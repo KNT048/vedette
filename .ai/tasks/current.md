@@ -26,9 +26,9 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 ## Hiện trạng (2026-11-12)
 - **M1 xong:** giao diện đầy đủ trên mock API; bản build release không mang mock (#184).
 - **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` và `logs` còn các lát cuối (bên dưới).
-- **WP-30 (`make e2e-real`):** lát 1–9b đã merge (#204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311); lát 10 (chạy toàn bộ + `@mobile`) đang mở (#335).
+- **WP-30 xong** (lát 1–10, #335: `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`). Lát 1–9b: #204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311.
 - **WP-31:** R1, R2, S, I, H, M3, M4/L10 đã merge; R3 (định danh kênh người duyệt, L7) đã merge (#234, #259); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
-- **Đang mở (PR):** #335 (WP-30 lát 10, Mac) · #336 (gộp D-xx vào `DECISIONS.md`, supervisor) · #331 (logs L3: chữ ký, baseline 7 ngày, bất thường; Mlee) · #326 (ai: tin CVE; Mlee) · #297 (logs: core mở syslog 514, Mlee/Trưởng).
+- **Đang mở (PR):** #336 (gộp D-xx vào `DECISIONS.md`, supervisor) · #331 (logs L3: chữ ký, baseline 7 ngày, bất thường; Mlee) · #326 (ai: tin CVE; Mlee) · #297 (logs: core mở syslog 514, Mlee/Trưởng).
 - **Issue mở:** #332 (response `log_threshold` nối `logs.Service.Counts`) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; PR #297). #115 đã đóng 2026-11-12 (đã xong qua #116, #119, #138, #151, #176, #208…).
 
 ## Đã xong (đến 2026-11-12)
@@ -39,7 +39,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [x] WP-32 RUNBOOK cả hai phần (#303, cập nhật #322) · WP-26 `agent-intake`: lát 0 (#314), lát 1 CA riêng của box cho 8443 (#328, D-262).
 
 **Phía Kiên — session phụ trên Mac**
-- [x] #221 13b-11 (và #289) · WP-30 lát 3, 5, 6, 7, 9a, 9b (#253, #284, #293, #291, #311, #307).
+- [x] #221 13b-11 (và #289) · WP-30 lát 3, 5, 6, 7, 9a, 9b, 10 (#253, #284, #293, #291, #311, #307, #335).
 - [x] WP-31 R3 (#234, #259) · WP-27 `auth-oidc` (#248, #261), `reports` (#279), `mcp-server` (#280).
 - [x] `notify`: Slack lát 3 (#265), 3b (#282); Zalo lát 4 gửi (#292), 4b listener mã trả lời (#316, D-243, thử nghiệm); Telegram L1 (#198, #319), L3 (#325), L4 (#327).
 - [x] Lỗi GUI Settings của core: #247, #256, #215; #251 giới hạn chờ writer (#283, D-246); orphan-reaper (#252); feeds không tự kết nối box (#309, D-208).
@@ -55,7 +55,6 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] WP-26 `agent-intake`: các lát sau lát 1.
 
 **Session phụ trên Mac**
-- [ ] #335 WP-30 lát 10 (chạy toàn bộ, `@mobile`; đóng `test.fail` cũ).
 - [ ] #332 nối `logs.Service.Counts` vào `response log_threshold` (sau logs L3).
 - [ ] #336 gộp các D-xx (supervisor).
 - [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) và spec e2e-real SSO (WP-30) — xem `.ai/deferred/feat-auth-oidc.md`.

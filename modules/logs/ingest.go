@@ -73,7 +73,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(lines) == 0 {
 		return res, nil
 	}
-	known, err := s.sourceIDs(ctx)
+	known, err := s.sourceKinds(ctx)
 	if err != nil {
 		return res, err
 	}
@@ -91,7 +91,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	seen := map[string]time.Time{}
 	keep := make([]Line, 0, len(lines))
 	for _, l := range lines {
-		if !known[l.SourceID] {
+		if known[l.SourceID] == "" {
 			res.Unknown++
 			continue
 		}
@@ -109,6 +109,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(keep) == 0 {
 		return res, nil
 	}
+	sigs := s.tally(known, keep)
 	var stored int64
 	err = s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
 		ins, err := tx.PrepareContext(ctx, `INSERT INTO logs_events (ts, source_id, line) VALUES (?, ?, ?)`)
@@ -136,7 +137,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 				return fmt.Errorf("logs: noting the last line: %w", err)
 			}
 		}
-		return nil
+		return s.storeSignatures(ctx, tx, sigs)
 	})
 	if err != nil {
 		return IngestResult{}, err
@@ -160,6 +161,24 @@ func (s *Service) startPurge() {
 	case s.kick <- struct{}{}:
 	default:
 	}
+}
+
+// sourceKinds maps the id of every declared source to its device kind (one small read on the main database).
+func (s *Service) sourceKinds(ctx context.Context) (map[string]string, error) {
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind FROM logs_sources`)
+	if err != nil {
+		return nil, fmt.Errorf("logs: reading sources: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, kind string
+		if err := rows.Scan(&id, &kind); err != nil {
+			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		}
+		out[id] = kind
+	}
+	return out, rows.Err()
 }
 
 // sourceIDs is the set of declared source ids (one small read on the main database; reads do not wait for its writer).

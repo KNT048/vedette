@@ -43,6 +43,14 @@ const DEFAULT_RULES: Rules = { quiet: { enabled: false, from: '22:00', to: '06:3
 test.beforeAll(async () => {
   const c = await as('admin')
   try {
+    // the two-step specs (twofa) leave the box's own sink saved as the email channel: an earlier spec's leftover, removed here
+    for (const ch of (await getChannels(c)).channels.filter((x) => x.configured)) {
+      expect((await call(c, 'DELETE', `/notify/channels/${ch.type}`)).status, `clearing the ${ch.type} channel an earlier spec left`).toBe(204)
+    }
+    // the throwaway accounts of twofa.spec keep the email method: an administrator resets them (D-35), as the Users page does
+    for (const u of (await call<{ items: { id: string; twofa_method: string | null }[] }>(c, 'GET', '/core/users')).body.items.filter((x) => x.twofa_method === 'email')) {
+      expect((await call(c, 'POST', `/core/users/${u.id}/2fa/reset`)).status, 'resetting an email-code account an earlier spec left').toBe(200)
+    }
     const d = await getChannels(c)
     expect(d.channels.filter((x) => x.configured).map((x) => x.type), 'this file needs a box with no channel saved').toEqual([])
     expect({ quiet: d.quiet, grouping: d.grouping }, 'this file needs the default quiet hours and grouping').toEqual(DEFAULT_RULES)

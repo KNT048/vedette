@@ -220,7 +220,32 @@ func (s *Service) dropStale(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	days, err := s.Retention(ctx)
+	if err != nil {
+		return err
+	}
 	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		// The signature counters are kept for exactly BaselineDays+2 days whatever the retention (the baseline reads them and nothing
+		// else does, and a longer retention must not grow them: with the caps they are bounded, see MaxMinedPerDay). The sample is a
+		// copy of a line, so it goes when the line would: a sample whose row is older than the retention is blanked (only with a
+		// retention of 7 days, the one shorter than the days kept), by a range of the key and not by a scan.
+		now := s.now().UTC()
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_daily WHERE day < ?`, now.Add(-(BaselineDays+2)*24*time.Hour).Format("2006-01-02")); err != nil {
+			return fmt.Errorf("logs: dropping old signature counters: %w", err)
+		}
+		if days < BaselineDays+2 {
+			cut := now.Add(-time.Duration(days) * 24 * time.Hour)
+			if _, err := tx.ExecContext(ctx, blankSamplesSQL, cut.Format("2006-01-02"), store.FormatTS(cut)); err != nil {
+				return fmt.Errorf("logs: dropping old samples: %w", err)
+			}
+		}
+		// The 5-minute counters are read for 24 hours at most (Counts): the bucket that holds now-24h is the oldest one kept.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_buckets WHERE bucket < ?`, now.Add(-CountsMaxWindow).Unix()/bucketSeconds); err != nil {
+			return fmt.Errorf("logs: dropping old signature counters: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_anomaly_sent WHERE sent_at < ?`, store.FormatTS(now.Add(-72*time.Hour))); err != nil {
+			return fmt.Errorf("logs: dropping old announcements: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_source_buckets WHERE bucket < ?`, s.now().Add(-48*time.Hour).Unix()/bucketSeconds); err != nil {
 			return fmt.Errorf("logs: dropping old counters: %w", err)
 		}
@@ -250,6 +275,8 @@ func Jobs(svc *Service) []jobs.Job {
 		{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop},
 		// The syslog listener is NOT housekeeping: it opens ports, so it runs only while the module is on (SYS-5).
 		{Module: ModuleID, Name: "syslog", Every: SyslogRetry, Run: svc.runSyslog},
+		// Not housekeeping either: it announces, so it runs only while the module is on (SYS-5).
+		anomalyJob(svc),
 	}
 }
 

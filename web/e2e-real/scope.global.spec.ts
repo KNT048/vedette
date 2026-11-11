@@ -154,19 +154,21 @@ test('who can read and change the scope: operator and viewer are refused by the 
   }
 })
 
-test('alert on new devices (S-INV-3): an operator turns it on and off, each change is saved and written to the audit log', async ({ browser, page }) => {
+test('alert on new devices (S-INV-3): an operator turns it off and on, each change is saved and written to the audit log', async ({ browser, page }) => {
+  let startedOn = true
   const op = await browser.newContext({ storageState: authFile('operator') })
   try {
     const auditCount = async () => (await api<{ items: { action: string }[] }>(page.request, 'GET', '/core/audit?q=inventory.notify_new')).body.items.filter((a) => a.action === 'inventory.notify_new').length
     const before = await auditCount()
-    for (const enabled of [true, false]) {
+    startedOn = (await api<{ notify_new: boolean }>(op.request, 'GET', '/inventory/devices')).body.notify_new
+    for (const enabled of [!startedOn, startedOn]) {
       const r = await api<{ enabled: boolean }>(op.request, 'PUT', '/inventory/notify-new', { enabled })
       expect(r.status, `notify-new ${enabled}`).toBe(200)
       expect(r.body.enabled).toBe(enabled)
     }
     expect(await auditCount(), 'audit rows written by the two changes').toBe(before + 2)
   } finally {
-    await op.close() // the switch ends off, as the box starts
+    await op.close() // the switch ends as it started (on by default, S-INV-3)
   }
 })
 

@@ -7,14 +7,23 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/logs/listen"
+	"github.com/knt048/vedette/modules/logs/signature"
 )
+
+// Publisher puts a module event on the bus: *events.Bus satisfies it, so wiring passes the real bus; nil drops events (the
+// anomaly job then does nothing).
+type Publisher interface {
+	Publish(ctx context.Context, e events.Event) error
+}
 
 // Config is what NewService needs. Config is the main database (configuration, audit), Volume is logs.db (lines and
 // counters): they must be two different databases, each with its own writer. Inventory and Box may be nil (no device
@@ -29,6 +38,8 @@ type Config struct {
 	Clock     func() time.Time // nil: time.Now
 	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
 	Syslog SyslogConfig
+	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
+	Events Publisher
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -36,6 +47,8 @@ type Config struct {
 type Service struct {
 	cfg Config
 	now func() time.Time
+	// sigs reads the signature of a line (the profiles in data/profiles, loaded and checked when the service is made).
+	sigs *signature.Set
 	// maxBytes is MaxEventBytes and exportBytes is ExportMaxBytes; variables so that a test can lower them.
 	maxBytes, exportBytes int64
 	// kick wakes the purge job (capacity 1); Ingest sends without blocking when the volume is over the bound.
@@ -62,6 +75,10 @@ type Service struct {
 	// loadForListener, when set by a test, replaces the read of the sources that feeds the listener.
 	loadForListener func(context.Context) ([]sourceRow, error)
 	listening       atomic.Pointer[listen.Server]
+	// snap is the last reading of the signature counters, shared by the digest and the events (anomaly.go).
+	snapMu  sync.Mutex
+	snap    *snapshot
+	snapGen uint64 // bumped by every dropSnapshot
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -76,7 +93,11 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
+	sigs, err := signature.Load(profileFiles, "data/profiles")
+	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
+		return nil, fmt.Errorf("logs: creating service: %w", err)
+	}
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }
@@ -87,10 +108,11 @@ type sourceRow struct {
 	ID, Kind, Name, SenderIP, Proto string
 	Port                            int
 	CreatedAt                       time.Time
+	Since                           time.Time // signatures_since: zero when the kind and the sender never changed
 }
 
 func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
-	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, created_at FROM logs_sources ORDER BY created_at, id`)
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, created_at, signatures_since FROM logs_sources ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("logs: reading sources: %w", err)
 	}
@@ -99,11 +121,17 @@ func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
 	for rows.Next() {
 		var r sourceRow
 		var created string
-		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &created); err != nil {
+		var since sql.NullString
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &created, &since); err != nil {
 			return nil, fmt.Errorf("logs: reading sources: %w", err)
 		}
 		if r.CreatedAt, err = time.Parse("2006-01-02T15:04:05.000Z", created); err != nil {
 			return nil, fmt.Errorf("logs: reading sources: %w", err)
+		}
+		if since.Valid {
+			if r.Since, err = time.Parse("2006-01-02T15:04:05.000Z", since.String); err != nil {
+				return nil, fmt.Errorf("logs: reading sources: %w", err)
+			}
 		}
 		out = append(out, r)
 	}
@@ -295,7 +323,7 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 		if err := s.checkSender(ctx, tx, in.SenderIP, id); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET kind = ?, name = ?, sender_ip = ?, proto = ?, port = ? WHERE id = ?`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id)
+		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET signatures_since = CASE WHEN kind <> ?1 OR sender_ip <> ?3 THEN ?7 ELSE signatures_since END, kind = ?1, name = ?2, sender_ip = ?3, proto = ?4, port = ?5 WHERE id = ?6`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id, store.FormatTS(s.now()))
 		if err != nil {
 			if store.IsUniqueViolation(err) {
 				return duplicate()
@@ -362,7 +390,7 @@ func (s *Service) SetRetention(ctx context.Context, user string, days int) (int,
 	return days, nil
 }
 
-// Digest is the answer of GET /logs/digest (L1: the line count of the last 24 hours; see Digest).
+// Digest is the answer of GET /logs/digest: the lines of the last 24 hours, the new kinds of line and the spikes (INV-6). The bad connections come with L4.
 func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	lines, err := s.linesSince(ctx, s.now().Add(-24*time.Hour))
 	if err != nil {
@@ -372,5 +400,11 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	for _, n := range lines {
 		total += n
 	}
-	return Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: 7, New: []struct{}{}, Spikes: []struct{}{}, BadConnections: []struct{}{}}, nil
+	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []struct{}{}}
+	found, names, err := s.snapshotted(ctx)
+	if err != nil {
+		return Digest{}, err
+	}
+	d.New, d.Spikes, err = s.digestItems(ctx, found, names)
+	return d, err
 }

@@ -87,9 +87,9 @@ type Finding struct {
 	History    []HistoryStep `json:"history"`
 }
 
-// Evidence is the summary of the scan check that confirmed a finding.
+// Evidence names the scan check that confirmed a finding. Its summary is not included: it names the device, its address and
+// software (inventory data, INV-2, D-233).
 type Evidence struct {
-	Summary   string `json:"summary"`
 	Template  string `json:"template"`
 	CheckedAt string `json:"checked_at"`
 }

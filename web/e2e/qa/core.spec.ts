@@ -495,6 +495,7 @@ test.describe('MCP server', () => {
     await page.reload()
     await expect(page.locator('body')).not.toContainText(token)
     await page.getByRole('button', { name: "Revoke token Nam's Claude" }).click()
+    await page.getByRole('dialog', { name: "Revoke token Nam's Claude?" }).getByRole('button', { name: 'Revoke' }).click()
     await expect(page.getByText(/No tokens yet/)).toBeVisible()
     await noVietnamese(page, 'mcp')
     noErrors(errors)

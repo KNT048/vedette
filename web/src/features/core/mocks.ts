@@ -752,7 +752,7 @@ const MCP_TOOLS = [
   { name: 'lookup_cve', scope: 'feeds' }, { name: 'lookup_ioc', scope: 'feeds' }, { name: 'hot_vulnerabilities', scope: 'feeds' },
 ]
 const mcpTokens = collection<(McpToken & { secret_hash: string })[]>('mcp_tokens', () => [])
-const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
+const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: true, listen_error: null, tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
 
 // The mcp-server module owns /core/mcp*: while it is off every path answers 404 like the real server, after the role check (D-230).
 // The switch is PATCH /modules/mcp-server (the module toggle), as for single sign-on.

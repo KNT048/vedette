@@ -136,7 +136,7 @@ func sampleSource() *fakeSource {
 		},
 		findings: []mcpserver.Finding{
 			{ID: "fn-1", AssetID: "as-fw", CVE: "CVE-2024-21762", Status: "confirmed", Severity: "critical", Confidence: 1, Basis: "scan", FirstSeen: "2026-11-10T00:00:00.000Z",
-				LastSeen: "2026-11-11T00:00:00.000Z", Evidence: &mcpserver.Evidence{Summary: "SSL VPN answered like a vulnerable build", Template: "CVE-2024-21762", CheckedAt: "2026-11-10T01:00:00.000Z"},
+				LastSeen: "2026-11-11T00:00:00.000Z", Evidence: &mcpserver.Evidence{Template: "CVE-2024-21762", CheckedAt: "2026-11-10T01:00:00.000Z"},
 				History: []mcpserver.HistoryStep{{At: "2026-11-10T00:00:00.000Z", Action: "created"}, {At: "2026-11-10T01:00:00.000Z", Action: "confirmed"}}},
 			{ID: "fn-2", AssetID: "as-nas", CVE: "CVE-2023-27997", Status: "patched", Severity: "high", Confidence: 0.6, Basis: "version", FirstSeen: "2026-11-03T00:00:00.000Z",
 				LastSeen: "2026-11-05T00:00:00.000Z", ResolvedAt: str("2026-11-05T00:00:00.000Z"), History: []mcpserver.HistoryStep{}},

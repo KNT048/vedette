@@ -64,7 +64,7 @@ type rpcError struct {
 
 type rpcResponse struct {
 	JSONRPC string          `json:"jsonrpc"`
-	ID      json.RawMessage `json:"id,omitempty"`
+	ID      json.RawMessage `json:"id"` // null when the request's id could not be read (JSON-RPC 2.0, 5)
 	Result  any             `json:"result,omitempty"`
 	Error   *rpcError       `json:"error,omitempty"`
 }
@@ -89,6 +89,9 @@ func writeJSON(w http.ResponseWriter, status int, id json.RawMessage, a answer) 
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
+	if len(id) == 0 {
+		id = json.RawMessage("null")
+	}
 	resp := rpcResponse{JSONRPC: "2.0", ID: id, Result: a.result, Error: a.err}
 	if a.err == nil && a.result == nil {
 		resp.Result = struct{}{}
@@ -118,12 +121,10 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	select {
-	case s.limits.inFlight <- struct{}{}:
-		defer func() { <-s.limits.inFlight }()
-	default:
-		w.Header().Set("Retry-After", "1")
-		writeJSON(w, http.StatusTooManyRequests, nil, fail(0, codeRateLimited, "The MCP server is busy. Try again in a second.", nil))
+	// Every authenticated request takes from the token's bucket, whatever becomes of it (D-232).
+	if ok, retry := s.limits.allow(tok.ID); !ok {
+		a := limited(retry)
+		writeJSON(w, a.status, nil, a)
 		return
 	}
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != "application/json" {
@@ -146,11 +147,7 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.ID) == 0 { // a notification (notifications/initialized of the legacy handshake): accepted, nothing to answer
-		if ok, _ := s.limits.allow(tok.ID, false); ok {
-			w.WriteHeader(http.StatusAccepted)
-		} else {
-			w.WriteHeader(http.StatusTooManyRequests)
-		}
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	if !validID(req.ID) {
@@ -159,6 +156,14 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), callTimeout)
 	defer cancel()
+	// The answer slot is taken only now, with the body read: a slow sender holds none (D-232).
+	release, ok := s.limits.acquire(ctx, tok.ID)
+	if !ok {
+		w.Header().Set("Retry-After", "1")
+		writeJSON(w, http.StatusTooManyRequests, req.ID, fail(0, codeRateLimited, "The MCP server is busy. Try again in a second.", nil))
+		return
+	}
+	defer release()
 	a := s.dispatch(ctx, r, tok, req)
 	status := a.status
 	if status == 0 {
@@ -170,7 +175,8 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 // bearer authenticates the request (INV-4): a missing, malformed, unknown or revoked token gets 401.
 func (s *Service) bearer(w http.ResponseWriter, r *http.Request) (Token, bool) {
 	h := r.Header.Get("Authorization")
-	secret, found := strings.CutPrefix(h, "Bearer ")
+	scheme, secret, found := strings.Cut(h, " ")
+	found = found && strings.EqualFold(scheme, "Bearer") // auth schemes are case-insensitive (RFC 9110, 11.1)
 	if found {
 		t, ok, err := s.authenticate(r.Context(), strings.TrimSpace(secret))
 		if err != nil {
@@ -223,6 +229,9 @@ func classify(r *http.Request, req rpcRequest) (era, *answer) {
 		a := fail(http.StatusBadRequest, codeInvalidParams, "params must be a JSON object.", nil)
 		return era{}, &a
 	}
+	if bad := checkMirrors(r, req, p, false); bad != nil {
+		return era{}, bad
+	}
 	hdr := r.Header.Get("MCP-Protocol-Version")
 	supported := append([]string{modernVersion}, legacyVersions...)
 	raw, modern := p.Meta[metaVersion]
@@ -248,22 +257,41 @@ func classify(r *http.Request, req rpcRequest) (era, *answer) {
 		a := fail(http.StatusBadRequest, codeUnsupported, "Unsupported protocol version", map[string]any{"supported": supported, "requested": clip(v, 40)})
 		return era{}, &a
 	}
-	if r.Header.Get("Mcp-Method") != req.Method {
-		a := fail(http.StatusBadRequest, codeHeaderMismatch, "Header mismatch: Mcp-Method does not match the method.", nil)
-		return era{}, &a
-	}
-	if req.Method == "tools/call" {
-		name, ok := headerValue(r.Header.Get("Mcp-Name"))
-		if !ok || p.Name == nil || name != *p.Name {
-			a := fail(http.StatusBadRequest, codeHeaderMismatch, "Header mismatch: Mcp-Name does not match params.name.", nil)
-			return era{}, &a
-		}
+	if bad := checkMirrors(r, req, p, true); bad != nil {
+		return era{}, bad
 	}
 	if c, ok := p.Meta[metaCaps]; !ok || len(c) == 0 || c[0] != '{' {
 		a := fail(http.StatusBadRequest, codeInvalidParams, "_meta."+metaCaps+" is required.", nil)
 		return era{}, &a
 	}
 	return era{modern: true, version: v}, nil
+}
+
+// checkMirrors compares Mcp-Method and Mcp-Name with the body. The 2026-07-28 revision requires them (required true); an older
+// request need not send them, but when it does they must match too, so a proxy that routes on them cannot be fooled.
+func checkMirrors(r *http.Request, req rpcRequest, p metaParams, required bool) *answer {
+	mismatch := func(msg string) *answer {
+		a := fail(http.StatusBadRequest, codeHeaderMismatch, "Header mismatch: "+msg, nil)
+		return &a
+	}
+	if m, sent := r.Header["Mcp-Method"]; sent || required {
+		if len(m) != 1 || m[0] != req.Method {
+			return mismatch("Mcp-Method does not match the method.")
+		}
+	}
+	if req.Method != "tools/call" {
+		return nil
+	}
+	if n, sent := r.Header["Mcp-Name"]; sent || required {
+		name, ok := "", len(n) == 1
+		if ok {
+			name, ok = headerValue(n[0])
+		}
+		if !ok || p.Name == nil || name != *p.Name {
+			return mismatch("Mcp-Name does not match params.name.")
+		}
+	}
+	return nil
 }
 
 // headerValue decodes a mirrored header value: plain visible ASCII, or the =?base64?…?= form.
@@ -297,8 +325,8 @@ func (s *Service) complete(e era, result map[string]any) map[string]any {
 
 func (s *Service) dispatch(ctx context.Context, r *http.Request, tok Token, req rpcRequest) answer {
 	if req.Method == "initialize" {
-		if ok, retry := s.limits.allow(tok.ID, false); !ok {
-			return limited(retry)
+		if bad := checkMirrors(r, req, metaParams{}, false); bad != nil {
+			return *bad
 		}
 		return s.initialize(ctx, tok, req)
 	}
@@ -307,10 +335,11 @@ func (s *Service) dispatch(ctx context.Context, r *http.Request, tok Token, req 
 		return *bad
 	}
 	isCall := req.Method == "tools/call"
-	if ok, retry := s.limits.allow(tok.ID, isCall); !ok {
-		return limited(retry)
-	}
-	if !isCall {
+	if isCall {
+		if ok, retry := s.limits.call(tok.ID); !ok {
+			return limited(retry)
+		}
+	} else {
 		if err := s.touch(ctx, tok); err != nil {
 			s.log.ErrorContext(ctx, "MCP last_used write failed", "error", err)
 		}

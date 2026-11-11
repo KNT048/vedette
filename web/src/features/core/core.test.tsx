@@ -892,6 +892,11 @@ describe('core: MCP (S-MCP-1)', () => {
     const row = (await screen.findByText('Claude Desktop', { selector: 'span' })).closest('tr')!
     expect(row.textContent).not.toMatch(/vmcp_/)
     await u.click(within(row).getByRole('button', { name: 'Revoke token Claude Desktop' }))
+    const ask = await screen.findByRole('dialog', { name: 'Revoke token Claude Desktop?' })
+    await u.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(within(row).getByText('Claude Desktop')).toBeInTheDocument()
+    await u.click(within(row).getByRole('button', { name: 'Revoke token Claude Desktop' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'Revoke token Claude Desktop?' })).getByRole('button', { name: 'Revoke' }))
     expect(await screen.findByText('No tokens yet. Create one so an outside tool can connect.')).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Tools the MCP server offers' })).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -908,6 +913,15 @@ describe('core: MCP (S-MCP-1)', () => {
     expect((await call('/core/mcp', 'GET')).status).toBe(404)
     expect((await call('/core/mcp/tokens', 'POST', { name: 'x', scopes: ['feeds'] })).status).toBe(404)
     expect((await call('/core/mcp/tokens/t-1', 'DELETE')).status).toBe(404)
+  })
+  it('a port another program holds is said plainly, so no token goes to it (D-230)', async () => {
+    setModule('mcp-server', true)
+    server.use(http.get('*/api/v1/core/mcp', () => HttpResponse.json({ enabled: true, bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: false,
+      listen_error: 'The port 127.0.0.1:8765 could not be opened: another program may hold it. Vedette tries again every 15 seconds.', tokens: [], tools: [], scopes: ['assets'] })))
+    renderApp('/settings/mcp')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('could not be opened')
+    expect(alert).toHaveTextContent('Do not give a token to this address')
   })
   it('refuses what the server refuses: bad name, unknown scope, an 11th token', async () => {
     setModule('mcp-server', true)

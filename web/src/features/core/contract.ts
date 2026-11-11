@@ -170,6 +170,8 @@ export const ConnectorTestResult = z.object({ ok: z.literal(true), latency_ms: z
 export const McpToken = z.object({ id: z.string(), name: z.string(), scopes: z.array(z.string()), last4: z.string(), created_at: ts, last_used: ts.nullable() })
 export const McpState = z.object({
   enabled: z.boolean(), bind: z.string(), port: z.number(), endpoint: z.string(), tokens: z.array(McpToken),
+  listening: z.boolean().describe('The port is open. False while it cannot be opened (another process holds it): do not give a token to that address'),
+  listen_error: z.string().nullable().describe('Why the port could not be opened; null while listening'),
   tools: z.array(z.object({ name: z.string(), scope: z.string() })), scopes: z.array(z.string()),
 })
 export const McpTokenCreated = z.object({ token: z.string().describe('Returned once, at creation'), item: McpToken })

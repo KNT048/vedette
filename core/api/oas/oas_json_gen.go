@@ -27775,6 +27775,14 @@ func (s *CoreGetCoreMcpOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Endpoint)
 	}
 	{
+		e.FieldStart("listen_error")
+		s.ListenError.Encode(e)
+	}
+	{
+		e.FieldStart("listening")
+		e.Bool(s.Listening)
+	}
+	{
 		e.FieldStart("port")
 		e.Float64(s.Port)
 	}
@@ -27804,14 +27812,16 @@ func (s *CoreGetCoreMcpOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreMcpOK = [7]string{
+var jsonFieldsNameOfCoreGetCoreMcpOK = [9]string{
 	0: "bind",
 	1: "enabled",
 	2: "endpoint",
-	3: "port",
-	4: "scopes",
-	5: "tokens",
-	6: "tools",
+	3: "listen_error",
+	4: "listening",
+	5: "port",
+	6: "scopes",
+	7: "tokens",
+	8: "tools",
 }
 
 // Decode decodes CoreGetCoreMcpOK from json.
@@ -27819,7 +27829,7 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CoreGetCoreMcpOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -27859,8 +27869,30 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"endpoint\"")
 			}
-		case "port":
+		case "listen_error":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.ListenError.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"listen_error\"")
+			}
+		case "listening":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Listening = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"listening\"")
+			}
+		case "port":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.Port = float64(v)
@@ -27872,7 +27904,7 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "scopes":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Scopes = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -27892,7 +27924,7 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scopes\"")
 			}
 		case "tokens":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.Tokens = make([]CoreGetCoreMcpOKTokensItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -27910,7 +27942,7 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "tools":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Tools = make([]CoreGetCoreMcpOKToolsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -27936,8 +27968,9 @@ func (s *CoreGetCoreMcpOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -44,6 +44,7 @@ function Body({ s }: { s: McpState }) {
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
   const [created, setCreated] = useState<{ token: string; name: string } | null>(null)
+  const [askRevoke, setAskRevoke] = useState<McpToken | null>(null)
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -53,7 +54,7 @@ function Body({ s }: { s: McpState }) {
     try { const r = await m.create.mutateAsync({ name: name.trim(), scopes }); setName(''); setCreated({ token: r.token, name: r.item.name }) } catch (err) { setFormErr(errMsg(err, t)) }
   }
   async function revoke(tk: McpToken) {
-    try { await m.revoke.mutateAsync(tk.id); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { toast.error(errMsg(e, t)) }
+    try { await m.revoke.mutateAsync(tk.id); setAskRevoke(null); toast.success(t('mcp.token.revoked', { name: tk.name })) } catch (e) { setAskRevoke(null); toast.error(errMsg(e, t)) }
   }
 
   const tokenCols: ColumnDef<McpToken>[] = [
@@ -62,7 +63,7 @@ function Body({ s }: { s: McpState }) {
     { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-[12.5px]">…{row.original.last4}</span> },
     { id: 'created', header: t('mcp.token.col.created'), accessorFn: (x) => x.created_at, cell: ({ row }) => fmtDateTime(row.original.created_at) },
     { id: 'used', header: t('mcp.token.col.used'), accessorFn: (x) => x.last_used ?? '', cell: ({ row }) => (row.original.last_used ? fmtRelative(row.original.last_used) : t('mcp.token.never')) },
-    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={m.revoke.isPending} onClick={() => void revoke(row.original)}>{t('mcp.token.revoke')}</Button> },
+    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={gate.disabled || m.revoke.isPending} title={gate.title} onClick={() => setAskRevoke(row.original)}>{t('mcp.token.revoke')}</Button> },
   ]
   const toolCols: ColumnDef<{ name: string; scope: string }>[] = [
     { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.name}</span> },
@@ -75,6 +76,7 @@ function Body({ s }: { s: McpState }) {
       <McpSwitch on />
       {s.enabled ? (
         <>
+          {!s.listening ? <p role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{s.listen_error ?? t('mcp.notListening')} {t('mcp.notListeningHint')}</p> : null}
           <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
             <KeyValue items={[
               { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
@@ -107,6 +109,15 @@ function Body({ s }: { s: McpState }) {
           </Section>
         </>
       ) : null}
+
+      <Dialog open={!!askRevoke} onOpenChange={(o) => !o && setAskRevoke(null)}>
+        <DialogContent title={t('mcp.token.revokeAsk.title', { name: askRevoke?.name ?? '' })} description={t('mcp.token.revokeAsk.body')}>
+          <DialogFooter>
+            <Button onClick={() => setAskRevoke(null)}>{t('common:cancel')}</Button>
+            <Button variant="danger" disabled={m.revoke.isPending} onClick={() => askRevoke && void revoke(askRevoke)}>{t('mcp.token.revoke')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!created} onOpenChange={(o) => !o && setCreated(null)}>
         <DialogContent title={t('mcp.token.createdTitle', { name: created?.name ?? '' })} description={t('mcp.token.createdBody')}>

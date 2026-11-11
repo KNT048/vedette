@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -48,9 +49,11 @@ type Tool struct {
 }
 
 var (
-	cveRE   = regexp.MustCompile(`^(?i)cve-\d{4}-\d{4,7}$`)
-	idRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
-	statusE = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
+	cveRE = regexp.MustCompile(`^(?i)cve-\d{4}-\d{4,7}$`)
+	idRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
+	// the lookup box's idea of a domain (feeds domainQueryRE); feeds decides whether it can be an indicator
+	domainRE = regexp.MustCompile(`(?i)^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
+	statusE  = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
 )
 
 // Schemas. Kept as literal JSON so tools/list sends exactly what is written here; tools_test.go checks every answer against them.
@@ -82,7 +85,7 @@ const (
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant"]},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},` +
-		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["summary","template","checked_at"],"properties":{"summary":{"type":"string"},"template":{"type":"string"},"checked_at":{"type":"string","format":"date-time"}}},` +
+		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["template","checked_at"],"properties":{"template":{"type":"string","description":"The scan check that confirmed it."},"checked_at":{"type":"string","format":"date-time"}}},` +
 		`"history":{"type":"array","maxItems":50,"items":{"type":"object","additionalProperties":false,"required":["at","action"],"properties":{"at":{"type":"string","format":"date-time"},"action":{"type":"string"}}}}}}`
 
 	cveEntrySchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","name","description","required_action","date_added","due_date","ransomware","epss","has_scan_template","links"],"properties":{` +
@@ -124,7 +127,7 @@ var Tools = []Tool{
 	},
 	{
 		Name: "get_finding", Title: "Show one finding", Scope: ScopeFindings,
-		Description: "Show one finding: status, how it was found, the summary of the scan check that confirmed it, and when its status changed.",
+		Description: "Show one finding: status, how it was found, the scan check that confirmed it, and when its status changed.",
 		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"required":["id"],"properties":{"id":{"type":"string","maxLength":96,"description":"Finding id from list_findings."}}}`),
 		Output:      json.RawMessage(findingSchema),
 		run:         getFinding,
@@ -430,7 +433,7 @@ func getFinding(ctx context.Context, src Source, a args) (any, int, error) {
 	}
 	if f.Evidence != nil {
 		e := *f.Evidence
-		e.Summary, e.Template = clip(e.Summary, maxText), clip(e.Template, 256)
+		e.Template = clip(e.Template, 256)
 		f.Evidence = &e
 	}
 	if f.History == nil {
@@ -483,7 +486,11 @@ func lookupIOC(ctx context.Context, src Source, a args) (any, int, error) {
 	if !ok || strings.TrimSpace(v) == "" {
 		return nil, 0, argError{"value is required: an IP address or a domain."}
 	}
-	ans, err := src.IOC(ctx, strings.TrimSpace(v))
+	v = strings.TrimSpace(v)
+	if _, ipErr := netip.ParseAddr(v); ipErr != nil && !domainRE.MatchString(v) { // checked here: no feeds search for a word
+		return nil, 0, argError{"value must be an IP address or a domain name (no URL, no port)."}
+	}
+	ans, err := src.IOC(ctx, v)
 	if errors.Is(err, ErrNotIOC) {
 		return nil, 0, argError{"value must be an IP address or a domain name (no URL, no port)."}
 	}

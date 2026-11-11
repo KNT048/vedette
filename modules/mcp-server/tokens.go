@@ -216,6 +216,7 @@ func (s *Service) recordCall(ctx context.Context, t Token, tool, outcome string,
 	if outcome == "ok" {
 		detail += fmt.Sprintf(", %d results", rows)
 	}
+	detail += ", token …" + t.Last4 // names may repeat; the last 4 tell two tokens apart
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		// a token revoked while the call ran updates no row; the call is still written down
 		if _, err := tx.ExecContext(ctx, `UPDATE mcp_tokens SET last_used = ? WHERE id = ?`, store.FormatTS(s.now()), t.ID); err != nil {

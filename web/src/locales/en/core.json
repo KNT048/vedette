@@ -837,7 +837,9 @@
     "bindNote": "localhost only, not open to the network",
     "endpoint": "MCP address",
     "clientConfig": "Config for the MCP tool",
-    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN.",
+    "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
+    "notListening": "The port is not open yet.",
+    "notListeningHint": "Do not give a token to this address until the port is open: another program listening there would receive it.",
     "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",
     "scope": {
       "assets": "Devices",
@@ -862,6 +864,10 @@
       "revoke": "Revoke",
       "revokeOf": "Revoke token {{name}}",
       "revoked": "Token {{name}} revoked.",
+      "revokeAsk": {
+        "title": "Revoke token {{name}}?",
+        "body": "The tool that uses it loses access at once. This cannot be undone: to connect it again, create a new token."
+      },
       "col": {
         "name": "Name",
         "scopes": "Scopes",

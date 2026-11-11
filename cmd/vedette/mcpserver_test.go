@@ -11,13 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // The mcp-server module on the binary's real wiring (S-MCP-1): the admin turns it on and makes a token through the API, an
 // agent connects to the loopback port over a real socket and reads a device, a finding and a CVE through the real inventory,
-// findings and feeds; what stays on the box (MAC, notes, the scan's request and response, who changed a finding and what they
-// wrote) never reaches the agent (INV-7, D-233). Off, the port closes and /core/mcp is 404 (SYS-5).
+// findings and feeds; what stays on the box (MAC, notes, the scan's summary, request and response, who changed a finding and
+// what they wrote) never reaches the agent (INV-7, D-233). Off, the port closes and /core/mcp is 404 (SYS-5).
 func TestMCPServerOnTheRealWiring(t *testing.T) {
 	t.Parallel()
 	s := newStackWith(t, func(d *deps) { d.MCPListen = netip.MustParseAddrPort("127.0.0.1:0") })
@@ -32,8 +34,18 @@ func TestMCPServerOnTheRealWiring(t *testing.T) {
 	}
 	s.kev("CVE-2024-21762", "Fortinet", "FortiOS")
 	id := s.addFortiGate() // 192.168.30.1, FortiOS 7.2.5: matched to the CVE through the events
-	s.exec(`UPDATE inv_asset SET notes = 'NOTE-on-the-device', mac = 'aa:bb:cc:dd:ee:01' WHERE id = ?`, id)
-	if _, err := s.d.Findings.ConfirmFromScan(t.Context(), id, "CVE-2024-21762", findings.Evidence{Summary: "the VPN answered like a vulnerable build",
+	notes := "NOTE-on-the-device"
+	if err := s.d.Inventory.PatchDevice(t.Context(), "it@acme.example", id, inventory.Patch{Notes: &notes}); err != nil {
+		t.Fatal(err)
+	}
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.30.1")}
+	if err := s.d.Inventory.Record(t.Context(), []observe.Observation{{AssetHint: hint, Field: observe.MAC, Value: "aa:bb:cc:dd:ee:01", Source: observe.Passive, Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	if dev, err := s.d.Inventory.Device(t.Context(), id); err != nil || dev.MAC == nil || dev.Notes == nil {
+		t.Fatalf("the device has no MAC or notes to keep back: %+v, %v", dev, err)
+	}
+	if _, err := s.d.Findings.ConfirmFromScan(t.Context(), id, "CVE-2024-21762", findings.Evidence{Summary: "SUMMARY-names-the-device",
 		Template: "CVE-2024-21762", Request: "GET /remote/REQUEST-raw", Response: "HTTP/1.1 200 RESPONSE-raw", CheckedAt: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
@@ -106,12 +118,12 @@ func TestMCPServerOnTheRealWiring(t *testing.T) {
 		}
 		seen = append(seen, b...)
 	}
-	for _, kept := range []string{"aa:bb:cc:dd:ee:01", "AA:BB:CC", "NOTE-on-the-device", "REQUEST-raw", "RESPONSE-raw", "NOTE-of-the-admin", "admin@acme.example"} {
+	for _, kept := range []string{"aa:bb:cc:dd:ee:01", "AA:BB:CC", "NOTE-on-the-device", "REQUEST-raw", "RESPONSE-raw", "NOTE-of-the-admin", "admin@acme.example", "SUMMARY-names-the-device"} {
 		if bytes.Contains(seen, []byte(kept)) {
 			t.Errorf("an agent read %q", kept)
 		}
 	}
-	for _, shown := range []string{"192.168.30.1", "CVE-2024-21762", "the VPN answered like a vulnerable build", `"mitigated"`, "FortiOS"} {
+	for _, shown := range []string{"192.168.30.1", "CVE-2024-21762", `"template":"CVE-2024-21762"`, `"mitigated"`, "FortiOS"} {
 		if !bytes.Contains(seen, []byte(shown)) {
 			t.Errorf("the answers miss %q", shown)
 		}

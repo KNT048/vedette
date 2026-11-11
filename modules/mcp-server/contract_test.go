@@ -241,7 +241,7 @@ func TestContract_INV2_ScopeIsEnforced(t *testing.T) {
 		t.Fatal("a refused call read the source")
 	}
 	audits := w.auditRows("mcp.call")
-	if len(audits) != 4 || audits[0] != "mcp:feeds only|feeds only|tool list_assets, refused, scope assets missing" {
+	if len(audits) != 4 || audits[0] != "mcp:feeds only|feeds only|tool list_assets, refused, scope assets missing, token …"+last4(w) {
 		t.Fatalf("audit = %v", audits)
 	}
 }
@@ -294,7 +294,7 @@ func TestContract_INV6_INV8_ArgumentsCheckedAndNotAudited(t *testing.T) {
 			t.Errorf("an argument reached the audit log: %q", a)
 		}
 	}
-	if audits[len(audits)-1] != "mcp:soc|soc|tool lookup_cve, ok, 1 results" || audits[0] != "mcp:soc|soc|tool lookup_cve, bad arguments" {
+	if audits[len(audits)-1] != "mcp:soc|soc|tool lookup_cve, ok, 1 results, token …"+last4(w) || audits[0] != "mcp:soc|soc|tool lookup_cve, bad arguments, token …"+last4(w) {
 		t.Fatalf("audit = %v", audits)
 	}
 }
@@ -376,6 +376,12 @@ func fits(s map[string]any, v any, path string) error {
 	}
 	if len(types) > 0 && !slices.Contains(types, kind) {
 		return fmt.Errorf("%s: %s, want %v", path, kind, types)
+	}
+	if f, ok := s["format"].(string); ok && kind == "string" {
+		re := map[string]*regexp.Regexp{"date-time": regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$`), "date": regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)}[f]
+		if re == nil || !re.MatchString(v.(string)) {
+			return fmt.Errorf("%s: %q is not a %s", path, v, f)
+		}
 	}
 	if e, ok := s["enum"].([]any); ok && !slices.Contains(e, v) {
 		return fmt.Errorf("%s: %v not in %v", path, v, e)
@@ -459,7 +465,7 @@ func TestContract_SourceModuleOff(t *testing.T) {
 	if msg := toolError(t, c.call("list_assets", nil)); !strings.Contains(msg, "inventory module is off") {
 		t.Fatalf("msg = %q", msg)
 	}
-	if a := w.auditRows("mcp.call"); len(a) != 1 || !strings.HasSuffix(a[0], "module inventory off") {
+	if a := w.auditRows("mcp.call"); len(a) != 1 || !strings.HasSuffix(a[0], "module inventory off, token …"+last4(w)) {
 		t.Fatalf("audit = %v", a)
 	}
 }
@@ -590,6 +596,7 @@ func TestContract_Transport(t *testing.T) {
 		{"discover is modern only", []byte(`{"jsonrpc":"2.0","id":1,"method":"server/discover"}`), map[string]string{"MCP-Protocol-Version": "2025-11-25"}, 200, -32601},
 	}
 	for _, x := range cases {
+		w.clock.Advance(2 * time.Second) // every request takes from the bucket, refused or not
 		r := c.post(x.body, x.hdr)
 		if r.status != x.status || r.code() != x.code {
 			t.Errorf("%s: %d %d, want %d %d: %s", x.name, r.status, r.code(), x.status, x.code, r.raw)
@@ -730,7 +737,7 @@ func TestContract_SourceErrorIsNotLeaked(t *testing.T) {
 	if strings.Contains(msg, "sqlite") || !strings.Contains(msg, "could not answer") {
 		t.Fatalf("msg = %q", msg)
 	}
-	if a := w.auditRows("mcp.call"); len(a) != 1 || !strings.HasSuffix(a[0], "list_assets, error") {
+	if a := w.auditRows("mcp.call"); len(a) != 1 || !strings.Contains(a[0], "list_assets, error, token …") {
 		t.Fatalf("audit = %v", a)
 	}
 }
@@ -739,4 +746,92 @@ type failingSource struct{ *fakeSource }
 
 func (failingSource) Assets(context.Context) ([]mcpserver.Asset, error) {
 	return nil, errors.New("sqlite: database disk image is malformed at /var/lib/vedette/vedette.db")
+}
+
+// last4 is the last 4 characters of the only token of w, as the audit rows name it.
+func last4(w *world) string {
+	return w.scalar(`SELECT last4 FROM mcp_tokens ORDER BY created_at, id LIMIT 1`)
+}
+
+// Review M4: a request the server refuses still takes from the token's bucket, so mismatched headers cannot be sent without limit.
+func TestContract_RefusedRequestsCountTowardTheLimit(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	c := w.modern(w.token("noisy", all...))
+	bad := []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}`)
+	for range 30 {
+		if r := c.post(bad, map[string]string{"MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call"}); r.status != 400 {
+			t.Fatalf("mismatch: %d", r.status)
+		}
+	}
+	if r := c.request("tools/list", nil); r.status != 429 || r.header.Get("Retry-After") == "" || string(r.msg.ID) != "null" {
+		t.Fatalf("after 30 refused requests: %d %s", r.status, r.raw)
+	}
+}
+
+// Review M6: a legacy request that sends the mirrored headers must match them too (a proxy may route on them).
+func TestContract_LegacyMirrorsMustMatch(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	c := w.legacy(w.token("ci", all...))
+	body := []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_asset","arguments":{"id":"as-fw"}}}`)
+	for _, h := range []map[string]string{
+		{"MCP-Protocol-Version": "2025-06-18", "Mcp-Name": "lookup_cve"},
+		{"MCP-Protocol-Version": "2025-06-18", "Mcp-Method": "tools/list"},
+		{"MCP-Protocol-Version": "2025-06-18", "Mcp-Method": "tools/call", "Mcp-Name": "=?base64?not base64?="},
+	} {
+		if r := c.post(body, h); r.status != 400 || r.code() != -32020 {
+			t.Errorf("%v: %d %s", h, r.status, r.raw)
+		}
+	}
+	if r := c.post(body, map[string]string{"MCP-Protocol-Version": "2025-06-18", "Mcp-Method": "tools/call", "Mcp-Name": "get_asset"}); r.status != 200 {
+		t.Fatalf("matching legacy mirrors: %d %s", r.status, r.raw)
+	}
+	init := []byte(`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`)
+	if r := c.post(init, map[string]string{"Mcp-Method": "tools/call"}); r.status != 400 || r.code() != -32020 {
+		t.Fatalf("initialize with a wrong Mcp-Method: %d %s", r.status, r.raw)
+	}
+	if a := w.auditRows("mcp.call"); len(a) != 1 {
+		t.Fatalf("audit = %v", a)
+	}
+}
+
+// Review M3: a port another process holds is reported (listening false, the reason) instead of an address that would hand
+// the token to that process; and a start after shutdown opens nothing (review L8).
+func TestContract_PortHeldElsewhereIsReported(t *testing.T) {
+	t.Parallel()
+	squatter, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = squatter.Close() }()
+	w := newWorld(t)
+	sw := &switches{}
+	sw.on.Store(true)
+	svc, err := mcpserver.New(mcpserver.Config{DB: w.db, Audit: audit.New(nil), Log: slog.New(slog.DiscardHandler), Source: w.src, Modules: sw,
+		Listen: netip.MustParseAddrPort(squatter.Addr().String())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.Follow(t.Context(), func(func(string, bool)) {})
+	if on, why := svc.Listening(); on || why == nil || !strings.Contains(why.Error(), "listen") {
+		t.Fatalf("listening = %v, %v", on, why)
+	}
+	got, err := mcpserver.NewMcpHandlers(svc).CoreGetCoreMcp(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Listening || got.ListenError.Null || !strings.Contains(got.ListenError.Value, "could not be opened") {
+		t.Fatalf("GET /core/mcp = listening %v, %+v", got.Listening, got.ListenError)
+	}
+	done, cancel := context.WithCancel(t.Context())
+	cancel()
+	fresh, _ := mcpserver.New(mcpserver.Config{DB: w.db, Audit: audit.New(nil), Log: slog.New(slog.DiscardHandler), Source: w.src, Modules: sw,
+		Listen: netip.MustParseAddrPort("127.0.0.1:0")})
+	if err := fresh.Start(done); err == nil {
+		t.Fatal("a start after shutdown opened the port")
+	}
+	if on, _ := fresh.Listening(); on {
+		t.Fatal("listening after a cancelled start")
+	}
 }

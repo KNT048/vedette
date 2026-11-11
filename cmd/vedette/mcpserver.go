@@ -147,8 +147,8 @@ func mcpFinding(r findings.Record) mcpserver.Finding {
 		at := r.ResolvedAt.UTC().Format(mcpTS)
 		f.ResolvedAt = &at
 	}
-	if e := r.Evidence; e != nil { // the summary only: the request and response of the check stay on the box (D-233)
-		f.Evidence = &mcpserver.Evidence{Summary: e.Summary, Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
+	if e := r.Evidence; e != nil { // which check and when: the summary names the device, the request and response stay on the box (D-233)
+		f.Evidence = &mcpserver.Evidence{Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
 	}
 	for _, h := range r.History { // when and what, never who or their note
 		f.History = append(f.History, mcpserver.HistoryStep{At: h.TS.UTC().Format(mcpTS), Action: h.Action})

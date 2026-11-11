@@ -13345,13 +13345,18 @@ func (s CoreGetCoreLogsExportOK) Read(p []byte) (n int, err error) {
 }
 
 type CoreGetCoreMcpOK struct {
-	Bind     string                       `json:"bind"`
-	Enabled  bool                         `json:"enabled"`
-	Endpoint string                       `json:"endpoint"`
-	Port     float64                      `json:"port"`
-	Scopes   []string                     `json:"scopes"`
-	Tokens   []CoreGetCoreMcpOKTokensItem `json:"tokens"`
-	Tools    []CoreGetCoreMcpOKToolsItem  `json:"tools"`
+	Bind     string `json:"bind"`
+	Enabled  bool   `json:"enabled"`
+	Endpoint string `json:"endpoint"`
+	// Why the port could not be opened; null while listening.
+	ListenError NilString `json:"listen_error"`
+	// The port is open. False while it cannot be opened (another process holds it): do not give a token to
+	// that address.
+	Listening bool                         `json:"listening"`
+	Port      float64                      `json:"port"`
+	Scopes    []string                     `json:"scopes"`
+	Tokens    []CoreGetCoreMcpOKTokensItem `json:"tokens"`
+	Tools     []CoreGetCoreMcpOKToolsItem  `json:"tools"`
 }
 
 // GetBind returns the value of Bind.
@@ -13367,6 +13372,16 @@ func (s *CoreGetCoreMcpOK) GetEnabled() bool {
 // GetEndpoint returns the value of Endpoint.
 func (s *CoreGetCoreMcpOK) GetEndpoint() string {
 	return s.Endpoint
+}
+
+// GetListenError returns the value of ListenError.
+func (s *CoreGetCoreMcpOK) GetListenError() NilString {
+	return s.ListenError
+}
+
+// GetListening returns the value of Listening.
+func (s *CoreGetCoreMcpOK) GetListening() bool {
+	return s.Listening
 }
 
 // GetPort returns the value of Port.
@@ -13402,6 +13417,16 @@ func (s *CoreGetCoreMcpOK) SetEnabled(val bool) {
 // SetEndpoint sets the value of Endpoint.
 func (s *CoreGetCoreMcpOK) SetEndpoint(val string) {
 	s.Endpoint = val
+}
+
+// SetListenError sets the value of ListenError.
+func (s *CoreGetCoreMcpOK) SetListenError(val NilString) {
+	s.ListenError = val
+}
+
+// SetListening sets the value of Listening.
+func (s *CoreGetCoreMcpOK) SetListening(val bool) {
+	s.Listening = val
 }
 
 // SetPort sets the value of Port.

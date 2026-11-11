@@ -18,6 +18,9 @@ import (
 // ModuleID is the module's id in the registry.
 const ModuleID = "mcp-server"
 
+// startRetry is how long Follow waits before it tries a failed start again.
+const startRetry = 15 * time.Second
+
 // DefaultListen is where the server listens: loopback only (INV-5, D-230).
 var DefaultListen = netip.MustParseAddrPort("127.0.0.1:8765")
 
@@ -53,6 +56,7 @@ type Service struct {
 
 	follow sync.Mutex // serialises Follow's start and stop
 	mu     sync.Mutex
+	srvErr error // why the last start failed; nil while listening or stopped on purpose
 	srv    *http.Server
 	bound  netip.AddrPort // the address the running listener has; zero while stopped
 }
@@ -78,7 +82,15 @@ func New(cfg Config) (*Service, error) {
 		version: cfg.Version, limits: newLimiter(cfg.Clock)}, nil
 }
 
-// Endpoint is the address agents use, and Bind its listen address: the running listener's when there is one.
+// Listening reports whether the listener is open, and why the last start failed (shown on Settings → MCP server, so an
+// administrator never configures an agent for a port another process holds: that process would get the token).
+func (s *Service) Listening() (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.srv != nil, s.srvErr
+}
+
+// Endpoint is the address agents use, and bind its listen address: the running listener's when there is one.
 func (s *Service) Endpoint() (bind netip.AddrPort, url string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -96,11 +108,16 @@ func (s *Service) Start(ctx context.Context) error {
 	if s.srv != nil {
 		return nil
 	}
+	if err := ctx.Err(); err != nil { // shutting down: a late switch-on must not reopen the port
+		return err
+	}
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", s.listen.String())
 	if err != nil {
-		return fmt.Errorf("mcpserver: listen on %s: %w", s.listen, err)
+		s.srvErr = fmt.Errorf("mcpserver: listen on %s: %w", s.listen, err)
+		return s.srvErr
 	}
+	s.srvErr = nil
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", s.Handler())
 	srv := &http.Server{
@@ -128,7 +145,7 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) Stop(ctx context.Context) {
 	s.mu.Lock()
 	srv := s.srv
-	s.srv, s.bound = nil, netip.AddrPort{}
+	s.srv, s.bound, s.srvErr = nil, netip.AddrPort{}, nil
 	s.mu.Unlock()
 	if srv == nil {
 		return
@@ -144,17 +161,25 @@ func (s *Service) Stop(ctx context.Context) {
 // Follow starts or stops the listener with the module's switch and returns at once. Call it once at start-up with the
 // registry's OnChange; the current state is applied now.
 func (s *Service) Follow(ctx context.Context, onChange func(func(id string, enabled bool))) {
+	var resync func()
 	apply := func(on bool) {
-		if !on {
+		if !on || ctx.Err() != nil {
 			s.Stop(ctx)
 			return
 		}
 		if err := s.Start(ctx); err != nil {
-			s.log.ErrorContext(ctx, "the MCP server could not start", "error", err)
+			s.log.ErrorContext(ctx, "the MCP server could not start; trying again in a while", "error", err)
+			go func() { // the port may be held for a moment (a restart); the page shows the error meanwhile
+				select {
+				case <-ctx.Done():
+				case <-time.After(startRetry):
+					resync()
+				}
+			}()
 		}
 	}
 	// Each change re-reads the switch under one lock, so a quick off-on-off cannot leave the port open in the wrong order.
-	resync := func() {
+	resync = func() {
 		s.follow.Lock()
 		defer s.follow.Unlock()
 		apply(s.mods.Enabled(ModuleID))

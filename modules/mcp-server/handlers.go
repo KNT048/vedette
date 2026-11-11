@@ -73,8 +73,17 @@ func (h *McpHandlers) CoreGetCoreMcp(ctx context.Context) (*oas.CoreGetCoreMcpOK
 		tools = append(tools, map[string]string{"name": t.Name, "scope": t.Scope})
 	}
 	bind, endpoint := h.svc.Endpoint()
+	listening, lerr := h.svc.Listening()
+	var why *string
+	if !listening {
+		msg := "The port is not open yet."
+		if lerr != nil {
+			msg = "The port " + bind.String() + " could not be opened: another program may hold it. Vedette tries again every 15 seconds."
+		}
+		why = &msg
+	}
 	return into[oas.CoreGetCoreMcpOK](map[string]any{
-		"enabled": true, "bind": bind.Addr().String(), "port": bind.Port(), "endpoint": endpoint,
+		"enabled": true, "bind": bind.Addr().String(), "port": bind.Port(), "endpoint": endpoint, "listening": listening, "listen_error": why,
 		"tokens": views, "tools": tools, "scopes": AllScopes,
 	})
 }

@@ -9275,6 +9275,17 @@
                         "additionalProperties": false
                       }
                     },
+                    "listening": {
+                      "type": "boolean",
+                      "description": "The port is open. False while it cannot be opened (another process holds it): do not give a token to that address"
+                    },
+                    "listen_error": {
+                      "description": "Why the port could not be opened; null while listening",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "tools": {
                       "type": "array",
                       "items": {
@@ -9307,6 +9318,8 @@
                     "port",
                     "endpoint",
                     "tokens",
+                    "listening",
+                    "listen_error",
                     "tools",
                     "scopes"
                   ],

@@ -140,16 +140,17 @@ type CoreSetting struct {
 }
 
 type CoreUser struct {
-	ID           string
-	Name         string
-	Email        string
-	Role         string
-	PasswordHash string
-	CredVersion  int64
-	TwofaMethod  *string
-	Disabled     int64
-	CreatedAt    string
-	LastLogin    *string
+	ID                    string
+	Name                  string
+	Email                 string
+	Role                  string
+	PasswordHash          string
+	CredVersion           int64
+	TwofaMethod           *string
+	Disabled              int64
+	CreatedAt             string
+	LastLogin             *string
+	TempPasswordExpiresAt *string
 }
 
 type CoreUserTotp struct {

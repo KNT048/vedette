@@ -252,7 +252,7 @@ func TestContract_POST4_ExecIsBounded(t *testing.T) {
 }
 
 // INV-6 (partial): no core column holds a plaintext secret. Allowed names are references and one-way
-// values: secret_id, *_hash (token_hash, password_hash, code_hash), *_last4, *_id.
+// values: secret_id, *_hash (token_hash, password_hash, code_hash), *_last4, *_id; plus temp_password_expires_at (a time, not the password, D-180).
 func TestContract_INV6_NoPlaintextSecretColumns(t *testing.T) {
 	t.Parallel()
 	db := migrated(t)
@@ -271,7 +271,7 @@ func TestContract_INV6_NoPlaintextSecretColumns(t *testing.T) {
 			t.Fatal(err)
 		}
 		seen++
-		if risky.MatchString(col) && !safeSuffix.MatchString(col) {
+		if risky.MatchString(col) && !safeSuffix.MatchString(col) && col != "temp_password_expires_at" { // a time, not the password (D-180)
 			t.Errorf("%s.%s (%s) looks like a plaintext secret column", table, col, typ)
 		}
 		if table == "core_secret" && col == "ciphertext" && !strings.EqualFold(typ, "BLOB") {

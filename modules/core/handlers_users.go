@@ -56,7 +56,7 @@ func (h *APIHandlers) CorePostCoreUsers(ctx context.Context, req *oas.CorePostCo
 		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
 			return err
 		}
-		u, err = h.auth.CreateUser(ctx, tx, c.Email, auth.NewUser{Name: name, Email: req.Email, Role: role, PasswordHash: hash})
+		u, err = h.auth.CreateUser(ctx, tx, c.Email, auth.NewUser{Name: name, Email: req.Email, Role: role, PasswordHash: hash, Temporary: true})
 		return err
 	})
 	if err != nil {

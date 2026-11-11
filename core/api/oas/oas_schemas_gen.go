@@ -16954,13 +16954,17 @@ func (s *CoreGetCoreUsersOKItemsItemTwofaMethod) UnmarshalText(data []byte) erro
 }
 
 type CoreGetMeOK struct {
-	Email       string                    `json:"email"`
-	ID          string                    `json:"id"`
-	Name        string                    `json:"name"`
-	Org         string                    `json:"org"`
-	Role        CoreGetMeOKRole           `json:"role"`
-	Twofa       bool                      `json:"twofa"`
-	TwofaMethod NilCoreGetMeOKTwofaMethod `json:"twofa_method"`
+	Email string `json:"email"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Org   string `json:"org"`
+	// The password was set by an administrator (D-180): until the user changes it, every call except GET
+	// /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the
+	// GUI shows the Choose a new password screen.
+	PasswordChangeRequired bool                      `json:"password_change_required"`
+	Role                   CoreGetMeOKRole           `json:"role"`
+	Twofa                  bool                      `json:"twofa"`
+	TwofaMethod            NilCoreGetMeOKTwofaMethod `json:"twofa_method"`
 }
 
 // GetEmail returns the value of Email.
@@ -16981,6 +16985,11 @@ func (s *CoreGetMeOK) GetName() string {
 // GetOrg returns the value of Org.
 func (s *CoreGetMeOK) GetOrg() string {
 	return s.Org
+}
+
+// GetPasswordChangeRequired returns the value of PasswordChangeRequired.
+func (s *CoreGetMeOK) GetPasswordChangeRequired() bool {
+	return s.PasswordChangeRequired
 }
 
 // GetRole returns the value of Role.
@@ -17016,6 +17025,11 @@ func (s *CoreGetMeOK) SetName(val string) {
 // SetOrg sets the value of Org.
 func (s *CoreGetMeOK) SetOrg(val string) {
 	s.Org = val
+}
+
+// SetPasswordChangeRequired sets the value of PasswordChangeRequired.
+func (s *CoreGetMeOK) SetPasswordChangeRequired(val bool) {
+	s.PasswordChangeRequired = val
 }
 
 // SetRole sets the value of Role.

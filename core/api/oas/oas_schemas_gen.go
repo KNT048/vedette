@@ -22390,8 +22390,14 @@ func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalText(data []byte) e
 }
 
 type CorePostCoreDataPurgeOK struct {
-	Ok      bool                           `json:"ok"`
-	Removed CorePostCoreDataPurgeOKRemoved `json:"removed"`
+	Kept    []CorePostCoreDataPurgeOKKeptItem `json:"kept"`
+	Ok      bool                              `json:"ok"`
+	Removed CorePostCoreDataPurgeOKRemoved    `json:"removed"`
+}
+
+// GetKept returns the value of Kept.
+func (s *CorePostCoreDataPurgeOK) GetKept() []CorePostCoreDataPurgeOKKeptItem {
+	return s.Kept
 }
 
 // GetOk returns the value of Ok.
@@ -22404,6 +22410,11 @@ func (s *CorePostCoreDataPurgeOK) GetRemoved() CorePostCoreDataPurgeOKRemoved {
 	return s.Removed
 }
 
+// SetKept sets the value of Kept.
+func (s *CorePostCoreDataPurgeOK) SetKept(val []CorePostCoreDataPurgeOKKeptItem) {
+	s.Kept = val
+}
+
 // SetOk sets the value of Ok.
 func (s *CorePostCoreDataPurgeOK) SetOk(val bool) {
 	s.Ok = val
@@ -22412,6 +22423,54 @@ func (s *CorePostCoreDataPurgeOK) SetOk(val bool) {
 // SetRemoved sets the value of Removed.
 func (s *CorePostCoreDataPurgeOK) SetRemoved(val CorePostCoreDataPurgeOKRemoved) {
 	s.Removed = val
+}
+
+type CorePostCoreDataPurgeOKKeptItem string
+
+const (
+	CorePostCoreDataPurgeOKKeptItemHostBackups    CorePostCoreDataPurgeOKKeptItem = "host_backups"
+	CorePostCoreDataPurgeOKKeptItemKeyNotReplaced CorePostCoreDataPurgeOKKeptItem = "key_not_replaced"
+	CorePostCoreDataPurgeOKKeptItemHoneypotLog    CorePostCoreDataPurgeOKKeptItem = "honeypot_log"
+)
+
+// AllValues returns all CorePostCoreDataPurgeOKKeptItem values.
+func (CorePostCoreDataPurgeOKKeptItem) AllValues() []CorePostCoreDataPurgeOKKeptItem {
+	return []CorePostCoreDataPurgeOKKeptItem{
+		CorePostCoreDataPurgeOKKeptItemHostBackups,
+		CorePostCoreDataPurgeOKKeptItemKeyNotReplaced,
+		CorePostCoreDataPurgeOKKeptItemHoneypotLog,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreDataPurgeOKKeptItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreDataPurgeOKKeptItemHostBackups:
+		return []byte(s), nil
+	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
+		return []byte(s), nil
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreDataPurgeOKKeptItem) UnmarshalText(data []byte) error {
+	switch CorePostCoreDataPurgeOKKeptItem(data) {
+	case CorePostCoreDataPurgeOKKeptItemHostBackups:
+		*s = CorePostCoreDataPurgeOKKeptItemHostBackups
+		return nil
+	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
+		*s = CorePostCoreDataPurgeOKKeptItemKeyNotReplaced
+		return nil
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
+		*s = CorePostCoreDataPurgeOKKeptItemHoneypotLog
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CorePostCoreDataPurgeOKRemoved map[string]float64
@@ -22426,7 +22485,14 @@ func (s *CorePostCoreDataPurgeOKRemoved) init() CorePostCoreDataPurgeOKRemoved {
 }
 
 type CorePostCoreDataPurgeReq struct {
-	Confirm string `json:"confirm"`
+	Code     OptString `json:"code"`
+	Confirm  string    `json:"confirm"`
+	Password string    `json:"password"`
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreDataPurgeReq) GetCode() OptString {
+	return s.Code
 }
 
 // GetConfirm returns the value of Confirm.
@@ -22434,9 +22500,24 @@ func (s *CorePostCoreDataPurgeReq) GetConfirm() string {
 	return s.Confirm
 }
 
+// GetPassword returns the value of Password.
+func (s *CorePostCoreDataPurgeReq) GetPassword() string {
+	return s.Password
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreDataPurgeReq) SetCode(val OptString) {
+	s.Code = val
+}
+
 // SetConfirm sets the value of Confirm.
 func (s *CorePostCoreDataPurgeReq) SetConfirm(val string) {
 	s.Confirm = val
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreDataPurgeReq) SetPassword(val string) {
+	s.Password = val
 }
 
 type CorePostCoreMcpTokensCreated struct {

@@ -310,3 +310,62 @@ func TestShutdownWaitsAndRecords(t *testing.T) {
 		}
 	})
 }
+
+// D-160: a housekeeping job (retention purge) runs on its timer whether its module is on or off, and turning the module
+// off neither cancels its run nor runs it again; an ordinary job of the same module still stops.
+func TestHousekeepingRunsWhileModuleIsOff(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		g := newGate("logs")
+		s := jobs.New(quiet(), g, nil)
+		var purge, ingest atomic.Int32
+		var cancelled atomic.Bool
+		release := make(chan struct{})
+		if err := s.Add(jobs.Job{Module: "logs", Name: "purge", Every: time.Hour, Housekeeping: true, Run: func(ctx context.Context) error {
+			if purge.Add(1) == 2 {
+				select {
+				case <-release:
+				case <-ctx.Done():
+					cancelled.Store(true)
+				}
+			}
+			return ctx.Err()
+		}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Add(jobs.Job{Module: "logs", Name: "ingest", Every: time.Hour, Run: func(context.Context) error { ingest.Add(1); return nil }}); err != nil {
+			t.Fatal(err)
+		}
+		stop := start(s)
+		defer stop()
+		if purge.Load() != 1 || ingest.Load() != 1 {
+			t.Fatalf("at start: purge %d, ingest %d, want 1 and 1", purge.Load(), ingest.Load())
+		}
+
+		advance(time.Hour + time.Second) // the second purge run blocks on release
+		g.set("logs", false)
+		s.ModuleChanged("logs", false)
+		synctest.Wait()
+		if cancelled.Load() {
+			t.Fatal("turning the module off cancelled the housekeeping run")
+		}
+		close(release)
+		synctest.Wait()
+		if purge.Load() != 2 {
+			t.Fatalf("purge runs after turning off = %d, want 2 (no extra run on the change)", purge.Load())
+		}
+		advance(3 * time.Hour)
+		if purge.Load() != 5 {
+			t.Fatalf("purge runs while off = %d, want 5", purge.Load())
+		}
+		if ingest.Load() != 2 {
+			t.Fatalf("the ordinary job ran %d times, want 2 (stops when the module is off)", ingest.Load())
+		}
+		g.set("logs", true)
+		s.ModuleChanged("logs", true)
+		synctest.Wait()
+		if purge.Load() != 5 {
+			t.Fatalf("turning the module on ran the housekeeping job out of turn: %d", purge.Load())
+		}
+	})
+}

@@ -7,7 +7,8 @@ import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { encode } from 'uqr'
-import { totpAt } from './totp'
+import { newSecret, totpAt } from './totp'
+import { collection } from '@/mocks/db'
 import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
 import { mockSign } from './mocks'
@@ -310,8 +311,20 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     await expectNoA11yViolations()
   })
 
+  it('the anonymous signal cannot be turned on: 400 telemetry_unavailable, and it reads as off (D-154)', async () => {
+    renderApp('/settings/privacy')
+    await screen.findByRole('heading', { level: 1 })
+    const on = await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: true }) })
+    expect(on.status).toBe(400)
+    expect(((await on.json()) as { error: { code: string } }).error.code).toBe('telemetry_unavailable')
+    const off = await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: false }) })
+    expect(off.status).toBe(200)
+    const got = (await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()) as { telemetry: { enabled: boolean } }
+    expect(got.telemetry.enabled).toBe(false)
+  })
+
   it.each([true, false])('the title never says a signal is sent, whatever telemetry.enabled is (%s)', async (enabled) => {
-    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) })
+    await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) }) // true is refused (400): the title does not depend on it
     renderApp('/settings/privacy')
     const h1 = await screen.findByRole('heading', { level: 1 })
     expect(h1).toHaveTextContent('The box connects out only for the flows listed below')
@@ -346,18 +359,89 @@ describe('core: dữ liệu', () => {
     await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample')
     expect(confirm).toBeDisabled()
     await u.type(within(dlg).getByLabelText(/Type the organization name/), ' Company')
+    expect(confirm).toBeDisabled() // the password is needed too (D-154)
+    expect(within(dlg).queryByLabelText('Two-step code')).toBeNull() // no two-step on this account
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
     expect(confirm).toBeEnabled()
+    // what is deleted and what is kept, said exactly
+    expect(within(dlg).getByText(/Deleted: all data, users and backups.*decryption key is replaced/)).toBeInTheDocument()
+    expect(within(dlg).getByText(/Kept: the TLS certificate, the system journal.*network settings/)).toBeInTheDocument()
     await u.click(confirm)
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
     expect(orgStore.get().setup_complete).toBe(false)
     expect(sessionStore.get().userId).toBeNull()
     spy.mockRestore()
   })
 
+  it('mật khẩu sai bị từ chối, 5 lần sai bị chặn, không xoá gì', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'not-the-password')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/The password is needed to delete all data/)).toBeInTheDocument()
+    for (let i = 0; i < 4; i++) await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await u.clear(within(dlg).getByLabelText('Your current password'))
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo') // the right one, but the limit is reached
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Too many tries/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+    expect(assetsStore.get().length).toBeGreaterThan(0)
+    spy.mockRestore()
+  })
+
+  it('có hai bước: ô mã hiện ra, thiếu hay sai mã bị từ chối, đúng mã mới xoá', async () => {
+    const u = user()
+    const secret = newSecret()
+    collection<Record<string, string>>('core_totp', () => ({})).update((s) => ({ ...s, 'u-admin': secret }))
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+    expect(within(dlg).getByText('The 6-digit code from your authenticator app.')).toBeInTheDocument()
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Enter the 6-digit code|Type the 6-digit code/)).toBeInTheDocument()
+    await u.type(within(dlg).getByLabelText('Two-step code'), '000000')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    expect(await within(dlg).findByText(/Wrong code/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+    await u.clear(within(dlg).getByLabelText('Two-step code'))
+    await u.type(within(dlg).getByLabelText('Two-step code'), await totpAt(secret, Date.now()))
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    spy.mockRestore()
+  })
+
+  it('nói rõ cái gì chưa xoá được (kept) trước khi rời trang', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    server.use(http.post(`${location.origin}/api/v1/core/data/purge`, () => HttpResponse.json({ ok: true, removed: {}, kept: ['host_backups'] })))
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    const done = await screen.findByRole('dialog', { name: 'All data deleted' })
+    expect(within(done).getByText(/set up without the helper/)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled() // the page waits for the administrator
+    await u.click(within(done).getByRole('button', { name: 'Continue to setup' }))
+    expect(spy).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
+  })
+
   it('server từ chối khi tên không khớp', async () => {
     renderApp('/settings/data')
     await screen.findByRole('button', { name: 'Delete all data' })
-    const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai' }) })
+    const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai', password: 'vedette-demo' }) })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('confirm_mismatch')
     expect(assetsStore.get().length).toBeGreaterThan(0)

@@ -25,6 +25,8 @@ var rules = []rule{
 	{"web/src/features/core/testdata/", Result{true, true}},      // Go reads connections_matrix.json and keys/
 	{"web/src/features/core/bundles.ts", Result{true, true}},     // modules/core/handlers_setup_test.go
 	{"web/src/locales/en/core.json", Result{true, true}},         // modules/core/auditlabels_test.go: every audit action has a label
+	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                 // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
+	{"web/package.json", Result{true, true}},                     // the same check reads the web production dependencies
 
 	// No test reads these.
 	{".ai/", Result{}},
@@ -40,7 +42,6 @@ var rules = []rule{
 	{"CONTRIBUTING.md", Result{}},
 	{"SECURITY.md", Result{}},
 	{"PRIVACY.md", Result{}},
-	{"THIRD_PARTY_NOTICES.md", Result{}},
 	{"NOTICE", Result{}},
 	{"LICENSE", Result{}},
 	{".mcp.json.example", Result{}},

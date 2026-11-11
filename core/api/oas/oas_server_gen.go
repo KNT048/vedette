@@ -354,7 +354,7 @@ type Handler interface {
 	CoreGetCoreDataBackup(ctx context.Context) (CoreGetCoreDataBackupOK, error)
 	// CoreGetCoreDataExport implements core_get_core_data_export operation.
 	//
-	// Export my data as JSON.
+	// Export my data as JSON (every table except secrets; 409 busy while another export runs).
 	//
 	// GET /core/data/export
 	CoreGetCoreDataExport(ctx context.Context) (CoreGetCoreDataExportOK, error)
@@ -584,7 +584,16 @@ type Handler interface {
 	CorePostCoreConnectionsIDTest(ctx context.Context, params CorePostCoreConnectionsIDTestParams) (*CorePostCoreConnectionsIDTestOK, error)
 	// CorePostCoreDataPurge implements core_post_core_data_purge operation.
 	//
-	// Delete all data back to a fresh install (type the exact organization name to confirm).
+	// Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact
+	// organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a
+	// failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required
+	// / invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable
+	// when the configured helper does not answer, its socket missing included (nothing is deleted); 412
+	// transition_pending; 500 backups_already_deleted when the purge fails after the helper deleted its
+	// backups (the data on the box is still there). kept lists what was not done or not touched
+	// (host_backups: this box is configured without a helper, so there were no helper backups to delete;
+	// honeypot_log: the raw log of the honeypot belongs to its container and stays; key_not_replaced: the
+	// new key could not be written, replace vedette.key by hand).
 	//
 	// POST /core/data/purge
 	CorePostCoreDataPurge(ctx context.Context, req *CorePostCoreDataPurgeReq) (*CorePostCoreDataPurgeOK, error)

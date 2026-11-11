@@ -76,3 +76,23 @@ func TestDownloadReadErrorBeforeTheFirstByteIsAnError(t *testing.T) {
 	}
 	_ = d.Close()
 }
+
+// SetExportCapForTest lowers the size cap of /core/data/export.
+func (h *APIHandlers) SetExportCapForTest(n int64) { h.exportCap = n }
+
+// CheckDataFilesForTest runs the check NewAPIHandlers makes on HandlersConfig.DataFiles.
+func CheckDataFilesForTest(names []string) error { return checkDataFiles(names) }
+
+// The tables of the test module of handlers_data_test.go are classified like those of a real module: columns that look like a secret
+// are skipped, the rest is exported. Done once at init, before any test runs, so the parallel tests only read the policy.
+func init() {
+	for tbl, p := range map[string]tablePolicy{
+		"tm_parent": {export: "id name"},
+		"tm_child":  {export: "id parent_id note last4 secret_last4", skip: "api_secret token_hash blobby"},
+		"tm_seed":   {export: "id v"},
+		"tm_log":    {export: "seq line"},
+	} {
+		exportPolicy[tbl] = p
+		exportClasses[tbl] = classesOf(p)
+	}
+}

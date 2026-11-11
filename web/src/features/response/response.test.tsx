@@ -18,6 +18,7 @@ import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
 import { actionsStore, buildChange, catalogStore, identityStore } from './state'
+import { linkFromChat } from './identity'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
@@ -450,15 +451,23 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(ok.json.approvals[0]!.via).toBe('telegram')
   })
 
-  it('Zalo personal answers in a private message, so its approver can link it (notify slice 4b, D-243)', async () => {
+  it('Zalo personal: My account shows a code that links only when it arrives from the listed ID (D-243)', async () => {
     await turnOn()
     setChannels([{ type: 'zalo-personal', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '2938475610293847561' }] }], false)
-    expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'chat_code' }))
+    expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'send_code' }))
+    const u = userEvent.setup()
     renderApp('/account', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('2938475610293847561')).closest('li')!
-    expect(within(row).getByText(/Reply to the next approval message in .* with one of your codes/)).toBeTruthy()
-    expect(within(row).getByLabelText('Code')).toBeTruthy()
+    expect(within(row).queryByLabelText('Code')).toBeNull() // nothing to type: the code must come from the Zalo account
+    await u.click(within(row).getByRole('button', { name: 'Get a code' }))
+    const code = (await within(row).findByText(/^\d{6}$/)).textContent!
+    expect(within(row).getByText(/Send this code from Zalo .* account 2938475610293847561/)).toBeTruthy()
+    expect((await confirm('operator', 'zalo-personal', code)).code).toBe('chat_channel')
+    expect(linkFromChat('zalo-personal', '1111111111', code).status).toBe('approver_not_listed')
+    expect(linkFromChat('zalo-personal', '2938475610293847561', code).status).toBe('linked')
+    expect(auditActions()).toContain('response.identity_link')
+    expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toMatchObject({ linked: true })
   })
 
   it('a channel whose answer others may see gets no code', async () => {

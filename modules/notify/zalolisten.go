@@ -17,23 +17,28 @@ import (
 // message connection of the Zalo web client is reverse-engineered and not yet checked against a real account. The job "zalo-listen"
 // opens it OUT over the channel's session (no inbound port, FORBID-4) while the module is on, the Zalo personal channel is configured,
 // enabled and takes approvals, and the Decisions port and the token recorder are wired (the conditions under which codes are sent at
-// all, replycode.go). A direct text that has the form of a reply code goes to Decisions with the sender's user ID; response matches the
-// code against the records of that sender and keeps every gate. notify answers privately, and only a listed approver.
+// all, replycode.go; while it is disconnected or waiting, replies are not read). A direct text that has the form of a reply code goes
+// to Decisions with the sender's user ID; response matches the code against the records of that sender and keeps every gate. Six digits
+// from a listed approver are a link code shown in My account (Decisions.LinkChat, D-191: sending it from the account proves the ID).
+// notify answers privately, only a listed approver, and only a few times per approver.
 
 const (
 	zaloListenJob    = "zalo-listen"
 	zaloListenEvery  = 30 * time.Second // the scheduler starts the listener again after it stopped
 	zaloWatchEvery   = 30 * time.Second // how often a live connection checks that its channel is unchanged
 	zaloWorkers      = telegramWorkers
-	zaloHealthy      = time.Minute      // a connection that lived this long clears the failure count
+	zaloHealthy      = 10 * time.Minute // a connection that lived this long clears the failure count
+	zaloGiveUp       = 8                // failed connections in a row after which the listener waits for the channel to change
 	zaloRetryMax     = 30 * time.Minute // the longest wait between failed connections (D-46: an account that misbehaves can be locked)
 	zaloReplacedWait = 10 * time.Minute // after another client took the account over: do not take it back at once
 	zaloAnswerWait   = 20 * time.Second // one private answer: it may wait for a send in progress and sign in
 	zaloNotesPerHour = 20               // audit rows for messages from non-approvers, in all
 	zaloNoteEvery    = 24 * time.Hour   // per sender
 	zaloNoteSenders  = 1000             // senders remembered for zaloNoteEvery
+	zaloAnswers      = 5                // private answers per approver per zaloAnswerEvery; more replies are not answered
+	zaloAnswerEvery  = 10 * time.Minute
 
-	answerBusyCode = "Vedette is busy. Send the code again in a minute."
+	answerLinkFailed = "Vedette could not check your code. Try again in a minute."
 )
 
 var errZaloChanged = errors.New("notify: zalo-personal: the channel changed")
@@ -70,7 +75,7 @@ func (s *Service) listenZalo(ctx context.Context) error {
 		}
 		return fmt.Errorf("notify: zalo listener: %w", err)
 	}
-	if !zaloReady(c) || !s.zaloRetry.due(time.Now()) {
+	if !zaloReady(c) || !s.zaloRetry.due(c.Rev, time.Now()) {
 		return nil
 	}
 	started := time.Now()
@@ -78,7 +83,9 @@ func (s *Service) listenZalo(ctx context.Context) error {
 	if ctx.Err() != nil || errors.Is(err, errZaloChanged) {
 		return nil
 	}
-	s.zaloRetry.after(err, time.Since(started), time.Now())
+	if s.zaloRetry.after(err, time.Since(started), time.Now()) {
+		s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: the reply listener stopped after repeated failures; it starts again when the channel is saved")
+	}
 	if err != nil {
 		return fmt.Errorf("notify: zalo listener: %w", err)
 	}
@@ -121,8 +128,12 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 		return
 	}
 	listed := slices.ContainsFunc(approvers, func(a Approver) bool { return a.Address == m.From })
-	code, approve, ok := normReplyCode(m.Text)
-	if !ok {
+	if m.ID != "" && !s.zaloSeen.add(m.ID) { // Zalo may deliver a message again (a reconnect): take it once
+		return
+	}
+	code, approve, isCode := normReplyCode(m.Text)
+	link, isLink := normLinkCode(m.Text)
+	if !isCode && (!isLink || !listed) {
 		if !listed {
 			s.noteZaloStranger(ctx, m)
 		}
@@ -135,26 +146,34 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 	}
 	select {
 	case sem <- struct{}{}:
-	default:
-		if !listed {
-			return
-		}
-		select { // the "busy" answer is a send too: it needs a worker of its own, or is dropped
-		case sem <- struct{}{}:
-		default:
-			s.cfg.Log.DebugContext(ctx, "notify: zalo-personal: every worker is busy, a reply code was dropped")
-			return
-		}
-		wg.Go(func() {
-			defer func() { <-sem }()
-			s.answerZalo(ctx, snd, m.From, answerBusyCode)
-		})
+	default: // every worker is busy (each answer is a real Zalo message): dropped; the approver sends it again or decides in Vedette
+		s.cfg.Log.DebugContext(ctx, "notify: zalo-personal: every worker is busy, a reply was dropped")
 		return
 	}
 	wg.Go(func() {
 		defer func() { <-sem }()
-		s.decideZaloCode(ctx, snd, m.From, code, approve, listed)
+		if isCode {
+			s.decideZaloCode(ctx, snd, m.From, code, approve, listed)
+		} else {
+			s.linkZalo(ctx, snd, m.From, link)
+		}
 	})
+}
+
+// linkZalo hands a link code from a listed approver to response and answers them.
+func (s *Service) linkZalo(ctx context.Context, snd channel.Sender, from, code string) {
+	dctx, cancel := context.WithTimeout(ctx, decideBudget)
+	res, err := s.cfg.Decisions.LinkChat(dctx, Decision{Channel: channel.ZaloPersonal, ExternalID: from, Code: code})
+	cancel()
+	text := res.Message
+	switch {
+	case err != nil:
+		s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: a link code could not be checked", "error", err.Error())
+		text = answerLinkFailed
+	case text == "":
+		text = answerRefused
+	}
+	s.answerZalo(ctx, snd, from, text, res.Status)
 }
 
 func (s *Service) decideZaloCode(ctx context.Context, snd channel.Sender, from, code string, approve, listed bool) {
@@ -172,15 +191,20 @@ func (s *Service) decideZaloCode(ctx context.Context, snd channel.Sender, from, 
 		text = answerRefused
 	}
 	if listed {
-		s.answerZalo(ctx, snd, from, text)
+		s.answerZalo(ctx, snd, from, text, res.Status)
 	}
 	if err == nil && recordedDecision(res.Status) && idRE.MatchString(res.RequestID) {
 		s.publishDecided(ctx, res.RequestID, res.Status, from, channel.ZaloPersonal)
 	}
 }
 
-// answerZalo sends the private answer to the approver who replied, through the channel's session; it still runs when ctx ended.
-func (s *Service) answerZalo(ctx context.Context, snd channel.Sender, to, text string) {
+// answerZalo sends the private answer to the approver who replied, through the channel's session; it still runs when ctx ended. A
+// "rate_limited" refusal is not answered, nor more than zaloAnswers answers per approver in zaloAnswerEvery: each answer is a real
+// message from the box's account, and a flood of them is what gets a personal account locked (D-46).
+func (s *Service) answerZalo(ctx context.Context, snd channel.Sender, to, text, status string) {
+	if status == "rate_limited" || !s.zaloAnswerBudget.due(to, time.Now()) {
+		return
+	}
 	d, err := s.zaloTo(snd, to)
 	if err != nil {
 		return
@@ -216,6 +240,15 @@ func normReplyCode(s string) (code string, approve, ok bool) {
 	return string(b), b[0] == 'A', true
 }
 
+// normLinkCode reads a link code: 6 ASCII digits, ASCII white space trimmed at both ends.
+func normLinkCode(s string) (string, bool) {
+	s = strings.Trim(s, " \t\n\v\f\r")
+	if len(s) != 6 || strings.Trim(s, "0123456789") != "" {
+		return "", false
+	}
+	return s, true
+}
+
 // noteZaloStranger writes one audit row "notify.zalo_message" for a message from a sender who is not an approver on the channel: at
 // most once a day per sender and 20 rows an hour in all, so a stranger cannot flood the log.
 func (s *Service) noteZaloStranger(ctx context.Context, m channel.ZaloText) {
@@ -234,38 +267,77 @@ func (s *Service) noteZaloStranger(ctx context.Context, m channel.ZaloText) {
 	}
 }
 
-// zaloRetry is the wait of the listener between connections.
+// zaloRetry is the wait of the listener between connections, for one revision of the channel: saving the channel starts afresh.
 type zaloRetry struct {
-	mu    sync.Mutex
-	fails int
-	next  time.Time
+	mu      sync.Mutex
+	rev     int64
+	fails   int
+	next    time.Time
+	stopped bool // zaloGiveUp failures in a row: nothing until the channel changes
 }
 
-func (r *zaloRetry) due(now time.Time) bool {
+func (r *zaloRetry) due(rev int64, now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return !now.Before(r.next)
+	if rev != r.rev {
+		r.rev, r.fails, r.next, r.stopped = rev, 0, time.Time{}, false
+	}
+	return !r.stopped && !now.Before(r.next)
 }
 
-func (r *zaloRetry) after(err error, lived time.Duration, now time.Time) {
+// after records how a connection ended; it reports true when the listener has just given up.
+func (r *zaloRetry) after(err error, lived time.Duration, now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var be *channel.BackoffError
 	switch {
 	case errors.Is(err, channel.ErrZaloReplaced):
 		r.next = now.Add(zaloReplacedWait)
-	case errors.As(err, &be):
-		r.next = be.Until
+		return false
 	case lived >= zaloHealthy:
 		r.fails, r.next = 0, time.Time{}
-	default:
-		r.fails++
-		d := zaloListenEvery
-		for i := 1; i < r.fails && d < zaloRetryMax; i++ {
-			d *= 2
-		}
-		r.next = now.Add(min(d, zaloRetryMax))
+		return false
 	}
+	r.fails++
+	if r.fails >= zaloGiveUp {
+		r.stopped = true
+		return true
+	}
+	d := zaloListenEvery
+	for i := 1; i < r.fails && d < zaloRetryMax; i++ {
+		d *= 2
+	}
+	r.next = now.Add(min(d, zaloRetryMax))
+	if errors.As(err, &be) && be.Until.After(r.next) { // the channel's sign-ins are paused: no sooner than the pause ends
+		r.next = be.Until
+	}
+	return false
+}
+
+// zaloBudget allows a few events per key in a window (the private answers of the listener).
+type zaloBudget struct {
+	mu   sync.Mutex
+	seen map[string][]time.Time
+}
+
+func (b *zaloBudget) due(key string, now time.Time) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.seen == nil {
+		b.seen = map[string][]time.Time{}
+	}
+	keep := b.seen[key][:0]
+	for _, t := range b.seen[key] {
+		if now.Sub(t) < zaloAnswerEvery {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) >= zaloAnswers {
+		b.seen[key] = keep
+		return false
+	}
+	b.seen[key] = append(keep, now)
+	return true
 }
 
 // zaloNotes rations the audit rows of noteZaloStranger.

@@ -49008,9 +49008,10 @@
                             "enum": [
                               "email_code",
                               "chat_code",
+                              "send_code",
                               "unavailable"
                             ],
-                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                           },
                           "code_waiting": {
                             "type": "boolean",
@@ -49132,6 +49133,10 @@
                     "preview_code": {
                       "description": "Preview build only; never sent by a real box",
                       "type": "string"
+                    },
+                    "code": {
+                      "description": "send_code channels only: the code to send from your own chat account to the box account (sent_to is that account ID); it proves nothing until it arrives from there",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -49236,9 +49241,10 @@
                       "enum": [
                         "email_code",
                         "chat_code",
+                        "send_code",
                         "unavailable"
                       ],
-                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                     },
                     "code_waiting": {
                       "type": "boolean",

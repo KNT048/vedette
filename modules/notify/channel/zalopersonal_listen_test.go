@@ -141,7 +141,7 @@ func TestContract_PRE8_ZaloListenReadsDirectTexts(t *testing.T) {
 	if err := waitRun(t, l); !errors.Is(err, ErrZaloReplaced) {
 		t.Fatalf("Run = %v, want ErrZaloReplaced", err)
 	}
-	want := []ZaloText{{From: "2938475610293847561", Name: "Lan", Text: " a-7kq2mx "}, {From: "9007199254740993123", Text: "big number id"},
+	want := []ZaloText{{ID: "1", From: "2938475610293847561", Name: "Lan", Text: " a-7kq2mx "}, {ID: "7", From: "9007199254740993123", Text: "big number id"},
 		{From: "1111111", Text: "plain"}, {From: "2222222", Text: "zlib"}, {From: "3333333", Text: "gcm"}}
 	if got := l.texts(); len(got) != len(want) {
 		t.Fatalf("texts = %+v", got)
@@ -210,7 +210,8 @@ func TestZaloListenPings(t *testing.T) {
 	}
 }
 
-// A refused handshake forgets the session and pauses sign-ins like a refused send; a kick (close 3003) is a takeover.
+// A refused handshake is the listener's own failure: it neither forgets the session nor pauses the channel's sign-ins, so alerts keep
+// going; a kick (close 3003) is a takeover.
 func TestZaloListenRefusedAndKicked(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
@@ -234,11 +235,12 @@ func TestZaloListenRefusedAndKicked(t *testing.T) {
 	if !errors.As(err, &se) || se.Code != http.StatusForbidden {
 		t.Fatalf("refused handshake = %v", err)
 	}
-	var be *BackoffError
-	if _, err := ZaloListen(ctx, z); !errors.As(err, &be) || f.logins != 1 {
-		t.Fatalf("after a refusal = %v, sign-ins %d", err, f.logins)
+	if z.li == nil || !z.notBefore.IsZero() || z.failures != 0 {
+		t.Fatalf("a refused handshake touched the shared session: li %v pause %v failures %d", z.li != nil, z.notBefore, z.failures)
 	}
-	z.notBefore = time.Time{}
+	if _, err := z.Send(ctx, sample); err != nil || f.logins != 1 {
+		t.Fatalf("alert after a refused handshake = %v, sign-ins %d", err, f.logins)
+	}
 	refuse.Store(false)
 	c, err := ZaloListen(ctx, z)
 	if err != nil {
@@ -247,9 +249,6 @@ func TestZaloListenRefusedAndKicked(t *testing.T) {
 	defer c.Close()
 	if err := c.Run(ctx, func(ZaloText) {}); !errors.Is(err, ErrZaloReplaced) {
 		t.Errorf("kicked = %v", err)
-	}
-	if z.failures != 0 {
-		t.Errorf("failures after a connection = %d", z.failures)
 	}
 }
 

@@ -132,15 +132,15 @@ export const SettingsView = Settings.extend({
 })
 
 // ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
-export const IdentityMethod = z.enum(['email_code', 'chat_code', 'unavailable'])
+export const IdentityMethod = z.enum(['email_code', 'chat_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
   code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })
-export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box') })
+export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box'), code: z.string().optional().describe('send_code channels only: the code to send from your own chat account to the box account (sent_to is that account ID); it proves nothing until it arrives from there') })
 export const SettingsInput = z.object({
   max_per_hour: z.number().int(), expiry_min: z.number().int(), approval_channels: z.array(z.string()),
   breaker_max_per_hour: z.number().int(), multi_target_max: z.number().int(), maintenance: z.array(Window),

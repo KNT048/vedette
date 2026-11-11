@@ -183420,6 +183420,8 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) Decode(d *jx.Decoder)
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
 	default:
@@ -215386,6 +215388,12 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) encodeFields(e *jx.Encoder) {
 	{
+		if s.Code.Set {
+			e.FieldStart("code")
+			s.Code.Encode(e)
+		}
+	}
+	{
 		if s.PreviewCode.Set {
 			e.FieldStart("preview_code")
 			s.PreviewCode.Encode(e)
@@ -215401,10 +215409,11 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK = [3]string{
-	0: "preview_code",
-	1: "resend_after",
-	2: "sent_to",
+var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK = [4]string{
+	0: "code",
+	1: "preview_code",
+	2: "resend_after",
+	3: "sent_to",
 }
 
 // Decode decodes ResponsePostResponseMeIdentitiesChannelCodeOK from json.
@@ -215416,6 +215425,16 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "code":
+			if err := func() error {
+				s.Code.Reset()
+				if err := s.Code.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
 		case "preview_code":
 			if err := func() error {
 				s.PreviewCode.Reset()
@@ -215427,7 +215446,7 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"preview_code\"")
 			}
 		case "resend_after":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.ResendAfter = int(v)
@@ -215439,7 +215458,7 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"resend_after\"")
 			}
 		case "sent_to":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.SentTo = string(v)
@@ -215460,7 +215479,7 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000110,
+		0b00001100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -215720,6 +215739,8 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Decode(d *jx.De
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable
 	default:

@@ -47,6 +47,9 @@ type Identity struct {
 type CodeSent struct {
 	SentTo      string `json:"sent_to"`
 	ResendAfter int    `json:"resend_after"`
+	// Code is set only for a channel where the person proves the ID by sending the code from it (sendLink): shown to the signed-in
+	// person alone, it proves nothing until it arrives from the listed ID.
+	Code string `json:"code,omitempty"`
 }
 
 const (
@@ -59,10 +62,14 @@ const (
 var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zalo-personal": "Zalo"}
 
 // privateAnswer lists the chat channels whose listener in notify answers a press so that only the person who pressed sees it (Telegram:
-// answerCallbackQuery with show_alert; Zalo personal: a direct message to the user ID that sent the reply code, and to nobody who is not a
-// listed approver, notify slice 4b, D-243). Only these get a link code in the answer: a code shown in a shared conversation would let the
-// listed person link a stranger's mistyped ID (L7 again). A Slack listener is added here once notify guarantees the same (ephemeral).
-var privateAnswer = []string{"telegram", "zalo-personal"}
+// answerCallbackQuery with show_alert). Only these get a link code in the answer: a code shown in a shared conversation would let the listed
+// person link a stranger's mistyped ID (L7 again). A Slack listener is added here once notify guarantees the same (ephemeral).
+var privateAnswer = []string{"telegram"}
+
+// sendLink lists the chat channels linked the other way round (D-243): My account shows the person a code and they send it from their own
+// account; notify's listener hands it over with the sender's ID (LinkFromChat). Zalo personal: an answer from the box would stay in the
+// history of the box's account, which whoever holds that account can read, so the code must come FROM the ID, never go to it.
+var sendLink = []string{"zalo-personal"}
 
 // linkable says whether a person can prove an address on the channel at all: email by a mailed code, a chat channel by a press. The Zalo OA
 // channel has neither (its approvals are links, which notify makes for email only, D-124 (2)), so it is not listed.
@@ -220,6 +227,8 @@ func (s *Service) mine(ctx context.Context, u User) ([]Identity, error) {
 				row.Method = "email_code"
 			case slices.Contains(privateAnswer, t):
 				row.Method = "chat_code"
+			case slices.Contains(sendLink, t):
+				row.Method = "send_code"
 			}
 			if linked {
 				var at string
@@ -273,6 +282,10 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 		return CodeSent{}, fail(http.StatusNotFound, "not_listed", "You are not on the approver list of this channel.")
 	case rows[i].Method == "unavailable":
 		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "This channel cannot be linked yet. Approve in Vedette.")
+	case rows[i].Method == "send_code" && rows[i].Linked:
+		return CodeSent{}, fail(http.StatusConflict, "already_linked", "This address is already linked.")
+	case rows[i].Method == "send_code":
+		return s.showLinkCode(ctx, u, channel, rows[i].Address)
 	case rows[i].Method != "email_code":
 		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "Press Approve or Reject on the next approval message in this channel; Vedette answers you privately with a code.")
 	case rows[i].Linked:
@@ -312,12 +325,48 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 }
 
 // ConfirmLink is POST /response/me/identities/{channel}/confirm (operator): the code proves the address it was made for, if that address is
-// still the person's on the channel's list.
+// still the person's on the channel's list. A sendLink channel is confirmed only by the code arriving from the ID (LinkFromChat).
 func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code string) (Identity, error) {
 	u, err := s.person(ctx, who)
 	if err != nil {
 		return Identity{}, err
 	}
+	if slices.Contains(sendLink, channel) {
+		return Identity{}, fail(http.StatusBadRequest, "chat_channel", "Send the code from your own "+chatNames[channel]+" account to the Vedette account; it cannot be typed here.")
+	}
+	return s.confirmCode(ctx, u, channel, "", code)
+}
+
+// LinkFromChat takes a link code that arrived in a sendLink channel (notify calls it through Config.Decisions.LinkChat, D-243): the sender
+// must be the one person listed with that ID on the channel (the gates of DecideFromChat), and the code the one My account showed that
+// person for that ID. The answer goes privately to the sender.
+func (s *Service) LinkFromChat(ctx context.Context, d ChatDecision) (ChatOutcome, error) {
+	if !s.on() {
+		return ChatOutcome{}, fail(http.StatusForbidden, "channel_not_allowed", "Response is turned off.")
+	}
+	if !slices.Contains(sendLink, d.Channel) {
+		return ChatOutcome{}, fail(http.StatusBadRequest, "chat_channel", "This channel is not linked by sending a code.")
+	}
+	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return ChatOutcome{}, err
+	}
+	u, gate, err := s.chatGate(ctx, st, d.Channel, d.ExternalID)
+	if err != nil {
+		return ChatOutcome{}, err
+	}
+	if gate != nil {
+		return ChatOutcome{}, gate
+	}
+	if _, err := s.confirmCode(ctx, u, d.Channel, d.ExternalID, d.Code); err != nil {
+		return ChatOutcome{}, err
+	}
+	return ChatOutcome{Status: "linked", Message: "Linked. Your " + chatNames[d.Channel] + " account now counts as you in Vedette: reply to approval messages with your codes."}, nil
+}
+
+// confirmCode checks the person's waiting code for the channel and links the address it was made for. from, when set, is the ID the code
+// arrived from (sendLink): it must be that address.
+func (s *Service) confirmCode(ctx context.Context, u User, channel, from, code string) (Identity, error) {
 	rows, err := s.mine(ctx, u)
 	if err != nil {
 		return Identity{}, err
@@ -343,6 +392,10 @@ func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code stri
 		if !slices.ContainsFunc(rows, func(r Identity) bool { return r.Channel == channel && sameAddress(channel, r.Address, addr) }) {
 			refused = noCode // the list changed after the code was made: it proves an address that is not the person's any more
 			return drop()
+		}
+		if from != "" && !sameAddress(channel, from, addr) {
+			refused = noCode // made for another ID of this person: it proves nothing about this one
+			return nil
 		}
 		if at, perr := time.Parse(time.RFC3339Nano, expires); perr != nil || !at.After(s.now()) {
 			refused = fail(http.StatusBadRequest, "code_expired", "This code has expired. Ask for a new code.")
@@ -390,6 +443,33 @@ func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code stri
 	return Identity{}, noCode
 }
 
+// showLinkCode makes a code for a sendLink channel and returns it to the signed-in person, who sends it from their own account (the same
+// limits as a mailed code: one a minute, five an hour).
+func (s *Service) showLinkCode(ctx context.Context, u User, channel, addr string) (CodeSent, error) {
+	var sent string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sent_at FROM resp_link_codes WHERE user_id = ? AND channel = ?`, u.ID, channel).Scan(&sent)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return CodeSent{}, fmt.Errorf("response: read link code: %w", err)
+	}
+	if at, perr := time.Parse(time.RFC3339Nano, sent); err == nil && perr == nil {
+		if wait := linkCodeResend - s.now().Sub(at); wait > 0 {
+			secs := int((wait + time.Second - 1) / time.Second)
+			return CodeSent{}, fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before asking for a new code.", secs)).With("retry_after", secs)
+		}
+	}
+	if !s.noteLinkCode(u.ID, channel) {
+		return CodeSent{}, fail(http.StatusTooManyRequests, "too_many_codes", "Too many codes were made in the last hour. Try again later.")
+	}
+	code, err := newLinkCode()
+	if err != nil {
+		return CodeSent{}, err
+	}
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.putCode(ctx, tx, u.ID, channel, addr, code) }); err != nil {
+		return CodeSent{}, err
+	}
+	return CodeSent{SentTo: addr, ResendAfter: int(linkCodeResend / time.Second), Code: code}, nil
+}
+
 // Unlink is DELETE /response/me/identities/{channel} (operator).
 func (s *Service) Unlink(ctx context.Context, who Actor, channel string) error {
 	u, err := s.person(ctx, who)
@@ -431,6 +511,10 @@ func errChatNotLinked(channel string) *apierr.Error {
 // person who pressed (notify POST-8), holds a new link code. The log line never holds the code.
 func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, target, actor string) error {
 	name := chatNames[channel]
+	if slices.Contains(sendLink, channel) {
+		_ = s.refuse(ctx, fail(http.StatusForbidden, "approver_not_linked", name+" "+ext+" is not linked to a Vedette account yet"), target, actor)
+		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and get a code to send from this account.")
+	}
 	if !slices.Contains(privateAnswer, channel) {
 		_ = s.refuse(ctx, fail(http.StatusForbidden, "approver_not_linked", name+" "+ext+" is not linked to a Vedette account yet; no code is shown on this channel"), target, actor)
 		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Approve in Vedette for now.")
@@ -451,9 +535,5 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 	if !made {
 		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.")
 	}
-	again := "press again"
-	if channel == "zalo-personal" {
-		again = "send your reply code again"
-	}
-	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then "+again+".")
+	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then press again.")
 }

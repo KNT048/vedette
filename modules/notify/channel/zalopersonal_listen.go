@@ -55,7 +55,7 @@ var ErrZaloReplaced = errors.New("notify: zalo-personal: another Zalo client of 
 // display name the sender chose (untrusted, cleaned, at most 64 characters), Text the content (at most zaloMaxText bytes, uncleaned:
 // only a reply code is ever acted on).
 type ZaloText struct {
-	From, Name, Text string
+	ID, From, Name, Text string // ID: the message id (digits) or "" when the event named none
 }
 
 // ZaloConn is one open message connection.
@@ -89,14 +89,14 @@ func ZaloListen(ctx context.Context, snd Sender) (*ZaloConn, error) {
 			return nil, ctx.Err()
 		case errors.Is(err, context.DeadlineExceeded):
 			return nil, &ProviderError{Channel: ZaloPersonal, Reason: "timed out connecting to Zalo"}
-		case resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden):
-			z.refused() // the session is refused: the next sign-in waits, like a refused send
+		case resp != nil && resp.StatusCode >= 400:
+			// Not taken as a refused session: the handshake is unverified, and only a send or a sign-in may clear the shared session or
+			// pause the channel's sign-ins (its alerts must not stall on the listener). The listener waits on its own (zaloRetry).
 			return nil, &StatusError{Channel: ZaloPersonal, Code: resp.StatusCode}
 		}
 		return nil, &ProviderError{Channel: ZaloPersonal, Reason: "could not connect to Zalo"} // never the text of err: it holds the address
 	}
 	c.SetReadLimit(zaloMaxFrame)
-	z.connected()
 	return &ZaloConn{c: c, self: t.self, ping: t.ping}, nil
 }
 
@@ -108,8 +108,9 @@ type zaloSocket struct {
 	ping   time.Duration
 }
 
-// socketTarget signs in when the sender has no fresh session (honouring the sign-in pause) and returns the address and headers of
-// the message connection: the cookies of chat.zalo.me, the saved user agent, Origin chat.zalo.me, as the web client sends them.
+// socketTarget signs in when the sender has no fresh session (honouring the sign-in pause, and arming it on a failure, as a send
+// does) and returns the address and headers of the message connection: the cookies that belong to its host, the saved user agent,
+// Origin chat.zalo.me.
 func (z *zaloPersonalSender) socketTarget(ctx context.Context) (zaloSocket, error) {
 	select {
 	case z.sem <- struct{}{}:
@@ -135,7 +136,8 @@ func (z *zaloPersonalSender) socketTarget(ctx context.Context) (zaloSocket, erro
 	h.Set("User-Agent", z.sess.userAgent)
 	h.Set("Accept-Language", "en-US,en;q=0.9")
 	h.Set("Cache-Control", "no-cache")
-	if c := z.cookieHeader("chat.zalo.me"); c != "" {
+	host := strings.TrimPrefix(z.li.ws[0], "wss://")                       // zaloSocketBase built it as wss://<host>/<path>
+	if c := z.cookieHeader(host[:strings.IndexByte(host, '/')]); c != "" { // as a browser would: the cookies of that host
 		h.Set("Cookie", c)
 	}
 	ping := z.li.ping
@@ -143,22 +145,6 @@ func (z *zaloPersonalSender) socketTarget(ctx context.Context) (zaloSocket, erro
 		ping = zaloPingDefault
 	}
 	return zaloSocket{url: u, header: h, self: z.li.self, ping: ping}, nil
-}
-
-// connected clears the failure count once Zalo took the session for the message connection (a sign-in alone does not: a session
-// Zalo then refuses would sign in again every minute).
-func (z *zaloPersonalSender) connected() {
-	z.sem <- struct{}{}
-	defer func() { <-z.sem }()
-	z.failures = 0
-}
-
-// refused forgets the session after Zalo refused it and arms the sign-in pause.
-func (z *zaloPersonalSender) refused() {
-	z.sem <- struct{}{}
-	defer func() { <-z.sem }()
-	z.li = nil
-	z.fail()
 }
 
 // Close ends the connection.
@@ -456,7 +442,11 @@ func parseZaloUserMessages(body, key []byte, self string) ([]ZaloText, error) {
 		}
 		var name string
 		_ = json.Unmarshal(m["dName"], &name) // absent or not a string: no name
-		out = append(out, ZaloText{From: from, Name: Line(name, 64), Text: text})
+		id := strings.Trim(string(m["msgId"]), `"`)
+		if !zaloUIDRE.MatchString(id) {
+			id = ""
+		}
+		out = append(out, ZaloText{ID: id, From: from, Name: Line(name, 64), Text: text})
 	}
 	return out, nil
 }

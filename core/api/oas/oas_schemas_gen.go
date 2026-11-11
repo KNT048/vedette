@@ -97927,8 +97927,9 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
-	// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 }
 
@@ -98003,13 +98004,15 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
-// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
+	ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "send_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
 )
 
@@ -98018,6 +98021,7 @@ func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGe
 	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
+		ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
 	}
 }
@@ -98028,6 +98032,8 @@ func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte,
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
+		return []byte(s), nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		return []byte(s), nil
@@ -98044,6 +98050,9 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
+		return nil
+	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
+		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable
@@ -115237,11 +115246,19 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 }
 
 type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
+	// Send_code channels only: the code to send from your own chat account to the box account (sent_to is
+	// that account ID); it proves nothing until it arrives from there.
+	Code OptString `json:"code"`
 	// Preview build only; never sent by a real box.
 	PreviewCode OptString `json:"preview_code"`
 	ResendAfter int       `json:"resend_after"`
 	// The address, masked.
 	SentTo string `json:"sent_to"`
+}
+
+// GetCode returns the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetCode() OptString {
+	return s.Code
 }
 
 // GetPreviewCode returns the value of PreviewCode.
@@ -115257,6 +115274,11 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetResendAfter() int {
 // GetSentTo returns the value of SentTo.
 func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetSentTo() string {
 	return s.SentTo
+}
+
+// SetCode sets the value of Code.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetCode(val OptString) {
+	s.Code = val
 }
 
 // SetPreviewCode sets the value of PreviewCode.
@@ -115285,8 +115307,9 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
-	// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 }
 
@@ -115361,13 +115384,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 }
 
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message (Zalo personal: reply with one of your codes) and Vedette answers you privately with a code.
-// unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
+// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
+// cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
+	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "send_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
 )
 
@@ -115376,6 +115401,7 @@ func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []Resp
 	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
+		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
 	}
 }
@@ -115386,6 +115412,8 @@ func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
+		return []byte(s), nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		return []byte(s), nil
@@ -115402,6 +115430,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(d
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
+		return nil
+	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
+		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable

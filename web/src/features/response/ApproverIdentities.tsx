@@ -20,7 +20,9 @@ const enc = encodeURIComponent
 
 function useIdentities() {
   const qc = useQueryClient()
-  const q = useQuery({ queryKey: ['response', 'me', 'identities'], queryFn: () => api.get<IdentityList>('/response/me/identities') })
+  // A code to send from a chat account (send_code) arrives at the box, not here: look again every 5 s while one is waiting.
+  const q = useQuery({ queryKey: ['response', 'me', 'identities'], queryFn: () => api.get<IdentityList>('/response/me/identities'),
+    refetchInterval: (s) => s.state.data?.items.some((r) => r.method === 'send_code' && !r.linked && r.code_waiting) ? 5000 : false })
   const done = { onSettled: () => { void qc.invalidateQueries({ queryKey: ['response'] }) } }
   const send = useMutation({ mutationFn: (ch: string) => api.post<CodeSent>(`/response/me/identities/${enc(ch)}/code`), ...done })
   const confirm = useMutation({ mutationFn: (v: { ch: string; code: string }) => api.post<Identity>(`/response/me/identities/${enc(v.ch)}/confirm`, { code: v.code }), ...done })
@@ -49,6 +51,24 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     try { await m.unlink.mutateAsync(r.channel); toast.success(t('identity.unlinkedToast', { channel: r.label })) } catch (e) { toast.error(errText(e)) }
   }
   const askCode = r.method === 'chat_code' || sent || r.code_waiting
+  if (r.method === 'send_code' && !r.linked) {
+    return (
+      <li className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <Chip tone="warn">{t('identity.notLinked')}</Chip>
+        </div>
+        <p className="text-[13px]">{t('identity.howSend', { channel: r.label })}</p>
+        {sent?.code
+          ? <div role="status" className="grid gap-1"><p className="font-mono text-2xl tracking-widest">{sent.code}</p><p className="text-[13px] text-muted">{t('identity.sendWaiting', { channel: r.label, address: r.address })}</p></div>
+          : r.code_waiting ? <p className="text-[13px] text-muted">{t('identity.sendLost')}</p> : null}
+        {err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button variant={sent ? undefined : 'primary'} disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void send()}>{cooldown.left > 0 ? t('identity.resendIn', { s: cooldown.left }) : sent || r.code_waiting ? t('identity.newCode') : t('identity.getCode')}</Button>
+        </div>
+      </li>
+    )
+  }
   if (r.method === 'unavailable' && !r.linked) {
     return (
       <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
@@ -73,7 +93,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
         </div>
       ) : (
         <form onSubmit={(e) => void confirm(e)} className="grid gap-3" noValidate>
-          <p className="text-[13px]">{r.method === 'email_code' ? t('identity.howEmail') : r.channel === 'zalo-personal' ? t('identity.howZalo', { channel: r.label }) : t('identity.howChat', { channel: r.label })}</p>
+          <p className="text-[13px]">{r.method === 'email_code' ? t('identity.howEmail') : t('identity.howChat', { channel: r.label })}</p>
           {sent ? <><p className="text-[13px]" role="status">{t('identity.sent', { to: sent.sent_to })}</p><PreviewCode code={sent.preview_code} /></> : null}
           {askCode ? (
             <Field label={t('identity.code')} htmlFor={`${id}-code`} error={err ?? undefined}>

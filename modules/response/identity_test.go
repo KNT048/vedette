@@ -379,32 +379,64 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 	}
 }
 
-// Zalo personal answers a reply code in a direct message to the sender only (notify slice 4b, D-243): an unlinked approver's code
-// decides nothing, is not burned, and the answer holds a link code; My account offers to link the ID.
-func TestContract_D191_ZaloPersonalAnswersALinkCodePrivately(t *testing.T) {
+// Zalo personal is linked the other way round (D-243): My account shows the code, and it counts only when it arrives from the listed ID.
+// Typing it in the app does nothing, the same code from another ID does nothing, and an unlinked reply code gets no code in its answer
+// (the answer would sit in the box account's history).
+func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
 	c := unlinkedChat(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
 	_, err := c.typed(zlOp, "A-7KQ2MX", true)
-	code := linkCodeOf(t, err)
-	if code == "" || !strings.Contains(err.Error(), "send your reply code again") {
-		t.Fatalf("answer = %v", err)
-	}
-	if got := c.only(); len(got.Approvals) != 0 {
-		t.Fatal("an unlinked reply code counted")
-	}
-	if c.count(`SELECT COUNT(*) FROM resp_tokens WHERE kind = 'code' AND used_at IS NOT NULL`) != 0 {
-		t.Fatal("the reply code was burned")
+	if code := linkCodeOf(t, err); code != "" || !strings.Contains(err.Error(), "get a code to send from this account") {
+		t.Fatalf("unlinked reply = %v", err)
 	}
 	ids, err := c.svc.MyIdentities(c.ctx(), op)
 	c.must(err)
-	found := false
-	for _, r := range ids {
-		if r.Channel == "zalo-personal" {
-			found = r.Method == "chat_code" && r.CodeWaiting
-		}
-	}
-	if !found {
+	if r := zaloRow(ids); r == nil || r.Method != "send_code" || r.Linked {
 		t.Fatalf("identities = %+v", ids)
 	}
+	sent, err := c.svc.SendLinkCode(c.ctx(), op, "zalo-personal")
+	c.must(err)
+	if len(sent.Code) != 6 || sent.SentTo != zlOp {
+		t.Fatalf("code shown = %+v", sent)
+	}
+	if _, err := c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", sent.Code); err == nil {
+		t.Fatal("a Zalo code typed in the app linked the ID")
+	}
+	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: "9999999999", Code: sent.Code}); err == nil {
+		t.Fatal("the code from an ID that is not listed linked")
+	}
+	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "telegram", ExternalID: tgOp, Code: sent.Code}); err == nil {
+		t.Fatal("a send-code link on another channel")
+	}
+	out, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code})
+	c.must(err)
+	if out.Status != "linked" {
+		t.Fatalf("link = %+v", out)
+	}
+	ids, err = c.svc.MyIdentities(c.ctx(), op)
+	c.must(err)
+	if r := zaloRow(ids); r == nil || !r.Linked {
+		t.Fatalf("after linking = %+v", ids)
+	}
+	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'zalo-personal'`) != 1 {
+		t.Fatal("the link is not audited")
+	}
+	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code}); err == nil {
+		t.Fatal("a link code worked twice")
+	}
+	got, err := c.typed(zlOp, "A-7KQ2MX", true) // the reply code was not burned by the refusal
+	c.must(err)
+	if got.Status != "approved" || got.RequestID != a.ID {
+		t.Fatalf("reply after linking = %+v", got)
+	}
+}
+
+func zaloRow(ids []response.Identity) *response.Identity {
+	for i := range ids {
+		if ids[i].Channel == "zalo-personal" {
+			return &ids[i]
+		}
+	}
+	return nil
 }

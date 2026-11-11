@@ -85,6 +85,10 @@ type Service struct {
 	zaloListen func(context.Context, channel.Sender) (zaloInbox, error)
 	zaloRetry  zaloRetry // the wait of the Zalo listener between connections (zalolisten.go)
 	zaloNotes  zaloNotes // rations the audit rows for Zalo messages from non-approvers
+	// zaloAnswerBudget rations the private answers of the Zalo listener per approver; zaloSeen remembers the last message ids it took
+	// (only the listener's read loop uses it, and the job runs once at a time).
+	zaloAnswerBudget zaloBudget
+	zaloSeen         seenEnvelopes
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool

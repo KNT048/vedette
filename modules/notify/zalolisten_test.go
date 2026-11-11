@@ -3,6 +3,7 @@ package notify_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -204,5 +205,48 @@ func TestReplyCodeNormalisation(t *testing.T) {
 		if code != want || ok != (want != "") || (ok && approve != (want[0] == 'A')) {
 			t.Errorf("norm(%q) = %q %v %v", in, code, approve, ok)
 		}
+	}
+}
+
+// Six digits from a listed approver are a link code from My account (D-243): handed to LinkChat with the sender's ID and answered
+// privately; from a stranger they are only noted. A message Zalo delivers twice is taken once.
+func TestContract_PRE8_ZaloLinkCodeFromAnApprover(t *testing.T) {
+	l := newZaloListenEnv(t, notify.DecisionResult{}, nil)
+	l.dec.link = notify.DecisionResult{Status: "linked", Message: "Linked. Your Zalo account now counts as you in Vedette."}
+	l.inbox.texts = []channel.ZaloText{
+		{ID: "11", From: zaloOp, Text: " 123456 "},
+		{ID: "11", From: zaloOp, Text: " 123456 "},
+		{ID: "12", From: zaloStranger, Text: "654321"},
+	}
+	_ = l.svc.ListenZaloForTest(l.ctx())
+	l.dec.mu.Lock()
+	links := append([]notify.Decision(nil), l.dec.links...)
+	l.dec.mu.Unlock()
+	if len(links) != 1 || links[0] != (notify.Decision{Channel: channel.ZaloPersonal, ExternalID: zaloOp, Code: "123456"}) {
+		t.Fatalf("links = %+v", links)
+	}
+	if len(l.z.sent) != 1 || l.z.sent[0].to != zaloOp || l.z.sent[0].msg.Title != "Linked. Your Zalo account now counts as you in Vedette." {
+		t.Fatalf("answers = %+v", l.z.sent)
+	}
+	if len(l.dec.got()) != 0 || l.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_message' AND target = ?`, zaloStranger) != 1 {
+		t.Fatal("a stranger's digits were not just noted")
+	}
+}
+
+// Each answer is a real message from the box's account: an approver gets at most 5 in 10 minutes, and "rate_limited" none.
+func TestZaloAnswersAreRationedPerApprover(t *testing.T) {
+	l := newZaloListenEnv(t, notify.DecisionResult{Status: "invalid_code", Message: "That code is not valid."}, nil)
+	for i := range 8 {
+		l.inbox.texts = append(l.inbox.texts, channel.ZaloText{ID: fmt.Sprint(100 + i), From: zaloAdmin, Text: "A-AAAAAA"})
+	}
+	_ = l.svc.ListenZaloForTest(l.ctx())
+	if len(l.dec.got()) != 8 || len(l.z.sent) != 5 {
+		t.Fatalf("decisions %d, answers %d", len(l.dec.got()), len(l.z.sent))
+	}
+	r := newZaloListenEnv(t, notify.DecisionResult{Status: "rate_limited", Message: "Too many attempts."}, nil)
+	r.inbox.texts = []channel.ZaloText{{From: zaloAdmin, Text: "A-AAAAAA"}}
+	_ = r.svc.ListenZaloForTest(r.ctx())
+	if len(r.z.sent) != 0 {
+		t.Fatalf("rate_limited was answered: %+v", r.z.sent)
 	}
 }

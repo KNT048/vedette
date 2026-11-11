@@ -1,6 +1,6 @@
 // Approver identities (S-RESP-2, D-191), mock side. An administrator types each approver's address or ID on a notify channel;
-// it counts for buttons and links only after that person proved it: a code mailed to the address (email), or a code Vedette
-// answers privately to a button press from that ID (chat). The code is entered in My account by the signed-in person.
+// it counts for buttons and links only after that person proved it: a code mailed to the address (email), a code Vedette
+// answers privately to a button press from that ID (chat), or a code My account shows that the person sends from that ID (Zalo personal). The code is entered in My account by the signed-in person.
 // Rules (same as the real box): 6 digits, 10 minutes, single use, 5 wrong codes cancel it, a new code replaces the old one;
 // email: a new code after 60 seconds and 5 an hour per person; chat: 5 codes an hour per person and channel.
 import { http, HttpResponse } from 'msw'
@@ -16,7 +16,8 @@ const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
 /** Chat channels whose answer only the presser sees (Telegram show_alert); only these get a code in the answer. */
-const PRIVATE_ANSWER = ['telegram', 'zalo-personal'] // Zalo personal: a direct message to the user ID that replied (notify slice 4b, D-243)
+const PRIVATE_ANSWER = ['telegram']
+const SEND_LINK = ['zalo-personal'] // the code is shown in My account and must arrive FROM the ID (notify slice 4b, D-243)
 
 interface Pending { address: string; code: string; expires: number; tries: number; sent_at: number }
 interface Codes { pending: Record<string, Pending>; sends: Record<string, number[]> }
@@ -46,7 +47,7 @@ function mine(userId: string): Identity[] {
       const row = identityStore.get().find((x) => x.user_id === userId && x.channel === type && x.address === a.address)
       const linked = isLinked(userId, type, a.address)
       const p = waiting[key(userId, type)]
-      return { channel: type, label: chanLabel(ch), address: a.address, linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : PRIVATE_ANSWER.includes(type) ? 'chat_code' as const : 'unavailable' as const,
+      return { channel: type, label: chanLabel(ch), address: a.address, linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : PRIVATE_ANSWER.includes(type) ? 'chat_code' as const : SEND_LINK.includes(type) ? 'send_code' as const : 'unavailable' as const,
         code_waiting: !linked && !!p && sameAddress(type, p.address, a.address) && Date.now() < p.expires }
     })
   })
@@ -58,6 +59,10 @@ function mine(userId: string): Identity[] {
  */
 export function chatNotLinked(userId: string, channel: string, address: string, target: string) {
   const name = CHAT_NAME[channel] ?? channel
+  if (SEND_LINK.includes(channel)) {
+    step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet`)
+    return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and get a code to send from this account.`)
+  }
   if (!PRIVATE_ANSWER.includes(channel)) {
     step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet; no code is shown on this channel`)
     return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Approve in Vedette for now.`)
@@ -65,8 +70,32 @@ export function chatNotLinked(userId: string, channel: string, address: string, 
   const p = newCode(userId, channel, address)
   step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet${p ? '; a link code was shown to the person who pressed' : '; too many link codes this hour'}`)
   return fail(403, 'approver_not_linked', p
-    ? `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code ${p.code} within 10 minutes, then ${channel === 'zalo-personal' ? 'send your reply code again' : 'press again'}.`
+    ? `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code ${p.code} within 10 minutes, then press again.`
     : `Your ${name} account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.`)
+}
+
+/**
+ * A link code that arrived from a chat ID on a send_code channel (the box's listener hands it over, D-243). The sender must be the one person
+ * listed with that ID, and the code the one My account showed them for it. Mock-only entry point for tests and the dev console.
+ */
+export function linkFromChat(channel: string, from: string, code: string): { status: string; message: string } {
+  if (!SEND_LINK.includes(channel)) return { status: 'chat_channel', message: 'This channel is not linked by sending a code.' }
+  const ch = rawChans().find((c) => c.type === channel && c.configured && c.enabled && c.approvals === true)
+  const hits = ch ? approversOf(ch).filter((a) => a.address === from) : []
+  if (hits.length !== 1) return { status: 'approver_not_listed', message: 'You are not on the approver list of this channel.' }
+  const userId = hits[0]!.user_id, k = key(userId, channel), p = codesStore.get().pending[k]
+  if (!p || !sameAddress(channel, p.address, from)) return { status: 'no_code', message: 'No code is waiting for this channel. Ask for a new code.' }
+  if (Date.now() > p.expires) { dropCode(k); return { status: 'code_expired', message: 'This code has expired. Ask for a new code.' } }
+  if (code.trim() !== p.code) {
+    const tries = p.tries + 1
+    if (tries >= MAX_TRIES) { dropCode(k); return { status: 'too_many_tries', message: 'Too many wrong codes. Ask for a new code.' } }
+    codesStore.update((c) => ({ ...c, pending: { ...c.pending, [k]: { ...p, tries } } }))
+    return { status: 'wrong_code', message: `Wrong code. ${MAX_TRIES - tries} tries left.` }
+  }
+  dropCode(k)
+  identityStore.update((l) => [...l.filter((x) => !(x.user_id === userId && x.channel === channel)), { user_id: userId, channel, address: p.address, linked_at: nowIso() }])
+  audit('response.identity_link', channel, `${userId} linked ${p.address}`)
+  return { status: 'linked', message: `Linked. Your ${CHAT_NAME[channel]} account now counts as you in Vedette: reply to approval messages with your codes.` }
 }
 
 export const identityHandlers = [
@@ -80,6 +109,17 @@ export const identityHandlers = [
     const u = currentUser()!, channel = String(params.channel)
     const row = mine(u.id).find((r) => r.channel === channel)
     if (!row) return fail(404, 'not_listed', 'You are not on the approver list of this channel.')
+    if (row.method === 'send_code') {
+      if (row.linked) return fail(409, 'already_linked', 'This address is already linked.')
+      const old = codesStore.get().pending[key(u.id, channel)]
+      if (old && Date.now() - old.sent_at < RESEND_S * 1000) {
+        const wait = Math.ceil((RESEND_S * 1000 - (Date.now() - old.sent_at)) / 1000)
+        return HttpResponse.json({ error: { code: 'resend_too_soon', message: `Wait ${wait} seconds before asking for a new code.`, retry_after: wait } }, { status: 429 })
+      }
+      const p = newCode(u.id, channel, row.address)
+      if (!p) return fail(429, 'too_many_codes', 'Too many codes were made in the last hour. Try again later.')
+      return HttpResponse.json({ sent_to: row.address, resend_after: RESEND_S, code: p.code })
+    }
     if (row.method !== 'email_code') return fail(400, 'chat_channel', 'Press Approve or Reject on the next approval message in this channel; Vedette answers you privately with a code.')
     if (row.linked) return fail(409, 'already_linked', 'This address is already linked.')
     if (row.address.toLowerCase() !== u.email.toLowerCase()) return fail(409, 'address_mismatch', 'The address on the email approval list is not your sign-in email. Ask an administrator to correct the list.')
@@ -99,6 +139,7 @@ export const identityHandlers = [
     const denied = guard('operator'); if (denied) return denied
     const u = currentUser()!, channel = String(params.channel), k = key(u.id, channel)
     const b = await body<{ code: string }>(request)
+    if (SEND_LINK.includes(channel)) return fail(400, 'chat_channel', `Send the code from your own ${CHAT_NAME[channel]} account to the Vedette account; it cannot be typed here.`)
     const p = codesStore.get().pending[k]
     // The code must be for an address that is still on the list for me now: a list changed after the code was made does not link.
     const row = p ? mine(u.id).find((r) => r.channel === channel && sameAddress(channel, r.address, p.address)) : undefined

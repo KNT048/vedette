@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # merge-step.sh <pr> <worktree> [<pr> <worktree> ...]: for each PR in order, wait for its CI, then hand it to GitHub's
-# merge queue (D-245) and wait until GitHub merges it or drops it from the queue. Stops at the first PR that does not merge.
+# merge queue (D-245) and wait until GitHub merges it or drops it from the queue. The worktree HEAD is pushed to the PR branch first. Stops at the first PR that does not merge.
 # The queue tests the PR merged onto main (and the PRs ahead of it), so nobody chases main here any more: main is merged
 # into the branch only when GitHub reports a conflict. Exit 0 = all merged, 1 = one did not, 3 = already running for a PR.
 set -u
@@ -27,8 +27,10 @@ step() {
     lost=$(comm -23 <(git -C "$w" show origin/main:docs/DECISIONS.md | grep -o '^| D-[0-9]*' | sort -u) \
                     <(grep -o '^| D-[0-9]*' "$w/docs/DECISIONS.md" | sort -u) | tr '\n' ' ')
     if [ -n "$lost" ]; then echo "#$n DECISIONS.md would drop rows that main has: $lost— stop"; return 1; fi
-    git -C "$w" push -q 2>/dev/null
   fi
+  # Push to the PR's own branch by name: a worktree's local branch often has another name and no upstream.
+  b=$(gh pr view "$n" -R $R --json headRefName -q .headRefName)
+  [ -n "$b" ] && git -C "$w" push -q origin "HEAD:refs/heads/$b" 2>/dev/null
   h=$(git -C "$w" rev-parse HEAD)
   for _ in $(seq 1 40); do
     c=$(gh pr view "$n" -R $R --json headRefOid -q .headRefOid)

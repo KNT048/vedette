@@ -359,9 +359,11 @@ func subscribe(d deps) {
 
 // rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips
 // of a template pull (hundreds at once). Each is announced (inventory.match.changed) to the devices that run its current product and do
-// not already have a finding for it, so a CVE whose vendor or product changed reaches its new devices, and a change that moved no key
-// announces nothing. A finding on a device of the old product stays: findings' matcher only adds (its INV-6), and a person or a scan
-// closes a finding. With findings off nothing is left out (its own subscription is off too).
+// not already have a finding for it, at most once per device per event, so a CVE whose vendor or product changed reaches its new devices.
+// A change that moved no key announces nothing to a device that has the finding; a device whose software matches the CVE and has no
+// finding for it (a "Multiple Products" entry of its vendor that findings did not turn into a finding, or a missed baseline) is
+// announced once per event, and findings then matches the whole device. A finding on a device of the old product stays: findings'
+// matcher only adds (its INV-6), and a person or a scan closes a finding. With findings off nothing is left out (its own subscription is off too).
 func rematchUpdated(d deps) func(ctx context.Context, data any) error {
 	return func(ctx context.Context, data any) error {
 		ev, ok := data.(feeds.VulnUpdatedEvent)
@@ -392,14 +394,20 @@ func rematchUpdated(d deps) func(ctx context.Context, data any) error {
 	}
 }
 
-// findingKnown says whether the device already has a finding for the CVE, open or closed (findings never re-creates a pair, INV-6); nil
-// when findings is off or absent, so nothing is left out. Make one per event: it remembers what it read.
+// findingKnown says whether the device needs no announcement for the CVE: it already has a finding for it, open or closed (findings
+// never re-creates a pair, INV-6), or it was already announced in this event (findings' OnMatchChanged matches the whole device against
+// every CVE, so one announcement per device per event is enough). nil when findings is off or absent, so nothing is left out. Make one
+// per event: it remembers what it read and what it let through.
 func findingKnown(d deps) func(ctx context.Context, assetID, cve string) (bool, error) {
 	if d.Findings == nil || (d.Reg != nil && !d.Reg.Enabled("findings")) {
 		return nil
 	}
 	have := map[string]map[string]bool{} // one read per device for the whole event: a flip of hundreds of CVEs reads each device once
+	announced := map[string]bool{}
 	return func(ctx context.Context, assetID, cve string) (bool, error) {
+		if announced[assetID] {
+			return true, nil
+		}
 		cves, ok := have[assetID]
 		if !ok {
 			recs, err := d.Findings.List(ctx, assetID)
@@ -412,7 +420,11 @@ func findingKnown(d deps) func(ctx context.Context, assetID, cve string) (bool, 
 			}
 			have[assetID] = cves
 		}
-		return cves[cve], nil
+		if cves[cve] {
+			return true, nil
+		}
+		announced[assetID] = true
+		return false, nil
 	}
 }
 

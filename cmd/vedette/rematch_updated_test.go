@@ -50,3 +50,36 @@ func TestVulnUpdatedRematchesAChangedProduct(t *testing.T) {
 		t.Fatalf("an update that moved no key announced %d more matches", got-before)
 	}
 }
+
+// D-328 review: a pull that lists many CVEs of one product (a has_template flip) announces each device once, not once per CVE; findings
+// matches the whole device on that one announcement.
+func TestVulnUpdatedAnnouncesEachDeviceOncePerEvent(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	var announced atomic.Int64
+	s.d.Bus.Subscribe(inventory.EventMatchChanged, func(context.Context, events.Event) error { announced.Add(1); return nil })
+	fw := s.addFortiGate()
+	cves := []string{"CVE-2026-8201", "CVE-2026-8202", "CVE-2026-8203"}
+	for _, c := range cves {
+		s.kevAdded(c, "Fortinet", "FortiOS", time.Now().AddDate(0, 0, -30))
+	}
+	publish := func(list ...string) {
+		t.Helper()
+		if err := s.d.Bus.Publish(t.Context(), events.Event{Name: feeds.EventVulnUpdated, Data: feeds.VulnUpdatedEvent{CVEs: list}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	publish(cves[:2]...) // the device has no finding for either yet (its baseline was missed)
+	if got := announced.Load(); got != 1 {
+		t.Fatalf("two CVEs of the device's product announced it %d times, want once", got)
+	}
+	for _, c := range cves { // the one announcement matched the whole device, the third CVE too
+		if n := s.nf(fw, c); n != 1 {
+			t.Fatalf("%s: %d findings, want 1", c, n)
+		}
+	}
+	publish(cves...)
+	if got := announced.Load(); got != 1 {
+		t.Fatalf("a flip of CVEs the device already has announced it again (%d in all)", got)
+	}
+}

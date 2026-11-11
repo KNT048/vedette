@@ -503,7 +503,8 @@ func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (
 }
 
 // RematchCVEExcept is RematchCVE that leaves out the devices known says already match the CVE (D-328: a CVE whose vendor or product
-// changed is announced to the devices of its new product only, so a flag that changed on hundreds of entries announces nothing new).
+// changed is announced to the devices of its new product that have no finding for it, so a flag that changed on hundreds of entries does
+// not announce each device once per entry).
 // known returning an error is that error; nil known leaves nobody out.
 func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product string, known func(ctx context.Context, assetID, cve string) (bool, error)) (int, error) {
 	if s.kev == nil {

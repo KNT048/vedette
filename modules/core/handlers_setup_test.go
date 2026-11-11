@@ -592,3 +592,29 @@ func TestContract_INV15_SetupFailsWhenTheInventoryRefusesTheRanges(t *testing.T)
 	}
 	wantOK(t, c.post("/core/setup", setupBody(code)), 200) // the code was not used up
 }
+
+// Overlapping ranges are refused with the field checks, before the bundle and before anything is written or handed to the inventory;
+// the same range with host bits is one range (D-298).
+func TestContract_INV15_SetupRefusesOverlappingRangesUpFront(t *testing.T) {
+	t.Parallel()
+	f := &fakeScope{}
+	w := newWorldWith(t, func(hc *core.HandlersConfig) { hc.Scope = f })
+	code := w.openSetup()
+	b := setupBody(code)
+	b["lan"], b["bundle"], b["modules"] = []string{"192.168.0.0/16", "192.168.10.0/24"}, "custom", []string{"scan"} // scan alone lacks its dependencies
+	wantStatus(t, w.client().post("/core/setup", b), 400, "overlap_range")
+	f.mu.Lock()
+	called := f.actor != "" || len(f.settled) != 0
+	f.mu.Unlock()
+	if called {
+		t.Fatal("the inventory port was reached for ranges the field checks refuse")
+	}
+	b = setupBody(code)
+	b["lan"] = []string{"192.168.1.0/24", "192.168.1.7/24"}
+	wantOK(t, w.client().post("/core/setup", b), 200)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !slices.Equal(f.lan, []string{"192.168.1.0/24"}) {
+		t.Fatalf("port got %v, want the one range", f.lan)
+	}
+}

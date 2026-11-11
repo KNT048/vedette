@@ -277,7 +277,7 @@ func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInp
 // transaction tx, so that they are the scope of Devices -> Scope and sensors from the first page on (#350): the ranges pass INV-6
 // (an error is an *apierr.Error and the caller's setup fails with it), lan_ranges is replaced, and the scope is confirmed by actor
 // now when confirmed is true and cleared otherwise. The other settings keep their values. No audit row of its own: the caller's
-// core.setup row names the ranges. inventory.settings.changed goes out at Settle, when the caller's transaction committed.
+// core.setup row counts the ranges. inventory.settings.changed goes out at Settle, when the caller's transaction committed.
 func (s *Service) SetupScope(ctx context.Context, tx *sql.Tx, actor string, ranges []string, confirmed bool) error {
 	clean, _, aerr := checkRanges(ranges)
 	if aerr != nil {

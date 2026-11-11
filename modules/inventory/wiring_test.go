@@ -474,3 +474,23 @@ func TestSetupScopeRefusesWhatTheScopePageRefusesAndRollsBackWithTheCaller(t *te
 		t.Errorf("events of a rolled-back change: %v", e.ev.events)
 	}
 }
+
+// Two in-transaction calls of one caller transaction keep both sets of events for Settle (keep merges, it does not overwrite).
+func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
+	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}))
+	var txp *sql.Tx
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		txp = tx
+		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", []string{"192.168.10.0/24"}, true); err != nil {
+			return err
+		}
+		return e.svc.AddManualDevice(e.ctx(), tx, "ann@acme.example", inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"})
+	})
+	e.svc.Settle(e.ctx(), txp, err == nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 || len(e.ev.named(inventory.EventAssetUpdated)) != 1 {
+		t.Fatalf("events: %v", e.ev.events)
+	}
+}

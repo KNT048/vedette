@@ -204,6 +204,8 @@ describe('core: cài đặt ban đầu', () => {
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('overlap_range')
     expect(orgStore.get().setup_complete).toBe(false)
+    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '192.168.18.7/24'], bundle: 'smb', commitment: true }) })
+    expect(same.status).toBe(200) // the same network written twice is not an overlap
   })
 
   it('setup writes the same audit rows as the backend, oldest first: the administrator, the sign-in, the setup', async () => {

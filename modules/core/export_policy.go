@@ -102,6 +102,8 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
+	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at"},
+	"notify_slack_team":      {skipAll: true, skip: "id rev team_id"},
 	"logs_retention":         {export: "id days"},
 	"logs_sources":           {export: "id kind name sender_ip proto port created_at"},
 	"resp_actions":           {export: "seq id source proposal_id rule_id rule_name trigger trigger_summary finding_id cve asset_id asset_name title risk status requested_at expires_at decided_at requires_approvals two_because note pre_approved", json: "approvals sent_to ai items"},

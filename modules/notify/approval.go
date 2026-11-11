@@ -120,6 +120,11 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 					return nil, err
 				}
 			}
+			if ac.Type == channel.Slack && !req.NoChatButtons { // Approve/Reject buttons through the bot; the posted message is kept (slacklisten.go)
+				if bs, btns := s.slackApprovalSender(ctx, c, req); bs != nil {
+					snd, m.Buttons = bs, btns
+				}
+			}
 			plan = append(plan, outgoing{snd: snd, msg: m, buttons: len(m.Buttons) > 0})
 			continue
 		}
@@ -184,6 +189,11 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		for i, r := range recs {
 			if err := insertSend(wctx, tx, r, "approval", req.ID, req.Title, "/response", to[i], base); err != nil { // base: no token is ever stored
 				return err
+			}
+			if withButtons[i] && r.OK && r.Channel == channel.Slack && r.TS != "" && r.ChatID != "" {
+				if err := slackButtonShown(wctx, tx, req.ID, r.ChatID, r.TS, req.Expires); err != nil {
+					return err
+				}
 			}
 			if withButtons[i] && r.OK && r.MessageID > 0 && r.ChatID != "" { // the chat Telegram named, never the configured text (#198 M1)
 				if err := buttonsShown(wctx, tx, req.ID, r.ChatID, r.MessageID); err != nil {

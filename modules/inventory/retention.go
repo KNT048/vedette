@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 // Retention of observed data (DATA_MODEL inv_service, inv_software; deferred sweep item 9, D-327): an open service not seen for 90 days and
 // software an agent (osquery, Wazuh) has not reported for 30 days are deleted. It is a normal job, not Housekeeping: while the inventory
 // is off nothing is observed, so silence must not count (the agent-intake precedent, D-265 (8)). The time counts only while the job runs
-// unbroken, and for agent software only while agent-intake is on too: agent-intake promises that turning it off keeps what it delivered.
+// unbroken, for services only while a module that observes them is on (sensor-passive, sensor-active, scan), and for agent software only
+// while agent-intake is on too: agent-intake promises that turning it off keeps what it delivered. An agent that keeps reporting an empty
+// list (or a Wazuh server that stays unreachable) delivers nothing, so its last list goes after 30 days: it is no longer reported.
 // ponytail: the unbroken run is kept in memory (a restart starts the count again); upgrade path: persist when the modules were last on.
 const (
 	ServiceRetention       = 90 * 24 * time.Hour
@@ -21,11 +24,26 @@ const (
 	pruneBatch             = 2000          // rows or devices per transaction: the single writer is never held for long
 )
 
+// serviceSources are the modules that observe services: their silence counts only while one of them is on (D-327 review, MEDIUM-1).
+var serviceSources = []string{"sensor-passive", "sensor-active", "scan"}
+
 // retention is the in-memory state of the prune job.
 type retention struct {
-	last       time.Time // the previous run
-	onSince    time.Time // start of the current unbroken run of the job (inventory on)
-	agentSince time.Time // start of the current unbroken stretch with agent-intake on; zero while it is off
+	last         time.Time // the previous run
+	onSince      time.Time // start of the current unbroken run of the job (inventory on)
+	agentSince   time.Time // start of the current unbroken stretch with agent-intake on; zero while it is off
+	serviceSince time.Time // start of the current unbroken stretch with a service source on; zero while none is
+}
+
+// since moves the start of an unbroken stretch: zero while the condition is off, now when it turns on.
+func since(cur time.Time, on bool, now time.Time) time.Time {
+	switch {
+	case !on:
+		return time.Time{}
+	case cur.IsZero():
+		return now
+	}
+	return cur
 }
 
 // Prune deletes what is past its retention. It is the job "retention" of the module.
@@ -34,37 +52,39 @@ func (s *Service) Prune(ctx context.Context) error {
 	s.retMu.Lock()
 	r := &s.ret
 	if r.last.IsZero() || now.Sub(r.last) > retentionGap {
-		r.onSince, r.agentSince = now, time.Time{}
+		r.onSince, r.agentSince, r.serviceSince = now, time.Time{}, time.Time{}
 	}
 	r.last = now
-	switch agentOn := s.modules != nil && s.modules.Enabled("agent-intake"); {
-	case !agentOn:
-		r.agentSince = time.Time{}
-	case r.agentSince.IsZero():
-		r.agentSince = now
-	}
-	onSince, agentSince := r.onSince, r.agentSince
+	r.agentSince = since(r.agentSince, s.enabled("agent-intake"), now)
+	r.serviceSince = since(r.serviceSince, s.enabled(serviceSources...), now)
+	onSince, agentSince, serviceSince := r.onSince, r.agentSince, r.serviceSince
 	s.retMu.Unlock()
 
 	var services, software int64
-	if cut := now.Add(-ServiceRetention); !onSince.After(cut) {
-		n, err := s.pruneServices(ctx, storeTS(cut))
-		if err != nil {
-			return err
-		}
-		services = n
+	var errS, errA error
+	if cut := now.Add(-ServiceRetention); !serviceSince.IsZero() && !serviceSince.After(cut) && !onSince.After(cut) {
+		services, errS = s.pruneServices(ctx, storeTS(cut))
 	}
 	if cut := now.Add(-AgentSoftwareRetention); !agentSince.IsZero() && !agentSince.After(cut) && !onSince.After(cut) {
-		n, err := s.pruneAgentSoftware(ctx, storeTS(cut))
-		if err != nil {
-			return err
-		}
-		software = n
+		software, errA = s.pruneAgentSoftware(ctx, storeTS(cut))
 	}
 	if services+software > 0 {
 		s.log.InfoContext(ctx, "inventory: pruned data past its retention", "services", services, "agent_software", software)
 	}
-	return nil
+	return errors.Join(errS, errA)
+}
+
+// enabled says whether one of the modules is on.
+func (s *Service) enabled(ids ...string) bool {
+	if s.modules == nil {
+		return false
+	}
+	for _, id := range ids {
+		if s.modules.Enabled(id) {
+			return true
+		}
+	}
+	return false
 }
 
 // pruneServices deletes observed services not seen since cut (a service a person declared stays), pruneBatch rows per transaction.
@@ -90,7 +110,8 @@ func (s *Service) pruneServices(ctx context.Context, cut string) (int64, error) 
 	}
 }
 
-// pruneAgentSoftware deletes, device by device, the agent rows not reported since cut. Each device is one transaction with its audit row
+// pruneAgentSoftware deletes, device by device, the agent rows not reported since cut, at most pruneBatch devices a run (the job runs
+// every hour, so a larger backlog is done over a few runs). Each device is one transaction with its audit row
 // and the software-changed event, like a sync that dropped them; rows of other sources (manual, nmap, passive) are not touched.
 func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM inv_software WHERE source = 'agent' AND seen_at < ? LIMIT ?`, cut, pruneBatch)

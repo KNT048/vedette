@@ -23,7 +23,7 @@ func (g *gate) set(id string, on bool) { g.mu.Lock(); g.on[id] = on; g.mu.Unlock
 // D-327 (deferred sweep item 9): observed services not seen for 90 days and agent software not reported for 30 days are deleted; manual rows
 // and other sources stay; the time counts only while the job runs unbroken, and for agent software only while agent-intake is on.
 func TestD327_RetentionOfServicesAndAgentSoftware(t *testing.T) {
-	g := &gate{on: map[string]bool{"agent-intake": true}}
+	g := &gate{on: map[string]bool{"agent-intake": true, "sensor-passive": true}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.30")}
 	must := func(err error) {
@@ -106,3 +106,36 @@ func TestD327_TimeCountsOnlyWhileTheModulesAreOn(t *testing.T) {
 	}
 }
 
+// D-327 review: an agent that keeps reporting keeps its list (seen_at is refreshed by every report, even an unchanged one); services are
+// not pruned while no module that observes them is on.
+func TestD327_ReportedSoftwareStaysAndServicesWaitForAnObserver(t *testing.T) {
+	g := &gate{on: map[string]bool{"agent-intake": true}}
+	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.32")}
+	list := []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, list); err != nil {
+		t.Fatal(err)
+	}
+	var asset string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM inv_asset LIMIT 1`).Scan(&asset); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`INSERT INTO inv_service (id, asset_id, port, proto, name, source, confidence, seen_at) VALUES ('svc-1', ?, 22, 'tcp', 'ssh', 'nmap', 0.8, ?)`, asset, store.FormatTS(e.now))
+	for h := range 100 * 24 {
+		if h%(24*7) == 0 { // the agent reports the same list once a week
+			if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, list); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := e.svc.Prune(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+		e.tick(time.Hour)
+	}
+	if e.count(`SELECT count(*) FROM inv_software WHERE source = 'agent'`) != 1 {
+		t.Fatal("software an agent keeps reporting was pruned")
+	}
+	if e.count(`SELECT count(*) FROM inv_service`) != 1 {
+		t.Fatal("a service was pruned while no module that observes services was on")
+	}
+}

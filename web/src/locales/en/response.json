@@ -693,7 +693,7 @@
   },
   "identity": {
     "title": "Approval channels",
-    "desc": "An administrator added you as an approver on these channels. Buttons and email links count only after you prove the address or ID below is yours. Approving in the app always works.",
+    "desc": "Buttons and email links from an approval channel count as you only after you prove that the address or ID an administrator saved for you is yours. Approving in the app always works.",
     "none": "You are not an approver on any channel.",
     "linked": "Linked",
     "notLinked": "Not linked",

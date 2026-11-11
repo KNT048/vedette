@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -143,16 +144,17 @@ type KindDevice struct {
 	KindSource string
 }
 
-// TrustedKind says whether the kind may feed a safety list (the never-touch gateways, D-177): the device is approved, or the kind came
-// from a person, an agent, SNMP or nmap. A kind that only a passive frame (or the scan container) claimed is a hint any host on the
-// wire can send, so it is not enough: an intruder announcing InternetGatewayDevice would otherwise become a router nobody may block.
+// TrustedKind says whether the kind may feed a safety list (the never-touch gateways, D-177): a person or an agent set it, or the
+// device is approved and SNMP or nmap set it. A kind that only a passive frame claimed (SSDP, LLDP, DHCP, mDNS) is a hint any host on
+// the wire can send; nmap runs in the untrusted scan container and its guess is shaped by the target (an SSDP claim earns the host an -O
+// scan, and a drop box answers like a router), so an unapproved device's nmap or snmp kind is not enough either. An approved device
+// whose kind is still a passive frame's claim is not trusted: the operator vouches for it by picking its kind by hand.
 func (d KindDevice) TrustedKind() bool {
-	if d.Approved {
-		return true
-	}
 	switch d.KindSource {
-	case "manual", "agent", "snmp", "nmap":
+	case "manual", "agent":
 		return true
+	case "snmp", "nmap":
+		return d.Approved
 	}
 	return false
 }
@@ -248,8 +250,44 @@ func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
+// AddressMap returns the device id of every IP the inventory knows, with no row cap (D-178). Read error: returned, never a short map.
+func (s *Service) AddressMap(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip, id FROM inv_asset WHERE ip IS NOT NULL`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read addresses: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var ip, id string
+		if err := rows.Scan(&ip, &id); err != nil {
+			return nil, fmt.Errorf("inventory: read addresses: %w", err)
+		}
+		out[ip] = id
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read addresses: %w", err)
+	}
+	return out, nil
+}
+
+// BoxName returns the host name and IP of the box device ("" when it has none; ok false when there is no box row yet): a direct read of
+// the one row, where Devices would load up to MaxListed devices to find it.
+func (s *Service) BoxName(ctx context.Context) (hostname, ip string, ok bool, err error) {
+	var h, i sql.NullString
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT hostname, ip FROM inv_asset WHERE is_box = 1`).Scan(&h, &i)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", false, nil
+	} else if err != nil {
+		return "", "", false, fmt.Errorf("inventory: read box: %w", err)
+	}
+	return h.String, i.String, true, nil
+}
+
 // AllDevices lists every device with no row cap (D-178), for readers that must see them all (the honeypot's conflict and spare-IP
 // checks). Devices is the capped list of the API.
+// ponytail: loads software and services of every device; fine to about 1,000 devices, about 100-300 ms per call at 10k-50k. Upgrade
+// path: a narrow read (id, IP, hostname, kind, approved, is_box, OS, ports) with no software.
 func (s *Service) AllDevices(ctx context.Context) ([]Device, error) {
 	return s.loadDevices(ctx, s.db.Reader(), "", 0)
 }

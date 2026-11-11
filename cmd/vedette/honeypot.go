@@ -139,7 +139,7 @@ func (a honeypotInventory) LANRanges(ctx context.Context) ([]netip.Prefix, error
 // Box is the box device of the inventory; when it has no IP there (nothing has reported one yet) the address of one of
 // its own interfaces inside a declared LAN range stands in, so the scanner of the box can still be told from a hit.
 func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
-	l, err := a.inv.Devices(ctx)
+	host, ip, found, err := a.inv.BoxName(ctx)
 	if err != nil {
 		return honeypot.Box{}, err
 	}
@@ -147,15 +147,12 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 	if h, err := os.Hostname(); err == nil && h != "" {
 		b.Name = h
 	}
-	for _, d := range l.Items {
-		if !d.IsBox {
-			continue
+	if found {
+		if host != "" {
+			b.Name = host
 		}
-		if d.Hostname != nil {
-			b.Name = *d.Hostname
-		}
-		if ip, err := netip.ParseAddr(d.IP); err == nil {
-			b.IP = ip
+		if a, err := netip.ParseAddr(ip); err == nil {
+			b.IP = a
 		}
 	}
 	if b.IP.IsValid() {

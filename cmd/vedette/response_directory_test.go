@@ -93,21 +93,30 @@ func TestResponseDirectoryIgnoresARouterOnlyAPassiveFrameClaimed(t *testing.T) {
 		}
 		return out
 	}
-	if got := ips(); slices.Contains(got, "10.7.0.66") || !slices.Contains(got, "10.7.0.1") {
-		t.Fatalf("gateways %v: want the nmap router and not the passive one", got)
+	if got := ips(); len(got) != 0 {
+		t.Fatalf("gateways %v: a passive router and an unapproved nmap router must not be never-touch", got)
 	}
 	l, err := s.d.Inventory.DevicesOfKind(ctx, []string{"router"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	var passive string
 	for _, d := range l {
+		if err := s.d.Inventory.Approve(ctx, "emily@acme.example", d.ID); err != nil {
+			t.Fatal(err)
+		}
 		if d.IP == "10.7.0.66" {
-			if err := s.d.Inventory.Approve(ctx, "emily@acme.example", d.ID); err != nil {
-				t.Fatal(err)
-			}
+			passive = d.ID
 		}
 	}
+	if got := ips(); slices.Contains(got, "10.7.0.66") || !slices.Contains(got, "10.7.0.1") {
+		t.Fatalf("gateways %v: want the approved nmap router and not the approved passive one", got)
+	}
+	r := "router" // the operator vouches for the passive-only router by picking its kind
+	if err := s.d.Inventory.PatchDevice(ctx, "emily@acme.example", passive, inventory.Patch{Kind: &r}); err != nil {
+		t.Fatal(err)
+	}
 	if got := ips(); !slices.Contains(got, "10.7.0.66") {
-		t.Fatalf("gateways %v: an approved router is missing", got)
+		t.Fatalf("gateways %v: the router the operator picked is missing", got)
 	}
 }

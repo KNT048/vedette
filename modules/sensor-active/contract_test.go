@@ -441,7 +441,7 @@ func TestContract_INV8_ObservationsAndSoftwareFromTheScan(t *testing.T) {
 func TestSweepRecordsHostsAndCountsNewDevices(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
-	e.inv.addrs[netip.MustParseAddr("192.168.10.2")] = "a-known"
+	e.inv.macs = []string{"aa:bb:cc:00:00:02"} // a new device is told by its MAC (L8): .2 is known
 	res, err := e.svc.DiscoverRanges(e.ctx())
 	if err != nil {
 		t.Fatal(err)

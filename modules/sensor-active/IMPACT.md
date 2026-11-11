@@ -1,7 +1,7 @@
 # Sensor-active — Change Impact Map
 
 ## Modifying: `sensoractive.Service` — `DiscoverRanges(ctx)`, `ScanDevice(ctx, assetID, reason)`, `Tick`, `Enqueue`, `SettingsChanged`
-- (L8, D-178) `recordSweep` dùng `capture.FloodBudget` của `modules/sensor-passive/capture` (gói lá chỉ phụ thuộc `core/observe`; import chéo module đầu tiên, theo yêu cầu của rà WP-31): đổi 60/phút, 200/giờ ở đó là đổi cả hai module. `ponytail: một thiết bị đã biết theo MAC nhưng đổi IP (DHCP) cũng tính là mới; nâng cấp = Seed ngân sách bằng inventory.KnownMACs.`
+- (L8, D-178) `recordSweep` dùng `capture.FloodBudget` của `modules/sensor-passive/capture` (gói lá của module khác, như `scan/nucleiargv`/`nucleiout`; nó kéo theo `content/oui` và `core/sensorlink`) với số riêng 1.000/phút, 1.000/giờ (`NewFloodBudgetLimits`), tính theo MAC chưa có trong `Inventory.KnownMACs`. Đổi hằng ở capture không đổi số của quét dò, nhưng đổi cách `Decide`/`Commit` là đổi cả hai nơi. Cổng `Inventory` có thêm `KnownMACs`. `ponytail: bộ đếm trong bộ nhớ, khởi động lại là về 0; nâng cấp = lưu trong sa_*.`
 - **core/jobs** (`window-tick` mỗi phút, `prune-probes` mỗi ngày: `cmd/vedette/sensoractive.go`), **inventory** (không gọi trực tiếp: sự kiện `inventory.asset.discovered` và `inventory.settings.changed` đi qua `core/events`, đăng ký ở `cmd/vedette/sensoractive.go`). Đổi điều kiện từ chối hoặc cửa sổ = đổi số gói thực sự rời hộp: sửa CONTRACT + test INV-1…5 (`TestContract_INV*`, `TestWindow`).
 
 ## Modifying: dựng argv nmap (`buildNmapArgs`, `ValidateNmapArgs`, `NmapBinary`)

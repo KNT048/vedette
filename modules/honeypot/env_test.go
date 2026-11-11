@@ -77,10 +77,13 @@ type fakeHost struct {
 	ips       map[netip.Addr]bool
 	running   bool
 	calls     []string
+	restarts  []bool // the restart flag of every StartContainer
 	failStart error
 	failStop  error
 	failRm    error
-	onAdd     func() // called after an address was accepted
+	failAdd   map[netip.Addr]error // AddDecoyIP of these fails with the error (wrap honeypot.ErrRefused for a refusal)
+	addTook   bool                 // a failed add was done by the host all the same (the answer was lost)
+	onAdd     func()               // called after an address was accepted
 }
 
 func newHost(available bool) *fakeHost {
@@ -97,6 +100,12 @@ func (h *fakeHost) AddDecoyIP(_ context.Context, ip netip.Addr) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "add "+ip.String())
+	if err := h.failAdd[ip]; err != nil {
+		if h.addTook {
+			h.ips[ip] = true // the host did it, the answer was lost
+		}
+		return err
+	}
 	h.ips[ip] = true
 	if h.onAdd != nil {
 		h.onAdd()
@@ -115,10 +124,11 @@ func (h *fakeHost) RemoveDecoyIP(_ context.Context, ip netip.Addr) error {
 	return nil
 }
 
-func (h *fakeHost) StartContainer(context.Context) error {
+func (h *fakeHost) StartContainer(_ context.Context, restart bool) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "start")
+	h.restarts = append(h.restarts, restart)
 	if h.failStart != nil {
 		return h.failStart
 	}

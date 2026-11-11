@@ -20,7 +20,7 @@
 
 ## Modifying: `Overview(ctx)`, `SetConfig(ctx, ip, hostname)` — GUI + host
 - **web/features/honeypot**: `HpOverview` là hợp đồng; đổi → sinh lại OpenAPI + sửa mock.
-- **host**: lệnh `decoy_ip.add/remove` và `container.start/stop` (service `honeypot`) nhận IP đã kiểm; đổi định dạng → IP phụ không dựng được, bẫy `conflict`/`off`. Bộ chuyển `Host` ở `cmd/vedette/honeypot.go` (việc của `core`, CONTRACT "Bộ chuyển `Host` phía `core`") phải so với `decoys` của `GET /v1/state/net` và chỉ gửi phần khác: `syncIPs` gọi `AddDecoyIP` cho mọi IP ở mỗi `Apply`, gửi thẳng thì 32 decoy chạm trần 10 lệnh ghi/phút của host.
+- **host**: lệnh `decoy_ip.add/remove` và `container.start/stop` (service `honeypot`) nhận IP đã kiểm; đổi định dạng → IP phụ không dựng được, bẫy `conflict`/`off`. Bộ chuyển `Host` ở `cmd/vedette/honeypothost.go` (D-161; CONTRACT "Bộ chuyển `Host` phía `core`") so với `decoys` của `GET /v1/state/net` và chỉ gửi phần khác: `syncIPs` gọi `AddDecoyIP` cho mọi IP ở mỗi `Apply`, gửi thẳng thì 32 decoy chạm trần 10 lệnh ghi/phút của host. Đổi chữ ký `Host` (như `StartContainer(ctx, restart)` ở D-161) phải đổi bộ chuyển, `notAnAppliance` và `fakeHost` của test cùng lượt.
 
 ## Modifying: mạng của container (namespace `vedette-hp`, D-102)
 - **host** (unit Quadlet, `decoy_ip.*`): container vào namespace do host sở hữu (`Network=ns:/run/netns/vedette-hp`), MAC mỗi IP do host sinh, chặn đi ra bằng nft trong namespace, `DropCapability=ALL` nhờ `ip_unprivileged_port_start=0`. Đổi sang network macvlan của Podman hay một container mỗi IP là trái D-102 (một IP mỗi lần gắn, phải khởi động lại); thêm chân `vedette-int` mở lại đường tới `core` mà D-89 đã bỏ.

@@ -2,6 +2,7 @@ package honeypot
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"time"
@@ -281,13 +282,20 @@ type HostStatus struct {
 	Reason    string
 }
 
+// ErrRefused is wrapped by an error of Host.AddDecoyIP that means the host definitely did not take the address (the
+// host answered with a refusal or a failed run). Any other error is an unknown outcome (busy, a lost answer, a timeout):
+// the host may hold the address, so the module keeps it on record for the teardown and shows no conflict (SYS-5).
+var ErrRefused = errors.New("the host refused")
+
 // Host is the module's only way to the OS (FORBID-3, SYS-1): decoy IPs (host-api 6.6) and the `honeypot` container
 // (6.8, 6.9). Every call is idempotent.
 type Host interface {
 	Status(ctx context.Context) (HostStatus, error)
 	AddDecoyIP(ctx context.Context, ip netip.Addr) error
 	RemoveDecoyIP(ctx context.Context, ip netip.Addr) error
-	StartContainer(ctx context.Context) error
+	// StartContainer starts the container; restart is true when core wrote opencanary.conf or honeytokens.json since the
+	// last start the host acknowledged, so a container that already runs must read them again (host-api 6.8 restart).
+	StartContainer(ctx context.Context, restart bool) error
 	StopContainer(ctx context.Context) error // persist: the module is off or no trap is on
 }
 

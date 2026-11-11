@@ -1,0 +1,12 @@
+# Exceptions of the release vulnerability gate (`make vuln-scan`, D-159). The gate fails on every HIGH or CRITICAL vulnerability that has a
+# fix; an entry here lets one such finding pass, and only while all of this holds (scripts/trivyignore checks it first, and fails the gate if not):
+#   - id:         the vulnerability id (CVE-... or GHSA-...); add `paths:` or `purls:` to narrow it to one binary or package.
+#   - statement:  why it may ship: not reachable, no fixed version we can take yet, the issue that tracks the bump.
+#   - expired_at: yyyy-mm-dd, after today and at most 90 days ahead (the entry stops applying at the start of that day). From that date the entry fails the gate even if the finding is gone:
+#                 delete it, or renew it with a new reason.
+# Example (keep as a comment):
+#   - id: CVE-2026-12345
+#     purls: ["pkg:golang/example.com/module@v1.2.3"]
+#     statement: the vulnerable function is not linked (govulncheck: not called); bumping in issue #123
+#     expired_at: 2026-12-01
+vulnerabilities: []

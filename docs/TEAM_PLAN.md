@@ -19,8 +19,9 @@ Lập 2026-11-09. Nhóm: **Kiên** (`@kiennt048`, người duy trì) và **Emily
 | `core` (nền tảng), `host` (`vedette-host`), đóng gói + phát hành | `feeds`, `mitigation` + khớp lỗ hổng/phát hiện |
 | `inventory`, `sensor-passive`, `sensor-active` | `notify` (kênh, Incidents, vận chuyển lời duyệt) |
 | `response` (quy tắc, duyệt, thực thi, vỏ an toàn) | `exposure`, `scan`, `scan-credentialed` |
-| `honeypot` | `logs`, `agent-intake` |
-| Rà bảo mật, chuẩn bị kiểm thử xâm nhập | `ai` (harness), `reports`, `mcp-server`, `auth-oidc` |
+| `honeypot` | `logs` |
+| Rà bảo mật, chuẩn bị kiểm thử xâm nhập | `ai` (harness), `reports`, `mcp-server` |
+| `agent-intake`, `auth-oidc` (chuyển từ Emily 2026-11-11, D-190) | |
 
 Kiên giữ phần nhạy cảm bảo mật (core, host, response, cảm biến); Emily giữ các luồng dữ liệu và tích hợp. Khối lượng xấp xỉ cân bằng (mỗi bên ~3 gói lớn).
 
@@ -61,8 +62,8 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 | WP-14 | `honeypot`: sinh cấu hình OpenCanary, vai giả, honey token, phát hiện quét | Kiên | M |
 | WP-24 | `logs`: nhận syslog UDP/TCP/TLS, parser, gộp, baseline, khớp IOC, chuyển SIEM | Emily | L |
 | WP-25 | `ai` module: harness (rules, memory, skills, RAG FTS5, kết nối, hook), nhật ký hoạt động | Emily | L |
-| WP-26 | `agent-intake`: máy chủ TLS cho osquery, token đăng ký, kéo Wazuh | Emily | M |
-| WP-27 | `reports`, `mcp-server`, `auth-oidc` | Emily | M |
+| WP-26 | `agent-intake`: máy chủ TLS cho osquery, token đăng ký, kéo Wazuh | Kiên (AI-Trưởng; D-190) | M |
+| WP-27 | `reports`, `mcp-server` (Emily) · `auth-oidc` (Kiên, phiên Mac; đụng `core/auth`; D-190) | Emily + Kiên | M |
 
 ### Giai đoạn 3 — hoàn thiện
 | WP | Việc | Chủ |
@@ -74,17 +75,23 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 
 **Đường găng:** WP-01 → WP-03 → WP-04 → (WP-10, WP-22) → WP-13. Kiên ưu tiên tuyệt đối WP-01…WP-04 trong tuần đầu; Emily không phụ thuộc đường găng cho tới giai đoạn 1.
 
-## 4. Cách mỗi người chạy nhiều phiên AI
+## 4. Cách các phiên AI chạy (cập nhật 2026-11-11, D-190)
 
-- **2–4 phiên song song mỗi người**, mỗi phiên **một git worktree + một nhánh + một WP**. Ví dụ Kiên: phiên A `feat/core-store`, phiên B `fix/gui-contract-align`, phiên C rà PR của Emily. Emily: phiên A `feat/feeds-lib`, phiên B `feat/matching-lib`, phiên C `feat/notify-adapters`.
-- Mỗi phiên dùng subagent theo vai: **người làm** (viết code + test), **người kiểm độc lập** (theo `docs/QA.md`, không đọc lời giải thích của người làm), **người cập nhật tài liệu** (CONTRACT, IMPACT, DATA_MODEL khi đổi).
-- Đầu phiên AI đọc: `CLAUDE.md` → `docs/TEAM_PLAN.md` → `.ai/tasks/<người>.md` → `modules/<id>/CONTRACT.md` của WP. Cuối phiên: cập nhật `.ai/tasks/<người>.md`, ghi việc để sau vào `.ai/deferred/<nhánh>.md`.
-- Phiên không bao giờ sửa module của người kia; cần đổi → mở issue hoặc PR nhãn `contract` gán người kia.
+- **AI-Supervisor (máy Mac của Kiên)** điều phối cả ba phía. Nó không viết code trực tiếp. Trạng thái của nó nằm ở `vedette-wt/LEAD-STATE.md` trên máy Mac, ngoài git.
+  - **Mỗi lát việc (một nhánh, một PR) của phía Mac chạy thành một session phụ của Claude Desktop** (`start_session`), dùng worktree riêng. Session phụ tự chạy trọn gate: test, rà độc lập, sửa, `make check`, PR, merge khi CI xanh. Trạng thái của mỗi session phụ ghi vào `vedette-wt/sessions/<tên>.md`. Supervisor bị thay hay compact thì các session phụ vẫn chạy tiếp.
+  - Mỗi 30 phút supervisor kiểm hai box, các session phụ, PR và CI.
+- **AI-Trưởng** (box Ubuntu của Kiên, user `byn`, tmux `claude`): WP-08, `honeypot`, `host`, WP-30 các lát qua `vedette-host`, WP-32 phần Kiên, WP-26.
+- **AI-Mlee** (box Ubuntu của Emily, user `byn2`, tmux `claude`): các module của Emily, WP-30 và WP-32 phần Emily, `reports`, `mcp-server`. Supervisor nhắn qua tmux; không dùng GitHub Discussions nữa.
+- **Mỗi phiên, mỗi session phụ:** một git worktree, một nhánh, một WP hoặc một lát. Subagent dùng cho việc nhỏ bên trong: người làm, người kiểm độc lập (theo `docs/QA.md`, Opus cho phần nhạy cảm bảo mật), người cập nhật tài liệu.
+- **Việc nặng** (`make check`/`verify`, Playwright, `go test` nhiều gói, lint) chạy qua khoá `~/vedette-wt/heavy` trên box. Mỗi máy tối đa 2 việc nặng một lúc.
+- **Dải số quyết định** để các phiên không tranh số: Trưởng D-157…D-169, Mac D-170…D-199, Mlee D-200…D-229.
+- **Đầu phiên** đọc: `CLAUDE.md` → `.ai/tasks/current.md` → `docs/TEAM_PLAN.md` → `.ai/tasks/<người>.md` → `modules/<id>/CONTRACT.md` của WP. **Cuối phiên:** cập nhật `.ai/tasks/<người>.md` và ghi việc để sau vào `.ai/deferred/<nhánh>.md`.
+- Phiên không sửa module của phía kia. Cần đổi thì mở issue `owner:kien` hoặc `owner:emily`, kèm một dòng `[→ AI-Supervisor]` khi việc đó chặn mình.
 
 ## 5. Nhịp phối hợp
 
 - **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Mọi PR (kể cả nhãn `contract`): tự merge khi CI xanh, sau `make check` trên máy (dán kết quả vào PR; `rules/local-checks.md`, D-62, D-63); PR chạm phần người kia thì @ họ để thông báo, không chờ (D-65).
-- **Mỗi ngày 15 phút** (hoặc ghi chú trong GitHub Discussions): đang làm WP nào, bị chặn gì, hợp đồng nào sắp đổi.
+- **Nhịp:** AI-Supervisor kiểm mỗi 30 phút: các phiên, PR và CI, chồng lấn file, câu hỏi đang chờ. Từ 2026-11-11 không dùng GitHub Discussions (#145) nữa.
 - **Thứ tự merge** theo phụ thuộc ở mục 3; `main` luôn xanh. GitHub Free không khoá được nhánh riêng tư → quy ước, không phải cơ chế.
 - **Issue** mỗi WP, nhãn `module:<id>`, `owner:kien` / `owner:emily`, `wp:<số>`; GitHub Projects một bảng Kanban.
 

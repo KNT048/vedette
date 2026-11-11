@@ -429,7 +429,7 @@ export const handlers = [
     if (!v) return fail(404, 'unknown_cve', 'This CVE is not on the exploited list the box holds, so the box has no source to fetch.')
     const tin = 3400, tout = 700
     const news0 = buildNews(v)
-    const c = runJob('cve-news', tin, tout, v.cve, { input: `news ${v.cve}`, output: JSON.stringify(news0), summary: `Summarised advisories for ${v.cve}`, tools: [{ name: 'http_get', access: 'read', args: `advisories for ${v.cve}` }] }); if (c.error) return c.error
+    const c = runJob('cve-news', tin, tout, v.cve, { input: `news ${v.cve}`, output: JSON.stringify(news0), summary: `Summarised advisories for ${v.cve}` }); if (c.error) return c.error // the box fetches the sources itself: the job has no tool (INV-3, FORBID-6)
     const res: NewsResult = { ...news0, generated_at: nowIso(), model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout } }
     news.update((m) => ({ ...m, [v.cve]: res }))
     return HttpResponse.json(res)

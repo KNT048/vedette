@@ -13,6 +13,7 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber, fmtRelative } from '@/lib/format'
+import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useDigest, useEvents, useSetRetention, useSources } from './api'
 import { CATALOG } from './catalog'
@@ -103,6 +104,7 @@ const sampleLine = (s: string) => <span className="mt-0.5 block max-w-[60ch] tru
 function DigestSections() {
   const { t } = useTranslation('logs')
   const q = useDigest()
+  const feedsOn = useModuleEnabled('feeds')
   return (
     <QueryState query={q}>
       {(d) => {
@@ -139,7 +141,7 @@ function DigestSections() {
         return (
           <>
             <Section id="bad" title={t('digest.bad.title')} description={t('digest.bad.description')} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : <EmptyState title={t('digest.bad.empty')} />}
+              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : <EmptyState title={t('digest.bad.empty')}>{feedsOn === undefined ? null : feedsOn ? t('digest.bad.emptyWhy') : t('digest.bad.emptyFeedsOff')}</EmptyState>}
             </Section>
             <Section id="new" title={t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>
               {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={t('digest.new.empty', { days })} />}

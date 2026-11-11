@@ -95,6 +95,8 @@
       },
       "lookup": "Look up {{dst}}",
       "empty": "No connection to bad addresses in the last 24 hours.",
+      "emptyWhy": "Matching your devices' connections against threat feeds is not switched on yet, so an empty list does not mean the network is clean.",
+      "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
       "via": {
         "span_dns": "SPAN: DNS query",
         "span_sni": "SPAN: TLS server name",
@@ -170,7 +172,7 @@
     "nav": "SIEM forwarding",
     "title": "Forward to a SIEM",
     "description": "Vedette sends a copy of events to your SIEM (Wazuh, Graylog, Splunk, Elastic). Data only goes to the destination you enter here; switching it off stops it immediately.",
-    "enabled": "Forwarding is on",
+    "enabled": "Forward events to the SIEM",
     "format": "Format",
     "formats": {
       "syslog": "Syslog",

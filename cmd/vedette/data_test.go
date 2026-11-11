@@ -306,17 +306,20 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if err := os.WriteFile(hpLog, []byte(`{"logtype":4000}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Dir(hpLog), 0o500); err != nil { // read-only for everyone, like the container mount
+	if err := os.Chmod(filepath.Dir(hpLog), 0o500); err != nil { //nolint:gosec // a directory of this test; read-only for everyone, like the container mount
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(hpLog), 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(hpLog), 0o700) }) //nolint:gosec // a directory of this test
 	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that.
 	var tailValue string
 	for range 100 {
 		if tailValue = rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); strings.Contains(tailValue, `"offset":17`) {
 			break
 		}
-		time.Sleep(200 * time.Millisecond)
+		select {
+		case <-t.Context().Done():
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
 	if !strings.Contains(tailValue, `"offset":17`) {
 		t.Fatalf("the honeypot did not read the planted log line: tail = %q", tailValue)

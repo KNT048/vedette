@@ -2,6 +2,7 @@ package authoidc
 
 import (
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 )
@@ -52,28 +53,43 @@ func limitKey(kind string, a netip.Addr) string {
 	return kind + " " + clientIP(a)
 }
 
-// allowStart counts one start: per address (or IPv6 /64), per IPv6 /48, then against the box's budget. A start refused at one
-// step is still counted at the steps before it. site is true when the box's budget refused it (the message is not "your address").
+// allowStart counts one start: per address (or IPv6 /64), per IPv6 /48, and against the box's budget. Nothing is counted unless all
+// three allow it, so a refused start creates no key and costs no try (D-299). site is true when the box's budget refused it (the
+// message is not "your address").
 func (l *limiter) allowStart(a netip.Addr) (ok bool, wait time.Duration, site bool) {
-	if ok, wait := l.allow(limitKey("start", a), limitN, limitWindow); !ok {
-		return false, wait, false
-	}
+	rules := []rule{{limitKey("start", a), limitN, limitWindow}}
 	if a = a.Unmap(); a.Is6() {
 		if p, err := a.Prefix(48); err == nil {
-			if ok, wait := l.allow("start48 "+p.String(), limit48N, limitWindow); !ok {
-				return false, wait, false
-			}
+			rules = append(rules, rule{"start48 " + p.String(), limit48N, limitWindow})
 		}
 	}
-	if ok, wait := l.allow("start box", startBudget, flowLifetime); !ok {
-		return false, wait, true
-	}
-	return true, 0, false
+	rules = append(rules, rule{budgetKey, startBudget, flowLifetime})
+	ok, wait, failed := l.allowAll(rules...)
+	return ok, wait, !ok && rules[failed].key == budgetKey
+}
+
+// budgetKey is the box's budget of starts; keepKey says which keys a flood of addresses must never make the limiter drop.
+const budgetKey = "start box"
+
+func keepKey(k string) bool { return k == budgetKey || strings.HasPrefix(k, "start48 ") }
+
+// rule is one count: at most n tries of key per window.
+type rule struct {
+	key    string
+	n      int
+	window time.Duration
 }
 
 // allow counts one try of key against n per window and reports whether it is within the limit, with the wait until the oldest
 // counted try leaves the window.
 func (l *limiter) allow(key string, n int, window time.Duration) (bool, time.Duration) {
+	ok, wait, _ := l.allowAll(rule{key, n, window})
+	return ok, wait
+}
+
+// allowAll checks every rule and counts the try against all of them only when all allow it; otherwise it counts nothing and
+// returns the index of the first rule that refused, with its wait.
+func (l *limiter) allowAll(rules ...rule) (bool, time.Duration, int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
@@ -87,19 +103,29 @@ func (l *limiter) allow(key string, n int, window time.Duration) (bool, time.Dur
 			if len(l.hits) <= limitKeys/2 {
 				break
 			}
-			if k != "start box" { // the box's budget is never dropped: that is what a flood of addresses must not reset
+			if !keepKey(k) { // the budget and the /48 counts are never dropped: a flood of addresses must not reset them
 				delete(l.hits, k)
 			}
 		}
 	}
-	ts := l.hits[key]
-	for len(ts) > 0 && now.Sub(ts[0]) > window {
-		ts = ts[1:]
+	for i, r := range rules {
+		ts := l.hits[r.key]
+		for len(ts) > 0 && now.Sub(ts[0]) > r.window {
+			ts = ts[1:]
+		}
+		if len(ts) >= r.n {
+			if len(ts) > 0 {
+				l.hits[r.key] = ts
+			}
+			return false, r.window - now.Sub(ts[0]), i
+		}
 	}
-	if len(ts) >= n {
-		l.hits[key] = ts
-		return false, window - now.Sub(ts[0])
+	for _, r := range rules {
+		ts := l.hits[r.key]
+		for len(ts) > 0 && now.Sub(ts[0]) > r.window {
+			ts = ts[1:]
+		}
+		l.hits[r.key] = append(ts, now)
 	}
-	l.hits[key] = append(ts, now)
-	return true, 0
+	return true, 0, -1
 }

@@ -418,3 +418,25 @@ func (s *slackBotSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	}
 	return r, nil
 }
+
+// UpdateApproval rewrites a posted approval message without its buttons (chat.update with the bot token, slice 3b, D-241): the same
+// text when m is the message that was posted (m with an empty title = it is not known any more: only the end line is left), and the
+// fixed line end saying how the request ended. A refusal is a *ProviderError (Slack answered ok:false: the message is gone, too old,
+// or the bot lost the channel; it will never pass) or a *StatusError; any other error means Slack did not answer.
+func (b *SlackBot) UpdateApproval(ctx context.Context, channelID, ts string, m Message, end string) error {
+	if b.bot.Reveal() == "" || !slackChannelRE.MatchString(channelID) || !slackTSRE.MatchString(ts) {
+		return errors.New("notify: slack: no message to update")
+	}
+	endLine := slackEscape(Line(end, slackAnswerMax))
+	blocks := []any{map[string]any{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": endLine}}}
+	text := endLine
+	if m.check() == nil {
+		link, _ := safeLink(m.Link)
+		body := slackText(m.norm(), link)
+		blocks = []any{map[string]any{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": body}},
+			map[string]any{"type": "context", "elements": []any{map[string]any{"type": "mrkdwn", "text": endLine}}}}
+		text = body + "\n" + endLine
+	}
+	_, err := b.call(ctx, b.bot, "chat.update", map[string]any{"channel": channelID, "ts": ts, "text": text, "blocks": blocks}, false)
+	return err
+}

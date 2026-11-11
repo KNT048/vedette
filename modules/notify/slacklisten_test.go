@@ -50,6 +50,9 @@ type fakeSlack struct {
 	postTS    string
 	team      string
 	authTests int
+	updates   []map[string]any // chat.update bodies
+	updMode   string           // how chat.update answers: "" ok, "gone" ok:false message_not_found, "500", "drop" (no answer)
+	updTries  int              // every chat.update request, answered or not
 }
 
 type slackConn struct{ out chan []byte }
@@ -104,6 +107,8 @@ func (f *fakeSlack) serve(w http.ResponseWriter, r *http.Request) {
 		ts := f.postTS
 		f.mu.Unlock()
 		_, _ = io.WriteString(w, `{"ok":true,"channel":"`+slChannel+`","ts":"`+ts+`"}`)
+	case r.Host == "slack.com" && r.URL.Path == "/api/chat.update":
+		f.update(w, r)
 	case r.Host == "wss-primary.slack.com" && strings.HasPrefix(r.URL.Path, "/link"):
 		f.socket(w, r)
 	case r.Host == "hooks.slack.com" && strings.HasPrefix(r.URL.Path, "/actions/"):
@@ -116,6 +121,31 @@ func (f *fakeSlack) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, "ok")
 	default:
 		http.NotFound(w, r)
+	}
+}
+
+func (f *fakeSlack) update(w http.ResponseWriter, r *http.Request) {
+	b, _ := io.ReadAll(r.Body)
+	f.mu.Lock()
+	f.updTries++
+	mode := f.updMode
+	if mode == "" {
+		var m map[string]any
+		_ = json.Unmarshal(b, &m)
+		f.updates = append(f.updates, m)
+	}
+	f.mu.Unlock()
+	switch mode {
+	case "gone":
+		_, _ = io.WriteString(w, `{"ok":false,"error":"message_not_found"}`)
+	case "500":
+		http.Error(w, "down", http.StatusInternalServerError)
+	case "drop":
+		if c, _, err := w.(http.Hijacker).Hijack(); err == nil {
+			_ = c.Close()
+		}
+	default:
+		_, _ = io.WriteString(w, `{"ok":true,"channel":"`+slChannel+`","ts":"`+slTS+`"}`)
 	}
 }
 

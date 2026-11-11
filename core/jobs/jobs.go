@@ -32,10 +32,13 @@ const maxErrorText = 1000
 
 // Job is one scheduled task.
 type Job struct {
-	Module string                          // owning module id; the job runs only while it is on
+	Module string                          // owning module id; the job runs only while it is on (unless Housekeeping)
 	Name   string                          // unique within the module, for example "pull-kev"
 	Every  time.Duration                   // delay between the end of one run and the start of the next
-	Run    func(ctx context.Context) error // ctx is cancelled when the module is turned off or the scheduler stops
+	Run    func(ctx context.Context) error // ctx is cancelled when the module is turned off (unless Housekeeping) or the scheduler stops
+	// Housekeeping runs the job while its module is off too (SYS-5 exception, D-160). Only for a job that deletes data past
+	// the retention the customer set: it never opens a port or a route, never calls out, and its Run must not need the module on.
+	Housekeeping bool
 }
 
 // Status is how a run ended.
@@ -166,12 +169,12 @@ func (s *Scheduler) start(jb *job) {
 
 // ModuleChanged tells the scheduler that a module was turned on or off (modreg.Registry.OnChange).
 // The state is read from the gate, not from the arguments, so a late or repeated call is harmless.
-// Off: the module's running jobs are cancelled before this returns. On: its idle jobs run now.
+// Off: the module's running jobs are cancelled before this returns (housekeeping jobs are left alone). On: its idle jobs run now.
 func (s *Scheduler) ModuleChanged(id string, _ bool) {
 	s.mu.Lock()
 	var mine []*job
 	for _, jb := range s.jobs {
-		if jb.Module == id {
+		if jb.Module == id && !jb.Housekeeping { // housekeeping keeps its own timer whatever the module does
 			mine = append(mine, jb)
 		}
 	}
@@ -192,19 +195,22 @@ func (s *Scheduler) ModuleChanged(id string, _ bool) {
 	}
 }
 
-// loop runs one job: run when the module is on, then wait Every (or a wake-up), forever.
+// active says whether the job may run now: its module is on, or it is a housekeeping job.
+func (s *Scheduler) active(jb *job) bool { return jb.Housekeeping || s.gate.Enabled(jb.Module) }
+
+// loop runs one job: run when the module is on (or always, for housekeeping), then wait Every (or a wake-up), forever.
 func (s *Scheduler) loop(ctx context.Context, jb *job) {
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 	<-timer.C // drain: the first iteration runs at once
 	for {
 		var wait <-chan time.Time
-		if s.gate.Enabled(jb.Module) {
+		if s.active(jb) {
 			s.runOnce(ctx, jb)
 			if ctx.Err() != nil {
 				return
 			}
-			if s.gate.Enabled(jb.Module) { // turned off during the run: wait for the module, not for the timer
+			if s.active(jb) { // turned off during the run: wait for the module, not for the timer
 				timer.Reset(jb.Every)
 				wait = timer.C
 			}
@@ -231,7 +237,7 @@ func (s *Scheduler) runOnce(parent context.Context, jb *job) {
 	jb.cancel = cancel
 	jb.mu.Unlock()
 	// A module turned off between the gate check and the registration above would miss its cancel.
-	if !s.gate.Enabled(jb.Module) {
+	if !s.active(jb) {
 		cancel()
 	}
 	started := s.now()

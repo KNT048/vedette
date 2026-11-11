@@ -221,7 +221,32 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if _, ok, err := f.Lookup(ctx, "ip", "10.0.0.1"); ok || err != nil {
 		t.Fatalf("a private address is listed: %v %v", ok, err)
 	}
+	// M3: a feed that was switched off is not pulled and not pruned, so its listings are stale: they are no hit
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_source SET enabled = 0 WHERE id = ?`, feedID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := f.Lookup(ctx, "ip", "185.220.101.47"); ok || err != nil {
+		t.Fatalf("a listing of a disabled feed is a hit: %v %v", ok, err)
+	}
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_source SET enabled = 1 WHERE id = ?`, feedID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := f.Lookup(ctx, "ip", "185.220.101.47"); !ok {
+		t.Fatal("the listing is not found again when the feed is on")
+	}
 	s.setModule("feeds", false)
+	if f.On() {
+		t.Fatal("On with the feeds module off")
+	}
+	if d, err := svc.Digest(ctx); err != nil || len(d.BadConnections) != 0 {
+		t.Fatalf("the digest shows hits with the feeds module off: %v %+v", err, d.BadConnections)
+	}
 	if _, _, err := f.Lookup(ctx, "ip", "185.220.101.47"); !errors.Is(err, logs.ErrFeedsOff) {
 		t.Fatalf("feeds off: %v", err)
 	}

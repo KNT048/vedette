@@ -477,7 +477,7 @@ test('a module that is off has no route and no socket; its lines are kept; on ag
   } finally { await c.dispose() }
 })
 
-test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing is new or a spike, and an empty bad-connection list says why', async ({ page }) => {
+test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing is new or a spike, and an empty bad-connection list says plainly that nothing was found', async ({ page }) => {
   test.setTimeout(90_000)
   const errors = collectErrors(page)
   const c = await as('admin')
@@ -493,8 +493,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
     await page.goto('/logs')
     await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
     await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
-    await expect(page.getByText('No connection to bad addresses in the last 24 hours.')).toBeVisible()
-    await expect(page.getByText(/not switched on yet, so an empty list does not mean the network is clean/)).toBeVisible()
+    await expect(page.getByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeVisible()
     // Feeds off: the page says that instead (PRE-3); the digest itself keeps working
     const mods = await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')
     const feedsWas = mods.body.modules.find((m) => m.id === 'feeds')?.enabled === true

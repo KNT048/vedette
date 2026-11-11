@@ -2,6 +2,7 @@ package signature
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 )
 
@@ -176,6 +177,11 @@ func (p *profile) connByFields(msg string) Conn {
 	if !ok {
 		return Conn{}
 	}
+	for k, allowed := range p.Rule.ConnWhen {
+		if v, has := vals[k]; !has || !slices.Contains(allowed, v) {
+			return Conn{}
+		}
+	}
 	local, err := netip.ParseAddr(vals[p.Rule.LocalField])
 	if err != nil || !LocalOK(local) {
 		return Conn{}
@@ -202,7 +208,7 @@ func (p *profile) connByFields(msg string) Conn {
 // connByPattern reads the connection of a template line by the profile's conn_pattern ("local" and "dest" are addresses): exactly one
 // match, exactly one "->" in the line and no odd quote, or no connection.
 func (p *profile) connByPattern(msg string) Conn {
-	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) {
+	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) || p.connRefuse != nil && p.connRefuse.MatchString(msg) {
 		return Conn{}
 	}
 	m := p.conn.FindAllStringSubmatch(msg, 2)

@@ -13,7 +13,8 @@
       "proto \\S+(?: \\([^)]*\\))?, (?P<addr>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?->",
       "\\bfrom (?P<addr>[0-9A-Fa-f:.]{1,45}) via \\w+"
     ],
-    "conn_pattern": "proto \\S+(?: \\([^)]*\\))?, (?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?->(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?",
+    "conn_refuse": "connection-state:(?:established|related|invalid|untracked)",
+    "conn_pattern": "proto TCP \\(SYN\\), (?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?->(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?",
     "head_vocab": [
       "system",
       "info",

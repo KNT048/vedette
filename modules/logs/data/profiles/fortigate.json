@@ -74,6 +74,12 @@
     },
     "local_field": "srcip",
     "dest_ip_field": "dstip",
+    "conn_when": {
+      "type": [
+        "traffic",
+        "utm"
+      ]
+    },
     "dest_host_fields": [
       "hostname",
       "qname"

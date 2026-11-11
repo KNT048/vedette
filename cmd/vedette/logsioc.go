@@ -29,16 +29,21 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 		return logs.Listing{}, false, err
 	}
 	rec, found, err := svc.Store().IOCLookup(ctx, kind, key)
-	if err != nil || !found || len(rec.Sightings) == 0 { // an indicator that no feed lists any more is not a hit
+	if err != nil || !found {
 		return logs.Listing{}, false, err
 	}
 	var l logs.Listing
 	for _, s := range rec.Sightings {
+		if !s.Enabled { // a feed that was switched off is not pulled and not pruned: its listings are stale
+			continue
+		}
 		l.Feeds = append(l.Feeds, s.SourceName)
 		l.Confidence = max(l.Confidence, s.Confidence)
 	}
-	return l, true, nil
+	return l, len(l.Feeds) > 0, nil // an indicator that no enabled feed lists is not a hit
 }
+
+func (f logsFeeds) On() bool { return f.d.Reg == nil || f.d.Reg.Enabled("feeds") }
 
 // logsIocEvidence is the adapter for response's Evidence.IocHit (EvidencePorts): the hit with this id, as the digest shows it, in the shape
 // response wants. Logs off answers "not found" (the evidence does not exist while the module is off). NOT WIRED: cfg.Evidence.IocHit in

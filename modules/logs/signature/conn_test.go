@@ -130,11 +130,18 @@ func TestConnMikroTik(t *testing.T) {
 	if l, d := connOf(t, set, "mikrotik", base); l != "192.168.10.113" || len(d) != 1 || d[0] != "ip:45.9.148.20" {
 		t.Fatalf("got %q %v", l, d)
 	}
-	icmp := `firewall,info fwd: in:lan out:wan, proto ICMP (type 8, code 0), 192.168.10.113->45.9.148.20, len 84`
-	if _, d := connOf(t, set, "mikrotik", icmp); len(d) != 1 {
-		t.Errorf("icmp: %v", d)
+	if l, _ := connOf(t, set, "mikrotik", strings.Replace(base, "in:ether1", "connection-state:new in:ether1", 1)); l == "" {
+		t.Error("a new connection lost its connection")
 	}
 	for name, line := range map[string]string{
+		// M2: only the first packet of a connection (TCP with the SYN flag alone, and not marked as an established connection) is the device's own
+		// connection; a reply from a port-forwarded server to a listed scanner is not.
+		"syn+ack":        strings.Replace(base, "(SYN)", "(SYN,ACK)", 1),
+		"ack+psh":        strings.Replace(base, "(SYN)", "(ACK,PSH)", 1),
+		"established":    strings.Replace(base, "in:ether1", "connection-state:established in:ether1", 1),
+		"related":        strings.Replace(base, "in:ether1", "connection-state:related in:ether1", 1),
+		"udp":            `firewall,info fwd: in:lan out:wan, proto UDP, 192.168.10.113:5000->45.9.148.20:53, len 84`,
+		"icmp":           `firewall,info fwd: in:lan out:wan, proto ICMP (type 8, code 0), 192.168.10.113->45.9.148.20, len 84`,
 		"private dest":   strings.Replace(base, "45.9.148.20:443", "10.0.0.5:443", 1),
 		"public source":  strings.Replace(base, "192.168.10.113:50922", "8.8.8.8:50922", 1),
 		"a second pair":  base + ` 192.168.10.5:1->6.6.6.6:2`,
@@ -216,4 +223,24 @@ func FuzzConn(f *testing.F) {
 			}
 		}
 	})
+}
+
+// M6: only traffic and utm lines have a connection; an event line (an SSL-VPN login failure carries a user name that an attacker writes) never does, whatever
+// fields it has or an injected name gives it.
+func TestConnFortiGateEventLinesHaveNone(t *testing.T) {
+	set := shipped(t)
+	ev := `date=2026-11-09 logid="0101039426" type="event" subtype="vpn" level="alert" user="x" srcip=192.168.10.66 dstip=6.6.6.6 a="" action="ssl-login-fail"`
+	if l, _ := connOf(t, set, "fortigate", ev); l != "" {
+		t.Errorf("an event line made a connection from %q", l)
+	}
+	for _, typ := range []string{"traffic", "utm"} {
+		if l, _ := connOf(t, set, "fortigate", strings.Replace(ev, `type="event"`, `type="`+typ+`"`, 1)); l == "" {
+			t.Errorf("type %s has no connection", typ)
+		}
+	}
+	for name, line := range map[string]string{"no type": strings.Replace(ev, ` type="event"`, "", 1), "two types": ev + ` type="traffic"`, "other type": strings.Replace(ev, `"event"`, `"anomaly"`, 1)} {
+		if l, _ := connOf(t, set, "fortigate", line); l != "" {
+			t.Errorf("%s: %q", name, l)
+		}
+	}
 }

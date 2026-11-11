@@ -101,6 +101,10 @@ type Rule struct {
 	DestIPField    string   `json:"dest_ip_field,omitempty"`
 	DestHostFields []string `json:"dest_host_fields,omitempty"`
 	ConnPattern    string   `json:"conn_pattern,omitempty"`
+	// ConnWhen (kv): a line has a connection only when each key listed is written once and holds one of the values (FortiGate: type traffic or utm, not event
+	// lines, whose fields an attacker partly writes). ConnRefuse (template): a line that matches it has none (MikroTik: a connection that is not new).
+	ConnWhen   map[string][]string `json:"conn_when,omitempty"`
+	ConnRefuse string              `json:"conn_refuse,omitempty"`
 }
 
 // Sample is a documented line and what the rule must make of it; Load runs every sample.
@@ -121,6 +125,7 @@ type profile struct {
 	src, dst   *regexp.Regexp
 	remote     []*regexp.Regexp
 	conn       *regexp.Regexp
+	connRefuse *regexp.Regexp
 	connWanted map[string]bool
 	mined      map[string]bool
 	wanted     map[string]bool
@@ -270,7 +275,7 @@ func compile(f File) (*profile, error) {
 		if len(r.Fields) == 0 || len(r.Fields) > MaxFields {
 			return nil, fmt.Errorf("a kv rule needs 1 to %d fields", MaxFields)
 		}
-		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" || r.ConnPattern != "" {
+		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" || r.ConnPattern != "" || r.ConnRefuse != "" {
 			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field, dst_field, remote_fields, remote_patterns, local_field, dest_ip_field and dest_host_fields")
 		}
 		if err := p.compileConnFields(r); err != nil {
@@ -331,7 +336,7 @@ func compile(f File) (*profile, error) {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
 		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" ||
-			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" {
+			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnWhen) != 0 || r.ConnRefuse != "" {
 			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
@@ -352,12 +357,20 @@ func compile(f File) (*profile, error) {
 		}
 	case TypeTemplate:
 		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" ||
-			r.LocalField != "" || r.DestIPField != "" {
+			r.LocalField != "" || r.DestIPField != "" || len(r.ConnWhen) != 0 {
 			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern, remote_patterns and conn_pattern")
 		}
 		if r.ConnPattern != "" {
 			if p.conn, err = compileGroup(r.ConnPattern, "local"); err != nil {
 				return nil, err
+			}
+			if r.ConnRefuse != "" {
+				if len(r.ConnRefuse) > MaxPatternBytes {
+					return nil, fmt.Errorf("conn_refuse: a pattern of at most %d bytes", MaxPatternBytes)
+				}
+				if p.connRefuse, err = regexp.Compile(r.ConnRefuse); err != nil {
+					return nil, fmt.Errorf("conn_refuse: %w", err)
+				}
 			}
 			if p.conn.SubexpIndex("dest") < 0 {
 				return nil, errors.New("conn_pattern needs the named groups \"local\" and \"dest\"")
@@ -589,6 +602,17 @@ func (p *profile) compileConnFields(r Rule) error {
 		return fmt.Errorf("local_field and at least one destination field (dest_ip_field, dest_host_fields: at most %d) go together", MaxDests)
 	}
 	p.connWanted = map[string]bool{}
+	for k, vals := range r.ConnWhen {
+		if !validKey(k) || len(vals) == 0 || len(vals) > 8 {
+			return fmt.Errorf("conn_when %q: a key name and 1 to 8 values", k)
+		}
+		for _, v := range vals {
+			if v == "" || len(v) > maxValue || clean(v) != v {
+				return fmt.Errorf("conn_when %q: %q is not a plain value", k, v)
+			}
+		}
+		p.connWanted[k] = true
+	}
 	for _, k := range append([]string{r.LocalField, r.DestIPField}, r.DestHostFields...) {
 		if k == "" {
 			continue

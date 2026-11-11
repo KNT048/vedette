@@ -40,6 +40,8 @@ const (
 	MaxIocRead  = 1000
 	// iocLookupTimeout bounds all the lookups of one batch.
 	iocLookupTimeout = 5 * time.Second
+	// iocAnnounceTimeout bounds the publishing of the events of one batch.
+	iocAnnounceTimeout = 10 * time.Second
 )
 
 // ErrFeedsOff is what Feeds.Lookup returns while the feeds module is off (PRE-3): no lookup is made and there are no hits.
@@ -56,6 +58,8 @@ type Listing struct {
 // that no feed lists any more. ErrFeedsOff while the module is off. An error is any other failure; logs goes on without it.
 type Feeds interface {
 	Lookup(ctx context.Context, kind, value string) (l Listing, found bool, err error)
+	// On says whether lookups can be answered now (false while the feeds module is off, PRE-3): the digest shows no bad connections then.
+	On() bool
 }
 
 // IocHit is a connection to a listed destination as the API shows it (IocHit of contract.ts) and as the event logs.ioc_hit.detected carries it.
@@ -135,9 +139,15 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 	defer cancel()
 	cache := map[[2]string]lookupResult{}
 	var out []iocRow
+	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, k := range keys {
 		if len(out) >= MaxIocHitsPerBatch {
 			break
+		}
+		// A pair that already has a hit in the last 24 hours is not looked up and does not count toward the cap of the batch: a chatty device
+		// that keeps meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the transaction).
+		if s.hasRecentHit(ctx, k, cutoff) {
+			continue
 		}
 		ck := [2]string{k.kind, k.dest}
 		res, ok := cache[ck]
@@ -159,6 +169,12 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 			feeds: cleanFeeds(res.l.Feeds), conf: clamp01(res.l.Confidence)})
 	}
 	return out
+}
+
+// hasRecentHit says whether the pair has a stored hit newer than cutoff (a read on the reader pool, the index logs_ioc_hits_pair); an error says no.
+func (s *Service) hasRecentHit(ctx context.Context, k connKey, cutoff string) bool {
+	var one int
+	return s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? LIMIT 1`, k.src.String(), k.dest, cutoff).Scan(&one) == nil
 }
 
 // noteLookupFailure logs a failed lookup, once for a run of the same failure; the feeds being off is not a failure (PRE-3).
@@ -241,6 +257,18 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	return nil
 }
 
+// noteBudgetOut logs, once per clock hour, that hits were stored and not announced because the hourly budget ran out.
+func (s *Service) noteBudgetOut(ctx context.Context, n int) {
+	s.iocMu.Lock()
+	hour := s.now().Unix() / 3600
+	first := s.iocCapLogged != hour
+	s.iocCapLogged = hour
+	s.iocMu.Unlock()
+	if first {
+		s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
+	}
+}
+
 // iocBudget says how many of n new hits may be announced now: at most IocEventsPerHour in a clock hour.
 func (s *Service) iocBudget(n int) int {
 	s.iocMu.Lock()
@@ -263,7 +291,14 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 	if s.cfg.Events == nil || len(fresh) == 0 {
 		return
 	}
-	fresh = fresh[:s.iocBudget(len(fresh))]
+	// The batch is stored: announcing must not depend on the caller's context (a listener that is stopping cancels it, and the hit would never be
+	// announced while the dedupe hides it for 24 hours), so it runs on its own bounded context.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), iocAnnounceTimeout)
+	defer cancel()
+	if n := s.iocBudget(len(fresh)); n < len(fresh) {
+		s.noteBudgetOut(ctx, len(fresh)-n)
+		fresh = fresh[:n]
+	}
 	if len(fresh) == 0 {
 		return
 	}

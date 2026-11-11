@@ -40,6 +40,12 @@ func (f *fakeFeeds) Lookup(ctx context.Context, kind, value string) (Listing, bo
 	return l, ok, nil
 }
 
+func (f *fakeFeeds) On() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return !errors.Is(f.err, ErrFeedsOff)
+}
+
 func (f *fakeFeeds) lookups() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -58,16 +64,24 @@ type iocPubs struct {
 	order []string
 	hits  []IocHit
 	bad   []BadAddressEvent
+	// onPublish, when set, runs for every event with its name and the id of the hit (before it is recorded here).
+	onPublish func(ctx context.Context, name, id string)
 }
 
-func (p *iocPubs) Publish(_ context.Context, e events.Event) error {
+func (p *iocPubs) Publish(ctx context.Context, e events.Event) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	switch e.Name {
 	case EventIocHit:
 		p.hits = append(p.hits, e.Data.(IocHit))
+		if p.onPublish != nil {
+			p.onPublish(ctx, e.Name, e.Data.(IocHit).ID)
+		}
 	case EventBadAddress:
 		p.bad = append(p.bad, e.Data.(BadAddressEvent))
+		if p.onPublish != nil {
+			p.onPublish(ctx, e.Name, e.Data.(BadAddressEvent).ID)
+		}
 	default:
 		return fmt.Errorf("unexpected event %s", e.Name)
 	}
@@ -294,10 +308,20 @@ func TestContract_PRE3_FeedsOffMakeNoHits(t *testing.T) {
 	if h, _ := p.counts(); h != 0 || logs.count("threat feeds") != 0 {
 		t.Fatal("an event or a warning with the feeds off")
 	}
+	// Hits stored while the feeds were on are kept, and not shown while they are off (PRE-3).
+	ff.setErr(nil)
+	e.feedAll(src, []string{traffic(lanDevice, badIP)})
+	if len(e.digest().BadConnections) != 1 {
+		t.Fatal("no hit with the feeds on")
+	}
+	ff.setErr(ErrFeedsOff)
+	if len(e.digest().BadConnections) != 0 || hitCount(t, e) != 1 {
+		t.Fatal("the digest shows hits with the feeds off, or the rows were dropped")
+	}
 	// No port at all is the same.
 	e.svc.cfg.Feeds = nil
-	e.feedAll(src, []string{traffic(lanDevice, badIP)})
-	if hitCount(t, e) != 0 {
+	e.feedAll(src, []string{traffic("192.168.10.9", badIP)})
+	if hitCount(t, e) != 1 {
 		t.Fatal("a hit with no feeds")
 	}
 }
@@ -675,5 +699,122 @@ func TestSiemSendsABadConnectionOnce(t *testing.T) {
 	both()
 	if r := queued(); len(r) != 1 || r[0].Name != "ioc.hit" {
 		t.Fatalf("bad_conn only: %+v", r)
+	}
+}
+
+// M1: a chatty device that meets listed addresses it already has hits for does not use the cap of the batch: another device's first hit is stored.
+func TestIOCChattyDeviceDoesNotHideAnotherDevicesFirstHit(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	var chatty []string
+	for i := range MaxIocHitsPerBatch {
+		d := fmt.Sprintf("48.0.0.%d", i+1)
+		ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+		chatty = append(chatty, traffic(lanDevice, d))
+	}
+	e.feedAll(src, chatty)
+	if hitCount(t, e) != MaxIocHitsPerBatch {
+		t.Fatalf("%d rows", hitCount(t, e))
+	}
+	for range 3 { // the same 50 pairs every batch, and another device that meets one of the addresses for the first time
+		before := len(ff.lookups())
+		e.feedAll(src, append(append([]string(nil), chatty...), traffic("192.168.10.77", "48.0.0.1")))
+		if n := len(ff.lookups()) - before; n > 1 {
+			t.Fatalf("%d lookups for pairs that already have a hit", n)
+		}
+		if count(t, e.vol, `SELECT count(*) FROM logs_ioc_hits WHERE src_ip = '192.168.10.77'`) != 1 {
+			t.Fatal("the first hit of another device is hidden")
+		}
+	}
+	if h, _ := p.counts(); h != MaxIocHitsPerBatch+1 {
+		t.Fatalf("%d events", h)
+	}
+}
+
+// M5: the events are published after the commit: a subscriber that asks for the hit by its id finds it.
+func TestIOCEventsAreAfterTheCommit(t *testing.T) {
+	t.Parallel()
+	e, src, _, p := iocEnv(t)
+	var found, asked int
+	p.onPublish = func(ctx context.Context, _, id string) {
+		asked++
+		if _, ok, err := e.svc.IocHit(ctx, id); err == nil && ok {
+			found++
+		}
+	}
+	e.feedAll(src, []string{traffic(lanDevice, badIP)})
+	if asked != 2 || found != 2 {
+		t.Fatalf("asked %d, found %d: an event was published before its hit was committed", asked, found)
+	}
+}
+
+// A context that is cancelled right after the commit (a listener that is stopping) does not stop the announcement.
+func TestIOCAnnouncesEvenIfTheIngestContextIsCancelled(t *testing.T) {
+	t.Parallel()
+	e, src, _, p := iocEnv(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	e.svc.cfg.Events = cancelAfterCommit{p, cancel}
+	if _, err := e.svc.Ingest(ctx, lines(src.ID, e.svc.now(), traffic(lanDevice, badIP))); err != nil {
+		t.Fatal(err)
+	}
+	if h, b := p.counts(); h != 1 || b != 1 {
+		t.Fatalf("%d %d events", h, b)
+	}
+}
+
+type cancelAfterCommit struct {
+	*iocPubs
+	cancel context.CancelFunc
+}
+
+func (c cancelAfterCommit) Publish(ctx context.Context, e events.Event) error {
+	c.cancel() // the caller's context is gone before the first event; the publisher must have its own
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return c.iocPubs.Publish(ctx, e)
+}
+
+// A hit past the hourly budget is said once per hour in the log.
+func TestIOCBudgetRunningOutIsLoggedOncePerHour(t *testing.T) {
+	t.Parallel()
+	e, src, ff, _ := iocEnv(t)
+	logs := &logCapture{}
+	e.svc.cfg.Log = slog.New(logs)
+	for k := 0; k < 4; k++ {
+		var more []string
+		for i := range MaxIocHitsPerBatch {
+			d := fmt.Sprintf("49.%d.%d.9", k, i+1)
+			ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+			more = append(more, traffic(lanDevice, d))
+		}
+		e.feedAll(src, more)
+	}
+	if n := logs.count("hourly limit"); n != 1 {
+		t.Fatalf("%d warnings in one hour", n)
+	}
+	e.advance(time.Hour)
+	ff.listed["ip:49.9.9.9"], ff.listed["ip:49.9.9.8"] = Listing{[]string{"f"}, 0.5}, Listing{[]string{"f"}, 0.5}
+	for k := 0; k < 3; k++ {
+		var more []string
+		for i := range MaxIocHitsPerBatch {
+			d := fmt.Sprintf("50.%d.%d.9", k, i+1)
+			ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+			more = append(more, traffic(lanDevice, d))
+		}
+		e.feedAll(src, more)
+	}
+	if n := logs.count("hourly limit"); n != 2 {
+		t.Fatalf("%d warnings in two hours", n)
+	}
+}
+
+// M6 through Ingest: an event line with an injected srcip and dstip makes no hit.
+func TestIOCEventLinesMakeNoHit(t *testing.T) {
+	t.Parallel()
+	e, src, ff, _ := iocEnv(t)
+	e.feedAll(src, []string{`date=2026-11-09 logid="0101039426" type="event" subtype="vpn" level="alert" user="x" srcip=192.168.10.66 dstip=` + badIP + ` a="" action="ssl-login-fail"`})
+	if hitCount(t, e) != 0 || len(ff.lookups()) != 0 {
+		t.Fatal("an event line made a hit")
 	}
 }

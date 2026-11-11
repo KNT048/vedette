@@ -2,7 +2,7 @@
 // Dòng log và digest là dữ liệu mẫu cố định; thiết bị nguồn tra theo IP trong assetsStore (kiểm kê). Mọi văn bản người dùng thấy bằng tiếng Anh (D-28).
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
-import { assetsStore, boxInfo } from '@/mocks/stores'
+import { assetsStore, boxInfo, modulesStore } from '@/mocks/stores'
 import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
 import { CATALOG } from './catalog'
 import { KIND_IDS } from './kinds'
@@ -90,7 +90,8 @@ function digest(): Digest {
   // Like the box (INV-7, iochits.go): the hits of the last 24 hours, newest first, at most 20, and the device resolved from the inventory when read, so
   // removing or renaming a device is reflected.
   const since = Date.now() - 86400e3
-  const bad: IocHit[] = iocHits.get().filter((r) => new Date(r.ts).getTime() >= since).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 20)
+  const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false // PRE-3: with Feeds off the list is empty (the page says why)
+  const bad: IocHit[] = feedsOff ? [] : iocHits.get().filter((r) => new Date(r.ts).getTime() >= since).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 20)
     .map((r) => { const a = assets.find((x) => x.ip === r.src_ip); return { ...r, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null } })
   return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: fresh, spikes, bad_connections: bad }
 }
@@ -135,7 +136,7 @@ function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
     let u: URL | null = null
     try { u = new URL(raw) } catch { /* not a URL */ }
     // eslint-disable-next-line no-control-regex
-    if (!u || raw.length > 2048 || !/^https?:$/.test(u.protocol) || u.hostname === '' || u.username || u.password || u.hash || /[^\x21-\x7e]/.test(raw)) return fail(400, 'bad_url', BAD_URL)
+    if (!u || raw.length > 2048 || !/^https?:$/.test(u.protocol) || u.hostname === '' || u.username || u.password || u.hash || u.port === '0' || /[^\x21-\x7e]/.test(raw)) return fail(400, 'bad_url', BAD_URL)
     const problem = siemHostProblem(u.hostname); if (problem) return problem
   } else {
     const host = String(b.host ?? '').trim()

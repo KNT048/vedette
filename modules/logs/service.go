@@ -111,11 +111,12 @@ type Service struct {
 	siemMu        sync.Mutex // makes "bump the generation and forget the cache" and "check the generation and store the cache" one step
 	allowLoopback bool
 	// IOC matching (iochits.go): the failure last logged (so that a run of the same one is said once), and how many hits were announced in the clock hour iocHour.
-	iocWarned  atomic.Pointer[string]
-	iocMu      sync.Mutex
-	iocHour    int64
-	iocSent    int
-	siemSendFn func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
+	iocWarned    atomic.Pointer[string]
+	iocMu        sync.Mutex
+	iocHour      int64
+	iocSent      int
+	iocCapLogged int64
+	siemSendFn   func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -462,8 +463,10 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 		total += n
 	}
 	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []IocHit{}}
-	if d.BadConnections, err = s.iocHits(ctx, `ts >= ?`, DigestMax, store.FormatTS(s.now().Add(-24*time.Hour))); err != nil {
-		return Digest{}, err
+	if s.cfg.Feeds == nil || s.cfg.Feeds.On() { // PRE-3: with the feeds module off the list is empty (the page says why); the stored hits are kept
+		if d.BadConnections, err = s.iocHits(ctx, `ts >= ?`, DigestMax, store.FormatTS(s.now().Add(-24*time.Hour))); err != nil {
+			return Digest{}, err
+		}
 	}
 	found, names, err := s.snapshotted(ctx)
 	if err != nil {

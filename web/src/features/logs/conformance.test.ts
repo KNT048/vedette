@@ -134,6 +134,7 @@ const steps: Step[] = [
   { name: 'siem: unknown format', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'xml' }), status: 400, code: 'bad_format', real: { code: 'invalid' } },
   { name: 'siem: a webhook URL that is not http(s)', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'ftp://siem.example.com/x', secret: KEY }), status: 400, code: 'bad_url' },
   { name: 'siem: a webhook URL with credentials', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://user:pw@siem.example.com/x', secret: KEY }), status: 400, code: 'bad_url' },
+  { name: 'siem: a webhook with port 0', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com:0/hook', secret: KEY }), status: 400, code: 'bad_url' },
   { name: 'siem: a webhook at loopback', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'http://127.0.0.1:9000/hook', secret: KEY }), status: 400, code: 'blocked_host' },
   { name: 'siem: a webhook at localhost', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://LocalHost/hook', secret: KEY }), status: 400, code: 'blocked_host' },
   { name: 'siem: a webhook at a link-local address', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'http://169.254.169.254/latest', secret: KEY }), status: 400, code: 'blocked_host' },

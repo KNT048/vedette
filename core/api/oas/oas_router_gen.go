@@ -215,20 +215,11 @@ var (
 	rn198AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn226AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn207AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
 	rn230AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn219AllowedHeaders = map[string]string{
+	rn232AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
-	}
-	rn210AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
 	}
 	rn233AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
@@ -236,97 +227,115 @@ var (
 	rn235AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn236AllowedHeaders = map[string]string{
+	rn207AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn239AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn237AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+	rn223AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
-	rn224AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+	rn210AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
 	}
-	rn247AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+	rn242AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn244AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+		"POST": "Content-Type",
 	}
 	rn245AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn239AllowedHeaders = map[string]string{
+	rn246AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn228AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn256AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn253AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn254AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn248AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn98AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn249AllowedHeaders = map[string]string{
+	rn258AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn261AllowedHeaders = map[string]string{
+	rn270AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn266AllowedHeaders = map[string]string{
+	rn275AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn280AllowedHeaders = map[string]string{
+	rn289AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn269AllowedHeaders = map[string]string{
+	rn278AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn313AllowedHeaders = map[string]string{
+	rn322AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn315AllowedHeaders = map[string]string{
+	rn324AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn316AllowedHeaders = map[string]string{
+	rn325AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn319AllowedHeaders = map[string]string{
+	rn328AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn301AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn303AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn308AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn292AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn294AllowedHeaders = map[string]string{
+	rn336AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn299AllowedHeaders = map[string]string{
+	rn339AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn283AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn327AllowedHeaders = map[string]string{
+	rn315AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
-	}
-	rn330AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn306AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn337AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn288AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn335AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn307AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn345AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
 	}
 	rn346AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn351AllowedHeaders = map[string]string{
+	rn297AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn344AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn316AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn354AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn355AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn360AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -4663,9 +4672,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 				switch elem[0] {
-				case 's': // Prefix: "stall/osquery."
+				case 's': // Prefix: "stall/osquery"
 
-					if l := len("stall/osquery."); len(elem) >= l && elem[0:l] == "stall/osquery." {
+					if l := len("stall/osquery"); len(elem) >= l && elem[0:l] == "stall/osquery" {
 						elem = elem[l:]
 					} else {
 						break
@@ -4675,44 +4684,94 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'p': // Prefix: "ps1"
+					case '.': // Prefix: "."
 
-						if l := len("ps1"); len(elem) >= l && elem[0:l] == "ps1" {
+						if l := len("."); len(elem) >= l && elem[0:l] == "." {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "GET":
-								s.handleInventoryGetInstallOsqueryPs1Request([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET",
-									allowedHeaders: nil,
-									acceptPost:     "",
-									acceptPatch:    "",
-								})
+							break
+						}
+						switch elem[0] {
+						case 'p': // Prefix: "ps1"
+
+							if l := len("ps1"); len(elem) >= l && elem[0:l] == "ps1" {
+								elem = elem[l:]
+							} else {
+								break
 							}
 
-							return
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleInventoryGetInstallOsqueryPs1Request([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 's': // Prefix: "sh"
+
+							if l := len("sh"); len(elem) >= l && elem[0:l] == "sh" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleInventoryGetInstallOsqueryShRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
 						}
 
-					case 's': // Prefix: "sh"
+					case '/': // Prefix: "/"
 
-						if l := len("sh"); len(elem) >= l && elem[0:l] == "sh" {
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
+						// Param: "file"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
 						if len(elem) == 0 {
 							// Leaf node.
 							switch r.Method {
 							case "GET":
-								s.handleInventoryGetInstallOsqueryShRequest([0]string{}, elemIsEscaped, w, r)
+								s.handleInventoryGetInstallOsqueryFileRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET",
@@ -4727,29 +4786,157 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 't': // Prefix: "take/osquery/status"
+				case 't': // Prefix: "take/"
 
-					if l := len("take/osquery/status"); len(elem) >= l && elem[0:l] == "take/osquery/status" {
+					if l := len("take/"); len(elem) >= l && elem[0:l] == "take/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
-						switch r.Method {
-						case "POST":
-							s.handleInventoryPostIntakeOsqueryStatusRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "POST",
-								allowedHeaders: nil,
-								acceptPost:     "",
-								acceptPatch:    "",
-							})
+						break
+					}
+					switch elem[0] {
+					case 'c': // Prefix: "ca.pem"
+
+						if l := len("ca.pem"); len(elem) >= l && elem[0:l] == "ca.pem" {
+							elem = elem[l:]
+						} else {
+							break
 						}
 
-						return
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleInventoryGetIntakeCaPemRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					case 'o': // Prefix: "osquery/"
+
+						if l := len("osquery/"); len(elem) >= l && elem[0:l] == "osquery/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'c': // Prefix: "config"
+
+							if l := len("config"); len(elem) >= l && elem[0:l] == "config" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleInventoryPostIntakeOsqueryConfigRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn230AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'e': // Prefix: "enroll"
+
+							if l := len("enroll"); len(elem) >= l && elem[0:l] == "enroll" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleInventoryPostIntakeOsqueryEnrollRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn232AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'l': // Prefix: "log"
+
+							if l := len("log"); len(elem) >= l && elem[0:l] == "log" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleInventoryPostIntakeOsqueryLogRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn233AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 's': // Prefix: "status"
+
+							if l := len("status"); len(elem) >= l && elem[0:l] == "status" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleInventoryPostIntakeOsqueryStatusRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						}
+
 					}
 
 				case 'v': // Prefix: "ventory/"
@@ -4815,7 +5002,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn226AllowedHeaders,
+											allowedHeaders: rn235AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -4969,7 +5156,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn230AllowedHeaders,
+													allowedHeaders: rn239AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5028,7 +5215,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn219AllowedHeaders,
+									allowedHeaders: rn223AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -5148,7 +5335,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn233AllowedHeaders,
+													allowedHeaders: rn242AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5214,7 +5401,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn235AllowedHeaders,
+													allowedHeaders: rn244AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5271,7 +5458,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn236AllowedHeaders,
+									allowedHeaders: rn245AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -5323,7 +5510,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PUT",
-									allowedHeaders: rn237AllowedHeaders,
+									allowedHeaders: rn246AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -5387,7 +5574,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn224AllowedHeaders,
+										allowedHeaders: rn228AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -5480,7 +5667,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn247AllowedHeaders,
+								allowedHeaders: rn256AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -5518,7 +5705,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn244AllowedHeaders,
+									allowedHeaders: rn253AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -5571,7 +5758,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn245AllowedHeaders,
+									allowedHeaders: rn254AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -5611,7 +5798,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn239AllowedHeaders,
+										allowedHeaders: rn248AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -5843,7 +6030,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "DELETE,PUT",
-									allowedHeaders: rn249AllowedHeaders,
+									allowedHeaders: rn258AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6064,7 +6251,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PATCH",
-									allowedHeaders: rn261AllowedHeaders,
+									allowedHeaders: rn270AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -6091,7 +6278,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn266AllowedHeaders,
+								allowedHeaders: rn275AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -6228,7 +6415,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn280AllowedHeaders,
+											allowedHeaders: rn289AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -6259,7 +6446,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn269AllowedHeaders,
+									allowedHeaders: rn278AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6520,7 +6707,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn313AllowedHeaders,
+													allowedHeaders: rn322AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6547,7 +6734,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn315AllowedHeaders,
+													allowedHeaders: rn324AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6586,7 +6773,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn316AllowedHeaders,
+														allowedHeaders: rn325AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -6682,7 +6869,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn319AllowedHeaders,
+												allowedHeaders: rn328AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -6738,7 +6925,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn292AllowedHeaders,
+										allowedHeaders: rn301AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -6778,7 +6965,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn294AllowedHeaders,
+										allowedHeaders: rn303AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -6952,7 +7139,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn299AllowedHeaders,
+									allowedHeaders: rn308AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6992,7 +7179,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn283AllowedHeaders,
+										allowedHeaders: rn292AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7081,7 +7268,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn327AllowedHeaders,
+										allowedHeaders: rn336AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7245,7 +7432,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn330AllowedHeaders,
+													allowedHeaders: rn339AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7393,7 +7580,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn306AllowedHeaders,
+									allowedHeaders: rn315AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7456,7 +7643,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn337AllowedHeaders,
+											allowedHeaders: rn346AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -7489,7 +7676,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn288AllowedHeaders,
+										allowedHeaders: rn297AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7516,7 +7703,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn335AllowedHeaders,
+											allowedHeaders: rn344AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -7547,7 +7734,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn307AllowedHeaders,
+									allowedHeaders: rn316AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -7729,7 +7916,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn345AllowedHeaders,
+										allowedHeaders: rn354AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7755,7 +7942,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn346AllowedHeaders,
+										allowedHeaders: rn355AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7925,7 +8112,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn351AllowedHeaders,
+									allowedHeaders: rn360AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -12530,9 +12717,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					break
 				}
 				switch elem[0] {
-				case 's': // Prefix: "stall/osquery."
+				case 's': // Prefix: "stall/osquery"
 
-					if l := len("stall/osquery."); len(elem) >= l && elem[0:l] == "stall/osquery." {
+					if l := len("stall/osquery"); len(elem) >= l && elem[0:l] == "stall/osquery" {
 						elem = elem[l:]
 					} else {
 						break
@@ -12542,50 +12729,98 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'p': // Prefix: "ps1"
+					case '.': // Prefix: "."
 
-						if l := len("ps1"); len(elem) >= l && elem[0:l] == "ps1" {
+						if l := len("."); len(elem) >= l && elem[0:l] == "." {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "GET":
-								r.name = InventoryGetInstallOsqueryPs1Operation
-								r.summary = "osquery install script for Windows Server, served by the box; public, contains no secrets"
-								r.operationID = "inventory_get_install_osquery_ps1"
-								r.operationGroup = ""
-								r.pathPattern = "/install/osquery.ps1"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
+							break
+						}
+						switch elem[0] {
+						case 'p': // Prefix: "ps1"
+
+							if l := len("ps1"); len(elem) >= l && elem[0:l] == "ps1" {
+								elem = elem[l:]
+							} else {
+								break
 							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = InventoryGetInstallOsqueryPs1Operation
+									r.summary = "osquery install script for Windows Server, served by the box; public, contains no secrets"
+									r.operationID = "inventory_get_install_osquery_ps1"
+									r.operationGroup = ""
+									r.pathPattern = "/install/osquery.ps1"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 's': // Prefix: "sh"
+
+							if l := len("sh"); len(elem) >= l && elem[0:l] == "sh" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = InventoryGetInstallOsqueryShOperation
+									r.summary = "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)"
+									r.operationID = "inventory_get_install_osquery_sh"
+									r.operationGroup = ""
+									r.pathPattern = "/install/osquery.sh"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
-					case 's': // Prefix: "sh"
+					case '/': // Prefix: "/"
 
-						if l := len("sh"); len(elem) >= l && elem[0:l] == "sh" {
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
+						// Param: "file"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
 						if len(elem) == 0 {
 							// Leaf node.
 							switch method {
 							case "GET":
-								r.name = InventoryGetInstallOsqueryShOperation
-								r.summary = "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)"
-								r.operationID = "inventory_get_install_osquery_sh"
+								r.name = InventoryGetInstallOsqueryFileOperation
+								r.summary = "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404"
+								r.operationID = "inventory_get_install_osquery_file"
 								r.operationGroup = ""
-								r.pathPattern = "/install/osquery.sh"
+								r.pathPattern = "/install/osquery/{file}"
 								r.args = args
-								r.count = 0
+								r.count = 1
 								return r, true
 							default:
 								return
@@ -12594,29 +12829,157 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 't': // Prefix: "take/osquery/status"
+				case 't': // Prefix: "take/"
 
-					if l := len("take/osquery/status"); len(elem) >= l && elem[0:l] == "take/osquery/status" {
+					if l := len("take/"); len(elem) >= l && elem[0:l] == "take/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
-						switch method {
-						case "POST":
-							r.name = InventoryPostIntakeOsqueryStatusOperation
-							r.summary = "The install script asks \"has this machine reported in yet\"; token goes in the Authorization: Bearer header, never in the URL"
-							r.operationID = "inventory_post_intake_osquery_status"
-							r.operationGroup = ""
-							r.pathPattern = "/intake/osquery/status"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
+						break
+					}
+					switch elem[0] {
+					case 'c': // Prefix: "ca.pem"
+
+						if l := len("ca.pem"); len(elem) >= l && elem[0:l] == "ca.pem" {
+							elem = elem[l:]
+						} else {
+							break
 						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = InventoryGetIntakeCaPemOperation
+								r.summary = "The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds the same text"
+								r.operationID = "inventory_get_intake_ca_pem"
+								r.operationGroup = ""
+								r.pathPattern = "/intake/ca.pem"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'o': // Prefix: "osquery/"
+
+						if l := len("osquery/"); len(elem) >= l && elem[0:l] == "osquery/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'c': // Prefix: "config"
+
+							if l := len("config"); len(elem) >= l && elem[0:l] == "config" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = InventoryPostIntakeOsqueryConfigOperation
+									r.summary = "osquery config (machine to machine): the read-only snapshot schedule for an enrolled node; node_invalid: true makes osquery enroll again"
+									r.operationID = "inventory_post_intake_osquery_config"
+									r.operationGroup = ""
+									r.pathPattern = "/intake/osquery/config"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'e': // Prefix: "enroll"
+
+							if l := len("enroll"); len(elem) >= l && elem[0:l] == "enroll" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = InventoryPostIntakeOsqueryEnrollOperation
+									r.summary = "osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key; node_invalid: true when the token is unknown, revoked or expired"
+									r.operationID = "inventory_post_intake_osquery_enroll"
+									r.operationGroup = ""
+									r.pathPattern = "/intake/osquery/enroll"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'l': // Prefix: "log"
+
+							if l := len("log"); len(elem) >= l && elem[0:l] == "log" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = InventoryPostIntakeOsqueryLogOperation
+									r.summary = "osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they update the inventory with source agent"
+									r.operationID = "inventory_post_intake_osquery_log"
+									r.operationGroup = ""
+									r.pathPattern = "/intake/osquery/log"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 's': // Prefix: "status"
+
+							if l := len("status"); len(elem) >= l && elem[0:l] == "status" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = InventoryPostIntakeOsqueryStatusOperation
+									r.summary = "The install script asks \"has this machine reported in yet\"; token goes in the Authorization: Bearer header, never in the URL"
+									r.operationID = "inventory_post_intake_osquery_status"
+									r.operationGroup = ""
+									r.pathPattern = "/intake/osquery/status"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						}
+
 					}
 
 				case 'v': // Prefix: "ventory/"

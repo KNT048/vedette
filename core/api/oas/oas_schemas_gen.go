@@ -59663,6 +59663,20 @@ type InventoryDeleteInventoryDevicesIDNoContent struct{}
 // InventoryDeleteInventoryDevicesIDSoftwareSidNoContent is response for InventoryDeleteInventoryDevicesIDSoftwareSid operation.
 type InventoryDeleteInventoryDevicesIDSoftwareSidNoContent struct{}
 
+type InventoryGetInstallOsqueryFileOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s InventoryGetInstallOsqueryFileOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 type InventoryGetInstallOsqueryPs1OK struct {
 	Data io.Reader
 }
@@ -59685,6 +59699,20 @@ type InventoryGetInstallOsqueryShOK struct {
 //
 // Kept to satisfy the io.Reader interface.
 func (s InventoryGetInstallOsqueryShOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type InventoryGetIntakeCaPemOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s InventoryGetIntakeCaPemOK) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
@@ -64177,6 +64205,347 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 		return nil
 	case InventoryPatchInventoryDevicesIDReqRegularScanNever:
 		*s = InventoryPatchInventoryDevicesIDReqRegularScanNever
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostIntakeOsqueryConfigOK struct {
+	NodeInvalid OptBool                                       `json:"node_invalid"`
+	Schedule    OptInventoryPostIntakeOsqueryConfigOKSchedule `json:"schedule"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryConfigOK) GetNodeInvalid() OptBool {
+	return s.NodeInvalid
+}
+
+// GetSchedule returns the value of Schedule.
+func (s *InventoryPostIntakeOsqueryConfigOK) GetSchedule() OptInventoryPostIntakeOsqueryConfigOKSchedule {
+	return s.Schedule
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryConfigOK) SetNodeInvalid(val OptBool) {
+	s.NodeInvalid = val
+}
+
+// SetSchedule sets the value of Schedule.
+func (s *InventoryPostIntakeOsqueryConfigOK) SetSchedule(val OptInventoryPostIntakeOsqueryConfigOKSchedule) {
+	s.Schedule = val
+}
+
+type InventoryPostIntakeOsqueryConfigOKSchedule map[string]InventoryPostIntakeOsqueryConfigOKScheduleItem
+
+func (s *InventoryPostIntakeOsqueryConfigOKSchedule) init() InventoryPostIntakeOsqueryConfigOKSchedule {
+	m := *s
+	if m == nil {
+		m = map[string]InventoryPostIntakeOsqueryConfigOKScheduleItem{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryConfigOKScheduleItem struct {
+	Interval int       `json:"interval"`
+	Platform OptString `json:"platform"`
+	Query    string    `json:"query"`
+	Snapshot OptBool   `json:"snapshot"`
+}
+
+// GetInterval returns the value of Interval.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetInterval() int {
+	return s.Interval
+}
+
+// GetPlatform returns the value of Platform.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetPlatform() OptString {
+	return s.Platform
+}
+
+// GetQuery returns the value of Query.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetQuery() string {
+	return s.Query
+}
+
+// GetSnapshot returns the value of Snapshot.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) GetSnapshot() OptBool {
+	return s.Snapshot
+}
+
+// SetInterval sets the value of Interval.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetInterval(val int) {
+	s.Interval = val
+}
+
+// SetPlatform sets the value of Platform.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetPlatform(val OptString) {
+	s.Platform = val
+}
+
+// SetQuery sets the value of Query.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetQuery(val string) {
+	s.Query = val
+}
+
+// SetSnapshot sets the value of Snapshot.
+func (s *InventoryPostIntakeOsqueryConfigOKScheduleItem) SetSnapshot(val OptBool) {
+	s.Snapshot = val
+}
+
+type InventoryPostIntakeOsqueryConfigReq struct {
+	NodeKey         string `json:"node_key"`
+	AdditionalProps InventoryPostIntakeOsqueryConfigReqAdditional
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryConfigReq) GetNodeKey() string {
+	return s.NodeKey
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryConfigReq) GetAdditionalProps() InventoryPostIntakeOsqueryConfigReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryConfigReq) SetNodeKey(val string) {
+	s.NodeKey = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryConfigReq) SetAdditionalProps(val InventoryPostIntakeOsqueryConfigReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryConfigReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryConfigReqAdditional) init() InventoryPostIntakeOsqueryConfigReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryEnrollOK struct {
+	NodeInvalid bool `json:"node_invalid"`
+	// Returned once, only when enrollment succeeds; osquery sends it with every later call.
+	NodeKey OptString `json:"node_key"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryEnrollOK) GetNodeInvalid() bool {
+	return s.NodeInvalid
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryEnrollOK) GetNodeKey() OptString {
+	return s.NodeKey
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryEnrollOK) SetNodeInvalid(val bool) {
+	s.NodeInvalid = val
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryEnrollOK) SetNodeKey(val OptString) {
+	s.NodeKey = val
+}
+
+type InventoryPostIntakeOsqueryEnrollReq struct {
+	// The enrollment token (osquery reads it from enroll_secret_path).
+	EnrollSecret    OptString                                         `json:"enroll_secret"`
+	HostDetails     OptInventoryPostIntakeOsqueryEnrollReqHostDetails `json:"host_details"`
+	HostIdentifier  string                                            `json:"host_identifier"`
+	AdditionalProps InventoryPostIntakeOsqueryEnrollReqAdditional
+}
+
+// GetEnrollSecret returns the value of EnrollSecret.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetEnrollSecret() OptString {
+	return s.EnrollSecret
+}
+
+// GetHostDetails returns the value of HostDetails.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetHostDetails() OptInventoryPostIntakeOsqueryEnrollReqHostDetails {
+	return s.HostDetails
+}
+
+// GetHostIdentifier returns the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetHostIdentifier() string {
+	return s.HostIdentifier
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryEnrollReq) GetAdditionalProps() InventoryPostIntakeOsqueryEnrollReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetEnrollSecret sets the value of EnrollSecret.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetEnrollSecret(val OptString) {
+	s.EnrollSecret = val
+}
+
+// SetHostDetails sets the value of HostDetails.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetHostDetails(val OptInventoryPostIntakeOsqueryEnrollReqHostDetails) {
+	s.HostDetails = val
+}
+
+// SetHostIdentifier sets the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetHostIdentifier(val string) {
+	s.HostIdentifier = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryEnrollReq) SetAdditionalProps(val InventoryPostIntakeOsqueryEnrollReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryEnrollReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryEnrollReqAdditional) init() InventoryPostIntakeOsqueryEnrollReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryEnrollReqHostDetails map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryEnrollReqHostDetails) init() InventoryPostIntakeOsqueryEnrollReqHostDetails {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogOK struct {
+	NodeInvalid bool `json:"node_invalid"`
+}
+
+// GetNodeInvalid returns the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryLogOK) GetNodeInvalid() bool {
+	return s.NodeInvalid
+}
+
+// SetNodeInvalid sets the value of NodeInvalid.
+func (s *InventoryPostIntakeOsqueryLogOK) SetNodeInvalid(val bool) {
+	s.NodeInvalid = val
+}
+
+type InventoryPostIntakeOsqueryLogReq struct {
+	// Events: scheduled-query snapshots (result) or osquery own log lines (status, read for size and
+	// dropped).
+	Data            []InventoryPostIntakeOsqueryLogReqDataItem `json:"data"`
+	LogType         InventoryPostIntakeOsqueryLogReqLogType    `json:"log_type"`
+	NodeKey         string                                     `json:"node_key"`
+	AdditionalProps InventoryPostIntakeOsqueryLogReqAdditional
+}
+
+// GetData returns the value of Data.
+func (s *InventoryPostIntakeOsqueryLogReq) GetData() []InventoryPostIntakeOsqueryLogReqDataItem {
+	return s.Data
+}
+
+// GetLogType returns the value of LogType.
+func (s *InventoryPostIntakeOsqueryLogReq) GetLogType() InventoryPostIntakeOsqueryLogReqLogType {
+	return s.LogType
+}
+
+// GetNodeKey returns the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryLogReq) GetNodeKey() string {
+	return s.NodeKey
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryLogReq) GetAdditionalProps() InventoryPostIntakeOsqueryLogReqAdditional {
+	return s.AdditionalProps
+}
+
+// SetData sets the value of Data.
+func (s *InventoryPostIntakeOsqueryLogReq) SetData(val []InventoryPostIntakeOsqueryLogReqDataItem) {
+	s.Data = val
+}
+
+// SetLogType sets the value of LogType.
+func (s *InventoryPostIntakeOsqueryLogReq) SetLogType(val InventoryPostIntakeOsqueryLogReqLogType) {
+	s.LogType = val
+}
+
+// SetNodeKey sets the value of NodeKey.
+func (s *InventoryPostIntakeOsqueryLogReq) SetNodeKey(val string) {
+	s.NodeKey = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *InventoryPostIntakeOsqueryLogReq) SetAdditionalProps(val InventoryPostIntakeOsqueryLogReqAdditional) {
+	s.AdditionalProps = val
+}
+
+type InventoryPostIntakeOsqueryLogReqAdditional map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryLogReqAdditional) init() InventoryPostIntakeOsqueryLogReqAdditional {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogReqDataItem map[string]jx.Raw
+
+func (s *InventoryPostIntakeOsqueryLogReqDataItem) init() InventoryPostIntakeOsqueryLogReqDataItem {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type InventoryPostIntakeOsqueryLogReqLogType string
+
+const (
+	InventoryPostIntakeOsqueryLogReqLogTypeResult InventoryPostIntakeOsqueryLogReqLogType = "result"
+	InventoryPostIntakeOsqueryLogReqLogTypeStatus InventoryPostIntakeOsqueryLogReqLogType = "status"
+)
+
+// AllValues returns all InventoryPostIntakeOsqueryLogReqLogType values.
+func (InventoryPostIntakeOsqueryLogReqLogType) AllValues() []InventoryPostIntakeOsqueryLogReqLogType {
+	return []InventoryPostIntakeOsqueryLogReqLogType{
+		InventoryPostIntakeOsqueryLogReqLogTypeResult,
+		InventoryPostIntakeOsqueryLogReqLogTypeStatus,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostIntakeOsqueryLogReqLogType) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostIntakeOsqueryLogReqLogTypeResult:
+		return []byte(s), nil
+	case InventoryPostIntakeOsqueryLogReqLogTypeStatus:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostIntakeOsqueryLogReqLogType) UnmarshalText(data []byte) error {
+	switch InventoryPostIntakeOsqueryLogReqLogType(data) {
+	case InventoryPostIntakeOsqueryLogReqLogTypeResult:
+		*s = InventoryPostIntakeOsqueryLogReqLogTypeResult
+		return nil
+	case InventoryPostIntakeOsqueryLogReqLogTypeStatus:
+		*s = InventoryPostIntakeOsqueryLogReqLogTypeStatus
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -85043,6 +85412,98 @@ func (o OptInventoryPatchInventoryDevicesIDReqRegularScan) Get() (v InventoryPat
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPatchInventoryDevicesIDReqRegularScan) Or(d InventoryPatchInventoryDevicesIDReqRegularScan) InventoryPatchInventoryDevicesIDReqRegularScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostIntakeOsqueryConfigOKSchedule returns new OptInventoryPostIntakeOsqueryConfigOKSchedule with value set to v.
+func NewOptInventoryPostIntakeOsqueryConfigOKSchedule(v InventoryPostIntakeOsqueryConfigOKSchedule) OptInventoryPostIntakeOsqueryConfigOKSchedule {
+	return OptInventoryPostIntakeOsqueryConfigOKSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostIntakeOsqueryConfigOKSchedule is optional InventoryPostIntakeOsqueryConfigOKSchedule.
+type OptInventoryPostIntakeOsqueryConfigOKSchedule struct {
+	Value InventoryPostIntakeOsqueryConfigOKSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostIntakeOsqueryConfigOKSchedule was set.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostIntakeOsqueryConfigOKSchedule) Reset() {
+	var v InventoryPostIntakeOsqueryConfigOKSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostIntakeOsqueryConfigOKSchedule) SetTo(v InventoryPostIntakeOsqueryConfigOKSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) Get() (v InventoryPostIntakeOsqueryConfigOKSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostIntakeOsqueryConfigOKSchedule) Or(d InventoryPostIntakeOsqueryConfigOKSchedule) InventoryPostIntakeOsqueryConfigOKSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostIntakeOsqueryEnrollReqHostDetails returns new OptInventoryPostIntakeOsqueryEnrollReqHostDetails with value set to v.
+func NewOptInventoryPostIntakeOsqueryEnrollReqHostDetails(v InventoryPostIntakeOsqueryEnrollReqHostDetails) OptInventoryPostIntakeOsqueryEnrollReqHostDetails {
+	return OptInventoryPostIntakeOsqueryEnrollReqHostDetails{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostIntakeOsqueryEnrollReqHostDetails is optional InventoryPostIntakeOsqueryEnrollReqHostDetails.
+type OptInventoryPostIntakeOsqueryEnrollReqHostDetails struct {
+	Value InventoryPostIntakeOsqueryEnrollReqHostDetails
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostIntakeOsqueryEnrollReqHostDetails was set.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Reset() {
+	var v InventoryPostIntakeOsqueryEnrollReqHostDetails
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostIntakeOsqueryEnrollReqHostDetails) SetTo(v InventoryPostIntakeOsqueryEnrollReqHostDetails) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Get() (v InventoryPostIntakeOsqueryEnrollReqHostDetails, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Or(d InventoryPostIntakeOsqueryEnrollReqHostDetails) InventoryPostIntakeOsqueryEnrollReqHostDetails {
 	if v, ok := o.Get(); ok {
 		return v
 	}

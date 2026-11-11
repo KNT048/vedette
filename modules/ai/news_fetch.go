@@ -82,6 +82,7 @@ const (
 	newsMaxRedirects = 3
 	newsCacheTTL     = 30 * time.Minute
 	newsCacheMax     = 128
+	newsLimitTTL     = time.Minute // a rate-limit answer is remembered this long: presses in that time do not ask the site again
 )
 
 // Errors of one fetch. The note a person sees is chosen from them (fetchNote); the text of the error itself is never shown, as it
@@ -109,22 +110,25 @@ type newsFetcher struct {
 	timeout time.Duration // one request; newsFetchTimeout (tests shorten it)
 	total   time.Duration // every fetch of one news call; newsTotalTimeout
 
-	mu    sync.Mutex
-	cache map[string]newsCacheEntry
+	mu       sync.Mutex
+	cache    map[string]newsCacheEntry
+	inflight map[string]*cveLock // the news calls running or waiting, per CVE (lockCVE)
 }
 
 type newsCacheEntry struct {
-	v  any
-	at time.Time
+	v   any
+	err error // a remembered rate-limit answer (newsLimitTTL)
+	at  time.Time
 }
 
 func newNewsFetcher(now func() time.Time) *newsFetcher {
 	return &newsFetcher{
-		client:  &http.Client{Transport: newsTransport(systemResolve, nil), CheckRedirect: newsRedirect},
-		now:     now,
-		timeout: newsFetchTimeout,
-		total:   newsTotalTimeout,
-		cache:   map[string]newsCacheEntry{},
+		client:   &http.Client{Transport: newsTransport(systemResolve, nil), CheckRedirect: newsRedirect},
+		now:      now,
+		timeout:  newsFetchTimeout,
+		total:    newsTotalTimeout,
+		cache:    map[string]newsCacheEntry{},
+		inflight: map[string]*cveLock{},
 	}
 }
 
@@ -269,19 +273,25 @@ func (f *newsFetcher) get(ctx context.Context, raw, accept string) ([]byte, erro
 
 // cached returns what fn made for key in the last newsCacheTTL, or runs fn and keeps a result that is not an error. Asking again
 // within the window reads the same inputs, so the stored answer is reused and no tokens are spent (INV-6); it also keeps the box
-// under GitHub's limit for requests without a key.
+// under GitHub's limit for requests without a key. A rate-limit answer (429, or GitHub's 403 with no requests left) is kept for
+// newsLimitTTL: pressing again in that minute does not ask the site that just refused (D-284).
 func cachedFetch[T any](f *newsFetcher, key string, fn func() (T, error)) (T, error) {
 	now := f.now()
 	f.mu.Lock()
 	e, hit := f.cache[key]
 	f.mu.Unlock()
-	if age := now.Sub(e.at); hit && age >= 0 && age < newsCacheTTL {
-		if v, ok := e.v.(T); ok {
+	if age := now.Sub(e.at); hit && age >= 0 {
+		var zero T
+		if e.err != nil && age < newsLimitTTL {
+			return zero, e.err
+		}
+		if v, ok := e.v.(T); ok && e.err == nil && age < newsCacheTTL {
 			return v, nil
 		}
 	}
 	v, err := fn()
-	if err != nil {
+	var se *statusError
+	if err != nil && !(errors.As(err, &se) && (se.limited || se.code == http.StatusTooManyRequests)) {
 		return v, err
 	}
 	f.mu.Lock()
@@ -295,8 +305,41 @@ func cachedFetch[T any](f *newsFetcher, key string, fn func() (T, error)) (T, er
 		}
 		delete(f.cache, oldest)
 	}
-	f.cache[key] = newsCacheEntry{v: v, at: now}
-	return v, nil
+	f.cache[key] = newsCacheEntry{v: v, err: err, at: now}
+	return v, err
+}
+
+// lockCVE serialises the news calls of one CVE (D-284): a second press while the first is fetching or asking waits for it, then
+// finds the fetched pages in the cache and the answer stored, so it fetches nothing and spends no tokens. A caller that gives up
+// while waiting gets its context's error.
+func (f *newsFetcher) lockCVE(ctx context.Context, cve string) (unlock func(), err error) {
+	f.mu.Lock()
+	l, ok := f.inflight[cve]
+	if !ok {
+		l = &cveLock{ch: make(chan struct{}, 1)}
+		f.inflight[cve] = l
+	}
+	l.n++
+	f.mu.Unlock()
+	release := func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if l.n--; l.n == 0 {
+			delete(f.inflight, cve)
+		}
+	}
+	select {
+	case l.ch <- struct{}{}:
+		return func() { <-l.ch; release() }, nil
+	case <-ctx.Done():
+		release()
+		return nil, ctx.Err()
+	}
+}
+
+type cveLock struct {
+	ch chan struct{} // holds one token while a call of the CVE runs
+	n  int           // calls holding or waiting for it, under newsFetcher.mu
 }
 
 // fetchNote is what a person sees for a source that could not be used. It never quotes the remote site.

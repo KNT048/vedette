@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -547,5 +548,87 @@ func TestContract_INV10_TheNewsCarriesNoKnowledge(t *testing.T) {
 	req := a.fake.lastRequest(t)
 	if user := req.Messages[0].Text; strings.Contains(user, "KBSECRET") || strings.Contains(user, "kind=document") {
 		t.Fatalf("a knowledge document reached the public news job: %s", user)
+	}
+}
+
+// D-284 (1): two presses on one CVE at the same time fetch once and ask once; the second waits for the first and reads its result.
+func TestContract_INV6_TwoPressesAtOnceAskOnce(t *testing.T) {
+	a := newNewsAPI(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	a.fake.mu.Lock()
+	a.fake.onCall = func() { once.Do(func() { close(started); <-release }) } // the first call holds the provider until the second press waits
+	a.fake.mu.Unlock()
+	done := make(chan int, 2)
+	go func() { s, _, _ := a.do("POST", "/ai/cve/"+newsCVE+"/news", "operator", ""); done <- s }()
+	<-started
+	go func() { s, _, _ := a.do("POST", "/ai/cve/"+newsCVE+"/news", "operator", ""); done <- s }()
+	for deadline := time.Now().Add(5 * time.Second); a.svc.NewsCallsFor(newsCVE) < 2; runtime.Gosched() { // the second press waits on the lock
+		if time.Now().After(deadline) {
+			t.Fatal("the second press never reached the lock")
+		}
+	}
+	close(release)
+	for range 2 {
+		if s := <-done; s != 200 {
+			t.Fatalf("status %d", s)
+		}
+	}
+	if n := a.fake.total(); n != 1 {
+		t.Fatalf("%d AI calls for two presses at once", n)
+	}
+	nvd := 0
+	for _, r := range a.net.requests() {
+		if r.Host == "services.nvd.nist.gov" {
+			nvd++
+		}
+	}
+	if nvd != 1 {
+		t.Fatalf("NVD asked %d times", nvd)
+	}
+}
+
+// D-284 (2): GitHub's limit for requests without a key is remembered for a minute: presses in that minute do not ask GitHub again.
+func TestNewsRateLimitIsRemembered(t *testing.T) {
+	a := newNewsAPI(t)
+	a.net.set("api.github.com/search/repositories", fakePage{status: http.StatusForbidden, header: map[string]string{"X-RateLimit-Remaining": "0"}})
+	github := func() int {
+		n := 0
+		for _, r := range a.net.requests() {
+			if r.Host == "api.github.com" {
+				n++
+			}
+		}
+		return n
+	}
+	a.news(200, "")
+	a.clock.Add(31 * time.Minute) // past both the fetch cache and the minute: GitHub is asked again
+	a.news(200, "")
+	if github() != 2 {
+		t.Fatalf("GitHub asked %d times across two presses 31 minutes apart", github())
+	}
+	a.clock.Add(30 * time.Second)
+	a.net.set("api.github.com/search/repositories", fakePage{body: ghBody})
+	src := sourcesOf(t, a.news(200, ""))
+	if github() != 2 || !strings.Contains(src["GitHub: search "+newsCVE]["note"].(string), "limit") {
+		t.Fatalf("GitHub asked %d times within the minute; source %v", github(), src["GitHub: search "+newsCVE])
+	}
+	a.clock.Add(31 * time.Second)
+	a.news(200, "")
+	if github() != 3 {
+		t.Fatalf("GitHub not asked again after the minute (%d)", github())
+	}
+}
+
+// D-284 (3): the box's own list of sources it could not read goes through the before-AI hooks like the fetched blocks: a hook that
+// stops it leaves it out, and the call goes on.
+func TestNewsHookLeavesOutTheUnreadSourcesList(t *testing.T) {
+	a := newNewsAPI(t)
+	a.addBlockHook("No source notes", "before_ai", "source skipped")
+	a.net.set("www.rapid7.com/rss.xml", fakePage{status: http.StatusServiceUnavailable})
+	a.news(200, "")
+	if user := a.fake.lastRequest(t).Messages[0].Text; strings.Contains(user, "source skipped") {
+		t.Fatalf("a hooked list was sent: %s", user)
 	}
 }

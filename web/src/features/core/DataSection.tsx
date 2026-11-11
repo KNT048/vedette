@@ -33,7 +33,7 @@ export default function DataSection() {
   const [purgeErr, setPurgeErr] = useState<string | null>(null)
   const [askReset, setAskReset] = useState(false)
 
-  const dl = (path: string, file: string) => () => void download(path, file).then(() => toast.success(t('data.downloaded', { file }))).catch((e) => toast.error(errMsg(e, t)))
+  const dl = (path: string, file: string) => () => void download(path, file).then((saved) => toast.success(t('data.downloaded', { file: saved }))).catch((e) => toast.error(errMsg(e, t)))
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
   const [cats, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
@@ -63,7 +63,7 @@ export default function DataSection() {
     <>
       <PageHeader title={t('data.title')} meta={t('data.meta')} stories={['S-CORE-1']} />
       <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
-        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.json`)}><Download />{t('data.backup.button')}</Button>
+        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
       </Section>
       <Section title={t('data.export.title')} description={t('data.export.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>

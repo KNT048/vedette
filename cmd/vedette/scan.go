@@ -218,11 +218,11 @@ type scanEngine struct{ d sensoractive.Scanner }
 
 func (e scanEngine) Ready(ctx context.Context) error { return e.d.Ready(ctx) }
 
-func (e scanEngine) Run(ctx context.Context, j scan.Job) ([]nucleiout.Result, error) {
+func (e scanEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, error) {
 	res, err := e.d.RunNuclei(ctx, sensoractive.NucleiRequest{PackVersion: j.PackVersion, PackSHA256: j.PackSHA256, Templates: j.IDs,
 		Targets: j.Targets, Rate: j.Rate, MaxHostErrors: j.MaxHostErrors})
 	if errors.Is(err, sensoractive.ErrScannerUnavailable) || errors.Is(err, sensoractive.ErrPackMismatch) || errors.Is(err, sensoractive.ErrPackInvalid) {
-		return nil, fmt.Errorf("%w: %w", scan.ErrEngineDown, err)
+		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", scan.ErrEngineDown, err)
 	}
 	return res, err
 }

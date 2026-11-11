@@ -44,7 +44,7 @@ Merge lần lượt từng PR (xem §4). Mỗi PR merge xong thì xoá worktree 
 Mỗi lát việc đi một vòng giống nhau:
 1. Mở worktree và nhánh riêng, cắt từ `origin/main`.
 2. Agent Sonnet làm theo brief.
-3. Một agent Opus rà độc lập. Bắt buộc với core/auth, host, response và sensor; nên làm với mọi lát.
+3. Một agent Opus rà độc lập. Bắt buộc với core/auth, host, response và sensor; nên làm với mọi lát. Tối đa 2 vòng (D-255): vòng 1 rà cả diff, bắt đầu ngay khi diff xong, chạy song song với `make check`/e2e; HIGH/MEDIUM sửa ngay, LOW thành dòng deferred (không chặn PR); vòng 2 chỉ kiểm phần sửa; vòng 3 chỉ khi vòng 2 thấy HIGH mới. Sau một sửa nhỏ chỉ chạy lại test/spec bị ảnh hưởng; CI và merge queue là cổng đầy đủ.
 4. Sửa theo kết quả rà.
 5. Mở PR, chạy merge-step.
 

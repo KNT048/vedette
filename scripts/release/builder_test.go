@@ -700,10 +700,10 @@ func TestMinisignCLIHandling(t *testing.T) {
 	if strings.Contains(string(argv), "hunter2") || strings.Contains(string(argv), "correct") {
 		t.Fatalf("the passphrase is in argv: %s", argv)
 	}
-	// the signer passes the key with symlinks resolved (D-164 L6); on macOS the temp dir is under the /var -> /private/var link
-	realKey, err := filepath.EvalSymlinks(key)
+	// the signer hands minisign the key with symlinks resolved (a temp dir under a symlink, like macOS /var -> /private/var, differs)
+	resolvedKey, err := filepath.EvalSymlinks(key)
 	must(t, err)
-	if want := "-S\n-s\n" + realKey + "\n-m\n" + doc + "\n-x\n" + sigPath + "\n-t\nfile:doc.json sequence:1\n"; string(argv) != want {
+	if want := "-S\n-s\n" + resolvedKey + "\n-m\n" + doc + "\n-x\n" + sigPath + "\n-t\nfile:doc.json sequence:1\n"; string(argv) != want {
 		t.Fatalf("argv:\n%q\nwant\n%q", argv, want)
 	}
 	if in, _ := os.ReadFile(stdinFile); string(in) != "hunter2 correct horse\n" {

@@ -79,7 +79,8 @@ func (e *e2e) req() sa.NucleiRequest {
 func TestEndToEndNucleiRun(t *testing.T) {
 	t.Parallel()
 	e := startE2E(t, "cat <<'EOF'\n"+string(fixture(t, "nuclei_host_port.jsonl"))+"EOF\n")
-	res, err := e.d.RunNuclei(t.Context(), e.req())
+	out, err := e.d.RunNuclei(t.Context(), e.req())
+	res := out.Results
 	if err != nil || len(res) != 3 || !res[0].Matched || res[0].Target != "192.168.10.20:8080" {
 		t.Fatalf("result = %+v, %v", res, err)
 	}

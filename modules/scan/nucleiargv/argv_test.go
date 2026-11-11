@@ -187,7 +187,7 @@ func TestTarget_Input(t *testing.T) {
 }
 
 // The fixed part as the review approved it, written out here on purpose: a change in argv.go must change this too.
-var approvedFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz", "-pt", "http,tcp,ssl", "-c", "1", "-bs", "1", "-timeout", "10", "-retries", "1"}
+var approvedFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz", "-pt", "http,tcp,ssl", "-elog", "/dev/stderr", "-c", "1", "-bs", "1", "-timeout", "10", "-retries", "1"}
 
 // rfc1918Literal is written apart from validHost: a dotted IPv4 literal in 10/8, 172.16/12 or 192.168/16, last octet 1..254.
 func rfc1918Literal(s string) bool {

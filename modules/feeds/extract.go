@@ -475,7 +475,7 @@ func charsetReader(label string, in io.Reader) (io.Reader, error) {
 	case "iso-8859-1", "latin1", "latin-1":
 		return latin1{in}, nil
 	}
-	return nil, errors.New("unsupported encoding " + strconv.Quote(jsSlice(label, 20)))
+	return nil, errors.New("unsupported encoding " + quoteVal(label))
 }
 
 var errXMLBudget = errors.New("xml too large or too deeply nested")

@@ -152,6 +152,8 @@ func userError(err error, rawURL string) string {
 		return fmt.Sprintf("The source answered HTTP %d.", se.Code)
 	case errors.Is(err, ErrBoxAddrsUnknown):
 		return "Vedette does not know its own addresses yet, so it did not connect. It will try again at the next pull."
+	case errors.Is(err, ErrBlockedAddress):
+		return "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses."
 	case errors.Is(err, context.DeadlineExceeded):
 		return "The source did not answer in time."
 	case errors.As(err, &dns):
@@ -417,6 +419,12 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	cancel()
 	if perr != nil && ctx.Err() != nil {
 		return sourceRow{}, 0, ctx.Err() // cancelled (module turned off, shutdown): not a failure of the feed
+	}
+	if errors.Is(perr, ErrBoxAddrsUnknown) { // D-208: not a failure of the feed: nothing is recorded, no back-off, the feed stays due
+		if s.unknownLogged.CompareAndSwap(false, true) {
+			s.Log.DebugContext(ctx, "feed pull waits: the box's own addresses are not known yet", "feed", src.ID)
+		}
+		return src, 0, nil
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "error", perr)

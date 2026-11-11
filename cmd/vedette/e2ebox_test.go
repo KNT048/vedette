@@ -231,10 +231,16 @@ func e2eOffline() func() {
 	}
 	e2eOfflinePrev = feedsClient
 	c := feeds.NewClient(feeds.DefaultFetchTimeout)
-	inner := c.Transport
+	loop := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) { // D-208: feeds refuses loopback, the fake feed servers live there
+		host, _, err := net.SplitHostPort(addr)
+		if ip, perr := netip.ParseAddr(host); err != nil || perr != nil || !ip.IsLoopback() {
+			return nil, errors.New("e2e: loopback only")
+		}
+		return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, network, addr)
+	}}
 	c.Transport = e2eRoundTrip(func(r *http.Request) (*http.Response, error) {
 		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
-			return inner.RoundTrip(r)
+			return loop.RoundTrip(r)
 		}
 		if r.URL.Path == "/sites/default/files/feeds/known_exploited_vulnerabilities.json" && r.URL.Host == "www.cisa.gov" ||
 			r.URL.Path == "/cisagov/kev-data/develop/known_exploited_vulnerabilities.json" && r.URL.Host == "raw.githubusercontent.com" {

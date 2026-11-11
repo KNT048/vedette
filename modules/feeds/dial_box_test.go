@@ -3,9 +3,11 @@ package feeds
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -26,7 +28,7 @@ func boxOf(addrs ...string) func() ([]netip.Addr, bool) {
 func countingServer(t *testing.T, tls bool) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
 	var served atomic.Int32
-	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { served.Add(1); _, _ = w.Write([]byte("secret")) })
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { served.Add(1); _, _ = w.Write([]byte("45.33.32.156\n")) })
 	if tls {
 		return httptest.NewTLSServer(h), &served
 	}
@@ -179,4 +181,105 @@ func jsonQuote(s string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
+}
+
+func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
+	t.Parallel()
+	plain, plainHits := countingServer(t, false)
+	defer plain.Close()
+	tlsSrv, tlsHits := countingServer(t, true)
+	defer tlsSrv.Close()
+	hostPort := func(s *httptest.Server) string { return "127.0.0.1:" + portOf(t, s.URL) }
+	var calls atomic.Int32
+	c := newClient(5*time.Second, fixedResolver(&calls, map[string][]string{"example.com": {"8.8.8.8"}, "intranet.lan": {"10.1.1.1"}}))
+	c.Transport.(*http.Transport).TLSClientConfig = tlsSrv.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+	var known atomic.Bool
+	f := Fetcher{Client: c, Version: "test",
+		BoxAddrs: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.1.1.9")}, known.Load() },
+		dialOverride: func(ctx context.Context, network, addr string) (net.Conn, error) { // after every check: reach the test servers
+			target := hostPort(plain)
+			if strings.HasSuffix(addr, ":443") {
+				target = hostPort(tlsSrv)
+			}
+			return (&net.Dialer{}).DialContext(ctx, network, target)
+		}}
+	e := newEnvFetcher(t, f)
+	e.only("tor-exit", "et-open")
+	e.mirror("tor-exit", "https://example.com/list.txt")
+	e.mirror("et-open", "http://intranet.lan/list.txt")
+
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if tlsHits.Load() != 1 || e.feed("tor-exit").Status != "ok" {
+		t.Errorf("the public feed was not pulled: hits %d, %+v", tlsHits.Load(), e.feed("tor-exit"))
+	}
+	if lan := e.feed("et-open"); plainHits.Load() != 0 || lan.Failures != 0 || lan.Status == "error" || lan.Error != nil {
+		t.Errorf("the LAN feed while unknown: hits %d, %+v", plainHits.Load(), lan)
+	}
+	known.Store(true)
+	if err := e.svc.RunPull(t.Context()); err != nil { // the unknown pull left the feed due: no back-off to wait out
+		t.Fatal(err)
+	}
+	if plainHits.Load() != 1 || e.feed("et-open").Status != "ok" {
+		t.Errorf("the LAN feed once known: hits %d, %+v", plainHits.Load(), e.feed("et-open"))
+	}
+}
+
+func TestD208_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
+	t.Parallel()
+	g := &destGuard{}
+	box := []netip.Addr{netip.MustParseAddr("10.9.9.9")}
+	for ip, want := range map[string]bool{
+		"64:ff9b::7f00:1": true, "64:ff9b::a09:909": true, "64:ff9b::808:808": false, "64:ff9b:1::7f:0:1": false,
+		"2002:7f00:1::": true, "2002:a09:909::1": true, "2002:808:808::1": false, "::127.0.0.1": true, "::10.9.9.9": true, "::8.8.8.8": false,
+	} {
+		if got := g.refused(netip.MustParseAddr(ip), box); got != want {
+			t.Errorf("refused(%s) = %v, want %v", ip, got, want)
+		}
+	}
+	for _, ip := range []string{"64:ff9b::a9fe:a9fe", "2002:a9fe:a9fe::1", "::169.254.169.254"} { // metadata via a translator
+		if !refusedAlways(netip.MustParseAddr(ip)) {
+			t.Errorf("%s reaches the metadata address", ip)
+		}
+	}
+	for ip, want := range map[string]bool{"8.8.8.8": true, "2606:4700:4700::1111": true, "10.1.1.1": false, "127.0.0.1": false, "100.64.0.1": false,
+		"fd00::1": false, "fe80::1": false, "169.254.1.1": false, "192.0.2.1": false, "64:ff9b::a01:101": false, "2002:a01:101::": false, "64:ff9b::808:808": true} {
+		if got := globalOnly(netip.MustParseAddr(ip)); got != want {
+			t.Errorf("globalOnly(%s) = %v, want %v", ip, got, want)
+		}
+	}
+}
+
+func TestD208_GatewayIsTheBoxAndRefusedPullsHaveAPlainMessage(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"gw.lan": {"172.17.0.1"}}))
+	f := Fetcher{Client: c, Gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.17.0.1"), true }}
+	_, err := f.Fetch(context.Background(), Request{URL: "http://gw.lan/"})
+	if !errors.Is(err, ErrBlockedAddress) {
+		t.Fatalf("%v", err)
+	}
+	if msg := userError(err, "http://gw.lan/"); !strings.HasPrefix(msg, "Vedette does not pull feeds from itself") {
+		t.Errorf("message = %q", msg)
+	}
+}
+
+func TestD208_RedirectHostIsQuoted(t *testing.T) {
+	t.Parallel()
+	a := &http.Request{URL: mustURL(t, "http://evil\u202e.example/")}
+	b := &http.Request{URL: mustURL(t, "http://feed.lan/")}
+	err := checkRedirect(a, []*http.Request{b})
+	if err == nil || strings.ContainsRune(err.Error(), '\u202e') {
+		t.Errorf("%v", err)
+	}
+}
+
+func mustURL(t *testing.T, s string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
 }

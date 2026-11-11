@@ -167,8 +167,8 @@ func stripFormat(s string) string {
 	}, s)
 }
 
-// quoteVal renders a feed-supplied value for a message: truncated, then quoted
-// with Go escapes so control and format characters show as \x1b or \u202e.
+// quoteVal renders a feed-supplied value for a message: truncated, unprintable
+// runes (controls, format characters) turned into spaces, then quoted (D-208).
 func quoteVal(s string) string {
 	// D-208: a feed value is a short snippet, never more: unprintable runes (controls, bidi overrides) become spaces first.
 	return strconv.Quote(strings.Map(func(r rune) rune {

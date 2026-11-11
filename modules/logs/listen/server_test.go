@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -563,22 +564,6 @@ func TestTheFallbackPortIsUsedOnlyWhenThePreferredOneIsNotPermitted(t *testing.T
 	}
 }
 
-func TestABusyPortIsAnErrorNotAFallback(t *testing.T) {
-	hold, err := listenPacket("udp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = hold.Close() }()
-	port := hold.LocalAddr().(*net.UDPAddr).Port
-	r := newRig(t, Limits{}, nil, port, 0)
-	r.set("udp")
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	if err := r.srv.Run(ctx); err == nil || errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("Run = %v, want the bind error", err)
-	}
-}
-
 func TestEndToEndWithManySendersAtOnce(t *testing.T) {
 	r := newRig(t, Limits{BatchWait: 20 * time.Millisecond, Rate: 1e6, Burst: 1e6}, nil)
 	r.set("tcp")
@@ -602,4 +587,271 @@ func TestEndToEndWithManySendersAtOnce(t *testing.T) {
 	}
 	wg.Wait()
 	waitFor(t, "800 lines", func() bool { return len(r.lines()) == 800 })
+}
+
+// Review finding 1: a blank line, or the LF after an octet-counted frame, must not turn the idle wait (5 min) into the frame
+// wait (30 s): a quiet sender is not a slow one.
+func TestAQuietSenderKeepsItsConnectionAfterABlankLineOrTheLFOfAFrame(t *testing.T) {
+	for name, payload := range map[string]string{"LF after an octet frame": "5 <34>a\n", "blank line": "<34>b\n\n", "CRLF pairs": "<34>c\r\n\r\n"} {
+		t.Run(name, func(t *testing.T) {
+			r := newRig(t, Limits{FrameTimeout: 100 * time.Millisecond, Idle: 5 * time.Second, BatchWait: 10 * time.Millisecond}, nil)
+			r.set("tcp")
+			r.start()
+			c := dialTCP(t, r.tcpAddr())
+			if _, err := io.WriteString(c, payload); err != nil {
+				t.Fatal(err)
+			}
+			waitFor(t, "the first line", func() bool { return len(r.lines()) == 1 })
+			if closedByPeer(c, 400*time.Millisecond) { // longer than FrameTimeout, far shorter than Idle
+				t.Fatal("a quiet sender was closed after the frame timeout")
+			}
+			if _, err := io.WriteString(c, "<34>next\n"); err != nil {
+				t.Fatal(err)
+			}
+			waitFor(t, "the next line", func() bool { return len(r.lines()) == 2 })
+		})
+	}
+}
+
+// Review finding 2: a bind that fails costs that protocol only, is reported, and is retried without ending anything.
+func TestAFailedTCPBindKeepsUDPAndIsReportedAndRetried(t *testing.T) {
+	hold, err := listenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := hold.LocalAddr().(*net.UDPAddr).Port
+	_ = hold.Close()
+	var lc net.ListenConfig
+	busy, err := lc.Listen(t.Context(), "tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	if err != nil {
+		t.Skipf("the port is taken: %v", err)
+	}
+	r := newRig(t, Limits{BatchWait: 10 * time.Millisecond}, nil, port)
+	other := netip.MustParseAddr("127.0.0.2")
+	if err := r.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "udp"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.start()
+	waitFor(t, "UDP up", func() bool { return r.srv.Status().UDP })
+	err = r.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "udp"}, other: {ID: "src-2", Proto: "tcp"}})
+	if err == nil {
+		t.Fatal("a busy TCP port gave no error")
+	}
+	st := r.srv.Status()
+	if !st.UDP || st.TCP || st.TCPErr == "" || st.UDPErr != "" {
+		t.Fatalf("status %+v: UDP must stay up and TCP must say why it is down", st)
+	}
+	sendUDP(t, r.udpAddr(), "<34>still here")
+	waitFor(t, "a UDP line while TCP is down", func() bool { return len(r.lines()) == 1 })
+	_ = busy.Close()
+	if err := r.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "udp"}, other: {ID: "src-2", Proto: "tcp"}}); err != nil { // the retry
+		t.Fatalf("the retry failed: %v", err)
+	}
+	if st := r.srv.Status(); !st.UDP || !st.TCP || st.TCPErr != "" {
+		t.Fatalf("status after the retry %+v", st)
+	}
+}
+
+func TestABindFailureAtStartDoesNotEndRun(t *testing.T) {
+	hold, err := listenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = hold.Close() }()
+	r := newRig(t, Limits{}, nil, hold.LocalAddr().(*net.UDPAddr).Port)
+	r.set("udp")
+	r.start()
+	waitFor(t, "the failure to be reported", func() bool { return r.srv.Status().UDPErr != "" })
+	select {
+	case err := <-r.done:
+		t.Fatalf("Run ended with %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+// Review finding 4: what the producers queued is stored when the server stops.
+func TestNothingAcceptedIsLostAtShutdown(t *testing.T) {
+	r := newRig(t, Limits{BatchWait: time.Hour, Rate: 1e6, Burst: 1e6}, nil)
+	r.set("tcp")
+	r.start()
+	c := dialTCP(t, r.tcpAddr())
+	var b strings.Builder
+	for i := range 30 {
+		fmt.Fprintf(&b, "<34>line %d\n", i)
+	}
+	if _, err := io.WriteString(c, b.String()); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "30 accepted", func() bool { return r.srv.Stats().Received == 30 })
+	r.shutdown()
+	if n := len(r.lines()); n != 30 {
+		t.Errorf("stored %d of 30 accepted lines", n)
+	}
+}
+
+func TestNothingAcceptedIsLostAtShutdownUnderUDPLoad(t *testing.T) {
+	for range 5 {
+		r := newRig(t, Limits{BatchWait: time.Hour, Rate: 1e6, Burst: 1e6}, nil)
+		r.set("udp")
+		r.start()
+		addr := r.udpAddr()
+		c, err := dialCtx("udp4", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range 200 {
+			_, _ = fmt.Fprintf(c, "<34>u%d", i)
+		}
+		_ = c.Close()
+		waitFor(t, "some accepted", func() bool { return r.srv.Stats().Received > 0 })
+		r.shutdown()
+		st := r.srv.Stats()
+		if int64(len(r.lines())) != st.Received {
+			t.Fatalf("accepted %d, stored %d", st.Received, len(r.lines()))
+		}
+	}
+}
+
+// Review finding 6: queue full and backpressure.
+type slowSink struct {
+	gate chan struct{}
+	mu   sync.Mutex
+	got  int
+}
+
+func (s *slowSink) sink(_ context.Context, lines []Line) error {
+	<-s.gate
+	s.mu.Lock()
+	s.got += len(lines)
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *slowSink) stored() int { s.mu.Lock(); defer s.mu.Unlock(); return s.got }
+
+func newBlockedRig(t *testing.T, proto string) (*Server, *slowSink, context.CancelFunc) {
+	t.Helper()
+	ss := &slowSink{gate: make(chan struct{})}
+	srv, err := New(Config{Host: "127.0.0.1", Ports: []int{0}, Sink: ss.sink, Log: slog.New(slog.DiscardHandler), Limits: Limits{Queue: 1, BatchLines: 1, BatchWait: time.Millisecond, Rate: 1e6, Burst: 1e6}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: proto}}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { _ = srv.Run(ctx); close(done) }()
+	t.Cleanup(func() {
+		select {
+		case <-ss.gate:
+		default:
+			close(ss.gate)
+		}
+		cancel()
+		<-done
+	})
+	return srv, ss, cancel
+}
+
+func TestAFullQueueDropsDatagramsAndCountsThem(t *testing.T) {
+	srv, ss, _ := newBlockedRig(t, "udp")
+	var a net.Addr
+	waitFor(t, "the socket", func() bool { a, _ = srv.Addrs(); return a != nil })
+	c, err := dialCtx("udp4", a.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	for i := range 100 {
+		_, _ = fmt.Fprintf(c, "<34>d%d", i)
+	}
+	waitFor(t, "the drops to be counted", func() bool { s := srv.Stats(); return s.QueueDropped > 0 && s.Received+s.QueueDropped == 100 })
+	close(ss.gate)
+	waitFor(t, "what was accepted to be stored", func() bool { return int64(ss.stored()) == srv.Stats().Received })
+}
+
+func TestATCPSenderIsHeldBackNotDroppedWhenTheQueueIsFull(t *testing.T) {
+	srv, ss, _ := newBlockedRig(t, "tcp")
+	var a net.Addr
+	waitFor(t, "the socket", func() bool { _, a = srv.Addrs(); return a != nil })
+	c := dialTCP(t, a.String())
+	var b strings.Builder
+	for i := range 50 {
+		fmt.Fprintf(&b, "<34>t%d\n", i)
+	}
+	if _, err := io.WriteString(c, b.String()); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the queue to fill", func() bool { return srv.Stats().Received >= 2 })
+	<-time.After(100 * time.Millisecond)
+	if st := srv.Stats(); st.Received > 3 || st.QueueDropped != 0 {
+		t.Fatalf("the reader did not stop: received %d, dropped %d", st.Received, st.QueueDropped)
+	}
+	close(ss.gate)
+	waitFor(t, "all 50 lines", func() bool { return ss.stored() == 50 })
+	if srv.Stats().QueueDropped != 0 {
+		t.Error("a TCP line was dropped")
+	}
+}
+
+func TestAnUnknownTCPSenderIsClosedBeforeAnyReadAndCounted(t *testing.T) {
+	r := newRig(t, Limits{BatchWait: 10 * time.Millisecond}, nil)
+	if err := r.srv.SetSources(map[netip.Addr]Source{netip.MustParseAddr("10.9.9.9"): {ID: "src-9", Proto: "tcp"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.start()
+	c := dialTCP(t, r.tcpAddr())
+	if !closedByPeer(c, 5*time.Second) { // nothing was sent: only a close at accept can explain it
+		t.Fatal("the connection of an unknown sender stayed open")
+	}
+	waitFor(t, "the count", func() bool { return r.srv.Stats().Unknown == 1 })
+	if st := r.srv.Stats(); st.Received != 0 || len(r.lines()) != 0 {
+		t.Errorf("stats %+v", st)
+	}
+}
+
+// A real slow-loris: one byte at a time, each in time for a per-read deadline, is still bounded by the absolute frame deadline.
+func TestATrickleOfSingleBytesIsBoundedByTheFrameDeadline(t *testing.T) {
+	r := newRig(t, Limits{FrameTimeout: 300 * time.Millisecond, Idle: 5 * time.Second}, nil)
+	r.set("tcp")
+	r.start()
+	c := dialTCP(t, r.tcpAddr())
+	start := time.Now()
+	for time.Since(start) < 5*time.Second {
+		if _, err := c.Write([]byte("a")); err != nil {
+			break
+		}
+		<-time.After(30 * time.Millisecond)
+		if closedByPeer(c, time.Millisecond) {
+			break
+		}
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("a trickle held the connection for %v with a frame deadline of 300 ms", d)
+	}
+}
+
+// Review finding 5: a connection accepted while the sources change is not kept for a sender that is gone.
+func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
+	r := newRig(t, Limits{}, nil)
+	r.set("tcp")
+	r.start()
+	r.tcpAddr()
+	c1, c2 := net.Pipe()
+	defer func() { _ = c1.Close(); _ = c2.Close() }()
+	r.srv.mu.Lock()
+	l := r.srv.tcp
+	r.srv.mu.Unlock()
+	if !r.srv.register(l, c1, lo) {
+		t.Fatal("a declared TCP sender was refused")
+	}
+	r.srv.unregister(c1, lo)
+	r.set("udp") // the sender changes protocol, and the TCP listener closes
+	if r.srv.register(l, c1, lo) {
+		t.Error("a sender that is no longer a TCP source was registered")
+	}
+	if r.srv.register(nil, c1, lo) {
+		t.Error("a connection of a listener that is gone was registered")
+	}
 }

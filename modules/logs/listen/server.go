@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -25,7 +26,7 @@ type Limits struct {
 	Idle          time.Duration // a connection that sends nothing for this long is closed (5 min)
 	FrameTimeout  time.Duration // once a frame has started, the rest must arrive within this (30 s): slow-loris
 	Rate          float64       // lines a second one source may send (2,000)
-	Burst         int           // and the burst it may send at once (10,000)
+	Burst         int           // and the burst it may send at once (10,000); above Queue on purpose: the queue is the buffer behind the bucket, a UDP burst over it is dropped and counted, and TCP waits
 	BatchLines    int           // lines in a batch (500)
 	BatchBytes    int           // bytes of text in a batch (1 MiB)
 	BatchWait     time.Duration // the longest a line waits for its batch (2 s)
@@ -110,7 +111,8 @@ type Server struct {
 	srcView  atomic.Pointer[map[netip.Addr]Source]
 	udp      *net.UDPConn
 	tcp      net.Listener
-	port     int // the port chosen by the first listener that opened, 0 until then
+	bindErr  [2]string // why udp and tcp are wanted but not open
+	port     int       // the port chosen by the first listener that opened, 0 until then
 	fellBack bool
 	conns    map[net.Conn]netip.Addr
 	perIP    map[netip.Addr]int
@@ -147,13 +149,15 @@ func New(cfg Config) (*Server, error) {
 	}
 	s.queue = make(chan Line, s.lim.Queue)
 	s.unknown = newLRU(s.lim.UnknownKept)
-	s.srcView.Store(&s.sources)
+	empty := map[netip.Addr]Source{}
+	s.srcView.Store(&empty) // a map of its own: SetSources replaces the view, and nothing but the view is read without the lock
 	return s, nil
 }
 
 // SetSources replaces the declared senders. While the server runs it opens or closes the sockets to match, and closes the
 // connections of a sender that is gone or declared with another protocol. It returns the error of a socket that could not be
-// opened; the sources are kept, and calling it again retries the bind.
+// opened (the joined errors of both protocols; the one that opened stays up, and Status says which one is down and why). The
+// sources are kept, and calling it again retries the bind of the socket that is missing.
 func (s *Server) SetSources(m map[netip.Addr]Source) error {
 	cp := make(map[netip.Addr]Source, len(m))
 	for ip, src := range m {
@@ -185,8 +189,8 @@ func (s *Server) lookup(ip netip.Addr, proto string) (Source, bool) {
 	return src, ok && src.Proto == proto
 }
 
-// Run serves until ctx ends: it opens the sockets the sources need, then closes everything and flushes the last batch. It
-// returns an error at once when a socket cannot be opened (the caller retries later), and ctx.Err() otherwise.
+// Run serves until ctx ends: it opens the sockets the sources need, then closes everything and flushes the last batch. A socket
+// that cannot be opened does not end it: Status says why, and the caller retries with SetSources. It returns ctx.Err().
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	if s.running {
@@ -194,15 +198,13 @@ func (s *Server) Run(ctx context.Context) error {
 		return errors.New("listen: already running")
 	}
 	s.running, s.ctx = true, ctx
-	err := s.applyLocked()
+	_ = s.applyLocked() // a failure is recorded in the status and logged; it is retried by SetSources
 	s.mu.Unlock()
-	bctx, stopBatcher := context.WithCancel(ctx)
+	// The batcher outlives ctx: only stopBatcher, after every producer is gone, ends it, so that what was accepted is stored.
+	bctx, stopBatcher := context.WithCancel(context.WithoutCancel(ctx))
 	batchDone := make(chan struct{})
 	go func() { defer close(batchDone); s.batcher(bctx) }()
-	if err == nil {
-		<-ctx.Done()
-		err = ctx.Err()
-	}
+	<-ctx.Done()
 	s.mu.Lock()
 	s.running = false
 	s.closeLocked(true, true)
@@ -210,7 +212,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.wg.Wait() // no producer is left: the batcher flushes what is queued and ends
 	stopBatcher()
 	<-batchDone
-	return err
+	return ctx.Err()
 }
 
 // applyLocked opens and closes sockets to match the sources.
@@ -226,25 +228,50 @@ func (s *Server) applyLocked() error {
 			_ = conn.Close()
 		}
 	}
+	var errs []error
 	if needUDP && s.udp == nil {
-		sock, err := s.bind("udp")
-		if err != nil {
-			return err
+		if sock, err := s.bind("udp"); err != nil {
+			errs = append(errs, fmt.Errorf("udp: %w", err))
+			s.noteBind(0, err)
+		} else {
+			s.udp = sock.(*net.UDPConn)
+			s.wg.Add(1)
+			go s.udpLoop(s.udp)
 		}
-		s.udp = sock.(*net.UDPConn)
-		s.wg.Add(1)
-		go s.udpLoop(s.udp)
 	}
 	if needTCP && s.tcp == nil {
-		sock, err := s.bind("tcp")
-		if err != nil {
-			return err
+		if sock, err := s.bind("tcp"); err != nil {
+			errs = append(errs, fmt.Errorf("tcp: %w", err))
+			s.noteBind(1, err)
+		} else {
+			s.tcp = sock.(net.Listener)
+			s.wg.Add(1)
+			go s.acceptLoop(s.tcp)
 		}
-		s.tcp = sock.(net.Listener)
-		s.wg.Add(1)
-		go s.acceptLoop(s.tcp)
 	}
-	return nil
+	if s.udp != nil || !needUDP {
+		s.noteBind(0, nil)
+	}
+	if s.tcp != nil || !needTCP {
+		s.noteBind(1, nil)
+	}
+	return errors.Join(errs...)
+}
+
+// noteBind records why socket i (0 udp, 1 tcp) is not open, or clears it, and logs a failure when the reason is new (a retry
+// every half minute must not fill the log).
+func (s *Server) noteBind(i int, err error) {
+	text := ""
+	if err != nil {
+		text = err.Error()
+	}
+	if s.bindErr[i] == text {
+		return
+	}
+	s.bindErr[i] = text
+	if err != nil {
+		s.cfg.Log.WarnContext(s.ctx, "logs: could not open a syslog socket; the other protocol is not affected and this one is retried", "proto", [2]string{"udp", "tcp"}[i], "err", err)
+	}
 }
 
 func (s *Server) closeLocked(udp, tcp bool) {
@@ -313,13 +340,15 @@ type Status struct {
 	Preferred int  // the first configured port
 	FellBack  bool // Port is not Preferred, because Preferred was not permitted
 	UDP, TCP  bool // sockets open
+	// UDPErr and TCPErr are why a socket that is wanted (a source of that protocol exists) is not open; empty otherwise.
+	UDPErr, TCPErr string
 }
 
 // Status reports where the server listens.
 func (s *Server) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil}
+	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1]}
 }
 
 // UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
@@ -460,7 +489,7 @@ func (s *Server) acceptLoop(l net.Listener) {
 			_ = conn.Close()
 			continue
 		}
-		if !s.register(conn, ip) {
+		if !s.register(l, conn, ip) {
 			s.st.connRejected.Add(1)
 			_ = conn.Close()
 			continue
@@ -470,10 +499,17 @@ func (s *Server) acceptLoop(l net.Listener) {
 	}
 }
 
-// register counts a connection against the limits; false when one is over.
-func (s *Server) register(conn net.Conn, ip netip.Addr) bool {
+// register counts a connection against the limits; false when one is over, or when the sources changed while it was being
+// accepted: the sender must still be a TCP source and l still the listener in use, else the connection would outlive both.
+func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if l == nil || s.tcp != l {
+		return false
+	}
+	if src, ok := s.sources[ip]; !ok || src.Proto != "tcp" {
+		return false
+	}
 	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
 		return false
 	}
@@ -506,11 +542,20 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr) {
 	}()
 	br := bufio.NewReaderSize(conn, 4096)
 	for {
-		_ = conn.SetReadDeadline(time.Now().Add(s.lim.Idle))
-		if _, err := br.Peek(1); err != nil {
-			return
+		// Wait for the first byte of a frame under the idle deadline, past the line ends that a sender puts between frames (the
+		// LF after an octet-counted frame, a blank line): they are not the start of a frame, so they must not arm the short one.
+		for {
+			_ = conn.SetReadDeadline(time.Now().Add(s.lim.Idle))
+			b, err := br.Peek(1)
+			if err != nil {
+				return
+			}
+			if b[0] != '\n' && b[0] != '\r' {
+				break
+			}
+			_, _ = br.Discard(1)
 		}
-		_ = conn.SetReadDeadline(time.Now().Add(s.lim.FrameTimeout))
+		_ = conn.SetReadDeadline(time.Now().Add(s.lim.FrameTimeout)) // absolute: a trickle of single bytes does not extend it
 		frame, trunc, err := ReadFrame(br, s.lim.MaxLine, s.lim.MaxFrame)
 		if err != nil {
 			if errors.Is(err, ErrFrameTooLarge) || errors.Is(err, ErrShortFrame) {

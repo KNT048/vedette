@@ -153,14 +153,11 @@ func startS5(t *testing.T, body string, corePack func([]byte) []byte) *s5Env {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.DiscardHandler)
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), log)
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), log)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
-		t.Fatal(err)
-	}
 	inv, fs := &s5Inventory{}, &s5Findings{}
 	svc, err := scan.NewService(scan.Config{DB: db, Audit: audit.New(nil), Inventory: inv, Findings: fs, Log: log, Pack: ix,
 		Engine: orderEngine{Engine: scanEngine{d}, t: t, db: db, inv: inv}})

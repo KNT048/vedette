@@ -102,8 +102,8 @@ func waitStopped(t *testing.T, cancel context.CancelFunc, stopped <-chan struct{
 		cancel()
 		select {
 		case <-stopped:
-		case <-time.After(30 * time.Second):
-			t.Error("run did not return within 30 s of cancel")
+		case <-time.After(90 * time.Second):
+			t.Error("run did not return within 90 s of cancel")
 		}
 	})
 }

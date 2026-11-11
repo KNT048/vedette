@@ -289,7 +289,8 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var kind string
-		err := tx.QueryRowContext(ctx, `SELECT kind FROM inv_asset WHERE id = ?`, id).Scan(&kind)
+		var kindSrc sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT a.kind, o.source FROM inv_asset a LEFT JOIN inv_observation o ON o.id = a.kind_obs_id WHERE a.id = ?`, id).Scan(&kind, &kindSrc)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
@@ -304,7 +305,9 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 				return err
 			}
 		}
-		if p.Kind != nil && *p.Kind != kind {
+		// Picking the kind the device already has still records it as manual when it came from elsewhere: that is how an operator vouches
+		// for a router that only a passive frame announced (D-177, TrustedKind).
+		if p.Kind != nil && (*p.Kind != kind || kindSrc.String != "manual") {
 			if err := insertObs(ctx, tx, id, "kind", *p.Kind, "manual", 1, s.now()); err != nil {
 				return err
 			}

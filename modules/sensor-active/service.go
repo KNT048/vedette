@@ -20,9 +20,14 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
+	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
 const (
+	// The active sweep's own budget of new devices (L8, D-178): a fresh install without a passive sensor must find the design scale
+	// (1,000 devices, ARCHITECTURE) in one pass, and a taken-over scan container still cannot mint 65k devices on a /16 in one night.
+	sweepNewPerMinute = 1000
+	sweepNewPerHour   = 1000
 	// maxRun bounds one nmap run: the deadline is the end of the window or this, whichever comes first (D-84 (7)).
 	maxRun = 2 * time.Hour
 	// ProbeRetention is how long sa_probe rows are kept (INV-9 asks for at least 90 days; D-84 (9)).
@@ -64,6 +69,9 @@ type Service struct {
 	clock  func() time.Time
 	log    *slog.Logger
 	loc    func() *time.Location
+	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
+	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
+	budget *capture.FloodBudget
 
 	runMu sync.Mutex // one nmap job at a time on the box
 
@@ -87,7 +95,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Inventory == nil || cfg.Observe == nil || cfg.Software == nil {
 		return nil, errors.New("sensoractive: New needs DB, Inventory, Observe and Software")
 	}
-	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location}
+	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudgetLimits(sweepNewPerMinute, sweepNewPerHour)}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -614,7 +622,7 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	known, err := s.inv.Addresses(ctx)
+	macs, err := s.knownMACs(ctx)
 	if err != nil {
 		return Result{}, err
 	}
@@ -673,7 +681,7 @@ loop:
 			break loop
 		case err == nil:
 			var n int
-			if n, err = s.recordSweep(ctx, hosts, batch, known); err == nil {
+			if n, err = s.recordSweep(ctx, hosts, batch, macs); err == nil {
 				res.Targets += len(batch)
 				res.NewDevices += n
 				s.setCursor(ctx, batch[len(batch)-1])
@@ -702,32 +710,76 @@ loop:
 	return res, nil
 }
 
-// recordSweep stores what a sweep batch found and returns how many of the hosts are new to the inventory.
-func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.Addr, known map[netip.Addr]string) (int, error) {
+// knownMACs reads the MAC of every device of the inventory (uncapped, lower case).
+func (s *Service) knownMACs(ctx context.Context) (map[string]bool, error) {
+	l, err := s.inv.KnownMACs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]bool, len(l))
+	for _, x := range l {
+		m[strings.ToLower(x)] = true
+	}
+	return m, nil
+}
+
+// recordSweep stores what a sweep batch found and returns how many of the hosts are new devices. A device is told by its MAC: one the
+// inventory already has is free whatever its IP (DHCP churn), every other MAC is charged against the budget of new devices (L8), even at
+// an IP the inventory already has. Only the first entry for a target counts: one result can carry many for one address. known is the
+// MACs of the inventory and gains the MACs recorded here.
+func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.Addr, known map[string]bool) (int, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	var obs []observe.Observation
-	var fresh []netip.Addr
+	var claims []capture.Claim // the MACs new to the inventory
+	var claimObs [][]observe.Observation
+	seen := map[netip.Addr]bool{}
 	for _, h := range onlyTargets(hosts, batch) {
+		if seen[h.addr] {
+			continue
+		}
+		seen[h.addr] = true
 		o := sweepObservations(h)
 		if len(o) == 0 {
 			continue
 		}
-		obs = append(obs, o...)
-		if _, had := known[h.addr]; !had {
-			fresh = append(fresh, h.addr)
+		mk := strings.ToLower(h.mac)
+		if known[mk] {
+			obs = append(obs, o...)
+			continue
 		}
+		claims = append(claims, capture.Claim{MAC: mk, IP: h.addr, Field: observe.MAC, Value: mk})
+		claimObs = append(claimObs, o)
+	}
+	now := s.clock()
+	verdicts := s.budget.Decide(claims, now)
+	var admitted []capture.Claim
+	var admittedV []capture.Verdict
+	for i, c := range claims {
+		if !verdicts[i].Admit {
+			continue
+		}
+		obs = append(obs, claimObs[i]...)
+		admitted, admittedV = append(admitted, c), append(admittedV, verdicts[i])
+	}
+	if n := len(claims) - len(admitted); n > 0 {
+		s.log.WarnContext(ctx, "sensoractive: new devices over the budget were not recorded", "dropped", n)
 	}
 	if len(obs) == 0 {
 		return 0, nil
 	}
 	if err := s.obs.Record(ctx, obs); err != nil {
-		return 0, fmt.Errorf("sensoractive: recording hosts: %w", err)
+		return 0, fmt.Errorf("sensoractive: recording hosts: %w", err) // the budget is not spent: the next try meets the same budget
 	}
-	for _, a := range fresh {
-		known[a] = ""
+	s.budget.Commit(admitted, admittedV, now)
+	fresh := 0
+	for _, c := range admitted {
+		if !known[c.MAC] {
+			known[c.MAC] = true
+			fresh++
+		}
 	}
-	return len(fresh), nil
+	return fresh, nil
 }
 
 func (s *Service) setGentle(g bool) {

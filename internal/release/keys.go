@@ -21,7 +21,7 @@ var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 const (
 	// minisign public key 7B78764E550D48D0, the active key: signs index.json and every release manifest
 	prodMinisignActive = "RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m"
-	// minisign public key 8DD38917AD864FAE, the offline backup key: signs only the index that revokes a key (D-108)
+	// minisign public key 8DD38917AD864FAE, the offline backup key: signs the index that revokes a key (D-108) and the rescue release after one (D-258)
 	prodMinisignBackup = "RWSuT4atF4nTjejJTNkQcFCkxroGAm0jmVNBd0gvgVoNNpP3n1mSe//r"
 	// cosign key (ECDSA P-256), signs the images (legacy format, D-103)
 	prodCosign = `-----BEGIN PUBLIC KEY-----

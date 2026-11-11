@@ -165,7 +165,7 @@ func TestProductionConstantsAreNotTestKeys(t *testing.T) {
 	if a, b, c, testOnly := embeddedKeys(); testOnly || a != prodMinisignActive || b != prodMinisignBackup || c != prodCosign {
 		t.Error("production build embeds something else")
 	}
-	_ = filepath.WalkDir("testdata", func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir("testdata", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || strings.HasPrefix(p, filepath.Join("testdata", "prod")+string(filepath.Separator)) {
 			return err
 		}
@@ -177,4 +177,7 @@ func TestProductionConstantsAreNotTestKeys(t *testing.T) {
 		}
 		return nil
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }

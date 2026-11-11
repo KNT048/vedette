@@ -125,7 +125,7 @@ test-go:
 
 test-go-release:
 	go test -race -tags releasetestkeys ./internal/release/...
-	go test -race -tags releasetestkeys -run 'Pull|Embedded' ./modules/host/
+	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
 # scripts/ci splits `go list ./...` by test-file size; every package lands in exactly one shard.

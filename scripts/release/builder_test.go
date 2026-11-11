@@ -700,7 +700,10 @@ func TestMinisignCLIHandling(t *testing.T) {
 	if strings.Contains(string(argv), "hunter2") || strings.Contains(string(argv), "correct") {
 		t.Fatalf("the passphrase is in argv: %s", argv)
 	}
-	if want := "-S\n-s\n" + key + "\n-m\n" + doc + "\n-x\n" + sigPath + "\n-t\nfile:doc.json sequence:1\n"; string(argv) != want {
+	// the signer passes the key with symlinks resolved (D-164 L6); on macOS the temp dir is under the /var -> /private/var link
+	realKey, err := filepath.EvalSymlinks(key)
+	must(t, err)
+	if want := "-S\n-s\n" + realKey + "\n-m\n" + doc + "\n-x\n" + sigPath + "\n-t\nfile:doc.json sequence:1\n"; string(argv) != want {
 		t.Fatalf("argv:\n%q\nwant\n%q", argv, want)
 	}
 	if in, _ := os.ReadFile(stdinFile); string(in) != "hunter2 correct horse\n" {
@@ -780,7 +783,7 @@ func TestLoadTrust(t *testing.T) {
 		t.Error("trust without a cosign key")
 	}
 	// no keys dir = the keys compiled into this build: the real release keys (D-256), or the throwaway ones in a test build
-	if _, err := LoadTrust(""); err != nil && !errors.Is(err, release.ErrNoTrustKeys) {
+	if _, err := LoadTrust(""); err != nil {
 		t.Errorf("embedded keys: %v", err)
 	}
 }

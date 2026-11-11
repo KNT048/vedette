@@ -18,7 +18,7 @@ Cập nhật: 2026-11-11 (trưa, giờ VN). Repo: `KNT048/vedette` (public, D-63
 |---|---|---|
 | **AI-Supervisor** | Máy Mac của Kiên | Điều phối cả ba phía, kiểm mỗi 30 phút. Mỗi lát việc phía Mac chạy thành một session phụ của Claude Desktop |
 | **Session phụ (Mac)** | Worktree riêng trên máy Mac | WP-30 các lát 3, 5, 6, 7, 9a, 9b, 10 và spec WP-30 cho scan, ai, logs; WP-31 R3 (định danh kênh người duyệt); WP-27 `auth-oidc`, `reports`, `mcp-server`; phần còn lại của `notify`; lỗi GUI Settings của core |
-| **AI-Trưởng** | Box Ubuntu của Kiên (`byn`, tmux `claude`) | WP-08 phần còn lại; `honeypot` (gồm WP-30 lát 8a/8b); WP-30 lát 4 (qua `vedette-host`); phần còn lại của `scan`; WP-32 (cả hai phần); WP-26 `agent-intake`; WP-08h thử cài trên chính box này |
+| **AI-Trưởng** | Box Ubuntu của Kiên (`byn`, tmux `claude`) | WP-08 phần còn lại; `honeypot` (gồm WP-30 lát 8a/8b); WP-30 lát 4 (qua `vedette-host`); phần còn lại của `scan`; WP-32 (cả hai phần); WP-26 `agent-intake`; WP-08h (`install.sh`) |
 | **AI-Mlee** | Box Ubuntu của Emily (`byn2`, tmux `claude`) | `ai` (WP-25), `logs` (WP-24), việc đang dở (feeds chia nhỏ IOC apply, spec e2e exposure) |
 
 Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã hết) rồi D-230…D-259 · Mlee D-200…D-229. Số đã ghi nằm trong `docs/DECISIONS.md`.
@@ -41,7 +41,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] WP-30 lát 4 (os-updates và network qua host giả; đang làm) · lát 8a (adapter host thật cho honeypot, D-161; đang sửa theo rà Opus) · lát 8b (honeypot.spec).
 - [ ] WP-32 RUNBOOK (cả hai phần, D-198) · WP-26 `agent-intake`.
 - [ ] scan (từ Mlee, D-198): tự dừng khi thiết bị không phản hồi; #189 L3; lý do trên GUI; kiểm trong LAB với nuclei v3.11.1.
-- [ ] WP-08h: thử cài trên chính box Trưởng (Ubuntu 26.04, kien 2026-11-11); Mac cài độc lập qua SSH theo README rồi kiểm.
+- [ ] WP-08h: thử cài trên box Mlee (Ubuntu 26.04, có LAN; kien 2026-11-11); Mac cài độc lập qua SSH theo README rồi kiểm.
 
 **Phía Kiên — session phụ trên Mac**
 - [ ] #221 13b-11.
@@ -61,7 +61,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 
 **Chờ kien (người)**
 - [ ] Khoá ký phát hành offline: minisign chính và dự phòng, cosign.
-- [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Trưởng, D-198). Cần trước khi phát hành cho WP-08h, LAB của WP-31 và kiểm scan trong lab.
+- [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198). Cần trước khi phát hành cho WP-08h, LAB của WP-31 và kiểm scan trong lab.
 
 ## Định nghĩa "xong" (M2 → bản phát hành đầu tiên)
 1. Mọi WP trong `docs/TEAM_PLAN.md` §3 đã merge, CI xanh trên `main`.

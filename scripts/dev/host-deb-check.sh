@@ -52,10 +52,14 @@ for t in $targets; do
 	$c image exists "$image" || pulled="$pulled $image"
 
 	# an image with systemd as init and nothing of the package's Depends: apt must resolve them from the .deb
+	# The official debian/ubuntu images ship /usr/sbin/policy-rc.d (exit 101) so that installs during an image build start no daemon;
+	# deb-systemd-invoke honours it, which would turn the upgrade restart (M2) into a no-op here. This container boots systemd and stands
+	# for a real box, which has no policy-rc.d, so the file is removed. (The postinst is right to honour it: that is Debian's behaviour.)
 	mkdir -p "$work/$name"
 	cat >"$work/$name/Containerfile" <<EOT
 FROM $image
 RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN rm -f /usr/sbin/policy-rc.d
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
 EOT
@@ -180,11 +184,28 @@ EOT
 	ok "second install: users, groups, subid lines, tree, modes, owners, hashes and unit state are identical"
 
 	# After the honeypot first starts, podman's :U has given log/ to the container's user (a subuid) with mode 755 (D-162): an upgrade must go through.
-	x 'chown 165536:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
+	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as byn:100000:65536 only reaches 0..65535) that is not vedette's.
+	x 'chown 61000:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
 	install "--reinstall"
-	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "165536:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
+	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "61000:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
 	ok "an upgrade after the honeypot took log/ (:U) succeeds and leaves its owner and mode alone"
 	x 'chown vedette:vedette /var/lib/vedette-honeypot/log'
+
+	# ---- an upgrade replaces a running daemon (M2) --------------------------------------------------------------------------
+	# The placeholder binary cannot run as the helper, so a drop-in (in /run, gone with the cleanup below) makes the unit a plain sleep: what is
+	# checked is what the postinst does to a RUNNING unit. A running unit gets a new main process on upgrade; a stopped one stays stopped.
+	x 'mkdir -p /run/systemd/system/vedette-host.service.d && printf "[Service]\nType=simple\nExecStart=\nExecStart=/bin/sleep 3600\n" >/run/systemd/system/vedette-host.service.d/check.conf && systemctl daemon-reload && systemctl start vedette-host.service' || fail "cannot run the unit as a sleep for the upgrade check"
+	pid1=$(x 'systemctl show -p MainPID --value vedette-host.service')
+	[ -n "$pid1" ] && [ "$pid1" != 0 ] || fail "the unit stand-in did not start"
+	install "--reinstall"
+	pid2=$(x 'systemctl show -p MainPID --value vedette-host.service')
+	[ "$(x 'systemctl show -p ActiveState --value vedette-host.service')" = active ] && [ -n "$pid2" ] && [ "$pid2" != 0 ] && [ "$pid2" != "$pid1" ] || fail "an upgrade left the old process of vedette-host running (pid $pid1 -> $pid2)"
+	ok "an upgrade restarts a running vedette-host (new main process, still active)"
+	x 'systemctl stop vedette-host.service'
+	install "--reinstall"
+	[ "$(x 'systemctl show -p ActiveState --value vedette-host.service')" = inactive ] || fail "an upgrade started a vedette-host that was stopped"
+	ok "an upgrade leaves a stopped vedette-host stopped"
+	x 'rm -f /run/systemd/system/vedette-host.service.d/check.conf && rmdir /run/systemd/system/vedette-host.service.d && systemctl daemon-reload'
 
 	# ---- an administrator's choices survive an upgrade --------------------------------------------------------------------
 	x 'systemctl disable vedette-host.service >/dev/null 2>&1'

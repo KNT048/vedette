@@ -33,6 +33,10 @@ set -eu
 umask 022
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
+# One byte order for every tool: Ubuntu 26.04's uutils sort collates by the locale while its comm checks bytes, so under
+# LANG=en_US.UTF-8 `sort | comm` failed on the accounts list (_apt, _chrony) and stopped every install and uninstall (#298).
+LC_ALL=C
+export LC_ALL
 unset IFS
 
 STATE=/var/lib/vedette-install

@@ -304,15 +304,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := addJobs(sched, d, wired); err != nil {
 		return err
 	}
-	offCtx, stopOff := context.WithCancel(ctx)
-	guard := modreg.NewOffGuard(offCtx, reg, log, nil)
-	defer func() { stopOff(); guard.Wait() }()
-	reg.OnChange(guard.ModuleChanged)
+	stopGuards := func() {}
+	defer func() { stopGuards() }()
 	if err := startMCP(ctx, d); err != nil { // the port is open exactly while the module is on (POST-1)
 		return err
 	}
-	addOffGuards(guard, d, wired) //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
-
+	stopGuards = startGuards(ctx, reg, log, d, wired)
 	api, err := server.New(server.Config{
 		API:        newHandler(d),
 		Auth:       d.Auth.Sessions,

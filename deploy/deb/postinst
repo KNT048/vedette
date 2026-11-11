@@ -1,7 +1,8 @@
 #!/bin/sh
 # vedette-host postinst (WP-08g, D-155). POSIX sh, idempotent: a second run leaves the same users, directories, modes and
-# /etc/subuid lines. Creates what vedette-host expects at fixed paths and enables the unit. It does NOT start it, and it does
-# NOT write /etc/vedette/host.conf: the installer (WP-08h) does that from `getent`, then starts vedette-host.service.
+# /etc/subuid lines. Creates what vedette-host expects at fixed paths and enables the unit. A first install does NOT start it, and
+# nothing here writes /etc/vedette/host.conf: the installer (WP-08h) does that from `getent`, then starts vedette-host.service.
+# An UPGRADE restarts the unit when it is running (restart_after_upgrade), so the old daemon never outlives the new package.
 # Everything is checked before anything is created: a refusal leaves no half-made state behind.
 set -eu
 umask 022
@@ -121,6 +122,22 @@ enable_unit() {
 	fi
 }
 
+# restart_after_upgrade <previous version, "" on a first install>: an upgrade restarts a vedette-host that is running, so the
+# new binary is the one that serves (what dh_installsystemd writes as restart-after-upgrade; `try-restart` does nothing for a
+# unit that is stopped, so a first install, or an administrator's stop, is never turned into a start). The prerm leaves the
+# old daemon running on upgrade on purpose; this is where it is replaced. Core does not depend on the host, so it is not
+# restarted; the units that Require= the host (honeypot) come with it. Never fails the package: the installer starts the unit
+# and checks the effect (install.sh). The caller guarantees systemd is running. deb-systemd-invoke honours policy-rc.d (an
+# administrator or an image build that forbids starting daemons gets no restart): that is Debian's behaviour and is kept.
+restart_after_upgrade() {
+	[ -n "${1:-}" ] || return 0
+	if command -v deb-systemd-invoke >/dev/null 2>&1; then
+		deb-systemd-invoke try-restart "$UNIT" >/dev/null || true
+	else
+		systemctl --system try-restart "$UNIT" >/dev/null 2>&1 || true
+	fi
+}
+
 case "${1:-}" in
 configure)
 	# 1. refuse before creating anything
@@ -158,10 +175,12 @@ configure)
 	subid /etc/subgid
 
 	enable_unit
-	# the unit is new or changed; running instances are not restarted here (a restart would kill the dpkg that runs this script
-	# when the helper upgrades itself: KillMode=control-group)
+	# the unit is new or changed. On an upgrade a running instance is restarted (after the reload). A dpkg that the helper itself
+	# runs in its own cgroup would be killed by that restart (KillMode=control-group): a self-upgrade must run dpkg through
+	# systemd-run (D-155 (8)); the installer's dpkg is not in the helper's cgroup.
 	if [ -d /run/systemd/system ]; then
 		systemctl --system daemon-reload >/dev/null || true
+		restart_after_upgrade "${2:-}"
 	fi
 	;;
 abort-upgrade | abort-remove | abort-deconfigure)

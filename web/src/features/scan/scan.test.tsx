@@ -6,7 +6,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
-import { nextRun, scannerStore, timing } from './mocks'
+import { engineStore, nextRun, scannerStore, timing, zoneStore } from './mocks'
 import type { ScanConfig, ScanRun } from './types'
 
 const base = () => `${location.origin}/api/v1`
@@ -15,7 +15,8 @@ const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type
 const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()) as { items: ScanRun[] }).items
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
 
-afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
+timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so (D-261 (4))
+afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
 async function onlyTarget(label: RegExp) {
   await userEvent.click(await screen.findByRole('button', { name: 'Clear selection' }))
@@ -327,7 +328,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     await postRun(['a-web01', 'a-cam03', 'a-nas02'])
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('auto_stopped'), { timeout: 4000 })
     const stopped = (await getRuns())[0]!
-    expect(stopped.stop_reason).toMatch(/CAM-LOBBY \(192\.168\.20\.13\) did not respond after 3 attempts in a row/)
+    expect(stopped.stop_reason).toMatch(/CAM-LOBBY \(192\.168\.20\.13\) stopped responding after 3 failed requests/)
     expect(stopped.done).toBe(1)
     expect(stopped.results.find((r) => r.label === 'NAS-PHOTOS')!.result).toBe('skipped')
     expect(stopped.results.find((r) => r.label === 'CAM-LOBBY')!.result).toBe('no_response')
@@ -531,6 +532,58 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))
     const dlg = await screen.findByRole('dialog')
     expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
+  })
+
+  it('D-261 (2): a rescan dropped after 7 days stays in the log with the reason', async () => {
+    const base0 = { ts: new Date().toISOString(), product: 'Acme NAS', devices: [], latency_min: null, run_id: null }
+    server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ auto_rescan: true, items: [
+      { ...base0, id: 'ev-a', cve: 'CVE-2026-0006', result: 'expired_no_template' },
+      { ...base0, id: 'ev-b', cve: 'CVE-2026-0007', result: 'expired_scanner' },
+      { ...base0, id: 'ev-c', cve: 'CVE-2026-0008', result: 'expired_zone' },
+    ] })))
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    expect((await within(table).findByText('Not scanned for 7 days: the scan template never arrived')).className).toContain('text-off')
+    expect(within(table).getByText('Not scanned for 7 days: the scanner was not available')).toBeInTheDocument()
+    expect(within(table).getByText('Not scanned for 7 days: the time zone of the organization could not be read')).toBeInTheDocument()
+    expect(within(table).queryByText('No matching device')).toBeNull()
+    await expectNoA11yViolations()
+  })
+
+  it('D-261 (2): the seed has a dropped event with its reason', async () => {
+    renderApp('/scans?tab=auto')
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    expect(await within(table).findByText('Not scanned for 7 days: the scan template never arrived')).toBeInTheDocument()
+  })
+
+  it('D-261 (3): the schedule says why nothing starts while the time zone cannot be read, not "off"', async () => {
+    zoneStore.set({ readable: false })
+    renderApp('/scans?tab=safety')
+    const cfg = await (await fetch(`${base()}/scans/config`)).json()
+    expect(cfg.next_run).toBeNull()
+    expect(cfg.schedule_blocked_reason).toMatch(/time zone of the organization cannot be read/)
+    expect((await screen.findAllByText(/The schedule is on, but the time zone of the organization cannot be read/)).length).toBeGreaterThan(0)
+    expect(screen.queryByText('The schedule is off.')).toBeNull()
+    expect(screen.getAllByText(/on hold, the time zone cannot be read/).length).toBeGreaterThan(0)
+    as('u-admin')
+    await fetch(`${base()}/scans/config`, json('PUT', { schedule: { enabled: false } }))
+    expect((await (await fetch(`${base()}/scans/config`)).json()).schedule_blocked_reason).toBeNull()
+  })
+
+  it('D-261 (4): after Stop now, while the scanner is still busy, Scan now is locked with the reason and a start is refused', async () => {
+    engineStore.set({ busyUntil: Date.now() + 60_000 })
+    renderApp('/scans')
+    await screen.findByRole('checkbox', { name: /NAS-PHOTOS/ })
+    expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
+    expect(screen.getAllByText(/The scanner is still finishing the scan you stopped/).length).toBeGreaterThan(0)
+    expect((await (await fetch(`${base()}/scans/runs`)).json()).engine_busy).toBe(true)
+    as('u-op')
+    const res = await postRun(['a-nas02'])
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('already_running')
+    engineStore.set({ busyUntil: 0 })
+    expect((await (await fetch(`${base()}/scans/runs`)).json()).engine_busy).toBe(false)
+    expect((await postRun(['a-nas02'])).status).toBe(201)
   })
 
   it('quản trị tắt được, có ghi chú giải thích; vận hành thì không', async () => {

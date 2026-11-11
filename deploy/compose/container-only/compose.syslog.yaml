@@ -1,0 +1,9 @@
+# Add-on for compose.yaml: receive syslog from your devices (the logs module, S-LOG-1). It publishes UDP and TCP 514 on VEDETTE_BIND_IP
+# to the listener of core (5514 inside the container, so core needs no extra privilege). Without this file no syslog port is open.
+#   docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
+# Rootless Docker or Podman cannot publish 514 (a port below 1024) unless the machine allows it, and may show every sender as one address.
+services:
+  core:
+    ports:
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty: the address of this machine the web page is served on}:514:5514/udp"
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty: the address of this machine the web page is served on}:514:5514/tcp"

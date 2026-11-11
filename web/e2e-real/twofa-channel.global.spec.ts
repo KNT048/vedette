@@ -16,9 +16,8 @@ test('email channel off: choosing email codes is refused, and an email-code user
   const who = await newUser('off')
   try {
     // channel off, the user has no two-step: the account page does not offer email codes, and the API refuses to start them
-    await expect(async () => {
-      expect((await api(admin, 'DELETE', '/notify/channels/email')).status).toBeLessThan(500)
-    }).toPass()
+    await ensureEmailChannel(admin) // there is a channel to remove, whatever ran before (notify on, email saved)
+    expect((await api(admin, 'DELETE', '/notify/channels/email')).status, 'the channel is removed').toBe(204)
     await signIn(page, who.email, who.pw)
     await page.goto('/account')
     await page.getByLabel('Your current password').fill(who.pw)
@@ -44,7 +43,7 @@ test('email channel off: choosing email codes is refused, and an email-code user
     await api(page.request, 'POST', '/auth/logout')
 
     // channel off again: the password is right and the account has two-step by email, so the sign-in is refused, no session, no fallback
-    expect((await api(admin, 'DELETE', '/notify/channels/email')).status).toBeLessThan(500)
+    expect((await api(admin, 'DELETE', '/notify/channels/email')).status, 'the channel is removed').toBe(204)
     const sent = (await codesFor(who.email)).length
     await submitSignIn(page, who.email, who.pw)
     await expect(page.getByText('Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.')).toBeVisible()

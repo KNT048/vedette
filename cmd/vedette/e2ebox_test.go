@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"os"
@@ -145,12 +146,17 @@ func e2eBox(ctx context.Context, dir string) error {
 	return errors.Join(runErr, log.err)
 }
 
-// e2eOffline gives the box of the run no internet: the feeds client refuses every address that is not loopback at once, so the built-in
-// pulls (CISA, EPSS, the IOC lists) fail fast and a custom feed pointed at a 127.0.0.1 fake (feeds.spec.ts) still works. Without it the
-// box pulled the public feeds at start: ~80 MB written in one transaction that held the database writer for ~13 s, so the first sign-ins,
-// the first-run setup and the first user created after the start stalled past the 8 s expect timeout, and what the specs saw depended on
-// the network (D-170: specs are independent of feed content). The returned func puts the client back (the package var is shared with the
-// other tests of this package, which never run while this one does: it is not parallel).
+// e2eKEV is the CISA catalog the box of the run "downloads": one entry, so the Home title is the loaded one ("Today: N ..."), the same
+// on every machine (the real catalog has 1.8k entries and the specs must not depend on it, D-170).
+const e2eKEV = `{"title":"E2E catalog","catalogVersion":"2026.11.11","dateReleased":"2026-11-11T00:00:00.000Z","count":1,"vulnerabilities":[
+{"cveID":"CVE-2026-0001","vendorProject":"E2E Vendor","product":"E2E Product","vulnerabilityName":"E2E fixture vulnerability","dateAdded":"2026-11-10","shortDescription":"A fixture entry of the end-to-end run.","requiredAction":"None.","dueDate":"2026-12-01","knownRansomwareCampaignUse":"Unknown","notes":"","cwes":[]}]}`
+
+// e2eOffline gives the box of the run no internet. The feeds client answers the built-in CISA address (and its mirror) from e2eKEV, a
+// loopback address from the real network (a custom feed pointed at a 127.0.0.1 fake, feeds.spec.ts), and refuses every other address at
+// once, so EPSS and the IOC lists fail fast. Without this the box pulled the public feeds at start: ~80 MB written in one transaction that
+// held the database writer for ~13 s, so the first sign-ins, the first-run setup and the first user created after the start stalled past
+// the 8 s expect timeout, and what the specs saw depended on the network. The returned func puts the client back (the package var is
+// shared with the other tests of this package, which never run while this one does: it is not parallel).
 func e2eOffline() func() {
 	prev := feedsClient
 	c := feeds.NewClient(feeds.DefaultFetchTimeout)
@@ -158,6 +164,11 @@ func e2eOffline() func() {
 	c.Transport = e2eRoundTrip(func(r *http.Request) (*http.Response, error) {
 		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
 			return inner.RoundTrip(r)
+		}
+		if r.URL.Path == "/sites/default/files/feeds/known_exploited_vulnerabilities.json" && r.URL.Host == "www.cisa.gov" ||
+			r.URL.Path == "/cisagov/kev-data/develop/known_exploited_vulnerabilities.json" && r.URL.Host == "raw.githubusercontent.com" {
+			h := http.Header{"Content-Type": {"application/json"}}
+			return &http.Response{Status: "200 OK", StatusCode: http.StatusOK, Header: h, Body: io.NopCloser(strings.NewReader(e2eKEV)), ContentLength: int64(len(e2eKEV)), Request: r}, nil
 		}
 		return nil, errors.New("the box of the end-to-end run has no internet")
 	})
@@ -168,6 +179,46 @@ func e2eOffline() func() {
 type e2eRoundTrip func(*http.Request) (*http.Response, error)
 
 func (f e2eRoundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// TestE2EOffline pins what the feeds client of the box does: the catalog the specs rely on parses, a loopback address is reached, and any
+// other address is refused.
+func TestE2EOffline(t *testing.T) {
+	restore := e2eOffline()
+	defer restore()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "loopback") }))
+	defer srv.Close()
+	get := func(u string) (string, error) {
+		resp, err := feedsClient.Get(u) //nolint:noctx // a unit test of a transport
+		if err != nil {
+			return "", err
+		}
+		defer func() { _ = resp.Body.Close() }()
+		b, err := io.ReadAll(resp.Body)
+		return string(b), err
+	}
+	kev, ok := feeds.BuiltinByID("cisa-kev")
+	if !ok {
+		t.Fatal("no built-in cisa-kev source")
+	}
+	for _, u := range []string{kev.URL, feeds.KEVMirrorURL} {
+		body, err := get(u)
+		if err != nil {
+			t.Fatalf("GET %s: %v", u, err)
+		}
+		cat, err := feeds.ParseKEV([]byte(body))
+		if err != nil || len(cat.Vulns) != 1 || cat.Vulns[0].CVE != "CVE-2026-0001" {
+			t.Fatalf("the catalog of %s: %+v %v", u, cat, err)
+		}
+	}
+	if body, err := get(srv.URL); err != nil || body != "loopback" {
+		t.Fatalf("loopback = %q %v", body, err)
+	}
+	for _, u := range []string{"https://www.cisa.gov/other.json", "https://epss.cyentia.com/epss_scores-current.csv.gz", "http://10.0.0.1/x"} {
+		if _, err := get(u); err == nil {
+			t.Fatalf("GET %s was not refused", u)
+		}
+	}
+}
 
 // e2eStop is the context of the standalone box: SIGTERM or SIGINT, the death of the parent (the script that started it), or
 // VEDETTE_E2E_MAX (default 45m) end it. The orphan reaper does not match this binary, so the box has to stop itself.

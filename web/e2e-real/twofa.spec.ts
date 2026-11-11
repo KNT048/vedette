@@ -286,8 +286,8 @@ test('an administrator cannot reset their own two-step sign-in through the users
   const ap = await adminCtx.newPage()
   const me = await api<{ id: string }>(ap.request, 'GET', '/me')
   const reset = await api(ap.request, 'POST', `/core/users/${me.body.id}/2fa/reset`)
-  expect(reset.status, JSON.stringify(reset.body)).toBeGreaterThanOrEqual(400)
-  expect(reset.status).toBeLessThan(500)
+  expect(reset.status, JSON.stringify(reset.body)).toBe(400)
+  expect((reset.body as { error: { code: string } }).error.code).toBe('self_reset')
   await adminCtx.close()
 })
 

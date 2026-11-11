@@ -160,7 +160,13 @@ test('the first sign-in with a temporary password must change it before any othe
   const next = password()
   await page.getByLabel('New password', { exact: true }).fill(next)
   await page.getByLabel('Repeat new password').fill(next)
-  await page.getByRole('button', { name: 'Save and continue' }).click()
+  const [refused] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/core/account/password') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Save and continue' }).click(),
+  ])
+  expect(refused.status(), 'a wrong temporary password is refused by the box').toBe(400)
+  expect(((await refused.json()) as { error: { code: string } }).error.code).toBe('wrong_password')
+  await expect(page.getByLabel('Temporary password')).toHaveAttribute('aria-invalid', 'true') // the box's message sits under that field
   await expect(page).toHaveURL(/\/change-password/) // a wrong temporary password changes nothing
   expect((await api<{ password_change_required: boolean }>(page.request, 'GET', '/me')).body.password_change_required).toBe(true)
 

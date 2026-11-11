@@ -310,7 +310,7 @@ type Service struct {
 	dropUnlogged int
 	dropLoggedAt time.Time
 	dropped      atomic.Int64 // unprocessed events dropped because the backlog was full (M2), the metric
-	hpMu         sync.Mutex   // guards hpHour and hpCount: the honeypot hits let through to the rules this clock hour
+	hpMu         sync.Mutex   // guards hpHour and hpCount: the honeypot scan hits let through to the rules this clock hour
 	hpHour       time.Time
 	hpCount      int
 }

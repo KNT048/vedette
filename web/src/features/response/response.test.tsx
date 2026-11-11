@@ -660,6 +660,9 @@ describe('response: safety envelope (D-51)', () => {
     expect((await logList()).length).toBe(before[1]! + 1) // one simulated line
     expect((await logList()).at(-1)!.kind).toBe('simulated')
     expect(auditActions()).not.toContain('response.execute')
+    const pre = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, pre_approved: true } })
+    expect(pre.json.notes.join(' ')).toMatch(/Pre-approved: a live run/)
+    expect(pre.json.notes.join(' ')).not.toMatch(/needs approval|can be forged/) // review of D-286: one answer, not both
     expect((await call('viewer', 'POST', '/response/rules/simulate', { rule: RULE })).status).toBe(403)
     expect((await call('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [{ action_id: 'blocklist_add', params: { ip: 'x; y' }, ttl_min: 60 }] } })).status).toBe(400)
   })

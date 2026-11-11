@@ -301,7 +301,7 @@ func TestHoneypotHitEvent(t *testing.T) {
 }
 
 // Review of #304 (D-286 (4)): the source of a port-scan hit can be forged, so a pre-approved rule asks a person for it; a service hit is
-// carried out. At most maxHoneypotPerHour hits an hour reach the rules, and the first one over writes one line to the log.
+// carried out. At most 60 scan hits an hour reach the rules (logins and tokens are not capped), and the first one over writes one line to the log.
 func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
@@ -330,8 +330,12 @@ func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
 	for i := 0; i < 70; i++ {
 		pub("flood-"+strconv.Itoa(i), "scan", "185.220.102."+strconv.Itoa(i))
 	}
-	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'honeypot'`); n != 60 {
-		t.Errorf("%d honeypot events stored this hour, want the cap of 60", n)
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'honeypot' AND fields LIKE '%"kind":"scan"%'`); n != 60 {
+		t.Errorf("%d scan events stored this hour, want the cap of 60", n)
+	}
+	pub("login-after-flood", "service", "185.220.103.1") // a flood of scans never hides a real login on a trap
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'honeypot:login-after-flood'`); n != 1 {
+		t.Error("a service hit after the scan cap did not reach the rules")
 	}
 	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE detail LIKE 'honeypot_cap:%'`); n != 1 {
 		t.Errorf("%d cap lines in the log, want 1", n)

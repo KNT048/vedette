@@ -292,9 +292,10 @@ export function simulate(rule: RuleInput, eventId?: string): Simulation {
     else steps.push({ action: r.title, risk: catById(a.action_id)?.risk ?? 'low', ok: false, error: r.error, change: null })
   }
   if (!rule.live) notes.push('This rule is in dry run: a real match is only logged.')
-  if (rule.pre_approved) notes.push(preApprovedProblem(rule.actions) ?? 'Pre-approved: a live run would carry this out without asking a person.')
-  if (rule.pre_approved && !preApprovedProblem(rule.actions) && forgeable(ev)) notes.push(`Pre-approval is not used for this event: ${FORGEABLE_MSG}.`)
-  else notes.push('Every action needs approval before it runs.')
+  if (rule.pre_approved) {
+    notes.push(preApprovedProblem(rule.actions) ?? 'Pre-approved: a live run would carry this out without asking a person.')
+    if (!preApprovedProblem(rule.actions) && forgeable(ev)) notes.push(`Pre-approval is not used for this event: ${FORGEABLE_MSG}.`)
+  } else notes.push('Every action needs approval before it runs.')
   const open = openKeys()
   if (planned.some((p) => open.has(plannedKey(p)))) notes.push('One of these actions is already open or in force for this target, so a live run would merge it instead of asking again.')
   if (maintenanceNow()) notes.push(`A maintenance window is active: ${maintenanceNow()!.name}. Nothing would be requested now.`)

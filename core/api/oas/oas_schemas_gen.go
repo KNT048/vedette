@@ -98124,7 +98124,9 @@ func (s *ResponseGetResponseLogOK) SetItems(val []ResponseGetResponseLogOKItemsI
 type ResponseGetResponseLogOKItemsItem struct {
 	Actor  string `json:"actor"`
 	Detail string `json:"detail"`
-	// Lowercase hex SHA-256 of prev_hash + "\n" + JSON.stringify([id, ts, kind, actor, detail]).
+	// Lowercase hex SHA-256 of prev_hash + "\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts})
+	// (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts
+	// exactly as served.
 	Hash string                                `json:"hash"`
 	ID   string                                `json:"id"`
 	Kind ResponseGetResponseLogOKItemsItemKind `json:"kind"`

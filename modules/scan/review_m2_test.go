@@ -94,7 +94,7 @@ func TestReview_M2_RunsViewSaysEngineBusyAfterStop(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("the engine stayed busy after the worker returned")
 		}
-		time.Sleep(10 * time.Millisecond)
+		<-time.After(10 * time.Millisecond)
 	}
 	if busy() {
 		t.Fatal("still busy after the engine returned")

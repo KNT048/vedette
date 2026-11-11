@@ -209,6 +209,14 @@ func (c *client) login(email string) reply {
 	return c.post("/auth/login", map[string]any{"email": email, "password": authtest.Password})
 }
 
+// loginTemp signs in with the temporary password an administrator handed out and replaces it with authtest.Password, the way
+// the Choose a new password screen does (D-180). Afterwards the client is an ordinary signed-in session.
+func (c *client) loginTemp(email, temp string) {
+	c.w.t.Helper()
+	wantOK(c.w.t, c.post("/auth/login", map[string]any{"email": email, "password": temp}), 200)
+	wantOK(c.w.t, c.post("/core/account/password", map[string]any{"current": temp, "next": authtest.Password}), 200)
+}
+
 // signIn creates a user directly in the database and signs the client in as them.
 func (w *world) signIn(email string, role string) (*client, auth.User) {
 	w.t.Helper()

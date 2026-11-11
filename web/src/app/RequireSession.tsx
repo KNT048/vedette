@@ -19,5 +19,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (setup.data && !setup.data.complete) return <Navigate to="/setup" replace />
   if (me.error) return <div className="p-8"><ErrorState error={me.error} onRetry={() => void me.refetch()} /></div>
   if (!me.data) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />
+  // D-180: an administrator-set password must be replaced first; every other call would answer 403 password_change_required.
+  if (me.data.password_change_required) return <Navigate to={`/change-password?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />
   return <>{children}</>
 }

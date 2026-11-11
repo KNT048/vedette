@@ -90,7 +90,7 @@ func (h *APIHandlers) CoreGetMe(ctx context.Context) (*oas.CoreGetMeOK, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := &oas.CoreGetMeOK{ID: u.ID, Name: u.Name, Email: u.Email, Role: oas.CoreGetMeOKRole(u.Role), Org: org, Twofa: u.TwofaMethod != ""}
+	out := &oas.CoreGetMeOK{ID: u.ID, Name: u.Name, Email: u.Email, Role: oas.CoreGetMeOKRole(u.Role), Org: org, Twofa: u.TwofaMethod != "", PasswordChangeRequired: u.PasswordChangeRequired}
 	if u.TwofaMethod != "" {
 		out.TwofaMethod = oas.NewNilCoreGetMeOKTwofaMethod(oas.CoreGetMeOKTwofaMethod(u.TwofaMethod))
 	} else {

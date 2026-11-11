@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { usePurge } from './api'
 import { errMsg, useGate } from './parts'
 import { nav } from './util'
-import { LOG_CATEGORIES, type LogCategory } from './logCategories'
+import { LOG_CATEGORIES, logsExportQuery, type LogCategory } from './logCategories'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
 import { Select } from '@/components/ui/input'
@@ -37,7 +37,6 @@ export default function DataSection() {
   const [to, setTo] = useState('')
   const [fmt, setFmt] = useState<'json' | 'csv'>('json')
   const logsErr = cats.length === 0 ? t('data.logs.none') : from && to && from > to ? t('data.logs.range') : ''
-  const logsQuery = () => { const q = new URLSearchParams({ categories: cats.join(','), format: fmt }); if (from) q.set('from', new Date(`${from}T00:00:00`).toISOString()); if (to) q.set('to', new Date(`${to}T23:59:59.999`).toISOString()); return q.toString() }
 
   async function doPurge() {
     setPurgeErr(null)
@@ -83,7 +82,7 @@ export default function DataSection() {
             <Field label={t('data.logs.format')} htmlFor="log-format"><Select id="log-format" value={fmt} onChange={(e) => setFmt(e.target.value as 'json' | 'csv')} disabled={gate.disabled}><option value="json">JSON</option><option value="csv">CSV</option></Select></Field>
           </div>
           {logsErr ? <p role="alert" className="text-sm text-danger">{logsErr}</p> : null}
-          <div><Button disabled={gate.disabled || !!logsErr} title={gate.title} onClick={dl(`/core/logs/export?${logsQuery()}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</Button></div>
+          <div><Button disabled={gate.disabled || !!logsErr} title={gate.title} onClick={dl(`/core/logs/export?${logsExportQuery(cats, fmt, from, to)}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</Button></div>
           <p className="text-[13px] text-muted">{t('data.logs.verify')}</p>
         </div>
       </Section>

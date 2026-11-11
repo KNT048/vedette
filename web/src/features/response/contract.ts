@@ -220,6 +220,7 @@ export const ApprovalView = z.object({
   state: z.enum(['ready', 'expired', 'used', 'decided', 'unknown']), title: z.string().nullable(),
   items: z.array(z.object({ title: z.string(), risk: Risk, change: Change })), approver: z.string().nullable(), expires_at: iso.nullable(), status: ActionStatus.nullable(),
   requires_approvals: z.number().int().nullable(), approved_so_far: z.number().int().nullable(),
+  ai_generated: z.boolean().describe('true when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false unless state is ready'),
 })
 
 // ---- AI requests: gates enforced here, not by prompt ----

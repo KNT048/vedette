@@ -75,10 +75,14 @@ func fromRow(r coredb.GetConnectionRow, tools []Tool) (Connection, error) {
 	if tools == nil {
 		tools = []Tool{}
 	}
+	user, header := r.Username, (*string)(nil)
+	if r.AuthType == AuthToken { // the username column of a token sign-in holds the header name
+		user, header = nil, r.Username
+	}
 	return Connection{
 		ID: r.ID, Name: r.Name, Kind: r.Kind, Target: r.Target, AssetID: r.AssetID,
-		Auth:     Auth{Type: r.AuthType, Last4: r.Last4, KeyFingerprint: r.KeyFp},
-		Username: r.Username, Pin: decodePin(r.Pin, r.PinSeen), Allow: allow, Tools: tools,
+		Auth:     Auth{Type: r.AuthType, Header: header, Last4: r.Last4, KeyFingerprint: r.KeyFp},
+		Username: user, Pin: decodePin(r.Pin, r.PinSeen), Allow: allow, Tools: tools,
 		Enabled: r.Enabled, Status: r.Status, LastTest: r.LastTest, UpdatedAt: r.UpdatedAt, secretID: r.SecretID,
 	}, nil
 }
@@ -129,7 +133,7 @@ func list(ctx context.Context, q *coredb.Queries) ([]Connection, error) {
 func updateParams(c Connection) coredb.UpdateConnectionParams {
 	pin, seen := encodePin(c.Pin)
 	return coredb.UpdateConnectionParams{
-		ID: c.ID, Name: c.Name, NameKey: nameKey(c.Name), Kind: c.Kind, Target: c.Target, AssetID: c.AssetID, AuthType: c.Auth.Type, Username: c.Username,
+		ID: c.ID, Name: c.Name, NameKey: nameKey(c.Name), Kind: c.Kind, Target: c.Target, AssetID: c.AssetID, AuthType: c.Auth.Type, Username: userColumn(c.Auth.Type, c.Username, c.Auth.Header),
 		SecretID: c.secretID, KeyFp: c.Auth.KeyFingerprint, Pin: pin, PinSeen: seen, Allow: encodeAllow(c.Allow), Enabled: c.Enabled,
 		Status: c.Status, LastTest: c.LastTest, UpdatedAt: c.UpdatedAt,
 	}
@@ -189,4 +193,12 @@ func applyTools(base []Tool, in []ToolInput, mcp bool) []Tool {
 		out[i] = t
 	}
 	return out
+}
+
+// userColumn is what the username column holds: the user name, or for a token sign-in the header name (D-174).
+func userColumn(authType string, username, header *string) *string {
+	if authType == AuthToken {
+		return header
+	}
+	return username
 }

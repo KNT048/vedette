@@ -75,6 +75,7 @@ export default function ConnectionsSection() {
                         <p className="break-all font-mono text-[12.5px] text-muted">{c.target}</p>
                         <Meta parts={[
                           c.auth.type === 'none' ? t('connections.noAuth') : c.auth.type === 'ssh-key' ? t('connections.authKey', { fingerprint: c.auth.key_fingerprint ?? '' }) : t('connections.authEnds', { type: t(`connections.auth.${c.auth.type}`), last4: c.auth.last4 }),
+                          ...(c.auth.header ? [t('connections.inHeader', { header: c.auth.header })] : []),
                           ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
                           c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
                         ]} />
@@ -143,11 +144,11 @@ const TARGET_EXAMPLE: Record<ConnectorKind, string> = { http: 'https://192.168.1
 const ALLOW_EXAMPLE: Record<ConnectorKind, string> = { http: 'https://192.168.10.1/api/', ssh: 'uname -a\nss -tlnp', 'netconf-restconf': 'https://192.168.10.2/restconf/', automation: 'https://automation.example.local/api/', 'mcp-http': 'https://mcp.example.local/mcp', 'mcp-stdio': '' }
 const defaultAuth = (k: ConnectorKind): (typeof AUTHS)[number] => (k === 'ssh' ? 'ssh-key' : k === 'http' ? 'none' : 'token')
 
-type FieldKey = 'name' | 'target' | 'username' | 'secret' | 'allow'
-const FIELD_IDS: Record<FieldKey, string> = { name: 'cn-name', target: 'cn-target', username: 'cn-username', secret: 'cn-secret', allow: 'cn-allow' }
-const ORDER: FieldKey[] = ['name', 'target', 'username', 'secret', 'allow']
+type FieldKey = 'name' | 'target' | 'username' | 'auth_header' | 'secret' | 'allow'
+const FIELD_IDS: Record<FieldKey, string> = { name: 'cn-name', target: 'cn-target', username: 'cn-username', auth_header: 'cn-auth-header', secret: 'cn-secret', allow: 'cn-allow' }
+const ORDER: FieldKey[] = ['name', 'target', 'username', 'auth_header', 'secret', 'allow']
 // Server error code to the field it is about (same pattern as the custom feed form). `invalid` names its field in `details.field` (D-73).
-const FIELD_OF: Record<string, FieldKey> = { invalid_name: 'name', duplicate_name: 'name', invalid_target: 'target', username_required: 'username', invalid_secret: 'secret', secret_required: 'secret', allow_required: 'allow', invalid_allow: 'allow' }
+const FIELD_OF: Record<string, FieldKey> = { invalid_name: 'name', duplicate_name: 'name', invalid_target: 'target', username_required: 'username', invalid_auth_header: 'auth_header', invalid_secret: 'secret', secret_required: 'secret', allow_required: 'allow', invalid_allow: 'allow' }
 const serverField = (e: unknown): FieldKey | undefined => {
   if (!(e instanceof ApiError)) return undefined
   const f = e.code === 'invalid' ? String(e.details.field ?? '') : ''
@@ -163,6 +164,7 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
   const [target, setTarget] = useState(conn?.target ?? '')
   const [auth, setAuth] = useState<(typeof AUTHS)[number]>(conn?.auth.type ?? defaultAuth('http'))
   const [username, setUsername] = useState(conn?.username ?? '')
+  const [authHeader, setAuthHeader] = useState(conn?.auth.header ?? '')
   const [secret, setSecret] = useState('')
   const [allow, setAllow] = useState((conn?.allow ?? []).join('\n'))
   const [enabled, setEnabled] = useState(conn?.enabled ?? true)
@@ -177,8 +179,8 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
   // Going back to the saved kind of an existing connection restores its saved values.
   function pickKind(k: ConnectorKind) {
     setKind(k); setErrs({}); setSecret(''); setForget(false)
-    if (conn && k === conn.kind) { setTarget(conn.target); setAuth(conn.auth.type); setUsername(conn.username ?? ''); setAllow(conn.allow.join('\n')); return }
-    setTarget(''); setAllow(''); setUsername(''); setAuth(defaultAuth(k))
+    if (conn && k === conn.kind) { setTarget(conn.target); setAuth(conn.auth.type); setUsername(conn.username ?? ''); setAuthHeader(conn.auth.header ?? ''); setAllow(conn.allow.join('\n')); return }
+    setTarget(''); setAllow(''); setUsername(''); setAuthHeader(''); setAuth(defaultAuth(k))
   }
   const needsUser = usesUsername(kind, auth)
   const isKey = auth === 'ssh-key'
@@ -194,7 +196,7 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
     setErrs(n); setPlaced(false)
     const first = ORDER.find((k) => n[k])
     if (first) { document.getElementById(FIELD_IDS[first])?.focus(); return }
-    save.mutate({ id: conn?.id, name: name.trim(), kind, target: target.trim(), asset_id: conn?.asset_id ?? null, auth_type: auth, username: needsUser ? username.trim() : null, secret: secret || undefined, clear_pin: forget && !!pin ? true : undefined, allow: list, enabled, tools: conn?.tools.map((x) => ({ name: x.name, enabled: x.enabled })) },
+    save.mutate({ id: conn?.id, name: name.trim(), kind, target: target.trim(), asset_id: conn?.asset_id ?? null, auth_type: auth, username: needsUser ? username.trim() : null, auth_header: auth === 'token' && authHeader.trim() ? authHeader.trim() : null, secret: secret || undefined, clear_pin: forget && !!pin ? true : undefined, allow: list, enabled, tools: conn?.tools.map((x) => ({ name: x.name, enabled: x.enabled })) },
       { onSuccess: () => { toast.success(conn ? t('connections.saved') : t('connections.added')); onSaved(); onClose() },
         onError: (er) => { const f = serverField(er); if (f) { setErrs({ [f]: errMsg(er, t) }); setPlaced(true); focusField(f) } } })
   }
@@ -209,8 +211,9 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
             <Field label={t('connections.f.name')} htmlFor="cn-name" error={errs.name}><Input id="cn-name" value={name} maxLength={40} autoComplete="off" onChange={(e) => { setName(e.target.value); clear('name') }} aria-invalid={bad('name')} aria-describedby={errs.name ? 'cn-name-error' : undefined} /></Field>
             <Field label={t('connections.f.kind')} htmlFor="cn-kind"><Select id="cn-kind" value={kind} onChange={(e) => pickKind(e.target.value as ConnectorKind)}>{KINDS.map((k) => <option key={k} value={k} disabled={k === 'mcp-stdio'}>{k === 'mcp-stdio' ? t('connections.kindOptionNo', { kind: t(`connections.kind.${k}`) }) : t(`connections.kind.${k}`)}</option>)}</Select></Field>
             <Field label={t(`connections.f.target_${kind}`)} htmlFor="cn-target" hint={t(kind === 'automation' ? 'connections.f.targetHint_automation' : kind === 'netconf-restconf' ? 'connections.f.targetHint_restconf' : 'connections.f.targetExample', { example: TARGET_EXAMPLE[kind] })} error={errs.target} className="sm:col-span-2"><Input id="cn-target" value={target} autoComplete="off" spellCheck={false} onChange={(e) => { setTarget(e.target.value); clear('target') }} aria-invalid={bad('target')} aria-describedby={desc('target', 'cn-target-hint')} /></Field>
-            <Field label={t('connections.f.auth')} htmlFor="cn-auth"><Select id="cn-auth" value={auth} onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); setSecret(''); clear('secret'); clear('username') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{no ? t('connections.authOptionNo', { auth: t(`connections.auth.${a}`) }) : t(`connections.auth.${a}`)}</option> })}</Select></Field>
+            <Field label={t('connections.f.auth')} htmlFor="cn-auth"><Select id="cn-auth" value={auth} onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); setSecret(''); clear('secret'); clear('username'); clear('auth_header') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{no ? t('connections.authOptionNo', { auth: t(`connections.auth.${a}`) }) : t(`connections.auth.${a}`)}</option> })}</Select></Field>
             {needsUser ? <Field label={t('connections.f.username')} htmlFor="cn-username" hint={t(kind === 'ssh' ? 'connections.f.usernameHintSsh' : 'connections.f.usernameHintBasic')} error={errs.username}><Input id="cn-username" value={username} maxLength={64} autoComplete="off" spellCheck={false} onChange={(e) => { setUsername(e.target.value); clear('username') }} aria-invalid={bad('username')} aria-describedby={desc('username', 'cn-username-hint')} /></Field> : null}
+            {auth === 'token' ? <Field label={t('connections.f.authHeader')} htmlFor="cn-auth-header" hint={t('connections.f.authHeaderHint')} error={errs.auth_header}><Input id="cn-auth-header" value={authHeader} maxLength={64} autoComplete="off" spellCheck={false} placeholder="X-API-Key" onChange={(e) => { setAuthHeader(e.target.value); clear('auth_header') }} aria-invalid={bad('auth_header')} aria-describedby={desc('auth_header', 'cn-auth-header-hint')} /></Field> : null}
             {auth !== 'none' ? (
               <Field label={t(isKey ? 'connections.f.privateKey' : 'connections.f.secret')} htmlFor="cn-secret" error={errs.secret} className={isKey ? 'sm:col-span-2' : undefined}
                 hint={keep ? (isKey ? t('connections.f.keySaved', { fingerprint: conn!.auth.key_fingerprint ?? '' }) : t('connections.f.secretSaved', { last4: conn!.auth.last4 })) : t(isKey ? 'connections.f.keyHint' : 'connections.f.secretHint')}>

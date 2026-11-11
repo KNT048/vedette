@@ -59,7 +59,7 @@ type Service struct {
 	hourStart time.Time // the clock hour hourNew counts
 	hourNew   int       // new hits stored in that hour (per-hour cap, ingest.go)
 
-	applyMu sync.Mutex                   // one Apply at a time
+	applyMu sync.Mutex                   // one Apply or teardown at a time (they rewrite "applied" and talk to the host)
 	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)
 	pollMu  sync.Mutex                   // one Poll at a time
 }

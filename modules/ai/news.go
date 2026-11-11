@@ -165,13 +165,13 @@ func (f *newsFetcher) vendorSource(ctx context.Context, cve string, links []stri
 			continue
 		}
 		p, _ := url.Parse(u)
-		host := webLine(strings.ToLower(p.Hostname()), 253) // the host of an untrusted link: shown, so cleaned
 		if first == "" {
 			first = u
 		}
-		if !advisoryHosts[host] {
+		if !advisoryHosts[strings.ToLower(p.Hostname())] { // the raw host decides, as get checks it
 			continue
 		}
+		host := strings.ToLower(p.Hostname()) // on the list, so plain ASCII
 		title := "Vendor advisory (" + strings.TrimPrefix(host, "www.") + ")"
 		type res struct {
 			text  string // the excerpt for this CVE, not the whole page (the cache holds 128 entries)

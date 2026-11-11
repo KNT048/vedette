@@ -547,7 +547,10 @@
       "title": "Roll {{name}} back?",
       "body": "Change from {{from}} back to {{to}}.",
       "manual": "The box switches to manual updates so it does not climb back to the old build. Turn automatic on again on this page when you want.",
-      "confirm": "Roll back"
+      "confirm": "Roll back",
+      "dataLoss": "Data written since the update is lost.",
+      "dataLossWhy": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update. Findings, logs and settings changed since then are gone.",
+      "dataLossOk": "I understand that data written since the update is lost."
     },
     "advisories": "Vedette security advisories",
     "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix. The box tells administrators when a new one appears.",
@@ -733,6 +736,29 @@
         "warn": "Vedette does not do this for you. A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
       },
       "checkNow": "Check now"
+    },
+    "run": {
+      "title": {
+        "update": "Updating {{name}} to {{version}}",
+        "rollback": "Rolling {{name}} back to {{version}}"
+      },
+      "status": {
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "reverted": "Went back"
+      },
+      "stepOf": "Step {{n}} of {{total}}:",
+      "step": {
+        "download": "download and check the signed images",
+        "start": "start the sensor, scan and decoy parts",
+        "restart": "restart Vedette and check it is healthy"
+      },
+      "stepDone": "(done)",
+      "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
+      "reconnecting": "Reconnecting to Vedette…",
+      "failedToast": "The update did not finish. Nothing was changed.",
+      "revertedToast": "The new build did not start correctly, so the box went back to the previous one."
     }
   },
   "privacy": {

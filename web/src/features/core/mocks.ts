@@ -16,7 +16,7 @@ import { networkStore } from '@/mocks/network'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, TIMEZONES } from './util'
-import type { AccountSession, AdminUser, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdatesState } from './types'
+import type { AccountSession, AdminUser, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -509,8 +509,10 @@ const CATALOG: UpdateAvailable[] = [
   { component: 'pack-mitigation', version: '2026.11.06', channel: 'stable', size_kb: 410, note: 'Adds mitigation guidance for Ivanti Connect Secure.' },
   { component: 'pack-parsers', version: '1.4.1', channel: 'stable', size_kb: 96, note: 'Fixes how FortiGate 7.4 logs are read.' },
 ]
-const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid' })
-const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string }>('core_updates', () => ({
+/** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật (D-104, D-340). */
+const RESTORES_DATA = new Set(['0.9.4'])
+const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
+const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string; run?: UpdateRun | null }>('core_updates', () => ({
   channel: 'stable',
   mode: 'manual',
   last_check: daysAgo(0, 2),
@@ -553,7 +555,32 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
   ]
 }
 
+/** Mỗi bước của một lần chạy mô phỏng (D-340); bản thật: kéo image tới 45 phút, rồi khởi động lại. */
+export const RUN_STEP_MS = import.meta.env.MODE === 'test' ? 300 : 1500
+const RUN_STEPS: Record<UpdateRun['action'], NonNullable<UpdateRun['step']>[]> = { update: ['download', 'start', 'restart'], rollback: ['start', 'restart'] }
+
+/** Đưa lần chạy phần mềm đang chạy tới bước đúng với thời gian đã trôi; xong thì đổi phiên bản và ghi lịch sử. */
+function tickRun() {
+  const run = updStore.get().run
+  if (!run || run.status !== 'running') return
+  const steps = RUN_STEPS[run.action]
+  const i = Math.floor((Date.now() - Date.parse(run.started_at)) / RUN_STEP_MS)
+  if (i < steps.length) {
+    if (run.step !== steps[i]) updStore.update((s) => ({ ...s, run: { ...run, step: steps[i]! } }))
+    return
+  }
+  if (run.action === 'update') applyOne(run.component, run.to, 'update', run.user)
+  else rollbackOne(run.component, run.user)
+  updStore.update((s) => ({ ...s, run: { ...run, status: 'done', step: null, finished_at: nowIso() } }))
+}
+
+function startRun(action: UpdateRun['action'], component: string, from: string, to: string, user: string) {
+  const run: UpdateRun = { id: newId('ur'), action, component, from, to, status: 'running', step: RUN_STEPS[action][0]!, started_at: nowIso(), finished_at: null, user, error: null }
+  updStore.update((s) => ({ ...s, run }))
+}
+
 function updView(): UpdatesState {
+  tickRun()
   const s = updStore.get()
   const p = privacyStore.get()
   const sw = s.components.find((c) => c.id === 'software')!.version
@@ -564,7 +591,7 @@ function updView(): UpdatesState {
   })
   // chỉ giữ bản mới nhất cho mỗi thành phần
   const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0))
-  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest) }
+  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), run: s.run ?? null }
 }
 
 function applyOne(component: string, version: string, action: UpdateHistory['action'], user: string) {
@@ -572,9 +599,25 @@ function applyOne(component: string, version: string, action: UpdateHistory['act
     const cur = s.components.find((c) => c.id === component)
     if (!cur) return s
     const entry: UpdateHistory = { id: newId('h'), ts: nowIso(), component, from: cur.version, to: version, action, user }
-    return { ...s, components: s.components.map((c) => (c.id === component ? { ...c, previous: c.version, version, installed_at: nowIso(), signature: 'valid' } : c)), history: [entry, ...s.history].slice(0, 100) }
+    return { ...s, components: s.components.map((c) => (c.id === component ? { ...c, previous: c.version, version, installed_at: nowIso(), signature: 'valid', rollback_restores_data: component === 'software' && RESTORES_DATA.has(version) } : c)), history: [entry, ...s.history].slice(0, 100) }
   })
 }
+
+function rollbackOne(component: string, user: string) {
+  updStore.update((s) => {
+    const cur = s.components.find((c) => c.id === component)
+    if (!cur?.previous) return s
+    const prev = cur.previous
+    return {
+      ...s,
+      mode: 'manual',
+      components: s.components.map((c) => (c.id === cur.id ? { ...c, version: prev, previous: null, installed_at: nowIso(), rollback_restores_data: false } : c)),
+      history: [{ id: newId('h'), ts: nowIso(), component: cur.id, from: cur.version, to: prev, action: 'rollback' as const, user }, ...s.history].slice(0, 100),
+    }
+  })
+}
+
+const busy = () => fail(409, 'busy', 'An update or rollback of the software is already running. Wait for it to finish.')
 
 /** Chữ ký mô phỏng (FNV-1a). Bản thật: minisign/cosign (UPDATES.md §1). */
 export function mockSign(text: string): string {
@@ -609,7 +652,15 @@ const updatesHandlers = [
     if (!privacyStore.get().update_check) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on or import an offline bundle.')
     updStore.update((s) => ({ ...s, last_check: nowIso() }))
     let applied = 0
-    if (updStore.get().mode === 'auto') for (const a of updView().available) { applyOne(a.component, a.version, 'update', 'system'); applied++ }
+    if (updStore.get().mode === 'auto') {
+      for (const a of updView().available) {
+        const cur = updStore.get().components.find((c) => c.id === a.component)
+        if (a.component !== 'software') applyOne(a.component, a.version, 'update', 'system')
+        else if (cur && updStore.get().run?.status !== 'running') startRun('update', a.component, cur.version, a.version, 'system')
+        else continue
+        applied++
+      }
+    }
     audit('update.check', 'updates', applied ? `auto-installed ${applied}` : undefined)
     return HttpResponse.json({ ...updView(), applied })
   }),
@@ -617,26 +668,29 @@ const updatesHandlers = [
     const denied = guard('admin')
     if (denied) return denied
     const b = await body<{ component: string }>(request)
-    const a = updView().available.find((x) => x.component === b.component)
+    const v = updView()
+    if (v.run?.status === 'running') return busy()
+    const a = v.available.find((x) => x.component === b.component)
     if (!a) return fail(404, 'no_update', 'There is no new version of this component. Click "Check now".')
-    applyOne(a.component, a.version, 'update', currentUser()!.email)
+    const cur = v.components.find((c) => c.id === a.component)
+    if (a.component === 'software' && cur) startRun('update', a.component, cur.version, a.version, currentUser()!.email)
+    else applyOne(a.component, a.version, 'update', currentUser()!.email)
     audit('update.apply', a.component, `to ${a.version}`)
     return HttpResponse.json(updView())
   }),
   http.post(`${API}/core/updates/rollback`, async ({ request }) => {
     const denied = guard('admin')
     if (denied) return denied
-    const b = await body<{ component: string }>(request)
+    const b = await body<{ component: string; confirm_data_loss?: boolean }>(request)
+    if (b.confirm_data_loss !== undefined && typeof b.confirm_data_loss !== 'boolean') return fail(400, 'invalid_body', 'confirm_data_loss is true or false.')
+    if (updView().run?.status === 'running') return busy()
     const cur = updStore.get().components.find((c) => c.id === b.component)
     if (!cur) return fail(404, 'not_found', 'No such component.')
     if (!cur.previous) return fail(409, 'no_previous', 'No previous version to go back to.')
+    if (cur.rollback_restores_data && b.confirm_data_loss !== true) return fail(409, 'confirm_required', 'This rollback also puts back the database from before the update, so data written since then is lost. Confirm to go on.')
     const prev = cur.previous
-    updStore.update((s) => ({
-      ...s,
-      mode: 'manual',
-      components: s.components.map((c) => (c.id === cur.id ? { ...c, version: prev, previous: null, installed_at: nowIso() } : c)),
-      history: [{ id: newId('h'), ts: nowIso(), component: cur.id, from: cur.version, to: prev, action: 'rollback' as const, user: currentUser()!.email }, ...s.history].slice(0, 100),
-    }))
+    if (cur.id === 'software') startRun('rollback', cur.id, cur.version, prev, currentUser()!.email)
+    else rollbackOne(cur.id, currentUser()!.email)
     audit('update.rollback', cur.id, `${cur.version} back to ${prev}`)
     return HttpResponse.json(updView())
   }),

@@ -99,7 +99,11 @@ export const useAudit = (q: AuditQuery) => useQuery({ queryKey: ['core', 'audit'
 export const auditExportPath = (q: AuditQuery) => `/core/audit/export${qs(q)}`
 
 // ---- cập nhật ----
-export const useUpdates = () => useQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates') })
+/** Hỏi lại mỗi giây khi phần mềm đang cập nhật hay quay lại (D-340); vẫn hỏi khi một lần hỏi lỗi lúc Vedette khởi động lại. */
+export const useUpdates = () => useQuery({
+  queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'),
+  refetchInterval: (q) => (q.state.data?.run?.status === 'running' ? 1000 : false), refetchIntervalInBackground: true,
+})
 export function useUpdateMutations() {
   const qc = useQueryClient()
   const set = (d: UpdatesState) => { qc.setQueryData(['core', 'updates'], d); void qc.invalidateQueries({ queryKey: ['core', 'privacy'] }) }
@@ -107,7 +111,7 @@ export function useUpdateMutations() {
     settings: useMutation({ mutationFn: (v: { channel?: UpdateChannel; mode?: 'auto' | 'manual' }) => api.patch<UpdatesState>('/core/updates', v), onSuccess: set }),
     check: useMutation({ mutationFn: () => api.post<UpdatesState & { applied: number }>('/core/updates/check'), onSuccess: set }),
     apply: useMutation({ mutationFn: (component: string) => api.post<UpdatesState>('/core/updates/apply', { component }), onSuccess: set }),
-    rollback: useMutation({ mutationFn: (component: string) => api.post<UpdatesState>('/core/updates/rollback', { component }), onSuccess: set }),
+    rollback: useMutation({ mutationFn: (v: { component: string; confirm_data_loss?: boolean }) => api.post<UpdatesState>('/core/updates/rollback', v), onSuccess: set }),
     importBundle: useMutation({ mutationFn: (v: { name: string; size: number; sha256: string; content: string }) => api.post<{ applied: number; state: UpdatesState }>('/core/updates/bundle', v), onSuccess: (r) => set(r.state) }),
   }
 }

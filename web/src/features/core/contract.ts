@@ -82,14 +82,23 @@ export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(
 
 // ---- cập nhật ----
 export const UpdateChannel = z.enum(['stable', 'beta'])
-export const UpdateComponent = z.object({ id: z.string(), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']) })
+export const UpdateComponent = z.object({ id: z.string(), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']),
+  rollback_restores_data: z.boolean().describe('Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss') })
 export const UpdateAvailable = z.object({ component: z.string(), version: z.string(), channel: UpdateChannel, size_kb: z.number(), note: z.string() })
 export const UpdateHistory = z.object({ id: z.string(), ts, component: z.string(), from: z.string().nullable(), to: z.string(), action: z.enum(['update', 'rollback', 'bundle']), user: z.string() })
 export const Advisory = z.object({ id: z.string(), title: z.string(), severity: z.enum(['critical', 'high', 'medium']), published: z.string(), fixed_in: z.string(), summary: z.string(), status: z.enum(['affected', 'fixed']) })
 export const ManagedPackage = z.object({ id: z.string(), name: z.string(), version: z.string(), status: z.enum(['ok', 'update_pending']) })
+export const UpdateRun = z.object({
+  id: z.string(), action: z.enum(['update', 'rollback']), component: z.string(), from: z.string().nullable(), to: z.string(),
+  status: z.enum(['running', 'done', 'failed', 'reverted']).describe('reverted: the new build was not healthy and the box went back to the old one'),
+  step: z.enum(['download', 'start', 'restart']).nullable().describe('download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)'),
+  started_at: ts, finished_at: ts.nullable(), user: z.string(),
+  error: z.string().nullable().describe('Only when failed or reverted: why, in words'),
+})
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts,
   components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
+  run: UpdateRun.nullable().describe('The software install or rollback running now, or the latest one; null when there was none'),
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
 })
 
@@ -248,8 +257,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates', summary: 'Versions, new builds, history and security advisories of Vedette', stories: ['S-CORE-2'], role: 'viewer', response: UpdatesState },
   { method: 'patch', path: '/core/updates', summary: 'Change channel (stable/beta) and mode (automatic/manual)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ channel: UpdateChannel.optional(), mode: z.enum(['auto', 'manual']).optional() }), response: UpdatesState },
   { method: 'post', path: '/core/updates/check', summary: 'Check for updates now (409 when turned off under Privacy)', stories: ['S-CORE-2'], role: 'operator', response: UpdateCheck },
-  { method: 'post', path: '/core/updates/apply', summary: 'Install the new version of one component', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
-  { method: 'post', path: '/core/updates/rollback', summary: 'Go back to the previous version of one component', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
+  { method: 'post', path: '/core/updates/apply', summary: 'Install the new version of one component; for the software it starts a run (UpdatesState.run, 409 busy while one runs)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
+  { method: 'post', path: '/core/updates/rollback', summary: 'Go back to the previous version of one component; 409 confirm_required when it restores the database and confirm_data_loss is not true', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string(), confirm_data_loss: z.boolean().optional().describe('Required (true) when the component has rollback_restores_data') }), response: UpdatesState },
   { method: 'get', path: '/core/updates/os', summary: 'Operating system of the box: release, kernel, end of support, pending packages, reboot state, maintenance window', stories: ['S-CORE-7'], role: 'viewer', response: OsState },
   { method: 'post', path: '/core/updates/os/check', summary: 'Run the equivalent of apt update now (409 when update checks are off under Privacy)', stories: ['S-CORE-7'], role: 'operator', response: OsState },
   { method: 'post', path: '/core/updates/os/install', status: 202, summary: 'Install security updates or all updates through vedette-host; one run at a time (409 when busy), database backup first', stories: ['S-CORE-7'], role: 'admin', body: z.object({ scope: z.enum(['security', 'all']) }), response: OsRun },

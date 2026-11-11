@@ -15345,6 +15345,8 @@ type CoreGetCoreUpdatesOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CoreGetCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCoreGetCoreUpdatesOKRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -15392,6 +15394,11 @@ func (s *CoreGetCoreUpdatesOK) GetMode() CoreGetCoreUpdatesOKMode {
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CoreGetCoreUpdatesOK) GetRun() NilCoreGetCoreUpdatesOKRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CoreGetCoreUpdatesOK) SetAdvisories(val []CoreGetCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
@@ -15435,6 +15442,11 @@ func (s *CoreGetCoreUpdatesOK) SetManaged(val []CoreGetCoreUpdatesOKManagedItem)
 // SetMode sets the value of Mode.
 func (s *CoreGetCoreUpdatesOK) SetMode(val CoreGetCoreUpdatesOKMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CoreGetCoreUpdatesOK) SetRun(val NilCoreGetCoreUpdatesOKRun) {
+	s.Run = val
 }
 
 type CoreGetCoreUpdatesOKAdvisoriesItem struct {
@@ -15747,12 +15759,15 @@ func (s *CoreGetCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreUpdatesOKComponentsItem struct {
-	ID          string                                      `json:"id"`
-	InstalledAt time.Time                                   `json:"installed_at"`
-	Kind        CoreGetCoreUpdatesOKComponentsItemKind      `json:"kind"`
-	Previous    NilString                                   `json:"previous"`
-	Signature   CoreGetCoreUpdatesOKComponentsItemSignature `json:"signature"`
-	Version     string                                      `json:"version"`
+	ID          string                                 `json:"id"`
+	InstalledAt time.Time                              `json:"installed_at"`
+	Kind        CoreGetCoreUpdatesOKComponentsItemKind `json:"kind"`
+	Previous    NilString                              `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                        `json:"rollback_restores_data"`
+	Signature            CoreGetCoreUpdatesOKComponentsItemSignature `json:"signature"`
+	Version              string                                      `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -15773,6 +15788,11 @@ func (s *CoreGetCoreUpdatesOKComponentsItem) GetKind() CoreGetCoreUpdatesOKCompo
 // GetPrevious returns the value of Previous.
 func (s *CoreGetCoreUpdatesOKComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CoreGetCoreUpdatesOKComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -15803,6 +15823,11 @@ func (s *CoreGetCoreUpdatesOKComponentsItem) SetKind(val CoreGetCoreUpdatesOKCom
 // SetPrevious sets the value of Previous.
 func (s *CoreGetCoreUpdatesOKComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CoreGetCoreUpdatesOKComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -16162,6 +16187,279 @@ func (s *CoreGetCoreUpdatesOKMode) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetCoreUpdatesOKModeManual:
 		*s = CoreGetCoreUpdatesOKModeManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKRun struct {
+	Action    CoreGetCoreUpdatesOKRunAction `json:"action"`
+	Component string                        `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
+	To   string                         `json:"to"`
+	User string                         `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CoreGetCoreUpdatesOKRun) GetAction() CoreGetCoreUpdatesOKRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CoreGetCoreUpdatesOKRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CoreGetCoreUpdatesOKRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CoreGetCoreUpdatesOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CoreGetCoreUpdatesOKRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CoreGetCoreUpdatesOKRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CoreGetCoreUpdatesOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CoreGetCoreUpdatesOKRun) GetStatus() CoreGetCoreUpdatesOKRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CoreGetCoreUpdatesOKRun) GetStep() NilCoreGetCoreUpdatesOKRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CoreGetCoreUpdatesOKRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CoreGetCoreUpdatesOKRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CoreGetCoreUpdatesOKRun) SetAction(val CoreGetCoreUpdatesOKRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CoreGetCoreUpdatesOKRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CoreGetCoreUpdatesOKRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CoreGetCoreUpdatesOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CoreGetCoreUpdatesOKRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CoreGetCoreUpdatesOKRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CoreGetCoreUpdatesOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CoreGetCoreUpdatesOKRun) SetStatus(val CoreGetCoreUpdatesOKRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CoreGetCoreUpdatesOKRun) SetStep(val NilCoreGetCoreUpdatesOKRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CoreGetCoreUpdatesOKRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CoreGetCoreUpdatesOKRun) SetUser(val string) {
+	s.User = val
+}
+
+type CoreGetCoreUpdatesOKRunAction string
+
+const (
+	CoreGetCoreUpdatesOKRunActionUpdate   CoreGetCoreUpdatesOKRunAction = "update"
+	CoreGetCoreUpdatesOKRunActionRollback CoreGetCoreUpdatesOKRunAction = "rollback"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKRunAction values.
+func (CoreGetCoreUpdatesOKRunAction) AllValues() []CoreGetCoreUpdatesOKRunAction {
+	return []CoreGetCoreUpdatesOKRunAction{
+		CoreGetCoreUpdatesOKRunActionUpdate,
+		CoreGetCoreUpdatesOKRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKRunActionUpdate:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKRunAction(data) {
+	case CoreGetCoreUpdatesOKRunActionUpdate:
+		*s = CoreGetCoreUpdatesOKRunActionUpdate
+		return nil
+	case CoreGetCoreUpdatesOKRunActionRollback:
+		*s = CoreGetCoreUpdatesOKRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CoreGetCoreUpdatesOKRunStatus string
+
+const (
+	CoreGetCoreUpdatesOKRunStatusRunning  CoreGetCoreUpdatesOKRunStatus = "running"
+	CoreGetCoreUpdatesOKRunStatusDone     CoreGetCoreUpdatesOKRunStatus = "done"
+	CoreGetCoreUpdatesOKRunStatusFailed   CoreGetCoreUpdatesOKRunStatus = "failed"
+	CoreGetCoreUpdatesOKRunStatusReverted CoreGetCoreUpdatesOKRunStatus = "reverted"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKRunStatus values.
+func (CoreGetCoreUpdatesOKRunStatus) AllValues() []CoreGetCoreUpdatesOKRunStatus {
+	return []CoreGetCoreUpdatesOKRunStatus{
+		CoreGetCoreUpdatesOKRunStatusRunning,
+		CoreGetCoreUpdatesOKRunStatusDone,
+		CoreGetCoreUpdatesOKRunStatusFailed,
+		CoreGetCoreUpdatesOKRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKRunStatusRunning:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStatusDone:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStatusFailed:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKRunStatus) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKRunStatus(data) {
+	case CoreGetCoreUpdatesOKRunStatusRunning:
+		*s = CoreGetCoreUpdatesOKRunStatusRunning
+		return nil
+	case CoreGetCoreUpdatesOKRunStatusDone:
+		*s = CoreGetCoreUpdatesOKRunStatusDone
+		return nil
+	case CoreGetCoreUpdatesOKRunStatusFailed:
+		*s = CoreGetCoreUpdatesOKRunStatusFailed
+		return nil
+	case CoreGetCoreUpdatesOKRunStatusReverted:
+		*s = CoreGetCoreUpdatesOKRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKRunStep string
+
+const (
+	CoreGetCoreUpdatesOKRunStepDownload CoreGetCoreUpdatesOKRunStep = "download"
+	CoreGetCoreUpdatesOKRunStepStart    CoreGetCoreUpdatesOKRunStep = "start"
+	CoreGetCoreUpdatesOKRunStepRestart  CoreGetCoreUpdatesOKRunStep = "restart"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKRunStep values.
+func (CoreGetCoreUpdatesOKRunStep) AllValues() []CoreGetCoreUpdatesOKRunStep {
+	return []CoreGetCoreUpdatesOKRunStep{
+		CoreGetCoreUpdatesOKRunStepDownload,
+		CoreGetCoreUpdatesOKRunStepStart,
+		CoreGetCoreUpdatesOKRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKRunStepDownload:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepStart:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKRunStep(data) {
+	case CoreGetCoreUpdatesOKRunStepDownload:
+		*s = CoreGetCoreUpdatesOKRunStepDownload
+		return nil
+	case CoreGetCoreUpdatesOKRunStepStart:
+		*s = CoreGetCoreUpdatesOKRunStepStart
+		return nil
+	case CoreGetCoreUpdatesOKRunStepRestart:
+		*s = CoreGetCoreUpdatesOKRunStepRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -18085,6 +18383,8 @@ type CorePatchCoreUpdatesOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePatchCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCorePatchCoreUpdatesOKRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -18132,6 +18432,11 @@ func (s *CorePatchCoreUpdatesOK) GetMode() CorePatchCoreUpdatesOKMode {
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CorePatchCoreUpdatesOK) GetRun() NilCorePatchCoreUpdatesOKRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePatchCoreUpdatesOK) SetAdvisories(val []CorePatchCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
@@ -18175,6 +18480,11 @@ func (s *CorePatchCoreUpdatesOK) SetManaged(val []CorePatchCoreUpdatesOKManagedI
 // SetMode sets the value of Mode.
 func (s *CorePatchCoreUpdatesOK) SetMode(val CorePatchCoreUpdatesOKMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CorePatchCoreUpdatesOK) SetRun(val NilCorePatchCoreUpdatesOKRun) {
+	s.Run = val
 }
 
 type CorePatchCoreUpdatesOKAdvisoriesItem struct {
@@ -18487,12 +18797,15 @@ func (s *CorePatchCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePatchCoreUpdatesOKComponentsItem struct {
-	ID          string                                        `json:"id"`
-	InstalledAt time.Time                                     `json:"installed_at"`
-	Kind        CorePatchCoreUpdatesOKComponentsItemKind      `json:"kind"`
-	Previous    NilString                                     `json:"previous"`
-	Signature   CorePatchCoreUpdatesOKComponentsItemSignature `json:"signature"`
-	Version     string                                        `json:"version"`
+	ID          string                                   `json:"id"`
+	InstalledAt time.Time                                `json:"installed_at"`
+	Kind        CorePatchCoreUpdatesOKComponentsItemKind `json:"kind"`
+	Previous    NilString                                `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                          `json:"rollback_restores_data"`
+	Signature            CorePatchCoreUpdatesOKComponentsItemSignature `json:"signature"`
+	Version              string                                        `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -18513,6 +18826,11 @@ func (s *CorePatchCoreUpdatesOKComponentsItem) GetKind() CorePatchCoreUpdatesOKC
 // GetPrevious returns the value of Previous.
 func (s *CorePatchCoreUpdatesOKComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CorePatchCoreUpdatesOKComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -18543,6 +18861,11 @@ func (s *CorePatchCoreUpdatesOKComponentsItem) SetKind(val CorePatchCoreUpdatesO
 // SetPrevious sets the value of Previous.
 func (s *CorePatchCoreUpdatesOKComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CorePatchCoreUpdatesOKComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -18902,6 +19225,279 @@ func (s *CorePatchCoreUpdatesOKMode) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchCoreUpdatesOKModeManual:
 		*s = CorePatchCoreUpdatesOKModeManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKRun struct {
+	Action    CorePatchCoreUpdatesOKRunAction `json:"action"`
+	Component string                          `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
+	To   string                           `json:"to"`
+	User string                           `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePatchCoreUpdatesOKRun) GetAction() CorePatchCoreUpdatesOKRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CorePatchCoreUpdatesOKRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CorePatchCoreUpdatesOKRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePatchCoreUpdatesOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CorePatchCoreUpdatesOKRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CorePatchCoreUpdatesOKRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePatchCoreUpdatesOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePatchCoreUpdatesOKRun) GetStatus() CorePatchCoreUpdatesOKRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CorePatchCoreUpdatesOKRun) GetStep() NilCorePatchCoreUpdatesOKRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CorePatchCoreUpdatesOKRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CorePatchCoreUpdatesOKRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CorePatchCoreUpdatesOKRun) SetAction(val CorePatchCoreUpdatesOKRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CorePatchCoreUpdatesOKRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePatchCoreUpdatesOKRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePatchCoreUpdatesOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CorePatchCoreUpdatesOKRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePatchCoreUpdatesOKRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePatchCoreUpdatesOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePatchCoreUpdatesOKRun) SetStatus(val CorePatchCoreUpdatesOKRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CorePatchCoreUpdatesOKRun) SetStep(val NilCorePatchCoreUpdatesOKRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CorePatchCoreUpdatesOKRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePatchCoreUpdatesOKRun) SetUser(val string) {
+	s.User = val
+}
+
+type CorePatchCoreUpdatesOKRunAction string
+
+const (
+	CorePatchCoreUpdatesOKRunActionUpdate   CorePatchCoreUpdatesOKRunAction = "update"
+	CorePatchCoreUpdatesOKRunActionRollback CorePatchCoreUpdatesOKRunAction = "rollback"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKRunAction values.
+func (CorePatchCoreUpdatesOKRunAction) AllValues() []CorePatchCoreUpdatesOKRunAction {
+	return []CorePatchCoreUpdatesOKRunAction{
+		CorePatchCoreUpdatesOKRunActionUpdate,
+		CorePatchCoreUpdatesOKRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKRunActionUpdate:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKRunAction(data) {
+	case CorePatchCoreUpdatesOKRunActionUpdate:
+		*s = CorePatchCoreUpdatesOKRunActionUpdate
+		return nil
+	case CorePatchCoreUpdatesOKRunActionRollback:
+		*s = CorePatchCoreUpdatesOKRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CorePatchCoreUpdatesOKRunStatus string
+
+const (
+	CorePatchCoreUpdatesOKRunStatusRunning  CorePatchCoreUpdatesOKRunStatus = "running"
+	CorePatchCoreUpdatesOKRunStatusDone     CorePatchCoreUpdatesOKRunStatus = "done"
+	CorePatchCoreUpdatesOKRunStatusFailed   CorePatchCoreUpdatesOKRunStatus = "failed"
+	CorePatchCoreUpdatesOKRunStatusReverted CorePatchCoreUpdatesOKRunStatus = "reverted"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKRunStatus values.
+func (CorePatchCoreUpdatesOKRunStatus) AllValues() []CorePatchCoreUpdatesOKRunStatus {
+	return []CorePatchCoreUpdatesOKRunStatus{
+		CorePatchCoreUpdatesOKRunStatusRunning,
+		CorePatchCoreUpdatesOKRunStatusDone,
+		CorePatchCoreUpdatesOKRunStatusFailed,
+		CorePatchCoreUpdatesOKRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKRunStatusRunning:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStatusDone:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStatusFailed:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKRunStatus) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKRunStatus(data) {
+	case CorePatchCoreUpdatesOKRunStatusRunning:
+		*s = CorePatchCoreUpdatesOKRunStatusRunning
+		return nil
+	case CorePatchCoreUpdatesOKRunStatusDone:
+		*s = CorePatchCoreUpdatesOKRunStatusDone
+		return nil
+	case CorePatchCoreUpdatesOKRunStatusFailed:
+		*s = CorePatchCoreUpdatesOKRunStatusFailed
+		return nil
+	case CorePatchCoreUpdatesOKRunStatusReverted:
+		*s = CorePatchCoreUpdatesOKRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKRunStep string
+
+const (
+	CorePatchCoreUpdatesOKRunStepDownload CorePatchCoreUpdatesOKRunStep = "download"
+	CorePatchCoreUpdatesOKRunStepStart    CorePatchCoreUpdatesOKRunStep = "start"
+	CorePatchCoreUpdatesOKRunStepRestart  CorePatchCoreUpdatesOKRunStep = "restart"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKRunStep values.
+func (CorePatchCoreUpdatesOKRunStep) AllValues() []CorePatchCoreUpdatesOKRunStep {
+	return []CorePatchCoreUpdatesOKRunStep{
+		CorePatchCoreUpdatesOKRunStepDownload,
+		CorePatchCoreUpdatesOKRunStepStart,
+		CorePatchCoreUpdatesOKRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKRunStepDownload:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepStart:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKRunStep(data) {
+	case CorePatchCoreUpdatesOKRunStepDownload:
+		*s = CorePatchCoreUpdatesOKRunStepDownload
+		return nil
+	case CorePatchCoreUpdatesOKRunStepStart:
+		*s = CorePatchCoreUpdatesOKRunStepStart
+		return nil
+	case CorePatchCoreUpdatesOKRunStepRestart:
+		*s = CorePatchCoreUpdatesOKRunStepRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -24593,6 +25189,8 @@ type CorePostCoreUpdatesApplyOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesApplyOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCorePostCoreUpdatesApplyOKRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -24640,6 +25238,11 @@ func (s *CorePostCoreUpdatesApplyOK) GetMode() CorePostCoreUpdatesApplyOKMode {
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CorePostCoreUpdatesApplyOK) GetRun() NilCorePostCoreUpdatesApplyOKRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesApplyOK) SetAdvisories(val []CorePostCoreUpdatesApplyOKAdvisoriesItem) {
 	s.Advisories = val
@@ -24683,6 +25286,11 @@ func (s *CorePostCoreUpdatesApplyOK) SetManaged(val []CorePostCoreUpdatesApplyOK
 // SetMode sets the value of Mode.
 func (s *CorePostCoreUpdatesApplyOK) SetMode(val CorePostCoreUpdatesApplyOKMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CorePostCoreUpdatesApplyOK) SetRun(val NilCorePostCoreUpdatesApplyOKRun) {
+	s.Run = val
 }
 
 type CorePostCoreUpdatesApplyOKAdvisoriesItem struct {
@@ -24995,12 +25603,15 @@ func (s *CorePostCoreUpdatesApplyOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesApplyOKComponentsItem struct {
-	ID          string                                            `json:"id"`
-	InstalledAt time.Time                                         `json:"installed_at"`
-	Kind        CorePostCoreUpdatesApplyOKComponentsItemKind      `json:"kind"`
-	Previous    NilString                                         `json:"previous"`
-	Signature   CorePostCoreUpdatesApplyOKComponentsItemSignature `json:"signature"`
-	Version     string                                            `json:"version"`
+	ID          string                                       `json:"id"`
+	InstalledAt time.Time                                    `json:"installed_at"`
+	Kind        CorePostCoreUpdatesApplyOKComponentsItemKind `json:"kind"`
+	Previous    NilString                                    `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                              `json:"rollback_restores_data"`
+	Signature            CorePostCoreUpdatesApplyOKComponentsItemSignature `json:"signature"`
+	Version              string                                            `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -25021,6 +25632,11 @@ func (s *CorePostCoreUpdatesApplyOKComponentsItem) GetKind() CorePostCoreUpdates
 // GetPrevious returns the value of Previous.
 func (s *CorePostCoreUpdatesApplyOKComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesApplyOKComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -25051,6 +25667,11 @@ func (s *CorePostCoreUpdatesApplyOKComponentsItem) SetKind(val CorePostCoreUpdat
 // SetPrevious sets the value of Previous.
 func (s *CorePostCoreUpdatesApplyOKComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesApplyOKComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -25416,6 +26037,279 @@ func (s *CorePostCoreUpdatesApplyOKMode) UnmarshalText(data []byte) error {
 	}
 }
 
+type CorePostCoreUpdatesApplyOKRun struct {
+	Action    CorePostCoreUpdatesApplyOKRunAction `json:"action"`
+	Component string                              `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
+	To   string                               `json:"to"`
+	User string                               `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesApplyOKRun) GetAction() CorePostCoreUpdatesApplyOKRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CorePostCoreUpdatesApplyOKRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesApplyOKRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreUpdatesApplyOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CorePostCoreUpdatesApplyOKRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreUpdatesApplyOKRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreUpdatesApplyOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreUpdatesApplyOKRun) GetStatus() CorePostCoreUpdatesApplyOKRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CorePostCoreUpdatesApplyOKRun) GetStep() NilCorePostCoreUpdatesApplyOKRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CorePostCoreUpdatesApplyOKRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreUpdatesApplyOKRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesApplyOKRun) SetAction(val CorePostCoreUpdatesApplyOKRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CorePostCoreUpdatesApplyOKRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesApplyOKRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreUpdatesApplyOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CorePostCoreUpdatesApplyOKRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreUpdatesApplyOKRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreUpdatesApplyOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreUpdatesApplyOKRun) SetStatus(val CorePostCoreUpdatesApplyOKRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CorePostCoreUpdatesApplyOKRun) SetStep(val NilCorePostCoreUpdatesApplyOKRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CorePostCoreUpdatesApplyOKRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreUpdatesApplyOKRun) SetUser(val string) {
+	s.User = val
+}
+
+type CorePostCoreUpdatesApplyOKRunAction string
+
+const (
+	CorePostCoreUpdatesApplyOKRunActionUpdate   CorePostCoreUpdatesApplyOKRunAction = "update"
+	CorePostCoreUpdatesApplyOKRunActionRollback CorePostCoreUpdatesApplyOKRunAction = "rollback"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKRunAction values.
+func (CorePostCoreUpdatesApplyOKRunAction) AllValues() []CorePostCoreUpdatesApplyOKRunAction {
+	return []CorePostCoreUpdatesApplyOKRunAction{
+		CorePostCoreUpdatesApplyOKRunActionUpdate,
+		CorePostCoreUpdatesApplyOKRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKRunActionUpdate:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKRunAction(data) {
+	case CorePostCoreUpdatesApplyOKRunActionUpdate:
+		*s = CorePostCoreUpdatesApplyOKRunActionUpdate
+		return nil
+	case CorePostCoreUpdatesApplyOKRunActionRollback:
+		*s = CorePostCoreUpdatesApplyOKRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CorePostCoreUpdatesApplyOKRunStatus string
+
+const (
+	CorePostCoreUpdatesApplyOKRunStatusRunning  CorePostCoreUpdatesApplyOKRunStatus = "running"
+	CorePostCoreUpdatesApplyOKRunStatusDone     CorePostCoreUpdatesApplyOKRunStatus = "done"
+	CorePostCoreUpdatesApplyOKRunStatusFailed   CorePostCoreUpdatesApplyOKRunStatus = "failed"
+	CorePostCoreUpdatesApplyOKRunStatusReverted CorePostCoreUpdatesApplyOKRunStatus = "reverted"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKRunStatus values.
+func (CorePostCoreUpdatesApplyOKRunStatus) AllValues() []CorePostCoreUpdatesApplyOKRunStatus {
+	return []CorePostCoreUpdatesApplyOKRunStatus{
+		CorePostCoreUpdatesApplyOKRunStatusRunning,
+		CorePostCoreUpdatesApplyOKRunStatusDone,
+		CorePostCoreUpdatesApplyOKRunStatusFailed,
+		CorePostCoreUpdatesApplyOKRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKRunStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStatusFailed:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKRunStatus(data) {
+	case CorePostCoreUpdatesApplyOKRunStatusRunning:
+		*s = CorePostCoreUpdatesApplyOKRunStatusRunning
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStatusDone:
+		*s = CorePostCoreUpdatesApplyOKRunStatusDone
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStatusFailed:
+		*s = CorePostCoreUpdatesApplyOKRunStatusFailed
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStatusReverted:
+		*s = CorePostCoreUpdatesApplyOKRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesApplyOKRunStep string
+
+const (
+	CorePostCoreUpdatesApplyOKRunStepDownload CorePostCoreUpdatesApplyOKRunStep = "download"
+	CorePostCoreUpdatesApplyOKRunStepStart    CorePostCoreUpdatesApplyOKRunStep = "start"
+	CorePostCoreUpdatesApplyOKRunStepRestart  CorePostCoreUpdatesApplyOKRunStep = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKRunStep values.
+func (CorePostCoreUpdatesApplyOKRunStep) AllValues() []CorePostCoreUpdatesApplyOKRunStep {
+	return []CorePostCoreUpdatesApplyOKRunStep{
+		CorePostCoreUpdatesApplyOKRunStepDownload,
+		CorePostCoreUpdatesApplyOKRunStepStart,
+		CorePostCoreUpdatesApplyOKRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKRunStepDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunStep) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKRunStep(data) {
+	case CorePostCoreUpdatesApplyOKRunStepDownload:
+		*s = CorePostCoreUpdatesApplyOKRunStepDownload
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStepStart:
+		*s = CorePostCoreUpdatesApplyOKRunStepStart
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStepRestart:
+		*s = CorePostCoreUpdatesApplyOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesApplyReq struct {
 	Component string `json:"component"`
 }
@@ -25467,6 +26361,8 @@ type CorePostCoreUpdatesBundleOKState struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesBundleOKStateManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCorePostCoreUpdatesBundleOKStateRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -25514,6 +26410,11 @@ func (s *CorePostCoreUpdatesBundleOKState) GetMode() CorePostCoreUpdatesBundleOK
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CorePostCoreUpdatesBundleOKState) GetRun() NilCorePostCoreUpdatesBundleOKStateRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesBundleOKState) SetAdvisories(val []CorePostCoreUpdatesBundleOKStateAdvisoriesItem) {
 	s.Advisories = val
@@ -25557,6 +26458,11 @@ func (s *CorePostCoreUpdatesBundleOKState) SetManaged(val []CorePostCoreUpdatesB
 // SetMode sets the value of Mode.
 func (s *CorePostCoreUpdatesBundleOKState) SetMode(val CorePostCoreUpdatesBundleOKStateMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CorePostCoreUpdatesBundleOKState) SetRun(val NilCorePostCoreUpdatesBundleOKStateRun) {
+	s.Run = val
 }
 
 type CorePostCoreUpdatesBundleOKStateAdvisoriesItem struct {
@@ -25869,12 +26775,15 @@ func (s *CorePostCoreUpdatesBundleOKStateChannel) UnmarshalText(data []byte) err
 }
 
 type CorePostCoreUpdatesBundleOKStateComponentsItem struct {
-	ID          string                                                  `json:"id"`
-	InstalledAt time.Time                                               `json:"installed_at"`
-	Kind        CorePostCoreUpdatesBundleOKStateComponentsItemKind      `json:"kind"`
-	Previous    NilString                                               `json:"previous"`
-	Signature   CorePostCoreUpdatesBundleOKStateComponentsItemSignature `json:"signature"`
-	Version     string                                                  `json:"version"`
+	ID          string                                             `json:"id"`
+	InstalledAt time.Time                                          `json:"installed_at"`
+	Kind        CorePostCoreUpdatesBundleOKStateComponentsItemKind `json:"kind"`
+	Previous    NilString                                          `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                                    `json:"rollback_restores_data"`
+	Signature            CorePostCoreUpdatesBundleOKStateComponentsItemSignature `json:"signature"`
+	Version              string                                                  `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -25895,6 +26804,11 @@ func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) GetKind() CorePostCoreU
 // GetPrevious returns the value of Previous.
 func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -25925,6 +26839,11 @@ func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) SetKind(val CorePostCor
 // SetPrevious sets the value of Previous.
 func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesBundleOKStateComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -26290,6 +27209,279 @@ func (s *CorePostCoreUpdatesBundleOKStateMode) UnmarshalText(data []byte) error 
 	}
 }
 
+type CorePostCoreUpdatesBundleOKStateRun struct {
+	Action    CorePostCoreUpdatesBundleOKStateRunAction `json:"action"`
+	Component string                                    `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
+	To   string                                     `json:"to"`
+	User string                                     `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetAction() CorePostCoreUpdatesBundleOKStateRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetStatus() CorePostCoreUpdatesBundleOKStateRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetStep() NilCorePostCoreUpdatesBundleOKStateRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetAction(val CorePostCoreUpdatesBundleOKStateRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetStatus(val CorePostCoreUpdatesBundleOKStateRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetStep(val NilCorePostCoreUpdatesBundleOKStateRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetUser(val string) {
+	s.User = val
+}
+
+type CorePostCoreUpdatesBundleOKStateRunAction string
+
+const (
+	CorePostCoreUpdatesBundleOKStateRunActionUpdate   CorePostCoreUpdatesBundleOKStateRunAction = "update"
+	CorePostCoreUpdatesBundleOKStateRunActionRollback CorePostCoreUpdatesBundleOKStateRunAction = "rollback"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateRunAction values.
+func (CorePostCoreUpdatesBundleOKStateRunAction) AllValues() []CorePostCoreUpdatesBundleOKStateRunAction {
+	return []CorePostCoreUpdatesBundleOKStateRunAction{
+		CorePostCoreUpdatesBundleOKStateRunActionUpdate,
+		CorePostCoreUpdatesBundleOKStateRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunActionUpdate:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateRunAction(data) {
+	case CorePostCoreUpdatesBundleOKStateRunActionUpdate:
+		*s = CorePostCoreUpdatesBundleOKStateRunActionUpdate
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunActionRollback:
+		*s = CorePostCoreUpdatesBundleOKStateRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CorePostCoreUpdatesBundleOKStateRunStatus string
+
+const (
+	CorePostCoreUpdatesBundleOKStateRunStatusRunning  CorePostCoreUpdatesBundleOKStateRunStatus = "running"
+	CorePostCoreUpdatesBundleOKStateRunStatusDone     CorePostCoreUpdatesBundleOKStateRunStatus = "done"
+	CorePostCoreUpdatesBundleOKStateRunStatusFailed   CorePostCoreUpdatesBundleOKStateRunStatus = "failed"
+	CorePostCoreUpdatesBundleOKStateRunStatusReverted CorePostCoreUpdatesBundleOKStateRunStatus = "reverted"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateRunStatus values.
+func (CorePostCoreUpdatesBundleOKStateRunStatus) AllValues() []CorePostCoreUpdatesBundleOKStateRunStatus {
+	return []CorePostCoreUpdatesBundleOKStateRunStatus{
+		CorePostCoreUpdatesBundleOKStateRunStatusRunning,
+		CorePostCoreUpdatesBundleOKStateRunStatusDone,
+		CorePostCoreUpdatesBundleOKStateRunStatusFailed,
+		CorePostCoreUpdatesBundleOKStateRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusFailed:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateRunStatus(data) {
+	case CorePostCoreUpdatesBundleOKStateRunStatusRunning:
+		*s = CorePostCoreUpdatesBundleOKStateRunStatusRunning
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusDone:
+		*s = CorePostCoreUpdatesBundleOKStateRunStatusDone
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusFailed:
+		*s = CorePostCoreUpdatesBundleOKStateRunStatusFailed
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStatusReverted:
+		*s = CorePostCoreUpdatesBundleOKStateRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesBundleOKStateRunStep string
+
+const (
+	CorePostCoreUpdatesBundleOKStateRunStepDownload CorePostCoreUpdatesBundleOKStateRunStep = "download"
+	CorePostCoreUpdatesBundleOKStateRunStepStart    CorePostCoreUpdatesBundleOKStateRunStep = "start"
+	CorePostCoreUpdatesBundleOKStateRunStepRestart  CorePostCoreUpdatesBundleOKStateRunStep = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateRunStep values.
+func (CorePostCoreUpdatesBundleOKStateRunStep) AllValues() []CorePostCoreUpdatesBundleOKStateRunStep {
+	return []CorePostCoreUpdatesBundleOKStateRunStep{
+		CorePostCoreUpdatesBundleOKStateRunStepDownload,
+		CorePostCoreUpdatesBundleOKStateRunStepStart,
+		CorePostCoreUpdatesBundleOKStateRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunStep) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateRunStep(data) {
+	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepDownload
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepStart:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepStart
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepRestart:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesBundleReq struct {
 	// Bundle file content, base64 (UTF-8).
 	Content string  `json:"content"`
@@ -26352,6 +27544,8 @@ type CorePostCoreUpdatesCheckOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesCheckOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCorePostCoreUpdatesCheckOKRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -26404,6 +27598,11 @@ func (s *CorePostCoreUpdatesCheckOK) GetMode() CorePostCoreUpdatesCheckOKMode {
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CorePostCoreUpdatesCheckOK) GetRun() NilCorePostCoreUpdatesCheckOKRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesCheckOK) SetAdvisories(val []CorePostCoreUpdatesCheckOKAdvisoriesItem) {
 	s.Advisories = val
@@ -26452,6 +27651,11 @@ func (s *CorePostCoreUpdatesCheckOK) SetManaged(val []CorePostCoreUpdatesCheckOK
 // SetMode sets the value of Mode.
 func (s *CorePostCoreUpdatesCheckOK) SetMode(val CorePostCoreUpdatesCheckOKMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CorePostCoreUpdatesCheckOK) SetRun(val NilCorePostCoreUpdatesCheckOKRun) {
+	s.Run = val
 }
 
 type CorePostCoreUpdatesCheckOKAdvisoriesItem struct {
@@ -26764,12 +27968,15 @@ func (s *CorePostCoreUpdatesCheckOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesCheckOKComponentsItem struct {
-	ID          string                                            `json:"id"`
-	InstalledAt time.Time                                         `json:"installed_at"`
-	Kind        CorePostCoreUpdatesCheckOKComponentsItemKind      `json:"kind"`
-	Previous    NilString                                         `json:"previous"`
-	Signature   CorePostCoreUpdatesCheckOKComponentsItemSignature `json:"signature"`
-	Version     string                                            `json:"version"`
+	ID          string                                       `json:"id"`
+	InstalledAt time.Time                                    `json:"installed_at"`
+	Kind        CorePostCoreUpdatesCheckOKComponentsItemKind `json:"kind"`
+	Previous    NilString                                    `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                              `json:"rollback_restores_data"`
+	Signature            CorePostCoreUpdatesCheckOKComponentsItemSignature `json:"signature"`
+	Version              string                                            `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -26790,6 +27997,11 @@ func (s *CorePostCoreUpdatesCheckOKComponentsItem) GetKind() CorePostCoreUpdates
 // GetPrevious returns the value of Previous.
 func (s *CorePostCoreUpdatesCheckOKComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesCheckOKComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -26820,6 +28032,11 @@ func (s *CorePostCoreUpdatesCheckOKComponentsItem) SetKind(val CorePostCoreUpdat
 // SetPrevious sets the value of Previous.
 func (s *CorePostCoreUpdatesCheckOKComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesCheckOKComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -27179,6 +28396,279 @@ func (s *CorePostCoreUpdatesCheckOKMode) UnmarshalText(data []byte) error {
 		return nil
 	case CorePostCoreUpdatesCheckOKModeManual:
 		*s = CorePostCoreUpdatesCheckOKModeManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKRun struct {
+	Action    CorePostCoreUpdatesCheckOKRunAction `json:"action"`
+	Component string                              `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
+	To   string                               `json:"to"`
+	User string                               `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesCheckOKRun) GetAction() CorePostCoreUpdatesCheckOKRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CorePostCoreUpdatesCheckOKRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesCheckOKRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreUpdatesCheckOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CorePostCoreUpdatesCheckOKRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreUpdatesCheckOKRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreUpdatesCheckOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreUpdatesCheckOKRun) GetStatus() CorePostCoreUpdatesCheckOKRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CorePostCoreUpdatesCheckOKRun) GetStep() NilCorePostCoreUpdatesCheckOKRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CorePostCoreUpdatesCheckOKRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreUpdatesCheckOKRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesCheckOKRun) SetAction(val CorePostCoreUpdatesCheckOKRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CorePostCoreUpdatesCheckOKRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesCheckOKRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreUpdatesCheckOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CorePostCoreUpdatesCheckOKRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreUpdatesCheckOKRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreUpdatesCheckOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreUpdatesCheckOKRun) SetStatus(val CorePostCoreUpdatesCheckOKRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CorePostCoreUpdatesCheckOKRun) SetStep(val NilCorePostCoreUpdatesCheckOKRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CorePostCoreUpdatesCheckOKRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreUpdatesCheckOKRun) SetUser(val string) {
+	s.User = val
+}
+
+type CorePostCoreUpdatesCheckOKRunAction string
+
+const (
+	CorePostCoreUpdatesCheckOKRunActionUpdate   CorePostCoreUpdatesCheckOKRunAction = "update"
+	CorePostCoreUpdatesCheckOKRunActionRollback CorePostCoreUpdatesCheckOKRunAction = "rollback"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKRunAction values.
+func (CorePostCoreUpdatesCheckOKRunAction) AllValues() []CorePostCoreUpdatesCheckOKRunAction {
+	return []CorePostCoreUpdatesCheckOKRunAction{
+		CorePostCoreUpdatesCheckOKRunActionUpdate,
+		CorePostCoreUpdatesCheckOKRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKRunActionUpdate:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKRunAction(data) {
+	case CorePostCoreUpdatesCheckOKRunActionUpdate:
+		*s = CorePostCoreUpdatesCheckOKRunActionUpdate
+		return nil
+	case CorePostCoreUpdatesCheckOKRunActionRollback:
+		*s = CorePostCoreUpdatesCheckOKRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CorePostCoreUpdatesCheckOKRunStatus string
+
+const (
+	CorePostCoreUpdatesCheckOKRunStatusRunning  CorePostCoreUpdatesCheckOKRunStatus = "running"
+	CorePostCoreUpdatesCheckOKRunStatusDone     CorePostCoreUpdatesCheckOKRunStatus = "done"
+	CorePostCoreUpdatesCheckOKRunStatusFailed   CorePostCoreUpdatesCheckOKRunStatus = "failed"
+	CorePostCoreUpdatesCheckOKRunStatusReverted CorePostCoreUpdatesCheckOKRunStatus = "reverted"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKRunStatus values.
+func (CorePostCoreUpdatesCheckOKRunStatus) AllValues() []CorePostCoreUpdatesCheckOKRunStatus {
+	return []CorePostCoreUpdatesCheckOKRunStatus{
+		CorePostCoreUpdatesCheckOKRunStatusRunning,
+		CorePostCoreUpdatesCheckOKRunStatusDone,
+		CorePostCoreUpdatesCheckOKRunStatusFailed,
+		CorePostCoreUpdatesCheckOKRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKRunStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStatusFailed:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKRunStatus(data) {
+	case CorePostCoreUpdatesCheckOKRunStatusRunning:
+		*s = CorePostCoreUpdatesCheckOKRunStatusRunning
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStatusDone:
+		*s = CorePostCoreUpdatesCheckOKRunStatusDone
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStatusFailed:
+		*s = CorePostCoreUpdatesCheckOKRunStatusFailed
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStatusReverted:
+		*s = CorePostCoreUpdatesCheckOKRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKRunStep string
+
+const (
+	CorePostCoreUpdatesCheckOKRunStepDownload CorePostCoreUpdatesCheckOKRunStep = "download"
+	CorePostCoreUpdatesCheckOKRunStepStart    CorePostCoreUpdatesCheckOKRunStep = "start"
+	CorePostCoreUpdatesCheckOKRunStepRestart  CorePostCoreUpdatesCheckOKRunStep = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKRunStep values.
+func (CorePostCoreUpdatesCheckOKRunStep) AllValues() []CorePostCoreUpdatesCheckOKRunStep {
+	return []CorePostCoreUpdatesCheckOKRunStep{
+		CorePostCoreUpdatesCheckOKRunStepDownload,
+		CorePostCoreUpdatesCheckOKRunStepStart,
+		CorePostCoreUpdatesCheckOKRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKRunStepDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunStep) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKRunStep(data) {
+	case CorePostCoreUpdatesCheckOKRunStepDownload:
+		*s = CorePostCoreUpdatesCheckOKRunStepDownload
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStepStart:
+		*s = CorePostCoreUpdatesCheckOKRunStepStart
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStepRestart:
+		*s = CorePostCoreUpdatesCheckOKRunStepRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -28462,6 +29952,8 @@ type CorePostCoreUpdatesRollbackOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesRollbackOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
+	// The software install or rollback running now, or the latest one; null when there was none.
+	Run NilCorePostCoreUpdatesRollbackOKRun `json:"run"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -28509,6 +30001,11 @@ func (s *CorePostCoreUpdatesRollbackOK) GetMode() CorePostCoreUpdatesRollbackOKM
 	return s.Mode
 }
 
+// GetRun returns the value of Run.
+func (s *CorePostCoreUpdatesRollbackOK) GetRun() NilCorePostCoreUpdatesRollbackOKRun {
+	return s.Run
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesRollbackOK) SetAdvisories(val []CorePostCoreUpdatesRollbackOKAdvisoriesItem) {
 	s.Advisories = val
@@ -28552,6 +30049,11 @@ func (s *CorePostCoreUpdatesRollbackOK) SetManaged(val []CorePostCoreUpdatesRoll
 // SetMode sets the value of Mode.
 func (s *CorePostCoreUpdatesRollbackOK) SetMode(val CorePostCoreUpdatesRollbackOKMode) {
 	s.Mode = val
+}
+
+// SetRun sets the value of Run.
+func (s *CorePostCoreUpdatesRollbackOK) SetRun(val NilCorePostCoreUpdatesRollbackOKRun) {
+	s.Run = val
 }
 
 type CorePostCoreUpdatesRollbackOKAdvisoriesItem struct {
@@ -28864,12 +30366,15 @@ func (s *CorePostCoreUpdatesRollbackOKChannel) UnmarshalText(data []byte) error 
 }
 
 type CorePostCoreUpdatesRollbackOKComponentsItem struct {
-	ID          string                                               `json:"id"`
-	InstalledAt time.Time                                            `json:"installed_at"`
-	Kind        CorePostCoreUpdatesRollbackOKComponentsItemKind      `json:"kind"`
-	Previous    NilString                                            `json:"previous"`
-	Signature   CorePostCoreUpdatesRollbackOKComponentsItemSignature `json:"signature"`
-	Version     string                                               `json:"version"`
+	ID          string                                          `json:"id"`
+	InstalledAt time.Time                                       `json:"installed_at"`
+	Kind        CorePostCoreUpdatesRollbackOKComponentsItemKind `json:"kind"`
+	Previous    NilString                                       `json:"previous"`
+	// Rolling back also puts back the database from before the update (the running release says
+	// rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss.
+	RollbackRestoresData bool                                                 `json:"rollback_restores_data"`
+	Signature            CorePostCoreUpdatesRollbackOKComponentsItemSignature `json:"signature"`
+	Version              string                                               `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -28890,6 +30395,11 @@ func (s *CorePostCoreUpdatesRollbackOKComponentsItem) GetKind() CorePostCoreUpda
 // GetPrevious returns the value of Previous.
 func (s *CorePostCoreUpdatesRollbackOKComponentsItem) GetPrevious() NilString {
 	return s.Previous
+}
+
+// GetRollbackRestoresData returns the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesRollbackOKComponentsItem) GetRollbackRestoresData() bool {
+	return s.RollbackRestoresData
 }
 
 // GetSignature returns the value of Signature.
@@ -28920,6 +30430,11 @@ func (s *CorePostCoreUpdatesRollbackOKComponentsItem) SetKind(val CorePostCoreUp
 // SetPrevious sets the value of Previous.
 func (s *CorePostCoreUpdatesRollbackOKComponentsItem) SetPrevious(val NilString) {
 	s.Previous = val
+}
+
+// SetRollbackRestoresData sets the value of RollbackRestoresData.
+func (s *CorePostCoreUpdatesRollbackOKComponentsItem) SetRollbackRestoresData(val bool) {
+	s.RollbackRestoresData = val
 }
 
 // SetSignature sets the value of Signature.
@@ -29285,8 +30800,283 @@ func (s *CorePostCoreUpdatesRollbackOKMode) UnmarshalText(data []byte) error {
 	}
 }
 
+type CorePostCoreUpdatesRollbackOKRun struct {
+	Action    CorePostCoreUpdatesRollbackOKRunAction `json:"action"`
+	Component string                                 `json:"component"`
+	// Only when failed or reverted: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	From       NilString   `json:"from"`
+	ID         string      `json:"id"`
+	StartedAt  time.Time   `json:"started_at"`
+	// Reverted: the new build was not healthy and the box went back to the old one.
+	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
+	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// restarts (the page loses its connection for a moment).
+	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
+	To   string                                  `json:"to"`
+	User string                                  `json:"user"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetAction() CorePostCoreUpdatesRollbackOKRunAction {
+	return s.Action
+}
+
+// GetComponent returns the value of Component.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetComponent() string {
+	return s.Component
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetFrom returns the value of From.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetFrom() NilString {
+	return s.From
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetID() string {
+	return s.ID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetStatus() CorePostCoreUpdatesRollbackOKRunStatus {
+	return s.Status
+}
+
+// GetStep returns the value of Step.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetStep() NilCorePostCoreUpdatesRollbackOKRunStep {
+	return s.Step
+}
+
+// GetTo returns the value of To.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetTo() string {
+	return s.To
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetUser() string {
+	return s.User
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetAction(val CorePostCoreUpdatesRollbackOKRunAction) {
+	s.Action = val
+}
+
+// SetComponent sets the value of Component.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetFrom sets the value of From.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetFrom(val NilString) {
+	s.From = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetID(val string) {
+	s.ID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetStatus(val CorePostCoreUpdatesRollbackOKRunStatus) {
+	s.Status = val
+}
+
+// SetStep sets the value of Step.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetStep(val NilCorePostCoreUpdatesRollbackOKRunStep) {
+	s.Step = val
+}
+
+// SetTo sets the value of To.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetTo(val string) {
+	s.To = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetUser(val string) {
+	s.User = val
+}
+
+type CorePostCoreUpdatesRollbackOKRunAction string
+
+const (
+	CorePostCoreUpdatesRollbackOKRunActionUpdate   CorePostCoreUpdatesRollbackOKRunAction = "update"
+	CorePostCoreUpdatesRollbackOKRunActionRollback CorePostCoreUpdatesRollbackOKRunAction = "rollback"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKRunAction values.
+func (CorePostCoreUpdatesRollbackOKRunAction) AllValues() []CorePostCoreUpdatesRollbackOKRunAction {
+	return []CorePostCoreUpdatesRollbackOKRunAction{
+		CorePostCoreUpdatesRollbackOKRunActionUpdate,
+		CorePostCoreUpdatesRollbackOKRunActionRollback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKRunAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKRunActionUpdate:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunActionRollback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKRunAction(data) {
+	case CorePostCoreUpdatesRollbackOKRunActionUpdate:
+		*s = CorePostCoreUpdatesRollbackOKRunActionUpdate
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunActionRollback:
+		*s = CorePostCoreUpdatesRollbackOKRunActionRollback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reverted: the new build was not healthy and the box went back to the old one.
+type CorePostCoreUpdatesRollbackOKRunStatus string
+
+const (
+	CorePostCoreUpdatesRollbackOKRunStatusRunning  CorePostCoreUpdatesRollbackOKRunStatus = "running"
+	CorePostCoreUpdatesRollbackOKRunStatusDone     CorePostCoreUpdatesRollbackOKRunStatus = "done"
+	CorePostCoreUpdatesRollbackOKRunStatusFailed   CorePostCoreUpdatesRollbackOKRunStatus = "failed"
+	CorePostCoreUpdatesRollbackOKRunStatusReverted CorePostCoreUpdatesRollbackOKRunStatus = "reverted"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKRunStatus values.
+func (CorePostCoreUpdatesRollbackOKRunStatus) AllValues() []CorePostCoreUpdatesRollbackOKRunStatus {
+	return []CorePostCoreUpdatesRollbackOKRunStatus{
+		CorePostCoreUpdatesRollbackOKRunStatusRunning,
+		CorePostCoreUpdatesRollbackOKRunStatusDone,
+		CorePostCoreUpdatesRollbackOKRunStatusFailed,
+		CorePostCoreUpdatesRollbackOKRunStatusReverted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKRunStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStatusFailed:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStatusReverted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKRunStatus(data) {
+	case CorePostCoreUpdatesRollbackOKRunStatusRunning:
+		*s = CorePostCoreUpdatesRollbackOKRunStatusRunning
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStatusDone:
+		*s = CorePostCoreUpdatesRollbackOKRunStatusDone
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStatusFailed:
+		*s = CorePostCoreUpdatesRollbackOKRunStatusFailed
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStatusReverted:
+		*s = CorePostCoreUpdatesRollbackOKRunStatusReverted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesRollbackOKRunStep string
+
+const (
+	CorePostCoreUpdatesRollbackOKRunStepDownload CorePostCoreUpdatesRollbackOKRunStep = "download"
+	CorePostCoreUpdatesRollbackOKRunStepStart    CorePostCoreUpdatesRollbackOKRunStep = "start"
+	CorePostCoreUpdatesRollbackOKRunStepRestart  CorePostCoreUpdatesRollbackOKRunStep = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKRunStep values.
+func (CorePostCoreUpdatesRollbackOKRunStep) AllValues() []CorePostCoreUpdatesRollbackOKRunStep {
+	return []CorePostCoreUpdatesRollbackOKRunStep{
+		CorePostCoreUpdatesRollbackOKRunStepDownload,
+		CorePostCoreUpdatesRollbackOKRunStepStart,
+		CorePostCoreUpdatesRollbackOKRunStepRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKRunStep) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKRunStepDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunStep) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKRunStep(data) {
+	case CorePostCoreUpdatesRollbackOKRunStepDownload:
+		*s = CorePostCoreUpdatesRollbackOKRunStepDownload
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepStart:
+		*s = CorePostCoreUpdatesRollbackOKRunStepStart
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepRestart:
+		*s = CorePostCoreUpdatesRollbackOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesRollbackReq struct {
 	Component string `json:"component"`
+	// Required (true) when the component has rollback_restores_data.
+	ConfirmDataLoss OptBool `json:"confirm_data_loss"`
 }
 
 // GetComponent returns the value of Component.
@@ -29294,9 +31084,19 @@ func (s *CorePostCoreUpdatesRollbackReq) GetComponent() string {
 	return s.Component
 }
 
+// GetConfirmDataLoss returns the value of ConfirmDataLoss.
+func (s *CorePostCoreUpdatesRollbackReq) GetConfirmDataLoss() OptBool {
+	return s.ConfirmDataLoss
+}
+
 // SetComponent sets the value of Component.
 func (s *CorePostCoreUpdatesRollbackReq) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetConfirmDataLoss sets the value of ConfirmDataLoss.
+func (s *CorePostCoreUpdatesRollbackReq) SetConfirmDataLoss(val OptBool) {
+	s.ConfirmDataLoss = val
 }
 
 type CorePostCoreUsersCreated struct {
@@ -71135,6 +72935,96 @@ func (o NilCoreGetCoreOidcOKDefaultRole) Or(d CoreGetCoreOidcOKDefaultRole) Core
 	return d
 }
 
+// NewNilCoreGetCoreUpdatesOKRun returns new NilCoreGetCoreUpdatesOKRun with value set to v.
+func NewNilCoreGetCoreUpdatesOKRun(v CoreGetCoreUpdatesOKRun) NilCoreGetCoreUpdatesOKRun {
+	return NilCoreGetCoreUpdatesOKRun{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOKRun is nullable CoreGetCoreUpdatesOKRun.
+type NilCoreGetCoreUpdatesOKRun struct {
+	Value CoreGetCoreUpdatesOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOKRun) SetTo(v CoreGetCoreUpdatesOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOKRun) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOKRun) Get() (v CoreGetCoreUpdatesOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOKRun) Or(d CoreGetCoreUpdatesOKRun) CoreGetCoreUpdatesOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCoreGetCoreUpdatesOKRunStep returns new NilCoreGetCoreUpdatesOKRunStep with value set to v.
+func NewNilCoreGetCoreUpdatesOKRunStep(v CoreGetCoreUpdatesOKRunStep) NilCoreGetCoreUpdatesOKRunStep {
+	return NilCoreGetCoreUpdatesOKRunStep{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOKRunStep is nullable CoreGetCoreUpdatesOKRunStep.
+type NilCoreGetCoreUpdatesOKRunStep struct {
+	Value CoreGetCoreUpdatesOKRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOKRunStep) SetTo(v CoreGetCoreUpdatesOKRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOKRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOKRunStep) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOKRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOKRunStep) Get() (v CoreGetCoreUpdatesOKRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOKRunStep) Or(d CoreGetCoreUpdatesOKRunStep) CoreGetCoreUpdatesOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade returns new NilCoreGetCoreUpdatesOsOKReleaseUpgrade with value set to v.
 func NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade(v CoreGetCoreUpdatesOsOKReleaseUpgrade) NilCoreGetCoreUpdatesOsOKReleaseUpgrade {
 	return NilCoreGetCoreUpdatesOsOKReleaseUpgrade{
@@ -71354,6 +73244,96 @@ func (o NilCoreGetMeOKTwofaMethod) Get() (v CoreGetMeOKTwofaMethod, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetMeOKTwofaMethod) Or(d CoreGetMeOKTwofaMethod) CoreGetMeOKTwofaMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOKRun returns new NilCorePatchCoreUpdatesOKRun with value set to v.
+func NewNilCorePatchCoreUpdatesOKRun(v CorePatchCoreUpdatesOKRun) NilCorePatchCoreUpdatesOKRun {
+	return NilCorePatchCoreUpdatesOKRun{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOKRun is nullable CorePatchCoreUpdatesOKRun.
+type NilCorePatchCoreUpdatesOKRun struct {
+	Value CorePatchCoreUpdatesOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOKRun) SetTo(v CorePatchCoreUpdatesOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOKRun) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOKRun) Get() (v CorePatchCoreUpdatesOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOKRun) Or(d CorePatchCoreUpdatesOKRun) CorePatchCoreUpdatesOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOKRunStep returns new NilCorePatchCoreUpdatesOKRunStep with value set to v.
+func NewNilCorePatchCoreUpdatesOKRunStep(v CorePatchCoreUpdatesOKRunStep) NilCorePatchCoreUpdatesOKRunStep {
+	return NilCorePatchCoreUpdatesOKRunStep{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOKRunStep is nullable CorePatchCoreUpdatesOKRunStep.
+type NilCorePatchCoreUpdatesOKRunStep struct {
+	Value CorePatchCoreUpdatesOKRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOKRunStep) SetTo(v CorePatchCoreUpdatesOKRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOKRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOKRunStep) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOKRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOKRunStep) Get() (v CorePatchCoreUpdatesOKRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOKRunStep) Or(d CorePatchCoreUpdatesOKRunStep) CorePatchCoreUpdatesOKRunStep {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -71630,6 +73610,276 @@ func (o NilCorePostCoreNetworkManagementRevertOKPending) Or(d CorePostCoreNetwor
 	return d
 }
 
+// NewNilCorePostCoreUpdatesApplyOKRun returns new NilCorePostCoreUpdatesApplyOKRun with value set to v.
+func NewNilCorePostCoreUpdatesApplyOKRun(v CorePostCoreUpdatesApplyOKRun) NilCorePostCoreUpdatesApplyOKRun {
+	return NilCorePostCoreUpdatesApplyOKRun{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesApplyOKRun is nullable CorePostCoreUpdatesApplyOKRun.
+type NilCorePostCoreUpdatesApplyOKRun struct {
+	Value CorePostCoreUpdatesApplyOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesApplyOKRun) SetTo(v CorePostCoreUpdatesApplyOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesApplyOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesApplyOKRun) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesApplyOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesApplyOKRun) Get() (v CorePostCoreUpdatesApplyOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesApplyOKRun) Or(d CorePostCoreUpdatesApplyOKRun) CorePostCoreUpdatesApplyOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesApplyOKRunStep returns new NilCorePostCoreUpdatesApplyOKRunStep with value set to v.
+func NewNilCorePostCoreUpdatesApplyOKRunStep(v CorePostCoreUpdatesApplyOKRunStep) NilCorePostCoreUpdatesApplyOKRunStep {
+	return NilCorePostCoreUpdatesApplyOKRunStep{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesApplyOKRunStep is nullable CorePostCoreUpdatesApplyOKRunStep.
+type NilCorePostCoreUpdatesApplyOKRunStep struct {
+	Value CorePostCoreUpdatesApplyOKRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesApplyOKRunStep) SetTo(v CorePostCoreUpdatesApplyOKRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesApplyOKRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesApplyOKRunStep) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesApplyOKRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesApplyOKRunStep) Get() (v CorePostCoreUpdatesApplyOKRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesApplyOKRunStep) Or(d CorePostCoreUpdatesApplyOKRunStep) CorePostCoreUpdatesApplyOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesBundleOKStateRun returns new NilCorePostCoreUpdatesBundleOKStateRun with value set to v.
+func NewNilCorePostCoreUpdatesBundleOKStateRun(v CorePostCoreUpdatesBundleOKStateRun) NilCorePostCoreUpdatesBundleOKStateRun {
+	return NilCorePostCoreUpdatesBundleOKStateRun{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesBundleOKStateRun is nullable CorePostCoreUpdatesBundleOKStateRun.
+type NilCorePostCoreUpdatesBundleOKStateRun struct {
+	Value CorePostCoreUpdatesBundleOKStateRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesBundleOKStateRun) SetTo(v CorePostCoreUpdatesBundleOKStateRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesBundleOKStateRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesBundleOKStateRun) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesBundleOKStateRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesBundleOKStateRun) Get() (v CorePostCoreUpdatesBundleOKStateRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesBundleOKStateRun) Or(d CorePostCoreUpdatesBundleOKStateRun) CorePostCoreUpdatesBundleOKStateRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesBundleOKStateRunStep returns new NilCorePostCoreUpdatesBundleOKStateRunStep with value set to v.
+func NewNilCorePostCoreUpdatesBundleOKStateRunStep(v CorePostCoreUpdatesBundleOKStateRunStep) NilCorePostCoreUpdatesBundleOKStateRunStep {
+	return NilCorePostCoreUpdatesBundleOKStateRunStep{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesBundleOKStateRunStep is nullable CorePostCoreUpdatesBundleOKStateRunStep.
+type NilCorePostCoreUpdatesBundleOKStateRunStep struct {
+	Value CorePostCoreUpdatesBundleOKStateRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesBundleOKStateRunStep) SetTo(v CorePostCoreUpdatesBundleOKStateRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesBundleOKStateRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesBundleOKStateRunStep) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesBundleOKStateRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesBundleOKStateRunStep) Get() (v CorePostCoreUpdatesBundleOKStateRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesBundleOKStateRunStep) Or(d CorePostCoreUpdatesBundleOKStateRunStep) CorePostCoreUpdatesBundleOKStateRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesCheckOKRun returns new NilCorePostCoreUpdatesCheckOKRun with value set to v.
+func NewNilCorePostCoreUpdatesCheckOKRun(v CorePostCoreUpdatesCheckOKRun) NilCorePostCoreUpdatesCheckOKRun {
+	return NilCorePostCoreUpdatesCheckOKRun{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesCheckOKRun is nullable CorePostCoreUpdatesCheckOKRun.
+type NilCorePostCoreUpdatesCheckOKRun struct {
+	Value CorePostCoreUpdatesCheckOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesCheckOKRun) SetTo(v CorePostCoreUpdatesCheckOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesCheckOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesCheckOKRun) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesCheckOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesCheckOKRun) Get() (v CorePostCoreUpdatesCheckOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesCheckOKRun) Or(d CorePostCoreUpdatesCheckOKRun) CorePostCoreUpdatesCheckOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesCheckOKRunStep returns new NilCorePostCoreUpdatesCheckOKRunStep with value set to v.
+func NewNilCorePostCoreUpdatesCheckOKRunStep(v CorePostCoreUpdatesCheckOKRunStep) NilCorePostCoreUpdatesCheckOKRunStep {
+	return NilCorePostCoreUpdatesCheckOKRunStep{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesCheckOKRunStep is nullable CorePostCoreUpdatesCheckOKRunStep.
+type NilCorePostCoreUpdatesCheckOKRunStep struct {
+	Value CorePostCoreUpdatesCheckOKRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesCheckOKRunStep) SetTo(v CorePostCoreUpdatesCheckOKRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesCheckOKRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesCheckOKRunStep) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesCheckOKRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesCheckOKRunStep) Get() (v CorePostCoreUpdatesCheckOKRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesCheckOKRunStep) Or(d CorePostCoreUpdatesCheckOKRunStep) CorePostCoreUpdatesCheckOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesOsCheckOKReleaseUpgrade returns new NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade with value set to v.
 func NewNilCorePostCoreUpdatesOsCheckOKReleaseUpgrade(v CorePostCoreUpdatesOsCheckOKReleaseUpgrade) NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade {
 	return NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade{
@@ -71759,6 +74009,96 @@ func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Get() (v CorePostCoreUpd
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Or(d CorePostCoreUpdatesOsRebootOKReleaseUpgrade) CorePostCoreUpdatesOsRebootOKReleaseUpgrade {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesRollbackOKRun returns new NilCorePostCoreUpdatesRollbackOKRun with value set to v.
+func NewNilCorePostCoreUpdatesRollbackOKRun(v CorePostCoreUpdatesRollbackOKRun) NilCorePostCoreUpdatesRollbackOKRun {
+	return NilCorePostCoreUpdatesRollbackOKRun{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesRollbackOKRun is nullable CorePostCoreUpdatesRollbackOKRun.
+type NilCorePostCoreUpdatesRollbackOKRun struct {
+	Value CorePostCoreUpdatesRollbackOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesRollbackOKRun) SetTo(v CorePostCoreUpdatesRollbackOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesRollbackOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesRollbackOKRun) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesRollbackOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesRollbackOKRun) Get() (v CorePostCoreUpdatesRollbackOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesRollbackOKRun) Or(d CorePostCoreUpdatesRollbackOKRun) CorePostCoreUpdatesRollbackOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesRollbackOKRunStep returns new NilCorePostCoreUpdatesRollbackOKRunStep with value set to v.
+func NewNilCorePostCoreUpdatesRollbackOKRunStep(v CorePostCoreUpdatesRollbackOKRunStep) NilCorePostCoreUpdatesRollbackOKRunStep {
+	return NilCorePostCoreUpdatesRollbackOKRunStep{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesRollbackOKRunStep is nullable CorePostCoreUpdatesRollbackOKRunStep.
+type NilCorePostCoreUpdatesRollbackOKRunStep struct {
+	Value CorePostCoreUpdatesRollbackOKRunStep
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesRollbackOKRunStep) SetTo(v CorePostCoreUpdatesRollbackOKRunStep) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesRollbackOKRunStep) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesRollbackOKRunStep) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesRollbackOKRunStep
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesRollbackOKRunStep) Get() (v CorePostCoreUpdatesRollbackOKRunStep, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesRollbackOKRunStep) Or(d CorePostCoreUpdatesRollbackOKRunStep) CorePostCoreUpdatesRollbackOKRunStep {
 	if v, ok := o.Get(); ok {
 		return v
 	}

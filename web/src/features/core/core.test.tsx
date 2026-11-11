@@ -821,9 +821,49 @@ describe('core: cập nhật (S-CORE-2)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByRole('alert')).toHaveTextContent('1 known vulnerabilities')
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
-    expect(await screen.findByText(/switched to the new build/)).toBeInTheDocument()
+    // D-340: the software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    expect(screen.getByText(/^Step 1 of 3:/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Back to .*Vedette software/i })).toBeDisabled()
+    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(screen.getByRole('table', { name: 'Versions in use' })).toHaveTextContent('0.9.4')
+  })
+
+  it('rollback that restores the database: warns, needs the box ticked, then goes back (D-340)', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    await u.click(await screen.findByRole('button', { name: /^Back to 0\.9\.3/ }))
+    const dlg = await screen.findByRole('dialog')
+    expect(dlg).toHaveTextContent('Data written since the update is lost.')
+    const go = within(dlg).getByRole('button', { name: 'Roll back' })
+    expect(go).toBeDisabled()
+    await u.click(within(dlg).getByRole('checkbox', { name: 'I understand that data written since the update is lost.' }))
+    expect(go).toBeEnabled()
+    await u.click(go)
+    expect(await screen.findByText('Vedette software rolled back.', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Versions in use' })).getByText('0.9.3')).toBeInTheDocument()
+  })
+
+  it('a rollback that restores the database without confirm_data_loss is refused with 409 confirm_required', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    const r = await fetch(`${location.origin}/api/v1/core/updates/rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ component: 'software' }) })
+    expect(r.status).toBe(409)
+    expect(((await r.json()) as { error: { code: string } }).error.code).toBe('confirm_required')
+  })
+
+  it('a run that went back shows why and no success toast (D-340)', async () => {
+    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'The new build did not pass its health check, so the box went back to 0.9.3.' }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T08:00:00Z', components: [], available: [], history: [], advisories: [], managed: [], run })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    expect(screen.getByText('Went back')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('did not pass its health check')
   })
 
   it('rollback hỏi xác nhận và chuyển sang cập nhật tay', async () => {
@@ -832,8 +872,9 @@ describe('core: cập nhật (S-CORE-2)', () => {
     await u.click(await screen.findByRole('button', { name: /^Back to .*Vedette software/i }))
     const dlg = await screen.findByRole('dialog')
     expect(dlg).toHaveTextContent('0.9.3')
+    expect(dlg).not.toHaveTextContent('Data written since the update is lost.')
     await u.click(within(dlg).getByRole('button', { name: 'Roll back' }))
-    expect(await screen.findByText('Vedette software rolled back.')).toBeInTheDocument()
+    expect(await screen.findByText('Vedette software rolled back.', undefined, { timeout: 8000 })).toBeInTheDocument()
     const table = screen.getByRole('table', { name: 'Versions in use' })
     expect(within(table).getByText('0.9.2')).toBeInTheDocument()
   })

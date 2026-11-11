@@ -13286,6 +13286,10 @@
                               "invalid",
                               "unsigned"
                             ]
+                          },
+                          "rollback_restores_data": {
+                            "type": "boolean",
+                            "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                           }
                         },
                         "required": [
@@ -13294,7 +13298,8 @@
                           "version",
                           "previous",
                           "installed_at",
-                          "signature"
+                          "signature",
+                          "rollback_restores_data"
                         ],
                         "additionalProperties": false
                       }
@@ -13432,6 +13437,108 @@
                         "additionalProperties": false
                       }
                     },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "update",
+                                "rollback"
+                              ]
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "from": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "done",
+                                "failed",
+                                "reverted"
+                              ],
+                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                            },
+                            "step": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "download",
+                                    "start",
+                                    "restart"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "user": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only when failed or reverted: why, in words",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "action",
+                            "component",
+                            "from",
+                            "to",
+                            "status",
+                            "step",
+                            "started_at",
+                            "finished_at",
+                            "user",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                    },
                     "managed": {
                       "type": "array",
                       "items": {
@@ -13474,6 +13581,7 @@
                     "available",
                     "history",
                     "advisories",
+                    "run",
                     "managed"
                   ],
                   "additionalProperties": false
@@ -13597,6 +13705,10 @@
                               "invalid",
                               "unsigned"
                             ]
+                          },
+                          "rollback_restores_data": {
+                            "type": "boolean",
+                            "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                           }
                         },
                         "required": [
@@ -13605,7 +13717,8 @@
                           "version",
                           "previous",
                           "installed_at",
-                          "signature"
+                          "signature",
+                          "rollback_restores_data"
                         ],
                         "additionalProperties": false
                       }
@@ -13743,6 +13856,108 @@
                         "additionalProperties": false
                       }
                     },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "update",
+                                "rollback"
+                              ]
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "from": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "done",
+                                "failed",
+                                "reverted"
+                              ],
+                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                            },
+                            "step": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "download",
+                                    "start",
+                                    "restart"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "user": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only when failed or reverted: why, in words",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "action",
+                            "component",
+                            "from",
+                            "to",
+                            "status",
+                            "step",
+                            "started_at",
+                            "finished_at",
+                            "user",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                    },
                     "managed": {
                       "type": "array",
                       "items": {
@@ -13785,6 +14000,7 @@
                     "available",
                     "history",
                     "advisories",
+                    "run",
                     "managed"
                   ],
                   "additionalProperties": false
@@ -13808,7 +14024,7 @@
     "/core/updates/apply": {
       "post": {
         "operationId": "core_post_core_updates_apply",
-        "summary": "Install the new version of one component",
+        "summary": "Install the new version of one component; for the software it starts a run (UpdatesState.run, 409 busy while one runs)",
         "tags": [
           "core"
         ],
@@ -13902,6 +14118,10 @@
                               "invalid",
                               "unsigned"
                             ]
+                          },
+                          "rollback_restores_data": {
+                            "type": "boolean",
+                            "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                           }
                         },
                         "required": [
@@ -13910,7 +14130,8 @@
                           "version",
                           "previous",
                           "installed_at",
-                          "signature"
+                          "signature",
+                          "rollback_restores_data"
                         ],
                         "additionalProperties": false
                       }
@@ -14048,6 +14269,108 @@
                         "additionalProperties": false
                       }
                     },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "update",
+                                "rollback"
+                              ]
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "from": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "done",
+                                "failed",
+                                "reverted"
+                              ],
+                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                            },
+                            "step": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "download",
+                                    "start",
+                                    "restart"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "user": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only when failed or reverted: why, in words",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "action",
+                            "component",
+                            "from",
+                            "to",
+                            "status",
+                            "step",
+                            "started_at",
+                            "finished_at",
+                            "user",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                    },
                     "managed": {
                       "type": "array",
                       "items": {
@@ -14090,6 +14413,7 @@
                     "available",
                     "history",
                     "advisories",
+                    "run",
                     "managed"
                   ],
                   "additionalProperties": false
@@ -14260,6 +14584,10 @@
                                   "invalid",
                                   "unsigned"
                                 ]
+                              },
+                              "rollback_restores_data": {
+                                "type": "boolean",
+                                "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                               }
                             },
                             "required": [
@@ -14268,7 +14596,8 @@
                               "version",
                               "previous",
                               "installed_at",
-                              "signature"
+                              "signature",
+                              "rollback_restores_data"
                             ],
                             "additionalProperties": false
                           }
@@ -14406,6 +14735,108 @@
                             "additionalProperties": false
                           }
                         },
+                        "run": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "update",
+                                    "rollback"
+                                  ]
+                                },
+                                "component": {
+                                  "type": "string"
+                                },
+                                "from": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "to": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "running",
+                                    "done",
+                                    "failed",
+                                    "reverted"
+                                  ],
+                                  "description": "reverted: the new build was not healthy and the box went back to the old one"
+                                },
+                                "step": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "download",
+                                        "start",
+                                        "restart"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                                },
+                                "started_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "finished_at": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "user": {
+                                  "type": "string"
+                                },
+                                "error": {
+                                  "description": "Only when failed or reverted: why, in words",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "action",
+                                "component",
+                                "from",
+                                "to",
+                                "status",
+                                "step",
+                                "started_at",
+                                "finished_at",
+                                "user",
+                                "error"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The software install or rollback running now, or the latest one; null when there was none"
+                        },
                         "managed": {
                           "type": "array",
                           "items": {
@@ -14448,6 +14879,7 @@
                         "available",
                         "history",
                         "advisories",
+                        "run",
                         "managed"
                       ],
                       "additionalProperties": false
@@ -14553,6 +14985,10 @@
                               "invalid",
                               "unsigned"
                             ]
+                          },
+                          "rollback_restores_data": {
+                            "type": "boolean",
+                            "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                           }
                         },
                         "required": [
@@ -14561,7 +14997,8 @@
                           "version",
                           "previous",
                           "installed_at",
-                          "signature"
+                          "signature",
+                          "rollback_restores_data"
                         ],
                         "additionalProperties": false
                       }
@@ -14699,6 +15136,108 @@
                         "additionalProperties": false
                       }
                     },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "update",
+                                "rollback"
+                              ]
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "from": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "done",
+                                "failed",
+                                "reverted"
+                              ],
+                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                            },
+                            "step": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "download",
+                                    "start",
+                                    "restart"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "user": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only when failed or reverted: why, in words",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "action",
+                            "component",
+                            "from",
+                            "to",
+                            "status",
+                            "step",
+                            "started_at",
+                            "finished_at",
+                            "user",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                    },
                     "managed": {
                       "type": "array",
                       "items": {
@@ -14745,6 +15284,7 @@
                     "available",
                     "history",
                     "advisories",
+                    "run",
                     "managed",
                     "applied"
                   ],
@@ -16400,7 +16940,7 @@
     "/core/updates/rollback": {
       "post": {
         "operationId": "core_post_core_updates_rollback",
-        "summary": "Go back to the previous version of one component",
+        "summary": "Go back to the previous version of one component; 409 confirm_required when it restores the database and confirm_data_loss is not true",
         "tags": [
           "core"
         ],
@@ -16417,6 +16957,10 @@
                 "properties": {
                   "component": {
                     "type": "string"
+                  },
+                  "confirm_data_loss": {
+                    "description": "Required (true) when the component has rollback_restores_data",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -16494,6 +17038,10 @@
                               "invalid",
                               "unsigned"
                             ]
+                          },
+                          "rollback_restores_data": {
+                            "type": "boolean",
+                            "description": "Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss"
                           }
                         },
                         "required": [
@@ -16502,7 +17050,8 @@
                           "version",
                           "previous",
                           "installed_at",
-                          "signature"
+                          "signature",
+                          "rollback_restores_data"
                         ],
                         "additionalProperties": false
                       }
@@ -16640,6 +17189,108 @@
                         "additionalProperties": false
                       }
                     },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "update",
+                                "rollback"
+                              ]
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "from": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "done",
+                                "failed",
+                                "reverted"
+                              ],
+                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                            },
+                            "step": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "download",
+                                    "start",
+                                    "restart"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "user": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only when failed or reverted: why, in words",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "action",
+                            "component",
+                            "from",
+                            "to",
+                            "status",
+                            "step",
+                            "started_at",
+                            "finished_at",
+                            "user",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                    },
                     "managed": {
                       "type": "array",
                       "items": {
@@ -16682,6 +17333,7 @@
                     "available",
                     "history",
                     "advisories",
+                    "run",
                     "managed"
                   ],
                   "additionalProperties": false

@@ -13291,7 +13291,8 @@ func (s *Server) handleCorePostCoreSetupRequest(args [0]string, argsEscaped bool
 
 // handleCorePostCoreUpdatesApplyRequest handles core_post_core_updates_apply operation.
 //
-// Install the new version of one component.
+// Install the new version of one component; for the software it starts a run (UpdatesState.run, 409
+// busy while one runs).
 //
 // POST /core/updates/apply
 func (s *Server) handleCorePostCoreUpdatesApplyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13375,7 +13376,7 @@ func (s *Server) handleCorePostCoreUpdatesApplyRequest(args [0]string, argsEscap
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUpdatesApplyOperation,
-			OperationSummary: "Install the new version of one component",
+			OperationSummary: "Install the new version of one component; for the software it starts a run (UpdatesState.run, 409 busy while one runs)",
 			OperationID:      "core_post_core_updates_apply",
 			Body:             request,
 			RawBody:          rawBody,
@@ -14109,7 +14110,8 @@ func (s *Server) handleCorePostCoreUpdatesOsRebootRequest(args [0]string, argsEs
 
 // handleCorePostCoreUpdatesRollbackRequest handles core_post_core_updates_rollback operation.
 //
-// Go back to the previous version of one component.
+// Go back to the previous version of one component; 409 confirm_required when it restores the database
+// and confirm_data_loss is not true.
 //
 // POST /core/updates/rollback
 func (s *Server) handleCorePostCoreUpdatesRollbackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14193,7 +14195,7 @@ func (s *Server) handleCorePostCoreUpdatesRollbackRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUpdatesRollbackOperation,
-			OperationSummary: "Go back to the previous version of one component",
+			OperationSummary: "Go back to the previous version of one component; 409 confirm_required when it restores the database and confirm_data_loss is not true",
 			OperationID:      "core_post_core_updates_rollback",
 			Body:             request,
 			RawBody:          rawBody,

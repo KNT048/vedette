@@ -48,7 +48,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] WP-30 lát 3 (đăng nhập hai bước), 5 (connections), 6 (inventory), 7 (sensors), 9a/9b (response), 10 (chạy toàn bộ, có `@mobile`).
 - [ ] WP-31 R3 (L7); WP-31 danh sách kiểm trong LAB (cần VM).
 - [ ] WP-27 `auth-oidc` (story trước).
-- [ ] Sửa `scripts/dev/orphan-reaper.sh`: nó bỏ sót `pnpm dev` mồ côi.
+- [x] Sửa `scripts/dev/orphan-reaper.sh`: xét gốc cây, bắt `pnpm dev` mồ côi (nhánh `fix/reaper-tree-root`; mỗi máy chạy lại `make reaper-install`).
 - [ ] Lỗi GUI Settings của core: #237–#244 (PR 2 của `fix/core-settings-gui`); #251 giới hạn chờ writer của `core/store`.
 - [ ] Từ Mlee (D-198): `notify` lát 3 (Slack Socket Mode), 3b, 4 (mã trả lời Zalo cá nhân), Telegram L1/L3/L4 · WP-27 `reports`, `mcp-server` · spec WP-30 cho scan, ai, logs.
 

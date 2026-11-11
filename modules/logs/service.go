@@ -92,6 +92,7 @@ type Service struct {
 	siemRunning   atomic.Bool
 	siemCache     atomic.Pointer[siemRow]
 	siemReload    chan struct{}
+	siemMu        sync.Mutex // makes "bump the generation and forget the cache" and "check the generation and store the cache" one step
 	allowLoopback bool
 	siemSendFn    func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }

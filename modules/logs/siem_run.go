@@ -45,13 +45,34 @@ type siemQueue struct {
 	head    uint64 // sequence number of items[0]
 	max     int
 	dropped uint64
+	gen     uint64 // bumped by every reset: a record built under an older configuration is refused
 	wake    chan struct{}
 }
 
 func newSiemQueue(max int) *siemQueue { return &siemQueue{max: max, wake: make(chan struct{}, 1)} }
 
-func (q *siemQueue) push(r siemRecord) {
+func (q *siemQueue) generation() uint64 {
 	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.gen
+}
+
+// reset empties the queue and starts a new generation.
+func (q *siemQueue) reset() {
+	q.mu.Lock()
+	q.gen++
+	q.head += uint64(len(q.items))
+	q.items = nil
+	q.mu.Unlock()
+}
+
+// push adds r unless the configuration changed since gen was read (the record was built for the old one).
+func (q *siemQueue) push(r siemRecord, gen uint64) {
+	q.mu.Lock()
+	if gen != q.gen {
+		q.mu.Unlock()
+		return
+	}
 	if len(q.items) >= q.max {
 		q.items = q.items[1:]
 		q.head++
@@ -102,10 +123,10 @@ func (q *siemQueue) droppedCount() uint64 {
 // siemChanged is called after the configuration was saved: the old copy is forgotten at once (so nothing more is queued for a
 // destination or a class that was just switched off) and the job reads the new one.
 func (s *Service) siemChanged() {
+	s.siemMu.Lock()
+	s.siemQ.reset() // records queued for the old setting are not sent to a new destination, and none built for it is added
 	s.siemCache.Store(nil)
-	if s.siemQ != nil {
-		s.siemQ.clear() // records queued for the old setting are not sent to a new destination
-	}
+	s.siemMu.Unlock()
 	select {
 	case s.siemReload <- struct{}{}:
 	default:
@@ -123,6 +144,7 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			if !s.siemRunning.Load() {
 				return nil
 			}
+			gen := s.siemQ.generation() // before the configuration: a save in between makes the push refuse
 			cfg := s.siemCache.Load()
 			if cfg == nil || !cfg.Enabled || !slices.Contains(cfg.Events, class) {
 				return nil
@@ -135,7 +157,7 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			if json.Unmarshal(raw, &m) != nil {
 				return nil
 			}
-			s.siemQ.push(build(m))
+			s.siemQ.push(build(m), gen)
 			return nil
 		}))
 	}
@@ -207,6 +229,7 @@ func (s *Service) runSiem(ctx context.Context) error {
 	)
 	for {
 		if s.siemCache.Load() == nil {
+			gen := s.siemQ.generation()
 			cfg, err := s.loadSiem(ctx, s.cfg.Config.Reader(), true)
 			if err != nil {
 				if ctx.Err() != nil {
@@ -218,8 +241,20 @@ func (s *Service) runSiem(ctx context.Context) error {
 				}
 				continue
 			}
-			s.siemCache.Store(&cfg)
+			s.siemMu.Lock()
+			fresh := s.siemQ.generation() == gen // else a save came in while this was read: read again
+			if fresh {
+				s.siemCache.Store(&cfg)
+			}
+			s.siemMu.Unlock()
+			if !fresh {
+				continue
+			}
 			backoff = 0
+		}
+		select { // a reload signal that arrived with the cache already fresh is spent
+		case <-s.siemReload:
+		default:
 		}
 		lastDrop, lastAudit = s.reportDrops(ctx, lastDrop, lastAudit)
 		cfg := s.siemCache.Load()

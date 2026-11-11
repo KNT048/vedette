@@ -430,15 +430,15 @@ func TestSiemDetailIsClippedAndClean(t *testing.T) {
 func TestSiemQueueDropsTheOldestAndCounts(t *testing.T) {
 	q := newSiemQueue(3)
 	for i := range 5 {
-		q.push(newSiemRecord(fmt.Sprintf("e%d", i), "info", t0))
+		q.push(newSiemRecord(fmt.Sprintf("e%d", i), "info", t0), q.generation())
 	}
 	recs, upTo := q.peek(10)
 	if len(recs) != 3 || recs[0].Name != "e2" || recs[2].Name != "e4" || q.droppedCount() != 2 {
 		t.Fatalf("queue %v dropped %d", recs, q.droppedCount())
 	}
 	// the oldest is dropped while a batch is on the wire: the ack removes only what is still there
-	q.push(newSiemRecord("e5", "info", t0))
-	q.push(newSiemRecord("e6", "info", t0))
+	q.push(newSiemRecord("e5", "info", t0), q.generation())
+	q.push(newSiemRecord("e6", "info", t0), q.generation())
 	q.ack(upTo)
 	recs, _ = q.peek(10)
 	if len(recs) != 2 || recs[0].Name != "e5" {
@@ -710,5 +710,29 @@ func TestSiemOverHTTP(t *testing.T) {
 	code, b = e.call("GET", "/logs/siem", "admin", "")
 	if code != 200 || b["secret_last4"] != "9876" || b["enabled"] != true {
 		t.Fatalf("read back %d %v", code, b)
+	}
+}
+
+// A record built before a save is refused after it, and a saved configuration is never overwritten by an older read.
+func TestSiemSaveInvalidatesInFlightRecords(t *testing.T) {
+	e := newSiemEnv(t)
+	q := e.svc.siemQ
+	g := q.generation()
+	e.svc.siemChanged()
+	q.push(newSiemRecord("old", "info", t0), g)
+	if recs, _ := q.peek(10); len(recs) != 0 {
+		t.Fatalf("a record of the old configuration was queued: %v", recs)
+	}
+	q.push(newSiemRecord("new", "info", t0), q.generation())
+	if recs, _ := q.peek(10); len(recs) != 1 {
+		t.Fatal("a current record was refused")
+	}
+	// the key: no control character, bounded
+	in := syslogInput("192.168.10.50", 514, "udp")
+	for _, k := range []string{"0123456789abcdef\x00xyz", strings.Repeat("k", 600)} {
+		in.Secret = k
+		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); code(err) != "bad_secret" {
+			t.Errorf("secret %q: %v", k[:16], err)
+		}
 	}
 }

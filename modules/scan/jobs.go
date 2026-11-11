@@ -169,6 +169,13 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 	if len(take) == 0 {
 		return nil
 	}
+	// each device is probed only for the CVEs of the events that listed it, not for every CVE of the run (#189 review L2)
+	pairs := map[string][]string{}
+	for _, r := range take {
+		for _, id := range r.ids {
+			pairs[id] = append(pairs[id], r.ev.cve)
+		}
+	}
 	link := func(ctx context.Context, tx *sql.Tx, runID string) error {
 		for _, r := range take {
 			b, err := json.Marshal(r.names)
@@ -190,7 +197,7 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 		return nil
 	}
 	note := rescanNote(cves)
-	if _, err := s.startAuto(ctx, "new_kev", &note, ids, take[0].first, cves, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
+	if _, err := s.startAuto(ctx, "new_kev", &note, ids, take[0].first, pairs, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
 		return err
 	}
 	return nil
@@ -412,9 +419,9 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 }
 
 // startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false (D-126 (2)).
-// onlyCVEs limits the run to those CVEs (the KEV rescan); end, when set, is where the run stops by itself (the end of
+// onlyCVEs limits each device to the CVEs listed for it (the KEV rescan); end, when set, is where the run stops by itself (the end of
 // the window of a scheduled run); inTx records what the run is for in the transaction of its row (runSpec.inTx).
-func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs []string, end time.Time,
+func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs map[string][]string, end time.Time,
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error) (RunView, error) {
 	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVEs: onlyCVEs, end: end, inTx: inTx})
 }

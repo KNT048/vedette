@@ -2,11 +2,13 @@
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
 // port in ready.json (`syslog_port`, a free port of the run, not 514). What is not built is test.fixme with the real flow in its body (D-171 (2)): SIEM
-// forwarding (L5, GET /logs/siem answers 501), the digest's new log types, spikes (a 24 h warm-up a box cannot skip) and bad connections (L4), the TLS listener (D-203).
+// forwarding (L5, GET /logs/siem answers 501), the digest's new log types and spikes (a 24 h warm-up a box cannot skip), the TLS listener (D-203).
+// Bad connections (L4, INV-7) are real: a custom feed pulled from a loopback server lists a made-up domain, and one FortiGate DNS line from a LAN address is matched.
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
 import { readFileSync } from 'node:fs'
 import { createSocket } from 'node:dgram'
-import { connect } from 'node:net'
+import { createServer } from 'node:http'
+import { connect, type AddressInfo } from 'node:net'
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
 import { api, authFile, box, uniq } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -561,6 +563,55 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
   } finally { await ctx.close(); await c.dispose() }
 })
 
+// L4: the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2, D-213). No public
+// address is touched: the feed is a custom one pulled from a loopback server (like feeds.spec.ts) and lists a domain under a made-up TLD, so only this feed lists
+// it; the line is one FortiGate DNS-filter line sent over loopback UDP, from the LAN address 192.168.100.23, which is not in the inventory.
+test('bad connections: a LAN device that asks for a domain a feed lists is in the digest and on the page (S-LOG-2, S-LOG-4, INV-7, POST-2)', async ({ page }) => {
+  test.setTimeout(120_000)
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  const ioc = `${uniq('ioc')}.zzqx`
+  const feed = uniq('L4 IOC')
+  const srv = createServer((_, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(`# a list\n${ioc}\n`) })
+  await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
+  let feedId = ''
+  try {
+    const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/list.txt`
+    const lines = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
+    const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', { name: feed, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: lines })
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    feedId = made.body.id
+    expect((await api(c, 'POST', `/feeds/sources/${feedId}/fetch`)).status).toBeLessThan(300)
+    await expect.poll(async () => (await api<{ items: { id: string; records: number }[] }>(c, 'GET', '/feeds/sources')).body.items.find((i) => i.id === feedId)?.records, { message: 'the feed holds the indicator', timeout: 30_000 }).toBe(1)
+
+    const src = await add(c, { kind: 'fortigate' })
+    const line = `<189>date=2026-11-09 time=10:22:00 devname="FW-E2E" logid="1501054802" type="utm" subtype="dns" level="notice" srcip=192.168.100.23 dstip=192.168.100.1 qname="${ioc}" qtype="A" action="pass"`
+    await sendUdp(line)
+    await stored(c, line, src.id)
+    type Hit = { id: string; src_ip: string; dest: string; dest_kind: string; seen_via: string; feeds: string[]; confidence: number; asset_id: string | null; asset_name: string | null }
+    const bad = async () => (await api<{ bad_connections: Hit[] }>(c, 'GET', '/logs/digest')).body.bad_connections
+    await expect.poll(async () => (await bad()).map((h) => h.dest), { message: 'the digest lists the connection', timeout: 15_000 }).toContain(ioc)
+    const hit = (await bad()).find((h) => h.dest === ioc)!
+    expect(hit).toMatchObject({ src_ip: '192.168.100.23', dest_kind: 'domain', seen_via: `syslog:${src.name}`, feeds: [feed], asset_id: null, asset_name: null })
+    expect(hit.confidence).toBeGreaterThan(0)
+    expect(hit.confidence).toBeLessThanOrEqual(1)
+    // the same line again is the same hit (once per device and destination in 24 hours)
+    await sendUdp(line)
+    await expect.poll(async () => (await events(c, { source: src.id })).total, { timeout: 15_000 }).toBe(2)
+    expect((await bad()).filter((h) => h.dest === ioc)).toHaveLength(1)
+    await page.goto('/logs')
+    const table = page.getByRole('table', { name: 'Connections to bad IPs or domains' })
+    await expect(table).toContainText(ioc)
+    await expect(table).toContainText('192.168.100.23')
+    await expect(page.getByText('None of your devices connected to a listed bad address')).toHaveCount(0)
+    noErrors(errors, /status of 501/)
+  } finally {
+    if (feedId) expect((await api(c, 'DELETE', `/feeds/custom/${feedId}`)).status, 'the feed of this test is deleted').toBe(204)
+    await new Promise((ok) => srv.close(ok))
+    await c.dispose()
+  }
+})
+
 // ---- not built yet: the whole flow is in the body (D-171 (2)) ----
 test.fixme('SIEM forwarding: save, a failed and a successful test, the key is never returned (S-LOG-3, INV-8..10; L5, GET /logs/siem answers 501 not_implemented)', async ({ page }) => {
   const c = await as('admin')
@@ -572,7 +623,7 @@ test.fixme('SIEM forwarding: save, a failed and a successful test, the key is ne
   await expect(h1(page)).toContainText('Forward to a SIEM')
   await c.dispose()
 })
-test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it; L4: a connection to a feed address is a bad connection (INV-7)', async () => {
+test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it', async () => {
   const c = await as('admin')
   await add(c)
   await sendUdp(`<34>Nov 11 12:33:00 gw app[1]: ${uniq('tok')} a log type with a signature`)

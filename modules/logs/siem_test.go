@@ -62,7 +62,7 @@ func TestSiemFormatsGoldenBytes(t *testing.T) {
 
 // Untrusted text (a trap label, a device name) never breaks the grammar of a format and never carries a control character.
 func TestSiemFormatsEscapeHostileText(t *testing.T) {
-	evil := "a\"b]c\\d|e=f\r\ng\x00h‮i j k"
+	evil := "a\"b]c\\d|e=f\r\ng\x00h\u202ei j k"
 	r := newSiemRecord("honeypot.hit", "high", t0, siemField{Key: "decoy", Val: evil}, siemField{Key: "src_ip", CEF: "src", Val: "10.0.0.1 evil=1"})
 	for name, out := range map[string]string{"syslog": string(formatSyslog(r, "bo x\n")), "cef": string(formatCEF(r)), "json": string(formatJSON(r, "bo\nx"))} {
 		for _, c := range out {
@@ -261,7 +261,7 @@ func TestSiemForbiddenTable(t *testing.T) {
 func TestSiemSendRefusesForbiddenAddressesOnTheSocket(t *testing.T) {
 	e := newSiemEnv(t)
 	e.svc.allowLoopback = false
-	udp, _ := net.ListenPacket("udp", "127.0.0.1:0")
+	udp, _ := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", "127.0.0.1:0")
 	defer func() { _ = udp.Close() }()
 	var hits int
 	var mu sync.Mutex
@@ -299,7 +299,7 @@ func TestSiemSendsEachFormatAndSignsTheWebhook(t *testing.T) {
 	recs := []siemRecord{goldenRecord(), newSiemRecord("honeypot.hit", "high", t0, siemField{Key: "service", Val: "ssh"})}
 
 	// UDP: one datagram per record
-	pc, _ := net.ListenPacket("udp", "127.0.0.1:0")
+	pc, _ := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", "127.0.0.1:0")
 	defer func() { _ = pc.Close() }()
 	if _, err := e.svc.siemSend(t.Context(), siemRow{SiemView: SiemView{Format: "syslog", Host: "127.0.0.1", Port: pc.LocalAddr().(*net.UDPAddr).Port, Proto: "udp"}}, recs); err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestSiemSendsEachFormatAndSignsTheWebhook(t *testing.T) {
 	}
 
 	// TCP: octet-counted frames, CEF this time
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	ln, _ := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	defer func() { _ = ln.Close() }()
 	got := make(chan string, 1)
 	go func() {
@@ -370,7 +370,9 @@ func TestSiemSendsEachFormatAndSignsTheWebhook(t *testing.T) {
 		t.Fatalf("redirect: %v", err)
 	}
 	// an error status is a failure and the test result is a fixed sentence
-	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "secret-reflected-text", 503) }))
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "secret-reflected-text", http.StatusServiceUnavailable)
+	}))
 	defer bad.Close()
 	row := siemRow{SiemView: SiemView{Format: "json", URL: bad.URL + "/hooks/token-abc"}, key: secrets.NewValue(siemKey)}
 	_, err = e.svc.siemSend(t.Context(), row, recs[:1])
@@ -385,7 +387,7 @@ func TestSiemTestStoresTheResultAndNeedsAConfiguration(t *testing.T) {
 	if _, err := e.svc.TestSiem(t.Context(), "a@x"); code(err) != "not_configured" {
 		t.Fatalf("no destination: %v", err)
 	}
-	pc, _ := net.ListenPacket("udp", "127.0.0.1:0")
+	pc, _ := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", "127.0.0.1:0")
 	defer func() { _ = pc.Close() }()
 	port := pc.LocalAddr().(*net.UDPAddr).Port
 	in := syslogInput("127.0.0.1", port, "udp")
@@ -420,7 +422,7 @@ func TestSiemDetailIsClippedAndClean(t *testing.T) {
 	if d := clipDetail(long); len(d) > maxTestDetal || strings.ContainsAny(d, "\x1b\n") {
 		t.Errorf("detail %d bytes: %q", len(d), d)
 	}
-	if d := clipDetail("ok\x00\n‮text"); strings.ContainsAny(d, "\x00\n‮") {
+	if d := clipDetail("ok\x00\n\u202etext"); strings.ContainsAny(d, "\x00\n\u202e") {
 		t.Errorf("detail %q", d)
 	}
 }
@@ -507,7 +509,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 	e.saveSiem(off)
 	waitFor(t, func() bool { return e.svc.siemCache.Load() != nil })
 	all()
-	time.Sleep(50 * time.Millisecond)
+	<-time.After(50 * time.Millisecond)
 	if queued() != 0 || len(sent) != 0 {
 		t.Fatalf("something was queued or sent while disabled: %d queued, %d sent", queued(), len(sent))
 	}
@@ -528,7 +530,7 @@ func waitFor(t *testing.T, ok func() bool) {
 		if ok() {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		<-time.After(10 * time.Millisecond)
 	}
 	t.Fatal("condition not reached")
 }
@@ -542,7 +544,7 @@ func TestSiemRecordsFromEventsAreClean(t *testing.T) {
 	e.svc.siemRunning.Store(true)
 	row, _ := e.svc.loadSiem(t.Context(), e.cfg.Reader(), false)
 	e.svc.siemCache.Store(&row)
-	publish(t, bus, siemEventHoneypot, map[string]any{"id": "h\n1", "service": strings.Repeat("s", 5000), "decoy": "a‮b\x00c", "src_ip": "1.2.3.4", "port": 22})
+	publish(t, bus, siemEventHoneypot, map[string]any{"id": "h\n1", "service": strings.Repeat("s", 5000), "decoy": "a\u202eb\x00c", "src_ip": "1.2.3.4", "port": 22})
 	publish(t, bus, siemEventFindingCreated, "not an object")
 	publish(t, bus, siemEventIncident, map[string]any{"id": "i-1", "severity": "<script>"})
 	recs, _ := e.svc.siemQ.peek(10)
@@ -551,7 +553,7 @@ func TestSiemRecordsFromEventsAreClean(t *testing.T) {
 	}
 	for _, r := range recs {
 		for _, f := range r.Fields {
-			if len(f.Val) > maxSiemField || strings.ContainsAny(f.Val, "\n\x00‮") {
+			if len(f.Val) > maxSiemField || strings.ContainsAny(f.Val, "\n\x00\u202e") {
 				t.Errorf("field %s not cleaned: %q", f.Key, f.Val)
 			}
 		}
@@ -576,8 +578,8 @@ func TestSiemSlowDestinationNeverSlowsThePublisher(t *testing.T) {
 		return "", errors.New("down")
 	}
 	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan error, 1)
-	go func() { done <- e.svc.runSiem(ctx) }()
+	done := make(chan struct{})
+	go func() { _ = e.svc.runSiem(ctx); close(done) }()
 	defer func() { cancel(); close(block); <-done }()
 	waitFor(t, func() bool { return e.svc.siemCache.Load() != nil })
 	start := time.Now()
@@ -616,11 +618,11 @@ func TestSiemRetriesWithBackoff(t *testing.T) {
 			return "", nil
 		}
 		ctx, cancel := context.WithCancel(t.Context())
-		done := make(chan error, 1)
-		go func() { done <- e.svc.runSiem(ctx) }()
+		done := make(chan struct{})
+		go func() { _ = e.svc.runSiem(ctx); close(done) }()
 		synctest.Wait()
 		publish(t, bus, siemEventHoneypot, map[string]any{"id": "h-1", "service": "ssh"})
-		time.Sleep(10 * time.Minute)
+		<-time.After(10 * time.Minute)
 		synctest.Wait()
 		cancel()
 		<-done
@@ -653,8 +655,8 @@ func TestSiemSendingDoesNotHoldTheWriter(t *testing.T) {
 		return "", nil
 	}
 	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan error, 1)
-	go func() { done <- e.svc.runSiem(ctx) }()
+	done := make(chan struct{})
+	go func() { _ = e.svc.runSiem(ctx); close(done) }()
 	defer func() { cancel(); close(release); <-done }()
 	waitFor(t, func() bool { return e.svc.siemCache.Load() != nil })
 	publish(t, bus, siemEventHoneypot, map[string]any{"id": "h-1", "service": "ssh"})

@@ -118,7 +118,7 @@ func (s *Service) siemControl(privateOnly bool) func(network, address string, c 
 		}
 		if privateOnly {
 			a := ip.Unmap()
-			if !(a.IsPrivate() || (a.IsLoopback() && s.allowLoopback)) {
+			if !a.IsPrivate() && (!a.IsLoopback() || !s.allowLoopback) {
 				return errSiemNotPrivate
 			}
 		}

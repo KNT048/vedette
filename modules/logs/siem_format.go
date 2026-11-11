@@ -50,9 +50,9 @@ func newSiemRecord(name, severity string, at time.Time, f ...siemField) siemReco
 
 // siemText makes a value of untrusted text safe for every format: valid UTF-8, no control or format character (so no newline, no
 // bidi override, no NUL), at most max bytes, and no space at the ends.
-func siemText(s string, max int) string {
-	if len(s) > 4*max {
-		s = s[:4*max]
+func siemText(s string, limit int) string {
+	if len(s) > 4*limit {
+		s = s[:4*limit]
 	}
 	var b strings.Builder
 	for _, r := range s {
@@ -61,7 +61,7 @@ func siemText(s string, max int) string {
 			r >= 0x200b && r <= 0x200f, r >= 0x2028 && r <= 0x202e, r >= 0x2060 && r <= 0x206f, r == 0xfeff, r >= 0xfff9 && r <= 0xfffb:
 			b.WriteByte(' ')
 		default:
-			if b.Len()+utf8.RuneLen(r) > max {
+			if b.Len()+utf8.RuneLen(r) > limit {
 				return strings.TrimSpace(b.String())
 			}
 			b.WriteRune(r)
@@ -108,10 +108,10 @@ func sdEscape(v string) string {
 }
 
 // asciiToken makes a header token of RFC 5424 (printable US-ASCII, no space, at most max), "-" when nothing is left.
-func asciiToken(s string, max int) string {
+func asciiToken(s string, limit int) string {
 	var b strings.Builder
 	for _, r := range s {
-		if r > 0x20 && r < 0x7f && b.Len() < max {
+		if r > 0x20 && r < 0x7f && b.Len() < limit {
 			b.WriteRune(r)
 		}
 	}

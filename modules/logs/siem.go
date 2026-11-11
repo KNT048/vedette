@@ -153,7 +153,7 @@ func (s *Service) siemTarget(in SiemInput) (SiemInput, error) {
 		return in, nil
 	}
 	in.URL = ""
-	if len(in.Host) > maxSiemHost || !(isIPv4(in.Host) || siemHostRE.MatchString(in.Host)) {
+	if len(in.Host) > maxSiemHost || (!isIPv4(in.Host) && !siemHostRE.MatchString(in.Host)) {
 		return in, apierr.New(400, "bad_host", "The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.")
 	}
 	if in.Port < 1 || in.Port > 65535 {

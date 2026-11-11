@@ -49,7 +49,7 @@ type siemQueue struct {
 	wake    chan struct{}
 }
 
-func newSiemQueue(max int) *siemQueue { return &siemQueue{max: max, wake: make(chan struct{}, 1)} }
+func newSiemQueue(limit int) *siemQueue { return &siemQueue{max: limit, wake: make(chan struct{}, 1)} }
 
 func (q *siemQueue) generation() uint64 {
 	q.mu.Lock()
@@ -101,9 +101,9 @@ func (q *siemQueue) ack(upTo uint64) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if upTo > q.head {
-		n := int(min(upTo-q.head, uint64(len(q.items))))
+		n := min(upTo-q.head, uint64(len(q.items)))
 		q.items = q.items[n:]
-		q.head += uint64(n)
+		q.head += n
 	}
 }
 

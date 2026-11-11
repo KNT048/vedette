@@ -2,11 +2,13 @@ package authoidc
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,13 +80,35 @@ func (s *Service) Test(ctx context.Context, actor string) (Endpoints, error) {
 		return Endpoints{}, err
 	}
 	if derr != nil {
-		return Endpoints{}, apierr.New(502, "discovery_failed", "Cannot read "+c.Issuer+"/.well-known/openid-configuration: "+reason(derr)+". Check the issuer and the network path from the box to the identity provider.")
+		return Endpoints{}, apierr.New(502, "discovery_failed", "Cannot read "+c.Issuer+"/.well-known/openid-configuration: "+publicReason(derr)+". Check the issuer and the network path from the box to the identity provider.")
 	}
 	ep := d.provider.Endpoint()
 	return Endpoints{Authorization: ep.AuthURL, Token: ep.TokenURL, JWKS: d.jwksURL}, nil
 }
 
-// reason is an error of the identity provider as one short line for a person (never a token or secret: none is in these errors).
+// publicReason says why discovery failed without echoing what the far end answered (an administrator must not be able to read the
+// start of an internal https page through Test, L4 of the PR 2 review): a fixed sentence per kind of failure.
+func publicReason(err error) string {
+	msg := err.Error()
+	var x509Err *tls.CertificateVerificationError
+	switch {
+	case errors.As(err, &x509Err) || strings.Contains(msg, "x509:"):
+		return "the box does not trust the identity provider's certificate"
+	case errors.Is(err, context.DeadlineExceeded) || strings.Contains(msg, "Client.Timeout"):
+		return "no answer within 10 seconds"
+	case errors.Is(err, errTooLarge):
+		return "the answer is larger than 1 MiB"
+	case strings.Contains(msg, "issuer did not match"):
+		return "the document names another issuer"
+	case strings.HasPrefix(msg, "authoidc: "): // our own checks: no remote text in them except the provider's own lists
+		return strings.TrimPrefix(msg, "authoidc: ")
+	case strings.Contains(msg, "connection refused") || strings.Contains(msg, "no such host") || strings.Contains(msg, "network is unreachable"):
+		return "the address cannot be reached from the box"
+	}
+	return "the answer is not an OpenID Connect discovery document (wrong address, or an error page)"
+}
+
+// reason is an error of the identity provider as one short line for the log (never a token or secret: none is in these errors).
 func reason(err error) string {
 	msg := err.Error()
 	if len(msg) > 300 {

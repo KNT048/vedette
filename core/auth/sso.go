@@ -75,9 +75,7 @@ func (s *Service) SSOSignIn(ctx context.Context, in SSOIdentity) (Issued, error)
 	return write(ctx, s.db, func(tx *sql.Tx) (Issued, *apierr.Error, error) {
 		q := coredb.New(tx)
 		refuse := func(who, why string, e *apierr.Error) (Issued, *apierr.Error, error) {
-			if who == "" {
-				who = "unknown"
-			}
+			who = auditWho(who)
 			if err := s.audit.Append(ctx, tx, audit.Entry{User: who, Action: "auth.login_failed", Target: who, Detail: "SSO: " + why}); err != nil {
 				return Issued{}, nil, err
 			}
@@ -108,6 +106,9 @@ func (s *Service) SSOSignIn(ctx context.Context, in SSOIdentity) (Issued, error)
 			case err == nil:
 				if same.SsoIssuer == nil || *same.SsoIssuer == in.Issuer || in.EmailVerified == nil || !*in.EmailVerified {
 					return refuse(email, "email_in_use", inUse)
+				}
+				if same.Disabled != 0 { // refuse before moving it: a refusal commits, and a disabled account must stay as it was
+					return refuse(same.Email, "disabled", disabledError())
 				}
 				if n, err := q.RelinkSSOUser(ctx, coredb.RelinkSSOUserParams{SsoIssuer: &in.Issuer, SsoSubject: &in.Subject, ID: same.ID}); err != nil || n == 0 {
 					if err == nil {
@@ -174,7 +175,20 @@ func (s *Service) SSOSignIn(ctx context.Context, in SSOIdentity) (Issued, error)
 // RefuseSSO writes auth.login_failed "SSO: <why>" for a sign-in that failed before an identity was proved (state, binding,
 // token, id_token): who is the issuer, since nobody is known yet.
 func (s *Service) RefuseSSO(ctx context.Context, issuer, why string) error {
-	return s.auditFailure(ctx, issuer, issuer, "SSO: "+why)
+	target := issuer
+	if len(target) > 500 || !utf8.ValidString(target) || HasInvisible(target) {
+		target = "sso"
+	}
+	return s.auditFailure(ctx, "unknown", target, "SSO: "+why)
+}
+
+// auditWho is the audit user of an SSO refusal: the email when it is a valid one, else "unknown". The claim comes from the identity
+// provider (SYS-6): a value the audit log refuses (over 320 bytes, invisible characters) would roll back the refusal and its row.
+func auditWho(email string) string {
+	if !emailRE.MatchString(email) || len(email) > 320 || HasInvisible(email) {
+		return "unknown"
+	}
+	return email
 }
 
 // CountSSOUsers is the number of accounts that sign in only through SSO (OidcConfig.sso_users).

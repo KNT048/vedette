@@ -7,7 +7,8 @@ import (
 )
 
 // Start and callback are public: each is counted per client address, 30 per 15 minutes (INV-5); IPv6 per /64, the block one
-// machine usually holds. ponytail: in memory, lost on restart and per process; upgrade path: core/auth's limiter if it is exported.
+// machine usually holds. ponytail: in memory, lost on restart and per process, and a few dozen addresses can still fill the 1000
+// pending flows and make other SSO sign-ins expire (password sign-in is not touched); upgrade path: a box-wide start budget.
 const (
 	limitN      = 30
 	limitWindow = 15 * time.Minute
@@ -46,8 +47,11 @@ func (l *limiter) allow(key string) (bool, time.Duration) {
 				delete(l.hits, k)
 			}
 		}
-		if len(l.hits) > limitKeys { // a flood of addresses: start over rather than grow without end
-			l.hits = map[string][]time.Time{}
+		for k := range l.hits { // still full of live keys (a flood of addresses): drop arbitrary ones down to half, never all
+			if len(l.hits) <= limitKeys/2 {
+				break
+			}
+			delete(l.hits, k)
 		}
 	}
 	ts := l.hits[key]

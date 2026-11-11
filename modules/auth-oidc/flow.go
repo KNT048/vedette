@@ -209,7 +209,9 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 	if err != nil {
 		return auth.Issued{}, fmt.Errorf("authoidc: open client secret: %w", err)
 	}
-	oc := oauth2.Config{ClientID: c.ClientID, ClientSecret: string(secret), Endpoint: d.provider.Endpoint(), RedirectURL: f.redirectURI}
+	ep := d.provider.Endpoint()
+	ep.AuthStyle = d.authStyle // D-194 (1): the method the provider names, never a retry with the secret in another place
+	oc := oauth2.Config{ClientID: c.ClientID, ClientSecret: string(secret), Endpoint: ep, RedirectURL: f.redirectURI}
 	tok, err := oc.Exchange(oidc.ClientContext(ctx, s.client), in.Code, oauth2.VerifierOption(f.verifier))
 	if err != nil {
 		var re *oauth2.RetrieveError
@@ -230,7 +232,8 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 		return refuse("id_token", ssoFailed())
 	}
 	return s.auth.SSOSignIn(ctx, auth.SSOIdentity{
-		Issuer: claims.iss, Subject: claims.sub, Email: claims.email, EmailVerified: claims.emailVerified, Name: claims.name,
+		// Issuer: the configured one, which iss was checked against (go-oidc also lets Google's bare host through).
+		Issuer: c.Issuer, Subject: claims.sub, Email: claims.email, EmailVerified: claims.emailVerified, Name: claims.name,
 		Role: MapRole(claims.groups(c.GroupsClaim), c.RoleMap, c.DefaultRole), IP: in.IP, UserAgent: in.UserAgent,
 	})
 }
@@ -244,7 +247,9 @@ type idClaims struct {
 
 // verify checks the ID token (INV-1) and returns its claims, or a short reason for the log (never the token).
 func (s *Service) verify(ctx context.Context, d *idp, clientID, nonce, raw string) (idClaims, string) {
-	v := d.provider.VerifierContext(oidc.ClientContext(ctx, s.client), &oidc.Config{
+	// Verifier reuses the provider's key set, fetched once and again only for an unknown key id; the token comes from the token
+	// endpoint over TLS, so a stranger cannot pick the key id.
+	v := d.provider.Verifier(&oidc.Config{
 		ClientID:             clientID,
 		SupportedSigningAlgs: d.algs,
 		Now:                  func() time.Time { return s.now().Add(-clockSkew) }, // exp may be up to 1 minute behind this clock
@@ -264,11 +269,16 @@ func (s *Service) verify(ctx context.Context, d *idp, clientID, nonce, raw strin
 	if c.sub == "" || len(c.sub) > 255 {
 		return idClaims{}, "sub is missing or longer than 255 bytes"
 	}
-	if raw, ok := all["azp"]; ok { // OIDC Core 3.1.3.7 (5): when present, the authorized party is this client
+	// OIDC Core 3.1.3.7 (3)-(5): when azp is present it is this client; a token for several audiences must name this client as azp.
+	azpRaw, hasAzp := all["azp"]
+	if hasAzp {
 		var azp string
-		if json.Unmarshal(raw, &azp) != nil || azp != clientID {
+		if json.Unmarshal(azpRaw, &azp) != nil || azp != clientID {
 			return idClaims{}, "azp is not this client"
 		}
+	}
+	if len(t.Audience) > 1 && !hasAzp {
+		return idClaims{}, "several audiences and no azp"
 	}
 	_ = json.Unmarshal(all["email"], &c.email)
 	_ = json.Unmarshal(all["name"], &c.name)

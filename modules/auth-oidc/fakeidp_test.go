@@ -45,6 +45,7 @@ type fakeIDP struct {
 	discovery map[string]any      // overrides of the discovery document
 	big       bool                // discovery answers more than 1 MiB
 	redirect  bool                // discovery answers a redirect to another host
+	postOnly  bool                // the token endpoint takes the client secret only in the form body
 }
 
 func newFakeIDP(t *testing.T) *fakeIDP {
@@ -90,9 +91,12 @@ func (f *fakeIDP) serve(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &f.key.PublicKey, KeyID: f.kid, Algorithm: "RS256", Use: "sig"}}})
 	case "/token":
 		_ = r.ParseForm()
-		user, pass, ok := r.BasicAuth()
-		if !ok {
+		user, pass, basic := r.BasicAuth()
+		if !basic {
 			user, pass = r.PostForm.Get("client_id"), r.PostForm.Get("client_secret")
+		}
+		if basic == f.postOnly { // the secret came in the place the provider does not take
+			user, pass = "", ""
 		}
 		f.gotAuth = user == "vedette" && pass == f.secret
 		f.gotVerify = r.PostForm.Get("code_verifier")

@@ -117,8 +117,10 @@ func validIssuer(raw string) (string, bool) {
 	return iss, true
 }
 
-// normalize checks a Save (INV-2) and returns it trimmed, with the scopes deduplicated and empty mapping rows dropped.
-func normalize(in Save, haveSecret bool) (Save, *apierr.Error) {
+// normalize checks a Save (INV-2) and returns it trimmed, with the scopes deduplicated and empty mapping rows dropped. An empty secret
+// keeps the stored one only for the same issuer and client: otherwise a changed issuer (an attacker's host, from a stolen admin
+// session) would receive the real secret at its token endpoint (INV-3).
+func normalize(in Save, cur Config) (Save, *apierr.Error) {
 	var ok bool
 	if in.Issuer, ok = validIssuer(in.Issuer); !ok {
 		return Save{}, apierr.New(400, "invalid_issuer", "The issuer must be an https address, for example https://sso.example.com/realms/main.")
@@ -127,7 +129,13 @@ func normalize(in Save, haveSecret bool) (Save, *apierr.Error) {
 	if n := utf8.RuneCountInString(in.ClientID); n < 1 || n > 200 || auth.HasInvisible(in.ClientID) {
 		return Save{}, apierr.New(400, "invalid_client", "Enter the Client ID (at most 200 characters).")
 	}
-	if in.ClientSecret != "" && (len(in.ClientSecret) < 8 || len(in.ClientSecret) > 1024) || in.ClientSecret == "" && !haveSecret {
+	keep := cur.secretID != "" && cur.Issuer == in.Issuer && cur.ClientID == in.ClientID
+	switch {
+	case in.ClientSecret != "" && (len(in.ClientSecret) < 8 || len(in.ClientSecret) > 1024):
+		return Save{}, apierr.New(400, "invalid_secret", "Enter the Client secret (at least 8 characters).")
+	case in.ClientSecret == "" && cur.secretID != "" && !keep:
+		return Save{}, apierr.New(400, "invalid_secret", "The issuer or Client ID changed: enter the Client secret again.")
+	case in.ClientSecret == "" && !keep:
 		return Save{}, apierr.New(400, "invalid_secret", "Enter the Client secret (at least 8 characters).")
 	}
 	var scopes []string
@@ -176,7 +184,7 @@ func (s *Service) Store(ctx context.Context, actor, origin string, in Save) (Con
 	if err != nil && !errors.Is(err, errNotConfigured) {
 		return Config{}, err
 	}
-	in, verr := normalize(in, cur.secretID != "")
+	in, verr := normalize(in, cur)
 	if verr != nil {
 		return Config{}, verr
 	}

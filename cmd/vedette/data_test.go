@@ -142,7 +142,7 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "notify_tg_button", "resp_tokens"}
+	want := []string{"core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "notify_tg_button", "oidc_flow", "resp_tokens"}
 	if !slices.Equal(skipAll, want) {
 		t.Errorf("tables left out of the export whole:\n got %q\nwant %q", skipAll, want)
 	}

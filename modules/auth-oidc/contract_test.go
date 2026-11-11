@@ -335,8 +335,19 @@ func TestContract_INV2_SaveAndView(t *testing.T) {
 	for i := range rows {
 		rows[i] = authoidc.RoleRow{Group: strings.Repeat("g", i+1), Role: routes.Viewer}
 	}
-	_, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: "https://idp.example", ClientID: "c", Scopes: "openid", GroupsClaim: "g", RoleMap: rows})
+	_, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: "https://idp.example", ClientID: "c", ClientSecret: "12345678", Scopes: "openid", GroupsClaim: "g", RoleMap: rows})
 	wantCode(t, err, 400, "too_many")
+	// M1 of the review: a new issuer or client must come with the secret again, or the old secret would go to the new token endpoint.
+	for _, s := range []authoidc.Save{
+		{Issuer: "https://attacker.example", ClientID: "vedette", Scopes: "openid", GroupsClaim: "groups"},
+		{Issuer: w.idp.issuer(), ClientID: "another-client", Scopes: "openid", GroupsClaim: "groups"},
+		{Issuer: "idp.example", ClientID: "vedette", ClientSecret: "12345678", Scopes: "openid", GroupsClaim: "groups"}, // no scheme
+	} {
+		_, err := w.svc.Store(t.Context(), "admin@acme.example", origin, s)
+		if e, ok := apierr.As(err); !ok || e.Status != 400 || (e.Code != "invalid_secret" && e.Code != "invalid_issuer") {
+			t.Fatalf("Store(%+v) = %v", s, err)
+		}
+	}
 
 	c, _, err := w.svc.View(t.Context(), "https://other.test")
 	if err != nil {
@@ -448,6 +459,99 @@ func TestMapRole(t *testing.T) {
 	} {
 		if got := authoidc.MapRole(tc.groups, rows, tc.def); got != tc.want {
 			t.Errorf("MapRole(%v, %q) = %q, want %q", tc.groups, tc.def, got, tc.want)
+		}
+	}
+}
+
+// INV-11 at the transport: every request to the identity provider is https, including the key set; an http jwks_uri is refused at
+// discovery, and the capped transport itself refuses http whatever the caller.
+func TestContract_INV11_HTTPSEverywhere(t *testing.T) {
+	w := newWorld(t)
+	w.idp.set(func(f *fakeIDP) { f.discovery = map[string]any{"jwks_uri": "http://plain.example/jwks"} })
+	_, err := w.svc.Test(t.Context(), "admin@acme.example")
+	wantCode(t, err, 502, "discovery_failed")
+	if e, _ := apierr.As(err); !strings.Contains(e.Message, "jwks endpoint") || strings.Contains(e.Message, "<html") {
+		t.Fatalf("message = %q", e.Message)
+	}
+	if err := authoidc.CheckTransportRefusesHTTP(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// L1 of the review: claims the audit log would refuse (over 320 bytes, invisible characters) still get their refusal row.
+func TestContract_INV10_RefusalsAreAuditedWhateverTheClaims(t *testing.T) {
+	w := newWorld(t)
+	w.claim("email", strings.Repeat("a", 330)+"@acme.example")
+	_, err := w.signIn()
+	wantCode(t, err, 403, "email_unverified")
+	if w.env.Count(t, `SELECT count(*) FROM core_audit WHERE action = 'auth.login_failed' AND user = 'unknown' AND detail = 'SSO: email_unverified'`) != 1 {
+		t.Fatal("no audit row for an over-long email")
+	}
+}
+
+// L6 of the review: a token for several audiences without azp is refused; the token endpoint gets the secret only in the way the
+// provider names (client_secret_post here), never both.
+func TestContract_INV1_AudienceAndAuthMethod(t *testing.T) {
+	w := newWorld(t)
+	w.claim("aud", []string{"vedette", "another-app"})
+	_, err := w.signIn()
+	wantCode(t, err, 400, "sso_failed")
+
+	w2 := newWorld(t)
+	w2.idp.set(func(f *fakeIDP) {
+		f.discovery = map[string]any{"token_endpoint_auth_methods_supported": []string{"client_secret_post"}}
+		f.postOnly = true
+	})
+	w2.svc.Forget()
+	if _, err := w2.signIn(); err != nil {
+		t.Fatalf("client_secret_post: %v", err)
+	}
+	w3 := newWorld(t)
+	w3.idp.set(func(f *fakeIDP) {
+		f.discovery = map[string]any{"token_endpoint_auth_methods_supported": []string{"private_key_jwt"}}
+	})
+	_, err = w3.svc.Test(t.Context(), "admin@acme.example")
+	wantCode(t, err, 502, "discovery_failed")
+}
+
+// The 1000 pending flows: a start at the cap drops the oldest.
+func TestContract_INV5_FlowCap(t *testing.T) {
+	w := newWorld(t)
+	if err := w.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		for i := range 1000 {
+			ts := w.env.Clock.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format("2006-01-02T15:04:05.000Z")
+			exp := w.env.Clock.Now().Add(10 * time.Minute).UTC().Format("2006-01-02T15:04:05.000Z")
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO oidc_flow VALUES (printf('%064d', ?), printf('%064d', ?), printf('%032d', ?), printf('%043d', ?), 'i', 'c', 'r', ?, ?)`, i, i, i, i, ts, exp); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.svc.Start(t.Context(), origin, w.addr); err != nil {
+		t.Fatal(err)
+	}
+	if n := w.env.Count(t, `SELECT count(*) FROM oidc_flow`); n != 1000 {
+		t.Fatalf("%d flows", n)
+	}
+	if w.env.Count(t, `SELECT count(*) FROM oidc_flow WHERE state_hash = printf('%064d', 0)`) != 0 {
+		t.Fatal("the oldest flow is still there")
+	}
+}
+
+// No code, token, secret or nonce reaches the log, whatever fails.
+func TestContract_FORBID2_NothingSecretInTheLog(t *testing.T) {
+	w := newWorld(t)
+	var buf strings.Builder
+	w.svc.SetLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	w.claim("aud", "someone-else")
+	_, _ = w.signIn()
+	w.idp.set(func(f *fakeIDP) { f.tokenErr = 400 })
+	_, _ = w.signIn()
+	for _, secret := range []string{"the-code", w.idp.secret, w.idp.nonce, "eyJ"} {
+		if secret != "" && strings.Contains(buf.String(), secret) {
+			t.Fatalf("the log holds %q:\n%s", secret, buf.String())
 		}
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
 )
 
 // Limits on the identity provider (INV-11, SYS-6): every answer is untrusted.
@@ -84,6 +85,7 @@ type idp struct {
 	provider  *oidc.Provider
 	jwksURL   string
 	algs      []string // allowedAlgs that the provider says it signs ID tokens with
+	authStyle oauth2.AuthStyle
 	fetchedAt time.Time
 }
 
@@ -112,8 +114,9 @@ func (s *Service) discover(ctx context.Context, issuer string, fresh bool) (*idp
 		return nil, err
 	}
 	var meta struct {
-		JWKS string   `json:"jwks_uri"`
-		Algs []string `json:"id_token_signing_alg_values_supported"`
+		JWKS  string   `json:"jwks_uri"`
+		Algs  []string `json:"id_token_signing_alg_values_supported"`
+		Auths []string `json:"token_endpoint_auth_methods_supported"`
 	}
 	if err := p.Claims(&meta); err != nil {
 		return nil, fmt.Errorf("authoidc: discovery document: %w", err)
@@ -136,7 +139,16 @@ func (s *Service) discover(ctx context.Context, issuer string, fresh bool) (*idp
 	if len(algs) == 0 {
 		return nil, fmt.Errorf("authoidc: the identity provider signs ID tokens only with %v; Vedette accepts %v", meta.Algs, allowedAlgs)
 	}
-	d := &idp{issuer: issuer, provider: p, jwksURL: meta.JWKS, algs: algs, fetchedAt: s.now()}
+	// client_secret_basic is the default of the specification (absent list); client_secret_post only when the provider lists it
+	// without basic. Other methods (private_key_jwt) are not supported.
+	style := oauth2.AuthStyleInHeader
+	if len(meta.Auths) > 0 && !slices.Contains(meta.Auths, "client_secret_basic") {
+		if !slices.Contains(meta.Auths, "client_secret_post") {
+			return nil, fmt.Errorf("authoidc: the token endpoint accepts only %v; Vedette sends client_secret_basic or client_secret_post", meta.Auths)
+		}
+		style = oauth2.AuthStyleInParams
+	}
+	d := &idp{issuer: issuer, provider: p, jwksURL: meta.JWKS, algs: algs, authStyle: style, fetchedAt: s.now()}
 	s.mu.Lock()
 	s.cache = d
 	s.mu.Unlock()

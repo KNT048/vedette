@@ -17,7 +17,9 @@ const (
 )
 
 // firedLately reports whether an event of this (source, signature, window, threshold) key was recorded after since: the lines
-// that made it still count, so a second event would be the same burst again.
+// that made it still count, so a second event would be the same burst again. ponytail: resp_events keeps the newest 500
+// processed events of a trigger, so more than 500 keys firing within one window could trim a suppressing event and fire once
+// more; upgrade path: keep the last fire time per key in a table of its own.
 func (s *Service) firedLately(ctx context.Context, key string, since time.Time) (bool, error) {
 	var n int
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM resp_events WHERE trigger = 'log_threshold' AND substr(id, 1, ?) = ? AND ts > ?`, len(key), key, store2(since)).Scan(&n)
@@ -69,10 +71,7 @@ func (s *Service) PollLogs(ctx context.Context) error {
 		s.cfg.Log.WarnContext(ctx, "response: the log sources could not be read; log_threshold rules see no count this round", "error", err)
 		return nil
 	}
-	if len(srcs) == 0 { // none declared or the Logs module off: asked again next tick, so the counts start as soon as there are some
-		return nil
-	}
-	s.logPolledAt = now
+	s.logPolledAt = now // also with no source (none declared, or the Logs module off): Sources is the full Logs view, once a minute
 	for _, w := range wants {
 		win := time.Duration(w.window) * time.Minute
 		sum := sha256.Sum256([]byte(w.sig))

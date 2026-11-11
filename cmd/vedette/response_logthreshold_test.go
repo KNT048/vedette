@@ -39,12 +39,9 @@ func TestWiringResponseLogThreshold(t *testing.T) {
 		t.Fatalf("rule live: %d %v", c, v)
 	}
 
-	s.setModule("logs", false) // off: no event
-	if err := s.d.Response.PollLogs(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if n := s.count(`SELECT COUNT(*) FROM resp_events`); n != 0 {
-		t.Fatalf("%d events with the Logs module off", n)
+	s.setModule("logs", false) // off: the adapter answers no source, so no event
+	if srcs, err := (responseLogCounts{svc: lg, reg: s.d.Reg}).Sources(ctx); err != nil || len(srcs) != 0 {
+		t.Fatalf("Logs off: %v %v", srcs, err)
 	}
 	s.setModule("logs", true)
 	if err := s.d.Response.PollLogs(ctx); err != nil {

@@ -103,6 +103,8 @@ const sampleEvent = (t: Trigger): Det => ({ id: `example-${t}`, trigger: t, ts: 
 
 // ---- Checking a rule from the client ----
 const TEXT_VAL = /^[\w .,:/@#-]{0,200}$/
+/** The spaces Go's strings.TrimSpace removes (unicode.IsSpace), so the mock trims a pasted signature like the box: not U+FEFF, which JS trim() would. */
+const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g
 const compatible = (p: ParamType, ft: string) => ft === p || p === 'text'
 
 export function checkRule(b: Partial<RuleInput>): string | RuleInput {
@@ -120,7 +122,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   for (const c of b.conditions) {
     if (!isObj(c) || typeof c.op !== 'string') return 'Each condition needs a field, a test and a value.'
     const field = typeof c.field === 'string' ? c.field : '', raw = typeof c.value === 'string' ? c.value : ''
-    const value = logSignature(trig.id, { op: c.op, field }) ? raw.trim() : raw // logs.Counts hashes the exact text: a pasted trailing space would never count
+    const value = logSignature(trig.id, { op: c.op, field }) ? raw.replace(GO_SPACE, '') : raw // logs.Counts hashes the exact text: a pasted trailing space would never count
     const f = trig.fields.find((x) => x.key === field)
     const n = Number.isInteger(c.n) ? (c.n as number) : null, win = Number.isInteger(c.window_min) ? (c.window_min as number) : null
     if (c.op === 'device_type') { if (!value.split(',').every((k) => KINDS.includes(k.trim()))) return 'Device type: use device types such as camera, nvr, iot.' } else if (!f) return `The field "${oneLine(field, 30)}" does not exist for this trigger.`

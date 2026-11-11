@@ -78,7 +78,8 @@ func verifyIndexFile(dir string, trust release.Trust, stored *release.Index) (*r
 
 // SignRelease signs the documents of dir with s: index.json and any index.v<N>.json always, and release-manifest.json when there
 // is one (a weekly refresh of the index, D-150, has none) and only for the active key. The backup slot (the offline key, D-103)
-// signs indexes only, into <file>.backup.minisig; it exists to revoke a leaked active key, never to sign a release. It returns the
+// signs indexes only, into <file>.backup.minisig; it exists to revoke a leaked active key. Signing the rescue manifest after such a
+// leak (D-258) is not supported yet. It returns the
 // signature files written. When anything fails, every signature written in this run is removed: a directory holds either all the
 // signatures of the run or none of them.
 func SignRelease(ctx context.Context, s Signer, dir string, backup bool) (written []string, err error) {

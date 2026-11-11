@@ -115,6 +115,7 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 
 ### Khác biệt so với DATA_MODEL 4.4 / API_CONVENTIONS (báo cáo, không sửa file dùng chung)
 - Thêm bảng `notify_tg_button` (13b-8: băm nonce của nút Telegram theo yêu cầu, spec approval-tokens.md §6).
+- Thêm bảng `notify_slack_button` (lát 3: tin yêu cầu đã đăng bằng bot, khoá `request_id, channel_id, ts`, không bí mật) và `notify_slack_team` (workspace học bằng `auth.test`, theo `rev` kênh). Job mới `slack-listen`; `github.com/coder/websocket` thành phụ thuộc trực tiếp (ISC, đã có trong THIRD_PARTY_NOTICES). Luồng dữ liệu ra: `slack.com/api` (auth.test, apps.connections.open, chat.postMessage), `wss-*.slack.com`, `hooks.slack.com/actions` (PRIVACY luồng 5 nêu).
 - Thêm cột `notify_send.recipient` (người nhận của thư duyệt, cho Resend) và bảng `notify_kev` (CVE KEV đã biết + đã khớp thiết bị chưa, nguồn của `suppressed`).
 - Thêm cột `notify_channel.secret_last4`, `app_token_last4`, `bot_token_last4`, `rev`, `updated_at` (notify không đọc `core_secret.last4`); thêm bảng `notify_send_notice` (một tin gộp phủ nhiều notice), `notify_pending` (hàng đợi) và cột `notify_send.message` (JSON `channel.Message` để gửi lại; không chứa token); `notify_approver.user_id` không có FK tới `core_user` (tham chiếu mềm, kiểm qua `Users`). Cột `"to"` của `notify_send` phải được trích dẫn.
 - Giờ im lặng mặc định tắt (mock có dữ liệu mẫu bật); `suppressed` đếm CVE KEV chưa khớp thiết bị trong 7 ngày (INV-2, bảng `notify_kev`), không phải "tin bị gộp/giờ im lặng nuốt".

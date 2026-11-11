@@ -47,7 +47,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] #221 13b-11.
 - [ ] WP-30 lát 3 (đăng nhập hai bước), 5 (connections), 6 (inventory), 7 (sensors), 9a/9b (response), 10 (chạy toàn bộ, có `@mobile`).
 - [ ] WP-31 R3 (L7); WP-31 danh sách kiểm trong LAB (cần VM).
-- [ ] WP-27 `auth-oidc` (story trước).
+- [x] WP-27 `auth-oidc`: #248 (story, D-194..D-196, GUI trên mock), #261 (backend, D-197). Việc còn lại: IdP sau CA riêng (cần story), spec e2e-real SSO (WP-30), xem `.ai/deferred/feat-auth-oidc.md`.
 - [x] Sửa `scripts/dev/orphan-reaper.sh`: xét gốc cây, bắt `pnpm dev` mồ côi (nhánh `fix/reaper-tree-root`; mỗi máy chạy lại `make reaper-install`).
 - [ ] Lỗi GUI Settings của core: #237–#244 (PR 2 của `fix/core-settings-gui`); #251 giới hạn chờ writer của `core/store`.
 - [ ] Từ Mlee (D-198): `notify` lát 3 (Slack Socket Mode), 3b, 4 (mã trả lời Zalo cá nhân), Telegram L1/L3/L4 · WP-27 `reports`, `mcp-server` · spec WP-30 cho scan, ai, logs.

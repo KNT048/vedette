@@ -32,6 +32,7 @@ import (
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/internal/webui"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/logs"
 )
 
@@ -79,7 +80,7 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
 	flags.StringVar(&o.honeypotDir, "honeypot-dir", defaultHoneypotDir, "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
-	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance. The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
+	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance (the data purge is stricter: with a socket path set, a missing socket refuses it with 502, because the helper holds backups; pass an empty value for a box without a helper). The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
@@ -191,6 +192,10 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 // serve opens everything, serves until ctx is cancelled, then shuts down in order: HTTP server,
 // scheduler (running jobs are cancelled and waited for), database.
 func serve(ctx context.Context, log *slog.Logger, o options) error {
+	// A purge ends the process the same way SIGTERM does (graceful stop, exit 0): Quadlet's Restart=always, or the restart policy of
+	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -240,13 +245,22 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := migrateAll(ctx, db, wired); err != nil {
 		return err
 	}
+	// A purge froze the database at its commit and left a marker: the compaction (VACUUM) that removes the deleted rows from the file
+	// happens here, before anything else writes. A failure is logged and retried at the next start (the marker stays).
+	if err := core.CompactIfPending(ctx, db, filepath.Dir(o.db)); err != nil {
+		log.ErrorContext(ctx, "compacting the database after a purge failed; it is tried again at the next start", "error", err)
+	}
 	aud := audit.New(nil)
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		return err
 	}
 	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() },
-		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir}
+		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
+		Restart: func() {
+			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
+			cancel()
+		}}
 	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}

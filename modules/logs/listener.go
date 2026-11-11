@@ -33,8 +33,8 @@ func (s *Service) sourcesChanged() {
 	}
 }
 
-// listenSources is the declared senders the listener serves: udp and tcp sources by sender address. A tls source is not served
-// by this listener (see ListenStatus.TLSSources).
+// listenSources is the declared senders the listener serves: udp and tcp sources by sender address. A tls row (the API refuses them, D-203) is counted
+// and not served: nothing here listens for TLS.
 func (s *Service) listenSources(ctx context.Context) (m map[netip.Addr]listen.Source, tls int, err error) {
 	load := s.loadSources
 	if s.loadForListener != nil { // a test makes the read fail
@@ -95,17 +95,25 @@ func (s *Service) runSyslog(ctx context.Context) error {
 	case <-s.changed:
 	default:
 	}
+	// What was last warned about, so that a retry every few seconds does not repeat it (the way noteBind does for the sockets).
+	var warnedTLS int
+	var warnedRead string
 	// apply reloads the sources into the server; it reports whether it has to be tried again.
 	apply := func() (again bool) {
 		m, tls, err := s.listenSources(ctx)
 		if err != nil {
-			if ctx.Err() == nil {
+			if ctx.Err() == nil && warnedRead != err.Error() {
+				warnedRead = err.Error()
 				s.cfg.Log.WarnContext(ctx, "logs: could not read the sources for the syslog listener; the sockets stay as they are and it is retried", "err", err)
 			}
 			return true
 		}
-		if tls > 0 {
-			s.cfg.Log.WarnContext(ctx, "logs: sources declared with TLS are not served: the TLS listener (port 6514) is not built", "sources", tls)
+		warnedRead = ""
+		if tls != warnedTLS {
+			warnedTLS = tls
+			if tls > 0 {
+				s.cfg.Log.WarnContext(ctx, "logs: sources declared with TLS are not served: the TLS listener (port 6514) is not built", "sources", tls)
+			}
 		}
 		err = srv.SetSources(m) // the server logs the reason and keeps the sockets that opened
 		st := srv.Status()

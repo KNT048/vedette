@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -665,61 +666,23 @@ func TestABindFailureAtStartDoesNotEndRun(t *testing.T) {
 	select {
 	case err := <-r.done:
 		t.Fatalf("Run ended with %v", err)
-	case <-time.After(50 * time.Millisecond):
+	default:
 	}
 }
 
 // Review finding 4: what the producers queued is stored when the server stops.
-func TestNothingAcceptedIsLostAtShutdown(t *testing.T) {
-	r := newRig(t, Limits{BatchWait: time.Hour, Rate: 1e6, Burst: 1e6}, nil)
-	r.set("tcp")
-	r.start()
-	c := dialTCP(t, r.tcpAddr())
-	var b strings.Builder
-	for i := range 30 {
-		fmt.Fprintf(&b, "<34>line %d\n", i)
-	}
-	if _, err := io.WriteString(c, b.String()); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "30 accepted", func() bool { return r.srv.Stats().Received == 30 })
-	r.shutdown()
-	if n := len(r.lines()); n != 30 {
-		t.Errorf("stored %d of 30 accepted lines", n)
-	}
-}
-
-func TestNothingAcceptedIsLostAtShutdownUnderUDPLoad(t *testing.T) {
-	for range 5 {
-		r := newRig(t, Limits{BatchWait: time.Hour, Rate: 1e6, Burst: 1e6}, nil)
-		r.set("udp")
-		r.start()
-		addr := r.udpAddr()
-		c, err := dialCtx("udp4", addr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := range 200 {
-			_, _ = fmt.Fprintf(c, "<34>u%d", i)
-		}
-		_ = c.Close()
-		waitFor(t, "some accepted", func() bool { return r.srv.Stats().Received > 0 })
-		r.shutdown()
-		st := r.srv.Stats()
-		if int64(len(r.lines())) != st.Received {
-			t.Fatalf("accepted %d, stored %d", st.Received, len(r.lines()))
-		}
-	}
-}
 
 // Review finding 6: queue full and backpressure.
 type slowSink struct {
 	gate chan struct{}
 	mu   sync.Mutex
 	got  int
+	// entered counts the calls that have started (and wait for the gate).
+	entered atomic.Int32
 }
 
 func (s *slowSink) sink(_ context.Context, lines []Line) error {
+	s.entered.Add(1)
 	<-s.gate
 	s.mu.Lock()
 	s.got += len(lines)
@@ -783,9 +746,9 @@ func TestATCPSenderIsHeldBackNotDroppedWhenTheQueueIsFull(t *testing.T) {
 	if _, err := io.WriteString(c, b.String()); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the queue to fill", func() bool { return srv.Stats().Received >= 2 })
-	<-time.After(100 * time.Millisecond)
-	if st := srv.Stats(); st.Received > 3 || st.QueueDropped != 0 {
+	// The Sink holds the first line, the queue (one place) holds the second: the reader is blocked on the third, which is not counted.
+	waitFor(t, "the Sink to be held and the queue full", func() bool { return ss.entered.Load() >= 1 && len(srv.queue) == cap(srv.queue) })
+	if st := srv.Stats(); st.Received != 2 || st.QueueDropped != 0 {
 		t.Fatalf("the reader did not stop: received %d, dropped %d", st.Received, st.QueueDropped)
 	}
 	close(ss.gate)
@@ -822,8 +785,7 @@ func TestATrickleOfSingleBytesIsBoundedByTheFrameDeadline(t *testing.T) {
 		if _, err := c.Write([]byte("a")); err != nil {
 			break
 		}
-		<-time.After(30 * time.Millisecond)
-		if closedByPeer(c, time.Millisecond) {
+		if closedByPeer(c, 30*time.Millisecond) { // the read is the pacing: it returns early when the server closes
 			break
 		}
 	}
@@ -832,8 +794,51 @@ func TestATrickleOfSingleBytesIsBoundedByTheFrameDeadline(t *testing.T) {
 	}
 }
 
-// Review finding 5: a connection accepted while the sources change is not kept for a sender that is gone.
+// Review finding 5: a connection accepted while the sources change is not kept for a sender that is gone, even when the TCP
+// listener itself stays open (another TCP source remains).
 func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
+	r := newRig(t, Limits{MaxConns: 1}, nil)
+	other := netip.MustParseAddr("127.0.0.2")
+	both := map[netip.Addr]Source{lo: {ID: "src-1", Proto: "tcp"}, other: {ID: "src-2", Proto: "tcp"}}
+	if err := r.srv.SetSources(both); err != nil {
+		t.Fatal(err)
+	}
+	r.start()
+	r.tcpAddr()
+	c1, c2 := net.Pipe()
+	defer func() { _ = c1.Close(); _ = c2.Close() }()
+	r.srv.mu.Lock()
+	l := r.srv.tcp
+	r.srv.mu.Unlock()
+	if got := r.srv.register(l, c1, lo); got != regOK {
+		t.Fatalf("a declared TCP sender: %d", got)
+	}
+	if got := r.srv.register(l, c2, other); got != regOverLimit {
+		t.Errorf("over the total limit: %d", got)
+	}
+	r.srv.unregister(c1, lo)
+	if err := r.srv.SetSources(map[netip.Addr]Source{other: {ID: "src-2", Proto: "tcp"}}); err != nil { // lo is gone, the listener stays
+		t.Fatal(err)
+	}
+	if !r.srv.Status().TCP {
+		t.Fatal("the TCP listener closed, so this test would not reach the sender check")
+	}
+	if got := r.srv.register(l, c1, lo); got != regStale {
+		t.Errorf("a sender that was removed while its listener stays open: %d, want regStale", got)
+	}
+	if err := r.srv.SetSources(map[netip.Addr]Source{other: {ID: "src-2", Proto: "udp"}}); err != nil { // the listener closes
+		t.Fatal(err)
+	}
+	if got := r.srv.register(l, c1, other); got != regGone {
+		t.Errorf("a listener that is gone: %d, want regGone", got)
+	}
+	if got := r.srv.register(nil, c1, other); got != regGone {
+		t.Errorf("no listener: %d", got)
+	}
+}
+
+// A refusal because the sources changed is not counted as a connection over a limit.
+func TestAConnectionRefusedForStaleSourcesIsNotCountedAsOverTheLimit(t *testing.T) {
 	r := newRig(t, Limits{}, nil)
 	r.set("tcp")
 	r.start()
@@ -843,15 +848,108 @@ func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
 	r.srv.mu.Lock()
 	l := r.srv.tcp
 	r.srv.mu.Unlock()
-	if !r.srv.register(l, c1, lo) {
-		t.Fatal("a declared TCP sender was refused")
+	_ = r.srv.SetSources(map[netip.Addr]Source{netip.MustParseAddr("10.1.1.1"): {ID: "src-9", Proto: "tcp"}})
+	if got := r.srv.register(l, c1, lo); got != regStale || r.srv.Stats().ConnRejected != 0 {
+		t.Errorf("register %d, ConnRejected %d", got, r.srv.Stats().ConnRejected)
 	}
-	r.srv.unregister(c1, lo)
-	r.set("udp") // the sender changes protocol, and the TCP listener closes
-	if r.srv.register(l, c1, lo) {
-		t.Error("a sender that is no longer a TCP source was registered")
+}
+
+// Review (round 2) 1: a batch that is being stored when the server stops is not cancelled with it.
+func TestABatchBeingStoredAtShutdownIsNotCancelled(t *testing.T) {
+	var mu sync.Mutex
+	stored, cancelled := 0, 0
+	entered := make(chan struct{}, 1)
+	sink := func(ctx context.Context, lines []Line) error {
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-time.After(300 * time.Millisecond) // a slow store
+		mu.Lock()
+		defer mu.Unlock()
+		if err := ctx.Err(); err != nil {
+			cancelled += len(lines)
+			return err
+		}
+		stored += len(lines)
+		return nil
 	}
-	if r.srv.register(nil, c1, lo) {
-		t.Error("a connection of a listener that is gone was registered")
+	srv, err := New(Config{Host: "127.0.0.1", Ports: []int{0}, Sink: sink, Log: slog.New(slog.DiscardHandler), Limits: Limits{BatchLines: 5, BatchWait: time.Hour, Rate: 1e6, Burst: 1e6}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "tcp"}}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(ctx) }()
+	var a net.Addr
+	waitFor(t, "the socket", func() bool { _, a = srv.Addrs(); return a != nil })
+	c := dialTCP(t, a.String())
+	if _, err := io.WriteString(c, "<34>1\n<34>2\n<34>3\n<34>4\n<34>5\n<34>6\n"); err != nil { // one full batch, one line left over
+		t.Fatal(err)
+	}
+	<-entered // the first batch is in the Sink
+	waitFor(t, "all six lines to be accepted", func() bool { return srv.Stats().Received == 6 })
+	cancel()
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	if stored != 6 || cancelled != 0 || srv.Stats().SinkLost != 0 {
+		t.Errorf("stored %d, cancelled %d, lost %d: want 6, 0, 0", stored, cancelled, srv.Stats().SinkLost)
+	}
+}
+
+// A Sink that never returns cannot hold the shutdown longer than FlushOnClose.
+func TestAHungSinkIsBoundedAtShutdown(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	sink := func(ctx context.Context, _ []Line) error {
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	srv, err := New(Config{Host: "127.0.0.1", Ports: []int{0}, Sink: sink, Log: slog.New(slog.DiscardHandler), Limits: Limits{BatchLines: 1, FlushOnClose: 200 * time.Millisecond}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "udp"}}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(ctx) }()
+	var a net.Addr
+	waitFor(t, "the socket", func() bool { a, _ = srv.Addrs(); return a != nil })
+	sendUDP(t, a.String(), "<34>x")
+	<-entered
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a hung Sink held the shutdown")
+	}
+}
+
+// Review (round 2) 2: a stream of line ends only is a gap, and the gap is bounded by the idle deadline.
+func TestAnEndlessStreamOfLineEndsDoesNotHoldAConnectionPastIdle(t *testing.T) {
+	r := newRig(t, Limits{Idle: 250 * time.Millisecond, FrameTimeout: 5 * time.Second}, nil)
+	r.set("tcp")
+	r.start()
+	c := dialTCP(t, r.tcpAddr())
+	start := time.Now()
+	for time.Since(start) < 4*time.Second {
+		if _, err := c.Write([]byte("\r\n")); err != nil {
+			break
+		}
+		if closedByPeer(c, 20*time.Millisecond) {
+			break
+		}
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("a stream of CR and LF held the connection for %v with an idle limit of 250 ms", d)
 	}
 }

@@ -194,12 +194,18 @@ func TestALeftOverTLSRowGetsNoSocketFromThisListener(t *testing.T) {
 
 // toggleGate is a core/jobs gate that the test switches.
 type toggleGate struct {
-	mu sync.Mutex
-	on bool
+	mu    sync.Mutex
+	on    bool
+	calls atomic.Int32 // how often the scheduler has asked: proof that it has looked at the gate
 }
 
-func (g *toggleGate) Enabled(string) bool { g.mu.Lock(); defer g.mu.Unlock(); return g.on }
-func (g *toggleGate) set(v bool)          { g.mu.Lock(); defer g.mu.Unlock(); g.on = v }
+func (g *toggleGate) Enabled(string) bool {
+	g.calls.Add(1)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.on
+}
+func (g *toggleGate) set(v bool) { g.mu.Lock(); defer g.mu.Unlock(); g.on = v }
 
 // SYS-5: with the module off nothing listens; turning it on opens the sockets of the declared sources; turning it off closes them.
 func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
@@ -223,7 +229,8 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	go func() { defer close(done); sched.Run(ctx) }()
 	defer func() { cancel(); err := <-done; _ = err }()
 
-	if e.svc.listening.Load() != nil { // the scheduler is running and the gate is off: nothing may have started
+	waitUntil(t, "the scheduler to have asked the gate", func() bool { return gate.calls.Load() > 0 })
+	if e.svc.listening.Load() != nil { // it has looked at the gate, which is off: nothing may have started
 		t.Fatal("the listener runs while the module is off")
 	}
 	gate.set(true)
@@ -236,7 +243,7 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = c.Close() }()
-	waitUntil(t, "the connection to be registered", func() bool { return e.svc.ListenStatus().Stats.Unknown == 0 && e.svc.listening.Load() != nil })
+	waitUntil(t, "the connection to be registered", func() bool { return e.svc.ListenStatus().Conns == 1 })
 
 	gate.set(false)
 	sched.ModuleChanged(ModuleID, false)
@@ -313,7 +320,9 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	e.svc.cfg.Syslog.RetryEvery = 20 * time.Millisecond
 	e.sourceOn("FW", "udp")
 	var fail atomic.Bool
+	var reads atomic.Int32
 	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
+		reads.Add(1)
 		if fail.Load() {
 			return nil, errors.New("database is locked")
 		}
@@ -325,10 +334,11 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	defer func() { cancel(); err := <-done; _ = err }()
 	waitUntil(t, "UDP", func() bool { return e.svc.ListenStatus().UDP })
 	fail.Store(true)
+	base := reads.Load()
 	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
-	<-time.After(150 * time.Millisecond) // several retries fail
+	waitUntil(t, "three failed reads", func() bool { return reads.Load() >= base+3 }) // the wake-up and two timed retries
 	if st := e.svc.ListenStatus(); !st.Listening || !st.UDP || st.TCP {
 		t.Fatalf("a failing read touched the sockets: %+v", st)
 	}
@@ -366,4 +376,82 @@ func TestTheListenerBatchIsNeverLargerThanWhatIngestTakes(t *testing.T) {
 func isNetTimeout(err error) bool {
 	var ne net.Error
 	return errors.As(err, &ne) && ne.Timeout()
+}
+
+// logCapture keeps the messages of a logger.
+type logCapture struct {
+	mu   sync.Mutex
+	msgs []string
+}
+
+func (c *logCapture) Enabled(context.Context, slog.Level) bool { return true }
+func (c *logCapture) Handle(_ context.Context, r slog.Record) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.msgs = append(c.msgs, r.Message)
+	return nil
+}
+func (c *logCapture) WithAttrs([]slog.Attr) slog.Handler { return c }
+func (c *logCapture) WithGroup(string) slog.Handler      { return c }
+func (c *logCapture) count(sub string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n := 0
+	for _, m := range c.msgs {
+		if strings.Contains(m, sub) {
+			n++
+		}
+	}
+	return n
+}
+
+// Review (round 2) 3: the same warning is not repeated by every retry.
+func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t)
+	logs := &logCapture{}
+	e.svc.cfg.Log = slog.New(logs)
+	e.svc.cfg.Syslog.RetryEvery = 5 * time.Millisecond
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '10.8.8.8', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
+	var reads atomic.Int32
+	var fail atomic.Bool
+	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
+		reads.Add(1)
+		if fail.Load() {
+			return nil, errors.New("database is locked")
+		}
+		return e.svc.loadSources(ctx)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- e.svc.runSyslog(ctx) }()
+	defer func() { cancel(); err := <-done; _ = err }()
+	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil && reads.Load() >= 2 })
+	for range 5 { // five more applies with the same tls row
+		e.svc.sourcesChanged()
+		base := reads.Load()
+		waitUntil(t, "an apply", func() bool { return reads.Load() > base })
+	}
+	if n := logs.count("TLS"); n != 1 {
+		t.Errorf("the TLS warning was logged %d times for one unchanged row", n)
+	}
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old2', 'fortigate', 'FW-TLS2', '10.8.8.9', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
+	e.svc.sourcesChanged()
+	waitUntil(t, "the warning for the changed count", func() bool { return logs.count("TLS") == 2 })
+
+	fail.Store(true)
+	base := reads.Load()
+	e.svc.sourcesChanged()
+	waitUntil(t, "five failed reads", func() bool { return reads.Load() >= base+5 })
+	if n := logs.count("could not read the sources"); n != 1 {
+		t.Errorf("the failed read was logged %d times for one error", n)
+	}
+	fail.Store(false)
+	reads.Store(0)
+	waitUntil(t, "recovery", func() bool { return reads.Load() >= 1 })
+	fail.Store(true) // a new failure after a recovery is news again
+	base = reads.Load()
+	e.svc.sourcesChanged()
+	waitUntil(t, "a failed read", func() bool { return reads.Load() > base })
+	waitUntil(t, "the second warning", func() bool { return logs.count("could not read the sources") == 2 })
 }

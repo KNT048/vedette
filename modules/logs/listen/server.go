@@ -32,7 +32,7 @@ type Limits struct {
 	BatchWait     time.Duration // the longest a line waits for its batch (2 s)
 	Queue         int           // lines waiting for a batch (4,096); a datagram is dropped and counted when it is full
 	UnknownKept   int           // senders remembered while counting the unknown ones (256, least recently seen out)
-	FlushOnClose  time.Duration // time the last batch gets at shutdown (5 s)
+	FlushOnClose  time.Duration // the longest a Sink call may take once the server is stopping (5 s)
 	ErrorLogEvery time.Duration // the least time between two log lines about a failing Sink (10 s)
 }
 
@@ -200,17 +200,18 @@ func (s *Server) Run(ctx context.Context) error {
 	s.running, s.ctx = true, ctx
 	_ = s.applyLocked() // a failure is recorded in the status and logged; it is retried by SetSources
 	s.mu.Unlock()
-	// The batcher outlives ctx: only stopBatcher, after every producer is gone, ends it, so that what was accepted is stored.
-	bctx, stopBatcher := context.WithCancel(context.WithoutCancel(ctx))
+	// The batcher outlives ctx: only quit, after every producer is gone, ends it, so that what was accepted is stored. The Sink
+	// is never given a context that quit cancels (a batch being stored is finished, not cut): see batcher.
+	quit := make(chan struct{})
 	batchDone := make(chan struct{})
-	go func() { defer close(batchDone); s.batcher(bctx) }()
+	go func() { defer close(batchDone); s.batcher(context.WithoutCancel(ctx), quit) }()
 	<-ctx.Done()
 	s.mu.Lock()
 	s.running = false
 	s.closeLocked(true, true)
 	s.mu.Unlock()
 	s.wg.Wait() // no producer is left: the batcher flushes what is queued and ends
-	stopBatcher()
+	close(quit)
 	<-batchDone
 	return ctx.Err()
 }
@@ -342,13 +343,14 @@ type Status struct {
 	UDP, TCP  bool // sockets open
 	// UDPErr and TCPErr are why a socket that is wanted (a source of that protocol exists) is not open; empty otherwise.
 	UDPErr, TCPErr string
+	Conns          int // TCP connections open now
 }
 
 // Status reports where the server listens.
 func (s *Server) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1]}
+	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1], Conns: len(s.conns)}
 }
 
 // UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
@@ -489,8 +491,16 @@ func (s *Server) acceptLoop(l net.Listener) {
 			_ = conn.Close()
 			continue
 		}
-		if !s.register(l, conn, ip) {
+		switch s.register(l, conn, ip) {
+		case regOverLimit:
 			s.st.connRejected.Add(1)
+			_ = conn.Close()
+			continue
+		case regStale: // the sources changed while it was being accepted: not over a limit
+			s.noteUnknown(ip)
+			_ = conn.Close()
+			continue
+		case regGone:
 			_ = conn.Close()
 			continue
 		}
@@ -499,23 +509,31 @@ func (s *Server) acceptLoop(l net.Listener) {
 	}
 }
 
-// register counts a connection against the limits; false when one is over, or when the sources changed while it was being
-// accepted: the sender must still be a TCP source and l still the listener in use, else the connection would outlive both.
-func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr) bool {
+// The answers of register.
+const (
+	regOK        = iota
+	regOverLimit // the total or the per-sender limit is reached
+	regStale     // the sender is no longer a TCP source
+	regGone      // the listener is no longer the one in use
+)
+
+// register counts a connection against the limits, and refuses it (regOK is the only success) when the sources changed while it
+// was being accepted: the sender must still be a TCP source and l still the listener in use, else the connection would outlive both.
+func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if l == nil || s.tcp != l {
-		return false
+		return regGone
 	}
 	if src, ok := s.sources[ip]; !ok || src.Proto != "tcp" {
-		return false
+		return regStale
 	}
 	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
-		return false
+		return regOverLimit
 	}
 	s.conns[conn] = ip
 	s.perIP[ip]++
-	return true
+	return regOK
 }
 
 func (s *Server) unregister(conn net.Conn, ip netip.Addr) {
@@ -544,8 +562,8 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr) {
 	for {
 		// Wait for the first byte of a frame under the idle deadline, past the line ends that a sender puts between frames (the
 		// LF after an octet-counted frame, a blank line): they are not the start of a frame, so they must not arm the short one.
+		_ = conn.SetReadDeadline(time.Now().Add(s.lim.Idle)) // once per gap: line ends alone do not renew it
 		for {
-			_ = conn.SetReadDeadline(time.Now().Add(s.lim.Idle))
 			b, err := br.Peek(1)
 			if err != nil {
 				return
@@ -614,13 +632,37 @@ func (s *Server) unknownList() []UnknownSender {
 }
 
 // batcher groups the queued lines and hands them to the Sink: at most BatchLines lines or BatchBytes of text, or when the oldest
-// has waited BatchWait. When ctx ends it flushes what is queued once more, with a deadline of its own.
-func (s *Server) batcher(ctx context.Context) {
+// has waited BatchWait. ctx is never cancelled; quit says that no producer is left, and then what is queued is flushed once more.
+// A Sink call is not cut when quit fires: it gets the same context, but once quit has fired no call may take longer than
+// FlushOnClose (a Sink that hangs must not hold the shutdown).
+func (s *Server) batcher(ctx context.Context, quit <-chan struct{}) {
 	var batch []Line
 	size := 0
 	var timer *time.Timer
 	var tick <-chan time.Time
-	cur := ctx
+	store := func(lines []Line) {
+		cctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		over := make(chan struct{})
+		defer close(over)
+		go func() {
+			select {
+			case <-quit:
+				t := time.NewTimer(s.lim.FlushOnClose)
+				defer t.Stop()
+				select {
+				case <-t.C:
+					cancel()
+				case <-over:
+				}
+			case <-over:
+			}
+		}()
+		if err := s.cfg.Sink(cctx, lines); err != nil {
+			s.st.sinkLost.Add(int64(len(lines)))
+			s.sinkFailed(ctx, err, len(lines))
+		}
+	}
 	flush := func() {
 		if timer != nil {
 			timer.Stop()
@@ -629,10 +671,7 @@ func (s *Server) batcher(ctx context.Context) {
 		if len(batch) == 0 {
 			return
 		}
-		if err := s.cfg.Sink(cur, batch); err != nil {
-			s.st.sinkLost.Add(int64(len(batch)))
-			s.sinkFailed(cur, err, len(batch))
-		}
+		store(batch)
 		batch, size = nil, 0
 	}
 	add := func(l Line) {
@@ -656,10 +695,7 @@ func (s *Server) batcher(ctx context.Context) {
 		case <-tick:
 			timer, tick = nil, nil
 			flush()
-		case <-ctx.Done():
-			var cancel context.CancelFunc
-			cur, cancel = context.WithTimeout(context.WithoutCancel(ctx), s.lim.FlushOnClose)
-			defer cancel()
+		case <-quit:
 			for {
 				select {
 				case l := <-s.queue:

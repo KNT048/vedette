@@ -63,6 +63,9 @@ func (in Input) normalize() (Input, error) {
 	if !slices.Contains(k.Protos, in.Proto) {
 		return in, apierr.New(400, "bad_proto", "This device type cannot send logs with the chosen protocol. Pick another protocol from the list.")
 	}
+	if in.Proto == "tls" { // D-203: the TLS listener (6514) is not built; a source that would silently never receive is refused
+		return in, apierr.New(400, "tls_unavailable", "Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP.")
+	}
 	if in.Port < 1 || in.Port > 65535 {
 		return in, apierr.New(400, "bad_port", "The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS).")
 	}

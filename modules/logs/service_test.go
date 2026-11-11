@@ -172,6 +172,7 @@ func TestContract_INV3_SourceValidationFollowsTheMock(t *testing.T) {
 		"ipv4 in ipv6":              {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
 		"tcp for a udp-only kind":   {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
 		"unknown protocol":          {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
+		"tls is not served yet":     {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
 		"port 0":                    {func(i *Input) { i.Port = 0 }, "bad_port"},
 		"port 65536":                {func(i *Input) { i.Port = 65536 }, "bad_port"},
 		"another source has the ip": {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
@@ -1494,5 +1495,23 @@ func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	<-done
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 0 {
 		t.Fatalf("%d expired lines left: the purge did not run while the module was off", n)
+	}
+}
+
+// D-203: a source over TLS is refused on create and on edit (the TLS listener is not built), with a message that names the way out.
+func TestASourceOverTLSIsRefusedOnCreateAndEdit(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	src := e.add("FW", "192.168.10.1")
+	_, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "192.168.10.2", Proto: "tls", Port: 6514})
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "tls_unavailable" || ae.Message != "Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP." {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", src.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "192.168.10.1", Proto: "tls", Port: 6514}); code(err) != "tls_unavailable" {
+		t.Fatalf("edit: %v", err)
+	}
+	if got, _ := e.svc.Sources(t.Context()); len(got.Sources) != 1 || got.Sources[0].Proto != "udp" {
+		t.Fatalf("a refused edit changed the source: %+v", got.Sources)
 	}
 }

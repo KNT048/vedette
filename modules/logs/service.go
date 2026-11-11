@@ -58,8 +58,10 @@ type Service struct {
 	// afterSum, when set by a test, runs in resync after the sum is read, while the read transaction is still open.
 	afterSum func()
 	// changed wakes the syslog listener (capacity 1) when the sources change; listening is the running listener, nil when none.
-	changed   chan struct{}
-	listening atomic.Pointer[listen.Server]
+	changed chan struct{}
+	// loadForListener, when set by a test, replaces the read of the sources that feeds the listener.
+	loadForListener func(context.Context) ([]sourceRow, error)
+	listening       atomic.Pointer[listen.Server]
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

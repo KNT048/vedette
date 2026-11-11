@@ -3,10 +3,14 @@ package logs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -175,15 +179,16 @@ func TestListenersOpenAndCloseWithTheSources(t *testing.T) {
 	waitUntil(t, "no socket after the last source was deleted", func() bool { u, tc := e.addrs(); return u == nil && tc == nil })
 }
 
-func TestASourceDeclaredWithTLSGetsNoSocketFromThisListener(t *testing.T) {
+// A row with proto tls can only be left over (the API refuses it, D-203): it gets no socket and does not hurt the others.
+func TestALeftOverTLSRowGetsNoSocketFromThisListener(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
-	e.sourceOn("FW-TLS", "tls")
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '127.0.0.1', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
 	stop := e.runSyslogJob()
 	defer func() { _ = stop() }()
 	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
 	if u, tc := e.addrs(); u != nil || tc != nil {
-		t.Fatalf("a TLS source opened a plain socket: %v %v", u, tc)
+		t.Fatalf("a TLS row opened a plain socket: %v %v", u, tc)
 	}
 }
 
@@ -218,8 +223,7 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	go func() { defer close(done); sched.Run(ctx) }()
 	defer func() { cancel(); <-done }()
 
-	<-time.After(100 * time.Millisecond)
-	if e.svc.listening.Load() != nil {
+	if e.svc.listening.Load() != nil { // the scheduler is running and the gate is off: nothing may have started
 		t.Fatal("the listener runs while the module is off")
 	}
 	gate.set(true)
@@ -232,10 +236,15 @@ func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = c.Close() }()
+	waitUntil(t, "the connection to be registered", func() bool { return e.svc.ListenStatus().Stats.Unknown == 0 && e.svc.listening.Load() != nil })
 
 	gate.set(false)
 	sched.ModuleChanged(ModuleID, false)
 	waitUntil(t, "the listener to stop", func() bool { return e.svc.listening.Load() == nil })
+	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if _, err := c.Read(make([]byte, 1)); err == nil || isNetTimeout(err) { // the open connection is cut, not left to idle out
+		t.Errorf("the open connection survived the module being turned off: %v", err)
+	}
 	if conn, err := dialCtx("tcp4", addr); err == nil {
 		_ = conn.Close()
 		t.Error("the port still accepts connections after the module was turned off")
@@ -260,24 +269,101 @@ func TestTheListenerJobIsNotTheHousekeepingOne(t *testing.T) {
 	}
 }
 
-func TestABindFailureEndsTheJobWithTheErrorSoTheSchedulerRetries(t *testing.T) {
+// Review finding 2, at the job: the TCP port is busy, so TCP is down and says why; UDP keeps working, the job does not end, and
+// when the port is free the retry opens it without anybody touching the sources.
+func TestABusyTCPPortDoesNotStopUDPAndIsRetried(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
 	hold, err := listenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = hold.Close() }()
-	e.svc.cfg.Syslog.Ports = []int{hold.LocalAddr().(*net.UDPAddr).Port}
+	port := hold.LocalAddr().(*net.UDPAddr).Port
+	_ = hold.Close()
+	var lc net.ListenConfig
+	busy, err := lc.Listen(t.Context(), "tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	if err != nil {
+		t.Skipf("the port is taken: %v", err)
+	}
+	defer func() { _ = busy.Close() }()
+	e.svc.cfg.Syslog.Ports = []int{port}
+	e.svc.cfg.Syslog.RetryEvery = 20 * time.Millisecond
 	e.sourceOn("FW", "udp")
+	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
-	go func() { done <- e.svc.runSyslog(t.Context()) }()
+	go func() { done <- e.svc.runSyslog(ctx) }()
+	defer func() { cancel(); <-done }()
+	waitUntil(t, "UDP up and TCP reported down", func() bool { st := e.svc.ListenStatus(); return st.UDP && !st.TCP && st.TCPErr != "" })
 	select {
 	case err := <-done:
-		if err == nil {
-			t.Fatal("the job ended without an error")
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("the job did not end")
+		t.Fatalf("the job ended with %v", err)
+	default:
 	}
+	_ = busy.Close()
+	waitUntil(t, "the retry to open TCP", func() bool { st := e.svc.ListenStatus(); return st.UDP && st.TCP && st.TCPErr == "" })
+}
+
+// Review finding 2, the other case: a failing read of the sources keeps the sockets that are open and is retried.
+func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t)
+	e.svc.cfg.Syslog.RetryEvery = 20 * time.Millisecond
+	e.sourceOn("FW", "udp")
+	var fail atomic.Bool
+	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
+		if fail.Load() {
+			return nil, errors.New("database is locked")
+		}
+		return e.svc.loadSources(ctx)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- e.svc.runSyslog(ctx) }()
+	defer func() { cancel(); <-done }()
+	waitUntil(t, "UDP", func() bool { return e.svc.ListenStatus().UDP })
+	fail.Store(true)
+	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {
+		t.Fatal(err)
+	}
+	<-time.After(150 * time.Millisecond) // several retries fail
+	if st := e.svc.ListenStatus(); !st.Listening || !st.UDP || st.TCP {
+		t.Fatalf("a failing read touched the sockets: %+v", st)
+	}
+	fail.Store(false)
+	waitUntil(t, "the retry to pick up the new source", func() bool { st := e.svc.ListenStatus(); return st.UDP && st.TCP })
+}
+
+func TestTheListenerBatchIsNeverLargerThanWhatIngestTakes(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t)
+	e.svc.cfg.Syslog.Limits.BatchLines = 5000
+	e.sourceOn("FW", "tcp")
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	var tcp net.Addr
+	waitUntil(t, "the TCP socket", func() bool { _, tcp = e.addrs(); return tcp != nil })
+	c, err := dialCtx("tcp4", tcp.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	var b strings.Builder
+	for i := range 1200 {
+		fmt.Fprintf(&b, "<34>l%d\n", i)
+	}
+	if _, err := io.WriteString(c, b.String()); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "all lines stored (a batch over MaxBatch would be refused whole)", func() bool {
+		v, _ := e.svc.Events(t.Context(), EventQuery{Window: "24h"})
+		return v.Total == 1200
+	})
+}
+
+func isNetTimeout(err error) bool {
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
 }

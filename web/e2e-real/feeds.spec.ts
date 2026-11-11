@@ -14,6 +14,20 @@ const SETTINGS = '/settings/feeds'
 const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toast]').filter({ hasText: re }).first()).toBeVisible()
 const feedRow = (page: Page, name: string) => page.locator('tr:visible, li:visible').filter({ hasText: name }).first()
 const as = (role: 'admin' | 'operator' | 'viewer') => request.newContext({ baseURL: box().base_url, storageState: authFile(role) })
+/** Feeds a test made, deleted after it through the API by name whatever the test did (a failed test leaves nothing behind on the box). */
+const made: string[] = []
+async function sweep() {
+  if (!made.length) return
+  const admin = await as('admin')
+  try {
+    const items = (await api<{ items: { id: string; name: string; builtin: boolean }[] }>(admin, 'GET', '/feeds/sources')).body.items
+    for (const name of made.splice(0)) {
+      const f = items.find((i) => i.name === name && !i.builtin)
+      if (f) expect((await api(admin, 'DELETE', `/feeds/custom/${f.id}`)).status, `cleanup of ${name}`).toBe(204)
+    }
+  } finally { await admin.dispose() }
+}
+test.afterEach(sweep)
 const LINES = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
 const customBody = (name: string, url = 'http://127.0.0.1:9/x.txt') => ({ name, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: LINES })
 
@@ -21,22 +35,26 @@ test.describe('home and the CISA list on a box with no internet (S-FEED-1, D-134
   test.use({ storageState: authFile('viewer') })
   test('Home and the hot table give an honest reason, never a 1970 date or a script error', async ({ page }) => {
     const errors = collectErrors(page)
+    const c = await as('viewer')
+    const st = (await api<{ generated_at: string; kev: { state: 'loaded' | 'never_loaded' | 'off'; error: string | null } }>(c, 'GET', '/feeds/status')).body
+    await c.dispose()
     await page.goto('/')
-    await expect(h1(page)).toContainText(/^Today/)
     await page.waitForLoadState('networkidle')
     await expect(page.getByText(/1970/)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(/undefined|NaN|\[object/)
-    // a box that never fetched says "no data yet" or why; one that pulled shows a count. Never "0 newly exploited" without data.
-    const title = (await h1(page).innerText()).trim()
-    test.info().annotations.push({ type: 'home-title', description: title })
-    expect(title).toMatch(/^Today: (no data yet|\d+ vulnerabilit|The CISA list)|CISA list could not be fetched yet/)
+    // the exact title follows kev.state (D-92, D-134): a count only when the CISA list has loaded, else the honest reason
+    const never = new Date(st.generated_at).getFullYear() < 2000
+    test.info().annotations.push({ type: 'kev-state', description: `${st.kev.state} error=${st.kev.error}` })
     const hot = page.locator('#hot')
-    if (await hot.count()) {
-      for (const win of ['24 hours', '7 days']) {
-        await page.getByRole('button', { name: win }).click()
-        await expect(page.getByRole('button', { name: win })).toHaveAttribute('aria-pressed', 'true')
-      }
-      if (/no data yet|could not be fetched yet/.test(title)) await expect(hot).not.toContainText('No newly exploited')
+    await expect(hot).toBeVisible()
+    if (st.kev.state === 'loaded') await expect(h1(page)).toHaveText(/^Today: \d+ vulnerabilit/)
+    else if (st.kev.state === 'off') await expect(h1(page)).toContainText('The CISA list is turned off.')
+    else if (never && !st.kev.error) await expect(h1(page)).toHaveText('Today: no data yet')
+    else await expect(h1(page)).toContainText(`The CISA list could not be fetched yet: ${st.kev.error ?? 'no fetch has finished yet'}`)
+    for (const win of ['24 hours', '7 days']) {
+      await page.getByRole('button', { name: win }).click()
+      await expect(page.getByRole('button', { name: win })).toHaveAttribute('aria-pressed', 'true')
+      if (st.kev.state !== 'loaded') await expect(hot).not.toContainText('No newly exploited') // an empty window never reads as "none" without data
     }
     await expectAccessible(page, 'home')
     await noVietnamese(page, 'home')
@@ -64,14 +82,20 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     for (const n of ['CISA KEV', 'FIRST EPSS', 'nuclei-templates', 'IPsum', 'ET Open compromised IPs', 'abuse.ch Feodo Tracker', 'Tor exit list', 'hagezi TIF']) await expect(feedRow(page, n)).toBeVisible()
     await expect(feedRow(page, 'abuse.ch SSLBL')).toHaveCount(0) // D-92
     await expect(page.getByText(/Vedette fetches each feed directly from its source/)).toBeVisible()
-    for (const n of ['CISA KEV', 'IPsum']) {
-      const t = await feedRow(page, n).innerText()
-      expect(t, n).toMatch(/Not fetched yet|OK|Error/)
-      expect(t, n).not.toMatch(/1970|undefined|dial tcp|goroutine/)
-    }
-    const sources = (await api<{ items: { id: string; builtin: boolean }[] }>(await as('admin'), 'GET', '/feeds/sources')).body.items
-    expect(sources.filter((s) => s.builtin).length).toBeGreaterThanOrEqual(8)
+    const admin = await as('admin')
+    const sources = (await api<{ items: { id: string; name: string; builtin: boolean; status: 'ok' | 'error' | 'never'; error: string | null }[] }>(admin, 'GET', '/feeds/sources')).body.items
+    await admin.dispose()
+    const builtins = sources.filter((s) => s.builtin)
+    expect(builtins.length).toBeGreaterThanOrEqual(8)
     expect(sources.map((s) => s.id)).not.toContain('abusech-sslbl')
+    const label = { never: 'Not fetched yet', ok: 'OK', error: 'Error' }
+    for (const f of builtins) {
+      const row = feedRow(page, f.name)
+      await expect(row, f.name).toBeVisible()
+      await expect(row, f.name).toContainText(label[f.status])
+      for (const other of Object.values(label).filter((l) => l !== label[f.status])) await expect(row, `${f.name} must not say ${other}`).not.toContainText(other)
+      expect(await row.innerText(), f.name).not.toMatch(/1970|undefined|dial tcp|goroutine/)
+    }
     await expectAccessible(page, 'settings feeds')
     await noVietnamese(page, 'settings feeds')
     await shot(page, 'real', 'feeds-settings')
@@ -82,6 +106,7 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     test.setTimeout(120_000)
     const errors = collectErrors(page)
     const name = uniq('QA feed')
+    made.push(name)
     await page.goto(SETTINGS)
     await page.getByRole('button', { name: 'Add a feed' }).first().click()
     const dlg = page.getByRole('dialog', { name: 'Add a feed' })
@@ -128,7 +153,7 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     await toast(page, new RegExp(`${name} deleted`))
     await page.reload()
     await expect(page.getByText(name)).toHaveCount(0)
-    noErrors(errors, /status of 4\d\d/) // the refused submits are 4xx answers the form shows
+    noErrors(errors, /status of 40[09]/) // the refused submits: 400 invalid, 409 duplicate name
   })
 
   test('Test on a sample with your own text: accepted and rejected rows with numbers', async ({ page }) => {
@@ -242,7 +267,9 @@ test.describe('lookup and the CVE page with no local data (S-FEED-3)', () => {
 })
 
 // A pull of a custom feed from a loopback server inside this test: INV-2 lets http go to 127/8, and no public address is touched.
-test.describe('a feed pull from loopback (S-FEED-4, INV-8)', () => {
+// The indicator is a domain built from uniq() under a made-up TLD: normaliseIOC accepts a domain whose TLD is not reserved and not a public
+// suffix, and no public list can carry it, so "listed by <feed>" before the delete and "not listed" after it are about this feed only.
+test.describe('a feed pull from loopback (S-FEED-4, INV-4, INV-8)', () => {
   test.use({ storageState: authFile('admin') })
   let srv: Server
   let base = ''
@@ -255,59 +282,67 @@ test.describe('a feed pull from loopback (S-FEED-4, INV-8)', () => {
   test.afterAll(async () => { await new Promise((ok) => srv.close(ok)) })
 
   async function viaApi(c: APIRequestContext, name: string, path: string) {
-    const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', customBody(name, `${base}${path}`))
-    expect(made.status, JSON.stringify(made.body)).toBe(201)
-    return made.body.id
+    made.push(name)
+    const r = await api<{ id: string }>(c, 'POST', '/feeds/custom', customBody(name, `${base}${path}`))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    return r.body.id
   }
 
-  test('Fetch now pulls the list, the row shows the records, Lookup finds an address, delete removes it', async ({ page }) => {
+  test('Fetch now pulls the list, the row shows the records, Lookup says who lists it, delete removes it', async ({ page }) => {
     test.setTimeout(120_000)
     const errors = collectErrors(page)
     const name = uniq('Loopback IOC')
-    const ip = `185.220.${100 + (Date.now() % 100)}.${1 + (Date.now() % 250)}`
-    served['/ok.txt'] = { status: 200, body: `# a list\n${ip}\nnot an address\n` }
+    const ioc = `${uniq('ioc')}.zzqx`
+    served['/ok.txt'] = { status: 200, body: `# a list\n${ioc}\nnot an address\n` }
     const c = await as('admin')
-    await viaApi(c, name, '/ok.txt')
-    await page.goto(SETTINGS)
-    await page.getByRole('button', { name: `Fetch now: ${name}` }).click()
-    await toast(page, new RegExp(`Fetched ${name}: 1 record|${name}: `))
-    await expect(feedRow(page, name)).toContainText(/OK/)
-    await expect(feedRow(page, name)).toContainText('OK')
-    await page.goto(`/lookup?q=${ip}`)
-    await expect(page.getByText(/is not on the bad IP/)).toHaveCount(0)
-    await expect(page.getByText(name).first()).toBeVisible()
-    await page.goto(SETTINGS)
-    await page.getByRole('button', { name: `Delete ${name}` }).click()
-    await page.getByRole('dialog', { name: `Delete ${name}?` }).getByRole('button', { name: 'Delete' }).click()
-    await toast(page, new RegExp(`${name} deleted`))
-    await page.goto(`/lookup?q=${ip}`)
-    await expect(page.getByText(/is not on the bad IP/)).toBeVisible() // the records of a deleted feed go with it (INV-4)
-    await c.dispose()
-    noErrors(errors, /status of 4\d\d/)
+    try {
+      await viaApi(c, name, '/ok.txt')
+      await page.goto(SETTINGS)
+      await page.getByRole('button', { name: `Fetch now: ${name}` }).click()
+      await toast(page, new RegExp(`^Fetched ${name}: 1 records$`)) // the exact toast text of row.fetched
+      await expect(feedRow(page, name)).toContainText('OK')
+      await expect(feedRow(page, name)).toContainText('1 of 2 rows were rejected.')
+      const list = (await api<{ items: { name: string; records: number; status: string }[] }>(c, 'GET', '/feeds/sources')).body.items
+      expect(list.find((i) => i.name === name)).toMatchObject({ records: 1, status: 'ok' })
+      await page.goto(`/lookup?q=${ioc}`)
+      await expect(page.getByText(/is not on the bad IP/)).toHaveCount(0)
+      await expect(page.getByText('Sources', { exact: true })).toBeVisible()
+      await expect(page.locator('main').getByText(name).first()).toBeVisible() // listed by this feed
+      await page.goto(SETTINGS)
+      await page.getByRole('button', { name: `Delete ${name}` }).click()
+      await page.getByRole('dialog', { name: `Delete ${name}?` }).getByRole('button', { name: 'Delete' }).click()
+      await toast(page, new RegExp(`${name} deleted`))
+      await page.goto(`/lookup?q=${ioc}`)
+      await expect(page.getByText(`${ioc} is not on the bad IP/domain lists`)).toBeVisible() // its records went with it (INV-4)
+      await expect(page.locator('main').getByText(name)).toHaveCount(0)
+    } finally { await c.dispose() }
+    noErrors(errors)
   })
 
   test('a server that answers 500 ends in a readable error on the row', async ({ page }) => {
     const name = uniq('Loopback 500')
     served['/boom.txt'] = { status: 500, body: 'boom' }
     const c = await as('admin')
-    const id = await viaApi(c, name, '/boom.txt')
-    await page.goto(SETTINGS)
-    await page.getByRole('button', { name: `Fetch now: ${name}` }).click()
-    await expect(feedRow(page, name)).toContainText('Error')
-    expect(await feedRow(page, name).innerText()).not.toMatch(/dial tcp|goroutine|\.go:\d|sql|panic/i)
-    expect((await api(c, 'DELETE', `/feeds/custom/${id}`)).status).toBe(204)
-    await c.dispose()
+    try {
+      const id = await viaApi(c, name, '/boom.txt')
+      await page.goto(SETTINGS)
+      const fetched = page.waitForResponse((r) => r.url().endsWith(`/feeds/sources/${id}/fetch`) && r.request().method() === 'POST')
+      await page.getByRole('button', { name: `Fetch now: ${name}` }).click()
+      expect((await fetched).status()).toBeLessThan(500)
+      await expect(feedRow(page, name)).toContainText('Error')
+      expect(await feedRow(page, name).innerText()).not.toMatch(/dial tcp|goroutine|\.go:\d+|panic:|SQLITE|sql:/)
+    } finally { await c.dispose() }
   })
 
   test('a disabled feed refuses Fetch now with 409 feed_disabled (INV-8)', async () => {
     const name = uniq('Loopback off')
     const c = await as('admin')
-    const id = await viaApi(c, name, '/ok.txt')
-    expect((await api(c, 'PUT', `/feeds/custom/${id}`, { ...customBody(name, `${base}/ok.txt`), enabled: false })).status).toBe(200)
-    const r = await api(c, 'POST', `/feeds/sources/${id}/fetch`)
-    expect(r.status).toBe(409)
-    expect(r.body).toMatchObject({ error: { code: 'feed_disabled' } })
-    await api(c, 'DELETE', `/feeds/custom/${id}`)
-    await c.dispose()
+    try {
+      const id = await viaApi(c, name, '/ok.txt')
+      expect((await api(c, 'PUT', `/feeds/custom/${id}`, { ...customBody(name, `${base}/ok.txt`), enabled: false })).status).toBe(200)
+      const r = await api(c, 'POST', `/feeds/sources/${id}/fetch`)
+      expect(r.status).toBe(409)
+      expect(r.body).toMatchObject({ error: { code: 'feed_disabled' } })
+    } finally { await c.dispose() }
   })
 })

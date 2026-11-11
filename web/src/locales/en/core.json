@@ -333,6 +333,8 @@
       "response.ai_note": "AI note on a response",
       "response.ai_paused": "AI response proposals paused",
       "response.ai_resume": "AI response proposals resumed",
+      "response.plan": "AI response plan saved",
+      "response.plan_refused": "AI response plan refused",
       "response.allowlist": "Change never-touch list",
       "response.approve": "Approve response action",
       "response.blocklist.token": "Regenerate block list token",

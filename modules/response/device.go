@@ -62,6 +62,7 @@ func (s *Service) execMatches(cat catRow, it itemRec, conn ConnectionInfo) bool 
 // before runs for a minute. A run needs the switch on, the breaker closed, no stop, no maintenance window and the action still enabled. An
 // undo is the safe direction (D-88 (4)): the execution switch and the breaker do not stop it; the emergency stop does.
 func (s *Service) recheck(ctx context.Context, undo bool, actionID string) *apierr.Error {
+	orig := ctx
 	ctx = context.WithoutCancel(ctx) // the emergency stop cancels the step's context (D-179 (4)); the answer "the stop is on" must still be read
 	rdb := s.cfg.DB.Reader()
 	st, err := loadSettings(ctx, rdb)
@@ -70,6 +71,9 @@ func (s *Service) recheck(ctx context.Context, undo bool, actionID string) *apie
 	}
 	if st.StoppedAt != nil {
 		return fail(http.StatusConflict, "emergency_stop", "Held: the emergency stop is on (only an admin can resume). Nothing was sent.")
+	}
+	if orig.Err() != nil { // the step was cancelled or ran out of time while the check before ran: it is not sent (D-179 (4)), so it is not "state unknown" either
+		return fail(http.StatusConflict, "step_cancelled", "Held: the step ended before it could be sent. Nothing was sent.")
 	}
 	if undo {
 		return nil
@@ -194,6 +198,28 @@ type undoOutcome struct {
 	unclear       bool
 }
 
+// undoStepsProblem is why the stored steps of an item may not be sent as an undo, "" when they may (D-179 (3)). The rollback that goes out is
+// the one that was rendered and approved: the stored steps are held to the hash taken when the request was made, whether or not the catalog was
+// edited since (the TTL sweep sends it unattended). A change made before the hash existed has none: while its catalog entry is unchanged the steps
+// are re-rendered and compared, as before (so an in-force change from before the upgrade still expires); once the entry changed there is nothing
+// to hold them to.
+func (s *Service) undoStepsProblem(cats map[string]catRow, it itemRec, conn ConnectionInfo) string {
+	if it.Exec == nil {
+		return ""
+	}
+	cat, ok := cats[it.ActionID]
+	unchanged := ok && actionFP(cat) == it.ActionFP
+	switch {
+	case it.ExecHash != "" && execHash(it.Exec) != it.ExecHash:
+		return "The steps stored with this change do not match the hash taken when the request was made (the stored request was altered), so the undo was not sent. Undo it on the device."
+	case unchanged && !s.execMatches(cat, it, conn):
+		return "The steps stored with this change are not what its action renders (the stored request was altered), so the undo was not sent. Undo it on the device."
+	case it.ExecHash == "" && !unchanged:
+		return "This change was made before the steps were hashed and its action was edited since, so the stored steps cannot be checked and the undo was not sent. Undo it on the device."
+	}
+	return ""
+}
+
 // undoOnDevice sends the rollback of a change that is in force or whose state is unknown, and reads the device back: after the undo the read-back
 // must not hold the text it held after the change (D-95 (2)), and a read-back that printed nothing, or did not answer, is not proof (L2). An
 // undo whose outcome is unclear is retried by reading first: gone means done, present means send again, unclear means wait (L3).
@@ -201,11 +227,6 @@ func (s *Service) undoOnDevice(ctx context.Context, reqID string, it itemRec, co
 	ex := it.Exec
 	if ex == nil || ex.Rollback == nil {
 		return undoOutcome{failure: "This change was made by an older version of Vedette, so it cannot be undone from here. Undo it on the device."}
-	}
-	// D-179 (3): the rollback that goes out is the one that was rendered and approved. The TTL sweep sends it unattended, and the catalog
-	// may have been edited since (then execMatches is not asked), so the stored steps are held to the hash taken when the request was made.
-	if it.ExecHash == "" || execHash(ex) != it.ExecHash {
-		return undoOutcome{failure: "The steps stored with this change do not match the hash taken when the request was made (the stored request was altered, or it is from an older version), so the undo was not sent. Undo it on the device.", unclear: it.UndoUnclear}
 	}
 	if e := s.recheck(ctx, true, it.ActionID); e != nil {
 		return undoOutcome{failure: "The undo was not sent: " + e.Message, unclear: it.UndoUnclear}

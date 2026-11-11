@@ -65,10 +65,20 @@ func (s *Service) HostStatus() (listening bool, reason string) {
 // that the trap itself gives are no device) and the active sensor must not probe them. The set is read from the stored
 // "applied" record, so it is right right after a restart too.
 func (s *Service) DecoyIPs(ctx context.Context) []netip.Addr {
-	var applied []string
-	if err := loadJSON(ctx, s.db.Reader(), "applied", &applied); err != nil {
+	out, err := s.DecoyIPsRead(ctx)
+	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "honeypot: read applied addresses", "error", err)
 		return nil
+	}
+	return out
+}
+
+// DecoyIPsRead is DecoyIPs that says when the record cannot be read: a caller that must fail closed (response's never-touch list, D-179 (8))
+// must not take "unreadable" for "no decoys".
+func (s *Service) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
+	var applied []string
+	if err := loadJSON(ctx, s.db.Reader(), "applied", &applied); err != nil {
+		return nil, err
 	}
 	out := make([]netip.Addr, 0, len(applied))
 	for _, a := range applied {
@@ -76,7 +86,7 @@ func (s *Service) DecoyIPs(ctx context.Context) []netip.Addr {
 			out = append(out, ip)
 		}
 	}
-	return out
+	return out, nil
 }
 
 // desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the

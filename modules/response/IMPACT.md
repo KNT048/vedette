@@ -68,7 +68,8 @@
 - **FE**: `ApprovalView.ai_generated` (contract.ts, mock, `ApprovePage`).
 
 ## Modifying: `trackStep`/`stopInFlight`, `itemRec.SentAt`/`ExecHash`, `credentialBodyKey`, the earlier-approver re-check in `approve` (WP-31 R2, D-179)
-- **Người gọi**: `runItem` và `undoItem` bọc ngữ cảnh bước bằng `trackStep`; `EmergencyStop` gọi `stopInFlight` sau commit; `deviceActionsLastHour` (approve, runItem) đọc `SentAt`; `undoOnDevice` đọc `ExecHash`; `ValidateTpl` gọi `credentialBodyKey` (lưu mẫu, tải lại mẫu, kiểm trước).
+- **Người gọi**: `runItem` bọc ngữ cảnh bước bằng `trackStep` (`undoItem` không); `EmergencyStop` gọi `stopInFlight` sau commit; `deviceActionsLastHour` (approve, runItem) đọc `SentAt`; `undoOnDevice` đọc `ExecHash`; `ValidateTpl` gọi `credentialBodyKey` (lưu mẫu, tải lại mẫu, kiểm trước).
 - **Phụ thuộc xuống**: `core/conn/write` (ngữ cảnh bị huỷ giữa các dòng SSH ⇒ `unknown`/`not_sent`; `Writer.mcp` liệt kê công cụ và kiểm `Ident`), `core/conn` (`Tool.MayWrite`, `ToolIdent(desc, schema, mayWrite)`, `access=read` bị từ chối cho công cụ MayWrite), `core/conn/read` (từ chối công cụ MayWrite), `cmd/vedette/response.go` (`Config.BoxAddrs` = host + `Honeypot.DecoyIPs`).
 - **Dữ liệu**: hai trường JSON mới trên item (`sent_at`, `exec_hash`), không migration; yêu cầu cũ không có `exec_hash` thì không hoàn tác từ đây được ("undo it on the device"). `Ident` của công cụ MCP đổi dạng (hậu tố `+w`): lần Test kế tiếp coi công cụ đã lưu là mới (write, tắt) nếu hint đổi.
+- **Thêm (D-179 (8))**: `Config.BoxAddrs` đổi kiểu thành `func() ([]netip.Addr, error)`, thêm `Config.BoxMACs` (cả hai do `cmd/vedette/response.go`); `modules/honeypot` có thêm `DecoyIPsRead`; `cmd/vedette/hostmacs.go` đọc MAC từ `state/net`.
 - **Hành vi đổi**: bước đang gửi **bị huỷ** bởi dừng khẩn cấp (trước đây chạy nốt); người duyệt trước bị vô hiệu hoá không còn được tính; `max_per_hour` chặt hơn.

@@ -432,10 +432,58 @@ func ValidateTpl(t Tpl, what string) string {
 	if t.Body != "" && !json.Valid([]byte(placeholderRE.ReplaceAllString(t.Body, "0"))) {
 		return what + ": the API body must be valid JSON."
 	}
+	if key := duplicateBodyKey(t.Body); key != "" {
+		return what + ": the API body repeats the key " + key + ". Servers disagree on which value wins, so a key may appear once."
+	}
 	if key := credentialBodyKey(t.Body); key != "" {
 		return what + ": the API body key " + key + " looks like a credential. Do not put it in a template: give the connection a token and it is sent from there. A value in a template is exactly one placeholder."
 	}
 	return ""
+}
+
+// duplicateBodyKey is the first key that an object of a JSON body holds twice ("" when none, or when the body is not JSON): parsers keep the first
+// or the last value, so a credential could hide behind a duplicate of a key that looks harmless. It reads tokens, which a map does not.
+func duplicateBodyKey(body string) string {
+	if body == "" {
+		return ""
+	}
+	dec := json.NewDecoder(strings.NewReader(placeholderRE.ReplaceAllString(body, "0")))
+	var seen []map[string]bool // one per open object; nil for an array
+	var wantKey []bool         // whether the next string token in this container is a key
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return ""
+		}
+		top := len(seen) - 1
+		switch v := tok.(type) {
+		case json.Delim:
+			switch v {
+			case '{':
+				seen, wantKey = append(seen, map[string]bool{}), append(wantKey, true)
+			case '[':
+				seen, wantKey = append(seen, nil), append(wantKey, false)
+			default:
+				seen, wantKey = seen[:top], wantKey[:top]
+				if top > 0 && seen[top-1] != nil {
+					wantKey[top-1] = true // the value of a member ended: the next token is a key
+				}
+			}
+			continue
+		case string:
+			if top >= 0 && seen[top] != nil && wantKey[top] {
+				if seen[top][v] {
+					return v
+				}
+				seen[top][v] = true
+				wantKey[top] = false
+				continue
+			}
+		}
+		if top >= 0 && seen[top] != nil {
+			wantKey[top] = true // a scalar value ended
+		}
+	}
 }
 
 // bodySentinel stands for a placeholder while a JSON body is read; a body that already holds it is refused (its value could pass for one).
@@ -464,7 +512,7 @@ func credentialBodyKey(body string) string {
 			for _, k := range slices.Sorted(maps.Keys(x)) {
 				n := strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(k))
 				u := under
-				if u == "" && slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) }) {
+				if u == "" && (strings.Contains(n, "cookie") || slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) })) {
 					u = k
 				}
 				if r := walk(x[k], u); r != "" {

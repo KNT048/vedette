@@ -1245,17 +1245,12 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 				out.failure = e.Message
 				break
 			}
-			if cat, ok := cats[it.ActionID]; ok && it.Exec != nil && actionFP(cat) == it.ActionFP && !s.execMatches(cat, it, conn) {
-				out.failure = "The steps stored with this change are not what its action renders (the stored request was altered), so the undo was not sent. Undo it on the device."
+			if why := s.undoStepsProblem(cats, it, conn); why != "" {
+				out.failure = why
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			xctx, untrack := s.trackStep(xctx)
-			out = s.undoOnDevice(xctx, r.ID, it, conn)
-			if errors.Is(context.Cause(xctx), errEmergencyStop) && out.failure != "" {
-				out.failure = "Stopped by the emergency stop while the undo was being sent. " + out.failure
-			}
-			untrack()
+			out = s.undoOnDevice(xctx, r.ID, it, conn) // not tracked: the emergency stop lets an undo in flight finish (D-179 (6))
 			cancel()
 		}
 	}
@@ -1334,8 +1329,8 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 // EmergencyStop is POST /response/emergency-stop: execution off, the global circuit breaker open and every pending request
 // cancelled, in one transaction. The open breaker stops what the execution switch does not: pre-approved rules, the box actions
 // (block list, webhook, message) and every item still to run (fire and runItem read it per rule and per item); only an admin
-// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A step that is already running finishes;
-// the next one reads the switch and the breaker.
+// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A run step that is being sent is cancelled
+// (D-179 (4)); an undo step that is being sent finishes (an undo is the safe direction, D-88 (4)), and the next undo is blocked by the stop.
 func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	cancelled := 0
 	var fx effects
@@ -1374,16 +1369,16 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.stopInFlight() // right after the commit, before the notifications: a step that reads the flag from now on sees it, one that already left is cancelled
 	s.run(ctx, &fx)
-	s.stopInFlight() // after the commit: a step that reads the flag from now on sees it, one that already left is cancelled
 	return cancelled, nil
 }
 
 // errEmergencyStop is the cause of the cancel that the emergency stop sends to a step in flight.
 var errEmergencyStop = errors.New("emergency stop")
 
-// trackStep makes ctx cancellable by the emergency stop until untrack is called (D-179 (4)). The executor sees the cancel as its context
-// ending: the SSH writer sends no further line, and the item ends as "stopped", state unknown.
+// trackStep makes ctx of a run step cancellable by the emergency stop until untrack is called (D-179 (4)); an undo is not tracked (D-179 (6)).
+// The executor sees the cancel as its context ending: the SSH writer sends no further line, and the item ends as "stopped", state unknown.
 func (s *Service) trackStep(ctx context.Context) (context.Context, func()) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	key := &cancel

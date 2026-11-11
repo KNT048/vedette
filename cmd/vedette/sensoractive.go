@@ -202,17 +202,22 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 }
 
 func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, error) {
-	l, err := a.inv.Devices(ctx)
+	m, err := a.inv.AddressMap(ctx) // uncapped (D-178)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[netip.Addr]string, len(l.Items))
-	for _, d := range l.Items {
-		if ip, err := netip.ParseAddr(d.IP); err == nil {
-			out[ip] = d.ID
+	out := make(map[netip.Addr]string, len(m))
+	for s, id := range m {
+		if ip, err := netip.ParseAddr(s); err == nil {
+			out[ip] = id
 		}
 	}
 	return out, nil
+}
+
+// KnownMACs is every MAC the inventory has, uncapped: the sweep charges only MACs not in it (L8).
+func (a sensorInventory) KnownMACs(ctx context.Context) ([]string, error) {
+	return a.inv.KnownMACs(ctx)
 }
 
 // ProtectedIPs is the inventory's list plus the box's own addresses: the sweep must not probe the machine it runs on

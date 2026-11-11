@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
@@ -14,6 +15,8 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
+	"github.com/knt048/vedette/modules/scan/nucleiout"
+	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
 var (
@@ -44,6 +47,13 @@ func scanService(d deps) *scan.Service {
 		cfg.Publisher = d.Bus
 	}
 	cfg.KEV = scanKEV{feedsKEV{&d}} // the catch-up of new_kev the bus did not bring (S4b, D-144)
+	if d.SensorDispatcher != nil {  // S5: the worker in the scan container, over the sensor link, against the pack of its image
+		ix, err := nucleipack.Index()
+		if err != nil { // a test holds the committed index to pack.Parse: a programming error
+			panic("vedette: the embedded nuclei pack index: " + err.Error())
+		}
+		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, ix
+	}
 	svc, err := scan.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
@@ -197,4 +207,22 @@ func (k scanKEV) NewKEVSince(ctx context.Context, at time.Time, cve string, limi
 		out[i] = scan.AnnouncedKEV{NewKEV: scan.NewKEV{CVE: e.CVE, Vendor: e.Vendor, Product: e.Product, HasTemplate: e.HasTemplate}, At: e.At}
 	}
 	return out, nil
+}
+
+// scanEngine is the scan container's worker as scan sees it (scan.Engine, S5): the Dispatcher of sensor-active, over the
+// sensor protocol (D-125). A run goes out as template ids of the pack core planned with; the Dispatcher checks the
+// grammar again, refuses a job planned for another pack before anything is sent (D-133 (4)), and parses nuclei's lines
+// fail closed. "Cannot run any job now" (the worker gone or not ready, another pack, a pack that failed its integrity
+// check) is handed to scan as scan.ErrEngineDown, so the run stops with the Dispatcher's message.
+type scanEngine struct{ d sensoractive.Scanner }
+
+func (e scanEngine) Ready(ctx context.Context) error { return e.d.Ready(ctx) }
+
+func (e scanEngine) Run(ctx context.Context, j scan.Job) ([]nucleiout.Result, error) {
+	res, err := e.d.RunNuclei(ctx, sensoractive.NucleiRequest{PackVersion: j.PackVersion, PackSHA256: j.PackSHA256, Templates: j.IDs,
+		Targets: j.Targets, Rate: j.Rate, MaxHostErrors: j.MaxHostErrors})
+	if errors.Is(err, sensoractive.ErrScannerUnavailable) || errors.Is(err, sensoractive.ErrPackMismatch) || errors.Is(err, sensoractive.ErrPackInvalid) {
+		return nil, fmt.Errorf("%w: %w", scan.ErrEngineDown, err)
+	}
+	return res, err
 }

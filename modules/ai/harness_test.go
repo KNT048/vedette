@@ -621,14 +621,18 @@ func TestContract_INV12_AfterAIBlockInAnyFieldBlocksTheAnswer(t *testing.T) {
 }
 
 func TestContract_INV12_AManyMatchHookIsABlockAndTheRowIsStillWritten(t *testing.T) {
-	a := newAPI(t)
+	// a generous deadline: this test is about the match cap, never about time, so a loaded machine cannot change what it sees
+	e := newEnv(t)
+	e.hookTimeout = time.Minute
+	e.svc = e.newService()
+	a := &api{env: e, h: e.handler(servertest.NewGate())}
 	a.withProfile()
 	// leftmost-first alternation: the scan restarts after every match and reads to the end each time, so the number of matches is capped
-	a.fake.setAnswer(`{"why":"` + strings.Repeat("a ", 4000) + `","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`)
+	a.fake.setAnswer(`{"why":"` + strings.Repeat("a ", 1500) + `","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Slow", "after_ai", "regex", `.*z|a`, "mask", "A is removed."), 200, "")
 	a.explain("CVE-2022-27593", 409, "ai_unavailable")
 	rows := a.activity()
-	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 || len(rows[0].Hooks) != 1 {
+	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 || len(rows[0].Hooks) != 1 || !strings.Contains(rows[0].Summary, "too many matches") {
 		t.Fatalf("rows = %+v", rows)
 	}
 	if c := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"]; c != nil {

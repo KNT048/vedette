@@ -563,8 +563,8 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/ending in/)).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Test connection' }))
-    expect(await screen.findByText('Read the IdP\'s OIDC configuration.')).toBeInTheDocument()
-    expect(within(screen.getByLabelText('Endpoints read from the identity provider')).getByText('Signing keys')).toBeInTheDocument()
+    expect(await screen.findByText('Read the identity provider\'s OIDC configuration.')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Endpoints read from the identity provider' })).getByText('Signing keys')).toBeInTheDocument()
     expect(auditStore.get().map((r) => r.action)).toEqual(expect.arrayContaining(['oidc.update', 'oidc.test']))
     await expectNoA11yViolations()
   })
@@ -675,7 +675,7 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
     server.events.on('request:start', seen)
     try {
       renderApp('/sso/callback?error=access_denied&state=x', { role: null })
-      expect(await screen.findByRole('alert')).toHaveTextContent('Your identity provider did not sign you in (access_denied).')
+      expect(await screen.findByRole('alert')).toHaveTextContent('Your identity provider did not sign you in (access_denied). Try again')
     } finally { server.events.removeListener('request:start', seen) }
     expect(calls).not.toContain('/api/v1/auth/oidc/callback')
   })

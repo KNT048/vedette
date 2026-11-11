@@ -155,9 +155,12 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
       {endpoints ? (
-        <dl className="grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-[13px]" aria-label={t('oidc.endpoints')}>
+        <section className="grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-[13px]" aria-labelledby="oidc-endpoints">
+          <h3 id="oidc-endpoints" className="text-sm font-medium">{t('oidc.endpoints')}</h3>
+          <dl className="grid gap-1">
           {Object.entries(endpoints).map(([k, url]) => <div key={k} className="grid gap-x-3 sm:grid-cols-[110px_1fr]"><dt className="text-muted">{t(`oidc.endpoint.${k}`, { defaultValue: k })}</dt><dd className="break-all font-mono">{url}</dd></div>)}
-        </dl>
+          </dl>
+        </section>
       ) : null}
     </form>
   )

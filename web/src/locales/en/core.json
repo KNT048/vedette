@@ -147,7 +147,7 @@
     "disabledToast": "SSO sign-in is off. The settings are kept.",
     "redirect": "Redirect URI: register this address at your identity provider",
     "issuer": "Issuer",
-    "issuerHint": "The https address of your IdP, where /.well-known/openid-configuration lives.",
+    "issuerHint": "The https address of your identity provider, where /.well-known/openid-configuration lives.",
     "clientId": "Client ID",
     "secret": "Client secret",
     "secretHint": "Enter to save. After saving only the last 4 characters show.",
@@ -161,7 +161,7 @@
     "mapRemove": "Remove row {{n}}",
     "mapAdd": "Add row",
     "test": "Test connection",
-    "testOk": "Read the IdP's OIDC configuration.",
+    "testOk": "Read the identity provider's OIDC configuration.",
     "saveFirst": "Save the settings before testing",
     "noAccess": "No access",
     "scopes": "Scopes",
@@ -1514,7 +1514,7 @@
     "title": "Signing you in",
     "working": "Checking the answer from your identity provider…",
     "failed": "SSO sign-in did not work",
-    "idpError": "Your identity provider did not sign you in ({{error}}).",
+    "idpError": "Your identity provider did not sign you in ({{error}}). Try again from the sign-in page; if it keeps happening, ask an administrator.",
     "missing": "This page needs the answer from your identity provider. Start again from the sign-in page.",
     "back": "Back to sign in"
   }

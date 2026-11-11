@@ -328,6 +328,7 @@ func startE2EBare(ctx context.Context, t testing.TB, dir string) e2eReady {
 // TestE2EBoxHarnessHost runs in CI: the box with the fake host starts on the host's data folder, the bare box answers beside it, the
 // control endpoint wants its token, and both stop on cancel.
 func TestE2EBoxHarnessHost(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(t.Context())
 	host := startE2EHost(t)

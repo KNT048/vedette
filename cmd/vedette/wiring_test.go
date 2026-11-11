@@ -44,7 +44,7 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	t.Helper()
 	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), log)
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), log)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,10 +55,6 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	}
 	t.Cleanup(func() { _ = logsDB.Close() })
 	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
-		t.Fatal(err)
-	}
-	wired := wiredModules()
-	if err := migrateAll(ctx, db, wired); err != nil {
 		t.Fatal(err)
 	}
 	aud := audit.New(nil)

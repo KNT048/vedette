@@ -33,14 +33,11 @@ import (
 func moduleSchema(t *testing.T) map[string][][2]string {
 	t.Helper()
 	ctx := t.Context()
-	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := migrateAll(ctx, db, wiredModules()); err != nil {
-		t.Fatal(err)
-	}
 	rows, err := db.Reader().QueryContext(ctx, `SELECT m.name, p.name, p.type FROM sqlite_master m, pragma_table_info(m.name) p
 		WHERE m.type = 'table' AND m.name NOT GLOB 'sqlite_*' AND m.name NOT GLOB 'core_migration_*' ORDER BY m.name, p.cid`)
 	if err != nil {

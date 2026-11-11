@@ -426,6 +426,7 @@ func TestE2EBaseURLSeam(t *testing.T) {
 
 // TestE2EBoxHarness runs in CI: the box starts, answers, writes ready.json, and stops on cancel without an error line in its log.
 func TestE2EBoxHarness(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)

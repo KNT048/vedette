@@ -49,6 +49,8 @@ type Service struct {
 	afterChunk    func()
 	// afterStart, when set by a test, runs right after the "logs.purge_started" row is written.
 	afterStart func()
+	// afterSum, when set by a test, runs in resync after the sum is read, while the read transaction is still open.
+	afterSum func()
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

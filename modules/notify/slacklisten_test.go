@@ -126,7 +126,7 @@ func (f *fakeSlack) socket(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer c.CloseNow()
+	defer func() { _ = c.CloseNow() }()
 	sc := &slackConn{out: make(chan []byte, 16)}
 	f.conns <- sc
 	ctx, cancel := context.WithCancel(r.Context())
@@ -309,9 +309,9 @@ func (se *slEnv) listen() (*slackConn, func() error) {
 	return se.sl.conn(se.t), stop
 }
 
-func (se *slEnv) request(id string) {
+func (se *slEnv) request() {
 	se.t.Helper()
-	if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq(id, channel.Slack)); err != nil {
+	if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq("act-1", channel.Slack)); err != nil {
 		se.t.Fatal(err)
 	}
 }
@@ -330,7 +330,7 @@ func (se *slEnv) noDecision(t *testing.T) {
 
 func TestContract_PRE8_SlackApprovalIsPostedWithButtonsAndKeptByTS(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	if len(se.sl.posts) != 1 {
 		t.Fatalf("posts = %d", len(se.sl.posts))
 	}
@@ -375,7 +375,7 @@ func TestContract_PRE8_SlackRequestWithoutChatButtonsUsesTheWebhookOnly(t *testi
 
 func TestContract_POST8_SlackPressIsDecidedAndAnsweredPrivately(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	c.out <- slPress{}.json()
 	se.sl.ack(t, "env-1")
@@ -407,7 +407,7 @@ func TestContract_POST8_SlackPressIsDecidedAndAnsweredPrivately(t *testing.T) {
 
 func TestContract_PRE8_SlackPressNotOursIsNeverDecided(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	// Other workspace and other channel: acknowledged, ignored, no reply.
 	c.out <- slPress{env: "e1", team: "T0OTHER001"}.json()
@@ -442,7 +442,7 @@ func TestContract_PRE8_SlackPressNotOursIsNeverDecided(t *testing.T) {
 
 func TestContract_PRE8_SlackPressAfterTheRequestEndedIsNotDecided(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	se.clock.Add(16 * time.Minute)
 	c.out <- slPress{}.json()
@@ -455,7 +455,7 @@ func TestContract_PRE8_SlackPressAfterTheRequestEndedIsNotDecided(t *testing.T) 
 
 func TestContract_SYS2_SlackReplyAddressIsHooksSlackComOnly(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	for i, u := range []string{
 		"https://hooks.slack.com.evil.example/actions/T0/1/a", "http://hooks.slack.com/actions/T0/1/a", "https://hooks.slack.com:8443/actions/T0/1/a",
@@ -557,7 +557,7 @@ func TestContract_SLACK_TeamIsLearnedOncePerRevision(t *testing.T) {
 func TestContract_SLACK_DecideErrorAnswersAFixedText(t *testing.T) {
 	se := newSLEnv(t)
 	se.dec.set(notify.DecisionResult{}, context.DeadlineExceeded)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	c.out <- slPress{}.json()
 	se.sl.ack(t, "env-1")
@@ -578,7 +578,7 @@ func (se *slEnv) noDecisionEvent(t *testing.T) {
 
 func TestContract_SLACK_ARepeatedEnvelopeIsDecidedOnce(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	c.out <- slPress{}.json()
 	c.out <- slPress{}.json() // Slack sends the same envelope again when its ack came late
@@ -595,7 +595,7 @@ func TestContract_SLACK_ARepeatedEnvelopeIsDecidedOnce(t *testing.T) {
 
 func TestContract_SLACK_PressAfterTheChannelWasTurnedOffIsNotDecided(t *testing.T) {
 	se := newSLEnv(t)
-	se.request("act-1")
+	se.request()
 	c, _ := se.listen()
 	se.saveSlack(false) // approvals off: the open connection must not decide any more, even before the watcher closes it
 	c.out <- slPress{}.json()

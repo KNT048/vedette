@@ -150,7 +150,7 @@ func checkSocketURL(raw string) error {
 	bad := &ProviderError{Channel: Slack, Reason: "Slack gave a connection address that is not Slack's"}
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "wss" || u.User != nil || u.Fragment != "" || (u.Port() != "" && u.Port() != "443") ||
-		!(strings.HasPrefix(u.Path, "/link") && !strings.Contains(u.Path, "..")) {
+		!strings.HasPrefix(u.Path, "/link") || strings.Contains(u.Path, "..") {
 		return bad
 	}
 	switch strings.ToLower(u.Hostname()) {
@@ -172,7 +172,10 @@ func (b *SlackBot) Dial(ctx context.Context, wssURL string) (*SlackConn, error) 
 	}
 	ctx, cancel := context.WithTimeout(ctx, slackDialWait)
 	defer cancel()
-	c, _, err := websocket.Dial(ctx, wssURL, &websocket.DialOptions{HTTPClient: b.client})
+	c, resp, err := websocket.Dial(ctx, wssURL, &websocket.DialOptions{HTTPClient: b.client})
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, context.Canceled):

@@ -414,7 +414,7 @@ func failureText(r api.Run) string {
 		case api.CodeHealthCheckFailed:
 			return "The updates were installed but a health check failed afterwards. Check the services on the box."
 		case api.CodeTimeout:
-			return "The box lost contact with its operating system helper before the update finished. Check the box, then try again."
+			return "The update took too long or the box lost contact with its operating system helper, so it was stopped. Check the box, then try again."
 		}
 		if r.Error.Message != "" {
 			return "The update did not finish: " + r.Error.Message

@@ -59,6 +59,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
+	on(EventDecisionMade, s.decisionEvent)
 	return func() {
 		for _, u := range undo {
 			u()

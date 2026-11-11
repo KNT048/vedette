@@ -50,6 +50,9 @@ type e2eReady struct {
 	HostToken     string `json:"host_token,omitempty"`
 	BareURL       string `json:"bare_url,omitempty"`
 	BareSetupCode string `json:"bare_setup_code,omitempty"`
+	// sensorBin (slice 7, VEDETTE_E2E_SENSOR) is the vedette-sensor binary: set, the box opens its sensor link and the control endpoint
+	// starts the sensors (e2esensor_test.go). Not part of ready.json.
+	sensorBin string
 	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
 	devs    *e2eDevices               // not in ready.json: the control routes of this box (nil: the bare box has none)
@@ -67,6 +70,8 @@ type e2eLog struct {
 	sent  bool
 	dir   string
 	err   error
+	// onLink gets the address of the sensor link when core logs that it listens (slice 7); nil without sensors
+	onLink func(addr string)
 }
 
 func (l *e2eLog) Write(p []byte) (int, error) {
@@ -99,6 +104,10 @@ func (l *e2eLog) line(b []byte) {
 	switch {
 	case e.SetupCode != "":
 		l.ready.SetupCode, l.code = e.SetupCode, true
+	case e.Msg == "sensor link listening" && e.Addr != "":
+		if l.onLink != nil {
+			l.onLink(e.Addr)
+		}
 	case e.Msg == "listening" && e.Addr != "":
 		l.ready.BaseURL, l.addr = "http://"+e.Addr, true
 	}
@@ -145,7 +154,12 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	defer func() { _ = f.Close() }()
 	defer e2eOffline()()
 	seed.DataDir, seed.HoneypotDir = data, hp
-	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &seed)
+	var sensors *e2eSensors
+	if seed.sensorBin != "" {
+		sensors = newE2ESensors(ctx, seed.sensorBin, dir)
+		defer sensors.stopAll()
+	}
+	stopControl, err := startE2EControl(ctx, filepath.Join(data, "vedette.db"), &seed, sensors)
 	if err != nil {
 		return err
 	}
@@ -154,6 +168,10 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", "127.0.0.1:0", "-host-socket", hostSocket, "-honeypot-dir", hp,
+	}
+	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
+		log.onLink = sensors.linkUp
+		args = append(args, "-sensor-listen", "127.0.0.1:0", "-sensor-creds", sensors.creds)
 	}
 	runErr := run(ctx, args, io.Discard, log)
 	log.mu.Lock()
@@ -304,6 +322,7 @@ func TestE2EBox(t *testing.T) {
 		bare := startE2EBare(ctx, t, dir)
 		seed = e2eReady{HostControl: host.ctlURL, HostToken: host.ctlToken, BareURL: bare.BaseURL, BareSetupCode: bare.SetupCode}
 	}
+	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
 	seed.Devices, seed.devs = logins, devs
 	data, sock := "", ""
 	if host != nil {
@@ -432,7 +451,7 @@ func TestE2EBoxHarness(t *testing.T) {
 //	POST /exposure/prober, /exposure/txt, /exposure/scan: the exposure fakes (e2eexposure_test.go, #263)
 //
 // It fills ready.SMTPPort, Control and ControlToken. Everything here is in a _test.go file: the production binary has none of it.
-func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop func(), err error) {
+func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady, sensors *e2eSensors) (stop func(), err error) {
 	sink, err := listenSMTPSink(ctx)
 	if err != nil {
 		return nil, err
@@ -474,6 +493,9 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady) (stop 
 		w.WriteHeader(http.StatusNoContent)
 	})
 	e2eExposureRoutes(mux)
+	if sensors != nil {
+		sensors.routes(mux)
+	}
 	if ready.devs != nil {
 		ready.devs.routes(mux)
 	}

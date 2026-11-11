@@ -75,8 +75,11 @@ func (s *Service) unavailable(job Job, reasons []string) error {
 	return apiUnavailable(fmt.Sprintf("No AI profile could answer %s (%s). Check the profiles in Settings, AI assistant, or add a fallback.", job.Name(), strings.Join(reasons, "; ")))
 }
 
-// Ready reports why a job cannot run now: nil when a profile is assigned, usable and allowed for it.
+// Ready reports why a job cannot run now: nil when its skill is on and a profile is assigned, usable and allowed for it.
 func (s *Service) Ready(job Job) error {
+	if err := s.skillOff(job); err != nil {
+		return err
+	}
 	cands, reasons := s.router.Candidates(job)
 	if len(cands) > 0 {
 		return nil
@@ -226,6 +229,14 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	// One generation of the rules and hooks for the whole call: the answer is checked by the hooks that checked the question.
 	har := s.harness.Load()
 	hooks := har.runner
+	// What an administrator keeps in memory goes with the data, so the before-AI hooks see it as they see every other block (INV-8).
+	memBlock, memIDs, err := s.memoryBlock(ctx, spec.Job)
+	if err != nil {
+		return JobResult{}, err
+	}
+	if len(memIDs) > 0 {
+		spec.Data = append([]DataBlock{memBlock}, spec.Data...)
+	}
 	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
 	entry.Hooks = hookNames
 	if stop != "" {
@@ -287,6 +298,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 			return err
 		}
 		id = sealed.ID
+		if err := touchMemory(ctx, tx, memIDs, store.FormatTS(s.cfg.Clock())); err != nil {
+			return err
+		}
 		if res.Downgrade != nil {
 			if err := s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade); err != nil {
 				return err

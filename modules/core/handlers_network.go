@@ -79,6 +79,8 @@ type NetworkConfig struct {
 	// AfterFunc runs f after d (nil: time.AfterFunc); the tests hold it back.
 	AfterFunc func(d time.Duration, f func())
 	Clock     func() time.Time // nil: time.Now
+	// Gate is shut while a factory reset runs: every host write then answers 409 busy (N4). nil = never shut.
+	Gate *PurgeGate
 }
 
 // NetworkHandlers implements the Box network operations of Settings (S-CORE-8, D-56: /core/network*; the routes
@@ -87,6 +89,7 @@ type NetworkConfig struct {
 // only what the host does not know (the SPAN switches, filters and limits, and the old address of a change that
 // waits for confirmation). Nothing here runs a command itself (SYS-1).
 type NetworkHandlers struct {
+	gate    *PurgeGate
 	db      *store.DB
 	auth    *auth.Service
 	audit   *audit.Log
@@ -135,7 +138,7 @@ func NewNetworkHandlers(c NetworkConfig) (*NetworkHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &NetworkHandlers{db: c.DB, auth: c.Auth, audit: c.Audit, log: c.Log, host: c.Host, sensor: c.Sensor, taken: c.AddressInUse, changed: c.AddressesChanged, now: c.Clock}
+	h := &NetworkHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, log: c.Log, host: c.Host, sensor: c.Sensor, taken: c.AddressInUse, changed: c.AddressesChanged, now: c.Clock}
 	h.cache.pps, h.cache.prev = map[string]int{}, map[string]rxSample{}
 	h.after = func(d time.Duration, f func()) { time.AfterFunc(d, f) }
 	if c.AfterFunc != nil {
@@ -813,6 +816,11 @@ func (h *NetworkHandlers) record(ctx context.Context, c caller, admin bool, acti
 
 // act records the intent, runs fn and, when fn fails, records that too.
 func (h *NetworkHandlers) act(ctx context.Context, c caller, action, target, detail string, fn func(ctx context.Context, requestID, actor string) error) error {
+	leave, ok := h.gate.Enter() // held for the whole call (L1)
+	if !ok {                    // a purge is running (N4)
+		return errPurging()
+	}
+	defer leave()
 	if err := h.record(ctx, c, true, action, target, detail); err != nil {
 		return err
 	}

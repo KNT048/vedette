@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -29,7 +30,20 @@ type DB struct {
 	r    *sql.DB
 	path string // absolute path of the database file
 	log  *slog.Logger
+	// frozen makes every later Write fail: the factory reset sets it inside its own transaction, so nothing (a job, a request) can
+	// write between the wipe and the process stopping (D-154). It is not a lock for normal use.
+	frozen atomic.Bool
 }
+
+// ErrFrozen is what Write answers while the database is frozen.
+var ErrFrozen = errors.New("store: the database is frozen: the box is being reset")
+
+// Freeze makes every Write that starts after the current one commits fail with ErrFrozen. Call it from inside a Write callback; if
+// that transaction then fails to commit, call Unfreeze.
+func (db *DB) Freeze() { db.frozen.Store(true) }
+
+// Unfreeze undoes Freeze.
+func (db *DB) Unfreeze() { db.frozen.Store(false) }
 
 // Open opens the database at path. A missing file is created with mode 0600; an existing file
 // with any group or other permission bit is refused (it holds audit data and encrypted secrets).
@@ -141,6 +155,12 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	if err != nil {
 		return fmt.Errorf("store: begin: %w", err)
 	}
+	if db.frozen.Load() { // checked with the write lock held: a writer that queued behind the purge lands here
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+			db.log.ErrorContext(ctx, "rollback failed", "error", rbErr)
+		}
+		return ErrFrozen
+	}
 	committed := false
 	defer func() {
 		if committed {
@@ -231,6 +251,20 @@ func (db *DB) SnapshotTo(ctx context.Context, path string) error {
 	if _, err := src.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
 		_ = os.Remove(path)
 		return fmt.Errorf("store: snapshot: %w", err)
+	}
+	return nil
+}
+
+// Compact rewrites the database file without its free pages and truncates the write-ahead log, so rows that were
+// deleted are no longer in the bytes on disk (the factory reset, D-154). It is VACUUM on the writer connection, outside
+// a transaction, so it waits for the writer like any write. A reader that is still open holds the truncate back: the log
+// is then shortened at its next checkpoint, and that is not an error.
+func (db *DB) Compact(ctx context.Context) error {
+	if _, err := db.w.ExecContext(ctx, "VACUUM"); err != nil {
+		return fmt.Errorf("store: compact: %w", err)
+	}
+	if _, err := db.w.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		return fmt.Errorf("store: compact: %w", err)
 	}
 	return nil
 }

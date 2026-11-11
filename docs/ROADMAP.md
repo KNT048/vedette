@@ -27,10 +27,10 @@ Bảng mốc ở trên không ghi trạng thái; đây là tình hình theo gói
 | M3 Kiểm kê + Giảm thiểu | **backend xong phần chính** | `sensor-passive` (WP-11), `sensor-active` (WP-12), giao thức sensor mTLS SP-0…SP-4 xong; `mitigation` + `findings` (WP-21, #44) đã merge. SP-3b (#151) và SP-5a (#158) xong; chưa làm: SP-5b (đang làm), SP-6 |
 | M4 Bề mặt ngoài + Quét | **đang làm** (Emily) | WP-23: `exposure` + tự dò IP (#91) xong; `scan` đã xong S0–S3 (#127, #131, #138, #154), S4 là #164 đang mở; phía sensor SP-3b xong (#151) |
 | M5 Honeypot + Log | **honeypot xong, log chưa** | WP-14 xong (#72); WP-24 `logs`: chưa có PR merge; xuất log của core xong (#137) |
-| M6 AI BYOK | **đang làm** (Emily) | WP-25a thư viện AI (#16) xong; WP-25 lát 1 xong (#123); phía Kiên: reader chỉ đọc `core/conn/read` (#126) và đề xuất AI `Propose` (#113) xong, 13b-11 chờ WP-25 |
+| M6 AI BYOK | **đang làm** (Emily) | WP-25a thư viện AI (#16) xong; WP-25 lát 1 xong (#123); phía Kiên: reader chỉ đọc `core/conn/read` (#126) và đề xuất AI `Propose` (#113) xong, 13b-11 xong (D-181) |
 | M7 Mid/Enterprise/MSP | chưa bắt đầu | WP-26, WP-27 chưa có PR |
 
-Phía response (WP-13): 13a xong (#74), 13b đường găng xong (#105: đẩy cấu hình lên thiết bị chạy được khi AI tắt), 13b-8 (duyệt qua chat) xong (#143, D-135), 13b-11 chờ WP-25. Giai đoạn 3: WP-08, WP-30, WP-31, WP-32 chưa làm; WP-08 chờ khoá phát hành offline và VM lab của kien.
+Phía response (WP-13): 13a xong (#74), 13b đường găng xong (#105: đẩy cấu hình lên thiết bị chạy được khi AI tắt), 13b-8 (duyệt qua chat) xong (#143, D-135), 13b-11 xong (D-181). Giai đoạn 3: WP-08, WP-30, WP-31, WP-32 chưa làm; WP-08 chờ khoá phát hành offline và VM lab của kien.
 
 ## Nguyên tắc chuyển mốc
 - Mỗi mốc kết thúc bằng: completion-log entry, decisions, deferred file dọn sạch, demo ghi hình.

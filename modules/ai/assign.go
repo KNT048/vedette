@@ -110,7 +110,8 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 	for _, j := range Jobs() {
 		var ok []Profile
 		for _, p := range sn.profiles {
-			if asg.Allowed(j, p.Profile) {
+			// response-plan is opt-in (D-181): Suggest then Save must not switch it on, as AddProfile does not.
+			if j != JobResponsePlan && asg.Allowed(j, p.Profile) {
 				ok = append(ok, p.Profile)
 			}
 		}

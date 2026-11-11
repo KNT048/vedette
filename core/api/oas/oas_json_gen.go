@@ -45950,6 +45950,14 @@ func (s *CorePostCoreDataPurgeOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreDataPurgeOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("kept")
+		e.ArrStart()
+		for _, elem := range s.Kept {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("ok")
 		e.Bool(true)
 	}
@@ -45959,9 +45967,10 @@ func (s *CorePostCoreDataPurgeOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreDataPurgeOK = [2]string{
-	0: "ok",
-	1: "removed",
+var jsonFieldsNameOfCorePostCoreDataPurgeOK = [3]string{
+	0: "kept",
+	1: "ok",
+	2: "removed",
 }
 
 // Decode decodes CorePostCoreDataPurgeOK from json.
@@ -45973,8 +45982,26 @@ func (s *CorePostCoreDataPurgeOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "ok":
+		case "kept":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Kept = make([]CorePostCoreDataPurgeOKKeptItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreDataPurgeOKKeptItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Kept = append(s.Kept, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kept\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ok = bool(v)
@@ -45986,7 +46013,7 @@ func (s *CorePostCoreDataPurgeOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ok\"")
 			}
 		case "removed":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Removed.Decode(d); err != nil {
 					return err
@@ -46005,7 +46032,7 @@ func (s *CorePostCoreDataPurgeOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -46047,6 +46074,48 @@ func (s *CorePostCoreDataPurgeOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreDataPurgeOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreDataPurgeOKKeptItem as json.
+func (s CorePostCoreDataPurgeOKKeptItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreDataPurgeOKKeptItem from json.
+func (s *CorePostCoreDataPurgeOKKeptItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreDataPurgeOKKeptItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreDataPurgeOKKeptItem(v) {
+	case CorePostCoreDataPurgeOKKeptItemHostBackups:
+		*s = CorePostCoreDataPurgeOKKeptItemHostBackups
+	case CorePostCoreDataPurgeOKKeptItemKeyNotReplaced:
+		*s = CorePostCoreDataPurgeOKKeptItemKeyNotReplaced
+	case CorePostCoreDataPurgeOKKeptItemHoneypotLog:
+		*s = CorePostCoreDataPurgeOKKeptItemHoneypotLog
+	default:
+		*s = CorePostCoreDataPurgeOKKeptItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreDataPurgeOKKeptItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreDataPurgeOKKeptItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -46117,13 +46186,25 @@ func (s *CorePostCoreDataPurgeReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreDataPurgeReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.Code.Set {
+			e.FieldStart("code")
+			s.Code.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("confirm")
 		e.Str(s.Confirm)
 	}
+	{
+		e.FieldStart("password")
+		e.Str(s.Password)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreDataPurgeReq = [1]string{
-	0: "confirm",
+var jsonFieldsNameOfCorePostCoreDataPurgeReq = [3]string{
+	0: "code",
+	1: "confirm",
+	2: "password",
 }
 
 // Decode decodes CorePostCoreDataPurgeReq from json.
@@ -46135,8 +46216,18 @@ func (s *CorePostCoreDataPurgeReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "code":
+			if err := func() error {
+				s.Code.Reset()
+				if err := s.Code.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
 		case "confirm":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Confirm = string(v)
@@ -46146,6 +46237,18 @@ func (s *CorePostCoreDataPurgeReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confirm\"")
+			}
+		case "password":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Password = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -46157,7 +46260,7 @@ func (s *CorePostCoreDataPurgeReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

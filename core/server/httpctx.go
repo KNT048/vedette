@@ -26,6 +26,43 @@ func withExchange(ctx context.Context, w http.ResponseWriter, r *http.Request) c
 	return context.WithValue(ctx, exchangeKey{}, Exchange{R: r, W: w})
 }
 
+// typedWriter lets a handler choose the media type of a file download. The generated encoder of a "file" response sets
+// application/octet-stream itself, after the handler has returned, so a header set by the handler is overwritten; this writer puts
+// the handler's choice (Exchange.SetContentType) back when the status line is written. It passes everything else through, and
+// Unwrap lets http.ResponseController reach the connection (write deadlines).
+type typedWriter struct {
+	http.ResponseWriter
+	ct    string
+	wrote bool
+}
+
+func (t *typedWriter) WriteHeader(code int) {
+	if !t.wrote {
+		t.wrote = true
+		if t.ct != "" {
+			t.Header().Set("Content-Type", t.ct)
+		}
+	}
+	t.ResponseWriter.WriteHeader(code)
+}
+
+func (t *typedWriter) Write(b []byte) (int, error) {
+	if !t.wrote {
+		t.WriteHeader(http.StatusOK)
+	}
+	return t.ResponseWriter.Write(b) //nolint:wrapcheck // the connection's own error
+}
+
+func (t *typedWriter) Unwrap() http.ResponseWriter { return t.ResponseWriter }
+
+// SetContentType makes the response a download of that media type, whatever the generated encoder sets. Call it before the
+// handler returns, and only on success.
+func (e Exchange) SetContentType(ct string) {
+	if t, ok := e.W.(*typedWriter); ok {
+		t.ct = ct
+	}
+}
+
 // ExchangeFrom returns the HTTP exchange the server put in the context of an API request.
 func ExchangeFrom(ctx context.Context) (Exchange, bool) {
 	e, ok := ctx.Value(exchangeKey{}).(Exchange)

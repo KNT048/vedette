@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -44,6 +44,9 @@ help:
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
 	@echo "make images       build sensor, scan-base and core for PLATFORMS=linux/amd64,linux/arm64 as one manifest list each, without CPU emulation (WP-08d, D-158); PLATFORMS=linux/amd64 needs no binfmt; no push"
+	@echo "make sbom         CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
+	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
+	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -81,6 +84,7 @@ verify-go-static:
 	go build ./...
 	go vet ./...
 	$(MAKE) generate-check contract lint-go test-go-shards-check
+	$(MAKE) notices-check NOTICES_WEB_LICENSES=0
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
 generate: generate-sql generate-api
@@ -263,6 +267,28 @@ host-deb: check-min-sequence
 # and checks the effects (scripts/dev/host-deb-check.sh). Pulls images and runs apt in them: opt-in, not in `make check` or CI.
 host-deb-check:
 	scripts/dev/host-deb-check.sh
+
+# Supply chain (WP-08i, D-159): the tool is trivy, the official image pinned by digest in deploy/tools.env, run with $(CONTAINER); its vulnerability
+# database (1.7 GB) lands in $(TRIVY_CACHE_DIR), on disk, never /tmp (the maintainer's own download, not a product flow). They scan the local images of `make images` (every platform of
+# PLATFORMS, tag IMAGE_TAG) and the source tree. RELEASE=1 keeps dist/sbom and dist/vuln for the release job (WP-08k); otherwise they are removed.
+include deploy/tools.env
+TRIVY_CACHE_DIR ?= $(HOME)/.cache/vedette-trivy
+RELEASE ?=
+SUPPLY_ENV = CONTAINER=$(CONTAINER) IMAGE_TAG=$(IMAGE_TAG) PLATFORMS=$(PLATFORMS) TRIVY_IMAGE=$(TRIVY_IMAGE) TRIVY_CACHE_DIR=$(TRIVY_CACHE_DIR) RELEASE=$(RELEASE)
+sbom:
+	$(SUPPLY_ENV) scripts/dev/supply-chain.sh sbom
+
+# Fails on any HIGH or CRITICAL vulnerability that has a fix, in an image or in the source; the rest is reported. Exceptions: .trivyignore.yaml only,
+# and an entry without a reason, or past its date (or too far ahead), fails first (scripts/trivyignore).
+vuln-scan:
+	go run ./scripts/trivyignore -file .trivyignore.yaml
+	$(SUPPLY_ENV) scripts/dev/supply-chain.sh scan
+
+# THIRD_PARTY_NOTICES.md against the Go modules linked into the shipped binaries and the web production dependencies (no network). With
+# NOTICES_WEB_LICENSES=1 (default) it also asks pnpm for the licenses of the whole web production tree; verify-go-static turns that off (no pnpm in the go job).
+NOTICES_WEB_LICENSES ?= 1
+notices-check:
+	go run ./scripts/noticescheck -notices THIRD_PARTY_NOTICES.md -cmd ./cmd/vedette -cmd ./cmd/vedette-host -cmd ./cmd/vedette-sensor -web web $(if $(filter 1,$(NOTICES_WEB_LICENSES)),-web-licenses)
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:

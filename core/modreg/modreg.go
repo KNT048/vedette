@@ -59,6 +59,7 @@ type Registry struct {
 	log   *slog.Logger
 	order []string // module ids (not components), core first, then standard, then optional, each by id
 	next  atomic.Uint64
+	ver   string // Config.Version, for the rows Reset makes
 
 	mu   sync.RWMutex
 	mods map[string]*entry
@@ -79,7 +80,7 @@ func New(ctx context.Context, cfg Config) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &Registry{db: cfg.DB, audit: cfg.Audit, now: cfg.Clock, log: cfg.Log, mods: make(map[string]*entry, len(manifests))}
+	r := &Registry{db: cfg.DB, audit: cfg.Audit, now: cfg.Clock, log: cfg.Log, ver: cfg.Version, mods: make(map[string]*entry, len(manifests))}
 	if r.now == nil {
 		r.now = time.Now
 	}
@@ -353,6 +354,34 @@ func (r *Registry) Disable(ctx context.Context, tx *sql.Tx, actor, id string) (C
 	}
 	if err := r.audit.Append(ctx, tx, audit.Entry{User: actor, Action: "module.disable", Target: id, Detail: detail}); err != nil {
 		return Change{}, err
+	}
+	return ch, nil
+}
+
+// Reset puts every module back to the state of a fresh install inside tx: core on, every other module at the default of its
+// manifest, with the rows of core_module written (or rewritten) here. It is the factory reset's step after the caller emptied the
+// tables (POST /core/data/purge); it writes no audit row. Pass the Change to Publish after the transaction has committed:
+// the cache then follows the database, and the subscribers (the job scheduler) hear of every module whose state flipped.
+func (r *Registry) Reset(ctx context.Context, tx *sql.Tx) (Change, error) {
+	q := coredb.New(tx)
+	now := r.now()
+	nowTS := store.FormatTS(now)
+	ch := Change{ver: r.next.Add(1)}
+	for _, id := range r.order {
+		m := r.mods[id]
+		on := m.Default || m.Tier == TierCore
+		var at *string
+		var t *time.Time
+		if on {
+			at, t = &nowTS, &now
+		}
+		if err := q.InsertModuleIfMissing(ctx, coredb.InsertModuleIfMissingParams{ID: id, Enabled: on, EnabledAt: at, Version: r.ver}); err != nil {
+			return Change{}, fmt.Errorf("modreg: reset %s: %w", id, err)
+		}
+		if err := setState(ctx, q, id, on, at, nil); err != nil {
+			return Change{}, err
+		}
+		ch.updates = append(ch.updates, update{id: id, enabled: on, enabledAt: t})
 	}
 	return ch, nil
 }

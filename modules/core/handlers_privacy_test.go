@@ -45,7 +45,7 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 		}
 	}
 	want := map[int]flowRow{
-		1: {"on", "reason", nil}, 2: {"on", "switch", nil}, 3: {"off", "reason", false}, 4: {"conditional", "reason", nil},
+		1: {"on", "reason", nil}, 2: {"off", "switch", nil}, 3: {"off", "reason", false}, 4: {"conditional", "reason", nil},
 		5: {"conditional", "reason", nil}, 6: {"on", "switch", nil}, 7: {"conditional", "reason", nil}, 8: {"off", "reason", nil},
 		9: {"off", "reason", nil}, 10: {"on", "reason", nil}, 11: {"off", "reason", nil}, 12: {"off", "reason", nil},
 	}
@@ -57,7 +57,7 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 	tel, _ := r.JSON["telemetry"].(map[string]any)
 	payload, _ := tel["payload"].(map[string]any)
 	// D-82: the anonymous signal is never sent, so there is no last send and nothing to show, switch on or off.
-	if tel["enabled"] != true || tel["last_sent"] != nil || payload == nil || len(payload) != 0 || r.JSON["update_check"] != true {
+	if tel["enabled"] != false || tel["last_sent"] != nil || payload == nil || len(payload) != 0 || r.JSON["update_check"] != true {
 		t.Fatalf("privacy = %s", r.Raw)
 	}
 }
@@ -97,6 +97,30 @@ func TestPrivacy_PatchIsPartialAuditedAndFollowsModules(t *testing.T) {
 	wantOK(t, admin.patch("/modules/exposure", map[string]any{"enabled": true}), 200)
 	if f := flowsOf(t, admin.get("/core/privacy")); f[9].state != "on" {
 		t.Errorf("flow 9 with exposure on = %+v", f[9])
+	}
+}
+
+// D-154: nothing sends the anonymous signal, so PATCH {"telemetry": true} is 400 telemetry_unavailable (nothing written, no audit
+// row, the update check untouched), also together with a valid update_check; GET says it is off, also on a box whose stored
+// setting still says on from before.
+func TestContract_INV10_TelemetryCannotBeTurnedOn(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	for _, body := range []map[string]any{{"telemetry": true}, {"telemetry": true, "update_check": false}} {
+		wantStatus(t, admin.patch("/core/privacy", body), 400, "telemetry_unavailable")
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action LIKE 'privacy.%'"); n != 0 {
+		t.Errorf("a refused patch left %d audit rows", n)
+	}
+	g := admin.get("/core/privacy")
+	if g.JSON["update_check"] != true || g.JSON["telemetry"].(map[string]any)["enabled"] != false || flowsOf(t, g)[2].state != "off" {
+		t.Fatalf("get after the refusals = %s", g.Raw)
+	}
+	w.exec(`INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES ('core_privacy', '{"telemetry":true}', '2026-11-09T08:00:00.000Z', 'old')`)
+	g = admin.get("/core/privacy")
+	if g.JSON["telemetry"].(map[string]any)["enabled"] != false || flowsOf(t, g)[2].state != "off" {
+		t.Fatalf("a stored telemetry:true must read as off: %s", g.Raw)
 	}
 }
 
@@ -235,7 +259,7 @@ func TestPrivacy_PatchOfOneSwitchKeepsTheOtherOff(t *testing.T) {
 	w := newWorld(t)
 	admin := w.setupAdmin()
 	wantOK(t, admin.patch("/core/privacy", map[string]any{"update_check": false}), 200)
-	for _, v := range []bool{false, true, false} {
+	for _, v := range []bool{false, false} { // true is refused (TestPrivacy_TelemetryCannotBeTurnedOn)
 		r := admin.patch("/core/privacy", map[string]any{"telemetry": v})
 		wantOK(t, r, 200)
 		if r.JSON["update_check"] != false {
@@ -258,7 +282,7 @@ func TestPrivacy_ConcurrentPatchesOfDifferentSwitchesLoseNothing(t *testing.T) {
 	w := newWorld(t)
 	admin := w.setupAdmin()
 	for i := range 15 {
-		wantOK(t, admin.patch("/core/privacy", map[string]any{"telemetry": true, "update_check": true}), 200)
+		wantOK(t, admin.patch("/core/privacy", map[string]any{"telemetry": false, "update_check": true}), 200)
 		var wg sync.WaitGroup
 		for _, f := range []string{"telemetry", "update_check"} {
 			wg.Go(func() { wantOK(t, admin.patch("/core/privacy", map[string]any{f: false}), 200) })

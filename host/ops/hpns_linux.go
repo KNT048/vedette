@@ -19,7 +19,7 @@ func isNetNS(f *os.File) (bool, error) {
 	if int64(st.Type) != unix.NSFS_MAGIC { //nolint:unconvert // Statfs_t.Type is int32 or int64 by architecture
 		return false, nil
 	}
-	typ, err := unix.IoctlGetInt(int(f.Fd()), unix.NS_GET_NSTYPE)
+	typ, err := nsType(f)
 	if err != nil || typ != unix.CLONE_NEWNET {
 		return false, err
 	}
@@ -33,3 +33,8 @@ func isNetNS(f *os.File) (bool, error) {
 	}
 	return !os.SameFile(fi, self), nil
 }
+
+// nsType is the CLONE_NEW* type of the namespace an nsfs descriptor refers to. NS_GET_NSTYPE gives it as the return value of
+// ioctl(2) and writes nothing through the argument, so it is read with IoctlRetInt: IoctlGetInt would read back its own zero,
+// and every real namespace would be refused (#349).
+func nsType(f *os.File) (int, error) { return unix.IoctlRetInt(int(f.Fd()), unix.NS_GET_NSTYPE) }

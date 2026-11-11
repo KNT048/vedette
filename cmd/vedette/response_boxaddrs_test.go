@@ -14,6 +14,7 @@ import (
 // WP-31 review, slice R2, L9 (D-179 (6), (8)): response's never-touch list holds the honeypot's decoy addresses and the host's addresses, not only the
 // interfaces of the container, and an unknown set is an error (response then refuses), never a smaller set.
 func TestResponseBoxAddrsHoldTheDecoysAndTheHost(t *testing.T) {
+	t.Parallel()
 	decoy, host := netip.MustParseAddr("192.168.10.250"), netip.MustParseAddr("192.168.10.2")
 	got, err := responseBoxAddrs(
 		func() ([]netip.Addr, bool) { return []netip.Addr{host}, true },

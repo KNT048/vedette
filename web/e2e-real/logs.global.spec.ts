@@ -143,7 +143,7 @@ test('an empty box says what to do first; the page and the API agree; no script 
     await expectAccessible(page, 'logs, empty')
     await noVietnamese(page, 'logs, empty')
     expect(server).toEqual([])
-    noErrors(errors)
+    noErrors(errors, /status of 501/) // the 501 of GET /ai/logs/digest, the only 5xx allowed above (the page asks for it now even with no source)
   } finally { await c.dispose() }
 })
 
@@ -613,15 +613,96 @@ test('bad connections: a LAN device that asks for a domain a feed lists is in th
 })
 
 // ---- not built yet: the whole flow is in the body (D-171 (2)) ----
-test.fixme('SIEM forwarding: save, a failed and a successful test, the key is never returned (S-LOG-3, INV-8..10; L5, GET /logs/siem answers 501 not_implemented)', async ({ page }) => {
+interface Siem { enabled: boolean; format: string; host: string; port: number; proto: string; url: string; secret_last4: string | null; events: string[]; last_test: { ok: boolean; detail: string } | null }
+const KEY = 'a-signing-key-of-16+'
+const siemBody = (over: Record<string, unknown> = {}) => ({ enabled: false, format: 'syslog', host: '192.0.2.10', port: 514, proto: 'udp', url: '', events: ['findings'], ...over })
+test('SIEM forwarding on the real backend: validation, the three formats, the key is never returned, loopback is refused (S-LOG-3, INV-8..10, SYS-4, SYS-7)', async ({ page }) => {
+  test.setTimeout(90_000)
+  const errors = collectErrors(page)
   const c = await as('admin')
-  const saved = await api<{ secret_last4: string | null }>(c, 'PUT', '/logs/siem', { enabled: false, format: 'json', host: '', port: 514, proto: 'udp', url: 'https://siem.e2e.test/hook', events: ['findings'], secret: 'a-signing-key-of-16+' })
-  expect(saved.status).toBe(200)
-  expect(JSON.stringify(saved.body)).not.toContain('a-signing-key-of-16+')
-  expect(saved.body.secret_last4).toBe('16+')
-  await page.goto('/settings/siem')
-  await expect(h1(page)).toContainText('Forward to a SIEM')
-  await c.dispose()
+  const start = (await api<Siem>(c, 'GET', '/logs/siem')).body
+  try {
+    if (!start.host && !start.url) {
+      const nt = await api<Err>(c, 'POST', '/logs/siem/test')
+      expect([nt.status, nt.body.error.code], 'a test before anything is saved').toEqual([400, 'not_configured'])
+    }
+    const put = (over: Record<string, unknown>) => api<Siem & Err>(c, 'PUT', '/logs/siem', siemBody(over))
+    const before = JSON.stringify((await api(c, 'GET', '/logs/siem')).body)
+    const auditBefore = await auditTotal(c, 'logs.siem')
+    // every refusal carries its code and saves nothing
+    const refused: [string, Record<string, unknown>, string][] = [
+      ['unknown format', { format: 'xml' }, 'invalid'],
+      ['no events', { events: [] }, 'invalid'],
+      ['an unknown event', { events: ['everything'] }, 'invalid'],
+      ['host with a space', { host: 'siem server' }, 'bad_host'],
+      ['host with a scheme', { host: 'http://siem' }, 'bad_host'],
+      ['an address in disguise', { host: '2130706433' }, 'bad_host'],
+      ['port 0', { port: 0 }, 'bad_port'],
+      ['port 70000', { port: 70000 }, 'bad_port'],
+      ['a key under 16 characters', { secret: 'short' }, 'invalid'], // the schema's min 16 answers before the service's bad_secret
+      ['a key with a space at the end', { secret: `${KEY} ` }, 'bad_secret'],
+      ['loopback address', { host: '127.0.0.1' }, 'blocked_host'],
+      ['localhost', { host: 'localhost' }, 'blocked_host'],
+      ['unspecified address', { host: '0.0.0.0' }, 'blocked_host'],
+      ['link-local address', { host: '169.254.1.1' }, 'blocked_host'],
+      ['multicast address', { host: '224.0.0.5' }, 'blocked_host'],
+      ['webhook to loopback', { format: 'json', url: 'https://127.0.0.1/hook', secret: KEY }, 'blocked_host'],
+      ['webhook without a scheme', { format: 'json', url: 'siem.example/hook', secret: KEY }, 'bad_url'],
+      ['webhook with ftp', { format: 'json', url: 'ftp://siem.example/hook', secret: KEY }, 'bad_url'],
+      ['webhook with credentials in the URL', { format: 'json', url: 'https://user:pw@siem.example/hook', secret: KEY }, 'bad_url'],
+    ]
+    for (const [what, over, code] of refused) {
+      const r = await put(over)
+      expect([r.status, r.body.error?.code], what).toEqual([400, code])
+    }
+    expect(JSON.stringify((await api(c, 'GET', '/logs/siem')).body), 'the refusals saved nothing').toBe(before)
+    expect(await auditTotal(c, 'logs.siem'), 'a refusal leaves no audit row').toBe(auditBefore)
+
+    // the three formats
+    for (const [format, over] of [['syslog', { host: '192.0.2.10', port: 514, proto: 'udp' }], ['cef', { host: 'siem.e2e.test', port: 6514, proto: 'tcp' }]] as const) {
+      const r = await put({ format, ...over, events: ['honeypot', 'findings'] })
+      expect([r.status, r.body.format, r.body.host, r.body.port, r.body.proto], format).toEqual([200, format, over.host, over.port, over.proto])
+      expect(r.body.events, 'events are stored once each, in the fixed order').toEqual(['findings', 'honeypot'])
+      expect((await api<Siem>(c, 'GET', '/logs/siem')).body).toMatchObject({ format, host: over.host })
+    }
+    const nokey = await put({ format: 'json', url: 'https://siem.e2e.test/hook' })
+    if (!start.secret_last4) expect([nokey.status, nokey.body.error?.code], 'a webhook needs a signing key the first time').toEqual([400, 'secret_required'])
+    const json = await put({ format: 'json', url: 'https://siem.e2e.test/hook', secret: KEY, events: ['findings', 'alerts', 'bad_conn'] })
+    expect(json.status, JSON.stringify(json.body)).toBe(200)
+    expect(json.body).toMatchObject({ format: 'json', url: 'https://siem.e2e.test/hook', secret_last4: '-16+', host: '', enabled: false })
+    expect(JSON.stringify(json.body), 'the key is never returned').not.toContain(KEY)
+    expect(JSON.stringify((await api(c, 'GET', '/logs/siem')).body)).not.toContain(KEY)
+    // an empty key keeps the saved one
+    const keep = await put({ format: 'json', url: 'https://siem.e2e.test/other', events: ['alerts'] })
+    expect([keep.status, keep.body.secret_last4, keep.body.url]).toEqual([200, '-16+', 'https://siem.e2e.test/other'])
+    // a new key replaces it
+    expect((await put({ format: 'json', url: 'https://siem.e2e.test/other', events: ['alerts'], secret: 'another-signing-key-9876' })).body.secret_last4).toBe('9876')
+    const audit1 = await audit(c, 'logs.siem_save')
+    expect(audit1[0], 'every save is audited, without the key').toMatchObject({ action: 'logs.siem_save', target: 'https://siem.e2e.test', detail: 'json, off' }) // the target is the origin: a webhook path can carry a token
+    expect(JSON.stringify(audit1)).not.toContain('signing-key')
+
+    // the page: shows the saved state, the key only by its last four characters, saves through the form
+    await page.goto('/settings/siem')
+    await expect(h1(page)).toContainText('Forward to a SIEM')
+    await expect(page.getByLabel('Webhook URL')).toHaveValue('https://siem.e2e.test/other')
+    await expect(page.getByText('Saved, ending in 9876. Leave empty to keep it.')).toBeVisible()
+    await expect(page.getByLabel('Signing key (optional)')).toHaveValue('')
+    await page.getByLabel('Webhook URL').fill('https://siem.e2e.test/from-the-page')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('SIEM settings saved.')).toBeVisible()
+    expect((await api<Siem>(c, 'GET', '/logs/siem')).body).toMatchObject({ url: 'https://siem.e2e.test/from-the-page', secret_last4: '9876' })
+    await page.getByRole('group', { name: 'Format' }).getByRole('button', { name: 'Syslog' }).click()
+    await page.getByLabel('SIEM server').fill('127.0.0.1')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText('The SIEM cannot be this machine') // blocked_host, the API message
+    await expectAccessible(page, 'siem settings')
+    await noVietnamese(page, 'siem settings')
+    noErrors(errors, /status of (400|501)/)
+  } finally {
+    // forwarding stays off whatever happened, so a later spec never sends anything
+    await api(c, 'PUT', '/logs/siem', siemBody({ enabled: false }))
+    await c.dispose()
+  }
 })
 test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it', async () => {
   const c = await as('admin')

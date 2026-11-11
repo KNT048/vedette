@@ -86,3 +86,9 @@ Thứ tự đã xếp: proposals cuối cùng, đúng chỉ đạo. Phần 6 có
 - `contract.ts` ghi regex hook là "JavaScript regular expression" còn backend dùng RE2: sửa chuỗi mô tả trong contract.ts và UI thành "RE2" (CONTRACT câu hỏi mở 5). Đây là sửa chữ nhỏ nhưng nằm ở `web/src/features/ai` (của Emily), không phải `web/src/lib`. Nếu đổi `contract.ts` thì `api/openapi.json` sinh lại, phải tách ra lát riêng.
 - Cổng `proposer` và `connReader` định nghĩa phía `ai` (tối thiểu) để test bằng fake và không phụ thuộc chữ ký thật cho đến khi #113 và issue conn đã merge.
 
+
+## Rà độc lập #205 (2026-11-11, sau merge 974d5ed) — không chặn merge
+- [ ] 2026-11-11 — `SetRetention` is not refused while the service is degraded, unlike every other settings write since #123 (L2) — vì sao để sau: harmless (its own `ai_setting` key), consistency only — ở đâu: modules/ai/activity_read.go:154
+- [ ] 2026-11-11 — The prune trusts the box clock going forward: a clock far ahead deletes every row except the newest, and the delete cannot be undone; consider skipping when `now` is before the newest row or the clock is not synced — vì sao để sau: needs the time-sync state from host — ở đâu: modules/ai/activity_api.go:39-47
+- [ ] 2026-11-11 — The cancelled-call row takes the model from the current profile, not the attempt, so an edit during the call names the new model; carry the model in `Attempt` — vì sao để sau: rare, cosmetic — ở đâu: modules/ai/run.go (failed, profile lookup)
+- [ ] 2026-11-11 — Record D-numbers for the decisions listed in the PR body (`activity` setting key, newest row kept, 1000-row list, the two audit actions, cancelled-row naming) — vì sao để sau: AI does not assign D-numbers — ở đâu: docs/DECISIONS.md (Kiên)

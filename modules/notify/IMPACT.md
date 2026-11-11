@@ -132,3 +132,6 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 - `GET /notify/incidents` giới hạn 500 incident mới thấy nhất (mock không giới hạn), hai truy vấn cho cả trang. Mở lại incident đã resolved khi có incident cùng khoá đang mở: 409 `already_open` + `open_id`. Lỗi gửi hiện bằng câu thân thiện ("Telegram refused the message (HTTP 400)."), không phải văn bản thô của nhà cung cấp; kết quả test của webhook không có mã trạng thái.
 - Webhook: payload và preview khớp mock (`event: "incident.created"`, `kind`, `devices[]`), `device` (chuỗi) không còn trong JSON; loopback bị cấm cả với http.
 - Slack `xapp-`/`xoxb-` được kiểm dạng ngay cả khi `approvals` tắt; email approver phải trùng email đăng nhập của người dùng (mock không kiểm).
+
+## Modifying: `ApprovalRequest.NoChatButtons`, `channel.MaxApprovalWhat` (WP-31 R1, D-175)
+- **Người gọi**: `response.sendApproval` → `cmd/vedette/response.go` `responseNotifier.RequestApproval`. `NoChatButtons` chỉ được đọc ở `SendApprovalRequest` (không gắn nút Telegram, đổi hành động đầu tin); `response.DecideFromChat` từ chối cùng điều kiện phía máy chủ, nên hai bên phải đổi cùng nhau. `MaxApprovalWhat` (3000) và `response.approvalWhatMax` phải bằng nhau: lớn hơn thì `fit()` của Telegram (4096) cắt tin âm thầm, và người duyệt duyệt phần không đọc được. Test `TestWP31_NoChatButtonsAndTheWholeChangeInTheMessage`.

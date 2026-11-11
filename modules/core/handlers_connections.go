@@ -35,17 +35,18 @@ func (w *wireSecret) UnmarshalJSON(b []byte) error {
 // wireInput is the body of POST and PUT /core/connections. The generated request types differ only in the names of their
 // enums, so both are read through their JSON form.
 type wireInput struct {
-	Name     string     `json:"name"`
-	Kind     string     `json:"kind"`
-	Target   string     `json:"target"`
-	AssetID  *string    `json:"asset_id"`
-	AuthType string     `json:"auth_type"`
-	Secret   wireSecret `json:"secret"`
-	Username *string    `json:"username"`
-	ClearPin *bool      `json:"clear_pin"`
-	Allow    []string   `json:"allow"`
-	Enabled  bool       `json:"enabled"`
-	Tools    []struct {
+	Name       string     `json:"name"`
+	Kind       string     `json:"kind"`
+	Target     string     `json:"target"`
+	AssetID    *string    `json:"asset_id"`
+	AuthType   string     `json:"auth_type"`
+	Secret     wireSecret `json:"secret"`
+	Username   *string    `json:"username"`
+	AuthHeader *string    `json:"auth_header"`
+	ClearPin   *bool      `json:"clear_pin"`
+	Allow      []string   `json:"allow"`
+	Enabled    bool       `json:"enabled"`
+	Tools      []struct {
 		Name    string  `json:"name"`
 		Enabled bool    `json:"enabled"`
 		Access  *string `json:"access"`
@@ -62,7 +63,7 @@ func connInput(req json.Marshaler) (conn.Input, error) {
 		return conn.Input{}, fmt.Errorf("core: read connection request: %w", err)
 	}
 	in := conn.Input{Name: w.Name, Kind: w.Kind, Target: w.Target, AssetID: w.AssetID, AuthType: w.AuthType, Secret: w.Secret.Value,
-		Username: w.Username, ClearPin: w.ClearPin != nil && *w.ClearPin, Allow: w.Allow, Enabled: w.Enabled}
+		Username: w.Username, AuthHeader: w.AuthHeader, ClearPin: w.ClearPin != nil && *w.ClearPin, Allow: w.Allow, Enabled: w.Enabled}
 	for _, t := range w.Tools {
 		in.Tools = append(in.Tools, conn.ToolInput{Name: t.Name, Enabled: t.Enabled, Access: t.Access})
 	}

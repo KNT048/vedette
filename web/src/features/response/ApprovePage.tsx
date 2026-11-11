@@ -1,6 +1,7 @@
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
+import { AiBlock } from '@/components/common/AiBlock'
 import { Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,7 @@ export default function ApprovePage() {
       ) : q.data.state === 'ready' ? (
         <Panel className="grid gap-4 p-4">
           <p className="text-sm">{t('approve.intro', { name: q.data.approver ?? '' })}</p>
-          <h2 className="text-base font-semibold">{q.data.title}</h2>
+          {q.data.ai_generated ? <AiBlock><h2 className="text-base font-semibold">{q.data.title}</h2></AiBlock> : <h2 className="text-base font-semibold">{q.data.title}</h2>}
           <ul className="grid gap-3">{q.data.items.map((i) => <li key={i.title} className="grid gap-2 rounded-md border border-rule bg-paper p-3"><p className="flex flex-wrap items-center gap-2 text-sm font-medium">{i.title} <RiskChip risk={i.risk} /></p><ChangeView change={i.change} /></li>)}</ul>
           {q.data.requires_approvals && q.data.requires_approvals > 1 ? <p className="text-[13px]">{t('approve.twoNeeded', { n: q.data.approved_so_far ?? 0, of: q.data.requires_approvals })}</p> : null}
           <p className="text-[13px] text-muted">{t('approve.until', { time: fmtDateTime(q.data.expires_at) })} {t('approve.once')}</p>

@@ -63,8 +63,10 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 
 **S-SCAN-1** (P2) `[đạt]` — Quét tài sản ngoài/trong bằng template xác nhận (Nuclei tag kev/vkev, an toàn), kết quả "xác nhận có" tách khỏi "nghi theo phiên bản".
 **S-SCAN-2** (P2, P3) `[đạt]` — Có KEV mới có template → tự quét lại đúng tài sản liên quan trong ≤60 phút, báo nếu dính.
+- Chấp nhận (D-261 (2)): một sự kiện quét lại bị bỏ sau 7 ngày (không có mẫu trong gói, máy quét chưa sẵn sàng, hoặc đọc không được múi giờ tổ chức) vẫn là một dòng trong nhật ký quét lại, kết quả nói rõ lý do ("Not scanned: …"); không biến mất lặng lẽ.
 **S-SCAN-3** (P2) `[đạt]` — Mỗi phát hiện ghi rõ: bằng chứng (request/response rút gọn), độ tin cậy, cách tự kiểm tra lại.
 **S-SCAN-4** (P1, P2) `[đạt]` — Tôi đặt cửa sổ giờ, tốc độ, danh sách loại trừ; quét dừng khi thấy thiết bị không phản hồi bất thường. Có nút "Dừng ngay".
+- Chấp nhận (D-261): (1) lý do tự dừng nói "stopped responding after N failed requests" (tổng của lượt cho thiết bị, không phải "liên tiếp"); (3) khi lịch đang bật mà múi giờ tổ chức đọc không được, tab Lịch nói đúng lý do và việc cần làm, không nói "lịch đang tắt"; (4) sau "Dừng ngay", trong lúc máy quét còn bận, "Scan now" khoá kèm lời giải thích, không để bấm rồi nhận 409.
 **S-SCAN-5** (P4) `[đạt]` — Bật tier credentialed (Greenbone container riêng, SSH key) cho server quan trọng.
 
 ## MIT — Gói giảm thiểu

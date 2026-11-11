@@ -231784,18 +231784,23 @@ func (s *ScanGetScansConfigOK) encodeFields(e *jx.Encoder) {
 		s.NextRun.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("schedule_blocked_reason")
+		s.ScheduleBlockedReason.Encode(e)
+	}
+	{
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanGetScansConfigOK = [6]string{
+var jsonFieldsNameOfScanGetScansConfigOK = [7]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
 	3: "dangerous_checks",
 	4: "next_run",
-	5: "scope",
+	5: "schedule_blocked_reason",
+	6: "scope",
 }
 
 // Decode decodes ScanGetScansConfigOK from json.
@@ -231861,8 +231866,18 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"next_run\"")
 			}
-		case "scope":
+		case "schedule_blocked_reason":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.ScheduleBlockedReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"schedule_blocked_reason\"")
+			}
+		case "scope":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -231881,7 +231896,7 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -233552,6 +233567,12 @@ func (s *ScanGetScansEventsOKItemsItemResult) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansEventsOKItemsItemResultPickOnly
 	case ScanGetScansEventsOKItemsItemResultStopped:
 		*s = ScanGetScansEventsOKItemsItemResultStopped
+	case ScanGetScansEventsOKItemsItemResultExpiredNoTemplate:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredNoTemplate
+	case ScanGetScansEventsOKItemsItemResultExpiredScanner:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredScanner
+	case ScanGetScansEventsOKItemsItemResultExpiredZone:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredZone
 	default:
 		*s = ScanGetScansEventsOKItemsItemResult(v)
 	}
@@ -233962,6 +233983,10 @@ func (s *ScanGetScansRunsOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ScanGetScansRunsOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("engine_busy")
+		e.Bool(s.EngineBusy)
+	}
+	{
 		e.FieldStart("items")
 		e.ArrStart()
 		for _, elem := range s.Items {
@@ -233971,8 +233996,9 @@ func (s *ScanGetScansRunsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansRunsOK = [1]string{
-	0: "items",
+var jsonFieldsNameOfScanGetScansRunsOK = [2]string{
+	0: "engine_busy",
+	1: "items",
 }
 
 // Decode decodes ScanGetScansRunsOK from json.
@@ -233984,8 +234010,20 @@ func (s *ScanGetScansRunsOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "items":
+		case "engine_busy":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.EngineBusy = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"engine_busy\"")
+			}
+		case "items":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Items = make([]ScanGetScansRunsOKItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -234012,7 +234050,7 @@ func (s *ScanGetScansRunsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -237789,18 +237827,23 @@ func (s *ScanPutScansConfigOK) encodeFields(e *jx.Encoder) {
 		s.NextRun.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("schedule_blocked_reason")
+		s.ScheduleBlockedReason.Encode(e)
+	}
+	{
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigOK = [6]string{
+var jsonFieldsNameOfScanPutScansConfigOK = [7]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
 	3: "dangerous_checks",
 	4: "next_run",
-	5: "scope",
+	5: "schedule_blocked_reason",
+	6: "scope",
 }
 
 // Decode decodes ScanPutScansConfigOK from json.
@@ -237866,8 +237909,18 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"next_run\"")
 			}
-		case "scope":
+		case "schedule_blocked_reason":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.ScheduleBlockedReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"schedule_blocked_reason\"")
+			}
+		case "scope":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -237886,7 +237939,7 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

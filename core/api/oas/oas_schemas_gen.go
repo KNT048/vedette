@@ -123915,7 +123915,10 @@ type ScanGetScansConfigOK struct {
 	Config          ScanGetScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
-	Scope           ScanGetScansConfigOKScope  `json:"scope"`
+	// Set while the schedule is on but nothing automated can start because the organization time zone
+	// cannot be read; next_run is null then (D-261 (3)).
+	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
+	Scope                 ScanGetScansConfigOKScope `json:"scope"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -123941,6 +123944,11 @@ func (s *ScanGetScansConfigOK) GetDangerousChecks() bool {
 // GetNextRun returns the value of NextRun.
 func (s *ScanGetScansConfigOK) GetNextRun() NilDateTime {
 	return s.NextRun
+}
+
+// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
+func (s *ScanGetScansConfigOK) GetScheduleBlockedReason() NilString {
+	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -123971,6 +123979,11 @@ func (s *ScanGetScansConfigOK) SetDangerousChecks(val bool) {
 // SetNextRun sets the value of NextRun.
 func (s *ScanGetScansConfigOK) SetNextRun(val NilDateTime) {
 	s.NextRun = val
+}
+
+// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
+func (s *ScanGetScansConfigOK) SetScheduleBlockedReason(val NilString) {
+	s.ScheduleBlockedReason = val
 }
 
 // SetScope sets the value of Scope.
@@ -124437,7 +124450,9 @@ type ScanGetScansEventsOKItemsItem struct {
 	Product    string     `json:"product"`
 	// Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
 	// only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-	// every device was done (D-145 (7)).
+	// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
+	// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
+	// devices is empty, no run (D-261 (2)).
 	Result ScanGetScansEventsOKItemsItemResult `json:"result"`
 	RunID  NilString                           `json:"run_id"`
 	Ts     time.Time                           `json:"ts"`
@@ -124525,16 +124540,21 @@ func (s *ScanGetScansEventsOKItemsItem) SetTs(val time.Time) {
 
 // Clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may
 // only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before
-// every device was done (D-145 (7)).
+// every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no
+// template in the installed pack, the scanner not ready, or the organization time zone unreadable;
+// devices is empty, no run (D-261 (2)).
 type ScanGetScansEventsOKItemsItemResult string
 
 const (
-	ScanGetScansEventsOKItemsItemResultMatched    ScanGetScansEventsOKItemsItemResult = "matched"
-	ScanGetScansEventsOKItemsItemResultClear      ScanGetScansEventsOKItemsItemResult = "clear"
-	ScanGetScansEventsOKItemsItemResultSkippedOff ScanGetScansEventsOKItemsItemResult = "skipped_off"
-	ScanGetScansEventsOKItemsItemResultNoMatch    ScanGetScansEventsOKItemsItemResult = "no_match"
-	ScanGetScansEventsOKItemsItemResultPickOnly   ScanGetScansEventsOKItemsItemResult = "pick_only"
-	ScanGetScansEventsOKItemsItemResultStopped    ScanGetScansEventsOKItemsItemResult = "stopped"
+	ScanGetScansEventsOKItemsItemResultMatched           ScanGetScansEventsOKItemsItemResult = "matched"
+	ScanGetScansEventsOKItemsItemResultClear             ScanGetScansEventsOKItemsItemResult = "clear"
+	ScanGetScansEventsOKItemsItemResultSkippedOff        ScanGetScansEventsOKItemsItemResult = "skipped_off"
+	ScanGetScansEventsOKItemsItemResultNoMatch           ScanGetScansEventsOKItemsItemResult = "no_match"
+	ScanGetScansEventsOKItemsItemResultPickOnly          ScanGetScansEventsOKItemsItemResult = "pick_only"
+	ScanGetScansEventsOKItemsItemResultStopped           ScanGetScansEventsOKItemsItemResult = "stopped"
+	ScanGetScansEventsOKItemsItemResultExpiredNoTemplate ScanGetScansEventsOKItemsItemResult = "expired_no_template"
+	ScanGetScansEventsOKItemsItemResultExpiredScanner    ScanGetScansEventsOKItemsItemResult = "expired_scanner"
+	ScanGetScansEventsOKItemsItemResultExpiredZone       ScanGetScansEventsOKItemsItemResult = "expired_zone"
 )
 
 // AllValues returns all ScanGetScansEventsOKItemsItemResult values.
@@ -124546,6 +124566,9 @@ func (ScanGetScansEventsOKItemsItemResult) AllValues() []ScanGetScansEventsOKIte
 		ScanGetScansEventsOKItemsItemResultNoMatch,
 		ScanGetScansEventsOKItemsItemResultPickOnly,
 		ScanGetScansEventsOKItemsItemResultStopped,
+		ScanGetScansEventsOKItemsItemResultExpiredNoTemplate,
+		ScanGetScansEventsOKItemsItemResultExpiredScanner,
+		ScanGetScansEventsOKItemsItemResultExpiredZone,
 	}
 }
 
@@ -124563,6 +124586,12 @@ func (s ScanGetScansEventsOKItemsItemResult) MarshalText() ([]byte, error) {
 	case ScanGetScansEventsOKItemsItemResultPickOnly:
 		return []byte(s), nil
 	case ScanGetScansEventsOKItemsItemResultStopped:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredNoTemplate:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredScanner:
+		return []byte(s), nil
+	case ScanGetScansEventsOKItemsItemResultExpiredZone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -124589,6 +124618,15 @@ func (s *ScanGetScansEventsOKItemsItemResult) UnmarshalText(data []byte) error {
 		return nil
 	case ScanGetScansEventsOKItemsItemResultStopped:
 		*s = ScanGetScansEventsOKItemsItemResultStopped
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredNoTemplate:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredNoTemplate
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredScanner:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredScanner
+		return nil
+	case ScanGetScansEventsOKItemsItemResultExpiredZone:
+		*s = ScanGetScansEventsOKItemsItemResultExpiredZone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -124790,12 +124828,25 @@ func (s *ScanGetScansProbesOKItemsItemResult) UnmarshalText(data []byte) error {
 }
 
 type ScanGetScansRunsOK struct {
-	Items []ScanGetScansRunsOKItemsItem `json:"items"`
+	// True while the scanner still works on a run that already shows stopped; a new scan is refused (409
+	// already_running) until it is free (D-261 (4)).
+	EngineBusy bool                          `json:"engine_busy"`
+	Items      []ScanGetScansRunsOKItemsItem `json:"items"`
+}
+
+// GetEngineBusy returns the value of EngineBusy.
+func (s *ScanGetScansRunsOK) GetEngineBusy() bool {
+	return s.EngineBusy
 }
 
 // GetItems returns the value of Items.
 func (s *ScanGetScansRunsOK) GetItems() []ScanGetScansRunsOKItemsItem {
 	return s.Items
+}
+
+// SetEngineBusy sets the value of EngineBusy.
+func (s *ScanGetScansRunsOK) SetEngineBusy(val bool) {
+	s.EngineBusy = val
 }
 
 // SetItems sets the value of Items.
@@ -126819,7 +126870,10 @@ type ScanPutScansConfigOK struct {
 	Config          ScanPutScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
 	NextRun         NilDateTime                `json:"next_run"`
-	Scope           ScanPutScansConfigOKScope  `json:"scope"`
+	// Set while the schedule is on but nothing automated can start because the organization time zone
+	// cannot be read; next_run is null then (D-261 (3)).
+	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
+	Scope                 ScanPutScansConfigOKScope `json:"scope"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -126845,6 +126899,11 @@ func (s *ScanPutScansConfigOK) GetDangerousChecks() bool {
 // GetNextRun returns the value of NextRun.
 func (s *ScanPutScansConfigOK) GetNextRun() NilDateTime {
 	return s.NextRun
+}
+
+// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
+func (s *ScanPutScansConfigOK) GetScheduleBlockedReason() NilString {
+	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -126875,6 +126934,11 @@ func (s *ScanPutScansConfigOK) SetDangerousChecks(val bool) {
 // SetNextRun sets the value of NextRun.
 func (s *ScanPutScansConfigOK) SetNextRun(val NilDateTime) {
 	s.NextRun = val
+}
+
+// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
+func (s *ScanPutScansConfigOK) SetScheduleBlockedReason(val NilString) {
+	s.ScheduleBlockedReason = val
 }
 
 // SetScope sets the value of Scope.

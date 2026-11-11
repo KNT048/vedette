@@ -14,7 +14,7 @@ import { errMsg } from './errors'
 import type { RescanEvent } from './types'
 
 // clear is only "no match reported" (D-133 (5)): neutral, never green; pick_only and stopped are neutral too (D-145 (7))
-const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off' } as const
+const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off', expired_no_template: 'off', expired_scanner: 'off', expired_zone: 'off' } as const
 const linkClass = 'font-medium text-accent underline underline-offset-4'
 
 // The result of a rescan. pick_only says how many devices need a hand pick and links to Scan now (the device column names
@@ -40,7 +40,7 @@ export function AutoTab() {
     { id: 'ts', header: t('auto.col.when'), accessorFn: (r) => r.ts, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.ts)}</span> },
     { id: 'cve', header: t('auto.col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/cve/${r.cve}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
     { id: 'product', header: t('auto.col.product'), accessorFn: (r) => r.product, cell: ({ row: { original: r } }) => <span>{r.product}</span> },
-    { id: 'devices', header: t('auto.col.devices'), accessorFn: (r) => r.devices.join(', '), cell: ({ row: { original: r } }) => (r.devices.length ? <span>{r.devices.join(', ')}</span> : <span className="text-muted">{t('auto.noDevices')}</span>) },
+    { id: 'devices', header: t('auto.col.devices'), accessorFn: (r) => r.devices.join(', '), cell: ({ row: { original: r } }) => (r.devices.length ? <span>{r.devices.join(', ')}</span> : r.result.startsWith('expired') ? <span className="text-muted">–</span> : <span className="text-muted">{t('auto.noDevices')}</span>) },
     { id: 'latency', header: t('auto.col.latency'), accessorFn: (r) => r.latency_min ?? -1, cell: ({ row: { original: r } }) => (r.latency_min === null ? <span className="text-muted">–</span> : <span>{t('auto.minutes', { count: r.latency_min })}</span>) },
     { id: 'result', header: t('auto.col.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <ResultCell r={r} /> },
   ]

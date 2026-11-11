@@ -67688,6 +67688,12 @@ func (s ScanGetScansEventsOKItemsItemResult) Validate() error {
 		return nil
 	case "stopped":
 		return nil
+	case "expired_no_template":
+		return nil
+	case "expired_scanner":
+		return nil
+	case "expired_zone":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

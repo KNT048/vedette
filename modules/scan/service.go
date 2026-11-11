@@ -109,6 +109,9 @@ type ConfigView struct {
 	CanScan         bool      `json:"can_scan"`
 	BlockReason     *string   `json:"block_reason"`
 	DangerousChecks bool      `json:"dangerous_checks"` // always false (INV-4)
+	// ScheduleBlockedReason is set while the schedule is on but nothing automated can start because the organization
+	// zone cannot be read; NextRun is nil then (D-261 (3)).
+	ScheduleBlockedReason *string `json:"schedule_blocked_reason"`
 }
 
 // ready is the scanner part of INV-2: an Engine that answers Ready.
@@ -152,6 +155,8 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 			ts := store.FormatTS(*t)
 			v.NextRun = &ts
 		}
+	} else if c.Schedule.Enabled {
+		v.ScheduleBlockedReason = ptr(msgZoneUnknown)
 	}
 	switch {
 	case v.Scope.Commitment == nil:

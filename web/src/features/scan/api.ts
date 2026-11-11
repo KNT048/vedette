@@ -11,8 +11,8 @@ export const useTargets = () => useQuery({ queryKey: ['scan', 'targets'], queryF
 export const useRuns = () =>
   useQuery({
     queryKey: ['scan', 'runs'],
-    queryFn: () => api.get<{ items: ScanRun[] }>('/scans/runs'),
-    refetchInterval: (q) => (q.state.data?.items.some(isLive) ? 1000 : false),
+    queryFn: () => api.get<{ items: ScanRun[]; engine_busy: boolean }>('/scans/runs'),
+    refetchInterval: (q) => (q.state.data?.items.some(isLive) || q.state.data?.engine_busy ? 1000 : false),
   })
 
 export const useProbes = () => useQuery({ queryKey: ['scan', 'probes'], queryFn: () => api.get<{ items: ProbeEntry[]; retention_days: number }>('/scans/probes') })

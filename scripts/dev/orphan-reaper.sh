@@ -3,16 +3,20 @@
 # (kien, 2026-11-09). Runs every 10 minutes from launchd (macOS) or a systemd user timer /
 # cron (Linux): `make reaper-install`. Assumes macOS or Linux; bash 3.2 compatible.
 #
-# "Orphan" = parent is PID 1: the shell or agent that started it is gone, so nobody reads
-# its result. Rules (only processes of the current user):
+# "Orphan" = the TREE is orphaned: from a matching process we walk up through the wrappers
+# started for it (pnpm, npm, node, sh... — `pnpm dev` runs vite as a child) to the tree root;
+# the tree is an orphan when the root's parent is PID 1 or a systemd --user manager, i.e. the
+# shell or agent that started it is gone, so nobody reads its result. The whole tree is stopped
+# (children first). Rules (only processes of the current user; age rules judge the root):
 #   - test runners (Playwright runner, headless Chromium, vitest, `go test` binaries,
 #     golangci-lint, govulncheck): stopped at once;
 #   - dev servers (vite dev/preview): stopped when older than VEDETTE_REAPER_SERVER_MIN
 #     minutes (default 120). An idle server costs memory, not CPU, and an agent may still be
 #     using it, so load does not shorten this.
-# Each stop: SIGTERM to the process and its children, SIGKILL after 5 s. Logged; macOS
-# also shows a notification. `--dry-run` only prints what it would stop.
-set -u
+# Each stop: SIGTERM to the tree, SIGKILL after 5 s. Logged; macOS also shows a notification.
+# `--dry-run` only prints what it would stop (roots and the whole tree pids). VEDETTE_REAPER_ONLY=<regex> (tests only) limits
+# victims to trees whose root command line matches it.
+set -uf # -f: command lines are split into words below and must never be globbed
 # launchd starts jobs with a minimal PATH; gh lives under Homebrew on macOS.
 PATH="$PATH:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin"
 
@@ -40,6 +44,15 @@ minutes() {
 		if (NF == 4) print $1 * 1440 + $2 * 60 + $3
 		else if (NF == 3) print $1 * 60 + $2
 		else print $1 + 0
+	}'
+}
+
+# etime -> seconds
+secs() {
+	echo "$1" | awk -F'[-:]' '{
+		if (NF == 4) print $1 * 86400 + $2 * 3600 + $3 * 60 + $4
+		else if (NF == 3) print $1 * 3600 + $2 * 60 + $3
+		else print $1 * 60 + $2
 	}'
 }
 
@@ -80,25 +93,64 @@ ISSUES
 	fi
 }
 
+snap=$(ps -ww -U "$(id -u)" -o pid=,ppid=,etime=,command=)
+only=${VEDETTE_REAPER_ONLY:-}
+
+# line of process $1 from the snapshot
+pline() { echo "$snap" | awk -v p="$1" '$1 == p { print; exit }'; }
+
+# wrapper = the process that started the dev/test tree: a package-manager or tool launcher
+# (pnpm, npm, npx, yarn, tsx, vite, vitest, playwright), possibly under node or a shell. A
+# generic shell/node (an agent, tmux pane, watch loop) is never a wrapper, so the walk stops there.
+is_wrapper() {
+	echo "$1" | grep -Eq '(^|[ /])(pnpm|npm|npx|yarn|tsx)([ .]|$)|/pnpm\.c?js|vite|vitest|playwright'
+}
+
 victims=""
 reasons=""
 while read -r pid ppid etime cmd; do
-	[ "$ppid" = "1" ] || continue
 	reason=""
 	if echo "$cmd" | grep -Eq "$runner"; then
 		reason="orphaned test runner"
 	elif echo "$cmd" | grep -Eq "$server"; then
-		age=$(minutes "$etime")
-		if [ "$age" -ge "$server_min" ]; then
-			reason="orphaned dev server running ${age} min"
-		fi
+		reason="orphaned dev server"
 	fi
 	[ -n "$reason" ] || continue
-	victims="$victims $pid"
+	# walk up to the tree root (depth-limited)
+	root=$pid rppid=$ppid retime=$etime rcmd=$cmd
+	depth=0
+	while [ "$rppid" -gt 1 ] && [ $depth -lt 12 ]; do
+		line=$(pline "$rppid")
+		[ -n "$line" ] || break
+		# shellcheck disable=SC2086
+		set -- $line
+		wpid=$1 wppid=$2 wetime=$3
+		shift 3
+		wcmd=$*
+		is_wrapper "$wcmd" || break
+		# started for this tree: a long-lived daemon that merely spawned the child is not a wrapper
+		[ $(($(secs "$wetime") - $(secs "$retime"))) -le 60 ] || break
+		root=$wpid rppid=$wppid retime=$wetime rcmd=$wcmd
+		depth=$((depth + 1))
+	done
+	if [ "$rppid" != "1" ]; then
+		# a systemd --user manager is init for the user's orphans on Linux
+		pl=$(pline "$rppid")
+		[ -n "$pl" ] || continue
+		echo "$pl" | grep -Eq '(^|/)systemd --user' || continue
+	fi
+	[ -z "$only" ] || echo "$rcmd" | grep -Eq "$only" || continue
+	if [ "$reason" = "orphaned dev server" ]; then
+		age=$(minutes "$retime")
+		[ "$age" -ge "$server_min" ] || continue
+		reason="orphaned dev server running ${age} min"
+	fi
+	case " $victims " in *" $root "*) continue ;; esac
+	victims="$victims $root"
 	reasons="$reasons
-$pid | $reason | $(echo "$cmd" | cut -c1-160)"
+$root | $reason | $(echo "$rcmd" | cut -c1-160)"
 done <<EOF
-$(ps -U "$(id -u)" -o pid=,ppid=,etime=,command=)
+$snap
 EOF
 
 [ "$dry" = "1" ] || check_issues
@@ -106,15 +158,19 @@ EOF
 [ -n "$victims" ] || exit 0
 
 stamp=$(date '+%Y-%m-%d %H:%M:%S')
-if [ "$dry" = "1" ]; then
-	echo "would stop (load5 $load5, $ncpu CPUs):$reasons"
-	exit 0
-fi
-
 all=""
 for p in $victims; do
+	# the snapshot may be old (check_issues waits on the network): skip a root whose pid was reused
+	cur=$(ps -ww -p "$p" -o ppid=,command= 2>/dev/null) || continue
+	[ "$(echo "$cur" | awk '{print $1}')" = "$(pline "$p" | awk '{print $2}')" ] || continue
 	all="$all $(descendants "$p" | tr '\n' ' ') $p"
 done
+all=$(echo "$all" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ')
+if [ "$dry" = "1" ]; then
+	echo "would stop (load5 $load5, $ncpu CPUs):$reasons"
+	echo "tree pids: $all"
+	exit 0
+fi
 # shellcheck disable=SC2086 # word splitting of the PID list is intended
 kill -TERM $all 2>/dev/null
 i=0

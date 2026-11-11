@@ -142,7 +142,7 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "notify_tg_button", "oidc_flow", "resp_tokens"}
+	want := []string{"core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
 	if !slices.Equal(skipAll, want) {
 		t.Errorf("tables left out of the export whole:\n got %q\nwant %q", skipAll, want)
 	}
@@ -577,7 +577,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 			t.Errorf("the export lacks %s", want)
 		}
 	}
-	for _, name := range []string{"core_secret", "core_session", "notify_tg_button", "resp_tokens", "core_email_code"} {
+	for _, name := range []string{"core_secret", "core_session", "notify_tg_button", "resp_link_codes", "resp_tokens", "core_email_code"} {
 		if _, has := doc.Tables[name]; has {
 			t.Errorf("table %s is in the export", name)
 		}

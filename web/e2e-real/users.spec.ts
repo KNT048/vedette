@@ -88,18 +88,17 @@ test('invite: field errors, temporary password shown once, duplicate email refus
   await mine.getByLabel('Email').fill(who.email)
   await mine.getByLabel('Password').fill(temp)
   await mine.getByLabel('Password').press('Enter')
-  await expect(h1(mine)).toBeVisible({ timeout: 30_000 })
-  await expect(mine).not.toHaveURL(/\/login/)
-  await mine.goto('/settings/users')
-  await expect(mine.getByText(/needs a higher role/)).toBeVisible() // an operator
-  // ... and changes it on the account page
+  // D-180: the temporary password must be replaced first (the forced change has its own test below), then the operator's pages open
+  await expect(h1(mine)).toHaveText('Choose a new password', { timeout: 30_000 })
   const next = password()
-  await mine.goto('/account')
-  await mine.getByLabel('Current password', { exact: true }).fill(temp)
+  await mine.getByLabel('Temporary password').fill(temp)
   await mine.getByLabel('New password', { exact: true }).fill(next)
   await mine.getByLabel('Repeat new password').fill(next)
-  await mine.getByRole('button', { name: 'Change password' }).click()
-  await toast(mine, /Password changed/)
+  await mine.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(mine).not.toHaveURL(/change-password|\/login/)
+  await expect(h1(mine)).toBeVisible()
+  await mine.goto('/settings/users')
+  await expect(mine.getByText(/needs a higher role/)).toBeVisible() // an operator
   await context.close()
   const old = await fresh()
   expect((await login(old, who.email, temp)).status, 'the temporary password stops working').toBe(400)
@@ -111,12 +110,77 @@ test('invite: field errors, temporary password shown once, duplicate email refus
   noErrors(errors, /status of (40\d|409)/)
 })
 
-// fixme (D-171, not built): the invite page says the person changes the temporary password "at first sign-in", but nothing forces it: the
-// session of an account that still has its temporary password reaches every page, and the mock does not force it either. Tracked by
-// .ai/deferred/feat-e2e-real-harness.md (the "forced change" line); the S-CORE-3 criteria do not ask for it, so this is a decision for kien.
-test.fixme('the first sign-in with a temporary password must change it before any other page', async () => {
-  const who = await account('viewer')
-  void who
+// D-180 (S-CORE-3): a password an administrator set is temporary. The first sign-in lands on "Choose a new password"; until it is replaced every
+// other call is 403 password_change_required (only /me, the password change and sign-out answer).
+test('the first sign-in with a temporary password must change it before any other page', async ({ browser }) => {
+  test.setTimeout(150_000)
+  const tag = uniq('c1')
+  const who = { name: `Forced ${tag}`, email: `${tag}@e2e.test`, role: 'operator' as const }
+  const admin = await adminApi()
+  const made = await api<{ temp_password: string }>(admin, 'POST', '/core/users', who)
+  expect(made.status).toBe(201)
+  const temp = made.body.temp_password
+  const context = await browser.newContext({ baseURL: box().base_url, storageState: { cookies: [], origins: [] }, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' })
+  const page = await context.newPage()
+  const errors = collectErrors(page)
+  await page.goto('/login?next=%2Faccount')
+  await page.getByLabel('Email').fill(who.email)
+  await page.getByLabel('Password').fill(temp)
+  await page.getByLabel('Password').press('Enter')
+  await expect(h1(page)).toHaveText('Choose a new password', { timeout: 30_000 })
+  await expect(page).toHaveURL(/\/change-password/)
+  await shot(page, 'real', 'change-password')
+  await noVietnamese(page, 'change-password')
+
+  // every other page leads back here, and the API refuses everything but the three calls
+  for (const path of ['/', '/settings/channels', '/account']) { // the last one is where the person lands after the change
+    await page.goto(path)
+    await expect(page, path).toHaveURL(/\/change-password/)
+    await expect(h1(page)).toHaveText('Choose a new password')
+  }
+  for (const path of ['/core/account', '/modules', '/core/general', '/inventory/devices']) {
+    const r = await api<{ error: { code: string } }>(page.request, 'GET', path)
+    expect(r.status, path).toBe(403)
+    expect(r.body.error.code, path).toBe('password_change_required')
+  }
+  expect((await api<{ password_change_required: boolean }>(page.request, 'GET', '/me')).body.password_change_required).toBe(true)
+
+  // field errors: nothing is sent for an empty or short or mismatched form; the temporary password again is refused by the box
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByText('Enter the temporary password you signed in with.')).toBeVisible()
+  await page.getByLabel('Temporary password').fill(temp)
+  await page.getByLabel('New password', { exact: true }).fill('short')
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByText(/at least \d+ characters/).first()).toBeVisible()
+  await page.getByLabel('New password', { exact: true }).fill(temp)
+  await page.getByLabel('Repeat new password').fill(temp)
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByText('The new password must differ from the temporary one.')).toBeVisible()
+  await page.getByLabel('Temporary password').fill('not-the-temporary-password')
+  const next = password()
+  await page.getByLabel('New password', { exact: true }).fill(next)
+  await page.getByLabel('Repeat new password').fill(next)
+  const [refused] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/core/account/password') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Save and continue' }).click(),
+  ])
+  expect(refused.status(), 'a wrong temporary password is refused by the box').toBe(400)
+  expect(((await refused.json()) as { error: { code: string } }).error.code).toBe('wrong_password')
+  await expect(page.getByLabel('Temporary password')).toHaveAttribute('aria-invalid', 'true') // the box's message sits under that field
+  await expect(page).toHaveURL(/\/change-password/) // a wrong temporary password changes nothing
+  expect((await api<{ password_change_required: boolean }>(page.request, 'GET', '/me')).body.password_change_required).toBe(true)
+
+  // the right form: lands on the page the person was going to, and everything is open
+  await page.getByLabel('Temporary password').fill(temp)
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page).toHaveURL(/\/account/)
+  expect((await api<{ password_change_required: boolean }>(page.request, 'GET', '/me')).body.password_change_required).toBe(false)
+  for (const path of ['/core/account', '/modules']) expect((await api(page.request, 'GET', path)).status, path).toBe(200)
+  const old = await fresh()
+  expect((await login(old, who.email, temp)).status, 'the temporary password stops working').toBe(400)
+  expect((await login(old, who.email, next)).status).toBe(200)
+  await Promise.all([old.dispose(), context.close(), admin.dispose()])
+  noErrors(errors, /status of (40\d|403)/)
 })
 
 test('role change and disable in the table, each effect seen by the user, then enable again and reset the password', async ({ page, browser }) => {

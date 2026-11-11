@@ -117,6 +117,8 @@ var exportPolicy = map[string]tablePolicy{
 	"resp_plans":             {export: "id finding_id cve asset_id asset_name generated_at model profile path", json: "reads steps"},
 	"resp_rules":             {export: "seq id name enabled live trigger pre_approved max_per_hour schedule_min template_id last_fired", json: "match conditions actions"},
 	"resp_settings":          {export: "id updated_at", json: "value"},
+	"resp_identity":          {export: "user_id channel address linked_at"},
+	"resp_link_codes":        {skipAll: true, skip: "user_id channel address code_hash expires_at sent_at tries"},
 	"resp_tokens":            {skipAll: true, skip: "token_hash kind decision action_id user_id address channel key_id expires_at used_at"},
 	"sa_job":                 {export: "id kind reason started_at finished_at status targets new_devices error"},
 	"sa_probe":               {export: "id time job_id shape rate hosts flags targets result"},

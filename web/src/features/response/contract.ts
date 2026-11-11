@@ -126,8 +126,21 @@ export const Settings = z.object({
   ai: AiGates,
 })
 export const SettingsView = Settings.extend({
-  channels: z.array(z.object({ type: z.string(), label: z.string(), ready: z.boolean().describe('Configured, enabled, approvals on and at least one approver'), approvers: z.number().int(), link: z.boolean().describe('Approves through a one-time link (email, Zalo OA)') })),
+  channels: z.array(z.object({ type: z.string(), label: z.string(), ready: z.boolean().describe('Configured, enabled, approvals on and at least one approver'), approvers: z.number().int(), link: z.boolean().describe('Approves through a one-time link (email, Zalo OA)'),
+    linked: z.number().int().describe('Approvers who proved this address themselves in My account (D-191); only they can approve with buttons or links'),
+    unlinked: z.array(z.string()).describe('Names of the approvers who have not linked their address yet') })),
 })
+
+// ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
+export const IdentityMethod = z.enum(['email_code', 'chat_code', 'unavailable'])
+export const Identity = z.object({
+  channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
+  linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
+  code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
+})
+export const IdentityList = z.object({ items: z.array(Identity) })
+export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box') })
 export const SettingsInput = z.object({
   max_per_hour: z.number().int(), expiry_min: z.number().int(), approval_channels: z.array(z.string()),
   breaker_max_per_hour: z.number().int(), multi_target_max: z.number().int(), maintenance: z.array(Window),
@@ -244,6 +257,7 @@ export const Metrics = z.object({
 })
 
 const idParams = z.object({ id })
+const chanParams = z.object({ channel: z.string().regex(/^[a-z-]{1,20}$/) })
 const tokenParams = z.object({ token: z.string() })
 const R = (e: Parameters<typeof defineEndpoints>[0][number]) => e
 export const endpoints = defineEndpoints([
@@ -262,6 +276,12 @@ export const endpoints = defineEndpoints([
   R({ method: 'get', path: '/response/approve/{token}', summary: 'Public: what an emailed approval link would change. Read only: opening the link never approves', stories: ['S-RESP-2'], role: 'public', params: tokenParams, response: ApprovalView }),
   R({ method: 'post', path: '/response/approve/{token}', summary: 'Public: approve or reject through an emailed link. The token is single-use, valid 30 minutes and bound to one request and one approver', stories: ['S-RESP-2'], role: 'public',
     params: tokenParams, body: z.object({ decision: z.enum(['approve', 'reject']) }), response: ActionRequest }),
+  R({ method: 'get', path: '/response/me/identities', summary: 'My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it (D-191)', stories: ['S-RESP-2'], role: 'operator', response: IdentityList }),
+  R({ method: 'post', path: '/response/me/identities/{channel}/code', summary: 'Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a button on an approval message', stories: ['S-RESP-2'], role: 'operator',
+    params: chanParams, response: CodeSent }),
+  R({ method: 'post', path: '/response/me/identities/{channel}/confirm', summary: 'Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it', stories: ['S-RESP-2'], role: 'operator',
+    params: chanParams, body: z.object({ code: z.string() }), response: Identity }),
+  R({ method: 'delete', path: '/response/me/identities/{channel}', summary: 'Unlink my address on a channel: buttons and links from it stop counting until I link it again', stories: ['S-RESP-2'], role: 'operator', params: chanParams, response: null }),
   R({ method: 'get', path: '/response/settings', summary: 'AI response settings: execution switch, safety envelope (circuit breaker, multi-target limit, maintenance windows), AI gates and approval channels', stories: ['S-RESP-2', 'S-AI-8'], role: 'admin', response: SettingsView }),
   R({ method: 'put', path: '/response/settings', summary: 'Save the hourly limit, approval expiry (15 to 30 minutes), approval channels, circuit breaker, multi-target limit, maintenance windows and AI gates (does not touch the execution switch)', stories: ['S-RESP-2', 'S-AI-8'], role: 'admin',
     body: SettingsInput, response: SettingsView }),

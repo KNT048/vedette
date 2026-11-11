@@ -81,7 +81,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 
 ## LOG — Log và bất thường
 
-**S-LOG-1** (P2) `[đạt]` — Trỏ syslog của FortiGate/MikroTik/pfSense/Windows về hộp; Vedette gộp theo (signature, nguồn, đích) và so với 7 ngày trước; tôi thấy "cái mới" và "cái tăng đột biến", không phải log thô.
+**S-LOG-1** (P2) `[đạt]` — Trỏ syslog của FortiGate/MikroTik/pfSense/Windows về hộp; Vedette gộp theo (signature, nguồn, đích) và so với 7 ngày trước; tôi thấy "cái mới" và "cái tăng đột biến", không phải log thô. Tiêu chí (D-203): nguồn khai qua **UDP hoặc TCP** nhận được ngay khi thêm; nguồn khai qua **TLS** (cổng 6514) bị từ chối với 400 `tls_unavailable` ("Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP.") cho tới khi listener TLS có, vì một nguồn không bao giờ nhận được gì mà im lặng thì tệ hơn một lời từ chối rõ ràng; thông báo hiện ngay trong biểu mẫu.
 **S-LOG-2** (P2) `[đạt]` — Kết nối từ LAN ra IP/domain trong danh sách độc hại → cảnh báo, kèm thiết bị nguồn.
 **S-LOG-3** (P4) `[đạt]` — Chuyển tiếp sự kiện Vedette sang SIEM (syslog/CEF/JSON webhook).
 **S-LOG-4** (P2) `[đạt]` (D-43) — Có SPAN thì hộp đọc metadata DNS/SNI/luồng để thấy máy nào trong LAN liên lạc IP/domain độc hại, không cần cài IDS.

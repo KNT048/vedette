@@ -378,7 +378,7 @@ type Settings struct {
 	BreakerNotified   []string `json:"breaker_notified"`
 	// StoppedAt is when the emergency stop was pressed, until an admin resumes (ResetBreaker). It blocks every step that touches a device, an undo
 	// included; the execution switch and the breaker do not block an undo.
-	StoppedAt      *string  `json:"stopped_at,omitempty"`
+	StoppedAt      *string  `json:"stopped_at"`
 	MultiTargetMax int      `json:"multi_target_max"`
 	Maintenance    []Window `json:"maintenance"`
 	AI             AiGates  `json:"ai"`

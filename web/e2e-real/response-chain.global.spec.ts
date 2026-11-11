@@ -334,17 +334,7 @@ test('two actions over the limit need two different approvers: the same person t
   } finally { await setLimit(s.multi_target_max); await admin.dispose(); await op.dispose() }
 })
 
-/** A known bug (D-171): everything before `fn` is a real precondition and fails the test if it does not hold; `fn` is the assertion the bug breaks. While it throws, the test passes and
- *  carries a `known-bug` annotation with the reason; the day it stops throwing the test fails with "fixed", and the call is removed. (`test.fail` would also pass on a broken precondition.) */
-async function knownBug(reason: string, fn: () => Promise<unknown>) {
-  const err = await fn().then(() => null, (e: Error) => e)
-  if (!err) throw new Error(`The known bug is fixed (${reason}): remove knownBug() and keep the assertion.`)
-  test.info().annotations.push({ type: 'known-bug', description: `${reason} -- ${err.message.split('\n')[0]}` })
-}
-
-// Found by this spec: nothing subscribes to honeypot.hit.created in the response module (modules/response/events.go lists it as "module not built yet"; Subscribe wires findings and inventory only), so a
-// rule with the honeypot trigger never fires on a real trap hit. S-RESP-3 and the template "Trap touched: add the source to the FortiGate group" promise it. Filed as an issue
-// (.ai/deferred/feat-e2e-real-response-chains.md). The precondition is real: the trap is on, the line is in the container's log, and the HIT is recorded; only the request is missing.
+// A real trap hit fires a live rule with the honeypot trigger (S-RESP-3; issue #304, fixed: response subscribes to honeypot.hit.created).
 test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)', async () => {
   test.setTimeout(180_000)
   const admin = await as('admin')
@@ -382,8 +372,7 @@ test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)
     // precondition: the honeypot read the line (it polls every 15 s) and recorded a hit from that source
     await expect.poll(async () => (await get<{ items: { src_ip: string }[] }>(admin, '/honeypot/hits')).items.some((h) => h.src_ip === HIT), { message: `a hit from ${HIT}`, timeout: 60_000, intervals: [2000] }).toBe(true)
 
-    await knownBug('honeypot.hit.created is not subscribed by response', () =>
-      expect.poll(async () => (await requests(admin)).some((r) => r.rule_name === name), { message: 'a request to block the source of the hit', timeout: 20_000 }).toBe(true))
+    await expect.poll(async () => (await requests(admin)).some((r) => r.rule_name === name), { message: 'a request to block the source of the hit', timeout: 20_000 }).toBe(true)
   } finally {
     if (trapOn) await api(admin, 'PATCH', '/honeypot/traps/ssh', { enabled: false })
     if (lan && !lan.includes(LAN)) {
@@ -399,8 +388,7 @@ test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)
   }
 })
 
-// Found by this spec: the emergency stop sets `stopped_at` in the settings, and the OpenAPI response schema has no such field, so the box's own response check refuses its own answer:
-// GET and PUT /response/settings then answer 500 `internal` ("unexpected field stopped_at" in box.log) until an admin resumes. Resume (POST /response/breaker/reset) clears it, so this
+// The emergency stop sets `stopped_at` in the settings; GET and PUT /response/settings keep answering (issues #302, #305, fixed). Resume (POST /response/breaker/reset) clears it, so this
 // test always leaves the box usable.
 test('after the emergency stop the settings stay readable, and Resume clears the stop (S-RESP-2)', async () => {
   const admin = await as('admin')
@@ -408,10 +396,9 @@ test('after the emergency stop the settings stay readable, and Resume clears the
   try {
     const stop = await api(op, 'POST', '/response/emergency-stop')
     expect(stop.status, JSON.stringify(stop.body)).toBe(200)
-    await knownBug('stopped_at is not in the settings schema', async () => {
-      const s = await api(admin, 'GET', '/response/settings')
-      expect(s.status, `GET /response/settings after the stop: ${JSON.stringify(s.body)}`).toBe(200)
-    })
+    const s = await api<{ stopped_at: string | null; breaker_tripped_at: string | null }>(admin, 'GET', '/response/settings')
+    expect(s.status, `GET /response/settings after the stop: ${JSON.stringify(s.body)}`).toBe(200)
+    expect(s.body.stopped_at, 'the stop is in the settings').not.toBeNull()
   } finally {
     const back = await api(admin, 'POST', '/response/breaker/reset')
     expect(back.status, `resume: ${JSON.stringify(back.body)}`).toBe(200)
@@ -419,8 +406,7 @@ test('after the emergency stop the settings stay readable, and Resume clears the
   }
 })
 
-// docs/specs/blocklist-format.md says the feed is `text/plain; charset=utf-8`; the box answers application/octet-stream (ogen fixes the content type of a file answer,
-// modules/response/handlers.go:489). Firewalls read the body whatever the type, so this is drift, not a break.
+// docs/specs/blocklist-format.md §4: the feed is `text/plain; charset=utf-8` (issue #306, fixed).
 test('the block list feed is served as text/plain (blocklist-format.md)', async () => {
   const admin = await as('admin')
   try {
@@ -428,6 +414,6 @@ test('the block list feed is served as text/plain (blocklist-format.md)', async 
     if (!bl.url) bl = (await api<Blocklist>(admin, 'POST', '/response/blocklist/token')).body
     const r = await fetch(box().base_url + new URL(bl.url, box().base_url).pathname, { signal: AbortSignal.timeout(10_000) })
     expect(r.status, 'the feed answers').toBe(200)
-    await knownBug('ogen answers application/octet-stream', async () => expect(r.headers.get('content-type') ?? '').toContain('text/plain'))
+    expect(r.headers.get('content-type')).toBe('text/plain; charset=utf-8')
   } finally { await admin.dispose() }
 })

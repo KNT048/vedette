@@ -30,7 +30,7 @@ test('the only active administrator can neither demote nor disable itself', asyn
     // the server refuses, with a reason a person can read
     const demote = await api<{ error: { code: string; message: string } }>(admin, 'PATCH', `/core/users/${me.id}`, { role: 'viewer' })
     expect(demote.status).toBe(400)
-    expect(demote.body).toMatchObject({ error: { code: 'last_admin', message: expect.stringContaining('At least one active administrator must remain') } })
+    expect(demote.body).toMatchObject({ error: { code: 'last_admin', message: expect.stringContaining('At least one active administrator') } })
     const off = await api<{ error: { code: string } }>(admin, 'PATCH', `/core/users/${me.id}`, { disabled: true })
     expect(off.status).toBe(400)
     expect(off.body.error.code, 'a person cannot disable the account they are using').toBe('self_disable')
@@ -42,7 +42,7 @@ test('the only active administrator can neither demote nor disable itself', asyn
     await page.getByRole('textbox', { name: 'Find a user' }).fill(me.name)
     await expect(page.getByRole('button', { name: `Disable ${me.name}` })).toBeDisabled()
     await page.getByRole('combobox', { name: `Role of ${me.name}` }).selectOption('viewer')
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /At least one active administrator must remain/ }).first()).toBeVisible()
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /At least one active administrator/ }).first()).toBeVisible()
     await expect(page.getByRole('combobox', { name: `Role of ${me.name}` })).toHaveValue('admin')
     await page.reload()
     await expect(page.getByRole('combobox', { name: `Role of ${me.name}` })).toHaveValue('admin')

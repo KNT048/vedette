@@ -95,23 +95,15 @@ test('/settings/data renders, Download backup saves nothing and says nothing fal
   noErrors(errors, /status of (4|5)\d\d/)
 })
 
-/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
-const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
 
-// test.fail (D-171): lib/api.ts download() throws 'HTTP 409' and ignores the box's JSON error body, so the toast does not say why. Issue #237.
 test('Download backup tells the person what the box said (the container-only sentence)', async ({ page }) => {
-  test.fail(true, 'GUI: the toast says "HTTP 409" (issue #237, .ai/deferred/feat-e2e-real-harness.md)')
   await openBare(page, '/settings/data')
   await page.getByRole('button', { name: 'Download backup', exact: true }).click()
   const toasts = page.locator('[data-sonner-toast]')
-  const said = await toasts.filter({ hasText: SAYS.os }).first().waitFor({ timeout: 5_000 }).then(() => true, () => false)
-  knownSymptom(!said && (await toasts.filter({ hasText: 'HTTP 409' }).count()) > 0)
   await expect(toasts.filter({ hasText: SAYS.os }).first()).toBeVisible()
 })
 
-// test.fail (D-171): a box with no helper is not the person's mistake, yet both screens are titled "Invalid request". Issue #239.
 test('a container-only install is not reported as an invalid request', async ({ page }) => {
-  test.fail(true, 'GUI: 409 not_appliance is titled "Invalid request" (issue #239, .ai/deferred/feat-e2e-real-harness.md)')
   const titles: string[] = []
   for (const [route, says] of [['/settings/updates', SAYS.os], ['/settings/network', SAYS.network]] as const) {
     await openBare(page, route)
@@ -119,18 +111,13 @@ test('a container-only install is not reported as an invalid request', async ({ 
     await expect(alert).toBeVisible()
     titles.push(await alert.innerText())
   }
-  knownSymptom(titles.every((t) => t.startsWith('Invalid request')))
   for (const t of titles) expect(t).not.toMatch(/^Invalid request/)
 })
 
-// test.fail (D-171): the bands of Settings -> Updates are numbered 1, 2, 3; when the operating system part (1) shows only its error, the page
-// starts at 2. Issue #241.
 test('Settings -> Updates is numbered from 1 when the operating system part is an error', async ({ page }) => {
-  test.fail(true, 'GUI: the sections start at "2" when the OS part errors (issue #241, .ai/deferred/feat-e2e-real-harness.md)')
   await openBare(page, '/settings/updates')
   await expect(page.getByRole('alert').filter({ hasText: SAYS.os }).first()).toBeVisible()
   await expect(page.locator('#managed-band')).toBeVisible()
   const nums = await page.locator('main span[aria-hidden="true"]').filter({ hasText: /^\d$/ }).allInnerTexts()
-  knownSymptom(nums[0] === '2')
   expect(nums[0]).toBe('1')
 })

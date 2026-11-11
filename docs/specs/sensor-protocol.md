@@ -172,7 +172,7 @@ Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `co
 `core` dùng heartbeat cho (D-112 (5)):
 - `Sensor.status`: `online` khi có heartbeat trong **90 s**; `last_seen`, `version`, `devices_seen`, `interfaces` (tên card) của `GET /inventory/sensors` lấy từ heartbeat thụ động mới nhất;
 - `SpanStats()` / `span_status`: `off` (cấu hình `span=false`), `no_link` (card SPAN `link=false`), `no_traffic` (`last_packet_at` cũ hơn 30 s, `null`, hoặc sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
-- `SetInterface`: `interface` phải là một card trong heartbeat thụ động mới nhất (`400 bad_interface`, sensor-passive INV-9); chưa có heartbeat → `bad_interface`;
+- `SetInterface`: `interface` phải là một card của host (D-118); chỉ khi core chạy không có host thì là một card trong heartbeat thụ động mới nhất (D-263); `400 bad_interface` (sensor-passive INV-9); không có host và chưa có heartbeat → `bad_interface`;
 - địa chỉ của hộp (`ProtectedIPs` của sensor-active, kiểm IP bẫy của honeypot, `conn`) **tới khi** lát host 3-3 có `GET /v1/state/net` (D-114 (5));
 - sức khoẻ `sensor-active`: `unavailable` khi 90 s không có heartbeat `active` hoặc `nmap.present=false` (INV-6);
 - sức khoẻ của máy quét nuclei (`scan`, D-125 (5)): `scanner_unavailable` (503 ở API) khi 90 s không có heartbeat `active`, `nuclei.present=false`, `nuclei.pack.sha256` rỗng, hoặc một job nuclei chạy quá hạn mà worker chưa dừng được; nmap và nuclei độc lập: thiếu cái này không làm cái kia `unavailable`.

@@ -2954,7 +2954,7 @@ func encodeResponseGetResponseBlocklistResponse(response *ResponseGetResponseBlo
 }
 
 func encodeResponseGetResponseBlocklistTokenTxtResponse(response ResponseGetResponseBlocklistTokenTxtOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 
 	writer := w

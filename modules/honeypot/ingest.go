@@ -481,7 +481,13 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label}
+		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.trapHostname}
+		if d.Decoy == "" {
+			d.Decoy = h.trapIP
+		}
+		if dev := env.w.byIP(h.SrcIP); dev != nil { // INV-8: the source device as the inventory knows it now
+			d.SrcAssetID = dev.ID
+		}
 		if h.Service != nil {
 			d.Service = string(*h.Service)
 		}

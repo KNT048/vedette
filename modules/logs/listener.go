@@ -27,6 +27,7 @@ const SyslogRetry = 30 * time.Second
 
 // sourcesChanged wakes the listener: a source was added, edited or deleted. Non-blocking, one pending wake-up is enough.
 func (s *Service) sourcesChanged() {
+	s.dropSnapshot() // the digest names the sources: a change makes the stored reading stale
 	select {
 	case s.changed <- struct{}{}:
 	default:

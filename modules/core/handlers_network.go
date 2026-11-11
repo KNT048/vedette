@@ -1422,6 +1422,10 @@ type Card struct {
 	Addresses []netip.Addr
 }
 
+// HasHost reports whether core was started with a vedette-host socket (an appliance). False is a container-only install
+// (-host-socket=""), the only case in which the passive sensor's heartbeat may decide the card (D-263).
+func (h *NetworkHandlers) HasHost() bool { return h != nil && h.host != nil }
+
 // Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
 // file is absent: a container-only install): the caller then reads the interfaces of the operating system it
 // runs on. A host that is there but does not answer right now gives the last good list (or, before there is

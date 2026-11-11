@@ -39,6 +39,7 @@ export function buildOpenApi() {
     const code = String(e.status ?? 200)
     const ok = e.response === null ? { '204': { description: 'Done, no content' } }
       : e.response === 'file' ? { [code]: { description: 'File download', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } }
+      : e.response === 'text' ? { [code]: { description: 'Plain text', content: { 'text/plain; charset=utf-8': { schema: { type: 'string' } } } } }
       : { [code]: { description: code === '201' ? 'Created' : code === '202' ? 'Accepted' : 'OK', content: { 'application/json': { schema: js(e.response) } } } }
     ;(paths[e.path] ??= {})[e.method] = {
       operationId: `${e.module}_${e.method}_${e.path.replace(/[{}]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}`,

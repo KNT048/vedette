@@ -173,7 +173,8 @@ type Handler interface {
 	AiPostAiHooksTest(ctx context.Context, req *AiPostAiHooksTestReq) (*AiPostAiHooksTestOK, error)
 	// AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 	//
-	// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+	// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
+	// background.
 	//
 	// POST /ai/knowledge
 	AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (*AiPostAiKnowledgeOK, error)

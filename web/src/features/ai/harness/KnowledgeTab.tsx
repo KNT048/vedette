@@ -9,7 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Select } from '@/components/ui/input'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useProfiles } from '../api'
-import { useAddDoc, useDocJobs, useIndexProfile, useKnowledge, useRemoveDoc } from '../harness-api'
+import { fileBase64, useAddDoc, useDocJobs, useIndexProfile, useKnowledge, useRemoveDoc } from '../harness-api'
 import { ActionError } from '../parts'
 import type { KnowledgeDoc } from '../types'
 import { ConfirmDelete, JobPicker, jobNames, List, Row } from './shared'
@@ -32,15 +32,17 @@ export default function KnowledgeTab() {
   const [del, setDel] = useState<KnowledgeDoc | null>(null)
   const list = profiles.data?.items ?? []
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
     setPickErr('')
-    if (!/\.(pdf|md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
+    if (!/\.(md|txt|docx)$/i.test(f.name)) { setPickErr(t('harness.knowledge.errType', { name: f.name })); return }
     if (f.size > MAX) { setPickErr(t('harness.knowledge.errSize', { name: f.name })); return }
     if (f.size === 0) { setPickErr(t('harness.knowledge.errEmpty', { name: f.name })); return }
-    add.mutate({ name: f.name, size: f.size }, { onSuccess: () => toast.success(t('harness.knowledge.added', { name: f.name })) })
+    let content: string
+    try { content = await fileBase64(f) } catch { setPickErr(t('harness.knowledge.errRead', { name: f.name })); return }
+    add.mutate({ name: f.name, size: f.size, content }, { onSuccess: () => toast.success(t('harness.knowledge.added', { name: f.name })) })
   }
   return (
     <QueryState query={kb}>
@@ -64,7 +66,7 @@ export default function KnowledgeTab() {
             </Section>
             <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')}
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
-                <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".pdf,.md,.txt,.docx" onChange={onFile} data-testid="kb-file" /></>}>
+                <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
               <div className="grid gap-3">
                 {pickErr ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{pickErr}</p> : null}
                 <ActionError error={add.error} />

@@ -116,9 +116,7 @@ test('after the download core has removed its snapshot folder (INV-18)', async (
   await expect.poll(() => (existsSync(dir) ? readdirSync(dir) : []), { timeout: 15_000, message: 'snapshots/ in the data folder' }).toEqual([])
 })
 
-// test.fail (D-171): the release GUI offers "Restore sample data" ("Trial build only") on a real box, which has no sample data (INV-15). Issue #244.
 test('a real box does not offer to restore sample data', async ({ page }) => {
-  test.fail(true, 'GUI: Restore sample data is shown on a real box (issue #244, .ai/deferred/feat-e2e-real-harness.md)')
   await page.goto('/settings/data')
   await expect(h1(page)).toBeVisible()
   knownSymptom(await page.getByRole('button', { name: 'Restore sample data', exact: true }).isVisible())

@@ -478,7 +478,7 @@ func mustRules(e *env) []response.Rule {
 
 func (e *env) trap(id, src string) response.Det {
 	return response.Det{ID: id, Trigger: "honeypot", TS: store.FormatTS(e.clock.Now()), Summary: "PC-HR-01 touched a trap from " + src,
-		Fields: map[string]string{"source_ip": src, "source_device": "PC-HR-01", "decoy": "FILESRV-OLD", "kind": "scan", "switch_port": "Gi1/0/12"}}
+		Fields: map[string]string{"source_ip": src, "source_device": "PC-HR-01", "decoy": "FILESRV-OLD", "kind": "service", "switch_port": "Gi1/0/12"}}
 }
 
 func twoBlocks() []response.RuleAction {

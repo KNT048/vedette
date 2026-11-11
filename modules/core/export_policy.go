@@ -40,6 +40,8 @@ var exportPolicy = map[string]tablePolicy{
 	"ai_downgrade":           {export: "id ts from_tier to_tier reason"},
 	"ai_hook":                {export: "id name name_key when match_type pattern action message enabled created_at updated_at"},
 	"ai_hook_state":          {export: "builtin_id enabled"},
+	"ai_knowledge_chunk":     {export: "id doc_id seq text"},
+	"ai_knowledge_doc":       {export: "id name size status chunks uploaded_at", json: "jobs"},
 	"ai_memory":              {export: "id text source created_at last_used_at enabled"},
 	"ai_memory_rejected":     {skipAll: true, skip: "digest rejected_at"}, // the box's own memory of what not to suggest again, not data to take away
 	"ai_memory_suggestion":   {export: "id text created_at evidence"},
@@ -116,7 +118,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},
 	"notify_slack_team":      {skipAll: true, skip: "id rev team_id"},
 	"logs_retention":         {export: "id days"},
-	"logs_sources":           {export: "id kind name sender_ip proto port created_at"},
+	"logs_sources":           {export: "id kind name sender_ip proto port created_at signatures_since"},
 	"rep_history":            {export: "id ts trigger status error", json: "recipients report"},
 	"rep_pdpl":               {export: "id", json: "org report"},
 	"rep_schedule":           {export: "id enabled zone day hour armed_at last_slot_at", json: "recipients"},

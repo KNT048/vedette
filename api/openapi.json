@@ -3291,7 +3291,7 @@
       },
       "post": {
         "operationId": "ai_post_ai_knowledge",
-        "summary": "Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size",
+        "summary": "Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
         "tags": [
           "ai"
         ],
@@ -3315,7 +3315,12 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991,
-                    "description": "Bytes; 10 MB at most. PDF, MD, TXT or DOCX"
+                    "description": "Bytes of the file; 10 MB at most. MD, TXT or DOCX"
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The box keeps only the text it finds in it, never the file"
                   },
                   "jobs": {
                     "type": "array",
@@ -3338,7 +3343,8 @@
                 },
                 "required": [
                   "name",
-                  "size"
+                  "size",
+                  "content"
                 ],
                 "additionalProperties": false
               }
@@ -46521,12 +46527,11 @@
         ],
         "responses": {
           "200": {
-            "description": "File download",
+            "description": "Plain text",
             "content": {
-              "application/octet-stream": {
+              "text/plain; charset=utf-8": {
                 "schema": {
-                  "type": "string",
-                  "format": "binary"
+                  "type": "string"
                 }
               }
             }
@@ -46746,6 +46751,19 @@
                         "type": "string"
                       }
                     },
+                    "stopped_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included"
+                    },
                     "multi_target_max": {
                       "type": "integer",
                       "minimum": 1,
@@ -46906,6 +46924,7 @@
                     "breaker_max_per_hour",
                     "breaker_tripped_at",
                     "breaker_notified",
+                    "stopped_at",
                     "multi_target_max",
                     "maintenance",
                     "ai",
@@ -48999,6 +49018,19 @@
                         "type": "string"
                       }
                     },
+                    "stopped_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included"
+                    },
                     "multi_target_max": {
                       "type": "integer",
                       "minimum": 1,
@@ -49159,6 +49191,7 @@
                     "breaker_max_per_hour",
                     "breaker_tripped_at",
                     "breaker_notified",
+                    "stopped_at",
                     "multi_target_max",
                     "maintenance",
                     "ai",
@@ -49214,8 +49247,7 @@
                           },
                           "ts": {
                             "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            "description": "Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be re-encoded and break the hash"
                           },
                           "kind": {
                             "type": "string",
@@ -49253,7 +49285,7 @@
                           },
                           "hash": {
                             "type": "string",
-                            "description": "lowercase hex SHA-256 of prev_hash + \"\\n\" + JSON.stringify([id, ts, kind, actor, detail])"
+                            "description": "lowercase hex SHA-256 of prev_hash + \"\\n\" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts exactly as served"
                           }
                         },
                         "required": [
@@ -52895,6 +52927,19 @@
                         "type": "string"
                       }
                     },
+                    "stopped_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included"
+                    },
                     "multi_target_max": {
                       "type": "integer",
                       "minimum": 1,
@@ -53055,6 +53100,7 @@
                     "breaker_max_per_hour",
                     "breaker_tripped_at",
                     "breaker_notified",
+                    "stopped_at",
                     "multi_target_max",
                     "maintenance",
                     "ai",
@@ -53279,6 +53325,19 @@
                         "type": "string"
                       }
                     },
+                    "stopped_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included"
+                    },
                     "multi_target_max": {
                       "type": "integer",
                       "minimum": 1,
@@ -53439,6 +53498,7 @@
                     "breaker_max_per_hour",
                     "breaker_tripped_at",
                     "breaker_notified",
+                    "stopped_at",
                     "multi_target_max",
                     "maintenance",
                     "ai",

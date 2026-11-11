@@ -103,7 +103,7 @@ export E2E_BOX="$tmp/box/ready.json" E2E_PASSWORD="$password" E2E_WORKERS="$work
 # Two passes (a red parallel test must not skip the global specs and the restore logic in them): pass 1 is setup, seed and parallel; pass 2 is
 # the global project alone (--no-deps, the seeded storageState files are in the run folder). The exit code is non-zero when either failed.
 status=0
-for pass in "--project=parallel" "--project=global --no-deps"; do
+for pass in "--project=parallel --project=mobile" "--project=global --no-deps"; do
 	set -m
 	# shellcheck disable=SC2086 # SPECS is a list of paths, pass is two words
 	pnpm --dir web exec playwright test -c playwright.real.config.ts $pass --pass-with-no-tests ${SPECS:-} &

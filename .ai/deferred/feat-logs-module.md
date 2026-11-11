@@ -32,6 +32,7 @@ Common to every slice: module code in `modules/logs/` only; cmd additive lines i
 - Useful alone: yes (real syslog from a lab firewall shows up in Logs).
 
 ### L3: signatures, baseline, digest, anomaly events
+- [x] 2026-11-11 — DONE in feat/logs-l3-signatures (decisions in D-206; open lines in `.ai/deferred/feat-logs-l3-signatures.md`). Built: profiles as data (FortiGate, MikroTik, Windows) + generic miner, daily and 5-minute counters, baseline digest, `anomaly` job and `logs.anomaly.detected`, `Counts`, retention.
 - Stories: S-LOG-1 (new / spike, not raw logs).
 - Does: kind profiles as DATA (`modules/logs/data/profiles/*.json`: signature rule, normalised sample, optional src/dst fields): ship FortiGate, MikroTik, Windows Security (event ids), and a generic template miner (mask IPs/numbers/hex) for all other kinds, honest in the GUI catalog; per-day counters `logs_signature_daily(day, signature, source, dest) count` (no extra raw storage); baseline 7 days, "new" = not in baseline, "spike" = >= max(20, 5x `baseline_per_day`) in 24 h; per-source warm-up of 24 h with no "new" and no events (the D-78 lesson); `GET /logs/digest`; events `logs.anomaly.detected` (payload fixed in CONTRACT, grouped by source+target, max 20 per hour per source); `Counts(ctx, source, signature, window)` read port for `response` `log_threshold`.
 - INV/POST: INV-6, INV-1 (profiles are untrusted-input parsers too).

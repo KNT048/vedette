@@ -180,9 +180,10 @@ EOT
 	ok "second install: users, groups, subid lines, tree, modes, owners, hashes and unit state are identical"
 
 	# After the honeypot first starts, podman's :U has given log/ to the container's user (a subuid) with mode 755 (D-162): an upgrade must go through.
-	x 'chown 165536:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
+	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as byn:100000:65536 only reaches 0..65535) that is not vedette's.
+	x 'chown 61000:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
 	install "--reinstall"
-	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "165536:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
+	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "61000:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
 	ok "an upgrade after the honeypot took log/ (:U) succeeds and leaves its owner and mode alone"
 	x 'chown vedette:vedette /var/lib/vedette-honeypot/log'
 

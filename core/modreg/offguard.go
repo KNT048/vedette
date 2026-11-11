@@ -122,7 +122,11 @@ func (g *OffGuard) converge(ctx context.Context, id string, fn Teardown) {
 			return
 		}
 		wait := g.backoff[min(i, len(g.backoff)-1)]
-		g.log.WarnContext(ctx, "module teardown has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		if g.wantOn {
+			g.log.WarnContext(ctx, "module start has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		} else {
+			g.log.WarnContext(ctx, "module teardown has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		}
 		t := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():

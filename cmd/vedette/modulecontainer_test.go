@@ -1,12 +1,19 @@
 package main
 
 import (
+	"database/sql"
+	"log/slog"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops/opstest"
+	"github.com/knt048/vedette/modules"
 )
 
 // M3 (D-260): the sensor and scan containers follow their module, over the real host server and client (as the honeypot's
@@ -34,6 +41,15 @@ func (e *hpHost) state(t *testing.T, service string) string {
 	}
 	t.Fatalf("no %s in the state of the containers", service)
 	return ""
+}
+
+// writes counts the systemctl calls that change something: what a container.start or container.stop run does.
+func (e *hpHost) writes() int {
+	n := 0
+	for _, v := range []string{"restart", "start", "stop", "daemon-reload"} {
+		n += e.systemctl(v)
+	}
+	return n
 }
 
 func (e *hpHost) hasInstall(t *testing.T, service string) bool {
@@ -146,5 +162,112 @@ func TestNoModuleContainersWithoutAHost(t *testing.T) {
 	t.Parallel()
 	if m := newModuleContainers(deps{}); m != nil {
 		t.Fatalf("followers without a host: %v", m)
+	}
+}
+
+// eventually polls cond until it holds or the deadline passes.
+func eventually(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	end := time.Now().Add(20 * time.Second)
+	for !cond() {
+		if time.Now().After(end) {
+			t.Fatalf("timed out waiting for: %s", what)
+		}
+		<-time.After(20 * time.Millisecond)
+	}
+}
+
+// M3 (D-260), the wiring: startGuards, the function serve calls, over a real Registry and the fake host. Core starting with a
+// module off stops its container and drops [Install]; a real Publish of a switch-on starts it with [Install]; a switch-off stops
+// it again. Without the OnChange subscription or without addContainerGuards one of these steps never happens.
+func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
+	t.Setenv("TZ", "UTC")
+	ctx := t.Context()
+	e := startHPHost(t, false)
+	db := storetest.New(t)
+	wired := wiredModules()
+	if err := migrateAll(ctx, db, wired); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	toggle := func(id string, on bool) {
+		t.Helper()
+		var ch modreg.Change
+		err := db.Write(ctx, func(tx *sql.Tx) error {
+			var err error
+			if on {
+				ch, err = reg.Enable(ctx, tx, "admin@acme.example", id, true)
+			} else {
+				ch, err = reg.Disable(ctx, tx, "admin@acme.example", id)
+			}
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		reg.Publish(ch)
+	}
+	for _, c := range moduleContainers {
+		e.m.InstallUnit(c.service, opstest.Digest('b'), true) // as the bootstrap writes them: with [Install], not running
+		toggle(c.module, false)
+	}
+	stop := startGuards(ctx, reg, slog.New(slog.DiscardHandler), deps{HostSocket: e.h.Socket, Reg: reg}, wired)
+	defer stop()
+	for _, c := range moduleContainers {
+		eventually(t, c.service+" stopped without [Install] at start with the module off", func() bool {
+			return e.state(t, c.service) == api.UnitInactive && !e.hasInstall(t, c.service)
+		})
+		toggle(c.module, true)
+		eventually(t, c.service+" started with [Install] after the switch-on", func() bool {
+			return e.state(t, c.service) == api.UnitActive && e.hasInstall(t, c.service)
+		})
+		toggle(c.module, false)
+		eventually(t, c.service+" stopped without [Install] after the switch-off", func() bool {
+			return e.state(t, c.service) == api.UnitInactive && !e.hasInstall(t, c.service)
+		})
+	}
+}
+
+// A unit that is active with [Install] is left alone whatever its health (systemd just started it on boot, it is in its health
+// start period): no restart, no write run. A unit that is stopped without [Install] is left alone by the stop.
+func TestModuleContainerSkipsWhatIsAlreadyRight(t *testing.T) {
+	t.Setenv("TZ", "UTC")
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
+	reg := &flagReg{}
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	ctx := t.Context()
+
+	reg.on.Store(true)
+	if err := f.ensureOn(ctx); err != nil { // the first start: the unit was not running
+		t.Fatal(err)
+	}
+	e.m.SetHealth(api.ServiceSensor, "starting")
+	restarts, runs := e.systemctl("restart"), e.writes()
+	for range 2 {
+		if err := f.ensureOn(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.systemctl("restart"); n != restarts {
+		t.Fatalf("a unit in its health start period was restarted (%d -> %d)", restarts, n)
+	}
+	if n := e.writes(); n != runs {
+		t.Fatalf("ensureOn sent %d write runs for a unit that was already right", n-runs)
+	}
+
+	reg.on.Store(false)
+	if err := f.ensureOff(ctx); err != nil {
+		t.Fatal(err)
+	}
+	runs = e.writes()
+	if err := f.ensureOff(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.writes(); n != runs {
+		t.Fatalf("ensureOff sent %d write runs for a unit that was already stopped without [Install]", n-runs)
 	}
 }

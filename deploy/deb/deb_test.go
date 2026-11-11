@@ -491,7 +491,7 @@ func TestPostinst_UpgradeRestartsARunningHost(t *testing.T) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("restart_after_upgrade: %v %s", err, out)
 		}
-		got, _ := os.ReadFile(log)
+		got, _ := os.ReadFile(log) //nolint:gosec // test: the recorder file this test created
 		return string(got)
 	}
 	if got := run(t, true, "0.1.0"); got != "deb-systemd-invoke try-restart vedette-host.service\n" {

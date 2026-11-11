@@ -304,18 +304,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := addJobs(sched, d, wired); err != nil {
 		return err
 	}
-	offCtx, stopOff := context.WithCancel(ctx)
-	guard := modreg.NewOffGuard(offCtx, reg, log, nil)
-	onGuard := modreg.NewOnGuard(offCtx, reg, log, nil) // M3, D-260: the sensor and scan containers run exactly while their module is on
-	defer func() { stopOff(); guard.Wait(); onGuard.Wait() }()
-	reg.OnChange(guard.ModuleChanged)
-	reg.OnChange(onGuard.ModuleChanged)
+	stopGuards := func() {}
+	defer func() { stopGuards() }()
 	if err := startMCP(ctx, d); err != nil { // the port is open exactly while the module is on (POST-1)
 		return err
 	}
-	addOffGuards(guard, d, wired)         //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
-	addContainerGuards(onGuard, guard, d) //nolint:contextcheck // as above: the follower's start (module on) and stop (module off) at core start
-
+	stopGuards = startGuards(ctx, reg, log, d, wired)
 	api, err := server.New(server.Config{
 		API:        newHandler(d),
 		Auth:       d.Auth.Sessions,

@@ -200,6 +200,21 @@ func addOffGuards(g *modreg.OffGuard, d deps, wired []moduleWiring) {
 	}
 }
 
+// startGuards is how serve makes "off means off" and "on means running" for what lives outside the process: the OffGuard
+// (the modules' EnsureOff: honeypot, D-189, and the stop of the sensor and scan containers) and the OnGuard (the start of
+// those two containers, D-260), both subscribed to the registry and handed their funcs, which converge at once for a module
+// that is already in the state they act on. stop cancels the retries and waits for them; the containers are left as they are.
+func startGuards(ctx context.Context, reg *modreg.Registry, log *slog.Logger, d deps, wired []moduleWiring) (stop func()) {
+	gctx, cancel := context.WithCancel(ctx)
+	off := modreg.NewOffGuard(gctx, reg, log, nil)
+	on := modreg.NewOnGuard(gctx, reg, log, nil)
+	reg.OnChange(off.ModuleChanged)
+	reg.OnChange(on.ModuleChanged)
+	addOffGuards(off, d, wired)    //nolint:contextcheck // the guards run on gctx, the child of ctx made just above
+	addContainerGuards(on, off, d) //nolint:contextcheck // as above
+	return func() { cancel(); off.Wait(); on.Wait() }
+}
+
 // bodyLimits merges the modules' per-operation body caps for server.Config. server.New refuses an
 // operationId that does not exist, so a typo fails at start-up.
 func bodyLimits(wired []moduleWiring) map[string]int64 {

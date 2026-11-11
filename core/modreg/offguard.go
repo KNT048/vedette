@@ -29,6 +29,8 @@ type OffGuard struct {
 	reg     interface{ Enabled(id string) bool }
 	log     *slog.Logger
 	backoff []time.Duration
+	// wantOn flips the guard: it converges while the module is ON (NewOnGuard), for what must run only while it is on.
+	wantOn bool
 
 	mu    sync.Mutex
 	fns   map[string]Teardown
@@ -46,12 +48,22 @@ func NewOffGuard(ctx context.Context, reg interface{ Enabled(id string) bool }, 
 	return &OffGuard{ctx: ctx, reg: reg, log: log, backoff: backoff, fns: map[string]Teardown{}, runs: map[string]*offRun{}}
 }
 
-// Add registers the Teardown of module id; if the module is off right now it starts converging at once.
+// NewOnGuard is the mirror of NewOffGuard (M3): the same retry loop, but it runs the func registered with Add while the
+// module is ON (at start with the module on, and after every switch-on), until it returns nil; a switch-off cancels it.
+// The func is idempotent, returns nil at once if the module has been turned off again, and respects ctx, as a Teardown.
+func NewOnGuard(ctx context.Context, reg interface{ Enabled(id string) bool }, log *slog.Logger, backoff []time.Duration) *OffGuard {
+	g := NewOffGuard(ctx, reg, log, backoff)
+	g.wantOn = true
+	return g
+}
+
+// Add registers the Teardown of module id; if the module is in the state the guard converges in (off, or on for an
+// OnGuard) right now it starts converging at once.
 func (g *OffGuard) Add(id string, fn Teardown) {
 	g.mu.Lock()
 	g.fns[id] = fn
 	g.mu.Unlock()
-	if !g.reg.Enabled(id) {
+	if g.reg.Enabled(id) == g.wantOn {
 		g.start(id)
 	}
 }
@@ -60,7 +72,7 @@ func (g *OffGuard) Add(id string, fn Teardown) {
 // state from the registry instead of trusting its argument: Publish calls subscribers after it unlocks, so two quick
 // switches can arrive out of order (the scheduler does the same, jobs.go).
 func (g *OffGuard) ModuleChanged(id string, _ bool) {
-	if g.reg.Enabled(id) {
+	if g.reg.Enabled(id) != g.wantOn {
 		g.mu.Lock()
 		if r := g.runs[id]; r != nil {
 			r.cancel()
@@ -100,7 +112,7 @@ func (g *OffGuard) start(id string) {
 
 func (g *OffGuard) converge(ctx context.Context, id string, fn Teardown) {
 	for i := 0; ; i++ {
-		if ctx.Err() != nil || g.reg.Enabled(id) {
+		if ctx.Err() != nil || g.reg.Enabled(id) != g.wantOn {
 			return
 		}
 		actx, cancel := context.WithTimeout(ctx, OffAttempt)
@@ -110,7 +122,11 @@ func (g *OffGuard) converge(ctx context.Context, id string, fn Teardown) {
 			return
 		}
 		wait := g.backoff[min(i, len(g.backoff)-1)]
-		g.log.WarnContext(ctx, "module teardown has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		if g.wantOn {
+			g.log.WarnContext(ctx, "module start has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		} else {
+			g.log.WarnContext(ctx, "module teardown has not converged; retrying", "module", id, "error", err, "retry_in", wait.String())
+		}
 		t := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():

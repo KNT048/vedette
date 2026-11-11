@@ -3640,8 +3640,8 @@ func (s *Server) handleAiPostAiHooksTestRequest(args [0]string, argsEscaped bool
 
 // handleAiPostAiKnowledgeRequest handles ai_post_ai_knowledge operation.
 //
-// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
-// background.
+// Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it
+// in the background.
 //
 // POST /ai/knowledge
 func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3725,7 +3725,7 @@ func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPostAiKnowledgeOperation,
-			OperationSummary: "Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
+			OperationSummary: "Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
 			OperationID:      "ai_post_ai_knowledge",
 			Body:             request,
 			RawBody:          rawBody,
@@ -8785,7 +8785,7 @@ func (s *Server) handleCoreGetCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleCoreGetCorePrivacyRequest handles core_get_core_privacy operation.
 //
-// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8854,7 +8854,7 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCorePrivacyOperation,
-			OperationSummary: "The 13 data flows leaving the box and the verbatim anonymous-signal payload",
+			OperationSummary: "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
 			OperationID:      "core_get_core_privacy",
 			Body:             nil,
 			RawBody:          rawBody,

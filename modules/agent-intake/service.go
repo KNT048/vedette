@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -17,7 +18,9 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -34,12 +37,15 @@ const (
 	systemActor       = "system"
 )
 
-// Config is what New needs. DB, Audit, Sink and Software are required.
+// Config is what New needs. DB, Audit, Sink and Software are required. Secrets and Conn are the Wazuh pull's (slice 4): without both,
+// its routes answer 501 and its job does nothing.
 type Config struct {
 	DB       *store.DB
 	Audit    *audit.Log
 	Sink     observe.Sink         // the inventory: device observations (core/observe)
 	Software observe.SoftwareSink // the inventory: the software list of a device
+	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
+	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
 	Clock    func() time.Time
 	Log      *slog.Logger
 }
@@ -54,6 +60,11 @@ type Service struct {
 	warnMu   sync.Mutex // guards lastWarn and replaced
 	lastWarn map[string]time.Time
 	replaced map[string]*replaceState // by source address: the last software replace (ingest.go allowReplace)
+
+	wazuhRoots  *x509.CertPool // nil: the system's (tests replace it)
+	wazuhSleep  func(ctx context.Context, d time.Duration) error
+	wazuhPace   time.Duration
+	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
 
 	pruneMu   sync.Mutex
 	pruneLast time.Time // the previous node-prune run; a long gap means the module was off (or the box down)
@@ -74,6 +85,7 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
+	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget
 	return s, nil
 }
 

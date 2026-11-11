@@ -259,8 +259,8 @@ func (UnimplementedHandler) AiPostAiHooksTest(ctx context.Context, req *AiPostAi
 
 // AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 //
-// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
-// background.
+// Upload a document (PDF, MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it
+// in the background.
 //
 // POST /ai/knowledge
 func (UnimplementedHandler) AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (r *AiPostAiKnowledgeOK, _ error) {
@@ -601,7 +601,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 13 data flows leaving the box and the verbatim anonymous-signal payload.
+// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {

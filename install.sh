@@ -48,7 +48,8 @@ REGISTRY_UNIT=vedette-testregistry
 REGISTRY_ADDR=127.0.0.1:5077
 CLOUD_FILE=/etc/cloud/cloud.cfg.d/99-vedette-network.cfg
 # iptables: netavark 1.4 (Ubuntu 24.04) programs the firewall through it and fails with "No such file" without it (found by install-check)
-PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd"
+# conntrack: vedette-host deletes the stale UDP conntrack entries of the published syslog port after core restarts (D-268)
+PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd conntrack"
 OPTIONAL_PACKAGES="netavark aardvark-dns catatonit"
 MIN_FREE_KB=6291456 # 6 GiB under /var/lib and /var/tmp: the images are about 1 GB, the data grows
 CLOCK_FLOOR=1793491200 # 2026-11-01: a clock before this is not set
@@ -338,6 +339,8 @@ install_packages() {
 	podman_ver=$(podman --version | awk '{print $3}')
 	[ "$(printf '4.4\n%s\n' "${podman_ver%%-*}" | sort -V | head -n 1)" = 4.4 ] || die "podman $podman_ver is older than 4.4 (no Quadlet)"
 	say "podman $podman_ver"
+	# effect, not exit code of apt: the tool vedette-host runs after core restarts (D-268) answers
+	/usr/sbin/conntrack --version >/dev/null 2>&1 || die "conntrack is not usable at /usr/sbin/conntrack after the install"
 }
 
 # save_runtime_state: what netavark changes on the host when the first container network comes up, written down before it does

@@ -36,10 +36,10 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 	r := admin.get("/core/privacy")
 	wantOK(t, r, 200)
 	f := flowsOf(t, r)
-	if len(f) != 13 {
+	if len(f) != 14 {
 		t.Fatalf("flows = %s", r.Raw)
 	}
-	for id := 1; id <= 13; id++ {
+	for id := 1; id <= 14; id++ {
 		if _, ok := f[id]; !ok {
 			t.Fatalf("flow %d missing", id)
 		}
@@ -164,7 +164,7 @@ func TestPrivacy_Roles(t *testing.T) {
 	}
 }
 
-type fakeFacts struct{ ai, ntp, oidc, conn bool }
+type fakeFacts struct{ ai, ntp, oidc, conn, wazuh bool }
 
 func (f fakeFacts) AIConfigured(context.Context) bool   { return f.ai }
 func (f fakeFacts) NTPPublic(context.Context) bool      { return f.ntp }
@@ -172,6 +172,7 @@ func (f fakeFacts) OIDCConfigured(context.Context) bool { return f.oidc }
 func (f fakeFacts) ConnectionsConfigured(context.Context) bool {
 	return f.conn
 }
+func (f fakeFacts) WazuhConnected(context.Context) bool { return f.wazuh }
 
 // The "configured" facts of other modules come through the port: AI needs the module on as well.
 func TestPrivacy_FactsPort(t *testing.T) {
@@ -226,6 +227,18 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	}
 	if s, c := state(mk(nil), 3); s != "off" || c { // no port: no provider configured
 		t.Errorf("flow 3 without a port = %s %v", s, c)
+	}
+	// Flow 14 (D-309): on only while a Wazuh server is saved and agent-intake is on.
+	if s, _ := state(mk(fakeFacts{wazuh: true}), 14); s != "off" {
+		t.Errorf("flow 14 with agent-intake off = %s", s)
+	}
+	wantOK(t, admin.patch("/modules/inventory", map[string]any{"enabled": true}), 200)
+	wantOK(t, admin.patch("/modules/agent-intake", map[string]any{"enabled": true}), 200)
+	if s, _ := state(mk(fakeFacts{wazuh: true}), 14); s != "on" {
+		t.Errorf("flow 14 with Wazuh saved and the module on = %s", s)
+	}
+	if s, _ := state(mk(fakeFacts{}), 14); s != "off" {
+		t.Errorf("flow 14 without a Wazuh server = %s", s)
 	}
 	if s, _ := state(mk(nil), 10); s != "on" { // no port: default NTP servers, public
 		t.Errorf("flow 10 without a port = %s", s)
@@ -359,7 +372,7 @@ func TestPrivacy_AnswersHaveExactlyTheSchemaKeys(t *testing.T) {
 			t.Errorf("%s update_check = %v", name, r.JSON["update_check"])
 		}
 		flows, _ := r.JSON["flows"].([]any)
-		if len(flows) != 13 {
+		if len(flows) != 14 {
 			t.Fatalf("%s flows = %d", name, len(flows))
 		}
 		for i, f := range flows {

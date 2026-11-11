@@ -101,7 +101,9 @@ type Deps struct {
 	// does not wait, so the 120 s run in no time. The wait counts the sleeps, not the clock.
 	HealthWait time.Duration
 	HealthPoll time.Duration
-	Sleep      func(ctx context.Context, d time.Duration) bool
+	// CoreWatch is how often the host looks at core's container for a new run, to clear the stale syslog UDP flows (default 30 s, D-268).
+	CoreWatch time.Duration
+	Sleep     func(ctx context.Context, d time.Duration) bool
 	// Keys is the root of trust of container.pull (D-107, D-130): default release.Embedded, the keys
 	// compiled into the binary. A build without real keys refuses every pull. Only tests replace it.
 	Keys func() (release.Trust, error)
@@ -129,6 +131,13 @@ type Ops struct {
 		Note(command, code string, detail map[string]any) error
 	}
 	sweepOff func() bool
+
+	// ctMu guards the run of core's container last seen and the one-time "conntrack is missing" line (conntrack.go);
+	// watchOff ends the look-at-core loop (guarded by mu).
+	ctMu            sync.Mutex
+	ctSeen          string
+	ctMissingLogged bool
+	watchOff        context.CancelFunc
 
 	rbMu     sync.Mutex // guards reboot.json and the scheduled-reboot timer
 	stopTick func() bool
@@ -247,6 +256,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	}
 	if d.HealthPoll <= 0 {
 		d.HealthPoll = 2 * time.Second
+	}
+	if d.CoreWatch <= 0 {
+		d.CoreWatch = coreWatchEvery
 	}
 	if d.Sleep == nil {
 		d.Sleep = sleepCtx
@@ -376,6 +388,11 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()
+	wctx, cancel := context.WithCancel(ctx)
+	o.mu.Lock()
+	o.watchOff = cancel
+	o.mu.Unlock()
+	go o.watchCore(wctx) // the first look is one CoreWatch from now: a host start runs no program of its own for this
 }
 
 // Close stops the timers (the host is shutting down).
@@ -389,6 +406,10 @@ func (o *Ops) Close() {
 	o.rbMu.Unlock()
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.watchOff != nil {
+		o.watchOff()
+		o.watchOff = nil
+	}
 	if o.sweepOff != nil {
 		o.sweepOff()
 		o.sweepOff = nil

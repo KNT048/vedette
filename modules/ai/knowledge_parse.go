@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/pdftext"
 )
 
 // Reading a document of the knowledge base (S-AI-7, INV-10). A document is untrusted data (SYS-6): every reader fails closed, has a
@@ -38,16 +39,21 @@ var (
 	errDocBad     = errors.New("it could not be read as a document of its type")
 	errDocBomb    = errors.New("it is too large when unpacked")
 	errDocTimeout = errors.New("reading it took too long")
+	// The PDF reader runs in a limited child process (core/pdftext, D-264); its errors become these plain reasons. Nothing of the
+	// child's own text is ever shown.
+	errDocPassword = errors.New("the PDF is protected with a password; remove the password and upload it again")
+	errDocLimit    = errors.New("the PDF could not be read safely (it is damaged, or too complex to open); save it again or export it to text")
+	errDocNoReader = errors.New("the PDF reader is not available on this box")
 )
 
-// docKind is the type of a document, from the extension of its name: "md", "txt" or "docx"; "" for any other.
+// docKind is the type of a document, from the extension of its name: "md", "txt", "docx" or "pdf"; "" for any other.
 func docKind(name string) string {
 	i := strings.LastIndexByte(name, '.')
 	if i < 0 {
 		return ""
 	}
 	switch k := strings.ToLower(name[i+1:]); k {
-	case "md", "txt", "docx":
+	case "md", "txt", "docx", "pdf":
 		return k
 	}
 	return ""
@@ -60,6 +66,10 @@ func sniffDoc(kind string, data []byte) error {
 	case "docx":
 		if !bytes.HasPrefix(data, []byte("PK\x03\x04")) {
 			return errors.New("this is not a Word (DOCX) file")
+		}
+	case "pdf":
+		if !bytes.Contains(data[:min(len(data), 1024)], []byte("%PDF-")) { // the same test as the child's
+			return errors.New("this is not a PDF file")
 		}
 	default:
 		if _, err := decodeText(data); err != nil {
@@ -143,11 +153,14 @@ func extractText(ctx context.Context, kind string, data []byte) (text string, tr
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
 	defer cancel()
 	var raw string
+	cut := false
 	switch kind {
 	case "md", "txt":
 		raw, err = decodeText(data)
 	case "docx":
 		raw, err = docxText(ctx, data)
+	case "pdf":
+		raw, cut, err = pdfText(ctx, data)
 	default:
 		err = errDocBad
 	}
@@ -155,6 +168,7 @@ func extractText(ctx context.Context, kind string, data []byte) (text string, tr
 		return "", false, err
 	}
 	text = cleanDocText(raw)
+	truncated = cut
 	if len(text) > maxStoredText {
 		text, truncated = strings.ToValidUTF8(text[:maxStoredText], ""), true
 	}
@@ -162,6 +176,28 @@ func extractText(ctx context.Context, kind string, data []byte) (text string, tr
 		return "", false, errDocEmpty
 	}
 	return text, truncated, nil
+}
+
+// pdfText reads a PDF through the limited child process of core/pdftext (D-264). cut is true when the child cut the text at its cap.
+func pdfText(ctx context.Context, data []byte) (text string, cut bool, err error) {
+	text, err = pdftext.PDFText(ctx, bytes.NewReader(data))
+	switch {
+	case err == nil:
+		return text, false, nil
+	case errors.Is(err, pdftext.ErrTruncated):
+		return text, true, nil
+	case errors.Is(err, pdftext.ErrEncrypted):
+		return "", false, errDocPassword
+	case errors.Is(err, pdftext.ErrNoChild):
+		return "", false, errDocNoReader
+	case errors.Is(err, pdftext.ErrLimit), errors.Is(err, pdftext.ErrCrashed):
+		return "", false, errDocLimit
+	case errors.Is(err, pdftext.ErrNotPDF), errors.Is(err, pdftext.ErrTooLarge):
+		return "", false, errDocBad
+	case errors.Is(err, context.DeadlineExceeded):
+		return "", false, errDocTimeout
+	}
+	return "", false, err
 }
 
 // docxText returns the text runs of word/document.xml. Nothing else of the archive is opened: no macros, no embedded files, no
@@ -302,7 +338,7 @@ func cutPoint(s string, limit int) int {
 
 // errReason is the sentence the audit row carries for a document that could not be indexed.
 func errReason(err error) string {
-	for _, known := range []error{errDocEmpty, errDocBad, errDocBomb, errDocTimeout} {
+	for _, known := range []error{errDocEmpty, errDocBad, errDocBomb, errDocTimeout, errDocPassword, errDocLimit, errDocNoReader} {
 		if errors.Is(err, known) {
 			return known.Error()
 		}

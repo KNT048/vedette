@@ -111,8 +111,8 @@ describe('action template library (data, D-58)', () => {
 
   it('a rule template whose action is not verified says so in the gallery text; message-only and block-list templates do not', () => {
     const by = (id: string) => TEMPLATES.find((x) => x.id === id)!
-    for (const id of ['tpl-trap-fgt', 'tpl-nat-vip', 'tpl-sweep-vlan', 'tpl-trap-mikrotik', 'tpl-ioc-pfsense', 'tpl-iot-shut', 'tpl-manual-ban', 'tpl-ioc-pihole']) expect(by(id).description, id).toContain(UNVERIFIED_NOTE)
-    for (const id of ['tpl-ioc-blocklist', 'tpl-vpn-ban', 'tpl-ssh-acl', 'tpl-kev-msg', 'tpl-unknown-msg', 'tpl-newport-msg', 'tpl-weekly-digest']) expect(by(id).description, id).not.toContain(UNVERIFIED_NOTE)
+    for (const id of ['tpl-trap-fgt', 'tpl-vpn-ban', 'tpl-nat-vip', 'tpl-sweep-vlan', 'tpl-trap-mikrotik', 'tpl-ioc-pfsense', 'tpl-iot-shut', 'tpl-ssh-acl', 'tpl-manual-ban', 'tpl-ioc-pihole']) expect(by(id).description, id).toContain(UNVERIFIED_NOTE)
+    for (const id of ['tpl-ioc-blocklist', 'tpl-kev-msg', 'tpl-unknown-msg', 'tpl-newport-msg', 'tpl-weekly-digest']) expect(by(id).description, id).not.toContain(UNVERIFIED_NOTE)
   })
 
   // ---- §12.1 (13b-2): data fixes, check before, read-back text ----

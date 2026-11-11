@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { logExportHandlers } from './logExport'
 import { API, audit, body, currentUser, fail, guard, EMAIL_RE } from '@/mocks/http'
 import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, isOn, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
-import { collection, dataMode, daysAgo, newId, nowIso, resetMockDb, setDataMode } from '@/mocks/db'
+import { collection, dataMode, daysAgo, newId, nowIso, peek, resetMockDb, setDataMode } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
 import { BUNDLES } from './bundles'
@@ -719,6 +719,8 @@ function privacyView() {
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },
+    // the Wazuh connection the inventory mock keeps (Inventory → Agents): on while one is saved and the module is on (D-309)
+    { id: 14, state: isOn('agent-intake') && peek<unknown>('intake_wazuh') ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }

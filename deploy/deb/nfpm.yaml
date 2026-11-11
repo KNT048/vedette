@@ -25,6 +25,7 @@ description: |-
 #  nftables          the ruleset inside the namespace vedette-hp (nft, run through ip netns exec)
 #  iproute2          ip: decoy links and ip netns (D-102)
 #  procps            sysctl, run through ip netns exec in vedette-hp
+#  conntrack         conntrack -D of the stale UDP syslog flows after core restarts (D-268)
 #  chrony            chronyc and the chrony sources the host writes (D-106)
 #  netplan.io        netplan apply: the host owns /etc/netplan/90-vedette.yaml (D-99)
 #  unattended-upgrades  the apt configuration the host writes (52vedette-unattended) does nothing without it (D-53)
@@ -35,6 +36,7 @@ depends:
   - nftables
   - iproute2
   - procps
+  - conntrack
   - chrony
   - netplan.io
   - unattended-upgrades

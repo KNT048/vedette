@@ -172,7 +172,7 @@
     "nav": "SIEM forwarding",
     "title": "Forward to a SIEM",
     "description": "Vedette sends a copy of events to your SIEM (Wazuh, Graylog, Splunk, Elastic). Data only goes to the destination you enter here; switching it off stops it immediately.",
-    "enabled": "Forwarding is on",
+    "enabled": "Forward events to the SIEM",
     "format": "Format",
     "formats": {
       "syslog": "Syslog",

@@ -6,16 +6,35 @@ import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
-import { QueryState } from '@/components/common/States'
+import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import { useMcp, useMcpMutations } from './api'
+import { useMcp, useMcpMutations, useToggleModule } from './api'
+import { useModuleEnabled } from '@/lib/modules'
 import { errMsg, useGate } from './parts'
 import type { McpState, McpToken } from './types'
+
+/** The switch is the mcp-server module's own (PATCH /modules/mcp-server, D-230): the section reads /core/mcp only while it is on. */
+function McpSwitch({ on }: { on: boolean }) {
+  const { t } = useTranslation('core')
+  const gate = useGate('admin')
+  const toggle = useToggleModule()
+  async function flip(v: boolean) {
+    try { await toggle.mutateAsync({ id: 'mcp-server', enabled: v }); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
+  }
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+      <Switch id="mcp-switch" checked={on} disabled={gate.disabled || toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void flip(v)} />
+      <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
+      {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
+      <span className="text-[13px] text-muted">{on ? t('mcp.onHint') : t('mcp.offHint')}</span>
+    </div>
+  )
+}
 
 function Body({ s }: { s: McpState }) {
   const { t } = useTranslation('core')
@@ -26,9 +45,6 @@ function Body({ s }: { s: McpState }) {
   const [formErr, setFormErr] = useState<string | null>(null)
   const [created, setCreated] = useState<{ token: string; name: string } | null>(null)
 
-  async function toggle(v: boolean) {
-    try { await m.toggle.mutateAsync(v); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
-  }
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setFormErr(null)
@@ -56,13 +72,7 @@ function Body({ s }: { s: McpState }) {
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
-        <Switch id="mcp-switch" checked={s.enabled} disabled={gate.disabled || m.toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void toggle(v)} />
-        <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
-        {s.enabled ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
-        <span className="text-[13px] text-muted">{s.enabled ? t('mcp.onHint') : t('mcp.offHint')}</span>
-      </div>
-
+      <McpSwitch on />
       {s.enabled ? (
         <>
           <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
@@ -110,11 +120,13 @@ function Body({ s }: { s: McpState }) {
 
 export default function McpSection() {
   const { t } = useTranslation('core')
-  const q = useMcp()
+  const on = useModuleEnabled('mcp-server')
+  const q = useMcp(on === true)
+  const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
   return (
     <>
-      <PageHeader title={q.data ? (q.data.enabled ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('mcp.titleOff')) : t('settings.mcp')} meta={t('mcp.meta')} stories={['S-MCP-1']} />
-      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+      <PageHeader title={title} meta={t('mcp.meta')} stories={['S-MCP-1']} />
+      {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )
 }

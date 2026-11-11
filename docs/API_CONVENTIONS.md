@@ -295,7 +295,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `telemetry_unavailable` | 400 | This version of Vedette does not send an anonymous signal, so it cannot be turned on. | `PATCH /core/privacy` với `telemetry: true` (backend; D-154. Không có trong mock; GUI không gửi từ D-153) |
 | `tls_unavailable` | 400 | Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP. | module logs (D-203) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
-| `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections` |
+| `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections`; `POST /core/mcp/tokens`: "A box holds up to 10 MCP tokens. Revoke one you no longer use." (D-231) |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
 | `too_many_rows` | 400 | At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows. | `POST /inventory/import` |
 | `too_many_tries` | 400 | Too many wrong codes. Ask for a new code. | module core (validator dùng chung) |
@@ -393,8 +393,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot); `PUT /core/network/management` ("… is already used by a device in the inventory or by a decoy. Pick a free address.") |
 | `ip_not_current` | 409 | This box no longer reaches the Internet through ${ip}; it was last seen ${time}. Scans of it are paused until the box uses it again. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` (kiểm lúc quét của IP, `exposure` INV-13, D-79 (2)) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
-| `module_off` | 409 | Turn on the MCP server before creating a token. | `POST /core/mcp/tokens` |
 | `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
+| `module_off` | 409 | The module for this role is off. | Sensor link 8444 (`core/sensorlink`, D-141). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
 | `need_decoys` | 409 | Scan detection needs at least two decoy IPs. Add a decoy first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
@@ -612,7 +612,7 @@ Mock không có CSRF. Quy ước **[ĐX]** (ARCH §5: cookie phiên + CSRF):
 
 | Token | Dùng để | Chuyển bằng | Lưu | Phạm vi / hết hạn | Endpoint |
 |---|---|---|---|---|---|
-| **Token MCP** (S-MCP-1) | Máy khách MCP (Claude Desktop, v.v.) gọi công cụ **chỉ đọc** | `Authorization: Bearer <token>` tới máy chủ MCP riêng (`bind 127.0.0.1`, `port 8765`, `/mcp`; không phải REST) | `mcp_tokens.token_hash` + `last4`; hiện bản đầy đủ **đúng một lần** | `scopes` ⊂ {`assets`, `findings`, `feeds`}; công cụ: `list_assets`, `get_asset`, `list_findings`, `get_finding`, `lookup_cve`, `lookup_ioc`, `hot_vulnerabilities`; hết hạn đến khi thu hồi | `GET/PATCH /core/mcp`, `POST/DELETE /core/mcp/tokens*` (admin) |
+| **Token MCP** (S-MCP-1) | Máy khách MCP (Claude Desktop, v.v.) gọi công cụ **chỉ đọc** | `Authorization: Bearer <token>` tới máy chủ MCP riêng (`bind 127.0.0.1`, `port 8765`, `/mcp`; không phải REST) | `mcp_tokens.token_hash` + `last4`; hiện bản đầy đủ **đúng một lần** | `scopes` ⊂ {`assets`, `findings`, `feeds`}; công cụ: `list_assets`, `get_asset`, `list_findings`, `get_finding`, `lookup_cve`, `lookup_ioc`, `hot_vulnerabilities`; hết hạn đến khi thu hồi | `GET /core/mcp`, `POST/DELETE /core/mcp/tokens*` (admin); công tắc là `PATCH /modules/mcp-server` (D-230) |
 | **Token đăng ký osquery** (D-34) | Đăng ký máy chủ osquery với hộp | `enroll_secret` lúc chạy lệnh cài (không nằm trong URL); sau đó `node_key` riêng mỗi máy | `intake_agent_tokens.token_hash` | Mặc định 7 ngày (0–365; 0 = không hết hạn), thu hồi được; chỉ để đăng ký | `POST/DELETE /inventory/agents/tokens*` (admin); `POST /intake/osquery/status\|enroll\|config\|log` (công khai, xác thực bằng token hoặc `node_key`) |
 | **Token danh sách chặn** (D-44) | Firewall tự kéo danh sách | Đoạn đường dẫn `/response/blocklist/{token}.txt` | `core_secret` | Đến khi xoay (`POST /response/blocklist/token`) | `GET /response/blocklist/{token}.txt` (công khai) |
 | **Token duyệt qua email** (D-46) | Một người duyệt một yêu cầu | Đoạn đường dẫn `/response/approve/{token}` (trong liên kết thư) | `resp_approval_token.token_hash` | **Một lần, 30 phút**, gắn với yêu cầu và người nhận; bấm xác nhận bằng POST (trình quét liên kết không tự duyệt) | `GET/POST /response/approve/{token}` (công khai) |

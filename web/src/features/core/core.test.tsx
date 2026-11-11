@@ -896,6 +896,30 @@ describe('core: MCP (S-MCP-1)', () => {
     expect(screen.getByRole('table', { name: 'Tools the MCP server offers' })).toBeInTheDocument()
     await expectNoA11yViolations()
   })
+  it('the switch is the module (D-230): off, no /core/mcp path answers and the page asks for none', async () => {
+    const u = user()
+    setModule('mcp-server', true)
+    renderApp('/settings/mcp')
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })).toBeInTheDocument()
+    await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(modulesStore.get().find((m) => m.id === 'mcp-server')?.enabled).toBe(false)
+    expect(screen.queryByText('127.0.0.1:8765')).not.toBeInTheDocument()
+    expect((await call('/core/mcp', 'GET')).status).toBe(404)
+    expect((await call('/core/mcp/tokens', 'POST', { name: 'x', scopes: ['feeds'] })).status).toBe(404)
+    expect((await call('/core/mcp/tokens/t-1', 'DELETE')).status).toBe(404)
+  })
+  it('refuses what the server refuses: bad name, unknown scope, an 11th token', async () => {
+    setModule('mcp-server', true)
+    renderApp('/settings/mcp') // signs the admin in
+    await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })
+    const create = (b: object) => call('/core/mcp/tokens', 'POST', b)
+    expect(await errCode(await create({ name: '<b>', scopes: ['feeds'] }))).toBe('invalid_name')
+    expect(await errCode(await create({ name: 'ok', scopes: ['feeds', 'secrets'] }))).toBe('invalid_scopes')
+    expect(await errCode(await create({ name: 'ok', scopes: [] }))).toBe('invalid_scopes')
+    for (let i = 0; i < 10; i++) expect((await create({ name: `t${i}`, scopes: ['feeds'] })).status).toBe(201)
+    expect(await errCode(await create({ name: 'eleven', scopes: ['feeds'] }))).toBe('too_many')
+  })
 })
 
 describe('core: tài khoản', () => {

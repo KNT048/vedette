@@ -543,25 +543,29 @@ func (p *profile) read(msg string) (Result, bool) {
 // hasRemote says whether the profile has rules of its own for the remote address: then no other reader looks at its lines.
 func (p *profile) hasRemote() bool { return len(p.Rule.RemoteFields)+len(p.remote) > 0 }
 
-// remoteByPatterns collects every countable address that every remote pattern finds, every match of each: the address is the one there is
-// when all of them are the same, and none when there are two (D-210: text that an attacker writes into the line, a user name or a
-// workstation name, must not be able to name another address, and a second address in the line means that one of them is not the peer).
+// remoteByPatterns counts the SITES of the remote patterns in the line, whatever the value (a "-" is a site too). Exactly one site and
+// an address in it is the address; two or more sites, or none, is no address (D-210): a user name or a workstation name that an
+// attacker writes ("x Source Network Address: 8.8.8.8") makes a second site, and one unparseable site ("-") next to it is enough to say
+// that the line has a field the attacker could have written.
 func (p *profile) remoteByPatterns(msg string) netip.Addr {
-	var found netip.Addr
+	var site string
+	sites := 0
 	for _, re := range p.remote {
 		i := re.SubexpIndex("addr")
 		for _, m := range re.FindAllStringSubmatch(msg, maxRemoteMatches) {
-			a, ok := ParseAddr(m[i])
-			if !ok || !Countable(a) {
-				continue
-			}
-			if found.IsValid() && found != a {
+			if sites++; sites > 1 {
 				return netip.Addr{}
 			}
-			found = a
+			site = m[i]
 		}
 	}
-	return found
+	if sites == 0 {
+		return netip.Addr{}
+	}
+	if a, ok := ParseAddr(site); ok && Countable(a) {
+		return a
+	}
+	return netip.Addr{}
 }
 
 func group(re *regexp.Regexp, msg, name string) string {

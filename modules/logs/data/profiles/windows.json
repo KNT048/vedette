@@ -40,9 +40,9 @@
       "4776": "The domain controller attempted to validate account credentials"
     },
     "remote_patterns": [
-      "(?i)(?:^|[\\t ])(?:Source Network Address|Client Address):[\\t ]*(?P<addr>[^\\s\"<>,;]{2,64})",
-      "[{,]\\s*\"IpAddress\"\\s*:\\s*\"(?P<addr>[^\"\\s]{2,64})\"",
-      "<Data Name=\"IpAddress\">(?P<addr>[^<\\s]{2,64})</Data>"
+      "(?i)(?:^|[\\t ])(?:Source Network Address|Client Address):[\\t ]*(?P<addr>[^\\s\"<>,;]{1,64})",
+      "[{,]\\s*\"IpAddress\"\\s*:\\s*\"(?P<addr>[^\"\\s]{1,64})\"",
+      "<Data Name=\"IpAddress\">(?P<addr>[^<\\s]{1,64})</Data>"
     ]
   },
   "samples": [

@@ -751,3 +751,40 @@ func TestContract_TopAddresses_BoxAddressStoredBeforeItWasKnownIsNotReturned(t *
 		t.Fatalf("asked again within the TTL of a whole answer")
 	}
 }
+
+// R2 M1: a flood of one-line addresses on some signatures must not push the exact count of a slow attacker on another one out of memory,
+// whatever the order of the signature hashes (the old order dropped by hash). The clock is injected, nothing sleeps.
+func TestPendingFloodStarvesOnlyItsSignature(t *testing.T) {
+	t.Parallel()
+	for _, higher := range []bool{true, false} {
+		t.Run(fmt.Sprint("floodHashHigher=", higher), func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			src := e.addLinux("FW-HQ", "192.168.10.1")
+			ssh := sigHash(e.sshSig())
+			var l []string
+			next := 0
+			for k := 0; k < 100; k++ {
+				if (sigHash(e.svc.sigs.Of("linux-rsyslog", vpnLine(k, spoof(0))).Signature) > ssh) != higher {
+					continue
+				}
+				for a := 0; a < 200; a++ {
+					l = append(l, vpnLine(k, spoof(next)))
+					next++
+				}
+			}
+			if len(l) < 4300 {
+				t.Fatalf("only %d flood lines", len(l))
+			}
+			e.feedAll(src, l)
+			for step := 0; step < 20; step++ {
+				e.advance(10 * time.Second)
+				e.feedAll(src, []string{sshFail("203.0.113.200")})
+			}
+			got := e.top(src, e.sshSig(), time.Hour, 3)
+			if len(got) != 1 || got[0].Addr != netip.MustParseAddr("203.0.113.200") || got[0].Count != 20 {
+				t.Fatalf("got %q, want the attacker with 20", fmtTop(got))
+			}
+		})
+	}
+}

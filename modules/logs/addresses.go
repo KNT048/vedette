@@ -126,12 +126,27 @@ type pendKey struct {
 	addr   netip.Addr
 }
 
+// pendVal is the exact count of one no-row address and when it was last updated (seq of Service.pendSeq: a clock that needs no time).
+type pendVal struct {
+	n   int
+	seq uint64
+}
+
+// pendGroup is the in-memory counts of one signature of one source: the unit of eviction.
+type pendGroup struct {
+	source string
+	sig    int64
+	keys   []pendKey
+}
+
 // pendingUpdate is what storeAddrs changes in the in-memory counts, applied only after the batch is stored (a transaction that is retried or
 // rolled back must not count its lines twice, or at all): a count of 0 deletes the entry.
 type pendingUpdate struct{ set map[pendKey]int }
 
-// apply puts the update into the service's memory and keeps it small: buckets older than two before now go, and past MaxPendingAddrs the
-// lowest counts go.
+// apply puts the update into the service's memory and keeps it small: buckets older than two before now go, and past MaxPendingAddrs
+// entries go from the largest (source, signature) group first, in it the lowest count first and, among equal counts, the least recently
+// updated (never by hash or address, which an attacker could choose). So a flood of one-line addresses of one signature only pushes out its
+// own entries: a slow attacker on another signature keeps its exact counts (measured in TestPendingFloodStarvesOnlyItsSignature).
 func (u *pendingUpdate) apply(s *Service) {
 	if u == nil || len(u.set) == 0 {
 		return
@@ -139,13 +154,21 @@ func (u *pendingUpdate) apply(s *Service) {
 	s.pendMu.Lock()
 	defer s.pendMu.Unlock()
 	if s.pend == nil {
-		s.pend = map[pendKey]int{}
+		s.pend = map[pendKey]pendVal{}
 	}
-	for k, n := range u.set {
-		if n == 0 {
+	keys := make([]pendKey, 0, len(u.set))
+	for k := range u.set {
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b pendKey) int { // the same order every time: a map's order is not one
+		return cmp.Or(cmp.Compare(a.source, b.source), cmp.Compare(a.bucket, b.bucket), cmp.Compare(a.sig, b.sig), a.addr.Compare(b.addr))
+	})
+	for _, k := range keys {
+		if n := u.set[k]; n == 0 {
 			delete(s.pend, k)
 		} else {
-			s.pend[k] = n
+			s.pendSeq++
+			s.pend[k] = pendVal{n, s.pendSeq}
 		}
 	}
 	if len(s.pend) <= MaxPendingAddrs {
@@ -160,22 +183,42 @@ func (u *pendingUpdate) apply(s *Service) {
 	if len(s.pend) <= MaxPendingAddrs {
 		return
 	}
-	keys := make([]pendKey, 0, len(s.pend))
+	byGroup := map[[2]string]*pendGroup{}
 	for k := range s.pend {
-		keys = append(keys, k)
+		gk := [2]string{k.source, fmt.Sprint(k.sig)}
+		g := byGroup[gk]
+		if g == nil {
+			g = &pendGroup{source: k.source, sig: k.sig}
+			byGroup[gk] = g
+		}
+		g.keys = append(g.keys, k)
 	}
-	slices.SortFunc(keys, func(a, b pendKey) int {
-		return cmp.Or(cmp.Compare(s.pend[a], s.pend[b]), cmp.Compare(a.bucket, b.bucket), cmp.Compare(a.sig, b.sig), a.addr.Compare(b.addr), cmp.Compare(a.source, b.source))
-	})
-	for _, k := range keys[:len(keys)-MaxPendingAddrs] {
-		delete(s.pend, k)
+	groups := make([]*pendGroup, 0, len(byGroup))
+	for _, g := range byGroup {
+		// the victim comes from the end: the highest count first inside the slice means the lowest is last
+		slices.SortFunc(g.keys, func(a, b pendKey) int {
+			x, y := s.pend[a], s.pend[b]
+			return cmp.Or(cmp.Compare(y.n, x.n), cmp.Compare(y.seq, x.seq)) // last = lowest count, then least recently updated
+		})
+		groups = append(groups, g)
+	}
+	for len(s.pend) > MaxPendingAddrs {
+		big := groups[0]
+		for _, g := range groups[1:] {
+			if len(g.keys) > len(big.keys) || len(g.keys) == len(big.keys) && cmp.Or(cmp.Compare(g.source, big.source), cmp.Compare(g.sig, big.sig)) < 0 {
+				big = g
+			}
+		}
+		last := len(big.keys) - 1
+		delete(s.pend, big.keys[last])
+		big.keys = big.keys[:last]
 	}
 }
 
 func (s *Service) pendingOf(k pendKey) int {
 	s.pendMu.Lock()
 	defer s.pendMu.Unlock()
-	return s.pend[k]
+	return s.pend[k].n
 }
 
 // storeAddrs adds the addresses of a batch to the address counters inside the transaction of the batch. Per source and bucket the

@@ -102,7 +102,7 @@ func TestGenericRemote(t *testing.T) {
 		{"sshd[812]: Failed password for root from 2001:db8::9 port 51234 ssh2", "2001:db8::9"},
 		{"sshd[812]: Invalid user oracle from 203.0.113.9 port 4444", "203.0.113.9"},
 		{"sshd[812]: Connection closed by 203.0.113.9 port 22 [preauth]", "203.0.113.9"},
-		{"sshd[812]: Connection closed by authenticating user root 203.0.113.9 port 22 [preauth]", ""},
+		{"sshd[812]: Connection closed by authenticating user root 203.0.113.9 port 22 [preauth]", "203.0.113.9"}, // R2: a bare address word is a candidate
 		{"sshd[812]: Accepted publickey for bob from 10.1.2.3 port 5000 ssh2", "10.1.2.3"},
 		{"sshd[812]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=203.0.113.9  user=root", "203.0.113.9"},
 		{"sshd[812]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=  user=root", ""},
@@ -116,7 +116,7 @@ func TestGenericRemote(t *testing.T) {
 		{"postfix/smtpd[77]: lost connection after CONNECT from localhost[127.0.0.1]", ""},
 		{"postfix/submission/smtpd[7]: client=unknown[203.0.113.33], sasl_username=bob", "203.0.113.33"},
 		{"openvpn[1]: bob/203.0.113.40:51820 TLS Error: TLS handshake failed", "203.0.113.40"},
-		{"openvpn[1]: 203.0.113.41:51820 TLS Error: TLS key negotiation failed", ""}, // bare "addr:port" at the start is not a layout we guess
+		{"openvpn[1]: 203.0.113.41:51820 TLS Error: TLS key negotiation failed", "203.0.113.41"}, // R2: a bare address word is a candidate
 		{"openvpn[1]: TLS: Initial packet from [AF_INET]203.0.113.42:51820, sid=abc", "203.0.113.42"},
 		{"kernel: IN=eth0 OUT= SRC=203.0.113.50 DST=10.0.0.1 LEN=60 PROTO=TCP SPT=4444 DPT=22", "203.0.113.50"},
 		{"app: login failed user=bob ip=203.0.113.60 reason=bad-password", "203.0.113.60"},
@@ -133,8 +133,8 @@ func TestGenericRemote(t *testing.T) {
 		{"app: login failed from [2001:db8::71]:4433", "2001:db8::71"},
 		{"app: login failed from not-an-address", ""},
 		{"app: from", ""},
-		{"app: 192.168.1.5 is mentioned with no layout", ""},
-		{"app: gw=203.0.113.99 dst=1.1.1.1", ""}, // dst and gw are not the peer
+		{"app: 192.168.1.5 is mentioned with no layout", "192.168.1.5"}, // R2: the only address of the line
+		{"app: gw=203.0.113.99 dst=1.1.1.1", ""},                        // dst and gw are not the peer
 		// H1 (D-210): text that an attacker writes (a user name, a URL) must not name another address. Two different candidates in one line:
 		// no address at all (the line still counts everywhere else); the same address twice is one.
 		{"sshd[1]: Invalid user src=8.8.8.8 from 203.0.113.5 port 22", ""},
@@ -146,7 +146,15 @@ func TestGenericRemote(t *testing.T) {
 		{"sshd[1]: Failed password for invalid user rip=8.8.8.8 from 203.0.113.5 port 22 ssh2", ""},
 		{"sshd[1]: Connection closed by invalid user by 8.8.8.8 203.0.113.5 port 22 [preauth]", ""}, // "by" counts only before "addr port"
 		{"sshd[1]: Failed password for root from 203.0.113.5 port 22 ssh2 rhost=203.0.113.5", "203.0.113.5"},
-		{"nginx: 203.0.113.5 - - \"GET /login?client=8.8.8.8 HTTP/1.1\" 401", ""},
+		{"nginx: 203.0.113.5 - - \"GET /login?client=8.8.8.8 HTTP/1.1\" 401", "203.0.113.5"}, // R2: the request is a quoted span; the client is the first word
+		// R2 H1: nginx and apache have no profile; the text of the request, the referer and the agent is the client's.
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST http://h/8.8.8.8 HTTP/1.1\" 401 12", "203.0.113.5"},
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST /a[8.8.8.8] HTTP/1.1\" 401 12", "203.0.113.5"},
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12 \"from 8.8.8.8\" \"src=8.8.8.8\"", "203.0.113.5"},
+		{"nginx: 203.0.113.5 - - [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12 \"-\" \"curl\"", "203.0.113.5"},
+		{"nginx: - - - [10/Nov/2026:10:00:00 +0000] \"POST /a[8.8.8.8] HTTP/1.1\" 401 12 \"src=8.8.8.8\"", ""}, // no client address: the quoted text is not read
+		{"nginx: 203.0.113.5 - 8.8.8.8 [10/Nov/2026:10:00:00 +0000] \"POST / HTTP/1.1\" 401 12", ""},           // an unquoted second address: ambiguous
+		{"sshd[1]: Invalid user x src=8.8.8.8 \" from 203.0.113.5 port 22 ssh2", ""},                           // an odd quote could hide the real address: none
 		{"app: GET /a/8.8.8.8:80 from 203.0.113.5", "203.0.113.5"},
 		{"app: GET http://x/8.8.8.8 from 203.0.113.5", ""},
 		{"dovecot: imap-login: Disconnected (auth failed): user=<a rip=8.8.8.8>, method=PLAIN, rip=203.0.113.20, lip=10.0.0.2", ""},
@@ -208,6 +216,11 @@ func TestShippedProfilesRemote(t *testing.T) {
 		{"windows", `{"EventID":4625,"IpAddress":"8.8.8.8","TargetUserName":"x","IpAddress":"203.0.113.50"}`, ""},
 		{"windows", `<Event><System><EventID>4625</EventID></System><EventData><Data Name="TargetUserName">Source Address=8.8.8.8</Data><Data Name="IpAddress">203.0.113.51</Data></EventData></Event>`, "203.0.113.51"},
 		{"windows", "<14>Nov  9 10:00:00 DC1 Security-Auditing: 4776: The domain controller attempted to validate account credentials. Source Workstation: PC1", ""},
+		// R2 H1: a site with no address ("-") still counts as a site: the attacker's text cannot be the only address of the line.
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on.\tAccount Name:\tx\tWorkstation Name:\tClient Address:8.8.8.8\tSource Network Address:\t-\tSource Port:\t-", ""},
+		{"windows", "<14>Nov  9 10:00:00 SRV Microsoft-Windows-Security-Auditing: 4625: An account failed to log on.\tAccount Name:\tx Source Network Address: 8.8.8.8\tWorkstation Name:\tW\tSource Network Address:\t-\tSource Port:\t-", ""},
+		{"windows", `{"EventID":4625,"Message":" Source Network Address: 8.8.8.8","IpAddress":"-"}`, ""},
+		{"windows", `{"EventID":4625,"Message":"x","IpAddress":"203.0.113.50"}`, "203.0.113.50"},
 		// MikroTik: a firewall line has src:port->dst:port, an account line says "from addr".
 		{"mikrotik", `firewall,info input: in:ether1 out:(unknown 0), proto TCP (SYN), 203.0.113.60:50922->192.168.88.1:22, len 60`, "203.0.113.60"},
 		{"mikrotik", `system,error,critical login failure for user admin from 203.0.113.61 via ssh`, "203.0.113.61"},

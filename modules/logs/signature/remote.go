@@ -88,7 +88,9 @@ var remoteWords = set("from", "by")
 
 // genericRemote finds the peer address of a line that no profile settled, by the layouts that daemons share: key=value with a key of
 // remoteKeys, the word after "from" or "by", host[addr] (postfix) and name/addr:port (OpenVPN). It returns the address only when every
-// countable candidate of the line is the same address: with two different ones it returns none (D-210). A user name, a workstation or a
+// countable candidate of the line is the same address: with two different ones it returns none (D-210). Candidates inside a double-quoted
+// span (a request line, a referer, a user agent: text the client controls) are skipped, and a bare word that is an address is a candidate too,
+// so the client address that starts an access-log line is read and an injected one elsewhere makes the line ambiguous. A user name, a workstation or a
 // URL is text an attacker writes ("src=8.8.8.8", "from 8.8.8.8", "a[8.8.8.8]"), and the first match from the left would name an innocent
 // address for a ban (fail2ban CVE-2007-4321, DenyHosts CVE-2007-4323); a line with a second address is one in which no word can be
 // trusted to be the peer. The price is that an attacker can hide by adding an address of its own to the line; it cannot be framed by it.
@@ -97,6 +99,10 @@ func genericRemote(msg string) netip.Addr {
 	var found netip.Addr
 	prev := ""
 	words := 0
+	if unbalancedQuotes(msg) { // a quote written into the line (a user name) could hide the real address and expose a written one
+		return netip.Addr{}
+	}
+	inQuote := false // inside a double-quoted span: text the client of the daemon controls (a request line, a user agent, a referer)
 	for i := 0; i < len(msg) && words < maxRemoteWords; {
 		if msg[i] == ' ' || msg[i] == '\t' {
 			i++
@@ -113,7 +119,18 @@ func genericRemote(msg string) netip.Addr {
 			prev = ""
 			continue
 		}
-		var cands [3]string // a word can be a candidate in more than one way: "x[8.8.8.8]/203.0.113.40:5" is two
+		quoted := inQuote
+		for k := 0; k < len(w); k++ {
+			if w[k] == '"' && (k == 0 || w[k-1] != '\\') {
+				inQuote = !inQuote
+			}
+		}
+		if quoted {
+			prev = lowerKey(strings.TrimRight(w, ":"))
+			continue
+		}
+		var cands [4]string // a word can be a candidate in more than one way: "x[8.8.8.8]/203.0.113.40:5" is two
+		cands[3] = w        // a bare word that is an address is a candidate too: the client address of an access log is the first word
 		if eq := strings.IndexByte(w, '='); eq > 0 && eq < 24 {
 			if remoteKeys[lowerKey(w[:eq])] {
 				cands[0] = w[eq+1:]
@@ -141,6 +158,17 @@ func genericRemote(msg string) netip.Addr {
 		prev = lowerKey(strings.TrimRight(w, ":"))
 	}
 	return found
+}
+
+// unbalancedQuotes says whether the line has an odd number of unescaped double quotes: then no quoted span can be told from text.
+func unbalancedQuotes(msg string) bool {
+	odd := false
+	for k := 0; k < len(msg); k++ {
+		if msg[k] == '"' && (k == 0 || msg[k-1] != '\\') {
+			odd = !odd
+		}
+	}
+	return odd
 }
 
 // lowerKey lower-cases a short ASCII word without allocating when it is already lower case.

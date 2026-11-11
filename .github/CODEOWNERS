@@ -13,6 +13,7 @@
 /PRIVACY.md                         @kiennt048
 /THIRD_PARTY_NOTICES.md             @kiennt048
 /docs/DECISIONS.md                  @kiennt048
+/docs/decisions/                    @kiennt048
 /docs/MODULE_CONTRACTS.md           @kiennt048
 /web/package.json                   @kiennt048
 /web/pnpm-lock.yaml                 @kiennt048

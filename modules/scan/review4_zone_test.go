@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -72,5 +73,44 @@ func TestReview4_ZoneUnknownHoldsTheKEVRescan(t *testing.T) {
 	r.tick()
 	if n := r.count(`SELECT count(*) FROM scan_run WHERE trigger = 'new_kev'`); n != 1 {
 		t.Fatalf("%d rescan runs once the zone is back, want 1", n)
+	}
+}
+
+// D-261 (2): a zone that stays unreadable for 7 days closes the event as expired_zone, visible in the rescan log.
+func TestReview4_ZoneUnknownFor7DaysShowsTheEventAsExpired(t *testing.T) {
+	t.Parallel()
+	r, broken := zoneEnv(t)
+	broken.Store(true)
+	if err := r.svc.OnNewKEV(r.ctx(), kev("CVE-2024-3400")); err != nil {
+		t.Fatal(err)
+	}
+	r.advance(8 * 24 * time.Hour)
+	r.tick()
+	if r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_zone'`) != 1 || r.count(`SELECT count(*) FROM scan_run`) != 0 {
+		t.Fatal("the event was not closed as expired_zone, or a run started")
+	}
+}
+
+// D-261 (3): while the zone cannot be read the schedule is on but has no next run, and the view says why.
+func TestReview4_ZoneUnknownGivesTheScheduleAReason(t *testing.T) {
+	t.Parallel()
+	r, broken := zoneEnv(t)
+	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{SchedEnabled: ptr(true)}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := r.svc.Config(r.ctx())
+	if err != nil || v.ScheduleBlockedReason != nil {
+		t.Fatalf("zone readable: %+v %v", v, err)
+	}
+	broken.Store(true)
+	v, err = r.svc.Config(r.ctx())
+	if err != nil || v.NextRun != nil || v.ScheduleBlockedReason == nil || !strings.Contains(*v.ScheduleBlockedReason, "time zone") {
+		t.Fatalf("zone unreadable: %+v %v", v, err)
+	}
+	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{SchedEnabled: ptr(false)}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ = r.svc.Config(r.ctx()); v.ScheduleBlockedReason != nil {
+		t.Fatal("a schedule that is off has no blocked reason")
 	}
 }

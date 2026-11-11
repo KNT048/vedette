@@ -54302,6 +54302,13 @@
                     "dangerous_checks": {
                       "type": "boolean",
                       "const": false
+                    },
+                    "schedule_blocked_reason": {
+                      "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -54310,7 +54317,8 @@
                     "scope",
                     "can_scan",
                     "block_reason",
-                    "dangerous_checks"
+                    "dangerous_checks",
+                    "schedule_blocked_reason"
                   ],
                   "additionalProperties": false
                 }
@@ -54615,6 +54623,13 @@
                     "dangerous_checks": {
                       "type": "boolean",
                       "const": false
+                    },
+                    "schedule_blocked_reason": {
+                      "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -54623,7 +54638,8 @@
                     "scope",
                     "can_scan",
                     "block_reason",
-                    "dangerous_checks"
+                    "dangerous_checks",
+                    "schedule_blocked_reason"
                   ],
                   "additionalProperties": false
                 }
@@ -55125,9 +55141,12 @@
                               "skipped_off",
                               "no_match",
                               "pick_only",
-                              "stopped"
+                              "stopped",
+                              "expired_no_template",
+                              "expired_scanner",
+                              "expired_zone"
                             ],
-                            "description": "clear: no match reported, never \"not affected\" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7))"
+                            "description": "clear: no match reported, never \"not affected\" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the scanner not ready, or the organization time zone unreadable; devices is empty, no run (D-261 (2))"
                           }
                         },
                         "required": [
@@ -55496,10 +55515,15 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "engine_busy": {
+                      "type": "boolean",
+                      "description": "true while the scanner still works on a run that already shows stopped; a new scan is refused (409 already_running) until it is free (D-261 (4))"
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "engine_busy"
                   ],
                   "additionalProperties": false
                 }

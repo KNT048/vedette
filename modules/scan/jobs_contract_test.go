@@ -109,8 +109,18 @@ func TestContract_INV9_SkippedOffNoMatchAndPack(t *testing.T) {
 	}
 	r.advance(8 * 24 * time.Hour)
 	r.tick()
-	if r.count(`SELECT count(*) FROM scan_event WHERE cve = 'CVE-2021-44228'`) != 0 {
-		t.Fatal("an event whose template never came is kept forever")
+	if r.count(`SELECT count(*) FROM scan_event WHERE cve = 'CVE-2021-44228' AND result IS NULL`) != 0 {
+		t.Fatal("an event whose template never came waits forever")
+	}
+	// D-261 (2): it stays in the rescan log, with the reason as its result
+	var seen *EventView
+	for _, e := range r.events() {
+		if e.CVE == "CVE-2021-44228" {
+			seen = &e
+		}
+	}
+	if seen == nil || seen.Result != "expired_no_template" || len(seen.Devices) != 0 || seen.RunID != nil {
+		t.Fatalf("a dropped event is not visible with its reason: %+v", seen)
 	}
 	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{AutoRescan: ptr(false)}); err != nil {
 		t.Fatal(err)

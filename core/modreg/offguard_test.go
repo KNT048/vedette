@@ -166,3 +166,66 @@ func TestOffGuardTrustsTheRegistryNotTheArgument(t *testing.T) {
 		}
 	})
 }
+
+// M3 (D-260): the OnGuard is the mirror: a module that is on at start gets its func at once, retried until it succeeds; a module
+// that is off is left alone; a switch-on starts it and a switch-off cancels a func that is still failing.
+func TestOnGuardRunsWhileTheModuleIsOn(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		f := &flag{}
+		g := modreg.NewOnGuard(ctx, f, slog.New(slog.DiscardHandler), backoff)
+		var calls atomic.Int32
+		g.Add("x", func(context.Context) error {
+			if calls.Add(1) < 3 {
+				return errors.New("host busy")
+			}
+			return nil
+		})
+		synctest.Wait()
+		if calls.Load() != 0 {
+			t.Fatal("ran while the module is off")
+		}
+		f.on.Store(true)
+		g.ModuleChanged("x", true)
+		synctest.Wait()
+		if calls.Load() != 1 {
+			t.Fatalf("after the switch-on: %d calls, want 1", calls.Load())
+		}
+		advance(10 * time.Second)
+		advance(30 * time.Second)
+		if calls.Load() != 3 {
+			t.Fatalf("after the retries: %d calls, want 3", calls.Load())
+		}
+		advance(time.Hour)
+		if calls.Load() != 3 {
+			t.Fatalf("kept calling after success: %d", calls.Load())
+		}
+		g.Wait()
+	})
+}
+
+func TestOnGuardStartsAtOnceWhenOnAtStartAndStopsOnSwitchOff(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		f := &flag{}
+		f.on.Store(true)
+		g := modreg.NewOnGuard(ctx, f, slog.New(slog.DiscardHandler), backoff)
+		var calls atomic.Int32
+		g.Add("x", func(context.Context) error { calls.Add(1); return errors.New("never") })
+		synctest.Wait()
+		if calls.Load() != 1 {
+			t.Fatalf("on at start: %d calls, want 1", calls.Load())
+		}
+		f.on.Store(false)
+		g.ModuleChanged("x", false)
+		g.Wait()
+		advance(time.Hour)
+		if calls.Load() != 1 {
+			t.Fatalf("kept retrying after the module was switched off: %d", calls.Load())
+		}
+	})
+}

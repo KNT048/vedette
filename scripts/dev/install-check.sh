@@ -51,7 +51,8 @@ for n in $targets; do
 	image=${images[$n]:-}
 	[ -n "$image" ] || fail "unknown target $n"
 	ctr=vic-$n
-	x() { "$c" exec "$ctr" sh -c "$1"; }
+	# a real admin shell has a UTF-8 locale: under it Ubuntu 26.04's uutils sort and comm disagree unless install.sh sets LC_ALL=C (#298)
+	x() { "$c" exec -e LANG=en_US.UTF-8 "$ctr" sh -c "$1"; }
 	"$c" image exists "$image" || pulled="$pulled $image"
 
 	mkdir -p "$work/$n"
@@ -211,7 +212,7 @@ EOT
 	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
 	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
-	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/dev/null 2>&1' || fail "cannot install ufw (it depends on iptables, which the installer added)"
+	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un2.log" 2>&1 || { tail -40 "$work/un2.log" >&2; fail "--uninstall --yes failed in the H2 cycle"; }
 	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
 	x '! dpkg -s podman >/dev/null 2>&1 && ! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left podman or vedette-host"

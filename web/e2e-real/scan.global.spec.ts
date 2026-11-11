@@ -67,7 +67,7 @@ test('no scan container: the settings say so with the reason, the box itself is 
     expect(s.config).toMatchObject({ rate: 5, stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' } })
     const box0 = (await targets(c)).find((t) => t.reason === 'box')
     expect(box0, 'the box is listed, and never selectable').toMatchObject({ selectable: false, pick_only: false })
-    expect((await api(c, 'GET', '/scans/runs')).body).toEqual({ items: [] })
+    expect((await api(c, 'GET', '/scans/runs')).body).toEqual({ items: [], engine_busy: false })
     expect((await api(c, 'GET', '/scans/probes')).body).toEqual({ items: [], retention_days: 90 })
     expect((await api(c, 'GET', '/scans/events')).body).toEqual({ items: [], auto_rescan: true })
 
@@ -112,7 +112,7 @@ test('a device declared by hand is pick-only; excluded and deleted devices leave
     for (const [what, body, status, code] of refusals) {
       const r = await api<Err>(c, 'POST', '/scans/runs', body)
       expect([r.status, r.body.error?.code], what).toEqual([status, code])
-      expect((await api(c, 'GET', '/scans/runs')).body, `${what}: no run was created`).toEqual({ items: [] })
+      expect((await api(c, 'GET', '/scans/runs')).body, `${what}: no run was created`).toEqual({ items: [], engine_busy: false })
       expect((await api(c, 'GET', '/scans/probes')).body, `${what}: no probe was logged`).toEqual({ items: [], retention_days: 90 })
     }
     expect((await api<Err>(c, 'POST', '/scans/runs', { targets: [d.id] })).body.error.message).toBe(UNAVAILABLE)

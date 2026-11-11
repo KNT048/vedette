@@ -357,3 +357,31 @@ func TestToolPinsAreExact(t *testing.T) {
 		t.Errorf("TRIVY_IMAGE=%q must be docker.io/aquasec/trivy:<MAJOR.MINOR.PATCH>@sha256:<64 hex>", got["TRIVY_IMAGE"])
 	}
 }
+
+// The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
+// new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN).
+func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
+	t.Parallel()
+	text := read(t, "core/Containerfile")
+	stages := stagesOf(text)
+	build, final := stages[0].body, stages[len(stages)-1].body
+	for _, d := range []string{"/out/dirs/var/lib/vedette ", "/out/dirs/var/lib/vedette-creds/passive ", "/out/dirs/var/lib/vedette-creds/active\n"} {
+		if !strings.Contains(build, d) {
+			t.Errorf("core/Containerfile: the build stage does not make %q", strings.TrimSpace(d))
+		}
+	}
+	for _, l := range []string{
+		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/\n",
+		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/\n",
+	} {
+		if !strings.Contains(final, l) {
+			t.Errorf("core/Containerfile: the final stage must contain %q (one COPY per leaf, owner 65532, the user of the image)", strings.TrimSpace(l))
+		}
+	}
+	if regexp.MustCompile(`(?m)^COPY .* /$`).MatchString(final) {
+		t.Error("core/Containerfile: a COPY to / rewrites the owner of the existing parents (/var, /var/lib)")
+	}
+	if !strings.Contains(final, "USER 65532:65532\n") {
+		t.Error("core/Containerfile: the image's user is 65532:65532, the owner of the directories and the uid of the compose file")
+	}
+}

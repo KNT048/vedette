@@ -53,7 +53,7 @@ function Shell() {
       <PageHeader
         title={title}
         stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-SCAN-5']}
-        meta={!cfg.data ? null : !cfg.data.can_scan || !cfg.data.scope.networks.length ? t('metaSetup') : t('meta', { networks: cfg.data.scope.networks.join(', '), next: cfg.data.next_run ? fmtDateTime(cfg.data.next_run) : t('noSchedule') })}
+        meta={!cfg.data ? null : !cfg.data.can_scan || !cfg.data.scope.networks.length ? t('metaSetup') : t('meta', { networks: cfg.data.scope.networks.join(', '), next: cfg.data.next_run ? fmtDateTime(cfg.data.next_run) : cfg.data.schedule_blocked_reason ? t('noScheduleZone') : t('noSchedule') })}
         actions={<SampleDataNote />}
       />
       <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}>

@@ -1,0 +1,4 @@
+# Việc để sau — nhánh feat/e2e-real-feeds (WP-30, feeds spec)
+
+- [ ] 2026-11-11 — Home title on the offline box is only matched by a tolerant regex (no data yet / count / CISA list message): the box could not be forced offline from the spec; a seam to disable the built-in pulls (or a fixed "never fetched" box) would let it assert "Today: no data yet" exactly (D-134 (4)) — vì sao để sau: needs a harness change — ở đâu: `cmd/vedette/e2ebox_test.go`
+- [ ] 2026-11-11 — Not covered: CISA KEV switch off/on (box-wide, would need `feeds.global.spec.ts`), weekly "I have this"/"Not relevant" (needs vulnerability data on the box; a loopback vulnerability feed could seed it), authenticated custom feeds (secret last 4) — vì sao để sau: one slice — ở đâu: `web/e2e-real/feeds.spec.ts`

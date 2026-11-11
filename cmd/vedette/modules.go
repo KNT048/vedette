@@ -26,6 +26,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/response"
@@ -39,6 +40,7 @@ import (
 type deps struct {
 	Log     *slog.Logger
 	DB      *store.DB
+	LogsDB  *store.DB // logs.db: the received lines and their counters, a database of its own (modules/logs)
 	Reg     *modreg.Registry
 	Secrets *secrets.Store
 	Audit   *audit.Log
@@ -110,6 +112,7 @@ func wiredModules() []moduleWiring {
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
+		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
 		{ID: "ai", Migrations: ai.Migrations},                                 // depends on core only (MANIFEST); last: nothing depends on it
 	}
 }

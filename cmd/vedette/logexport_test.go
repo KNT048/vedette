@@ -27,11 +27,11 @@ func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"ai_activity", "alerts", "device_logs", "known_bad"}
+	want := []string{"ai_activity", "alerts", "known_bad"}
 	if slices.Compare(e.Missing, want) != 0 {
 		t.Fatalf("missing = %v, want %v (when a module registers its source, move it out of this list)", e.Missing, want)
 	}
-	if !strings.Contains(string(body), `"missing":["ai_activity","alerts","device_logs","known_bad"]`) {
+	if !strings.Contains(string(body), `"missing":["ai_activity","alerts","known_bad"]`) {
 		t.Fatalf("the file does not say what is missing: %.400s", body)
 	}
 }

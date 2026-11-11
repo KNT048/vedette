@@ -1,3 +1,4 @@
+import './lib/zodConfig' // first: before any schema parses (issue #201)
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

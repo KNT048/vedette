@@ -100,6 +100,7 @@ Pinned in `tools/go.mod` (Go `tool` directives), run with `go tool -modfile=tool
 |---|---|---|---|
 | golangci-lint | v2.15.0 | GPL-3.0 | linter run on the source tree on the developer's machine; separate process, never distributed |
 | govulncheck (golang.org/x/vuln) | v1.9.0 | BSD-3-Clause | vulnerability scan of Go dependencies (`make verify-go`, `make audit`) |
+| nfpm (github.com/goreleaser/nfpm/v2) | v2.43.0 | MIT | the maintainer's build tool for the `vedette-host` `.deb` (`make host-deb`, D-155); a separate process on the maintainer's and CI machine, never shipped or linked into Vedette; its Go dependency graph was checked for GPL/AGPL (none) |
 | sqlc (github.com/sqlc-dev/sqlc) | v1.31.1 | MIT | generates the typed query code in `core/store/coredb` from SQL files (`make generate`); the generated code is committed, sqlc itself is never linked |
 | GitHub Actions in `.github/workflows/ci.yml`: `actions/checkout`, `actions/setup-go`, `pnpm/action-setup`, `actions/cache` | pinned by commit SHA (cache v6.1.0) | MIT | run on GitHub's runners only (D-63); `actions/cache` keeps the golangci-lint cache between runs (D-140). Change detection uses no third-party action |
 

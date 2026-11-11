@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 )
 
 // Migrations run in wiredModules order, so a module whose tables reference another module's must
@@ -167,6 +168,14 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	logsDB, err := store.Open(ctx, filepath.Join(dir, "logs.db"), log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = logsDB.Close() })
+	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
+		t.Fatal(err)
+	}
 	if err := migrateAll(ctx, db, wiredModules()); err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +184,7 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
 	if err := buildServices(t.Context(), &d); err != nil {
 		t.Fatal(err)
 	}

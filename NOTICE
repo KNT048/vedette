@@ -3,3 +3,5 @@ Copyright 2026 Kien Nguyen and the Vedette contributors.
 
 Licensed under the Apache License, Version 2.0. See LICENSE.
 Third-party components and data sources: see THIRD_PARTY_NOTICES.md.
+The vedette-host package carries the license of the Go runtime and of every Go module linked into the
+binary in /usr/share/doc/vedette-host/third-party-licenses.

@@ -76,8 +76,8 @@ func newsHostAllowed(host string) bool {
 }
 
 const (
-	newsFetchTimeout = 15 * time.Second // one request, redirects included
-	newsTotalTimeout = 25 * time.Second // every fetch of one news call
+	newsFetchTimeout = 20 * time.Second // one request, redirects included; NVD without a key often takes over 15 s
+	newsTotalTimeout = 30 * time.Second // every fetch of one news call
 	newsMaxBody      = 2 << 20          // bytes read from one answer, after decompression
 	newsMaxRedirects = 3
 	newsCacheTTL     = 30 * time.Minute

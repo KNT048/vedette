@@ -61,7 +61,7 @@ type newsAnswer struct {
 
 const newsSchema = `{"type":"object","properties":{"exploited":{"type":"string"},"public_exploit":{"type":"string"},"workaround":{"type":"string"},"other":{"type":"array","items":{"type":"string"}}},"required":["exploited","public_exploit","workaround","other"],"additionalProperties":false}`
 
-const newsTask = `Summarise the latest public information about one exploited vulnerability for a small-company IT person, in plain English. Use only the data blocks: the exploited-list entry, and the pages the box fetched (the NVD record, a vendor advisory, a GitHub repository search, posts of security blogs). In "exploited" say whether it is exploited in the wild and since when, with the source. In "public_exploit" say whether public exploit or proof-of-concept code appears to exist: a repository that names a CVE may be a scanner, a fake or malware, so say "appears" and never tell the reader to run code from it. In "workaround" give the vendor's fix or mitigation, or say the sources do not give one. In "other" add at most three short points that matter (a new post, a change in severity, a source that could not be fetched). One to three sentences each. Do not invent versions, dates, names or links that are not in the data. Reply with one JSON object only.`
+const newsTask = `Summarise the latest public information about one exploited vulnerability for a small-company IT person, in plain English. Use only the data blocks: the exploited-list entry, and the pages the box fetched (the NVD record, a vendor advisory, a GitHub repository search, posts of security blogs). In "exploited" say whether it is exploited in the wild and since when, with the source. In "public_exploit" say whether public exploit or proof-of-concept code appears to exist: a repository that names a CVE may be a scanner, a fake or malware, so say "appears" and never tell the reader to run code from it. In "workaround" give the vendor's fix or mitigation, or say the sources do not give one. In "other" add at most three short points that matter (a new post, a change in severity, a source that could not be fetched). At most three short sentences in each field. Do not invent versions, dates, names or links that are not in the data. Reply with one JSON object only.`
 
 const (
 	maxNewsLine  = 600
@@ -141,6 +141,18 @@ func (f *newsFetcher) nvdSource(ctx context.Context, cve string) (newsSource, []
 		block: &DataBlock{Kind: DataWeb, Source: "NVD record " + cve, Text: r.info.text},
 		cites: []Citation{{Title: "NVD: " + cve, URL: page}},
 	}, r.info.vendors
+}
+
+// fetchable reports whether one of links is on advisoryHosts.
+func fetchable(links []string) bool {
+	for _, l := range links {
+		if u := safeLink(l, ""); u != "" {
+			if p, err := url.Parse(u); err == nil && advisoryHosts[strings.ToLower(p.Hostname())] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // vendorSource reads the first vendor page among links whose host is on advisoryHosts. With no such link, the first link is listed
@@ -263,20 +275,24 @@ func (f *newsFetcher) gather(ctx context.Context, facts CVEFacts) []newsSource {
 	defer cancel()
 	cve := facts.CVE
 	var nvd, vendor, gh newsSource
+	var refs []string
 	hasVendor := false
 	feeds := make([]newsSource, len(newsFeeds))
 	var wg sync.WaitGroup
-	wg.Go(func() {
-		var refs []string
-		nvd, refs = f.nvdSource(ctx, cve)
-		// The exploited-list links first (CISA chose them), then the record's vendor links.
-		vendor, hasVendor = f.vendorSource(ctx, cve, append(append([]string{}, facts.Links...), refs...))
-	})
+	wg.Go(func() { nvd, refs = f.nvdSource(ctx, cve) })
+	// The exploited-list links first (CISA chose them), at once; NVD is often slow without a key.
+	wg.Go(func() { vendor, hasVendor = f.vendorSource(ctx, cve, facts.Links) })
 	wg.Go(func() { gh = f.githubSource(ctx, cve) })
 	for i, fd := range newsFeeds {
 		wg.Go(func() { feeds[i] = f.feedSource(ctx, cve, fd) })
 	}
 	wg.Wait()
+	if vendor.block == nil && !fetchable(facts.Links) {
+		// No vendor page from the exploited list: try the record's own vendor links, in what is left of the budget.
+		if v, ok := f.vendorSource(ctx, cve, append(append([]string{}, facts.Links...), refs...)); ok {
+			vendor, hasVendor = v, true
+		}
+	}
 	out := []newsSource{nvd}
 	if hasVendor {
 		out = append(out, vendor)
@@ -428,7 +444,7 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		Question:  fmt.Sprintf("What is the latest on %s: is it exploited, is there public exploit code, and what is the workaround?", cve),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "cve_news", JSON: json.RawMessage(newsSchema)},
-		MaxTokens: 1000,
+		MaxTokens: 2000, // a real answer runs to about 600 tokens; a cut-off answer is not JSON and is discarded
 		Summary:   fmt.Sprintf("Summarised %d public sources about %s", len(data)-1, cve),
 		Check: func(text string) error {
 			var perr error

@@ -5,7 +5,10 @@
 #   4. Playwright (desktop) against it, 5. stop everything and remove the temp folder, web/dist and internal/webui/dist on every exit path.
 # Variables: SPECS="e2e-real/auth.spec.ts ..." (default: all), E2E_WORKERS (default 2 with 8+ CPUs, else 1),
 #            HOLD=1 keeps the box up after the run: then rerun one spec with the two variables the script prints, plus `--no-deps`.
-# Heavy job (Chromium + a Go build): one at a time. Linux or macOS. Kept out of CI and `make check` (D-63, D-64).
+# Heavy job (Chromium + a Go build): two at once at most (rules/local-checks.md). Linux or macOS. Kept out of CI and `make check` (D-63, D-64).
+# Two runs at once are safe: the box listens on a random port, everything the run writes is in its own temp folder or its own
+# web/test-results/real-<pid> folder, and the one shared place, web/dist and internal/webui/dist (the build, plus pnpm install), is taken
+# under a lock only while the GUI is built and compiled into the test binary.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -14,8 +17,8 @@ ncpu=$(getconf _NPROCESSORS_ONLN)
 t0=$SECONDS
 lap() { printf 'e2e-real: %-34s %4ds\n' "$1" "$((SECONDS - t0))"; t0=$SECONDS; }
 
-# Preflight (rules/local-checks.md): no other Playwright run, and not on a loaded machine (load5 above 2 x CPUs: wait, at most 30 minutes).
-if pgrep -f playwright/test/cli.js >/dev/null; then echo "e2e-real: another Playwright run is active (pgrep -f playwright/test/cli.js)" >&2; exit 1; fi
+# Preflight (rules/local-checks.md): not on a loaded machine (load5 above 2 x CPUs: wait, at most 30 minutes). The two-heavy-jobs limit is the
+# machine-wide semaphore of the caller (mac-heavy.sh); runs do not look at each other any more.
 for i in $(seq 0 30); do
 	load5=$(LC_ALL=C uptime | sed 's/,/ /g; s/.*load averages*: *//' | awk '{print $2}')
 	awk -v l="$load5" -v n="$ncpu" 'BEGIN { exit !(l > 2 * n) }' || break
@@ -28,6 +31,10 @@ tmp=$(mktemp -d)
 box=
 pw=
 hold=${HOLD:-}
+lock="${TMPDIR:-/tmp}/vedette-e2e-real-build.lock.$(printf '%s' "$PWD" | cksum | cut -d' ' -f1)" # one lock per checkout: dist lives in it
+locked=
+unlock() { [ -z "$locked" ] || { rm -rf web/dist internal/webui/dist "$lock"; locked=; }; }
+out="web/test-results/real-$$" # this run's traces; the shared name would be emptied by the other run
 cleanup() {
 	rc=$?
 	[ -z "$pw" ] || kill -- "-$pw" 2>/dev/null || true # Playwright and the Chromium it started
@@ -39,13 +46,23 @@ cleanup() {
 	fi
 	# a failed run keeps the box log (the temp folder is removed below): next to the traces, gitignored, removed by make clean
 	if [ "$rc" -ne 0 ] && [ -s "$tmp/box/box.log" ]; then
-		mkdir -p web/test-results/real && cp "$tmp/box/box.log" web/test-results/real/box.log || true
+		mkdir -p "$out" && cp "$tmp/box/box.log" "$out/box.log" || true
 	fi
-	rm -rf "$tmp" web/dist internal/webui/dist
+	[ "$rc" -ne 0 ] || rm -rf "$out"
+	unlock
+	rm -rf "$tmp"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
+# One build at a time per checkout: web/dist and internal/webui/dist are fixed paths (mkdir is the atomic lock; a lock older than 30 min is stale).
+for _ in $(seq 1 600); do
+	mkdir "$lock" 2>/dev/null && { locked=1; break; }
+	[ -z "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ] || rm -rf "$lock"
+	sleep 3
+done
+[ -n "$locked" ] || { echo "e2e-real: could not take the build lock $lock in 30 minutes" >&2; exit 1; }
+# (a satisfied lockfile makes the install a no-op, so the other run's Playwright is not disturbed)
 pnpm --dir web install --frozen-lockfile --prefer-offline
 pnpm --dir web exec playwright install chromium # idempotent; needs the network the first time only
 lap "install (pnpm, chromium)"
@@ -54,7 +71,7 @@ make webui-dist
 lap "webui-dist (tsc + vite)"
 # No -trimpath: opstest finds its fixtures through runtime.Caller. Never into the repository root.
 go test -c -tags webui -o "$tmp/box.test" ./cmd/vedette
-rm -rf web/dist internal/webui/dist # the GUI is inside the test binary now (rules/build-artifacts.md)
+unlock # the GUI is inside the test binary now (rules/build-artifacts.md); the other run may build
 lap "go test -c -tags webui"
 
 mkdir -p "$tmp/box" && chmod 700 "$tmp/box"
@@ -79,7 +96,7 @@ lap "box ready"
 password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)
 [ "${#password}" -eq 24 ] || { echo "e2e-real: could not read /dev/urandom" >&2; exit 1; }
 workers=${E2E_WORKERS:-$([ "$ncpu" -ge 8 ] && echo 2 || echo 1)}
-export E2E_BOX="$tmp/box/ready.json" E2E_PASSWORD="$password" E2E_WORKERS="$workers"
+export E2E_BOX="$tmp/box/ready.json" E2E_PASSWORD="$password" E2E_WORKERS="$workers" E2E_OUT="$PWD/$out"
 
 # Two passes (a red parallel test must not skip the global specs and the restore logic in them): pass 1 is setup, seed and parallel; pass 2 is
 # the global project alone (--no-deps, the seeded storageState files are in the run folder). The exit code is non-zero when either failed.

@@ -36,9 +36,9 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã d
 
 ## Còn lại tới "app chạy đủ chức năng"
 **Phía Kiên — AI-Trưởng**
-- [ ] #218 core purge (đóng #187), #223 job dọn dẹp chạy cả khi module tắt (D-160).
-- [ ] WP-08i SBOM và quét lỗ hổng (D-159) · 08e image honeypot · 08f bộ build release (cần khoá của kien) · 08m compose · 08h `install.sh` (cần VM lab của kien).
-- [ ] WP-30 lát 4 (os-updates và network qua host giả) · lát 8a (adapter host thật cho honeypot) · lát 8b (honeypot.spec).
+- [x] #218 core purge (đóng #187) đã merge. - [ ] #225 job dọn dẹp chạy cả khi module tắt (D-160, đóng #223), rồi `Scheduler.Wake` cho logs (nhánh `feat/jobs-wake`).
+- [ ] WP-08i SBOM và quét lỗ hổng (D-159, PR này; scan-base còn 28 ngoại lệ hết hạn 2026-12-11: ghim lại Debian, nâng nuclei) · 08e image honeypot (đang làm, D-162) · 08f bộ build release (cần khoá của kien) · 08m compose · 08h `install.sh` (cần VM lab của kien).
+- [ ] WP-30 lát 4 (os-updates và network qua host giả; đang làm) · lát 8a (adapter host thật cho honeypot, D-161; đang sửa theo rà Opus) · lát 8b (honeypot.spec).
 - [ ] WP-32 RUNBOOK phần Kiên · WP-26 `agent-intake`.
 
 **Phía Kiên — session phụ trên Mac**

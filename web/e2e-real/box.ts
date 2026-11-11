@@ -174,7 +174,7 @@ export const device = (kind: DeviceKind) => {
 }
 
 /** What the device received so far: HTTP requests, SSH command lines and sign-ins, MCP calls. */
-export async function deviceSeen(kind: DeviceKind): Promise<{ requests?: { method: string; path: string; authorization: string }[]; lines?: string[]; logins?: number; auth_calls?: number; calls?: { http: string; rpc: string; authorization: string }[] }> {
+export async function deviceSeen(kind: DeviceKind): Promise<{ requests?: { method: string; path: string; authorization: string }[]; banned?: string[]; lines?: string[]; logins?: number; auth_calls?: number; calls?: { http: string; rpc: string; authorization: string }[] }> {
   const r = await control('GET', `/devices/${kind}/requests`)
   expect(r.status, `GET /devices/${kind}/requests`).toBe(200)
   return r.json()
@@ -184,4 +184,11 @@ export async function deviceSeen(kind: DeviceKind): Promise<{ requests?: { metho
 export async function rotateDevice(kind: DeviceKind): Promise<void> {
   const r = await control('POST', `/devices/${kind}/rotate`)
   expect(r.status, `rotate the ${kind} device`).toBe(204)
+}
+
+/** The HTTP device is a small firewall for the response specs (slice 9a): `ban` and `unban` change its list, `GET /api/e2e/bans` reads it back, and
+ *  `GET /api/e2e/status` answers `ready` or, after this call, `maintenance` (what a check before an action refuses on). `deviceSeen('http').banned` is its list. */
+export async function httpState(value: 'ready' | 'maintenance'): Promise<void> {
+  const r = await control('POST', `/devices/http/state?value=${value}`)
+  expect(r.status, `set the HTTP device state to ${value}`).toBe(204)
 }

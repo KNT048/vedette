@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (224 mã)
+#### HTTP 400 (225 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -289,6 +289,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
 | `temp_password_expired` | 400 | This temporary password has expired. Ask an administrator for a new one. | `POST /auth/login` (D-180) |
+| `telemetry_unavailable` | 400 | This version of Vedette does not send an anonymous signal, so it cannot be turned on. | `PATCH /core/privacy` với `telemetry: true` (backend; D-154. Không có trong mock; GUI không gửi từ D-153) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
 | `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections` |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
@@ -303,7 +304,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
 | `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (email, từ `VerifyTwoStep`, trả nguyên, D-98) |
-| `wrong_password` | 400 | The current password is wrong. | `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (D-76: bật 2 bước cũng cần mật khẩu hiện tại, thông điệp "The password is needed to turn on two-factor authentication."; sai tính vào bộ đếm xác thực lại theo tài khoản, riêng với bộ đếm đăng nhập sai nhưng cùng mức 10 lần / 15 phút và cùng cách tăng thời gian chờ, và ghi `auth.reauth_failed`). Cũng là mã khi mật khẩu vừa chứng minh đã bị đổi giữa lúc kiểm và lúc ghi |
+| `wrong_password` | 400 | The current password is wrong. | `POST /core/data/purge` (D-154: "Wrong password. The password is needed to delete all data."); `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (D-76: bật 2 bước cũng cần mật khẩu hiện tại, thông điệp "The password is needed to turn on two-factor authentication."; sai tính vào bộ đếm xác thực lại theo tài khoản, riêng với bộ đếm đăng nhập sai nhưng cùng mức 10 lần / 15 phút và cùng cách tăng thời gian chờ, và ghi `auth.reauth_failed`). Cũng là mã khi mật khẩu vừa chứng minh đã bị đổi giữa lúc kiểm và lúc ghi |
 | `wrong_kind` | 400 | This action is an SSH command. Choose an SSH connection. | `PUT /response/catalog/{id}` |
 | `dhcp_no_static` | 400 | With DHCP the address, gateway and DNS come from your DHCP server. Remove the static fields. | `PUT /core/network/management` |
 | `gateway_outside_subnet` | 400 | The gateway must be inside the address range you entered. Backend [ĐX] (D-100): kiểm của `core` trước, và host `gateway_outside_subnet` (412). | `PUT /core/network/management` |
@@ -367,7 +368,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
-| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared) |
+| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared) |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
@@ -436,6 +437,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
 
+#### HTTP 412 (1 mã)
+
+| Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
+|---|---|---|---|
+| `transition_pending` | 412 | An update of Vedette is waiting to be completed or could not be recovered, so the box cannot be wiped now. Nothing was deleted. See the RUNBOOK (update journal) and finish or roll back the update first. (backend only, D-154: the host answers it to `backup.purge`) | `POST /core/data/purge` |
+
 #### HTTP 413 (1 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
@@ -487,11 +494,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `pending_invalid` | 502 | The box could not trust its record of the waiting change, so it went back to the old settings. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 | `confirm_failed` | 502 | The box could not save the new settings, so it went back to the old ones. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 
-#### HTTP 500 (1 mã)
+#### HTTP 500 (2 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN) | Endpoint dùng |
 |---|---|---|---|
 | `internal` | 500 | Something went wrong on the box. Try again; if it keeps happening, send a bug report. | mọi endpoint, lỗi không dự kiến (`core/server`; chi tiết chỉ vào log kèm `X-Request-Id`, không vào phản hồi; WP-04a) |
+| `backups_already_deleted` | 500 | The backups held by the operating system helper were already deleted, but the data on this box could not be deleted. The data on this box is still there. Fix the problem described in the box log and delete all data again. (backend only, D-154: the purge failed after the helper step) | `POST /core/data/purge` |
 
 #### HTTP 501 (1 mã)
 
@@ -505,7 +513,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `server_busy` | 503 | The box is busy checking other sign-ins. Try again in a few seconds. | `POST /auth/login`; `POST /auth/login/resend-code`; `GET /response/blocklist/{token}.txt` (the store cannot be read: 503 with `Retry-After`, never an empty list, blocklist-format 6); `GET /logs/events` (module logs: 503 khi đã có 2 lần tìm chạy cùng lúc và lần thứ ba không giành được khe trong 5 giây, hoặc một lần tìm chạy quá 5 giây; thông báo: "The box is busy searching the logs. Choose a shorter time range or a more specific keyword, then try again."; **không** kèm `Retry-After` hay `retry_after`: GUI hiện lỗi và nút thử lại; `modules/logs/CONTRACT.md`); mọi thao tác phải băm hoặc kiểm mật khẩu (`POST /core/users`, `/core/users/{id}/reset-password`, `/core/account/password`, `/core/account/2fa/disable`, `/core/setup`). Mã mới **[ĐX]** (WP-04b rà soát bảo mật): ít nhất một lần chờ quá 2 giây hoặc hàng đợi băm đầy. Kèm `retry_after` (giây) trong `error` và `Retry-After`. Không phải `busy` (409, cập nhật hệ điều hành). Lần thử bị từ chối vì bận **không** tính vào giới hạn đăng nhập sai |
 | `twofa_email_unavailable` | 503 | The email channel cannot send two-step codes now. | `POST /auth/login`; `POST /auth/login/resend-code` |
-| `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
+| `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. (`POST /core/data/purge` answers it with status 502, D-154: a configured helper that holds the backups does not answer, its socket file missing included, and nothing is deleted.) Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
 | `scanner_unavailable` | 503 | The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again. | `POST /scans/runs`; job quét lịch và quét lại KEV của `scan` (D-125: không có heartbeat của worker, hoặc heartbeat báo thiếu nuclei hay gói mẫu) |
 
 ## 4. Phân trang, lọc, sắp xếp

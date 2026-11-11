@@ -172,7 +172,7 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
 export const saveNotifyChannel = (type: string, fields: Record<string, string>, secret: string) =>
   api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
-export const usePurge = () => useMutation({ mutationFn: (confirm: string) => api.post<{ ok: true; removed: Record<string, number> }>('/core/data/purge', { confirm }) })
+export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
 // ---- mạng của hộp (D-56) ----
 export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })

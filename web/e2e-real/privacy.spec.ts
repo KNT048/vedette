@@ -1,8 +1,7 @@
 // Settings -> Privacy on the real backend (S-CORE-4, D-153, PRIVACY.md): the page lists the twelve flows that leave the box, their state is what
 // GET /core/privacy says (flow 2, the anonymous signal, is shown as "Not sent" whatever the API reports: D-153), the one switch of the page
 // (flow 6, the update check) is the API's `update_check` and a change survives a reload, and the signal is not offered as a choice.
-// Where the backend still disagrees with PRIVACY.md (the signal counts as ON when nothing is stored, and PATCH accepts `telemetry: true`)
-// the test is test.fail() with the deferred line that tracks it (D-171): it turns red when the bug is fixed.
+// The backend agrees with PRIVACY.md since D-154: GET reports the signal as off and PATCH refuses `telemetry: true` (400).
 import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -74,10 +73,8 @@ test('a viewer and an operator read the page and cannot change it', async () => 
   }
 })
 
-// test.fail (D-171): .ai/deferred/fix-privacy-accuracy.md:2 (before release: report the signal as off, refuse to turn it on).
-// Two tests, so that a fix of the GET and a fix of the PATCH each turn their own test red.
+// D-154 (was test.fail under D-171 until the backend fixed both): one test for the GET, one for the PATCH.
 test('GET /core/privacy reports the anonymous signal as not sent, like PRIVACY.md flow 2 and the page', async ({ page }) => {
-  test.fail(true, 'bug: GET /core/privacy reports flow 2 as on until a value is stored (.ai/deferred/fix-privacy-accuracy.md:2)')
   const got = (await api<Privacy>(page.request, 'GET', '/core/privacy')).body
   expect(got.flows.find((f) => f.id === 2)?.state).toBe('off')
   expect(got.telemetry.enabled).toBe(false)
@@ -85,14 +82,8 @@ test('GET /core/privacy reports the anonymous signal as not sent, like PRIVACY.m
 })
 
 test('PATCH /core/privacy refuses to turn the anonymous signal on, and stores nothing', async ({ page }) => {
-  test.fail(true, 'bug: PATCH /core/privacy accepts telemetry:true and stores it (.ai/deferred/fix-privacy-accuracy.md:2)')
-  const before = (await api<Privacy>(page.request, 'GET', '/core/privacy')).body.telemetry.enabled
-  try {
-    const r = await api(page.request, 'PATCH', '/core/privacy', { telemetry: true })
-    expect(r.status).toBeGreaterThanOrEqual(400)
-    expect(r.status).toBeLessThan(500)
-  } finally {
-    // put back what GET reported before (an unset value reads as on, so a box that never stored one ends up with the same reading)
-    await api(page.request, 'PATCH', '/core/privacy', { telemetry: before })
-  }
+  const r = await api<{ error: { code: string } }>(page.request, 'PATCH', '/core/privacy', { telemetry: true })
+  expect(r.status).toBe(400)
+  expect(r.body.error.code).toBe('telemetry_unavailable')
+  expect((await api<Privacy>(page.request, 'GET', '/core/privacy')).body.telemetry.enabled).toBe(false)
 })

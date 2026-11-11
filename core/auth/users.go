@@ -386,6 +386,17 @@ func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, passw
 	return nil
 }
 
+// VerifyOwnPassword is the password step-up of a sensitive act of the signed-in user (D-76) for callers outside this package, such
+// as the factory reset: the same limiter and audit row as turning two-step on or off. A wrong password is 400 wrong_password with
+// wrongMsg; too many wrong ones, 429 rate_limited.
+func (s *Service) VerifyOwnPassword(ctx context.Context, userID, password, wrongMsg string) error {
+	t, err := s.user(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return s.checkOwnPassword(ctx, t, password, wrongMsg)
+}
+
 // ListUsers returns every account, oldest first (GET /core/users, admin).
 func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := coredb.New(s.db.Reader()).ListUsers(ctx)

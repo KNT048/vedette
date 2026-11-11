@@ -181,6 +181,10 @@ func (s *Service) startPurge(parent context.Context) {
 				s.cfg.Log.ErrorContext(ctx, "logs: the purge started by a full volume panicked", "panic", fmt.Sprint(r))
 			}
 		}()
+		if err := s.resyncOnce(ctx); err != nil { // never delete on a counter that was not checked
+			s.cfg.Log.WarnContext(ctx, "logs: the purge started by a full volume could not recount the bytes", "err", err)
+			return
+		}
 		if _, err := s.Purge(ctx); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: the purge started by a full volume failed", "err", err)
 		}

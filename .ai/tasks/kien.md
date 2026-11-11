@@ -80,7 +80,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 4. Sau khi Emily thêm tín hiệu `BoxAddrs` (#157): chỉnh `cmd/vedette/notify.go`.
 5. **WP-08** đóng gói/phát hành (Quadlet: `Restart=always`, `KillMode=control-group`, `core_cgroup` trong `host.conf`, `GOMEMLIMIT` cho core; bản build phát hành không mang mock, xem mục "Trước khi phát hành").
 6. **WP-30** E2E backend thật cho module phía Kiên → **WP-31** rà SYS-1…8 + D-41 → **WP-32** RUNBOOK (ghi cả `backup.restore` và lối thoát `core_data_unrecoverable`).
-7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge` (purge xoá cả `logs.db` + sidecar theo D-151, #187), nút Khôi phục.
+7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, nút Khôi phục (`/core/data/export` và `/purge` xong ở D-154, #187).
 8. Việc sau khi PR Emily về: DATA_MODEL `exp_*` đã vào (#94); kiểm danh mục WP-23 ở dưới khi có PR mới. Đóng #146 sau khi đo PR chỉ web.
 
 ## Nối một module vào binary (issue #33)

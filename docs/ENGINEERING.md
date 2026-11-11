@@ -150,7 +150,7 @@ Dán phần cuối kết quả + SHA commit vào mục **Local checks** của PR
 
 **Quét định kỳ**: CI hằng ngày trên `main`, và `make audit` (govulncheck + `pnpm audit --prod`) đầu mỗi phiên làm việc và trước mỗi bản phát hành; phát hiện có đường gọi tới → sửa trước khi merge tiếp.
 
-**Chuỗi cung ứng và phát hành** (WP-08, trên máy người duy trì, bằng `make`): dựng image OCI; `trivy image` + `trivy fs` (HIGH/CRITICAL có bản vá → dừng; ngoại lệ qua `.trivyignore` có lý do và hạn); SBOM CycloneDX; so `THIRD_PARTY_NOTICES.md` với lockfile/`go.sum` (không GPL/AGPL trong lõi); ký cosign bằng khoá người duy trì giữ (D-57 (3)), đẩy registry kênh beta. Không có bước nào tạo tag.
+**Chuỗi cung ứng và phát hành** (WP-08, trên máy người duy trì, bằng `make`): dựng image OCI (`make images`); `make vuln-scan` = `trivy image` + `trivy fs` (HIGH/CRITICAL có bản vá → dừng; ngoại lệ qua `.trivyignore.yaml` có lý do và hạn, hết hạn là đỏ); `make sbom` = SBOM CycloneDX mỗi image mỗi kiến trúc + mã nguồn trong `dist/sbom/`; `make notices-check` so `THIRD_PARTY_NOTICES.md` với module Go được liên kết và phụ thuộc web (không GPL/AGPL trong thứ được giao; có trong `make verify`, D-159); trivy ghim bằng digest ở `deploy/tools.env`; ký cosign bằng khoá người duy trì giữ (D-57 (3)), đẩy registry kênh beta. Không có bước nào tạo tag.
 
 ## 8. Chiến lược test
 

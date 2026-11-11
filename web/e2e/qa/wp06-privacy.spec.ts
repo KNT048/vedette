@@ -43,6 +43,12 @@ for (const theme of THEMES) {
     await expect(page.locator('#telemetry')).toContainText('Anonymous signal: not sent.')
     await expect(page.getByRole('switch', { name: /anonymous signal/i })).toHaveCount(0)
     await expect(page.locator('#telemetry pre, #telemetry code')).toHaveCount(0)
+    // D-154: nothing sends the signal, so the API refuses to turn it on (the backend answers the same) and reports it off
+    const patched = await page.evaluate(async () => {
+      const r = await fetch('/api/v1/core/privacy', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: true }) })
+      return { status: r.status, code: ((await r.json()) as { error?: { code?: string } }).error?.code }
+    })
+    expect(patched).toEqual({ status: 400, code: 'telemetry_unavailable' })
     await noHScroll(page, 'privacy')
     await expectAccessible(page, 'privacy')
     expect(errors.filter((e) => !/status of (4|5)\d\d/.test(e))).toEqual([])

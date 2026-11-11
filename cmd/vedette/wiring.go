@@ -227,7 +227,10 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("connection reader: %w", err)
 	}
 	d.Logs = logexport.New()
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn}); err != nil {
+	d.PurgeGate = &core.PurgeGate{}
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
+		DataDir: d.DataDir, DataFiles: moduleDataFiles, Schema: schemaSets(wiredModules()), Restart: d.Restart, KeyPath: d.KeyPath,
+		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
 	if d.OS, err = newOSHandlers(*d); err != nil {
@@ -381,7 +384,7 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 	}
 	return core.NewOSHandlers(core.OSConfig{
 		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, DataDir: d.DataDir, KeyPath: d.KeyPath,
-		Zone: d.Core.OrgTimeZone, Clock: d.Clock,
+		Zone: d.Core.OrgTimeZone, Clock: d.Clock, Gate: d.PurgeGate,
 	})
 }
 
@@ -397,7 +400,7 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		h = hostclient.New(d.HostSocket)
 	}
 	return core.NewNetworkHandlers(core.NetworkConfig{
-		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, Sensor: sensor, Clock: d.Clock,
+		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, Sensor: sensor, Clock: d.Clock, Gate: d.PurgeGate,
 		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
 			return addressInUse(ctx, d.Inventory, d.Honeypot, ip)
 		},

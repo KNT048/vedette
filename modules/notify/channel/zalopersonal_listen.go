@@ -41,8 +41,8 @@ const (
 	zaloMaxText      = 2000      // bytes of one message kept (a code is 8)
 	zaloDialWait     = 15 * time.Second
 	zaloPingDefault  = time.Minute
-	zaloPingMin      = 10 * time.Second
-	zaloPingMax      = 10 * time.Minute
+	zaloPingFloor    = 10 * time.Second
+	zaloPingCeiling  = 10 * time.Minute
 	zaloCloseReplace = 3000 // DuplicateConnection: the server, or the client after cmd 3000
 	zaloCloseKick    = 3003 // KickConnection
 )
@@ -279,7 +279,7 @@ func parseZaloListenInfo(data json.RawMessage) (self string, ws []string) {
 
 // parseZaloPing reads settings.features.socket.ping_interval (milliseconds) from the server info answer, which is plain JSON
 // {error_code, data: {settings | setttings}} (Zalo spells it "setttings" today). 0 = not given; otherwise kept within
-// zaloPingMin..zaloPingMax.
+// zaloPingFloor..zaloPingCeiling.
 func parseZaloPing(body []byte) time.Duration {
 	env, ok := parseZaloEnvelope(body)
 	if !ok || env.check(true, nil) != nil {
@@ -306,7 +306,7 @@ func parseZaloPing(body []byte) time.Duration {
 	if s == nil || s.Features.Socket.Ping == nil || *s.Features.Socket.Ping <= 0 || *s.Features.Socket.Ping > float64(time.Hour/time.Millisecond) {
 		return 0
 	}
-	return min(max(time.Duration(*s.Features.Socket.Ping)*time.Millisecond, zaloPingMin), zaloPingMax)
+	return min(max(time.Duration(*s.Features.Socket.Ping)*time.Millisecond, zaloPingFloor), zaloPingCeiling)
 }
 
 // ---- events ----

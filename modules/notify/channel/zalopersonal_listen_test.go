@@ -70,7 +70,7 @@ func (l *listenRun) texts() []ZaloText {
 	return append([]ZaloText(nil), l.got...)
 }
 
-func startListen(t *testing.T, ctx context.Context, z *zaloPersonalSender) *listenRun {
+func startListen(ctx context.Context, t *testing.T, z *zaloPersonalSender) *listenRun {
 	t.Helper()
 	c, err := ZaloListen(ctx, z)
 	if err != nil {
@@ -119,7 +119,7 @@ func TestContract_PRE8_ZaloListenReadsDirectTexts(t *testing.T) {
 		_ = c.Write(ctx, websocket.MessageText, []byte(`{"not":"binary"}`))
 		send(501, 0, []byte(`not json`))
 		send(501, 0, zaloEvent(t, 2, userMsgs(
-			`{"msgId":"1","uidFrom":"2938475610293847561","idTo":"0","dName":"Lan‮","content":" a-7kq2mx "}`,
+			`{"msgId":"1","uidFrom":"2938475610293847561","idTo":"0","dName":"Lan`+"\u202e"+`","content":" a-7kq2mx "}`,
 			`{"msgId":"2","uidFrom":"0","idTo":"2938475610293847561","content":"from the box itself"}`,
 			`{"msgId":"3","uidFrom":"42","content":"self by id"}`,
 			`{"msgId":"4","uidFrom":"2938475610293847561","content":{"title":"a picture"}}`,
@@ -137,7 +137,7 @@ func TestContract_PRE8_ZaloListenReadsDirectTexts(t *testing.T) {
 	z := newZPSender(t, f, nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	l := startListen(t, ctx, z)
+	l := startListen(ctx, t, z)
 	if err := waitRun(t, l); !errors.Is(err, ErrZaloReplaced) {
 		t.Fatalf("Run = %v, want ErrZaloReplaced", err)
 	}
@@ -295,8 +295,8 @@ func TestZaloPingInterval(t *testing.T) {
 	for in, want := range map[string]time.Duration{
 		`{"setttings":{"features":{"socket":{"ping_interval":20000}}}}`:  20 * time.Second,
 		`{"settings":{"features":{"socket":{"ping_interval":30000}}}}`:   30 * time.Second,
-		`{"settings":{"features":{"socket":{"ping_interval":5}}}}`:       zaloPingMin,
-		`{"settings":{"features":{"socket":{"ping_interval":3000000}}}}`: zaloPingMax,
+		`{"settings":{"features":{"socket":{"ping_interval":5}}}}`:       zaloPingFloor,
+		`{"settings":{"features":{"socket":{"ping_interval":3000000}}}}`: zaloPingCeiling,
 		`{"settings":{"features":{"socket":{"ping_interval":-1}}}}`:      0,
 		`{"settings":{"features":{"socket":{"ping_interval":"x"}}}}`:     0,
 		`{"settings":{}}`: 0,

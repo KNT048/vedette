@@ -80,6 +80,7 @@ func TestSessionLifetimes(t *testing.T) {
 		if err != nil && !errors.Is(err, server.ErrNoSession) {
 			t.Fatal(err)
 		}
+		auth.WaitTouched(env.Svc.Sessions) // the clock moves next: let the activity write land first
 		return err == nil
 	}
 

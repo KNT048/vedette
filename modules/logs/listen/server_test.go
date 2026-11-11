@@ -893,7 +893,8 @@ func TestABatchBeingStoredAtShutdownIsNotCancelled(t *testing.T) {
 	<-entered // the first batch is in the Sink
 	waitFor(t, "all six lines to be accepted", func() bool { return srv.Stats().Received == 6 })
 	cancel()
-	<-done
+	err = <-done // context.Canceled
+	_ = err
 	mu.Lock()
 	defer mu.Unlock()
 	if stored != 6 || cancelled != 0 || srv.Stats().SinkLost != 0 {
@@ -928,7 +929,8 @@ func TestAHungSinkIsBoundedAtShutdown(t *testing.T) {
 	<-entered
 	cancel()
 	select {
-	case <-done:
+	case err := <-done:
+		_ = err
 	case <-time.After(5 * time.Second):
 		t.Fatal("a hung Sink held the shutdown")
 	}

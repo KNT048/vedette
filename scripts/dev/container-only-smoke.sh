@@ -93,9 +93,9 @@ trap interrupted INT TERM
 leftovers() {
 	{
 		timeout 30 "$cur_rt" ps -a --format '{{.Names}}' | grep -E '^vedette-(core|sensor|scan)$' || true
-		timeout 30 "$cur_rt" volume ls -q | grep -F "$p" || true
-		timeout 30 "$cur_rt" network ls --format '{{.Name}}' | grep -F "$p" || true
-		timeout 30 "$cur_rt" image ls --format '{{.Repository}}:{{.Tag}}' | grep -F ":$tag" || true
+		timeout 30 "$cur_rt" volume ls -q | grep "^${p}_" || true
+		timeout 30 "$cur_rt" network ls --format '{{.Name}}' | grep "^${p}_" || true
+		timeout 30 "$cur_rt" image ls --format '{{.Repository}}:{{.Tag}}' | grep ":${tag}\$" || true
 	}
 }
 

@@ -211,7 +211,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	tightenDataDir(filepath.Dir(o.db), log)
+	tightenContainerDataDir(o.db, log)
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -451,28 +451,42 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	return nil
 }
 
-// tightenDataDir removes group-write and any "other" access from the data directory when core owns it. Rootless Podman gives a new named
-// volume the image directory's owner but not its 0750 mode (buildah does not carry it), so the container-only install started with
-// 0755; Docker keeps 0750. It only ever clears bits (a 0700 directory stays 0700), never touches a directory core does not own, and a
-// failure is logged, not fatal: the key and database files are 0600 either way.
-func tightenDataDir(dir string, log *slog.Logger) {
-	fi, err := os.Stat(dir)
+// containerDataDir is the data directory of every container image and of the appliance (the -db and -key defaults live in it).
+const containerDataDir = "/var/lib/vedette"
+
+// tightenContainerDataDir is the call of serve: only the data directory of the images, only when core is not root.
+func tightenContainerDataDir(db string, log *slog.Logger) {
+	tightenDataDir(filepath.Dir(db), containerDataDir, os.Geteuid(), log)
+}
+
+// tightenDataDir removes group-write and any "other" access (mode bits 0o027) from dataDir when dir is exactly dataDir, is a real
+// directory (a symlink is left alone) and is owned by uid, which must not be root. Rootless Podman gives a new named volume the image
+// directory's owner but not its 0750 mode (buildah does not carry it), so the container-only install started with 0755; Docker keeps
+// 0750. It only clears those bits (0700 stays 0700; setuid, setgid and sticky are kept), never touches any other directory (a dev
+// -db path, /tmp, $HOME), and a failure is logged, not fatal: the key and database files are 0600 either way.
+func tightenDataDir(dir, dataDir string, uid int, log *slog.Logger) {
+	if dir != dataDir || uid == 0 {
+		return
+	}
+	fi, err := os.Lstat(dir)
 	if err != nil || !fi.IsDir() {
 		return
 	}
 	st, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok || int(st.Uid) != os.Geteuid() {
+	if !ok || int(st.Uid) != uid {
 		return
 	}
-	want := fi.Mode().Perm() & 0o750
-	if want == fi.Mode().Perm() {
+	perm := fi.Mode().Perm()
+	want := perm &^ 0o027
+	if want == perm {
 		return
 	}
-	if err := os.Chmod(dir, want); err != nil {
-		log.Warn("data directory is wider than 0750 and could not be tightened", "dir", dir, "mode", fi.Mode().Perm().String(), "err", err)
+	special := fi.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
+	if err := os.Chmod(dir, special|want); err != nil {
+		log.Warn("data directory is wider than 0750 and could not be tightened", "dir", dir, "mode", perm.String(), "err", err)
 		return
 	}
-	log.Info("data directory tightened", "dir", dir, "was", fi.Mode().Perm().String(), "now", want.String())
+	log.Info("data directory tightened", "dir", dir, "was", perm.String(), "now", want.String())
 }
 
 // ensureKey creates the master key on first start. An existing file is left alone (and validated by

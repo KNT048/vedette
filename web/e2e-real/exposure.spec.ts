@@ -212,7 +212,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       await expect(dlg.getByRole('textbox', { name: 'Domain' })).toHaveValue(` ${value.toUpperCase()} `)
       const reply = addPost(page)
       await dlg.getByRole('textbox', { name: 'Domain' }).press('Enter')
-      const res = await reply // KNOWN RED (see .ai/deferred): in 4 of 5 runs this POST got no answer in 10 s
+      const res = await reply
       expect(res.status()).toBe(201)
       const id = ((await res.json()) as Tgt).id
       await toast(page, new RegExp(`Added ${value.replaceAll('.', '\\.')}\\. Next step: verify ownership\\.`))

@@ -367,6 +367,7 @@ describe('core: dữ liệu', () => {
     expect(within(dlg).getByText(/Deleted: all data, users and backups.*decryption key is replaced/)).toBeInTheDocument()
     expect(within(dlg).getByText(/Kept: the TLS certificate, the system journal.*network settings/)).toBeInTheDocument()
     await u.click(confirm)
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
     expect(orgStore.get().setup_complete).toBe(false)
     expect(sessionStore.get().userId).toBeNull()
@@ -414,6 +415,7 @@ describe('core: dữ liệu', () => {
     await u.clear(within(dlg).getByLabelText('Two-step code'))
     await u.type(within(dlg).getByLabelText('Two-step code'), await totpAt(secret, Date.now()))
     await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
     spy.mockRestore()
   })
@@ -429,7 +431,7 @@ describe('core: dữ liệu', () => {
     await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
     await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
     const done = await screen.findByRole('dialog', { name: 'All data deleted' })
-    expect(within(done).getByText(/this box has no helper/)).toBeInTheDocument()
+    expect(within(done).getByText(/set up without the helper/)).toBeInTheDocument()
     expect(spy).not.toHaveBeenCalled() // the page waits for the administrator
     await u.click(within(done).getByRole('button', { name: 'Continue to setup' }))
     expect(spy).toHaveBeenCalledTimes(1)

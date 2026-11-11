@@ -245,6 +245,10 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	if r.JSON["ok"] != true || removed["core_user"] != float64(1) || removed["tm_child"] != float64(1) || removed["tm_log"] != float64(2) {
 		t.Fatalf("purge = %s", r.Raw)
 	}
+	// A row that is kept was not removed, and the rows that went are all counted: p1 went, the kept row did not.
+	if removed["tm_parent"] != float64(1) {
+		t.Errorf("removed[tm_parent] = %v, want 1 (p1; the kept row is not counted)", removed["tm_parent"])
+	}
 	if kept, _ := r.JSON["kept"].([]any); kept == nil || len(kept) != 0 || w.host.calls != 1 {
 		t.Errorf("a box with a helper deleted its backups and keeps nothing back: kept = %v, backup.purge calls = %d", r.JSON["kept"], w.host.calls)
 	}
@@ -446,7 +450,7 @@ func TestContract_INV14_FailureAfterTheMovesPutsEverythingBack(t *testing.T) {
 }
 
 // H1 (b): the helper's backups go first, and anything wrong there stops the purge with nothing deleted. A helper that does not answer
-// is 503 host_unreachable; one that is busy (409 busy, from the call or from a run in progress); an update of core itself (M2) too.
+// is 502 host_unreachable; one that is busy (409 busy, from the call or from a run in progress); an update of core itself (M2) too.
 // A refusal by the hook that turns the honeypot off stops it as well. No helper: the backups are not touched and kept says so.
 func TestContract_INV14_RefusalsBeforeTheWipeDeleteNothing(t *testing.T) {
 	t.Parallel()
@@ -667,6 +671,36 @@ func TestContract_INV14_KeptSaysTheHoneypotLogStays(t *testing.T) {
 		t.Fatalf("kept = %v", r.JSON["kept"])
 	}
 	<-w.restarts
+}
+
+// L1, the other direction: while host work holds the gate (a request that has passed it and is still calling the helper), a purge does not
+// start: 409 busy, nothing deleted, the helper not asked; when the work is done the purge goes through. Host work cannot slip in after the
+// purge's busy check, because the purge holds the write side from then on.
+func TestContract_INV14_PurgeWaitsForHostWorkToFinish(t *testing.T) {
+	t.Parallel()
+	w := newDataWorld(t)
+	admin := w.setupAdmin()
+	w.plant()
+	before := w.tableCounts()
+	leave, ok := w.gate.Enter() // a host call in progress
+	if !ok {
+		t.Fatal("the gate was shut")
+	}
+	wantStatus(t, admin.post("/core/data/purge", purgeBody()), 409, "busy")
+	if w.host.calls != 0 || len(w.wipeSeen) != 0 {
+		t.Error("a purge refused for running host work already called the helper or the hook")
+	}
+	for n, c := range w.tableCounts() {
+		if before[n] != c {
+			t.Errorf("table %s changed by a refused purge", n)
+		}
+	}
+	leave()
+	wantOK(t, admin.post("/core/data/purge", purgeBody()), 200)
+	<-w.restarts
+	if _, ok := w.gate.Enter(); ok {
+		t.Error("host work could start after the purge: the gate is open")
+	}
 }
 
 // N4: while a purge runs, core's own endpoints that start host work answer 409 busy and leave no audit row: here an OS check and the

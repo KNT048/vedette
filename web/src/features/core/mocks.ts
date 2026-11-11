@@ -767,7 +767,7 @@ const dataHandlers = [
     purgeTries.set({ n: 0 })
     const removed = { assets: assetsStore.get().length, findings: findingsStore.get().length, audit: auditStore.get().length }
     resetMockDb()
-    return HttpResponse.json({ ok: true, removed, kept: [] })
+    return HttpResponse.json({ ok: true, removed, kept: ['honeypot_log'] })
   }),
 ]
 

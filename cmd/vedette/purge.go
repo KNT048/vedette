@@ -59,6 +59,11 @@ func purgeBeforeWipe(d *deps) func(context.Context) error {
 		if err := d.Honeypot.Disable(ctx); err != nil {
 			return fmt.Errorf("turn the honeypot off: %w", err)
 		}
+		// Read the last lines of the log now (L2), so that the read position that survives the wipe is past them and they are not read
+		// as new on the fresh box. A log that cannot be read does not stop the purge: the position then stays where it is.
+		if err := d.Honeypot.Poll(ctx); err != nil {
+			d.Log.WarnContext(ctx, "data purge: the last honeypot lines could not be read", "error", err)
+		}
 		return nil
 	}
 }

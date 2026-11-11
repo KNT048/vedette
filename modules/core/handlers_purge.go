@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -238,22 +239,47 @@ type PurgeHost interface {
 // CodeBackupsDeleted is the 500 of a purge that failed after the helper had deleted its backups (API_CONVENTIONS 3.3).
 const CodeBackupsDeleted = "backups_already_deleted"
 
-// PurgeGate says that a factory reset is running (N4). core's own endpoints that start host work check it and answer 409 busy, so the
-// busy check of the purge cannot be overtaken. One gate is shared by the handlers of core; nil is a gate that is never shut.
-type PurgeGate struct{ on atomic.Bool }
+// PurgeGate keeps a factory reset and core's own host work apart, in both directions (N4, L1). Host work (an OS update, a backup, a
+// network change) takes the read side for the whole of its call (Enter); the purge takes the write side (TryBegin). Neither waits: a
+// purge that finds host work running, and host work that finds a purge running, answer 409 busy. One gate is shared by the handlers of
+// core; a nil gate is never shut.
+type PurgeGate struct {
+	mu      sync.RWMutex
+	purging atomic.Bool
+}
 
-// TryBegin shuts the gate; false when it is already shut.
-func (g *PurgeGate) TryBegin() bool { return g == nil || g.on.CompareAndSwap(false, true) }
+// TryBegin takes the write side; false when host work is running or another purge is.
+func (g *PurgeGate) TryBegin() bool {
+	if g == nil {
+		return true
+	}
+	if !g.mu.TryLock() {
+		return false
+	}
+	g.purging.Store(true)
+	return true
+}
 
-// End opens the gate.
+// End gives the write side back (a purge that failed; after a success the process stops with the gate shut).
 func (g *PurgeGate) End() {
-	if g != nil {
-		g.on.Store(false)
+	if g != nil && g.purging.CompareAndSwap(true, false) {
+		g.mu.Unlock()
 	}
 }
 
+// Enter takes the read side for one piece of host work; ok is false while a purge runs. Call leave when the work is done.
+func (g *PurgeGate) Enter() (leave func(), ok bool) {
+	if g == nil {
+		return func() {}, true
+	}
+	if !g.mu.TryRLock() {
+		return nil, false
+	}
+	return g.mu.RUnlock, true
+}
+
 // Active reports whether a purge is running.
-func (g *PurgeGate) Active() bool { return g != nil && g.on.Load() }
+func (g *PurgeGate) Active() bool { return g != nil && g.purging.Load() }
 
 // errPurging is what an endpoint that starts host work answers while a purge runs.
 func errPurging() *apierr.Error {

@@ -324,6 +324,17 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if !strings.Contains(tailValue, `"offset":17`) {
 		t.Fatalf("the honeypot did not read the planted log line: tail = %q", tailValue)
 	}
+	// One more line, written just before the purge and not waited for: the purge must read it itself before it wipes.
+	f, err := os.OpenFile(hpLog, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec // a path of this test's own temp directory
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(`{"logtype":4000}` + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 	keyBefore, err := os.ReadFile(key) //nolint:gosec // a path of this test's own temp directory
 	if err != nil {
 		t.Fatal(err)
@@ -376,11 +387,12 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	// and the setup code is made by the next start.
 	fresh := rowCounts(t, filepath.Join(t.TempDir(), "fresh.db"), true)
 	got := rowCounts(t, db, false)
-	if b, err := os.ReadFile(hpLog); err != nil || string(b) != `{"logtype":4000}`+"\n" { //nolint:gosec // a path of this test's own temp directory
+	if b, err := os.ReadFile(hpLog); err != nil || string(b) != strings.Repeat(`{"logtype":4000}`+"\n", 2) { //nolint:gosec // a path of this test's own temp directory
 		t.Errorf("the honeypot log was touched by the purge: %q %v", b, err)
 	}
-	if kept := rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); kept != tailValue {
-		t.Errorf("the honeypot read position after the purge = %q, want it kept as %q", kept, tailValue)
+	// The line written just before the purge was read by the purge itself (L2): the kept position is past it (offset 34 = both lines).
+	if kept := rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); !strings.Contains(kept, `"offset":34`) {
+		t.Errorf("the honeypot read position after the purge = %q, want it kept past both lines (offset 34)", kept)
 	}
 	mans, err := modreg.Load(modules.Manifests)
 	if err != nil {

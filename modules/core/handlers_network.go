@@ -816,9 +816,11 @@ func (h *NetworkHandlers) record(ctx context.Context, c caller, admin bool, acti
 
 // act records the intent, runs fn and, when fn fails, records that too.
 func (h *NetworkHandlers) act(ctx context.Context, c caller, action, target, detail string, fn func(ctx context.Context, requestID, actor string) error) error {
-	if h.gate.Active() { // a purge is running (N4)
+	leave, ok := h.gate.Enter() // held for the whole call (L1)
+	if !ok {                    // a purge is running (N4)
 		return errPurging()
 	}
+	defer leave()
 	if err := h.record(ctx, c, true, action, target, detail); err != nil {
 		return err
 	}

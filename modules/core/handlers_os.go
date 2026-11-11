@@ -166,9 +166,11 @@ func (h *OSHandlers) record(ctx context.Context, c caller, admin bool, action, t
 
 // act records the intent, runs fn (a host call and the wait for it) and, when fn fails, records that too.
 func (h *OSHandlers) act(ctx context.Context, c caller, admin bool, action, target, detail string, fn func(requestID, actor string) error) error {
-	if h.gate.Active() { // a purge is running (N4): no audit row, nothing started
+	leave, ok := h.gate.Enter() // held for the whole call (L1): a purge cannot start while this host work runs
+	if !ok {                    // a purge is running (N4): no audit row, nothing started
 		return errPurging()
 	}
+	defer leave()
 	if err := h.record(ctx, c, admin, action, target, detail); err != nil {
 		return err
 	}

@@ -711,7 +711,7 @@
         "title": "Delete all data on the box?",
         "body": "Download an export first if you still need the data. You are signed out, the box restarts (the page is unreachable for a few seconds) and first-run setup opens again.",
         "removes": "Deleted: all data, users and backups, including the data of every module. The decryption key is replaced.",
-        "keeps": "Kept: the TLS certificate, the system journal (the operating system rotates it; Vedette does not control it) and the box's network settings.",
+        "keeps": "Kept: the TLS certificate, the system journal (the operating system rotates it; Vedette does not control it), the box's network settings and the honeypot's raw log (its container owns it).",
         "type": "Type the organization name \"{{org}}\" to confirm",
         "password": "Your current password",
         "code": "Two-step code",

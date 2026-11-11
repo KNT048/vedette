@@ -644,9 +644,12 @@ func (s *Service) runJob(ctx context.Context, job Job) ([]nucleiout.Result, erro
 	ch := make(chan result, 1)
 	s.busy.Add(1)
 	go func() {
-		defer s.busy.Add(-1)
-		res, err := s.cfg.Engine.Run(jctx, job)
-		ch <- result{res, err}
+		var r result
+		func() {
+			defer s.busy.Add(-1) // before the send: once the run has its result, the engine is no longer busy (a start right after the run ended saw already_running)
+			r.res, r.err = s.cfg.Engine.Run(jctx, job)
+		}()
+		ch <- r
 	}()
 	select {
 	case r := <-ch:

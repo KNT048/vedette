@@ -1,6 +1,6 @@
 // Danh mục nguồn log (S-LOG-1): mỗi loại thiết bị có nhóm, giao thức gửi được, mức Vedette đọc được, các bước và đoạn dán.
 // Cấu hình hiển thị cho người dùng bằng tiếng Anh (D-28). Mỗi mục ghi nguồn tài liệu hãng trong comment `Nguồn:`.
-// Quy ước trung thực: `reads: 'parsed'` chỉ cho loại có bộ đọc; còn lại `stored` = chỉ lưu và tìm kiếm, chưa phân tích sâu.
+// Quy ước trung thực: `reads: 'parsed'` chỉ cho loại có profile thật (modules/logs/data/profiles, Go kiểm bằng TestCatalogReadsMatchProfiles); còn lại `stored` = lưu, tìm kiếm và digest đọc bằng bộ tìm mẫu chung, chưa đọc trường riêng của thiết bị.
 // Cú pháp đã đối chiếu (2026-11) với tài liệu hãng cho: FortiOS, PAN-OS, Sophos Firewall, Check Point Log Exporter, Meraki, Synology,
 // NetScaler, Wazuh, Suricata, NXLog, MikroTik, pfSense, OPNsense. Mục còn lại theo cú pháp ổn định đã công bố; phần menu có thể đổi theo phiên bản
 // nên mỗi mục có ghi chú "đối chiếu tài liệu của hãng cho phiên bản của bạn" khi cần.
@@ -39,7 +39,7 @@ export interface CatalogEntry {
   notes: string[]
 }
 
-const STORED = 'Stored and searchable only. The digest and bad-connection checks do not read these lines yet.'
+const STORED = 'Stored and searchable. The digest finds new and unusual lines with a generic pattern finder; it does not read the fields of this device yet, and the bad-connection check does not use these lines yet.'
 const at = (c: Ctx) => `${c.ip}:${c.port}`
 const rsyslogTarget = (c: Ctx, selector = '*.*') => `${selector} action(type="omfwd" target="${c.ip}" port="${c.port}" protocol="${c.proto === 'tcp' ? 'tcp' : 'udp'}")`
 const restartRsyslog: Snippet = { label: 'Terminal', code: 'sudo systemctl restart rsyslog' }
@@ -150,8 +150,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: Netgate pfSense documentation, "Remote Logging with Syslog": pfSense chỉ gửi UDP.
-    id: 'pfsense', group: 'firewall', name: 'pfSense', keywords: 'pfsense netgate', protos: ['udp'], reads: 'parsed',
-    readsNote: 'Reads firewall (filterlog) lines for the digest and bad-connection checks.',
+    id: 'pfsense', group: 'firewall', name: 'pfSense', keywords: 'pfsense netgate', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'pfSense is set up in the web interface; there is no command to paste.',
     steps: (c) => [
       'Go to Status, System Logs, tab Settings.',
@@ -165,8 +164,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: OPNsense manual, "Settings, Logging, Remote" (docs.opnsense.org).
-    id: 'opnsense', group: 'firewall', name: 'OPNsense', keywords: 'opnsense deciso', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
-    readsNote: 'Reads firewall (filterlog) lines for the digest and bad-connection checks.',
+    id: 'opnsense', group: 'firewall', name: 'OPNsense', keywords: 'opnsense deciso', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
     intro: 'OPNsense is set up in the web interface; there is no command to paste.',
     steps: (c) => [
       'Go to System, Settings, Logging, tab Remote, and press the plus sign.',
@@ -428,8 +426,7 @@ const E: CatalogEntry[] = [
   // ───────── Security tools ─────────
   {
     // Nguồn: Suricata documentation, "Eve JSON Output" (docs.suricata.io 7.0): filetype syslog, identity, facility, level.
-    id: 'suricata', group: 'security', name: 'Suricata', keywords: 'suricata ids ips eve', protos: ['udp', 'tcp'], reads: 'parsed',
-    readsNote: 'Reads eve alerts and DNS, HTTP and TLS names for the digest and bad-connection checks.',
+    id: 'suricata', group: 'security', name: 'Suricata', keywords: 'suricata ids ips eve', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Suricata writes eve events to the local syslog of the machine running it. rsyslog on that machine forwards them to the box.',
     steps: () => ['Edit the eve-log section in suricata.yaml as in the first block.', 'Create the rsyslog file as in the second block to forward facility local5 to the box.', 'Run the restart command in the third block.'],
     snippets: (c) => [

@@ -122,7 +122,9 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			}
 			actions = []AIAction{}
 			for _, a := range all {
-				if a.Available {
+				// An action whose only value is free text (msg_send) is not offered: nothing ties it to the device, Propose does not take it from the
+				// AI either (D-119), and a model that picks it writes text the type check refuses, which costs the whole plan.
+				if a.Available && slices.ContainsFunc(a.Params, func(p AIParam) bool { return p.Type != string(PText) }) {
 					actions = append(actions, a)
 				}
 			}

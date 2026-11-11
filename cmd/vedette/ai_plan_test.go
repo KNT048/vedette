@@ -123,4 +123,7 @@ func TestLiveResponsePlan(t *testing.T) {
 		_ = db.Reader().QueryRowContext(ctx, `SELECT detail FROM resp_log WHERE kind = 'refused' ORDER BY seq DESC LIMIT 1`).Scan(&why)
 		t.Fatalf("live plan: saved %d, err %v, refusal %q, job log %q", n, err, why, warned.String())
 	}
+	var steps string // what was kept: action ids and checked values, no secret
+	_ = db.Reader().QueryRowContext(ctx, `SELECT steps FROM resp_plans WHERE finding_id = 'f-live'`).Scan(&steps)
+	t.Logf("stored steps: %s", steps)
 }

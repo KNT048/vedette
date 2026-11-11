@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -411,5 +412,40 @@ func TestPlanDoesNotListChannelsItWasNotSentTo(t *testing.T) {
 	e.must(err)
 	if len(pl.Items) != 1 || len(pl.Items[0].SentTo) != 0 {
 		t.Fatalf("sent_to: %+v", pl.Items)
+	}
+}
+
+// The live run once returned a plan with a message step (msg_send, one free-text value) that the text type refused, which dropped the whole plan.
+// Such an action is no longer offered to the AI; one that still arrives is checked like any other.
+func TestPlanDoesNotOfferActionsWithOnlyFreeText(t *testing.T) {
+	e, fp, _ := aiPlanEnv(t)
+	e.aiMayPropose("msg_send", true)
+	_, err := e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	if len(fp.acts) == 0 {
+		t.Fatal("the planner was not asked")
+	}
+	offered := []string{}
+	for _, a := range fp.acts[0] {
+		offered = append(offered, a.ID)
+	}
+	if slices.Contains(offered, "msg_send") || !slices.Contains(offered, "blocklist_add") {
+		t.Fatalf("offered %v", offered)
+	}
+	// the draft as the model returned it: the long, many-sentence text is refused by the type, and the plan is refused with it
+	e2, fp2, _ := aiPlanEnv(t)
+	e2.aiMayPropose("msg_send", true)
+	fp2.steps = func(response.PlanTarget) []response.DraftStep {
+		return []response.DraftStep{
+			{Kind: "contain", Title: "Limit exposure", Detail: "d"},
+			{Kind: "check", Title: "Check", Detail: "d"},
+			{Kind: "patch", Title: "Patch", Detail: "d"},
+			{Kind: "contain", Title: "Tell the team", Detail: "d", ActionID: "msg_send", Params: []response.DraftParam{{Name: "text", Value: strings.Repeat("The NAS is exposed to CVE-2024-3400; please review it now. ", 12)}}},
+		}
+	}
+	n, err := e2.svc.PlanOpen(e2.ctx())
+	e2.must(err)
+	if n != 0 || !e2.logHas("refused", "step 4 cannot be planned (invalid_target)") {
+		t.Fatalf("saved %d", n)
 	}
 }

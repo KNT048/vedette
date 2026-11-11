@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (223 mã)
+#### HTTP 400 (224 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -288,6 +288,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. Also: Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for. | `POST /core/connections`; `PUT /core/connections/{id}`; module notify (validator dùng chung) |
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
+| `temp_password_expired` | 400 | This temporary password has expired. Ask an administrator for a new one. | `POST /auth/login` (D-180) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
 | `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections` |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
@@ -325,7 +326,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `twofa_required` | 401/403/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution`; 403 từ `core/auth.VerifyTwoStep` khi người duyệt chưa bật hai bước (D-98) |
 | `unauthenticated` | 401 | Not signed in. | `GET /me`; mọi endpoint không công khai khi không có phiên, phiên hết hạn hoặc bị thu hồi; ở các thao tác ghi, phiên bị thu hồi **giữa chừng** cũng là 401 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` |
 
-#### HTTP 403 (10 mã)
+#### HTTP 403 (11 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -337,6 +338,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `in_app_required` | 403 | A high-risk AI request can only be approved in the app with your two-step code, not from chat or email. | module response (validator dùng chung) |
 | `invalid_token` | 403 | This enrollment token is not valid. Create a new one in Vedette. | `POST /intake/osquery/status` |
 | `invalid_setup_code` | 403 | The setup code is missing or wrong. Find it in the box's log: it is printed there each time Vedette starts while setup is open. | `POST /core/setup`. Mã mới của backend [ĐX] (D-75). Mã sai tính theo địa chỉ máy khách như đăng nhập (10 lần, rồi `rate_limited` 30 s nhân đôi tới 10 phút; IPv6 thêm bộ đếm /64 với trần 100), không có trần chung cho cả hộp (D-75, đã sửa sau hai lượt rà bảo mật: trần chung là đòn khoá chủ hộp) |
+| `password_change_required` | 403 | Choose a new password before you continue. | mọi yêu cầu có phiên của người dùng có mật khẩu tạm, trừ `GET /me`, `POST /core/account/password` (D-180) |
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
 | `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
 

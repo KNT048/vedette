@@ -4,8 +4,10 @@
 # No Playwright e2e here (D-64): the full e2e suite runs only when the product is production-ready.
 # Local gate before pushing stays `make check` (D-62). Third-party actions pinned by commit SHA.
 #
-# Shape (D-140): `changes` decides what a pull request needs (scripts/ci, no third-party action);
-# go-static, go-test (3 shards) and go-release run in parallel; web-verify runs the web suite.
+# Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
+# go-static, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web suite.
+# A push to main runs only go-test, mostly from the cache, to save main's Go test cache (the merge queue already ran every job on
+# that tree); the daily schedule runs everything uncached (-count=1).
 # `go` and `web` always run and always report under those names (the ruleset on main requires them,
 # and the merge queue runs this workflow on its merge_group ref, D-245): they succeed only when every job they need succeeded or was
 # skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
@@ -37,6 +39,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       go: ${{ steps.c.outputs.go }}
+      tests: ${{ steps.c.outputs.tests }}
       web: ${{ steps.c.outputs.web }}
       vuln: ${{ steps.c.outputs.vuln }}
       audit: ${{ steps.c.outputs.audit }}
@@ -80,13 +83,13 @@ jobs:
 
   go-test:
     needs: changes
-    if: needs.changes.outputs.go == 'true'
+    if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3] # SHARDS in the Makefile
+        shard: [1, 2, 3, 4] # SHARDS in the Makefile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,9 +97,28 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache-dependency-path: "**/go.sum"
-      - name: go test -race, shard ${{ matrix.shard }} of 3
+          cache: false # the Go cache below holds the build and test caches of this shard
+      # D-365: go test reuses the result of a package whose test binary and inputs did not change. Every run restores the newest
+      # cache of its shard that main saved (a pull request and a merge_group ref may restore main's caches, never each other's);
+      # only main saves, so the repository's 10 GB is not filled with per-PR copies that would evict main's.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
+      - name: go test -race, shard ${{ matrix.shard }} of 4
+        env:
+          GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=1' || '' }} # the daily run tests everything, uncached
         run: make test-go-shard SHARD=${{ matrix.shard }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   go-release:
     needs: changes
@@ -125,7 +147,8 @@ jobs:
           CHANGES: ${{ needs.changes.result }}
           STATIC_WANTED: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.vuln == 'true' }}
           STATIC: ${{ needs.go-static.result }}
-          TESTS_WANTED: ${{ needs.changes.outputs.go == 'true' }}
+          TESTS_WANTED: ${{ needs.changes.outputs.tests == 'true' }}
+          RELEASE_WANTED: ${{ needs.changes.outputs.go == 'true' }}
           TESTS: ${{ needs.go-test.result }}
           RELEASE: ${{ needs.go-release.result }}
         run: |
@@ -137,7 +160,7 @@ jobs:
           }
           check go-static "$STATIC_WANTED" "$STATIC"
           check go-test "$TESTS_WANTED" "$TESTS"
-          check go-release "$TESTS_WANTED" "$RELEASE"
+          check go-release "$RELEASE_WANTED" "$RELEASE"
 
   web-verify:
     needs: changes

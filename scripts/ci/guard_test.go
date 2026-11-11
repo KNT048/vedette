@@ -200,3 +200,48 @@ func TestEveryNoneRuleNamesARealPath(t *testing.T) {
 		}
 	}
 }
+
+// D-365: the go-test matrix of ci.yml is exactly shards 1..SHARDS of the Makefile, only main saves the Go test cache (pull requests
+// and merge_group refs only restore it), and nothing but the daily schedule turns the cache off.
+func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
+	t.Parallel()
+	read := func(p string) string {
+		b, err := os.ReadFile(filepath.Join(repoRoot, p)) //nolint:gosec // G304: the repo's own files
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	mk, wf := read("Makefile"), read(".github/workflows/ci.yml")
+	m := regexp.MustCompile(`(?m)^SHARDS \?= (\d+)$`).FindStringSubmatch(mk)
+	if m == nil {
+		t.Fatal("Makefile has no SHARDS ?= N")
+	}
+	n, _ := strconv.Atoi(m[1])
+	var want []string
+	for i := 1; i <= n; i++ {
+		want = append(want, strconv.Itoa(i))
+	}
+	if !strings.Contains(wf, "shard: ["+strings.Join(want, ", ")+"]") || !strings.Contains(wf, "of "+m[1]+"\n") {
+		t.Errorf("ci.yml's go-test matrix or step name is not shards 1..%d of the Makefile", n)
+	}
+	saves := regexp.MustCompile(`(?m)^\s+- uses: actions/cache/save@[0-9a-f]{40}.*\n\s+if: (.*)$`).FindAllStringSubmatch(wf, -1)
+	if len(saves) != 1 || saves[0][1] != "github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')" {
+		t.Errorf("the Go test cache must be saved by one step, on main only (push or schedule): %q", saves)
+	}
+	steps := regexp.MustCompile(`(?m)^\s+- uses: actions/cache@[0-9a-f]{40}[^\n]*\n(\s{8,}[^\n]*\n)*`).FindAllString(wf, -1)
+	if len(steps) == 0 || !strings.Contains(steps[0], "golangci-lint") {
+		t.Error("guard is blind: the golangci-lint actions/cache step was not found")
+	}
+	for _, step := range steps {
+		if strings.Contains(step, "go-build") {
+			t.Errorf("a restore-and-save actions/cache step holds the Go build cache, so pull requests would save copies:\n%s", step)
+		}
+	}
+	if got := strings.Count(wf, "'-count=1'"); got != 1 || !strings.Contains(wf, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=1' || '' }}") {
+		t.Errorf("-count=1 must be set by the daily schedule only (%d settings)", got)
+	}
+	if regexp.MustCompile(`(?m)^test-go-shard:\n(\t.*\n)*\t.*-count=`).MatchString(mk) {
+		t.Error("make test-go-shard forces -count: the cache would never be used")
+	}
+}

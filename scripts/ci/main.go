@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"cmp"
 	"context"
+	_ "embed"
 	"fmt"
+	"io"
+	"maps"
 	"os"
 	"os/exec" //nolint:depguard // CI helper outside the product: fixed argv (git, go), no shell
 	"path/filepath"
@@ -22,7 +26,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ci changes | ci shard I N")
+		return fmt.Errorf("usage: ci changes | ci shard I N | ci times LOG")
 	}
 	switch args[0] {
 	case "changes":
@@ -37,6 +41,16 @@ func run(args []string) error {
 			return fmt.Errorf("shard: I and N must be integers with 1 <= I <= N")
 		}
 		return shardCmd(i, n)
+	case "times":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: ci times LOG")
+		}
+		f, err := os.Open(args[1])
+		if err != nil {
+			return err
+		}
+		defer func() { _ = f.Close() }()
+		return printTimes(f, os.Stdout)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }
@@ -61,7 +75,7 @@ func changes() error {
 		}
 	}
 	o := Decide(event, paths, ok)
-	text := fmt.Sprintf("go=%t\nweb=%t\nvuln=%t\naudit=%t\n", o.Go, o.Web, o.Vuln, o.Audit)
+	text := fmt.Sprintf("go=%t\ntests=%t\nweb=%t\nvuln=%t\naudit=%t\n", o.Go, o.Tests, o.Web, o.Vuln, o.Audit)
 	fmt.Fprintf(os.Stderr, "ci: event=%q changed=%d\n%s", event, len(paths), text)
 	if f := os.Getenv("GITHUB_OUTPUT"); f != "" {
 		w, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600) //nolint:gosec // G304: $GITHUB_OUTPUT is set by the runner
@@ -83,20 +97,121 @@ type pkg struct {
 	weight int64
 }
 
+//go:embed testtime.tsv
+var testTimeTSV string
+
+const modulePath = "github.com/knt048/vedette"
+
+// testTimes reads testtime.tsv: seconds of go test -race per package (path relative to the module, "." for the root).
+func testTimes(tsv string) (map[string]float64, error) {
+	out := map[string]float64{}
+	for line := range strings.SplitSeq(tsv, "\n") {
+		if line = strings.TrimSpace(line); line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		secs, rel, ok := strings.Cut(line, "\t")
+		s, err := strconv.ParseFloat(secs, 64)
+		if !ok || err != nil || s < 0 {
+			return nil, fmt.Errorf("testtime.tsv: bad line %q", line)
+		}
+		out[pkgPath(rel)] = s
+	}
+	return out, nil
+}
+
+// pkgPath is the import path of a module-relative directory ("." is the module itself); relPath is the reverse.
+func pkgPath(rel string) string {
+	if rel == "." {
+		return modulePath
+	}
+	return modulePath + "/" + rel
+}
+
+func relPath(path string) string {
+	if path == modulePath {
+		return "."
+	}
+	return strings.TrimPrefix(path, modulePath+"/")
+}
+
+// weigh turns measured seconds into shard weights (milliseconds); a package not in the table weighs its _test.go bytes at the
+// table's average seconds per byte, so a new package is never free.
+func weigh(paths []string, bytesOf map[string]int64, times map[string]float64) []pkg {
+	var secs float64
+	var known int64
+	for _, p := range paths {
+		if s, ok := times[p]; ok {
+			secs += s
+			known += bytesOf[p]
+		}
+	}
+	rate := 0.0
+	if known > 0 {
+		rate = secs / float64(known)
+	}
+	out := make([]pkg, 0, len(paths))
+	for _, p := range paths {
+		s, ok := times[p]
+		if !ok {
+			s = float64(bytesOf[p]) * rate
+		}
+		out = append(out, pkg{p, int64(s * 1000)})
+	}
+	return out
+}
+
+// printTimes prints testtime.tsv rows from a CI log: every "ok <package> <seconds>s" line of go test, the last one per package.
+func printTimes(r io.Reader, w io.Writer) error {
+	times := map[string]string{}
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		for i := 0; i+2 < len(f); i++ {
+			secs, isTime := strings.CutSuffix(f[i+2], "s")
+			if f[i] != "ok" && f[i] != "FAIL" || !isTime || (f[i+1] != modulePath && !strings.HasPrefix(f[i+1], modulePath+"/")) {
+				continue
+			}
+			if _, err := strconv.ParseFloat(secs, 64); err == nil {
+				times[relPath(f[i+1])] = secs
+			}
+			break
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return err
+	}
+	rels := slices.Sorted(maps.Keys(times))
+	for _, rel := range rels {
+		s, _ := strconv.ParseFloat(times[rel], 64)
+		if _, err := fmt.Fprintf(w, "%.0f\t%s\n", s, rel); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // shardCmd prints the packages of shard i of n, one per line.
 func shardCmd(i, n int) error {
 	out, err := exec.CommandContext(context.Background(), "go", "list", "-f", "{{.ImportPath}} {{.Dir}}", "./...").Output()
 	if err != nil {
 		return fmt.Errorf("go list: %w", err)
 	}
-	var pkgs []pkg
+	times, err := testTimes(testTimeTSV)
+	if err != nil {
+		return err
+	}
+	var paths []string
+	bytesOf := map[string]int64{}
 	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		path, dir, found := strings.Cut(line, " ")
 		if !found {
 			return fmt.Errorf("go list: unexpected line %q", line)
 		}
-		pkgs = append(pkgs, pkg{path, testBytes(dir)})
+		paths = append(paths, path)
+		bytesOf[path] = testBytes(dir)
 	}
+	pkgs := weigh(paths, bytesOf, times)
 	mine := Shard(pkgs, i, n)
 	if len(mine) == 0 {
 		return fmt.Errorf("shard %d/%d is empty (%d packages)", i, n, len(pkgs))
@@ -107,7 +222,7 @@ func shardCmd(i, n int) error {
 	return nil
 }
 
-// testBytes is the size of the package's test files: the cheapest stable proxy for test time.
+// testBytes is the size of the package's test files: the proxy for the test time of a package testtime.tsv does not list.
 func testBytes(dir string) int64 {
 	files, _ := filepath.Glob(filepath.Join(dir, "*_test.go"))
 	var sum int64

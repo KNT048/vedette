@@ -302,7 +302,7 @@ func validKey(k string) bool {
 		return false
 	}
 	for i := 0; i < len(k); i++ {
-		if !(isAtomByte(k[i]) && k[i] != ':') {
+		if !isAtomByte(k[i]) || k[i] == ':' {
 			return false
 		}
 	}

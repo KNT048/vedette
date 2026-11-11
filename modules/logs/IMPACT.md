@@ -1,9 +1,9 @@
 # Logs — Change Impact Map
 
-> WP-24 L1 và L2 có mã (L2: gói `listen`, job `syslog`): `Service` (nguồn, sự kiện, lưu giữ, `Ingest`, `Purge`, `ExportDeviceLogs`), `LogsHandlers`, `Jobs`. Phần còn lại là kế hoạch, chốt theo từng lát.
+> WP-24 L1, L2 và L3 có mã (L2: gói `listen`, job `syslog`; L3: gói `signature`, bộ đếm chữ ký, digest, job `anomaly`, `Counts`): `Service` (nguồn, sự kiện, lưu giữ, `Ingest`, `Purge`, `ExportDeviceLogs`), `LogsHandlers`, `Jobs`. Phần còn lại là kế hoạch, chốt theo từng lát.
 
 ## Modifying: `logs.Service.Ingest(ctx, []Line) (IngestResult, error)` (L1) — người gọi: listener (L2), sau này `sensorlink` (L6)
-- Duy nhất đường vào của dòng log. Ghi **một** giao dịch trên `logs.db` mỗi lô (≤ `MaxBatch`), không bao giờ ghi cơ sở chính (INV-12): đổi sang ghi cơ sở chính là đưa lại rủi ro người ghi bị đói (#159/#160). Dòng của nguồn chưa khai bị bỏ và đếm (FORBID-5). Khi tổng byte vượt `MaxEventBytes`, `Ingest` đánh thức job `purge` (kênh `kick` đệm 1, gộp, không chờ): lượt đó ghi audit vào cơ sở chính (người ghi của core) nên dùng chung với mọi thứ khác; đổi trần hay mức 90% là đổi dung lượng đĩa tối đa của hộp. `Line.At` ngoài [bây giờ − lưu giữ, bây giờ] thành bây giờ: listener không thể ghi dòng cũ hơn lưu giữ. Lượt dọn chỉ chạy trong `Run` của job `purge` (vòng lặp dài, `Housekeeping`: chạy cả khi module tắt, dừng khi tắt máy): đổi `Jobs` hay `kick` là đổi lúc nào dọn chạy, và lịch sử job chỉ có một dòng cho cả thời gian tiến trình chạy. Lần tính lại bộ đếm ở lượt dọn đầu tiên sau khởi động dùng ảnh chụp đọc và không giữ người ghi; khi có lũ lúc khởi động, WAL phình ra trong lúc quét. Đổi `Line`/`IngestResult` = sửa listener. Đổi `sanitizeLine` đổi nội dung lưu và xuất (`device_logs`).
+- Duy nhất đường vào của dòng log. Từ L3 mỗi dòng còn qua `signature.Of` (theo `kind` của nguồn, đọc một lần mỗi lô cùng `sourceKinds`) và cộng vào `logs_signature_daily` / `logs_signature_buckets` trong **cùng** giao dịch: thêm việc vào đường nóng thì đo lại với `-race` (bộ nhớ đệm theo lô làm trận lụt dòng giống nhau chỉ tốn một chữ ký). Ghi **một** giao dịch trên `logs.db` mỗi lô (≤ `MaxBatch`), không bao giờ ghi cơ sở chính (INV-12): đổi sang ghi cơ sở chính là đưa lại rủi ro người ghi bị đói (#159/#160). Dòng của nguồn chưa khai bị bỏ và đếm (FORBID-5). Khi tổng byte vượt `MaxEventBytes`, `Ingest` đánh thức job `purge` (kênh `kick` đệm 1, gộp, không chờ): lượt đó ghi audit vào cơ sở chính (người ghi của core) nên dùng chung với mọi thứ khác; đổi trần hay mức 90% là đổi dung lượng đĩa tối đa của hộp. `Line.At` ngoài [bây giờ − lưu giữ, bây giờ] thành bây giờ: listener không thể ghi dòng cũ hơn lưu giữ. Lượt dọn chỉ chạy trong `Run` của job `purge` (vòng lặp dài, `Housekeeping`: chạy cả khi module tắt, dừng khi tắt máy): đổi `Jobs` hay `kick` là đổi lúc nào dọn chạy, và lịch sử job chỉ có một dòng cho cả thời gian tiến trình chạy. Lần tính lại bộ đếm ở lượt dọn đầu tiên sau khởi động dùng ảnh chụp đọc và không giữ người ghi; khi có lũ lúc khởi động, WAL phình ra trong lúc quét. Đổi `Line`/`IngestResult` = sửa listener. Đổi `sanitizeLine` đổi nội dung lưu và xuất (`device_logs`).
 
 ## Modifying: `logs.Service` (nguồn, `Events`, `SetRetention`, `Purge`), `logs.LogsHandlers`, `logs.Jobs`
 - **web/features/logs** (mock là hợp đồng): mã lỗi `bad_kind|bad_name|bad_ip|bad_proto|bad_port|duplicate|not_found|bad_window|bad_days` và thông báo của mock; giới hạn mà `contract.ts` nói được bị bộ kiểm sinh trả `invalid` trước (D-73). Danh mục loại nguồn và giao thức cho phép là **một dữ liệu**: `content/logs/kinds.json`, `web/src/features/logs/catalog.ts` phải khớp (`kinds.parity.test.ts`).
@@ -17,7 +17,20 @@
 - **ai** (`ask-my-data`, `log-investigate` qua công cụ chỉ-đọc).
 
 ## Modifying: `Digest(ctx) (Digest, error)` — 2 người gọi
-- **GUI logs** và **ai** (`log-digest` tóm tắt digest). Đổi cấu trúc `new/spikes/bad_connections` → sinh lại OpenAPI, sửa mock, sửa prompt skill.
+- **GUI logs** và **ai** (`log-digest` tóm tắt digest). Đổi cấu trúc `new/spikes/bad_connections` → sinh lại OpenAPI, sửa mock, sửa prompt skill. `new` và `spikes` có thật từ L3 (`NewItem`, `SpikeItem` khớp `contract.ts`; `TestDigestWithItemsOverHTTP` đi qua kiểu sinh của API); `bad_connections` vẫn rỗng tới L4. Đổi hằng số (`WarmUp`, `SpikeFloor`, `SpikeFactor`, `BaselineDays`) là đổi cái người dùng thấy là "bất thường": ghi quyết định.
+
+## Modifying: signature profiles (`modules/logs/data/profiles/*.json`) và `modules/logs/signature` (L3)
+- **Chữ ký là khoá của mọi thứ phía sau**: digest, `Counts` (response `log_threshold` lưu chữ ký trong quy tắc), `logs_anomaly_sent`. Đổi luật của một profile hay bộ tìm mẫu làm **mọi chữ ký của loại đó đổi một lần**: digest thấy mọi dòng là "new" (sau 7-8 ngày thì ổn), quy tắc `log_threshold` đang lưu chữ ký cũ ngừng khớp, sự kiện gửi lại. Đổi luật = ghi vào CONTRACT và báo `response`.
+- Thêm profile cho một loại: một tệp JSON có `samples` (bộ nạp chạy chúng), `reads` của loại đó trong `content/logs/kinds.json` đổi sang `parsed` và `catalog.ts` khớp (`TestCatalogReadsMatchProfiles`, `kinds.parity.test.ts`); thêm hạt giống fuzz tự có (mẫu của profile đã là hạt giống `FuzzSignature`).
+- Gói `signature` không được import `database/sql` hay `core/store` (sẽ chuyển sang sensor cùng `listen`).
+
+## Modifying: `Counts(ctx, source, signature, window) (int, error)` (L3) — 1 người gọi (sau này)
+- **response** (`log_threshold`, Kiên): cổng đọc duy nhất vào bộ đếm chữ ký. Cửa sổ [5 phút, 24 giờ], làm tròn ra bucket 5 phút (phủ cả cửa sổ và tối đa 5 phút trước nó: ngưỡng "≥ N trong 5 phút" có thể thấy tới 10 phút dòng). Đổi độ rộng bucket (`bucketSeconds`, dùng chung với `logs_source_buckets`) hay thời gian giữ (48 giờ) là đổi mọi câu trả lời. Module tắt thì không còn dòng mới nên `Counts` chỉ trả số cũ.
+
+## Modifying: job `anomaly` và sự kiện `logs.anomaly.detected` (L3)
+- **notify** (`logEvent`): đọc `source`, `target`, `title` (≤ 200 ký tự), `what`, `action`, `severity`, `devices[{id,name}]`; `source` + `target` là khoá gộp incident. Đổi tên trường hay nghĩa của `target` là đổi cách notify gộp. Tối đa 20 sự kiện mỗi giờ mỗi nguồn: nâng trần là nâng lượng thông báo của khách.
+- Không `Housekeeping`: biến nó thành housekeeping là gửi sự kiện khi module tắt (SYS-5); `TestContract_SYS5_NoEventsWhileTheModuleIsOff` chặn.
+- **cmd/vedette** (`logs.go`): `Config.Events` là `d.Bus`; thiếu thì job không làm gì.
 
 ## Modifying: `SiemForward(ctx, Event) error` — 4 nguồn sự kiện
 - **core** (finding), **incident/alert**, **honeypot**, **logs** (bad_conn): đổi enum `SiemEvent` hoặc định dạng CEF/JSON → SIEM của khách phân tích sai; cần ghi vào CONTRACT và thông báo khách.

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	logsdata "github.com/knt048/vedette/content/logs"
@@ -32,7 +33,7 @@ func (e *env) feed(src Source, text string, n int) {
 		k := min(n, MaxBatch)
 		batch := make([]Line, k)
 		for i := range batch {
-			batch[i] = Line{SourceID: src.ID, At: *e.clock, Text: text}
+			batch[i] = Line{SourceID: src.ID, At: e.svc.now(), Text: text}
 		}
 		if _, err := e.svc.Ingest(e.t.Context(), batch); err != nil {
 			e.t.Fatal(err)
@@ -150,6 +151,37 @@ func TestContract_INV6_SpikeMaths(t *testing.T) {
 		e.feed(src, fw(22, "10.0.0.1"), 500)
 		if d := e.digest(); len(d.Spikes) != 0 || len(d.New) != 0 {
 			t.Fatalf("%+v", d)
+		}
+	})
+}
+
+// INV-6 over ten days of fake time (testing/synctest): the warm-up, a spike against a baseline that is a full week, a new kind of line.
+func TestContract_INV6_BaselineOverTenFakeDays(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := newEnv(t)
+		e.svc.now = time.Now // the bubble's clock starts at midnight UTC and moves only when everything sleeps
+		src := e.add("FW-HQ", "192.168.10.1")
+		e.feed(src, fw(22, "10.0.0.1"), 10)
+		<-time.After(time.Hour)
+		e.feed(src, fw(23, "10.0.0.1"), 5)
+		if d := e.digest(); len(d.New)+len(d.Spikes) != 0 {
+			t.Fatalf("the first day is silent: %+v", d)
+		}
+		for range 9 { // days 1..9: ten lines of "22" a day, none of "23"
+			<-time.After(24 * time.Hour)
+			e.feed(src, fw(22, "10.0.0.1"), 10)
+		}
+		<-time.After(time.Hour)
+		e.feed(src, fw(22, "10.0.0.1"), 49) // today 59 + yesterday's share: over 5 x 10
+		e.feed(src, fw(24, "10.0.0.1"), 2)  // never seen
+		e.feed(src, fw(23, "10.0.0.1"), 1)  // last seen on day 0: more than the 8 days the counters read go back, so it is new again
+		d := e.digest()
+		if got := newItems(d); len(got) != 2 {
+			t.Fatalf("new %v", got)
+		}
+		if len(d.Spikes) != 1 || d.Spikes[0].Signature != sigFor(22) || d.Spikes[0].BaselinePerDay != 10 {
+			t.Fatalf("spikes %+v", d.Spikes)
 		}
 	})
 }

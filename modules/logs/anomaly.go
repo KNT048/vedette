@@ -462,7 +462,7 @@ func (s *Service) devicesOf(ctx context.Context, src sourceRow, target string) [
 	for _, ip := range ips {
 		if d, ok := found[ip]; ok && !seen[d.ID] {
 			seen[d.ID] = true
-			out = append(out, DeviceInfo{ID: d.ID, Name: d.Name})
+			out = append(out, DeviceInfo(d))
 		}
 	}
 	return out

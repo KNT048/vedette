@@ -56,9 +56,11 @@ for n in $targets; do
 	"$c" image exists "$image" || pulled="$pulled $image"
 
 	mkdir -p "$work/$n"
+	# dbus: every real box has the system bus, and Podman's systemd cgroup manager needs it ("cannot open sd-bus" in crun otherwise), which
+	# the on-box scan build (podman build ... RUN, run by vedette-host from a unit) depends on
 	cat >"$work/$n/Containerfile" <<EOT
 FROM $image
-RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv ca-certificates iproute2 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv dbus ca-certificates iproute2 && rm -rf /var/lib/apt/lists/*
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
 EOT

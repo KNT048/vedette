@@ -1302,8 +1302,8 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	}
 	const keys = "vedette-creds-"
 	table := map[string]want{
-		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444"},
-			exec: "-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds",
+		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444", "514:5514/udp", "514:5514/tcp"},
+			exec: "-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514",
 			volumes: []string{
 				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",

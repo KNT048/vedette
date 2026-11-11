@@ -28,8 +28,8 @@ const (
 	decoyReapplyTime = 2 * time.Minute
 )
 
-// fieldIP names the ip argument in errors, logs and audit lines; two parts for the reason given at binIP.
-const fieldIP = "i" + "p"
+// fieldIP names the ip argument in errors, logs and audit lines; a reviewed exception of the network-literal guard (FORBID-2).
+const fieldIP = "ip"
 
 var errNoMgmt = errors.New("ops: the box has no management network yet")
 

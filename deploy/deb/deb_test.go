@@ -218,7 +218,7 @@ func TestPackage_PrereleaseSortsBeforeRelease(t *testing.T) {
 
 // Depends: minimums, not exact versions (D-155). Every entry is named here on purpose, with the reason in deploy/deb/nfpm.yaml.
 func TestPackage_Depends(t *testing.T) {
-	want := []string{"podman (>= 4.4)", "systemd (>= 254)", "nftables", "iproute2", "procps", "chrony", "netplan.io", "unattended-upgrades", "passwd"}
+	want := []string{"podman (>= 4.4)", "systemd (>= 254)", "nftables", "iproute2", "procps", "conntrack", "chrony", "netplan.io", "unattended-upgrades", "passwd"}
 	var got []string
 	for d := range strings.SplitSeq(fields(build(t, "0.1.0", "amd64").control)["Depends"], ", ") {
 		got = append(got, d)

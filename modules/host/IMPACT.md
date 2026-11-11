@@ -147,3 +147,9 @@
 - **`versions-<service>.json`**: bootstrap là nơi ghi bản đầu; `adoptCurrent` vẫn là đường cho hộp cài bằng cách khác.
 - **`backup.restore`**: `coreFreeForRestore` là chỗ duy nhất cho một nhật ký `unrecoverable` đi qua; sửa `loadJournal` hay `markUnrecoverable` thì phải giữ test INV-23. Khôi phục thành công xoá nhật ký của `core`.
 - **`host/server.SocketLive`**: là phép thử "daemon đang chạy" dùng chung của `Listen` và bootstrap.
+
+## Modifying: xoá conntrack của cổng syslog (`host/ops/conntrack.go`, hook trong `waitHealthy`, vòng `watchCore` bắt đầu ở `Ops.Start`, D-268)
+- **Hai cách thấy `core` chạy lại**: `waitHealthy` của `core` (mọi đường khởi động do host làm) và `watchCore` mỗi 30 s (sập rồi systemd restart, `backup.restore`). `inspectInfo.Started` = ID + `StartedAt` từ `podman container inspect`; sửa `parseInspect` thì giữ hai trường này (rỗng = không phân biệt được = không xoá).
+- **Cổng 514** là hằng `syslogPublishedPort`, phải khớp `PublishPort=514:5514` trong `quadlet.go`; đổi cổng publish thì đổi cả argv và validator.
+- **Gói `conntrack`**: `install.sh` cài (PACKAGES) và kiểm `/usr/sbin/conntrack --version`; .deb không `Depends` nó. Thiếu gói thì flow cũ không được xoá (UDP của thiết bị gửi liên tục không tới `core` mới) và log báo một lần.
+- `opstest`: fake `podman` in `Id`/`StartedAt` theo bộ đếm `ctr/<svc>.gen` (systemctl restart/start tăng nó; `Machine.ContainerRestarted` mô phỏng systemd restart); `conntrack` là binary giả mới trong `Bins`.

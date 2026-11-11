@@ -203,6 +203,7 @@ func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{
 	cctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	go s.watchSlack(cctx, cancel, c.Rev)
+	seen := &seenEnvelopes{}
 	for {
 		env, err := conn.Read(cctx)
 		if err != nil {
@@ -220,7 +221,9 @@ func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{
 		case channel.SlackDisconnect:
 			return errSlackDisconnect
 		case channel.SlackPressKind:
-			s.takeSlackPress(ctx, bot, c.Fields["channel_id"], team, env.Press, sem, wg)
+			if seen.add(env.EnvelopeID) { // Slack sends an envelope again when it was not acked in time: decide it once
+				s.takeSlackPress(ctx, bot, c, team, env.Press, sem, wg)
+			}
 		}
 	}
 }
@@ -246,28 +249,47 @@ func (s *Service) watchSlack(ctx context.Context, cancel context.CancelCauseFunc
 // takeSlackPress checks one press on the read loop and hands the decision to a worker, so a slow Decide never holds the loop. A press
 // of another workspace or channel is ignored (no reply: it is not ours to answer); one that is not ours to decide is answered "not
 // valid" and never reaches Decide.
-func (s *Service) takeSlackPress(ctx context.Context, bot *channel.SlackBot, chanID, team string, p channel.SlackPress, sem chan struct{}, wg *sync.WaitGroup) {
+func (s *Service) takeSlackPress(ctx context.Context, bot *channel.SlackBot, c channelRow, team string, p channel.SlackPress, sem chan struct{}, wg *sync.WaitGroup) {
+	// Replies are slow HTTP calls and Slack wants every ack within 3 seconds: none of them runs on the read loop (review: replies held acks).
+	reply := func(text string) {
+		if p.ResponseURL == "" {
+			return
+		}
+		select {
+		case sem <- struct{}{}:
+			wg.Go(func() {
+				defer func() { <-sem }()
+				s.replySlack(ctx, bot, p.ResponseURL, text)
+			})
+		default: // every worker is busy: this private reply is dropped (best effort)
+		}
+	}
 	if p.Invalid {
-		s.replySlack(ctx, bot, p.ResponseURL, answerInvalid)
+		reply(answerInvalid)
 		return
 	}
-	if p.TeamID != team || p.ChannelID != chanID {
+	if p.TeamID != team || p.ChannelID != c.Fields["channel_id"] {
+		return
+	}
+	// The channel may have been turned off or changed since the connection opened (the watcher looks every 30 s): decide nothing then.
+	now, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Slack)
+	if err != nil || !slackReady(now) || now.Rev != c.Rev {
 		return
 	}
 	ok, err := s.checkSlackButton(ctx, p)
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "notify: slack: a button could not be checked", "error", err.Error())
-		s.replySlack(ctx, bot, p.ResponseURL, answerFailed)
+		reply(answerFailed)
 		return
 	}
 	if !ok {
-		s.replySlack(ctx, bot, p.ResponseURL, answerInvalid)
+		reply(answerInvalid)
 		return
 	}
 	select {
 	case sem <- struct{}{}:
 	default:
-		s.replySlack(ctx, bot, p.ResponseURL, answerBusy)
+		reply(answerBusy)
 		return
 	}
 	wg.Go(func() {
@@ -306,4 +328,22 @@ func (s *Service) replySlack(ctx context.Context, bot *channel.SlackBot, respons
 	if err := bot.Respond(actx, responseURL, text); err != nil {
 		s.cfg.Log.DebugContext(ctx, "notify: slack: a button press could not be answered", "error", err.Error())
 	}
+}
+
+// seenEnvelopes remembers the last envelope ids of one connection.
+type seenEnvelopes struct {
+	ids [256]string
+	n   int
+}
+
+// add reports whether id is new.
+func (e *seenEnvelopes) add(id string) bool {
+	for _, x := range e.ids {
+		if x == id {
+			return false
+		}
+	}
+	e.ids[e.n%len(e.ids)] = id
+	e.n++
+	return true
 }

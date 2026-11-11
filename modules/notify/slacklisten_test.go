@@ -42,6 +42,7 @@ type fakeSlack struct {
 	posts     []map[string]any // chat.postMessage bodies
 	replies   []map[string]any // bodies posted to response URLs
 	hosts     []string         // every Host the server saw
+	reqs      []string         // every Host+path the server saw
 	auths     []string         // Authorization headers of the Web API
 	socketURL string           // what apps.connections.open answers; "" = a good one
 	conns     chan *slackConn
@@ -74,6 +75,7 @@ func (f *fakeSlack) client() *http.Client {
 func (f *fakeSlack) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.hosts = append(f.hosts, r.Host)
+	f.reqs = append(f.reqs, r.Host+r.URL.Path)
 	f.mu.Unlock()
 	switch {
 	case r.Host == "slack.com" && r.URL.Path == "/api/auth.test":
@@ -412,6 +414,12 @@ func TestContract_PRE8_SlackPressNotOursIsNeverDecided(t *testing.T) {
 	se.sl.ack(t, "e1")
 	c.out <- slPress{env: "e2", channel: "C0OTHER0001"}.json()
 	se.sl.ack(t, "e2")
+	// A valid press right after them: its reply is the first reply, so the two above sent none, and Decide has run once (theirs never did).
+	c.out <- slPress{env: "e-ok"}.json()
+	se.sl.ack(t, "e-ok")
+	if r := se.sl.reply(t); r["text"] != "Approved. Block 203.0.113.9 is being run." {
+		t.Fatalf("first reply %v", r)
+	}
 	// Another message (ts), a request that was never posted, a press from an out-of-form action: answered "not valid".
 	for i, p := range []slPress{
 		{env: "e3", ts: "1731326999.000200"},
@@ -427,7 +435,9 @@ func TestContract_PRE8_SlackPressNotOursIsNeverDecided(t *testing.T) {
 		}
 	}
 	se.sl.noReply(t)
-	se.noDecision(t)
+	if got := se.dec.got(); len(got) != 1 || got[0].ExternalID != slUser {
+		t.Fatalf("Decide = %+v, want only the valid press", got)
+	}
 }
 
 func TestContract_PRE8_SlackPressAfterTheRequestEndedIsNotDecided(t *testing.T) {
@@ -460,6 +470,18 @@ func TestContract_SYS2_SlackReplyAddressIsHooksSlackComOnly(t *testing.T) {
 	se.sl.ack(t, "good")
 	se.sl.reply(t)
 	se.sl.noReply(t)
+	se.sl.mu.Lock()
+	for _, r := range se.sl.reqs {
+		if strings.HasPrefix(r, "hooks.slack.com") && r != "hooks.slack.com/actions/T0EXAMPLE1/123456/abcDEF" {
+			t.Errorf("a reply went to %s", r)
+		}
+	}
+	for _, h := range se.sl.hosts {
+		if h != "slack.com" && h != "hooks.slack.com" && h != "wss-primary.slack.com" {
+			t.Errorf("a request went to host %s", h)
+		}
+	}
+	se.sl.mu.Unlock()
 	if n := len(se.dec.got()); n != 9 {
 		t.Fatalf("Decide called %d times, want 9 (the press itself is valid, only the reply address is not)", n)
 	}
@@ -480,9 +502,13 @@ func TestContract_SYS2_SlackSocketAddressMustBeSlacks(t *testing.T) {
 		if strings.Contains(err.Error(), "SECRET") || strings.Contains(err.Error(), "ticket") || strings.Contains(err.Error(), slackAppTok) {
 			t.Fatalf("%q: error carries the address or a token: %v", bad, err)
 		}
-		if se.sl.sawHost("evil.example") {
-			t.Fatalf("%q: dialled", bad)
+		se.sl.mu.Lock()
+		for _, h := range se.sl.hosts {
+			if h != "slack.com" {
+				t.Errorf("%q: a request went to %s", bad, h)
+			}
 		}
+		se.sl.mu.Unlock()
 	}
 }
 
@@ -548,4 +574,34 @@ func (se *slEnv) noDecisionEvent(t *testing.T) {
 		t.Fatalf("event %v", m)
 	default:
 	}
+}
+
+func TestContract_SLACK_ARepeatedEnvelopeIsDecidedOnce(t *testing.T) {
+	se := newSLEnv(t)
+	se.request("act-1")
+	c, _ := se.listen()
+	c.out <- slPress{}.json()
+	c.out <- slPress{}.json() // Slack sends the same envelope again when its ack came late
+	c.out <- slPress{env: "env-2"}.json()
+	se.sl.ack(t, "env-1")
+	se.sl.ack(t, "env-1")
+	se.sl.ack(t, "env-2")
+	se.sl.reply(t)
+	se.sl.reply(t)
+	if got := se.dec.got(); len(got) != 2 {
+		t.Fatalf("Decide called %d times, want 2", len(got))
+	}
+}
+
+func TestContract_SLACK_PressAfterTheChannelWasTurnedOffIsNotDecided(t *testing.T) {
+	se := newSLEnv(t)
+	se.request("act-1")
+	c, _ := se.listen()
+	se.saveSlack(false) // approvals off: the open connection must not decide any more, even before the watcher closes it
+	c.out <- slPress{}.json()
+	se.sl.ack(t, "env-1")
+	c.out <- slPress{env: "env-2", team: "T0OTHER001"}.json() // a later envelope, ignored too: ack proves the first was handled
+	se.sl.ack(t, "env-2")
+	se.sl.noReply(t)
+	se.noDecision(t)
 }

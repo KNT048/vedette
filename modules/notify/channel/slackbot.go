@@ -162,8 +162,7 @@ func checkSocketURL(raw string) error {
 
 // SlackConn is one Socket Mode connection.
 type SlackConn struct {
-	c      *websocket.Conn
-	ticket secrets.Value
+	c *websocket.Conn
 }
 
 // Dial connects to a URL that OpenConnection returned. Redirects are refused. Errors never carry the URL.

@@ -193,6 +193,16 @@ function TwoFactor({ a }: { a: Account }) {
   )
 }
 
+/** D-195, D-196: an SSO account has no Vedette password and no Vedette two-step sign-in; the identity provider handles both. */
+function SsoNote() {
+  const { t } = useTranslation('core')
+  return (
+    <Section title={t('account.sso.title')}>
+      <p className="max-w-prose text-sm">{t('account.sso.body')}</p>
+    </Section>
+  )
+}
+
 function Sessions({ a }: { a: Account }) {
   const { t } = useTranslation('core')
   const m = useAccountMutations()
@@ -222,7 +232,7 @@ export default function AccountPage() {
   return (
     <>
       <PageHeader title={q.data ? t('account.title', { name: q.data.user.name }) : t('account.titleLoading')} meta={t('account.meta')} stories={['S-CORE-3']} />
-      <QueryState query={q}>{(a) => <><Profile a={a} /><Password /><TwoFactor a={a} /><Sessions a={a} />{approver ? <ApproverIdentities /> : null}</>}</QueryState>
+      <QueryState query={q}>{(a) => <><Profile a={a} />{a.user.sso ? <SsoNote /> : <><Password /><TwoFactor a={a} /></>}<Sessions a={a} />{approver ? <ApproverIdentities /> : null}</>}</QueryState>
     </>
   )
 }

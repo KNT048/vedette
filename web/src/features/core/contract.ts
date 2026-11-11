@@ -44,7 +44,7 @@ export const AuthOptions = z.object({ oidc: z.boolean() })
 // ---- tài khoản ----
 export const AccountSession = z.object({ id: z.string(), device: z.string(), ip: z.string(), started_at: ts, last_seen: ts, current: z.boolean() })
 export const Account = z.object({
-  user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable() }),
+  user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('The account signs in only through SSO (D-195): no Vedette password, two-step sign-in is the identity provider\'s') }),
   twofa_email: z.object({
     available: z.boolean().describe('true only when the notify module is on and an email channel is configured and enabled'),
     reason: z.enum(['module_off', 'channel_not_ready']).nullable().describe('Why the email method cannot be chosen, null when available'),
@@ -55,13 +55,24 @@ export const Account = z.object({
 export const TotpStart = z.object({ secret: z.string().describe('20-byte base32 key (RFC 4648), typed by hand into the authenticator app'), otpauth: z.string().describe('URI otpauth://totp/Vedette:<email>?secret=…&issuer=Vedette&algorithm=SHA1&digits=6&period=30') })
 
 // ---- người dùng, OIDC ----
-export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable() })
+export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset') })
 export const UserCreated = z.object({ user: AdminUser, temp_password: z.string().describe('Returned once only') })
+const OidcRoleRow = z.object({ group: z.string(), role: Role })
 export const OidcConfig = z.object({
-  issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(), default_role: Role,
-  role_map: z.array(z.object({ group: z.string(), role: Role })),
+  issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(),
+  scopes: z.string().describe('Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email profile"; add "groups" for IdPs that need it (Okta, Authentik)'),
+  groups_claim: z.string().describe('Name of the ID-token claim that lists the person\'s groups (default "groups")'),
+  default_role: Role.nullable().describe('Role for a person in none of the mapped groups; null = no access, the default (D-195)'),
+  role_map: z.array(OidcRoleRow).describe('Group to role; a person in several mapped groups gets the highest of their roles'),
+  redirect_uri: z.string().describe('The address to register at the identity provider: this box\'s address as the browser reached it, plus /sso/callback'),
+  sso_users: z.number().int().describe('Accounts that sign in only through SSO; they cannot sign in while the module is off'),
 })
-export const OidcSave = OidcConfig.omit({ secret_last4: true }).extend({ client_secret: z.string().describe('Empty keeps the stored secret') })
+export const OidcSave = z.object({
+  issuer: z.string(), client_id: z.string(), client_secret: z.string().describe('Empty keeps the stored secret'),
+  scopes: z.string(), groups_claim: z.string(), default_role: Role.nullable(), role_map: z.array(OidcRoleRow),
+})
+export const OidcStart = z.object({ authorize_url: z.string().describe('The identity provider\'s authorization endpoint with client_id, redirect_uri, scope, state, nonce, code_challenge (S256)'), binding: z.string().describe('Random value the page keeps in session storage and sends back with the callback, so the sign-in can only finish in the tab that started it') })
+export const OidcCallback = z.object({ code: z.string(), state: z.string(), binding: z.string() })
 export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.string(), z.string()) })
 
 // ---- audit ----
@@ -107,8 +118,9 @@ export const OsRunResult = z.object({
   health: z.array(z.object({ name: z.string(), ok: z.boolean() })).describe('Checks after the run'), reboot_required: z.boolean(),
 })
 export const OsRun = z.object({
-  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
+  id: z.string(), scope: z.enum(['security', 'all']), status: z.enum(['running', 'done', 'failed']), started_at: ts, finished_at: ts.nullable(), user: z.string(),
   lines: z.array(z.string()).describe('apt output so far'), result: OsRunResult.nullable(),
+  error: z.string().nullable().describe('Only for a failed run: why, in words (the lines keep the raw output)'),
 })
 export const OsRebootBody = z.object({ when: z.enum(['now', 'window', 'custom']), at: z.string().optional().describe('Local time HH:MM, only for "custom"; must fall inside the maintenance window') })
 export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('Items installed automatically in automatic mode') })
@@ -201,7 +213,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule) }) },
   { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
   { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
-  { method: 'post', path: '/core/sso/login', summary: 'SSO sign-in (mock for the OIDC redirect round trip)', stories: ['S-CORE-3'], role: 'public', response: Ok },
+  { method: 'post', path: '/auth/oidc/start', summary: 'Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited', stories: ['S-CORE-3'], role: 'public', response: OidcStart },
+  { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },
   // chung
   { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
   { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },

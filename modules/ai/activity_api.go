@@ -79,12 +79,13 @@ func (s *Service) PruneActivity(ctx context.Context) (int, error) {
 	return removed, nil
 }
 
-// Jobs are the scheduled jobs of the module: the retention prune, which is offered only when core's ChainPruner is wired.
+// Jobs are the scheduled jobs of the module: the retention prune, which is offered only when core's ChainPruner is wired. It only
+// deletes rows past the retention, so it is housekeeping (D-160) and keeps its timer while the module is off.
 func (s *Service) Jobs() []jobs.Job {
 	if s.cfg.ChainPruner == nil {
 		return nil
 	}
-	return []jobs.Job{{Module: "ai", Name: "activity-prune", Every: pruneEvery, Run: func(ctx context.Context) error {
+	return []jobs.Job{{Module: "ai", Name: "activity-prune", Every: pruneEvery, Housekeeping: true, Run: func(ctx context.Context) error {
 		_, err := s.PruneActivity(ctx)
 		return err
 	}}}

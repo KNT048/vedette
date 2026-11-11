@@ -1050,6 +1050,32 @@ func encodeCorePostAuthLogoutResponse(response *CorePostAuthLogoutNoContent, w h
 	return nil
 }
 
+func encodeCorePostAuthOidcCallbackResponse(response *CorePostAuthOidcCallbackOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostAuthOidcStartResponse(response *CorePostAuthOidcStartOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePostCoreAccount2FAConfirmResponse(response *CorePostCoreAccount2FAConfirmOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1220,19 +1246,6 @@ func encodeCorePostCoreNetworkManagementRevertResponse(response *CorePostCoreNet
 }
 
 func encodeCorePostCoreOidcTestResponse(response *CorePostCoreOidcTestOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeCorePostCoreSSOLoginResponse(response *CorePostCoreSSOLoginOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

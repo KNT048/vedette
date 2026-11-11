@@ -9,7 +9,7 @@ import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
 import { seedFindings } from './seed/findings'
 
-export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước (D-35); thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** D-180: the password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null }
+export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước (D-35); thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** D-180: the password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null; /** D-195: made by an SSO sign-in; (issuer, subject) of the IdP identity. No Vedette password. */ sso?: { iss: string; sub: string } | null }
 
 /** D-180: how long an administrator-set password works. */
 export const TEMP_PASSWORD_HOURS = 72

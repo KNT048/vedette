@@ -9,6 +9,9 @@ import { Field, Input } from '@/components/ui/input'
 import { api, download } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { resetMockDb } from '@/mocks/db'
+
+/** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
+const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePurge } from './api'
 import { errMsg, useGate } from './parts'
@@ -33,7 +36,7 @@ export default function DataSection() {
   const [purgeErr, setPurgeErr] = useState<string | null>(null)
   const [askReset, setAskReset] = useState(false)
 
-  const dl = (path: string, file: string) => () => void download(path, file).then(() => toast.success(t('data.downloaded', { file }))).catch((e) => toast.error(errMsg(e, t)))
+  const dl = (path: string, file: string) => () => void download(path, file).then((saved) => toast.success(t('data.downloaded', { file: saved }))).catch((e) => toast.error(errMsg(e, t)))
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
   const [cats, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
@@ -63,7 +66,7 @@ export default function DataSection() {
     <>
       <PageHeader title={t('data.title')} meta={t('data.meta')} stories={['S-CORE-1']} />
       <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
-        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.json`)}><Download />{t('data.backup.button')}</Button>
+        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
       </Section>
       <Section title={t('data.export.title')} description={t('data.export.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
@@ -94,9 +97,11 @@ export default function DataSection() {
       <Section title={t('data.purge.title')} description={t('data.purge.desc')}>
         <Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setPassword(''); setCode(''); setAskPurge(true) }}>{t('data.purge.button')}</Button>
       </Section>
-      <Section title={t('data.sample.title')} description={t('data.sample.desc')}>
-        <Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button>
-      </Section>
+      {isPreview() ? (
+        <Section title={t('data.sample.title')} description={t('data.sample.desc')}>
+          <Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button>
+        </Section>
+      ) : null}
 
       <Dialog open={askPurge} onOpenChange={setAskPurge}>
         <DialogContent title={t('data.purge.ask.title')} description={t('data.purge.ask.body')}>
@@ -126,11 +131,13 @@ export default function DataSection() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={askReset} onOpenChange={setAskReset}>
-        <DialogContent title={t('data.sample.ask.title')} description={t('data.sample.ask.body')}>
-          <DialogFooter><Button onClick={() => setAskReset(false)}>{t('common:cancel')}</Button><Button variant="danger" onClick={() => void doReset()}>{t('data.sample.ask.confirm')}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isPreview() ? (
+        <Dialog open={askReset} onOpenChange={setAskReset}>
+          <DialogContent title={t('data.sample.ask.title')} description={t('data.sample.ask.body')}>
+            <DialogFooter><Button onClick={() => setAskReset(false)}>{t('common:cancel')}</Button><Button variant="danger" onClick={() => void doReset()}>{t('data.sample.ask.confirm')}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </>
   )
 }

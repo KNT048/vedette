@@ -212,7 +212,7 @@ func slowWrite(ctx context.Context, db *store.DB) error {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO t VALUES ('secret-value')"); err != nil {
 			return err
 		}
-		time.Sleep(store.SlowWrite + 50*time.Millisecond)
+		<-time.After(store.SlowWrite + 50*time.Millisecond) // a real hold of the writer: SQLite I/O does not run under synctest
 		return nil
 	})
 }
@@ -231,7 +231,7 @@ func TestWriteLogsTheCallerOfAPanickingTransaction(t *testing.T) {
 
 func panickingWrite(ctx context.Context, db *store.DB) error {
 	return db.Write(ctx, func(*sql.Tx) error {
-		time.Sleep(store.SlowWrite + 50*time.Millisecond)
+		<-time.After(store.SlowWrite + 50*time.Millisecond) // a real hold of the writer: SQLite I/O does not run under synctest
 		panic("boom")
 	})
 }

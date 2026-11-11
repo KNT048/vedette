@@ -230,13 +230,14 @@ func (s *Service) dropStale(ctx context.Context) error {
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on). The purge job's Run is long-lived: it
-// lives until its context ends, which is when the module is turned off or the process shuts down, so core/jobs cancels a
-// purge in the middle and its panic recovery covers it. On entry it recounts the byte counter from the lines (a counter that
+// lives until its context ends, which is when the process shuts down (the job is Housekeeping, D-160: it keeps purging past
+// the retention while the module is off, and a module toggle does not cancel it), so core/jobs cancels a purge in the middle
+// at shutdown and its panic recovery covers it. On entry it recounts the byte counter from the lines (a counter that
 // drifted, which an older binary can cause, must not make the first purge delete real lines); then it purges, and waits for
 // the next kick (Ingest, over the bound; skipped when the last purge started less than purgeGap ago) or PurgeEvery.
-// Core records one history row when Run ends, so the history shows one long run per time the module was on, not one per hour.
+// Core records one history row when Run ends, so the history shows one long run per process, not one per hour.
 func Jobs(svc *Service) []jobs.Job {
-	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: svc.purgeLoop}}
+	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Housekeeping: true, Run: svc.purgeLoop}}
 }
 
 func (s *Service) purgeLoop(ctx context.Context) error {

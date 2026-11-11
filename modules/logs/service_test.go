@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
@@ -805,13 +806,7 @@ func ch(c rune) string { return string(c) }
 // passes gets one value each time the loop handled a wake-up (true: a purge ran, false: a kick came within the gap and was skipped).
 func (e *env) runJob() (stop func() error, passes <-chan bool) {
 	e.t.Helper()
-	ch := make(chan bool, 100)
-	e.svc.afterPass = func(ran bool) {
-		select {
-		case ch <- ran:
-		default:
-		}
-	}
+	passes = e.passesOf()
 	ctx, cancel := context.WithCancel(e.t.Context())
 	done := make(chan error, 1)
 	go func() { done <- Jobs(e.svc)[0].Run(ctx) }()
@@ -824,7 +819,19 @@ func (e *env) runJob() (stop func() error, passes <-chan bool) {
 			e.t.Error("the purge job did not stop when its context ended")
 			return nil
 		}
-	}, ch
+	}, passes
+}
+
+// passesOf makes the loop report its wake-ups on the returned channel.
+func (e *env) passesOf() <-chan bool {
+	ch := make(chan bool, 100)
+	e.svc.afterPass = func(ran bool) {
+		select {
+		case ch <- ran:
+		default:
+		}
+	}
+	return ch
 }
 
 // pass waits for the next wake-up of the loop to be handled and returns whether it ran a purge.
@@ -1310,5 +1317,34 @@ func TestFirstPurgeStartedByIngestRecountsBeforeDeleting(t *testing.T) {
 	_ = stop()
 	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 3 {
 		t.Fatalf("%d lines left, want 3: real lines were deleted on a wrong counter", n)
+	}
+}
+
+type offGate struct{}
+
+func (offGate) Enabled(string) bool { return false }
+
+// L5 (D-160): the purge job is housekeeping: with the module off the scheduler still runs it, and it deletes the lines past
+// the retention.
+func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	e.bulk(s.ID, 5, e.clock.Add(-60*24*time.Hour))
+	sched := jobs.New(slog.New(slog.DiscardHandler), offGate{}, func() time.Time { return *e.clock })
+	for _, j := range Jobs(e.svc) {
+		if err := sched.Add(j); err != nil {
+			t.Fatal(err)
+		}
+	}
+	passes := e.passesOf()
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	e.pass(passes)
+	cancel()
+	<-done
+	if n := count(t, e.vol, `SELECT count(*) FROM logs_events`); n != 0 {
+		t.Fatalf("%d expired lines left: the purge did not run while the module was off", n)
 	}
 }

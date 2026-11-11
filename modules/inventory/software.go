@@ -58,6 +58,7 @@ func hasInvisible(texts ...string) bool {
 // checkItem validates one item.
 func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 	{
+		it.Vendor, it.Product, it.Display, it.Version = stripIgnorable(it.Vendor), stripIgnorable(it.Product), stripIgnorable(it.Display), stripIgnorable(it.Version)
 		if !cleanText(it.Vendor) || !cleanText(it.Product) {
 			return it, invalid("software %d: vendor and product must be 1 to %d printable characters", i, maxSwField)
 		}
@@ -279,7 +280,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if err != nil {
 		return err
 	}
-	if ip.IsValid() && s.ownedIPs(ctx)[ip] { // a box-owned address is no device (Config.BoxOwnedIPs)
+	if isBox := s.ownedFilter(ctx); isBox != nil && isBox(ip, mac) { // a box-owned address is no device (Config.BoxOwnedIPs, BoxOwnedMACs)
 		s.ownedHit.Add(1)
 		return nil
 	}

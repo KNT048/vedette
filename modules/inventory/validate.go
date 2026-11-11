@@ -7,9 +7,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/observe"
 )
 
 func badRequest(code, msg string) *apierr.Error { return apierr.New(http.StatusBadRequest, code, msg) }
@@ -36,15 +38,31 @@ func cleanText(s string) bool {
 	return !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f || invisible(r) })
 }
 
-// invisible is a character that changes how text reads or hides in it (L12, defence in depth): C1 controls, zero-width, bidi
-// controls and the tag block.
+// invisible is a character that changes how text reads or hides in it (L12, defence in depth): C1 controls, every format
+// character (bidi marks and controls, zero-width, the tag block, the soft hyphen) and every Default_Ignorable_Code_Point
+// (`observe.Ignorable`, the table the honeypot and account names use). A value that holds one is refused; stripIgnorable has
+// already removed the harmless ones (variation selectors and fillers) from sensor text.
 func invisible(r rune) bool {
-	switch {
-	case r >= 0x80 && r <= 0x9f, r >= 0x200b && r <= 0x200d, r >= 0x202a && r <= 0x202e, r == 0x2060, r >= 0x2066 && r <= 0x2069, r == 0xfeff, r >= 0xe0000 && r <= 0xe007f:
-		return true
-	}
-	return false
+	return (r >= 0x80 && r <= 0x9f) || unicode.Is(unicode.Cf, r) || observe.Ignorable(r)
 }
+
+// stripIgnorable removes the default-ignorable characters that are not format characters: variation selectors (the U+FE0F of
+// an emoji in a device name), the combining grapheme joiner, the Hangul and Mongolian fillers. They render as nothing, so the
+// value reads the same without them, and refusing the value would lose a real device name (WP-31 close-out review). Format
+// characters (bidi, zero-width) are left for cleanText to refuse: they change how the text reads.
+func stripIgnorable(s string) string {
+	if !strings.ContainsFunc(s, ignorableNotFormat) {
+		return s
+	}
+	return strings.Map(func(r rune) rune {
+		if ignorableNotFormat(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+func ignorableNotFormat(r rune) bool { return observe.Ignorable(r) && !unicode.Is(unicode.Cf, r) }
 
 // ipv4 parses an IPv4 address in the plain dotted form.
 func ipv4(s string) (netip.Addr, bool) {

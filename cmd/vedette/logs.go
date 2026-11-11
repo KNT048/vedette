@@ -33,7 +33,8 @@ func logsService(d deps) *logs.Service {
 	if s := logsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock}
+	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock,
+		Secrets: d.Secrets, BoxAddrs: notifyBoxAddrs(d.HostNet)} // the SIEM key is sealed; no SIEM may be at an address of the box (D-208 rule)
 	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
 		cfg.Events = d.Bus
 	}
@@ -44,6 +45,9 @@ func logsService(d deps) *logs.Service {
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
+	}
+	if d.Bus != nil {
+		svc.Subscribe(d.Bus) // the handlers queue only while the forwarder job runs, i.e. while the module is on; the box lives as long as the process
 	}
 	logsServices[d.DB] = svc
 	return svc

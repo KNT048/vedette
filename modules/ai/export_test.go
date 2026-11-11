@@ -53,3 +53,13 @@ func (s *Service) KnowledgeForCall(ctx context.Context, job Job, query string) (
 	kc, err := s.knowledgeForCall(ctx, s.Hooks(), job, query)
 	return kc.block.Text, kc.refs, kc.left, err
 }
+
+// NewsCallsFor counts the news calls of a CVE that hold or wait for its lock.
+func (s *Service) NewsCallsFor(cve string) int {
+	s.news.mu.Lock()
+	defer s.news.mu.Unlock()
+	if l, ok := s.news.inflight[cve]; ok {
+		return l.n
+	}
+	return 0
+}

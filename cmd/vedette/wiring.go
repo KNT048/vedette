@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/feeds"
@@ -229,6 +230,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
+	}
+	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Clock: d.Clock, Log: d.Log}); err != nil {
+		return fmt.Errorf("agent-intake: %w", err)
 	}
 	d.Logs = logexport.New()
 	d.PurgeGate = &core.PurgeGate{}

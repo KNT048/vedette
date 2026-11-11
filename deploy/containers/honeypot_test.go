@@ -247,22 +247,22 @@ func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 	prefix := "<190>Nov 11 05:25:06 smbd_audit[42]: "
 	good := "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|"
 	cases := []string{
-		prefix + good + "passwords.txt",                                                // 0: normal
-		prefix + strings.Replace(good, "192.168.1.5", "::ffff:192.168.1.5", 1) + "a.txt", // 1: IPv4 as IPv6-mapped
-		prefix + good + "a|6.6.6.6|7.7.7.7|x|y|z|openat|ok|b",                          // 2: '|' in the path
-		prefix + good + "x\nsmbd_audit: |6.6.6.6|1.1.1.1|a|b|c|d|e||openat|ok|forged",    // 3: a forged second line
-		prefix + good + "x: |6.6.6.6|1.1.1.1|a|b|c|d|e||openat|ok|forged",              // 4: ": " would move the module's cut
-		prefix + good + strings.Repeat("A", 5000),                                      // 5: long
-		prefix + good + "café\x00\x1b[31m\r.txt",                                  // 6: non-ASCII and control characters
-		prefix + "evil|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a",      // 7: source is not an address
-		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|unlink|ok|a", // 8: an operation we do not audit
+		prefix + good + "passwords.txt", // 0: normal
+		prefix + strings.Replace(good, "192.168.1.5", "::ffff:192.168.1.5", 1) + "a.txt",    // 1: IPv4 as IPv6-mapped
+		prefix + good + "a|6.6.6.6|7.7.7.7|x|y|z|openat|ok|b",                               // 2: '|' in the path
+		prefix + good + "x\nsmbd_audit: |6.6.6.6|1.1.1.1|a|b|c|d|e||openat|ok|forged",       // 3: a forged second line
+		prefix + good + "x: |6.6.6.6|1.1.1.1|a|b|c|d|e||openat|ok|forged",                   // 4: ": " would move the module's cut
+		prefix + good + strings.Repeat("A", 5000),                                           // 5: long
+		prefix + good + "café\x00\x1b[31m\r.txt",                                            // 6: non-ASCII and control characters
+		prefix + "evil|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a",           // 7: source is not an address
+		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|unlink|ok|a",    // 8: an operation we do not audit
 		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|maybe|a", // 9: a status Samba never writes
-		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|openat|ok|a",       // 10: a field short (a '|' moved by the client)
-		"<190>Nov 11 05:25:06 sshd: 192.168.1.5|1|2|3|4|5|openat|ok|a",                  // 11: not ours
-		prefix + "192.168.1.5|192.168.1.240|FILE SERVER|SMB3_11|Win10|Shared|openat|ok|a", // 12: a space where the server decides a word
-		prefix + good,                                                                  // 13: an empty path (a share root)
+		prefix + "192.168.1.5|192.168.1.240|FILESERVER|SMB3_11|Win10|openat|ok|a",           // 10: a field short (a '|' moved by the client)
+		"<190>Nov 11 05:25:06 sshd: 192.168.1.5|1|2|3|4|5|openat|ok|a",                      // 11: not ours
+		prefix + "192.168.1.5|192.168.1.240|FILE SERVER|SMB3_11|Win10|Shared|openat|ok|a",   // 12: a space where the server decides a word
+		prefix + good, // 13: an empty path (a share root)
 		prefix + "256.1.1.1|192.168.1.240|FILESERVER|SMB3_11|Win10|Shared|openat|ok|a", // 14: not an IPv4 address
-		prefix + good + "r|/tmp/share/Q4 payroll.xlsx",                                  // 15: what Samba writes for an open: mode|absolute path
+		prefix + good + "r|/tmp/share/Q4 payroll.xlsx",                                 // 15: what Samba writes for an open: mode|absolute path
 	}
 	in, _ := json.Marshal(cases)
 	code := "import importlib.util, json, sys\n" +
@@ -325,7 +325,7 @@ func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 	if got[15] == nil || !strings.HasSuffix(*got[15], "|openat|ok|/Q4 payroll.xlsx\n") {
 		t.Errorf("case 15 = %v: the mode and the share's folder are dropped, the name is kept", got[15])
 	}
-	if got[3] != nil &&!strings.HasPrefix(fieldsOf(*got[3])[12], "x?") {
+	if got[3] != nil && !strings.HasPrefix(fieldsOf(*got[3])[12], "x?") {
 		t.Errorf("a forged line in the path survived: %q", *got[3])
 	}
 }

@@ -38,9 +38,9 @@ CREATE TABLE ai_hook (
 
 -- +goose StatementBegin
 CREATE TRIGGER ai_hook_max BEFORE INSERT ON ai_hook
-WHEN (SELECT COUNT(*) FROM ai_hook) >= 50
+WHEN (SELECT COUNT(*) FROM ai_hook) >= 30
 BEGIN
-    SELECT RAISE(ABORT, 'ai_hook: at most 50 custom hooks');
+    SELECT RAISE(ABORT, 'ai_hook: at most 30 custom hooks');
 END;
 -- +goose StatementEnd
 

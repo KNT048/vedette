@@ -117,9 +117,6 @@ type HookTestResult struct {
 // MaxHookTestRunes bounds the sample text of a hook test.
 const MaxHookTestRunes = 1000
 
-// hookTestTimeout bounds one test run; a run honours the deadline inside a match attempt (see scanRegexp).
-const hookTestTimeout = 5 * time.Second
-
 // harness is one immutable generation of the rules and hooks. The runner is built from builtin and custom, so the two cannot differ.
 type harness struct {
 	rules   []Rule
@@ -252,9 +249,20 @@ func (s *Service) loadHarness(ctx context.Context) (*harness, error) {
 
 func tidy(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-func hasControl(s string) bool {
-	for _, r := range s {
-		if unicode.IsControl(r) && r != '\n' && r != '\t' && r != '\r' {
+// hasHidden reports a character that cannot be seen or typed back: control characters (line breaks and tabs are only white space and
+// are tidied away elsewhere), format characters (zero width, bidirectional overrides), the tag block U+E0000..E007F and the blank
+// U+2800. It is the rule of core/auth for names; the one exception is a ZERO WIDTH (NON-)JOINER between two letters, which some
+// scripts need to be spelled correctly.
+func hasHidden(s string) bool {
+	rs := []rune(s)
+	for i, r := range rs {
+		if (r == 0x200C || r == 0x200D) && i > 0 && i+1 < len(rs) && unicode.IsLetter(rs[i-1]) && unicode.IsLetter(rs[i+1]) {
+			continue
+		}
+		if r == '\n' || r == '\t' || r == '\r' {
+			continue
+		}
+		if r == 0x2800 || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || (r >= 0xE0000 && r <= 0xE007F) {
 			return true
 		}
 	}
@@ -273,7 +281,12 @@ func harnessNotFound(what string) error {
 func hookErr(err error) error {
 	var he *HookError
 	if errors.As(err, &he) {
-		return apierr.New(http.StatusBadRequest, he.Code, he.Msg)
+		code := he.Code
+		switch code {
+		case "invalid_pattern", "unsupported_regex", "pattern_too_large", "invalid_match_type":
+			code = "invalid_match" // the form puts every failure of the match on the pattern field, with the specific text
+		}
+		return apierr.New(http.StatusBadRequest, code, he.Msg)
 	}
 	return err
 }
@@ -289,7 +302,7 @@ func ruleView(r Rule) RuleView {
 // checkRule normalises and validates a rule body (INV-7): the text is tidied (one line, single spaces), 3..300 characters; jobs are known, unique.
 func checkRule(in RuleInput) (Rule, error) {
 	text := tidy(in.Text)
-	if n := utf8.RuneCountInString(text); n < 3 || n > 300 || hasControl(text) {
+	if n := utf8.RuneCountInString(text); n < 3 || n > 300 || hasHidden(text) {
 		return Rule{}, badInput("invalid_rule", `Write the rule in 3 to 300 characters, for example "Always name devices by hostname and IP address".`)
 	}
 	jobs := []Job{}
@@ -467,8 +480,13 @@ func (s *Service) HooksView() HooksView {
 // ID is the id of the hook being edited, "" for a new one; names are unique in every letter case.
 func checkHook(in CustomHook, others []CustomHook) (CustomHook, error) {
 	in.Name, in.Message, in.Match.Pattern = tidy(in.Name), tidy(in.Message), strings.TrimSpace(in.Match.Pattern)
-	if hasControl(in.Name) || hasControl(in.Message) || hasControl(in.Match.Pattern) {
-		return CustomHook{}, badInput("invalid_pattern", "Text fields may not contain control characters.")
+	switch {
+	case hasHidden(in.Name):
+		return CustomHook{}, badInput("invalid_name", "The name may not contain control or invisible characters.")
+	case hasHidden(in.Message):
+		return CustomHook{}, badInput("invalid_message", "The message may not contain control or invisible characters.")
+	case hasHidden(in.Match.Pattern):
+		return CustomHook{}, badInput("invalid_match", "The pattern may not contain control or invisible characters. Write such a character as an escape, for example \\x{200b}.")
 	}
 	if err := in.Validate(); err != nil {
 		return CustomHook{}, hookErr(err)
@@ -619,13 +637,22 @@ func (s *Service) SetBuiltinHook(ctx context.Context, who, id string, enabled bo
 	if err != nil {
 		return BuiltinHookView{}, err
 	}
+	cfg := s.snap.Load().cfg
+	if id == HookBlockPII {
+		cfg.RedactPII = enabled
+	}
 	state := "off"
 	if enabled {
 		state = "on"
 	}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE ai_hook_state SET enabled = ? WHERE builtin_id = ?`, b2i(enabled), id); err != nil {
-			return fmt.Errorf("ai: save hook switch: %w", err)
+		if err := saveHookSwitch(ctx, tx, id, enabled); err != nil {
+			return err
+		}
+		if id == HookBlockPII { // redact_pii of /ai/config is this switch: keep the saved setting in step
+			if err := upsertSetting(ctx, tx, "config", cfg, s.cfg.Clock(), who); err != nil {
+				return err
+			}
 		}
 		return s.auditTx(ctx, tx, who, "ai.hook.builtin", id, state)
 	})
@@ -633,12 +660,24 @@ func (s *Service) SetBuiltinHook(ctx context.Context, who, id string, enabled bo
 		return BuiltinHookView{}, err
 	}
 	s.harness.Store(next)
+	if id == HookBlockPII {
+		cur := s.snap.Load()
+		s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: cfg})
+	}
 	for _, b := range next.runner.Builtins() {
 		if b.ID == id {
 			return BuiltinHookView(b), nil
 		}
 	}
 	return BuiltinHookView{}, harnessNotFound("hook")
+}
+
+// saveHookSwitch writes one switch. An upsert, not an UPDATE: it cannot pass without a row to change.
+func saveHookSwitch(ctx context.Context, tx *sql.Tx, id string, enabled bool) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_hook_state (builtin_id, enabled) VALUES (?, ?) ON CONFLICT (builtin_id) DO UPDATE SET enabled = excluded.enabled`, id, b2i(enabled)); err != nil {
+		return fmt.Errorf("ai: save hook switch: %w", err)
+	}
+	return nil
 }
 
 func errLocked() error {
@@ -657,6 +696,22 @@ func (s *Service) TestHook(ctx context.Context, in HookTestInput) (HookTestResul
 	default:
 		return HookTestResult{}, badInput("invalid_when", "Pick the stage to test.")
 	}
+	// One test at a time: each can use the whole deadline, so a second waits for a turn and is turned away when none comes.
+	select {
+	case s.testSlot <- struct{}{}: // a free place is taken before any waiting, so a short wait cannot turn away the only test
+		defer func() { <-s.testSlot }()
+	default:
+		wait := time.NewTimer(s.hookTimeout())
+		defer wait.Stop()
+		select {
+		case s.testSlot <- struct{}{}:
+			defer func() { <-s.testSlot }()
+		case <-wait.C:
+			return HookTestResult{}, apierr.New(http.StatusTooManyRequests, "busy", "Another hook test is running. Try again in a moment.")
+		case <-ctx.Done():
+			return HookTestResult{}, ctx.Err()
+		}
+	}
 	runner := s.Hooks()
 	if in.Hook != nil {
 		d := in.Hook.hook()
@@ -673,7 +728,7 @@ func (s *Service) TestHook(ctx context.Context, in HookTestInput) (HookTestResul
 			return HookTestResult{}, hookErr(err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, hookTestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
 	res, err := runner.Run(ctx, in.When, in.Text)
 	if err != nil {

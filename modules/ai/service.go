@@ -36,6 +36,14 @@ type Settings struct {
 	RedactPII bool `json:"redact_pii"`
 }
 
+// hookTimeout is the time one after_ai pass or one hook test may take.
+func (s *Service) hookTimeout() time.Duration {
+	if s.cfg.HookTimeout > 0 {
+		return s.cfg.HookTimeout
+	}
+	return 5 * time.Second
+}
+
 // DefaultSettings is what a fresh box starts with (the mock's defaults).
 func DefaultSettings() Settings { return Settings{Tier: TierMed, DailyCap: 60_000, RedactPII: true} }
 
@@ -71,6 +79,8 @@ type Config struct {
 	// tables (core_chain_anchor, core_chain_head) and offers the helper (chainhead.Prune, issue #194); until then it is nil and
 	// the retention prune is off: the setting is saved, nothing is removed.
 	ChainPruner ChainPruner
+	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
+	HookTimeout time.Duration
 }
 
 // stored is a profile as the service holds it: the library profile (with its key opened) and the id of its sealed key.
@@ -138,6 +148,7 @@ type Service struct {
 	harness  atomic.Pointer[harness] // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
 	degraded string                  // why the saved settings could not be loaded; "" = loaded
 	mu       sync.Mutex              // serialises changes
+	testSlot chan struct{}           // one place: a hook test runs while it holds it, so tests cannot pile up work
 	snap     atomic.Pointer[snapshot]
 }
 
@@ -169,7 +180,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1)}
 	s.harness.Store(h0)
 	sn, err := s.load(ctx)
 	if err == nil {
@@ -179,6 +190,10 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 		var h *harness
 		if h, err = s.loadHarness(ctx); err == nil {
 			s.harness.Store(h)
+			if !sn.cfg.RedactPII && h.builtin[HookBlockPII] {
+				// Before the switch existed, redact_pii=false was saved but nothing enforced it, so migration 0003 starts the switch on.
+				cfg.Log.InfoContext(ctx, "ai: the saved redact_pii setting is off, but it was never enforced before; Block personal data is on. Turn it off in Settings, AI assistant, if you want that")
+			}
 		} else {
 			err = fmt.Errorf("load rules and hooks: %w", err)
 		}

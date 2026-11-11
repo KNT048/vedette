@@ -198,8 +198,8 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		if err := upsertSetting(ctx, tx, "config", in, now, who); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE ai_hook_state SET enabled = ? WHERE builtin_id = ?`, b2i(in.RedactPII), HookBlockPII); err != nil {
-			return fmt.Errorf("ai: save the personal-data switch: %w", err)
+		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
+			return err
 		}
 		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, cap=%d, redact_pii=%t", in.Tier, in.DailyCap, in.RedactPII))
 	})

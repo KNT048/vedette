@@ -246,11 +246,15 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		entry.Result = ResultFallbackUsed
 	}
 
-	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone.
+	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone. The hooks get
+	// their own deadline, so slow hooks cannot use up the time of the activity row (INV-17), which has a fresh one.
+	hctx, hcancel := context.WithTimeout(context.WithoutCancel(ctx), s.hookTimeout())
+	structured := spec.Schema != nil && spec.Check != nil && spec.Check(res.Response.Text) == nil // the format is checked first; a bad answer is refused below
+	after, herr := afterHooks(hctx, hooks, structured, res.Response.Text)
+	hcancel()
+	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	wctx, wcancel := detached(ctx)
 	defer wcancel()
-	after, herr := hooks.Run(wctx, AfterAI, res.Response.Text)
-	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	text := after.Text
 	var bad error
 	switch {

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"io"
 	"math"
 	"regexp"
@@ -175,6 +176,9 @@ func (r *ctxRunes) ReadRune() (rune, int, error) {
 // MaxRegexProgram steps over 1 MiB can still take seconds; the scan therefore reads through ctxRunes and
 // returns the context's error as soon as the deadline passes. After a match the search restarts at its end, so
 // ^ and \b see the cut as the start of the text (a rare extra match, which only masks more).
+// errTooManyMatches: more than MaxMatchesPerScan matches in one text.
+var errTooManyMatches = errors.New("ai: too many matches")
+
 func scanRegexp(ctx context.Context, re *regexp.Regexp, s string) ([]span, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -190,6 +194,9 @@ func scanRegexp(ctx context.Context, re *regexp.Regexp, s string) ([]span, error
 			break
 		}
 		if loc[1] > loc[0] {
+			if len(out) == MaxMatchesPerScan {
+				return nil, errTooManyMatches
+			}
 			out = append(out, span{pos + loc[0], pos + loc[1]})
 		}
 		pos += max(loc[1], loc[0]+1)

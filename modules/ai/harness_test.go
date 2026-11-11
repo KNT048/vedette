@@ -1,12 +1,26 @@
 package ai_test
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"strings"
 	"testing"
+	"testing/fstest"
+	"time"
 
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server/servertest"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/ai"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // Slice 4a of WP-25: rules and hooks (S-AI-7, INV-7, INV-12, INV-13, INV-14). The GUI mock is the contract.
@@ -209,17 +223,17 @@ func TestContract_INV12_HookLimits(t *testing.T) {
 	valid := func(name string) string {
 		return hookJSON(name, "before_ai", "keywords", "word", "mask", "A word was masked.")
 	}
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 30; i++ {
 		a.want("POST", "/ai/hooks", "admin", valid(fmt.Sprintf("Hook %d", i)), 200, "")
 	}
-	a.want("POST", "/ai/hooks", "admin", valid("Hook 51"), 400, "too_many")
+	a.want("POST", "/ai/hooks", "admin", valid("Hook 31"), 400, "too_many")
 	if err := a.exec(`INSERT INTO ai_hook (id, name, name_key, "when", match_type, pattern, action, message, enabled, created_at, updated_at) VALUES ('hk-x', 'N', 'n', 'before_ai', 'keywords', 'a', 'block', 'abc', 1, '2026-11-10T03:00:00.000Z', '2026-11-10T03:00:00.000Z')`); err == nil {
-		t.Fatal("the table took a 51st hook")
+		t.Fatal("the table took a 31st hook")
 	}
-	// the 50th can still be edited, and a deleted one frees a place
+	// the 30th can still be edited, and a deleted one frees a place
 	a.want("PUT", "/ai/hooks/"+a.firstHookID(), "admin", valid("Renamed"), 200, "")
 	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
-	a.want("POST", "/ai/hooks", "admin", valid("Hook 51"), 200, "")
+	a.want("POST", "/ai/hooks", "admin", valid("Hook 31"), 200, "")
 }
 
 func (a *api) firstHookID() string {
@@ -258,13 +272,13 @@ func TestContract_INV12_FieldLimitsAndRE2(t *testing.T) {
 		}
 	}
 	// the regex errors say RE2 and name no JavaScript feature as supported
-	m := a.want("POST", "/ai/hooks", "admin", hookJSON("N", "before_ai", "regex", `foo(?=bar)`, "block", "abc"), 400, "unsupported_regex")
+	m := a.want("POST", "/ai/hooks", "admin", hookJSON("N", "before_ai", "regex", `foo(?=bar)`, "block", "abc"), 400, "invalid_match")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "RE2") {
 		t.Fatalf("message = %q", msg)
 	}
 	a.want("POST", "/ai/hooks", "admin", hookJSON("N", "before_ai", "regex", strings.Repeat("a", 200), "block", "abc"), 200, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON(strings.Repeat("é", 40), "before_tool", "keywords", "x", "approve", "abc"), 200, "")
-	a.want("PUT", "/ai/hooks/"+a.firstHookID(), "admin", hookJSON("N", "before_ai", "regex", `(?<=a)b`, "block", "abc"), 400, "unsupported_regex")
+	a.want("PUT", "/ai/hooks/"+a.firstHookID(), "admin", hookJSON("N", "before_ai", "regex", `(?<=a)b`, "block", "abc"), 400, "invalid_match")
 	if n := len(a.want("GET", "/ai/hooks", "admin", "", 200, "")["custom"].([]any)); n != 2 {
 		t.Fatalf("custom hooks = %d, want 2: refused hooks must not be stored", n)
 	}
@@ -474,7 +488,7 @@ func TestHookTestRoute(t *testing.T) {
 	if m := call(`{"text":"my password: x","when":"before_tool","hook":` + hookJSON("D", "before_ai", "keywords", "nomatch", "block", "abc") + `}`); m["outcome"] != "pass" {
 		t.Fatalf("draft pass = %v", m)
 	}
-	a.want("POST", "/ai/hooks/test", "admin", `{"text":"x","when":"before_ai","hook":`+hookJSON("D", "before_ai", "regex", `(?=x)x`, "block", "abc")+`}`, 400, "unsupported_regex")
+	a.want("POST", "/ai/hooks/test", "admin", `{"text":"x","when":"before_ai","hook":`+hookJSON("D", "before_ai", "regex", `(?=x)x`, "block", "abc")+`}`, 400, "invalid_match")
 	a.want("POST", "/ai/hooks/test", "admin", `{"text":"","when":"before_ai"}`, 400, "")
 	a.want("POST", "/ai/hooks/test", "admin", `{"text":"`+strings.Repeat("x", 1001)+`","when":"before_ai"}`, 400, "")
 	a.want("POST", "/ai/hooks/test", "admin", `{"text":"x","when":"never"}`, 400, "")
@@ -499,4 +513,232 @@ func TestStoredHooksThatNoLongerCompileFailClosed(t *testing.T) {
 	b := &api{env: a.env, h: a.handler(servertest.NewGate())}
 	b.want("POST", "/ai/rules", "admin", ruleBody("Name every device."), 409, "ai_unavailable")
 	b.want("POST", "/ai/hooks", "admin", hookJSON("N", "before_ai", "keywords", "x", "block", "abc"), 409, "ai_unavailable")
+}
+
+// ---- review fixes
+
+func TestContract_INV12_EachFieldFailureHasItsOwnCode(t *testing.T) {
+	e := newEnv(t)
+	zwsp, tag, bidi := "\u200b", "\U000E0041", "\u202e"
+	hook := func(name, mtype, pattern, msg string) ai.HookJSON {
+		return ai.HookJSON{Name: name, When: ai.BeforeAI, Match: ai.HookMatchJSON{Type: ai.MatchType(mtype), Pattern: pattern}, Action: ai.ActionBlock, Message: msg, Enabled: true}
+	}
+	cases := []struct {
+		name string
+		h    ai.HookJSON
+		code string
+	}{
+		{"name too long", hook(strings.Repeat("n", 41), "keywords", "x", "abc"), "invalid_name"},
+		{"name zero width", hook("Ad"+zwsp+"min", "keywords", "x", "abc"), "invalid_name"},
+		{"name tag char", hook("N"+tag, "keywords", "x", "abc"), "invalid_name"},
+		{"name control", hook("N\u0001", "keywords", "x", "abc"), "invalid_name"},
+		{"message short", hook("N", "keywords", "x", "ab"), "invalid_message"},
+		{"message bidi", hook("N", "keywords", "x", "abc"+bidi+"def"), "invalid_message"},
+		{"keyword zero width", hook("N", "keywords", "pass"+zwsp+"word", "abc"), "invalid_match"},
+		{"regex tag char", hook("N", "regex", "a"+tag, "abc"), "invalid_match"},
+		{"pattern empty", hook("N", "keywords", "", "abc"), "invalid_match"},
+		{"pattern 201", hook("N", "regex", strings.Repeat("a", 201), "abc"), "invalid_match"},
+		{"bad RE2", hook("N", "regex", `foo(?=bar)`, "abc"), "invalid_match"},
+		{"matches empty", hook("N", "regex", `a*`, "abc"), "invalid_match"},
+		{"too many steps", hook("N", "regex", `((a{100}){100}){100}`, "abc"), "invalid_match"},
+		{"bad match type", hook("N", "glob", "x", "abc"), "invalid_match"},
+	}
+	for _, c := range cases {
+		_, err := e.svc.AddHook(e.ctx(), "admin@acme.example", c.h)
+		var ae *apierr.Error
+		if !errors.As(err, &ae) || ae.Code != c.code || ae.Status != 400 {
+			t.Errorf("%s: err = %v, want 400 %s", c.name, err, c.code)
+		}
+	}
+	// over HTTP the generated decoder and the core refuse most of these first, with its own generic code: still a 400, nothing stored
+	a := &api{env: e, h: e.handler(servertest.NewGate())}
+	for _, c := range cases {
+		body, _ := json.Marshal(c.h)
+		if status, _, raw := a.do("POST", "/ai/hooks", "admin", string(body)); status != 400 {
+			t.Errorf("%s over HTTP = %d: %s", c.name, status, raw)
+		}
+	}
+	// the specific RE2 text stays
+	m := a.want("POST", "/ai/hooks", "admin", hookJSON("N", "before_ai", "regex", `foo(?=bar)`, "block", "abc"), 400, "invalid_match")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "RE2") || !strings.Contains(msg, "lookahead") {
+		t.Fatalf("message = %q", msg)
+	}
+	// rules: invisible characters are refused too; a ZWNJ between two letters is fine (it spells some scripts)
+	for _, txt := range []string{"Name every" + zwsp + " device.", "Name every device." + tag, "Name\u0007 every device.", "Name every device." + bidi} {
+		_, err := e.svc.AddRule(e.ctx(), "admin@acme.example", ai.RuleInput{Text: txt, Jobs: []ai.Job{}, Enabled: true})
+		var ae *apierr.Error
+		if !errors.As(err, &ae) || ae.Code != "invalid_rule" {
+			t.Errorf("rule %q: %v", txt, err)
+		}
+		if status, _, _ := a.do("POST", "/ai/rules", "admin", ruleBody(txt)); status != 400 {
+			t.Errorf("rule %q over HTTP = %d", txt, status)
+		}
+	}
+	a.want("POST", "/ai/rules", "admin", ruleBody("Spell it \u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645 right."), 200, "")
+	a.want("POST", "/ai/hooks/test", "admin", `{"text":"x","when":"before_ai","hook":`+hookJSON("D", "before_ai", "regex", `foo(?=x)`, "block", "abc")+`}`, 400, "invalid_match")
+}
+
+const structuredAnswer = `{"why":"The password: hunter2 was in the log, so the NAS-PHOTOS port forward is open.","patch_steps":["Update to the fixed build."],"temp_mitigations":["Remove the port forward."],"detection_hints":["Check the access log."]}`
+
+func TestContract_INV12_AfterAIMasksTheFieldsOfAStructuredAnswer(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(structuredAnswer)
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Passwords", "after_ai", "regex", `password\s*[:=]\s*\S+`, "mask", "A password was removed."), 200, "")
+	// this pattern ends at white space, which compact JSON does not have: on the raw text it would eat the closing quote
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Forward", "after_ai", "regex", `forward\S*`, "mask", "A word was removed."), 200, "")
+	got := a.explain("CVE-2022-27593", 200, "")
+	if why := got["why"].(string); strings.Contains(why, "hunter2") || strings.Contains(why, "forward") || !strings.Contains(why, "The [masked] was in the log") {
+		t.Fatalf("why = %q", why)
+	}
+	if tm := got["temp_mitigations"].([]any); len(tm) != 1 || tm[0] != "Remove the port [masked]" {
+		t.Fatalf("temp_mitigations = %v", tm)
+	}
+	if h := got["detection_hints"].([]any); len(h) != 1 || h[0] != "Check the access log." {
+		t.Fatalf("detection_hints = %v", h)
+	}
+	cached := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"].(map[string]any)
+	if strings.Contains(fmt.Sprint(cached), "hunter2") || !strings.Contains(fmt.Sprint(cached), "[masked]") {
+		t.Fatalf("what was stored: %v", cached)
+	}
+	rows := a.activity()
+	if len(rows) != 1 || rows[0].Result != ai.ResultOK || len(rows[0].Hooks) != 2 || rows[0].OutputHash != ai.HashContent(structuredAnswer) {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+func TestContract_INV12_AfterAIBlockInAnyFieldBlocksTheAnswer(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.want("POST", "/ai/hooks", "admin", hookJSON("No logs", "after_ai", "keywords", "access log", "block", "The answer named a log."), 200, "")
+	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "The answer named a log.") {
+		t.Fatalf("message = %q", msg)
+	}
+	if rows := a.activity(); len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+func TestContract_INV12_AManyMatchHookIsABlockAndTheRowIsStillWritten(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	// leftmost-first alternation: the scan restarts after every match and reads to the end each time, so the number of matches is capped
+	a.fake.setAnswer(`{"why":"` + strings.Repeat("a ", 4000) + `","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`)
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Slow", "after_ai", "regex", `.*z|a`, "mask", "A is removed."), 200, "")
+	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	rows := a.activity()
+	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 || len(rows[0].Hooks) != 1 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	if c := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"]; c != nil {
+		t.Fatalf("stored: %v", c)
+	}
+}
+
+func TestContract_INV17_HooksThatRunOutOfTimeBlockTheAnswerAndTheRowIsStillWritten(t *testing.T) {
+	e := newEnv(t)
+	e.hookTimeout = time.Nanosecond // the after_ai pass has no time at all
+	e.svc = e.newService()
+	a := &api{env: e, h: e.handler(servertest.NewGate())}
+	a.withProfile()
+	a.want("POST", "/ai/hooks", "admin", hookJSON("Any", "after_ai", "keywords", "nomatch", "block", "abc"), 200, "")
+	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be checked") {
+		t.Fatalf("message = %q", msg)
+	}
+	rows := a.activity()
+	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	if rs := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"]; rs != nil {
+		t.Fatalf("an answer that was not checked was stored: %v", rs)
+	}
+	if v, err := a.svc.VerifyActivity(a.ctx()); err != nil || !v.OK {
+		t.Fatalf("the chain does not verify: %+v %v", v, err)
+	}
+}
+
+func TestHookTestRunsOutOfTimeAndRunsOneAtATime(t *testing.T) {
+	e := newEnv(t)
+	e.hookTimeout = time.Nanosecond
+	e.svc = e.newService()
+	a := &api{env: e, h: e.handler(servertest.NewGate())}
+	a.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai","hook":`+hookJSON("D", "before_ai", "keywords", "hello", "block", "abc")+`}`, 400, "invalid_text")
+	// a second test waits for the first and is turned away with 429 when it cannot get a turn
+	release := e.svc.HoldHookTest()
+	a.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai"}`, 429, "busy")
+	release()
+	e.hookTimeout = 0
+	e.svc = e.newService()
+	b := &api{env: e, h: e.handler(servertest.NewGate())}
+	b.want("POST", "/ai/hooks/test", "admin", `{"text":"hello","when":"before_ai"}`, 200, "")
+}
+
+// The upgrade path: a box that saved redact_pii=false before the switch existed was never unprotected (nothing enforced it), so
+// migration 0003 turns the switch on, and the service says so once at start-up.
+func TestUpgradeKeepsPersonalDataProtectionOnAndSaysSo(t *testing.T) {
+	db := storetest.New(t)
+	ctx := t.Context()
+	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	old := fstest.MapFS{}
+	for _, f := range []string{"0001_ai_settings.sql", "0002_ai_activity_results.sql"} {
+		raw, err := fs.ReadFile(ai.Migrations, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old[f] = &fstest.MapFile{Data: raw}
+	}
+	if err := store.Migrate(ctx, db, "ai", old); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO ai_setting (key, value, updated_at, updated_by) VALUES ('config', '{"tier":"med","daily_cap":60000,"redact_pii":false}', '2026-11-01T00:00:00.000Z', 'admin@acme.example')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Migrate(ctx, db, "ai", ai.Migrations); err != nil { // the upgrade
+		t.Fatal(err)
+	}
+	sec, _ := secrets.New([]byte("0123456789abcdef0123456789abcdef"))
+	var logs bytes.Buffer
+	cfg := ai.Config{DB: db, Secrets: sec, Audit: audit.New(time.Now), Log: slog.New(slog.NewTextHandler(&logs, nil))}
+	svc, err := ai.New(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !svc.Config().RedactPII {
+		t.Fatal("the upgrade left personal-data protection off")
+	}
+	if n := strings.Count(logs.String(), "redact_pii"); n != 1 || !strings.Contains(logs.String(), "level=INFO") {
+		t.Fatalf("log = %q", logs.String())
+	}
+	// once the admin saves the setting the stored value agrees, and the next start says nothing
+	if _, err := svc.SetConfig(ctx, "admin@acme.example", ai.Settings{Tier: ai.TierMed, DailyCap: 60000, RedactPII: true}); err != nil {
+		t.Fatal(err)
+	}
+	logs.Reset()
+	if _, err := ai.New(ctx, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(logs.String(), "redact_pii") {
+		t.Fatalf("a second start still says it: %q", logs.String())
+	}
+	// turning the switch off on the Hooks tab also changes the stored setting, so a later start does not mislead
+	if _, err := svc.SetBuiltinHook(ctx, "admin@acme.example", "block-pii", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetBuiltinHook(ctx, "admin@acme.example", "block-pii", true); err != nil {
+		t.Fatal(err)
+	}
+	logs.Reset()
+	if _, err := ai.New(ctx, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(logs.String(), "redact_pii") {
+		t.Fatalf("the stored setting went stale: %q", logs.String())
+	}
 }

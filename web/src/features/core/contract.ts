@@ -15,7 +15,7 @@ const Tier = z.enum(['core', 'standard', 'optional'])
 export const TwofaMethod = z.enum(['app', 'email']).describe('app = authenticator app (TOTP), email = 6-digit code sent to the sign-in email')
 
 // ---- nền ----
-export const Me = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, org: z.string(), twofa: z.boolean(), twofa_method: TwofaMethod.nullable() })
+export const Me = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, org: z.string(), twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), password_change_required: z.boolean().describe('The password was set by an administrator (D-180): until the user changes it, every call except GET /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the GUI shows the Choose a new password screen') })
 export const SetupStatus = z.object({ complete: z.boolean(), org: z.string(), data_mode: z.enum(['sample', 'clean']).describe('sample = trial build with sample data; clean = real install, every table starts empty') })
 export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
 export const EmailCodeSent = z.object({ sent_to: z.string().describe('Masked sign-in email, like a•••@acme.example'), resend_after: z.number().int().describe('Seconds before another code can be sent (60)') })
@@ -191,7 +191,7 @@ export const endpoints = defineEndpoints([
   // nền
   { method: 'get', path: '/me', summary: 'The signed-in user (401 when not signed in)', stories: ['S-CORE-3'], role: 'viewer', response: Me },
   { method: 'get', path: '/setup', summary: 'Whether first-run setup is done', stories: ['S-CORE-1'], role: 'public', response: SetupStatus },
-  { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required)', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: Ok },
+  { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180)', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: Ok },
   { method: 'post', path: '/auth/login/resend-code', summary: 'Send a new two-step email code during sign-in (needs the password again; 429 resend_too_soon within 60 s, too_many_codes after 5 per hour)', stories: ['S-CORE-3'], role: 'public', body: z.object({ email: z.string(), password: z.string() }), response: EmailCodeSent },
   { method: 'post', path: '/auth/logout', summary: 'Sign out', stories: ['S-CORE-3'], role: 'public', response: null },
   { method: 'get', path: '/modules', summary: 'On/off state of every module', stories: ['S-CORE-1'], role: 'viewer', response: ModulesResponse },
@@ -208,7 +208,7 @@ export const endpoints = defineEndpoints([
   // tài khoản
   { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
   { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },
-  { method: 'post', path: '/core/account/password', summary: 'Change password (needs the current password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ current: z.string(), next: z.string() }), response: Ok },
+  { method: 'post', path: '/core/account/password', summary: 'Change password (needs the current password). The same call ends the temporary-password limit of D-180: the new password must differ from the temporary one', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ current: z.string(), next: z.string() }), response: Ok },
   { method: 'post', path: '/core/account/2fa/start', summary: 'Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: TotpStart },
   { method: 'post', path: '/core/account/2fa/confirm', summary: 'Authenticator app: confirm the TOTP key with a 6-digit code to turn on two-step sign-in', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ code: z.string() }), response: Ok },
   { method: 'post', path: '/core/account/2fa/email/start', summary: 'Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: EmailCodeSent },
@@ -218,10 +218,10 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/core/account/sessions/revoke-others', summary: 'End all my other sessions', stories: ['S-CORE-3'], role: 'viewer', response: z.object({ ok: z.literal(true), revoked: z.number() }) },
   // người dùng, OIDC
   { method: 'get', path: '/core/users', summary: 'List users', stories: ['S-CORE-3'], role: 'admin', response: z.object({ items: z.array(AdminUser) }) },
-  { method: 'post', path: '/core/users', status: 201, summary: 'Create a user with a role; returns a temporary password once', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
+  { method: 'post', path: '/core/users', status: 201, summary: 'Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours (D-180)', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
   { method: 'patch', path: '/core/users/{id}', summary: 'Change role or disable/re-enable; blocks disabling yourself and removing the last administrator', stories: ['S-CORE-3'], role: 'admin',
     params: id, body: z.object({ role: Role.optional(), disabled: z.boolean().optional() }), response: z.object({ user: AdminUser }) },
-  { method: 'post', path: '/core/users/{id}/reset-password', summary: 'Reset password: temporary password once, ends all of that user\'s sessions', stories: ['S-CORE-3'], role: 'admin', params: id, response: z.object({ temp_password: z.string() }) },
+  { method: 'post', path: '/core/users/{id}/reset-password', summary: 'Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180), ends all of that user\'s sessions', stories: ['S-CORE-3'], role: 'admin', params: id, response: z.object({ temp_password: z.string() }) },
   { method: 'post', path: '/core/users/{id}/2fa/reset', summary: 'Reset two-step sign-in for a user who lost the phone or mailbox: turns it off and writes an audit entry (an administrator cannot reset their own)', stories: ['S-CORE-3'], role: 'admin', params: id, response: Ok },
   { method: 'get', path: '/core/oidc', summary: 'OIDC sign-in settings (secret shows only the last 4 characters)', stories: ['S-CORE-3'], role: 'admin', response: OidcConfig },
   { method: 'put', path: '/core/oidc', summary: 'Save OIDC settings', stories: ['S-CORE-3'], role: 'admin', body: OidcSave, response: OidcConfig },

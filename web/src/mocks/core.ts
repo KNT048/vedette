@@ -18,7 +18,7 @@ export const coreHandlers = [
   http.get(`${API}/me`, () => {
     const u = currentUser()
     if (!u) return fail(401, 'unauthenticated', 'Not signed in.')
-    return HttpResponse.json({ id: u.id, name: u.name, email: u.email, role: u.role, org: orgStore.get().name, twofa: u.twofa, twofa_method: twofaMethodOf(u) })
+    return HttpResponse.json({ id: u.id, name: u.name, email: u.email, role: u.role, org: orgStore.get().name, twofa: u.twofa, twofa_method: twofaMethodOf(u), password_change_required: !!u.temp_password_expires_at })
   }),
 
   http.get(`${API}/setup`, () => HttpResponse.json({ complete: orgStore.get().setup_complete, org: orgStore.get().name, data_mode: dataMode() })),
@@ -28,6 +28,11 @@ export const coreHandlers = [
     const email = String(b.email ?? '').trim().toLowerCase()
     const u = usersStore.get().find((x) => x.email === email && !x.disabled)
     if (!u || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
+    // D-180: a temporary password past its 72 hours is refused once it is proven right (before the two-step code, like the backend).
+    if (u.temp_password_expires_at && Date.parse(u.temp_password_expires_at) <= Date.now()) {
+      audit('auth.login_failed', u.email, 'temporary password expired')
+      return fail(400, 'temp_password_expired', 'This temporary password has expired. Ask an administrator for a new one.')
+    }
     // Xác thực hai lớp: đúng mật khẩu nhưng thiếu mã → 401 để trang đăng nhập hỏi mã; mã sai → 400.
     if (u.twofa) {
       const code = String(b.code ?? '').replace(/\s/g, '')

@@ -11,7 +11,7 @@ const page = (load: () => Promise<{ default: ComponentType }>) => () => load().t
 
 export const feature: Feature = {
   id: 'core',
-  publicRoutes: [{ path: 'setup', lazy: page(() => import('./SetupPage')) }],
+  publicRoutes: [{ path: 'setup', lazy: page(() => import('./SetupPage')) }, { path: 'change-password', lazy: page(() => import('./ChangePasswordPage')) }],
   routes: [
     {
       path: 'settings',

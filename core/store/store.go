@@ -312,31 +312,50 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	return nil
 }
 
+// ErrDamaged is a database that SQLite's own check finds broken.
+var ErrDamaged = errors.New("store: the database is damaged")
+
 // Check runs PRAGMA integrity_check and foreign_key_check (DATA_MODEL section 6 rule 7).
 func (db *DB) Check(ctx context.Context) error {
-	rows, err := db.r.QueryContext(ctx, "PRAGMA integrity_check")
+	if err := db.pragmaCheck(ctx, "integrity_check"); err != nil {
+		return err
+	}
+	return db.foreignKeyCheck(ctx)
+}
+
+// QuickCheck runs PRAGMA quick_check (at most 20 problems): the structure of every page and index, without the slow comparison of
+// index contents. The process runs it at start, before the migrations (D-87, host-api 6.11): a damaged database is refused (ErrDamaged),
+// so the program stops and the host's health check reverts to the snapshot instead of a box writing on top of the damage.
+func (db *DB) QuickCheck(ctx context.Context) error { return db.pragmaCheck(ctx, "quick_check(20)") }
+
+func (db *DB) pragmaCheck(ctx context.Context, pragma string) error {
+	name, _, _ := strings.Cut(pragma, "(")
+	rows, err := db.r.QueryContext(ctx, "PRAGMA "+pragma)
 	if err != nil {
-		return fmt.Errorf("store: integrity_check: %w", err)
+		return fmt.Errorf("store: %s: %w", name, err)
 	}
 	var problems []string
 	for rows.Next() {
 		var line string
 		if err := rows.Scan(&line); err != nil {
 			_ = rows.Close()
-			return fmt.Errorf("store: integrity_check: %w", err)
+			return fmt.Errorf("store: %s: %w", name, err)
 		}
 		if line != "ok" {
 			problems = append(problems, line)
 		}
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("store: integrity_check: %w", err)
+		return fmt.Errorf("store: %s: %w", name, err)
 	}
 	if len(problems) > 0 {
-		return fmt.Errorf("store: integrity_check failed: %s", strings.Join(problems, "; "))
+		return fmt.Errorf("%w: %s failed: %s", ErrDamaged, name, strings.Join(problems, "; "))
 	}
+	return nil
+}
 
-	rows, err = db.r.QueryContext(ctx, "PRAGMA foreign_key_check")
+func (db *DB) foreignKeyCheck(ctx context.Context) error {
+	rows, err := db.r.QueryContext(ctx, "PRAGMA foreign_key_check")
 	if err != nil {
 		return fmt.Errorf("store: foreign_key_check: %w", err)
 	}

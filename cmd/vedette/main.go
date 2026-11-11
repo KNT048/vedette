@@ -244,6 +244,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			log.ErrorContext(ctx, "closing the database failed", "error", err)
 		}
 	}()
+	// A damaged database stops the program before anything writes to it: the host's health check then reverts to the snapshot taken
+	// before an update (D-87, host-api 6.11). A newer schema is not refused: an older core runs on a newer database by design (INV-26, D-183).
+	if err := db.QuickCheck(ctx); err != nil {
+		log.ErrorContext(ctx, "the database failed SQLite's check; not starting", "error", err)
+		return err
+	}
 	// logs.db: the volume of the logs module (received lines), a database of its own with its own writer, next to the main one.
 	logsDB, err := store.Open(ctx, filepath.Join(filepath.Dir(o.db), "logs.db"), log)
 	if err != nil {

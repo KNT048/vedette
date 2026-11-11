@@ -72,7 +72,15 @@ EOT
 	case $s in running | degraded) ok "systemd is PID 1 ($s)" ;; *) fail "systemd did not come up: '$s'" ;; esac
 	"$c" cp "$art" "$ctr:/root/art" >/dev/null
 	"$c" cp install.sh "$ctr:/root/art/install.sh" >/dev/null # the script of the working tree, so that a change is checked without rebuilding the images
-	x 'chmod 0755 /root/art/install.sh /root/art/vedette-testchannel'
+	x 'chmod 0755 /root/art/install.sh /root/art/vedette-testchannel && chmod -R go-w /root/art'
+	# debian13 starts with chrony already installed and an administrator's line in its configuration: the installer must not touch either (M1)
+	prechrony=
+	if [ "$n" = debian13 ]; then
+		prechrony=1
+		x 'DEBIAN_FRONTEND=noninteractive apt-get update -q >/dev/null 2>&1 && DEBIAN_FRONTEND=noninteractive apt-get install -y -q chrony >/dev/null 2>&1 && echo "# the administrator was here" >>/etc/chrony/chrony.conf' || fail "cannot pre-install chrony"
+	fi
+	conf_sum() { x 'sha256sum /etc/chrony/chrony.conf 2>/dev/null || echo none'; }
+	chrony_conf_before=$(conf_sum)
 
 	# the state a box can be compared by: accounts, unit files, listening sockets, links, packages, files (volatile paths left out).
 	# Left out on purpose: the account _chrony and UDP 323. chronyd cannot be signalled inside a rootless container ("Permission denied"
@@ -82,6 +90,8 @@ EOT
 		echo "## passwd"; getent passwd | grep -v "^_chrony:" | sort; echo "## group"; getent group | grep -v "^_chrony:" | sort
 		echo "## units"; systemctl list-unit-files --no-legend --no-pager | awk "{print \$1, \$2}" | sort
 		echo "## sockets"; ss -H -ltnu | awk "{print \$1, \$5}" | grep -v ":323\$" | sort
+		echo "## sysctl"; cat /proc/sys/net/ipv4/ip_forward /proc/sys/net/ipv6/conf/all/forwarding
+		echo "## chrony.conf"; sha256sum /etc/chrony/chrony.conf 2>/dev/null || echo none
 		echo "## links"; ip -o link | awk "{print \$2}" | sort
 		echo "## netns"; ls /run/netns 2>/dev/null | sort
 		echo "## packages"; dpkg-query -W -f="\${binary:Package} \${Version}\n" | sort
@@ -105,12 +115,31 @@ EOT
 	x 'systemd-run -q --unit=vic-blocker /root/art/vedette-testchannel serve -dir /tmp -listen 127.0.0.1:8443 && sleep 1; sh /root/art/install.sh --test-artifacts /root/art; r=$?; systemctl stop vic-blocker; exit $r' >"$work/o.txt" 2>&1 && fail "a busy port 8443 was accepted"
 	grep -q 'port 8443 is already in use' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no busy-port message"; }
 	x 'sh /root/art/install.sh --bogus' >/dev/null 2>&1 && fail "an unknown option was accepted"
+	# a release script (version filled in) never installs test artifacts (M3)
+	x 'sed "s/^VEDETTE_VERSION=\"\"/VEDETTE_VERSION=\"1.2.3\"/" /root/art/install.sh >/root/rel.sh; sh /root/rel.sh --test-artifacts /root/art; r=$?; rm -f /root/rel.sh; exit $r' >"$work/o.txt" 2>&1 && fail "a release install.sh accepted --test-artifacts"
+	grep -q 'never installs test artifacts' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no 'never installs test artifacts' message"; }
+	# the test folder must be root's and closed (L2)
+	x 'chmod g+w /root/art/index.json; sh /root/art/install.sh --test-artifacts /root/art; r=$?; chmod g-w /root/art/index.json; exit $r' >"$work/o.txt" 2>&1 && fail "a group-writable test folder was accepted"
+	grep -q 'writable by group or others' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no 'writable by group or others' message"; }
+	# a test mirror left behind by a killed run is removed by the next run of either channel (M4); registries.conf.d is not ours, so its folder goes again
+	x 'mkdir -p /etc/containers/registries.conf.d && echo "# stale" >/etc/containers/registries.conf.d/vedette-test-mirror.conf; sh /root/art/install.sh >/dev/null 2>&1; r=$?; rmdir -p /etc/containers/registries.conf.d 2>/dev/null; exit 0'
+	x '! test -e /etc/containers/registries.conf.d/vedette-test-mirror.conf' || fail "a stale test mirror was not removed"
 	snap_files "$work/$n.refused"
 	same "$work/$n.before" "$work/$n.refused" "a refused install changed the box"
-	ok "refusals (no release, unsupported OS, busy port 8443, bad option) change nothing"
+	ok "refusals (no release, unsupported OS, busy port 8443, bad option, release script + test folder, open test folder, stale mirror) change nothing"
 
-	# ---- fresh install -------------------------------------------------------------------------------------------------
-	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install.log" 2>&1 || { tail -40 "$work/install.log" >&2; fail "the install failed"; }
+	# ---- an install that stops half way is repaired by the next run (H1) ------------------------------------------------
+	x 'cp -a /root/art /root/art-bad && cd /root/art-bad && printf x >>index.json.minisig && grep -v " registry/" SHA256SUMS | grep -v " index.json.minisig\$" >/root/s && sha256sum index.json.minisig >>/root/s && grep " registry/" SHA256SUMS >>/root/s && cp /root/s SHA256SUMS && rm /root/s'
+	x 'sh /root/art-bad/install.sh --test-artifacts /root/art-bad' >"$work/half.log" 2>&1 && fail "an install with a bad signature succeeded"
+	grep -q 'refused the release' "$work/half.log" || { tail -20 "$work/half.log" >&2; fail "the bad signature was not refused by vedette-host"; }
+	x 'test -s /var/lib/vedette-install/owner && test -f /etc/vedette/host.conf && dpkg -s vedette-host >/dev/null 2>&1' || fail "the half install left no marker, host.conf or package: nothing to repair"
+	x '! test -e /etc/containers/registries.conf.d/vedette-test-mirror.conf && ! systemctl is-active -q vedette-testregistry.service' || fail "the failed install left its mirror or registry"
+	x 'rm -rf /root/art-bad'
+	ok "H1: an install that stopped after the package and host.conf left our marker; mirror and registry are gone"
+
+	# ---- fresh install (the re-run of the half install) ------------------------------------------------------------------
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install.log" 2>&1 || { tail -40 "$work/install.log" >&2; fail "the re-run after the half install failed"; }
+	ok "H1: the re-run after the half install succeeded (no 'another Vedette install' refusal)"
 	grep -q 'TEST INSTALL - NOT FOR CUSTOMERS' "$work/install.log" || fail "no test-install warning in the output"
 	code=$(sed -n 's/.*setup code:  \([A-Z0-9-]*\).*/\1/p' "$work/install.log" | head -n 1)
 	printf '%s' "$code" | grep -Eq '^[A-HJ-NP-Z2-9]{5}(-[A-HJ-NP-Z2-9]{5}){3}$' || { tail -15 "$work/install.log" >&2; fail "no setup code in the output"; }
@@ -132,9 +161,21 @@ EOT
 	x 'grep -qx "Subnet=172.30.77.0/24" /etc/containers/systemd/vedette-int.network' || fail "vedette-int.network has no subnet"
 	[ "$(x 'podman network inspect vedette-int --format "{{range .Subnets}}{{.Subnet}}{{end}}"')" = 172.30.77.0/24 ] || fail "podman's vedette-int is not on the subnet of the file"
 	ok "vedette-int on 172.30.77.0/24 (no clash on this box); the file and podman agree"
-	x '[ "$(chronyc -n -c sources | wc -l)" -gt 0 ] || [ -s /etc/chrony/sources.d/vedette.sources ]' || fail "chrony has no source"
-	x 'grep -qx "sourcedir /etc/chrony/sources.d" /etc/chrony/chrony.conf && ! grep -Eq "^(pool|server) " /etc/chrony/chrony.conf' || fail "chrony.conf is not the one of D-106"
-	ok "chrony: chrony.conf has sourcedir only (no distro pool); vedette.sources written"
+	[ "$(conf_sum)" != none ] || fail "no chrony.conf after the install"
+	if [ -n "$prechrony" ]; then
+		[ "$(conf_sum)" = "$chrony_conf_before" ] || fail "the administrator's chrony.conf was changed (M1)"
+		x 'grep -qx "# the administrator was here" /etc/chrony/chrony.conf' || fail "the administrator's line is gone from chrony.conf"
+		x '! grep -qx chrony /var/lib/vedette-install/asked-packages' || fail "chrony was installed by the administrator and is recorded as ours"
+		ok "M1: the administrator's chrony.conf is byte for byte the same; chrony is not recorded as ours"
+	else
+		x '! dpkg -V chrony 2>&1 | grep -q "/etc/chrony/chrony.conf"' || fail "the distribution's chrony.conf was changed"
+		x '! test -e /etc/chrony/sources.d/vedette.sources' || fail "the installer wrote vedette.sources (it belongs to vedette-host)"
+		ok "M1: chrony.conf is the distribution's (dpkg -V is clean) and the installer wrote no vedette.sources"
+	fi
+	# a customer run over a test install is refused and says why (M3)
+	x 'sh /root/art/install.sh' >"$work/o.txt" 2>&1 && fail "a customer run over a test install was accepted"
+	grep -q 'has a test install of Vedette' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no 'has a test install' message"; }
+	ok "M3: a customer run over a test install is refused"
 	x '! test -e /etc/containers/registries.conf.d/vedette-test-mirror.conf && ! systemctl is-active -q vedette-testregistry.service' || fail "the test mirror or the test registry was left behind"
 	ok "the test mirror and the test registry are gone after the install"
 	x 'test ! -e /etc/netplan/90-vedette.yaml && test ! -e /etc/cloud/cloud.cfg.d/99-vedette-network.cfg' || fail "the network was handed over without --network-handover"
@@ -165,6 +206,25 @@ EOT
 	same "$work/$n.before" "$work/$n.after" "after --uninstall the box is not as before (diff above)"
 	x '! ss -H -ltn | grep -Eq "[:.](8443|8444)\$" && ! getent passwd vedette vedette-sensor >/dev/null && ! getent group vedette vedette-sensor >/dev/null && ! test -e /etc/vedette && ! test -e /var/lib/vedette && ! test -e /etc/containers/systemd/vedette-core.container' || fail "something of Vedette is left"
 	ok "uninstall: users, groups, units, listening sockets, links, namespaces, packages and files are exactly as before; 8443 and 8444 closed"
+
+	# ---- H2: a package somebody installed on top of ours keeps ours; netavark's nft tables are gone ------------------------
+	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
+	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
+	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/dev/null 2>&1' || fail "cannot install ufw (it depends on iptables, which the installer added)"
+	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un2.log" 2>&1 || { tail -40 "$work/un2.log" >&2; fail "--uninstall --yes failed in the H2 cycle"; }
+	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
+	x '! dpkg -s podman >/dev/null 2>&1 && ! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left podman or vedette-host"
+	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables and removed podman and vedette-host"
+	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends nftables >/dev/null 2>&1' || fail "cannot install nftables to look at the tables"
+	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
+	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
+	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot
+	# shellcheck disable=SC2046 # package names, one word each
+	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1" || fail "cannot remove the test packages again"
+	snap_files "$work/$n.after2"
+	same "$work/$n.before" "$work/$n.after2" "after the H2 cycle and the removal of the test packages the box is not as before"
+	ok "the H2 cycle ends with the box as before (users, units, sockets, forwarding sysctl, packages, files)"
 	"$c" rm -f -t 0 "$ctr" >/dev/null
 	"$c" volume rm -f "vic-$n-containers" >/dev/null 2>&1 || true
 	"$c" rmi -f "localhost/vedette-installcheck-$n:check" >/dev/null 2>&1 || true

@@ -88,7 +88,20 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | iproute2 (`ip`) | GPL-2.0 | appliance only: OS package; `vedette-host` runs `ip` with fixed argv to build the decoy namespace `vedette-hp` and its macvlan links (D-102) |
 | nftables (`nft`) | GPL-2.0 (some files GPL-2.0-or-later) | appliance only: OS package; `vedette-host` loads one constant ruleset inside `vedette-hp` and lists it to check the effect (D-102) |
 | procps (`sysctl`) | GPL-2.0-or-later (`sysctl`), LGPL-2.1-or-later (library) | appliance only: OS package; `vedette-host` runs `sysctl -w` with constant keys and values inside `vedette-hp` (D-102) |
-| chrony (`chronyd`, `chronyc`) | GPL-2.0 | appliance only: installed by the installer, which owns `chrony.conf`; `vedette-host` writes `/etc/chrony/sources.d/vedette.sources` and runs `chronyc` (D-106) |
+| chrony (`chronyd`, `chronyc`) | GPL-2.0 | appliance only: installed by the installer only when missing, with the distribution's own `chrony.conf` left as it is (D-166); `vedette-host` writes `/etc/chrony/sources.d/vedette.sources` and runs `chronyc` (D-106) |
+
+Packages that `install.sh` asks apt for when they are missing (WP-08h, D-166). All come from the distribution's own repository, run as separate processes, are never redistributed by the project, and are removed again by `install.sh --uninstall` when nothing else needs them:
+
+| Component | License | How it is used |
+|---|---|---|
+| iptables | GPL-2.0-or-later | appliance only: OS package; netavark (Podman's network backend, Ubuntu 24.04) programs the container firewall through it; Vedette never runs it |
+| netavark | Apache-2.0 | appliance only: OS package; Podman's container network backend, creates the `vedette-int` network and the port forwards of core |
+| aardvark-dns | Apache-2.0 | appliance only: OS package; Podman's DNS for container networks (netavark companion) |
+| catatonit | GPL-2.0-or-later | appliance only: OS package; the init process Podman runs for the `scan` container (`--init`, D-113) |
+| unattended-upgrades | GPL-2.0-or-later | appliance only: OS package (a dependency of the `vedette-host` package); `vedette-host` writes its apt configuration (D-53) |
+| curl | curl license (MIT-style) | appliance only: OS package; `install.sh` downloads the release files and waits for core with it |
+| ca-certificates | GPL-2.0-or-later (scripts), MPL-2.0 (the Mozilla certificate bundle) | appliance only: OS package; the trust roots for the downloads of `install.sh` and Podman |
+| passwd (`useradd`, `groupadd`) | BSD-3-Clause / GPL-2.0-or-later (shadow) | appliance only: OS package; the `vedette-host` package's postinst makes the users `vedette` and `vedette-sensor` with it |
 
 The GPL tools above are separate programs from the distribution, run through `core/exec` with fixed argv; nothing from them is linked into or redistributed with Vedette (rule `legal.md`: GPL/AGPL is never embedded). Licences checked from the Debian copyright files (`metadata.ftp-master.debian.org/changelogs/main/…/stable_copyright`) on 2026-11-10.
 

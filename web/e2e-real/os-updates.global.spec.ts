@@ -61,7 +61,7 @@ test('a box that was never checked says so in words and with the right code, and
   expect(st.body.error.code).toBe('no_check_yet')
   await open(page)
   await expect(h1(page)).toBeVisible()
-  await expect(page.getByRole('alert').filter({ hasText: st.body.error.message })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: st.body.error.message }), 'not an error: the box just has not looked yet (#247)').toBeVisible()
   await shot(page, 'real', 'os-never-checked')
   await noVietnamese(page, 'updates before the first check')
   noErrors(errors, /status of 4\d\d/)

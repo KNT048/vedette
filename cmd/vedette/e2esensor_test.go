@@ -5,14 +5,14 @@ package main
 //
 //	POST   /sensors/passive {"replay":"lan-discovery"}  -> 204; `vedette-sensor passive -replay <recording>` (the recordings of
 //	                                                       modules/sensor-passive/testdata; no card, no capture rights needed)
-//	POST   /sensors/active  {"nmap":"fake"}             -> 204; `vedette-sensor active -nmap <fake nmap>`; the fake scans nothing: it answers
+//	POST   /sensors/active  {}                          -> 204; `vedette-sensor active -nmap <fake nmap>`; the fake scans nothing: it answers
 //	                                                       from the fixtures of modules/sensor-active/testdata by the shape of its argv (below)
 //	DELETE /sensors/{role}                              -> 204; stops that child (a missing child is not an error)
 //	GET    /sensors/active/argv                         -> {"lines": ["<argv of one nmap run>", ...]}, every run the fake nmap saw, oldest first
 //
 // The fake nmap: `--version` answers like nmap; "-sn" (the sweep) prints sweep.xml; "-T2" (the gentle first scan of a fragile or unknown
 // device, INV-5) prints fragile.xml; anything else prints device.xml. sweep.xml also holds 203.0.113.9, which is outside every private
-// range and must never reach the inventory (INV-1, INV-7: core keeps only the targets it asked for). Every run appends its argv to a
+// range and must never be an argument of nmap or a device (INV-1: core sends only addresses of the confirmed range; and it keeps only the hosts it asked about). Every run appends its argv to a
 // file first, so a spec can prove what the box actually sent.
 //
 // Everything here is a _test.go file: the production binary has none of it. The children are in the box's process group, so the
@@ -54,9 +54,11 @@ type e2eSensors struct {
 	dir   string // the box folder: creds, the fake nmap and its argv log
 	creds string
 
+	ctl  sync.Mutex // one start or stop at a time: the stop-then-start of a role must not interleave with another call
 	mu   sync.Mutex
 	addr string // the sensor link's address, "" until the box logs it
 	kids map[string]*e2eKid
+	nmap string // the fake nmap, written once (a running sensor may be executing it)
 }
 
 type e2eKid struct {
@@ -77,8 +79,13 @@ func (s *e2eSensors) linkUp(addr string) {
 
 func (s *e2eSensors) argvLog() string { return filepath.Join(s.dir, "nmap-argv.log") }
 
-// fakeNmap writes the fake nmap script once and returns its path.
+// fakeNmap writes the fake nmap script on first use and returns its path.
 func (s *e2eSensors) fakeNmap() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.nmap != "" {
+		return s.nmap, nil
+	}
 	root := filepath.Join(e2eRepoRoot(), "modules", "sensor-active", "testdata")
 	// A device scan (one target, the last argument) is answered with the fixture re-addressed to that target, so the result is about the
 	// device that was asked for (core keeps only the targets it asked for, INV-7): device.xml is a Linux server with ssh and two web
@@ -94,18 +101,24 @@ case " $* " in
 esac
 `, s.argvLog(), root)
 	path := filepath.Join(s.dir, "fake-nmap")
-	return path, os.WriteFile(path, []byte(body), 0o700) //nolint:gosec // a fake program must be executable
+	if err := os.WriteFile(path, []byte(body), 0o700); err != nil { //nolint:gosec // a fake program must be executable
+		return "", err
+	}
+	s.nmap = path
+	return path, nil
 }
 
 // start (re)starts the sensor of role with its own arguments.
 func (s *e2eSensors) start(role string, extra []string) error {
+	s.ctl.Lock()
+	defer s.ctl.Unlock()
 	s.mu.Lock()
 	addr := s.addr
 	s.mu.Unlock()
 	if addr == "" {
 		return fmt.Errorf("the sensor link is not listening yet")
 	}
-	s.stop(role)
+	s.stopLocked(role)
 	logf, err := os.OpenFile(filepath.Join(s.dir, "sensor-"+role+".log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) //nolint:gosec // test harness: the folder is the one the script made
 	if err != nil {
 		return err
@@ -127,6 +140,12 @@ func (s *e2eSensors) start(role string, extra []string) error {
 }
 
 func (s *e2eSensors) stop(role string) {
+	s.ctl.Lock()
+	defer s.ctl.Unlock()
+	s.stopLocked(role)
+}
+
+func (s *e2eSensors) stopLocked(role string) {
 	s.mu.Lock()
 	k := s.kids[role]
 	delete(s.kids, role)

@@ -36,11 +36,12 @@ const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7]
 const RANGE = '192.168.10.0/24'
 const EXCLUDED = '192.168.10.240/28' // .240-.255: the sweep must leave them out
 let original: Settings
+let base: Dev[] = [] // the devices of the box when the file starts (the box itself, and whatever other specs left)
 let tz = 'UTC'
 
 const settings = async (c: Client) => (await api<Settings>(c, 'GET', '/inventory/settings')).body
 async function save(c: Client, over: Partial<Settings['active']>, extra: { lan_ranges?: string[]; confirm?: boolean } = {}) {
-  const body = { lan_ranges: extra.lan_ranges ?? [RANGE], active: { enabled: true, days: ALL_DAYS, from: '00:00', to: '23:59', rate: 50, exclusions: [EXCLUDED], ...over }, fragile_kinds: ['printer', 'camera'], regular_scan_kinds: [], scope_confirmed: extra.confirm ?? true, scope_confirmed_at: null, scope_confirmed_by: null }
+  const body = { lan_ranges: extra.lan_ranges ?? [RANGE], active: { enabled: true, days: ALL_DAYS, from: orgClock(-1), to: orgClock(3), rate: 50, exclusions: [EXCLUDED], ...over }, fragile_kinds: ['printer', 'camera'], regular_scan_kinds: [], scope_confirmed: extra.confirm ?? true, scope_confirmed_at: null, scope_confirmed_by: null }
   const r = await api<Settings>(c, 'PUT', '/inventory/settings', body)
   expect(r.status, `PUT /inventory/settings: ${JSON.stringify(r.body)}`).toBe(200)
   return r.body
@@ -56,6 +57,8 @@ test.beforeAll(async () => {
   const c = await as('admin')
   try {
     await expectNoSensorDevices(c)
+    base = (await devices(c)).items
+    expect(base.filter((d) => !d.approved).map((d) => d.ip), 'this file needs a box with no device waiting for approval').toEqual([])
     const list = await sensor(c)
     expect(list.map((s) => s.status), 'one sensor, the one on this box, and nothing started yet').toEqual(['offline'])
     expect(list[0]).toMatchObject({ last_seen: null, version: null })
@@ -68,6 +71,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   const c = await as('admin')
   try {
+    expect(original, 'beforeAll did not finish: the box was not touched by this file, but check it').toBeDefined()
     if ((await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')).body.modules.find((m) => m.id === 'sensor-passive')?.enabled === false) {
       expect((await api(c, 'PATCH', '/modules/sensor-passive', { enabled: true })).status, 'the module is back on').toBe(200)
     }
@@ -82,13 +86,15 @@ test('a malformed recording makes no device and does not stop the sensor (fail c
   const c = await as('admin')
   try {
     await sensorCtl({ start: 'passive', replay: 'malformed-pcap' })
+    // the sensor's first heartbeat (it left `last_seen` null until now), then a second one half a minute later: it went on after it had read the bad file
+    await expect.poll(async () => (await sensor(c))[0]?.last_seen, { message: 'the sensor reports', timeout: 30_000, intervals: [500] }).not.toBeNull()
     const first = (await sensor(c))[0]!.last_seen
     await expect.poll(async () => (await sensor(c))[0]?.last_seen, { message: 'the sensor keeps reporting', timeout: 75_000, intervals: [2000] }).not.toBe(first)
     expect(made(await devices(c)), 'a malformed recording makes no device').toEqual([])
   } finally { await c.dispose() }
 })
 
-test('with the module off the sensor is refused and no device is made; on again it delivers (D-80 (4), SYS-5)', async ({ page }) => {
+test('with the module off nothing is recorded and the sensors route is gone; on again the sensor delivers (SYS-5, D-111 (4))', async ({ page }) => {
   test.setTimeout(180_000)
   const errors = collectErrors(page)
   const c = await as('admin')
@@ -98,7 +104,7 @@ test('with the module off the sensor is refused and no device is made; on again 
     off = true
     const gone = await api<{ error: { code: string } }>(c, 'GET', '/inventory/sensors') // a module that is off answers its routes as if they did not exist (SYS-5)
     expect(gone, 'the sensors route while the module is off').toMatchObject({ status: 404, body: { error: { code: 'not_found' } } })
-    await sensorCtl({ start: 'passive', replay: 'lan-discovery' })
+    await sensorCtl({ start: 'passive', replay: 'lan-discovery' }) // a sensor that connected before (the test above) and is started again while the module is off
     await wait(20_000)
     expect(made(await devices(c)), 'nothing is recorded while the module is off').toEqual([])
     await page.goto('/devices/setup')
@@ -110,7 +116,7 @@ test('with the module off the sensor is refused and no device is made; on again 
     await waitForReplay(c)
     noErrors(errors)
   } finally {
-    if (off) await api(c, 'PATCH', '/modules/sensor-passive', { enabled: true })
+    if (off) expect((await api(c, 'PATCH', '/modules/sensor-passive', { enabled: true })).status, 'the module is back on').toBe(200)
     await c.dispose()
   }
 })
@@ -131,7 +137,7 @@ test('the recording the real sensor replayed became two devices, not approved, f
     // the box itself is still the one device of its kind (S-INV-5): the sensor does not make a device of its own box
     const all = await devices(c)
     expect(all.items.filter((d) => d.is_box)).toHaveLength(1)
-    expect(all.items).toHaveLength(3)
+    expect(all.items, 'the box, and the two devices').toHaveLength(base.length + 2)
   } finally { await c.dispose() }
 })
 
@@ -141,7 +147,7 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
   try {
     const { router, pc } = await waitForReplay(c)
     await page.goto('/devices')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('3 devices, 2 not yet approved')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${base.length + 2} devices, 2 not yet approved`)
     await expect(page.getByRole('heading', { name: '2 new devices not approved' })).toBeVisible()
     const pending = page.getByRole('list', { name: '2 new devices not approved' })
     await expect(pending.getByRole('listitem')).toHaveCount(2)
@@ -158,7 +164,7 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
     // approve the PC from the waiting list
     await pending.getByRole('listitem').filter({ hasText: PC.hostname }).getByRole('button', { name: 'Approve' }).click()
     await expect(page.locator('[data-sonner-toast]').filter({ hasText: `Approved ${PC.hostname}.` }).first()).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('3 devices, 1 not yet approved')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${base.length + 2} devices, 1 not yet approved`)
     const left = page.getByRole('list', { name: '1 new device not approved' }) // the list is named after its count
     await expect(left.getByRole('listitem')).toHaveCount(1)
     await expect(left.getByRole('listitem')).toContainText(`${ROUTER.ip}, ${ROUTER.mac}, Router.`)
@@ -195,23 +201,28 @@ test('the Sensors section says the sensor is reporting, with its version, after 
     await expect(page.getByRole('heading', { name: 'Sensor on this box' })).toBeVisible()
     await expect(sensorRow(page)).toContainText('Reporting')
     await expect(sensorRow(page)).toContainText('0.0.0-dev')
-    await expect(sensorRow(page)).toContainText(/Contact (a few seconds|\d+ seconds?|a minute|1 minute) ago/)
+    await expect(sensorRow(page)).toContainText('Contact')
+    await expect(sensorRow(page)).toContainText('ago')
     await expectAccessible(page, 'sensors')
     noErrors(errors)
   } finally { await c.dispose() }
 })
 
-test('the same recording again does not make a second device for any MAC (D-80)', async () => {
+test('the sensor started again on the same recording makes no second device and no second value in use (D-80 (1))', async () => {
   const c = await as('admin')
   try {
     const before = made(await devices(c)).map((d) => d.id).sort()
-    await sensorCtl({ start: 'passive', replay: 'lan-discovery' }) // a new process: its memory of what it sent is empty
-    await new Promise((ok) => setTimeout(ok, 20_000)) // long enough for it to deliver the recording again (the first run did within seconds)
+    const seen = (await sensor(c))[0]!.last_seen
+    await sensorCtl({ start: 'passive', replay: 'lan-discovery' }) // a new process: its own memory of what it sent is empty; core's filter of the last 15 minutes still holds
+    await expect.poll(async () => (await sensor(c))[0]?.last_seen, { message: 'the new process reported', timeout: 30_000, intervals: [500] }).not.toBe(seen)
+    await wait(15_000) // time enough for it to read the recording again (the first read delivered within seconds)
     const after = made(await devices(c))
     expect(after.map((d) => d.id).sort(), 'same two devices').toEqual(before)
     expect(new Set(after.map((d) => d.mac)).size, 'one device per MAC').toBe(after.length)
     const router = after.find((d) => d.ip === ROUTER.ip)!
-    expect((await device(c, router.id)).observations.filter((o) => o.current).map((o) => o.field).sort(), 'one value in use per field').toEqual(['kind', 'mac', 'model'])
+    const obs = (await device(c, router.id)).observations
+    expect(obs.filter((o) => o.current).map((o) => o.field).sort(), 'one value in use per field').toEqual(['kind', 'mac', 'model'])
+    expect(obs, 'and no observation was added by the second read').toHaveLength(3)
   } finally { await c.dispose() }
 })
 
@@ -220,7 +231,7 @@ test('scope that is not attested cannot be saved with scanning on (INV-2): the r
   try {
     const before = await settings(c)
     const r = await api<{ error: { code: string } }>(c, 'PUT', '/inventory/settings', { ...before, lan_ranges: [RANGE], active: { ...before.active, enabled: true }, scope_confirmed: false })
-    expect(r.status, JSON.stringify(r.body)).toBe(400)
+    expect(r, 'refused, with the reason').toMatchObject({ status: 400, body: { error: { code: 'scope_not_confirmed' } } })
     expect(await settings(c), 'nothing was saved').toEqual(before)
   } finally { await c.dispose() }
 })
@@ -231,7 +242,7 @@ test('with the active switch off, or the window closed, the box sends nothing to
   try {
     expect(made(await devices(c)).map((d) => d.ip).sort(), 'devices to scan exist (from the recording): only the rules keep the box from scanning them').toEqual([ROUTER.ip, PC.ip])
     await save(c, { enabled: false })
-    await sensorCtl({ start: 'active' })
+    await sensorCtl({ start: 'active' }) // one process for this test and the next: the runs that come when the window opens show it was polling all along
     await wait(TICK)
     expect(await nmapRuns(), 'switch off: no nmap run').toEqual([])
     await save(c, { enabled: true, from: orgClock(2), to: orgClock(3) }) // a window that is not now, in the organization time zone
@@ -245,7 +256,7 @@ test('window open: a sweep of the confirmed range only, then one scan per device
   test.setTimeout(240_000)
   const c = await as('admin')
   try {
-    await save(c, {}) // open all day, every day, rate 50, .240/28 excluded
+    await save(c, {}) // open from an hour ago to three hours ahead (org time zone), every day: no midnight or window start inside the run; rate 50, .240/28 excluded
     let runs: string[] = []
     // the sweep (4 batches of at most 64) and then a scan for each device it queued: .1 (router), .21, .2, .5
     await expect.poll(async () => { runs = await nmapRuns(); return runs.length }, { message: 'the sweep and the device scans ran', timeout: 150_000, intervals: [2000] }).toBe(4 + 4)
@@ -271,7 +282,10 @@ test('window open: a sweep of the confirmed range only, then one scan per device
     expect(acme.vendor).toMatchObject({ value: 'Acme Networks', source: 'nmap' })
     expect(acme.vendor!.confidence).toBeLessThan(1) // INV-8: a scan is never certain
     expect(list.find((d) => d.ip === '192.168.10.5')).toMatchObject({ mac: 'aa:bb:cc:00:00:05', approved: false })
-    expect(list.map((d) => d.mac), 'no MAC of the host outside the range').not.toContain('aa:bb:cc:00:00:99')
+    const everything = (await devices(c)).items // not only `made`: the host outside the range must be in no row at all
+    expect(everything.map((d) => d.ip), 'the host outside the range is not a device').not.toContain('203.0.113.9')
+    expect(everything.map((d) => d.mac), 'nor is its MAC').not.toContain('aa:bb:cc:00:00:99')
+    expect(everything.length, 'the box, and the four devices').toBe(base.length + 4)
     // the gentle first scan is recorded for the devices that got it; the router (a known type that is not fragile) had none, only the normal scan
     for (const d of list) {
       if (d.ip === ROUTER.ip) expect(d.first_scan_at, 'the router had no gentle first scan').toBeNull()

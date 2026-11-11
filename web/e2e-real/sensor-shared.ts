@@ -1,4 +1,4 @@
-// Shared by sensor-passive.global.spec.ts and sensor-active.global.spec.ts (WP-30 slice 7): the devices the sensors make, and giving the box back.
+// Shared by sensors.global.spec.ts (WP-30 slice 7): the devices the sensors make, and giving the box back.
 // The passive sensor is the REAL `vedette-sensor passive` replaying modules/sensor-passive/testdata/lan-discovery.pcap; the active one is the REAL
 // `vedette-sensor active` with a fake nmap (cmd/vedette/e2esensor_test.go). Both are started through the control endpoint (box.ts: sensorCtl).
 import { expect, type APIRequestContext } from '@playwright/test'
@@ -11,6 +11,7 @@ export interface Dev {
   id: string; ip: string; mac: string | null; kind: string; hostname: string | null; approved: boolean; is_box: boolean; first_scan_at: string | null; origin: string
   vendor: { value: string; source: string; confidence: number } | null; model: { value: string; source: string; confidence: number } | null; os: { value: string; source: string; confidence: number } | null
   summary: { source: string; confidence: number } | null; services: Svc[]
+  software: { display: string; source: string; confidence: number }[]
 }
 export interface DevList { items: Dev[]; counts: { all: number; pending: number }; notify_new: boolean }
 
@@ -38,12 +39,16 @@ export const made = (l: DevList) => l.items.filter((d) => !d.is_box && (inRange(
 export async function expectNoSensorDevices(c: APIRequestContext) {
   expect(made(await devices(c)).map((d) => `${d.ip} ${d.mac}`), 'this file needs a box with no device from the replayed recording or the fake scan').toEqual([])
 }
-/** Stops both sensors and removes every device they made, checking every status, then reads the list back. Safe to call twice. */
+/** Stops both sensors, resolves the "unknown device" alerts of the devices they made, removes those devices, checking every status, then reads the list back. Safe to call twice. */
 export async function giveBack(c: APIRequestContext) {
   for (const role of ['passive', 'active'] as const) await sensorCtl({ stop: role })
-  for (const d of made(await devices(c))) {
-    const st = (await api(c, 'DELETE', `/inventory/devices/${d.id}`)).status
-    expect([200, 204, 404], `cleanup of device ${d.ip}`).toContain(st)
+  const gone = made(await devices(c))
+  const ids = new Set(gone.map((d) => d.id))
+  const incidents = await api<{ incidents: { id: string; status: string; devices: { id: string }[] }[] }>(c, 'GET', '/notify/incidents')
+  expect(incidents.status, 'GET /notify/incidents').toBe(200)
+  for (const i of incidents.body.incidents.filter((x) => x.status !== 'resolved' && x.devices.some((d) => ids.has(d.id)))) {
+    expect((await api(c, 'PATCH', `/notify/incidents/${i.id}`, { status: 'resolved', note: 'e2e: the device was removed again' })).status, `resolve incident ${i.id}`).toBe(200)
   }
+  for (const d of gone) expect((await api(c, 'DELETE', `/inventory/devices/${d.id}`)).status, `cleanup of device ${d.ip}`).toBe(204)
   expect(made(await devices(c)).map((d) => d.ip), 'the devices of the sensors are gone').toEqual([])
 }

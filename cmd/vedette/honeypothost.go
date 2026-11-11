@@ -100,7 +100,9 @@ func (h *honeypotHost) Status(ctx context.Context) (honeypot.HostStatus, error) 
 	case errors.Is(err, hostclient.ErrUnreachable) && errors.Is(err, fs.ErrNotExist):
 		return honeypot.HostStatus{Reason: notApplianceReason}, nil
 	case errors.Is(err, hostclient.ErrUnreachable), errors.Is(err, hostclient.ErrDenied):
-		h.warn(ctx, "answering", "honeypot: vedette-host is not answering", "error", err)
+		if h.warnDue("answering") {
+			h.log.WarnContext(ctx, "honeypot: vedette-host is not answering", "error", err)
+		}
 		return honeypot.HostStatus{Reason: "vedette-host is not answering"}, nil
 	default:
 		return honeypot.HostStatus{}, fmt.Errorf("honeypot: host state: %w", err)
@@ -263,7 +265,9 @@ func (h *honeypotHost) do(ctx context.Context, command string, args any, ok stri
 		}
 		return h.outcome(ctx, command, run.Error.Code, run.Error.Message)
 	}
-	h.warn(ctx, command+" ended", "honeypot: a host run ended without a result", "command", command, "status", string(run.Status))
+	if h.warnDue(command + " ended") {
+		h.log.WarnContext(ctx, "honeypot: a host run ended without a result", "command", command, "status", string(run.Status))
+	}
 	return fmt.Errorf("honeypot: %s ended %s with no result; outcome unknown, will check again at the next apply", command, run.Status)
 }
 
@@ -274,7 +278,9 @@ func (h *honeypotHost) do(ctx context.Context, command string, args any, ok stri
 func (h *honeypotHost) outcome(ctx context.Context, command, code, hostMsg string) error {
 	switch code {
 	case api.CodeHostRestarted, api.CodeShuttingDown, api.CodeTimeout, api.CodeCommandFailed, api.CodeInternal:
-		h.warn(ctx, command+" "+code, "honeypot: a host run was cut off; outcome unknown", "command", command, "code", code, "message", hostMsg)
+		if h.warnDue(command + " " + code) {
+			h.log.WarnContext(ctx, "honeypot: a host run was cut off; outcome unknown", "command", command, "code", code, "message", hostMsg)
+		}
 		return fmt.Errorf("honeypot: %s was cut off (%s); outcome unknown, will check again at the next apply", command, code)
 	case api.CodePendingConfirm, api.CodeNetPendingConfirm, api.CodeInstallInProgress:
 		return errHostBusy
@@ -365,7 +371,9 @@ func (e refusedError) Is(target error) bool { return target == honeypot.ErrRefus
 // refusal logs what the host said (its text is not for the user) and returns a plain sentence with the code: the module
 // shows the text beside the address it could not place.
 func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg string) error {
-	h.warn(ctx, command+" "+code, "honeypot: vedette-host refused or failed a command", "command", command, "code", code, "message", hostMsg)
+	if h.warnDue(command + " " + code) {
+		h.log.WarnContext(ctx, "honeypot: vedette-host refused or failed a command", "command", command, "code", code, "message", hostMsg)
+	}
 	what := "the host could not do it"
 	switch code {
 	case api.CodeIPNotInMgmtSubnet:
@@ -386,8 +394,8 @@ func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg strin
 	return refusedError{what: what, code: code}
 }
 
-// warn logs at most once per hostWarnEvery for a key: a loop that fails the same way every minute must not fill the log.
-func (h *honeypotHost) warn(ctx context.Context, key, msg string, args ...any) {
+// warnDue says whether a warning for key may be logged now: at most once per hostWarnEvery for a key: a loop that fails the same way every minute must not fill the log.
+func (h *honeypotHost) warnDue(key string) bool {
 	h.mu.Lock()
 	if h.lastWarns == nil {
 		h.lastWarns = map[string]time.Time{}
@@ -398,9 +406,7 @@ func (h *honeypotHost) warn(ctx context.Context, key, msg string, args ...any) {
 		h.lastWarns[key] = time.Now()
 	}
 	h.mu.Unlock()
-	if due {
-		h.log.WarnContext(ctx, msg, args...)
-	}
+	return due
 }
 
 // newUUID returns a UUID v4: the idempotency key of one host call (host-api 5).

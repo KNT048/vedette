@@ -510,7 +510,7 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 	}
 	deadline := time.Now().Add(10 * time.Second) // the run goes on at the host after core stopped following it
 	for len(e.decoyLinks()) != 1 && time.Now().Before(deadline) {
-		time.Sleep(20 * time.Millisecond)
+		<-time.After(20 * time.Millisecond)
 	}
 	if got := e.decoyLinks(); len(got) != 1 {
 		t.Fatalf("the host did take the address, links: %v", got)

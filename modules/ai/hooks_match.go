@@ -553,7 +553,7 @@ func digitAfterSeps(s string, e int) bool {
 	return n > 0 && k < len(s) && isDigitByte(s[k])
 }
 
-// blankIPs returns s with every IPv4 and IPv6 literal that stands alone replaced, byte for byte, by '#'; netip decides what
+// blankIPs returns s with every IPv4 and IPv6 literal that stands alone replaced, byte for byte, by 'x'; netip decides what
 // is valid. Fail closed: an IPv4 candidate inside a longer dotted chain (1.2.3.4.5), or after a country code, is left alone
 // (a dotted phone number such as +84 91.234.56.78 is also a valid address, and must be masked); an IPv6 candidate glued to a
 // word ("Tel::0912") is left alone, and, when phones is set, so is one whose last group is only digits and is followed by
@@ -570,7 +570,7 @@ func blankIPs(s string, phones, edges bool) string {
 			b = []byte(s)
 		}
 		for k := a; k < z; k++ {
-			b[k] = '#'
+			b[k] = 'x' // a letter: a filled address never reads as a separator between digits (R3 L-1)
 		}
 	}
 	for _, m := range ipv4RE.FindAllStringIndex(s, -1) {
@@ -636,7 +636,7 @@ func phoneFollows(s string, a, e int) bool {
 	for g > a && (isDigitByte(s[g-1]) || s[g-1] == '.') { // the last group, or an IPv4 tail (::0.21.22.160 062)
 		g--
 	}
-	if g == e || g == a || s[g-1] != ':' || !isDigitByte(s[e-1]) {
+	if g == e || g == a || !isDigitByte(s[e-1]) { // any digit run at the edge, also one glued to hex letters (R3 M-1)
 		return false
 	}
 	return digitAfterSeps(s, e)
@@ -674,7 +674,7 @@ func phonePrecedes(s string, a, e int) bool {
 	for g < e && isDigitByte(s[g]) {
 		g++
 	}
-	if g == a || g == e || s[g] != ':' {
+	if g == a || g == e { // R3 M-1
 		return false
 	}
 	k, n := a, 0

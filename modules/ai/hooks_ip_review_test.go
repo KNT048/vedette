@@ -45,6 +45,15 @@ func TestPhoneAfterDoubleColonIsMasked(t *testing.T) {
 		"+84 912 345 678::1":         {"912", "345", "678"},
 		"+8451-035. 003::":           {"8451", "035", "003"},
 		"0912.345.678::1":            {"0912", "912", "345", "678"},
+		// R3 M-1: an edge group that mixes hex letters and digits is still the end of a number
+		"0912 345 678a::1": {"0912", "912", "345", "678"},
+		"0912-345-678b::":  {"0912", "912", "345", "678"},
+		"０９１２ ３４５ ６７８ａ：：１":       {"０９１２", "３４５", "６７８"},
+		"0912 345 678\u200ca::1": {"0912", "912", "345", "678"},
+		"+84 912 345 678e::1":    {"912", "345", "678"},
+		"84.32.175.88)7a5::+1":   {"32.175", "88)7"},
+		// R3 L-1: an address glued to +cc and a long number leaves no tail
+		"::1+84255.255.255.255": {".255.255"},
 	} {
 		res := run(t, r, BeforeAI, in)
 		for _, d := range forbidden {
@@ -59,7 +68,8 @@ func TestPhoneAfterDoubleColonIsMasked(t *testing.T) {
 func TestIDNumbersNextToAnIPv6AreBlocked(t *testing.T) {
 	t.Parallel()
 	r := runner(t, nil)
-	for _, in := range []string{"::123 456 789", "fe80::123 456 789", "2001:db8::0790 1234 5678", "123 456 789::1", "0790 1234 5678::1", "::079 012 345 678"} {
+	for _, in := range []string{"::123 456 789", "fe80::123 456 789", "2001:db8::0790 1234 5678", "123 456 789::1", "0790 1234 5678::1", "::079 012 345 678",
+		"123 456 789a::1", "fe80::a123 456 789", "2001:db8::f226   079560", "079 012 345 678a::1", "fe80::b079 012 345 678"} { // R3 M-1
 		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomeBlocked {
 			t.Errorf("%q -> %+v, want blocked", in, res)
 		}

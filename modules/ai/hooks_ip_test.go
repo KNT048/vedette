@@ -130,7 +130,7 @@ func FuzzPhoneDigitsNeverSurvive(f *testing.F) {
 		phone, groups, digits := phoneParts(rng)
 		ip := randomIP(rng)
 		lefts := []string{"", "call ", "Fax:", "NAS-01 (", "Tel-", "Zalo-", "SDT: ", "X-", ip + " ", ip + ", ", ip + " - ", ip + "\n", "::", "::1 ", "\u200b", "Tel\u200b-"}
-		rights := []string{"", " now", ")", " " + ip, ", " + ip, " (" + ip + ")", "\n" + ip, "::", "::1", " ::1", "\u200b"}
+		rights := []string{"", " now", ")", " " + ip, ", " + ip, " (" + ip + ")", "\n" + ip, "::", "::1", " ::1", "\u200b", "a::1", "b::", "e::1"}
 		l, rt := lefts[rng.IntN(len(lefts))], rights[rng.IntN(len(rights))]
 		if rng.IntN(4) == 0 { // full-width digits and dots, or a zero-width space in the middle
 			phone = fullWidth(phone)
@@ -200,7 +200,7 @@ func FuzzPhoneWithLabelAndColons(f *testing.F) {
 		r := runner(t, nil)
 		phone, groups, _ := phoneParts(rng)
 		l := []string{"Tel-", "Zalo-", "SDT: ", ""}[rng.IntN(4)]
-		rt := []string{"", "::1", "::", " now"}[rng.IntN(4)]
+		rt := []string{"", "::1", "::", " now", "a::1", "f::"}[rng.IntN(6)]
 		in := l + phone + rt
 		res := run(t, r, BeforeAI, in)
 		if res.Outcome == OutcomeBlocked {

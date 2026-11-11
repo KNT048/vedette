@@ -60,7 +60,7 @@ const (
 	CodeInvalidName        = "invalid_name"
 	CodeInvalidEmail       = "invalid_email"
 	CodeInvalidRole        = "invalid_role"
-	CodeTempExpired        = "temp_password_expired" //nolint:gosec // an error code, not a credential
+	CodeTempExpired        = "temp_password_expired"
 	CodeBusy               = "server_busy" // 503: too many password checks at once (the 409 `busy` of the update module is another thing)
 )
 

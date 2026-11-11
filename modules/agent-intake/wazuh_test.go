@@ -3,6 +3,7 @@ package agentintake_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,7 +45,7 @@ type fakeWazuh struct {
 	tooMany   int  // answer this many 429 before the next GET
 	expire    bool // answer 401 to the next GET (the token expired)
 	logins    int
-	onPackage func()
+	onPackage func(ctx context.Context)
 }
 
 func newFakeWazuh() *fakeWazuh {
@@ -143,7 +144,7 @@ func (f *fakeWazuh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			js(200, page(f.netiface[parts[1]], q))
 		case "packages":
 			if f.onPackage != nil {
-				f.onPackage()
+				f.onPackage(r.Context())
 			}
 			js(200, page(f.packages[parts[1]], q))
 		default:
@@ -185,7 +186,7 @@ func (w *world) admin(method, path string, body any) reply {
 	}
 	r := httptest.NewRequestWithContext(w.t.Context(), method, server.Prefix+path, rd)
 	r.RemoteAddr = "192.0.2.200:40000"
-	r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: "admin"})
+	r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: "admin", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	r.Header.Set(servertest.CSRFHeader, servertest.CSRFValue)
 	if rd != nil {
 		r.Header.Set("Content-Type", "application/json")
@@ -560,7 +561,14 @@ func TestWazuh_SaveDuringAPullWins(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
 	r.fake.mu.Lock()
-	r.fake.onPackage = func() { r.exec(`UPDATE intake_wazuh SET generation = generation + 1`) }
+	r.fake.onPackage = func(ctx context.Context) { // a Save commits while the pull runs
+		if err := r.db.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET generation = generation + 1`)
+			return err
+		}); err != nil {
+			t.Error(err)
+		}
+	}
 	r.fake.mu.Unlock()
 	r.pull()
 	if st, _, agents, _ := r.state(); st != "never" || agents != 0 {
@@ -648,7 +656,14 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r.save()
 	r.svc.SetWazuhBudgetForTest(500 * time.Millisecond)
 	r.fake.mu.Lock()
-	r.fake.onPackage = func() { time.Sleep(300 * time.Millisecond) } // each agent's package page takes 300 ms
+	r.fake.onPackage = func(ctx context.Context) { // each agent's package page takes 300 ms, or until the client gives up
+		tm := time.NewTimer(300 * time.Millisecond)
+		defer tm.Stop()
+		select {
+		case <-tm.C:
+		case <-ctx.Done():
+		}
+	}
 	r.fake.mu.Unlock()
 	r.pull()
 	var resume *string

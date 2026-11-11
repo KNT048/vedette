@@ -305,8 +305,8 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 		if !c.typed && (cur == nil || c.prev == nil || cur.generation != c.prev.generation) {
 			return apierr.New(409, "wazuh_changed", "The Wazuh connection was changed or removed while this was checked. Enter the password and save again.")
 		}
-		switch {
-		case cur == nil:
+		switch cur {
+		case nil:
 			id, last4, err := s.cfg.Secrets.Seal(ctx, tx, wazuhPurpose, []byte(c.pass.Reveal()), true)
 			if err != nil {
 				return fmt.Errorf("agentintake: seal wazuh password: %w", err)

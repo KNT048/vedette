@@ -212,6 +212,10 @@ EOT
 	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
 	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
+	# the bridge of vedette-int has the fixed name vedette0 on this Podman (PodmanArgs=--interface-name; D-267): by effect, in the kernel
+	x 'ip link show vedette0 >/dev/null 2>&1' || { x 'cat /etc/containers/systemd/vedette-int.network; podman network inspect vedette-int; ip -br link' >&2; fail "D-267: there is no bridge vedette0 (the network file's PodmanArgs=--interface-name=vedette0 did not take effect on this Podman: $(x 'podman --version'))"; }
+	[ "$(x "podman network inspect vedette-int --format '{{.NetworkInterface}}'")" = vedette0 ] || fail "D-267: podman does not report vedette0 as the interface of vedette-int"
+	ok "D-267: the bridge of vedette-int is named vedette0 by $(x 'podman --version') (PodmanArgs=--interface-name; the link exists in the kernel)"
 	# ---- images: --uninstall removes every image of Vedette's (registry names, the localhost/vedette-<service> tags bootstrap makes, the
 	# unnamed leftover of the on-box scan build, found by its label) and nothing else. The storage goes with podman afterwards, so a
 	# podman wrapper records what --uninstall asks it to remove, and the images are looked up by ID in that record.
@@ -230,11 +234,14 @@ EOT
 		fwd_subnet=$(x "sed -n 's/^Subnet=//p' /etc/containers/systemd/vedette-int.network")
 		x 'iptables -N DOCKER-USER && iptables -P FORWARD DROP' || fail "D-267: cannot make a fake DOCKER-USER chain in the check container (needs NET_ADMIN)"
 		# the host looks every 30 s
-		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its two rules in DOCKER-USER within 80 s"; }
-		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 2 ] || fail "D-267: DOCKER-USER does not hold exactly two rules of Vedette"
+		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its two rules in DOCKER-USER within 80 s"; }
+		[ "$(x 'iptables -S DOCKER-USER | grep -- "--comment vedette-int" | sed "s/.* -j //" | tr "\n" " "')" = "RETURN RETURN ACCEPT ACCEPT " ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold the four rules of Vedette in the order RETURN RETURN ACCEPT ACCEPT"; }
+		# one more look of the host (30 s): nothing is added, so -C finds the rules as the host writes them
+		sleep 35
+		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 4 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold exactly four rules of Vedette after another look"; }
 		# an unrelated rule of the administrator in the same chain must survive the uninstall
 		x 'iptables -A DOCKER-USER -s 192.0.2.0/24 -j RETURN'
-		ok "D-267: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly two vedette-int rules for $fwd_subnet"
+		ok "D-267: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly four vedette-int rules (RETURN RETURN ACCEPT ACCEPT) for vedette0 and $fwd_subnet"
 		fwd_checked=1
 	fi
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
@@ -250,7 +257,7 @@ EOT
 	if [ -n "${fwd_checked:-}" ]; then
 		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: --uninstall left a vedette-int rule in DOCKER-USER"; }
 		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"
-		ok "D-267: --uninstall removed the two vedette-int rules and left the administrator's own rule"
+		ok "D-267: --uninstall removed the four vedette-int rules and left the administrator's own rule"
 		# the fake Docker goes again, so that the checks below see the box as it was
 		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; command -v nft >/dev/null 2>&1 && nft delete table ip filter 2>/dev/null; true'
 		fwd_checked=

@@ -281,19 +281,55 @@ exit 0
 
 // StatefulIptables makes (NewMachine does it) the fake iptables one that has no DOCKER-USER chain until the
 // marker "docker-user" is set (every call then fails, like on a box without Docker); with the marker, "-S
-// DOCKER-USER" succeeds, "-I DOCKER-USER 1 <rule>" remembers the rule and "-C DOCKER-USER <rule>" succeeds
-// only for a remembered one. DockerFlush forgets the rules (Docker restarted). Rules added with Rule fire first.
+// DOCKER-USER" prints the rules as "-A DOCKER-USER <rule>" lines, "-I DOCKER-USER <n> <rule>" puts the rule at
+// position n and "-C DOCKER-USER <rule>" succeeds only for a remembered one (the same words; the real
+// iptables compares the rule, not the words). DockerFlush forgets the rules (Docker restarted). Rules added with Rule fire first.
 func (m *Machine) StatefulIptables() {
 	m.writeFakeWith(ops.BinIptables, `R="$REC/ipt.rules"
 [ -e "$REC/mark.docker-user" ] || exit 1
 touch "$R"
 case "$args" in
-  "-w 5 -S DOCKER-USER") exit 0 ;;
+  "-w 5 -S DOCKER-USER") while IFS= read -r l; do echo "-A DOCKER-USER $l"; done < "$R"; exit 0 ;;
   "-w 5 -C DOCKER-USER "*) grep -qxF -- "${args#-w 5 -C DOCKER-USER }" "$R" 2>/dev/null; exit $? ;;
-  "-w 5 -I DOCKER-USER 1 "*) echo "${args#-w 5 -I DOCKER-USER 1 }" >> "$R"; exit 0 ;;
+  "-w 5 -I DOCKER-USER "*)
+    rest="${args#-w 5 -I DOCKER-USER }"; pos="${rest%% *}"; rule="${rest#* }"
+    n=$(wc -l < "$R")
+    [ "$pos" -le $((n + 1)) ] || { echo "index of insertion too big" >&2; exit 1; }
+    { head -n $((pos - 1)) "$R"; echo "$rule"; tail -n +"$pos" "$R"; } > "$R.new"; mv "$R.new" "$R"; exit 0 ;;
 esac
 exit 2
 `)
+}
+
+// DockerAdminRule appends a rule of the administrator's own (the words after the chain name) at the end of the fake DOCKER-USER chain.
+func (m *Machine) DockerAdminRule(rule string) {
+	f, err := os.OpenFile(filepath.Join(m.Rec, "ipt.rules"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	m.must(err)
+	_, err = f.WriteString(rule + "\n")
+	m.must(err)
+	m.must(f.Close())
+}
+
+// DockerDelete removes one rule (the words after the chain name) from the fake DOCKER-USER chain.
+func (m *Machine) DockerDelete(rule string) {
+	var keep []string
+	for _, l := range m.DockerRules() {
+		if l != rule {
+			keep = append(keep, l)
+		}
+	}
+	text := ""
+	if len(keep) > 0 {
+		text = strings.Join(keep, "\n") + "\n"
+	}
+	m.must(os.WriteFile(filepath.Join(m.Rec, "ipt.rules"), []byte(text), 0o600))
+}
+
+// DockerAdminRuleFirst puts a rule of the administrator's own at the top of the fake DOCKER-USER chain.
+func (m *Machine) DockerAdminRuleFirst(rule string) {
+	p := filepath.Join(m.Rec, "ipt.rules")
+	old, _ := os.ReadFile(p) //nolint:gosec // test support: a path under the fake rec dir
+	m.must(os.WriteFile(p, append([]byte(rule+"\n"), old...), 0o600)) //nolint:gosec // test support: a path under the fake rec dir
 }
 
 // DockerChain says whether the fake box has a DOCKER-USER chain.

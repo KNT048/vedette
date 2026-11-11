@@ -416,14 +416,18 @@ func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
 	e.svc.cfg.Log = slog.New(logs)
 	e.svc.cfg.Syslog.RetryEvery = 5 * time.Millisecond
 	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '10.8.8.8', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
-	var reads atomic.Int32
+	var reads, oks atomic.Int32 // oks counts the reads that succeeded: nothing reads again after a success, so a counter that is reset can lose the one that matters
 	var fail atomic.Bool
 	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
 		reads.Add(1)
 		if fail.Load() {
 			return nil, errors.New("database is locked")
 		}
-		return e.svc.loadSources(ctx)
+		rows, err := e.svc.loadSources(ctx)
+		if err == nil {
+			oks.Add(1)
+		}
+		return rows, err
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -449,9 +453,9 @@ func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
 	if n := logs.count("could not read the sources"); n != 1 {
 		t.Errorf("the failed read was logged %d times for one error", n)
 	}
+	okBase := oks.Load()
 	fail.Store(false)
-	reads.Store(0)
-	waitUntil(t, "recovery", func() bool { return reads.Load() >= 1 })
+	waitUntil(t, "recovery", func() bool { return oks.Load() > okBase })
 	fail.Store(true) // a new failure after a recovery is news again
 	base = reads.Load()
 	e.svc.sourcesChanged()

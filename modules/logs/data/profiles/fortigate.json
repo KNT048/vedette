@@ -71,7 +71,13 @@
     ],
     "shapes": {
       "logid": "^[0-9]{10}$"
-    }
+    },
+    "local_field": "srcip",
+    "dest_ip_field": "dstip",
+    "dest_host_fields": [
+      "hostname",
+      "qname"
+    ]
   },
   "samples": [
     {
@@ -80,6 +86,40 @@
       "src": "45.9.148.20",
       "dest": "192.168.10.1",
       "remote": "45.9.148.20"
+    },
+    {
+      "line": "<189>date=2026-11-09 time=10:20:00 devname=\"FW-HQ\" logid=\"0000000013\" type=\"traffic\" subtype=\"forward\" level=\"notice\" srcip=192.168.10.113 srcport=51234 dstip=45.9.148.20 dstport=443 action=\"accept\" policyid=5",
+      "signature": "logid=0000000013 action=accept",
+      "src": "192.168.10.113",
+      "dest": "45.9.148.20",
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:45.9.148.20"
+      ]
+    },
+    {
+      "line": "date=2026-11-09 time=10:21:00 logid=\"0316013056\" type=\"utm\" subtype=\"webfilter\" eventtype=\"ftgd_blk\" level=\"warning\" srcip=192.168.10.113 dstip=104.21.5.5 hostname=\"Bad.Example.net\" action=\"blocked\" msg=\"URL belongs to a denied category in policy\"",
+      "signature": "logid=0316013056 action=blocked",
+      "src": "192.168.10.113",
+      "dest": "104.21.5.5",
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:104.21.5.5",
+        "domain:bad.example.net"
+      ]
+    },
+    {
+      "line": "date=2026-11-09 time=10:22:00 logid=\"1501054802\" type=\"utm\" subtype=\"dns\" level=\"notice\" srcip=192.168.10.113 dstip=192.168.10.1 qname=\"bad.example.net\" qtype=\"A\" action=\"pass\"",
+      "signature": "logid=1501054802 action=pass",
+      "src": "192.168.10.113",
+      "dest": "192.168.10.1",
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "domain:bad.example.net"
+      ]
     },
     {
       "line": "date=2026-11-09 time=10:05:00 logid=\"0100032002\" type=\"event\" subtype=\"system\" level=\"alert\" user=\"admin\" action=\"login\" msg=\"Administrator admin login failed from https(10.0.0.9) because of invalid password\"",

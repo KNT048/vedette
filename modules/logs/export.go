@@ -79,3 +79,20 @@ func (s *Service) ExportDeviceLogs(ctx context.Context, from, to time.Time, w io
 	_, err = w.Write(append(marker, '\n'))
 	return err
 }
+
+// ExportKnownBad is the "known_bad" source of GET /core/logs/export (core INV-13): the connections to listed destinations from through to,
+// oldest first, one JSON object per hit with the stored columns {id, ts, src_ip, dest, dest_kind, seen_via, feeds (an array), confidence,
+// source_id}. The device is not looked up (a download carries what was stored, INV-7 resolves it at read for the page only). The table
+// holds at most MaxIocRows hits, so the category is bounded by that and needs no cap of its own. A zero time is open; a module that is off
+// keeps its rows, so the source stays registered.
+func (s *Service) ExportKnownBad(ctx context.Context, from, to time.Time, w io.Writer) error {
+	lo, hi := "", ""
+	if !from.IsZero() {
+		lo = store.FormatTS(from)
+	}
+	if !to.IsZero() {
+		hi = store.FormatTS(to)
+	}
+	return logexport.Rows{SQL: `SELECT ` + iocColumns + `, source_id FROM logs_ioc_hits WHERE (? = '' OR ts >= ?) AND (? = '' OR ts <= ?) ORDER BY ts, rowid`,
+		Args: []any{lo, lo, hi, hi}, JSON: []string{"feeds"}}.Write(ctx, s.cfg.Volume.Reader(), w)
+}

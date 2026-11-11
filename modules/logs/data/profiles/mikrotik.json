@@ -13,6 +13,7 @@
       "proto \\S+(?: \\([^)]*\\))?, (?P<addr>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?->",
       "\\bfrom (?P<addr>[0-9A-Fa-f:.]{1,45}) via \\w+"
     ],
+    "conn_pattern": "proto \\S+(?: \\([^)]*\\))?, (?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?->(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d+)?",
     "head_vocab": [
       "system",
       "info",
@@ -100,7 +101,11 @@
       "signature": "firewall,info: forward: in:ether<n> out:ether<n>, proto TCP (SYN), <ip>-><ip>, len <n>",
       "src": "192.168.10.113",
       "dest": "8.8.8.8",
-      "remote": "192.168.10.113"
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:8.8.8.8"
+      ]
     }
   ]
 }

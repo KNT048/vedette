@@ -246,6 +246,9 @@ func (s *Service) dropStale(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_signature_addrs WHERE bucket < ?`, now.Add(-CountsMaxWindow).Unix()/bucketSeconds); err != nil {
 			return fmt.Errorf("logs: dropping old address counters: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_ioc_hits WHERE ts < ?`, store.FormatTS(now.Add(-time.Duration(days)*24*time.Hour))); err != nil { // kept as long as the lines (INV-4)
+			return fmt.Errorf("logs: dropping old bad connections: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM logs_anomaly_sent WHERE sent_at < ?`, store.FormatTS(now.Add(-72*time.Hour))); err != nil {
 			return fmt.Errorf("logs: dropping old announcements: %w", err)
 		}

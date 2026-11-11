@@ -69,7 +69,10 @@ func TestWiringLogsSyslogListensOnTheConfiguredPort(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- logsJobs(*s.d)[1].Run(ctx) }()
-	defer func() { cancel(); <-done }()
+	defer func() {
+		cancel()
+		<-done //nolint:errcheck // cancelled run
+	}()
 	c, err := dialCtx("udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	if err != nil {
 		t.Fatal(err)

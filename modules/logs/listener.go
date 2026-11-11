@@ -109,12 +109,12 @@ func (s *Service) runSyslog(ctx context.Context) error {
 		case <-s.changed:
 			if err := apply(); err != nil {
 				stop()
-				_ = <-done
+				<-done //nolint:errcheck // the error of a cancelled run is not news
 				return fmt.Errorf("logs: updating the syslog listener: %w", err)
 			}
 		case <-ctx.Done():
 			stop()
-			_ = <-done // the sockets are closed and the last batch is stored before the job ends
+			<-done //nolint:errcheck // the error of a cancelled run is not news // the sockets are closed and the last batch is stored before the job ends
 			return ctx.Err()
 		}
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
-	"github.com/knt048/vedette/modules/scan/pack"
 )
 
 // Job timing.
@@ -170,6 +169,13 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 	if len(take) == 0 {
 		return nil
 	}
+	// each device is probed only for the CVEs of the events that listed it, not for every CVE of the run (#189 review L2)
+	pairs := map[string][]string{}
+	for _, r := range take {
+		for _, id := range r.ids {
+			pairs[id] = append(pairs[id], r.ev.cve)
+		}
+	}
 	link := func(ctx context.Context, tx *sql.Tx, runID string) error {
 		for _, r := range take {
 			b, err := json.Marshal(r.names)
@@ -191,7 +197,7 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 		return nil
 	}
 	note := rescanNote(cves)
-	if _, err := s.startAuto(ctx, "new_kev", &note, ids, take[0].first, cves, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
+	if _, err := s.startAuto(ctx, "new_kev", &note, ids, take[0].first, pairs, time.Time{}, link); err != nil && !errors.Is(err, errRunning) {
 		return err
 	}
 	return nil
@@ -265,9 +271,13 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 		// stopped before every device was done is "stopped" (D-145 (7)): "clear" would hide what was not checked.
 		// A run may hold the CVEs of several events (S4b): each closes on the rows of its own CVE's templates, and keeps
 		// the devices it was linked with.
+		hit, err := s.matchedCVE(ctx, v, ev.cve)
+		if err != nil {
+			return nil, err
+		}
 		result := "clear"
 		switch {
-		case s.matchedCVE(v, ev.cve):
+		case hit:
 			result = "matched"
 		case v.Status != "done":
 			result = "stopped"
@@ -329,16 +339,26 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	return &readyEvent{ev: ev, ids: ids, names: names, first: first, templates: n, latency: now.Sub(ev.ts).Minutes()}, nil
 }
 
-// matchedCVE says whether the run confirmed cve on a device: a matched row of one of its templates. Without the pack
-// (it was removed) any match counts, as when a run held one CVE.
-func (s *Service) matchedCVE(v RunView, cve string) bool {
-	if s.cfg.Pack == nil {
-		return v.Matched > 0
+// matchedCVE says whether the run confirmed cve on a device: a matched row whose finding is a finding of that CVE. A
+// finding id belongs to one CVE, while a template path may serve two (#189 review L1). Without findings no row has a
+// finding and any match counts, as when a run held one CVE.
+func (s *Service) matchedCVE(ctx context.Context, v RunView, cve string) (bool, error) {
+	if s.cfg.Findings == nil {
+		return v.Matched > 0, nil
 	}
-	tpls := s.cfg.Pack.ForCVE(cve)
+	fs, err := s.cfg.Findings.List(ctx, "")
+	if err != nil {
+		return false, fmt.Errorf("scan: reading the findings: %w", err)
+	}
+	of := map[string]bool{}
+	for _, f := range fs {
+		if f.CVE == cve {
+			of[f.ID] = true
+		}
+	}
 	return slices.ContainsFunc(v.Results, func(r RunRow) bool {
-		return r.Result == "matched" && r.Template != nil && slices.ContainsFunc(tpls, func(t pack.Template) bool { return t.Path == *r.Template })
-	})
+		return r.Result == "matched" && r.FindingID != nil && of[*r.FindingID]
+	}), nil
 }
 
 // dropEvent removes an event that waited pendingFor without a scan, and says why in the log. The scheduled scan still
@@ -399,9 +419,9 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 }
 
 // startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false (D-126 (2)).
-// onlyCVEs limits the run to those CVEs (the KEV rescan); end, when set, is where the run stops by itself (the end of
+// onlyCVEs limits each device to the CVEs listed for it (the KEV rescan); end, when set, is where the run stops by itself (the end of
 // the window of a scheduled run); inTx records what the run is for in the transaction of its row (runSpec.inTx).
-func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs []string, end time.Time,
+func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs map[string][]string, end time.Time,
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error) (RunView, error) {
 	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVEs: onlyCVEs, end: end, inTx: inTx})
 }

@@ -21,7 +21,10 @@
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.
 
 ## Modifying: `scan.Engine` (S1, D-125)
-- Seam of the scanner: the worker of the `scan` container over the sensor protocol (S5), a fake in tests. `Ready` decides `can_scan` and the 503 `scanner_unavailable` (INV-2). No Engine wired = scanner not available: `cmd/vedette` wires none until S5, so a real box never sends a request before then.
+- Seam of the scanner: the worker of the `scan` container over the sensor protocol, a fake in tests. `Ready` decides `can_scan` and the 503 `scanner_unavailable` (INV-2). **S5:** `cmd/vedette/scan.go` `scanEngine` wires the Dispatcher of **sensor-active** (`sensoractive.Scanner{Ready, RunNuclei}`) when `d.SensorDispatcher` exists, with `scan.Config.Pack` = the committed index of **content/nucleipack** (the same pack as the `scan-base` image, D-146). `Run` takes a `scan.Job` (argv job with paths, the same templates by id, the pack version and sha256) and returns `[]nucleiout.Result` already parsed fail closed by the Dispatcher; an error wrapping `scan.ErrEngineDown` (the worker gone or not ready, another pack, a pack that failed its integrity check) stops the run with that message. A change to the seam is a change on both sides of the sensor protocol: check `modules/sensor-active` `NucleiRequest`.
+
+## Modifying: `content/nucleipack` (S5)
+- The index core plans with. Written only by `make scan-pack` (with `index.source`, from `deploy/containers/pins.env`), never by hand; `TestTheCommittedIndexIsThePinnedPack` holds it to the pins (source version, source sha256, pack version) and to its own label. Raising a pin without `make scan-pack` and a commit of `content/nucleipack` makes that test fail; if core and the image still drift, the Dispatcher refuses every job as `pack_mismatch` and the run stops saying so.
 
 ## Modifying: `scan_setting` / `Service.SaveConfig` (S1)
 - **SPA** Schedule and safety tab, **jobs** of S4 (window, schedule, auto rescan, rate, exclusions). INV-5 is checked twice: in `Settings.validate` (with the mock's words) and by the CHECKs of `0001_scan_setting.sql`.

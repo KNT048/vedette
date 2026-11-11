@@ -31,7 +31,17 @@ if [ -x "$bin" ] && [ "$(sha "$bin")" = "$want_bin" ]; then
 	exit 0
 fi
 
-work=$(mktemp -d "$cache.XXXXXX" 2>/dev/null || { mkdir -p "$cache" && mktemp -d "$cache/work.XXXXXX"; })
+# Two runs at once (two terminals, make -j) must not unpack over each other: one takes the lock, the other waits and then finds
+# the finished install at the fast path.
+mkdir -p "$cache"
+exec 9> "$cache/.lock"
+flock -w 300 9 || { echo "minisign.sh: another run holds $cache/.lock for more than 5 minutes" >&2; exit 1; }
+if [ -x "$bin" ] && [ "$(sha "$bin")" = "$want_bin" ]; then
+	echo "$bin"
+	exit 0
+fi
+
+work=$(mktemp -d "$cache/work.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 echo "minisign.sh: downloading minisign $MINISIGN_VERSION" >&2
 curl --fail --silent --show-error --location --proto '=https' --max-time 120 -o "$work/m.tar.gz" "$MINISIGN_URL"

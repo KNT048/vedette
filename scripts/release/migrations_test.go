@@ -23,7 +23,14 @@ func TestClassifyUp(t *testing.T) {
 		// add-only
 		{"create table and index", "CREATE TABLE a (id INTEGER PRIMARY KEY, n INT NOT NULL DEFAULT 0);\nCREATE INDEX a_n ON a(n);", ""},
 		{"if not exists, quoted names, schema", "CREATE TABLE IF NOT EXISTS main.\"a\" (id INT);\nCREATE INDEX IF NOT EXISTS \"a_i\" ON `a`(id);", ""},
-		{"alter add column", "ALTER TABLE old ADD COLUMN kev INTEGER NOT NULL DEFAULT 0 CHECK (kev IN (0,1));", ""},
+		{"alter add column", "ALTER TABLE old ADD COLUMN kev INTEGER NOT NULL DEFAULT 0;", ""},
+		{"plain index on an old table, partial index, collation and order", "CREATE INDEX i1 ON old(a, b DESC);\nCREATE INDEX i2 ON old(a COLLATE NOCASE) WHERE a IS NOT NULL;", ""},
+		{"foreign key to a table made here", "CREATE TABLE p (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, p INT REFERENCES p(id));", ""},
+		{"foreign key to itself", "CREATE TABLE t (id INT PRIMARY KEY, parent INT REFERENCES t(id));", ""},
+		{"foreign key to an old table that cascades", "CREATE TABLE c (id INT, u TEXT REFERENCES core_user(id) ON UPDATE NO ACTION ON DELETE CASCADE, v INT);", ""},
+		{"foreign key to an old table that nulls (table constraint)", "CREATE TABLE c (id INT, u TEXT, FOREIGN KEY (u) REFERENCES core_user(id) ON DELETE SET NULL);", ""},
+		{"trigger first, seed of another new table", "CREATE TABLE a (id INT, n INT);\nCREATE TABLE b (id INT);\n" + strings.ReplaceAll(strings.Replace(trig, "%s", "a_t", 1), "%s", "a") + "INSERT INTO b VALUES (1);", ""},
+		{"seed before the trigger exists", "CREATE TABLE a (id INT, n INT);\nINSERT INTO a VALUES (1, 0);\n" + strings.ReplaceAll(strings.Replace(trig, "%s", "a_t", 1), "%s", "a"), ""},
 		{"unique index on a table made here", "CREATE TABLE a (id INT, k TEXT);\nCREATE UNIQUE INDEX a_k ON a(k);", ""},
 		{"seed rows of a table made here", "CREATE TABLE a (id INT, v TEXT);\nINSERT INTO a (id, v) VALUES (1, 'x;y -- not a comment'), (2, 'it''s');", ""},
 		{"insert select from an old table into a new one", "CREATE TABLE vol (id INT, b INT);\nINSERT INTO vol SELECT 1, sum(length(line)) FROM old_events;", ""},
@@ -43,9 +50,36 @@ func TestClassifyUp(t *testing.T) {
 		{"drop column", "ALTER TABLE a DROP COLUMN x;", "cannot classify"},
 		{"add without COLUMN keyword", "ALTER TABLE a ADD CONSTRAINT c CHECK (1);", "cannot classify"},
 		{"update of an existing table", "UPDATE core_user SET admin = 0;", "UPDATE of a table"},
-		{"delete from an existing table", "DELETE FROM core_user;", "DELETE from a table"},
-		{"insert into an existing table", "INSERT INTO core_module (id) VALUES ('x');", "INSERT into a table"},
-		{"insert into another schema's table of the same name", "CREATE TABLE a (id INT);\nINSERT INTO temp.a VALUES (1);", "INSERT into a table"},
+		{"delete from an existing table", "DELETE FROM core_user;", "DELETE of a table"},
+		{"insert into an existing table", "INSERT INTO core_module (id) VALUES ('x');", "INSERT of a table"},
+		{"insert into another schema's table of the same name", "CREATE TABLE a (id INT);\nINSERT INTO temp.a VALUES (1);", "INSERT of a table"},
+		// M1: only a plain CREATE TABLE of the main schema proves a table is new
+		{"IF NOT EXISTS does not make a table new: delete", "CREATE TABLE IF NOT EXISTS core_user (id INT);\nDELETE FROM core_user;", "DELETE of a table"},
+		{"IF NOT EXISTS does not make a table new: update", "CREATE TABLE IF NOT EXISTS core_user (id INT);\nUPDATE core_user SET id = 1;", "UPDATE of a table"},
+		{"IF NOT EXISTS does not make a table new: unique index", "CREATE TABLE IF NOT EXISTS core_user (email TEXT);\nCREATE UNIQUE INDEX u ON core_user(email);", "UNIQUE index"},
+		{"IF NOT EXISTS does not make a table new: trigger", "CREATE TABLE IF NOT EXISTS core_user (id INT);\n" + strings.ReplaceAll(strings.Replace(trig, "%s", "t", 1), "%s", "core_user"), "trigger on a table"},
+		{"IF NOT EXISTS does not make a table new: insert", "CREATE TABLE IF NOT EXISTS core_user (id INT);\nINSERT INTO core_user VALUES (1);", "INSERT of a table"},
+		{"a TEMP table is another table: delete", "CREATE TEMP TABLE core_user (id INT);\nDELETE FROM core_user;", "DELETE of a table"},
+		{"a TEMPORARY table is another table: unique index", "CREATE TEMPORARY TABLE core_user (id INT);\nCREATE UNIQUE INDEX u ON core_user(id);", "UNIQUE index"},
+		{"a table of another schema is not new", "CREATE TABLE temp.core_user (id INT);\nDELETE FROM core_user;", "DELETE of a table"},
+		{"two tables of another schema are not each other", "CREATE TABLE aux.a (id INT);\nINSERT INTO aux.b VALUES (1);", "INSERT of a table"},
+		// M2: a seed write into a table that has this file's trigger fires the trigger
+		{"seed into a table with a trigger of this file", "CREATE TABLE a (id INT, n INT);\n" + strings.ReplaceAll(strings.Replace(trig, "%s", "a_t", 1), "%s", "core_user") + "INSERT INTO a VALUES (1, 0);", "trigger on a table"},
+		{"seed fires the trigger that rewrites old data", "CREATE TABLE a (id INT, n INT);\n-- +goose StatementBegin\nCREATE TRIGGER a_t AFTER INSERT ON a BEGIN UPDATE core_user SET admin = 1; END;\n-- +goose StatementEnd\nINSERT INTO a VALUES (1, 0);", "already has a trigger"},
+		{"update of a table with a trigger of this file", "CREATE TABLE a (id INT, n INT);\n-- +goose StatementBegin\nCREATE TRIGGER a_t AFTER UPDATE ON a BEGIN SELECT 1; END;\n-- +goose StatementEnd\nUPDATE a SET n = 1;", "already has a trigger"},
+		{"delete from a table with a trigger of this file", "CREATE TABLE a (id INT, n INT);\n-- +goose StatementBegin\nCREATE TRIGGER a_t AFTER DELETE ON a BEGIN SELECT 1; END;\n-- +goose StatementEnd\nDELETE FROM a;", "already has a trigger"},
+		// M3: constraints that can refuse the older version's own writes
+		{"foreign key to an old table without a cascade", "CREATE TABLE c (id INT, u TEXT REFERENCES core_user(id));", "foreign key"},
+		{"foreign key to an old table with ON DELETE RESTRICT", "CREATE TABLE c (id INT, u TEXT REFERENCES core_user(id) ON DELETE RESTRICT);", "foreign key"},
+		{"foreign key where the cascade belongs to the next column", "CREATE TABLE c (id INT, u TEXT REFERENCES core_user(id), v TEXT REFERENCES p(id) ON DELETE CASCADE);", "foreign key"},
+		{"table-level foreign key without a cascade", "CREATE TABLE c (id INT, u TEXT, FOREIGN KEY (u) REFERENCES core_user(id));", "foreign key"},
+		{"foreign key to another schema", "CREATE TABLE c (id INT, u TEXT REFERENCES aux.p(id));", "foreign key"},
+		{"added column with REFERENCES", "ALTER TABLE old ADD COLUMN u TEXT REFERENCES core_user(id);", "REFERENCES or CHECK"},
+		{"added column with CHECK", "ALTER TABLE old ADD COLUMN n INTEGER NOT NULL DEFAULT 1 CHECK (n >= 1);", "REFERENCES or CHECK"},
+		{"expression index on a new table", "CREATE TABLE n (name TEXT);\nCREATE UNIQUE INDEX i ON n(lower(name));", ""},
+		{"expression index", "CREATE INDEX i ON old(lower(name));", "expression index"},
+		{"expression index among plain columns", "CREATE INDEX i ON old(a, a + b);", "expression index"},
+		{"index with a string constant column", "CREATE INDEX i ON old('x');", "expression index"},
 		{"unique index on an existing table", "CREATE UNIQUE INDEX u ON core_user(email);", "UNIQUE index"},
 		{"trigger on an existing table", strings.ReplaceAll(strings.Replace(trig, "%s", "t", 1), "%s", "core_user"), "trigger on a table"},
 		{"trigger without StatementBegin", "CREATE TABLE a (id INT);\nCREATE TRIGGER t AFTER INSERT ON a BEGIN SELECT 1; END;", "trigger outside"},
@@ -118,25 +152,24 @@ func TestCheckMigrations(t *testing.T) {
 		name string
 		cur  Tree
 		prev Tree
-		ps   int
 		want string // "" = clean
 	}{
-		{"nothing new", tree(p1, b1, q1, c1), prev, 2, ""},
-		{"an add-only migration", tree(p1, b1, p2, b2, q1, c1), prev, 2, ""},
-		{"a new module's first migration", tree(p1, b1, q1, c1, "modules/c/migrations/sqlite/0001_c.sql", up("CREATE TABLE c (id INT);")), prev, 2, ""},
-		{"a non-additive new migration", tree(p1, b1, q1, c1, p2, up("DROP TABLE a;")), prev, 2, "0002_a.sql: cannot classify"},
-		{"a migration removed", tree(p1, b1), prev, 2, "q"}, // placeholder replaced below
-		{"a migration edited", tree(p1, up("CREATE TABLE a (id INT, extra INT);"), q1, c1), prev, 2, "was edited"},
-		{"a new migration below an applied number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0000_late.sql", up("CREATE TABLE late (id INT);")), prev, 2, "not above the highest"},
-		{"a new migration at an applied number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0001_other.sql", up("CREATE TABLE o (id INT);")), prev, 2, "not above the highest"},
-		{"two new with one number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0002_x.sql", up("CREATE TABLE x (id INT);"), "modules/a/migrations/sqlite/0002_y.sql", up("CREATE TABLE y (id INT);")), prev, 2, "same number"},
-		{"a stray file", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/README.md", []byte("x")), prev, 2, "cannot be classified"},
-		{"a go migration", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0002_x.go", []byte("package x")), prev, 2, "cannot be classified"},
-		{"db_schema says 3 but the ref holds 2", tree(p1, b1, q1, c1), prev, 3, "wrong previous ref"},
-		{"db_schema went down", tree(p1, b1), tree(p1, b1, q1, c1), 2, "went down"},
+		{"nothing new", tree(p1, b1, q1, c1), prev, ""},
+		{"an add-only migration", tree(p1, b1, p2, b2, q1, c1), prev, ""},
+		{"a new module's first migration", tree(p1, b1, q1, c1, "modules/c/migrations/sqlite/0001_c.sql", up("CREATE TABLE c (id INT);")), prev, ""},
+		{"a non-additive new migration", tree(p1, b1, q1, c1, p2, up("DROP TABLE a;")), prev, "0002_a.sql: cannot classify"},
+		{"a migration removed", tree(p1, b1), prev, "q"}, // placeholder replaced below
+		{"a migration edited", tree(p1, up("CREATE TABLE a (id INT, extra INT);"), q1, c1), prev, "was edited"},
+		{"a new migration below an applied number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0000_late.sql", up("CREATE TABLE late (id INT);")), prev, "not above the highest"},
+		{"a new migration at an applied number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0001_other.sql", up("CREATE TABLE o (id INT);")), prev, "not above the highest"},
+		{"two new with one number", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0002_x.sql", up("CREATE TABLE x (id INT);"), "modules/a/migrations/sqlite/0002_y.sql", up("CREATE TABLE y (id INT);")), prev, "same number"},
+		{"a stray file", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/README.md", []byte("x")), prev, "cannot be classified"},
+		{"a go migration", tree(p1, b1, q1, c1, "modules/a/migrations/sqlite/0002_x.go", []byte("package x")), prev, "cannot be classified"},
+		{"an empty baseline is a wrong ref", tree(p1, b1), Tree{}, "wrong ref"},
+		{"the number of migrations went down", tree(p1, b1), tree(p1, b1, q1, c1), "went down"},
 	}
 	for _, c := range cases {
-		got := CheckMigrations(c.prev, c.cur, c.ps)
+		got := CheckMigrations(c.prev, c.cur)
 		joined := ""
 		for _, f := range got {
 			joined += f.String() + "\n"
@@ -206,9 +239,18 @@ func TestGuardOnTheRealMigrations(t *testing.T) {
 	if !bad["modules/response/migrations/sqlite/0003_response_tokens.sql"] {
 		t.Error("DROP TABLE resp_tokens was not flagged")
 	}
-	if bad["modules/honeypot/migrations/sqlite/0002_hit_count.sql"] || bad["modules/logs/migrations/volume/0002_logs_volume_bytes.sql"] ||
-		bad["modules/inventory/migrations/sqlite/0001_inventory.sql"] || bad["modules/core/migrations/sqlite/0009_core_user_temp_password.sql"] {
-		t.Errorf("an add-only migration (ADD COLUMN, seed into a new table, trigger on a new table) was flagged: %v", bad)
+	// ADD COLUMN with a CHECK is not add-only (M3): these two are flagged even though they only add a column.
+	for _, p := range []string{"modules/honeypot/migrations/sqlite/0002_hit_count.sql", "modules/core/migrations/sqlite/0009_core_user_temp_password.sql"} {
+		if !bad[p] {
+			t.Errorf("%s adds a column with a CHECK and must be flagged", p)
+		}
+	}
+	// A seed into a new table, a trigger and expression indexes on new tables, a plain table: add-only.
+	for _, p := range []string{"modules/logs/migrations/volume/0002_logs_volume_bytes.sql", "modules/inventory/migrations/sqlite/0001_inventory.sql",
+		"modules/core/migrations/sqlite/0004_core_chain_head.sql", "modules/exposure/migrations/sqlite/0001_exposure.sql"} {
+		if bad[p] {
+			t.Errorf("%s is add-only and was flagged", p)
+		}
 	}
 }
 
@@ -254,7 +296,7 @@ func TestGitTree(t *testing.T) {
 	if len(prev) != 1 || len(cur) != 2 {
 		t.Fatalf("%d %d", len(prev), len(cur))
 	}
-	if f := CheckMigrations(prev, cur, 1); len(f) != 1 || !strings.Contains(f[0].String(), "0002_a.sql") {
+	if f := CheckMigrations(prev, cur); len(f) != 1 || !strings.Contains(f[0].String(), "0002_a.sql") {
 		t.Fatalf("%v", f)
 	}
 	for _, ref := range []string{"", "-x", "--output=/tmp/x", "a..b", "v0.1.0; rm -rf /", "nope"} {

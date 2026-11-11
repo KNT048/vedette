@@ -4,15 +4,17 @@
 // published. It runs on the maintainer's machine, offline; it pushes nothing, creates no tag and holds no key.
 //
 //	go run ./scripts/release cosign-plan -in release.in.json -key ~/keys/cosign.key -out dist/release/cosign
-//	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev DIR -prev-ref v0.1.0 -keys-dir DIR]
-//	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev DIR -keys-dir DIR]
+//	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
+//	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
+//	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup] [-passphrase-stdin]
-//	go run ./scripts/release verify      -dir dist/release [-prev DIR] [-keys-dir DIR]
+//	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -125,12 +127,12 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	in := fs.String("in", "release.in.json", "release description")
 	out := fs.String("out", "dist/release", "output directory")
 	cosignDir := fs.String("cosign-dir", "", "directory with <service>.payload.json and <service>.sig from cosign")
-	prev := fs.String("prev", "", "directory of the previous release (index.json, release-manifest.json and their .minisig)")
-	prevRef := fs.String("prev-ref", "", "git ref of the previous release (default v<its version>)")
-	prevMig := fs.String("prev-migrations", "", "directory holding the previous release's modules/*/migrations (instead of -prev-ref)")
+	prevIndex := fs.String("prev-index", "", "directory of the published index (index.json and index.json.minisig); omit before the first release")
+	ref := fs.String("ref", "", "git ref of the release being built (default v<version>); its migrations are read from git, never from the working tree")
+	baseRef := fs.String("baseline-ref", "", "git ref of release rollback.min_version, the rollback baseline (default v<min_version>)")
 	repo := fs.String("repo", ".", "repository root")
 	keys := fs.String("keys-dir", "", "directory with minisign.pub, minisign-backup.pub, cosign.pub (default: the keys compiled in)")
-	now := fs.String("now", "", "RFC 3339 time to use as released_at when the description has none (default now)")
+	now := fs.String("now", "", "RFC 3339 time to use as released_at when the description has none (default now; at most 10 minutes from the clock)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -144,29 +146,46 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 			return fmt.Errorf("-now: %w", err)
 		}
 	}
-	if env.CurTree, err = DirTree(os.DirFS(*repo)); err != nil {
-		return fmt.Errorf("migrations of the working tree: %w", err)
+	if err := checkClock(env.Now, "-now"); err != nil {
+		return err
 	}
-	if *prev != "" {
+	if inputs.ReleasedAt != "" {
+		t, err := time.Parse(time.RFC3339, inputs.ReleasedAt)
+		if err != nil {
+			return fmt.Errorf("released_at: %w", err)
+		}
+		if err := checkClock(t, "released_at"); err != nil {
+			return err
+		}
+	}
+	if *prevIndex != "" {
 		trust, err := LoadTrust(*keys)
 		if err != nil {
 			return err
 		}
-		if env.Prev, err = LoadPrev(*prev, trust); err != nil {
+		if env.PrevIndex, err = LoadPrevIndex(*prevIndex, trust); err != nil {
 			return err
 		}
-		switch {
-		case *prevMig != "":
-			env.PrevTree, err = DirTree(os.DirFS(*prevMig))
-		default:
-			ref := *prevRef
-			if ref == "" {
-				ref = "v" + env.Prev.Manifest.Version
-			}
-			env.PrevTree, err = GitTree(ctx, *repo, ref)
+	}
+	// Both trees come from git objects at refs, and the migration files on disk must match git: what is checked is what is built.
+	if err := CheckClean(ctx, *repo); err != nil {
+		return err
+	}
+	if *ref == "" {
+		*ref = "v" + inputs.Version
+	}
+	if env.CurTree, err = GitTree(ctx, *repo, *ref); err != nil {
+		return fmt.Errorf("migrations of %s: %w", *ref, err)
+	}
+	if mv := inputs.Rollback.MinVersion; mv != "" {
+		if *baseRef == "" {
+			*baseRef = "v" + mv
 		}
-		if err != nil {
-			return fmt.Errorf("migrations of the previous release: %w", err)
+		if env.Baseline, err = GitTree(ctx, *repo, *baseRef); err != nil {
+			if inputs.Rollback.Safe {
+				return fmt.Errorf("migrations of rollback baseline %s: %w", *baseRef, err)
+			}
+			say(stderr, "note: no migrations at %s (%v): the guard did not run, which is fine for rollback.safe=false", *baseRef, err)
 		}
 	}
 	res, err := BuildManifest(inputs, env)
@@ -182,10 +201,19 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	}
 	say(stdout, "wrote %s (version %s, db_schema %d, rollback.safe=%t)", p, inputs.Version, res.DBSchema, inputs.Rollback.Safe)
 	if !inputs.Rollback.Safe && len(res.Findings) > 0 {
-		say(stderr, "rollback.safe=false is right: the migrations since the previous release are not add-only:")
+		say(stderr, "rollback.safe=false is right: the migrations since rollback.min_version are not add-only:")
 		for _, f := range res.Findings {
 			say(stderr, "  - %s", f)
 		}
+	}
+	return nil
+}
+
+// checkClock refuses a time that is not close to the clock: a wrong released_at or generated_at in a signed document is
+// permanent, and an index dated ahead pins its expiry in the future.
+func checkClock(t time.Time, what string) error {
+	if d := time.Since(t); d > 10*time.Minute || d < -10*time.Minute {
+		return fmt.Errorf("%s %s is more than 10 minutes from the clock (%s)", what, t.Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339))
 	}
 	return nil
 }
@@ -194,9 +222,9 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	fs := newFlags("index")
 	out := fs.String("out", "dist/release", "output directory")
 	manifest := fs.String("manifest", "", "release-manifest.json of the release to announce (empty: only refresh the index)")
-	prev := fs.String("prev", "", "directory of the previous release (its index carries revocations and the other channel)")
+	prev := fs.String("prev-index", "", "directory of the published index (it carries revocations, advisories and the other channel; required for a refresh)")
 	keys := fs.String("keys-dir", "", "directory with the public keys (default: the keys compiled in)")
-	seq := fs.Uint64("sequence", 0, "index sequence (default previous + 1)")
+	seq := fs.Uint64("sequence", 0, "index sequence (default previous + 1; at most 10 above it)")
 	rollout := fs.Int("rollout", -1, "rollout percent of the channel (default 100)")
 	days := fs.Int("valid-days", 14, "days until expires_at (at most 14)")
 	now := fs.String("now", "", "RFC 3339 generated_at (default now)")
@@ -214,14 +242,27 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		}
 		p.Now = t
 	}
+	if err := checkClock(p.Now, "generated_at"); err != nil {
+		return err
+	}
+	if *manifest == "" {
+		// A refresh (D-150) announces nothing, so it must start from the published index and must not sit next to a manifest of
+		// an earlier run (sign would sign it and verify would then look for it in the index).
+		if *prev == "" {
+			return errors.New("refreshing the index needs -prev-index: the published index to carry on from")
+		}
+		if _, err := os.Stat(filepath.Join(*out, manifestFile)); err == nil {
+			return fmt.Errorf("%s holds a %s of an earlier run: use a directory of its own for a refresh", *out, manifestFile)
+		}
+	}
 	var prevIndex *release.Index
 	if *prev != "" {
 		trust, err := LoadTrust(*keys)
 		if err != nil {
 			return err
 		}
-		if prevIndex, err = verifyIndexFile(*prev, trust, nil); err != nil {
-			return fmt.Errorf("previous index: %w", err)
+		if prevIndex, err = LoadPrevIndex(*prev, trust); err != nil {
+			return err
 		}
 	}
 	if *manifest != "" {
@@ -271,12 +312,16 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 		return errors.New("-slot is active or backup")
 	}
 	s := MinisignCLI{Bin: *bin, KeyPath: *key, Interactive: true}
+	if root, err := RepoRoot(ctx, "."); err == nil {
+		s.RepoRoot = root
+	}
 	if *pass {
 		line, err := readLine(stdin)
 		if err != nil {
 			return fmt.Errorf("passphrase: %w", err)
 		}
-		s.Passphrase, s.Interactive = []byte(line), false
+		defer clear(line)
+		s.Passphrase, s.Interactive = line, false
 	}
 	written, err := SignRelease(ctx, s, *dir, *slot == "backup")
 	for _, w := range written {
@@ -286,31 +331,34 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 }
 
 // readLine reads one line of at most maxPassphrase bytes, a byte at a time so nothing after the line is consumed.
-func readLine(r io.Reader) (string, error) {
+// It returns bytes, not a string, so the caller can wipe them.
+func readLine(r io.Reader) ([]byte, error) {
 	var b []byte
 	one := make([]byte, 1)
 	for len(b) <= maxPassphrase {
 		n, err := r.Read(one)
 		if n == 1 {
 			if one[0] == '\n' {
-				return strings.TrimSuffix(string(b), "\r"), nil
+				return bytes.TrimSuffix(b, []byte("\r")), nil
 			}
 			b = append(b, one[0])
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) && len(b) > 0 {
-				return string(b), nil
+				return b, nil
 			}
-			return "", err
+			clear(b)
+			return nil, err
 		}
 	}
-	return "", errors.New("line too long")
+	clear(b)
+	return nil, errors.New("line too long")
 }
 
 func cmdVerify(args []string, stdout io.Writer) error {
 	fs := newFlags("verify")
 	dir := fs.String("dir", "dist/release", "directory with the signed documents")
-	prev := fs.String("prev", "", "directory of the previous release (sequence must not go back)")
+	prev := fs.String("prev-index", "", "directory of the published index (the sequence must not go back; required for an index-only directory)")
 	keys := fs.String("keys-dir", "", "directory with the public keys (default: the keys compiled in, which must be the real release keys)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -322,6 +370,10 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	s, err := VerifyDir(*dir, *prev, trust)
 	if err != nil {
 		return err
+	}
+	if s.IndexOnly {
+		say(stdout, "verified: index-only refresh, sequence %d signed by %s, channels unchanged, backup signature %t", s.Sequence, s.IndexKeyID, s.BackupSig)
+		return nil
 	}
 	say(stdout, "verified: index sequence %d signed by %s, release %s (%s), backup signature %t", s.Sequence, s.IndexKeyID, s.Version, s.Channel, s.BackupSig)
 	for _, im := range s.Images {

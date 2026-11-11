@@ -42,6 +42,22 @@ type IndexParams struct {
 	ManifestRaw     []byte // the signed bytes of that manifest: the index carries their SHA-256
 }
 
+// maxSequenceJump is the largest step of an explicit -sequence.
+const maxSequenceJump = 10
+
+// checkChannelsStable refuses an index that announces, for a channel and version the previous index already announced, another
+// manifest (hash or URL): a published release is immutable, a changed one needs a new version (and boxes that pulled the old one
+// would otherwise hold a manifest the index no longer describes).
+func checkChannelsStable(prev, cur *release.Index) error {
+	for name, c := range cur.Channels {
+		old, ok := prev.Channels[name]
+		if ok && old.Latest == c.Latest && (old.ManifestSHA256 != c.ManifestSHA256 || old.Manifest != c.Manifest) {
+			return fmt.Errorf("channel %s is still at %s but its manifest hash or URL changed: a published release is immutable, release a new version", name, c.Latest)
+		}
+	}
+	return nil
+}
+
 // BuildIndex builds index.json (unsigned) from the previous verified index and the new manifest. Revocations, advisories and
 // the other channel carry over unchanged, so a chain of indexes never forgets a revocation. It refuses a sequence that does not
 // go up, a channel whose latest version would go down, and an expiry past the 14-day maximum.
@@ -75,6 +91,11 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	if x.Sequence <= prevSeq {
 		return nil, fmt.Errorf("sequence %d is not above the previous index's %d", x.Sequence, prevSeq)
 	}
+	// A box never accepts a lower sequence than it stored, so a typo that jumps ahead strands every box until the next signed index
+	// is numbered above it: a bigger step than a few weeks of refreshes is refused.
+	if x.Sequence > prevSeq+maxSequenceJump {
+		return nil, fmt.Errorf("sequence %d is more than %d above the previous index's %d; a box could never accept a lower one again", x.Sequence, maxSequenceJump, prevSeq)
+	}
 	if p.ManifestVersion != "" {
 		if _, err := release.CompareVersions(p.ManifestVersion, p.ManifestVersion); err != nil {
 			return nil, fmt.Errorf("manifest version %q is not SemVer", p.ManifestVersion)
@@ -105,6 +126,11 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 		x.Channels[p.Channel] = release.Channel{
 			Latest: p.ManifestVersion, Manifest: manifestURL(p.ManifestVersion), ManifestSHA256: hex.EncodeToString(sum[:]),
 			Rollout: &release.Rollout{Percent: rollout},
+		}
+	}
+	if prev != nil {
+		if err := checkChannelsStable(prev, &x); err != nil {
+			return nil, err
 		}
 	}
 	if len(x.Channels) == 0 {

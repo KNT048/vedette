@@ -84,21 +84,7 @@ func GitTree(ctx context.Context, repo, ref string) (Tree, error) {
 	if !gitRefRE.MatchString(ref) || strings.Contains(ref, "..") {
 		return nil, fmt.Errorf("git ref %q is not a plain tag, branch or commit name", ref)
 	}
-	git := func(args ...string) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...) //nolint:gosec // fixed git argv; ref and paths validated
-		cmd.Env = []string{"LC_ALL=C", "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "HOME=" + os.Getenv("HOME")}
-		out, err := cmd.Output()
-		if err != nil {
-			var ee *exec.ExitError
-			if errors.As(err, &ee) {
-				return nil, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(string(ee.Stderr)))
-			}
-			return nil, fmt.Errorf("git %s: %w", args[0], err)
-		}
-		return out, nil
-	}
+	git := func(args ...string) ([]byte, error) { return gitRun(ctx, repo, args...) }
 	list, err := git("ls-tree", "-r", "-z", "--name-only", ref, "--", "modules")
 	if err != nil {
 		return nil, err
@@ -123,6 +109,52 @@ func GitTree(ctx context.Context, repo, ref string) (Tree, error) {
 	return t, nil
 }
 
+// gitRun runs git in repo with a fixed argv (no shell) and a deadline.
+func gitRun(ctx context.Context, repo string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...) //nolint:gosec // fixed git argv; refs and paths validated by the callers
+	cmd.Env = []string{"LC_ALL=C", "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "HOME=" + os.Getenv("HOME")}
+	out, err := cmd.Output()
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return nil, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(string(ee.Stderr)))
+		}
+		return nil, fmt.Errorf("git %s: %w", args[0], err)
+	}
+	return out, nil
+}
+
+// RepoRoot is the top of the repository that contains dir.
+func RepoRoot(ctx context.Context, dir string) (string, error) {
+	out, err := gitRun(ctx, dir, "rev-parse", "--show-toplevel")
+	return strings.TrimSpace(string(out)), err
+}
+
+// CheckClean refuses a repository whose migration files have uncommitted changes (modified, staged, deleted or untracked): the
+// guard reads the migrations from git, so a release built from a tree with an edited migration would be checked against something
+// other than what is on disk and gets built from.
+func CheckClean(ctx context.Context, repo string) error {
+	out, err := gitRun(ctx, repo, "status", "--porcelain", "-z", "--untracked-files=all", "--", "modules")
+	if err != nil {
+		return err
+	}
+	var dirty []string
+	for _, e := range strings.Split(string(out), "\x00") {
+		switch {
+		case len(e) > 3 && migPathRE.MatchString(e[3:]):
+			dirty = append(dirty, e[3:])
+		case migPathRE.MatchString(e): // the old path of a staged rename has no status prefix
+			dirty = append(dirty, e)
+		}
+	}
+	if len(dirty) > 0 {
+		return fmt.Errorf("migration files have uncommitted changes (commit or discard them first): %s", strings.Join(dirty, ", "))
+	}
+	return nil
+}
+
 // Count is the number of SQL migrations of the tree: the db_schema of the manifest.
 func (t Tree) Count() int {
 	n := 0
@@ -139,17 +171,18 @@ type Finding struct{ File, Reason string }
 
 func (f Finding) String() string { return f.File + ": " + f.Reason }
 
-// CheckMigrations compares the migrations of the previous release with the current tree and returns every reason the change is
-// not add-only. prevSchema is the previous manifest's db_schema (it must equal the number of migrations of prev: a wrong git
-// ref is caught here). No findings means rollback.safe=true may be declared as far as the database goes.
-func CheckMigrations(prev, cur Tree, prevSchema int) []Finding {
+// CheckMigrations compares the migrations at the rollback baseline (the tree of release rollback.min_version, D-164: a box may
+// roll back to any release from there, so the whole span counts, not only the step since the previous release) with the tree
+// being released, and returns every reason the change is not add-only. No findings means rollback.safe=true may be declared as
+// far as the database goes.
+func CheckMigrations(prev, cur Tree) []Finding {
 	var out []Finding
 	add := func(file, format string, a ...any) { out = append(out, Finding{file, fmt.Sprintf(format, a...)}) }
-	if prev.Count() != prevSchema {
-		add("(previous release)", "its manifest says db_schema %d but the previous revision holds %d migrations: wrong previous ref?", prevSchema, prev.Count())
+	if prev.Count() == 0 {
+		add("(baseline)", "the baseline revision holds no migrations: wrong ref?")
 	}
-	if cur.Count() < prevSchema {
-		add("(db_schema)", "the number of migrations went down from %d to %d", prevSchema, cur.Count())
+	if cur.Count() < prev.Count() {
+		add("(db_schema)", "the number of migrations went down from %d to %d", prev.Count(), cur.Count())
 	}
 	maxPrev := map[string]int{} // directory -> highest applied number
 	for p, b := range prev {
@@ -289,7 +322,7 @@ func classifyUp(src []byte) []string {
 	if ups != 1 {
 		fail("needs exactly one -- +goose Up section, has %d", ups)
 	}
-	created := map[string]bool{}
+	st := &sqlState{created: map[string]bool{}, triggered: map[string]bool{}}
 	for _, s := range stmts {
 		clean, err := stripSQL(s.text)
 		if err != nil {
@@ -300,7 +333,7 @@ func classifyUp(src []byte) []string {
 		if clean == "" {
 			continue
 		}
-		if r := classifyStmt(clean, s.block, created); r != "" {
+		if r := classifyStmt(clean, s.block, st); r != "" {
 			fail("%s", r)
 		}
 	}
@@ -310,7 +343,11 @@ func classifyUp(src []byte) []string {
 const ident = "(\"[^\"]+\"|`[^`]+`|\\[[^\\]]+\\]|[A-Za-z_][A-Za-z0-9_$]*)(?:\\.(\"[^\"]+\"|`[^`]+`|\\[[^\\]]+\\]|[A-Za-z_][A-Za-z0-9_$]*))?"
 
 var (
-	createTableRE = regexp.MustCompile(`(?is)^CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?` + ident + `(?:[\s(]|$)`)
+	createTableRE = regexp.MustCompile(`(?is)^CREATE\s+(TEMP\s+|TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?` + ident + `(?:[\s(]|$)`)
+	referencesRE  = regexp.MustCompile(`(?is)\bREFERENCES\s+` + ident)
+	onDeleteRE    = regexp.MustCompile(`(?is)\bON\s+DELETE\s+(?:CASCADE|SET\s+NULL|SET\s+DEFAULT)\b`)
+	checkRE       = regexp.MustCompile(`(?is)\bCHECK\b`)
+	indexColRE    = regexp.MustCompile(`(?is)^(?:"[^"]+"|` + "`[^`]+`" + `|\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_$]*)(?:\s+COLLATE\s+[A-Za-z_][A-Za-z0-9_]*)?(?:\s+(?:ASC|DESC))?$`)
 	createIndexRE = regexp.MustCompile(`(?is)^CREATE\s+(UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?` + ident + `\s+ON\s+` + ident + `(?:[\s(]|$)`)
 	createViewRE  = regexp.MustCompile(`(?is)^CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?` + ident + `\s`)
 	createTrigRE  = regexp.MustCompile(`(?is)^CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?` + ident +
@@ -321,16 +358,105 @@ var (
 	deleteRE   = regexp.MustCompile(`(?is)^DELETE\s+FROM\s+` + ident + `(?:\s|$)`)
 )
 
-// tableName normalises the one or two identifier groups of a match (schema.name) to the lower-case table name.
+// tableName normalises the one or two identifier groups of a match (schema.name) to the lower-case table name. A table of
+// another schema (temp, an attached file) has no name here: "" is never in a set, so nothing about it is believed.
 func tableName(name, schema string) string {
 	n := name
 	if schema != "" {
 		if !strings.EqualFold(unquote(name), "main") {
-			return "\x00other-schema:" + strings.ToLower(unquote(name))
+			return ""
 		}
 		n = schema
 	}
 	return strings.ToLower(unquote(n))
+}
+
+// sqlState is what the statements of one file have done so far: the tables it created, and the tables it put a trigger on.
+type sqlState struct{ created, triggered map[string]bool }
+
+// writable says whether a write to the table is harmless to the older version: the file made it (so the older version never
+// touches it) and none of the file's triggers is armed on it (a seed row would fire the trigger, whose body may rewrite old data).
+func (st *sqlState) writable(table string) (ok bool, why string) {
+	switch {
+	case table == "" || !st.created[table]:
+		return false, "a table this migration did not create"
+	case st.triggered[table]:
+		return false, "a table that already has a trigger of this migration (the write would fire it, and its body may change old data)"
+	}
+	return true, ""
+}
+
+// balanced returns the text inside the parenthesis opened at s[open] and the index after its close; ok is false when it never closes.
+func balanced(s string, open int) (inner string, end int, ok bool) {
+	depth := 0
+	for i := open; i < len(s); i++ {
+		switch s[i] {
+		case '\'', '"', '`':
+			k := strings.IndexByte(s[i+1:], s[i])
+			if k < 0 {
+				return "", 0, false
+			}
+			i += k + 1
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return s[open+1 : i], i + 1, true
+			}
+		}
+	}
+	return "", 0, false
+}
+
+// splitTop cuts s at the commas that are not inside parentheses or quotes.
+func splitTop(s string) []string {
+	var out []string
+	depth, start := 0, 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\'', '"', '`':
+			if k := strings.IndexByte(s[i+1:], s[i]); k >= 0 {
+				i += k + 1
+			}
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				out = append(out, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(out, s[start:])
+}
+
+// constraintTail is the rest of the column or table constraint that starts before from: up to the comma or the closing
+// parenthesis that ends it.
+func constraintTail(s string, from int) string {
+	depth := 0
+	for i := from; i < len(s); i++ {
+		switch s[i] {
+		case '\'', '"', '`':
+			if k := strings.IndexByte(s[i+1:], s[i]); k >= 0 {
+				i += k + 1
+			}
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				return s[from:i]
+			}
+			depth--
+		case ',':
+			if depth == 0 {
+				return s[from:i]
+			}
+		}
+	}
+	return s[from:]
 }
 
 func unquote(s string) string {
@@ -345,8 +471,8 @@ func unquote(s string) string {
 	return s
 }
 
-// classifyStmt returns "" for an add-only statement, else the reason. created collects the tables the file made.
-func classifyStmt(s string, block bool, created map[string]bool) string {
+// classifyStmt returns "" for an add-only statement, else the reason. st collects what the file has done so far.
+func classifyStmt(s string, block bool, st *sqlState) string {
 	head := s
 	if len(head) > 60 {
 		head = head[:60] + "..."
@@ -355,15 +481,49 @@ func classifyStmt(s string, block bool, created map[string]bool) string {
 	if block && !createTrigRE.MatchString(s) {
 		return fmt.Sprintf("a StatementBegin block that is not a CREATE TRIGGER (%q)", head)
 	}
+	write := func(verb, table string) string {
+		if ok, why := st.writable(table); !ok {
+			return fmt.Sprintf("%s of %s changes or fires on data the older version reads (%q)", verb, why, head)
+		}
+		return ""
+	}
 	switch {
 	case createTableRE.MatchString(s):
 		m := createTableRE.FindStringSubmatch(s)
-		created[tableName(m[1], m[2])] = true
+		self := tableName(m[3], m[4])
+		// Only a plain CREATE TABLE of the main schema proves the table is new: IF NOT EXISTS may find an old one, TEMP is another table.
+		if self != "" && m[1] == "" && m[2] == "" {
+			st.created[self] = true
+		}
+		// A foreign key into a table that is not new makes the older version's deletes of its rows fail (foreign_keys is on)
+		// unless the key cascades or nulls.
+		for _, r := range referencesRE.FindAllStringSubmatchIndex(s, -1) {
+			parent := tableName(s[r[2]:r[3]], sub(s, r[4], r[5]))
+			if parent != "" && (parent == self || st.created[parent]) {
+				continue
+			}
+			if !onDeleteRE.MatchString(constraintTail(s, r[1])) {
+				return fmt.Sprintf("a foreign key into a table this migration did not create, without ON DELETE CASCADE or SET NULL, can make the older version's deletes fail (%q)", head)
+			}
+		}
 		return ""
 	case createIndexRE.MatchString(s):
 		m := createIndexRE.FindStringSubmatch(s)
-		if m[1] != "" && !created[tableName(m[4], m[5])] {
+		if m[1] != "" && !st.created[tableName(m[4], m[5])] {
 			return fmt.Sprintf("a UNIQUE index on a table this migration did not create can refuse writes of the older version (%q)", head)
+		}
+		if st.created[tableName(m[4], m[5])] {
+			return "" // the older version never writes a table that is new
+		}
+		open := strings.IndexByte(s, '(')
+		cols, _, ok := balanced(s, max(open, 0))
+		if open < 0 || !ok {
+			return fmt.Sprintf("an index whose column list cannot be read (%q)", head)
+		}
+		for _, c := range splitTop(cols) {
+			if !indexColRE.MatchString(strings.TrimSpace(c)) {
+				return fmt.Sprintf("an expression index on an existing table can fail on a write of the older version (%q)", head)
+			}
 		}
 		return ""
 	case createViewRE.MatchString(s):
@@ -376,32 +536,37 @@ func classifyStmt(s string, block bool, created map[string]bool) string {
 			return fmt.Sprintf("a StatementBegin block holds more than the one trigger it starts with (%q)", head)
 		}
 		m := createTrigRE.FindStringSubmatch(s)
-		if !created[tableName(m[3], m[4])] {
+		table := tableName(m[3], m[4])
+		if table == "" || !st.created[table] {
 			return fmt.Sprintf("a trigger on a table this migration did not create can refuse writes of the older version (%q)", head)
 		}
+		st.triggered[table] = true
 		return ""
 	case alterAddRE.MatchString(s):
+		// A column with a foreign key or a CHECK can make the older version's own writes fail; fail closed on either word.
+		if referencesRE.MatchString(s) || checkRE.MatchString(s) {
+			return fmt.Sprintf("an added column with REFERENCES or CHECK can make writes of the older version fail (%q)", head)
+		}
 		return ""
 	case insertRE.MatchString(s):
 		m := insertRE.FindStringSubmatch(s)
-		if !created[tableName(m[1], m[2])] {
-			return fmt.Sprintf("INSERT into a table this migration did not create changes data the older version reads (%q)", head)
-		}
-		return ""
+		return write("INSERT", tableName(m[1], m[2]))
 	case updateRE.MatchString(s):
 		m := updateRE.FindStringSubmatch(s)
-		if !created[tableName(m[1], m[2])] {
-			return fmt.Sprintf("UPDATE of a table this migration did not create changes data the older version reads (%q)", head)
-		}
-		return ""
+		return write("UPDATE", tableName(m[1], m[2]))
 	case deleteRE.MatchString(s):
 		m := deleteRE.FindStringSubmatch(s)
-		if !created[tableName(m[1], m[2])] {
-			return fmt.Sprintf("DELETE from a table this migration did not create changes data the older version reads (%q)", head)
-		}
-		return ""
+		return write("DELETE", tableName(m[1], m[2]))
 	}
 	return fmt.Sprintf("cannot classify as add-only: %q", head)
+}
+
+// sub is s[from:to], or "" when the group did not match (-1).
+func sub(s string, from, to int) string {
+	if from < 0 {
+		return ""
+	}
+	return s[from:to]
 }
 
 // triggerBlockOK reports whether s (comments already removed) is exactly one trigger: after BEGIN, the first END that is not

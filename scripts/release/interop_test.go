@@ -135,6 +135,11 @@ func TestInteropMinisignCLI(t *testing.T) {
 	repo := filepath.Join(work, "repo")
 	must(t, os.MkdirAll(filepath.Join(repo, "modules/a/migrations/sqlite"), 0o750))
 	must(t, os.WriteFile(filepath.Join(repo, "modules/a/migrations/sqlite/0001_a.sql"), up("CREATE TABLE a (id INT);"), 0o600))
+	// the migrations are read from git: a repository with the release tagged
+	gitT(t, repo, "init", "-q")
+	gitT(t, repo, "add", "-A")
+	gitT(t, repo, "commit", "-q", "-m", "release")
+	gitT(t, repo, "tag", "v0.1.0-beta.1")
 	cdir := filepath.Join(work, "cosign")
 	must(t, os.MkdirAll(cdir, 0o750))
 	var imgs []string
@@ -156,8 +161,8 @@ func TestInteropMinisignCLI(t *testing.T) {
 		return code, o.String() + e.String()
 	}
 	for _, step := range [][]string{
-		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo, "-now", "2026-12-02T08:00:00Z"},
-		{"index", "-out", out, "-manifest", filepath.Join(out, manifestFile), "-now", "2026-12-02T08:00:00Z"},
+		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo},
+		{"index", "-out", out, "-manifest", filepath.Join(out, manifestFile)},
 		{"sign", "-dir", out, "-key", pub("active.key"), "-minisign", bin, "-slot", "active"},
 	} {
 		if code, msg := do("", step...); code != 0 {
@@ -206,6 +211,25 @@ func TestInteropMinisignCLI(t *testing.T) {
 	must(t, os.WriteFile(mp, orig, 0o600))
 	if code, msg := do("", "verify", "-dir", out, "-keys-dir", keys); code != 0 {
 		t.Fatalf("restored: %s", msg)
+	}
+	// the weekly refresh (D-150): no manifest, signed by the real tool, verified against the published index
+	refresh := filepath.Join(work, "refresh")
+	for _, step := range [][]string{
+		{"index", "-out", refresh, "-prev-index", out, "-keys-dir", keys},
+		{"sign", "-dir", refresh, "-key", pub("active.key"), "-minisign", bin},
+	} {
+		if code, msg := do("", step...); code != 0 {
+			t.Fatalf("refresh %v: exit %d\n%s", step[0], code, msg)
+		}
+	}
+	if code, msg := do("", "verify", "-dir", refresh, "-prev-index", out, "-keys-dir", keys); code != 0 || !strings.Contains(msg, "index-only refresh, sequence 2") {
+		t.Fatalf("refresh verify: exit %d\n%s", code, msg)
+	}
+	if _, err := os.Stat(filepath.Join(refresh, manifestFile+".minisig")); err == nil {
+		t.Error("a refresh produced a manifest signature")
+	}
+	if o, err := ms(t, bin, "", "-Vm", filepath.Join(refresh, indexFile), "-p", pub("minisign.pub")); err != nil || !strings.Contains(o, "sequence:2") {
+		t.Errorf("minisign -V of the refreshed index: %v\n%s", err, o)
 	}
 	// (3) the legacy "Ed" signature of the real tool is refused by the verifier (the verifier takes prehashed "ED" only)
 	ip := filepath.Join(out, indexFile)

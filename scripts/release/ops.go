@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -46,22 +47,15 @@ func LoadTrust(dir string) (release.Trust, error) {
 	return release.NewTrust(a, b, c)
 }
 
-// LoadPrev reads and verifies the previous release held in dir (index.json and release-manifest.json with their .minisig).
-// Both are verified with the verifier of internal/release; the builder never builds on a file that does not verify.
-func LoadPrev(dir string, trust release.Trust) (*Prev, error) {
+// LoadPrevIndex reads and verifies the published index held in dir (index.json and its .minisig) with the verifier of
+// internal/release. It is the one thing a new release builds on besides the git trees: its sequence, revocations, advisories and
+// channels carry over. No previous manifest is read or needed, so a revoked or withdrawn release cannot block the next one.
+func LoadPrevIndex(dir string, trust release.Trust) (*release.Index, error) {
 	idx, err := verifyIndexFile(dir, trust, nil)
 	if err != nil {
-		return nil, fmt.Errorf("previous release: %w", err)
+		return nil, fmt.Errorf("published index: %w", err)
 	}
-	raw, sig, err := readSigned(filepath.Join(dir, manifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("previous release: %w", err)
-	}
-	m, err := release.VerifyManifest(raw, sig, trust, idx)
-	if err != nil {
-		return nil, fmt.Errorf("previous release manifest: %w", err)
-	}
-	return &Prev{Manifest: m, Index: idx}, nil
+	return idx, nil
 }
 
 func readSigned(p string) (raw, sig []byte, err error) {
@@ -82,17 +76,27 @@ func verifyIndexFile(dir string, trust release.Trust, stored *release.Index) (*r
 	return release.VerifyIndex(raw, sig, trust, stored)
 }
 
-// SignRelease signs the documents of dir with s: index.json and any index.v<N>.json always, release-manifest.json only for the
-// active key. The backup slot (the offline key, D-103) signs indexes only, into <file>.backup.minisig; it exists to revoke a
-// leaked active key, never to sign a release. It returns the signature files written.
-func SignRelease(ctx context.Context, s Signer, dir string, backup bool) ([]string, error) {
+// SignRelease signs the documents of dir with s: index.json and any index.v<N>.json always, and release-manifest.json when there
+// is one (a weekly refresh of the index, D-150, has none) and only for the active key. The backup slot (the offline key, D-103)
+// signs indexes only, into <file>.backup.minisig; it exists to revoke a leaked active key, never to sign a release. It returns the
+// signature files written. When anything fails, every signature written in this run is removed: a directory holds either all the
+// signatures of the run or none of them.
+func SignRelease(ctx context.Context, s Signer, dir string, backup bool) (written []string, err error) {
+	defer func() {
+		if err != nil {
+			for _, w := range written {
+				_ = os.Remove(w)
+			}
+			written = nil
+		}
+	}()
 	names, err := filepath.Glob(filepath.Join(dir, "index*.json"))
 	if err != nil {
 		return nil, err
 	}
 	var docs []string
 	for _, n := range names {
-		if b := filepath.Base(n); b == indexFile || (strings.HasPrefix(b, "index.v") && strings.HasSuffix(b, ".json")) {
+		if b := filepath.Base(n); b == indexFile || isLegacyIndex(b) {
 			docs = append(docs, n)
 		}
 	}
@@ -100,10 +104,13 @@ func SignRelease(ctx context.Context, s Signer, dir string, backup bool) ([]stri
 		return nil, errors.New("no index.json to sign: run release index first")
 	}
 	slices.Sort(docs)
-	if !backup {
-		docs = append(docs, filepath.Join(dir, manifestFile))
+	if m := filepath.Join(dir, manifestFile); !backup {
+		if _, err := os.Stat(m); err == nil {
+			docs = append(docs, m)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
 	}
-	var written []string
 	for _, p := range docs {
 		raw, err := readDoc(p)
 		if err != nil {
@@ -117,12 +124,16 @@ func SignRelease(ctx context.Context, s Signer, dir string, backup bool) ([]stri
 		if backup {
 			sigPath = p + ".backup.minisig"
 		}
+		written = append(written, sigPath) // before the call: a signer that fails half way may have left the file
 		if err := s.SignFile(ctx, p, sigPath, tc); err != nil {
 			return written, err
 		}
-		written = append(written, sigPath)
 	}
 	return written, nil
+}
+
+func isLegacyIndex(base string) bool {
+	return strings.HasPrefix(base, "index.v") && strings.HasSuffix(base, ".json") && !strings.Contains(base, ".minisig")
 }
 
 // trustedComment says what a signature is for: the file name and the sequence or version (a signature over an index is not
@@ -144,36 +155,50 @@ func trustedComment(name string, raw []byte) (string, error) {
 // Summary is what VerifyDir found.
 type Summary struct {
 	Sequence   uint64
-	Version    string
+	Version    string // empty for an index-only directory
 	Channel    string
 	IndexKeyID string
 	Images     []string // service@digest, each cosign signature verified
 	BackupSig  bool     // the backup key's index signature was present and verified
+	IndexOnly  bool     // no manifest in the directory: a refresh of the index
 }
 
+// legacyVerifiers check an index.v<N>.json and its signature. A legacy index is a document of a schema this build cannot
+// parse, so there is nothing to check it with until the schema moves on: the entry for schema N is added together with
+// legacyWriters[N] (index.go). Until then VerifyDir refuses a directory that holds one, instead of passing a file nobody verified.
+var legacyVerifiers = map[int]func(raw, sig []byte, trust release.Trust) error{}
+
 // VerifyDir is the check before anything is published: it runs the box-side verifier of internal/release over the output,
-// with the keys of trust. The index (against the previous index when prevDir is given, so a sequence that goes back is
-// refused), the manifest (signature, revocation, refs), the manifest's hash in the index, the index's latest for the
-// manifest's channel, and every image's cosign signature against its digest.
+// with the keys of trust. stored is the published index the box holds now (prevDir, verified first): the new index must not go
+// back in sequence, and a channel that stays at the same version must keep the same manifest. Then the manifest (signature,
+// revocation, refs), its hash in the index, the index's latest for its channel, and every image's cosign signature against its
+// digest. A directory without a manifest is a refresh of the index (D-150): the index is checked against stored, the channels
+// must be unchanged apart from the sequence and dates, and nothing else exists to check.
 func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	var stored *release.Index
 	if prevDir != "" {
-		p, err := LoadPrev(prevDir, trust)
+		p, err := LoadPrevIndex(prevDir, trust)
 		if err != nil {
 			return nil, err
 		}
-		stored = p.Index
+		stored = p
 	}
 	idx, err := verifyIndexFile(dir, trust, stored)
 	if err != nil {
 		return nil, fmt.Errorf("index: %w", err)
 	}
-	s := &Summary{Sequence: idx.Sequence, IndexKeyID: idx.KeyID}
-	if bsig, err := readSmall(filepath.Join(dir, indexFile+".backup.minisig"), release.MaxSigBytes); err == nil {
-		raw, err := readDoc(filepath.Join(dir, indexFile))
-		if err != nil {
+	if stored != nil {
+		if err := checkChannelsStable(stored, idx); err != nil {
 			return nil, err
 		}
+	}
+	s := &Summary{Sequence: idx.Sequence, IndexKeyID: idx.KeyID}
+	raw, err := readDoc(filepath.Join(dir, indexFile))
+	if err != nil {
+		return nil, err
+	}
+	switch bsig, err := readSmall(filepath.Join(dir, indexFile+".backup.minisig"), release.MaxSigBytes); {
+	case err == nil:
 		bx, err := release.VerifyIndex(raw, bsig, trust, stored)
 		if err != nil {
 			return nil, fmt.Errorf("index backup signature: %w", err)
@@ -182,8 +207,33 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 			return nil, errors.New("index.json.backup.minisig is not signed by the backup key")
 		}
 		s.BackupSig = true
+	case !errors.Is(err, os.ErrNotExist): // an unreadable or oversized file is not an absent one
+		return nil, fmt.Errorf("index backup signature: %w", err)
+	}
+	if err := verifyLegacyIndexes(dir, trust); err != nil {
+		return nil, err
 	}
 	mraw, msig, err := readSigned(filepath.Join(dir, manifestFile))
+	if errors.Is(err, os.ErrNotExist) {
+		if _, serr := os.Stat(filepath.Join(dir, manifestFile)); serr == nil {
+			return nil, fmt.Errorf("manifest: %w", err) // the manifest is there and its signature is not
+		}
+		if stored == nil {
+			return nil, errors.New("a directory without a manifest is a refresh of the index: give the published index (-prev-index) to check it against")
+		}
+		for name, c := range idx.Channels {
+			if old, ok := stored.Channels[name]; !ok || old.Latest != c.Latest || old.Rollout == nil || c.Rollout == nil || *old.Rollout != *c.Rollout {
+				return nil, fmt.Errorf("channel %s differs from the published index, and no manifest is here to announce it", name)
+			}
+		}
+		for name := range stored.Channels {
+			if _, ok := idx.Channels[name]; !ok {
+				return nil, fmt.Errorf("channel %s is gone from the refreshed index", name)
+			}
+		}
+		s.IndexOnly = true
+		return s, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -208,4 +258,30 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 		s.Images = append(s.Images, im.Service+"@"+im.Digest)
 	}
 	return s, nil
+}
+
+// verifyLegacyIndexes refuses an index.v<N>.json that has no verifier (see legacyVerifiers) or does not pass its verifier.
+func verifyLegacyIndexes(dir string, trust release.Trust) error {
+	names, err := filepath.Glob(filepath.Join(dir, "index.v*.json"))
+	if err != nil {
+		return err
+	}
+	for _, n := range names {
+		var schema int
+		if _, err := fmt.Sscanf(filepath.Base(n), "index.v%d.json", &schema); err != nil {
+			return fmt.Errorf("%s: not an index.v<N>.json name", filepath.Base(n))
+		}
+		verify, ok := legacyVerifiers[schema]
+		if !ok {
+			return fmt.Errorf("%s is a legacy index (D-108) and this build has no verifier for schema %d: do not publish a file nobody verified", filepath.Base(n), schema)
+		}
+		raw, sig, err := readSigned(n)
+		if err != nil {
+			return err
+		}
+		if err := verify(raw, sig, trust); err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(n), err)
+		}
+	}
+	return nil
 }

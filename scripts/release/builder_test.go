@@ -82,12 +82,14 @@ func must(t testing.TB, err error) {
 }
 
 // build runs the whole offline pipeline of a release into a fresh directory: manifest, index, active signatures, and (for the
-// first call of a chain) the backup signature on the index. prev is the directory of the previous release or "".
+// first call of a chain) the backup signature on the index. prevDir is the directory of the published index or "".
 type buildOpts struct {
 	version, channel string
 	safe             bool
+	minVersion       string // rollback.min_version
+	minUpgrade       string // min_upgrade_from
 	prevDir          string
-	prevTree, cur    Tree
+	baseline, cur    Tree // migrations at rollback.min_version, and at this release
 	services         []string
 	mutateIndex      func(*release.Index)
 }
@@ -107,21 +109,20 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	must(r.t, os.WriteFile(sbom, []byte(`{"bomFormat":"CycloneDX"}`), 0o600))
 	in := Inputs{
 		Version: o.version, Channel: o.channel, Notes: "Test release & <notes>", InstallModes: []string{"appliance", "container"},
-		Rollback: release.Rollback{Safe: o.safe, MinVersion: ""}, Images: imgs,
+		Rollback: release.Rollback{Safe: o.safe, MinVersion: o.minVersion}, MinUpgradeFrom: o.minUpgrade, Images: imgs,
 		Host:    &HostIn{Version: o.version, Files: []string{deb}},
 		Content: []release.Content{{Name: "packs", Version: "1", InImage: "core", Path: "/opt/packs", SHA256: strings.Repeat("0", 64)}},
 		Bundled: []release.Bundled{{Service: "honeypot", Name: "opencanary", Version: "0.9.4"}},
 		SBOM:    &SBOMIn{URL: "https://github.com/knt048/vedette/releases/download/v" + o.version + "/sbom.json", File: sbom},
 	}
-	env := Env{Now: t1, CosignDir: cdir, CurTree: o.cur}
+	env := Env{Now: t1, CosignDir: cdir, CurTree: o.cur, Baseline: o.baseline}
 	var prevIdx *release.Index
 	if o.prevDir != "" {
-		env.Prev, err = LoadPrev(o.prevDir, r.trust)
+		prevIdx, err = LoadPrevIndex(o.prevDir, r.trust)
 		if err != nil {
 			return "", err
 		}
-		env.PrevTree = o.prevTree
-		prevIdx = env.Prev.Index
+		env.PrevIndex = prevIdx
 	}
 	res, err := BuildManifest(in, env)
 	if err != nil {
@@ -219,7 +220,7 @@ func TestSecondReleaseChain(t *testing.T) {
 		"modules/a/migrations/sqlite/0001_a.sql": addOnlyTree["modules/a/migrations/sqlite/0001_a.sql"],
 		"modules/a/migrations/sqlite/0002_a.sql": up("ALTER TABLE a ADD COLUMN x INT;"),
 	}
-	dir, err := r.build(buildOpts{version: "0.2.0", channel: "stable", safe: true, prevDir: prev, prevTree: addOnlyTree, cur: next})
+	dir, err := r.build(buildOpts{version: "0.2.0", channel: "stable", safe: true, minVersion: "0.1.0", prevDir: prev, baseline: addOnlyTree, cur: next})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +246,7 @@ func TestSecondReleaseChain(t *testing.T) {
 		t.Errorf("an older index against a newer stored one: %v", err)
 	}
 	// a chain of three: the next one continues from dir
-	if d3, err := r.build(buildOpts{version: "0.2.1", channel: "stable", safe: true, prevDir: dir, prevTree: next, cur: next}); err != nil {
+	if d3, err := r.build(buildOpts{version: "0.2.1", channel: "stable", safe: true, minVersion: "0.2.0", prevDir: dir, baseline: next, cur: next}); err != nil {
 		t.Fatal(err)
 	} else if s3, err := VerifyDir(d3, dir, r.trust); err != nil || s3.Sequence != 3 {
 		t.Fatal(s3, err)
@@ -269,14 +270,19 @@ func TestRollbackGuard(t *testing.T) {
 		wantGuard string
 		wantErr   string
 	}{
-		{"first release may not claim a safe rollback", buildOpts{version: "0.1.0", safe: true, cur: addOnlyTree}, "", "needs a previous release"},
-		{"safe without the previous migrations cannot be proved", buildOpts{version: "0.2.0", safe: true, prevDir: prev, cur: addOnlyTree}, "", "cannot be proved"},
-		{"safe with a DROP is refused", buildOpts{version: "0.2.0", safe: true, prevDir: prev, prevTree: addOnlyTree, cur: dropping}, "0002_a.sql: cannot classify", ""},
-		{"safe with an edited migration is refused", buildOpts{version: "0.2.0", safe: true, prevDir: prev, prevTree: addOnlyTree, cur: Tree{"modules/a/migrations/sqlite/0001_a.sql": up("CREATE TABLE a (id INT, z INT);")}}, "was edited", ""},
-		{"safe with a wrong previous ref is refused", buildOpts{version: "0.2.0", safe: true, prevDir: prev, prevTree: Tree{}, cur: addOnlyTree}, "wrong previous ref", ""},
-		{"a version that is not above the previous", buildOpts{version: "0.1.0", prevDir: prev, prevTree: addOnlyTree, cur: addOnlyTree}, "", "not above the previous release"},
-		{"safe=false is always allowed", buildOpts{version: "0.2.0", prevDir: prev, prevTree: addOnlyTree, cur: dropping}, "", ""},
-		{"safe=false without the previous migrations is allowed", buildOpts{version: "0.2.0", prevDir: prev, cur: dropping}, "", ""},
+		{"first release may not claim a safe rollback: no baseline", buildOpts{version: "0.1.0", safe: true, minVersion: "0.0.1", cur: addOnlyTree}, "", "cannot be proved"},
+		{"safe needs rollback.min_version", buildOpts{version: "0.2.0", safe: true, prevDir: prev, baseline: addOnlyTree, cur: addOnlyTree}, "", "needs rollback.min_version"},
+		{"min_version must be below the version", buildOpts{version: "0.2.0", safe: true, minVersion: "0.2.0", prevDir: prev, baseline: addOnlyTree, cur: addOnlyTree}, "", "must be a version below"},
+		{"min_version above the version", buildOpts{version: "0.2.0", safe: true, minVersion: "0.3.0", prevDir: prev, baseline: addOnlyTree, cur: addOnlyTree}, "", "must be a version below"},
+		{"safe without the baseline migrations cannot be proved", buildOpts{version: "0.2.0", safe: true, minVersion: "0.1.0", prevDir: prev, cur: addOnlyTree}, "", "cannot be proved"},
+		{"safe with a DROP is refused", buildOpts{version: "0.2.0", safe: true, minVersion: "0.1.0", prevDir: prev, baseline: addOnlyTree, cur: dropping}, "0002_a.sql: cannot classify", ""},
+		{"safe with an edited migration is refused", buildOpts{version: "0.2.0", safe: true, minVersion: "0.1.0", prevDir: prev, baseline: addOnlyTree, cur: Tree{"modules/a/migrations/sqlite/0001_a.sql": up("CREATE TABLE a (id INT, z INT);")}}, "was edited", ""},
+		{"safe with an empty baseline is refused", buildOpts{version: "0.2.0", safe: true, minVersion: "0.1.0", prevDir: prev, baseline: Tree{}, cur: addOnlyTree}, "wrong ref", ""},
+		{"a version that is not above the channel's latest", buildOpts{version: "0.1.0", prevDir: prev, cur: addOnlyTree}, "", "not above 0.1.0"},
+		{"min_upgrade_from above the published latest", buildOpts{version: "0.2.0", minUpgrade: "0.1.5", prevDir: prev, cur: addOnlyTree}, "", "no box could upgrade"},
+		{"min_upgrade_from at the published latest is fine", buildOpts{version: "0.2.0", minUpgrade: "0.1.0", prevDir: prev, cur: addOnlyTree}, "", ""},
+		{"safe=false is always allowed", buildOpts{version: "0.2.0", minVersion: "0.1.0", prevDir: prev, baseline: addOnlyTree, cur: dropping}, "", ""},
+		{"safe=false without the baseline migrations is allowed", buildOpts{version: "0.2.0", prevDir: prev, cur: dropping}, "", ""},
 	}
 	for _, c := range cases {
 		c.o.channel = "stable"
@@ -747,7 +753,7 @@ func TestMinisignCLIHandling(t *testing.T) {
 func TestReadLine(t *testing.T) {
 	for in, want := range map[string]string{"pw\nrest": "pw", "pw\r\n": "pw", "pw": "pw", " spaced pw \n": " spaced pw "} { //nolint:gosec // test input, not a credential
 		got, err := readLine(strings.NewReader(in))
-		if err != nil || got != want {
+		if err != nil || string(got) != want {
 			t.Errorf("%q: %q %v", in, got, err)
 		}
 	}

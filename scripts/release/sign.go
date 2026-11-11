@@ -28,6 +28,8 @@ type MinisignCLI struct {
 	// the maintainer normally signs; an unencrypted test key needs neither.
 	Passphrase  []byte
 	Interactive bool
+	// RepoRoot is the root of the repository the key must stay out of (main sets it from git); empty means the working directory.
+	RepoRoot string
 }
 
 var commentRE = regexp.MustCompile(`^[ -~]{1,200}$`)
@@ -43,7 +45,9 @@ func (s MinisignCLI) SignFile(ctx context.Context, path, sigPath, trustedComment
 	if fi, err := os.Stat(s.Bin); err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
 		return fmt.Errorf("minisign binary %s is not an executable file", s.Bin)
 	}
-	if err := checkKeyFile(s.KeyPath); err != nil {
+	// The path handed to minisign is the resolved one that was checked: a symlink swapped after the check cannot redirect it.
+	key, err := checkKeyFile(s.KeyPath, s.RepoRoot)
+	if err != nil {
 		return err
 	}
 	if err := os.Remove(sigPath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -55,7 +59,7 @@ func (s MinisignCLI) SignFile(ctx context.Context, path, sigPath, trustedComment
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, s.Bin, "-S", "-s", s.KeyPath, "-m", path, "-x", sigPath, "-t", trustedComment) //nolint:gosec // fixed argv; paths are the maintainer's, checked above
+	cmd := exec.CommandContext(ctx, s.Bin, "-S", "-s", key, "-m", path, "-x", sigPath, "-t", trustedComment) //nolint:gosec // fixed argv; paths are the maintainer's, checked above
 	cmd.Env = []string{"LC_ALL=C"}
 	var out bytes.Buffer
 	switch {
@@ -63,7 +67,9 @@ func (s MinisignCLI) SignFile(ctx context.Context, path, sigPath, trustedComment
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stderr, os.Stderr
 	default:
 		if s.Passphrase != nil {
-			cmd.Stdin = bytes.NewReader(append(append([]byte{}, s.Passphrase...), '\n'))
+			line := append(append([]byte{}, s.Passphrase...), '\n')
+			defer clear(line) // the copy handed to the pipe; the caller clears Passphrase itself
+			cmd.Stdin = bytes.NewReader(line)
 		}
 		cmd.Stdout, cmd.Stderr = &out, &out
 	}
@@ -91,27 +97,31 @@ func tail(s string) string {
 
 // checkKeyFile refuses a secret key that other users can read, or that sits inside the repository (a private key never
 // touches the repo: a stray `git add -A` would publish it).
-func checkKeyFile(p string) error {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return fmt.Errorf("secret key: %w", err)
-	}
-	if !fi.Mode().IsRegular() {
-		return fmt.Errorf("secret key %s is not a regular file", p)
-	}
-	if fi.Mode().Perm()&0o077 != 0 {
-		return fmt.Errorf("secret key %s is readable by other users (mode %04o): chmod 600", p, fi.Mode().Perm())
-	}
+// It returns the resolved path (symlinks followed) to hand to the tool. root is the repository root; empty means the working directory.
+func checkKeyFile(p, root string) (string, error) {
 	resolved, err := filepath.EvalSymlinks(p)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("secret key: %w", err)
 	}
-	if wd, err := os.Getwd(); err == nil {
-		if wd, err = filepath.EvalSymlinks(wd); err == nil {
-			if rel, err := filepath.Rel(wd, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				return fmt.Errorf("secret key %s is inside the working directory %s: keep keys outside the repository", p, wd)
+	fi, err := os.Stat(resolved)
+	if err != nil {
+		return "", fmt.Errorf("secret key: %w", err)
+	}
+	if !fi.Mode().IsRegular() {
+		return "", fmt.Errorf("secret key %s is not a regular file", p)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		return "", fmt.Errorf("secret key %s is readable by other users (mode %04o): chmod 600", p, fi.Mode().Perm())
+	}
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	if root != "" {
+		if r, err := filepath.EvalSymlinks(root); err == nil {
+			if rel, err := filepath.Rel(r, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return "", fmt.Errorf("secret key %s is inside the repository %s: keep keys outside it", p, r)
 			}
 		}
 	}
-	return nil
+	return resolved, nil
 }

@@ -70,19 +70,16 @@ func ParseInputs(raw []byte) (Inputs, error) {
 	return in, nil
 }
 
-// Prev is the previous release as the maintainer holds it, already verified against the trusted keys.
-type Prev struct {
-	Manifest *release.Manifest
-	Index    *release.Index
-}
-
 // Env is everything the builder reads besides Inputs.
 type Env struct {
 	Now       time.Time
 	CosignDir string // <service>.payload.json and <service>.sig, as `cosign sign --output-payload --output-signature` wrote them
-	Prev      *Prev  // nil for the first release
-	PrevTree  Tree   // migrations at the previous release; nil when unknown
-	CurTree   Tree   // migrations of the tree being released
+	// PrevIndex is the published index, verified (D-150); nil before the first release. It says what each channel's latest is, so a
+	// hotfix on stable after a beta is judged against stable. It is not the rollback baseline.
+	PrevIndex *release.Index
+	// Baseline is the migrations of release rollback.min_version, the oldest release a box may roll back to (D-164); nil when unknown.
+	Baseline Tree
+	CurTree  Tree // migrations of the revision being released
 }
 
 // Result is the built manifest and what the guard found.
@@ -97,8 +94,9 @@ const maxHashedFile = 1 << 30
 var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // BuildManifest builds release-manifest.json (unsigned). It refuses, with the reason:
-//   - a version that is not above the previous release's;
-//   - rollback.safe=true unless the previous release and its migrations are known and every migration since is add-only (D-183);
+//   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest;
+//   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
+//     migration since that release is add-only (D-183, D-164: the whole span a box may roll back across, not one step);
 //   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file.
 //
 // The result is then signed and checked by the verifier of internal/release (`release sign`, `release verify`).
@@ -110,13 +108,20 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	if in.Channel != "stable" && in.Channel != "beta" {
 		return res, fmt.Errorf("channel must be stable or beta, got %q", in.Channel)
 	}
-	if env.Prev != nil {
-		c, err := release.CompareVersions(in.Version, env.Prev.Manifest.Version)
-		if err != nil {
-			return res, err
-		}
-		if c <= 0 {
-			return res, fmt.Errorf("version %s is not above the previous release %s", in.Version, env.Prev.Manifest.Version)
+	if env.PrevIndex != nil {
+		if ch, ok := env.PrevIndex.Channels[in.Channel]; ok {
+			c, err := release.CompareVersions(in.Version, ch.Latest)
+			if err != nil {
+				return res, err
+			}
+			if c <= 0 {
+				return res, fmt.Errorf("version %s is not above %s, the latest of channel %s in the published index", in.Version, ch.Latest, in.Channel)
+			}
+			if in.MinUpgradeFrom != "" {
+				if c, err := release.CompareVersions(in.MinUpgradeFrom, ch.Latest); err != nil || c > 0 {
+					return res, fmt.Errorf("min_upgrade_from %s is above %s, the latest published: no box could upgrade", in.MinUpgradeFrom, ch.Latest)
+				}
+			}
 		}
 	}
 	released := env.Now.UTC().Truncate(time.Second)
@@ -130,15 +135,23 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 
 	// D-183: the rollback guard.
 	res.DBSchema = env.CurTree.Count()
-	if env.Prev != nil && env.PrevTree != nil {
-		res.Findings = CheckMigrations(env.PrevTree, env.CurTree, env.Prev.Manifest.DBSchema)
+	if env.Baseline != nil {
+		res.Findings = CheckMigrations(env.Baseline, env.CurTree)
 	}
 	if in.Rollback.Safe {
+		// The host lets a box roll back to any release from rollback.min_version (host/ops/update.go), so "safe" must hold across
+		// everything since that release, not since the previous one: a release that dropped a table in between is not undone by a
+		// later add-only release.
+		minv := in.Rollback.MinVersion
+		if minv == "" {
+			return res, errors.New("rollback.safe=true needs rollback.min_version: the oldest release a box may roll back to; the guard checks every migration since that release")
+		}
+		if c, err := release.CompareVersions(minv, in.Version); err != nil || c >= 0 {
+			return res, fmt.Errorf("rollback.min_version %s must be a version below %s", minv, in.Version)
+		}
 		switch {
-		case env.Prev == nil:
-			return res, errors.New("rollback.safe=true needs a previous release to roll back to; the first release must say safe=false")
-		case env.PrevTree == nil:
-			return res, errors.New("rollback.safe=true cannot be proved without the migrations of the previous release (give its git ref or directory); say safe=false or give it")
+		case env.Baseline == nil:
+			return res, fmt.Errorf("rollback.safe=true cannot be proved without the migrations of release %s (its git tag v%s, or -baseline-ref); say safe=false or give it", minv, minv)
 		case len(res.Findings) > 0:
 			return res, &GuardError{res.Findings}
 		}

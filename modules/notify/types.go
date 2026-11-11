@@ -201,6 +201,12 @@ type Users interface {
 	EmailCodeUsers(ctx context.Context) (int, error)
 }
 
+// ApproverLinks is implemented by the code that owns users (core/auth, wired in cmd/vedette). It says whether the user has
+// linked this address on this channel in My account (D-191). An error is not an answer: the approver is skipped.
+type ApproverLinks interface {
+	Linked(ctx context.Context, userID string, ch channel.Type, address string) (bool, error)
+}
+
 // ModuleGate says whether a module is on (modreg.Registry satisfies it).
 type ModuleGate interface{ Enabled(id string) bool }
 

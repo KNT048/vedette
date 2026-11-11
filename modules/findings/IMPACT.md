@@ -31,6 +31,9 @@
 ## Modifying: `findings.Service.SetStatus(ctx, id, action, note, user)`
 - **SPA** (`POST /findings/{id}/status`, mã lỗi `note_required`, `already_open`, `bad_action`, `note_too_long`), **notify** (sự kiện `status_changed`), **response**/**reports** (đếm finding mở). Đổi bảng chuyển trạng thái = đổi hành vi nút trên trang finding.
 
+## Modifying: `findings.Service.CountByAsset(ctx) (map[string]int, error)`
+- **inventory** (`FindingCounter`, `findings_count` ở danh sách và trang thiết bị, hộp thoại xoá): một lần đọc gộp theo `asset_id`, **mọi trạng thái** (đúng số bị xoá cùng thiết bị, INV-11 của inventory). Nối ở `cmd/vedette` `findingCounts`. Đổi nghĩa (ví dụ chỉ đếm finding mở) là đổi câu "deleting the device also deletes these findings" của `inventory/contract.ts`.
+
 ## Modifying: `findings.Findings` (đọc: `List(filter)`, `Get(id)`, `ByAsset(id)`)
 - **mitigation** (gói theo finding), **notify** (`vuln` tin + panel `GET /notify/findings/{id}/notices`), **response** (đề xuất cho Critical), **reports**, **ai** (explain), **mcp-server** (`get_finding`), SPA Devices (`device.panels`). Đổi `FindingRow` phải sửa `findings/contract.ts` (nguồn OpenAPI).
 

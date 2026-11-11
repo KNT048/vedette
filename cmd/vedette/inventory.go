@@ -31,7 +31,8 @@ func newInventory(d *deps) *inventory.Service {
 		}
 		return d.Honeypot.DecoyIPs(ctx)
 	}
-	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned}
+	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
+		Findings: findingCounts{d}}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -64,4 +65,16 @@ func inventoryJobs(d deps) []jobs.Job {
 		}
 		return svc.RefreshBoxPackages(ctx)
 	}}}
+}
+
+// findingCounts is inventory's FindingCounter: findings is built after inventory, so its service is looked up when asked. Before it
+// exists every device counts 0 (an empty map, never an error); the count covers every status whether the findings module is on or
+// off, as deleting a device deletes them all.
+type findingCounts struct{ d *deps }
+
+func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error) {
+	if f.d == nil || f.d.Findings == nil {
+		return map[string]int{}, nil
+	}
+	return f.d.Findings.CountByAsset(ctx)
 }

@@ -1,9 +1,17 @@
-# Việc của Kiên — đọc cùng docs/TEAM_PLAN.md
+# Việc của Kiên — đọc cùng docs/TEAM_PLAN.md và `.ai/tasks/current.md`
 
-> **Bàn giao 2026-11-10:** anh Trưởng làm tiếp phần của Kiên. Điểm bắt đầu, việc còn lại theo thứ tự tới khi xong, công cụ: `.ai/handoff/README.md`.
+> **Từ 2026-11-11 (D-190):** phía Kiên chạy hai nơi.
+> - **AI-Supervisor trên máy Mac:** điều phối cả ba phía. Mỗi lát việc của Mac chạy thành một session phụ của Claude Desktop. Trạng thái nằm ở `vedette-wt/LEAD-STATE.md` và `vedette-wt/sessions/*.md` trên máy Mac.
+> - **AI-Trưởng trên box Ubuntu** (`byn`, tmux `claude`). Trạng thái nằm ở `~/vedette-wt/LEAD-STATE.md` trên box.
+>
+> Chia việc còn lại và định nghĩa "xong": `.ai/tasks/current.md`. Các mục bên dưới là lịch sử và quy trình; trạng thái mới nhất nằm trong `current.md`.
 
-Cập nhật: 2026-11-10 tối (phiên Ubuntu của anh Trưởng; `origin/main` = bfc6ec3). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
-File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên: sau compact/restart đọc lại trước khi làm tiếp. Bản sao trạng thái sống của lead (brief, worktree, job chờ merge) ở `../vedette-wt/LEAD-STATE.md` trên máy Kiên; file này là bản trong repo.
+Cập nhật đầu file: 2026-11-11. Phần thân viết ngày 2026-11-10 tối, từ phiên Ubuntu của anh Trưởng.
+- **Sở hữu:** core, host, đóng gói và phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật.
+- **Từ 2026-11-11 sở hữu thêm:** `agent-intake` (WP-26) và `auth-oidc` (WP-27).
+- **Chia trong phía Kiên:**
+  - AI-Trưởng: WP-08, honeypot, host, WP-30 lát 4, 8a, 8b, WP-32, WP-26.
+  - Mac: WP-30 lát 3, 5, 6, 7, 9a, 9b, 10; WP-31 R3; `auth-oidc`.
 
 ## Repo và quy trình (đọc trước)
 - Repo `KNT048/vedette` (public, D-63), remote `https://github.com/KNT048/vedette.git`, module Go `github.com/knt048/vedette`.

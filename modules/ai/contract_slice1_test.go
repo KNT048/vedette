@@ -374,3 +374,28 @@ func TestPRE3_AnthropicKeyWithoutWorkspaceSaysWhatToDo(t *testing.T) {
 		t.Fatalf("message = %q", msg)
 	}
 }
+
+// response-plan runs by itself and sends device data, so a new profile is not assigned to it on its own (D-181).
+func TestFirstProfileIsNotAssignedToTheAutomaticResponsePlanJob(t *testing.T) {
+	a := newAPI(t)
+	p := a.addProfile(cloudBody("One", keyA))["id"].(string)
+	jobs := a.want("GET", "/ai/assignments", "viewer", "", 200, "")["jobs"].(map[string]any)
+	if s := jobs["response-plan"].(map[string]any); s["primary"] != nil {
+		t.Fatalf("response-plan = %v", s)
+	}
+	if s := jobs["ask-my-data"].(map[string]any); s["primary"] != p {
+		t.Fatalf("ask-my-data = %v", s)
+	}
+}
+
+func TestSuggestionDoesNotFillTheAutomaticResponsePlanJob(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("One", keyA))
+	jobs := a.want("GET", "/ai/assignments/suggestion?internal_only=false", "viewer", "", 200, "")["jobs"].(map[string]any)
+	if s := jobs["response-plan"].(map[string]any); s["primary"] != nil {
+		t.Fatalf("response-plan = %v", s)
+	}
+	if s := jobs["ask-my-data"].(map[string]any); s["primary"] == nil {
+		t.Fatalf("ask-my-data = %v", s)
+	}
+}

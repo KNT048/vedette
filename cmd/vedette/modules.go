@@ -88,6 +88,7 @@ type deps struct {
 	Authority        *pki.Authority
 	SensorCreds      string
 	Response         *response.Service // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
+	AIFacts          ai.Facts          // the data ai explains from (feeds, findings, inventory); response's plan job reads the same
 	AI               *ai.Service       // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
 }
 
@@ -98,6 +99,9 @@ type moduleWiring struct {
 	Migrations fs.FS                   // nil when the module owns no tables
 	Jobs       func(d deps) []jobs.Job // nil when it has none; a job runs only while its module is on
 	BodyLimits map[string]int64        // operationId → request body cap in bytes, for operations over 1 MiB
+	// EnsureOff is the module's idempotent teardown, run by core's OffGuard at start and after every switch-off, retried with
+	// backoff until it succeeds (SYS-5, D-189). nil when nothing of the module can outlive its jobs.
+	EnsureOff func(d deps) modreg.Teardown
 }
 
 // wiredModules lists the modules in migration order: a module comes after every module it depends on
@@ -108,7 +112,7 @@ func wiredModules() []moduleWiring {
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
-		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs},
+		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
@@ -167,6 +171,18 @@ func addJobs(sched *jobs.Scheduler, d deps, wired []moduleWiring) error {
 		}
 	}
 	return nil
+}
+
+// addOffGuards hands every module's teardown to the guard; a module that is off right now starts converging at once.
+func addOffGuards(g *modreg.OffGuard, d deps, wired []moduleWiring) {
+	for _, w := range wired {
+		if w.EnsureOff == nil {
+			continue
+		}
+		if fn := w.EnsureOff(d); fn != nil {
+			g.Add(w.ID, fn)
+		}
+	}
 }
 
 // bodyLimits merges the modules' per-operation body caps for server.Config. server.New refuses an

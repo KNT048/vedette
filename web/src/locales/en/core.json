@@ -333,6 +333,8 @@
       "response.ai_note": "AI note on a response",
       "response.ai_paused": "AI response proposals paused",
       "response.ai_resume": "AI response proposals resumed",
+      "response.plan": "AI response plan saved",
+      "response.plan_refused": "AI response plan refused",
       "response.allowlist": "Change never-touch list",
       "response.approve": "Approve response action",
       "response.blocklist.token": "Regenerate block list token",
@@ -704,7 +706,7 @@
       },
       "3": {
         "name": "AI assistant",
-        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); email addresses and phone numbers are masked first and an ID number stops the call. Only hashes of what was sent are kept in the AI activity log.",
+        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call. Only hashes of what was sent are kept in the AI activity log.",
         "to": "The AI providers you add (one or more profiles), or a model inside your network",
         "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
         "link": "Open AI settings"

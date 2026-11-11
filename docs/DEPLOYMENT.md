@@ -121,6 +121,8 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | `scan` | 2, `CPUWeight` thấp | 1 GiB | 512 | burst theo việc; cửa sổ giờ + tốc độ (S-SCAN-4) |
 | `greenbone` (cả nhóm) | 2 | ~3 GiB (đo lại) | theo upstream | bật thì nên 16 GB RAM (đề xuất) |
 
+Cổng băm mật khẩu argon2 của `core` (`core/auth/hashgate.go`): số lượt chạy cùng lúc = `max(1, GOMAXPROCS/2)`, tối đa 1/4 `GOMEMLIMIT` chia 64 MiB mỗi lượt. Với `--cpus=2` Go 1.26 đặt GOMAXPROCS = 2, nên trên hộp chỉ **1 lượt, 64 MiB** cùng lúc; yêu cầu đăng nhập thứ hai xếp hàng (hàng chờ 4 lượt, chờ tối đa 2 s) rồi nhận 503 `server_busy` kèm `Retry-After`. `Config.MaxHashing` không có trong cấu hình hay cờ của `core` (`cmd/vedette`), nên không chỉnh được trên hộp; muốn nhiều lượt hơn thì nâng `--cpus` ở quadlet.
+
 Tổng không kể greenbone ≈ 3,75 GiB, chừa phần còn lại cho OS và page cache. Swap tắt trong container (`memory-swap` = `memory`). Cách đo: `podman stats` trong bài test tải M2 (1.000 thiết bị, 50k IOC), ghi vào `docs/project-map/`. Hạn mức vượt thì container bị OOM-kill và `Restart=always` dựng lại; sự kiện hiện ở trang sức khoẻ module.
 
 ## 3. `vedette-host`
@@ -277,7 +279,7 @@ User=<core_uid>:<core_gid>
 LogDriver=journald
 # --group-add hằng, nhóm bổ sung duy nhất của core: Quadlet 4.9 không có GroupAdd=; để core chown tệp bó khoá 0640 sang nhóm sensor_gid của thư mục vai (chỉ thành viên của nhóm mới được, D-114 (4), D-147 (9))
 PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=<sensor_gid>
-# giới hạn bộ nhớ Go ~10 % dưới --memory=2g (D-150): GC thu dọn trước khi cgroup OOM-kill; cổng argon2 của core đọc giá trị này: min(GOMAXPROCS/2, 1800 MiB/4/64 MiB) = tối đa 7
+# giới hạn bộ nhớ Go ~10 % dưới --memory=2g (D-150): GC thu dọn trước khi cgroup OOM-kill; cổng argon2 của core đọc giá trị này: min(max(1, GOMAXPROCS/2), 1800 MiB/4/64 MiB = 7); với `--cpus=2` Go đặt GOMAXPROCS = 2 nên còn đúng 1 lượt argon2 cùng lúc (64 MiB), con số 7 chỉ là trần bộ nhớ
 Environment=GOMEMLIMIT=1800MiB
 HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s

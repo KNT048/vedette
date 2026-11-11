@@ -3,7 +3,6 @@
 Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Medium, 17 Low). One line per finding; a line goes when its PR merges.
 
 - [ ] L7 response/notify: approver channel identity is typed by an admin, never proven by the user → needs a story criterion (link step in My account) first; slice R3.
-- [ ] M4 host/ops: backup retention can drop the backup a revert/rollback needs; missing backup loops; `os.install` skips `coreFree()` → AI-Trưởng (host).
 - [ ] L10 packaging (LAB): `RuntimeDirectory=vedette` without User/Group makes /run/vedette root:root → AI-Trưởng (WP-08).
 - [ ] M7 inventory/honeypot (latent, LAB): devices on a decoy IP are invisible; filter on (decoy IP, decoy MAC) once vedette-host reports MACs → after the host adapter replaces `notAnAppliance`; WP-08 lab.
 - [ ] L15 `/core/privacy` telemetry default on → already in `fix-privacy-accuracy.md` (D-153).

@@ -112,7 +112,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		if a.Hostname != nil && *a.Hostname != "" {
 			name = *a.Hostname
 		}
-		fmt.Fprintf(&dev, "Device: %s (%s), kind %s, %s\n", name, a.IP, a.Kind, a.Display)
+		fmt.Fprintf(&dev, "Device: %s, IP %s, kind %s, %s\n", name, a.IP, a.Kind, a.Display)
 	}
 	fmt.Fprintf(&dev, "Finding status: %s, severity %s, matched by %s, confidence %.2f\nA confirmed recommendation pack exists: %t\n", row.Status, row.Severity, row.Basis, row.Confidence, req.HasPack)
 	q := "Explain this finding."

@@ -196,7 +196,7 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 		b.WriteString("No device in the inventory matches this product.\n")
 	}
 	for _, a := range assets {
-		fmt.Fprintf(&b, "- %s (%s), kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status)
+		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name (D-205)
 	}
 	return DataBlock{Kind: "inventory", Source: "devices on this box matching the product", Text: b.String()}
 }

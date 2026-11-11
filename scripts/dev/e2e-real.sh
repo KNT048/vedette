@@ -71,13 +71,15 @@ make webui-dist
 lap "webui-dist (tsc + vite)"
 # No -trimpath: opstest finds its fixtures through runtime.Caller. Never into the repository root.
 go test -c -tags webui -o "$tmp/box.test" ./cmd/vedette
+# slice 7: the real sensor binary, which the box starts as a child on request (cmd/vedette/e2esensor_test.go)
+go build -o "$tmp/vedette-sensor" ./cmd/vedette-sensor
 unlock # the GUI is inside the test binary now (rules/build-artifacts.md); the other run may build
 lap "go test -c -tags webui"
 
 mkdir -p "$tmp/box" && chmod 700 "$tmp/box"
 # Job control puts each background job in its own process group (Linux and macOS), so cleanup can stop a whole tree.
 set -m
-(cd cmd/vedette && umask 022 && TMPDIR="$tmp" VEDETTE_E2E_HOST=1 VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
+(cd cmd/vedette && umask 022 && TMPDIR="$tmp" VEDETTE_E2E_HOST=1 VEDETTE_E2E_SENSOR="$tmp/vedette-sensor" VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
 box=$!
 set +m
 for _ in $(seq 1 120); do

@@ -1,12 +1,14 @@
 package honeypot_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/honeypot"
 )
@@ -16,7 +18,7 @@ func TestHostileTextLosesVariationSelectors(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	hidden := "︀️\U000e0100\U000e01ef"
+	hidden := "\ufe00\ufe0f\U000e0100\U000e01ef\u034f\u3164\u180b" // variation selectors, then other default-ignorable characters
 	e.appendLog(ln{LogType: 4002, Src: "192.168.10.157", SrcPort: 1, DstPort: 22, At: t0, Data: map[string]any{"USERNAME": "ro" + hidden + "ot", "REMOTEVERSION": "SSH" + hidden + "-2.0"}}.json())
 	e.poll()
 	hits, err := e.svc.Hits(e.ctx(), honeypot.HitFilter{})
@@ -26,8 +28,8 @@ func TestHostileTextLosesVariationSelectors(t *testing.T) {
 	h := hits[0]
 	for _, field := range []string{h.Excerpt, h.Label} {
 		for _, r := range field {
-			if r >= 0xfe00 && r <= 0xfe0f || r >= 0xe0100 && r <= 0xe01ef {
-				t.Fatalf("variation selector U+%04X survived in %q", r, field)
+			if observe.Ignorable(r) {
+				t.Fatalf("invisible character U+%04X survived in %q", r, field)
 			}
 		}
 	}
@@ -137,5 +139,92 @@ func TestEnsureOffAfterARestartRemovesWhatTheLastRunLeft(t *testing.T) {
 	defer e.host.mu.Unlock()
 	if e.host.running || len(e.host.ips) != 0 {
 		t.Fatalf("running=%v ips=%v", e.host.running, e.host.ips)
+	}
+}
+
+// H1: a host that is unreachable during the switch-off is not a host with nothing on it: the teardown fails (the guard
+// retries) while the record says the host holds addresses, and succeeds once the host answers and has been cleaned.
+func TestEnsureOffFailsWhileAnUnavailableHostMayStillHoldTraps(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	ctx := e.ctx()
+	if err := e.svc.Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.gate.turnOff()
+	e.host.mu.Lock()
+	e.host.status.Available = false
+	e.host.mu.Unlock()
+	if err := e.svc.EnsureOff(ctx); err == nil {
+		t.Fatal("an unavailable host that still holds applied addresses was reported as torn down")
+	}
+	e.host.mu.Lock()
+	e.host.status.Available = true
+	e.host.mu.Unlock()
+	if err := e.svc.EnsureOff(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.host.mu.Lock()
+	defer e.host.mu.Unlock()
+	if e.host.running || len(e.host.ips) != 0 {
+		t.Fatalf("running=%v ips=%v", e.host.running, e.host.ips)
+	}
+}
+
+// With nothing recorded and nothing running, an unavailable host is simply not an appliance: done.
+func TestEnsureOffOnAHostThatIsNotAnApplianceIsDone(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.host.mu.Lock()
+	e.host.status.Available = false
+	e.host.mu.Unlock()
+	e.gate.turnOff()
+	if err := e.svc.EnsureOff(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// M1: an Apply that gets the lock after the module was switched off must not bring the traps back.
+func TestApplyDoesNothingWhileTheModuleIsOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	e.gate.turnOff()
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.host.log(); len(got) != 0 {
+		t.Fatalf("Apply on a module that is off called the host: %v", got)
+	}
+}
+
+// M1: an address the host accepted while core was stopping (the context was cancelled) is still on record, so the teardown can remove it.
+func TestApplyRecordsAnAddressTheHostTookWhileTheContextWasCancelled(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	ctx, cancel := context.WithCancel(e.ctx())
+	e.host.mu.Lock()
+	e.host.onAdd = cancel
+	e.host.mu.Unlock()
+	_ = e.svc.Apply(ctx)
+	e.host.mu.Lock()
+	held := len(e.host.ips)
+	e.host.mu.Unlock()
+	if held == 0 {
+		t.Fatal("setup: the host took nothing")
+	}
+	if got := e.svc.DecoyIPs(e.ctx()); len(got) != held {
+		t.Fatalf("the host holds %d addresses, the record has %v", held, got)
+	}
+	e.gate.turnOff()
+	if err := e.svc.EnsureOff(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.host.mu.Lock()
+	defer e.host.mu.Unlock()
+	if len(e.host.ips) != 0 {
+		t.Fatalf("the teardown left %v", e.host.ips)
 	}
 }

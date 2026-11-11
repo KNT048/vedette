@@ -9,6 +9,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/observe"
 )
 
 // MaxLine is the longest line of the OpenCanary log that is read (INV-12): a longer one is dropped and counted.
@@ -144,9 +146,10 @@ func ipv4Of(s string) (netip.Addr, bool) {
 
 // clean makes attacker text safe to store and show: valid UTF-8, no control character (Cc, replaced by a space so words
 // stay apart), none of the invisible or reordering ones (Cf: bidi marks, zero-width characters, the byte order mark, the
-// soft hyphen, Unicode tag characters; Zl, Zp: line and paragraph separators; and the variation selectors, which are Mn
-// and carry attacker-chosen invisible bytes, L13; dropped), at most n characters (INV-12).
-// The same rule as sensor-active/xml.go and sensor-passive/decode.go. It is data; nothing reads it as a command.
+// soft hyphen, Unicode tag characters; Zl, Zp: line and paragraph separators; and every Default_Ignorable_Code_Point,
+// which includes the variation selectors that carry attacker-chosen invisible bytes, L13; all dropped), at most n
+// characters (INV-12). The set of invisible characters is observe.Ignorable, the table core/auth uses for names. It is
+// data; nothing reads it as a command.
 func clean(s string, n int) string {
 	s = strings.ToValidUTF8(s, "?")
 	var b strings.Builder
@@ -158,17 +161,11 @@ func clean(s string, n int) string {
 		switch {
 		case unicode.Is(unicode.Cc, r) || r == utf8.RuneError:
 			r = ' '
-		case unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp), variationSelector(r):
+		case unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp), observe.Ignorable(r):
 			continue
 		}
 		b.WriteRune(r)
 		count++
 	}
 	return strings.TrimSpace(b.String())
-}
-
-// variationSelector is U+FE00..FE0F or U+E0100..E01EF: invisible, and a run of them can hide text that would later reach
-// an AI prompt (WP-31 L13; same set as the invisible characters of inventory's cleanText, D-177/D-178).
-func variationSelector(r rune) bool {
-	return r >= 0xfe00 && r <= 0xfe0f || r >= 0xe0100 && r <= 0xe01ef
 }

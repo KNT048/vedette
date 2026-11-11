@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
@@ -196,12 +198,62 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	}
 }
 
-// D-189: the honeypot's teardown is wired into core's lifecycle (SYS-5), not left to a job that only runs while the module is on.
-func TestHoneypotTeardownIsWired(t *testing.T) {
+// D-189: a real Registry.Publish switch-off of the honeypot reaches its teardown through the OffGuard and addOffGuards, the way main wires it.
+func TestSwitchingTheHoneypotOffRunsItsTeardown(t *testing.T) {
 	t.Parallel()
-	for _, w := range wiredModules() {
-		if w.ID == "honeypot" && w.EnsureOff == nil {
-			t.Fatal("honeypot has no EnsureOff")
+	ctx := t.Context()
+	log := slog.New(slog.DiscardHandler)
+	db := storetest.New(t)
+	wired := wiredModules()
+	if err := migrateAll(ctx, db, wired); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: log})
+	if err != nil {
+		t.Fatal(err)
+	}
+	toggle := func(on bool) {
+		t.Helper()
+		var ch modreg.Change
+		err := db.Write(ctx, func(tx *sql.Tx) error {
+			var err error
+			if on {
+				ch, err = reg.Enable(ctx, tx, "admin@acme.example", "honeypot", true)
+			} else {
+				ch, err = reg.Disable(ctx, tx, "admin@acme.example", "honeypot")
+			}
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		reg.Publish(ch)
+	}
+	toggle(true)
+	called := make(chan struct{}, 4)
+	for i := range wired { // the real wiring entry, with the teardown swapped for a probe
+		if wired[i].ID == "honeypot" {
+			if wired[i].EnsureOff == nil {
+				t.Fatal("the honeypot entry has no EnsureOff")
+			}
+			wired[i].EnsureOff = func(deps) modreg.Teardown {
+				return func(context.Context) error { called <- struct{}{}; return nil }
+			}
 		}
 	}
+	guard := modreg.NewOffGuard(ctx, reg, log, nil)
+	reg.OnChange(guard.ModuleChanged)
+	addOffGuards(guard, deps{}, wired)
+	select {
+	case <-called:
+		t.Fatal("teardown ran while the module is on")
+	default:
+	}
+	toggle(false)
+	select {
+	case <-called:
+	case <-time.After(10 * time.Second):
+		t.Fatal("switching the honeypot off did not run its teardown")
+	}
+	guard.Wait()
 }

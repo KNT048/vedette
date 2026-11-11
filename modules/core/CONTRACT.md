@@ -6,7 +6,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 
 ## Quy ước chung (mọi module dùng)
 - **Sự kiện** (chốt trong `core/events`, WP-04b): tên `<module>.<đối tượng>.<động từ>` (regex trong `events.ValidName`), phát trong process qua `core/events` **sau khi giao dịch commit** (Outbox → Flush); chỉ một tập con được đẩy ra SSE `/api/v1/events`. Sensor→server dùng lô sự kiện idempotent theo `seq` (ARCHITECTURE §3). Tên sự kiện của module nhóm B trong các CONTRACT nhóm A là tên tạm.
-- **Module tắt** = `Registry.Enabled(id)==false`: route không đăng ký, job không chạy, cổng đóng, bảng giữ nguyên (SYS-5). Module khác gọi module tuỳ chọn chỉ sau khi kiểm `Enabled`; tắt = coi như vắng mặt.
+- **Module tắt** = `Registry.Enabled(id)==false`: route không đăng ký, job không chạy, cổng đóng, bảng giữ nguyên (SYS-5). Module khác gọi module tuỳ chọn chỉ sau khi kiểm `Enabled`; tắt = coi như vắng mặt. **Ngoại lệ (D-189):** một module tắt có thể chạy vòng thử lại của `modreg.OffGuard` (chỉ để dừng thứ còn sống ngoài tiến trình, mỗi lần thử tối đa `OffAttempt` = 60 s, `Teardown` phải tôn trọng `ctx`) cho tới khi host xác nhận; đó không phải job, không route, không cổng.
 - **Lỗi**: JSON `{error:{code,message}}`; 401 chưa đăng nhập, 403 thiếu vai, 409 xung đột trạng thái.
 
 ## Invariants

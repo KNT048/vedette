@@ -123,3 +123,46 @@ func TestOffGuardStopsWithItsContext(t *testing.T) {
 		}
 	})
 }
+
+// M2: every attempt has its own timeout; a teardown that hangs until its context ends does not block the next attempt or Wait.
+func TestOffGuardCutsAHangingAttemptAndTriesAgain(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		g := modreg.NewOffGuard(ctx, &flag{}, slog.New(slog.DiscardHandler), backoff)
+		var calls atomic.Int32
+		g.Add("x", func(c context.Context) error {
+			calls.Add(1)
+			<-c.Done() // hangs until the attempt's own deadline
+			return c.Err()
+		})
+		synctest.Wait()
+		advance(modreg.OffAttempt) // attempt 1 is cut
+		advance(10 * time.Second)  // backoff, then attempt 2 starts
+		if calls.Load() != 2 {
+			t.Fatalf("%d attempts, want 2", calls.Load())
+		}
+		cancel()
+		g.Wait()
+	})
+}
+
+// A switch-off and a switch-on that reach the guard out of order: the registry state decides, not the argument.
+func TestOffGuardTrustsTheRegistryNotTheArgument(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		f := &flag{}
+		f.on.Store(true)
+		g := modreg.NewOffGuard(ctx, f, slog.New(slog.DiscardHandler), backoff)
+		var calls atomic.Int32
+		g.Add("x", func(context.Context) error { calls.Add(1); return nil })
+		f.on.Store(false)          // the registry says off ...
+		g.ModuleChanged("x", true) // ... while a late "on" notification arrives
+		synctest.Wait()
+		if calls.Load() != 1 {
+			t.Fatalf("a stale 'on' notification stopped the teardown of a module that is off: %d calls", calls.Load())
+		}
+	})
+}

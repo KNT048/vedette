@@ -9,8 +9,13 @@ import (
 
 // Teardown is what a module offers so that "off" means off (SYS-5): it makes sure nothing of the module still runs
 // outside this process (a container, an address on the host) and returns nil only when the host has confirmed it.
-// It must be idempotent and must return nil at once if the module has been turned on again.
+// It must be idempotent, must return nil at once if the module has been turned on again, and must respect ctx (each
+// attempt gets OffAttempt, a Teardown that ignores ctx blocks its own retries and the shutdown wait).
 type Teardown func(ctx context.Context) error
+
+// OffAttempt is the longest one attempt of a Teardown may take; its context is cancelled after that, and the next
+// attempt follows the backoff.
+var OffAttempt = 60 * time.Second
 
 // OffBackoff is the wait before each retry of a failed Teardown (D-189): 10 s, 30 s, 2 min, then every 10 min.
 var OffBackoff = []time.Duration{10 * time.Second, 30 * time.Second, 2 * time.Minute, 10 * time.Minute}
@@ -51,9 +56,11 @@ func (g *OffGuard) Add(id string, fn Teardown) {
 	}
 }
 
-// ModuleChanged is a Registry.OnChange subscriber: off starts the teardown, on cancels it. It never blocks.
-func (g *OffGuard) ModuleChanged(id string, enabled bool) {
-	if enabled {
+// ModuleChanged is a Registry.OnChange subscriber: off starts the teardown, on cancels it. It never blocks. It reads the
+// state from the registry instead of trusting its argument: Publish calls subscribers after it unlocks, so two quick
+// switches can arrive out of order (the scheduler does the same, jobs.go).
+func (g *OffGuard) ModuleChanged(id string, _ bool) {
+	if g.reg.Enabled(id) {
 		g.mu.Lock()
 		if r := g.runs[id]; r != nil {
 			r.cancel()
@@ -96,7 +103,9 @@ func (g *OffGuard) converge(ctx context.Context, id string, fn Teardown) {
 		if ctx.Err() != nil || g.reg.Enabled(id) {
 			return
 		}
-		err := fn(ctx)
+		actx, cancel := context.WithTimeout(ctx, OffAttempt)
+		err := fn(actx)
+		cancel()
 		if err == nil {
 			return
 		}

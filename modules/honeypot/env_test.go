@@ -80,6 +80,7 @@ type fakeHost struct {
 	failStart error
 	failStop  error
 	failRm    error
+	onAdd     func() // called after an address was accepted
 }
 
 func newHost(available bool) *fakeHost {
@@ -97,6 +98,9 @@ func (h *fakeHost) AddDecoyIP(_ context.Context, ip netip.Addr) error {
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "add "+ip.String())
 	h.ips[ip] = true
+	if h.onAdd != nil {
+		h.onAdd()
+	}
 	return nil
 }
 

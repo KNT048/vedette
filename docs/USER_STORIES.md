@@ -76,7 +76,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-HP-1** (P2, P4) `[đạt]` — Bật bẫy SMB/RDP/SSH/MSSQL/HTTP trên hộp; bất kỳ kết nối nào vào bẫy → cảnh báo ngay, kèm IP nguồn, thiết bị nguồn (từ kiểm kê), 1 giờ sự kiện quanh đó.
 **S-HP-2** (P2) `[đạt]` (D-50) — Tôi rải honey token (tệp mồi, tài khoản mồi, URL/DNS token), chọn vai giả giống thiết bị thật, được báo khi có quét cổng tới bẫy; chạm bẫy có thể kích hoạt phản ứng.
 - Chấp nhận: loại trừ scanner của chính Vedette; không FP từ broadcast; bẫy không chạy dịch vụ thật.
-- Chấp nhận (D-189): mật khẩu của tài khoản mồi hiện đủ cho operator và admin; viewer chỉ thấy 4 ký tự cuối (không biết được bộ canary). Màn hình không đổi: chỉ in chuỗi nhận từ API.
+- Chấp nhận (D-189): mật khẩu của tài khoản mồi hiện đủ cho operator và admin; viewer chỉ thấy 4 ký tự cuối (vệ sinh bí mật theo `security.md`; không giấu bộ canary, endpoint vẫn cho viewer). Màn hình không đổi: chỉ in chuỗi nhận từ API.
 - Chấp nhận (D-102): mỗi IP bẫy có **MAC riêng** (32 IP không bao giờ chung một MAC); mặc định là MAC local-administered ổn định theo IP; bẫy không mở được kết nối mới ra mạng (chỉ trả lời). Tuỳ chọn, có thể làm sau: danh sách decoy hiện MAC của từng IP (`mac` từ `GET /v1/state/net` của host), và vai giả có thể mang tiền tố MAC của hãng (`oui`, lấy từ bảng OUI của D-83).
 
 ## LOG — Log và bất thường

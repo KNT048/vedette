@@ -3,6 +3,8 @@
 Cập nhật: 2026-11-11, handoff cuối của phiên AI lead của Emily. Repo: **`KNT048/vedette`** (public, D-63). Module Go: `github.com/knt048/vedette`.
 Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitigation, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
 
+**Chia lại 2026-11-11 chiều (D-198):** AI-Mlee giữ `ai` (WP-25) và `logs` (WP-24) cùng việc đang dở (feeds chia nhỏ IOC apply, spec e2e exposure). Phần còn lại của `notify`, WP-27 `reports`/`mcp-server` và spec WP-30 cho scan/ai/logs chuyển sang session phụ trên Mac; phần còn lại của `scan` và WP-32 phần Emily chuyển sang AI-Trưởng. Ghi chú bàn giao: `~/vedette-wt/handover.md` trên box của Mlee. Cổng kiểm: `make check` ở mọi nơi, CI chạy bộ đầy đủ (D-199).
+
 **Từ 2026-11-11 (quyết định của Emily; điều phối D-190):**
 - AI-Mlee chạy trên box Ubuntu riêng của Emily: user `byn2`, LAN 192.168.18.141, tmux `claude`, bypass permissions.
 - **AI-Supervisor** (máy Mac của Kiên) điều phối trực tiếp qua tmux, kiểm mỗi 30 phút. Không dùng Discussion #145 nữa.

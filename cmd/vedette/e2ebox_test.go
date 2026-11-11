@@ -30,6 +30,11 @@ type e2eReady struct {
 	SetupCode   string `json:"setup_code"`
 	DataDir     string `json:"data_dir"`
 	HoneypotDir string `json:"honeypot_dir"`
+	// slice 4 (D-163), set with VEDETTE_E2E_HOST=1: the fake vedette-host's control endpoint and the second box that has no host
+	HostControl   string `json:"host_control,omitempty"`
+	HostToken     string `json:"host_token,omitempty"`
+	BareURL       string `json:"bare_url,omitempty"`
+	BareSetupCode string `json:"bare_setup_code,omitempty"`
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -100,8 +105,15 @@ func writeReady(dir string, r e2eReady) error {
 
 // e2eBox runs the box in dir until ctx ends and returns what run returns. Layout: dir/data (0700) holds the database and the key,
 // dir/hp the honeypot folders, dir/box.log the log, dir/ready.json is written once the box listens.
-func e2eBox(ctx context.Context, dir string) error {
+func e2eBox(ctx context.Context, dir string) error { return e2eBoxWith(ctx, dir, "", "", e2eReady{}) }
+
+// e2eBoxWith is e2eBox with a data folder other than dir/data (the fake host's core data), a host socket (empty: no host) and the
+// fields of ready.json the caller already knows.
+func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eReady) error {
 	data, hp := filepath.Join(dir, "data"), filepath.Join(dir, "hp")
+	if dataDir != "" {
+		data = dataDir
+	}
 	if err := os.MkdirAll(data, 0o700); err != nil { //nolint:gosec // test harness: the folder is the one the script made
 		return err
 	}
@@ -113,10 +125,11 @@ func e2eBox(ctx context.Context, dir string) error {
 		return err
 	}
 	defer func() { _ = f.Close() }()
-	log := &e2eLog{file: f, dir: dir, ready: e2eReady{DataDir: data, HoneypotDir: hp}}
+	seed.DataDir, seed.HoneypotDir = data, hp
+	log := &e2eLog{file: f, dir: dir, ready: seed}
 	args := []string{
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
-		"-listen", "127.0.0.1:0", "-host-socket", "", "-honeypot-dir", hp,
+		"-listen", "127.0.0.1:0", "-host-socket", hostSocket, "-honeypot-dir", hp,
 	}
 	runErr := run(ctx, args, io.Discard, log)
 	log.mu.Lock()
@@ -164,7 +177,19 @@ func TestE2EBox(t *testing.T) {
 	if dir == "" {
 		t.Skip("VEDETTE_E2E_DIR is not set: this is the box of `make e2e-real`")
 	}
-	if err := e2eBox(e2eStop(t), dir); err != nil {
+	ctx := e2eStop(t)
+	var host *e2eHost
+	var seed e2eReady
+	if os.Getenv("VEDETTE_E2E_HOST") == "1" { // slice 4: the fake host in this process, and the second box that has none
+		host = startE2EHost(t)
+		bare := startE2EBare(ctx, t, dir)
+		seed = e2eReady{HostControl: host.ctlURL, HostToken: host.ctlToken, BareURL: bare.BaseURL, BareSetupCode: bare.SetupCode}
+	}
+	data, sock := "", ""
+	if host != nil {
+		data, sock = host.dataDir, host.socket
+	}
+	if err := e2eBoxWith(ctx, dir, data, sock, seed); err != nil {
 		t.Fatalf("the box ended with an error: %v", err)
 	}
 }

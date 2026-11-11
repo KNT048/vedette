@@ -72,14 +72,13 @@ Không cho hai agent làm cùng một module. Quyết định mới ghi thành D
 Khi việc 1–11 merge xong và E2E xanh: báo kien, cập nhật `kien.md`, `completion-log.md`, `ROADMAP.md` và `current.md`.
 
 ## 4. Công cụ (trong thư mục này)
-- **`merge-step.sh <pr> <worktree> [<pr> <worktree>…]`** merge lần lượt từng cặp PR/worktree. Với mỗi PR, nó:
-  1. gộp `origin/main` vào nhánh. Nếu chỉ `docs/DECISIONS.md` bị xung đột, nó tự giải bằng `resolve_decisions.py`;
-  2. push;
-  3. chờ CI tới khi không còn check pending;
-  4. yêu cầu cả `go:pass` và `web:pass`;
-  5. nếu main đổi trong lúc chờ thì làm lại (tối đa 3 lần);
-  6. squash-merge với `--match-head-commit`, rồi kiểm lại trạng thái `MERGED`.
+- **`merge-step.sh <pr> <worktree> [<pr> <worktree>…]`** đưa lần lượt từng PR vào merge queue của GitHub (D-245). Với mỗi PR, nó:
+  1. chỉ gộp `origin/main` vào nhánh khi GitHub báo xung đột (nếu chỉ `docs/DECISIONS.md` xung đột thì tự giải bằng `resolve_decisions.py`, và không bao giờ làm mất dòng D nào main đã có), rồi push;
+  2. chờ CI của PR tới khi không còn check pending, yêu cầu cả `go:pass` và `web:pass`;
+  3. `gh pr merge --squash --match-head-commit` để vào hàng; GitHub chạy lại CI trên bản ghép với `main` và các PR đứng trước;
+  4. chờ tới `MERGED` (tối đa 90 phút), hoặc báo khi PR bị đẩy khỏi hàng (CI `merge_group` đỏ hay xung đột).
 
+  Không đuổi `main`: `main` đổi trong lúc chờ không làm chạy lại gì. Mỗi PR chỉ một merge-step chạy cùng lúc (khoá ở `~/.cache/vedette-merge-lock`).
   Chạy nền, mỗi lần một chuỗi.
 - **Chờ một PR merge:** poll `gh pr view N --json state`. Không dùng `pgrep -f "merge-step.sh N"`, vì nó khớp với chính dòng lệnh của nó.
 - **Lint Linux:** `GOOS=linux $(go tool -n -modfile=tools/go.mod golangci-lint) run ./...`. Lint trên macOS bỏ qua các file `*_linux.go`.

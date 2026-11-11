@@ -255,19 +255,19 @@ const accountHandlers = [
 ]
 
 // ---------- Người dùng, OIDC ----------
-interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[] }
+interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** D-194 (5): pinned when an administrator saves, from the address they used */ redirect_uri?: string }
 const oidcStore = collection<OidcStored>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [] }))
 const oidcView = (): OidcConfig => {
   const c = oidcStore.get()
   return {
     issuer: c.issuer, client_id: c.client_id, secret_last4: c.secret ? c.secret.slice(-4) : null, scopes: c.scopes ?? 'openid email profile', groups_claim: c.groups_claim ?? 'groups',
-    default_role: c.default_role ?? null, role_map: c.role_map, redirect_uri: `${location.origin}/sso/callback`, sso_users: usersStore.get().filter((u) => u.sso).length,
+    default_role: c.default_role ?? null, role_map: c.role_map, redirect_uri: c.redirect_uri || `${location.origin}/sso/callback`, sso_users: usersStore.get().filter((u) => u.sso).length,
   }
 }
 // Luồng đăng nhập SSO đang chờ gọi lại (D-194): state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
-const oidcFlows = collection<{ state: string; binding: string; expires: number }[]>('oidc_flow', () => [])
+const oidcFlows = collection<{ state: string; binding: string; expires: number; issuer: string; client_id: string }[]>('oidc_flow', () => [])
 // Người dùng ở IdP mẫu: mock không có IdP thật, nên bước đăng nhập ở IdP được bỏ qua và trả về ngay một mã.
-export const MOCK_IDP_USER = { sub: 'mock-sub-1', email: 'sso.user@acme.example', name: 'SSO user', groups: ['vedette-operators', 'staff'] }
+export const MOCK_IDP_USER: { sub: string; email: string; email_verified?: boolean; name: string; groups: string[] } = { sub: 'mock-sub-1', email: 'sso.user@acme.example', email_verified: true, name: 'SSO user', groups: ['vedette-operators', 'staff'] }
 /** D-195: vai cao nhất trong các dòng khớp nhóm; không khớp dòng nào → vai mặc định (null = không có quyền). */
 export function ssoRole(groups: string[], c: Pick<OidcStored, 'role_map' | 'default_role'>): Role | null {
   const hits = c.role_map.filter((m) => groups.includes(m.group)).map((m) => m.role)
@@ -323,7 +323,7 @@ const usersHandlers = [
       next.disabled = b.disabled === true
     }
     const after = list.map((x) => (x.id === target.id ? next : x))
-    if (activeAdmins(after) < 1) return fail(400, 'last_admin', 'At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first.')
+    if (activeAdmins(after) < 1 && activeAdmins(after) < activeAdmins(list)) return fail(400, 'last_admin', 'At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first.')
     usersStore.set(after)
     if (next.role !== target.role) audit('user.role', target.email, `${target.role} sang ${next.role}`)
     if (!!next.disabled !== !!target.disabled) audit(next.disabled ? 'user.disable' : 'user.enable', target.email)
@@ -383,7 +383,7 @@ const usersHandlers = [
     const map = (b.role_map ?? []).filter((m) => String(m.group ?? '').trim())
     if (map.length > 10) return fail(400, 'too_many', 'At most 10 role mapping rows.')
     if (map.some((m) => !ROLES.includes(m.role) || m.group.trim().length > 256)) return fail(400, 'invalid_role', 'One mapping row has an invalid role or a group name longer than 256 characters.')
-    oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })) })
+    oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })), redirect_uri: `${location.origin}/sso/callback` })
     audit('oidc.update', issuer)
     return HttpResponse.json(oidcView())
   }),
@@ -401,46 +401,67 @@ const usersHandlers = [
   // Công khai: trang đăng nhập hỏi để biết có nút SSO không.
   http.get(`${API}/core/auth-options`, () => HttpResponse.json({ oidc: isOn('auth-oidc') && !!oidcStore.get().issuer })),
   // D-194: bắt đầu đăng nhập SSO. Bản thật trả điểm authorization của IdP; mock bỏ qua IdP và đưa thẳng về trang gọi lại kèm một mã.
+  // Module tắt: không có route (404, SYS-5); bật mà chưa có issuer: 400 oidc_off.
   http.post(`${API}/auth/oidc/start`, () => {
-    if (!isOn('auth-oidc') || !oidcStore.get().issuer) return fail(400, 'oidc_off', OIDC_OFF)
+    if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
+    const cfg = oidcStore.get()
+    if (!cfg.issuer) return fail(400, 'oidc_off', OIDC_OFF)
+    // D-194 (5): SSO runs only at the address the administrator registered at the identity provider.
+    const at = new URL(oidcView().redirect_uri).origin
+    if (at !== location.origin) return fail(409, 'sso_wrong_address', `SSO sign-in works at ${at}. Open Vedette there to sign in with SSO.`, { address: at })
     const state = randomToken()
     const binding = randomToken()
     const now = Date.now()
-    oidcFlows.update((l) => [...l.filter((f) => f.expires > now).slice(-999), { state, binding, expires: now + 10 * 60_000 }])
+    oidcFlows.update((l) => [...l.filter((f) => f.expires > now).slice(-999), { state, binding, expires: now + 10 * 60_000, issuer: cfg.issuer, client_id: cfg.client_id }])
     return HttpResponse.json({ authorize_url: `${location.origin}/sso/callback?code=mock-${randomToken().slice(0, 16)}&state=${state}`, binding })
   }),
-  // D-194, D-195: gọi lại. Luồng dùng một lần; vai theo nhóm; không nối vào tài khoản mật khẩu cùng email.
+  // D-194, D-195: gọi lại. Luồng dùng một lần và gắn với issuer/client lúc bắt đầu; vai theo nhóm; không nối vào tài khoản mật khẩu.
+  // Bản thật giới hạn theo địa chỉ như start; mock không đếm. Chỉ ghi kiểm toán khi luồng có thật (không để người lạ làm đầy nhật ký).
   http.post(`${API}/auth/oidc/callback`, async ({ request }) => {
-    if (!isOn('auth-oidc') || !oidcStore.get().issuer) return fail(400, 'oidc_off', OIDC_OFF)
-    const b = await body<{ code?: string; state?: string; binding?: string }>(request)
+    if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
     const cfg = oidcStore.get()
+    if (!cfg.issuer) return fail(400, 'oidc_off', OIDC_OFF)
+    const b = await body<{ code?: string; state?: string; binding?: string }>(request)
     const refuse = (reason: string, status: number, code: string, msg: string, who = cfg.issuer) => { audit('auth.login_failed', who, `SSO: ${reason}`); return fail(status, code, msg) }
     const flow = oidcFlows.get().find((f) => f.state === b.state)
     oidcFlows.update((l) => l.filter((f) => f.state !== b.state)) // dùng một lần, kể cả khi binding sai
-    if (!flow || flow.expires < Date.now()) return refuse('state', 400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
+    if (!flow) return fail(400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
+    if (flow.expires < Date.now() || flow.issuer !== cfg.issuer || flow.client_id !== cfg.client_id) return refuse('state', 400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
     if (flow.binding !== b.binding) return refuse('binding', 400, 'sso_expired', 'This sign-in was started in another tab or browser. Start again from the sign-in page.')
     if (!b.code) return refuse('token', 400, 'sso_failed', 'The identity provider\'s answer could not be verified. Ask an administrator to check the SSO settings; the audit log has the reason.')
     const idp = MOCK_IDP_USER
-    const role = ssoRole(idp.groups, cfg)
-    if (!role) return refuse('no_access', 403, 'no_access', 'Your company account is not in a group that may use Vedette. Ask an administrator.', idp.email)
+    const email = idp.email.toLowerCase()
     const list = usersStore.get()
     let u = list.find((x) => x.sso?.iss === cfg.issuer && x.sso.sub === idp.sub)
-    if (!u) {
-      const same = list.find((x) => x.email.toLowerCase() === idp.email)
-      // Tài khoản mật khẩu, hay tài khoản SSO của cùng issuer với sub khác: không nối. Tài khoản SSO của issuer cũ: gắn lại (đổi IdP).
-      if (same && (!same.sso || same.sso.iss === cfg.issuer)) return refuse('email_in_use', 409, 'email_in_use', `A Vedette account already uses ${idp.email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator.`, idp.email)
-      if (same) u = { ...same, sso: { iss: cfg.issuer, sub: idp.sub } }
+    const role = ssoRole(idp.groups, cfg)
+    // D-196 (4): leaving the groups ends the person's sessions at once, not at the next sign-in only.
+    const endSessions = (id: string) => { sessionsStore.update((all) => { const n = { ...all }; delete n[id]; return n }); if (sessionStore.get().userId === id) sessionStore.set({ userId: null }) }
+    if (!role) {
+      if (u) endSessions(u.id)
+      return refuse('no_access', 403, 'no_access', 'Your company account is not in a group that may use Vedette. Ask an administrator.', email)
     }
-    if (u?.disabled) return refuse('disabled', 403, 'disabled', 'This account has been disabled. Ask an administrator.', idp.email)
+    if (!u && idp.email_verified === false) return refuse('email_unverified', 403, 'email_unverified', 'Your identity provider says this email address is not verified. Verify it there, or ask an administrator.', email)
+    let relinked = false
     if (!u) {
-      u = { id: newId('u'), name: idp.name, email: idp.email, role, password: '', twofa: false, created_at: nowIso(), last_login: null, sso: { iss: cfg.issuer, sub: idp.sub } }
+      const same = list.find((x) => x.email.toLowerCase() === email)
+      // Tài khoản mật khẩu, tài khoản SSO cùng issuer khác sub, hay email chưa xác minh: không nối. Tài khoản SSO của issuer cũ + email đã xác minh: gắn lại.
+      if (same && (!same.sso || same.sso.iss === cfg.issuer || idp.email_verified !== true)) return refuse('email_in_use', 409, 'email_in_use', `A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator.`, email)
+      if (same) { u = { ...same, sso: { iss: cfg.issuer, sub: idp.sub } }; relinked = true }
+    }
+    if (u?.disabled) return refuse('disabled', 403, 'disabled', 'This account has been disabled. Ask an administrator.', email)
+    if (!u) {
+      u = { id: newId('u'), name: idp.name, email, role, password: '', twofa: false, created_at: nowIso(), last_login: null, sso: { iss: cfg.issuer, sub: idp.sub } }
       usersStore.update((l) => [...l, u as User])
-      audit('user.create', idp.email, 'SSO')
-    } else if (u.role !== role) audit('user.role', idp.email, `${u.role} sang ${role} (SSO groups)`)
+      audit('user.create', email, 'SSO')
+    } else {
+      if (relinked) audit('user.sso_relink', email, cfg.issuer)
+      if (u.role !== role) { audit('user.role', email, `${u.role} sang ${role} (SSO groups)`); endSessions(u.id) }
+    }
+    // D-195 (6): email and name stay as they were at creation; only the role follows the groups.
     const signed: User = { ...u, role, last_login: nowIso() }
     usersStore.update((l) => l.map((x) => (x.id === signed.id ? signed : x)))
     sessionStore.set({ userId: signed.id })
-    audit('auth.login', idp.email, 'SSO')
+    audit('auth.login', email, 'SSO')
     return HttpResponse.json({ ok: true })
   }),
 ]

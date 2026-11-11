@@ -179,7 +179,8 @@
       "body": "The Sign in with SSO button goes away. Password accounts keep working and the settings are kept.",
       "bodyUsers_one": "{{count}} person signs in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept.",
       "bodyUsers_other": "{{count}} people sign in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept."
-    }
+    },
+    "redirectHint": "Set from the address you use now when you save. People must open Vedette at this address to sign in with SSO."
   },
   "audit": {
     "title": "{{count}} log lines match the filters",
@@ -261,7 +262,8 @@
         "disable": "Disable user",
         "enable": "Enable user",
         "password_reset": "Reset password",
-        "2fa_reset": "Reset two-step sign-in"
+        "2fa_reset": "Reset two-step sign-in",
+        "sso_relink": "Move an SSO account to a new identity provider"
       },
       "account": {
         "profile": "Change display name",

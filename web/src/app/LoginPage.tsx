@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -27,6 +27,13 @@ export default function LoginPage() {
   const cooldown = useCountdown()
   const [busy, setBusy] = useState(false)
   const [ssoError, setSsoError] = useState<string | null>(null)
+  const [ssoBusy, setSsoBusy] = useState(false)
+  // Back from the identity provider through the browser cache: the page comes back as it was left, still "busy".
+  useEffect(() => {
+    const back = (e: PageTransitionEvent) => { if (e.persisted) { setBusy(false); setSsoBusy(false) } }
+    window.addEventListener('pageshow', back)
+    return () => window.removeEventListener('pageshow', back)
+  }, [])
   // Gợi ý tài khoản mẫu chỉ khi đang chạy dữ liệu mẫu (cài sạch không có các tài khoản này).
   const setup = useSetup()
   const mock = import.meta.env.VITE_API_MOCK !== 'off' && setup.data?.data_mode === 'sample'
@@ -73,6 +80,7 @@ export default function LoginPage() {
   // /sso/callback posts it back, so a sign-in can only finish in the tab that started it. No cookie is added.
   async function signInSso() {
     setBusy(true)
+    setSsoBusy(true)
     setSsoError(null)
     try {
       const r = await api.post<OidcStart>('/auth/oidc/start')
@@ -81,6 +89,7 @@ export default function LoginPage() {
     } catch (err) {
       setSsoError(err instanceof ApiError ? err.message : t('error.unknown'))
       setBusy(false)
+      setSsoBusy(false)
     }
   }
 
@@ -110,8 +119,8 @@ export default function LoginPage() {
               ) : null}
             </>
           ) : null}
-          <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy ? t('login.signingIn') : t('login.signIn')}</Button>
-          {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{t('core:login.sso')}</Button> : null}
+          <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy && !ssoBusy ? t('login.signingIn') : t('login.signIn')}</Button>
+          {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{ssoBusy ? t('core:login.ssoStarting') : t('core:login.sso')}</Button> : null}
           {ssoError ? <p role="alert" className="text-[13px] text-danger">{ssoError}</p> : null}
         </form>
         {mock ? <p className="mt-4 text-[13px] text-muted">{t('login.demoHint')}</p> : null}

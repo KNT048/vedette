@@ -13,6 +13,7 @@ import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
 import { mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
+import { collection } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
 
@@ -556,6 +557,8 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await u.type(screen.getByLabelText('Scopes'), 'email profile')
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/Scopes are words separated by spaces/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Scopes')).toHaveAttribute('aria-invalid', 'true') // the error sits under its own field
+    expect(screen.getByLabelText('Issuer')).toHaveAttribute('aria-invalid', 'false')
     await u.type(screen.getByLabelText('Scopes'), ' openid groups')
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/ending in/)).toBeInTheDocument()
@@ -620,7 +623,6 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
     const rows = auditStore.get().map((r) => `${r.action} ${r.detail ?? ''}`)
     expect(rows).toEqual(expect.arrayContaining(['user.create SSO', 'auth.login SSO']))
     // D-195 (5), D-196 (1): no password, no Vedette two-step sign-in
-    expect(screen.getByText(/Your password and two-step sign-in are set at your identity provider/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Change password' })).toBeNull()
     const login = await fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: MOCK_IDP_USER.email, password: '' }) })
     expect(login.status).toBe(400)
@@ -656,20 +658,76 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
   it('liên kết gọi lại mở ở tab khác (không có binding) hay dùng lại → từ chối', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     const path = await start()
-    takeSsoFlow() // another tab: nothing kept
+    const kept = takeSsoFlow()! // another tab: nothing kept here
     renderApp(path, { role: null })
     expect(await screen.findByRole('alert')).toHaveTextContent('started in another tab')
     expect(ssoUser()).toBeUndefined()
-    // the state was spent by that try: the right binding no longer helps
+    // the state was spent by that try: even the right binding no longer helps
     const state = new URLSearchParams(path.split('?')[1]).get('state')
-    const again = await fetch(`${location.origin}/api/v1/auth/oidc/callback`, { method: 'POST', body: JSON.stringify({ code: 'x', state, binding: 'b' }) })
+    const again = await fetch(`${location.origin}/api/v1/auth/oidc/callback`, { method: 'POST', body: JSON.stringify({ code: 'x', state, binding: kept.binding }) })
     expect(again.status).toBe(400)
     expect(((await again.json()) as { error: { code: string } }).error.code).toBe('sso_expired')
   })
 
   it('IdP trả lỗi → hiện mã lỗi, không gọi hộp', async () => {
-    renderApp('/sso/callback?error=access_denied&state=x', { role: null })
-    expect(await screen.findByRole('alert')).toHaveTextContent('Your identity provider did not sign you in (access_denied).')
+    const calls: string[] = []
+    const seen = ({ request }: { request: Request }) => { calls.push(new URL(request.url).pathname) }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/sso/callback?error=access_denied&state=x', { role: null })
+      expect(await screen.findByRole('alert')).toHaveTextContent('Your identity provider did not sign you in (access_denied).')
+    } finally { server.events.removeListener('request:start', seen) }
+    expect(calls).not.toContain('/api/v1/auth/oidc/callback')
+  })
+
+  it('module tắt: không có route SSO (404); địa chỉ khác địa chỉ đã đăng ký → 409 sso_wrong_address', async () => {
+    const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    expect(r.status).toBe(404)
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    // the administrator saved from another address: that is the one registered at the identity provider
+    collection<{ redirect_uri?: string }>('oidc_config', () => ({})).update((c) => ({ ...c, redirect_uri: 'https://vedette.acme.example/sso/callback' }))
+    const w = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    expect(w.status).toBe(409)
+    expect(((await w.json()) as { error: { code: string; message: string } }).error).toMatchObject({ code: 'sso_wrong_address', message: expect.stringContaining('https://vedette.acme.example') })
+  })
+
+  it('luồng gắn với issuer/client lúc bắt đầu: đổi cấu hình giữa chừng → hết hạn', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    const path = await start()
+    sessionStore.set({ userId: 'u-admin' })
+    await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: 'https://other.acme.example', client_id: 'v', client_secret: '', scopes: 'openid', groups_claim: 'groups', default_role: null, role_map: [{ group: 'vedette-operators', role: 'operator' }] }) })
+    sessionStore.set({ userId: null })
+    renderApp(path, { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('expired or was already used')
+    expect(ssoUser()).toBeUndefined()
+  })
+
+  it('rời nhóm → từ chối và kết thúc phiên đang có của người đó', async () => {
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    const id = ssoUser()!.id
+    expect(sessionStore.get().userId).toBe(id)
+    await configure([])
+    sessionStore.set({ userId: id })
+    renderApp(await start(), { role: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent('not in a group')
+    expect(sessionStore.get().userId).toBeNull()
+  })
+
+  it('đổi IdP: tài khoản SSO cũ được gắn lại chỉ khi email đã xác minh', async () => {
+    usersStore.update((l) => [...l, { id: 'u-old', name: 'Old', email: MOCK_IDP_USER.email, role: 'viewer', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: 'https://old-idp.acme.example', sub: 'old-sub' } }])
+    await configure([{ group: 'vedette-operators', role: 'operator' }])
+    MOCK_IDP_USER.email_verified = undefined // the new IdP does not say (Entra)
+    try {
+      renderApp(await start(), { role: null })
+      expect(await screen.findByRole('alert')).toHaveTextContent('does not belong to this SSO identity')
+      expect(usersStore.get().find((x) => x.id === 'u-old')?.sso?.iss).toBe('https://old-idp.acme.example')
+    } finally { MOCK_IDP_USER.email_verified = true }
+    renderApp(await start(), { role: null })
+    await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
+    expect(usersStore.get().find((x) => x.id === 'u-old')).toMatchObject({ role: 'operator', sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } })
+    expect(auditStore.get().some((r) => r.action === 'user.sso_relink')).toBe(true)
   })
 
   it('email đã thuộc tài khoản mật khẩu → không nối (D-195 (3))', async () => {

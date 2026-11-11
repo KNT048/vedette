@@ -85,7 +85,7 @@ export function useUserMutations() {
     reset2fa: useMutation({ mutationFn: (id: string) => api.post(`/core/users/${id}/2fa/reset`), onSuccess: refresh }),
   }
 }
-export const useOidc = () => useQuery({ queryKey: ['core', 'oidc'], queryFn: () => api.get<OidcConfig>('/core/oidc') })
+export const useOidc = (enabled = true) => useQuery({ queryKey: ['core', 'oidc'], queryFn: () => api.get<OidcConfig>('/core/oidc'), enabled })
 export function useOidcMutations() {
   const qc = useQueryClient()
   return {

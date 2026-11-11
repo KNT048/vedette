@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
+import { ApiError } from '@/lib/api'
 import { useMe, type Role } from '@/lib/session'
 import { useOidc, useOidcMutations, useToggleModule, useUserMutations, useUsers } from './api'
 import { errMsg } from './parts'
@@ -60,7 +61,7 @@ function OidcPanel() {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('auth-oidc')
   const toggle = useToggleModule()
-  const q = useOidc()
+  const q = useOidc(on === true)
   const [askOff, setAskOff] = useState(false)
   if (on === undefined) return <Loading />
   async function enable(v: boolean) {
@@ -91,17 +92,27 @@ function OidcPanel() {
 }
 
 const NO_ACCESS = 'none'
+type OidcField = 'issuer' | 'client' | 'secret' | 'scopes' | 'claim' | 'form'
+const OIDC_FIELD: Record<string, OidcField | undefined> = { invalid_issuer: 'issuer', invalid_client: 'client', invalid_secret: 'secret', invalid_scopes: 'scopes', invalid_claim: 'claim' }
 
 function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }) {
   const { t } = useTranslation('core')
   const m = useOidcMutations()
   const [v, setV] = useState<OidcSave>({ issuer: cfg.issuer, client_id: cfg.client_id, client_secret: '', scopes: cfg.scopes, groups_claim: cfg.groups_claim, default_role: cfg.default_role, role_map: cfg.role_map })
-  const [error, setError] = useState<string | null>(null)
+  // Each refusal of the server goes under the field it is about; the rest under the form.
+  const [error, setError] = useState<{ field: OidcField; text: string } | null>(null)
   const [endpoints, setEndpoints] = useState<Record<string, string> | null>(null)
+  const errOf = (f: OidcField) => (error?.field === f ? error.text : undefined)
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    try { await m.save.mutateAsync(v); setV((x) => ({ ...x, client_secret: '' })); toast.success(t('common:saved')) } catch (err) { setError(errMsg(err, t)) }
+    try {
+      const r = await m.save.mutateAsync(v)
+      setV({ issuer: r.issuer, client_id: r.client_id, client_secret: '', scopes: r.scopes, groups_claim: r.groups_claim, default_role: r.default_role, role_map: r.role_map })
+      toast.success(t('common:saved'))
+    } catch (err) {
+      setError({ field: (err instanceof ApiError && OIDC_FIELD[err.code]) || 'form', text: errMsg(err, t) })
+    }
   }
   async function test() {
     setEndpoints(null)
@@ -110,12 +121,15 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
   const setMap = (i: number, patch: Partial<{ group: string; role: Role }>) => setV({ ...v, role_map: v.role_map.map((r, k) => (k === i ? { ...r, ...patch } : r)) })
   return (
     <form onSubmit={(e) => void save(e)} className="grid max-w-xl gap-4" noValidate>
-      <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
-      <Field label={t('oidc.issuer')} hint={t('oidc.issuerHint')} htmlFor="oidc-issuer" error={error ?? undefined}><Input id="oidc-issuer" value={v.issuer} aria-invalid={!!error} onChange={(e) => setV({ ...v, issuer: e.target.value })} placeholder="https://sso.acme.example/realms/main" /></Field>
-      <Field label={t('oidc.clientId')} htmlFor="oidc-client"><Input id="oidc-client" value={v.client_id} onChange={(e) => setV({ ...v, client_id: e.target.value })} /></Field>
-      <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret"><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
-      <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} htmlFor="oidc-scopes"><Input id="oidc-scopes" value={v.scopes} spellCheck={false} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
-      <Field label={t('oidc.claim')} hint={t('oidc.claimHint')} htmlFor="oidc-claim"><Input id="oidc-claim" className="max-w-56" value={v.groups_claim} spellCheck={false} onChange={(e) => setV({ ...v, groups_claim: e.target.value })} /></Field>
+      <div className="grid gap-1">
+        <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
+        <p className="text-[13px] text-muted">{t('oidc.redirectHint')}</p>
+      </div>
+      <Field label={t('oidc.issuer')} hint={t('oidc.issuerHint')} htmlFor="oidc-issuer" error={errOf('issuer')}><Input id="oidc-issuer" value={v.issuer} aria-invalid={!!errOf('issuer')} onChange={(e) => setV({ ...v, issuer: e.target.value })} placeholder="https://sso.acme.example/realms/main" /></Field>
+      <Field label={t('oidc.clientId')} htmlFor="oidc-client" error={errOf('client')}><Input id="oidc-client" value={v.client_id} aria-invalid={!!errOf('client')} onChange={(e) => setV({ ...v, client_id: e.target.value })} /></Field>
+      <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret" error={errOf('secret')}><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} aria-invalid={!!errOf('secret')} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
+      <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} htmlFor="oidc-scopes" error={errOf('scopes')}><Input id="oidc-scopes" value={v.scopes} spellCheck={false} aria-invalid={!!errOf('scopes')} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
+      <Field label={t('oidc.claim')} hint={t('oidc.claimHint')} htmlFor="oidc-claim" error={errOf('claim')}><Input id="oidc-claim" className="max-w-56" value={v.groups_claim} spellCheck={false} aria-invalid={!!errOf('claim')} onChange={(e) => setV({ ...v, groups_claim: e.target.value })} /></Field>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t('oidc.map')}</legend>
         <p className="text-[13px] text-muted">{t('oidc.mapHint')}</p>
@@ -134,6 +148,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
           {ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}
         </Select>
       </Field>
+      {errOf('form') ? <p role="alert" className="text-[13px] text-danger">{errOf('form')}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={m.save.isPending}>{t('common:save')}</Button>
         <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer} title={cfg.issuer ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>

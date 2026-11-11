@@ -1,8 +1,8 @@
-# Kiểm tra: `make check` trên máy, bộ đầy đủ trên CI (kien, 2026-11-09, D-61 → D-62, D-63)
+# Kiểm tra: `make check` trên máy, bộ đầy đủ trên CI (kien, 2026-11-09, D-61 → D-62, D-63; D-199)
 
 Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63). CI chạy bộ đầy đủ trên máy GitHub; máy người làm chỉ chạy phần nhanh.
 
-- **Trước khi push / mở PR: `make check`** trên nhánh đã rebase lên `origin/main`. Chỉ kiểm phần đã đổi: Go → build, vet, `go test -race ./...` (cache chỉ chạy lại gói bị ảnh hưởng), contract, lint, kiểm mã sinh khi hợp đồng/migration/query đổi; giao diện → tsc, lint, `vitest --changed`, kiểm lệch `api/openapi.json` khi `contract.ts` đổi, spec e2e của module bị chạm (desktop); chỉ docs → không chạy gì; file dùng chung (dependency, cấu hình build, `web/src/lib`, `web/src/mocks`, Makefile, `scripts/`) → tự chạy `make verify` đầy đủ.
+- **Trước khi push / mở PR: `make check`** trên nhánh đã rebase lên `origin/main`. Chỉ kiểm phần đã đổi: Go → build, vet, `go test -race ./...` (cache chỉ chạy lại gói bị ảnh hưởng), contract, lint, kiểm mã sinh khi hợp đồng/migration/query đổi; giao diện → tsc, lint, `vitest --changed`, kiểm lệch `api/openapi.json` khi `contract.ts` đổi, spec e2e của module bị chạm (desktop); chỉ docs → không chạy gì; file dùng chung (dependency, cấu hình build, `web/src/lib`, `web/src/mocks`, Makefile, `scripts/`) → vẫn `make check`; CI chạy bộ đầy đủ (D-199). `make verify` trên máy chỉ để tái hiện một CI đỏ.
 - **Merge khi CI xanh** (job `go`, `web`). CI đỏ → sửa, không merge "vì máy mình xanh". Dán phần cuối `make check` vào mục **Local checks** của PR.
 - CI (D-140): job `changes` (`make ci-changes`, `scripts/ci`) quyết PR cần `go`/`web` hay không; chỉ bỏ qua với đường dẫn không test nào đọc, `scripts/ci/guard_test.go` giữ điều đó; đường dẫn lạ = chạy cả hai. `go` và `web` là job tổng hợp luôn báo đúng tên. `main` không bao giờ bị huỷ run.
 - Workflow chỉ gọi `make` (trừ hai job tổng hợp `go`/`web`, chỉ so kết quả job); action bên thứ ba ghim theo SHA; quyền token tối thiểu. Không thêm workflow tốn phút ngoài `ci.yml` mà không ghi quyết định.

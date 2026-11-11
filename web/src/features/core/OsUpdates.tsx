@@ -123,20 +123,24 @@ function RunPanel({ run }: { run: OsRun }) {
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight }, [run.lines.length])
   useEffect(() => {
     // Lần chạy vừa xong: làm mới danh sách chờ và trạng thái khởi động lại; báo một lần.
-    if (run.status !== 'done') { seen.current = `${run.id}:running`; return }
+    if (run.status === 'running') { seen.current = `${run.id}:running`; return }
     void qc.invalidateQueries({ queryKey: ['core', 'os'] })
     void qc.invalidateQueries({ queryKey: ['core', 'updates'] })
-    if (seen.current === `${run.id}:running`) toast.success(t('updates.os.run.finished', { count: run.result?.installed ?? 0 }))
+    if (seen.current === `${run.id}:running`) {
+      if (run.status === 'failed') toast.error(run.error ?? t('updates.os.run.failedToast'))
+      else toast.success(t('updates.os.run.finished', { count: run.result?.installed ?? 0 }))
+    }
     seen.current = `${run.id}:done`
-  }, [run.id, run.status, run.result?.installed, qc, t])
+  }, [run.id, run.status, run.error, run.result?.installed, qc, t])
   const r = run.result
   return (
     <div className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-live="polite">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t('updates.os.run.title')}</h3>
-        {run.status === 'running' ? <Chip tone="accent">{t('updates.os.run.running')}</Chip> : <Chip tone="ok">{t('updates.os.run.done')}</Chip>}
+        {run.status === 'running' ? <Chip tone="accent">{t('updates.os.run.running')}</Chip> : run.status === 'failed' ? <Chip tone="danger">{t('updates.os.run.failedChip')}</Chip> : <Chip tone="ok">{t('updates.os.run.done')}</Chip>}
         <span className="text-[13px] text-muted">{t(`updates.os.run.scope.${run.scope}`)}, {fmtDateTime(run.started_at)}, {run.user}</span>
       </div>
+      {run.status === 'failed' ? <p role="alert" className="text-sm text-danger">{run.error ?? t('updates.os.run.failedToast')}</p> : null}
       <pre ref={log} tabIndex={0} role="log" aria-label={t('updates.os.run.log')} className="max-h-60 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-sunken p-3 font-mono text-[12px] leading-5 [overflow-wrap:anywhere]">{run.lines.join('\n') || ' '}</pre>
       {r ? (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[minmax(140px,max-content)_1fr]">
@@ -295,7 +299,15 @@ function NoCheckYet({ error }: { error: ApiError }) {
 }
 
 export function OsBlock() {
+  const { t } = useTranslation('core')
   const q = useOsState()
   if (q.error instanceof ApiError && q.error.code === 'no_check_yet') return <NoCheckYet error={q.error} />
+  // Band 1 stays when this part shows only an error, so the page numbers 1, 2, 3 whichever part loads (issue #241).
+  if (q.error) return (
+    <section id="os" aria-labelledby="os-band">
+      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} />
+      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+    </section>
+  )
   return <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
 }

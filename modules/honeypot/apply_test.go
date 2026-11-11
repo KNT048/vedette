@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -132,6 +133,43 @@ func TestApplyWritesTheFilesOnlyWhenTheyChange(t *testing.T) {
 	}
 	if len(names) != 2 {
 		t.Fatalf("files in the config folder: %v (a temporary file was left)", names)
+	}
+}
+
+// The container is asked to restart only when a configuration file was written since the last start the host
+// acknowledged (D-161): the first start, and a start after a change; not the repeat of an unchanged Apply, and a start
+// that failed keeps the restart due.
+func TestApplyAsksForARestartOnlyAfterTheConfigurationChanged(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	apply := func() {
+		t.Helper()
+		if err := e.svc.Apply(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	apply()
+	apply()
+	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.HTTP, true); err != nil {
+		t.Fatal(err)
+	}
+	e.host.mu.Lock()
+	e.host.failStart = errors.New("host busy")
+	e.host.mu.Unlock()
+	if err := e.svc.Apply(e.ctx()); err == nil {
+		t.Fatal("a failed start was not reported")
+	}
+	e.host.mu.Lock()
+	e.host.failStart = nil
+	e.host.mu.Unlock()
+	apply()
+	apply()
+	e.host.mu.Lock()
+	got := append([]bool(nil), e.host.restarts...)
+	e.host.mu.Unlock()
+	if want := []bool{true, false, true, true, false}; !slices.Equal(got, want) {
+		t.Fatalf("restart flags of the starts: %v, want %v", got, want)
 	}
 }
 
@@ -381,7 +419,7 @@ type refuseOneIP struct {
 
 func (h refuseOneIP) AddDecoyIP(ctx context.Context, ip netip.Addr) error {
 	if ip == h.bad {
-		return errors.New("ip_in_use: an ARP probe got an answer")
+		return fmt.Errorf("ip_in_use: an ARP probe got an answer: %w", honeypot.ErrRefused)
 	}
 	return h.fakeHost.AddDecoyIP(ctx, ip)
 }

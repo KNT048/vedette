@@ -12367,12 +12367,15 @@ func (s *CoreGetCoreAccountOKTwofaEmailReason) UnmarshalText(data []byte) error 
 }
 
 type CoreGetCoreAccountOKUser struct {
-	CreatedAt   time.Time                              `json:"created_at"`
-	Email       string                                 `json:"email"`
-	ID          string                                 `json:"id"`
-	LastLogin   NilDateTime                            `json:"last_login"`
-	Name        string                                 `json:"name"`
-	Role        CoreGetCoreAccountOKUserRole           `json:"role"`
+	CreatedAt time.Time                    `json:"created_at"`
+	Email     string                       `json:"email"`
+	ID        string                       `json:"id"`
+	LastLogin NilDateTime                  `json:"last_login"`
+	Name      string                       `json:"name"`
+	Role      CoreGetCoreAccountOKUserRole `json:"role"`
+	// The account signs in only through SSO (D-195): no Vedette password, two-step sign-in is the identity
+	// provider's.
+	SSO         bool                                   `json:"sso"`
 	Twofa       bool                                   `json:"twofa"`
 	TwofaMethod NilCoreGetCoreAccountOKUserTwofaMethod `json:"twofa_method"`
 }
@@ -12405,6 +12408,11 @@ func (s *CoreGetCoreAccountOKUser) GetName() string {
 // GetRole returns the value of Role.
 func (s *CoreGetCoreAccountOKUser) GetRole() CoreGetCoreAccountOKUserRole {
 	return s.Role
+}
+
+// GetSSO returns the value of SSO.
+func (s *CoreGetCoreAccountOKUser) GetSSO() bool {
+	return s.SSO
 }
 
 // GetTwofa returns the value of Twofa.
@@ -12445,6 +12453,11 @@ func (s *CoreGetCoreAccountOKUser) SetName(val string) {
 // SetRole sets the value of Role.
 func (s *CoreGetCoreAccountOKUser) SetRole(val CoreGetCoreAccountOKUserRole) {
 	s.Role = val
+}
+
+// SetSSO sets the value of SSO.
+func (s *CoreGetCoreAccountOKUser) SetSSO(val bool) {
+	s.SSO = val
 }
 
 // SetTwofa sets the value of Twofa.
@@ -14392,11 +14405,23 @@ func (s *CoreGetCoreNetworkSpanStatusOKVerdict) UnmarshalText(data []byte) error
 }
 
 type CoreGetCoreOidcOK struct {
-	ClientID    string                         `json:"client_id"`
-	DefaultRole CoreGetCoreOidcOKDefaultRole   `json:"default_role"`
-	Issuer      string                         `json:"issuer"`
-	RoleMap     []CoreGetCoreOidcOKRoleMapItem `json:"role_map"`
-	SecretLast4 NilString                      `json:"secret_last4"`
+	ClientID string `json:"client_id"`
+	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
+	DefaultRole NilCoreGetCoreOidcOKDefaultRole `json:"default_role"`
+	// Name of the ID-token claim that lists the person's groups (default "groups").
+	GroupsClaim string `json:"groups_claim"`
+	Issuer      string `json:"issuer"`
+	// The address to register at the identity provider: this box's address as the browser reached it, plus
+	// /sso/callback.
+	RedirectURI string `json:"redirect_uri"`
+	// Group to role; a person in several mapped groups gets the highest of their roles.
+	RoleMap []CoreGetCoreOidcOKRoleMapItem `json:"role_map"`
+	// Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email
+	// profile"; add "groups" for IdPs that need it (Okta, Authentik).
+	Scopes      string    `json:"scopes"`
+	SecretLast4 NilString `json:"secret_last4"`
+	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
+	SSOUsers int `json:"sso_users"`
 }
 
 // GetClientID returns the value of ClientID.
@@ -14405,8 +14430,13 @@ func (s *CoreGetCoreOidcOK) GetClientID() string {
 }
 
 // GetDefaultRole returns the value of DefaultRole.
-func (s *CoreGetCoreOidcOK) GetDefaultRole() CoreGetCoreOidcOKDefaultRole {
+func (s *CoreGetCoreOidcOK) GetDefaultRole() NilCoreGetCoreOidcOKDefaultRole {
 	return s.DefaultRole
+}
+
+// GetGroupsClaim returns the value of GroupsClaim.
+func (s *CoreGetCoreOidcOK) GetGroupsClaim() string {
+	return s.GroupsClaim
 }
 
 // GetIssuer returns the value of Issuer.
@@ -14414,14 +14444,29 @@ func (s *CoreGetCoreOidcOK) GetIssuer() string {
 	return s.Issuer
 }
 
+// GetRedirectURI returns the value of RedirectURI.
+func (s *CoreGetCoreOidcOK) GetRedirectURI() string {
+	return s.RedirectURI
+}
+
 // GetRoleMap returns the value of RoleMap.
 func (s *CoreGetCoreOidcOK) GetRoleMap() []CoreGetCoreOidcOKRoleMapItem {
 	return s.RoleMap
 }
 
+// GetScopes returns the value of Scopes.
+func (s *CoreGetCoreOidcOK) GetScopes() string {
+	return s.Scopes
+}
+
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *CoreGetCoreOidcOK) GetSecretLast4() NilString {
 	return s.SecretLast4
+}
+
+// GetSSOUsers returns the value of SSOUsers.
+func (s *CoreGetCoreOidcOK) GetSSOUsers() int {
+	return s.SSOUsers
 }
 
 // SetClientID sets the value of ClientID.
@@ -14430,8 +14475,13 @@ func (s *CoreGetCoreOidcOK) SetClientID(val string) {
 }
 
 // SetDefaultRole sets the value of DefaultRole.
-func (s *CoreGetCoreOidcOK) SetDefaultRole(val CoreGetCoreOidcOKDefaultRole) {
+func (s *CoreGetCoreOidcOK) SetDefaultRole(val NilCoreGetCoreOidcOKDefaultRole) {
 	s.DefaultRole = val
+}
+
+// SetGroupsClaim sets the value of GroupsClaim.
+func (s *CoreGetCoreOidcOK) SetGroupsClaim(val string) {
+	s.GroupsClaim = val
 }
 
 // SetIssuer sets the value of Issuer.
@@ -14439,14 +14489,29 @@ func (s *CoreGetCoreOidcOK) SetIssuer(val string) {
 	s.Issuer = val
 }
 
+// SetRedirectURI sets the value of RedirectURI.
+func (s *CoreGetCoreOidcOK) SetRedirectURI(val string) {
+	s.RedirectURI = val
+}
+
 // SetRoleMap sets the value of RoleMap.
 func (s *CoreGetCoreOidcOK) SetRoleMap(val []CoreGetCoreOidcOKRoleMapItem) {
 	s.RoleMap = val
 }
 
+// SetScopes sets the value of Scopes.
+func (s *CoreGetCoreOidcOK) SetScopes(val string) {
+	s.Scopes = val
+}
+
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *CoreGetCoreOidcOK) SetSecretLast4(val NilString) {
 	s.SecretLast4 = val
+}
+
+// SetSSOUsers sets the value of SSOUsers.
+func (s *CoreGetCoreOidcOK) SetSSOUsers(val int) {
+	s.SSOUsers = val
 }
 
 type CoreGetCoreOidcOKDefaultRole string
@@ -16489,6 +16554,8 @@ func (s *CoreGetCoreUpdatesOsOKWindowMode) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreUpdatesOsRunOK struct {
+	// Only for a failed run: why, in words (the lines keep the raw output).
+	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	ID         string      `json:"id"`
 	// Apt output so far.
@@ -16498,6 +16565,11 @@ type CoreGetCoreUpdatesOsRunOK struct {
 	StartedAt time.Time                          `json:"started_at"`
 	Status    CoreGetCoreUpdatesOsRunOKStatus    `json:"status"`
 	User      string                             `json:"user"`
+}
+
+// GetError returns the value of Error.
+func (s *CoreGetCoreUpdatesOsRunOK) GetError() NilString {
+	return s.Error
 }
 
 // GetFinishedAt returns the value of FinishedAt.
@@ -16538,6 +16610,11 @@ func (s *CoreGetCoreUpdatesOsRunOK) GetStatus() CoreGetCoreUpdatesOsRunOKStatus 
 // GetUser returns the value of User.
 func (s *CoreGetCoreUpdatesOsRunOK) GetUser() string {
 	return s.User
+}
+
+// SetError sets the value of Error.
+func (s *CoreGetCoreUpdatesOsRunOK) SetError(val NilString) {
+	s.Error = val
 }
 
 // SetFinishedAt sets the value of FinishedAt.
@@ -16711,6 +16788,7 @@ type CoreGetCoreUpdatesOsRunOKStatus string
 const (
 	CoreGetCoreUpdatesOsRunOKStatusRunning CoreGetCoreUpdatesOsRunOKStatus = "running"
 	CoreGetCoreUpdatesOsRunOKStatusDone    CoreGetCoreUpdatesOsRunOKStatus = "done"
+	CoreGetCoreUpdatesOsRunOKStatusFailed  CoreGetCoreUpdatesOsRunOKStatus = "failed"
 )
 
 // AllValues returns all CoreGetCoreUpdatesOsRunOKStatus values.
@@ -16718,6 +16796,7 @@ func (CoreGetCoreUpdatesOsRunOKStatus) AllValues() []CoreGetCoreUpdatesOsRunOKSt
 	return []CoreGetCoreUpdatesOsRunOKStatus{
 		CoreGetCoreUpdatesOsRunOKStatusRunning,
 		CoreGetCoreUpdatesOsRunOKStatusDone,
+		CoreGetCoreUpdatesOsRunOKStatusFailed,
 	}
 }
 
@@ -16727,6 +16806,8 @@ func (s CoreGetCoreUpdatesOsRunOKStatus) MarshalText() ([]byte, error) {
 	case CoreGetCoreUpdatesOsRunOKStatusRunning:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOsRunOKStatusDone:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOsRunOKStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -16741,6 +16822,9 @@ func (s *CoreGetCoreUpdatesOsRunOKStatus) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetCoreUpdatesOsRunOKStatusDone:
 		*s = CoreGetCoreUpdatesOsRunOKStatusDone
+		return nil
+	case CoreGetCoreUpdatesOsRunOKStatusFailed:
+		*s = CoreGetCoreUpdatesOsRunOKStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -16762,13 +16846,17 @@ func (s *CoreGetCoreUsersOK) SetItems(val []CoreGetCoreUsersOKItemsItem) {
 }
 
 type CoreGetCoreUsersOKItemsItem struct {
-	CreatedAt   time.Time                                 `json:"created_at"`
-	Disabled    bool                                      `json:"disabled"`
-	Email       string                                    `json:"email"`
-	ID          string                                    `json:"id"`
-	LastLogin   NilDateTime                               `json:"last_login"`
-	Name        string                                    `json:"name"`
-	Role        CoreGetCoreUsersOKItemsItemRole           `json:"role"`
+	CreatedAt time.Time                       `json:"created_at"`
+	Disabled  bool                            `json:"disabled"`
+	Email     string                          `json:"email"`
+	ID        string                          `json:"id"`
+	LastLogin NilDateTime                     `json:"last_login"`
+	Name      string                          `json:"name"`
+	Role      CoreGetCoreUsersOKItemsItemRole `json:"role"`
+	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
+	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
+	// reset.
+	SSO         bool                                      `json:"sso"`
 	Twofa       bool                                      `json:"twofa"`
 	TwofaMethod NilCoreGetCoreUsersOKItemsItemTwofaMethod `json:"twofa_method"`
 }
@@ -16806,6 +16894,11 @@ func (s *CoreGetCoreUsersOKItemsItem) GetName() string {
 // GetRole returns the value of Role.
 func (s *CoreGetCoreUsersOKItemsItem) GetRole() CoreGetCoreUsersOKItemsItemRole {
 	return s.Role
+}
+
+// GetSSO returns the value of SSO.
+func (s *CoreGetCoreUsersOKItemsItem) GetSSO() bool {
+	return s.SSO
 }
 
 // GetTwofa returns the value of Twofa.
@@ -16851,6 +16944,11 @@ func (s *CoreGetCoreUsersOKItemsItem) SetName(val string) {
 // SetRole sets the value of Role.
 func (s *CoreGetCoreUsersOKItemsItem) SetRole(val CoreGetCoreUsersOKItemsItemRole) {
 	s.Role = val
+}
+
+// SetSSO sets the value of SSO.
+func (s *CoreGetCoreUsersOKItemsItem) SetSSO(val bool) {
+	s.SSO = val
 }
 
 // SetTwofa sets the value of Twofa.
@@ -19622,13 +19720,17 @@ func (s *CorePatchCoreUsersIDOK) SetUser(val CorePatchCoreUsersIDOKUser) {
 }
 
 type CorePatchCoreUsersIDOKUser struct {
-	CreatedAt   time.Time                                `json:"created_at"`
-	Disabled    bool                                     `json:"disabled"`
-	Email       string                                   `json:"email"`
-	ID          string                                   `json:"id"`
-	LastLogin   NilDateTime                              `json:"last_login"`
-	Name        string                                   `json:"name"`
-	Role        CorePatchCoreUsersIDOKUserRole           `json:"role"`
+	CreatedAt time.Time                      `json:"created_at"`
+	Disabled  bool                           `json:"disabled"`
+	Email     string                         `json:"email"`
+	ID        string                         `json:"id"`
+	LastLogin NilDateTime                    `json:"last_login"`
+	Name      string                         `json:"name"`
+	Role      CorePatchCoreUsersIDOKUserRole `json:"role"`
+	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
+	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
+	// reset.
+	SSO         bool                                     `json:"sso"`
 	Twofa       bool                                     `json:"twofa"`
 	TwofaMethod NilCorePatchCoreUsersIDOKUserTwofaMethod `json:"twofa_method"`
 }
@@ -19666,6 +19768,11 @@ func (s *CorePatchCoreUsersIDOKUser) GetName() string {
 // GetRole returns the value of Role.
 func (s *CorePatchCoreUsersIDOKUser) GetRole() CorePatchCoreUsersIDOKUserRole {
 	return s.Role
+}
+
+// GetSSO returns the value of SSO.
+func (s *CorePatchCoreUsersIDOKUser) GetSSO() bool {
+	return s.SSO
 }
 
 // GetTwofa returns the value of Twofa.
@@ -19711,6 +19818,11 @@ func (s *CorePatchCoreUsersIDOKUser) SetName(val string) {
 // SetRole sets the value of Role.
 func (s *CorePatchCoreUsersIDOKUser) SetRole(val CorePatchCoreUsersIDOKUserRole) {
 	s.Role = val
+}
+
+// SetSSO sets the value of SSO.
+func (s *CorePatchCoreUsersIDOKUser) SetSSO(val bool) {
+	s.SSO = val
 }
 
 // SetTwofa sets the value of Twofa.
@@ -20631,6 +20743,85 @@ func (s *CorePostAuthLoginResendCodeReq) SetPassword(val string) {
 
 // CorePostAuthLogoutNoContent is response for CorePostAuthLogout operation.
 type CorePostAuthLogoutNoContent struct{}
+
+type CorePostAuthOidcCallbackOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *CorePostAuthOidcCallbackOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *CorePostAuthOidcCallbackOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type CorePostAuthOidcCallbackReq struct {
+	Binding string `json:"binding"`
+	Code    string `json:"code"`
+	State   string `json:"state"`
+}
+
+// GetBinding returns the value of Binding.
+func (s *CorePostAuthOidcCallbackReq) GetBinding() string {
+	return s.Binding
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostAuthOidcCallbackReq) GetCode() string {
+	return s.Code
+}
+
+// GetState returns the value of State.
+func (s *CorePostAuthOidcCallbackReq) GetState() string {
+	return s.State
+}
+
+// SetBinding sets the value of Binding.
+func (s *CorePostAuthOidcCallbackReq) SetBinding(val string) {
+	s.Binding = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostAuthOidcCallbackReq) SetCode(val string) {
+	s.Code = val
+}
+
+// SetState sets the value of State.
+func (s *CorePostAuthOidcCallbackReq) SetState(val string) {
+	s.State = val
+}
+
+type CorePostAuthOidcStartOK struct {
+	// The identity provider's authorization endpoint with client_id, redirect_uri, scope, state, nonce,
+	// code_challenge (S256).
+	AuthorizeURL string `json:"authorize_url"`
+	// Random value the page keeps in session storage and sends back with the callback, so the sign-in can
+	// only finish in the tab that started it.
+	Binding string `json:"binding"`
+}
+
+// GetAuthorizeURL returns the value of AuthorizeURL.
+func (s *CorePostAuthOidcStartOK) GetAuthorizeURL() string {
+	return s.AuthorizeURL
+}
+
+// GetBinding returns the value of Binding.
+func (s *CorePostAuthOidcStartOK) GetBinding() string {
+	return s.Binding
+}
+
+// SetAuthorizeURL sets the value of AuthorizeURL.
+func (s *CorePostAuthOidcStartOK) SetAuthorizeURL(val string) {
+	s.AuthorizeURL = val
+}
+
+// SetBinding sets the value of Binding.
+func (s *CorePostAuthOidcStartOK) SetBinding(val string) {
+	s.Binding = val
+}
 
 type CorePostCoreAccount2FAConfirmOK struct {
 	Ok bool `json:"ok"`
@@ -24180,20 +24371,6 @@ func (s *CorePostCoreOidcTestOKEndpoints) init() CorePostCoreOidcTestOKEndpoints
 	return m
 }
 
-type CorePostCoreSSOLoginOK struct {
-	Ok bool `json:"ok"`
-}
-
-// GetOk returns the value of Ok.
-func (s *CorePostCoreSSOLoginOK) GetOk() bool {
-	return s.Ok
-}
-
-// SetOk sets the value of Ok.
-func (s *CorePostCoreSSOLoginOK) SetOk(val bool) {
-	s.Ok = val
-}
-
 type CorePostCoreSetupOK struct {
 	Ok bool `json:"ok"`
 }
@@ -27582,6 +27759,8 @@ func (s *CorePostCoreUpdatesOsCheckOKWindowMode) UnmarshalText(data []byte) erro
 }
 
 type CorePostCoreUpdatesOsInstallAccepted struct {
+	// Only for a failed run: why, in words (the lines keep the raw output).
+	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	ID         string      `json:"id"`
 	// Apt output so far.
@@ -27591,6 +27770,11 @@ type CorePostCoreUpdatesOsInstallAccepted struct {
 	StartedAt time.Time                                     `json:"started_at"`
 	Status    CorePostCoreUpdatesOsInstallAcceptedStatus    `json:"status"`
 	User      string                                        `json:"user"`
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreUpdatesOsInstallAccepted) GetError() NilString {
+	return s.Error
 }
 
 // GetFinishedAt returns the value of FinishedAt.
@@ -27631,6 +27815,11 @@ func (s *CorePostCoreUpdatesOsInstallAccepted) GetStatus() CorePostCoreUpdatesOs
 // GetUser returns the value of User.
 func (s *CorePostCoreUpdatesOsInstallAccepted) GetUser() string {
 	return s.User
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreUpdatesOsInstallAccepted) SetError(val NilString) {
+	s.Error = val
 }
 
 // SetFinishedAt sets the value of FinishedAt.
@@ -27804,6 +27993,7 @@ type CorePostCoreUpdatesOsInstallAcceptedStatus string
 const (
 	CorePostCoreUpdatesOsInstallAcceptedStatusRunning CorePostCoreUpdatesOsInstallAcceptedStatus = "running"
 	CorePostCoreUpdatesOsInstallAcceptedStatusDone    CorePostCoreUpdatesOsInstallAcceptedStatus = "done"
+	CorePostCoreUpdatesOsInstallAcceptedStatusFailed  CorePostCoreUpdatesOsInstallAcceptedStatus = "failed"
 )
 
 // AllValues returns all CorePostCoreUpdatesOsInstallAcceptedStatus values.
@@ -27811,6 +28001,7 @@ func (CorePostCoreUpdatesOsInstallAcceptedStatus) AllValues() []CorePostCoreUpda
 	return []CorePostCoreUpdatesOsInstallAcceptedStatus{
 		CorePostCoreUpdatesOsInstallAcceptedStatusRunning,
 		CorePostCoreUpdatesOsInstallAcceptedStatusDone,
+		CorePostCoreUpdatesOsInstallAcceptedStatusFailed,
 	}
 }
 
@@ -27820,6 +28011,8 @@ func (s CorePostCoreUpdatesOsInstallAcceptedStatus) MarshalText() ([]byte, error
 	case CorePostCoreUpdatesOsInstallAcceptedStatusRunning:
 		return []byte(s), nil
 	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
+		return []byte(s), nil
+	case CorePostCoreUpdatesOsInstallAcceptedStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -27834,6 +28027,9 @@ func (s *CorePostCoreUpdatesOsInstallAcceptedStatus) UnmarshalText(data []byte) 
 		return nil
 	case CorePostCoreUpdatesOsInstallAcceptedStatusDone:
 		*s = CorePostCoreUpdatesOsInstallAcceptedStatusDone
+		return nil
+	case CorePostCoreUpdatesOsInstallAcceptedStatusFailed:
+		*s = CorePostCoreUpdatesOsInstallAcceptedStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -29274,13 +29470,17 @@ func (s *CorePostCoreUsersCreated) SetUser(val CorePostCoreUsersCreatedUser) {
 }
 
 type CorePostCoreUsersCreatedUser struct {
-	CreatedAt   time.Time                                  `json:"created_at"`
-	Disabled    bool                                       `json:"disabled"`
-	Email       string                                     `json:"email"`
-	ID          string                                     `json:"id"`
-	LastLogin   NilDateTime                                `json:"last_login"`
-	Name        string                                     `json:"name"`
-	Role        CorePostCoreUsersCreatedUserRole           `json:"role"`
+	CreatedAt time.Time                        `json:"created_at"`
+	Disabled  bool                             `json:"disabled"`
+	Email     string                           `json:"email"`
+	ID        string                           `json:"id"`
+	LastLogin NilDateTime                      `json:"last_login"`
+	Name      string                           `json:"name"`
+	Role      CorePostCoreUsersCreatedUserRole `json:"role"`
+	// Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the
+	// IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be
+	// reset.
+	SSO         bool                                       `json:"sso"`
 	Twofa       bool                                       `json:"twofa"`
 	TwofaMethod NilCorePostCoreUsersCreatedUserTwofaMethod `json:"twofa_method"`
 }
@@ -29318,6 +29518,11 @@ func (s *CorePostCoreUsersCreatedUser) GetName() string {
 // GetRole returns the value of Role.
 func (s *CorePostCoreUsersCreatedUser) GetRole() CorePostCoreUsersCreatedUserRole {
 	return s.Role
+}
+
+// GetSSO returns the value of SSO.
+func (s *CorePostCoreUsersCreatedUser) GetSSO() bool {
+	return s.SSO
 }
 
 // GetTwofa returns the value of Twofa.
@@ -29363,6 +29568,11 @@ func (s *CorePostCoreUsersCreatedUser) SetName(val string) {
 // SetRole sets the value of Role.
 func (s *CorePostCoreUsersCreatedUser) SetRole(val CorePostCoreUsersCreatedUserRole) {
 	s.Role = val
+}
+
+// SetSSO sets the value of SSO.
+func (s *CorePostCoreUsersCreatedUser) SetSSO(val bool) {
+	s.SSO = val
 }
 
 // SetTwofa sets the value of Twofa.
@@ -33990,11 +34200,23 @@ func (s *CorePutCoreNetworkSpanReqFiltersItemType) UnmarshalText(data []byte) er
 }
 
 type CorePutCoreOidcOK struct {
-	ClientID    string                         `json:"client_id"`
-	DefaultRole CorePutCoreOidcOKDefaultRole   `json:"default_role"`
-	Issuer      string                         `json:"issuer"`
-	RoleMap     []CorePutCoreOidcOKRoleMapItem `json:"role_map"`
-	SecretLast4 NilString                      `json:"secret_last4"`
+	ClientID string `json:"client_id"`
+	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
+	DefaultRole NilCorePutCoreOidcOKDefaultRole `json:"default_role"`
+	// Name of the ID-token claim that lists the person's groups (default "groups").
+	GroupsClaim string `json:"groups_claim"`
+	Issuer      string `json:"issuer"`
+	// The address to register at the identity provider: this box's address as the browser reached it, plus
+	// /sso/callback.
+	RedirectURI string `json:"redirect_uri"`
+	// Group to role; a person in several mapped groups gets the highest of their roles.
+	RoleMap []CorePutCoreOidcOKRoleMapItem `json:"role_map"`
+	// Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email
+	// profile"; add "groups" for IdPs that need it (Okta, Authentik).
+	Scopes      string    `json:"scopes"`
+	SecretLast4 NilString `json:"secret_last4"`
+	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
+	SSOUsers int `json:"sso_users"`
 }
 
 // GetClientID returns the value of ClientID.
@@ -34003,8 +34225,13 @@ func (s *CorePutCoreOidcOK) GetClientID() string {
 }
 
 // GetDefaultRole returns the value of DefaultRole.
-func (s *CorePutCoreOidcOK) GetDefaultRole() CorePutCoreOidcOKDefaultRole {
+func (s *CorePutCoreOidcOK) GetDefaultRole() NilCorePutCoreOidcOKDefaultRole {
 	return s.DefaultRole
+}
+
+// GetGroupsClaim returns the value of GroupsClaim.
+func (s *CorePutCoreOidcOK) GetGroupsClaim() string {
+	return s.GroupsClaim
 }
 
 // GetIssuer returns the value of Issuer.
@@ -34012,14 +34239,29 @@ func (s *CorePutCoreOidcOK) GetIssuer() string {
 	return s.Issuer
 }
 
+// GetRedirectURI returns the value of RedirectURI.
+func (s *CorePutCoreOidcOK) GetRedirectURI() string {
+	return s.RedirectURI
+}
+
 // GetRoleMap returns the value of RoleMap.
 func (s *CorePutCoreOidcOK) GetRoleMap() []CorePutCoreOidcOKRoleMapItem {
 	return s.RoleMap
 }
 
+// GetScopes returns the value of Scopes.
+func (s *CorePutCoreOidcOK) GetScopes() string {
+	return s.Scopes
+}
+
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *CorePutCoreOidcOK) GetSecretLast4() NilString {
 	return s.SecretLast4
+}
+
+// GetSSOUsers returns the value of SSOUsers.
+func (s *CorePutCoreOidcOK) GetSSOUsers() int {
+	return s.SSOUsers
 }
 
 // SetClientID sets the value of ClientID.
@@ -34028,8 +34270,13 @@ func (s *CorePutCoreOidcOK) SetClientID(val string) {
 }
 
 // SetDefaultRole sets the value of DefaultRole.
-func (s *CorePutCoreOidcOK) SetDefaultRole(val CorePutCoreOidcOKDefaultRole) {
+func (s *CorePutCoreOidcOK) SetDefaultRole(val NilCorePutCoreOidcOKDefaultRole) {
 	s.DefaultRole = val
+}
+
+// SetGroupsClaim sets the value of GroupsClaim.
+func (s *CorePutCoreOidcOK) SetGroupsClaim(val string) {
+	s.GroupsClaim = val
 }
 
 // SetIssuer sets the value of Issuer.
@@ -34037,14 +34284,29 @@ func (s *CorePutCoreOidcOK) SetIssuer(val string) {
 	s.Issuer = val
 }
 
+// SetRedirectURI sets the value of RedirectURI.
+func (s *CorePutCoreOidcOK) SetRedirectURI(val string) {
+	s.RedirectURI = val
+}
+
 // SetRoleMap sets the value of RoleMap.
 func (s *CorePutCoreOidcOK) SetRoleMap(val []CorePutCoreOidcOKRoleMapItem) {
 	s.RoleMap = val
 }
 
+// SetScopes sets the value of Scopes.
+func (s *CorePutCoreOidcOK) SetScopes(val string) {
+	s.Scopes = val
+}
+
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *CorePutCoreOidcOK) SetSecretLast4(val NilString) {
 	s.SecretLast4 = val
+}
+
+// SetSSOUsers sets the value of SSOUsers.
+func (s *CorePutCoreOidcOK) SetSSOUsers(val int) {
+	s.SSOUsers = val
 }
 
 type CorePutCoreOidcOKDefaultRole string
@@ -34171,10 +34433,12 @@ func (s *CorePutCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 type CorePutCoreOidcReq struct {
 	ClientID string `json:"client_id"`
 	// Empty keeps the stored secret.
-	ClientSecret string                          `json:"client_secret"`
-	DefaultRole  CorePutCoreOidcReqDefaultRole   `json:"default_role"`
-	Issuer       string                          `json:"issuer"`
-	RoleMap      []CorePutCoreOidcReqRoleMapItem `json:"role_map"`
+	ClientSecret string                           `json:"client_secret"`
+	DefaultRole  NilCorePutCoreOidcReqDefaultRole `json:"default_role"`
+	GroupsClaim  string                           `json:"groups_claim"`
+	Issuer       string                           `json:"issuer"`
+	RoleMap      []CorePutCoreOidcReqRoleMapItem  `json:"role_map"`
+	Scopes       string                           `json:"scopes"`
 }
 
 // GetClientID returns the value of ClientID.
@@ -34188,8 +34452,13 @@ func (s *CorePutCoreOidcReq) GetClientSecret() string {
 }
 
 // GetDefaultRole returns the value of DefaultRole.
-func (s *CorePutCoreOidcReq) GetDefaultRole() CorePutCoreOidcReqDefaultRole {
+func (s *CorePutCoreOidcReq) GetDefaultRole() NilCorePutCoreOidcReqDefaultRole {
 	return s.DefaultRole
+}
+
+// GetGroupsClaim returns the value of GroupsClaim.
+func (s *CorePutCoreOidcReq) GetGroupsClaim() string {
+	return s.GroupsClaim
 }
 
 // GetIssuer returns the value of Issuer.
@@ -34200,6 +34469,11 @@ func (s *CorePutCoreOidcReq) GetIssuer() string {
 // GetRoleMap returns the value of RoleMap.
 func (s *CorePutCoreOidcReq) GetRoleMap() []CorePutCoreOidcReqRoleMapItem {
 	return s.RoleMap
+}
+
+// GetScopes returns the value of Scopes.
+func (s *CorePutCoreOidcReq) GetScopes() string {
+	return s.Scopes
 }
 
 // SetClientID sets the value of ClientID.
@@ -34213,8 +34487,13 @@ func (s *CorePutCoreOidcReq) SetClientSecret(val string) {
 }
 
 // SetDefaultRole sets the value of DefaultRole.
-func (s *CorePutCoreOidcReq) SetDefaultRole(val CorePutCoreOidcReqDefaultRole) {
+func (s *CorePutCoreOidcReq) SetDefaultRole(val NilCorePutCoreOidcReqDefaultRole) {
 	s.DefaultRole = val
+}
+
+// SetGroupsClaim sets the value of GroupsClaim.
+func (s *CorePutCoreOidcReq) SetGroupsClaim(val string) {
+	s.GroupsClaim = val
 }
 
 // SetIssuer sets the value of Issuer.
@@ -34225,6 +34504,11 @@ func (s *CorePutCoreOidcReq) SetIssuer(val string) {
 // SetRoleMap sets the value of RoleMap.
 func (s *CorePutCoreOidcReq) SetRoleMap(val []CorePutCoreOidcReqRoleMapItem) {
 	s.RoleMap = val
+}
+
+// SetScopes sets the value of Scopes.
+func (s *CorePutCoreOidcReq) SetScopes(val string) {
+	s.Scopes = val
 }
 
 type CorePutCoreOidcReqDefaultRole string
@@ -70581,6 +70865,51 @@ func (o NilCoreGetCoreNetworkOKPending) Or(d CoreGetCoreNetworkOKPending) CoreGe
 	return d
 }
 
+// NewNilCoreGetCoreOidcOKDefaultRole returns new NilCoreGetCoreOidcOKDefaultRole with value set to v.
+func NewNilCoreGetCoreOidcOKDefaultRole(v CoreGetCoreOidcOKDefaultRole) NilCoreGetCoreOidcOKDefaultRole {
+	return NilCoreGetCoreOidcOKDefaultRole{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreOidcOKDefaultRole is nullable CoreGetCoreOidcOKDefaultRole.
+type NilCoreGetCoreOidcOKDefaultRole struct {
+	Value CoreGetCoreOidcOKDefaultRole
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreOidcOKDefaultRole) SetTo(v CoreGetCoreOidcOKDefaultRole) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreOidcOKDefaultRole) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreOidcOKDefaultRole) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreOidcOKDefaultRole
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreOidcOKDefaultRole) Get() (v CoreGetCoreOidcOKDefaultRole, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreOidcOKDefaultRole) Or(d CoreGetCoreOidcOKDefaultRole) CoreGetCoreOidcOKDefaultRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade returns new NilCoreGetCoreUpdatesOsOKReleaseUpgrade with value set to v.
 func NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade(v CoreGetCoreUpdatesOsOKReleaseUpgrade) NilCoreGetCoreUpdatesOsOKReleaseUpgrade {
 	return NilCoreGetCoreUpdatesOsOKReleaseUpgrade{
@@ -71475,6 +71804,96 @@ func (o NilCorePutCoreNetworkSpanOKPending) Get() (v CorePutCoreNetworkSpanOKPen
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePutCoreNetworkSpanOKPending) Or(d CorePutCoreNetworkSpanOKPending) CorePutCoreNetworkSpanOKPending {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePutCoreOidcOKDefaultRole returns new NilCorePutCoreOidcOKDefaultRole with value set to v.
+func NewNilCorePutCoreOidcOKDefaultRole(v CorePutCoreOidcOKDefaultRole) NilCorePutCoreOidcOKDefaultRole {
+	return NilCorePutCoreOidcOKDefaultRole{
+		Value: v,
+	}
+}
+
+// NilCorePutCoreOidcOKDefaultRole is nullable CorePutCoreOidcOKDefaultRole.
+type NilCorePutCoreOidcOKDefaultRole struct {
+	Value CorePutCoreOidcOKDefaultRole
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePutCoreOidcOKDefaultRole) SetTo(v CorePutCoreOidcOKDefaultRole) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePutCoreOidcOKDefaultRole) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePutCoreOidcOKDefaultRole) SetToNull() {
+	o.Null = true
+	var v CorePutCoreOidcOKDefaultRole
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePutCoreOidcOKDefaultRole) Get() (v CorePutCoreOidcOKDefaultRole, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePutCoreOidcOKDefaultRole) Or(d CorePutCoreOidcOKDefaultRole) CorePutCoreOidcOKDefaultRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePutCoreOidcReqDefaultRole returns new NilCorePutCoreOidcReqDefaultRole with value set to v.
+func NewNilCorePutCoreOidcReqDefaultRole(v CorePutCoreOidcReqDefaultRole) NilCorePutCoreOidcReqDefaultRole {
+	return NilCorePutCoreOidcReqDefaultRole{
+		Value: v,
+	}
+}
+
+// NilCorePutCoreOidcReqDefaultRole is nullable CorePutCoreOidcReqDefaultRole.
+type NilCorePutCoreOidcReqDefaultRole struct {
+	Value CorePutCoreOidcReqDefaultRole
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePutCoreOidcReqDefaultRole) SetTo(v CorePutCoreOidcReqDefaultRole) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePutCoreOidcReqDefaultRole) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePutCoreOidcReqDefaultRole) SetToNull() {
+	o.Null = true
+	var v CorePutCoreOidcReqDefaultRole
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePutCoreOidcReqDefaultRole) Get() (v CorePutCoreOidcReqDefaultRole, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePutCoreOidcReqDefaultRole) Or(d CorePutCoreOidcReqDefaultRole) CorePutCoreOidcReqDefaultRole {
 	if v, ok := o.Get(); ok {
 		return v
 	}

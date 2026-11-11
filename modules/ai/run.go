@@ -30,11 +30,14 @@ type JobSpec struct {
 	Task  string // the job's instructions (skill prompt)
 	// Question is what is asked, and Data the untrusted text that goes with it (feed items, device data, log lines): Data is the
 	// only way untrusted text reaches the prompt, between the per-call markers (INV-21).
-	Question  string
-	Data      []DataBlock
-	Schema    *provider.Schema
-	MaxTokens int
-	Summary   string // what the activity row says on success; no secrets, no customer data
+	Question string
+	Data     []DataBlock
+	// KnowledgeQuery is the text the documents of the knowledge base are searched with (S-AI-7); "" = the question and the data.
+	KnowledgeQuery string
+	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
+	Schema         *provider.Schema
+	MaxTokens      int
+	Summary        string // what the activity row says on success; no secrets, no customer data
 	// Check validates the answer before anything is stored; an error is ErrBadOutput.
 	Check func(text string) error
 	// Store runs in the same transaction as the activity row, so a result and its record commit together.
@@ -75,8 +78,11 @@ func (s *Service) unavailable(job Job, reasons []string) error {
 	return apiUnavailable(fmt.Sprintf("No AI profile could answer %s (%s). Check the profiles in Settings, AI assistant, or add a fallback.", job.Name(), strings.Join(reasons, "; ")))
 }
 
-// Ready reports why a job cannot run now: nil when a profile is assigned, usable and allowed for it.
+// Ready reports why a job cannot run now: nil when its skill is on and a profile is assigned, usable and allowed for it.
 func (s *Service) Ready(job Job) error {
+	if err := s.skillOff(job); err != nil {
+		return err
+	}
 	cands, reasons := s.router.Candidates(job)
 	if len(cands) > 0 {
 		return nil
@@ -226,8 +232,33 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	// One generation of the rules and hooks for the whole call: the answer is checked by the hooks that checked the question.
 	har := s.harness.Load()
 	hooks := har.runner
+	// What an administrator keeps in memory goes with the data, line by line through the before-AI hooks (INV-8): a line a hook stops
+	// is left out and named in the row, the rest is sent.
+	mem, err := s.memoryForCall(ctx, hooks, spec.Job)
+	if err != nil {
+		return JobResult{}, err
+	}
+	// The memory block is not in guard's pass: each of its lines was checked by these same hooks, and a second pass over the joined
+	// block would let a pattern match across a line break and stop the call for two memories that touch. It is added after the pass,
+	// first, with the same fencing as any data block.
+	// The documents of the knowledge base come the same way: pieces found for this job, each one through the hooks alone, added after
+	// the pass as a data block (S-AI-7, INV-10).
+	know := spec.knowledge // already retrieved by a caller that needed it for its cache key (explain): one retrieval, one hook pass
+	if know == nil {
+		k, err := s.knowledgeForCall(ctx, hooks, spec.Job, knowledgeQuery(spec))
+		if err != nil {
+			return JobResult{}, err
+		}
+		know = &k
+	}
 	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
-	entry.Hooks = hookNames
+	entry.Hooks = dedupe(append(append(append(append(hookNames, mem.names...), mem.leftNames...), know.names...), know.leftNames...))
+	if stop == "" && len(know.refs) > 0 {
+		data = append([]DataBlock{know.block}, data...)
+	}
+	if stop == "" && len(mem.ids) > 0 {
+		data = append([]DataBlock{mem.block}, data...)
+	}
 	if stop != "" {
 		entry.Result, entry.Summary, entry.InputHash = ResultBlockedByHook, "Not sent: "+stop, HashContent(stop)
 		if err := s.record(ctx, entry); err != nil {
@@ -244,6 +275,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 
 	res, err := s.router.Call(ctx, spec.Job, req)
 	if err != nil {
+		s.touchSent(ctx, mem.ids, res)
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
 	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
@@ -277,7 +309,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	werr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		ctx := wctx
 		if bad == nil {
-			entry.Summary = spec.Summary
+			entry.Summary = spec.Summary + leftOutNote(mem.left) + knowledgeNote(*know)
 			if res.Fallback {
 				entry.Summary += " (answered by the fallback profile)"
 			}
@@ -287,6 +319,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 			return err
 		}
 		id = sealed.ID
+		if err := touchMemory(ctx, tx, mem.ids, store.FormatTS(s.cfg.Clock())); err != nil {
+			return err
+		}
 		if res.Downgrade != nil {
 			if err := s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade); err != nil {
 				return err
@@ -313,6 +348,33 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, bad
 	}
 	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id}, nil
+}
+
+// leftOutNote names the memories a hook kept out of the call (ids, never text).
+func leftOutNote(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	return " (memory left out because a hook stopped it: " + strings.Join(ids, ", ") + ")"
+}
+
+// touchSent records the use of the memories when a request was actually sent to a provider but no answer came back: the text has
+// left the box all the same. A write that fails is logged, not returned: the caller already has an error to report.
+func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
+	sent := false
+	for _, a := range res.Attempts {
+		sent = sent || !a.Skipped
+	}
+	if !sent || len(ids) == 0 {
+		return
+	}
+	wctx, cancel := detached(ctx)
+	defer cancel()
+	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		return touchMemory(wctx, tx, ids, store.FormatTS(s.cfg.Clock()))
+	}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "ai: could not record the use of memory", "error", err)
+	}
 }
 
 // failed records a call that got no answer and returns the error the person sees.

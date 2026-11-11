@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,14 +48,15 @@ func nreq() sa.NucleiRequest {
 
 type nucResult struct {
 	res []nucleiout.Result
+	he  []nucleiout.HostError
 	err error
 }
 
 func runNuclei(ctx context.Context, d *sa.Dispatcher, req sa.NucleiRequest) <-chan nucResult {
 	ch := make(chan nucResult, 1)
 	go func() {
-		res, err := d.RunNuclei(ctx, req)
-		ch <- nucResult{res, err}
+		out, err := d.RunNuclei(ctx, req)
+		ch <- nucResult{out.Results, out.HostErrors, err}
 	}()
 	return ch
 }
@@ -83,6 +85,30 @@ func jsonlResult(b []byte) *sensorlink.JobResult {
 	r := &sensorlink.JobResult{Status: "done"}
 	r.SetJSONL(b)
 	return r
+}
+
+func withHostErrors(jsonl []byte, he ...sensorlink.HostError) *sensorlink.JobResult {
+	r := jsonlResult(jsonl)
+	r.HostErrors = he
+	return r
+}
+
+// D-165: the host errors the worker counted come back with the lines, checked against the request.
+func TestNucleiHostErrorsComeBackWithTheResult(t *testing.T) {
+	t.Parallel()
+	r := newDRig(t)
+	r.beatNuclei(t, true, true, true)
+	ch := runNuclei(t.Context(), r.d, nreq())
+	j := r.poll(t, "", 5*time.Second).Jobs[0]
+	he := []sensorlink.HostError{{Target: "10.0.0.7:22", Errors: 3, Unreachable: true}, {Target: "192.168.10.20:8080", Errors: 1}}
+	if err := r.worker.PostResult(t.Context(), j.ID, withHostErrors(nil, he...)); err != nil {
+		t.Fatal(err)
+	}
+	got := awaitN(t, ch)
+	want := []nucleiout.HostError{{Target: "10.0.0.7:22", Errors: 3, Unreachable: true}, {Target: "192.168.10.20:8080", Errors: 1}}
+	if got.err != nil || len(got.res) != 0 || !slices.Equal(got.he, want) {
+		t.Fatalf("result = %+v", got)
+	}
 }
 
 func fixture(t *testing.T, name string) []byte {
@@ -516,6 +542,10 @@ func TestNucleiResultsAreChecked(t *testing.T) {
 		"a match with an error":          {jsonlResult([]byte(`{"template-id":"CVE-2024-1","host":"10.0.0.7:22","matcher-status":true,"error":"x"}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a line that is an array":        {jsonlResult([]byte("[1,2]\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a line with no matcher-status":  {jsonlResult([]byte(`{"template-id":"CVE-2024-1","host":"10.0.0.7:22"}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
+		// D-165: host_errors is checked against the request, fail closed.
+		"host_errors names another target":     {withHostErrors(good, sensorlink.HostError{Target: "192.168.10.99:80", Errors: 1}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
+		"unreachable below the job's limit":    {withHostErrors(good, sensorlink.HostError{Target: "10.0.0.7:22", Errors: 2, Unreachable: true}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
+		"reachable at or over the job's limit": {withHostErrors(good, sensorlink.HostError{Target: "10.0.0.7:22", Errors: 3}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -1,4 +1,4 @@
-// Settings -> Privacy on the real backend (S-CORE-4, D-153, PRIVACY.md): the page lists the twelve flows that leave the box, their state is what
+// Settings -> Privacy on the real backend (S-CORE-4, D-153, PRIVACY.md): the page lists the thirteen flows that leave the box, their state is what
 // GET /core/privacy says (flow 2, the anonymous signal, is shown as "Not sent" whatever the API reports: D-153), the one switch of the page
 // (flow 6, the update check) is the API's `update_check` and a change survives a reload, and the signal is not offered as a choice.
 // The backend agrees with PRIVACY.md since D-154: GET reports the signal as off and PATCH refuses `telemetry: true` (400).
@@ -14,15 +14,15 @@ const SHOWN = { on: 'Running', off: 'Off', conditional: 'Only if you configure i
 const table = (page: Page) => page.getByRole('table', { name: 'Data flows that leave the box' })
 const updateSwitch = (page: Page) => page.getByRole('switch', { name: 'Automatic update check' })
 
-test('the page lists the twelve flows with the state the API reports, and no choice about the anonymous signal', async ({ page }) => {
+test('the page lists the thirteen flows with the state the API reports, and no choice about the anonymous signal', async ({ page }) => {
   const errors = collectErrors(page)
   const got = await api<Privacy>(page.request, 'GET', '/core/privacy')
   expect(got.status).toBe(200)
-  expect(got.body.flows.map((f) => f.id), 'the twelve flows of PRIVACY.md, in order').toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  expect(got.body.flows.map((f) => f.id), 'the thirteen flows of PRIVACY.md, in order').toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
   await page.goto('/settings/privacy')
   await expect(h1(page)).toContainText('connects out only for the flows listed below')
   await expectAccessible(page, 'privacy')
-  await expect(table(page).locator('tbody tr')).toHaveCount(12)
+  await expect(table(page).locator('tbody tr')).toHaveCount(13)
   for (const f of got.body.flows) {
     const row = table(page).getByRole('row').filter({ has: page.getByRole('cell', { name: new RegExp(`^${f.id}\\. `) }) })
     await expect(row, `flow ${f.id} has one row`).toHaveCount(1)

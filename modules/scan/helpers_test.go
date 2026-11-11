@@ -62,7 +62,9 @@ type fakeEngine struct {
 func (f *fakeEngine) Ready(context.Context) error { f.mu.Lock(); defer f.mu.Unlock(); return f.down }
 func (f *fakeEngine) setDown(err error)           { f.mu.Lock(); f.down = err; f.mu.Unlock() }
 
-func (f *fakeEngine) Run(context.Context, Job) ([]nucleiout.Result, error) { return nil, nil }
+func (f *fakeEngine) Run(context.Context, Job) (nucleiout.Outcome, error) {
+	return nucleiout.Outcome{}, nil
+}
 
 var errNoHeartbeat = errors.New("no heartbeat from the scan worker for 90 s")
 

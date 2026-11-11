@@ -29,6 +29,13 @@ export const useKnowledge = () => useQuery({
   queryKey: ['ai', 'harness', 'knowledge'], queryFn: () => api.get<KnowledgeView>('/ai/knowledge'),
   refetchInterval: (q) => (q.state.data?.items.some((d) => d.status !== 'ready') ? 1000 : false),
 })
+/** The bytes of a picked file as base64 (the upload body of /ai/knowledge carries the file, like /inventory/import carries its CSV). */
+export async function fileBase64(f: File): Promise<string> {
+  const bytes = new Uint8Array(await f.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
 export const useAddDoc = () => useWrite((b: KnowledgeInput) => api.post<KnowledgeDoc>('/ai/knowledge', b))
 export const useDocJobs = () => useWrite(({ id, jobs }: { id: string; jobs: KnowledgeDoc['jobs'] }) => api.put<KnowledgeDoc>(`/ai/knowledge/${enc(id)}`, { jobs }))
 export const useRemoveDoc = () => useWrite((id: string) => api.del(`/ai/knowledge/${enc(id)}`))

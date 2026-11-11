@@ -18,11 +18,14 @@ type Engine interface {
 	// Run runs one job, already checked by core (nucleiargv.Build), and returns one result per line nuclei printed,
 	// parsed fail closed against the job's templates and targets (nucleiout.Parse): a line that is not what the job
 	// asked for makes the whole run an error, and output over the cap is an error too (INV-10). No line is an empty
-	// result, which only means "no match reported", never "not vulnerable" (D-133 (5)). Cancelling ctx stops the run
+	// result, which only means "no match reported", never "not vulnerable" (D-133 (5)); with -ms nuclei prints a non-match
+	// or error line per template and target, so an empty output is unusual. Outcome.HostErrors says which targets
+	// nuclei gave up on (timeouts counted from its error log, D-165): how core sees a device that died after it had
+	// answered some templates (INV-6). Cancelling ctx stops the run
 	// (Stop now, the device timeout): the engine stops nuclei and returns soon after. An error that wraps
 	// ErrEngineDown says the scanner itself cannot run jobs now (the worker gone, another template pack): the run stops
 	// with that message instead of trying every device.
-	Run(ctx context.Context, j Job) ([]nucleiout.Result, error)
+	Run(ctx context.Context, j Job) (nucleiout.Outcome, error)
 }
 
 // Job is one nuclei run as core planned it: the argv job (template paths of the pack index, checked by

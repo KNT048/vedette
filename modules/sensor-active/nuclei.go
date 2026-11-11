@@ -55,9 +55,11 @@ type Scanner interface {
 	// template pack; otherwise it says why (NucleiHealth).
 	Ready(ctx context.Context) error
 	// RunNuclei sends the job and returns one Result per line nuclei printed, after the output was parsed fail closed: one line
-	// that is not what the job asked for makes the whole run an error. ctx carries the deadline (at most one hour reaches the
-	// worker) and cancelling it stops the run: the worker kills nuclei within seconds.
-	RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiout.Result, error)
+	// that is not what the job asked for makes the whole run an error. It also returns the host errors the worker counted
+	// (targets that stopped answering, INV-6), each checked against the request: a target the job did not name, or an
+	// Unreachable that does not follow from the count and the job's MaxHostErrors, makes the run an error too. ctx carries
+	// the deadline (at most one hour reaches the worker) and cancelling it stops the run: the worker kills nuclei within seconds.
+	RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.Outcome, error)
 }
 
 var _ Scanner = (*Dispatcher)(nil)
@@ -110,18 +112,18 @@ func (d *Dispatcher) checkPack(r NucleiRequest) error {
 }
 
 // RunNuclei implements Scanner.
-func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiout.Result, error) {
+func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.Outcome, error) {
 	if err := r.check(); err != nil {
-		return nil, fmt.Errorf("sensoractive: %w", err)
+		return nucleiout.Outcome{}, fmt.Errorf("sensoractive: %w", err)
 	}
 	if err := d.Ready(ctx); err != nil {
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	if err := d.checkPack(r); err != nil {
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	spec := sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNuclei, Nuclei: &sensorlink.NucleiJob{
 		Pack:          sensorlink.JobPack{Version: r.PackVersion, SHA256: r.PackSHA256},
@@ -138,20 +140,42 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) ([]nucleiou
 	j := &djob{spec: spec}
 	if err := d.await(ctx, d.nucSlot, j); err != nil {
 		if errors.Is(err, ErrWorkerUnavailable) {
-			return nil, ErrScanWorkerUnavailable
+			return nucleiout.Outcome{}, ErrScanWorkerUnavailable
 		}
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	out, err := d.nucleiOutcome(j)
 	if err != nil {
-		return nil, err
+		return nucleiout.Outcome{}, err
 	}
 	res, err := nucleiout.Parse(out, r.Templates, hostPort)
 	if err != nil {
 		d.log.WarnContext(ctx, "sensor_active_nuclei_output_rejected", "error", err) // the text is built from nuclei's bytes: the log gets the parser's own words only
-		return nil, fmt.Errorf("%w: %w", ErrResultRejected, err)
+		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", ErrResultRejected, err)
 	}
-	return res, nil
+	he, err := hostErrorsOf(j.res.HostErrors, hostPort, r.MaxHostErrors)
+	if err != nil {
+		d.log.WarnContext(ctx, "sensor_active_nuclei_host_errors_rejected", "error", err)
+		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", ErrResultRejected, err)
+	}
+	return nucleiout.Outcome{Results: res, HostErrors: he}, nil
+}
+
+// hostErrorsOf checks the worker's host errors against the request (the wire shape was checked by sensorlink): every target
+// is one the job named, and Unreachable is exactly "Errors reached the job's MaxHostErrors". Fail closed: a worker that
+// says otherwise is not believed.
+func hostErrorsOf(in []sensorlink.HostError, targets []string, maxHostErrors int) ([]nucleiout.HostError, error) {
+	out := make([]nucleiout.HostError, 0, len(in))
+	for _, h := range in {
+		if !slices.Contains(targets, h.Target) {
+			return nil, errors.New("host_errors names a target the job did not")
+		}
+		if h.Unreachable != (h.Errors >= maxHostErrors) {
+			return nil, errors.New("host_errors: unreachable does not follow from the count")
+		}
+		out = append(out, nucleiout.HostError{Target: h.Target, Errors: h.Errors, Unreachable: h.Unreachable})
+	}
+	return out, nil
 }
 
 // nucleiOutcome turns a finished nuclei job into its stdout. Like nmap's, only the exit code, the truncation and the

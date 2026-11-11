@@ -173,7 +173,7 @@
     "everyHours_one": "Every hour",
     "everyHours_other": "Every {{count}} hours",
     "address": "Address",
-    "mirrorHint": "Use a mirror if you host a copy of this feed yourself. https only, except internal addresses.",
+    "mirrorHint": "Use a mirror if you host a copy of this feed yourself. https only, except addresses on your network.",
     "reset": "Reset to default",
     "defaultIs": "Default: {{url}}",
     "saved": "{{name}} saved",
@@ -190,7 +190,7 @@
       "ioc": "Indicators: IP address, domain, URL or file hash, with confidence and first seen.",
       "vulnerabilities": "CVE, vendor, product, date, description and link."
     },
-    "urlHint": "https only, except internal addresses (private ranges, localhost, .local).",
+    "urlHint": "https only, except addresses on your network (private ranges, .local). Vedette never pulls a feed from itself.",
     "auth": "Authentication",
     "authType": {
       "none": "None",

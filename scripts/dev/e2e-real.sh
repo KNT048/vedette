@@ -71,13 +71,15 @@ make webui-dist
 lap "webui-dist (tsc + vite)"
 # No -trimpath: opstest finds its fixtures through runtime.Caller. Never into the repository root.
 go test -c -tags webui -o "$tmp/box.test" ./cmd/vedette
+# slice 7: the real sensor binary, which the box starts as a child on request (cmd/vedette/e2esensor_test.go)
+go build -o "$tmp/vedette-sensor" ./cmd/vedette-sensor
 unlock # the GUI is inside the test binary now (rules/build-artifacts.md); the other run may build
 lap "go test -c -tags webui"
 
 mkdir -p "$tmp/box" && chmod 700 "$tmp/box"
 # Job control puts each background job in its own process group (Linux and macOS), so cleanup can stop a whole tree.
 set -m
-(cd cmd/vedette && umask 022 && TMPDIR="$tmp" VEDETTE_E2E_HOST=1 VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
+(cd cmd/vedette && umask 022 && TMPDIR="$tmp" VEDETTE_E2E_HOST=1 VEDETTE_E2E_SENSOR="$tmp/vedette-sensor" VEDETTE_E2E_DIR="$tmp/box" exec "$tmp/box.test" -test.run '^TestE2EBox$' -test.timeout 0 >"$tmp/box.out" 2>&1) &
 box=$!
 set +m
 for _ in $(seq 1 120); do
@@ -101,7 +103,7 @@ export E2E_BOX="$tmp/box/ready.json" E2E_PASSWORD="$password" E2E_WORKERS="$work
 # Two passes (a red parallel test must not skip the global specs and the restore logic in them): pass 1 is setup, seed and parallel; pass 2 is
 # the global project alone (--no-deps, the seeded storageState files are in the run folder). The exit code is non-zero when either failed.
 status=0
-for pass in "--project=parallel" "--project=global --no-deps"; do
+for pass in "--project=parallel --project=mobile" "--project=global --no-deps"; do
 	set -m
 	# shellcheck disable=SC2086 # SPECS is a list of paths, pass is two words
 	pnpm --dir web exec playwright test -c playwright.real.config.ts $pass --pass-with-no-tests ${SPECS:-} &

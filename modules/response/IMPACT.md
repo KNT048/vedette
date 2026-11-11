@@ -3,7 +3,7 @@
 > WP-13a đã có mã Go (package `modules/response`); chữ ký dưới đây còn là tên khái niệm: `Evaluate`/`fire` (engine.go), `approve`/`runItem` (requests.go; `runItem` là nơi duy nhất gửi bước tới thiết bị; `markRunning`/`failStuck` ghi trạng thái "đang chạy"), `Fill`/`CheckValue`/`ValidateTpl` (params.go), `appendLog`/`VerifyLog` (service.go, plans.go), `FetchBlocklist`/`renderBlocklist` (blocklist.go). Phần AI (`AIGate`) là 13b. Phần 2 (WP-13b, D-93…D-98) viết trước mã ở 13b-0: mỗi mục dưới đây ghi lát sẽ cài nó; tên hàm theo kế hoạch, mã có thể đặt tên khác thì sửa ở đây cùng PR. Module **rủi ro cao**: mọi thay đổi ở cổng chặn (INV-1…16) cần test hợp đồng và ghi rõ trong commit.
 
 ## Modifying: `Engine.Evaluate(ctx, Event) error` (khớp quy tắc, dựng yêu cầu) — 6 nguồn sự kiện
-- **honeypot** (`Hits`/`honeypot.hit`), **logs** (`IocHits`), **findings** (`findings.finding.created|status_changed`, D-57 (6)), **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
+- **honeypot** (`honeypot.hit.created` → `honeypotEvent`, events.go, #304, D-286; đổi trường payload ở `modules/honeypot` `HitEventData` là đổi trigger), **logs** (`IocHits`), **findings** (`findings.finding.created|status_changed`, D-57 (6)), **inventory** (thiết bị chưa duyệt), **exposure** (cổng mới), **scheduler** (lịch): đổi tên/kiểu trường trigger → điều kiện và tham số `{{trigger.field}}` của quy tắc đang có không còn khớp, quy tắc im lặng. Danh mục trường (`/response/triggers`) là hợp đồng với GUI.
 
 ## Modifying: `Approve(ctx, reqID, Approver, items, code) (Request, error)` — 4 người gọi
 - **HTTP** `/response/actions/{id}/approve` (app; yêu cầu AI rủi ro cao cần `TwoStep`, 13b-9); **kênh chat** (Slack Socket Mode, Telegram long polling, Zalo cá nhân) qua cổng `notify.Config.Decisions` → `DecideFromChat` (13b-8); **liên kết email** `/response/approve/{token}` → `DecideByLink` (13b-7; Zalo OA để sau); **rule engine** (`via=auto`, chỉ INV-5). Mọi đường dùng chung một hàm duyệt; chính sách kênh × rủi ro (INV-3, D-96) kiểm ở đó, không ở `notify`. Đổi thứ tự cổng (INV-9) hoặc điều kiện hai người → thay đổi ai có thể gây thay đổi trên thiết bị; test `TestContract_INV2_*`, `INV16_*` bắt buộc.
@@ -36,13 +36,16 @@
 - **ai** (cổng Go `Service.Propose(ProposeBody{Trigger, ActionID, Params, Confidence, Evidence ≤ 10, Why ≤ 400})` với tác nhân `ai:response`, 13b-10, D-97; `POST /response/ai/proposals` chỉ ở bản xem trước): đổi ngưỡng (0.8, 7 ngày, 2/giờ 5/ngày, 50%/10) → đổi lượng yêu cầu người duyệt nhận; ngưỡng là hằng số hợp đồng (`AI_MIN_CONFIDENCE`, `AI_REPEAT_DAYS`).
 
 ## Modifying: `Log.Append(kind, actor, detail)` / `Log.Verify()` (INV-19)
+- **`GET /response/log`**: `LogEntry.ts` là `z.string()` trong `contract.ts`, không `iso` (D-285): đổi lại thành `date-time` làm ogen mã hoá lại thời điểm, bỏ phần nghìn giây, và chuỗi phục vụ không kiểm lại được (#308, `cmd/vedette` `TestResponseLogServesTheHashedTimestamp`).
 - **`/core/logs/export?categories=response`** (D-132): `Service.ExportLog` đọc `resp_log` theo ngày và viết các cột của chuỗi (`id, ts, kind, actor, detail, prev_hash, hash`, không `seq`); đổi cột nằm trong hash làm tệp tải về không còn kiểm được ngoại tuyến (`TestExportLogKeepsTheChainAndTheRange`).
 - **core/logs export** (`response`): công thức hash là hợp đồng với trình kiểm offline và GUI (`logic.ts`); đổi → chuỗi cũ không kiểm lại được. **ai** có chuỗi riêng (xem `ai` câu hỏi mở 2).
 
 ## Modifying: `Blocklist.Render(token) []byte` + token
+- Kiểu nội dung `text/plain; charset=utf-8` đến từ hợp đồng (`response: 'text'` trong `contract.ts` → `web/src/lib/openapi.ts` → encoder ogen), không đặt tay trong handler (#306, D-285).
 - **Firewall của khách** (FortiGate External Block List, Palo Alto EDL, pfSense/OPNsense URL Table, MikroTik fetch) kéo URL này: đổi định dạng (một IP một dòng) hoặc đường dẫn → firewall khách ngừng cập nhật mà không báo lỗi. Tạo lại token vô hiệu ngay địa chỉ cũ.
 
 ## Modifying: `Settings` (envelope: breaker, multi-target, maintenance, expiry, AI gates)
+- Mọi trường JSON của `Settings` phải có trong `Settings` của `contract.ts`: ogen kiểm câu trả lời của chính hộp, trường lạ → 500 (`stopped_at`, #302/#305; test qua handler `TestResponseSettingsReadableAfterEmergencyStop`).
 - **GUI Settings → AI response**, **notify** (kênh sẵn sàng duyệt = `ready`): đổi khoảng giá trị → `SettingsInput` của GUI và OpenAPI.
 
 ## Disabling this module
@@ -78,6 +81,7 @@
 - **Hành vi đổi**: bước đang gửi **bị huỷ** bởi dừng khẩn cấp (trước đây chạy nốt); người duyệt trước bị vô hiệu hoá không còn được tính; `max_per_hour` chặt hơn.
 
 ## Modifying: `isLinked`, `resp_identity`, `resp_link_codes`, `Config.Mailer`, `/response/me/identities*` (WP-31 R3, D-191)
+- **`privateAnswer` / `sendLink` (D-243)**: `privateAnswer` = `telegram` (mã liên kết trong câu trả lời riêng); `sendLink` = `zalo-personal` (My account hiện mã, `CodeSent.code`, người duyệt gửi TỪ ID; `LinkFromChat` do `notify` gọi qua `Decisions.LinkChat`; `ConfirmLink` từ chối). Mock `identity.ts` (`PRIVATE_ANSWER`, `SEND_LINK`, `linkFromChat`), GUI `ApproverIdentities.tsx` (hàng `send_code`, hỏi lại mỗi 5 s khi có mã chờ), `contract.ts` (`IdentityMethod`, `CodeSent.code`) đi cùng. `ChatOutcome.RequestID` được `cmd/vedette` chuyển sang `notify.DecisionResult.RequestID` (sự kiện `notify.approval.decided` của mã Zalo).
 - **Người gọi**: `DecideFromChat` (sau `chatGate`, và lần kiểm lại dưới khoá), `approverValid` (`LinkView`, `DecideByLink`, kiểm lại dưới khoá), `view` (`ChannelView.Linked`/`Unlinked` của Settings), bốn handler `/response/me/identities*`. Bỏ hay nới `isLinked` mở lại L7 (địa chỉ gõ nhầm → người lạ duyệt).
 - **cmd/vedette**: `responseMailer` bọc `notify.CodeMailer.SendStepUpCode` (tin "link this email address…"); `Config.Mailer` nil → không gửi được mã email (503 `email_not_ready`).
 - **notify (Emily)**: `Service.Linked` là phía `response` của `notify.Config.ApproverLinks` (notify INV-13, #234), nối ở `cmd/vedette` `notifyApproverLinks` (đọc `d.Response` khi được hỏi; chưa có → lỗi, `notify` bỏ qua người duyệt). Người duyệt email chưa liên kết không nhận thư, không có token; đổi `isLinked` đổi luôn ai nhận thư duyệt. Câu trả lời riêng của listener (POST-8) là kênh đưa mã chat; listener mới (Slack, Zalo cá nhân) phải giữ nó **riêng** cho người bấm.

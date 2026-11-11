@@ -69,7 +69,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 - Xem thêm các dòng `.ai/deferred/*.md` của nhánh phía Kiên (feat-core-network, feat-core-os-updates, feat-sensor-active, feat-sensor-protocol, feat-host-net-containers, feat-response-13b, feat-conn-read).
 
 ## Cần kien (chưa chặn; chặn WP-08 và phần thật trên hộp của host 3-8)
-- **Khoá ký phát hành offline:** minisign chính (active) + minisign dự phòng (backup), cosign. Phần riêng không vào repo hay hộp (D-103, D-108).
+- **Khoá ký phát hành:** đã tạo 2026-11-11 (D-256) trong `~/.vedette-release-keys/`, mật khẩu trong Keychain `vedette-release-*`. Còn kien: chép thư mục ra hai USB và ba mật khẩu ra giấy, cất tách nhau; rồi xoá khoá dự phòng khỏi Mac (`docs/RELEASE_KEYS.md` "kien cần làm").
 - **Máy ảo lab:** Ubuntu 24.04, Ubuntu 26.04, Debian 13: để kiểm hộp thật (Box network qua reboot trong cửa sổ xác nhận, Quadlet, start/rollback/giữ bản cũ, `rmi` theo Id (chặn phát hành), bootstrap, nmap, nuclei, SPAN, các việc `*_linux.go` chưa chạy trên máy thật; dòng JSONL nuclei thật cho Emily).
 - ~~Quyết định chứng chỉ TLS~~ **đã tự quyết** (D-139, #150): hộp tự cấp lại chứng chỉ tự ký theo địa chỉ quản lý do host báo (tham khảo OPNsense, Proxmox).
 - AI thật khi thử: chỉ chạy trên máy kien với `VEDETTE_LIVE_AI=1`, khoá do kien cấp cho đúng một tiến trình test; không bao giờ trên CI, không ghi khoá vào repo hay log.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 
@@ -41,24 +42,45 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 type netHost struct{ box *core.NetworkHandlers }
 
 func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
-	cards, ok, err := n.box.Cards(ctx)
+	cards, ok, err := n.box.Cards(ctx) // not HostCards: this one never fails for a host that does not answer
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		out := make([]capture.Interface, 0, len(cards))
-		for _, c := range cards {
-			h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
-			for _, a := range c.Addresses {
-				if a.Is4() {
-					h.Addresses = append(h.Addresses, netip.PrefixFrom(a, 32)) // the host module reports addresses without a mask
-				}
-			}
-			out = append(out, h)
-		}
-		return out, nil
+		return capInterfaces(cards), nil
 	}
 	return osInterfaces()
+}
+
+// HostCards is the list vedette-host reports. ok is false only when core runs without a host socket (container-only
+// install, D-168, D-263): SetInterface then uses the cards of the sensor's heartbeat. A host that is configured but gives
+// no list (down, socket absent, nothing cached yet) is an error: fail closed, the heartbeat never decides on an appliance (D-118).
+func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, error) {
+	cards, ok, err := n.box.Cards(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		if n.box.HasHost() {
+			return nil, false, errors.New("vedette-host gave no list of cards; try again when it answers")
+		}
+		return nil, false, nil
+	}
+	return capInterfaces(cards), true, nil
+}
+
+func capInterfaces(cards []core.Card) []capture.Interface {
+	out := make([]capture.Interface, 0, len(cards))
+	for _, c := range cards {
+		h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
+		for _, a := range c.Addresses {
+			if a.Is4() {
+				h.Addresses = append(h.Addresses, netip.PrefixFrom(a, 32)) // the host module reports addresses without a mask
+			}
+		}
+		out = append(out, h)
+	}
+	return out
 }
 
 func osInterfaces() ([]capture.Interface, error) {

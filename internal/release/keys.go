@@ -12,14 +12,23 @@ import (
 // logger carries the one message that says why a build refuses everything.
 var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-// The real public keys, in the form minisign and cosign print them. They are compile-time constants
-// of a production build; until kien makes the offline keys they are empty, and then Embedded
-// refuses (fail closed). Replacing them is the only change needed to go live
-// (.ai/deferred/feat-host-net-containers.md). Never put a private key or a test key here.
+// The real release public keys, in the form minisign and cosign print them: compile-time constants of
+// a production build, made by the key ceremony of 2026-11-11 (D-256, scripts/release/keygen.sh). The
+// private halves are encrypted, outside the repo and every box, with the maintainer (docs/RELEASE_KEYS.md).
+// A constant left empty makes Embedded refuse everything (fail closed). Rotating a key changes its
+// constant here and moves the old minisign line to prodMinisignRetired (D-130). Never put a private key
+// or a test key here (TestProductionConstantsAreNotTestKeys).
 const (
-	prodMinisignActive = "" // "RWQ…" line of the active key's .pub
-	prodMinisignBackup = "" // "RWQ…" line of the offline backup key's .pub
-	prodCosign         = "" // PEM "PUBLIC KEY" of the cosign key (ECDSA P-256)
+	// minisign public key 7B78764E550D48D0, the active key: signs index.json and every release manifest
+	prodMinisignActive = "RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m"
+	// minisign public key 8DD38917AD864FAE, the offline backup key: signs the index that revokes a key (D-108) and the rescue release after one (D-258)
+	prodMinisignBackup = "RWSuT4atF4nTjejJTNkQcFCkxroGAm0jmVNBd0gvgVoNNpP3n1mSe//r"
+	// cosign key (ECDSA P-256), signs the images (legacy format, D-103)
+	prodCosign = `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEm91vgScv6zgXXBX6iJP5qaqydWIx
+KTprVWOY3EIHh6AAysr2ncwvWLztYFqP1hoFK19WWSnT+svtyjSBL+2HZA==
+-----END PUBLIC KEY-----
+`
 )
 
 // prodMinisignRetired lists the minisign public keys that signed in the past and no longer do ("RWQ…"

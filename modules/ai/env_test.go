@@ -191,10 +191,11 @@ type composite struct {
 func (e *env) handler(gate *servertest.Gate) http.Handler {
 	e.t.Helper()
 	h, err := server.New(server.Config{
-		API:     composite{Fallback: server.Fallback{Log: slog.New(slog.DiscardHandler)}, AIHandlers: ai.NewAIHandlers(e.svc)},
-		Auth:    &servertest.Auth{Users: servertest.StandardUsers()},
-		Modules: gate,
-		Log:     slog.New(slog.DiscardHandler),
+		API:        composite{Fallback: server.Fallback{Log: slog.New(slog.DiscardHandler)}, AIHandlers: ai.NewAIHandlers(e.svc)},
+		Auth:       &servertest.Auth{Users: servertest.StandardUsers()},
+		Modules:    gate,
+		Log:        slog.New(slog.DiscardHandler),
+		BodyLimits: ai.BodyLimits,
 	})
 	if err != nil {
 		e.t.Fatal(err)

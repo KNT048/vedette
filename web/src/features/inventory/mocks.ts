@@ -8,6 +8,7 @@ import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
 import { networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
+import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
@@ -615,6 +616,32 @@ export const handlers = [
     if (!t) return fail(403, 'invalid_token', 'This enrollment token is not valid. Create a new one in Vedette.')
     if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one in Vedette.')
     return HttpResponse.json({ enrolled: t.last_received !== null, hosts: t.hosts })
+  }),
+
+  // osquery TLS remote API (D-169): machine to machine, no GUI calls these; the mock answers with the real shapes so the contract tests and OpenAPI cover them.
+  // Credential failures are HTTP 200 + node_invalid (osquery does not handle HTTP errors). The mock keeps no nodes: a node key is "mock-node-" + token last4.
+  http.post(`${API}/intake/osquery/enroll`, async ({ request }) => {
+    const b = await body<{ enroll_secret?: string }>(request)
+    const m = /^vdt_osquery_[a-z0-9]{32}$/.test(b.enroll_secret ?? '') ? (b.enroll_secret as string).slice(-4) : null
+    const t = m ? agentsStore.get().find((x) => x.last4 === m) : undefined
+    if (!t || expired(t)) return HttpResponse.json({ node_invalid: true })
+    return HttpResponse.json({ node_key: `mock-node-${t.last4}`, node_invalid: false })
+  }),
+  http.post(`${API}/intake/osquery/config`, async ({ request }) => {
+    const b = await body<{ node_key?: string }>(request)
+    if (!/^mock-node-/.test(b.node_key ?? '')) return HttpResponse.json({ node_invalid: true })
+    return HttpResponse.json({ ...JSON.parse(OSQUERY_SCHEDULE), node_invalid: false })
+  }),
+  http.post(`${API}/intake/osquery/log`, async ({ request }) => {
+    const b = await body<{ node_key?: string }>(request)
+    return HttpResponse.json({ node_invalid: !/^mock-node-/.test(b.node_key ?? '') })
+  }),
+  http.get(`${API}/intake/ca.pem`, () => new HttpResponse(`${MOCK_CA}\n`, { headers: { 'Content-Type': 'application/x-pem-file' } })),
+  // The mock has no package files: only SHA256SUMS exists; the three package names of the real box answer 404 here (they are binaries of 20 to 30 MB).
+  http.get(`${API}/install/osquery/:file`, ({ params }) => {
+    if (params.file !== 'SHA256SUMS') return fail(404, 'not_found', 'The mock box ships no osquery package files.')
+    const names = [`osquery_${OSQUERY_VERSION}-1.linux_amd64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm`, `osquery-${OSQUERY_VERSION}.msi`]
+    return new HttpResponse(names.map((n) => `${'0'.repeat(64)}  ${n}`).join('\n') + '\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }),
 
   http.post(`${API}/inventory/agents/tokens`, async ({ request }) => {

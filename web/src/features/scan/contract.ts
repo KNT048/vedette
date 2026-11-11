@@ -33,6 +33,7 @@ export const ScanConfigPatch = z.object({
 export const ScanConfigResponse = z.object({
   config: ScanConfig, next_run: iso.nullable(), scope: ScanScope,
   can_scan: z.boolean().describe('false without the scope commitment, or while the scanner in the scan container is not available'), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
+  schedule_blocked_reason: z.string().nullable().describe('Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))'),
 })
 
 export const RunStatus = z.enum(['running', 'stopping', 'done', 'stopped', 'auto_stopped'])
@@ -52,7 +53,7 @@ export const ProbeEntry = z.object({
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),
-  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped']).describe('clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7))'),
+  result: z.enum(['matched', 'clear', 'skipped_off', 'no_match', 'pick_only', 'stopped', 'expired_no_template', 'expired_scanner', 'expired_zone']).describe('clear: no match reported, never "not affected" (D-133 (5)); pick_only: every device that matches may only be scanned by a hand pick (D-126 (2)), devices names them; stopped: the run stopped before every device was done (D-145 (7)); expired_*: the rescan waited 7 days and was dropped, for no template in the installed pack, the scanner not ready, or the organization time zone unreadable; devices is empty, no run (D-261 (2))'),
 })
 export const CredTarget = z.object({
   id: z.string(), asset_id: z.string(), label: z.string(), host: z.string(), port: z.number().int(), username: z.string(),
@@ -64,7 +65,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/scans/config', summary: 'Scan settings: time window, rate, exclusions, schedule, scope and commitment', stories: ['S-SCAN-1', 'S-SCAN-4'], role: 'viewer', response: ScanConfigResponse },
   { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
   { method: 'get', path: '/scans/targets', summary: 'Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)', stories: ['S-SCAN-1'], role: 'viewer', response: z.object({ items: z.array(ScanTarget) }) },
-  { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', response: z.object({ items: z.array(ScanRun) }) },
+  { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', response: z.object({ items: z.array(ScanRun), engine_busy: z.boolean().describe('true while the scanner still works on a run that already shows stopped; a new scan is refused (409 already_running) until it is free (D-261 (4))') }) },
   { method: 'post', path: '/scans/runs', status: 201, summary: 'Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)', stories: ['S-SCAN-1'], role: 'operator', body: z.object({ targets: z.array(z.string()).min(1).max(200) }), response: ScanRun },
   { method: 'post', path: '/scans/runs/{id}/stop', summary: 'Stop a scan now (takes effect within 5 seconds)', stories: ['S-SCAN-4'], role: 'operator', params: z.object({ id: z.string() }), response: ScanRun },
   { method: 'get', path: '/scans/probes.csv', summary: 'Download the probe log (target, time, template) as CSV', stories: ['S-SCAN-4'], role: 'viewer', response: 'file' },

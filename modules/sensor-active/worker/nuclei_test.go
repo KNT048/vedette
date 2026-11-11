@@ -555,6 +555,50 @@ func TestKindlessJobStillRunsAsNmap(t *testing.T) {
 	}
 }
 
+// D-165, INV-6: nuclei's error log (-elog /dev/stderr) is counted per target into host_errors, and stderr itself is never
+// posted. The error-log lines are HAND-MADE in the shape of nuclei v3.11.1 (JSONLogRequest), not recorded; the lab check
+// with the real binary is a deferred item.
+func TestNucleiHostErrorsAreCountedFromTheErrorLog(t *testing.T) {
+	t.Parallel()
+	lines := []string{
+		`{"template":"a.yaml","type":"http","input":"10.0.0.7:22","address":"10.0.0.7:22","error":"i/o timeout SECRET-IN-LOG","kind":"network-temporary-error"}`,
+		`{"template":"b.yaml","type":"tcp","input":"10.0.0.7:22","address":"10.0.0.7:22","error":"i/o timeout","kind":"network-temporary-error"}`,
+		`{"template":"a.yaml","type":"tcp","input":"10.0.0.7:22","address":"10.0.0.7:22","error":"i/o timeout","kind":"network-temporary-error"}`,
+		`{"template":"a.yaml","type":"http","input":"http://192.168.10.20:8080","address":"192.168.10.20:8080","error":"connection refused","kind":"network-permanent-error"}`,
+		`{"template":"a.yaml","type":"http","input":"http://192.168.10.20:8080","address":"192.168.10.20:8080","error":"i/o timeout","kind":"network-temporary-error"}`,
+		`{"template":"a.yaml","type":"http","input":"http://192.168.10.99:80","address":"192.168.10.99:80","error":"i/o timeout","kind":"network-temporary-error"}`,
+	}
+	r := startNuclei(t, "cat >&2 <<'EOF'\n"+strings.Join(lines, "\n")+"\nEOF\n"+printJSONL)
+	r.core.push(r.job(id1))
+	got := r.core.next(t)
+	want := []sensorlink.HostError{{Target: "192.168.10.20:8080", Errors: 1}, {Target: "10.0.0.7:22", Errors: 3, Unreachable: true}}
+	raw := jsonOf(got.res)
+	if got.res.Status != "done" || !slices.Equal(got.res.HostErrors, want) || strings.Contains(raw, "SECRET-IN-LOG") || string(got.res.JSONL()) != jsonlLine {
+		t.Fatalf("result = %s", raw)
+	}
+	if !slices.Contains(strings.Split(strings.TrimSpace(r.nu.Argv()), "\n"), "-elog") {
+		t.Fatalf("nuclei was not asked for its error log: %s", r.nu.Argv())
+	}
+}
+
+// host_errors has one entry per target at most, so its cap is the job's target cap.
+func TestHostErrorsCapIsTheTargetCap(t *testing.T) {
+	t.Parallel()
+	if sensorlink.MaxHostErrors != nucleiargv.MaxTargets {
+		t.Fatalf("sensorlink.MaxHostErrors %d, nucleiargv.MaxTargets %d", sensorlink.MaxHostErrors, nucleiargv.MaxTargets)
+	}
+}
+
+// A run that fails or is stopped carries no host errors, and a quiet stderr carries none.
+func TestNucleiNoHostErrorsWhenNothingTimedOut(t *testing.T) {
+	t.Parallel()
+	r := startNuclei(t, "echo '[INF] hello' >&2\n"+printJSONL)
+	r.core.push(r.job(id1))
+	if got := r.core.next(t); got.res.Status != "done" || len(got.res.HostErrors) != 0 {
+		t.Fatalf("result = %+v", got.res)
+	}
+}
+
 // Truncated means stdout: a flood on stderr (kept to 64 KiB in memory, never posted) does not make a good run "truncated".
 func TestNucleiStderrFloodDoesNotMeanTruncated(t *testing.T) {
 	t.Parallel()

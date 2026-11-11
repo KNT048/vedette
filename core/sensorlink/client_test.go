@@ -200,7 +200,7 @@ func TestClientRequestShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, h := range core.hdr {
-		if h.Get(sensorlink.ProtoHeader) != "2" || h.Get("Accept-Encoding") != "" || h.Get("Content-Encoding") != "" {
+		if h.Get(sensorlink.ProtoHeader) != sensorlink.ProtoVersion || h.Get("Accept-Encoding") != "" || h.Get("Content-Encoding") != "" {
 			t.Errorf("request %d headers: %v", i, h)
 		}
 	}

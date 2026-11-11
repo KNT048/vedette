@@ -80,7 +80,7 @@ func TestRegress_ClientRefusesLinkLocalAndMetadata(t *testing.T) {
 		"public-http.lan":    {"8.8.8.8"},
 		"sneaky.example.com": {"169.254.169.254"},
 	}))
-	f := Fetcher{Client: c}
+	f := Fetcher{Client: c, allowLoopback: true}
 	ctx := context.Background()
 
 	for _, u := range []string{"https://meta.example.com/", "https://ll6.example.com/", "https://169.254.169.254/latest/meta-data/", "https://[fe80::1]/", "http://public-http.lan:" + port + "/"} {
@@ -116,7 +116,7 @@ func TestRegress_HostIsResolvedOncePerConnection(t *testing.T) {
 	}
 	c := newClient(5*time.Second, res)
 	u := "http://rebind.lan:" + portOf(t, srv.URL) + "/"
-	if _, err := (Fetcher{Client: c}).Fetch(context.Background(), Request{URL: u}); err != nil {
+	if _, err := (Fetcher{Client: c, allowLoopback: true}).Fetch(context.Background(), Request{URL: u}); err != nil {
 		t.Fatal(err)
 	}
 	if calls.Load() != 1 {
@@ -125,7 +125,7 @@ func TestRegress_HostIsResolvedOncePerConnection(t *testing.T) {
 	// The rebound answer, had it come first, is refused.
 	calls.Store(1)
 	c2 := newClient(5*time.Second, res)
-	if _, err := (Fetcher{Client: c2}).Fetch(context.Background(), Request{URL: u}); !errors.Is(err, ErrBlockedAddress) {
+	if _, err := (Fetcher{Client: c2, allowLoopback: true}).Fetch(context.Background(), Request{URL: u}); !errors.Is(err, ErrBlockedAddress) {
 		t.Errorf("rebound address: %v", err)
 	}
 }
@@ -142,7 +142,7 @@ func TestRegress_HTTPSToLoopbackNameIsAllowedButLinkLocalIsNot(t *testing.T) {
 	}
 	tr.TLSClientConfig = srv.Client().Transport.(*http.Transport).TLSClientConfig.Clone() // trust the test certificate
 	port := portOf(t, srv.URL)
-	f := Fetcher{Client: c}
+	f := Fetcher{Client: c, allowLoopback: true}
 	if r, err := f.Fetch(context.Background(), Request{URL: "https://example.com:" + port + "/"}); err != nil || string(r.Body) != "tls ok" {
 		t.Fatalf("%v", err)
 	}
@@ -155,7 +155,7 @@ func TestRegress_NewClientGuardsLiteralAddresses(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) }))
 	defer srv.Close()
-	f := Fetcher{Client: NewClient(5 * time.Second)}
+	f := Fetcher{Client: NewClient(5 * time.Second), allowLoopback: true}
 	if r, err := f.Fetch(context.Background(), Request{URL: srv.URL}); err != nil || string(r.Body) != "ok" {
 		t.Errorf("loopback http: %v", err)
 	}

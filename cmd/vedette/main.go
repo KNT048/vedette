@@ -62,6 +62,7 @@ type options struct {
 	db, key, listen string
 	tlsCert, tlsKey string
 	hosts           string
+	log             *slog.Logger // set by serve for transport (the box CA's log lines); nil in tests
 	hostSocket      string
 	honeypotDir     string
 	// sensorListen and sensorCreds are the sensor link (D-141): the mutual-TLS listener of the two sensor containers and the directory
@@ -180,7 +181,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-		if err := ensureCert(certPath, keyPath, hosts); err != nil {
+		if err := ensureCertAt(certPath, keyPath, hosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
 		}
 	}
@@ -216,6 +217,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
+	o.log = log
 	tlsCfg, hosts, hsts, renew, err := transport(o)
 	if err != nil {
 		return err
@@ -265,7 +267,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db))) // before the services: deps.Wake hands them sched.Wake
-	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: baseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: boxBaseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
 		Restart: func() {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
@@ -305,15 +307,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := addJobs(sched, d, wired); err != nil {
 		return err
 	}
-	offCtx, stopOff := context.WithCancel(ctx)
-	guard := modreg.NewOffGuard(offCtx, reg, log, nil)
-	defer func() { stopOff(); guard.Wait() }()
-	reg.OnChange(guard.ModuleChanged)
+	stopGuards := func() {}
+	defer func() { stopGuards() }()
 	if err := startMCP(ctx, d); err != nil { // the port is open exactly while the module is on (POST-1)
 		return err
 	}
-	addOffGuards(guard, d, wired) //nolint:contextcheck // the guard runs on offCtx, the child of ctx made just above; a module that is off at start gets its teardown now, with retries (D-189)
-
+	stopGuards = startGuards(ctx, reg, log, d, wired)
 	api, err := server.New(server.Config{
 		API:        newHandler(d),
 		Auth:       d.Auth.Sessions,

@@ -22,6 +22,8 @@ export async function noVietnamese(page: Page, label: string) {
 const AXE_SOURCE = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
 /** Fails on serious or critical axe violations, with colour contrast, like `expectAccessible` of the mock specs. */
 export async function expectAccessible(page: Page, label: string) {
+  // a toast fading in is read by axe mid-transition (contrast): wait until none is on screen
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 })
   await page.evaluate(AXE_SOURCE)
   const violations = await page.evaluate(async () => {
     // @ts-expect-error axe is put on window by the evaluated source

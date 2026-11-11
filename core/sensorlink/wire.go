@@ -256,10 +256,24 @@ type JobResult struct {
 	Truncated bool   `json:"truncated"`
 	XMLB64    string `json:"xml_b64"`             // nmap's stdout
 	JSONLB64  string `json:"jsonl_b64,omitempty"` // nuclei's stdout (protocol 2); a result carries at most one of the two
+	// HostErrors (protocol 3, nuclei only): per target, the timeouts nuclei logged, so core can see a device stop answering
+	// when stdout holds matches only (scan INV-6, D-165). At most MaxHostErrors entries, one per target, only for targets with
+	// at least one timeout.
+	HostErrors []HostError `json:"host_errors,omitempty"`
 
 	xml   []byte // the decoded XMLB64, set by the server's decoder
 	jsonl []byte // the decoded JSONLB64
 }
+
+// HostError is the timeout count of one target of a nuclei job.
+type HostError struct {
+	Target      string `json:"target"`      // host:port of one of the job's targets
+	Errors      int    `json:"errors"`      // 1..MaxHostErrorCount
+	Unreachable bool   `json:"unreachable"` // the worker's verdict: Errors reached the job's max_host_errors
+}
+
+// MaxHostErrorCount caps HostError.Errors.
+const MaxHostErrorCount = 1 << 20
 
 type instanceReply struct {
 	Instance string `json:"instance"`
@@ -278,6 +292,7 @@ var (
 	packVerRE  = regexp.MustCompile(`^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,4}$`)
 	sha256RE   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
+	hostPortRE = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]{1,5}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
 	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true}
 	resultStat = map[string]bool{"done": true, "failed": true, "stopped": true, "refused": true}
@@ -403,6 +418,9 @@ func decodeJobResult(raw []byte) (*JobResult, error) {
 	if r.XMLB64 != "" && r.JSONLB64 != "" {
 		return nil, invalid("xml_b64 and jsonl_b64 together")
 	}
+	if err := checkHostErrors(&r); err != nil {
+		return nil, err
+	}
 	var err error
 	if r.xml, err = decodeOutput(&r, r.XMLB64, MaxResultXML, "xml_b64"); err != nil {
 		return nil, err
@@ -411,6 +429,28 @@ func decodeJobResult(raw []byte) (*JobResult, error) {
 		return nil, err
 	}
 	return &r, nil
+}
+
+// checkHostErrors checks the shape of host_errors: only on a done result, at most one entry per target, a canonical
+// private-looking host:port (the job itself is checked by the Dispatcher, which knows the targets).
+func checkHostErrors(r *JobResult) error {
+	if len(r.HostErrors) == 0 {
+		return nil
+	}
+	if r.Status != "done" || len(r.HostErrors) > MaxHostErrors {
+		return invalid("host_errors")
+	}
+	for i, h := range r.HostErrors {
+		if !hostPortRE.MatchString(h.Target) || h.Errors < 1 || h.Errors > MaxHostErrorCount {
+			return invalid("host_errors entry")
+		}
+		for _, p := range r.HostErrors[:i] {
+			if p.Target == h.Target {
+				return invalid("host_errors target twice")
+			}
+		}
+	}
+	return nil
 }
 
 // decodeOutput decodes one base64 output field against its cap: "" is nothing, a field on a result that is not done is invalid.

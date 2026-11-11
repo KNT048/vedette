@@ -88,24 +88,16 @@ func TestContract_INV7_BuiltinRulesAlwaysPresent(t *testing.T) {
 	}
 }
 
-func TestContract_INV8_OnlyAcceptedMemoryReachesThePrompt(t *testing.T) {
+// INV-8: the builder has no place for memory in the instructions. Memory is a DataMemory block (Service.memoryBlock), fenced like every
+// other untrusted text; the tests that follow what reaches the provider are in memory_test.go.
+func TestContract_INV8_MemoryIsDataNeverInstructions(t *testing.T) {
 	t.Parallel()
-	p, err := PromptBuilder{}.Build(PromptInput{Job: JobAskMyData, Memory: []MemoryEntry{
-		{Text: "NAS-PHOTOS is exposed through a virtual IP.", Accepted: true, Enabled: true},
-		{Text: "AI suggestion not yet accepted.", Accepted: false, Enabled: true},
-		{Text: "Accepted but turned off.", Accepted: true, Enabled: false},
-	}})
+	p, err := PromptBuilder{}.Build(PromptInput{Job: JobAskMyData, Question: "Q?", Data: []DataBlock{{Kind: DataMemory, Source: "notes kept by an administrator", Text: "- NAS-PHOTOS is exposed through a virtual IP."}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(p.System, "NAS-PHOTOS is exposed") || strings.Contains(p.System, "not yet accepted") || strings.Contains(p.System, "turned off") {
-		t.Fatalf("\n%s", p.System)
-	}
-	if p, _ := (PromptBuilder{}).Build(PromptInput{Job: JobAskMyData, Memory: []MemoryEntry{{Text: "x", Accepted: false, Enabled: true}}}); strings.Contains(p.System, "administrator") {
-		t.Fatal("memory section printed with nothing in it")
-	}
-	if _, err := (PromptBuilder{}).Build(PromptInput{Job: JobAskMyData, Memory: []MemoryEntry{{Text: "no", Accepted: true, Enabled: true}}}); !errors.Is(err, ErrInvalidPromptInput) {
-		t.Fatalf("memory length: %v", err)
+	if strings.Contains(p.System, "NAS-PHOTOS") || !strings.Contains(p.User, "kind=memory") || !strings.Contains(p.User, "NAS-PHOTOS") {
+		t.Fatalf("\n%s\n%s", p.System, p.User)
 	}
 }
 

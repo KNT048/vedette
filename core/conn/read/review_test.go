@@ -366,7 +366,7 @@ func TestListReadTools_BudgetAndCache(t *testing.T) {
 	f2.Hang(release, "")
 	f3.Hang(release, "")
 	r.r.FlushCacheForTest()
-	r.r.SetListBudgetForTest(500 * time.Millisecond)
+	r.r.SetListBudgetForTest(2 * time.Second) // the answering server must fit in it on a loaded CI runner (500 ms listed nothing there)
 	start := time.Now()
 	got := r.list()
 	if d := time.Since(start); d > 4*time.Second {

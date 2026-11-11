@@ -18,6 +18,9 @@ var configFiles embed.FS
 //go:embed migrations/volume/*.sql
 var volumeFiles embed.FS
 
+//go:embed data/profiles/*.json
+var profileFiles embed.FS
+
 // ConfigMigrations are the migrations of the main database (store.Migrate(ctx, db, "logs", ConfigMigrations)).
 var ConfigMigrations = mustSub(configFiles, "migrations/config")
 

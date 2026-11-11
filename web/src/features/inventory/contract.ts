@@ -99,6 +99,22 @@ export const AgentToken = z.object({
 const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
 export const Installers = z.object({ osquery_version: z.string(), linux: Installer, windows: Installer })
 export const OsqueryStatus = z.object({ enrolled: z.boolean(), hosts: z.number().int() })
+// osquery TLS remote API (D-169): machine to machine, called by osqueryd only, never by this GUI. Shapes follow
+// https://osquery.readthedocs.io/en/stable/deployment/remote/ . osquery sends more keys than these (host_details, decorations, ...): the loose
+// objects accept them and the box ignores what it does not use. Every credential failure is HTTP 200 with node_invalid: true (osquery does not handle HTTP errors).
+export const OsqueryEnrollBody = z.looseObject({
+  enroll_secret: z.string().max(256).optional().describe('The enrollment token (osquery reads it from enroll_secret_path)'),
+  host_identifier: z.string().max(256), host_details: z.looseObject({}).optional(),
+})
+export const OsqueryEnrollResult = z.object({ node_key: z.string().optional().describe('Returned once, only when enrollment succeeds; osquery sends it with every later call'), node_invalid: z.boolean() })
+export const OsqueryNodeBody = z.looseObject({ node_key: z.string().max(128) })
+export const OsquerySchedule = z.object({ query: z.string(), interval: z.number().int(), snapshot: z.boolean().optional(), platform: z.string().optional() })
+export const OsqueryConfig = z.object({ schedule: z.record(z.string(), OsquerySchedule).optional(), node_invalid: z.boolean().optional() })
+export const OsqueryLogBody = z.looseObject({
+  node_key: z.string().max(128), log_type: z.enum(['result', 'status']),
+  data: z.array(z.looseObject({})).describe('Events: scheduled-query snapshots (result) or osquery own log lines (status, read for size and dropped)'),
+})
+export const OsqueryAck = z.object({ node_invalid: z.boolean() })
 export const WazuhConnection = z.object({
   url: z.string().describe('Wazuh server API address, e.g. https://wazuh-manager:55000'), username: z.string(), password_last4: z.string().describe('Password is stored encrypted; only the last 4 characters'),
   interval_minutes: z.number().int(), status: z.enum(['never', 'connected', 'error']), last_sync: dt.nullable(), agents: z.number().int(), packages: z.number().int(), error: z.string().nullable(),
@@ -142,6 +158,11 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/install/osquery.sh', summary: 'One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)', stories: ['S-INV-4'], role: 'public', response: 'file' },
   { method: 'get', path: '/install/osquery.ps1', summary: 'osquery install script for Windows Server, served by the box; public, contains no secrets', stories: ['S-INV-4'], role: 'public', response: 'file' },
   { method: 'post', path: '/intake/osquery/status', summary: 'The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer header, never in the URL', stories: ['S-INV-4'], role: 'public', response: OsqueryStatus },
+  { method: 'post', path: '/intake/osquery/enroll', summary: 'osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key; node_invalid: true when the token is unknown, revoked or expired', stories: ['S-INV-4'], role: 'public', body: OsqueryEnrollBody, response: OsqueryEnrollResult },
+  { method: 'post', path: '/intake/osquery/config', summary: 'osquery config (machine to machine): the read-only snapshot schedule for an enrolled node; node_invalid: true makes osquery enroll again', stories: ['S-INV-4'], role: 'public', body: OsqueryNodeBody, response: OsqueryConfig },
+  { method: 'post', path: '/intake/osquery/log', summary: 'osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they update the inventory with source agent', stories: ['S-INV-4'], role: 'public', body: OsqueryLogBody, response: OsqueryAck },
+  { method: 'get', path: '/intake/ca.pem', summary: 'The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds the same text', stories: ['S-INV-4'], role: 'public', response: 'file' },
+  { method: 'get', path: '/install/osquery/{file}', summary: 'The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404', stories: ['S-INV-4'], role: 'public', params: z.object({ file: z.string() }), response: 'file', example: { params: { file: 'SHA256SUMS' } } },
   { method: 'put', path: '/inventory/agents/wazuh', summary: 'Connect (or edit) a Wazuh server: verify the API login, then save; the password is stored encrypted', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhConnection },
   { method: 'post', path: '/inventory/agents/wazuh/test', summary: 'Test the connection to the Wazuh API with the form values, without saving', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhTestResult },
   { method: 'delete', path: '/inventory/agents/wazuh', summary: 'Disconnect Wazuh and delete the saved password', stories: ['S-INV-4'], role: 'admin', response: null },

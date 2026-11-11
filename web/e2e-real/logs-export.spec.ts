@@ -141,11 +141,11 @@ test('JSON: the days are whole days of the organization time zone, missing categ
   for (const v of Object.values(seeded)) expect(targets, `${v} in the audit rows`).toContain(v)
 
   // a category with no source is listed, not shown as an empty one
-  expect(f.missing, 'categories whose module keeps no log yet are named').toEqual(expect.arrayContaining(['ai_activity', 'alerts', 'known_bad']))
-  for (const id of ['audit', 'response', 'scan_probes', 'honeypot']) expect(f.missing, `${id} has a source`).not.toContain(id)
+  expect(f.missing, 'categories whose module keeps no log yet are named').toEqual(expect.arrayContaining(['alerts', 'known_bad']))
+  for (const id of ['audit', 'ai_activity', 'response', 'scan_probes', 'honeypot']) expect(f.missing, `${id} has a source`).not.toContain(id)
   for (const id of f.missing) expect([f.counts[id], f.categories[id]], `${id} is missing and empty`).toEqual([0, []])
   expect(Object.keys(f.categories).sort()).toEqual([...CATEGORIES].sort())
-  expect(Object.keys(f.chains).sort(), 'only the hash-chained categories have a chain note').toEqual(['audit', 'response'].filter((id) => !f.missing.includes(id)).sort())
+  expect(Object.keys(f.chains).sort(), 'only the hash-chained categories have a chain note').toEqual(['ai_activity', 'audit', 'response'].filter((id) => !f.missing.includes(id)).sort())
 
   // the slot: a second download within the minute is refused, and the refusal is in the log
   const second = await api<{ error: { code: string; retry_after?: number } }>(admin, 'GET', '/core/logs/export?categories=audit')
@@ -187,8 +187,8 @@ test('CSV from the Data page: (no source) sections, and no cell that starts with
   // one section per category, a category with no source says so
   const heads = lines.filter((l) => l.startsWith('# '))
   expect(heads.map((h) => h.replace(/ \(no source\)$/, '').slice(2)).sort(), 'a section for each category').toEqual([...CATEGORIES].sort())
-  for (const id of ['ai_activity', 'alerts', 'known_bad']) expect(heads, `${id} says it has no source`).toContain(`# ${id} (no source)`)
-  for (const id of ['audit', 'response', 'scan_probes', 'honeypot']) expect(heads, `${id} has a source`).toContain(`# ${id}`)
+  for (const id of ['alerts', 'known_bad']) expect(heads, `${id} says it has no source`).toContain(`# ${id} (no source)`)
+  for (const id of ['audit', 'ai_activity', 'response', 'scan_probes', 'honeypot']) expect(heads, `${id} has a source`).toContain(`# ${id}`)
   await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Downloaded/ }).first()).toBeVisible()
 
   // formulas: no cell of the whole file starts with = + - @ (tab and CR too), and the account rows are there with an apostrophe in front

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"slices"
 	"sync"
@@ -326,17 +327,29 @@ func (s *Service) spanStats(ctx context.Context, r sensorRow) (SpanStats, error)
 }
 
 // SetInterface chooses the card the sensor listens on and whether it is a SPAN port (PRE-2, POST-2, INV-9). iface must be a card
-// of the box as the host reports it (Host.Interfaces: the authority, D-118; never a list a sensor sent, so a sensor cannot steer
-// the capture onto a card it invented); a SPAN card has no IP address. The choice is stored whether or not the module is on and
+// of the box as the host reports it (Host.HostCards: the authority, D-118; never a list a sensor sent, so a sensor cannot steer
+// the capture onto a card it invented); a SPAN card has no IP address. Only when no host answers (container-only install,
+// D-168) the authority is the latest heartbeat of the authenticated sensor, which runs on the host network: nothing else
+// sees the real cards there, and the list is bounded and validated by sensorlink. The choice is stored whether or not the module is on and
 // whether or not the sensor has sent a heartbeat: the capture uses it once it runs. The change is audited in the same transaction
 // and the config long poll is woken, so the capture moves to the new card at once.
 func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, span bool) error {
 	if id != SensorID {
 		return ErrNotFound
 	}
-	cards, err := s.host.Interfaces(ctx)
+	cards, fromHost, err := s.host.HostCards(ctx)
 	if err != nil {
 		return fmt.Errorf("sensorpassive: list interfaces: %w", err)
+	}
+	if !fromHost && iface != "" { // no host (container-only, D-168): the sensor, on the host network, is the only one that sees the real cards
+		hb := s.lastBeat()
+		if hb == nil {
+			return fmt.Errorf("%w: the sensor has not reported its network cards yet; wait for its next heartbeat (30 s) and try again", ErrBadInterface)
+		}
+		if !sensorlink.ValidIfaceName(iface) {
+			return fmt.Errorf("%w: %q is not an interface name", ErrBadInterface, iface)
+		}
+		cards = cardsOfHeartbeat(hb.ifaces)
 	}
 	var card *capture.Interface
 	for i := range cards {
@@ -367,6 +380,22 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	}
 	s.ConfigChanged()
 	return nil
+}
+
+// cardsOfHeartbeat turns the cards of a heartbeat (already bounded and validated by sensorlink: at most 32, name, MAC and
+// IPv4 prefixes checked) into the shape SetInterface checks.
+func cardsOfHeartbeat(in []sensorlink.HeartbeatIface) []capture.Interface {
+	out := make([]capture.Interface, 0, len(in))
+	for _, c := range in {
+		h := capture.Interface{Name: c.Name, MAC: c.MAC, Link: c.Link}
+		for _, p := range c.IPv4 {
+			if pf, err := netip.ParsePrefix(p); err == nil {
+				h.Addresses = append(h.Addresses, pf)
+			}
+		}
+		out = append(out, h)
+	}
+	return out
 }
 
 // ConfigChanged wakes the open config long poll: the settings the sensor is told changed (the SPAN card here; the Box network

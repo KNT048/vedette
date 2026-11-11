@@ -24,8 +24,9 @@ func (h *ScanHandlers) ScanGetScansRuns(ctx context.Context) (*oas.ScanGetScansR
 		return nil, err
 	}
 	return into[oas.ScanGetScansRunsOK](struct {
-		Items []RunView `json:"items"`
-	}{items})
+		Items      []RunView `json:"items"`
+		EngineBusy bool      `json:"engine_busy"`
+	}{items, h.svc.engineBusy()})
 }
 
 // ScanPostScansRuns implements scan_post_scans_runs (operator): Scan now.

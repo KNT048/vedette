@@ -334,13 +334,17 @@ type ModuleGate interface{ Enabled(id string) bool }
 // EventHitCreated is the event of a real hit (POST-1). Test hits publish nothing (INV-4).
 const EventHitCreated = "honeypot.hit.created"
 
-// HitEventData is the data of EventHitCreated. Every text is cut to size and came from the network.
+// HitEventData is the data of EventHitCreated. Every text is cut to size and came from the network. Decoy is the name of
+// what was touched (the trap's host name, the bait token's label, or "Decoy sweep"; the trap IP when the name is empty);
+// SrcAssetID is the inventory device at the source address when the hit was stored, "" for none (the response trigger reads both).
 type HitEventData struct {
-	ID      string  `json:"id"`
-	TS      string  `json:"ts"`
-	Kind    HitKind `json:"kind"`
-	Service string  `json:"service"`
-	Port    int     `json:"port"`
-	SrcIP   string  `json:"src_ip"`
-	Label   string  `json:"label"`
+	ID         string  `json:"id"`
+	TS         string  `json:"ts"`
+	Kind       HitKind `json:"kind"`
+	Service    string  `json:"service"`
+	Port       int     `json:"port"`
+	SrcIP      string  `json:"src_ip"`
+	Label      string  `json:"label"`
+	Decoy      string  `json:"decoy"`
+	SrcAssetID string  `json:"src_asset_id"`
 }

@@ -474,8 +474,8 @@ func loadEvents(ctx context.Context, q dbq, where string, limit int, args ...any
 	return out, rows.Err()
 }
 
-// Bounds of resp_events: the newest processed events are kept for the conditions that count (a window of events and the
-// "first time" test); events no rule has seen yet are never trimmed to make room, only dropped (and counted, logged) when the
+// Bounds of resp_events: the newest processed events of each trigger are kept for the conditions that count (a window of
+// events and the "first time" test), so a flood of one trigger (spoofed honeypot scans) never wipes the history of another; events no rule has seen yet are never trimmed to make room, only dropped (and counted, logged) when the
 // backlog itself passes maxEventBacklog.
 const (
 	maxEvents       = 500
@@ -491,7 +491,7 @@ func insertEvent(ctx context.Context, tx *sql.Tx, d Det, backlog int) (inserted 
 		return false, 0, fmt.Errorf("response: save an event: %w", err)
 	}
 	n, _ := res.RowsAffected()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_events WHERE processed = 1 AND seq NOT IN (SELECT seq FROM resp_events WHERE processed = 1 ORDER BY seq DESC LIMIT ?)`, maxEvents); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM resp_events WHERE processed = 1 AND trigger = ? AND seq NOT IN (SELECT seq FROM resp_events WHERE processed = 1 AND trigger = ? ORDER BY seq DESC LIMIT ?)`, d.Trigger, d.Trigger, maxEvents); err != nil {
 		return false, 0, fmt.Errorf("response: trim the events: %w", err)
 	}
 	if n == 0 {

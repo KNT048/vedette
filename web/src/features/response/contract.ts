@@ -121,6 +121,7 @@ export const Settings = z.object({
   approval_channels: z.array(z.string()).describe('Channel types that receive approval requests'),
   breaker_max_per_hour: z.number().int().min(1).max(200).describe('More actions than this in one hour pauses everything'),
   breaker_tripped_at: iso.nullable(), breaker_notified: z.array(z.string()),
+  stopped_at: iso.nullable().describe('Set by the emergency stop until an administrator resumes: no step that touches a device runs, an undo included'),
   multi_target_max: z.number().int().min(1).max(1000).describe('An action touching more targets than this needs a second approver'),
   maintenance: z.array(Window).describe('No rule or AI request is created during a window'),
   ai: AiGates,
@@ -132,15 +133,15 @@ export const SettingsView = Settings.extend({
 })
 
 // ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
-export const IdentityMethod = z.enum(['email_code', 'chat_code', 'unavailable'])
+export const IdentityMethod = z.enum(['email_code', 'chat_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
   code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })
-export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box') })
+export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box'), code: z.string().optional().describe('send_code channels only: the code to send from your own chat account to the box account (sent_to is that account ID); it proves nothing until it arrives from there') })
 export const SettingsInput = z.object({
   max_per_hour: z.number().int(), expiry_min: z.number().int(), approval_channels: z.array(z.string()),
   breaker_max_per_hour: z.number().int(), multi_target_max: z.number().int(), maintenance: z.array(Window),
@@ -223,9 +224,9 @@ export const Blocklist = z.object({
 // ---- Log ----
 export const LogKind = z.enum(['rule_fired', 'proposal', 'request', 'approved', 'rejected', 'executed', 'rolled_back', 'ttl_removed', 'refused', 'expired', 'failed', 'settings', 'emergency_stop', 'blocklist_token', 'dry_run', 'simulated', 'deduped', 'breaker', 'ai_note'])
 export const LogEntry = z.object({
-  id, ts: iso, kind: LogKind, actor: z.string(), detail: z.string(),
+  id, ts: z.string().describe('Exactly as stored and hashed (UTC, milliseconds: 2026-11-11T14:16:30.000Z); a date-time would be re-encoded and break the hash'), kind: LogKind, actor: z.string(), detail: z.string(),
   prev_hash: z.string().describe('hash of the previous entry; 64 zeros for the first'),
-  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify([id, ts, kind, actor, detail])'),
+  hash: z.string().describe('lowercase hex SHA-256 of prev_hash + "\\n" + JSON.stringify({actor, detail, id, kind, prev_hash, ts}) (keys sorted by code point, no whitespace: web/src/lib/chain.ts canonical, D-57 (14)), with ts exactly as served'),
 })
 export const LogList = z.object({ items: z.array(LogEntry).describe('Oldest first, so the chain can be checked from the start') })
 
@@ -308,7 +309,7 @@ export const endpoints = defineEndpoints([
 
   R({ method: 'get', path: '/response/blocklist', summary: 'The block list your firewall pulls: tokenised address, entries with source, reason and expiry, last fetch', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
   R({ method: 'post', path: '/response/blocklist/token', summary: 'Regenerate the block list token; the old address stops working at once', stories: ['S-RESP-3'], role: 'admin', response: Blocklist }),
-  R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'file' }),
+  R({ method: 'get', path: '/response/blocklist/{token}.txt', summary: 'Plain-text block list (one IP address per line) for firewalls to pull; the token in the address is the only credential', stories: ['S-RESP-3'], role: 'public', params: tokenParams, response: 'text' }),
 
   R({ method: 'get', path: '/response/catalog', summary: 'Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write', stories: ['S-RESP-4'], role: 'viewer', response: Catalog }),
   R({ method: 'post', path: '/response/catalog', status: 201, summary: 'Add a custom action. The fields must fit the connection kind (API: method, path, body; SSH: command; MCP: write tool and arguments) and the connection must have an enabled write tool', stories: ['S-RESP-4'], role: 'admin', body: CatalogInput, response: CatalogAction }),

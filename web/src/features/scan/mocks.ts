@@ -12,7 +12,7 @@ import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, Sca
 
 
 /** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
-export const timing = { stepMs: 2000, stopMs: 1000 }
+export const timing = { stepMs: 2000, stopMs: 1000, engineMs: 3000 }
 export const RETENTION_DAYS = 90
 // Thiết bị mẫu phản hồi chậm: dùng để minh hoạ "tự dừng khi thiết bị không phản hồi" (S-SCAN-4).
 const SLOW = new Set(['a-cam03'])
@@ -126,6 +126,8 @@ function seedEvents(): RescanEvent[] {
   // D-145 (7): every matching device may only be scanned by a hand pick (fragile, unclassified, hand-declared; D-126 (2))
   const pick = targets().filter((x) => x.pick_only).map((x) => x.label).slice(0, 2)
   if (pick.length) out.push({ id: 'ev-pick', ts: daysAgo(4), cve: unused() ?? 'CVE-2026-0002', product: 'A product only on devices that need a hand pick', devices: pick, latency_min: null, run_id: null, result: 'pick_only' })
+  // D-261 (2): a rescan that waited 7 days stays in the log, with the reason
+  out.push({ id: 'ev-expired', ts: daysAgo(9), cve: unused() ?? 'CVE-2026-0005', product: 'A product whose scan template never arrived', devices: [], latency_min: null, run_id: null, result: 'expired_no_template' })
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
 
@@ -181,7 +183,14 @@ function targets(): ScanTarget[] {
 
 /** Whether the scanner of the scan container answers (heartbeat, nuclei present). Tests and e2e flip it to see the 503. */
 export const scannerStore = collection<{ available: boolean }>('scan_scanner', () => ({ available: true }))
+/** Whether the organization time zone can be read. While it cannot, nothing automated starts and the schedule says why (D-261 (3)). Tests flip it. */
+export const zoneStore = collection<{ readable: boolean }>('scan_zone', () => ({ readable: true }))
+/** Until when the scanner still works on a run that Stop now already closed (D-261 (4)); a new scan is refused until then. Tests set it. */
+export const engineStore = collection<{ busyUntil: number }>('scan_engine', () => ({ busyUntil: 0 }))
+const engineBusy = () => Date.now() < engineStore.get().busyUntil
 const SCANNER_DOWN = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
+
+const ZONE_DOWN = 'The schedule is on, but the time zone of the organization cannot be read, so no scan starts on its own (rescans for new KEV entries wait too). Check the time zone under Settings, General.'
 
 const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
   unapproved: 'has not been approved in the inventory',
@@ -255,6 +264,7 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
   })
   applyToFindings(rows)
   probes.update((l) => [...newProbes.reverse(), ...l])
+  if (status === 'stopped') engineStore.set({ busyUntil: Date.now() + timing.engineMs }) // the worker is still finishing the request on its way
   const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason }
   saveRun(done)
   return done
@@ -275,7 +285,7 @@ function advance(r: StoredRun): StoredRun {
   if (stopOnSlow && slowAt >= 0 && idx > slowAt) {
     const t = all.find((x) => x.id === r.target_ids[slowAt])
     const n = config.get().unresponsive_after
-    return finalize({ ...r, done: slowAt }, 'auto_stopped', `${t?.label ?? 'The device'} (${t?.ip ?? ''}) did not respond after ${n} attempts in a row. Vedette stopped so the device is not hung.`)
+    return finalize({ ...r, done: slowAt }, 'auto_stopped', `${t?.label ?? 'The device'} (${t?.ip ?? ''}) stopped responding after ${n} failed requests. Vedette stopped so the device is not hung.`)
   }
   if (idx >= r.total) return finalize({ ...r, done: r.total }, 'done', null)
   const cur = all.find((x) => x.id === r.target_ids[idx])
@@ -321,7 +331,9 @@ function configResponse(): ScanConfigResponse {
   const c = config.get()
   const up = scannerStore.get().available
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
-  return { config: c, next_run: nextRun(c), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false }
+  const zoneDown = !zoneStore.get().readable
+  const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
+  return { config: c, next_run: zoneDown ? null : nextRun(c), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----
@@ -361,7 +373,7 @@ export const handlers = [
 
   http.get(`${API}/scans/targets`, () => { const d = guard('viewer'); return d ?? HttpResponse.json({ items: targets() }) }),
 
-  http.get(`${API}/scans/runs`, () => { const d = guard('viewer'); return d ?? HttpResponse.json({ items: allRuns().map(strip) }) }),
+  http.get(`${API}/scans/runs`, () => { const d = guard('viewer'); return d ?? HttpResponse.json({ items: allRuns().map(strip), engine_busy: engineBusy() }) }),
 
   http.post(`${API}/scans/runs`, async ({ request }) => {
     const d = guard('operator'); if (d) return d
@@ -370,7 +382,7 @@ export const handlers = [
     const b = await body<{ targets: string[] }>(request)
     if (!Array.isArray(b.targets) || !b.targets.length) return fail(400, 'no_targets', 'Choose at least one device to scan.')
     if (b.targets.length > 200) return fail(400, 'too_many', 'A scan can include at most 200 devices.')
-    if (allRuns().some((r) => r.status === 'running' || r.status === 'stopping')) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
+    if (engineBusy() || allRuns().some((r) => r.status === 'running' || r.status === 'stopping')) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
     const all = targets()
     const ids = [...new Set(b.targets.map(String))]
     for (const id of ids) {

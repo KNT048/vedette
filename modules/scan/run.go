@@ -565,7 +565,8 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}
-	res, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
+	out, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
+	res := out.Results
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
@@ -593,11 +594,23 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		}
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; skipped.", mins)}), ""
 	}
-	if unresponsive(res) {
-		s.closeProbes(ctx, probes, func(string) string { return "no_response" })
+	if unresponsive(res) || allUnreachable(out.HostErrors, job.Targets) {
+		// A device nuclei gave up on mid-run may already have matched (D-165): those matches are recorded as usual, a
+		// no_response never drops them. Every other template of the device closes as no_response.
+		for _, c := range checks {
+			if checkMatched(c, res) {
+				rows = append(rows, s.conclude(ctx, d, c, res, job.Targets))
+			}
+		}
+		s.closeProbes(ctx, probes, func(tpl string) string {
+			if templateResult(tpl, res) == "matched" {
+				return "matched"
+			}
+			return "no_response"
+		})
 		if st.StopOnUnresponsive {
 			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteNoResp})
-			return rows, fmt.Sprintf("%s (%s) did not respond after %d attempts in a row. Vedette stopped so the device is not hung.", d.Label, d.IP, st.UnresponsiveAfter)
+			return rows, fmt.Sprintf("%s (%s) stopped responding after %d failed requests. Vedette stopped so the device is not hung.", d.Label, d.IP, st.UnresponsiveAfter)
 		}
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteNoRespGoOn}), ""
 	}
@@ -634,36 +647,66 @@ func recheckInput(ts []nucleiargv.Target, hostPort string) string {
 }
 
 // runJob runs the job on the engine, bounded by the device timeout; after Stop now it waits at most stopGrace.
-func (s *Service) runJob(ctx context.Context, job Job) ([]nucleiout.Result, error) {
+func (s *Service) runJob(ctx context.Context, job Job) (nucleiout.Outcome, error) {
 	jctx, cancel := context.WithTimeout(ctx, deviceTimeout)
 	defer cancel()
 	type result struct {
-		res []nucleiout.Result
+		out nucleiout.Outcome
 		err error
 	}
 	ch := make(chan result, 1)
 	s.busy.Add(1)
 	go func() {
-		defer s.busy.Add(-1)
-		res, err := s.cfg.Engine.Run(jctx, job)
-		ch <- result{res, err}
+		var r result
+		func() {
+			defer s.busy.Add(-1) // before the send: once the run has its result, the engine is no longer busy (a start right after the run ended saw already_running)
+			r.out, r.err = s.cfg.Engine.Run(jctx, job)
+		}()
+		ch <- r
 	}()
 	select {
 	case r := <-ch:
-		return r.res, r.err
+		return r.out, r.err
 	case <-ctx.Done():
 		select {
 		case r := <-ch:
-			return r.res, r.err
+			return r.out, r.err
 		case <-time.After(stopGrace):
-			return nil, ctx.Err()
+			return nucleiout.Outcome{}, ctx.Err()
 		}
 	}
 }
 
-// unresponsive says the device answered nothing: it printed lines and every one is an error (INV-6). An empty output
-// is not that: nuclei may write JSONL only for matches (D-133 (5)), so silence means "no match reported". nuclei itself
-// stops sending after max_host_errors errors in a row (-mhe), so the device is not pushed further either way.
+// checkMatched says one of the check's templates has a matched line.
+func checkMatched(c check, res []nucleiout.Result) bool {
+	return slices.ContainsFunc(res, func(r nucleiout.Result) bool {
+		return r.Matched && slices.ContainsFunc(c.tpls, func(t pack.Template) bool { return t.ID == r.Template })
+	})
+}
+
+// allUnreachable says every target of the job stopped answering: the worker counted at least max-host-errors timeouts on each
+// of them, from nuclei's error log. That is a run total, not nuclei's own -mhe count (consecutive errors, reset by a success,
+// and applied to http targets only), so a very flaky but alive device can count here too: the safe side for the device (D-165 (4)). It holds even when the
+// device answered some templates before it died: the device is lost for this run (INV-6, D-165). One target that did not
+// reach the limit means the device still answers on it, so it is not this case.
+func allUnreachable(he []nucleiout.HostError, targets []nucleiargv.Target) bool {
+	if len(targets) == 0 {
+		return false
+	}
+	for _, t := range targets {
+		hp := t.Host + ":" + strconv.Itoa(t.Port)
+		if !slices.ContainsFunc(he, func(h nucleiout.HostError) bool { return h.Target == hp && h.Unreachable }) {
+			return false
+		}
+	}
+	return true
+}
+
+// unresponsive says the device answered nothing: it printed lines and every one is an error (INV-6). With -ms (matcher
+// status) nuclei prints a line, with its error, for every template and target that did not match, so a device dead from the
+// start prints only errors. An empty output is not that (no line, no verdict). A device that dies mid-run is caught by
+// allUnreachable, from the worker's host errors. nuclei itself stops sending after max_host_errors errors in a row (-mhe),
+// so the device is not pushed further either way.
 func unresponsive(res []nucleiout.Result) bool {
 	return len(res) > 0 && !slices.ContainsFunc(res, func(r nucleiout.Result) bool { return r.Error == "" })
 }
@@ -726,7 +769,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 	case seen && !answered:
 		row.Result, row.Note = "no_response", cve+": no answer for this check."
 	default:
-		// D-133 (5): nuclei may report matches only, so this is "no match reported", never "not vulnerable". It never
+		// D-133 (5), D-165: a not-matched line is "no match reported", never "not vulnerable". It never
 		// resolves, downgrades or marks the finding: nothing is sent to the findings module.
 		row.Result, row.Note = "not_matched", cve+": no match reported by the scan template."
 	}

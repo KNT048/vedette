@@ -48,6 +48,7 @@ help:
 	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
+	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
@@ -124,7 +125,7 @@ test-go:
 
 test-go-release:
 	go test -race -tags releasetestkeys ./internal/release/...
-	go test -race -tags releasetestkeys -run 'Pull|Embedded' ./modules/host/
+	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
 # scripts/ci splits `go list ./...` by test-file size; every package lands in exactly one shard.
@@ -325,6 +326,19 @@ dev-sensors-down:
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
 
+# ---- install.sh (WP-08h, D-166) ----------------------------------------------------------------------------------------------
+# install-artifacts: the TEST release for `install.sh --test-artifacts DIR`, signed with throwaway keys made on the spot (the real keys and
+# images do not exist before WP-08k). The folder dist/install is the product (copy it to the box); the work folder and the local images
+# are removed unless RELEASE=1; `make clean` removes dist. FAST=1: core with a placeholder interface + sensor, for install-check.
+# install-check: install.sh end to end in systemd containers (Ubuntu 24.04, 26.04, Debian 13), opt-in: pulls base images, runs apt in them.
+.PHONY: install-artifacts install-check
+TEST_VERSION ?= 0.0.1-test.1
+FAST ?=
+install-artifacts:
+	VERSION=$(TEST_VERSION) ARCH=$(ARCH) FAST=$(FAST) RELEASE=$(RELEASE) scripts/dev/install-artifacts.sh
+
+install-check:
+	scripts/dev/install-check.sh
 # ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
 # Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
 # build and push the images (08k) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes

@@ -259,7 +259,8 @@ func (UnimplementedHandler) AiPostAiHooksTest(ctx context.Context, req *AiPostAi
 
 // AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 //
-// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
+// background.
 //
 // POST /ai/knowledge
 func (UnimplementedHandler) AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (r *AiPostAiKnowledgeOK, _ error) {
@@ -1582,6 +1583,17 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesIDSoftwareSid(ctx con
 	return ht.ErrNotImplemented
 }
 
+// InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
+//
+// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
+// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
+// other name is 404.
+//
+// GET /install/osquery/{file}
+func (UnimplementedHandler) InventoryGetInstallOsqueryFile(ctx context.Context, params InventoryGetInstallOsqueryFileParams) (r InventoryGetInstallOsqueryFileOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryGetInstallOsqueryPs1 implements inventory_get_install_osquery_ps1 operation.
 //
 // Osquery install script for Windows Server, served by the box; public, contains no secrets.
@@ -1598,6 +1610,16 @@ func (UnimplementedHandler) InventoryGetInstallOsqueryPs1(ctx context.Context) (
 //
 // GET /install/osquery.sh
 func (UnimplementedHandler) InventoryGetInstallOsquerySh(ctx context.Context) (r InventoryGetInstallOsqueryShOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryGetIntakeCaPem implements inventory_get_intake_ca_pem operation.
+//
+// The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds
+// the same text.
+//
+// GET /intake/ca.pem
+func (UnimplementedHandler) InventoryGetIntakeCaPem(ctx context.Context) (r InventoryGetIntakeCaPemOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1680,6 +1702,36 @@ func (UnimplementedHandler) InventoryGetInventorySettings(ctx context.Context) (
 //
 // PATCH /inventory/devices/{id}
 func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (r *InventoryPatchInventoryDevicesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostIntakeOsqueryConfig implements inventory_post_intake_osquery_config operation.
+//
+// Osquery config (machine to machine): the read-only snapshot schedule for an enrolled node;
+// node_invalid: true makes osquery enroll again.
+//
+// POST /intake/osquery/config
+func (UnimplementedHandler) InventoryPostIntakeOsqueryConfig(ctx context.Context, req *InventoryPostIntakeOsqueryConfigReq) (r *InventoryPostIntakeOsqueryConfigOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostIntakeOsqueryEnroll implements inventory_post_intake_osquery_enroll operation.
+//
+// Osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key;
+// node_invalid: true when the token is unknown, revoked or expired.
+//
+// POST /intake/osquery/enroll
+func (UnimplementedHandler) InventoryPostIntakeOsqueryEnroll(ctx context.Context, req *InventoryPostIntakeOsqueryEnrollReq) (r *InventoryPostIntakeOsqueryEnrollOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostIntakeOsqueryLog implements inventory_post_intake_osquery_log operation.
+//
+// Osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they
+// update the inventory with source agent.
+//
+// POST /intake/osquery/log
+func (UnimplementedHandler) InventoryPostIntakeOsqueryLog(ctx context.Context, req *InventoryPostIntakeOsqueryLogReq) (r *InventoryPostIntakeOsqueryLogOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

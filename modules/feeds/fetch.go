@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
@@ -51,6 +53,17 @@ type Response struct {
 type Fetcher struct {
 	Client  *http.Client // nil uses NewClient(DefaultFetchTimeout)
 	Version string       // product version for the User-Agent
+	// BoxAddrs lists the box's own addresses, asked again at every connection: a pull never connects to one of them nor to
+	// loopback (D-208). known false (vedette-host has never answered) refuses every connection. nil: the container's own
+	// interfaces only.
+	BoxAddrs func() (addrs []netip.Addr, known bool)
+
+	// Gateway is the container's default gateway, which counts as the box (set by wiring; nil: not asked).
+	Gateway func() (netip.Addr, bool)
+
+	dialOverride func(ctx context.Context, network, addr string) (net.Conn, error) // tests only (unexported)
+
+	allowLoopback bool // tests only (unexported): the httptest servers live on 127.0.0.1
 }
 
 var versionTokenRE = regexp.MustCompile(`^[0-9A-Za-z.+_-]{1,32}$`)
@@ -131,7 +144,7 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 		return fail(ErrRedirect, "The feed redirected from https to http.")
 	}
 	if !strings.EqualFold(req.URL.Host, via[0].URL.Host) {
-		return fail(ErrRedirect, "The feed redirected to another host (%s). Set the feed address to the final address.", req.URL.Hostname())
+		return fail(ErrRedirect, "The feed redirected to another host (%s). Set the feed address to the final address.", quoteVal(req.URL.Hostname()))
 	}
 	return nil
 }
@@ -167,7 +180,8 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	if strings.HasPrefix(strings.ToLower(target), "http://") {
 		scheme = "http"
 	}
-	hreq, err := http.NewRequestWithContext(context.WithValue(ctx, schemeKey{}, scheme), http.MethodGet, target, nil)
+	ctx = context.WithValue(context.WithValue(ctx, schemeKey{}, scheme), guardKey{}, &destGuard{box: f.BoxAddrs, gateway: f.Gateway, dial: f.dialOverride, allowLoopback: f.allowLoopback})
+	hreq, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 	}

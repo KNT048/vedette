@@ -27,6 +27,8 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	fd := feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
 		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock}
+	fd.Fetcher.BoxAddrs = notifyBoxAddrs(d.HostNet) // D-208: a pull never connects to the box itself; unknown addresses refuse every pull
+	fd.Fetcher.Gateway = procGateway                // the container's default gateway is the box too (as core/conn's box set)
 	if d.Inventory != nil {
 		fd.Inventory = feedsInventory{d.Inventory}
 	}

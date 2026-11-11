@@ -2066,6 +2066,21 @@ func encodeInventoryDeleteInventoryDevicesIDSoftwareSidResponse(response *Invent
 	return nil
 }
 
+func encodeInventoryGetInstallOsqueryFileResponse(response InventoryGetInstallOsqueryFileOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryGetInstallOsqueryPs1Response(response InventoryGetInstallOsqueryPs1OK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(200)
@@ -2082,6 +2097,21 @@ func encodeInventoryGetInstallOsqueryPs1Response(response InventoryGetInstallOsq
 }
 
 func encodeInventoryGetInstallOsqueryShResponse(response InventoryGetInstallOsqueryShOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryGetIntakeCaPemResponse(response InventoryGetIntakeCaPemOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(200)
 
@@ -2205,6 +2235,45 @@ func encodeInventoryGetInventorySettingsResponse(response *InventoryGetInventory
 }
 
 func encodeInventoryPatchInventoryDevicesIDResponse(response *InventoryPatchInventoryDevicesIDOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostIntakeOsqueryConfigResponse(response *InventoryPostIntakeOsqueryConfigOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostIntakeOsqueryEnrollResponse(response *InventoryPostIntakeOsqueryEnrollOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostIntakeOsqueryLogResponse(response *InventoryPostIntakeOsqueryLogOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -2885,7 +2954,7 @@ func encodeResponseGetResponseBlocklistResponse(response *ResponseGetResponseBlo
 }
 
 func encodeResponseGetResponseBlocklistTokenTxtResponse(response ResponseGetResponseBlocklistTokenTxtOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 
 	writer := w

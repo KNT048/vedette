@@ -3640,7 +3640,8 @@ func (s *Server) handleAiPostAiHooksTestRequest(args [0]string, argsEscaped bool
 
 // handleAiPostAiKnowledgeRequest handles ai_post_ai_knowledge operation.
 //
-// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
+// background.
 //
 // POST /ai/knowledge
 func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3724,7 +3725,7 @@ func (s *Server) handleAiPostAiKnowledgeRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPostAiKnowledgeOperation,
-			OperationSummary: "Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size",
+			OperationSummary: "Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the background",
 			OperationID:      "ai_post_ai_knowledge",
 			Body:             request,
 			RawBody:          rawBody,
@@ -22758,6 +22759,103 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 	}
 }
 
+// handleInventoryGetInstallOsqueryFileRequest handles inventory_get_install_osquery_file operation.
+//
+// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
+// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
+// other name is 404.
+//
+// GET /install/osquery/{file}
+func (s *Server) handleInventoryGetInstallOsqueryFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryGetInstallOsqueryFileOperation,
+			ID:   "inventory_get_install_osquery_file",
+		}
+	)
+	params, err := decodeInventoryGetInstallOsqueryFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response InventoryGetInstallOsqueryFileOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetInstallOsqueryFileOperation,
+			OperationSummary: "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
+			OperationID:      "inventory_get_install_osquery_file",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "file",
+					In:   "path",
+				}: params.File,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryGetInstallOsqueryFileParams
+			Response = InventoryGetInstallOsqueryFileOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryGetInstallOsqueryFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetInstallOsqueryFile(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetInstallOsqueryFile(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetInstallOsqueryFileResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryGetInstallOsqueryPs1Request handles inventory_get_install_osquery_ps1 operation.
 //
 // Osquery install script for Windows Server, served by the box; public, contains no secrets.
@@ -22903,6 +23001,83 @@ func (s *Server) handleInventoryGetInstallOsqueryShRequest(args [0]string, argsE
 	}
 
 	if err := encodeInventoryGetInstallOsqueryShResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryGetIntakeCaPemRequest handles inventory_get_intake_ca_pem operation.
+//
+// The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds
+// the same text.
+//
+// GET /intake/ca.pem
+func (s *Server) handleInventoryGetIntakeCaPemRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response InventoryGetIntakeCaPemOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetIntakeCaPemOperation,
+			OperationSummary: "The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds the same text",
+			OperationID:      "inventory_get_intake_ca_pem",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = InventoryGetIntakeCaPemOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetIntakeCaPem(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetIntakeCaPem(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetIntakeCaPemResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -24098,6 +24273,294 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 	}
 
 	if err := encodeInventoryPatchInventoryDevicesIDResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostIntakeOsqueryConfigRequest handles inventory_post_intake_osquery_config operation.
+//
+// Osquery config (machine to machine): the read-only snapshot schedule for an enrolled node;
+// node_invalid: true makes osquery enroll again.
+//
+// POST /intake/osquery/config
+func (s *Server) handleInventoryPostIntakeOsqueryConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostIntakeOsqueryConfigOperation,
+			ID:   "inventory_post_intake_osquery_config",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostIntakeOsqueryConfigRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostIntakeOsqueryConfigOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostIntakeOsqueryConfigOperation,
+			OperationSummary: "osquery config (machine to machine): the read-only snapshot schedule for an enrolled node; node_invalid: true makes osquery enroll again",
+			OperationID:      "inventory_post_intake_osquery_config",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *InventoryPostIntakeOsqueryConfigReq
+			Params   = struct{}
+			Response = *InventoryPostIntakeOsqueryConfigOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostIntakeOsqueryConfig(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostIntakeOsqueryConfig(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostIntakeOsqueryConfigResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostIntakeOsqueryEnrollRequest handles inventory_post_intake_osquery_enroll operation.
+//
+// Osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key;
+// node_invalid: true when the token is unknown, revoked or expired.
+//
+// POST /intake/osquery/enroll
+func (s *Server) handleInventoryPostIntakeOsqueryEnrollRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostIntakeOsqueryEnrollOperation,
+			ID:   "inventory_post_intake_osquery_enroll",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostIntakeOsqueryEnrollRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostIntakeOsqueryEnrollOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostIntakeOsqueryEnrollOperation,
+			OperationSummary: "osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key; node_invalid: true when the token is unknown, revoked or expired",
+			OperationID:      "inventory_post_intake_osquery_enroll",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *InventoryPostIntakeOsqueryEnrollReq
+			Params   = struct{}
+			Response = *InventoryPostIntakeOsqueryEnrollOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostIntakeOsqueryEnroll(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostIntakeOsqueryEnroll(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostIntakeOsqueryEnrollResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostIntakeOsqueryLogRequest handles inventory_post_intake_osquery_log operation.
+//
+// Osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they
+// update the inventory with source agent.
+//
+// POST /intake/osquery/log
+func (s *Server) handleInventoryPostIntakeOsqueryLogRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostIntakeOsqueryLogOperation,
+			ID:   "inventory_post_intake_osquery_log",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostIntakeOsqueryLogRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostIntakeOsqueryLogOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostIntakeOsqueryLogOperation,
+			OperationSummary: "osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they update the inventory with source agent",
+			OperationID:      "inventory_post_intake_osquery_log",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *InventoryPostIntakeOsqueryLogReq
+			Params   = struct{}
+			Response = *InventoryPostIntakeOsqueryLogOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostIntakeOsqueryLog(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostIntakeOsqueryLog(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostIntakeOsqueryLogResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

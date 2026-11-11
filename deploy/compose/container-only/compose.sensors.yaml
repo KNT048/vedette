@@ -1,0 +1,66 @@
+# Add-on for compose.yaml: the passive sensor and the scan worker, on the host network (they read the real network card).
+# Linux, Docker or Podman running as root (the sensor runs as uid 0 with only NET_RAW, see below; the scan worker as 65532 with no
+# capability). Not for rootless (a user namespace's NET_RAW does not reach the host's network) and not for
+# Docker Desktop (no host network). Prepare the card yourself first (SPAN card: promiscuous, no address): Vedette cannot do it here.
+#   docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up -d
+# The scan worker has no nmap in this install: the nmap package is installed on the box by vedette-host only (D-4, D-146).
+services:
+  sensor:
+    image: "${VEDETTE_SENSOR_IMAGE:?VEDETTE_SENSOR_IMAGE is empty, use the vedette.env of a release (docs/INSTALL-CONTAINER.md)}"
+    container_name: vedette-sensor
+    network_mode: host
+    # uid 0: Docker gives an added capability only to root (no ambient caps; measured, Docker 29.1.3 gives a non-root user none, Podman
+    # 5.7.0 does). This is D-114 (3)'s fallback, still NET_RAW only: everything else is dropped, read-only, no-new-privileges.
+    # Group 65532: with every capability dropped uid 0 has no DAC override, so it reads core's sensor credentials (0640, folder 0750,
+    # 65532:65532, core/pki/creds.go) through the group, like any other user would.
+    user: "0:65532"
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1
+    pids_limit: 256
+    command: ["passive", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
+    volumes:
+      - creds-passive:/var/lib/vedette-creds:ro
+    healthcheck:
+      test: ["CMD", "/vedette-sensor", "healthcheck"]
+      interval: 30s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      core: {condition: service_healthy}
+    restart: unless-stopped
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
+
+  scan:
+    image: "${VEDETTE_SCAN_IMAGE:?VEDETTE_SCAN_IMAGE is empty, use the vedette.env of a release (docs/INSTALL-CONTAINER.md)}"
+    container_name: vedette-scan
+    network_mode: host
+    user: "65532:65532"
+    init: true
+    read_only: true
+    tmpfs: ["/tmp"]
+    # No capability at all: with no nmap in this install nuclei and the worker make plain TCP connections (no raw socket).
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    pids_limit: 512
+    cpu_shares: 128
+    command: ["active", "--core", "https://127.0.0.1:8444", "--creds", "/var/lib/vedette-creds/sensor.pem"]
+    volumes:
+      - creds-active:/var/lib/vedette-creds:ro
+    healthcheck:
+      test: ["CMD", "/vedette-sensor", "healthcheck"]
+      interval: 30s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      core: {condition: service_healthy}
+    restart: unless-stopped
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}

@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -49,6 +50,37 @@ type Message struct {
 	// Buttons go under the message on Telegram (inline keyboard; approvals, spec approval-tokens.md 6). Other adapters
 	// ignore them. They are never part of the JSON form, so the history (and a resend) never has them.
 	Buttons []Button `json:"-"`
+	// ReplyCodes are the two reply codes of one approver (Zalo personal, spec approval-tokens.md 7.1). Only the sender of
+	// ZaloPersonalTo writes them, on the last line of the message, which is never cut; every other sender refuses or ignores them.
+	// Like Buttons they are never part of the JSON form, so the history never has them.
+	ReplyCodes *ReplyCodes `json:"-"`
+}
+
+// ReplyCodes are the codes an approver replies with: Approve "A-" and Reject "R-" plus 6 characters of the alphabet of spec 7.1, and
+// Until the box time (HH:MM) after which they no longer work.
+type ReplyCodes struct {
+	Approve, Reject, Until string
+}
+
+var (
+	replyCodeRE  = regexp.MustCompile(`^[AR]-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$`)
+	replyUntilRE = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+)
+
+func (rc *ReplyCodes) check() error {
+	if rc == nil {
+		return nil
+	}
+	if !replyCodeRE.MatchString(rc.Approve) || rc.Approve[0] != 'A' || !replyCodeRE.MatchString(rc.Reject) || rc.Reject[0] != 'R' || !replyUntilRE.MatchString(rc.Until) {
+		return fmt.Errorf("%w: reply codes are not in form", ErrInvalidMessage)
+	}
+	return nil
+}
+
+// line is the last line of a message with reply codes.
+func (rc *ReplyCodes) line() string {
+	return "To decide, reply to this message with " + rc.Approve + " to approve or " + rc.Reject + " to reject, before " + rc.Until +
+		" (box time). Each code works once, and only from your own Zalo account."
 }
 
 // DeviceRef names a device in a Message. ID is empty when only the name is known.
@@ -179,6 +211,9 @@ func (m Message) check() error {
 		return fmt.Errorf("%w: empty title", ErrInvalidMessage)
 	}
 	if _, err := safeLink(m.Link); err != nil {
+		return err
+	}
+	if err := m.ReplyCodes.check(); err != nil {
 		return err
 	}
 	return checkButtons(m.Buttons)

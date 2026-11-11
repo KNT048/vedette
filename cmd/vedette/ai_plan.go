@@ -84,7 +84,7 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 	if cat.Len() == 0 {
 		cat.WriteString("(none: propose no action)\n")
 	}
-	dev := fmt.Sprintf("Device: %s (%s), kind %s\nFinding: %s\n", t.AssetName, t.AssetIP, t.AssetKind, t.CVE)
+	dev := fmt.Sprintf("Device: %s, IP %s, kind %s\nFinding: %s\n", t.AssetName, t.AssetIP, t.AssetKind, t.CVE)
 	var d response.PlanDraft
 	ready := p.svc.Ready(ai.JobResponsePlan)
 	res, err := p.svc.RunJob(ctx, ai.JobSpec{

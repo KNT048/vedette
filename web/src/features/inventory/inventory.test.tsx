@@ -1159,6 +1159,27 @@ describe('inventory: agents (S-INV-4)', () => {
     try { expect((await raw('POST', '/intake/osquery/status', { Authorization: `Bearer ${secret}` })).json?.error.code).toBe('token_expired') } finally { spy.mockRestore() }
   })
 
+  it('osquery TLS API (D-169): enroll gives a node key for a valid token only, config carries the schedule, every credential failure is 200 + node_invalid', async () => {
+    const { secret } = await newToken()
+    sessionStore.set({ userId: null })
+    const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    const en = await (await post('/intake/osquery/enroll', { enroll_secret: secret, host_identifier: 'srv1', host_details: { os_version: { name: 'Ubuntu' } } })).json()
+    expect(en).toMatchObject({ node_invalid: false, node_key: expect.stringMatching(/^mock-node-/) })
+    for (const bad of [{ enroll_secret: 'nope', host_identifier: 'x' }, { host_identifier: 'x' }, { enroll_secret: 'vdt_osquery_' + 'a'.repeat(32), host_identifier: 'x' }]) {
+      const r = await post('/intake/osquery/enroll', bad)
+      expect(r.status).toBe(200)
+      expect(await r.json()).toEqual({ node_invalid: true })
+    }
+    const cfg = await (await post('/intake/osquery/config', { node_key: en.node_key })).json()
+    expect(Object.keys(cfg.schedule)).toContain('interfaces')
+    expect(await (await post('/intake/osquery/config', { node_key: 'bad' })).json()).toEqual({ node_invalid: true })
+    expect(await (await post('/intake/osquery/log', { node_key: en.node_key, log_type: 'result', data: [] })).json()).toEqual({ node_invalid: false })
+    expect(await (await post('/intake/osquery/log', { node_key: 'bad', log_type: 'status', data: [] })).json()).toEqual({ node_invalid: true })
+    expect(await (await fetch(`${location.origin}/api/v1/intake/ca.pem`)).text()).toContain('BEGIN CERTIFICATE')
+    expect((await fetch(`${location.origin}/api/v1/install/osquery/SHA256SUMS`)).status).toBe(200)
+    expect((await fetch(`${location.origin}/api/v1/install/osquery/..%2Fetc%2Fpasswd`)).status).toBe(404)
+  })
+
   it('sample data (preview build): updates up to 3 server/computer devices with agent software and an agent OS observation', async () => {
     const { token } = await newToken({ name: 'osquery sample' })
     const r = await call('POST', `/agents/tokens/${token.id}/sample-data`)
@@ -1357,7 +1378,9 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(osquerySteps('windows', BOX, 't').map((s) => s.key)).toEqual(['install', 'secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
-    expect(Object.keys(sched)).toEqual(expect.arrayContaining(['os_version', 'deb_packages', 'rpm_packages', 'programs', 'patches']))
+    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out
+    expect(JSON.stringify(sched)).not.toMatch(/cpu_brand|physical_memory|patches/)
+    expect(sched.interfaces!.query).toContain('interface_details')
     for (const q of Object.values(sched)) expect(q.query).toMatch(/^SELECT /) // read-only queries
     expect(sched.programs!.platform).toBe('windows')
     expect(sched.deb_packages!.platform).toBe('linux')

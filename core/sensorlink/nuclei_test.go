@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -184,4 +185,36 @@ func FuzzJobUnmarshal(f *testing.F) {
 			}
 		}
 	})
+}
+
+// D-165 (protocol 3): host_errors on a nuclei result is bounded and shaped; a result without it still decodes.
+func TestNucleiResultHostErrors(t *testing.T) {
+	t.Parallel()
+	head := `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":""`
+	if r, err := decodeJobResult([]byte(head + `}`)); err != nil || len(r.HostErrors) != 0 {
+		t.Fatalf("without host_errors: %v %+v", err, r)
+	}
+	ok := head + `,"host_errors":[{"target":"192.168.10.20:8080","errors":3,"unreachable":true},{"target":"10.0.0.7:22","errors":1,"unreachable":false}]}`
+	if r, err := decodeJobResult([]byte(ok)); err != nil || len(r.HostErrors) != 2 || !r.HostErrors[0].Unreachable || r.HostErrors[1].Errors != 1 {
+		t.Fatalf("a good one: %v %+v", err, r)
+	}
+	var many []string
+	for i := range MaxHostErrors + 1 {
+		many = append(many, fmt.Sprintf(`{"target":"10.0.0.%d:22","errors":1,"unreachable":false}`, i+1))
+	}
+	bad := map[string]string{
+		"over the entry cap":    head + `,"host_errors":[` + strings.Join(many, ",") + `]}`,
+		"zero errors":           head + `,"host_errors":[{"target":"10.0.0.7:22","errors":0,"unreachable":false}]}`,
+		"errors over the cap":   head + `,"host_errors":[{"target":"10.0.0.7:22","errors":1048577,"unreachable":false}]}`,
+		"a name, not host:port": head + `,"host_errors":[{"target":"evil.example:22","errors":1,"unreachable":false}]}`,
+		"a path in the target":  head + `,"host_errors":[{"target":"10.0.0.7:22/x","errors":1,"unreachable":false}]}`,
+		"a target twice":        head + `,"host_errors":[{"target":"10.0.0.7:22","errors":1,"unreachable":false},{"target":"10.0.0.7:22","errors":2,"unreachable":false}]}`,
+		"an unknown field":      head + `,"host_errors":[{"target":"10.0.0.7:22","errors":1,"unreachable":false,"x":1}]}`,
+		"on a failed result":    `{"status":"failed","reason":"","exit_code":1,"truncated":false,"xml_b64":"","host_errors":[{"target":"10.0.0.7:22","errors":1,"unreachable":false}]}`,
+	}
+	for name, body := range bad {
+		if _, err := decodeJobResult([]byte(body)); !errors.Is(err, errInvalid) {
+			t.Errorf("%s: %v, want errInvalid", name, err)
+		}
+	}
 }

@@ -173,7 +173,8 @@ type Handler interface {
 	AiPostAiHooksTest(ctx context.Context, req *AiPostAiHooksTestReq) (*AiPostAiHooksTestOK, error)
 	// AiPostAiKnowledge implements ai_post_ai_knowledge operation.
 	//
-	// Upload a document (PDF, MD, TXT, DOCX up to 10 MB); the mock reads only name and size.
+	// Upload a document (MD, TXT, DOCX up to 10 MB) as base64 content; the box reads and indexes it in the
+	// background.
 	//
 	// POST /ai/knowledge
 	AiPostAiKnowledge(ctx context.Context, req *AiPostAiKnowledgeReq) (*AiPostAiKnowledgeOK, error)
@@ -1076,6 +1077,14 @@ type Handler interface {
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
 	InventoryDeleteInventoryDevicesIDSoftwareSid(ctx context.Context, params InventoryDeleteInventoryDevicesIDSoftwareSidParams) error
+	// InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
+	//
+	// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
+	// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
+	// other name is 404.
+	//
+	// GET /install/osquery/{file}
+	InventoryGetInstallOsqueryFile(ctx context.Context, params InventoryGetInstallOsqueryFileParams) (InventoryGetInstallOsqueryFileOK, error)
 	// InventoryGetInstallOsqueryPs1 implements inventory_get_install_osquery_ps1 operation.
 	//
 	// Osquery install script for Windows Server, served by the box; public, contains no secrets.
@@ -1089,6 +1098,13 @@ type Handler interface {
 	//
 	// GET /install/osquery.sh
 	InventoryGetInstallOsquerySh(ctx context.Context) (InventoryGetInstallOsqueryShOK, error)
+	// InventoryGetIntakeCaPem implements inventory_get_intake_ca_pem operation.
+	//
+	// The certificate osquery pins to trust this box (PEM, public, no secret); the install script embeds
+	// the same text.
+	//
+	// GET /intake/ca.pem
+	InventoryGetIntakeCaPem(ctx context.Context) (InventoryGetIntakeCaPemOK, error)
 	// InventoryGetInventoryAgents implements inventory_get_inventory_agents operation.
 	//
 	// Issued osquery tokens and the Wazuh connection (if any).
@@ -1144,6 +1160,27 @@ type Handler interface {
 	//
 	// PATCH /inventory/devices/{id}
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)
+	// InventoryPostIntakeOsqueryConfig implements inventory_post_intake_osquery_config operation.
+	//
+	// Osquery config (machine to machine): the read-only snapshot schedule for an enrolled node;
+	// node_invalid: true makes osquery enroll again.
+	//
+	// POST /intake/osquery/config
+	InventoryPostIntakeOsqueryConfig(ctx context.Context, req *InventoryPostIntakeOsqueryConfigReq) (*InventoryPostIntakeOsqueryConfigOK, error)
+	// InventoryPostIntakeOsqueryEnroll implements inventory_post_intake_osquery_enroll operation.
+	//
+	// Osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key;
+	// node_invalid: true when the token is unknown, revoked or expired.
+	//
+	// POST /intake/osquery/enroll
+	InventoryPostIntakeOsqueryEnroll(ctx context.Context, req *InventoryPostIntakeOsqueryEnrollReq) (*InventoryPostIntakeOsqueryEnrollOK, error)
+	// InventoryPostIntakeOsqueryLog implements inventory_post_intake_osquery_log operation.
+	//
+	// Osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they
+	// update the inventory with source agent.
+	//
+	// POST /intake/osquery/log
+	InventoryPostIntakeOsqueryLog(ctx context.Context, req *InventoryPostIntakeOsqueryLogReq) (*InventoryPostIntakeOsqueryLogOK, error)
 	// InventoryPostIntakeOsqueryStatus implements inventory_post_intake_osquery_status operation.
 	//
 	// The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer

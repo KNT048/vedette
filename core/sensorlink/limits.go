@@ -11,7 +11,7 @@ import (
 // Limits of the protocol (sensor-protocol.md section 9). They are starting points to measure again, not measurements.
 const (
 	ProtoHeader  = "X-Vedette-Proto"
-	ProtoVersion = "2"
+	ProtoVersion = "3" // 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
 	PathPrefix   = "/sensor/v1"
 
 	MaxObservationsBody = 1 << 20
@@ -19,6 +19,7 @@ const (
 	MaxResultBody       = 11 << 20
 	MaxResultXML        = 8 << 20
 	MaxResultJSONL      = 4 << 20 // the cap of a nuclei run's stdout (nucleiargv.MaxOutput; a test in sensoractive checks they agree)
+	MaxHostErrors       = 16      // entries of host_errors on a nuclei result: one per target (nucleiargv.MaxTargets; a test in the worker checks they agree)
 	MaxItems            = 500
 	MaxRunning          = 2 // jobs a worker runs at once: one nmap and one nuclei (D-125 (3))
 

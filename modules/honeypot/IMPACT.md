@@ -15,7 +15,7 @@
 
 ## Modifying: event `honeypot.hit.created` (`HitEventData`) — 3 người nhận
 - **notify**: nội dung cảnh báo (IP nguồn, thiết bị nguồn, 1 giờ sự kiện).
-- **response**: nguồn trigger (D-50).
+- **response**: nguồn trigger `honeypot` (D-50; nối từ #304, D-286): `modules/response/events.go` `honeypotEvent` đọc `id, ts, kind, src_ip, decoy, src_asset_id` qua JSON; đổi tên/nghĩa một trường làm quy tắc honeypot im lặng (test `TestHoneypotHitEvent`, `cmd/vedette` `TestResponseHoneypotHitFiresTheRule`).
 - **logs/siem**: kênh `honeypot` chuyển tiếp SIEM (S-LOG-3).
 
 ## Modifying: `Overview(ctx)`, `SetConfig(ctx, ip, hostname)` — GUI + host

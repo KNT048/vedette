@@ -176,3 +176,25 @@ func TestEventsRetentionAndDigestOverHTTP(t *testing.T) {
 		t.Fatalf("digest: %d %v", code, b)
 	}
 }
+
+// The digest with a new item and a spike goes through the generated response type of the API (a drift from contract.ts fails here).
+func TestDigestWithItemsOverHTTP(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	e.gate.Set("logs", true)
+	src := e.add("FW-HQ", "192.168.10.1")
+	e.history(src, 3)
+	e.feed(src, fw(22, "10.0.0.1"), 50)  // a spike
+	e.feed(src, fw(3389, "10.0.0.1"), 3) // new
+	code, b := e.call("GET", "/logs/digest", "viewer", "")
+	spikes, _ := b["spikes"].([]any)
+	news, _ := b["new"].([]any)
+	if code != 200 || len(spikes) != 1 || len(news) != 1 {
+		t.Fatalf("%d %v", code, b)
+	}
+	n := news[0].(map[string]any)
+	s := spikes[0].(map[string]any)
+	if n["source_name"] != "FW-HQ" || n["count"] != float64(3) || n["first_seen"] == "" || s["baseline_per_day"] != float64(10) || s["count"] == nil || s["sample"] == "" {
+		t.Fatalf("%v %v", n, s)
+	}
+}

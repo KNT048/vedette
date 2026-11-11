@@ -42,11 +42,9 @@ async function admin<T>(fn: (c: APIRequestContext) => Promise<T>) {
 }
 const state = () => admin((c) => api<Os>(c, 'GET', '/core/updates/os'))
 const lastRun = () => admin((c) => api<Run | null>(c, 'GET', '/core/updates/os/run'))
-const waitRunDone = async (id?: string) => expect.poll(async () => { const r = (await lastRun()).body; return r && r.id !== id ? r.status : 'none' }, { timeout: 30_000 }).toBe('done')
+const waitRunDone = async (id?: string, status = 'done') => expect.poll(async () => { const r = (await lastRun()).body; return r && r.id !== id ? r.status : 'none' }, { timeout: 30_000 }).toBe(status)
 /** INV-18: core removes the snapshot folder of a run or a download once the host is done with it. */
 const snapshotsGone = () => expect.poll(() => { const d = join(box().data_dir, 'snapshots'); return existsSync(d) ? readdirSync(d) : [] }, { timeout: 15_000, message: 'snapshots/ in the data folder' }).toEqual([])
-/** Only the known symptom may satisfy a test.fail: when it is not what the page shows, the expectation is switched off and the test is red. */
-const knownSymptom = (known: boolean) => { if (!known) test.fail(false) }
 
 let runsAtHost = 0 // installs that reached the host in this spec: each is audited at its end exactly once (os.install_done)
 
@@ -126,13 +124,10 @@ test('the page shows the system, the two pending packages with their security fl
   noErrors(errors, /status of 4\d\d/)
 })
 
-// test.fail (D-171): the page heading is "<name>: {{count}} security updates waiting" with no plural form. Issue #240.
 test('the page heading is grammatical when one security update waits', async ({ page }) => {
-  test.fail(true, 'GUI: "1 security updates waiting" (issue #240, .ai/deferred/feat-e2e-real-harness.md)')
   await open(page)
   await expect(osHeading(page)).toBeVisible()
   const title = await h1(page).innerText()
-  knownSymptom(/: 1 security updates waiting$/.test(title))
   expect(title).not.toMatch(/\b1 security updates\b/)
 })
 
@@ -244,7 +239,7 @@ test('the maintenance window is checked on the page, saved, and a reboot is sche
   await mode.getByRole('button', { name: 'Any time' }).click() // put it back
   await page.getByRole('button', { name: 'Save window' }).click()
   await toast(page, /Maintenance window saved\./)
-  expect((await state()).body.window.mode).toBe('always')
+  await expect.poll(async () => (await state()).body.window.mode, { message: 'the window is back to any time (the toast of the first save may still be on screen)' }).toBe('always')
   noErrors(errors, /status of 4\d\d/)
 })
 
@@ -268,7 +263,7 @@ test('an install while another package manager holds the dpkg lock is refused in
   noErrors(errors, /status of 4\d\d/)
 })
 
-// What the page showed for the failed install, for the test.fail that follows (one run, not two).
+// What the page showed for the failed install, for the test that follows (one run, not two).
 const failedShown = { successToast: false, finishedChip: false, inWords: false }
 
 test('an install that apt refuses is a run whose lines say why, with nothing installed, and the box is not left busy', async ({ page }) => {
@@ -279,7 +274,7 @@ test('an install that apt refuses is a run whose lines say why, with nothing ins
     await open(page)
     await page.getByRole('button', { name: /Install security updates/ }).click()
     await toast(page, /Install started/)
-    await waitRunDone(before)
+    await waitRunDone(before, 'failed') // issue #238: a run apt refused is a failed run, not a finished one
     runsAtHost++
     const panel = runPanel(page)
     await expect(panel.getByRole('log', { name: 'apt output' })).toContainText('failed: apt_failed')
@@ -289,7 +284,7 @@ test('an install that apt refuses is a run whose lines say why, with nothing ins
     failedShown.inWords = await panel.getByText(/install (did not finish|failed)/i).first().isVisible()
     await shot(page, 'real', 'os-install-failed')
     const run = (await lastRun()).body!
-    expect(run).toMatchObject({ status: 'done', scope: 'security', user: 'admin@e2e.test' })
+    expect(run).toMatchObject({ status: 'failed', scope: 'security', user: 'admin@e2e.test' })
     expect(run.lines.join('\n')).toContain('failed: apt_failed')
     expect(run.result?.installed).toBe(0)
     await expect.poll(async () => (await state()).body.busy).toBe(false)
@@ -301,11 +296,8 @@ test('an install that apt refuses is a run whose lines say why, with nothing ins
   noErrors(errors, /status of 4\d\d/)
 })
 
-// test.fail (D-171): OsRun has no failed state, so a run apt refused is a green "Finished" with the success toast "Finished: 0 packages
-// installed." and a raw log line. Issue #238.
+// Issue #238 (fixed): a run apt refused is a failed run, told in words, not a green "Finished" with a success toast.
 test('a failed install is told in words, not shown as a finished success', async () => {
-  test.fail(true, 'GUI/contract: a failed install looks like a success (issue #238, .ai/deferred/feat-e2e-real-harness.md)')
-  knownSymptom(failedShown.successToast && failedShown.finishedChip)
   expect(failedShown.successToast, 'the success toast after a failed install').toBe(false)
   expect(failedShown.inWords, 'the panel says in words that the install failed').toBe(true)
 })

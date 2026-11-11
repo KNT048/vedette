@@ -299,7 +299,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	expired := now.Sub(ev.ts) > pendingFor
 	if s.cfg.Pack == nil || len(s.cfg.Pack.ForCVE(ev.cve)) == 0 {
 		if expired {
-			return nil, s.dropEvent(ctx, ev, "its scan template never reached the installed pack")
+			return nil, s.dropEvent(ctx, ev, "expired_no_template", "its scan template never reached the installed pack")
 		}
 		return nil, nil
 	}
@@ -311,7 +311,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	}
 	if !s.scannerReady(ctx) {
 		if expired {
-			return nil, s.dropEvent(ctx, ev, "the scanner was not ready for 7 days")
+			return nil, s.dropEvent(ctx, ev, "expired_scanner", "the scanner was not ready for 7 days")
 		}
 		return nil, nil
 	}
@@ -319,7 +319,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	// automated like the schedule): the event waits, and is dropped after 7 days like one whose scanner never came.
 	if _, ok := s.loc(ctx); !ok {
 		if expired {
-			return nil, s.dropEvent(ctx, ev, "the organization time zone could not be read for 7 days")
+			return nil, s.dropEvent(ctx, ev, "expired_zone", "the organization time zone could not be read for 7 days")
 		}
 		return nil, nil
 	}
@@ -362,14 +362,12 @@ func (s *Service) matchedCVE(ctx context.Context, v RunView, cve string) (bool, 
 	}), nil
 }
 
-// dropEvent removes an event that waited pendingFor without a scan, and says why in the log. The scheduled scan still
-// covers the CVE's devices.
-func (s *Service) dropEvent(ctx context.Context, ev pendingEvent, why string) error {
+// dropEvent closes an event that waited pendingFor without a scan with an expired_* result, so the rescan log shows it
+// and why (D-261 (2)); the log says it too. The scheduled scan still covers the CVE's devices. The row stays (cve is
+// unique), so the catch-up does not queue the CVE again.
+func (s *Service) dropEvent(ctx context.Context, ev pendingEvent, result, why string) error {
 	s.cfg.Log.WarnContext(ctx, "scan: a KEV rescan was dropped after 7 days", "cve", ev.cve, "reason", why)
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM scan_event WHERE id = ?`, ev.id)
-		return err
-	})
+	return s.closeEvent(ctx, ev.id, result, nil)
 }
 
 // affected are the devices with an open finding for cve that may be scanned without a pick (D-126 (2)), and the names

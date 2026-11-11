@@ -9,7 +9,7 @@ export const RouteSeverity = z.enum(['critical', 'high', 'medium', 'low'])
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
 
 export const TestResult = z.object({ at: iso, ok: z.boolean(), detail: z.string() })
-export const Approver = z.object({ user_id: z.string(), address: z.string().describe('Slack member ID · Telegram user ID · sign-in email · Zalo user ID or phone') })
+export const Approver = z.object({ user_id: z.string(), address: z.string().describe('Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel') })
 export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),

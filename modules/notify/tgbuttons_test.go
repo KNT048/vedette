@@ -179,3 +179,67 @@ func TestTelegramButtonRemovalRetriesAFewTimes(t *testing.T) {
 		t.Fatalf("%d edit attempts after a 400, want 1", n)
 	}
 }
+
+// L1 (#198 review): button removal runs inside the deliver job, so a Telegram that fails or does not answer must cost one edit per run,
+// not one per marked message (20 × 15 s held alert delivery for about 5 minutes). The rest wait for the next run, as on Slack.
+func TestTelegramButtonRemovalStopsAtTheFirstFailure(t *testing.T) {
+	te := newTGEnv(t)
+	te.svc.Subscribe(te.bus)
+	for _, id := range []string{"act-1", "act-2", "act-3"} {
+		te.request(id)
+		if err := te.bus.Publish(te.ctx(), events.Event{Name: "response.decision.made", Data: map[string]any{"request_id": id, "decision": "approved", "by": "admin@acme.example", "final": true}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	te.tg.mu.Lock()
+	te.tg.editStatus = http.StatusInternalServerError
+	te.tg.mu.Unlock()
+	te.flush()
+	if n := len(te.edits()); n != 1 {
+		t.Fatalf("%d edit attempts in one run against a failing Telegram, want 1", n)
+	}
+	te.tg.mu.Lock()
+	te.tg.editStatus = 0
+	te.tg.mu.Unlock()
+	te.flush()
+	if n := len(te.edits()); n != 4 {
+		t.Fatalf("%d edit attempts after Telegram came back, want 1 + 3", n)
+	}
+}
+
+// L3 (#198 review): sending the same request again must not orphan the keyboard of the message already shown. The re-send carries no
+// buttons; the first message keeps them, stays tracked and is the one cleared. A first send that never reached Telegram left no message,
+// so a re-send then carries buttons.
+func TestTelegramResendKeepsTheShownKeyboard(t *testing.T) {
+	te := newTGEnv(t)
+	te.svc.Subscribe(te.bus)
+	te.request("act-1")
+	te.request("act-1")
+	te.tg.mu.Lock()
+	sends := append([]map[string]any(nil), te.tg.sends...)
+	te.tg.mu.Unlock()
+	if len(sends) != 2 || sends[0]["reply_markup"] == nil || sends[1]["reply_markup"] != nil {
+		t.Fatalf("sends = %v", sends)
+	}
+	te.decision(true)
+	te.flush()
+	if n := len(te.edits()); n != 1 {
+		t.Fatalf("%d edits, want the first message cleared once", n)
+	}
+
+	te2 := newTGEnv(t)
+	te2.tg.mu.Lock()
+	te2.tg.status = http.StatusInternalServerError
+	te2.tg.mu.Unlock()
+	_, _ = te2.svc.SendApprovalRequest(te2.ctx(), te2.approvalReq("act-2", channel.Telegram))
+	te2.tg.mu.Lock()
+	te2.tg.status = 0
+	te2.tg.mu.Unlock()
+	te2.request("act-2")
+	te2.tg.mu.Lock()
+	last := te2.tg.sends[len(te2.tg.sends)-1]
+	te2.tg.mu.Unlock()
+	if last["reply_markup"] == nil {
+		t.Fatalf("a re-send after a failed first send has no buttons: %v", last)
+	}
+}

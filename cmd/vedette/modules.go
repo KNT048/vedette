@@ -133,14 +133,14 @@ func wiredModules() []moduleWiring {
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
 		{ID: "mitigation", Migrations: mitigation.Migrations},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
-		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},          // no capture job: packets are read in the sensor container only (D-141)
-		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs}, // after notify and inventory (manifest depends)
-		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs}, // depends on core and inventory (MANIFEST)
-		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},             // depends on core, inventory and feeds (MANIFEST)
-		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},       // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
-		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs},                   // depends on core only (MANIFEST); the job prunes the activity log
-		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},    // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
-		{ID: "mcp-server", Migrations: mcpserver.Migrations},                  // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only (D-141)
+		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs},          // after notify and inventory (manifest depends)
+		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs},          // depends on core and inventory (MANIFEST)
+		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},                      // depends on core, inventory and feeds (MANIFEST)
+		{ID: "logs", Migrations: logs.ConfigMigrations, Jobs: logsJobs},                // depends on core, feeds and inventory (MANIFEST); its volume is logs.db, migrated in main
+		{ID: "ai", Migrations: ai.Migrations, Jobs: aiJobs, BodyLimits: ai.BodyLimits}, // depends on core only (MANIFEST); the job prunes the activity log
+		{ID: "reports", Migrations: reports.Migrations, Jobs: reportsJobs},             // depends on core, inventory and feeds (MANIFEST); notify, ai and the rest are soft
+		{ID: "mcp-server", Migrations: mcpserver.Migrations},                           // depends on core only (MANIFEST); no job: its listener follows the switch (startMCP)
 	}
 }
 
@@ -202,6 +202,21 @@ func addOffGuards(g *modreg.OffGuard, d deps, wired []moduleWiring) {
 			g.Add(w.ID, fn)
 		}
 	}
+}
+
+// startGuards is how serve makes "off means off" and "on means running" for what lives outside the process: the OffGuard
+// (the modules' EnsureOff: honeypot, D-189, and the stop of the sensor and scan containers) and the OnGuard (the start of
+// those two containers, D-260), both subscribed to the registry and handed their funcs, which converge at once for a module
+// that is already in the state they act on. stop cancels the retries and waits for them; the containers are left as they are.
+func startGuards(ctx context.Context, reg *modreg.Registry, log *slog.Logger, d deps, wired []moduleWiring) (stop func()) {
+	gctx, cancel := context.WithCancel(ctx)
+	off := modreg.NewOffGuard(gctx, reg, log, nil)
+	on := modreg.NewOnGuard(gctx, reg, log, nil)
+	reg.OnChange(off.ModuleChanged)
+	reg.OnChange(on.ModuleChanged)
+	addOffGuards(off, d, wired)    //nolint:contextcheck // the guards run on gctx, the child of ctx made just above
+	addContainerGuards(on, off, d) //nolint:contextcheck // as above
+	return func() { cancel(); off.Wait(); on.Wait() }
 }
 
 // bodyLimits merges the modules' per-operation body caps for server.Config. server.New refuses an

@@ -275,7 +275,7 @@ export const handlers = [
     sweep()
     const u = currentUser()!
     const pending = actionsStore.get().filter((a) => a.status === 'pending')
-    settingsStore.update((s) => ({ ...s, execution: false }))
+    settingsStore.update((s) => ({ ...s, execution: false, breaker_tripped_at: s.breaker_tripped_at ?? nowIso(), stopped_at: s.stopped_at ?? nowIso() })) // INV-8: the stop also opens the breaker
     actionsStore.update((l) => l.map((a) => (a.status === 'pending' ? { ...a, status: 'rejected', decided_at: nowIso(), note: `Cancelled by emergency stop (${u.email})`, items: a.items.map((i) => ({ ...i, status: 'skipped' as const })) } : a)))
     step('response.emergency_stop', 'response', 'emergency_stop', `${u.email} stopped execution; ${pending.length} pending request${pending.length === 1 ? '' : 's'} cancelled`)
     return HttpResponse.json({ cancelled: pending.length })
@@ -283,7 +283,7 @@ export const handlers = [
 
   http.post(`${API}/response/breaker/reset`, () => {
     const denied = guard('admin'); if (denied) return denied
-    settingsStore.update((s) => ({ ...s, breaker_tripped_at: null, breaker_notified: [] }))
+    settingsStore.update((s) => ({ ...s, breaker_tripped_at: null, breaker_notified: [], stopped_at: null }))
     step('response.breaker_reset', 'response', 'settings', `${currentUser()!.email} resumed response after the circuit breaker`)
     return HttpResponse.json(settingsView())
   }),

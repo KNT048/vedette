@@ -93,7 +93,7 @@ type orderEngine struct {
 	inv *s5Inventory
 }
 
-func (o orderEngine) Run(ctx context.Context, j scan.Job) ([]nucleiout.Result, error) {
+func (o orderEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, error) {
 	var open int
 	if err := o.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM scan_probe WHERE result IS NULL`).Scan(&open); err != nil {
 		o.t.Error(err)

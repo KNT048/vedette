@@ -153,14 +153,18 @@ type zaloFake struct {
 	paths       []string
 	cookies     []string // Cookie header of each send
 	sent        []map[string]any
-	loginErr    int             // outer error_code of the sign-in answer
-	loginSvc    string          // overrides the service map: the chat and group address
-	sendErr     func(n int) int // outer error_code of the nth send (0 = success)
-	echo        string          // appended to every error message
-	loginCookie bool            // set the rotated cookie at sign-in
-	sendStatus  int             // HTTP status of every send (0 = 200)
-	garbage     bool            // answer every send with an unreadable 2xx, after recording the post
-	innerCode   int             // error_code inside the encrypted answer of every send (0 = success)
+	loginErr    int                                          // outer error_code of the sign-in answer
+	loginSvc    string                                       // overrides the service map: the chat and group address
+	noChat      bool                                         // the service map names no chat service
+	sendErr     func(n int) int                              // outer error_code of the nth send (0 = success)
+	echo        string                                       // appended to every error message
+	loginCookie bool                                         // set the rotated cookie at sign-in
+	sendStatus  int                                          // HTTP status of every send (0 = 200)
+	garbage     bool                                         // answer every send with an unreadable 2xx, after recording the post
+	innerCode   int                                          // error_code inside the encrypted answer of every send (0 = success)
+	info        any                                          // data of the server info answer (nil = empty settings)
+	wsHosts     []string                                     // Host of each message connection request
+	ws          func(w http.ResponseWriter, r *http.Request) // serves the message connection (zalopersonal_listen_test.go)
 }
 
 func newZaloFake(t *testing.T) *zaloFake {
@@ -178,11 +182,21 @@ func (f *zaloFake) envelope(code int, msg string, data any) []byte {
 
 func (f *zaloFake) handle(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
+	if ws := f.ws; ws != nil && strings.HasSuffix(r.Host, "-msg.chat.zalo.me") { // long-lived: served without the lock
+		f.wsHosts = append(f.wsHosts, r.Host)
+		f.mu.Unlock()
+		ws(w, r)
+		return
+	}
 	defer f.mu.Unlock()
 	switch r.URL.Path {
 	case "/api/login/getServerInfo":
 		f.infos++
-		_, _ = w.Write(f.envelope(0, "Success", map[string]any{"settings": map[string]any{}}))
+		info := f.info
+		if info == nil {
+			info = map[string]any{"settings": map[string]any{}}
+		}
+		_, _ = w.Write(f.envelope(0, "Success", info))
 	case "/api/login/getLoginInfo":
 		f.logins++
 		f.login(w, r)
@@ -247,9 +261,13 @@ func (f *zaloFake) login(w http.ResponseWriter, r *http.Request) {
 	if f.loginSvc != "" {
 		chat, group = f.loginSvc, f.loginSvc
 	}
+	chats := []string{chat}
+	if f.noChat {
+		chats = nil
+	}
 	inner := f.envelope(0, "Success", map[string]any{
 		"uid": "42", "zpw_enk": base64.StdEncoding.EncodeToString([]byte(zpKey)),
-		"zpw_service_map_v3": map[string]any{"chat": []string{chat}, "group": []string{group}},
+		"zpw_service_map_v3": map[string]any{"chat": chats, "group": []string{group}},
 		"zpw_ws":             []string{"wss://ws1-msg.chat.zalo.me"},
 	})
 	enc, _ := zaloEncrypt([]byte(enk), inner)

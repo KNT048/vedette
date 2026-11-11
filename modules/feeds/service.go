@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -103,6 +104,8 @@ type Service struct {
 
 	seedMu sync.Mutex
 	seeded bool
+
+	unknownLogged atomic.Bool // the "waiting for the box's addresses" debug line is written once (D-208)
 
 	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
 }

@@ -67,7 +67,8 @@ export function events(): Det[] {
     for (const h of hp.filter(isObj)) {
       const ip = str(h.src_ip) || str(h.source_ip)
       if (h.is_test === true || !isIpv4(ip) || !str(h.id)) continue
-      touch(`det-hp-${str(h.id)}`, ip, str(h.trap_hostname) || str(h.trap_ip) || 'decoy', ['service', 'token', 'scan'].includes(str(h.kind)) ? str(h.kind) : 'service', str(h.ts) || nowIso())
+      if (!['service', 'token', 'scan'].includes(str(h.kind))) continue // the box drops a hit of an unknown kind (D-286 (2))
+      touch(`det-hp-${str(h.id)}`, ip, str(h.trap_hostname) || str(h.trap_ip) || 'decoy', str(h.kind), str(h.ts) || nowIso())
     }
   } else if (sample) touch('det-s-hp-1', '192.168.10.107', 'FILESRV-OLD', 'service', daysAgo(1, 1), 'PC-HR-01')
   // Findings (open), with the virtual IP that exposes the device when a readable firewall connection says so (sample data).
@@ -152,6 +153,10 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   return { name: b.name, enabled: b.enabled, live: b.live, trigger: trig.id, match: b.match, conditions: conds, actions, pre_approved: b.pre_approved, max_per_hour: b.max_per_hour!, schedule_min: trig.id === 'schedule' ? b.schedule_min! : null }
 }
 /** Pre-approved: only low-risk, reversible actions with an undo time of 24 hours or less (D-51). Checked on save and again at run time. */
+/** A port scan of a decoy is seen from a SYN alone, so its source can be forged: a person approves what it asks for (D-286 (4)). */
+const forgeable = (ev: { trigger: string; fields: Record<string, string> }) => ev.trigger === 'honeypot' && ev.fields.kind === 'scan'
+const FORGEABLE_MSG = 'the source address of a port scan can be forged, so a person approves it'
+
 export function preApprovedProblem(actions: RuleAction[]): string | null {
   for (const a of actions) {
     const cat = catById(a.action_id)
@@ -233,7 +238,7 @@ function fire(rule: Rule, ev: Det, sum: RunSummary) {
     return
   }
   if (checkBreaker(fresh.length)) return no('circuit_open', BREAKER_MSG)
-  const pre = rule.pre_approved && preApprovedProblem(rule.actions) === null
+  const pre = rule.pre_approved && !forgeable(ev) && preApprovedProblem(rule.actions) === null
   const a = newRequest({
     source: 'rule', proposal_id: `rule:${rule.id}:${ev.id}`, rule_id: rule.id, rule_name: rule.name, trigger: rule.trigger, trigger_summary: ev.summary, finding_id: ev.finding_id ?? null, cve: ev.cve ?? null,
     asset_id: ev.asset_id, asset_name: ev.fields.device ?? ev.fields.source_device ?? ev.fields.ip ?? ev.fields.source_ip ?? 'Network',
@@ -287,8 +292,10 @@ export function simulate(rule: RuleInput, eventId?: string): Simulation {
     else steps.push({ action: r.title, risk: catById(a.action_id)?.risk ?? 'low', ok: false, error: r.error, change: null })
   }
   if (!rule.live) notes.push('This rule is in dry run: a real match is only logged.')
-  if (rule.pre_approved) notes.push(preApprovedProblem(rule.actions) ?? 'Pre-approved: a live run would carry this out without asking a person.')
-  else notes.push('Every action needs approval before it runs.')
+  if (rule.pre_approved) {
+    notes.push(preApprovedProblem(rule.actions) ?? 'Pre-approved: a live run would carry this out without asking a person.')
+    if (!preApprovedProblem(rule.actions) && forgeable(ev)) notes.push(`Pre-approval is not used for this event: ${FORGEABLE_MSG}.`)
+  } else notes.push('Every action needs approval before it runs.')
   const open = openKeys()
   if (planned.some((p) => open.has(plannedKey(p)))) notes.push('One of these actions is already open or in force for this target, so a live run would merge it instead of asking again.')
   if (maintenanceNow()) notes.push(`A maintenance window is active: ${maintenanceNow()!.name}. Nothing would be requested now.`)

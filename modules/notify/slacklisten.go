@@ -211,7 +211,7 @@ func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{
 	defer conn.Close()
 	cctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
-	go s.watchSlack(cctx, cancel, c.Rev)
+	go s.watchChannel(cctx, cancel, channel.Slack, c.Rev, slackReady, slackWatchEvery, errSlackChanged)
 	seen := &seenEnvelopes{}
 	for {
 		env, err := conn.Read(cctx)
@@ -237,19 +237,19 @@ func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{
 	}
 }
 
-// watchSlack ends the connection when the channel is turned off or changed.
-func (s *Service) watchSlack(ctx context.Context, cancel context.CancelCauseFunc, rev int64) {
-	t := time.NewTicker(slackWatchEvery)
-	defer t.Stop()
+// watchChannel ends a listener's connection (cancel with cause) when its channel is no longer ready or was changed (Slack, Zalo).
+func (s *Service) watchChannel(ctx context.Context, cancel context.CancelCauseFunc, t channel.Type, rev int64, ready func(channelRow) bool, every time.Duration, cause error) {
+	tk := time.NewTicker(every)
+	defer tk.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-t.C:
+		case <-tk.C:
 		}
-		c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Slack)
-		if err == nil && (!slackReady(c) || c.Rev != rev) {
-			cancel(errSlackChanged)
+		c, err := loadChannel(ctx, s.cfg.DB.Reader(), t)
+		if err == nil && (!ready(c) || c.Rev != rev) {
+			cancel(cause)
 			return
 		}
 	}

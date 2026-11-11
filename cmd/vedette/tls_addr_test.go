@@ -359,7 +359,11 @@ func TestReissueDoesNotNeedTheDiskAndFollowsAReplacedPair(t *testing.T) {
 	if err := ensureCert(oc, ok, []string{"other.example"}); err != nil {
 		t.Fatal(err)
 	}
-	for src, dst := range map[string]string{oc: r2.certPath, ok: r2.keyPath} {
+	// The replacement is a whole pair of another box, with its CA (a leaf that does not chain to the box's own
+	// CA is re-issued under it at the next check: TestBoxCAReplacedCAReissuesTheLeafAtTheNextCheck).
+	oCA, oCAKey := boxCAPaths(oc)
+	rCA, rCAKey := boxCAPaths(r2.certPath)
+	for src, dst := range map[string]string{oc: r2.certPath, ok: r2.keyPath, oCA: rCA, oCAKey: rCAKey} {
 		b, err := os.ReadFile(src) //nolint:gosec // test paths
 		if err != nil {
 			t.Fatal(err)

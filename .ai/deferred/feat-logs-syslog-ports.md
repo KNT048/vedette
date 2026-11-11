@@ -1,0 +1,4 @@
+# Deferred: feat/logs-syslog-ports (#266 items 1 and 2)
+
+- [ ] 2026-11-11 — Run `sudo scripts/dev/syslog-ports-check.sh` (`make syslog-ports-check` as root) on the Ubuntu lab box: the rootful netavark path is the real one and is NOT measured yet (rootless loses the sender, measured). Must print PASS before relying on `514:5514`; paste the output into D-167. — ở đâu: docs/decisions/D-167.md
+- [ ] 2026-11-11 — Mlee (logs): read `deps.SyslogTLS` (cmd/vedette/modules.go), add the field to `logs.Config`, the third listener on 5515 (`tls.NewListener`), lift `tls_unavailable` (modules/logs/validate.go, API_CONVENTIONS.md, S-LOG-1), then add `PublishPort=6514:5515/tcp` to the core unit (host/ops/quadlet.go, golden, INV-17 text, DEPLOYMENT.md) and set `deps`-side wiring in `cmd/vedette/logs.go logsService`. — ở đâu: cmd/vedette/logs.go syslogTLS

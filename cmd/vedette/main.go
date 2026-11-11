@@ -272,6 +272,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			cancel()
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
+	d.SyslogTLS = syslogTLS(tlsCfg)
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}

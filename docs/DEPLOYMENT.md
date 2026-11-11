@@ -44,7 +44,7 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 
 | Container | Image (đề xuất) | Mạng | Capability | Mặc định bật |
 |---|---|---|---|---|
-| `core` | `ghcr.io/knt048/vedette-core` | bridge `vedette-int`, publish `8443:8443` (D-105) | không (drop ALL) | luôn |
+| `core` | `ghcr.io/knt048/vedette-core` | bridge `vedette-int`, publish `8443:8443` và syslog `514:5514/udp`, `514:5514/tcp` (D-105, D-167) | không (drop ALL)  | luôn |
 | `sensor` | `ghcr.io/knt048/vedette-sensor` | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-passive` bật |
 | `honeypot` | `ghcr.io/knt048/vedette-honeypot` | namespace `vedette-hp` của host (`Network=ns:`), macvlan một MAC mỗi IP (D-102) | không (drop ALL; D-162; `ip_unprivileged_port_start=0` trong namespace) | khi `honeypot` bật |
 | `scan` | `localhost/vedette-scan-nmap:<version>` dựng trên hộp từ image nền `ghcr.io/knt048/vedette-scan` đã ký (D-113 (7)) | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-active` bật (sau: `scan`/`exposure`) |
@@ -60,7 +60,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Người dùng | không root, `User=<core_uid>:<core_gid>` **cố định** từ `host.conf`, không `UserNS=auto` (uid của peer phải ổn định cho kiểm `SO_PEERCRED` và kiểm chủ sở hữu của D-87; D-105); `cap_drop=ALL`; `no-new-privileges`; rootfs chỉ đọc + tmpfs `/tmp` |
 | Mạng | bridge `vedette-int`; publish `8443:8443` **không kèm IP** (D-105): địa chỉ LAN duy nhất của hộp là địa chỉ quản trị (SPAN không IP, decoy nằm trong `vedette-hp`), nên đổi địa chỉ bằng `net.apply` không phải khởi động lại `core` và GUI tới được ở địa chỉ mới để xác nhận; `8444` (giao thức sensor, mTLS, D-109) không publish ra LAN, chỉ `127.0.0.1:8444` cho container mạng host; `core` nghe nó khi có cờ `-sensor-listen :8444 -sensor-creds /var/lib/vedette-creds` (D-141; vắng cờ = không có listener; `Exec=` của unit thêm hai cờ này ở SP-6) |
 | Volume | `<core_data>` (thư mục của `host.conf`, bind) → `/var/lib/vedette` (SQLite WAL, **khoá chủ `vedette.key`**, chỉ mục RAG, tài liệu tải lên; D-142); `/run/vedette` (**thư mục** chứa socket `vedette-host`, không bind-mount tệp socket; D-123); `vedette-creds-passive`, `vedette-creds-active` → `/var/lib/vedette-creds/{passive,active}` (**đọc-ghi chỉ ở `core`**: bó khoá của sensor, D-110 (4), D-114 (4)); mẫu cấu hình ro. `PodmanArgs=--group-add=<sensor_gid>` hằng để `core` ghi tệp khoá `0640 core_uid:sensor_gid` |
-| Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn) |
+| Cổng | 8443/tcp (UI, API, SSE, intake osquery, script cài osquery, trang duyệt email, URL danh sách chặn); **514/udp và 514/tcp** (syslog của module `logs`, D-167): publish cổng 514 của hộp vào cổng **5514** trong container (`-syslog-port 5514`), nên không cần capability nào (`NET_BIND_SERVICE` hay sysctl); thiết bị trỏ syslog về cổng 514 của hộp. **6514/tcp (TLS) chưa publish**: `modules/logs` chưa có listener TLS (D-203); khi có, thêm `PublishPort=6514:5515/tcp` cùng thay đổi đó |
 | Health check | `vedette healthcheck` (D-137): `GET https://127.0.0.1:8443/api/v1/setup` (route công khai có sẵn, đọc hàng `org` nên 200 nghĩa là máy chủ, router, kiểm Host và DB cùng trả lời) phải 200 trong 3 s; ghim đúng chứng chỉ của hộp ở `/var/lib/vedette/vedette-selfsigned.crt` nếu đọc được, không đọc được thì bỏ kiểm chứng chỉ (chỉ loopback, không gửi gì ngoài một GET không thông tin đăng nhập); không proxy, không mở DB, không cần khoá chủ. Chu kỳ 30 s, start-period 60 s, 3 lần hỏng thì unhealthy |
 | Phụ thuộc | không (khởi động đầu tiên) |
 
@@ -253,6 +253,9 @@ Network=vedette-int.network
 # Không kèm IP (D-105): đổi địa chỉ quản trị bằng net.apply không phải khởi động lại core
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
+# syslog của module logs (D-167): 514 của hộp -> 5514 trong container (cổng không đặc quyền, không cần capability); UDP và TCP, mọi địa chỉ như 8443
+PublishPort=514:5514/udp
+PublishPort=514:5514/tcp
 Volume=<core_data>:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro
@@ -278,7 +281,7 @@ HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
 # :8444 trong container; phía host chỉ PublishPort=127.0.0.1:8444 (D-113, D-147 (5))
-Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
 
 [Service]
 Restart=always

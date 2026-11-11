@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net/netip"
 	"os"
 	"sync"
@@ -110,4 +111,22 @@ func (b logsBox) Info(ctx context.Context) (logs.BoxInfo, error) {
 		}
 	}
 	return info, nil
+}
+
+// syslogTLS is the TLS configuration of the syslog-over-TLS listener (port 6514, D-203 (3), #266 item 2): the HTTPS listener's own,
+// cloned, so it presents the same certificate; the clone keeps the GetCertificate of a box-made pair, so a renewal (D-139) is picked up with
+// no restart, and the HTTPS-only parts (the "http/1.1" ALPN) are left behind. nil when the box serves no TLS (loopback or dev): there is
+// no certificate to serve, so nothing may listen for TLS. Only deps carries it: modules/logs does not read it yet (logs.Config has no field
+// for it; that is the module's change, with the 6514 listener and the lifting of the `tls_unavailable` refusal, .ai/deferred/feat-logs-l2-syslog.md).
+func syslogTLS(https *tls.Config) *tls.Config {
+	if https == nil {
+		return nil
+	}
+	c := https.Clone()
+	c.NextProtos = nil
+	c.ClientAuth = tls.NoClientCert
+	if c.MinVersion < tls.VersionTLS12 {
+		c.MinVersion = tls.VersionTLS12
+	}
+	return c
 }

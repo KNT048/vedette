@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -253,6 +253,11 @@ honeypot-image:
 # (scripts/dev/honeypot-check.sh), then removes the image and the containers. Opt-in, like images-check.
 honeypot-check:
 	scripts/dev/honeypot-check.sh
+
+# Does a published port keep the real sender address of syslog over UDP and TCP (#266, D-167)? Runs a tiny listener in a container with core's flags
+# (scripts/dev/syslog-ports-check.sh); podman's own networks only, nothing on the host's. Opt-in.
+syslog-ports-check:
+	scripts/dev/syslog-ports-check.sh
 
 # The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
 scan-base-image: scan-pack

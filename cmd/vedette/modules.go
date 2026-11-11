@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -79,6 +80,9 @@ type deps struct {
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
 	SyslogPort int
+	// SyslogTLS is the certificate side of the syslog-over-TLS listener (6514), built from the HTTPS listener's configuration (syslogTLS);
+	// nil when the box serves no TLS. Set by serve; modules/logs does not read it yet (#266 item 2).
+	SyslogTLS *tls.Config
 	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen).
 	MCPListen netip.AddrPort
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the

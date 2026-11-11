@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
+	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -45,8 +46,9 @@ type deps struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	Clock   func() time.Time
-	Bus     *events.Bus   // in-process event bus (core/events); modules publish after commit and subscribe here
-	Auth    *auth.Service // sessions, sign-in and two-step (core/auth)
+	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
+	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
+	OIDC    *authoidc.Service // SSO sign-in (auth-oidc, D-194); its accounts and sessions are core/auth's
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
 	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
@@ -112,6 +114,7 @@ type moduleWiring struct {
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
 		{ID: "core", Migrations: core.Migrations, Jobs: coreJobs},
+		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},

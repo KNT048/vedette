@@ -1,11 +1,11 @@
 # Auth-OIDC Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-194 (luồng), D-195 (tài khoản, vai), D-196 (hai bước, dự phòng), D-35, D-71, D-77 · Last verified: 2026-11-11
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-194 (luồng), D-195 (tài khoản, vai), D-196 (hai bước, dự phòng), D-197 (thư viện), D-35, D-71, D-77 · Last verified: 2026-11-11 (PR 2: `go test ./modules/auth-oidc/ -run Contract`, IdP giả trên httptest TLS)
 > GUI nằm dưới `core` (`web/src/features/core/{contract,UsersSection,SsoCallbackPage,ssoFlow,mocks}.ts`, mục Settings → Users, trang `/sso/callback`). Backend là module riêng.
 > Mock bỏ qua IdP: `authorize_url` của mock là chính trang `/sso/callback` kèm một mã, người dùng ở IdP là `MOCK_IDP_USER`.
 
 ## Invariants (luôn đúng)
-- **INV-1** Luồng đăng nhập là **authorization code + PKCE S256**, luôn có `state` và `nonce` 256 bit (D-194). Kiểm ID token: chữ ký theo JWKS của issuer với **thuật toán bất đối xứng** RS256/384/512, PS256/384/512, ES256/384/512 (giao với `id_token_signing_alg_values_supported`; `none` và HS* luôn bị từ chối), `iss` = issuer đã lưu, `aud` chứa `client_id`, `azp` có mặt thì = `client_id`, `exp` chưa qua (lệch giờ 1 phút), `nonce` = nonce của luồng. Khoá chỉ lấy từ `jwks_uri` của discovery (bỏ qua `jku`/`x5u`/`jwk`/`x5c` của header), `kty` hợp `alg`; `kid` lạ → tải lại JWKS (tối đa mỗi phút một lần). Discovery giữ trong bộ nhớ 1 giờ; Test và lưu cấu hình làm mới. Sai bất kỳ điều nào → 400 `sso_failed`, không tạo phiên, `auth.login_failed` chi tiết `SSO: id_token`.
+- **INV-1** Luồng đăng nhập là **authorization code + PKCE S256**, luôn có `state` và `nonce` 256 bit (D-194). Kiểm ID token: chữ ký theo JWKS của issuer với **thuật toán bất đối xứng** RS256/384/512, PS256/384/512, ES256/384/512 (giao với `id_token_signing_alg_values_supported`; `none` và HS* luôn bị từ chối), `iss` = issuer đã lưu, `aud` chứa `client_id`, `azp` có mặt thì = `client_id`, `exp` chưa qua (lệch giờ 1 phút), `nonce` = nonce của luồng. Khoá chỉ lấy từ `jwks_uri` của discovery (bỏ qua `jku`/`x5u`/`jwk`/`x5c` của header), `kty` hợp `alg`. ID token chỉ đến từ phản hồi của điểm token qua TLS, không bao giờ từ trình duyệt, nên `kid` lạ không do người ngoài điều khiển (go-oidc tải lại JWKS khi gặp). Discovery giữ trong bộ nhớ 1 giờ; Test và lưu cấu hình làm mới. `TestContract_INV1_*`. Sai bất kỳ điều nào → 400 `sso_failed`, không tạo phiên, `auth.login_failed` chi tiết `SSO: id_token`.
 - **INV-2** `issuer` bắt buộc **https** (bỏ `/` cuối); `client_id` 1..200 ký tự; `client_secret` ≥ 8 ký tự; `scopes` 1..10 từ theo RFC 6749 §3.3, phải có `openid`; `groups_claim` khớp `^[A-Za-z0-9_.:/-]{1,64}$`; `default_role` ∈ {viewer, operator, admin, null}; `role_map` ≤ 10 dòng `{group ≤ 256 ký tự, role hợp lệ}`, dòng nhóm rỗng bị bỏ. Sai → 400 (`invalid_issuer`, `invalid_client`, `invalid_secret`, `invalid_scopes`, `invalid_claim`, `invalid_role`, `too_many`).
 - **INV-3** `client_secret` lưu qua `core/secrets` (AES-GCM), API chỉ trả `secret_last4`; để trống khi sửa = giữ bí mật cũ (SYS-4). Bí mật và mọi token của IdP (code, access, ID, refresh) không vào log, export, sao lưu, audit.
 - **INV-4** Nút SSO chỉ hiện khi module bật **và** đã có `issuer` (`GET /core/auth-options` → `{oidc: true}`); endpoint công khai này không lộ gì khác.
@@ -48,7 +48,7 @@
 Trang SPA `/sso/callback` là `redirect_uri` (D-194 (4)): IdP đưa trình duyệt về đó, trang gửi `POST /auth/oidc/callback`.
 
 ## Tables owned
-`oidc_config` (issuer, client_id, bí mật mã hoá qua `core/secrets`, scopes, groups_claim, default_role, role_map), `oidc_flow` (luồng đang chờ, INV-5), `oidc_identity` (user_id, iss, sub). Người dùng, cờ `sso` và phiên thuộc `core` (`core_users`, `core_session`), qua interface của `core`.
+`oidc_config` (issuer, client_id, bí mật mã hoá qua `core/secrets` purpose `oidc_config.client_secret`, scopes, groups_claim, default_role, role_map, redirect_uri), `oidc_flow` (luồng đang chờ, INV-5). Định danh SSO (`sso_issuer`, `sso_subject`), người dùng và phiên thuộc `core` (`core_user`, `core_session`), chỉ qua `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers` (D-197).
 
 ## Events
 - **Phát**: không (audit qua `core`). **Nhận**: không.

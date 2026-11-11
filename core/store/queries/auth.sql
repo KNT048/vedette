@@ -3,15 +3,30 @@ INSERT INTO core_user (id, name, email, role, password_hash, temp_password_expir
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetUserByEmail :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user WHERE email = ?;
 
 -- name: GetUserByID :one
-SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
 FROM core_user WHERE id = ?;
 
 -- name: CountOtherActiveAdmins :one
-SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND id <> ?;
+-- D-196 (3): only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
+SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND sso_issuer IS NULL AND id <> ?;
+
+-- name: GetUserBySSO :one
+SELECT id, name, email, role, password_hash, cred_version, twofa_method, disabled, created_at, last_login, temp_password_expires_at, sso_issuer, sso_subject
+FROM core_user WHERE sso_issuer = ? AND sso_subject = ?;
+
+-- name: InsertSSOUser :exec
+INSERT INTO core_user (id, name, email, role, password_hash, created_at, sso_issuer, sso_subject)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: RelinkSSOUser :execrows
+UPDATE core_user SET sso_issuer = ?, sso_subject = ? WHERE id = ? AND sso_issuer IS NOT NULL;
+
+-- name: CountSSOUsers :one
+SELECT count(*) FROM core_user WHERE sso_issuer IS NOT NULL;
 
 -- name: UpdateUserPassword :execrows
 UPDATE core_user SET password_hash = ?, temp_password_expires_at = ?, cred_version = cred_version + 1 WHERE id = ?;

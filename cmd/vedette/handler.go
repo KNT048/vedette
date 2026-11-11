@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/ai"
+	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -26,6 +27,7 @@ type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
 	*core.APIHandlers
+	*authoidc.OIDCHandlers
 	*core.OSHandlers
 	*core.NetworkHandlers
 	*inventory.Handlers
@@ -49,6 +51,7 @@ func newHandler(d deps) handler {
 		Fallback:        server.Fallback{Log: d.Log},
 		ModuleHandlers:  core.NewModuleHandlers(d.DB, d.Reg),
 		APIHandlers:     d.Core,
+		OIDCHandlers:    authoidc.NewHandlers(d.OIDC),
 		OSHandlers:      d.OS,
 		NetworkHandlers: d.Network,
 		Handlers:        inventory.NewHandlers(d.Inventory),

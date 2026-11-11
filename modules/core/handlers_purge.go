@@ -574,11 +574,12 @@ func ftsTables(ctx context.Context, tx *sql.Tx) ([]ftsTable, error) {
 			_ = rows.Close()
 			return nil, fmt.Errorf("core: purge: list virtual tables: %w", err)
 		}
-		if !fts5Create.MatchString(text) {
+		loc := fts5Create.FindStringIndex(text)
+		if loc == nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("core: purge: virtual table %s is not FTS5 and the purge cannot empty it", t.name)
 		}
-		opts := strings.ToLower(strings.Join(strings.Fields(text), ""))
+		opts := strings.ToLower(strings.Join(strings.Fields(text[loc[1]:]), "")) // the options only, never the table name
 		switch {
 		case strings.Contains(opts, "content=''") || strings.Contains(opts, `content=""`):
 			t.mode = "contentless"

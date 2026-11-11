@@ -1318,10 +1318,12 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 		api.ServiceScan: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
 			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro"},
 			exec:    "active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
-		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
+		// The image starts as the container's root, with SETUID as its only capability, to make /dev/log and then drop to uid 1000 for good
+		// (deploy/containers/honeypot/init.py, D-162). :U gives the volume to the container's user (UserNS=auto picks the range at start).
+		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", addCaps: []string{"SETUID"}, requires: []string{"vedette-host.service"},
 			volumes: []string{
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro",
-				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log",
+				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U",
 			}},
 	}
 	for svc, w := range table {
@@ -1389,7 +1391,9 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			}
 			for _, v := range u["Volume"] {
 				parts := strings.Split(v, ":")
-				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro") || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
+				// "U" (podman gives the volume to the container's user) is for the honeypot's log volume alone (D-162)
+				honeypotLog := svc == api.ServiceHoneypot && v == "/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U"
+				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
 					t.Errorf("%s: odd Volume line %q", svc, v)
 				}
 				if strings.Contains(v, ".sock") && v != "/run/vedette:/run/vedette" {

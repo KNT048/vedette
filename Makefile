@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -10,7 +10,7 @@ include deploy/containers/pins.env
 CONTAINER ?= podman
 IMAGE_VERSION ?= 0.0.0-dev
 IMAGE_TAG ?= dev
-PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_MIN_VERSION SCAN_PACK_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
+PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_MIN_VERSION SCAN_PACK_VERSION OPENCANARY_VERSION SAMBA_MIN_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
 PACK_DIR := deploy/containers/scan-base/pack
 # Multi-arch images (WP-08d, D-158): `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64
@@ -43,7 +43,8 @@ help:
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
-	@echo "make images       build sensor, scan-base and core for PLATFORMS=linux/amd64,linux/arm64 as one manifest list each, without CPU emulation (WP-08d, D-158); PLATFORMS=linux/amd64 needs no binfmt; no push"
+	@echo "make honeypot-image  build the honeypot image (OpenCanary + Samba, D-162); make honeypot-check builds it and checks it by effect (opt-in)"
+	@echo "make images       build sensor, scan-base, core and honeypot for PLATFORMS=linux/amd64,linux/arm64 as one manifest list each, without CPU emulation (WP-08d, D-158); PLATFORMS=linux/amd64 needs no binfmt; no push"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -234,8 +235,17 @@ MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&
 endif
 comma := ,
 images: webui-dist scan-pack
-	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
+	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
+
+# The honeypot image (WP-08e, D-162): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
+honeypot-image:
+	$(CONTAINER) build -f deploy/containers/honeypot/Containerfile $(PIN_ARGS) -t localhost/vedette-honeypot:$(IMAGE_TAG) .
+
+# Builds the honeypot image, runs it as the unit does (no new privileges, read-only root, only SETUID) and checks what a connection does
+# (scripts/dev/honeypot-check.sh), then removes the image and the containers. Opt-in, like images-check.
+honeypot-check:
+	scripts/dev/honeypot-check.sh
 
 # The published scan base: sensor binary + nuclei + the pack. NO nmap (D-4, D-113 (7)).
 scan-base-image: scan-pack

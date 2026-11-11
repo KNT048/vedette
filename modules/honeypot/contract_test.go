@@ -761,18 +761,22 @@ func TestContract_INV12_HostileText(t *testing.T) {
 	)
 	e.poll()
 	hits, _ := e.svc.Hits(e.ctx(), honeypot.HitFilter{})
-	if len(hits) != 1 {
+	// two usable lines: the hostile SSH login, and the last one, whose absurd port is read as 0 and whose object user name is ignored (INV-12b:
+	// a port that is not 1-65535 no longer makes the whole line unusable)
+	if len(hits) != 2 {
 		t.Fatalf("%d hits from hostile lines", len(hits))
 	}
-	h := hits[0]
-	if len(h.Excerpt) > 600 || strings.ContainsAny(h.Excerpt, "\x00\n\r\u202e") {
-		t.Fatalf("excerpt %q", h.Excerpt)
+	for _, h := range hits {
+		if len(h.Excerpt) > 600 || strings.ContainsAny(h.Excerpt, "\x00\n\r\u202e") {
+			t.Fatalf("excerpt %q", h.Excerpt)
+		}
 	}
+	h := hits[0]
 	if e.count(`SELECT count(*) FROM sqlite_master WHERE name = 'hp_hits'`) != 1 {
 		t.Fatal("table gone")
 	}
 	st := e.svc.Stats()
-	if st.Unusable < 5 || st.Lines != 1 {
+	if st.Unusable < 5 || st.Lines != 2 {
 		t.Fatalf("%+v", st)
 	}
 	d, _ := e.svc.HitDetail(e.ctx(), h.ID)

@@ -46,7 +46,7 @@ Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài ngu
 |---|---|---|---|---|
 | `core` | `ghcr.io/knt048/vedette-core` | bridge `vedette-int`, publish `8443:8443` (D-105) | không (drop ALL) | luôn |
 | `sensor` | `ghcr.io/knt048/vedette-sensor` | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-passive` bật |
-| `honeypot` | `ghcr.io/knt048/vedette-honeypot` | namespace `vedette-hp` của host (`Network=ns:`), macvlan một MAC mỗi IP (D-102) | không (drop ALL; `ip_unprivileged_port_start=0` trong namespace) | khi `honeypot` bật |
+| `honeypot` | `ghcr.io/knt048/vedette-honeypot` | namespace `vedette-hp` của host (`Network=ns:`), macvlan một MAC mỗi IP (D-102) | chỉ `SETUID` (drop ALL rồi thêm một; D-162; `ip_unprivileged_port_start=0` trong namespace) | khi `honeypot` bật |
 | `scan` | `localhost/vedette-scan-nmap:<version>` dựng trên hộp từ image nền `ghcr.io/knt048/vedette-scan` đã ký (D-113 (7)) | host | chỉ `NET_RAW` (ambient, `User=<sensor_uid>`, D-114) | khi `sensor-active` bật (sau: `scan`/`exposure`) |
 | `greenbone` | upstream Greenbone Community Containers, ghim digest | bridge `vedette-int` | theo upstream | khi `scan-credentialed` bật |
 
@@ -86,8 +86,8 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 |---|---|
 | Nội dung | **một** tiến trình OpenCanary (BSD-3) nghe mọi địa chỉ của container (D-90 (1)) + honey token; hit ghi ra `log/opencanary.jsonl`, cấu hình đọc từ `config/` (D-89) |
 | Mạng | network namespace **`vedette-hp`** do `vedette-host` tạo và sở hữu (D-102); unit có `Network=ns:/run/netns/vedette-hp` và không mạng nào khác (không `vedette-int`, không đường tới `core`: hit đi qua tệp, D-89). Mỗi IP phụ/decoy là **một link macvlan với MAC riêng** trên card quản trị, host thêm/gỡ bằng `decoy_ip.*` mà không khởi động lại container. Trong namespace: `arp_ignore=1`, `arp_announce=2`, `rp_filter=2`, `ip_unprivileged_port_start=0`, bảng định tuyến riêng mỗi IP, và ruleset nft chặn mọi kết nối mới đi ra (chỉ trả lời kết nối vào) |
-| Capability | **không** (`DropCapability=ALL`): `ip_unprivileged_port_start=0` là sysctl theo namespace nên bind 22/80/445/1433/3389 không cần `NET_BIND_SERVICE` |
-| Volume | `config/` gắn chỉ đọc, `log/` ghi được (D-89; hạn mức đĩa ở WP-08); không cert, không DB |
+| Capability | `DropCapability=ALL` rồi **chỉ `SETUID`** (D-162): `ip_unprivileged_port_start=0` là sysctl theo namespace nên bind 22/80/445/1433/3389 không cần `NET_BIND_SERVICE`. Image bắt đầu bằng root của container chỉ để tạo `/dev/log` (Samba ghi audit qua `syslog(3)`, đường dẫn cố định, `/dev` thuộc root của container), rồi `init.py` gọi `setuid(1000)`: mọi tiến trình sau đó là uid 1000 gid 0, `CapEff=0`, không lấy lại root được (đã kiểm). Image gồm OpenCanary + Samba (tiến trình riêng, GPL-3, không liên kết) + `init.py`; chi tiết D-162 |
+| Volume | `config/` gắn chỉ đọc, `log/` ghi được với `:U` (podman đặt chủ thư mục là user của container, vì `UserNS=auto` chọn dải lúc khởi động; `init.py` đặt mode 0775 để uid 1000 gid 0 ghi được và `core` vẫn đọc qua bit "other"); hạn mức đĩa ở WP-08; không cert, không DB |
 | Cổng | 22, 80, 445, 1433, 3389 **chỉ trên IP phụ/decoy** (INV-2 của honeypot); không trên IP quản trị |
 | Health check | `/vedette honeypot healthcheck` (D-137): đọc `opencanary.conf` (`/var/lib/vedette/honeypot/config/`, gắn chỉ đọc), lấy cổng của dịch vụ đầu tiên đang bật có khoá `.port` (`smb` không có: cổng đó của Samba) rồi nối TCP tới `127.0.0.1:<cổng>` trong 2 s (`lo` bật và `oif lo accept`, D-121 L8; nối từ loopback bị `core` bỏ như nguồn không thể có thật, D-89 (e)); không dịch vụ nào của OpenCanary đang bật thì khoẻ (không gì phải nghe). Không gọi `core`. **Image `honeypot` phải chứa `/vedette`** (binary tĩnh, 0755): image do dự án dựng ở WP-08, không phải image OpenCanary gốc |
 | Số container | **một** container cho mọi IP (D-90 (1), D-102); "một container mỗi IP" của bản nháp bị bỏ (câu hỏi A5 đã đóng) |
@@ -345,12 +345,14 @@ Pull=never
 Network=ns:/run/netns/vedette-hp
 # ip_unprivileged_port_start=0 trong namespace: không cần NET_BIND_SERVICE
 DropCapability=ALL
+# SETUID alone: init.py makes /dev/log as the container's root, then drops to uid 1000 for good (D-162)
+AddCapability=SETUID
 NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
-Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log
+Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]

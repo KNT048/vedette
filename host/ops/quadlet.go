@@ -173,12 +173,13 @@ Image=` + repoHoneypot + `@{{.Digest}}
 Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
+AddCapability=SETUID
 NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
-Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log
+Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log:U
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]

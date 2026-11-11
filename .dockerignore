@@ -11,3 +11,4 @@
 !content
 !host
 !deploy/containers/scan-base/pack
+!deploy/containers/honeypot

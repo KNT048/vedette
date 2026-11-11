@@ -8,6 +8,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -30,7 +31,13 @@ func newInventory(d *deps) *inventory.Service {
 		}
 		return d.Honeypot.DecoyIPs(ctx)
 	}
-	svc, err := inventory.New(inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned})
+	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned}
+	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
+	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
+	if d.HostSocket != "" {
+		cfg.BoxOwnedMACs = (&hostMACs{r: hostclient.New(d.HostSocket), now: d.Clock}).Get
+	}
+	svc, err := inventory.New(cfg)
 	if err != nil { // only a missing DB or audit log: a programming error in serve
 		panic("vedette: " + err.Error())
 	}

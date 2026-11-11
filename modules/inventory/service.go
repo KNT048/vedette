@@ -33,8 +33,13 @@ type Config struct {
 	// honeypot, WP-14). Nothing observed at one of them is a device: Record and ReplaceSoftware ignore such an
 	// observation (counted, BoxOwnedSkipped) and ProtectedIPs lists the address. nil means none.
 	BoxOwnedIPs func(ctx context.Context) []netip.Addr
-	Clock       func() time.Time
-	Log         *slog.Logger
+	// BoxOwnedMACs lists the box's own MAC addresses: its cards and the decoys' macvlan links (vedette-host state/net). An
+	// observation at a box-owned address is the box only when it carries no MAC or one of these; a foreign MAC there is a
+	// device sitting on the decoy's address, and is recorded (WP-31 M7), so the honeypot sees the conflict and pulls the
+	// decoy (INV-6). nil, or an error (the host has not answered yet), means unknown: everything at the address is dropped.
+	BoxOwnedMACs func(ctx context.Context) ([]string, error)
+	Clock        func() time.Time
+	Log          *slog.Logger
 }
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
@@ -47,6 +52,7 @@ type Service struct {
 	findings FindingCounter
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
+	boxMACs  func(ctx context.Context) ([]string, error)
 	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
@@ -61,7 +67,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -85,6 +91,37 @@ func (s *Service) ownedIPs(ctx context.Context) map[netip.Addr]bool {
 		m[a] = true
 	}
 	return m
+}
+
+// ownedFilter returns the test "is this observation the box itself": an address in ownedIPs with no MAC, one of the box's own
+// MACs, or any MAC while those are unknown (Config.BoxOwnedMACs). nil when no address is box-owned.
+func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac string) bool {
+	owned := s.ownedIPs(ctx)
+	if owned == nil {
+		return nil
+	}
+	var macs map[string]bool // nil = unknown; asked only when an observation is at a box-owned address
+	asked := false
+	return func(ip netip.Addr, mac string) bool {
+		if !ip.IsValid() || !owned[ip] {
+			return false
+		}
+		if mac == "" {
+			return true
+		}
+		if !asked && s.boxMACs != nil {
+			asked = true
+			if list, err := s.boxMACs(ctx); err == nil {
+				macs = map[string]bool{}
+				for _, m := range list {
+					if n, ok := normMAC(m); ok {
+						macs[n] = true
+					}
+				}
+			}
+		}
+		return macs == nil || macs[mac]
+	}
 }
 
 // BoxOwnedSkipped counts the observations ignored since start because they came from a box-owned address.

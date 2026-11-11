@@ -279,7 +279,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if err != nil {
 		return err
 	}
-	if ip.IsValid() && s.ownedIPs(ctx)[ip] { // a box-owned address is no device (Config.BoxOwnedIPs)
+	if isBox := s.ownedFilter(ctx); isBox != nil && isBox(ip, mac) { // a box-owned address is no device (Config.BoxOwnedIPs, BoxOwnedMACs)
 		s.ownedHit.Add(1)
 		return nil
 	}

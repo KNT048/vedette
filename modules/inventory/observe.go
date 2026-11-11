@@ -137,10 +137,11 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 	if err != nil {
 		return err
 	}
-	// An address the box itself answers on (a decoy of the honeypot) is no device: what the sensors see there is the box.
-	if owned := s.ownedIPs(ctx); owned != nil {
+	// An address the box itself answers on (a decoy of the honeypot) is no device: what the sensors see there is the box, unless a
+	// foreign MAC says another machine took the address (ownedFilter, WP-31 M7).
+	if isBox := s.ownedFilter(ctx); isBox != nil {
 		clean = slices.DeleteFunc(clean, func(c cleanObs) bool {
-			if c.ip.IsValid() && owned[c.ip] {
+			if isBox(c.ip, c.mac) {
 				s.ownedHit.Add(1)
 				return true
 			}

@@ -7,9 +7,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/observe"
 )
 
 func badRequest(code, msg string) *apierr.Error { return apierr.New(http.StatusBadRequest, code, msg) }
@@ -36,14 +38,11 @@ func cleanText(s string) bool {
 	return !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f || invisible(r) })
 }
 
-// invisible is a character that changes how text reads or hides in it (L12, defence in depth): C1 controls, zero-width, bidi
-// controls and the tag block.
+// invisible is a character that changes how text reads or hides in it (L12, defence in depth): C1 controls, every format
+// character (bidi marks and controls, zero-width, the tag block) and every Default_Ignorable_Code_Point (variation selectors,
+// the soft hyphen, the Mongolian selectors), the table the honeypot and account names use.
 func invisible(r rune) bool {
-	switch {
-	case r >= 0x80 && r <= 0x9f, r >= 0x200b && r <= 0x200d, r >= 0x202a && r <= 0x202e, r == 0x2060, r >= 0x2066 && r <= 0x2069, r == 0xfeff, r >= 0xe0000 && r <= 0xe007f:
-		return true
-	}
-	return false
+	return (r >= 0x80 && r <= 0x9f) || unicode.Is(unicode.Cf, r) || observe.Ignorable(r)
 }
 
 // ipv4 parses an IPv4 address in the plain dotted form.

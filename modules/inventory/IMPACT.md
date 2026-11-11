@@ -7,6 +7,7 @@
 - `UpsertSoftware`/`ReplaceSoftware` thay **cả danh sách của một nguồn**: agent phải gửi danh sách đầy đủ, không gửi phần chênh.
 
 ## Modifying: `inventory.Config.BoxOwnedIPs` và `Record`/`ReplaceSoftware`/`ProtectedIPs`
+- **`Config.BoxOwnedMACs`** (D-296, WP-31 M7): `cmd/vedette/inventory.go` nối tới `hostMACs.Get` (vedette-host `state/net`: card + macvlan decoy), dùng chung với `response` (`BoxMACs`). Danh sách MAC thiếu macvlan của một decoy → khung tin của chính decoy thành thiết bị và decoy tự rơi vào `conflict`; LAB: MAC macvlan host báo phải trùng MAC sensor thấy trên dây.
 - **honeypot** (`Service.DecoyIPs` qua `cmd/vedette/inventory.go`): danh sách rỗng/sai → trả lời ARP của chính bẫy thành thiết bị ma và bẫy tự rơi vào `conflict`, hoặc IP bẫy bị sweep thăm dò. **sensor-passive/sensor-active/agent-intake**: quan sát có IP của hộp bị bỏ im lặng (đếm `BoxOwnedSkipped`), nên một thiết bị thật chiếm đúng IP bẫy chỉ lộ ra qua ARP probe của host, không qua kho.
 
 ## Modifying: `inventory.Service.ScanPolicy(ctx, assetID)`, `ProtectedIPs(ctx)` và `InScope(netip.Addr)`

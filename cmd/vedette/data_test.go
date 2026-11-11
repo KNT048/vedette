@@ -267,6 +267,11 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if c, b, _ := call("POST", "/core/setup", setup); c != 200 {
 		t.Fatalf("setup = %d %s", c, b)
 	}
+	// #350: the wizard's range and commitment are the inventory's scope (Devices -> Scope and sensors) in the real process.
+	if c, b, _ := call("GET", "/inventory/settings", nil); c != 200 || !strings.Contains(string(b), `"lan_ranges":["192.168.10.0/24"]`) ||
+		!strings.Contains(string(b), `"scope_confirmed_by":"ann@acme.example"`) {
+		t.Fatalf("inventory settings after setup = %d %s", c, b)
+	}
 	logsDB := filepath.Join(dir, "logs.db") // the real volume of the logs module, open in the process (not a planted file)
 	snap := filepath.Join(dir, "snapshots", "0123456789abcdef0123456789abcdef")
 	for _, p := range []string{filepath.Join(snap, "vedette.db")} {

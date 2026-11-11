@@ -193,3 +193,6 @@ Không thể (tier core). Gỡ `core` = không còn binary.
 - **modules/auth-oidc** `Callback` là người gọi duy nhất; `RefuseSSO`, `CountSSOUsers` cũng của nó. Đổi khoá định danh hay luật nối email → nhân đôi hoặc chiếm tài khoản (D-195, nOAuth).
 - **`CountOtherActiveAdmins`** loại tài khoản SSO (D-196 (3)); **`checkOwnPassword`**, **`ResetPassword`**, **`UpdateUser`** trả 409 `sso_user` cho tài khoản SSO: đổi luật → `TestSSO_*`.
 - **Schema core = 10**: test ghi cứng phiên bản (`snapshot_internal_test.go`, `os_test.go`) đổi theo mỗi migration core mới.
+
+## Modifying: `core.HandlersConfig.Scope` / interface `core.SetupScope` (D-298, #350)
+- **inventory** (`*inventory.Service` cài `SetupScope` + `Settle`), **cmd/vedette** (`wiring.go` nối khi có kiểm kê; không nối = dải chỉ ở `setup.scope`, mọi module coi như chưa có dải: honeypot `no_lan`, scan không phạm vi). Gọi trong giao dịch của `POST /core/setup`; lỗi của cổng làm cả cài đặt thất bại; `Settle` gọi đúng một lần sau giao dịch (cả khi rollback).

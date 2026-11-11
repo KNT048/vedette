@@ -273,6 +273,34 @@ func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInp
 	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
 }
 
+// SetupScope stores the LAN ranges and the scan commitment of first-run setup (core INV-15, S-CORE-1) inside the caller's write
+// transaction tx, so that they are the scope of Devices -> Scope and sensors from the first page on (#350): the ranges pass INV-6
+// (an error is an *apierr.Error and the caller's setup fails with it), lan_ranges is replaced, and the scope is confirmed by actor
+// now when confirmed is true and cleared otherwise. The other settings keep their values. No audit row of its own: the caller's
+// core.setup row names the ranges. inventory.settings.changed goes out at Settle, when the caller's transaction committed.
+func (s *Service) SetupScope(ctx context.Context, tx *sql.Tx, actor string, ranges []string, confirmed bool) error {
+	clean, _, aerr := checkRanges(ranges)
+	if aerr != nil {
+		return aerr
+	}
+	now := s.now()
+	var sc scopeValue
+	if confirmed {
+		at, by := now, actor
+		sc = scopeValue{ConfirmedAt: &at, ConfirmedBy: &by}
+	}
+	if err := putSetting(ctx, tx, "lan_ranges", clean, now, actorOrSystem(actor)); err != nil {
+		return err
+	}
+	if err := putSetting(ctx, tx, "scope", sc, now, actorOrSystem(actor)); err != nil {
+		return err
+	}
+	var o outbox
+	o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
+	s.keep(tx, &o)
+	return nil
+}
+
 func sortedCopy(in []string) []string {
 	out := slices.Clone(in)
 	slices.Sort(out)

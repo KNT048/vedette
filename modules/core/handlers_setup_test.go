@@ -1,15 +1,20 @@
 package core_test
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
+	"github.com/knt048/vedette/modules/core"
 )
 
 func setupBody(code string) map[string]any {
@@ -505,4 +510,85 @@ func TestSetup_DoesNotAdoptAPlantedSession(t *testing.T) {
 	if n := w.env.Count(t, "SELECT count(*) FROM core_user"); n != 1 {
 		t.Errorf("users = %d", n)
 	}
+}
+
+// fakeScope is the inventory port of setup: it writes a row in the setup's own transaction (so the test sees whether that commit
+// carried it), may refuse the ranges, and records what it was given and how the transaction ended.
+type fakeScope struct {
+	mu        sync.Mutex
+	refuse    *apierr.Error
+	actor     string
+	lan       []string
+	confirmed bool
+	settled   []bool
+	sameTx    bool
+}
+
+func (f *fakeScope) SetupScope(ctx context.Context, tx *sql.Tx, actor string, lan []string, confirmed bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.actor, f.lan, f.confirmed = actor, lan, confirmed
+	if _, err := tx.ExecContext(ctx, `INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES ('test.scope', '1', '2026-11-12T00:00:00.000Z', 'test')`); err != nil {
+		return err
+	}
+	var n int
+	f.sameTx = tx.QueryRowContext(ctx, `SELECT count(*) FROM core_org`).Scan(&n) == nil && n == 1 // the org of this setup, not yet committed
+	if f.refuse != nil {
+		return f.refuse
+	}
+	return nil
+}
+
+func (f *fakeScope) Settle(_ context.Context, _ *sql.Tx, committed bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.settled = append(f.settled, committed)
+}
+
+// #350: the LAN ranges and the commitment of the wizard reach the inventory port inside the setup's one transaction, with the
+// administrator as the one who confirmed, and the port is settled once with the commit.
+func TestContract_INV15_SetupGivesTheRangesToTheInventory(t *testing.T) {
+	t.Parallel()
+	f := &fakeScope{}
+	w := newWorldWith(t, func(hc *core.HandlersConfig) { hc.Scope = f })
+	wantOK(t, w.client().post("/core/setup", setupBody(w.openSetup())), 200)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.actor != "admin@acme.example" || !slices.Equal(f.lan, []string{"192.168.10.0/24", "10.1.0.0/16"}) || !f.confirmed || !f.sameTx {
+		t.Fatalf("port got actor %q lan %v confirmed %v in the setup transaction %v", f.actor, f.lan, f.confirmed, f.sameTx)
+	}
+	if !slices.Equal(f.settled, []bool{true}) {
+		t.Fatalf("settled %v, want one commit", f.settled)
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'test.scope'"); n != 1 {
+		t.Fatal("the port's write did not commit with the setup")
+	}
+}
+
+// The inventory refuses the ranges (INV-6 of inventory, for example an overlap): the whole setup is refused with its code, nothing
+// of the setup is kept, the setup code still works, and the port is settled as rolled back.
+func TestContract_INV15_SetupFailsWhenTheInventoryRefusesTheRanges(t *testing.T) {
+	t.Parallel()
+	f := &fakeScope{refuse: apierr.New(400, "overlap_range", "Range 192.168.10.0/24 overlaps 192.168.0.0/16.")}
+	w := newWorldWith(t, func(hc *core.HandlersConfig) { hc.Scope = f })
+	code := w.openSetup()
+	c := w.client()
+	wantStatus(t, c.post("/core/setup", setupBody(code)), 400, "overlap_range")
+	if c.signedIn() {
+		t.Fatal("a refused setup signed someone in")
+	}
+	for _, q := range []string{"SELECT count(*) FROM core_org", "SELECT count(*) FROM core_user", "SELECT count(*) FROM core_setting WHERE key IN ('setup.scope', 'test.scope')",
+		"SELECT count(*) FROM core_audit WHERE action IN ('core.setup', 'user.create')"} {
+		if n := w.env.Count(t, q); n != 0 {
+			t.Errorf("%s = %d after a refused setup", q, n)
+		}
+	}
+	f.mu.Lock()
+	settled := slices.Clone(f.settled)
+	f.refuse = nil
+	f.mu.Unlock()
+	if !slices.Equal(settled, []bool{false}) {
+		t.Fatalf("settled %v, want one rollback", settled)
+	}
+	wantOK(t, c.post("/core/setup", setupBody(code)), 200) // the code was not used up
 }

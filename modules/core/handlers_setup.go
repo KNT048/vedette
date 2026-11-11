@@ -236,6 +236,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	var (
 		sess    auth.Issued
 		changes []modreg.Change
+		scopeTx *sql.Tx // the transaction the inventory wrote the scope in, settled once it is over
 	)
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		q := coredb.New(tx)
@@ -274,6 +275,13 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		if err := q.UpsertSetting(ctx, coredb.UpsertSettingParams{Key: "setup.scope", Value: string(scope), UpdatedAt: now, UpdatedBy: email}); err != nil {
 			return fmt.Errorf("core: store setup scope: %w", err)
 		}
+		// The ranges and the commitment are the inventory's scope (Devices -> Scope and sensors) from now on, in this same commit (#350).
+		if h.scope != nil {
+			scopeTx = tx
+			if err := h.scope.SetupScope(ctx, tx, email, lan, req.Commitment.Or(false)); err != nil {
+				return err
+			}
+		}
 		if err := q.UpdateUserLastLogin(ctx, coredb.UpdateUserLastLoginParams{LastLogin: &now, ID: u.ID}); err != nil {
 			return fmt.Errorf("core: set last_login: %w", err)
 		}
@@ -294,6 +302,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		}
 		return h.dropSetupCode(ctx, tx)
 	})
+	if scopeTx != nil {
+		h.scope.Settle(context.WithoutCancel(ctx), scopeTx, err == nil)
+	}
 	if err != nil {
 		return nil, err
 	}

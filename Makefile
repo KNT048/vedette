@@ -308,7 +308,9 @@ dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
 
 # ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
-# Flow: build and push the images (08k) -> write release.in.json -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
+# Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
+# build and push the images (08k) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
+# from the clock is refused) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
 # (release-manifest.json + index.json, unsigned) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only) ->
 # release-verify (the box's verifier over the output, with the keys of RELEASE_KEYS or, when unset, the ones compiled into the build).
 #   RELEASE_IN     release description (default release.in.json)

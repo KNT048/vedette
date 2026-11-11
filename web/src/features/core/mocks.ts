@@ -448,8 +448,8 @@ const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; c
   components: [comp('software', 'software', '0.9.3', null, 0), comp('data', 'data', '20261106.08', null, 0), comp('pack-mitigation', 'content', '2026.11.04', null, 0), comp('pack-nuclei', 'content', '2026.11.05', null, 0), comp('pack-parsers', 'content', '1.4.0', null, 0)],
   history: [],
 }))
-const privacyStore = collection<{ install_id: string; telemetry: boolean; last_sent: string | null; update_check: boolean }>('core_privacy', () => ({ install_id: `ins-${hex(8)}`, telemetry: true, last_sent: daysAgo(0, 0.7), update_check: true }),
-  () => ({ install_id: `ins-${hex(8)}`, telemetry: true, last_sent: null, update_check: true }))
+const privacyStore = collection<{ install_id: string; telemetry: boolean; last_sent: string | null; update_check: boolean }>('core_privacy', () => ({ install_id: `ins-${hex(8)}`, telemetry: false, last_sent: daysAgo(0, 0.7), update_check: true }),
+  () => ({ install_id: `ins-${hex(8)}`, telemetry: false, last_sent: null, update_check: true }))
 
 const ADVISORIES: Omit<Advisory, 'status'>[] = [
   { id: 'VSA-2026-003', title: 'Receiving an oversized syslog packet can stop the log receiver', severity: 'high', published: '2026-11-03', fixed_in: '0.9.4', summary: 'Someone on the same network sends an unusually long UDP 514 packet and the log receiver process stops. No data can be read. Update to 0.9.4, or only allow the IPs of your log-sending devices.' },
@@ -652,6 +652,8 @@ const privacyHandlers = [
     const b = await body<{ telemetry: boolean; update_check: boolean }>(request)
     if (b.telemetry !== undefined && typeof b.telemetry !== 'boolean') return fail(400, 'invalid', 'The switch value must be on or off.')
     if (b.update_check !== undefined && typeof b.update_check !== 'boolean') return fail(400, 'invalid', 'The switch value must be on or off.')
+    // D-154: nothing sends the anonymous signal, so it cannot be turned on (the backend answers the same).
+    if (b.telemetry === true) return fail(400, 'telemetry_unavailable', 'This version of Vedette does not send an anonymous signal, so it cannot be turned on.')
     privacyStore.update((p) => ({ ...p, telemetry: b.telemetry ?? p.telemetry, update_check: b.update_check ?? p.update_check }))
     if (b.telemetry !== undefined) audit('privacy.telemetry', 'anonymous signal', b.telemetry ? 'on' : 'off')
     if (b.update_check !== undefined) audit('privacy.update_check', 'update check', b.update_check ? 'on' : 'off')
@@ -715,6 +717,10 @@ const mcpHandlers = [
 const download = (name: string, data: unknown) => new HttpResponse(JSON.stringify(data, null, 2), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename=${name}` } })
 const stamp = () => new Date().toISOString().slice(0, 10)
 
+// Wrong passwords for the purge since the last good one: the real limiter is the one of the sign-in (5 tries), D-76.
+const PURGE_MAX_TRIES = 5
+const purgeTries = collection<{ n: number }>('core_purge_tries', () => ({ n: 0 }))
+
 const dataHandlers = [
   http.get(`${API}/core/data/backup`, () => {
     const denied = guard('admin')
@@ -733,11 +739,35 @@ const dataHandlers = [
   http.post(`${API}/core/data/purge`, async ({ request }) => {
     const denied = guard('admin')
     if (denied) return denied
-    const b = await body<{ confirm: string }>(request)
+    const b = await body<{ confirm: string; password?: string; code?: string }>(request)
     if (String(b.confirm ?? '') !== orgStore.get().name) return fail(400, 'confirm_mismatch', 'The organization name does not match. Type it exactly to confirm deletion.')
+    // D-154 step-up, like the other sensitive routes (D-76, D-98): the current password, counted against a limit, then a fresh two-step code when it is on.
+    const u = currentUser()!
+    if (purgeTries.get().n >= PURGE_MAX_TRIES) return HttpResponse.json({ error: { code: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.', retry_after: 300 } }, { status: 429, headers: { 'Retry-After': '300' } })
+    if (String(b.password ?? '') !== u.password) {
+      purgeTries.update((x) => ({ n: x.n + 1 }))
+      return fail(400, 'wrong_password', 'Wrong password. The password is needed to delete all data.')
+    }
+    if (u.twofa) {
+      const code = String(b.code ?? '').replace(/\s/g, '')
+      if (u.twofa_method === 'email') {
+        if (!code) {
+          const sent = issueCode(u.id, true)
+          if ('error' in sent) return sent.error
+          return HttpResponse.json({ error: { code: 'code_required', message: 'Type the 6-digit code we emailed you to delete all data.', method: 'email', sent_to: maskEmail(u.email), resend_after: sent.resend_after } }, { status: 400 })
+        }
+        const bad = checkCode(u.id, code)
+        if (bad) return bad
+      } else {
+        if (!code) return HttpResponse.json({ error: { code: 'code_required', message: 'Type the 6-digit code from your authenticator app to delete all data.', method: 'app' } }, { status: 400 })
+        if (!/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits from your authenticator app.')
+        if (!(await verifyTotp(totpSecrets.get()[u.id] ?? '', code))) return fail(400, 'wrong_code', 'Wrong code. Check the time on your phone and enter a new code.')
+      }
+    }
+    purgeTries.set({ n: 0 })
     const removed = { assets: assetsStore.get().length, findings: findingsStore.get().length, audit: auditStore.get().length }
     resetMockDb()
-    return HttpResponse.json({ ok: true, removed })
+    return HttpResponse.json({ ok: true, removed, kept: ['honeypot_log'] })
   }),
 ]
 

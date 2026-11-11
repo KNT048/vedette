@@ -19,19 +19,20 @@ const PurgeEvery = time.Hour
 // PurgeResult says what a purge removed.
 type PurgeResult struct {
 	Expired int // lines older than the retention
-	Over    int // oldest lines over MaxEvents
+	Over    int // oldest lines removed because the stored bytes passed MaxEventBytes
 }
 
-// Purge deletes the lines older than the retention (INV-4) and, whatever the retention, the oldest ones beyond MaxEvents
-// (a flood must not fill the disk). It deletes in chunks of s.chunk rows, one transaction each, so the writer of logs.db is
-// free between two chunks and ctx is honoured between them. It also drops counters older than two days and the
-// "last received" of sources that no longer exist.
+// Purge deletes the lines older than the retention (INV-4) and, whatever the retention, the oldest ones while the stored
+// line bytes are over MaxEventBytes, down to 90% of it (a flood must not fill the disk). It deletes in chunks of s.chunk
+// rows, one transaction each, so the writer of logs.db is free between two chunks and ctx is honoured between them. It also
+// drops counters older than two days and the "last received" of sources that no longer exist. With nothing expired and
+// nothing over, it runs no delete of lines and writes no audit row.
 //
 // Audit (SYS-3): the two databases cannot share a transaction, so a purge that has something to delete first writes
 // "logs.purge_started" (cutoff and cap) to the main database, and nothing is deleted if that fails; whatever the purge
-// then does, on every way out (done, an error, a cancelled context), it writes "logs.purge" with the counts, under a
-// context that outlives the cancellation. A crash between the two leaves the started row and no end row, which says a
-// purge was under way.
+// then does, on every way out (done, an error, a cancelled context, even before the first chunk), it writes "logs.purge"
+// with the counts (possibly 0), under a context that outlives the cancellation. A crash between the two leaves the
+// started row and no end row, which says a purge was under way.
 func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 	days, err := s.Retention(ctx)
 	if err != nil {
@@ -42,40 +43,53 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 	if err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM logs_events WHERE ts < ? LIMIT 1)`, cutoff).Scan(&expired); err != nil {
 		return res, fmt.Errorf("logs: looking for expired lines: %w", err)
 	}
-	var newest sql.NullInt64
-	if err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT max(id) FROM logs_events`).Scan(&newest); err != nil {
-		return res, fmt.Errorf("logs: reading the newest line: %w", err)
+	var stored int64
+	if err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT line_bytes FROM logs_volume WHERE id = 1`).Scan(&stored); err != nil {
+		return res, fmt.Errorf("logs: reading the stored bytes: %w", err)
 	}
-	over := newest.Valid && newest.Int64 > s.maxEvents
+	over := stored > s.maxBytes
 	if expired > 0 || over {
 		err = s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
 			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: "system", Action: "logs.purge_started", Target: "logs",
-				Detail: fmt.Sprintf("lines older than %s (%d days); at most %d lines kept", cutoff, days, s.maxEvents)})
+				Detail: fmt.Sprintf("lines older than %s (%d days); at most %d bytes of lines kept", cutoff, days, s.maxBytes)})
 		})
 		if err != nil {
 			return res, err // nothing is deleted without a trace
 		}
+		if s.afterStart != nil {
+			s.afterStart()
+		}
 		defer func() {
-			if res.Expired+res.Over == 0 {
-				return
-			}
 			actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 			defer cancel()
 			aerr := s.cfg.Config.Write(actx, func(tx *sql.Tx) error {
 				return s.cfg.Audit.Append(actx, tx, audit.Entry{User: "system", Action: "logs.purge", Target: "logs",
-					Detail: fmt.Sprintf("%d lines older than %d days, %d over the limit of %d lines", res.Expired, days, res.Over, s.maxEvents)})
+					Detail: fmt.Sprintf("%d lines older than %d days, %d over the limit of %d bytes", res.Expired, days, res.Over, s.maxBytes)})
 			})
 			if aerr != nil {
 				err = errors.Join(err, aerr)
 			}
 		}()
-	}
-	if res.Expired, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events WHERE ts < ? ORDER BY ts, id LIMIT ?)`, cutoff); err != nil {
-		return res, err
-	}
-	if over {
-		if res.Over, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events WHERE id <= ? ORDER BY id LIMIT ?)`, newest.Int64-s.maxEvents); err != nil {
-			return res, err
+		if expired > 0 {
+			if res.Expired, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events WHERE ts < ? ORDER BY ts, id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, cutoff, 0); err != nil {
+				return res, err
+			}
+		}
+		if over {
+			keep := s.maxBytes - s.maxBytes/10
+			if res.Over, err = s.deleteChunks(ctx, `DELETE FROM logs_events WHERE id IN (SELECT id FROM logs_events ORDER BY id LIMIT ?) RETURNING length(CAST(line AS BLOB))`, nil, keep); err != nil {
+				return res, err
+			}
+			var left int64
+			if err := s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT line_bytes FROM logs_volume WHERE id = 1`).Scan(&left); err != nil {
+				return res, fmt.Errorf("logs: reading the stored bytes: %w", err)
+			}
+			if left > keep { // no lines left to delete and the counter still says over: it counts bytes that are not there
+				s.cfg.Log.WarnContext(ctx, "logs: the byte counter was higher than the lines it counts; recomputed", "counter", left)
+				if err := s.resync(ctx); err != nil {
+					return res, err
+				}
+			}
 		}
 	}
 	if err := s.dropStale(ctx); err != nil {
@@ -84,33 +98,80 @@ func (s *Service) Purge(ctx context.Context) (res PurgeResult, err error) {
 	return res, nil
 }
 
-// deleteChunks runs a "delete up to purgeChunk rows" statement (arg, then the chunk size) until it deletes fewer.
-func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any) (int, error) {
+// deleteChunks runs a "delete up to s.chunk rows, returning the bytes of each" statement until it deletes fewer rows, or, when
+// keep > 0, until the stored bytes are at most keep (then the statement takes only the chunk size). arg is the statement's
+// first argument when it is not nil; the chunk size is the last. It subtracts the deleted bytes from logs_volume in the same
+// transaction and returns the rows deleted.
+func (s *Service) deleteChunks(ctx context.Context, stmt string, arg any, keep int64) (int, error) {
 	total := 0
+	var left int64
 	for {
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}
-		var n int64
+		args := []any{s.chunk}
+		if arg != nil {
+			args = []any{arg, s.chunk}
+		}
+		n := 0
+		skip := false
 		err := s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
-			r, err := tx.ExecContext(ctx, stmt, arg, s.chunk)
+			var now int64
+			if keep > 0 { // under the target already (another purge, or the expired lines just deleted): delete nothing more
+				if err := tx.QueryRowContext(ctx, `SELECT line_bytes FROM logs_volume WHERE id = 1`).Scan(&now); err != nil {
+					return fmt.Errorf("logs: reading the stored bytes: %w", err)
+				}
+				if skip = now <= keep; skip {
+					return nil
+				}
+			}
+			rows, err := tx.QueryContext(ctx, stmt, args...)
 			if err != nil {
 				return fmt.Errorf("logs: purging lines: %w", err)
 			}
-			n, err = r.RowsAffected()
-			return err
+			var freed int64
+			n = 0
+			for rows.Next() {
+				var b int64
+				if err := rows.Scan(&b); err != nil {
+					_ = rows.Close()
+					return fmt.Errorf("logs: purging lines: %w", err)
+				}
+				freed += b
+				n++
+			}
+			if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+				return fmt.Errorf("logs: purging lines: %w", err)
+			}
+			if err := tx.QueryRowContext(ctx, `UPDATE logs_volume SET line_bytes = max(0, line_bytes - ?) WHERE id = 1 RETURNING line_bytes`, freed).Scan(&left); err != nil {
+				return fmt.Errorf("logs: counting bytes: %w", err)
+			}
+			return nil
 		})
 		if err != nil {
 			return total, err
 		}
-		total += int(n)
+		if skip {
+			return total, nil
+		}
+		total += n
 		if s.afterChunk != nil {
 			s.afterChunk()
 		}
-		if n < int64(s.chunk) {
+		if n < s.chunk || (keep > 0 && left <= keep) {
 			return total, nil
 		}
 	}
+}
+
+// resync sets the byte counter to what the lines hold (a full scan: only when the counter is known or suspected to be wrong).
+func (s *Service) resync(ctx context.Context) error {
+	return s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE logs_volume SET line_bytes = (SELECT coalesce(sum(length(CAST(line AS BLOB))), 0) FROM logs_events) WHERE id = 1`); err != nil {
+			return fmt.Errorf("logs: recomputing the stored bytes: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *Service) dropStale(ctx context.Context) error {
@@ -136,9 +197,22 @@ func (s *Service) dropStale(ctx context.Context) error {
 	})
 }
 
-// Jobs returns the jobs of the module (core runs one only while the module is on).
+// Jobs returns the jobs of the module (core runs one only while the module is on). The purge shares the flag of the purge that
+// Ingest starts: when one is under way the job skips its turn. The first run after a start recomputes the byte counter from
+// the lines, so that a counter that drifted (a crash cannot do it, an older binary can) does not outlive a restart.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: ModuleID, Name: "purge", Every: PurgeEvery, Run: func(ctx context.Context) error {
+		if !svc.purging.CompareAndSwap(false, true) {
+			return nil
+		}
+		defer svc.purging.Store(false)
+		svc.lastStart = svc.now()
+		if !svc.resynced.Load() {
+			if err := svc.resync(ctx); err != nil {
+				return err
+			}
+			svc.resynced.Store(true)
+		}
 		_, err := svc.Purge(ctx)
 		return err
 	}}}

@@ -282,10 +282,22 @@ func TestBackupPurge(t *testing.T) {
 	}
 	// A context that ends while the run is still going returns the run id, so the caller can ask again.
 	release := make(chan struct{})
-	h = servertest.Start(t, []server.Command{purge(func() (any, error) { <-release; return api.BackupPurgeResult{}, nil })})
-	short, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+	// The ctx must end after the host has accepted the run, so its clock starts when the command
+	// does, not at the call: a fixed budget from the call is overrun by a loaded CI machine while
+	// the POST is still in flight (no run id yet).
+	started := make(chan struct{})
+	h = servertest.Start(t, []server.Command{purge(func() (any, error) { close(started); <-release; return api.BackupPurgeResult{}, nil })})
+	short, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if _, id, err := h.Client.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.DeadlineExceeded) || id == "" {
+	go func() {
+		<-started
+		select { // the POST response is on its way; polling has begun
+		case <-time.After(time.Second):
+		case <-short.Done():
+		}
+		cancel()
+	}()
+	if _, id, err := h.Client.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.Canceled) || id == "" {
 		t.Fatalf("id %q err %v", id, err)
 	}
 	close(release)

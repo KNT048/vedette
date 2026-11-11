@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -284,4 +285,33 @@ func TestShuttingDownAnswers503(t *testing.T) {
 		}
 	}
 	close(f.release)
+}
+
+// A client that reads a terminal status and at once sends the next write must not get 409 busy
+// for the run it just saw end: the run becomes readable and the lock free as one step.
+func TestATerminalRunReadMeansTheWriteLockIsFree(t *testing.T) {
+	t.Parallel()
+	cmd := server.Define(server.Spec[struct{}]{
+		Name: "test.fails_fast", Write: true, Timeout: 5 * time.Second,
+		Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
+			return nil, errors.New("no")
+		},
+	})
+	h := servertest.Start(t, []server.Command{cmd})
+	for i := 0; i < 100; i++ {
+		id := fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1)
+		r := run(t, h.Client, "test.fails_fast", nil, id)
+		for {
+			got, err := h.Client.GetRun(context.Background(), r.RunID)
+			if err == nil && got.Status == api.StatusFailed {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.Server.WriteActive() {
+			t.Fatalf("round %d: the run reads failed but the write lock is still held", i)
+		}
+	}
 }

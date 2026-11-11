@@ -1,9 +1,17 @@
-# Việc của Kiên — đọc cùng docs/TEAM_PLAN.md
+# Việc của Kiên — đọc cùng docs/TEAM_PLAN.md và `.ai/tasks/current.md`
 
-> **Bàn giao 2026-11-10:** anh Trưởng làm tiếp phần của Kiên. Điểm bắt đầu, việc còn lại theo thứ tự tới khi xong, công cụ: `.ai/handoff/README.md`.
+> **Từ 2026-11-11 (D-190):** phía Kiên chạy hai nơi.
+> - **AI-Supervisor trên máy Mac:** điều phối cả ba phía. Mỗi lát việc của Mac chạy thành một session phụ của Claude Desktop. Trạng thái nằm ở `vedette-wt/LEAD-STATE.md` và `vedette-wt/sessions/*.md` trên máy Mac.
+> - **AI-Trưởng trên box Ubuntu** (`byn`, tmux `claude`). Trạng thái nằm ở `~/vedette-wt/LEAD-STATE.md` trên box.
+>
+> Chia việc còn lại và định nghĩa "xong": `.ai/tasks/current.md`. Các mục bên dưới là lịch sử và quy trình; trạng thái mới nhất nằm trong `current.md`.
 
-Cập nhật: 2026-11-10 tối (phiên Ubuntu của anh Trưởng; `origin/main` = bfc6ec3). Sở hữu: core, host, đóng gói/phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật; **cộng mọi việc chồng lấn/dùng chung (D-65)**.
-File này là **file handoff duy nhất** của phiên AI làm việc cho Kiên: sau compact/restart đọc lại trước khi làm tiếp. Bản sao trạng thái sống của lead (brief, worktree, job chờ merge) ở `../vedette-wt/LEAD-STATE.md` trên máy Kiên; file này là bản trong repo.
+Cập nhật đầu file: 2026-11-11. Phần thân viết ngày 2026-11-10 tối, từ phiên Ubuntu của anh Trưởng.
+- **Sở hữu:** core, host, đóng gói và phát hành, inventory, sensor-passive, sensor-active, response, honeypot, rà bảo mật.
+- **Từ 2026-11-11 sở hữu thêm:** `agent-intake` (WP-26) và `auth-oidc` (WP-27).
+- **Chia trong phía Kiên:**
+  - AI-Trưởng: WP-08, honeypot, host, WP-30 lát 4, 8a, 8b, WP-32, WP-26.
+  - Mac: WP-30 lát 3, 5, 6, 7, 9a, 9b, 10; WP-31 R3; `auth-oidc`.
 
 ## Repo và quy trình (đọc trước)
 - Repo `KNT048/vedette` (public, D-63), remote `https://github.com/KNT048/vedette.git`, module Go `github.com/knt048/vedette`.
@@ -72,7 +80,7 @@ Worktree còn mở: `sp-pack` (SP-5b, nhánh `feat/sensor-images`, brief `sp5b-b
 4. Sau khi Emily thêm tín hiệu `BoxAddrs` (#157): chỉnh `cmd/vedette/notify.go`.
 5. **WP-08** đóng gói/phát hành (Quadlet: `Restart=always`, `KillMode=control-group`, `core_cgroup` trong `host.conf`, `GOMEMLIMIT` cho core; bản build phát hành không mang mock, xem mục "Trước khi phát hành").
 6. **WP-30** E2E backend thật cho module phía Kiên → **WP-31** rà SYS-1…8 + D-41 → **WP-32** RUNBOOK (ghi cả `backup.restore` và lối thoát `core_data_unrecoverable`).
-7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, `/core/data/export` và `/purge` (purge xoá cả `logs.db` + sidecar theo D-151, #187), nút Khôi phục.
+7. **13b-11** sau WP-25 của Emily. Core còn: `/core/updates*` phần phần mềm (`container.*`, manifest ký) vẫn 501, nút Khôi phục (`/core/data/export` và `/purge` xong ở D-154, #187).
 8. Việc sau khi PR Emily về: DATA_MODEL `exp_*` đã vào (#94); kiểm danh mục WP-23 ở dưới khi có PR mới. Đóng #146 sau khi đo PR chỉ web.
 
 ## Nối một module vào binary (issue #33)

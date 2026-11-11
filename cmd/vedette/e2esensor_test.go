@@ -25,7 +25,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
+	"os/exec" //nolint:depguard // test harness: starts the vedette-sensor binary the script built, fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -211,7 +211,7 @@ func (s *e2eSensors) routes(mux *http.ServeMux) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /sensors/active/argv", func(w http.ResponseWriter, _ *http.Request) {
-		b, err := os.ReadFile(s.argvLog())
+		b, err := os.ReadFile(s.argvLog()) //nolint:gosec // test harness: a file in the folder the script made, not taken from a request
 		if err != nil && !os.IsNotExist(err) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

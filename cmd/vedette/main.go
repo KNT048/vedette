@@ -211,6 +211,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	tightenDataDir(filepath.Dir(o.db), log)
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -448,6 +449,30 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 		return fmt.Errorf("shutdown: %w", shutdownErr)
 	}
 	return nil
+}
+
+// tightenDataDir removes group-write and any "other" access from the data directory when core owns it. Rootless Podman gives a new named
+// volume the image directory's owner but not its 0750 mode (buildah does not carry it), so the container-only install started with
+// 0755; Docker keeps 0750. It only ever clears bits (a 0700 directory stays 0700), never touches a directory core does not own, and a
+// failure is logged, not fatal: the key and database files are 0600 either way.
+func tightenDataDir(dir string, log *slog.Logger) {
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok || int(st.Uid) != os.Geteuid() {
+		return
+	}
+	want := fi.Mode().Perm() & 0o750
+	if want == fi.Mode().Perm() {
+		return
+	}
+	if err := os.Chmod(dir, want); err != nil {
+		log.Warn("data directory is wider than 0750 and could not be tightened", "dir", dir, "mode", fi.Mode().Perm().String(), "err", err)
+		return
+	}
+	log.Info("data directory tightened", "dir", dir, "was", fi.Mode().Perm().String(), "now", want.String())
 }
 
 // ensureKey creates the master key on first start. An existing file is left alone (and validated by

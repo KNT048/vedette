@@ -118,12 +118,23 @@ type LogSource struct {
 	Name string
 }
 
-// LogCounts is the read port of the Logs module for the log_threshold trigger (#332, D-287); cmd/vedette adapts logs.Service.
-// The counts are per declared log source and signature (5-minute buckets), not per address. Sources answers no source and no
-// error while the Logs module is off; an error is a failure, logged, and no event this round.
+// ErrLogsOff is what a LogCounts adapter answers while the Logs module is off: no event, not a failure (SYS-5).
+var ErrLogsOff = errors.New("the Logs module is off")
+
+// LogAddress is a remote address and how many lines of one signature it sent (logs.AddressCount).
+type LogAddress struct {
+	Addr  netip.Addr
+	Count int
+}
+
+// LogCounts is the read port of the Logs module for the log_threshold trigger (#332, D-287, D-288); cmd/vedette adapts
+// logs.Service. The counts are per declared log source and signature (5-minute buckets); TopAddresses answers the remote
+// addresses behind them, most first, never the log sender, the box, its gateway or a decoy (logs CONTRACT), and as lower bounds.
+// Sources answers no source and no error while the Logs module is off; an error is a failure, logged, and no event this round.
 type LogCounts interface {
 	Sources(ctx context.Context) ([]LogSource, error)
 	Counts(ctx context.Context, sourceID, signature string, window time.Duration) (int, error)
+	TopAddresses(ctx context.Context, sourceID, signature string, window time.Duration, n int) ([]LogAddress, error)
 }
 
 // Directory resolves the ids an event carries. cmd/vedette adapts inventory and findings; the module never imports them.

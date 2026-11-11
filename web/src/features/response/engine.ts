@@ -87,8 +87,8 @@ export function events(): Det[] {
       fields: { ip: a.ip, mac: a.mac ?? '', vendor: a.vendor?.value ?? 'Unknown vendor', kind: KINDS.includes(a.kind) ? a.kind : 'unknown' } })
   }
   if (sample) {
-    // a log count names the log source, not an address (D-287): source_ip stays empty until Logs counts per address (#338)
-    add({ id: 'det-s-log-1', trigger: 'log_threshold', ts: daysAgo(0, 0.4), device_kind: null, asset_id: null, summary: '12 lines of "logid=0101039426 action=ssl-login-fail" from FW-HQ in 5 minutes (at least 10)', fields: { source_device: 'FW-HQ', source_ip: '', signature: 'logid=0101039426 action=ssl-login-fail', count: '12', window: '5', threshold: '10' } })
+    // one address sent N lines: the event carries it (D-288); the SSH lines came from many addresses, none sent 20: no source_ip
+    add({ id: 'det-s-log-1', trigger: 'log_threshold', ts: daysAgo(0, 0.4), device_kind: null, asset_id: null, summary: '12 lines of "logid=0101039426 action=ssl-login-fail" from 203.0.113.99 via FW-HQ in 5 minutes (at least 10)', fields: { source_device: 'FW-HQ', source_ip: '203.0.113.99', signature: 'logid=0101039426 action=ssl-login-fail', count: '12', window: '5', threshold: '10' } })
     add({ id: 'det-s-log-2', trigger: 'log_threshold', ts: daysAgo(0, 3), device_kind: null, asset_id: null, summary: '24 lines of "Failed password for <name> from <ip> port <n> ssh<n>" from linux-bastion in 10 minutes (at least 20)', fields: { source_device: 'linux-bastion', source_ip: '', signature: 'Failed password for <name> from <ip> port <n> ssh<n>', count: '24', window: '10', threshold: '20' } })
     add({ id: 'det-s-port-1', trigger: 'new_port', ts: daysAgo(0, 5), device_kind: 'web', asset_id: null, summary: 'New open port 8080 on public IP 203.0.113.10 (http-alt)', fields: { ip: '203.0.113.10', port: '8080', service: 'http-alt', device: 'WEB-01' } })
   }
@@ -185,8 +185,11 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   if (!cat || !cat.enabled) return { ok: false, code: 'tool_not_allowed', error: `the action "${title}" is not enabled in the action catalog.`, title }
   const values: Partial<Record<ParamType, string>> = {}
   for (const p of paramsOf(cat)) values[p] = resolveParam(a.params[p] ?? '', ev.fields).trim()
-  // a log count names the log source, not an address (D-287): not available until logs counts per address (#338); other triggers keep INV-10 (invalid_target)
-  if (ev.trigger === 'log_threshold' && !values.ip && refsIn(a.params.ip ?? '').includes('source_ip')) return { ok: false, code: 'tool_unavailable', error: 'Not available: this event has no value for {{trigger.source_ip}}. Log counts are per log source, not per address (D-287, issue #338). Nothing was changed.', title }
+  // no single address reached the threshold (D-288): the count is the log source's; other triggers keep INV-10 (invalid_target)
+  if (ev.trigger === 'log_threshold' && !values.ip && refsIn(a.params.ip ?? '').includes('source_ip')) {
+    const n = /^[1-9][0-9]*$/.test(ev.fields.threshold ?? '') ? ev.fields.threshold : 'N'
+    return { ok: false, code: 'tool_unavailable', error: `Not available: no single address sent at least ${n} lines of this signature in the window (they came from many addresses, or name none), so {{trigger.source_ip}} has no value. Nothing was changed.`, title }
+  }
   const bad = checkValues(paramsOf(cat), values)
   if (bad) return { ok: false, code: 'invalid_target', error: bad, title }
   // Never touch the gateway, DNS servers, domain controllers, this box or management IPs. For a finding the device itself must stay reachable.

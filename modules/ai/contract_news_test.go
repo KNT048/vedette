@@ -589,7 +589,8 @@ func TestContract_INV6_TwoPressesAtOnceAskOnce(t *testing.T) {
 	}
 }
 
-// D-284 (2): GitHub's limit for requests without a key is remembered for a minute: presses in that minute do not ask GitHub again.
+// D-284 (2): GitHub's limit for requests without a key is remembered for a minute, per host: presses in that minute, for any CVE,
+// do not ask GitHub again.
 func TestNewsRateLimitIsRemembered(t *testing.T) {
 	a := newNewsAPI(t)
 	a.net.set("api.github.com/search/repositories", fakePage{status: http.StatusForbidden, header: map[string]string{"X-RateLimit-Remaining": "0"}})
@@ -613,6 +614,16 @@ func TestNewsRateLimitIsRemembered(t *testing.T) {
 	src := sourcesOf(t, a.news(200, ""))
 	if github() != 2 || !strings.Contains(src["GitHub: search "+newsCVE]["note"].(string), "limit") {
 		t.Fatalf("GitHub asked %d times within the minute; source %v", github(), src["GitHub: search "+newsCVE])
+	}
+	// The limit is GitHub's, for the whole box: another CVE in the same minute does not ask either.
+	a.facts.mu.Lock()
+	other := a.facts.cves[newsCVE]
+	other.CVE = "CVE-2022-27594"
+	a.facts.cves[other.CVE] = other
+	a.facts.mu.Unlock()
+	a.do("POST", "/ai/cve/CVE-2022-27594/news", "operator", "") // the fake Internet has no page about it: only the GitHub count matters
+	if github() != 2 {
+		t.Fatalf("GitHub asked for another CVE within the minute (%d)", github())
 	}
 	a.clock.Add(31 * time.Second)
 	a.news(200, "")

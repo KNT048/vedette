@@ -275,6 +275,9 @@ func (s *Service) Flush(ctx context.Context) error {
 	if err := s.clearButtons(ctx, now); err != nil {
 		errs = append(errs, err)
 	}
+	if err := s.clearSlackButtons(ctx, now); err != nil {
+		errs = append(errs, err)
+	}
 	if err := s.prune(ctx, now); err != nil {
 		errs = append(errs, err)
 	}

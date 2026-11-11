@@ -428,8 +428,8 @@ func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
 	defer func() { cancel(); err := <-done; _ = err }()
 	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil && reads.Load() >= 2 })
 	for range 5 { // five more applies with the same tls row
+		base := reads.Load() // read before the wake-up: an apply that finishes first must still count
 		e.svc.sourcesChanged()
-		base := reads.Load()
 		waitUntil(t, "an apply", func() bool { return reads.Load() > base })
 	}
 	if n := logs.count("TLS"); n != 1 {

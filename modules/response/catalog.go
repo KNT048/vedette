@@ -760,6 +760,21 @@ func callText(rest *RestCall, cli string) string {
 		}
 		return strings.TrimSpace(rest.Method + " " + rest.URL + b)
 	}
+	return "command: " + escapeLines(cli)
+}
+
+// escapeLines puts a multi-line command on one line without losing where the lines end: each break becomes the two characters \n, which
+// a template cannot contain (a backslash is refused), so the text is read back unambiguously. The log rows of a request and of its
+// execution carry the whole call this way (D-175).
+func escapeLines(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", `\n`)
+}
+
+// callFirstLine is the short form of a call for a line that only names it (a dry run's "would").
+func callFirstLine(rest *RestCall, cli string) string {
+	if rest != nil {
+		return callText(rest, cli)
+	}
 	first, _, _ := strings.Cut(cli, "\n")
 	return "command: " + first
 }

@@ -326,6 +326,10 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 		return refuse(withID(fail(http.StatusForbidden, "in_app_required", "This request can only be approved in the app. Open Vedette, sign in and decide it there.")))
 	case zalo && r.Risk != RiskLow && r.Risk != RiskMedium:
 		return refuse(withID(fail(http.StatusForbidden, "channel_not_allowed", "A high-risk request cannot be decided by a Zalo reply code. Open Vedette, sign in and decide it there.")))
+	case chatNoButtons(r):
+		// D-175: a chat decision is for a change that is low or medium risk and fits one message, as sent (buttons are not attached to any
+		// other); an older button or a forged callback gets the same answer.
+		return refuse(withID(fail(http.StatusForbidden, "channel_not_allowed", "This request cannot be decided from chat: it is high risk, or too long to read in one message. Open Vedette, sign in and decide it there.")))
 	}
 
 	lk := &linkOpt{recheck: func(ctx context.Context) (*apierr.Error, error) { // the person and the channel are read again once this call holds the lock

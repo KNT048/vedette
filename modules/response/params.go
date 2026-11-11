@@ -350,6 +350,23 @@ func forbiddenHeader(name string) bool {
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
 }
 
+// credentialWords are the parts of a header name that mark a credential (D-174), matched on the name without hyphens, in lower case.
+var credentialWords = []string{"key", "token", "secret", "auth", "pass", "session"}
+
+// credentialHeader reports whether a header name carries a credential (D-174): its name, without hyphens, contains key, token, secret,
+// auth, pass or session (X-API-Key, X-ApiKey, Api-Key, X-Auth-Token, X-Password, X-Session, Proxy-Authorization, Cookie...). A template
+// may not hold a literal value for one: the connection's sign-in (a token with a header name) sends it, and the request, its log and the
+// backup never hold it. Its value in a template is exactly one placeholder.
+func credentialHeader(name string) bool {
+	n := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "")
+	if n == "cookie" {
+		return true
+	}
+	return slices.ContainsFunc(credentialWords, func(w string) bool { return strings.Contains(n, w) })
+}
+
+var onePlaceholderRE = regexp.MustCompile(`^\{[a-z_]+\}$`)
+
 // ValidateTpl checks a template when it is saved (and again when it is loaded): only characters that cannot reach a
 // shell, only typed placeholders or runtime values, a path that cannot leave the connection, a body that is JSON.
 // It returns "" when the template is acceptable, otherwise a one-line reason in plain words.
@@ -383,6 +400,9 @@ func ValidateTpl(t Tpl, what string) string {
 			}
 			if name, _, _ := strings.Cut(l, ":"); forbiddenHeader(name) {
 				return what + ": the header " + name + " is set by the connection and cannot be part of a template."
+			}
+			if name, val, _ := strings.Cut(l, ":"); credentialHeader(name) && !onePlaceholderRE.MatchString(strings.TrimSpace(val)) {
+				return what + ": the header " + name + " looks like a credential. Do not put it in a template: give the connection a token with a header name (Settings, Connections) and it is sent from there."
 			}
 		}
 	}

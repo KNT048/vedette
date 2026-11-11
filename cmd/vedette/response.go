@@ -123,7 +123,7 @@ func (r responseNotifier) RequestApproval(ctx context.Context, m response.Approv
 		}
 	}
 	sent, err := r.n.SendApprovalRequest(ctx, notify.ApprovalRequest{ID: m.RequestID, Title: m.Title, What: m.What, Action: "Review the change, then approve or reject it. The link works once and ends with the request.",
-		Severity: sev, Risk: notify.Risk(m.Risk), Expires: m.Expires, Channels: types, InAppOnly: m.InAppOnly})
+		Severity: sev, Risk: notify.Risk(m.Risk), Expires: m.Expires, Channels: types, InAppOnly: m.InAppOnly, NoChatButtons: m.NoChatButtons})
 	if err != nil {
 		// These fail before anything is sent. Any other error may come from writing notify's record of messages that already left.
 		if errors.Is(err, notify.ErrModuleOff) || errors.Is(err, notify.ErrApprovalUnavailable) || errors.Is(err, notify.ErrInvalidNotice) || errors.Is(err, ctx.Err()) {

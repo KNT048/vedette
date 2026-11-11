@@ -109,7 +109,7 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	if len(keep) == 0 {
 		return res, nil
 	}
-	sigs := s.tally(known, keep)
+	sigs := s.tally(known, keep, s.neverCounted(ctx))
 	var stored int64
 	err = s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
 		ins, err := tx.PrepareContext(ctx, `INSERT INTO logs_events (ts, source_id, line) VALUES (?, ?, ?)`)

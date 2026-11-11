@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -40,6 +41,12 @@ type Config struct {
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
 	Events Publisher
+	// NeverCount lists the addresses that the address counters (TopAddresses) never count: the box's own addresses, its gateway and the
+	// honeypot's decoys, whatever an untrusted line says (D-210). Wiring passes the sources the box already has for "is this the box"
+	// (cmd/vedette). It is asked at most every 30 seconds with a short timeout. An error (a set that is not known yet, an unreadable decoy
+	// record) keeps the last set that was known, and the addresses it returned with the error are used only while there is none. Nil: none is
+	// listed (the loopback, unspecified, multicast, link-local and broadcast addresses are never counted in any case).
+	NeverCount func(ctx context.Context) ([]netip.Addr, error)
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -79,6 +86,9 @@ type Service struct {
 	snapMu  sync.Mutex
 	snap    *snapshot
 	snapGen uint64 // bumped by every dropSnapshot
+	// never is the answer of Config.NeverCount, asked again after neverCountTTL.
+	neverMu sync.Mutex
+	never   neverSet
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

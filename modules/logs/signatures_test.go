@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -271,7 +272,7 @@ func TestContract_INV1_FloodOfIdenticalLinesIsOneRow(t *testing.T) {
 		batch[i] = Line{SourceID: src.ID, At: t0, Text: fw(22, "10.0.0.1")}
 	}
 	for range 200 { // 1,000,000 lines
-		b := e.svc.tally(kinds, batch)
+		b := e.svc.tally(kinds, batch, func(netip.Addr) bool { return false })
 		if err := e.svc.cfg.Volume.Write(t.Context(), func(tx *sql.Tx) error { return e.svc.storeSignatures(t.Context(), tx, b) }); err != nil {
 			t.Fatal(err)
 		}

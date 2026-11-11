@@ -403,3 +403,27 @@ func (h *AIHandlers) AiPostAiHooksTest(ctx context.Context, req *oas.AiPostAiHoo
 	}
 	return convert[oas.AiPostAiHooksTestOK](v)
 }
+
+// AiPostAiAsk implements POST /ai/ask (operator): the AI answers from the box's data with read-only tools (S-AI-5, S-AI-6).
+func (h *AIHandlers) AiPostAiAsk(ctx context.Context, req *oas.AiPostAiAskReq) (*oas.AiPostAiAskOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.Ask(ctx, who, req.Question)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiAskOK](v)
+}
+
+// AiGetAiAsks implements GET /ai/asks (viewer): the recent questions, newest first.
+func (h *AIHandlers) AiGetAiAsks(ctx context.Context) (*oas.AiGetAiAsksOK, error) {
+	items, err := h.svc.Asks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiAsksOK](struct {
+		Items []AskResult `json:"items"`
+	}{items})
+}

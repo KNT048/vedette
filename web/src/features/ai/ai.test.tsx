@@ -517,7 +517,7 @@ describe('ai: panels on the CVE page (S-AI-3)', () => {
     expect(screen.getByText('Could not fetch')).toBeInTheDocument()
     expect(screen.getByText(/Exploited: yes/)).toBeInTheDocument()
     expect(screen.getByText(/Model claude-haiku-5-5 \(Claude Haiku\)/)).toBeInTheDocument()
-    expect(screen.getByText(/filtered for injected instructions/)).toBeInTheDocument()
+    expect(screen.getByText(/stripped of control characters and checked by your hooks/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

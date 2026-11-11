@@ -67,8 +67,8 @@ Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitiga
 
 ## Chờ từ Kiên (`owner:kien`)
 - **#115 scan:** các dòng lab và `bundled[]`; S5 đã nối scanner ở #208.
-- **Quyết định cần ghi** (nằm trong PR, chưa có số D): #205 (khoá cài đặt `activity`, luôn giữ dòng mới nhất, giới hạn 1000 dòng, audit `ai.activity_retention` / `ai.activity_pruned`, dòng huỷ ghi profile và model), #208, #198.
-- **`API_CONVENTIONS` §3.3** chưa ghi `server_busy` cho `GET /logs/events` (file dùng chung).
+- **Quyết định cần ghi: đã ghi** trong `docs/DECISIONS.md`: #205 → D-184 (giữ và dọn nhật ký, khoá `activity`, audit) và D-185 (giới hạn 1000 dòng, dòng huỷ); #208 → D-186 (chỉ mục gói nuclei) và D-187 (`ErrEngineDown`, seam `Engine`); #198 → D-188 (gỡ nút Telegram). Thêm D-183: goose không từ chối DB mới hơn binary, giữ nguyên (INV-26); bảo vệ nằm ở bản phát hành.
+- **`API_CONVENTIONS` §3.3: đã ghi** `server_busy` cho `GET /logs/events` (503, không `Retry-After`).
 - Gần đây Kiên đã sửa vào module notify ở #203 (D-174/D-175: thông tin xác thực không nằm trong mẫu; người duyệt đọc được toàn bộ nội dung). Đọc trước khi làm notify lát 3/4.
 
 ## Bài học (giữ cho người điều phối sau)

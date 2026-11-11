@@ -18,7 +18,7 @@ The step-1 plan of the work (ops per route, backend needs per slice) is in the f
 - [ ] 5 — ask and tools (`POST /ai/ask`, `GET /ai/asks`, log digest): tool loop with read tools only (`ForModel`/`Offered`, INV-14); device reads through the read port of `core/conn/read` (D-127); reads of feeds, findings and inventory use the exported reads that exist, and a small read method is added in Emily's modules when one is missing (report it if the module is Kiên's).
 - [ ] 7 — proposals: `ai:response` service identity calling `response.Service.Propose` (D-97), after #113; every guard stays in `response`.
 
-Decisions taken so far that the coordinator must record (no D-numbers were assigned by the AI): singular table names (`ai_profile`, not `ai_profiles`; MANIFEST and CONTRACT fixed); the retention setting is the `ai_setting` key `activity`; the prune removes the oldest contiguous run of rows past the retention and always keeps the newest row; `GET /ai/activity` returns at most 1000 rows; audit actions `ai.activity_retention` and `ai.activity_pruned`; the cancelled-call row names the profile and model of the last attempt that sent a request.
+Decisions of this slice are recorded as D-184 and D-185 (docs/DECISIONS.md).
 Open deferred lines of the earlier slices remain in `.ai/deferred/feat-ai-module.md` and `.ai/deferred/feat-ai-explain.md`.
 
 ## Step-1 plan of WP-25 (copied from the first report of the ai-module agent; sections 1 to 5)
@@ -91,4 +91,3 @@ Thứ tự đã xếp: proposals cuối cùng, đúng chỉ đạo. Phần 6 có
 - [ ] 2026-11-11 — `SetRetention` is not refused while the service is degraded, unlike every other settings write since #123 (L2) — vì sao để sau: harmless (its own `ai_setting` key), consistency only — ở đâu: modules/ai/activity_read.go:154
 - [ ] 2026-11-11 — The prune trusts the box clock going forward: a clock far ahead deletes every row except the newest, and the delete cannot be undone; consider skipping when `now` is before the newest row or the clock is not synced — vì sao để sau: needs the time-sync state from host — ở đâu: modules/ai/activity_api.go:39-47
 - [ ] 2026-11-11 — The cancelled-call row takes the model from the current profile, not the attempt, so an edit during the call names the new model; carry the model in `Attempt` — vì sao để sau: rare, cosmetic — ở đâu: modules/ai/run.go (failed, profile lookup)
-- [ ] 2026-11-11 — Record D-numbers for the decisions listed in the PR body (`activity` setting key, newest row kept, 1000-row list, the two audit actions, cancelled-row naming) — vì sao để sau: AI does not assign D-numbers — ở đâu: docs/DECISIONS.md (Kiên)

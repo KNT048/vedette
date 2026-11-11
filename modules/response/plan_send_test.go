@@ -118,17 +118,24 @@ func TestPlanJobLowConfidenceIsASuggestion(t *testing.T) {
 }
 
 func TestPlanJobCitedReadsAreLookedUpByResponse(t *testing.T) {
-	// A read the box has no record of: the proposal is refused (evidence_invalid), the plan stays.
-	e, fp, _ := planSendEnv(t, sendStep("blocklist_add", 0.95, "rd-forged"))
+	// A box action: no read can be about it, so none is sent; a made-up id does not cost the proposal the finding carries.
+	e, fp, _ := planSendEnv(t, sendStep("blocklist_add", 0.95, "rd-fw", "rd-forged"))
 	e.turnOn()
 	n, err := e.svc.PlanOpen(e.ctx())
 	e.must(err)
-	if s := fp.sent["f2"]; n != 1 || len(s) != 1 || s[0].Outcome != "evidence_invalid" || e.count(`SELECT COUNT(*) FROM resp_actions`) != 0 {
-		t.Fatalf("made-up read: saved %d, %+v", n, s)
+	s := fp.sent["f2"]
+	if n != 1 || len(s) != 1 || s[0].Outcome != response.OutcomeRequest {
+		t.Fatalf("box action: saved %d, %+v", n, s)
+	}
+	var ai string
+	e.must(e.db.Reader().QueryRowContext(e.ctx(), `SELECT ai FROM resp_actions WHERE id = ?`, s[0].RequestID).Scan(&ai))
+	if strings.Contains(ai, "config_read") {
+		t.Fatalf("a read was sent for a box action: %s", ai)
 	}
 
-	// A device action on the firewall: it is offered with its connection, and a read through that connection is kept as evidence.
-	e, fp, _ = planSendEnv(t, sendStep("fgt_addrgrp_add", 0.95, "rd-fw"))
+	// A device action on the firewall: it is offered with its connection, and only a read the box recorded through that connection is
+	// kept as evidence; a read of another connection and an unknown id are dropped before Propose.
+	e, fp, _ = planSendEnv(t, sendStep("fgt_addrgrp_add", 0.95, "rd-fw", "rd-other", "rd-forged"))
 	e.firewall("fgt_addrgrp_add")
 	e.turnOn()
 	_, err = e.svc.PlanOpen(e.ctx())
@@ -145,13 +152,29 @@ func TestPlanJobCitedReadsAreLookedUpByResponse(t *testing.T) {
 	if !offered {
 		t.Fatalf("the firewall action was not offered with its connection: %+v", fp.acts[0])
 	}
-	s := fp.sent["f2"]
+	s = fp.sent["f2"]
 	if len(s) != 1 || s[0].Outcome != response.OutcomeRequest {
 		t.Fatalf("device action: %+v", s)
 	}
-	var ai string
 	e.must(e.db.Reader().QueryRowContext(e.ctx(), `SELECT ai FROM resp_actions WHERE id = ?`, s[0].RequestID).Scan(&ai))
-	if !strings.Contains(ai, `"config_read"`) || !strings.Contains(ai, `"rd-fw"`) || !strings.Contains(ai, "Office firewall") {
-		t.Fatalf("the read is not in the evidence of the request: %s", ai)
+	if !strings.Contains(ai, `"rd-fw"`) || !strings.Contains(ai, "Office firewall") || strings.Contains(ai, "rd-other") || strings.Contains(ai, "rd-forged") {
+		t.Fatalf("evidence of the request: %s", ai)
+	}
+}
+
+// The switch is read again before sending: turned off while the AI wrote the plan, nothing is sent.
+func TestPlanJobRereadsTheSwitchBeforeSending(t *testing.T) {
+	e, fp, _ := planSendEnv(t, sendStep("blocklist_add", 0.95))
+	e.turnOn()
+	fp.steps = func(response.PlanTarget) []response.DraftStep {
+		if _, err := e.svc.SetExecution(context.Background(), admin, false, riskPhrase); err != nil {
+			t.Error(err)
+		}
+		return sendStep("blocklist_add", 0.95)
+	}
+	n, err := e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	if n != 1 || len(fp.sent) != 0 || e.count(`SELECT COUNT(*) FROM resp_actions`) != 0 {
+		t.Fatalf("sent after the switch was turned off: %d %v", n, fp.sent)
 	}
 }

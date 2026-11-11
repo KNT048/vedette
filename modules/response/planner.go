@@ -168,7 +168,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		}
 		saved++
 		if send {
-			if err := s.sendPlan(ctx, t, d, steps); err != nil {
+			if err := s.sendPlan(ctx, t, d, steps, actions); err != nil {
 				return saved, err
 			}
 		}
@@ -177,22 +177,27 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 }
 
 // sendPlan sends each proposal of a plan just stored through Propose, as the AI (ai:response, D-310): the trigger is the finding, the
-// evidence is the finding and the reads the AI cited, the confidence is the AI's. Every gate of INV-15 runs there, so a refusal is
-// logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the run.
-func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep) error {
+// evidence is the finding and the reads the AI cited (citedReads), the confidence is the AI's. Every gate of INV-15 runs there, so a
+// refusal is logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the
+// run. The settings are read again first: the switch may have been turned off while the AI was writing the plan.
+func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) error {
+	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return err
+	}
+	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") || checkAIPaused(st) != nil {
+		return nil
+	}
 	var sent []SentProposal
-	for i, st := range steps {
-		if st.Proposal == nil {
+	for i, step := range steps {
+		if step.Proposal == nil {
 			continue
 		}
 		x := d.Steps[i] // savePlan keeps every step, in order
-		ev := []ProposedEvidence{{Kind: EvFinding, ID: t.FindingID}}
-		for _, id := range x.Evidence {
-			ev = append(ev, ProposedEvidence{Kind: EvConfigRead, ID: id})
-		}
-		why := truncRunes(cleanLine(t.CVE+" on "+t.AssetName+": "+st.Title), maxProposeWhy)
-		res, err := s.Propose(ctx, ProposeBody{Trigger: "finding", ActionID: st.Proposal.ActionID, Params: st.Proposal.Params, Confidence: x.Confidence, Evidence: ev, Why: why})
-		sp := SentProposal{ProposalID: st.Proposal.ID, ActionID: st.Proposal.ActionID, Outcome: res.Outcome}
+		ev := append([]ProposedEvidence{{Kind: EvFinding, ID: t.FindingID}}, s.citedReads(ctx, x.Evidence, offered, step.Proposal.ActionID)...)
+		why := truncRunes(cleanLine(t.CVE+" on "+t.AssetName+": "+step.Title), maxProposeWhy)
+		res, err := s.Propose(ctx, ProposeBody{Trigger: "finding", ActionID: step.Proposal.ActionID, Params: step.Proposal.Params, Confidence: x.Confidence, Evidence: ev, Why: why})
+		sp := SentProposal{ProposalID: step.Proposal.ID, ActionID: step.Proposal.ActionID, Outcome: res.Outcome}
 		if err != nil {
 			ae, ok := asAPI(err)
 			if !ok {
@@ -208,6 +213,26 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 		s.cfg.Planner.Proposed(ctx, t, sent)
 	}
 	return nil
+}
+
+// citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action (D-313):
+// a read of another connection could not count and would only look like support to the people who approve, and an id the box has no
+// record of would refuse a proposal the finding alone may carry. For a high-risk action no read is kept: a read is not about the
+// target, so it must not make the second check (two pieces of evidence about the target, INV-15 (9)) out of one finding and any
+// read of the same device by anyone in the last day; a high-risk action from a plan then needs a person (RequestProposal).
+func (s *Service) citedReads(ctx context.Context, ids []string, offered []AIAction, actionID string) []ProposedEvidence {
+	i := slices.IndexFunc(offered, func(a AIAction) bool { return a.ID == actionID })
+	port := s.cfg.Evidence.ConfigRead
+	if i < 0 || offered[i].ConnectionID == "" || offered[i].Risk == RiskHigh || port == nil {
+		return nil
+	}
+	var out []ProposedEvidence
+	for _, id := range ids {
+		if ref, ok, err := port(ctx, id); err == nil && ok && cleanLine(ref.Connection) == offered[i].ConnectionID {
+			out = append(out, ProposedEvidence{Kind: EvConfigRead, ID: id})
+		}
+	}
+	return out
 }
 
 // planBackoff is how long a finding waits after its 1st, 2nd and 3rd failed or refused plan; after the 4th it is not asked again.

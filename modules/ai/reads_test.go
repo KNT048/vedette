@@ -146,4 +146,8 @@ func TestRecordProposalsLinksTheActivityLog(t *testing.T) {
 	if v := a.want("GET", "/ai/activity/verify", "admin", "", 200, ""); v["ok"] != true {
 		t.Fatalf("the chain does not verify: %v", v)
 	}
+	// The row is not a run of the job: no model was called.
+	if u := a.want("GET", "/ai/usage", "admin", "", 200, ""); len(list(u["by_skill"])) != 0 {
+		t.Fatalf("the row counts as a run: %v", u["by_skill"])
+	}
 }

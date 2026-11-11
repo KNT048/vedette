@@ -104,8 +104,8 @@ type EvidenceRef struct {
 type EvidencePorts struct {
 	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup (D-119).
 	IocHit func(ctx context.Context, id string) (EvidenceRef, bool, error)
-	// ConfigRead finds a read the AI made, by its read record. Nil until the ai module offers a lookup of the reads it really made,
-	// at most 24 hours old (D-119): an existing read tool proves nothing.
+	// ConfigRead finds a read the box made through a connection, by its read record: the ai module's ai_read, at most 24 hours old
+	// (D-119, D-311); an existing read tool proves nothing. Nil (a binary without the ai module) = no read is evidence.
 	ConfigRead func(ctx context.Context, id string) (EvidenceRef, bool, error)
 }
 

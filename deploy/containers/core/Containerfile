@@ -2,6 +2,7 @@
 # Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui, D-149; without the files the build fails). Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
 # Health: the unit's HealthCmd is the exec form ["/vedette","healthcheck"].
 ARG GOLANG_IMAGE
+ARG DEBIAN_IMAGE
 ARG DISTROLESS_IMAGE
 
 # Multi-arch (D-158): this stage runs on the BUILD machine and cross-compiles; the final stage has no RUN, so no CPU emulation is needed.
@@ -26,10 +27,34 @@ RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/p
 RUN set -eu; install -d -m 0755 /out/content/mitigation; \
     find content/mitigation/packs -maxdepth 1 -type f ! -name '.*' -exec install -m 0644 {} /out/content/mitigation/ \;
 
+# The osquery packages the box serves to the servers of the customer under /install/osquery/ (WP-26 slice 3, D-169 (10), agent-intake INV-5).
+# deploy/osquery/PINS holds the version and the SHA-256 of each file. Each file is downloaded from the official release and checked against its
+# pinned SHA-256 BEFORE it is copied anywhere; a missing pin or a mismatch fails the build (set -e). SHA256SUMS is made here from the pins, so the
+# list the servers check against is exactly what was verified. Nothing is downloaded when the box runs. Files are unmodified (Apache-2.0 / GPL-2.0, THIRD_PARTY_NOTICES.md).
+# This stage runs on the BUILD machine; the modes are set here because podman's COPY --chmod takes octal only and would apply it to folders too.
+FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS osquery
+COPY deploy/osquery/PINS /pins/osquery.pins
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    . /pins/osquery.pins; \
+    [ -n "${OSQUERY_VERSION}" ] && [ -n "${OSQUERY_DEB_AMD64_SHA256}" ] && [ -n "${OSQUERY_RPM_X86_64_SHA256}" ] && [ -n "${OSQUERY_MSI_SHA256}" ] || { echo "deploy/osquery/PINS is incomplete" >&2; exit 1; }; \
+    deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"; rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"; msi="osquery-${OSQUERY_VERSION}.msi"; \
+    mkdir -p -m 0755 /out; \
+    for f in "${deb}" "${rpm}" "${msi}"; do \
+      curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o "/out/${f}" "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/${f}"; \
+    done; \
+    echo "${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}" | sha256sum -c -; \
+    echo "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}" | sha256sum -c -; \
+    echo "${OSQUERY_MSI_SHA256}  /out/${msi}" | sha256sum -c -; \
+    printf '%s  %s\n' "${OSQUERY_DEB_AMD64_SHA256}" "${deb}" "${OSQUERY_RPM_X86_64_SHA256}" "${rpm}" "${OSQUERY_MSI_SHA256}" "${msi}" > /out/SHA256SUMS; \
+    chmod 0644 /out/*
+
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
 LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=build /out/vedette /vedette
+# The pinned osquery packages: a leaf directory that does not exist yet (the default of -osquery-dir). Root-owned, world-readable; core only reads it.
+COPY --from=osquery /out/ /usr/share/vedette/osquery/
 # The data and credentials directories exist in the image, owned by the user below, so a NEW named volume mounted on one of them
 # starts with that owner (Docker and Podman copy the image's directory into an empty volume): the container-only compose needs no
 # root step (D-168 (5)). The appliance bind-mounts /var/lib/vedette, and its two creds volumes are Quadlet volumes with an explicit

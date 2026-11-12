@@ -374,6 +374,48 @@ func TestToolPinsAreExact(t *testing.T) {
 	}
 }
 
+// The core image carries the pinned osquery packages (WP-26 slice 3, D-169 (10)): the build stage reads deploy/osquery/PINS (not a copy of the
+// numbers), downloads from the official release, checks each file against its pinned SHA-256 before anything is copied, and the final stage
+// copies the folder to the default of -osquery-dir. Nothing is downloaded when the box runs.
+func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
+	t.Parallel()
+	text := read(t, "core/Containerfile")
+	stages := stagesOf(text)
+	var osq, final string
+	for _, s := range stages {
+		if strings.Contains(s.from, " AS osquery") {
+			osq = s.body
+		}
+	}
+	final = stages[len(stages)-1].body
+	if osq == "" {
+		t.Fatal("core/Containerfile has no osquery stage")
+	}
+	for _, want := range []string{
+		"COPY deploy/osquery/PINS /pins/osquery.pins", ". /pins/osquery.pins", "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/",
+		"${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}\" | sha256sum -c -", "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}\" | sha256sum -c -", "${OSQUERY_MSI_SHA256}  /out/${msi}\" | sha256sum -c -",
+		"set -eu", "curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o",
+		// the names the box serves (modules/agent-intake install.go mirrorFiles) and the scripts ask for
+		`deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"`, `rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"`, `msi="osquery-${OSQUERY_VERSION}.msi"`,
+	} {
+		if !strings.Contains(osq, want) {
+			t.Errorf("core/Containerfile osquery stage: missing %q", want)
+		}
+	}
+	if strings.Contains(osq, "|| true") || regexp.MustCompile(`(?m)^ARG OSQUERY`).MatchString(text) {
+		t.Error("core/Containerfile osquery stage: the pins come from deploy/osquery/PINS only, and a failed check must fail the build")
+	}
+	if !strings.Contains(final, "COPY --from=osquery /out/ /usr/share/vedette/osquery/\n") {
+		t.Error("core/Containerfile: the final stage must copy the verified osquery folder to /usr/share/vedette/osquery/")
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!deploy/osquery\n") {
+		t.Error(".dockerignore must let deploy/osquery into the build context")
+	}
+	if _, err := os.Stat("../osquery/PINS"); err != nil {
+		t.Error("deploy/osquery/PINS is missing")
+	}
+}
+
 // The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
 // new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN).
 func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {

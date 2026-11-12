@@ -78,6 +78,11 @@ type deps struct {
 	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
 	HostNet *hostNetCache
+	// TrustAnchor, HostAllowed and OsqueryDir feed agent-intake's install scripts, ca.pem and package mirror (WP-26 slice 3); all may be
+	// nil or empty in tests, and the module then answers 404 for what it lacks.
+	TrustAnchor func() ([]byte, error)
+	HostAllowed func(host string) bool
+	OsqueryDir  string
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.

@@ -427,8 +427,6 @@ func responseConfig(d *deps) (response.Config, error) {
 	}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
-		// cfg.Evidence.IocHit stays nil until logs (WP-24) offers a lookup: an ioc_hit in an AI proposal is refused 422 evidence_invalid
-		// (fail closed, D-119). ConfigRead is set below with the ai module.
 		w, err := write.New(write.Config{Conns: d.Conn})
 		if err != nil {
 			return cfg, err
@@ -441,6 +439,10 @@ func responseConfig(d *deps) (response.Config, error) {
 	}
 	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names (D-311)
 		cfg.Evidence.ConfigRead = aiConfigRead(d.AI)
+	}
+	// ioc_hit evidence: a known-bad connection the Logs module recorded (L4, D-213), with no connection (D-337); Logs off = not found
+	if lg := logsService(*d); lg != nil {
+		cfg.Evidence.IocHit = logsIocEvidence(lg, func() bool { return d.Reg == nil || d.Reg.Enabled("logs") })
 	}
 	if d.Reg != nil {
 		cfg.Modules = d.Reg

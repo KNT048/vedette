@@ -52,7 +52,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	ctx := context.Background()
 	switch args[0] {
 	case "cosign-plan":
-		err = cmdCosignPlan(args[1:], stdout)
+		err = cmdCosignPlan(ctx, args[1:], stdout)
 	case "manifest":
 		err = cmdManifest(ctx, args[1:], stdout, stderr)
 	case "container-assets":
@@ -115,13 +115,18 @@ func readInputs(p string) (Inputs, error) {
 	return ParseInputs(raw)
 }
 
-func cmdCosignPlan(args []string, stdout io.Writer) error {
+func cmdCosignPlan(ctx context.Context, args []string, stdout io.Writer) error {
+	return cosignPlanCmd(ctx, execRun, args, stdout)
+}
+
+// cosignPlanCmd is cosign-plan with the podman runner given (the tests fake it).
+func cosignPlanCmd(ctx context.Context, run runFunc, args []string, stdout io.Writer) error {
 	fs := newFlags("cosign-plan")
 	in := fs.String("in", "release.in.json", "release description")
 	images := fs.String("images", "dist/release/images.json", "what release push pushed, by digest (the platform digests the SBOMs attach to)")
 	key := fs.String("key", "", "cosign private key file (COSIGN_PASSWORD names its password in the environment of the shell that runs the plan)")
 	out := fs.String("out", "dist/release/cosign", "directory the payloads and signatures are written to (inside dist/)")
-	sbom := fs.String("sbom", "dist/sbom", "directory of make sbom RELEASE=1: <image>-<arch>.cdx.json (inside dist/)")
+	sbom := fs.String("sbom", "dist/sbom", "directory of make sbom RELEASE=1 IMAGE_TAG=<version>: <image>-<arch>.cdx.json (inside dist/; each checked against the local image podman reports)")
 	bin := fs.String("cosign", "cosign", "cosign command (the pinned binary: scripts/release/cosign.sh)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -137,7 +142,11 @@ func cmdCosignPlan(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	plan, err := CosignPlan(inputs, doc, CosignPlanOpts{Bin: *bin, Key: *key, Out: *out, SBOMDir: *sbom})
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	plan, err := CosignPlan(ctx, run, inputs, doc, CosignPlanOpts{Bin: *bin, Key: *key, Dir: dir, Out: *out, SBOMDir: *sbom})
 	if err != nil {
 		return err
 	}

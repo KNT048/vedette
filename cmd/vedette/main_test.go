@@ -51,6 +51,20 @@ func TestVersionAndFlags(t *testing.T) {
 	}
 }
 
+// A -syslog-port whose plain or TLS (+1) port is the one -listen or -sensor-listen serves on is refused (D-214 review L2).
+func TestSyslogPortClash(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		port    int
+		wantErr bool
+	}{{0, false}, {5514, false}, {8443, true}, {8442, true}, {8444, true}, {8445, false}} {
+		err := syslogPortClash(options{listen: ":8443", sensorListen: "127.0.0.1:8444", syslogPort: tt.port})
+		if (err != nil) != tt.wantErr {
+			t.Errorf("-syslog-port %d: err = %v, wantErr %v", tt.port, err, tt.wantErr)
+		}
+	}
+}
+
 type instance struct {
 	addr   string
 	cancel context.CancelFunc

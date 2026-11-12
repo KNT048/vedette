@@ -85,6 +85,8 @@ type LogDigestResult struct {
 		Output int `json:"output"`
 	} `json:"tokens"`
 	Empty bool `json:"empty"` // no log events yet: the AI was not asked and no tokens were spent
+	// MemoriesSuggested is how many memories the AI suggested while making this digest (INV-8, D-223); 0 when it is read back.
+	MemoriesSuggested int `json:"memories_suggested"`
 }
 
 // logDigestBody is what is stored in ai_result.payload for kind log_digest (key = the level the digest was made at).
@@ -439,17 +441,24 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	}
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestions are kept even if the person has gone
 	defer cancel()
-	s.suggestFromDigest(sctx, remember, now)
-	return s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now), nil
+	v := s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now)
+	v.MemoriesSuggested = s.suggestFromDigest(sctx, remember, now)
+	return v, nil
 }
 
-// suggestFromDigest hands the memories the AI suggested to SuggestMemory, which keeps them for an administrator (INV-8). A suggestion
-// that is not kept (suggestions just turned off, too many waiting, a text the hooks stop) is not an error of the digest.
-func (s *Service) suggestFromDigest(ctx context.Context, remember []string, at time.Time) {
+// suggestFromDigest hands the memories the AI suggested to SuggestMemory, which keeps them for an administrator (INV-8), and says how
+// many were kept. A suggestion that is not kept (suggestions just turned off, too many waiting, a text the hooks stop, one already
+// remembered or waiting) is not an error of the digest.
+func (s *Service) suggestFromDigest(ctx context.Context, remember []string, at time.Time) int {
+	kept := 0
 	for _, text := range remember {
-		err := s.SuggestMemory(ctx, text, "log summary of "+at.UTC().Format("2 Jan 2006"))
+		stored, err := s.suggestMemory(ctx, text, "log summary of "+at.UTC().Format("2 Jan 2006"))
+		if stored {
+			kept++
+		}
 		if err != nil && !errors.Is(err, ErrSuggestionsOff) && !errors.Is(err, ErrTooManySuggestions) && !errors.Is(err, ErrInvalidPromptInput) {
 			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggested by the log digest", "error", err)
 		}
 	}
+	return kept
 }

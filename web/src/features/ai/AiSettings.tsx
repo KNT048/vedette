@@ -203,6 +203,13 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     // A key belongs to one provider: never carry it to another one.
     setKind(k); setStyle(d.api_style); setBaseUrl(d.base_url); setModel(d.model); setLocation(d.location); setKey(''); setAck(false)
   }
+  // A new profile moved off the network keeps no trace of the local defaults: not the name "Local model", not the http://localhost address.
+  function clearLocalDefaults(loc: 'internal' | 'cloud') {
+    if (profile || loc !== 'cloud') return
+    const d = DEFAULTS[kind]
+    if (d.location === 'internal' && name === d.name) setName('')
+    if (d.location === 'internal' && baseUrl === d.base_url) setBaseUrl('')
+  }
   const input = (): ProfileInput => ({ id: profile?.id, name: name.trim(), kind, api_style: style, base_url: baseUrl.trim(), model: model.trim(), api_key: key || undefined, location, daily_cap: Number(cap) })
 
   function validate(forTest: boolean): boolean {
@@ -263,7 +270,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
             </Field>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label id="pf-location-label">{t('profiles.f.location')}</Label>
-              <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })) }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
+              <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })); clearLocalDefaults(v as 'internal' | 'cloud') }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
                 {(['internal', 'cloud'] as const).map((l) => (
                   <div key={l} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
                     <RadioItem id={`pf-loc-${l}`} value={l} className="mt-0.5" disabled={cloudOnly && l === 'internal'} />

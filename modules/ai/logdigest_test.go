@@ -389,7 +389,9 @@ func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
 	}
 	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
 	a.fake.setAnswer(strings.Replace(goodDigest, `{"summary"`, `{"remember":["The NAS makes a backup every night at 01:00.","FW-HQ is the only firewall.","A third one."],"summary"`, 1))
-	a.digest("POST", "operator", 200, "")
+	if d := digestOf(t, a.digest("POST", "operator", 200, "")); d["memories_suggested"] != float64(2) {
+		t.Fatalf("memories_suggested = %v", d["memories_suggested"])
+	}
 	if sch := string(a.fake.lastRequest(t).Schema.JSON); !strings.Contains(sch, `"required":["summary","items","remember"]`) {
 		t.Fatalf("schema = %s", sch)
 	}

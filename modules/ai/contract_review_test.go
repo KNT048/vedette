@@ -153,7 +153,7 @@ func TestContract_PRE3_ProviderRefusalsAreTold(t *testing.T) {
 		m := a.want("POST", "/ai/profiles/test", "admin", body, status, code)
 		return m["error"].(map[string]any)["message"].(string)
 	}
-	if msg := probe(&provider.Error{Kind: provider.ErrAuth, Status: 401}, 401, "key_rejected"); !strings.Contains(msg, "rejected the key") {
+	if msg := probe(&provider.Error{Kind: provider.ErrAuth, Status: 401}, 502, "key_rejected"); !strings.Contains(msg, "rejected the key") {
 		t.Errorf("401: %q", msg)
 	}
 	// 403 means the key was understood but is not allowed here: not "rejected (401)"

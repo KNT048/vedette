@@ -1,0 +1,15 @@
+{
+  "notice": "The line that leaves configuration mode after a refused SSH line (D-358, action-templates 9.3). Data, not Go literals (D-58): the core knows connection kinds, not vendors. The writer looks back from the refused line for the nearest line that entered configuration mode (lowercased, runs of spaces collapsed, matched like cli-ban.json: the start of the line, at a word end); the first rule whose 'enter' matches gives the line it types, once, then the session closes. Only a line that never saves what is pending may be listed here: where a vendor has an abort form it is that one. No rule matches: nothing is typed and the session just closes, as before D-358.",
+  "rules": [
+    {
+      "enter": ["configure terminal", "configure t", "config terminal", "config t", "conf terminal", "conf t"],
+      "leave": "end",
+      "why": "Cisco IOS / IOS-XE and Aruba AOS-CX: each configuration line takes effect when it is typed and there is no candidate to commit, so end only returns to the exec prompt and adds nothing. Cisco IOS-XR (configure terminal is a candidate there): end with uncommitted changes asks yes/no/cancel and the writer never answers it; the session closes and the candidate is dropped."
+    },
+    {
+      "enter": ["config"],
+      "leave": "abort",
+      "why": "FortiOS: a config block is saved by next and end, so end would save a half-typed entry; abort leaves the edit and the config shell without saving. On a device where 'config' means something else (AOS-CX shorthand) abort is an unknown command, which changes nothing."
+    }
+  ]
+}

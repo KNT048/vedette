@@ -63,6 +63,39 @@ func TestSSHSessionOneLineAtATime(t *testing.T) {
 	}
 }
 
+// D-358: Leave types its line only into a session that a refused line stopped, and closes the session in every case.
+func TestSSHLeaveOnlyAfterARefusedLine(t *testing.T) {
+	t.Parallel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{})
+	ctx := context.Background()
+	s, err := transport.DialSSH(ctx, f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Run(ctx, "configure terminal"); err != nil {
+		t.Fatal(err)
+	}
+	s.Leave(ctx, "end", time.Second) // nothing was refused: nothing is typed
+	if _, err := s.Run(ctx, "show version"); err == nil {
+		t.Fatal("the session is open after Leave")
+	}
+	s, err = transport.DialSSH(ctx, f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Run(ctx, "configure terminal"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Run(ctx, "bad line"); err == nil {
+		t.Fatal("the refused line was accepted")
+	}
+	s.Leave(ctx, "end", time.Second)
+	s.Leave(ctx, "end", time.Second) // closed: nothing more
+	if got := strings.Join(f.Lines(), ","); got != "configure terminal,configure terminal,bad line,end" {
+		t.Fatalf("the device received %q", got)
+	}
+}
+
 func TestSSHKeyAuth(t *testing.T) {
 	t.Parallel()
 	signer, priv := conntest.NewSSHKey(t)

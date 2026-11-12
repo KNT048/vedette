@@ -49,30 +49,19 @@ const (
 	maxSULogLine  = 512
 )
 
-// hostPkgRE is the one file-name rule of a kept or released host package (spec 6.14): the SemVer form of the
-// version (never Debian's "~"), with a prerelease that has no "-" inside and no build metadata, so that the
-// Debian version is the SemVer one with its first "-" turned into "~" (D-155 (1)) and nothing is ambiguous.
-var hostPkgRE = regexp.MustCompile(`^vedette-host_((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.]{1,32})?)_(amd64|arm64)\.deb$`)
-
-// validHostVersion says whether v can name a host package: what hostPkgRE accepts, and SemVer for internal/release.
+// validHostVersion says whether v can name a host package (the one rule, release.ParseHostPackageName).
 func validHostVersion(v string) bool {
 	_, _, ok := parseHostPkgName(hostPkgName(v, "amd64"))
 	return ok
 }
 
 // hostPkgName is vedette-host_<version>_<arch>.deb.
-func hostPkgName(version, arch string) string { return "vedette-host_" + version + "_" + arch + ".deb" }
+func hostPkgName(version, arch string) string { return release.HostPackageName(version, arch) }
 
-// parseHostPkgName is the validator of that name: version and architecture, or false.
+// parseHostPkgName is the one file-name rule of a kept or released host package (spec 6.14), shared with
+// scripts/release in internal/release: version and architecture, or false.
 func parseHostPkgName(name string) (version, arch string, ok bool) {
-	m := hostPkgRE.FindStringSubmatch(name)
-	if m == nil {
-		return "", "", false
-	}
-	if _, err := release.CompareVersions(m[1], m[1]); err != nil {
-		return "", "", false
-	}
-	return m[1], m[6], true
+	return release.ParseHostPackageName(name)
 }
 
 // debVersion is the Debian form of a host version: the prerelease "-" becomes "~" (D-155 (1)).
@@ -449,8 +438,9 @@ func (o *Ops) retainKept(v suVersions) {
 }
 
 // adoptHostPackage records the running version's .deb as current when versions.json does not name it
-// (spec 6.14 "Nhận bản đầu"): install.sh puts the file in packages/ after it checked its SHA-256 and
-// installed it, and the folder is root's, so trust on first use is enough. The current it replaces becomes
+// (spec 6.14 "Nhận bản đầu"): install.sh puts the file in packages/ after it checked its SHA-256 and just
+// before apt installs it (postinst restarts this host inside that apt run), and the folder is root's, so
+// trust on first use is enough. The current it replaces becomes
 // previous when its file is still there with the recorded hash. dpkg-deb confirms the package, version and
 // architecture of the file before it is recorded. A dev build adopts nothing, and neither does
 // a host that finds a journal (the end of that self-update writes versions.json). It runs at Start.

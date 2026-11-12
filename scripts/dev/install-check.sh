@@ -168,6 +168,15 @@ EOT
 	ok "vedette-int on 172.30.77.0/24 (no clash on this box); the file and podman agree"
 	x '/usr/sbin/conntrack --version >/dev/null 2>&1' || fail "conntrack does not run at /usr/sbin/conntrack (vedette-host clears stale syslog UDP flows with it, D-268)"
 	ok "conntrack runs at /usr/sbin/conntrack"
+	# D-316: the installed .deb is kept under its SemVer name (the self-update's way back) and vedette-host adopted it when it started
+	rel=$(sed -n 's/^VERSION=//p' "$art/test-channel.env")
+	kdir=/var/lib/vedette-host/selfupdate/packages
+	[ "$(x "ls -A $kdir")" = "vedette-host_${rel}_${native}.deb" ] || { x "ls -la $kdir" >&2; fail "D-316: $kdir does not hold exactly vedette-host_${rel}_${native}.deb"; }
+	x "[ \"\$(stat -c '%a %U:%G %F' $kdir/vedette-host_${rel}_${native}.deb $kdir /var/lib/vedette-host/selfupdate | tr '\n' ';')\" = '600 root:root regular file;700 root:root directory;700 root:root directory;' ]" || fail "D-316: the kept package is not 0600 root or its folders are not 0700 root"
+	ksum=$(sha256sum "$art/vedette-host_${rel}_${native}.deb" | cut -d' ' -f1)
+	[ "$(x "sha256sum $kdir/vedette-host_${rel}_${native}.deb" | cut -d' ' -f1)" = "$ksum" ] || fail "D-316: the kept package is not the .deb of the release"
+	x "grep -q '$ksum' /var/lib/vedette-host/selfupdate/versions.json" || { x 'cat /var/lib/vedette-host/selfupdate/versions.json' >&2; fail "D-316: vedette-host did not adopt the kept package (its sha256 is not in versions.json)"; }
+	ok "D-316: vedette-host_${rel}_${native}.deb kept (0600 root, folders 0700, the release's sha256) and adopted by vedette-host (versions.json)"
 	[ "$(conf_sum)" != none ] || fail "no chrony.conf after the install"
 	if [ -n "$prechrony" ]; then
 		[ "$(conf_sum)" = "$chrony_conf_before" ] || fail "the administrator's chrony.conf was changed (M1)"

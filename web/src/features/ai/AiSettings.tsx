@@ -190,7 +190,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const host = hostOf(baseUrl)
   const needAck = location === 'cloud' && (!profile || key !== '' || baseUrl !== profile.base_url || profile.location !== 'cloud')
   const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
-  const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(test.error) === k ? (test.error as Error).message : undefined)
+  const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(testErr) === k ? (testErr as Error).message : undefined)
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
   // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
   const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
@@ -233,6 +233,8 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   // "Connected" holds only for what was tested: a changed provider, address, model, key or location hides it until Test runs again.
   const conn = (i: ProfileInput) => JSON.stringify([i.kind, i.api_style, i.base_url, i.model, i.api_key, i.location])
   const tested = test.data && test.variables && conn(test.variables) === conn(input()) ? test.data : undefined
+  // A Test failure holds for the connection it was run on, like a success (tested): change the address, location, model or key and it goes.
+  const testErr = test.error && test.variables && conn(test.variables) === conn(input()) ? test.error : null
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -282,7 +284,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
             </div>
           ) : null}
           {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
-          {test.error && !serverField(test.error) ? <ActionError error={test.error} /> : null}
+          {testErr && !serverField(testErr) ? <ActionError error={testErr} /> : null}
           {save.error && !serverField(save.error) ? <ActionError error={save.error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>

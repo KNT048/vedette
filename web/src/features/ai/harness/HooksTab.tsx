@@ -77,8 +77,8 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
   const test = useTestHook()
   const [text, setText] = useState('')
   const [when, setWhen] = useState<HookWhen>('before_ai')
-  // A result holds for the draft it was run on: editing the hook (words, stage, action) hides it until Test runs again.
-  const draft = JSON.stringify(hook ? [hook.when, hook.match, hook.action] : null)
+  // A result holds for the draft it was run on: editing the hook (name, words, stage, action, message) hides it until Test runs again.
+  const draft = JSON.stringify(hook ? [hook.name, hook.when, hook.match, hook.action, hook.message] : null)
   const [ran, setRan] = useState<{ r: HookTestResult; draft: string } | null>(null)
   const res = ran && ran.draft === draft ? ran.r : null
   const stage = hook ? hook.when : when

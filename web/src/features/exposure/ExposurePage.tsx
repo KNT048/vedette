@@ -92,8 +92,9 @@ function AddTarget() {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
-  // Cancel, Esc and X all drop the draft and its error, so the next opening never shows an error for text that is gone.
-  const toggle = (o: boolean) => { setOpen(o); if (!o) { setError(null); setValue('') } }
+  // Cancel, Esc and X all drop the draft and its error, so the next opening never shows an error for text that is gone;
+  // while the domain is being added the dialog stays open, so a late answer never lands on a closed or new draft.
+  const toggle = (o: boolean) => { if (!o && add.isPending) return; setOpen(o); if (!o) { setError(null); setValue('') } }
   function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -114,7 +115,7 @@ function AddTarget() {
             <Input id="ex-new" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'ex-new-error' : 'ex-new-hint'} />
           </Field>
           <DialogFooter>
-            <Button onClick={() => toggle(false)}>{t('common:cancel')}</Button>
+            <Button onClick={() => toggle(false)} disabled={add.isPending}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={add.isPending}>{t('add.submit')}</Button>
           </DialogFooter>
         </form>

@@ -72,7 +72,8 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
   const fail = (er: unknown) => {
     const field = er instanceof ApiError ? FIELD_OF[er.code] : undefined
     setError({ field, message: errMsg(er) })
-    if (field) document.getElementById(`ls-${field}`)?.focus()
+    // Focus after React has drawn the error, so a screen reader reads the field with its message (ConnectionsSection does the same).
+    if (field) setTimeout(() => document.getElementById(`ls-${field}`)?.focus(), 0)
   }
 
   function pickKind(k: SourceKind) {

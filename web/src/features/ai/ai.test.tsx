@@ -704,6 +704,21 @@ describe('AI profile form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
     }, dlg)
   })
 
+  it('a server error from Test holds only for the connection it was run on', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'Custom')
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Inside your network/ }))
+    fireEvent.change(within(dlg).getByLabelText('Server address'), { target: { value: 'https://u:p@ai.example.com/v1' } })
+    fireEvent.change(within(dlg).getByLabelText('Model'), { target: { value: 'llama-4' } })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Test connection' }))
+    await within(dlg).findByText(/must not contain a user name/)
+    fireEvent.change(within(dlg).getByLabelText('Server address'), { target: { value: 'https://ai.example.com/v1' } })
+    expect(within(dlg).queryByText(/must not contain a user name/)).toBeNull()
+  })
+
   it('editing: the stored key is offered only for its own provider', async () => {
     const v = renderUi(<AiSettings />)
     await v.ready

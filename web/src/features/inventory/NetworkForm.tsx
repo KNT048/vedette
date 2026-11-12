@@ -69,7 +69,7 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
   }
   function add() {
     const raw = draft.trim()
-    if (!raw) return
+    if (!raw) { setError(t('network.problem.empty')); setNote(undefined); return }
     const n = normalizeRange(raw)
     if (items.includes(n.value)) { setError(t('network.duplicate', { value: n.value })); setNote(undefined); return }
     const err = problemText(n.value, items)

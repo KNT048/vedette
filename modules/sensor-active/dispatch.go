@@ -204,7 +204,7 @@ func (d *Dispatcher) nmapMissing() string {
 // imageFix is the end of a "cannot run until ..." text for a damaged or incomplete scan image.
 func (d *Dispatcher) imageFix() string {
 	if d.container {
-		return "you pull the scan image of this release again (docker compose --env-file vedette.env pull, then up -d)"
+		return "you pull the scan image of this release again (docker compose --env-file vedette.env pull, then up -d; podman compose on Podman)"
 	}
 	return "the scan image is rebuilt"
 }

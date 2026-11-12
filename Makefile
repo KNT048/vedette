@@ -440,9 +440,13 @@ RELEASE_SLOT ?= active
 RELEASE_GO = go run ./scripts/release
 RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 
+# WP-08k step 6 (D-457 part C): one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
+# cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1` onto that platform's digest in images.json. Printed with the
+# pinned cosign (COSIGN_BIN overrides), never run. The attest lines upload to ghcr with the registry login cosign reads (docker
+# config, or REGISTRY_AUTH_FILE=<podman auth.json>).
 release-cosign-plan:
 	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }
-	$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign
+	@$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -images $(RELEASE_OUT)/images.json -sbom dist/sbom -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign -cosign "$${COSIGN_BIN:-$$(scripts/release/cosign.sh)}"
 
 release-manifest: check-min-sequence
 	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)

@@ -34,8 +34,11 @@ security find-generic-password -s vedette-release-minisign -a "$USER" -w | make 
 ```
 
 ```bash
-COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) $(scripts/release/cosign.sh) sign …   # đúng argv của make release-cosign-plan
+make -s release-cosign-plan COSIGN_KEY=$HOME/.vedette-release-keys/cosign.key > dist/cosign-plan.sh   # chỉ in lệnh (cosign đã ghim), đọc lại trước khi chạy
+COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) sh -eu dist/cosign-plan.sh
 ```
+
+Kế hoạch có `cosign sign` cho từng image (ghi `dist/release/cosign/<service>.{payload.json,sig}` cho `release-manifest`) rồi `cosign attest --type cyclonedx` cho từng SBOM theo kiến trúc (`dist/sbom`, của `make sbom RELEASE=1`), tải lên ghcr cạnh image: cosign cần đăng nhập ghcr (`~/.docker/config.json`, hoặc `REGISTRY_AUTH_FILE` trỏ tới `auth.json` của podman). Chạy lại sau lỗi được: `--replace` giữ đúng một attestation CycloneDX cho mỗi digest (D-457, phần C).
 
 Khoá dự phòng chỉ được lấy ra khi cần ký index thu hồi (`RELEASE_SLOT=backup`) hay bản cứu (D-258).
 

@@ -699,21 +699,8 @@ func TestCosignPlan(t *testing.T) {
 			t.Errorf("shellQuote(%q) = %q, want %q", in, got, want)
 		}
 	}
-	// the command prints one line per image, and reads the inputs strictly
-	dir := t.TempDir()
-	in := filepath.Join(dir, "in.json")
-	must(t, os.WriteFile(in, []byte(`{"version":"0.1.0","channel":"beta","images":[{"service":"core","digest":"`+d+`","size":1,"platforms":["linux/amd64"]},{"service":"sensor","digest":"`+digestOf("s")+`","size":1,"platforms":["linux/amd64"]}]}`), 0o600))
+	// the command itself (sign + attest lines, refusals): cosignplan_test.go
 	var out, errb bytes.Buffer
-	if code := run([]string{"cosign-plan", "-in", in, "-key", "/keys/c.key", "-out", "dist/c"}, nil, &out, &errb); code != 0 {
-		t.Fatalf("%d %s", code, errb.String())
-	}
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 3 || lines[0] != "mkdir -p dist/c" || !strings.Contains(lines[1], "vedette-core@"+d) || !strings.Contains(lines[2], "vedette-sensor@") {
-		t.Fatalf("%q", lines)
-	}
-	if code := run([]string{"cosign-plan", "-in", in}, nil, &out, &errb); code == 0 {
-		t.Error("cosign-plan without -key succeeded")
-	}
 	if code := run([]string{"nonsense"}, nil, &out, &errb); code != 2 {
 		t.Error(code)
 	}

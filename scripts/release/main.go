@@ -3,7 +3,7 @@
 // with the pinned minisign tool, and verifies the result with the box-side verifier (internal/release) before anything is
 // published. It runs on the maintainer's machine, offline except push and publish (D-457); it creates no tag and holds no key.
 //
-//	go run ./scripts/release cosign-plan -in release.in.json -key ~/keys/cosign.key -out dist/release/cosign
+//	go run ./scripts/release cosign-plan -in release.in.json -images dist/release/images.json -sbom dist/sbom -key ~/keys/cosign.key -out dist/release/cosign   (prints the sign lines, then a cosign attest --type cyclonedx line per platform SBOM)
 //	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
 //	go run ./scripts/release container-assets -in release.in.json -out dist/release [-ref v0.2.0 -compose-dir deploy/compose/container-only]   (D-451: the compose files and the filled vedette.env, read from git at the tag; sign signs them, verify checks them)
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
@@ -118,9 +118,11 @@ func readInputs(p string) (Inputs, error) {
 func cmdCosignPlan(args []string, stdout io.Writer) error {
 	fs := newFlags("cosign-plan")
 	in := fs.String("in", "release.in.json", "release description")
+	images := fs.String("images", "dist/release/images.json", "what release push pushed, by digest (the platform digests the SBOMs attach to)")
 	key := fs.String("key", "", "cosign private key file (COSIGN_PASSWORD names its password in the environment of the shell that runs the plan)")
-	out := fs.String("out", "dist/release/cosign", "directory the payloads and signatures are written to")
-	bin := fs.String("cosign", "cosign", "cosign command (the pinned binary, WP-08k)")
+	out := fs.String("out", "dist/release/cosign", "directory the payloads and signatures are written to (inside dist/)")
+	sbom := fs.String("sbom", "dist/sbom", "directory of make sbom RELEASE=1: <image>-<arch>.cdx.json (inside dist/)")
+	bin := fs.String("cosign", "cosign", "cosign command (the pinned binary: scripts/release/cosign.sh)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -131,12 +133,15 @@ func cmdCosignPlan(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	say(stdout, "mkdir -p %s", shellQuote(*out))
-	for _, im := range inputs.Images {
-		argv, err := CosignArgv(*bin, *key, *out, im.Service, im.Digest)
-		if err != nil {
-			return err
-		}
+	doc, err := readImages(*images)
+	if err != nil {
+		return err
+	}
+	plan, err := CosignPlan(inputs, doc, CosignPlanOpts{Bin: *bin, Key: *key, Out: *out, SBOMDir: *sbom})
+	if err != nil {
+		return err
+	}
+	for _, argv := range plan {
 		q := make([]string, len(argv))
 		for i, a := range argv {
 			q[i] = shellQuote(a)

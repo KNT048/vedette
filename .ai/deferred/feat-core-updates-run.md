@@ -6,4 +6,4 @@
 - [x] A service that was off during an update stays on the old image: when its module is turned on, `cmd/vedette/modulecontainer.go` (OnGuard) starts the pinned (old) version. Send `version` = core's running version there (D-342 (2)).
 - [ ] Events `core.update.applied|rolled_back` (CONTRACT Events) are not published: `OSHandlers` has no bus; wire one when a receiver exists (notify).
 - [ ] `index_expired` from `container.pull`/`start` results is not shown on the page yet (D-130 says the caller shows it).
-- [ ] e2e-real: one apply and one rollback against the real host on the Ubuntu box (needs a signed test release).
+- [ ] e2e-real: one apply and one rollback against the real host on the Ubuntu box (needs a signed test release). Lab 2026-11-12: one update and one rollback through the core API on the ubuntu2404 VM passed (`test-t5-upgrade-rollback.md`); the e2e-real spec itself is still open.

@@ -81,7 +81,7 @@ These checks need a real L2 presence, so they need **`lan` mode (a wired cable)*
 - WP-31 M5: nmap against a LAN machine that drops probes, compared with the passive kind.
 - Decoy and honeypot lab lines (`feat-host-net-containers.md` "Lát 3-5", `feat-honeypot.md`): ARP probes from the box MAC, macvlan, `arp_ignore`/`rp_filter`, real ARP frame lengths.
 - Live AF_PACKET capture seeing other devices (`feat-sensor-passive.md`, `feat-sensor-protocol.md` SP-5).
-- SPAN/port mirror (`feat-container-only.md`).
+- (SPAN/port mirror: out of v1, kien 2026-11-13, D-403; no lab check, no second NIC for it.)
 - nmap/nuclei against lab devices, including a switched-off device with an ARP timeout (`feat-sensor-active.md`, `feat-scan-autostop.md`, `feat-scan-module.md`).
 - Syslog sent from another LAN machine (`feat-logs-l2-syslog.md`).
 - `net.apply` and Box network on the box's LAN NIC (`feat-core-network.md`).

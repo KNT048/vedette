@@ -112,25 +112,31 @@ var deviceSecretPatterns = []secretPattern{
 	secretRE(cfgLine+`set[ \t]+(?:[a-z0-9]+-)*(?:password|passwd|passphrase|secret|psksecret|private-key|pre-shared-key)[ \t]+(?:ENC[ \t]+)?`+secretValue, needNamed...),
 	// FortiGate: an encrypted secret is ENC followed by base64 (set password ENC SH2..., set psksecret ENC ...).
 	secretRE(`(?:^|[^A-Za-z0-9_])ENC[ \t]+([A-Za-z0-9+/=]{16,})`, "enc"),
-	// Cleartext password in a console or terminal line block (line vty 0 4 / ` password x` / ` login`): the indented lines of the block
-	// are walked lazily, so the match ends at the first password line of the block that has no marker of its own.
-	secretRE(`(?m:^)line[ \t]+(?:con|console|aux|vty|tty)[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+password[ \t]+`+secretValue, "line", "password"),
-	// IOS SNMP trap host with the community after the version, or after traps|informs, or bare after an IPv4 address:
-	// snmp-server host 10.1.1.1 [vrf V] [traps|informs] version 2c <community> [udp-port 162], snmp-server host 10.1.1.1 <community>.
+	// IOS SNMP trap host: snmp-server host <host> [vrf V] [traps|informs] version 1|2c <community> [udp-port 162]; with traps|informs and
+	// no version; and bare, snmp-server host <host> [vrf V] <community>. The word that can sit where the community does (version, traps,
+	// an interface or an address of the ASA form) is left alone only in the slots where a keyword can sit, never after version 1|2c.
+	secretRE(cfgLine+`snmp-server[ \t]+host[ \t]+\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:(?:traps|informs)[ \t]+)?version[ \t]+(?:1|2c)[ \t]+`+secretValue, "snmp-server"),
 	{
 		needs: []string{"snmp-server"},
-		re:    regexp.MustCompile(cfgLine + `snmp-server[ \t]+host[ \t]+(?:\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:(?:traps|informs)[ \t]+)?version[ \t]+(?:1|2c)[ \t]+|\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:traps|informs)[ \t]+|[0-9]{1,3}(?:\.[0-9]{1,3}){3}[ \t]+)` + secretValue),
-		leave: regexp.MustCompile(`(?i)^(?:version|community|udp-port|vrf|traps|informs|[0-9]+|[0-9a-f:.]+)$`),
+		re:    regexp.MustCompile(cfgLine + `snmp-server[ \t]+host[ \t]+\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:traps|informs)[ \t]+` + secretValue),
+		leave: regexp.MustCompile(`(?i)^(?:version|community|udp-port|vrf|traps|informs)$`),
 	},
-	// YAML keys: password: <x>, db_password: <x>, - secret: <x>, snmp_community: <x>. A lower-case key at the start of a line (a sentence
-	// starts with a capital); a block scalar, null, a flag and a ${placeholder} are not values.
 	{
-		needs: append([]string{"community"}, needNamed...),
-		re:    regexp.MustCompile(`(?m:^)[ \t]*(?:-[ \t]+)?[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key|snmp[-_]?community)[a-z0-9_-]*[ \t]*:[ \t]+` + secretValue),
-		leave: regexp.MustCompile(`(?i)^(?:null|~|true|false|yes|no|none|required|[|>][-+]?|\[\]|\{\}|""|''|!vault|\$\{.*)$`),
+		needs: []string{"snmp-server"},
+		re:    regexp.MustCompile(cfgLine + `snmp-server[ \t]+host[ \t]+\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?` + secretValue),
+		leave: regexp.MustCompile(`(?i)^(?:version|community|udp-port|vrf|traps|informs|[0-9]{1,3}(?:\.[0-9]{1,3}){3}|[0-9a-f]*:[0-9a-f:.]*)$`),
 	},
-	// PuTTY key file (.ppk): the lines of the Private-Lines section, up to the Private-MAC line.
-	secretRE(`(?m:^)Private-Lines:[ \t]*[0-9]+[ \t]*\r?\n((?:[A-Za-z0-9+/=]+\r?\n)*[A-Za-z0-9+/=]+)(?:\r?\n|\z)`, "private-lines"),
+	// YAML keys: password: <x>, Password: <x>, db_password: <x>, - secret: <x>, api_pass: <x>, community: <x>, password: &anchor <x>.
+	// The password words are matched in any case (a ticket or a form says `Password: x`; prose that starts with them and a colon costs one
+	// word), pass and community only in lower case; a block scalar (`|`, `>`; see yamlScalar), null, a flag and a ${placeholder} are
+	// not values.
+	{
+		needs: append([]string{"community", "pass"}, needNamed...),
+		re:    regexp.MustCompile(`(?m:^)[ \t]*(?:-[ \t]+)?(?:(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*)|(?:[a-z0-9_-]*[_-])?(?:pass|community))[ \t]*:[ \t]+(?:&\S+[ \t]+)?` + secretValue),
+		leave: regexp.MustCompile(`(?i)^(?:null|~|true|false|yes|no|none|required|[|>][-+0-9]*|\[\]|\{\}|""|''|!vault|\$\{.*)$`),
+	},
+	// PuTTY key file (.ppk): the lines of the Private-Lines section (indented or with trailing spaces too), up to the Private-MAC line.
+	secretRE(`(?m:^)[ \t]*Private-Lines:[ \t]*[0-9]+[ \t]*\r?\n((?:[ \t]*[A-Za-z0-9+/=]+[ \t]*\r?\n)*[ \t]*[A-Za-z0-9+/=]+)[ \t]*(?:\r?\n|\z)`, "private-lines"),
 	// A private key block, whole; without an end line (the text was cut) to the end of the text. The first group is the match itself.
 	secretRE(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----.*?-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----|-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----.*)`, "private key"),
 }
@@ -165,8 +171,17 @@ func scanDeviceSecrets(ctx context.Context, norm string) ([]span, error) {
 			}
 		}
 	}
-	if strings.Contains(lower, "snmp") && strings.Contains(lower, "community") {
-		out = append(out, fortiCommunityNames(norm)...)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	for _, b := range secretBlocks {
+		if slices.ContainsFunc(b.needs, func(w string) bool { return !strings.Contains(lower, w) }) {
+			continue
+		}
+		out = append(out, b.spans(norm)...)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
 	merged := out[:0]
@@ -180,33 +195,48 @@ func scanDeviceSecrets(ctx context.Context, norm string) ([]span, error) {
 	return merged, nil
 }
 
-var (
-	fortiSNMPBlock = regexp.MustCompile(`(?m:^)([ \t]*)config[ \t]+system[ \t]+snmp[ \t]+community[ \t]*\r?\n`)
-	fortiSetName   = regexp.MustCompile(`^[ \t]+set[ \t]+name[ \t]+` + secretValue)
-)
+// secretBlock is a secret that sits in an indented block under a header line: the lines after the header that are blank or indented
+// deeper than it (the next line at the header's indent, such as `end`, closes it), at most blockLines of them. Each line is matched
+// with line, whose first group is the value. needs are words of the lower-cased text that must all be there.
+type secretBlock struct {
+	needs  []string
+	header *regexp.Regexp // group 1: the indent of the header (with a list dash, for YAML)
+	line   *regexp.Regexp
+}
 
-// fortiCommunityNames finds the values of `set name "<community>"` inside `config system snmp community`: the community is a name, with
-// no keyword of its own. The block is the lines after the header that are indented deeper than it (the `end` closes it).
-func fortiCommunityNames(norm string) []span {
+const blockLines = 200
+
+var secretBlocks = []secretBlock{
+	// Cleartext password in a console or terminal line block (line vty 0 4 / ` password x` / ` login`): every password line of the block.
+	{[]string{"line", "password"}, regexp.MustCompile(`(?m:^)([ \t]*)line[ \t]+(?:con|console|aux|vty|tty)\b[^\n]*\n`), regexp.MustCompile(`^[ \t]*password[ \t]+(?:[0-9][ \t]+)?` + secretValue)},
+	// FortiGate: `set name "<community>"` in `config system snmp community`: the community is a name, with no keyword of its own.
+	{[]string{"snmp", "community"}, regexp.MustCompile(`(?m:^)([ \t]*)config[ \t]+system[ \t]+snmp[ \t]+community[ \t]*\r?\n`), regexp.MustCompile(`^[ \t]*set[ \t]+name[ \t]+` + secretValue)},
+	// YAML block scalar of a secret key (`password: |`): the lines under it are the value.
+	{[]string{"pass"}, regexp.MustCompile(`(?m:^)([ \t]*(?:-[ \t]+)?)(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*|(?:[a-z0-9_-]*[_-])?(?:pass|community))[ \t]*:[ \t]*(?:&\S+[ \t]+)?[|>][-+0-9]*[ \t]*\r?\n`), regexp.MustCompile(`^[ \t]*(\S(?:[^\r]*\S)?)`)},
+}
+
+func (b secretBlock) spans(norm string) []span {
 	var out []span
-	done := 0 // a header inside a block already read is read again by no one: every line is visited once (linear)
-	for _, h := range fortiSNMPBlock.FindAllStringSubmatchIndex(norm, -1) {
+	done := 0 // a header inside a block already read is read by no one again: every line is visited once (linear)
+	for _, h := range b.header.FindAllStringSubmatchIndex(norm, -1) {
 		if h[0] < done {
 			continue
 		}
 		indent := h[3] - h[2]
 		pos := h[1]
-		for pos < len(norm) {
+		for n := 0; pos < len(norm) && n < blockLines; n++ {
 			end := len(norm)
 			if i := strings.IndexByte(norm[pos:], '\n'); i >= 0 {
 				end = pos + i + 1
 			}
 			line := norm[pos:end]
-			if len(line)-len(strings.TrimLeft(line, " \t")) <= indent {
-				break
-			}
-			if m := fortiSetName.FindStringSubmatchIndex(line); m != nil && m[3] > m[2] {
-				out = append(out, span{pos + m[2], pos + m[3]})
+			if strings.TrimSpace(line) != "" {
+				if len(line)-len(strings.TrimLeft(line, " \t")) <= indent {
+					break
+				}
+				if m := b.line.FindStringSubmatchIndex(strings.TrimRight(line, "\n")); m != nil && m[3] > m[2] {
+					out = append(out, span{pos + m[2], pos + m[3]})
+				}
 			}
 			pos = end
 		}

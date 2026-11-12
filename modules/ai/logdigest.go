@@ -312,7 +312,7 @@ func linkDevices(items []LogDigestItem, conns []LogDigestBadConn) {
 	}
 }
 
-// hasWord is true when word is in text, not as a part of a longer name or address (letters, digits, - _ . around it count as part, and : before it; a : after it is a port).
+// hasWord is true when word is in text, not as a part of a longer name or address (letters, digits, - _ . around it count as part, and : before it; a : after it is a port, a . after it ends a sentence).
 func hasWord(text, word string) bool {
 	if word == "" {
 		return false
@@ -324,7 +324,7 @@ func hasWord(text, word string) bool {
 			return false
 		}
 		a, b := from+i, from+i+len(word)
-		if (a == 0 || !wordPart(text[a-1])) && (b == len(text) || text[b] == ':' || !wordPart(text[b])) {
+		if (a == 0 || !wordPart(text[a-1])) && (b == len(text) || text[b] == ':' || !wordPart(text[b]) || (text[b] == '.' && (b+1 == len(text) || !wordPart(text[b+1])))) {
 			return true
 		}
 		from = a + 1

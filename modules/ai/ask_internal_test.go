@@ -191,6 +191,9 @@ func TestLinkDevicesNamesWholeWordsAndOneDevice(t *testing.T) {
 		{"PC-03X is not it", "", ""},
 		{"SRV-2 is not it", "", ""},
 		{"x", "10.0.0.9", ""},
+		{"x", "from 10.0.0.3.", "a3"},
+		{"on pc-03.", "", "a3"},
+		{"pc-03.example.com", "", ""},
 		{"nothing named", "", ""},
 	} {
 		items := []LogDigestItem{{Title: c.title, Evidence: []string{c.ev}}}

@@ -122,11 +122,12 @@ func TestDeviceSecretPatternsLeaveOrdinaryTextAlone(t *testing.T) {
 		// D-428: the new patterns need their marker
 		"ntp server 10.0.0.1 key 1 prefer\nntp peer 10.0.0.2 key 2 source Lo0",
 		"line vty 0 4\n exec-timeout 5 0\n login local\nline aux 0\n no exec",
-		"Password: required for the portal.\nthe line vty has no password set",
-		"password_policy:\n  min_length: 12\npassword: ${DB_PASSWORD}\npassword: null\nsecret: |\n  text",
+		"the line vty has no password set",
+		"password_policy:\n  min_length: 12\npassword: ${DB_PASSWORD}\npassword: null",
 		"snmp-server host 10.1.1.1 version 3 auth ops\nsnmp-server host inside 10.1.1.1 version 3",
 		"config system snmp community\n    edit 1\n        set status enable\n    next\nend\nconfig system global\n    set name FW-HQ\nend",
 		"Private-Lines: 2\nPrivate-MAC: 00ff",
+		"bypass: true\ncompass_dir: /x\nsnmp-server host 10.1.1.1 version 3 auth ops",
 	} {
 		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomePass || res.Text != in {
 			t.Errorf("%q -> %+v", in, res)
@@ -313,6 +314,23 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		{"snmp host vrf traps", "snmp-server host 10.1.1.1 vrf MGMT traps version 1 " + plainPW, "version 1 ", []string{plainPW}},
 		{"snmp host traps", "snmp-server host 10.1.1.1 traps " + plainPW + " config", "traps ", []string{plainPW}},
 		{"snmp host bare", "snmp-server host 10.1.1.1 " + plainPW, "snmp-server host 10.1.1.1 ", []string{plainPW}},
+		// review r1: a community of digits or hex after the version, a bare community after a host name, vrf or IPv6 address
+		{"snmp host hex community", "snmp-server host 10.1.1.1 version 2c deadbeef01", "version 2c ", []string{"deadbeef01"}},
+		{"snmp host cafe", "snmp-server host 10.1.1.1 traps version 1 cafe", "version 1 ", []string{"cafe"}},
+		{"snmp host digits", "snmp-server host 10.1.1.1 version 2c 1234567", "version 2c ", []string{"1234567"}},
+		{"snmp host vrf bare", "snmp-server host 10.1.1.1 vrf MGMT " + plainPW, "vrf MGMT ", []string{plainPW}},
+		{"snmp host name bare", "snmp-server host nms.example.com " + plainPW, "snmp-server host nms.example.com ", []string{plainPW}},
+		{"snmp host ipv6 bare", "snmp-server host 2001:db8::1 " + plainPW, "snmp-server host 2001:db8::1 ", []string{plainPW}},
+		{"vty every password", "line vty 0 4\n password " + plainPW + "\n login\n password " + two + "\n", " password ", []string{plainPW, two}},
+		{"vty indented header and blank line", "  line vty 0 4\n\n    exec-timeout 5 0\n\n    password " + plainPW + "\n  login\n", "password ", []string{plainPW}},
+		{"putty indented", "  Private-Lines: 2\n  " + wg + "  \n  " + two + "xyz  \n  Private-MAC: 00ff\n", "Private-MAC: 00ff", []string{wg, two}},
+		{"yaml anchor", "password: &pw " + plainPW, "password: &pw ", []string{plainPW}},
+		{"yaml block scalar", "db:\n  password: |\n    " + plainPW + "\n    " + two + "\n  host: x\n", "host: x", []string{plainPW, two}},
+		{"yaml block scalar list", "- password: >-\n    " + plainPW + "\n  name: x\n", "name: x", []string{plainPW}},
+		{"yaml _pass", "api_pass: " + plainPW, "api_pass: ", []string{plainPW}},
+		{"yaml bare community", "community: " + plainPW, "community: ", []string{plainPW}},
+		{"capital Password", "Password: " + plainPW, "Password: ", []string{plainPW}},
+		{"forti blank line in block", "config system snmp community\n    edit 1\n\n        set name \"" + plainPW + "\"\n    next\nend\n", "set name ", []string{plainPW}},
 		{"forti snmp name", "config system snmp community\n    edit 1\n        set name \"" + plainPW + "\"\n        set status enable\n    next\n    edit 2\n        set name " + two + "\n    next\nend\n", "set name ", []string{plainPW, two}},
 	}
 	for _, c := range cases {

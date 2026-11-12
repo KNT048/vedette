@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"strings"
 	"sync"
@@ -24,7 +25,7 @@ type hostMACs struct {
 	failedAt time.Time // the last failed ask: no new ask for hostNetBackoff, so a hung host costs one timeout, not one per caller
 	forcedAt time.Time // the last ask that skipped the TTL (Fresh)
 	last     []string
-	infra    []response.HostInfra // the gateway and DNS servers of the same answer (D-325)
+	infra    []response.HostInfra // the gateways (with their MACs) and DNS servers of the same answer (D-325, D-384)
 }
 
 var errHostMACsUnknown = errors.New("vedette-host has not reported the MAC addresses of the box yet")
@@ -77,15 +78,7 @@ func (h *hostMACs) get(ctx context.Context, fresh bool) ([]string, error) {
 	for _, d := range st.Decoys {
 		out = append(out, strings.ToLower(d.MAC))
 	}
-	infra := hostInfraOf(st)
-	if !hasGateway(infra) { // a lease being renewed or a pending net.apply has no default route for a moment: the gateway is still the gateway
-		for _, x := range h.infra {
-			if x.Kind == "gateway" {
-				infra = append(infra, x)
-			}
-		}
-	}
-	h.at, h.failedAt, h.last, h.infra = h.now(), time.Time{}, out, infra
+	h.at, h.failedAt, h.last, h.infra = h.now(), time.Time{}, out, keepGateways(hostInfraOf(st), h.infra)
 	return out, nil
 }
 
@@ -103,37 +96,66 @@ func (h *hostMACs) Infra(ctx context.Context) ([]response.HostInfra, error) {
 	return append([]response.HostInfra(nil), h.infra...), nil
 }
 
-func hasGateway(l []response.HostInfra) bool {
-	for _, x := range l {
-		if x.Kind == "gateway" {
-			return true
+// keepGateways carries the last answer's gateways over the gaps of a new one: a family (IPv4, IPv6) with no gateway now (a lease being
+// renewed, a pending net.apply, a router advertisement not seen yet) keeps its last gateways, and a gateway whose neighbour entry is
+// missing now keeps the MAC it had. Keeping a stale one only protects more.
+func keepGateways(now, last []response.HostInfra) []response.HostInfra {
+	answered := len(now) // the families are judged on the new answer, not on what is carried over
+	for _, p := range last {
+		if p.Kind != "gateway" {
+			continue
+		}
+		family := false
+		for i := range now[:answered] {
+			n := &now[i]
+			if n.Kind != "gateway" || n.Addr.Is4() != p.Addr.Is4() {
+				continue
+			}
+			family = true
+			if n.Addr == p.Addr && n.MAC == "" {
+				n.MAC = p.MAC
+			}
+		}
+		if !family {
+			now = append(now, p)
 		}
 	}
-	return false
+	return now
 }
 
-// hostInfraOf reads the kernel's default gateway and the gateway and DNS servers the host saved for the management card. With DHCP the
-// saved configuration has none, and the DNS servers the lease gave are not reported by vedette-host (deferred); the route still is.
+// hostInfraOf reads the kernel's IPv4 and IPv6 default gateways with their MACs, the DNS servers the box uses (whoever set them: a DHCP
+// lease, netplan, an administrator) and the gateway and DNS servers the host saved for the management card (D-325, D-384). A host older
+// than D-384 sends no IPv6 route, MAC or resolver: only the rest is read.
 func hostInfraOf(st api.NetState) []response.HostInfra {
 	var out []response.HostInfra
-	add := func(s, kind string) {
+	add := func(s, kind, mac string) {
 		a, err := netip.ParseAddr(strings.TrimSpace(s))
 		if err != nil || a.IsUnspecified() || a.IsLoopback() {
 			return
 		}
-		out = append(out, response.HostInfra{Addr: a.Unmap().WithZone(""), Kind: kind})
+		x := response.HostInfra{Addr: a.Unmap().WithZone(""), Kind: kind}
+		if hw, err := net.ParseMAC(mac); err == nil && len(hw) == 6 {
+			x.MAC = hw.String()
+		}
+		out = append(out, x)
 	}
-	if st.DefaultRoute != nil {
-		add(st.DefaultRoute.Gateway, "gateway")
+	for _, r := range []*api.NetRoute{st.DefaultRoute, st.DefaultRoute6} {
+		if r != nil {
+			add(r.Gateway, "gateway", r.MAC)
+		}
 	}
-	if m := st.Config.Mgmt; m != nil {
-		add(m.Gateway, "gateway")
-		for i, d := range m.DNS {
-			if i >= 8 { // netplan holds a handful; a longer list is not a resolver list
+	dns := func(l []string, limit int) {
+		for i, d := range l {
+			if i >= limit {
 				break
 			}
-			add(d, "dns")
+			add(d, "dns", "")
 		}
+	}
+	dns(st.Resolvers, 16) // the host sends at most 16
+	if m := st.Config.Mgmt; m != nil {
+		add(m.Gateway, "gateway", "")
+		dns(m.DNS, 8) // netplan holds a handful; a longer list is not a resolver list
 	}
 	return out
 }

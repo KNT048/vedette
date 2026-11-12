@@ -20,7 +20,9 @@ import (
 
 // GET /v1/state/net (host-api section 5, D-101). It reports what the host can read without
 // looking at traffic: the cards with their kernel counters, the addresses on them, the default
-// route and the configuration the host wrote itself. Nothing here runs a program or opens a socket.
+// routes, the gateways' MACs, the resolvers in use (netinfra.go) and the configuration the host wrote
+// itself. Nothing here runs a program or opens a network socket: the only socket is the kernel's
+// netlink, for the interface list (the net package) and the neighbour table (Deps.NeighDump).
 
 const (
 	maxNetIfaces   = 64
@@ -36,6 +38,7 @@ const (
 // HostIface is one interface as the system lists it (Deps.Interfaces replaces the answer in tests).
 type HostIface struct {
 	Name     string
+	Index    int // the kernel's interface index: the key of the neighbour table (gatewayMACs)
 	MAC      string
 	Loopback bool
 	Addrs    []netip.Prefix
@@ -49,7 +52,7 @@ func systemInterfaces() ([]HostIface, error) {
 	}
 	out := make([]HostIface, 0, len(all))
 	for _, i := range all {
-		h := HostIface{Name: i.Name, MAC: i.HardwareAddr.String(), Loopback: i.Flags&net.FlagLoopback != 0}
+		h := HostIface{Name: i.Name, Index: i.Index, MAC: i.HardwareAddr.String(), Loopback: i.Flags&net.FlagLoopback != 0}
 		if addrs, err := i.Addrs(); err == nil {
 			for _, a := range addrs {
 				if p, err := netip.ParsePrefix(a.String()); err == nil {
@@ -329,8 +332,9 @@ func (o *Ops) readNet(context.Context) (any, error) {
 		return nil, errors.New("ops: list the interfaces: " + err.Error())
 	}
 	cfg, managed := o.readNetplanConfig()
-	route := o.defaultRoute()
-	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, Decoys: o.readDecoyState()}
+	route, route6 := o.defaultRoute(), o.defaultRoute6()
+	o.gatewayMACs(ifaces, route, route6)
+	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, DefaultRoute6: route6, Decoys: o.readDecoyState(), Resolvers: o.resolvers()}
 	st.Config.NTP = o.readNTP()
 	if p, ps := o.loadPending(); ps == pendOK && (o.netPending() || p.RebootAt != nil) {
 		st.Pending = &api.NetPending{RunID: p.RunID, RevertAt: p.RevertAt, RebootAt: p.RebootAt}

@@ -4,7 +4,8 @@ import "time"
 
 // The body of GET /v1/state/net (docs/specs/host-api.md section 5, D-101). It reports what the host can
 // read without looking at traffic: interface counters from /sys/class/net, addresses, the default
-// route from /proc/net/route and what the host itself wrote to netplan. The number of foreign MACs
+// routes from /proc/net/route and /proc/net/ipv6_route with their gateways' MACs from the kernel's
+// neighbour table, the resolvers of resolv.conf and what the host itself wrote to netplan. The number of foreign MACs
 // and the time of the last packet on the SPAN card are not here: the sensor measures them (D-101).
 
 // Interface roles.
@@ -67,10 +68,14 @@ type NetConfig struct {
 	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty when the file is absent or holds the default pool.ntp.org line (the distribution's own sources stay either way, D-166)
 }
 
-// NetRoute is the default route the kernel has, from /proc/net/route.
+// NetRoute is a default route the kernel has: IPv4 from /proc/net/route, IPv6 from /proc/net/ipv6_route.
 type NetRoute struct {
-	Iface   string `json:"iface"`
+	Iface string `json:"iface"`
+	// Gateway is the next hop as plain address text, never with a zone: an IPv6 link-local next hop ("fe80::1") is on Iface.
 	Gateway string `json:"gateway"`
+	// MAC is the gateway's link-layer address from the kernel's neighbour table (D-384); absent when the table has no usable entry for it
+	// on Iface (no traffic yet, or a resolution that failed). Absent from a host older than D-384.
+	MAC string `json:"mac,omitempty"`
 }
 
 // NetPending is a network change that waits for confirmation (D-100). Null when none waits.
@@ -93,8 +98,14 @@ type NetState struct {
 	Interfaces   []NetInterface `json:"interfaces"`
 	Config       NetConfig      `json:"config"`
 	DefaultRoute *NetRoute      `json:"default_route"`
-	Pending      *NetPending    `json:"pending"`
-	Decoys       []NetDecoy     `json:"decoys"`
+	// DefaultRoute6 is the IPv6 default route (lowest metric), null when there is none (D-384; absent from an older host).
+	DefaultRoute6 *NetRoute   `json:"default_route6"`
+	Pending       *NetPending `json:"pending"`
+	Decoys        []NetDecoy  `json:"decoys"`
+	// Resolvers are the DNS servers the box's resolver uses now, whoever set them (a DHCP lease, netplan, an administrator): the
+	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs (D-384). An older host does not
+	// send the field.
+	Resolvers []string `json:"resolvers"`
 }
 
 // Commands of the network part (spec 6.5).

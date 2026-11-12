@@ -39,6 +39,48 @@ func TestD325_TheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
 	}
 }
 
+// D-384: the gateway's MAC is never-touch without the gateway being an inventory router: an action that names only the device's switch
+// port, aimed at an event whose subject is the gateway's MAC (no gateway address in it), is refused. An IPv6 link-local gateway, which
+// no action can name by address, is protected by its MAC alone.
+func TestD384_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, func(c *response.Config) {
+		c.HostInfra = func() ([]response.HostInfra, error) {
+			return []response.HostInfra{
+				{Addr: netip.MustParseAddr("192.168.10.1"), Kind: "gateway", MAC: "00:11:22:33:44:55"},
+				{Addr: netip.MustParseAddr("fe80::1"), Kind: "gateway", MAC: "00:11:22:33:44:66"},
+				{Addr: netip.MustParseAddr("192.168.10.53"), Kind: "dns"},
+			}, nil
+		}
+	})
+	l, err := e.svc.Allowlist(e.ctx())
+	e.must(err)
+	for _, want := range []string{"00:11:22:33:44:55", "00:11:22:33:44:66"} {
+		if !hasEntry(l, want) {
+			t.Fatalf("the gateway MAC %s is not on the never-touch list: %+v", want, l)
+		}
+	}
+	if hasEntry(l, "fe80::1") {
+		t.Fatalf("a link-local address became an entry: %+v", l)
+	}
+	e.sshSwitch("cisco_port_shut")
+	e.rule("Shut the port", "ioc_connection", []response.RuleAction{{ActionID: "cisco_port_shut", Params: map[string]string{"interface": "{{trigger.switch_port}}"}, TTLMin: intp(240)}}, nil)
+	for i, mac := range []string{"00:11:22:33:44:55", "00-11-22-33-44-66"} {
+		ev := e.iocEvent("e"+itoaTest(i), "198.51.100.7")
+		ev.Fields["mac"], ev.Fields["switch_port"] = mac, "Gi1/0/"+itoaTest(i+2)
+		e.fire(ev)
+	}
+	if n := len(e.actions()); n != 0 || e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'never_touch%'`) != 2 {
+		t.Fatalf("a port shut aimed at the gateway's MAC was not refused: %d request(s)", n)
+	}
+	other := e.iocEvent("e9", "198.51.100.7")
+	other.Fields["mac"], other.Fields["switch_port"] = "00:11:22:33:44:77", "Gi1/0/9"
+	e.fire(other)
+	if len(e.actions()) != 1 {
+		t.Fatal("a port shut aimed at another device was refused")
+	}
+}
+
 // D-325 review (MEDIUM): the GUI sends back the whole list GET showed. The seeded entries come back unchanged and are not stored (a stored
 // copy would outlive a gateway that changed); GET shows one row per value; the same address under the administrator's own label is a
 // declared entry and stays.

@@ -1,0 +1,3 @@
+# Deferred — fix/never-touch-gateway-host
+
+- [ ] 2026-11-12 — D-384 is not checked on a real box: `GET /v1/state/net` under the sandboxed `vedette-host.service` on the Ubuntu lab box (DHCP management card: `resolvers` holds the lease's servers, not `127.0.0.53`; an IPv6 router advertisement gives `default_route6` with a link-local gateway; `mac` on both routes equals `ip neigh show <gateway>`), then Settings → Response never-touch list shows "Default gateway of this box" for the MACs — vì sao để sau: agents do not SSH or deploy (agent-safety); the netlink parser was checked once against this dev machine's own table (IPv4 gateway MAC matched `ip neigh`) — ở đâu: host/ops/netinfra.go, cmd/vedette/hostmacs.go, lab box `vedette-dev`

@@ -498,6 +498,7 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		LockHeld: func(string) (bool, error) { return false, nil },
 		// The machine has no network cards unless a test says so: never the real ones of the developer's computer.
 		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
+		NeighDump:  func() ([]byte, error) { return nil, nil }, // nor its neighbour table
 		// The fake namespace file is a plain file; there is no nsfs in a test.
 		IsNetNS: func(*os.File) (bool, error) { return true, nil },
 		// The waits between two looks at a container take no time; they are still counted, so the

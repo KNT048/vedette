@@ -133,3 +133,57 @@ func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
 		t.Fatalf("responseConfig leaves HostInfra unset: %v", err)
 	}
 }
+
+// D-384: the IPv6 default gateway, each gateway's MAC (from the neighbour table) and the DNS servers in use (here a DHCP lease's: no
+// saved configuration) reach the never-touch list. An answer whose IPv6 route or gateway MAC is missing for a moment keeps the last
+// ones; a family with a route keeps only its own gateway; a host older than D-384 (no such fields) gives what D-325 gave.
+func TestResponseHostInfraHoldsTheIPv6GatewayTheGatewayMACsAndTheLeaseDNS(t *testing.T) {
+	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	full := api.NetState{
+		DefaultRoute:  &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1", MAC: "00:11:22:33:44:55"},
+		DefaultRoute6: &api.NetRoute{Iface: "eth0", Gateway: "fe80::1", MAC: "00:11:22:33:44:66"},
+		Resolvers:     []string{"192.168.10.53", "2001:db8::53", "127.0.0.53", "bad"},
+	}
+	f := &fakeNetState{st: full}
+	h := &hostMACs{r: f, now: func() time.Time { return now }}
+	infraText := func() []string {
+		t.Helper()
+		got, err := h.Infra(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var have []string
+		for _, x := range got {
+			have = append(have, x.Kind+" "+x.Addr.String()+" "+x.MAC)
+		}
+		return have
+	}
+	want := []string{"gateway 192.168.10.1 00:11:22:33:44:55", "gateway fe80::1 00:11:22:33:44:66", "dns 192.168.10.53 ", "dns 2001:db8::53 "}
+	if have := infraText(); !slices.Equal(have, want) {
+		t.Fatalf("infra %v, want %v", have, want)
+	}
+	// The neighbour entries aged out and the router advertisement is late: the MAC and the IPv6 gateway stay.
+	f.st = api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1"}, Resolvers: full.Resolvers}
+	now = now.Add(time.Minute)
+	if have := infraText(); !slices.Equal(have, []string{"gateway 192.168.10.1 00:11:22:33:44:55", "dns 192.168.10.53 ", "dns 2001:db8::53 ", "gateway fe80::1 00:11:22:33:44:66"}) {
+		t.Fatalf("an answer with gaps: %v", have)
+	}
+	// A new IPv4 gateway replaces the old one (its family has a route); the old MAC does not move to it.
+	f.st = api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.20.1"}}
+	now = now.Add(time.Minute)
+	if have := infraText(); !slices.Equal(have, []string{"gateway 192.168.20.1 ", "gateway fe80::1 00:11:22:33:44:66"}) {
+		t.Fatalf("a new gateway: %v", have)
+	}
+	// A host older than D-384 sends none of the new fields; a MAC that is not a 6-byte MAC is not one.
+	old := hostInfraOf(api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1", MAC: "00:11:22:33:44:55:66:77"}})
+	if len(old) != 1 || old[0].Addr.String() != "192.168.10.1" || old[0].MAC != "" {
+		t.Fatalf("an older host's answer: %+v", old)
+	}
+	var many []string
+	for i := range 40 {
+		many = append(many, netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)}).String())
+	}
+	if n := len(hostInfraOf(api.NetState{Resolvers: many})); n != 16 {
+		t.Fatalf("%d resolvers taken, want at most 16", n)
+	}
+}

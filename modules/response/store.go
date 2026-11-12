@@ -143,6 +143,10 @@ func (s *Service) derivedNeverTouch(ctx context.Context) ([]AllowEntry, error) {
 			if ip, ok := CheckValue(PIP, h.Addr.Unmap().WithZone("").String()); ok && h.Addr.IsValid() {
 				l = append(l, AllowEntry{Value: ip, Label: label})
 			}
+			// D-384: the gateway's MAC as well; it is the only entry an IPv6 link-local gateway has (no action names a link-local address).
+			if mac, ok := CheckValue(PMAC, h.MAC); ok && h.MAC != "" {
+				l = append(l, AllowEntry{Value: mac, Label: label})
+			}
 		}
 	}
 	if s.cfg.Directory == nil {

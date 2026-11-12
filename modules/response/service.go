@@ -271,8 +271,9 @@ type Config struct {
 	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
 	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
 	BoxMACs func() ([]string, error)
-	// HostInfra lists the network the box itself depends on, as vedette-host reports it: the default gateway of the kernel's route and the
-	// gateway and DNS servers of the management card's saved configuration (D-325). They count as never-touch without being listed (INV-10):
+	// HostInfra lists the network the box itself depends on, as vedette-host reports it: the default gateways of the kernel's IPv4 and IPv6
+	// routes with their MACs, the DNS servers in use (a DHCP lease's too) and the gateway and DNS servers of the management card's saved
+	// configuration (D-325, D-384). They count as never-touch without being listed (INV-10):
 	// an automated ban on the gateway or the resolver would cut the box off with the rest of the network. An error is as for BoxAddrs
 	// (fail closed). nil = none known (no host: a container-only box, whose own route is the container bridge).
 	HostInfra func() ([]HostInfra, error)
@@ -285,6 +286,9 @@ type Config struct {
 type HostInfra struct {
 	Addr netip.Addr
 	Kind string // "gateway" or "dns"
+	// MAC is a gateway's link-layer address from the kernel's neighbour table, "" when not known (D-384). It is never-touch too, so
+	// an action that names only a MAC (a switch quarantine, an event with no address) cannot reach the gateway.
+	MAC string
 }
 
 // Service is the response module. Create it once with New and share it between the handlers, the jobs and the event

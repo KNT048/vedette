@@ -64,10 +64,17 @@ func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.m.WriteRoot("proc/net/route", "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\neth0\t00000000\t010AA8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n")
+	// D-384: the IPv6 default route and the DNS servers a lease gave (systemd-resolved's list; /etc/resolv.conf is its stub).
+	e.m.WriteRoot("proc/net/ipv6_route", "00000000000000000000000000000000 00 00000000000000000000000000000000 00 fe800000000000000000000000000001 00000400 00000001 00000000 00450003     eth0\n")
+	e.m.WriteRoot("run/systemd/resolve/resolv.conf", "nameserver 192.168.10.53\n")
+	e.m.WriteRoot("etc/resolv.conf", "nameserver 127.0.0.53\n")
 
 	st, err := e.h.Client.StateNet(t.Context())
 	if err != nil {
 		t.Fatal(err)
+	}
+	if st.DefaultRoute6 == nil || st.DefaultRoute6.Iface != "eth0" || st.DefaultRoute6.Gateway != "fe80::1" || len(st.Resolvers) != 1 || st.Resolvers[0] != "192.168.10.53" {
+		t.Fatalf("IPv6 route %+v, resolvers %v", st.DefaultRoute6, st.Resolvers)
 	}
 	if len(st.Interfaces) != 2 || st.Interfaces[0].Name != "eth0" || st.Interfaces[0].Counters.RxBytes != 1234 || st.Interfaces[0].Role != api.NetRoleManagement ||
 		st.Interfaces[1].Counters.RxBytes != 5678 || st.Interfaces[0].Addresses[0] != "192.168.10.250/24" {
@@ -84,7 +91,7 @@ func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 	if err := json.Unmarshal(body, &m); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"interfaces", "config", "default_route", "pending", "decoys"} {
+	for _, k := range []string{"interfaces", "config", "default_route", "default_route6", "pending", "decoys", "resolvers"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("the body has no %q: %s", k, body)
 		}

@@ -25,6 +25,20 @@ func TestParseInhibitorsSystemd259Fixture(t *testing.T) {
 	}
 }
 
+// The answer of Ubuntu 24.04 (systemd 255.4-1ubuntu8.18) while apt-get installs, measured by the lead
+// (lab 2026-11-12): APT's row is the one block shutdown lock; ModemManager's and unattended-upgrades' are delay.
+func TestParseInhibitorsSystemd255Fixture(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join("testdata", "inhibitors_systemd255_apt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseInhibitors(raw)
+	if err != nil || len(got) != 1 || got[0] != (inhibitor{Who: "APT", Why: "APT is installing or removing packages"}) {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
+
 func TestParseInhibitors(t *testing.T) {
 	t.Parallel()
 	got, err := parseInhibitors([]byte(inhibitorsAPT))

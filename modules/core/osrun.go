@@ -172,7 +172,8 @@ func (h *OSHandlers) loadRun(ctx context.Context) (*osRunState, error) {
 		return nil, err
 	}
 	meta, _ := h.loadRunMeta(ctx) // missing: no run of this database to keep
-	for _, r := range runs { // newest first
+	// newest first
+	for _, r := range runs {
 		if r.Command == api.CmdOSInstall && !refusedElsewhere(r, meta.RunID) {
 			return h.rebuild(ctx, r)
 		}

@@ -62,23 +62,33 @@ const scalar = (v: unknown): string | null | Rejection => {
 export function parseCsv(text: string, delimiter: string): string[][] {
   return parseCsvLines(text, delimiter).map((r) => r.cells)
 }
-/** parseCsv with, for each record, the 1-based line of the text where it starts (quoted fields can span lines). */
-function parseCsvLines(text: string, delimiter: string): { cells: string[]; line: number }[] {
-  const rows: { cells: string[]; line: number }[] = []
-  let row: string[] = [], cell = '', q = false, line = 1, rowLine = 1
-  const t = text.replace(/^﻿/, '')
+/**
+ * parseCsv with, for each record, the 1-based line of the text where it starts (quoted fields can span lines). A quote still open at the end of
+ * the text does not swallow the rows after it: that record is flagged (`bad`) and the text from its start is read again with quotes taken
+ * literally, so every physical row is accounted for (the Go parser, modules/feeds parseCSV, does the same).
+ */
+function parseCsvLines(text: string, delimiter: string, quotes = true, line0 = 1): { cells: string[]; line: number; bad?: string }[] {
+  const rows: { cells: string[]; line: number; bad?: string }[] = []
+  let row: string[] = [], cell = '', q = false, line = line0, rowLine = line0, rowStart = 0, startLine = line0
+  const t = line0 === 1 && quotes ? text.replace(/^\uFEFF/, '') : text
   for (let i = 0; i < t.length; i++) {
     const c = t[i]!
     if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++ } else q = false } else { if (c === '\n' || (c === '\r' && t[i + 1] !== '\n')) line++; cell += c } }
-    else if (c === '"' && cell === '') q = true
+    else if (quotes && c === '"' && cell === '') q = true
     else if (c === delimiter) { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); cell = ''; if (!(row.length === 1 && row[0] === '') && !row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }); row = []; line++; rowLine = line }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); cell = ''; if (!(row.length === 1 && row[0] === '') && !row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }); row = []; line++; rowLine = line; rowStart = i + 1; startLine = line }
     else cell += c
-    if (rows.length > ROW_LIMIT + 1) break
+    if (rows.length > ROW_LIMIT + 1) return rows
+  }
+  if (q) {
+    const rest = parseCsvLines(t.slice(rowStart), delimiter, false, startLine)
+    if (rest.length) rest[0]!.bad = CSV_OPEN_QUOTE
+    return rows.concat(rest)
   }
   if (cell !== '' || row.length) { row.push(cell); if (!row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }) }
   return rows
 }
+const CSV_OPEN_QUOTE = 'a quote is opened on this row and never closed'
 
 // ---------- extraction by format: each returns raw string maps keyed by the field source
 function extractJson(text: string, p: Parser): Raw[] {
@@ -98,9 +108,11 @@ function extractJson(text: string, p: Parser): Raw[] {
 }
 function extractCsv(text: string, p: Parser): Raw[] {
   const rows = parseCsvLines(text, p.delimiter || ',')
+  if (p.has_header && rows[0]?.bad) throw new ParserConfigError('bad_sample', `The header row is not usable: ${rows[0].bad}.`)
   const header = p.has_header ? (rows.shift()?.cells ?? []).map((h) => h.trim().toLowerCase()) : []
-  return rows.slice(0, ROW_LIMIT + 1).map(({ cells, line }) => {
+  return rows.slice(0, ROW_LIMIT + 1).map(({ cells, line, bad }) => {
     const r: Raw = { [LINE]: String(line) }
+    if (bad) { r['\u0000'] = bad; return r }
     for (const [k, f] of Object.entries(p.fields)) {
       const s = f.source.trim()
       if (!s) continue

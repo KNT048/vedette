@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -70,24 +72,115 @@ func addrForms(ip netip.Addr) []netip.Addr {
 	return append(out, netip.AddrFrom4(v4))
 }
 
-// nat64Local lists the IPv4 addresses a 64:ff9b:1::/48 (RFC 8215) address can carry. The operator's prefix is a sub-prefix of that /48,
-// so its length is /48, /56, /64 or /96 (never /32 or /40) and is not known from the address: it is read in each of those RFC 6052 layouts
-// (byte 8 is the reserved u octet) and every reading is judged. A reading inside 0.0.0.0/8 is dropped: a translator never forwards to
-// "this network", and it is what the zero suffix of a shorter prefix looks like in a longer layout.
+// nat64Layouts are the RFC 6052 layouts a 64:ff9b:1::/48 sub-prefix can have (never /32 or /40): the prefix length and the byte
+// offsets of the four IPv4 octets (byte 8 is the reserved u octet).
+var nat64Layouts = []struct {
+	bits int
+	at   [4]int
+}{{48, [4]int{6, 7, 9, 10}}, {56, [4]int{7, 9, 10, 11}}, {64, [4]int{9, 10, 11, 12}}, {96, [4]int{12, 13, 14, 15}}}
+
+func nat64Embed(b [16]byte, at [4]int) [4]byte {
+	return [4]byte{b[at[0]], b[at[1]], b[at[2]], b[at[3]]}
+}
+
+// nat64Local lists the IPv4 addresses a 64:ff9b:1::/48 (RFC 8215) address can carry. The operator's prefix is a sub-prefix of that /48
+// and its length is not in the address. When the network's own NAT64 prefix was learned (nat64Prefixes, RFC 7050) and covers the
+// address, only that layout is read; otherwise (nothing learned, or the address is outside every learned prefix) the address is read in
+// each layout and every reading is judged, so a forbidden IPv4 address is never missed. A reading inside 0.0.0.0/8 is dropped: a
+// translator never forwards to "this network", and it is what the zero suffix of a shorter prefix looks like in a longer layout.
 func nat64Local(b [16]byte) [][4]byte {
+	addr := netip.AddrFrom16(b)
+	for _, p := range nat64Prefixes() {
+		if !p.Contains(addr) {
+			continue
+		}
+		for _, l := range nat64Layouts {
+			if l.bits == p.Bits() {
+				if v4 := nat64Embed(b, l.at); v4[0] != 0 {
+					return [][4]byte{v4}
+				}
+				return nil
+			}
+		}
+	}
 	var out [][4]byte
-	for _, v4 := range [][4]byte{
-		{b[6], b[7], b[9], b[10]},
-		{b[7], b[9], b[10], b[11]},
-		{b[9], b[10], b[11], b[12]},
-		{b[12], b[13], b[14], b[15]},
-	} {
-		if v4[0] != 0 {
+	for _, l := range nat64Layouts {
+		if v4 := nat64Embed(b, l.at); v4[0] != 0 {
 			out = append(out, v4)
 		}
 	}
 	return out
 }
+
+// learnNAT64 reads the AAAA answers for ipv4only.arpa (RFC 7050, what Android, iOS and systemd-resolved do): an answer inside
+// 64:ff9b:1::/48 that carries 192.0.0.170 or 192.0.0.171 in exactly one layout, with a zero u octet, gives the prefix and its length.
+func learnNAT64(answers []netip.Addr) []netip.Prefix {
+	local := netip.MustParsePrefix("64:ff9b:1::/48")
+	var out []netip.Prefix
+	for _, a := range answers {
+		a = a.Unmap()
+		if !a.Is6() || !local.Contains(a) {
+			continue
+		}
+		b := a.As16()
+		if b[8] != 0 {
+			continue
+		}
+		bits := 0
+		for _, l := range nat64Layouts {
+			if v4 := nat64Embed(b, l.at); v4 == [4]byte{192, 0, 0, 170} || v4 == [4]byte{192, 0, 0, 171} {
+				if bits != 0 {
+					bits = -1
+					break
+				}
+				bits = l.bits
+			}
+		}
+		if bits > 0 {
+			if p := netip.PrefixFrom(a, bits).Masked(); !slices.Contains(out, p) {
+				out = append(out, p)
+			}
+		}
+	}
+	return out
+}
+
+// nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
+// answer 6 hours (10 minutes when nothing was learned or the lookup failed, so a missing DNS64 costs one lookup per 10 minutes).
+// The query carries no customer data (D-442).
+type nat64Cache struct {
+	mu       sync.Mutex
+	lookup   func(ctx context.Context) ([]netip.Addr, error)
+	now      func() time.Time
+	prefixes []netip.Prefix
+	until    time.Time
+}
+
+func (c *nat64Cache) get() []netip.Prefix {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.now().Before(c.until) {
+		return c.prefixes
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	answers, err := c.lookup(ctx)
+	c.prefixes = learnNAT64(answers)
+	ttl := 6 * time.Hour
+	if err != nil || len(c.prefixes) == 0 {
+		ttl = 10 * time.Minute
+	}
+	c.until = c.now().Add(ttl)
+	return c.prefixes
+}
+
+// nat64Prefixes is the learned NAT64 prefixes of this network. Tests replace it.
+var nat64Prefixes = (&nat64Cache{
+	lookup: func(ctx context.Context) ([]netip.Addr, error) {
+		return net.DefaultResolver.LookupNetIP(ctx, "ip6", "ipv4only.arpa")
+	},
+	now: time.Now,
+}).get
 
 // siemForbidden says whether the SIEM may never be at ip: loopback (the box's own services listen there), link-local, multicast,
 // unspecified, broadcast, a cloud metadata endpoint, or one of the box's own addresses, in any of its transition forms. RFC 1918

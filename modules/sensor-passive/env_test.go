@@ -241,6 +241,7 @@ type env struct {
 	forceRemote bool
 	sensorCards func(context.Context) ([]capture.Interface, error) // what the remote capture believes its cards are (default: the host's)
 	off         atomic.Bool                                        // the module is off: the link answers 409 module_off
+	name        atomic.Pointer[string]                             // what Config.Name gives (default "vedette-test")
 }
 
 // countingSink wraps the inventory so tests can see what was recorded and when.
@@ -324,7 +325,9 @@ func newEnv(t *testing.T, files map[string][]pktgen.Frame, hold bool, opts ...op
 	}
 	e.inv = inv
 	e.sink = &countingSink{inner: inv}
-	cfg := sp.Config{DB: db, Audit: aud, Sink: e.sink, Meta: e.meta, Host: e.host, Log: slog.New(slog.DiscardHandler), Version: "1.0.0", Name: "vedette-test",
+	name := "vedette-test"
+	e.name.Store(&name)
+	cfg := sp.Config{DB: db, Audit: aud, Sink: e.sink, Meta: e.meta, Host: e.host, Log: slog.New(slog.DiscardHandler), Version: "1.0.0", Name: func(context.Context) string { return *e.name.Load() },
 		Enabled: func() bool { return !e.off.Load() },
 		KnownMACs: func(ctx context.Context) ([]string, error) {
 			l, err := inv.Devices(ctx)

@@ -1459,8 +1459,8 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["Environment"], want) || svc == api.ServiceCore && !slices.Equal(u["Environment"], []string{"GOMEMLIMIT=1800MiB"}) {
 				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB, D-150)", svc, u["Environment"])
 			}
-			// #471: core alone has HostName=vedette, so the self-signed certificate and the passive sensor get a name, not the container id
-			// (the box's device row and the SIEM HOSTNAME use the OS host name from GET /v1/info instead).
+			// #471: core alone has HostName=vedette. The current core takes every name from GET /v1/info; the line stays for an older core
+			// a newer host may run (D-316 (8)), which still names its certificate and passive sensor after os.Hostname().
 			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["HostName"], want) || svc == api.ServiceCore && !slices.Equal(u["HostName"], []string{"vedette"}) {
 				t.Errorf("%s: HostName=%v (only core has HostName=vedette)", svc, u["HostName"])
 			}

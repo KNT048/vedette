@@ -95,12 +95,12 @@ func TestEnterParked_ARunThatCannotBeStoredIsNotParked(t *testing.T) {
 	cmd, _ := s.reg.Lookup("t.parks")
 	lr := startWrite(t, s, cmd)
 	runs := filepath.Join(dir, "state", "runs")
-	if err := os.Chmod(runs, 0o500); err != nil {
+	if err := os.Chmod(runs, 0o500); err != nil { //nolint:gosec // a directory: read-only so the run file cannot be written
 		t.Fatal(err)
 	}
 	called := false
 	err := s.enterParked(lr, cmd, Parked{Deadline: time.Now().Add(time.Hour), Result: "staged"}, &RunContext{parked: []func(){func() { called = true }}})
-	if cerr := os.Chmod(runs, 0o700); cerr != nil {
+	if cerr := os.Chmod(runs, 0o700); cerr != nil { //nolint:gosec // a directory: the host's own 0700
 		t.Fatal(cerr)
 	}
 	if err == nil || errors.Is(err, errParkDraining) {
@@ -139,7 +139,7 @@ func TestResume_KeepsOnlyRunsOfCommandsThatParkOrAwaitAndClampsTheDeadline(t *te
 			if err := os.MkdirAll(runs, 0o700); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Chmod(filepath.Join(dir, "state"), 0o700); err != nil {
+			if err := os.Chmod(filepath.Join(dir, "state"), 0o700); err != nil { //nolint:gosec // a directory: the host's own 0700
 				t.Fatal(err)
 			}
 			r := c.run
@@ -174,7 +174,8 @@ func TestExecute_SpecTimeoutNoLongerAppliesOnceParked(t *testing.T) {
 		lr := startWrite(t, s, cmd)
 		s.wg.Add(1)
 		s.execute(lr, cmd, struct{}{})
-		time.Sleep(30 * time.Minute) // the bubble's clock: far past the timeout, well before the deadline
+		tm := time.NewTimer(30 * time.Minute) // the bubble's clock: far past the timeout, well before the deadline
+		<-tm.C
 		synctest.Wait()
 		got, _ := s.runs.get(lr.sr.Run.RunID)
 		if s.parked != lr || s.active != lr.sr.Run.RunID || got.Status != api.StatusRunning || got.ParkedDeadline == nil {

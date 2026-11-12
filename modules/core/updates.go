@@ -69,9 +69,9 @@ type updateHistoryView struct {
 //	func (h *OSHandlers) offered(ctx context.Context) (*verifiedRelease, error)   // the release Apply installs; errNoUpdate when none
 //	func (h *OSHandlers) runningRestoresData(ctx context.Context) (bool, error)  // the running release says rollback.safe=false
 //	func (h *OSHandlers) updatesView(ctx context.Context) (any, error)           // the whole UpdatesState, run and history included
+//	func (h *OSHandlers) setManual(ctx context.Context, tx *sql.Tx, by string) error  // mode -> manual in the caller's transaction (rollback)
 //
 // Run side (updates_run.go):
 //
 //	func (h *OSHandlers) runView(ctx context.Context) (*updateRunView, error)     // nil when none or ended more than 24 h ago
 //	func (h *OSHandlers) historyView(ctx context.Context) ([]updateHistoryView, error) // newest first, at most 20
-//	func (h *OSHandlers) setManual(ctx context.Context, tx *sql.Tx, by string) error  // the check side's mode -> manual (rollback)

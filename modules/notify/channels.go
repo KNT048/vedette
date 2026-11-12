@@ -491,8 +491,8 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 				newURL = given
 			}
 			if plainURL = newURL; plainURL == "" {
-				if plainURL, err = s.webhookURL(ctx, tx, cur); err != nil {
-					return badRequest("secret_required", "The saved webhook URL cannot be read. Enter it again and save.")
+				if plainURL, err = s.webhookURL(ctx, tx, cur); err != nil { // its own code: secret_required is the signing key here
+					return badRequest("url_unreadable", "The saved webhook URL cannot be read. Enter it again and save.")
 				}
 			}
 			fields["url"] = plainURL

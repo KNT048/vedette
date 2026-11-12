@@ -157,7 +157,8 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   return null
 }
 
-/** The URL a save means: an empty one, or the masked one the API showed, keeps the saved URL. */
+/** The URL a save means: an empty one, or the masked one the API showed, keeps the saved URL. The mock keeps the URL in clear, so it
+ * never answers the box's 400 `url_unreadable` (a sealed URL that cannot be opened, channels.go SaveChannel). */
 const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
   const given = (f.url ?? '').trim()
   return given && given !== shownUrl(cur.url) ? given : cur.url ?? ''

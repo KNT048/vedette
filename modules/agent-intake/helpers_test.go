@@ -73,8 +73,8 @@ const (
 	macA  = "52:54:00:aa:bb:01"
 )
 
-// testCA stands for the certificate the box pins: any PEM text does, the module only copies it.
-const testCA = "-----BEGIN CERTIFICATE-----\nMIIBtestVedetteBoxCA0000000000000000000000000000000000000000000000\n-----END CERTIFICATE-----\n"
+// testCA stands for the certificate the box pins: any well-formed CERTIFICATE block does (the module re-encodes the blocks, it does not parse them).
+const testCA = "-----BEGIN CERTIFICATE-----\nVmVkZXR0ZSB0ZXN0IGJveCBDQSwgbm90IGEgcmVhbCBjZXJ0aWZpY2F0ZQ==\n-----END CERTIFICATE-----\n"
 
 // boxHosts is the Host allow-list of the test box, and boxURL the address configured for it.
 var boxHosts = []string{"box.corp.example", boxAddr, "*.lab.example"}

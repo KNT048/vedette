@@ -102,24 +102,19 @@ func localNames() []string {
 	return out
 }
 
-// ensureCert creates the self-signed certificate and its key on first start, like ensureKey: P-256, 825
-// days, both files mode 0600, the names of hosts (plus localNames) as subject alternative names. When the key
-// file exists the pair is kept as it is (the owner may have put their own there), except that a pair this
-// function made (subject organization selfSignedOrg) that expires within 30 days gets a new certificate for
-// the same key, so a box that restarts now and then never runs out; delete both files to have new ones made.
-// A key without its certificate is an error; a certificate without its key is a leftover of an interrupted
-// first start and is replaced.
-func ensureCert(certPath, keyPath string, hosts []string) error {
-	return ensureCertAt(certPath, keyPath, hosts, time.Now, nil)
-}
-
-// ensureCertAt is ensureCert with the clock and the logger injected (nil: the default logger).
-func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time, log *slog.Logger) error {
+// ensureCertAt creates the self-signed certificate and its key on first start, like ensureKey: P-256, 825 days, both files mode
+// 0600, the names of hosts (plus localNames) as subject alternative names, signed by the box CA (ca, D-262). When the key file
+// exists the pair is kept as it is (the owner may have put their own there), except that a pair this function made (subject
+// organization selfSignedOrg) that expires within 30 days, or that does not chain to the box CA, gets a new certificate for the
+// same key, so a box that restarts now and then never runs out; delete both files to have new ones made. A key without its
+// certificate is an error; a certificate without its key is a leftover of an interrupted first start and is replaced. now is the
+// clock, log the logger (nil: the default logger).
+func ensureCertAt(ctx context.Context, ca *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, log *slog.Logger) error {
 	if _, err := os.Lstat(keyPath); err == nil {
 		if _, err := os.Lstat(certPath); err != nil {
 			return fmt.Errorf("tls: %s exists but %s does not: restore the certificate or delete the key to make a new pair", keyPath, certPath)
 		}
-		_, err := renewSelfSigned(certPath, keyPath, hosts, now, log)
+		_, err := renewSelfSigned(ctx, ca, certPath, keyPath, hosts, now, log)
 		return err
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("tls key file: %w", err)
@@ -128,11 +123,11 @@ func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time
 	if err != nil {
 		return fmt.Errorf("tls: generate key: %w", err)
 	}
-	ca, err := ensureBoxCA(certPath, now(), log, true) // no leaf yet: a CA is required
+	c, err := ca.ensure(ctx, now(), log, true) // no leaf yet: a CA is required
 	if err != nil {
 		return err
 	}
-	certPEM, err := selfSignedPEM(ca, key, hosts, now())
+	certPEM, err := selfSignedPEM(c, key, hosts, now())
 	if err != nil {
 		return err
 	}
@@ -150,13 +145,13 @@ func ensureCertAt(certPath, keyPath string, hosts []string, now func() time.Time
 // selfSignedRenewBefore of now(), signing with the key already there (one atomic file write: a crash cannot
 // leave a certificate that does not match the key). It reports whether it replaced it. A pair it cannot
 // read, or one that is not its own, is left for loadTLS to judge.
-func renewSelfSigned(certPath, keyPath string, hosts []string, now func() time.Time, log *slog.Logger) (bool, error) {
-	return reissueSelfSigned(certPath, keyPath, hosts, now, func(l *x509.Certificate) bool { return l.NotAfter.Sub(now()) <= selfSignedRenewBefore }, log)
+func renewSelfSigned(ctx context.Context, ca *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, log *slog.Logger) (bool, error) {
+	return reissueSelfSigned(ctx, ca, certPath, keyPath, hosts, now, func(l *x509.Certificate) bool { return l.NotAfter.Sub(now()) <= selfSignedRenewBefore }, log)
 }
 
 // reissueSelfSigned is renewSelfSigned with the reason as a parameter: a pair this program made is given a new
 // certificate (same key, one atomic write) when need says so about the current one.
-func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time.Time, need func(*x509.Certificate) bool, log *slog.Logger) (bool, error) {
+func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, need func(*x509.Certificate) bool, log *slog.Logger) (bool, error) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -175,10 +170,10 @@ func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time
 	// Nothing about the CA may stop a start while the leaf in use is valid and needs no new certificate
 	// (H-1): the upgrade is optional, and the next Check (at start) tries again and logs why.
 	optional := !need(leaf) && now().Before(leaf.NotAfter)
-	ca, err := ensureBoxCA(certPath, now(), log, !optional)
+	ca, err := cas.ensure(ctx, now(), log, !optional)
 	if err != nil {
 		if optional {
-			log.Warn("the box CA is not available; the certificate in use is kept", "error", err)
+			log.WarnContext(ctx, "the box CA is not available; the certificate in use is kept", "error", err)
 			return false, nil
 		}
 		return false, err
@@ -195,7 +190,7 @@ func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time
 	}
 	if err != nil {
 		if optional { // a data directory that cannot be written: serve the old leaf, as before the CA existed
-			log.Warn("the certificate could not be re-issued under the box CA; the certificate in use is kept", "error", err)
+			log.WarnContext(ctx, "the certificate could not be re-issued under the box CA; the certificate in use is kept", "error", err)
 			return false, nil
 		}
 		return false, err
@@ -209,6 +204,7 @@ func reissueSelfSigned(certPath, keyPath string, hosts []string, now func() time
 type selfSignedRenewer struct {
 	certPath, keyPath string
 	hosts             []string
+	ca                *boxCAStore // the box CA (D-262, D-351)
 	now               func() time.Time
 	// mgmt is the management addresses of the box from vedette-host (D-139); nil without a host.
 	mgmt  func(ctx context.Context) ([]netip.Addr, error)
@@ -221,6 +217,14 @@ type selfSignedRenewer struct {
 
 	mu   sync.RWMutex
 	cert *tls.Certificate
+}
+
+// leaf is the certificate served now, parsed.
+func (r *selfSignedRenewer) leaf() (*x509.Certificate, error) {
+	r.mu.RLock()
+	c := r.cert
+	r.mu.RUnlock()
+	return x509.ParseCertificate(c.Certificate[0]) //nolint:wrapcheck // the caller says what failed
 }
 
 // GetCertificate is tls.Config.GetCertificate.
@@ -380,7 +384,7 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	}
 	// An unreadable CA is replaced only when a new leaf is truly required (expiring or expired), so an
 	// error that never goes away cannot keep the box from renewing.
-	ca, caErr := ensureBoxCA(r.certPath, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
+	ca, caErr := r.ca.ensure(ctx, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
 	hosts := append([]string(nil), r.hosts...)
 	addrChange := false
 	var now map[netip.Addr]bool
@@ -559,179 +563,9 @@ func (w *ownerCertWarner) Run(ctx context.Context, log *slog.Logger, tick, addrT
 		})
 }
 
-// The box CA (WP-26 slice 1, D-262): a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate
-// as the server's end-entity certificate), signs the self-made leaf, so an agent that pins the CA keeps
-// trusting the box through every leaf re-issue (D-139). Created once next to the leaf, never rotated by a
-// renewal; only an expired CA, or one that cannot cover a new leaf, is replaced.
-const (
-	boxCALifetime = 20 * 365 * 24 * time.Hour
-	boxCAName     = "vedette-selfsigned-ca"
-)
-
-// boxCA is the box CA: its certificate and key.
-type boxCA struct {
-	cert *x509.Certificate
-	key  crypto.Signer
-}
-
-// boxCAPaths are the CA files, in the directory of the leaf's certificate (mode 0600 like the leaf's key).
-func boxCAPaths(leafCertPath string) (certPath, keyPath string) {
-	d := filepath.Dir(leafCertPath)
-	return filepath.Join(d, boxCAName+".crt"), filepath.Join(d, boxCAName+".key")
-}
-
-// notSignedBy reports whether leaf does not chain to ca (an old self-signed leaf, or a CA that was replaced).
-func notSignedBy(leaf *x509.Certificate, ca *boxCA) bool {
-	return leaf.CheckSignatureFrom(ca.cert) != nil
-}
-
-// errCAUnreadable marks a read or stat error on the CA files other than "does not exist" (EMFILE, EIO,
-// EACCES): the files may be fine, so nothing is moved aside because of it (M-1).
-var errCAUnreadable = errors.New("the box CA files could not be read")
-
-// loadBoxCA reads the CA pair and says why it cannot be used: key missing or with a mode wider than 0600,
-// files that hold no PEM, do not parse or match, a certificate that is not a CA. A read or stat error that
-// is not "does not exist" wraps errCAUnreadable instead: that says nothing about the files.
-func loadBoxCA(crtPath, keyPath string) (*boxCA, error) {
-	if _, err := os.Stat(keyPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("%w: %w", errCAUnreadable, err)
-	}
-	if err := checkKeyFile(keyPath); err != nil {
-		return nil, err
-	}
-	var files [2][]byte
-	for i, p := range []string{crtPath, keyPath} {
-		b, err := os.ReadFile(p) //nolint:gosec // the CA files next to the leaf
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, err
-			}
-			return nil, fmt.Errorf("%w: %w", errCAUnreadable, err)
-		}
-		files[i] = b
-	}
-	pair, err := tls.X509KeyPair(files[0], files[1])
-	if err != nil {
-		return nil, err
-	}
-	cert, err := x509.ParseCertificate(pair.Certificate[0])
-	signer, ok := pair.PrivateKey.(crypto.Signer)
-	if err != nil || !ok || !cert.IsCA {
-		return nil, errors.New("not a CA certificate with its key")
-	}
-	return &boxCA{cert: cert, key: signer}, nil
-}
-
-// ensureBoxCA loads the box CA next to leafCertPath, or makes it when there is none. A CA that expires
-// within selfSignedLifetime (it could not cover a new leaf), and one that cannot be used (key missing or
-// readable by others, files that do not match or parse, not a CA), are moved aside as *.quarantine-<unix>
-// (the purge sweeps those) and replaced, with one ERROR on log: the leaf follows at its next check, and
-// enrolled agents must enrol again. Never an error for a CA problem: refusing to start would lock the
-// administrators out of the GUI for a file the 8443 listener does not need. The old files are moved before
-// the new ones are written, so a crash leaves nothing or a key alone (replaced next time), never a
-// mismatched pair. An error only when files cannot be moved or written.
-func ensureBoxCA(leafCertPath string, now time.Time, log *slog.Logger, mustHave bool) (*boxCA, error) {
-	if log == nil {
-		log = slog.Default()
-	}
-	crtPath, keyPath := boxCAPaths(leafCertPath)
-	if _, err := os.Lstat(crtPath); err == nil {
-		ca, lerr := loadBoxCA(crtPath, keyPath)
-		if lerr == nil && ca.cert.NotAfter.Sub(now) > selfSignedLifetime {
-			return ca, nil
-		}
-		if errors.Is(lerr, errCAUnreadable) && !mustHave {
-			return nil, lerr // maybe passing (EMFILE, EIO): move nothing; callers keep serving a valid leaf
-		}
-		reason := "it is about to expire"
-		if lerr != nil {
-			reason = lerr.Error()
-		}
-		stamp := ".quarantine-" + strconv.FormatInt(now.Unix(), 10)
-		// The certificate first: a crash between the two renames leaves a key alone, which heals without an ERROR.
-		for _, p := range []string{crtPath, keyPath} {
-			if err := os.Rename(p, p+stamp); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return nil, fmt.Errorf("tls: box CA: move %s aside: %w", p, err)
-			}
-		}
-		_ = os.Chmod(keyPath+stamp, 0o600) // it may have been moved because others could read it
-		log.Error("the box CA could not be kept and was replaced; enrolled agents must run the install command again",
-			"reason", reason, "old_files", filepath.Base(crtPath)+stamp)
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("tls: box CA: %w", err)
-	}
-	return makeBoxCA(crtPath, keyPath, now, writeAtomic)
-}
-
-// makeBoxCA makes a CA and writes its key first, then its certificate (a crash between them leaves a key
-// alone, which ensureBoxCA replaces; the other order would leave a certificate without its key). write is
-// writeAtomic; a test gives one that fails to stand for the crash.
-func makeBoxCA(crtPath, keyPath string, now time.Time, write func(path string, data []byte) error) (*boxCA, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("tls: generate CA key: %w", err)
-	}
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
-	if err != nil {
-		return nil, fmt.Errorf("tls: serial: %w", err)
-	}
-	tmpl := &x509.Certificate{
-		SerialNumber: serial, Subject: pkix.Name{CommonName: "Vedette box CA", Organization: []string{selfSignedOrg}},
-		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(boxCALifetime),
-		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign, BasicConstraintsValid: true, IsCA: true, MaxPathLen: 0, MaxPathLenZero: true,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
-	if err != nil {
-		return nil, fmt.Errorf("tls: create CA certificate: %w", err)
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		return nil, fmt.Errorf("tls: parse CA certificate: %w", err)
-	}
-	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("tls: encode CA key: %w", err)
-	}
-	if err := write(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})); err != nil {
-		return nil, err
-	}
-	if err := write(crtPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})); err != nil {
-		return nil, err
-	}
-	return &boxCA{cert: cert, key: key}, nil
-}
-
-// trustAnchorPEM is what an agent pins to trust this box's 8443 (served by GET /intake/ca.pem in a later
-// slice): the box CA's certificate for the box's own pair; for a certificate the owner supplied
-// (-tls-cert), the certificates of the file as supplied (the chain, or the leaf alone), never anything else
-// that file holds (a key in the same file is not copied).
-func trustAnchorPEM(certPath string, ownerSupplied bool) ([]byte, error) {
-	if !ownerSupplied {
-		certPath, _ = boxCAPaths(certPath)
-	}
-	raw, err := os.ReadFile(certPath) //nolint:gosec // the configured certificate path, or the CA file next to it
-	if err != nil {
-		return nil, fmt.Errorf("tls: trust anchor: %w", err)
-	}
-	var out []byte
-	for {
-		var blk *pem.Block
-		blk, raw = pem.Decode(raw)
-		if blk == nil {
-			break
-		}
-		if blk.Type == "CERTIFICATE" {
-			out = append(out, pem.EncodeToMemory(blk)...)
-		}
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("tls: %s holds no certificate", certPath)
-	}
-	return out, nil
-}
-
-// selfSignedPEM makes a server certificate for key, signed by the box CA, valid selfSignedLifetime, for
-// hosts and localNames.
+// selfSignedPEM makes a server certificate for key, signed by the box CA, for hosts and localNames. It is valid
+// selfSignedLifetime from NotBefore (an hour back, for clocks a little behind) to NotAfter: Apple's limit of 825 days is
+// counted between those two (L-3).
 func selfSignedPEM(ca *boxCA, key crypto.Signer, hosts []string, now time.Time) ([]byte, error) {
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
 	if err != nil {
@@ -739,7 +573,7 @@ func selfSignedPEM(ca *boxCA, key crypto.Signer, hosts []string, now time.Time) 
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber: serial, Subject: pkix.Name{CommonName: "Vedette", Organization: []string{selfSignedOrg}},
-		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(selfSignedLifetime),
+		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(selfSignedLifetime - time.Hour),
 		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, BasicConstraintsValid: true,
 	}
 	seen := map[string]bool{}

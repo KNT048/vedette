@@ -402,7 +402,7 @@ function execItem(a: ActionRequest, i: RequestItem): void {
       return
     }
   }
-  const removeAt = i.ttl_min ? new Date(Date.now() + i.ttl_min * 60e3).toISOString() : null
+  const removeAt = i.reversible && i.ttl_min ? new Date(Date.now() + i.ttl_min * 60e3).toISOString() : null
   const verified = i.change.verify ? { ok: true, detail: `Read back: ${i.change.verify}. The change is in place.` } : null
   step('response.execute', a.id, 'executed', `${callText(i.change.rest, i.change.cli)}${removeAt ? `; undone automatically at ${removeAt}` : ''}${verified ? '; read back: ok' : ''}`, 'system')
   patchItem(a, i.id, { status: 'executed', executed_at: nowIso(), remove_at: removeAt, verified,

@@ -1201,6 +1201,26 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect((await call('operator', 'POST', `/response/actions/${b.json.id}/rollback`)).code).toBe('not_executed')
   })
 
+  it('an executed item shows the undo time the box set (remove_at), and "not undone automatically" when there is none (D-356)', async () => {
+    await turnOn()
+    const a = await request()
+    actionsDb.update((l) => l.map((x) => (x.id === a.json.id ? { ...x, items: x.items.map((i) => ({ ...i, ttl_min: 60 })) } : x))) // an undo time of one hour
+    const ok = await call<ActionRequest>('operator', 'POST', `/response/actions/${a.json.id}/approve`)
+    expect(ok.status).toBe(200)
+    expect(ok.json.items[0]).toMatchObject({ status: 'executed', reversible: true, ttl_min: 60 })
+    expect(ok.json.items[0]!.remove_at).not.toBeNull() // the mock sets remove_at like the box: executed, can be undone, has a ttl
+    const view = async () => (await call<{ items: ActionRequest[] }>('operator', 'GET', '/response/actions')).json.items.find((x) => x.id === a.json.id)!
+    const first = renderUi(<RequestCard a={await view()} />, 'operator')
+    expect(screen.getAllByText(/Undone automatically at/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Undone after/)).toBeNull()
+    first.unmount()
+    // A change that was already on the device before the step: executed, no undo time (the box does not set remove_at).
+    actionsDb.update((l) => l.map((x) => (x.id === a.json.id ? { ...x, items: x.items.map((i) => ({ ...i, remove_at: null })) } : x)))
+    renderUi(<RequestCard a={await view()} />, 'operator')
+    expect(screen.getAllByText(/Not undone automatically \(undo it by hand\)/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Undone automatically at|Undone after/)).toBeNull()
+  })
+
   it('custom actions: add, edit, delete; unsafe templates are refused; built-ins cannot be deleted; a rule in use blocks delete', async () => {
     expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{domain}; reboot"}' } })).status).toBe(400)
     expect((await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, body: '{"url":"{host}"}' } })).status).toBe(400)

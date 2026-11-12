@@ -812,10 +812,10 @@ func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
 	r.srv.mu.Lock()
 	l := r.srv.tcp
 	r.srv.mu.Unlock()
-	if got := r.srv.register(l, c1, lo); got != regOK {
+	if got := r.srv.register(l, c1, lo, "tcp"); got != regOK {
 		t.Fatalf("a declared TCP sender: %d", got)
 	}
-	if got := r.srv.register(l, c2, other); got != regOverLimit {
+	if got := r.srv.register(l, c2, other, "tcp"); got != regOverLimit {
 		t.Errorf("over the total limit: %d", got)
 	}
 	r.srv.unregister(c1, lo)
@@ -825,16 +825,16 @@ func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
 	if !r.srv.Status().TCP {
 		t.Fatal("the TCP listener closed, so this test would not reach the sender check")
 	}
-	if got := r.srv.register(l, c1, lo); got != regStale {
+	if got := r.srv.register(l, c1, lo, "tcp"); got != regStale {
 		t.Errorf("a sender that was removed while its listener stays open: %d, want regStale", got)
 	}
 	if err := r.srv.SetSources(map[netip.Addr]Source{other: {ID: "src-2", Proto: "udp"}}); err != nil { // the listener closes
 		t.Fatal(err)
 	}
-	if got := r.srv.register(l, c1, other); got != regGone {
+	if got := r.srv.register(l, c1, other, "tcp"); got != regGone {
 		t.Errorf("a listener that is gone: %d, want regGone", got)
 	}
-	if got := r.srv.register(nil, c1, other); got != regGone {
+	if got := r.srv.register(nil, c1, other, "tcp"); got != regGone {
 		t.Errorf("no listener: %d", got)
 	}
 }
@@ -851,7 +851,7 @@ func TestAConnectionRefusedForStaleSourcesIsNotCountedAsOverTheLimit(t *testing.
 	l := r.srv.tcp
 	r.srv.mu.Unlock()
 	_ = r.srv.SetSources(map[netip.Addr]Source{netip.MustParseAddr("10.1.1.1"): {ID: "src-9", Proto: "tcp"}})
-	if got := r.srv.register(l, c1, lo); got != regStale || r.srv.Stats().ConnRejected != 0 {
+	if got := r.srv.register(l, c1, lo, "tcp"); got != regStale || r.srv.Stats().ConnRejected != 0 {
 		t.Errorf("register %d, ConnRejected %d", got, r.srv.Stats().ConnRejected)
 	}
 }

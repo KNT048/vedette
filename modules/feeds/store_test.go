@@ -3,6 +3,7 @@ package feeds
 import (
 	"database/sql"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -11,23 +12,30 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
+// TestMain makes an indicator chunk 200 rows instead of 2000: the chunk tests need lists of several chunks, and under -race
+// every SQLite row costs milliseconds. The chunking logic does not depend on the size.
+func TestMain(m *testing.M) {
+	iocChunkRows = 200
+	os.Exit(m.Run())
+}
+
 var epoch0 = time.Date(2026, 11, 9, 8, 0, 0, 0, time.UTC)
 
 // newStore opens a real database with core's and the feeds migrations and seeds the built-in feeds.
 func newStore(t testing.TB) (*Store, *store.DB) {
 	t.Helper()
-	db := storetest.New(t)
-	if err := store.Migrate(t.Context(), db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
-		t.Fatal(err)
-	}
+	db := migratedDB(t)
 	s := NewStore(db)
 	if err := s.SeedBuiltins(t.Context(), epoch0); err != nil {
 		t.Fatal(err)
 	}
 	return s, db
+}
+
+// migratedDB is a copy of a database that core's and the feeds migrations were applied to once (#409), with no feed seeded.
+func migratedDB(t testing.TB) *store.DB {
+	t.Helper()
+	return storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: Migrations})
 }
 
 func write(t testing.TB, db *store.DB, fn func(tx *sql.Tx) error) {

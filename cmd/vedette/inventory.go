@@ -54,7 +54,8 @@ func newInventory(d *deps) *inventory.Service {
 // inventoryJobs keeps the box in the inventory as its first device (INV-3, D-53): the job runs as soon as the
 // module is on (start-up, or when it is switched on), creates the device once and refreshes it after. service-prune removes
 // the open services not seen for 90 days (INV-23); it only deletes past a retention the product states, so it is
-// housekeeping (D-160, D-202) and runs while the module is off too.
+// housekeeping (D-160, D-202) and runs while the module is off too. agent-software-prune removes the software an agent has not
+// reported for 30 days (D-327): a normal job, because the 30 days count only while the inventory and agent-intake are on.
 func inventoryJobs(d deps) []jobs.Job {
 	svc := d.Inventory
 	prune := jobs.Job{Module: "inventory", Name: "service-prune", Every: 6 * time.Hour, Housekeeping: true, Run: func(ctx context.Context) error {
@@ -70,7 +71,7 @@ func inventoryJobs(d deps) []jobs.Job {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)
-	}}}
+	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job (D-327)
 }
 
 // findingCounts is inventory's FindingCounter: findings is built after inventory, so its service is looked up when asked. The count

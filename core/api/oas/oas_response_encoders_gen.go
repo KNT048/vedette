@@ -2112,7 +2112,7 @@ func encodeInventoryGetInstallOsqueryShResponse(response InventoryGetInstallOsqu
 }
 
 func encodeInventoryGetIntakeCaPemResponse(response InventoryGetIntakeCaPemOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.WriteHeader(200)
 
 	writer := w

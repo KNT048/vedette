@@ -72,6 +72,12 @@ func TestMain(m *testing.M) {
 	// Tests that compare formatted times want UTC. Each used to call t.Setenv("TZ", "UTC"), which forbids t.Parallel; once here, for all.
 	_ = os.Setenv("TZ", "UTC")
 	time.Local = time.UTC
+	// No box of this package reaches the internet: every one gets the offline feeds client of the end-to-end run, set here before any
+	// test starts (so no parallel test sees the package var change) and never put back. A box on the real client pulled the public feeds
+	// at its start and stored them in one transaction that held the database writer for seconds (~13 s measured, more under -race on a
+	// loaded runner): the purge and the second first-run setup of TestRunPurgeBringsBackAFreshBoxAndStops queued behind it, past the
+	// client timeout or into 503 server_busy, and what any test saw depended on the network.
+	e2eOffline()
 	code := m.Run()
 	if tplDir != "" {
 		_ = os.RemoveAll(tplDir)

@@ -135,7 +135,8 @@ type fakeConns struct{ list []response.ConnectionInfo }
 func (f *fakeConns) List(context.Context) ([]response.ConnectionInfo, error) { return f.list, nil }
 
 // fakeExecutor records every step it is asked to carry out; it never talks to a network. A check before answers "all clear" (pre), the
-// read-back after a run holds present and after an undo does not; status[phase] and err make a phase fail.
+// read-back after a run holds present and after an undo does not; a read before any run (D-356) does not hold it either (after, when set).
+// status[phase] and err make a phase fail; status["readback"] makes only a verify after a run fail, not the read before the run.
 type fakeExecutor struct {
 	mu      sync.Mutex
 	steps   []response.DeviceStep
@@ -146,13 +147,20 @@ type fakeExecutor struct {
 	after   string                         // output of the read-back after an undo (a device that still shows the change holds the text here)
 	last    string                         // the last write phase seen
 	hold    chan struct{}                  // a "run" step waits for it to close (or for its context to end): a device that is slow to answer
+	inRun   chan struct{}                  // when set, gets one value as a held "run" step starts waiting (the write is in flight)
 }
 
 func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	f.mu.Lock()
-	hold := f.hold
+	hold, inRun := f.hold, f.inRun
 	f.mu.Unlock()
 	if hold != nil && s.Phase == "run" {
+		if inRun != nil {
+			select {
+			case inRun <- struct{}{}:
+			default:
+			}
+		}
 		select {
 		case <-hold:
 		case <-ctx.Done():
@@ -168,6 +176,10 @@ func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (resp
 	r := response.DeviceResult{Status: response.StepOK, Detail: s.Phase + " done"}
 	if s.Phase == "run" || s.Phase == "rollback" {
 		f.last = s.Phase
+	}
+	if st, ok := f.status["readback"]; ok && s.Phase == "verify" && f.last == "run" {
+		r.Status = st
+		return r, nil
 	}
 	if st, ok := f.status[s.Phase]; ok {
 		r.Status = st
@@ -194,6 +206,18 @@ func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (resp
 	return r, nil
 }
 func (f *fakeExecutor) count() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.steps) }
+
+// runStep is the first run step sent (the read before it comes first, D-356).
+func (f *fakeExecutor) runStep() response.DeviceStep {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, s := range f.steps {
+		if s.Phase == "run" {
+			return s
+		}
+	}
+	return response.DeviceStep{}
+}
 func (f *fakeExecutor) phases() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()

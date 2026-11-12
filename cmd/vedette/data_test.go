@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -347,9 +350,10 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(hpLog), 0o700) }) //nolint:gosec // a directory of this test
-	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that.
+	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that. Its job runs
+	// every 15 s, so the bound is four of its periods: 20 s left a loaded runner a few seconds for the read and its write after a full period.
 	var tailValue string
-	for range 100 {
+	for range 300 {
 		if tailValue = rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); strings.Contains(tailValue, `"offset":17`) {
 			break
 		}
@@ -568,9 +572,28 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The box CA (D-351) is a core_secret row: its key never leaves in the export, nor does the row.
+	boxCAs, err := newBoxCAStore(s.d.DB, s.d.Secrets, s.d.Audit, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxCA, err := boxCAs.ensure(ctx, time.Now(), slog.New(slog.DiscardHandler), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caKeyDER, err := x509.MarshalPKCS8PrivateKey(boxCA.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	c, body := call("GET", "/core/data/export", nil)
 	if c != 200 {
 		t.Fatalf("export = %d %.300s", c, body)
+	}
+	for _, sct := range []string{base64.StdEncoding.EncodeToString(caKeyDER), hex.EncodeToString(caKeyDER), "core_box_ca", "PRIVATE KEY"} {
+		if strings.Contains(body, sct) {
+			t.Errorf("the export holds the box CA (%.12q)", sct)
+		}
 	}
 	var doc struct {
 		Tables    map[string][]map[string]any `json:"tables"`

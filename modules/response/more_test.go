@@ -63,6 +63,20 @@ func TestContract_INV17_Blocklist(t *testing.T) {
 	if strings.Contains(string(b), "10.9.9.9") {
 		t.Fatal("the list holds a never-touch address")
 	}
+	// A public one too: 10.9.9.9 is not publishable anyway, so only a public address reaches the never-touch filter itself
+	// (a public DNS server on the never-touch list, D-325).
+	e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES ('198.51.100.200', 'x2', 'y2', 's', 'r', '2026-11-09T10:00:00.000Z')`)
+	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
+	if !strings.Contains(string(b), "198.51.100.200") {
+		t.Fatalf("a public address that is not on the never-touch list is not served:\n%s", b)
+	}
+	if _, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "10.9.9.0/24", Label: "Management"}, {Value: "198.51.100.192/26", Label: "Public DNS"}}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
+	if strings.Contains(string(b), "198.51.100.200") || !strings.Contains(string(b), "198.51.100.7") {
+		t.Fatalf("the never-touch filter on public addresses:\n%s", b)
+	}
 	// An entry past its time to live is not served, even before the sweep.
 	e.clock.Advance(2 * time.Hour)
 	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")

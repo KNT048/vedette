@@ -983,7 +983,7 @@ func TestPost5_CloseStopsTheSends(t *testing.T) {
 func TestPost5_BudgetRunningOutIsInTheLog(t *testing.T) {
 	t.Parallel()
 	e := newLinkEnv(t)
-	e.svc.SetSendBudgetForTest(50 * time.Millisecond)
+	e.svc.SetSendBudgetForTest(time.Second) // the budget covers the reads before the notifier too: 50 ms can end there on a loaded runner, before the log line
 	e.note.block = make(chan struct{})
 	e.note.sendSent = []string{"Email"} // one approver was mailed before the budget ended
 	a := e.pending()

@@ -62,6 +62,9 @@ type Service struct {
 
 	pendMu  sync.Mutex
 	pending map[*sql.Tx]*outbox // events of AddManualDevice calls whose caller transaction is still open
+
+	retMu sync.Mutex
+	ret   retention // the prune job's unbroken-run state (retention.go)
 }
 
 // New returns the service.

@@ -85,7 +85,7 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 	req := e.only()
 	got, err := e.svc.Approve(e.ctx(), oper, req.ID, nil, "")
 	e.must(err)
-	if strings.Join(e.exec.phases(), ",") != "precheck,run,verify" {
+	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify" { // the read before the run (D-356): not the same read as the check
 		t.Fatalf("steps = %v", e.exec.phases())
 	}
 	want := map[string]string{
@@ -105,10 +105,10 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 	if _, err := e.svc.Rollback(e.ctx(), oper, req.ID); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(e.exec.phases(), ",") != "precheck,run,verify,rollback,verify" {
+	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify,rollback,verify" {
 		t.Fatalf("steps = %v", e.exec.phases())
 	}
-	if g := strings.Join(e.exec.steps[3].Lines, "|"); g != "terminal length 0|configure terminal|interface Gi1/0/12|no shutdown|end" {
+	if g := strings.Join(e.exec.steps[4].Lines, "|"); g != "terminal length 0|configure terminal|interface Gi1/0/12|no shutdown|end" {
 		t.Errorf("rollback lines = %s", g)
 	}
 	if it := e.only().Items[0]; it.Status != response.ItemRolledBack || it.Result == nil || !strings.Contains(*it.Result, "the change is gone") {
@@ -121,9 +121,10 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
-	e.exec.pre, e.exec.present, e.exec.after = staticAccess, "Gi1/0/12 disabled", "Gi1/0/12 disabled"
+	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
+	e.exec.after = "Gi1/0/12 disabled" // after the run (not before it: that would be a change already there, D-356)
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
 	e.must(e.svc.Sweep(e.ctx()))
@@ -172,7 +173,7 @@ func TestDevice_VerifyNeedsExpect(t *testing.T) {
 	e2.fire(ev)
 	got2, err := e2.svc.Approve(e2.ctx(), oper, e2.only().ID, nil, "")
 	e2.must(err)
-	if strings.Join(e2.exec.phases(), ",") != "run,verify" || got2.Items[0].Verified == nil || got2.Items[0].Verified.OK {
+	if strings.Join(e2.exec.phases(), ",") != "verify,run,verify" || got2.Items[0].Verified == nil || got2.Items[0].Verified.OK {
 		t.Fatalf("steps %v, item %+v", e2.exec.phases(), got2.Items[0])
 	}
 	if got2.Items[0].Status != response.ItemExecuted {
@@ -191,7 +192,7 @@ func TestDevice_ExpirySecondsAreTheUndoTime(t *testing.T) {
 	if _, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, ""); err != nil {
 		t.Fatal(err)
 	}
-	run := e.exec.steps[0]
+	run := e.exec.runStep()
 	if run.Phase != "run" || run.Method != "POST" || run.URL != "https://fw.lan/api/v2/monitor/user/banned/add_users" || run.Body != `{"ip_addresses":["198.51.100.7"],"expiry":1800}` {
 		t.Fatalf("run step: %+v", run)
 	}
@@ -219,7 +220,7 @@ func TestDevice_RunStepIsWhatTheApproverSaw(t *testing.T) {
 		t.Fatal(err)
 	}
 	shown := req.Items[0].Change.Rest
-	run := e.exec.steps[0]
+	run := e.exec.runStep()
 	if shown == nil || shown.Method != run.Method || shown.URL != run.URL || shown.Body == nil || *shown.Body != run.Body {
 		t.Fatalf("shown %+v, sent %+v", shown, run)
 	}
@@ -388,9 +389,9 @@ func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
 		}
 		// An outcome that is not clear is read back once at once (fgt_ban_ip has a read-back text); the read-back prints nothing here, which
 		// settles nothing, so the item stays unknown.
-		want := "run"
+		want := "verify,run" // the read before the run (D-356), then the run
 		if c.inForce {
-			want = "run,verify"
+			want = "verify,run,verify"
 		}
 		if strings.Join(e.exec.phases(), ",") != want {
 			t.Errorf("%s: steps %v, want %s", c.status, e.exec.phases(), want)

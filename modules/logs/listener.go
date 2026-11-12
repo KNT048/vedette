@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"crypto/tls"
 	"net/netip"
 	"time"
 
@@ -14,6 +15,11 @@ type SyslogConfig struct {
 	Host   string // "" = every IPv4 address
 	Ports  []int  // nil = 514, then 5514
 	Limits listen.Limits
+	// TLS is the certificate side of syslog over TLS (RFC 5425), the box's HTTPS configuration cloned by cmd/vedette (D-214): the same
+	// GetCertificate, so a renewal is served by the next handshake; TLS 1.2 minimum, no client certificate (the sender's IP is its identity).
+	// Nil (a loopback or dev box serves no TLS): sources with proto tls are refused (400 tls_unavailable) and nothing listens for TLS.
+	// The TLS port follows the plain one: 6514 for 514, p+1 for any other (5515 for the core container's 5514).
+	TLS *tls.Config
 	// RetryEvery is how often the job retries a socket that could not be opened, or a read of the sources that failed
 	// (0 = SyslogRetry).
 	RetryEvery time.Duration
@@ -34,9 +40,9 @@ func (s *Service) sourcesChanged() {
 	}
 }
 
-// listenSources is the declared senders the listener serves: udp and tcp sources by sender address. A tls row (the API refuses them, D-203) is counted
-// and not served: nothing here listens for TLS.
-func (s *Service) listenSources(ctx context.Context) (m map[netip.Addr]listen.Source, tls int, err error) {
+// listenSources is the declared senders the listener serves, by sender address. A tls row is counted as well: the listener serves it only
+// while the box has a TLS configuration, and the count is what the warning for a left-over row (declared before this box had one) is about.
+func (s *Service) listenSources(ctx context.Context) (m map[netip.Addr]listen.Source, tlsRows int, err error) {
 	load := s.loadSources
 	if s.loadForListener != nil { // a test makes the read fail
 		load = s.loadForListener
@@ -55,10 +61,11 @@ func (s *Service) listenSources(ctx context.Context) (m map[netip.Addr]listen.So
 		case "udp", "tcp":
 			m[ip] = listen.Source{ID: r.ID, Proto: r.Proto}
 		default:
-			tls++
+			tlsRows++
+			m[ip] = listen.Source{ID: r.ID, Proto: r.Proto} // the server serves it only when it has a TLS configuration
 		}
 	}
-	return m, tls, nil
+	return m, tlsRows, nil
 }
 
 // sink hands a batch to Ingest. The listener never stores anything itself.
@@ -88,7 +95,7 @@ func (s *Service) runSyslog(ctx context.Context) error {
 	if retry <= 0 {
 		retry = SyslogRetry
 	}
-	srv, err := listen.New(listen.Config{Host: s.cfg.Syslog.Host, Ports: ports, Sink: s.sink, Log: s.cfg.Log, Now: s.now, Limits: lim})
+	srv, err := listen.New(listen.Config{Host: s.cfg.Syslog.Host, Ports: ports, Sink: s.sink, Log: s.cfg.Log, Now: s.now, Limits: lim, TLS: s.cfg.Syslog.TLS})
 	if err != nil {
 		return err
 	}
@@ -101,7 +108,7 @@ func (s *Service) runSyslog(ctx context.Context) error {
 	var warnedRead string
 	// apply reloads the sources into the server; it reports whether it has to be tried again.
 	apply := func() (again bool) {
-		m, tls, err := s.listenSources(ctx)
+		m, tlsRows, err := s.listenSources(ctx)
 		if err != nil {
 			if ctx.Err() == nil && warnedRead != err.Error() {
 				warnedRead = err.Error()
@@ -110,15 +117,18 @@ func (s *Service) runSyslog(ctx context.Context) error {
 			return true
 		}
 		warnedRead = ""
-		if tls != warnedTLS {
-			warnedTLS = tls
-			if tls > 0 {
-				s.cfg.Log.WarnContext(ctx, "logs: sources declared with TLS are not served: the TLS listener (port 6514) is not built", "sources", tls)
+		if s.cfg.Syslog.TLS != nil { // sources over TLS are served
+			tlsRows = 0
+		}
+		if tlsRows != warnedTLS {
+			warnedTLS = tlsRows
+			if tlsRows > 0 {
+				s.cfg.Log.WarnContext(ctx, "logs: sources declared with TLS are not served: this box has no TLS configuration (it serves plain HTTP)", "sources", tlsRows)
 			}
 		}
 		err = srv.SetSources(m) // the server logs the reason and keeps the sockets that opened
 		st := srv.Status()
-		return err != nil || st.UDPErr != "" || st.TCPErr != ""
+		return err != nil || st.UDPErr != "" || st.TCPErr != "" || st.TLSErr != ""
 	}
 	apply() // the sources are in the server before it runs; Run opens the sockets
 	runCtx, stop := context.WithCancel(ctx)

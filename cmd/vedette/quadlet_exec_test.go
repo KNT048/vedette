@@ -102,6 +102,10 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 			t.Errorf("-syslog-port %d has no PublishPort %q in %v", o.syslogPort, want, publish)
 		}
 	}
+	// D-214: syslog over TLS listens on -syslog-port + 1, TCP only, published as 6514 (RFC 5425).
+	if want := "6514:" + strconv.Itoa(o.syslogPort+1) + "/tcp"; !slices.Contains(publish, want) || slices.Contains(publish, "6514:"+strconv.Itoa(o.syslogPort+1)+"/udp") {
+		t.Errorf("syslog over TLS must be published as exactly %q (tcp only), got %v", want, publish)
+	}
 	if strings.Contains(string(text), "AddCapability") || strings.Contains(string(text), "ip_unprivileged_port_start") {
 		t.Errorf("core's unit needs no capability or sysctl for the syslog port:\n%s", text)
 	}

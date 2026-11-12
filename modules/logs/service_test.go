@@ -150,21 +150,21 @@ func TestContract_INV3_SourceValidationFollowsTheMock(t *testing.T) {
 		mut  func(*Input)
 		want string
 	}{
-		"unknown kind":              {func(i *Input) { i.Kind = "cisco-9000" }, "bad_kind"},
-		"empty name":                {func(i *Input) { i.Name = "  " }, "bad_name"},
-		"name with a space":         {func(i *Input) { i.Name = "FW HQ" }, "bad_name"},
-		"name with an accent":       {func(i *Input) { i.Name = "Tường" }, "bad_name"},
-		"name of 65 characters":     {func(i *Input) { i.Name = strings.Repeat("a", 65) }, "bad_name"},
-		"ip with a leading zero":    {func(i *Input) { i.SenderIP = "192.168.010.1" }, "bad_ip"},
-		"ip out of range":           {func(i *Input) { i.SenderIP = "192.168.10.256" }, "bad_ip"},
-		"ipv6":                      {func(i *Input) { i.SenderIP = "::1" }, "bad_ip"},
-		"ipv4 in ipv6":              {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
-		"tcp for a udp-only kind":   {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
-		"unknown protocol":          {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
-		"tls is not served yet":     {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
-		"port 0":                    {func(i *Input) { i.Port = 0 }, "bad_port"},
-		"port 65536":                {func(i *Input) { i.Port = 65536 }, "bad_port"},
-		"another source has the ip": {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
+		"unknown kind":                       {func(i *Input) { i.Kind = "cisco-9000" }, "bad_kind"},
+		"empty name":                         {func(i *Input) { i.Name = "  " }, "bad_name"},
+		"name with a space":                  {func(i *Input) { i.Name = "FW HQ" }, "bad_name"},
+		"name with an accent":                {func(i *Input) { i.Name = "Tường" }, "bad_name"},
+		"name of 65 characters":              {func(i *Input) { i.Name = strings.Repeat("a", 65) }, "bad_name"},
+		"ip with a leading zero":             {func(i *Input) { i.SenderIP = "192.168.010.1" }, "bad_ip"},
+		"ip out of range":                    {func(i *Input) { i.SenderIP = "192.168.10.256" }, "bad_ip"},
+		"ipv6":                               {func(i *Input) { i.SenderIP = "::1" }, "bad_ip"},
+		"ipv4 in ipv6":                       {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
+		"tcp for a udp-only kind":            {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
+		"unknown protocol":                   {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
+		"tls on a box without a certificate": {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
+		"port 0":                             {func(i *Input) { i.Port = 0 }, "bad_port"},
+		"port 65536":                         {func(i *Input) { i.Port = 65536 }, "bad_port"},
+		"another source has the ip":          {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
 	} {
 		in := ok
 		tc.mut(&in)
@@ -1489,14 +1489,14 @@ func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// D-203: a source over TLS is refused on create and on edit (the TLS listener is not built), with a message that names the way out.
+// D-203, D-214: on a box with no TLS configuration (loopback, dev) a source over TLS is refused on create and on edit, with a message that says why and names the way out.
 func TestASourceOverTLSIsRefusedOnCreateAndEdit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	src := e.add("FW", "192.168.10.1")
 	_, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "192.168.10.2", Proto: "tls", Port: 6514})
 	var ae *apierr.Error
-	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "tls_unavailable" || ae.Message != "Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP." {
+	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "tls_unavailable" || ae.Message != "Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP." {
 		t.Fatalf("create: %v", err)
 	}
 	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", src.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "192.168.10.1", Proto: "tls", Port: 6514}); code(err) != "tls_unavailable" {

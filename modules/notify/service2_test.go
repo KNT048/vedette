@@ -62,7 +62,7 @@ func TestContract_INV7_ApproverRules(t *testing.T) {
 }
 
 func TestContract_INV8_BoundaryChecks(t *testing.T) {
-	e := newEnv(t)
+	e := newEnv(t, func(c *notify.Config) { c.SMTPLoopback = false }) // as in production: an SMTP server on loopback is refused
 	in := func(fields map[string]string, secret string) notify.ChannelInput {
 		return notify.ChannelInput{Enabled: true, Fields: fields, Secret: secret, MinSeverity: notify.High}
 	}
@@ -86,6 +86,9 @@ func TestContract_INV8_BoundaryChecks(t *testing.T) {
 		{"email none public", channel.Email, in(map[string]string{"host": "smtp.acme.example", "port": "25", "security": "none", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_security"},
 		{"email to", channel.Email, in(map[string]string{"host": "smtp.acme.example", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example, nope"}, "pw"), "bad_to"},
 		{"email host", channel.Email, in(map[string]string{"host": "not a host", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
+		// walk 3: in a container 127.0.0.1 is core itself; the webhook's rule (loopback, the box, link-local and metadata) applies
+		{"email loopback", channel.Email, in(map[string]string{"host": "127.0.0.1", "port": "25", "security": "none", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
+		{"email metadata", channel.Email, in(map[string]string{"host": "169.254.169.254", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
 	} {
 		_, err := e.svc.SaveChannel(e.ctx(), "admin@acme.example", tc.t, tc.in)
 		if s, c := apiCode(err); s != 400 || c != tc.code {
@@ -464,6 +467,48 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	pub(notify.EventHoneypotHit, map[string]any{"id": "hit-3", "src_ip": "10.0.0.8", "label": "x"})
 	if l, _ := e.svc.Incidents(e.ctx()); len(l) != 3 {
 		t.Fatalf("incident after unsubscribe")
+	}
+}
+
+// A blocked connection (logs D-227: "blocked" in logs.bad_address.detected) is an attempt: the incident says so (walk 3). An attempt
+// counts on an open connection of the same pair; a connection never counts on an attempt (D-227 (4)), so it is an incident of its own.
+func TestBlockedBadAddressIsAnAttemptIncident(t *testing.T) {
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	hit := func(blocked bool) {
+		t.Helper()
+		ev := map[string]any{"source": "logs", "target": "ioc:185.220.101.47", "title": "192.168.1.50 tried to reach 185.220.101.47", "what": "w", "action": "a", "severity": "high", "blocked": blocked}
+		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventLogBadAddress, Data: ev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list := func() []notify.Incident {
+		t.Helper()
+		l, err := e.svc.Incidents(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+	hit(true)
+	hit(true)
+	if l := list(); len(l) != 1 || !l[0].Attempt || l[0].Count != 2 {
+		t.Fatalf("two blocked hits = %+v, want one attempt seen twice", l)
+	}
+	hit(false) // the connection that follows an attempt is not hidden in it
+	l := list()
+	if len(l) != 2 || l[0].Attempt || l[0].Count != 1 || !l[1].Attempt || l[1].Count != 2 {
+		t.Fatalf("after a connection = %+v, want a connection incident and the attempt", l)
+	}
+	hit(true) // an attempt while the connection is open counts on the connection
+	if l := list(); len(l) != 2 || l[0].Attempt || l[0].Count != 2 || l[1].Count != 2 {
+		t.Fatalf("an attempt after the connection = %+v", l)
+	}
+	if d, err := e.svc.IncidentDetail(e.ctx(), l[1].ID); err != nil || !d.Incident.Attempt {
+		t.Fatalf("detail = %+v, %v", d, err)
+	}
+	if _, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Title: "t", Severity: notify.High, Link: "/x", Attempt: true}); !errors.Is(err, notify.ErrInvalidNotice) {
+		t.Fatalf("a trap attempt = %v, want ErrInvalidNotice", err)
 	}
 }
 

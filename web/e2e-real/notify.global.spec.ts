@@ -226,7 +226,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await expect(d.getByLabel('Encryption', { exact: true })).toHaveValue('starttls')
       await saveRefused(page, d, 'email', 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.', 'Send to')
       await d.getByLabel('Send to', { exact: true }).fill('it@e2e.test, not-an-email')
-      await saveRefused(page, d, 'email', 'bad_to', 'A recipient email is not valid. Separate several recipients with commas.', 'Send to')
+      await saveRefused(page, d, 'email', 'bad_to', 'not-an-email is not a valid email address. Separate several recipients with commas.', 'Send to')
       await d.getByLabel('Send to', { exact: true }).fill('it@e2e.test; boss@e2e.test')
       await saveRefused(page, d, 'email', 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.', 'SMTP server')
       await d.getByLabel('SMTP server', { exact: true }).fill('smtp.e2e.test')

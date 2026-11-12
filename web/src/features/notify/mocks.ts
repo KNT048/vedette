@@ -58,23 +58,23 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
   const p = (iso: string, h: number) => new Date(new Date(iso).getTime() + h * 36e5).toISOString()
   const t4 = daysAgo(1, 1), t5 = daysAgo(4), t6 = daysAgo(0, 0.2), t7 = daysAgo(0, 1), t8 = daysAgo(2)
   return [
-    { id: 'al-4', kind: 'trap', link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
+    { id: 'al-4', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
       what: 'PC-HR-01 (192.168.10.107) opened an SMB connection to the trap machine FILESRV-OLD (192.168.10.240) 3 times. Nobody uses this trap, so it usually means the machine is infected or someone is probing the network.',
       action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.',
       sends: [s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
-    { id: 'al-5', kind: 'trap', link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
+    { id: 'al-5', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
       what: 'Unknown device 192.168.10.157 (not in the inventory) tried to sign in over Remote Desktop to the trap machine FILESRV-OLD (192.168.10.240).',
       action: 'Take the device off the network, then find out who brought it into the company.',
       sends: [s('sd-8', 'telegram', 'chat -1002145678901', plus(t5, 5)), s('sd-9', 'email', 'it@acme.example, director@acme.example', plus(t5, 9))], handled_by: 'it@acme.example', handled_at: daysAgo(3), note: "A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed." },
-    { id: 'al-6', kind: 'bad_address', link: '/logs', title: 'PC-SALES-02 connected to 185.220.101.47, a known-bad address', asset_ids: ['a-pc05'], severity: 'high', status: 'new', first_seen: p(t6, -23), last_seen: t6, count: 14,
+    { id: 'al-6', kind: 'bad_address', attempt: false, link: '/logs', title: 'PC-SALES-02 connected to 185.220.101.47, a known-bad address', asset_ids: ['a-pc05'], severity: 'high', status: 'new', first_seen: p(t6, -23), last_seen: t6, count: 14,
       what: 'PC-SALES-02 (192.168.10.105) connected 14 times in 24 hours to 185.220.101.47, a Tor exit node on the malicious address list (Tor exit list, IPsum). This is usually unknown software on that machine calling out.',
       action: 'Open the logs to see whether that machine is still connecting, then run an antivirus scan on it. If you cannot explain it, take the machine off the network.',
       sends: [s('sd-10', 'telegram', 'chat -1002145678901', plus(t6, 20)), s('sd-11', 'email', 'it@acme.example, director@acme.example', plus(t6, 24), false, 'The SMTP server rejected the login (code 535). Check the SMTP username and password in Settings, Alert channels.')], handled_by: null, handled_at: null, note: null },
-    { id: 'in-7', kind: 'log_anomaly', link: '/logs', title: 'WEB01 logged far more failed sign-ins than usual', asset_ids: ['a-web01'], severity: 'medium', status: 'new', first_seen: t7, last_seen: p(t7, 0.8), count: 1,
+    { id: 'in-7', kind: 'log_anomaly', attempt: false, link: '/logs', title: 'WEB01 logged far more failed sign-ins than usual', asset_ids: ['a-web01'], severity: 'medium', status: 'new', first_seen: t7, last_seen: p(t7, 0.8), count: 1,
       what: 'WEB01 wrote 1,240 failed sign-in lines in 10 minutes. On a normal day it writes fewer than 20. Someone may be guessing passwords.',
       action: 'Open the logs for WEB01 and check the source addresses. If they are not yours, block them and change the passwords of the accounts that were tried.',
       sends: [s('sd-13', 'slack', '#it-alerts', plus(t7, 12))], handled_by: null, handled_at: null, note: null },
-    { id: 'in-8', kind: 'unknown_device', link: '/devices/a-unk01', title: 'A new unknown device appeared: 192.168.10.157', asset_ids: ['a-unk01'], severity: 'medium', status: 'acknowledged', first_seen: t8, last_seen: t8, count: 1,
+    { id: 'in-8', kind: 'unknown_device', attempt: false, link: '/devices/a-unk01', title: 'A new unknown device appeared: 192.168.10.157', asset_ids: ['a-unk01'], severity: 'medium', status: 'acknowledged', first_seen: t8, last_seen: t8, count: 1,
       what: 'A device that is not in your inventory joined the network at 192.168.10.157.',
       action: 'Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.',
       sends: [s('sd-14', 'telegram', 'chat -1002145678901', plus(t8, 6))], handled_by: 'it@acme.example', handled_at: daysAgo(1, 5), note: 'Asking the office manager.' },
@@ -164,6 +164,18 @@ const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
   return given && given !== shownUrl(cur.url) ? given : cur.url ?? ''
 }
 
+/** The box's rule for a webhook or an SMTP server (channel/webhook.go forbiddenAddr): never this machine (loopback: in a container that is core
+ * itself), link-local (cloud metadata), multicast or unspecified. The mock knows none of the box's own LAN addresses. */
+const forbiddenHost = (host: string) => {
+  const h = host.toLowerCase().replace(/\.$/, '')
+  return h === 'localhost' || h.endsWith('.localhost') || h === '[::1]' || /^(127\.|169\.254\.|0\.0\.0\.0$|2(2[4-9]|3\d)\.)/.test(h)
+}
+/** The recipient named in `bad_to` (smtp.go badRecipient): one line, control and format characters dropped, cut to 60 characters. */
+const shownRecipient = (x: string) => {
+  const r = [...x.replace(/[\t\n\u0085\u2028\u2029]/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim()]
+  return r.length > 60 ? `${r.slice(0, 59).join('')}…` : r.join('')
+}
+
 function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChannel) {
   const f = b.fields ?? {}
   const secret = (b.secret ?? '').trim()
@@ -210,9 +222,12 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
     const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
     if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
-    if (to.some((x) => !EMAIL_RE.test(x))) return fail(400, 'bad_to', 'A recipient email is not valid. Separate several recipients with commas.')
+    const badTo = to.find((x) => !EMAIL_RE.test(x))
+    const named = badTo === undefined ? '' : shownRecipient(badTo)
+    if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
     const host = (f.host ?? '').trim()
     if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
+    if (forbiddenHost(host)) return fail(400, 'bad_host', "The SMTP server cannot be this machine, a link-local or multicast address, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
     const port = Number(portText)
     if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
     if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
@@ -232,6 +247,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.') // blocked_host
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')
 }

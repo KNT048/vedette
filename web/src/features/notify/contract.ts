@@ -43,6 +43,7 @@ export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z
 export const Incident = z.object({
   id: z.string(),
   kind: IncidentKind,
+  attempt: z.boolean().describe('bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds'),
   title: z.string().describe('One plain-words sentence: who did what'),
   link: z.string().describe('Where to view the source: /honeypot/hits/<id> (trap), /logs (bad address, log anomaly), /devices/<id> (unknown device)'),
   devices: z.array(z.object({ id: z.string(), name: z.string() })),

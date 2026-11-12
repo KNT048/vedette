@@ -38431,6 +38431,10 @@
                               "unknown_device"
                             ]
                           },
+                          "attempt": {
+                            "type": "boolean",
+                            "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
+                          },
                           "title": {
                             "type": "string",
                             "description": "One plain-words sentence: who did what"
@@ -38571,6 +38575,7 @@
                         "required": [
                           "id",
                           "kind",
+                          "attempt",
                           "title",
                           "link",
                           "devices",
@@ -38654,6 +38659,10 @@
                             "log_anomaly",
                             "unknown_device"
                           ]
+                        },
+                        "attempt": {
+                          "type": "boolean",
+                          "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
                         },
                         "title": {
                           "type": "string",
@@ -38795,6 +38804,7 @@
                       "required": [
                         "id",
                         "kind",
+                        "attempt",
                         "title",
                         "link",
                         "devices",
@@ -38935,6 +38945,10 @@
                             "unknown_device"
                           ]
                         },
+                        "attempt": {
+                          "type": "boolean",
+                          "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
+                        },
                         "title": {
                           "type": "string",
                           "description": "One plain-words sentence: who did what"
@@ -39075,6 +39089,7 @@
                       "required": [
                         "id",
                         "kind",
+                        "attempt",
                         "title",
                         "link",
                         "devices",

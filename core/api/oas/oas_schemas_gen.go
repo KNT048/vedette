@@ -87344,6 +87344,9 @@ func (s *NotifyGetNotifyIncidentsIDOK) SetPreviews(val []NotifyGetNotifyIncident
 
 type NotifyGetNotifyIncidentsIDOKIncident struct {
 	Action string `json:"action"`
+	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
+	// connection (D-227); false for the other kinds.
+	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count     int                                               `json:"count"`
 	Devices   []NotifyGetNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
@@ -87369,6 +87372,11 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 // GetAction returns the value of Action.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) GetAction() string {
 	return s.Action
+}
+
+// GetAttempt returns the value of Attempt.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) GetAttempt() bool {
+	return s.Attempt
 }
 
 // GetCount returns the value of Count.
@@ -87449,6 +87457,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) GetWhat() string {
 // SetAction sets the value of Action.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) SetAction(val string) {
 	s.Action = val
+}
+
+// SetAttempt sets the value of Attempt.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) SetAttempt(val bool) {
+	s.Attempt = val
 }
 
 // SetCount sets the value of Count.
@@ -87975,6 +87988,9 @@ func (s *NotifyGetNotifyIncidentsOK) SetIncidents(val []NotifyGetNotifyIncidents
 
 type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	Action string `json:"action"`
+	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
+	// connection (D-227); false for the other kinds.
+	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count     int                                                  `json:"count"`
 	Devices   []NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem `json:"devices"`
@@ -88000,6 +88016,11 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 // GetAction returns the value of Action.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetAction() string {
 	return s.Action
+}
+
+// GetAttempt returns the value of Attempt.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetAttempt() bool {
+	return s.Attempt
 }
 
 // GetCount returns the value of Count.
@@ -88080,6 +88101,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetWhat() string {
 // SetAction sets the value of Action.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetAction(val string) {
 	s.Action = val
+}
+
+// SetAttempt sets the value of Attempt.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetAttempt(val bool) {
+	s.Attempt = val
 }
 
 // SetCount sets the value of Count.
@@ -88512,6 +88538,9 @@ func (s *NotifyPatchNotifyIncidentsIDOK) SetPreviews(val []NotifyPatchNotifyInci
 
 type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	Action string `json:"action"`
+	// Bad_address only: the device that logged the connection blocked it, so it was an attempt, not a
+	// connection (D-227); false for the other kinds.
+	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
 	Count     int                                                 `json:"count"`
 	Devices   []NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
@@ -88537,6 +88566,11 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 // GetAction returns the value of Action.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetAction() string {
 	return s.Action
+}
+
+// GetAttempt returns the value of Attempt.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetAttempt() bool {
+	return s.Attempt
 }
 
 // GetCount returns the value of Count.
@@ -88617,6 +88651,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetWhat() string {
 // SetAction sets the value of Action.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetAction(val string) {
 	s.Action = val
+}
+
+// SetAttempt sets the value of Attempt.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetAttempt(val bool) {
+	s.Attempt = val
 }
 
 // SetCount sets the value of Count.

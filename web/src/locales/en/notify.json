@@ -81,7 +81,7 @@
       "zalo": {
         "oa_id": {
           "label": "OA ID",
-          "hint": "OA ID: the Official Account ID number, shown in the OA management page or your app in Zalo Developers."
+          "hint": "The Official Account ID number, shown in the OA management page or your app in Zalo Developers."
         },
         "secret": {
           "label": "Access token",
@@ -277,6 +277,7 @@
     "kind": {
       "trap": "Internal trap touched",
       "bad_address": "Connection to a known-bad address",
+      "bad_address_attempt": "Attempt to reach a known-bad address",
       "log_anomaly": "Log anomaly",
       "unknown_device": "Unknown device appeared"
     },
@@ -357,10 +358,10 @@
     "title": "History",
     "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
     "retention": "History and resolved incidents are kept for 1 year.",
-    "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
-    "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent.",
-    "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
-    "metaNone": "Vedette only alerts for products you own. In the last {{days}} days no new vulnerability was skipped for matching none of your devices.",
+    "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
+    "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
+    "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
+    "metaNone": "Vedette only alerts for products you own. In the last {{days}} days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.",
     "caption": "Sent messages",
     "col": {
       "time": "Time",

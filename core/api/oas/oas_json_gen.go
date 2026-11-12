@@ -8993,6 +8993,8 @@ func (s *AiGetAiRunsOKItemsItemStatus) Decode(d *jx.Decoder) error {
 		*s = AiGetAiRunsOKItemsItemStatusSchemaError
 	case AiGetAiRunsOKItemsItemStatusCapped:
 		*s = AiGetAiRunsOKItemsItemStatusCapped
+	case AiGetAiRunsOKItemsItemStatusFailed:
+		*s = AiGetAiRunsOKItemsItemStatusFailed
 	default:
 		*s = AiGetAiRunsOKItemsItemStatus(v)
 	}
@@ -145557,6 +145559,50 @@ func (s NilAiGetAiCveIDCachedOKNews) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilAiGetAiCveIDCachedOKNews) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiGetAiLogsDigestOKDigest as json.
+func (o NilAiGetAiLogsDigestOKDigest) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes AiGetAiLogsDigestOKDigest from json.
+func (o *NilAiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilAiGetAiLogsDigestOKDigest to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v AiGetAiLogsDigestOKDigest
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilAiGetAiLogsDigestOKDigest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilAiGetAiLogsDigestOKDigest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

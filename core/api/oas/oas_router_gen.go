@@ -9015,7 +9015,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = AiGetAiLogsDigestOperation
-								r.summary = "AI log digest for the selected tier"
+								r.summary = "AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)"
 								r.operationID = "ai_get_ai_logs_digest"
 								r.operationGroup = ""
 								r.pathPattern = "/ai/logs/digest"
@@ -10266,7 +10266,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = CoreGetCoreDataBackupOperation
-								r.summary = "Download a backup (no passwords or keys)"
+								r.summary = "Download a backup (password hashes, never passwords or keys)"
 								r.operationID = "core_get_core_data_backup"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/backup"

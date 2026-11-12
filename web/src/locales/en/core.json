@@ -453,6 +453,7 @@
       "inventory.wazuh_connect": "Connect Wazuh",
       "inventory.wazuh_disconnect": "Disconnect Wazuh",
       "inventory.box_created": "Vedette box added as a device",
+      "inventory.services_pruned": "Open services not seen for 90 days removed",
       "inventory.delete": "Delete device",
       "inventory.discover": "Discover software",
       "inventory.export": "Export devices",
@@ -467,6 +468,7 @@
       "inventory.settings": "Change device discovery settings",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
+      "notify.approval_fallback": "Approval request sent without buttons",
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
       "notify.zalo_message": "Zalo message from someone who is not an approver",
@@ -478,6 +480,7 @@
       "notify.resend": "Send alert again",
       "notify.rules_save": "Save alert rules",
       "notify.stale_dropped": "Old alerts dropped",
+      "notify.retention": "Old alert history deleted",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",
       "sensor-cert.issue": "Issue sensor certificate",
@@ -816,7 +819,7 @@
       },
       "3": {
         "name": "AI assistant",
-        "what": "Data you choose to send (findings, merged logs), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose; email addresses and phone numbers are masked first and an ID number stops the call, unless an administrator turns off Block personal data; the company rules an administrator writes are sent with every call, and so are the memories an administrator keeps (only the ones switched on, as fenced data, after the same masking; calls on public text such as CVE news do not carry them). CVE news sends the public exploited-list entry and the public pages the box fetched for that CVE, never data of your network. Ask your data sends the question and, as the model asks for them, the results of read-only tools: devices (name, IP address, kind, vendor, model, operating system, open ports, software), findings, the exploited-list entry of a CVE and the devices it matches, whether a feed lists an IP address or a domain, and the text a read tool of a connection you enabled returns from that device (never its credential); each result is capped, masked and checked by your hooks one by one, sent as fenced data, and a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results. For a read tool of a connection the AI writes the arguments itself; they can contain data the AI saw from the box (masked first, and checked by your before-tool hooks) and they are sent to that connection; while the privacy rule is on, only tools of connections inside your network are offered. Documents in the knowledge base are read and indexed on the box and nothing is sent when one is added; when a call for a job the document is assigned to carries internal data, the few passages that match the question (up to 4, 12,000 characters in all) are sent with it as fenced data, after the same masking, passage by passage. Only hashes of what was sent are kept in the AI activity log.",
+        "what": "Data you choose to send (findings, the log summary), with your own key. Pressing Test on a profile sends three tiny fixed requests (no data of yours) with its key to its address. Explaining a CVE or a finding sends the public exploited-list entry and, for each matching device, its name, IP address, kind, how it was matched and finding status (the AI button of a finding also sends its display name, severity, confidence and whether a confirmed pack exists); the response plan job, once you assign a profile to it, runs by itself every 5 minutes and sends, for each open critical finding without a plan, the CVE, its exploited-list entry, the device name, IP address and kind, and the names and descriptions of the actions the AI may propose, with the connection of a device action and the reads the box made through it in the last 24 hours (connection and tool name and time, never what was read); email addresses, phone numbers and device secrets (passwords, hashes, SNMP communities, keys) are masked first and an ID number stops the call, unless an administrator turns off Block personal data; the log summary (the Regenerate now button of the AI log digest on the Logs page) sends, from the last 24 hours of logs, only the kinds of log line (the line with its variable parts removed) with their source name and counts, the kinds far above their usual rate, and each connection to an address a threat feed lists (the device name, its IP address, the address it contacted, how it was seen, the names of the feeds and a confidence), never a log line, to the profile assigned to that job; with the privacy rule on only a profile inside your network receives it, and the same masking and hooks apply; the company rules an administrator writes are sent with every call, and so are the memories an administrator keeps (only the ones switched on, as fenced data, after the same masking; calls on public text such as CVE news do not carry them). CVE news sends the public exploited-list entry and the public pages the box fetched for that CVE, never data of your network. Ask your data sends the question and, as the model asks for them, the results of read-only tools: devices (name, IP address, kind, vendor, model, operating system, open ports, software), findings, the exploited-list entry of a CVE and the devices it matches, whether a feed lists an IP address or a domain, and the text a read tool of a connection you enabled returns from that device (never its credential); each result is capped, masked and checked by your hooks one by one, sent as fenced data, and a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results. For a read tool of a connection the AI writes the arguments itself; they can contain data the AI saw from the box (masked first, and checked by your before-tool hooks) and they are sent to that connection; while the privacy rule is on, only tools of connections inside your network are offered. Documents in the knowledge base are read and indexed on the box and nothing is sent when one is added; when a call for a job the document is assigned to carries internal data, the few passages that match the question (up to 4, 12,000 characters in all) are sent with it as fenced data, after the same masking, passage by passage. Only hashes of what was sent are kept in the AI activity log.",
         "to": "The AI providers you add (one or more profiles), or a model inside your network",
         "control": "No AI profile, no flow. You choose which profile handles each job and can keep logs and device data on profiles inside your network.",
         "link": "Open AI settings"
@@ -865,8 +868,8 @@
       "10": {
         "name": "Time sync (NTP)",
         "what": "A time request (UDP port 123) so the box clock stays right. No Vedette data is in it; the server only sees the box's IP address.",
-        "to": "pool.ntp.org by default, or the NTP servers you enter (they can be inside your network)",
-        "control": "Enter your own NTP server in Box network to keep time requests inside your network.",
+        "to": "The time sources of your operating system's own chrony setup (for example ntp.ubuntu.com or the Debian pool), any NTP server your DHCP server hands out, and the servers you enter in Box network (they can be inside your network); pool.ntp.org when you save with none",
+        "control": "Not from Vedette's screens: the operating system's own time sources stay. To send nothing outside, point the box's chrony at a server inside your network yourself (see the runbook).",
         "link": "Open Box network"
       },
       "11": {
@@ -989,7 +992,7 @@
     "downloaded": "Downloaded {{file}}",
     "backup": {
       "title": "Backup",
-      "desc": "Settings, users (no passwords), modules, devices, findings and the log. No AI keys or tokens.",
+      "desc": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. No AI keys or tokens. Keep the file as safe as the box: the hashes could be attacked offline.",
       "button": "Download backup"
     },
     "export": {
@@ -1486,13 +1489,13 @@
       "title": "Time (NTP)",
       "desc": "Where the box gets the time. Correct time matters for logs and certificates.",
       "mode": "Time source",
-      "default": "Default pool ({{pool}})",
-      "custom": "Your own servers",
-      "defaultNote": "The box asks the public pool for the time.",
+      "default": "Default (adds {{pool}})",
+      "custom": "Your own servers (added)",
+      "defaultNote": "The box also asks the public pool.ntp.org for the time, next to the time sources its operating system already uses.",
       "servers": "NTP servers",
-      "serversHint": "One to four names or addresses, separated by commas. Use a server inside your network to send nothing outside.",
+      "serversHint": "One to four names or addresses, separated by commas. They are added to the time sources the operating system already uses; those stay.",
       "saved": "Time servers saved.",
-      "privacy": "Asking a public pool for the time is a data flow that leaves the box (it sees the box's IP address).",
+      "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
     }
   },

@@ -80,6 +80,9 @@ func TestLogsExport_JSONEnvelopeFilenameAndMissing(t *testing.T) {
 	if cd := r.Header.Get("Content-Disposition"); cd != "attachment; filename=vedette-logs-2026-11-09.json" {
 		t.Fatalf("Content-Disposition = %q", cd)
 	}
+	if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q", ct)
+	}
 	if cc := r.Header.Get("Cache-Control"); cc != "no-store" {
 		t.Fatalf("Cache-Control = %q", cc)
 	}
@@ -175,6 +178,9 @@ func TestLogsExport_CSVHasTheShapeOfTheMock(t *testing.T) {
 	}
 	if cd := r.Header.Get("Content-Disposition"); cd != "attachment; filename=vedette-logs-2026-11-09.csv" {
 		t.Fatalf("Content-Disposition = %q", cd)
+	}
+	if ct := r.Header.Get("Content-Type"); ct != "text/csv; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", ct)
 	}
 }
 

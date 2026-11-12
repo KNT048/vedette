@@ -311,6 +311,22 @@ func TestMinSequenceFlag(t *testing.T) {
 			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
 		}
 	}
+	// core links internal/release too (D-347): both image targets hand the floor to its build, the other images get none
+	for _, target := range []string{"core-image", "images"} {
+		out, err := run("-n", target, "MIN_SEQUENCE=7")
+		if err != nil {
+			t.Fatal(target, err, out)
+		}
+		for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '&' }) { // images: one recipe line, builds joined by &&
+			core := strings.Contains(line, "deploy/containers/core/Containerfile")
+			if has := strings.Contains(line, "--build-arg MIN_SEQUENCE=7"); core != has && (core || strings.Contains(line, "/Containerfile")) {
+				t.Errorf("make %s: MIN_SEQUENCE on a build line: core=%v has=%v: %s", target, core, has, line)
+			}
+		}
+		if !strings.Contains(out, "core/Containerfile") || !strings.Contains(out, "--build-arg MIN_SEQUENCE=7") {
+			t.Errorf("make %s does not pass MIN_SEQUENCE to the core build:\n%s", target, out)
+		}
+	}
 	out, err := run("-n", "host-deb", "VERSION=1.2.3", "MIN_SEQUENCE=7")
 	if err != nil {
 		t.Fatal(err, out)
@@ -355,6 +371,48 @@ func TestToolPinsAreExact(t *testing.T) {
 	}
 	if !regexp.MustCompile(`^docker\.io/aquasec/trivy:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$`).MatchString(got["TRIVY_IMAGE"]) {
 		t.Errorf("TRIVY_IMAGE=%q must be docker.io/aquasec/trivy:<MAJOR.MINOR.PATCH>@sha256:<64 hex>", got["TRIVY_IMAGE"])
+	}
+}
+
+// The core image carries the pinned osquery packages (WP-26 slice 3, D-169 (10)): the build stage reads deploy/osquery/PINS (not a copy of the
+// numbers), downloads from the official release, checks each file against its pinned SHA-256 before anything is copied, and the final stage
+// copies the folder to the default of -osquery-dir. Nothing is downloaded when the box runs.
+func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
+	t.Parallel()
+	text := read(t, "core/Containerfile")
+	stages := stagesOf(text)
+	var osq, final string
+	for _, s := range stages {
+		if strings.Contains(s.from, " AS osquery") {
+			osq = s.body
+		}
+	}
+	final = stages[len(stages)-1].body
+	if osq == "" {
+		t.Fatal("core/Containerfile has no osquery stage")
+	}
+	for _, want := range []string{
+		"COPY deploy/osquery/PINS /pins/osquery.pins", ". /pins/osquery.pins", "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/",
+		"${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}\" | sha256sum -c -", "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}\" | sha256sum -c -", "${OSQUERY_MSI_SHA256}  /out/${msi}\" | sha256sum -c -",
+		"set -eu", "curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o",
+		// the names the box serves (modules/agent-intake install.go mirrorFiles) and the scripts ask for
+		`deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"`, `rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"`, `msi="osquery-${OSQUERY_VERSION}.msi"`,
+	} {
+		if !strings.Contains(osq, want) {
+			t.Errorf("core/Containerfile osquery stage: missing %q", want)
+		}
+	}
+	if strings.Contains(osq, "|| true") || regexp.MustCompile(`(?m)^ARG OSQUERY`).MatchString(text) {
+		t.Error("core/Containerfile osquery stage: the pins come from deploy/osquery/PINS only, and a failed check must fail the build")
+	}
+	if !strings.Contains(final, "COPY --from=osquery /out/ /usr/share/vedette/osquery/\n") {
+		t.Error("core/Containerfile: the final stage must copy the verified osquery folder to /usr/share/vedette/osquery/")
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!deploy/osquery\n") {
+		t.Error(".dockerignore must let deploy/osquery into the build context")
+	}
+	if _, err := os.Stat("../osquery/PINS"); err != nil {
+		t.Error("deploy/osquery/PINS is missing")
 	}
 }
 

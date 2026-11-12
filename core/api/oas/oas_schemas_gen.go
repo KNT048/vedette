@@ -2750,16 +2750,16 @@ func (s *AiGetAiKnowledgeOKItemsItemStatus) UnmarshalText(data []byte) error {
 }
 
 type AiGetAiLogsDigestOK struct {
-	Digest AiGetAiLogsDigestOKDigest `json:"digest"`
+	Digest NilAiGetAiLogsDigestOKDigest `json:"digest"`
 }
 
 // GetDigest returns the value of Digest.
-func (s *AiGetAiLogsDigestOK) GetDigest() AiGetAiLogsDigestOKDigest {
+func (s *AiGetAiLogsDigestOK) GetDigest() NilAiGetAiLogsDigestOKDigest {
 	return s.Digest
 }
 
 // SetDigest sets the value of Digest.
-func (s *AiGetAiLogsDigestOK) SetDigest(val AiGetAiLogsDigestOKDigest) {
+func (s *AiGetAiLogsDigestOK) SetDigest(val NilAiGetAiLogsDigestOKDigest) {
 	s.Digest = val
 }
 
@@ -3912,6 +3912,7 @@ const (
 	AiGetAiRunsOKItemsItemStatusOk          AiGetAiRunsOKItemsItemStatus = "ok"
 	AiGetAiRunsOKItemsItemStatusSchemaError AiGetAiRunsOKItemsItemStatus = "schema_error"
 	AiGetAiRunsOKItemsItemStatusCapped      AiGetAiRunsOKItemsItemStatus = "capped"
+	AiGetAiRunsOKItemsItemStatusFailed      AiGetAiRunsOKItemsItemStatus = "failed"
 )
 
 // AllValues returns all AiGetAiRunsOKItemsItemStatus values.
@@ -3920,6 +3921,7 @@ func (AiGetAiRunsOKItemsItemStatus) AllValues() []AiGetAiRunsOKItemsItemStatus {
 		AiGetAiRunsOKItemsItemStatusOk,
 		AiGetAiRunsOKItemsItemStatusSchemaError,
 		AiGetAiRunsOKItemsItemStatusCapped,
+		AiGetAiRunsOKItemsItemStatusFailed,
 	}
 }
 
@@ -3931,6 +3933,8 @@ func (s AiGetAiRunsOKItemsItemStatus) MarshalText() ([]byte, error) {
 	case AiGetAiRunsOKItemsItemStatusSchemaError:
 		return []byte(s), nil
 	case AiGetAiRunsOKItemsItemStatusCapped:
+		return []byte(s), nil
+	case AiGetAiRunsOKItemsItemStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -3948,6 +3952,9 @@ func (s *AiGetAiRunsOKItemsItemStatus) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiRunsOKItemsItemStatusCapped:
 		*s = AiGetAiRunsOKItemsItemStatusCapped
+		return nil
+	case AiGetAiRunsOKItemsItemStatusFailed:
+		*s = AiGetAiRunsOKItemsItemStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73034,6 +73041,51 @@ func (o NilAiGetAiCveIDCachedOKNews) Or(d AiGetAiCveIDCachedOKNews) AiGetAiCveID
 	return d
 }
 
+// NewNilAiGetAiLogsDigestOKDigest returns new NilAiGetAiLogsDigestOKDigest with value set to v.
+func NewNilAiGetAiLogsDigestOKDigest(v AiGetAiLogsDigestOKDigest) NilAiGetAiLogsDigestOKDigest {
+	return NilAiGetAiLogsDigestOKDigest{
+		Value: v,
+	}
+}
+
+// NilAiGetAiLogsDigestOKDigest is nullable AiGetAiLogsDigestOKDigest.
+type NilAiGetAiLogsDigestOKDigest struct {
+	Value AiGetAiLogsDigestOKDigest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilAiGetAiLogsDigestOKDigest) SetTo(v AiGetAiLogsDigestOKDigest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilAiGetAiLogsDigestOKDigest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilAiGetAiLogsDigestOKDigest) SetToNull() {
+	o.Null = true
+	var v AiGetAiLogsDigestOKDigest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilAiGetAiLogsDigestOKDigest) Get() (v AiGetAiLogsDigestOKDigest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilAiGetAiLogsDigestOKDigest) Or(d AiGetAiLogsDigestOKDigest) AiGetAiLogsDigestOKDigest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilAiPostAiAskOKDowngraded returns new NilAiPostAiAskOKDowngraded with value set to v.
 func NewNilAiPostAiAskOKDowngraded(v AiPostAiAskOKDowngraded) NilAiPostAiAskOKDowngraded {
 	return NilAiPostAiAskOKDowngraded{
@@ -83423,7 +83475,9 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Enabled    bool                                                 `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url · slack label (optional), channel_id (approvals only).
+	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+	// (optional), channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -83587,7 +83641,9 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url · slack label (optional), channel_id (approvals only).
+// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+// (optional), channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -86487,7 +86543,9 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Enabled    bool                                         `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url · slack label (optional), channel_id (approvals only).
+	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+	// (optional), channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -86651,7 +86709,9 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url · slack label (optional), channel_id (approvals only).
+// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+// (optional), channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {

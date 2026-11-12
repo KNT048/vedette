@@ -48,6 +48,7 @@ var prodPaths = map[string]string{
 	binChronyc:   "/usr/bin/chronyc",
 	binIP:        "/usr/sbin/ip",
 	binPodman:    "/usr/bin/podman",
+	binIptables:  "/usr/sbin/iptables", // Ubuntu 24.04 and 26.04, Debian 13: the alternatives link, nft or legacy flavour
 	// binConntrack is conntrack-tools' conntrack (D-268): one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
 	binConntrack: "/usr/sbin/conntrack",
 }
@@ -205,6 +206,7 @@ func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit
 		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 		vexec.Binary{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
 		vexec.Binary{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
+		vexec.Binary{Name: binIptables, Path: p(binIptables), Validate: validateIptables, MaxOutput: 1 << 20},
 		vexec.Binary{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
 	)
 }

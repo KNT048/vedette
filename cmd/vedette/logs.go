@@ -46,6 +46,7 @@ func logsService(d deps) *logs.Service {
 	}
 	cfg.Syslog.Host = syslogHost
 	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
+	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())

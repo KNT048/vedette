@@ -25,11 +25,12 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 
 ## Hiện trạng (2026-11-12)
 - **M1 xong:** giao diện đầy đủ trên mock API; bản build release không mang mock (#184).
-- **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` và `logs` còn các lát cuối (bên dưới).
+- **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` còn lát 7 (#365) và `logs` còn L4 (nhánh `feat/logs-l4-ioc`); L6 để sau v1 (D-297).
 - **WP-30 xong** (lát 1–10, #335: `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`). Lát 1–9b: #204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311.
 - **WP-31 xong, trừ danh sách LAB** (đóng 2026-11-12, bảng trạng thái ở `wp31-findings.md` của supervisor): R1, R2, S, I, H, M3, M4/L10, R3 (L7: #234, #259) đã merge; phần đóng: M7 (MAC lạ ở IP decoy là thiết bị) và L12 (D-296), L14 sửa chữ D-189 (D-295); M1 còn một LOW chấp nhận (`.ai/deferred/fix-wp31-closeout-inventory.md`); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
-- **Đang mở (PR):** #336 (gộp D-xx vào `DECISIONS.md`, supervisor) · #331 (logs L3: chữ ký, baseline 7 ngày, bất thường; Mlee) · #326 (ai: tin CVE; Mlee) · #297 (logs: core mở syslog 514, Mlee/Trưởng).
-- **Issue mở:** #332 (response `log_threshold` nối `logs.Service.Counts`) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; PR #297). #115 đã đóng 2026-11-12 (đã xong qua #116, #119, #138, #151, #176, #208…).
+- **Đang mở (PR, 2026-11-12):** #372 (core: dọn bảng đăng nhập mỗi giờ, tiến trình con đọc PDF là mục tiêu của OOM killer) · #371 (CI: `-timeout 18m` mỗi shard, tạm thời cho gói response) · #370 (container-only: smoke tuỳ chọn trên Docker và Podman rootless) · #369 (sensorlink: kết nối chưa xác thực có hồ chứa riêng) · #368 (response: gateway và DNS của hộp là never-touch) · #367 (D-280 đã duyệt) · #366 (auth-oidc: ngân sách khởi tạo SSO) · #365 (ai 7: đề xuất AI tới response qua Propose) · #358 (core setup: dải LAN của wizard thành phạm vi inventory) · #352 (host: bốn luật DOCKER-USER cho cầu vedette0). Nhánh `feat/logs-l4-ioc` (logs L4) đang làm, chưa có PR.
+- **Đã merge gần đây:** #336 (gộp D-xx vào `DECISIONS.md`) · logs L3 #331, L5 #344 (chuyển SIEM), L7 #355, syslog 514 trong core #297 · ai: tin CVE #326 · response `log_threshold` #341, #361 · cmd/vedette test nhanh hơn #354, #362 · L6 để sau v1 (D-297, #364).
+- **Issue mở:** #363 (L6 post-v1: syslog và metadata SPAN qua sensor; Kiên) · #350 (dải LAN của wizard không tới inventory; Kiên, PR #358) · #338 (logs: cổng đếm theo địa chỉ; Emily) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; #297 đã merge, còn câu hỏi giữ IP người gửi). Đã đóng: #332, #348, #115.
 
 ## Đã xong (đến 2026-11-12)
 **Phía Kiên — AI-Trưởng**
@@ -45,23 +46,20 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [x] Lỗi GUI Settings của core: #247, #256, #215; #251 giới hạn chờ writer (#283, D-246); orphan-reaper (#252); feeds không tự kết nối box (#309, D-208).
 
 **Phía Emily — AI-Mlee**
-- [x] feeds (#222, #260), findings + mitigation (#228), notify (#235), exposure (#262), scan S0–S5 (#208, #189/#190), `ai` lát 1–4c và 6: 1 (#123), 2 (#179), 3 (#205), 4a (#273), 4a-2 (#289), 4b (#310), 4c kho tri thức FTS5 (#323), 6 tin CVE (#326, bản Mac); feeds SSRF cổng riêng (#309, D-208); logs L1 (#186), an toàn production (#226), N1/N2 (#233), purge (#249), L2 syslog UDP/TCP (#267), L3 chữ ký (#331); core purge FTS (#329).
+- [x] feeds (#222, #260), findings + mitigation (#228), notify (#235), exposure (#262), scan S0–S5 (#208, #189/#190), `ai` lát 1–4c và 6: 1 (#123), 2 (#179), 3 (#205), 4a (#273), 4a-2 (#289), 4b (#310), 4c kho tri thức FTS5 (#323), 6 tin CVE (#326, bản Mac); feeds SSRF cổng riêng (#309, D-208); logs L1 (#186), an toàn production (#226), N1/N2 (#233), purge (#249), L2 syslog UDP/TCP (#267), L3 chữ ký (#331), TopAddresses (#347, #338, D-210), L4 IOC + kết nối xấu (PR này, D-213), L5 SIEM (#344, bản Mac), L7 GUI thật (#351, #355, bản Mac); `ai` 5a hỏi dữ liệu + công cụ đọc (#346, D-211, D-212), 4c PDF qua tiến trình con (#357); core purge FTS (#329).
 
 ## Còn lại tới "app chạy đủ chức năng"
 **AI-Trưởng (Ubuntu `byn`)**
 - [ ] WP-08 phần còn lại: kiểm `install.sh` trên box Mlee (Ubuntu 26.04, LAN) và Mac độc lập qua SSH (#298 chặn bước dựng artifact trên Mac; xem `docs/INSTALL-TEST`); scan-base còn 28 ngoại lệ trivy hết hạn 2026-12-11 (ghim lại Debian, nâng nuclei).
-- [ ] #297 (logs: core mở syslog 514, kèm #266) — cùng Mlee (logs L3–L7).
 - [ ] #324 (core/exec: đọc PDF trong tiến trình con giới hạn tài nguyên, cho `ai`) · scan: kiểm trong LAB với nuclei v3.11.1 (`.ai/deferred/feat-scan-autostop.md`).
 - [ ] WP-26 `agent-intake`: các lát sau lát 1.
 
 **Session phụ trên Mac**
-- [ ] #332 nối `logs.Service.Counts` vào `response log_threshold` (sau logs L3).
-- [ ] #336 gộp các D-xx (supervisor).
 - [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) và spec e2e-real SSO (WP-30) — xem `.ai/deferred/feat-auth-oidc.md`.
 
 **AI-Mlee (Ubuntu `byn2`)**
-- [ ] WP-24 logs: L4–L7 (L3 #331 đã merge).
-- [ ] WP-25 ai: lát 5a (hỏi dữ liệu + công cụ đọc của hộp và kết nối, đang làm) → 5b (log digest, `log-investigate`, `events_around`) → lát 7. (Các lát 4b, 4c, 6 đã merge.)
+- [ ] WP-24 logs: L6 (sensor SPAN, issue cho Kiên) và listener TLS 6514; L1–L5, L7 xong.
+- [ ] WP-25 ai: 5b (log digest, `log-investigate`, `events_around`) tiếp theo; lát 7 (đề xuất qua `Propose`, `ConfigRead`) giao cho Mac (handover-mac4, D-310..D-314). (1–4c, 5a, 6 đã merge.)
 
 **Chờ kien (người)**
 - [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.

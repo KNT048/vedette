@@ -275,7 +275,8 @@ func TestContract_INV17_OneActivityRowPerCallAndTheChain(t *testing.T) {
 	}
 	runs := a.want("GET", "/ai/runs", "viewer", "", 200, "")["items"].([]any)
 	st := func(i int) any { return runs[i].(map[string]any)["status"] }
-	if len(runs) != 3 || st(0) != "capped" || st(1) != "ok" || runs[1].(map[string]any)["fallback"] != true || runs[2].(map[string]any)["fallback"] != nil {
+	// the call no profile answered (provider errors) reads as failed, not capped: the cap is the other row (TestContract_INV4_CapDowngradeAndRestart)
+	if len(runs) != 3 || st(0) != "failed" || st(1) != "ok" || runs[1].(map[string]any)["fallback"] != true || runs[2].(map[string]any)["fallback"] != nil {
 		t.Fatalf("runs = %v", runs)
 	}
 	// the chain verifies, and the head the database keeps agrees with the last row and the count

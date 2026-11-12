@@ -28,6 +28,19 @@ func HostAllowlist(allowed []string, next http.Handler) http.Handler {
 // opens the box at the new one, which the list fixed at start cannot know; names stay pinned to the list. A DNS
 // rebinding page is reached by name, never by one of the box's own addresses. own may be nil.
 func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Handler) http.Handler {
+	allowedHost := HostMatcher(allowed, own)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !allowedHost(r.Host) {
+			apierr.Write(w, apierr.New(http.StatusMisdirectedRequest, apierr.CodeMisdirected, "This address is not one Vedette answers to. Open it with the name or address it was set up with."))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// HostMatcher is the test HostAllowlistWith applies to the Host header, for code that must ask the same question again (the agent-intake
+// install scripts put a Host into text a server will run, so they re-check it against the very list that let the request in).
+func HostMatcher(allowed []string, own func(netip.Addr) bool) func(host string) bool {
 	set := map[string]bool{"localhost": true, "127.0.0.1": true, "::1": true}
 	var wild []string // the part after "*", ".corp.example"
 	for _, h := range allowed {
@@ -43,7 +56,7 @@ func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Ha
 			set[k] = true
 		}
 	}
-	allowedHost := func(host string) bool {
+	return func(host string) bool {
 		k := hostKey(host)
 		if set[k] {
 			return true
@@ -61,13 +74,6 @@ func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Ha
 		}
 		return false
 	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !allowedHost(r.Host) {
-			apierr.Write(w, apierr.New(http.StatusMisdirectedRequest, apierr.CodeMisdirected, "This address is not one Vedette answers to. Open it with the name or address it was set up with."))
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 // ValidWildcard reports whether h (lower case, "*." first) is a usable wildcard host: no other "*", at least

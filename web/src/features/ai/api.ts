@@ -55,7 +55,7 @@ export function useNews(cve: string) {
   return useMutation({ mutationFn: () => api.post<NewsResult>(`/ai/cve/${encodeURIComponent(cve)}/news`), onSettled: done })
 }
 
-export const useDigest = () => useQuery({ queryKey: ['ai', 'digest'], queryFn: () => api.get<{ digest: LogDigest }>('/ai/logs/digest'), retry: false })
+export const useDigest = () => useQuery({ queryKey: ['ai', 'digest'], queryFn: () => api.get<{ digest: LogDigest | null }>('/ai/logs/digest'), retry: false })
 export function useRefreshDigest() {
   const done = useInvalidateAi()
   return useMutation({ mutationFn: () => api.post<{ digest: LogDigest }>('/ai/logs/digest'), onSettled: done })

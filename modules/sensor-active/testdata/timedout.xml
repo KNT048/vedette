@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after the nmap DTD (host@timedout); no live network was scanned: the host answered, then hit
+     the host timeout, so nmap printed no port table -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n -oX -" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762651801" timedout="true"><status state="up" reason="syn-ack" reason_ttl="64"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<hostnames><hostname name="web01.lan" type="PTR"/></hostnames>
+</host>
+<runstats><finished time="1762651802" timestr="Sun Nov  9 00:30:02 2026" elapsed="1801.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

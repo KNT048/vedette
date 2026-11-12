@@ -350,17 +350,19 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
 | `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
 
-#### HTTP 404 (5 mã)
+#### HTTP 404 (7 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
+| `mirror_missing` | 404 | This box has no copy of the osquery packages (a development build, or an install without them). Update Vedette to the release, or install osquery with the manual steps. | `GET /install/osquery/{file}` khi thư mục gói (`-osquery-dir`, mặc định `/usr/share/vedette/osquery`) thiếu hoặc không có tệp đó; kèm một dòng log WARN (agent-intake, WP-26 lát 3). Tên không nằm trong danh sách 4 tệp là `not_found` |
+| `no_certificate` | 404 | This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address. | `GET /intake/ca.pem`, `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi hộp phục vụ HTTP trên loopback (không có chứng chỉ để ghim); `GET /inventory/agents` vẫn trả script với chỗ trống CA ghi rõ (agent-intake, WP-26 lát 3) |
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
 | `not_found` | 404 | This ${what} no longer exists. | 51 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |
 | `not_in_kev` | 404 | This CVE is not on the exploited list (CISA KEV) in the current data. | `GET /feeds/cve/{id}` |
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (88 mã)
+#### HTTP 409 (89 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -446,6 +448,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `connectivity_check_failed` | 409 | The box could not reach the network with the new settings, so it went back to the old ones. Check the address, prefix length and gateway, then try again. Chỉ backend (run `reverted`, D-100). | `PUT /core/network/management` |
 | `reverted_by_reboot` | 409 | The box restarted before the change was confirmed, so it came back on the old address. Chỉ backend (run `reverted`). | `POST /core/network/management/confirm` |
 | `management_not_set` | 409 | Vedette has not set up this box's network yet. Save the management address first, then change the other settings. Chỉ backend: host chưa ghi cấu hình nào nên không có gì để gộp. | `PUT /core/network/span`; `PUT /core/network/ntp`; `PUT /core/network/interfaces` |
+| `too_many_tokens` | 409 | There are already 50 enrollment tokens. Revoke one you no longer use. | `POST /inventory/agents/tokens` (agent-intake INV-14, D-265 (2)) |
 | `wazuh_changed` | 409 | The Wazuh connection was changed or removed while this was checked. Enter the password and save again. | `PUT /inventory/agents/wazuh` with a blank password while another Save or Delete ran (agent-intake) |
 | `previous_revoked` | 409 | The previous version has been withdrawn by the project, so the box will not go back to it. Chỉ backend (D-342): host `previous_revoked`; cũng là `run.error` khi host từ chối lúc chạy. | `POST /core/updates/rollback` (`run.error`) |
 | `rollback_not_allowed` | 409 | The running version cannot go back that far: its database is not readable by the previous version. Check the release notes. Chỉ backend (D-342): host `rollback_not_allowed`. | `POST /core/updates/rollback` (`run.error`) |
@@ -478,14 +481,15 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `wazuh_auth` | 422 | Wazuh refused the user name or password. Check the read-only API user you created. | module inventory (validator dùng chung) |
 | `wazuh_forbidden` | 422 | Wazuh signed the user in, but it may not read the agents or their inventory. Give its role the agent:read and syscollector:read actions on agent:id:* (the steps above). | `POST /inventory/agents/wazuh/test`, `PUT /inventory/agents/wazuh` (agent-intake, D-309) |
 
-#### HTTP 429 (4 mã)
+#### HTTP 429 (5 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute) |
+| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute); agent-intake (kèm `retry_after` và `Retry-After`): `POST /intake/osquery/{enroll,config,log,status}` khi một nguồn sai thông tin xác thực quá 10 lần/phút hoặc một máy quá 6 `config` / 12 `log` mỗi phút, hoặc đăng ký lại cùng (token, `host_identifier`) trong 60 giây (D-265 (2)); `GET /install/osquery/{file}` khi đã có 4 lượt tải gói chạy cùng lúc (`Retry-After: 5`, WP-26 lát 3) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
+| `too_many_nodes` | 429 | This enrollment token already has the most machines it can have. Revoke it and make a new one. | `POST /intake/osquery/enroll` khi token đã có 500 máy hoặc hộp đã có 5.000 máy (agent-intake INV-14, D-265 (2); kèm `retry_after` 3600 và `Retry-After`); máy-với-máy, osquery chỉ ghi log và thử lại |
 
 #### HTTP 502 (22 mã)
 
@@ -658,7 +662,7 @@ Mock chỉ có giới hạn **nghiệp vụ** (bảng dưới); chưa có giới
 | Băm/kiểm mật khẩu (argon2, 64 MiB mỗi lần) | tối đa `min(GOMAXPROCS/2, GOMEMLIMIT/4/64 MiB)` lần cùng lúc, ít nhất 1 (`auth.Config.MaxHashing`; GOMAXPROCS theo hạn mức của container); chờ tối đa 2 s (`HashWait`), hàng đợi 4 lần số khe; quá thì từ chối | `core/auth` | 503 `server_busy`, `Retry-After: 3` |
 | Chờ kết nối ghi CSDL (một writer) | mỗi request chờ tối đa 5 s (`store.RequestWriteWait`, D-246); job nền không giới hạn, chờ theo context của mình | `core/store` | 503 `server_busy`, `Retry-After: 5` |
 | API đã xác thực | **[ĐX]** 600 yêu cầu/phút mỗi phiên (token bucket); SSE không tính | | 429 `rate_limited` |
-| Điểm công khai | **[ĐX]** 60 yêu cầu/phút mỗi IP cho `/auth/*`, `/response/approve/*`, `/response/blocklist/*`, `/install/*`, `/intake/*` | | 429 |
+| Yêu cầu công khai không có phiên (D-320; chỉ trên appliance có `vedette-host`) | 60 yêu cầu / phút mỗi địa chỉ máy khách (IPv6 theo /64): thao tác công khai (`/setup`, `/auth/*`, `/core/setup*`, `/core/auth-options`, `/response/approve/*`, `/response/blocklist/*`) không kèm phiên hợp lệ; không tính yêu cầu có phiên (kể cả tới route công khai), 401 của route cần đăng nhập (GUI cần 401 để về trang đăng nhập), route của tác tử osquery (`/intake/*`, `/install/*`: cả đội máy sau một NAT, có bí mật đăng ký riêng) và loopback (chính hộp: health check, lệnh `vedette`) | `core/server` (`publimit.go`, `Config.PublicPerMinute`) | 429 `rate_limited`, "Too many requests from this address. Try again in N seconds.", `retry_after` + `Retry-After` |
 
 Phản hồi 429 (và 503 `server_busy`) luôn có `Retry-After: <giây>`, thân chuẩn mục 3.1 (và `retry_after` trong `error` khi có), cộng `RateLimit-Limit/Remaining/Reset` trên endpoint giới hạn **[ĐX]**. Giới hạn **ra ngoài** (tốc độ quét `rate` 1–20 req/s, `inv_setting.active.rate`) là cấu hình quét, không phải giới hạn API.
 

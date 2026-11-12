@@ -1,11 +1,2 @@
 # Deferred: feat/logs-l7-real-gui (logs L7)
-- [ ] 2026-11-12 — L4 (AI-Mlee): the digest's "bad connection" test is `test.fixme` in `web/e2e-real/logs.global.spec.ts`; when L4 lands, make it real and drop the `digest.bad.emptyWhy` sentence in `web/src/locales/en/logs.json` (+ the unit test "an empty list of bad connections says why") — ở đâu: D-300 (1).
-- [ ] 2026-11-12 — digest "new" and spike after the 24 h warm-up cannot run on a fresh e2e box; Go tests carry them, the e2e `test.fixme` stays until a clock seam exists (Kiên's harness) — ở đâu: D-300 (2).
 - [x] 2026-11-12 — SIEM e2e is real (validation, three formats, key last 4, blocked_host, audit, page, roles 403 on every write; #355, fix/logs-siem-review).
-- [ ] 2026-11-12 — the mock `validateSiem` still lacks `blocked_host`, `secret_required`, duplicate events → `bad_events`, `bad_secret` for non-json formats, schema `invalid` before `bad_format` — AI-Mlee does it in her L4 PR — ở đâu: `web/src/features/logs/mocks.ts`.
-- [ ] 2026-11-12 — a successful "Send test" cannot run on the e2e box (it refuses loopback, D-208); the Go tests carry it.
-- [ ] 2026-11-12 — digest `more` count (items beyond 20 per kind) needs an API contract change, left alone — ở đâu: `.ai/deferred/feat-logs-l3-signatures.md`.
-- [ ] 2026-11-12 — QA walk (independent Sonnet, mock GUI): MEDIUM, shortening retention deletes data at once with no confirm or note (needs a story criterion) — ở đâu: LogsPage retention select, S-LOG-1.
-- [ ] 2026-11-12 — QA walk: MEDIUM, at 390 px the three digest tables clip Destination/Seen via/Confidence (sources already become cards); a card layout for DataTable is a shared-component change — ở đâu: `web/src/components/common/DataTable`, LogsPage digest.
-- [ ] 2026-11-12 — QA walk: the empty bad-connections title still reads "No connection to bad addresses…" (the body now retracts it); retitle together with L4 — ở đâu: `digest.bad.empty`.
-- [ ] 2026-11-12 — QA walk LOWs: UDP-only kinds still hint "6514 for TLS"; sender IP accepts 0.0.0.0/127.0.0.1/224.x; duplicate source names accepted; no inline field errors (aria-invalid); Edit dialog repeats its title; SIEM sample ignores the event selection; short SIEM hostnames rejected; viewer-disabled controls explain only via title attribute — ở đâu: SourceDialogs.tsx, SiemSettings.tsx, modules/logs/validate.go (Go: ask AI-Mlee).

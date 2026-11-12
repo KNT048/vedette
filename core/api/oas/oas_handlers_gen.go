@@ -2053,7 +2053,7 @@ func (s *Server) handleAiGetAiKnowledgeRequest(args [0]string, argsEscaped bool,
 
 // handleAiGetAiLogsDigestRequest handles ai_get_ai_logs_digest operation.
 //
-// AI log digest for the selected tier.
+// AI log digest for the selected tier (null = none generated yet; no AI call, INV-6).
 //
 // GET /ai/logs/digest
 func (s *Server) handleAiGetAiLogsDigestRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2122,7 +2122,7 @@ func (s *Server) handleAiGetAiLogsDigestRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiGetAiLogsDigestOperation,
-			OperationSummary: "AI log digest for the selected tier",
+			OperationSummary: "AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)",
 			OperationID:      "ai_get_ai_logs_digest",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -7743,7 +7743,7 @@ func (s *Server) handleCoreGetCoreConnectionsRequest(args [0]string, argsEscaped
 
 // handleCoreGetCoreDataBackupRequest handles core_get_core_data_backup operation.
 //
-// Download a backup (no passwords or keys).
+// Download a backup (password hashes, never passwords or keys).
 //
 // GET /core/data/backup
 func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7812,7 +7812,7 @@ func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreDataBackupOperation,
-			OperationSummary: "Download a backup (no passwords or keys)",
+			OperationSummary: "Download a backup (password hashes, never passwords or keys)",
 			OperationID:      "core_get_core_data_backup",
 			Body:             nil,
 			RawBody:          rawBody,

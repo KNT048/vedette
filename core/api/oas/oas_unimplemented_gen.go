@@ -151,7 +151,7 @@ func (UnimplementedHandler) AiGetAiKnowledge(ctx context.Context) (r *AiGetAiKno
 
 // AiGetAiLogsDigest implements ai_get_ai_logs_digest operation.
 //
-// AI log digest for the selected tier.
+// AI log digest for the selected tier (null = none generated yet; no AI call, INV-6).
 //
 // GET /ai/logs/digest
 func (UnimplementedHandler) AiGetAiLogsDigest(ctx context.Context) (r *AiGetAiLogsDigestOK, _ error) {
@@ -522,7 +522,7 @@ func (UnimplementedHandler) CoreGetCoreConnections(ctx context.Context) (r *Core
 
 // CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 //
-// Download a backup (no passwords or keys).
+// Download a backup (password hashes, never passwords or keys).
 //
 // GET /core/data/backup
 func (UnimplementedHandler) CoreGetCoreDataBackup(ctx context.Context) (r CoreGetCoreDataBackupOK, _ error) {

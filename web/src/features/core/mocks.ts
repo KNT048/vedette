@@ -8,11 +8,11 @@ import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
 import { BUNDLES } from './bundles'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
+import { cidrRange, overlapping } from '@/features/inventory/validate'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
 import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
-import { networkStore } from '@/mocks/network'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, TIMEZONES } from './util'
@@ -60,6 +60,10 @@ const setupHandlers = [
     if (badLan) return fail(400, 'invalid_lan', `The range "${badLan}" is not valid. Write it like 192.168.10.0/24.`)
     const pub = lan.find((x) => !isPrivateCidr(x))
     if (pub) return fail(400, 'public_range', `${pub} is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.`)
+    // The ranges become the scope of Devices → Scope and sensors (below), so they obey that page's rule too (inventory INV-6, #350).
+    const uniqueLan = [...new Set(lan.map((r) => cidrRange(r).network))] // host bits cleared first, as the backend does
+    const clash = uniqueLan.map((r) => [r, overlapping(r, uniqueLan)] as const).find(([, o]) => o)
+    if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
     let enable: ModuleId[]
     const all = modulesStore.get() // danh sách module mặc định; kiểm tra xong mới dọn kho (lỗi thì không mất gì)
     if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle]
@@ -755,12 +759,6 @@ function telemetryPayload() {
   }
 }
 
-/** Flow 10: time requests leave the LAN unless every NTP server is an internal address. Host names count as public (cannot tell from here). */
-function ntpPublic() {
-  const n = networkStore.get().ntp
-  return n.mode === 'default' || n.servers.some((x) => !isPrivateCidr(`${x}/32`))
-}
-
 function privacyView() {
   const p = privacyStore.get()
   const ai = aiConfigStore.get().configured && isOn('ai')
@@ -774,7 +772,7 @@ function privacyView() {
     { id: 7, state: 'conditional', control: 'reason' },
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
-    { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
+    { id: 10, state: 'on', control: 'reason' }, // always on (D-166 (4)): the distribution's own chrony sources stay whatever is entered; the real backend answers true too
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },

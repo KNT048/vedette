@@ -40,7 +40,7 @@ const (
 	// MaxIocFeeds is how many feed names a hit keeps. MaxIocRead is the most hits IocHits returns.
 	MaxIocFeeds = 8
 	MaxIocRead  = 1000
-	// iocLookupTimeout bounds all the lookups of one batch.
+	// iocLookupTimeout bounds all the lookups of one batch (Service.iocTimeout, a field so that a test can lower it).
 	iocLookupTimeout = 5 * time.Second
 	// iocAnnounceTimeout bounds the publishing of the events of one batch.
 	iocAnnounceTimeout = 10 * time.Second
@@ -185,7 +185,7 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 	slices.SortFunc(keys, func(a, b connKey) int {
 		return cmp.Or(conns[a].at.Compare(conns[b].at), a.src.Compare(b.src), cmp.Compare(a.kind, b.kind), cmp.Compare(a.dest, b.dest))
 	})
-	ctx, cancel := context.WithTimeout(ctx, iocLookupTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.iocTimeout)
 	defer cancel()
 	cache := &lookups{res: map[[2]string]lookupResult{}}
 	var out []iocRow
@@ -309,7 +309,7 @@ func (s *Service) noteLookupFailure(ctx context.Context, err error) {
 		return
 	}
 	s.iocWarned.Store(&msg)
-	if errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) { // the adapter may not wrap the context's error
 		s.cfg.Log.WarnContext(ctx, "logs: the threat feeds answered too slowly; lines are stored without a match for now", "err", err)
 		return
 	}
@@ -390,9 +390,8 @@ const IocSummaryTarget = "more bad connections"
 // noteBudgetOut logs, once per clock hour, that hits were stored and not announced because the hourly budget ran out, and announces
 // that once as a logs.anomaly.detected event (notify opens a log_anomaly incident from it): "at least N more", the count of the batch
 // that first ran over. The hits are in the digest.
-func (s *Service) noteBudgetOut(ctx context.Context, n int) {
+func (s *Service) noteBudgetOut(ctx context.Context, n int, hour int64) {
 	s.iocMu.Lock()
-	hour := s.now().Unix() / 3600
 	first := s.iocCapLogged != hour
 	s.iocCapLogged = hour
 	s.iocMu.Unlock()
@@ -402,7 +401,7 @@ func (s *Service) noteBudgetOut(ctx context.Context, n int) {
 	s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
 	ev := AnomalyEvent{Source: "logs", Target: fmt.Sprintf("ioc:%s %d", IocSummaryTarget, hour),
 		Title:    fmt.Sprintf("At least %d more connections to known-bad addresses this hour, not announced one by one", n),
-		What:     fmt.Sprintf("%d bad connections have already been announced this hour; more were found and are not announced one by one.", IocEventsPerHour),
+		What:     fmt.Sprintf("The limit of %d announced bad connections an hour was reached; more were found and are not announced one by one.", IocEventsPerHour),
 		Action:   "Open Logs and read the bad connections of the digest: a device that meets this many listed addresses in an hour is probably infected.",
 		Severity: "medium", Devices: []DeviceInfo{}}
 	if s.cfg.Events == nil {
@@ -413,11 +412,13 @@ func (s *Service) noteBudgetOut(ctx context.Context, n int) {
 	}
 }
 
-// iocBudget says how many of n new hits may be announced now: at most IocEventsPerHour in a clock hour.
-func (s *Service) iocBudget(n int) int {
+// iocBudget says how many of n new hits may be announced now: at most IocEventsPerHour in a clock hour, and which hour that is (one
+// reading of the clock, so a batch that crosses an hour is never counted in one and labelled with the next).
+func (s *Service) iocBudget(n int) (int, int64) {
 	s.iocMu.Lock()
 	defer s.iocMu.Unlock()
-	if h := s.now().Unix() / 3600; h != s.iocHour {
+	h := s.now().Unix() / 3600
+	if h != s.iocHour {
 		s.iocHour, s.iocSent = h, 0
 	}
 	n = min(n, IocEventsPerHour-s.iocSent)
@@ -425,7 +426,7 @@ func (s *Service) iocBudget(n int) int {
 		n = 0
 	}
 	s.iocSent += n
-	return n
+	return n, h
 }
 
 // announceIOC publishes the events of the new hits of a committed batch (never inside the transaction: a handler may write, and a
@@ -439,8 +440,8 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 	// announced while the dedupe hides it for 24 hours), so it runs on its own bounded context.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), iocAnnounceTimeout)
 	defer cancel()
-	if n := s.iocBudget(len(fresh)); n < len(fresh) {
-		s.noteBudgetOut(ctx, len(fresh)-n)
+	if n, hour := s.iocBudget(len(fresh)); n < len(fresh) {
+		s.noteBudgetOut(ctx, len(fresh)-n, hour)
 		fresh = fresh[:n]
 	}
 	if len(fresh) == 0 {

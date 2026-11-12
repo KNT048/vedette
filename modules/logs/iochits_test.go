@@ -1045,3 +1045,45 @@ func TestIOCBlockedLineIsAnAttempt(t *testing.T) {
 		t.Errorf("allowed: %q / %q", b.Title, b.What)
 	}
 }
+
+// slowFeeds blocks every lookup until its context is done and fails with an error that does not wrap the context's (an adapter may do that).
+type slowFeeds struct{ *fakeFeeds }
+
+func (slowFeeds) Lookup(ctx context.Context, _, _ string) (Listing, bool, error) {
+	<-ctx.Done()
+	return Listing{}, false, errors.New("feed store: lookup abandoned")
+}
+
+type lockedBuf struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (l *lockedBuf) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuf) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+// A lookup that runs past the budget of the batch says "answered too slowly", not "could not be read", and stores the lines without a match.
+func TestIOCSlowFeedStoreHasItsOwnWording(t *testing.T) {
+	t.Parallel()
+	e, src, ff, _ := iocEnv(t)
+	logs := &lockedBuf{}
+	e.svc.cfg.Log = slog.New(slog.NewTextHandler(logs, nil))
+	e.svc.cfg.Feeds = slowFeeds{ff}
+	e.svc.iocTimeout = 20 * time.Millisecond
+	e.feedAll(src, []string{traffic(lanDevice, badIP)})
+	if out := logs.String(); !strings.Contains(out, "answered too slowly") || strings.Contains(out, "could not be read") {
+		t.Fatalf("log: %s", out)
+	}
+	if n := hitCount(t, e); n != 0 {
+		t.Fatalf("%d hits", n)
+	}
+}

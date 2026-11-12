@@ -43,11 +43,7 @@ func TestSiemSampleOfTheGuiIsWhatTheFormattersWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var js map[string]string
-	if err := json.Unmarshal(formatJSON(r, "vedette"), &js); err != nil {
-		t.Fatal(err)
-	}
-	for name, want := range map[string]string{"syslog": string(formatSyslog(r, "vedette")), "cef": string(formatCEF(r, "vedette")), "json time": js["time"]} {
+	for name, want := range map[string]string{"syslog": string(formatSyslog(r, "vedette")), "cef": string(formatCEF(r, "vedette")), "json": string(formatJSON(r, "vedette"))} {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("web/src/features/logs/snippets.ts has no %s sample equal to %s", name, want)
 		}

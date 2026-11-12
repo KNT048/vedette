@@ -172,6 +172,4 @@ test('alert on new devices (S-INV-3): an operator turns it off and on, each chan
   }
 })
 
-test.fixme('the "new devices not approved" panel shows the alert switch and the approve list', async () => {
-  // needs a device the sensors found (approved=false): slice 7 (passive sensor in the box). Copy the panel steps of e2e/qa/inventory.spec.ts then.
-})
+// The "new devices not approved" panel (alert switch, approve list) needs a device a sensor found: it is tested in sensors.global.spec.ts.

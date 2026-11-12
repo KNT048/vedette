@@ -174,6 +174,56 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
   } finally { await c.dispose() }
 })
 
+// The two tests below were test.fixme in inventory.spec.ts and scope.global.spec.ts: a device waiting for approval needs a sensor, and the recording can be delivered once
+// per run (the 15 minute repeat filter), so they live in this file, with the devices the passive sensor made. The router is still waiting here (the test above approved the PC).
+test('the not-approved list: an operator marks a device unknown and removes the mark; it stays waiting (S-INV-3)', async ({ browser }) => {
+  const ctx = await browser.newContext({ storageState: authFile('operator') })
+  const page = await ctx.newPage()
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  try {
+    const { router } = await waitForReplay(c)
+    expect((await device(c, router.id)).asset.approved, 'the router still waits').toBe(false)
+    await page.goto('/devices')
+    const pending = page.getByRole('list', { name: /new devices? not approved/ })
+    const item = pending.getByRole('listitem').filter({ hasText: ROUTER.ip })
+    await item.getByRole('button', { name: 'Mark unknown' }).click()
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: 'as unknown.' }).first()).toBeVisible()
+    await expect(item.getByText('Marked unknown')).toBeVisible()
+    const r = await api<{ asset: { approved: boolean }; suspicious: boolean }>(c, 'GET', `/inventory/devices/${router.id}`)
+    expect(r.body, 'stored on the box, not approved by it').toMatchObject({ suspicious: true, asset: { approved: false } })
+    await item.getByRole('button', { name: 'Remove unknown mark' }).click()
+    await expect(item.getByText('Marked unknown')).toHaveCount(0)
+    await expect(item.getByRole('button', { name: 'Mark unknown' })).toBeVisible()
+    expect((await device(c, router.id)).asset.approved, 'still waiting for approval').toBe(false)
+    noErrors(errors)
+  } finally { await ctx.close(); await c.dispose() }
+})
+
+test('the "new devices not approved" panel shows the alert switch and the approve list; the switch saves from the page (S-INV-3)', async ({ page }) => {
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  const was = (await devices(c)).notify_new
+  try {
+    await waitForReplay(c)
+    await page.goto('/devices')
+    await expect(page.getByRole('heading', { name: /new devices? not approved/ })).toBeVisible()
+    const sw = page.getByRole('switch', { name: 'Notify me about new devices' })
+    await expect(sw).toBeEnabled()
+    await expect(sw).toBeChecked({ checked: was })
+    await sw.click()
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: was ? 'New device notifications are off.' : 'You will be notified about new devices.' }).first()).toBeVisible()
+    await expect.poll(async () => (await devices(c)).notify_new, { message: 'the switch was saved' }).toBe(!was)
+    await page.reload()
+    await expect(sw).toBeChecked({ checked: !was })
+    await expect(page.getByRole('list', { name: /new devices? not approved/ }).getByRole('listitem')).not.toHaveCount(0)
+    noErrors(errors)
+  } finally {
+    expect((await api(c, 'PUT', '/inventory/notify-new', { enabled: was })).status, 'the switch ends as it started').toBe(200)
+    await c.dispose()
+  }
+})
+
 test('every new device opened one "unknown device" alert (S-INV-3, notify on by default)', async () => {
   const c = await as('admin')
   try {

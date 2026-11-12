@@ -161,6 +161,10 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 		return err
 	}
 	seed.SyslogPort = strconv.Itoa(syslogPort)
+	mcpPort, err := e2eFreePort(ctx) // not 8765: two runs at once; the spec reads the address from GET /core/mcp
+	if err != nil {
+		return err
+	}
 	seed.DataDir, seed.HoneypotDir = data, hp
 	var sensors *e2eSensors
 	if seed.sensorBin != "" {
@@ -184,6 +188,7 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", listen, "-host-socket", hostSocket, "-honeypot-dir", hp,
 		"-syslog-port", seed.SyslogPort, // not 514/5514: two runs at once, and a Mac may not bind 514 (logs spec)
+		"-mcp-listen", net.JoinHostPort("127.0.0.1", strconv.Itoa(mcpPort)), // open only while the mcp-server module is on
 	}
 	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
 		log.onLink = sensors.linkUp

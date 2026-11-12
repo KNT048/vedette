@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/host/api"
@@ -24,7 +25,11 @@ import (
 //     for the guard to retry, not a start: the start of a running container restarts it whenever the host does not see it
 //     healthy, and the sensor is not healthy while core, which takes its heartbeats, is down. That is what an update did
 //     (lab ubuntu2404, 2026-11-12: one extra restart of a running sensor after each update's core restart, none after a plain
-//     restart of core). Each start logs, at WARN and rate limited, which field of the host's answer called for it;
+//     restart of core). The wait is bounded: once the state has stayed unreadable (failed reads, a host answer that does not
+//     list the service, "unknown") for unsureFor since the first such read, the start goes out anyway, so a box whose reads
+//     always time out (a stuck podman, a loaded box) or a core/host version skew still gets a down container started, as
+//     before. A good read resets the wait. Each start logs, at WARN and rate limited, which field of the host's answer
+//     called for it, or "state unreadable for <how long>";
 //   - off (core starts with the module off, and after every switch-off): container.stop with persist, so the unit loses
 //     [Install] and a reboot does not bring it back, unless the host trusts the unit and says it is already stopped and
 //     without [Install]. Here a failed read does go on to the stop: stopping is what "off" means (SYS-5) and costs a running
@@ -41,7 +46,24 @@ type moduleContainer struct {
 	reg     interface{ Enabled(id string) bool }
 	module  string
 	service string
-	mu      sync.Mutex
+	now     func() time.Time // nil: time.Now; a test moves it
+
+	mu sync.Mutex
+	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
+	// by a good read, a start the host confirmed and ensureOff, so a later switch-on waits its own unsureFor again.
+	unsureSince time.Time
+}
+
+// unsureFor bounds how long ensureOn waits for a readable state before it starts the container anyway. The window it must
+// ride out is an update's core restart (~35 s in the lab, a 60 s health start period); with modreg.OffBackoff (10 s, 30 s,
+// 2 min, ...) the attempt at 2 min 40 s is the first past it. ponytail: one fixed bound, made a setting only if a box needs it.
+const unsureFor = 2 * time.Minute
+
+func (c *moduleContainer) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
 }
 
 // ensureOn is the func of the OnGuard.
@@ -52,25 +74,51 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 		return nil
 	}
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up. Start
-	// only on what it positively says is wrong. Anything else is unknown: an error, so the guard reads again after its backoff.
+	// only on what it positively says is wrong. Anything else is unknown: an error, so the guard reads again after its backoff,
+	// until it has been unknown for unsureFor.
 	st, err := c.state(ctx)
-	if err != nil {
-		return fmt.Errorf("%w; will read again before any start", err)
+	why := ""
+	if err == nil {
+		why = startReason(st)
 	}
-	why := startReason(st)
-	switch why {
-	case "":
-		return nil // running / coming up with [Install]: systemd's Restart= owns it
-	case unitStateUnknown:
-		return fmt.Errorf("%s: the host could not tell whether its unit runs (unit_state unknown); will read again before any start", c.service)
-	}
-	if c.h.warnDue("start " + why) {
-		c.h.log.WarnContext(ctx, "container host: starting a module's container, the host's state calls for it", "service", c.service,
-			"module", c.module, "reason", why, "unit_state", st.UnitState, "health", st.Health)
+	if err != nil || why == unitStateUnknown {
+		now := c.clock()
+		if c.unsureSince.IsZero() {
+			c.unsureSince = now
+		}
+		waited := now.Sub(c.unsureSince)
+		if waited < unsureFor {
+			if err != nil {
+				return fmt.Errorf("%w; will read again before any start", err)
+			}
+			return fmt.Errorf("%s: the host could not tell whether its unit runs (unit_state unknown); will read again before any start", c.service)
+		}
+		cause := why
+		if err != nil {
+			cause = err.Error()
+		}
+		why = "state unreadable for " + waited.Round(time.Second).String()
+		if c.h.warnDue("start state unreadable") { // one key: the duration in why changes every attempt
+			c.h.log.WarnContext(ctx, "container host: starting a module's container, its state has been unreadable too long", "service", c.service,
+				"module", c.module, "reason", why, "cause", cause)
+		}
+	} else {
+		c.unsureSince = time.Time{}
+		if why == "" {
+			return nil // running / coming up with [Install]: systemd's Restart= owns it
+		}
+		if c.h.warnDue("start " + why) {
+			c.h.log.WarnContext(ctx, "container host: starting a module's container, the host's state calls for it", "service", c.service,
+				"module", c.module, "reason", why, "unit_state", st.UnitState, "health", st.Health)
+		}
 	}
 	// not_pulled (this box has no unit for the service: not installed, or the scan build was skipped) is "nothing to
 	// start": retrying it every few minutes would only fill the log. Any other refusal or unknown outcome is retried.
-	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled)
+	if err := c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled); err != nil {
+		return err
+	}
+	c.unsureSince = time.Time{}
+	return nil
 }
 
 const unitStateUnknown = "unit_state=" + api.UnitUnknown
@@ -119,6 +167,7 @@ func (c *moduleContainer) ensureOff(ctx context.Context) error {
 	if c.reg.Enabled(c.module) {
 		return nil
 	}
+	c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor
 	// Skip only a unit the host trusts that is already stopped and without [Install]; an untrusted or missing unit, or a
 	// state that cannot be read, goes to the stop (a missing one succeeds at once, an edited one is refused unit_unsafe,
 	// logged and retried).

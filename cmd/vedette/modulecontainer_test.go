@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log/slog"
@@ -424,5 +425,101 @@ func TestModuleContainerStartsOnlyOnWhatTheHostSays(t *testing.T) {
 	}
 	if err := f.ensureOn(ctx); err == nil || !logged("installed=false") { // sent, refused unit_unsafe: an error to retry
 		t.Fatalf("a unit the host does not trust: %v, log %q", err, logs.String())
+	}
+}
+
+// readBreakAPI is the real client whose container-state read can fail (readFails) or leave the service out (a host of
+// another version: readDrops).
+type readBreakAPI struct {
+	hostAPI
+	mode    atomic.Int32
+	service string
+}
+
+const (
+	readOK int32 = iota
+	readFails
+	readDrops
+)
+
+func (b *readBreakAPI) StateContainers(ctx context.Context) (api.ContainersState, error) {
+	switch b.mode.Load() {
+	case readFails:
+		return api.ContainersState{}, errors.New("the host did not answer")
+	case readDrops:
+		st, err := b.hostAPI.StateContainers(ctx)
+		kept := st.Services[:0]
+		for _, s := range st.Services {
+			if s.Service != b.service {
+				kept = append(kept, s)
+			}
+		}
+		st.Services = kept
+		return st, err
+	}
+	return b.hostAPI.StateContainers(ctx)
+}
+
+// The wait for a readable state is bounded (review of the lab fix): a state that stays unreadable for unsureFor (every read
+// fails, the host does not list the service, systemd never names the unit's state) no longer blocks the start of a down
+// container forever; the start goes out and the log says so. A good read resets the wait. The clock is the follower's own,
+// moved by hand.
+func TestModuleContainerStartsAfterTheStateStaysUnreadable(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"read fails", "service not listed", "unit state unknown"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			e := startHPHost(t, false)
+			e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
+			e.m.RuleText("systemctl", "is-active vedette-sensor", "weird\n", 0, "weird-state", "")
+			reg := &flagReg{}
+			reg.on.Store(true)
+			f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+			b := &readBreakAPI{hostAPI: e.h.Client, service: api.ServiceSensor}
+			f.h.api = b
+			var logs syncBuffer
+			f.h.log = slog.New(slog.NewTextHandler(&logs, nil))
+			now := time.Date(2026, 11, 12, 13, 0, 0, 0, time.UTC)
+			f.now = func() time.Time { return now }
+			brk := func(on bool) {
+				switch mode {
+				case "read fails":
+					b.mode.Store(map[bool]int32{true: readFails, false: readOK}[on])
+				case "service not listed":
+					b.mode.Store(map[bool]int32{true: readDrops, false: readOK}[on])
+				default:
+					e.m.Mark("weird-state", on)
+				}
+			}
+			ctx := t.Context()
+
+			brk(true)
+			runs := e.writes()
+			for _, step := range []time.Duration{0, unsureFor - time.Second} { // the first try, and the last inside the bound
+				now = now.Add(step)
+				if err := f.ensureOn(ctx); err == nil || e.writes() != runs {
+					t.Fatalf("after %v unreadable: %v, %d writes; want an error and no write", step, err, e.writes()-runs)
+				}
+			}
+			now = now.Add(time.Second)
+			err := f.ensureOn(ctx)
+			if e.writes() == runs || !strings.Contains(logs.String(), `reason="state unreadable for 2m0s"`) {
+				t.Fatalf("after %v unreadable: %v, %d writes, log %q; want the start", unsureFor, err, e.writes()-runs, logs.String())
+			}
+			if mode != "unit state unknown" && err != nil { // the fake keeps printing its odd word: only the start matters there
+				t.Fatalf("the start after the bound: %v", err)
+			}
+
+			brk(false) // a good read (the unit runs now) resets the wait: the next unreadable read is an error again
+			if err := f.ensureOn(ctx); err != nil {
+				t.Fatalf("a good read of a running unit: %v", err)
+			}
+			brk(true)
+			now = now.Add(time.Hour)
+			runs = e.writes()
+			if err := f.ensureOn(ctx); err == nil || e.writes() != runs {
+				t.Fatalf("after a good read the wait did not start again: %v, %d writes", err, e.writes()-runs)
+			}
+		})
 	}
 }

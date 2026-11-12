@@ -13,6 +13,8 @@ var (
 	ErrInvalidFormat    = errors.New("feeds: format does not fit the feed kind")
 	ErrInvalidName      = errors.New("feeds: invalid feed name")
 	ErrDuplicateName    = errors.New("feeds: duplicate feed name")
+	ErrDuplicateURL     = errors.New("feeds: another feed already uses this address")
+	ErrBlockedHost      = errors.New("feeds: the address is the box itself, loopback, link-local or cloud metadata")
 	ErrInvalidAuth      = errors.New("feeds: invalid authentication settings")
 	ErrInvalidSecret    = errors.New("feeds: invalid secret")
 	ErrInvalidWhitelist = errors.New("feeds: invalid whitelist entry")

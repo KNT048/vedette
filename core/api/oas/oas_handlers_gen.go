@@ -17513,7 +17513,13 @@ func (s *Server) handleExposurePostExposureTargetsIDCommitmentRequest(args [1]st
 // Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 // right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 // (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-// when the commitment is missing.
+// when the commitment is missing. After those checks the Vulnerability scans module does the scan
+// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
+// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
+// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
+// within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in
+// the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the
+// scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17592,7 +17598,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing",
+			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27577,6 +27583,133 @@ func (s *Server) handleLogsGetLogsSourcesRequest(args [0]string, argsEscaped boo
 	}
 
 	if err := encodeLogsGetLogsSourcesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleLogsGetLogsUnknownSendersRequest handles logs_get_logs_unknown_senders operation.
+//
+// Senders whose syslog was dropped because no source declares them (the 10 seen most recently since
+// the listener started).
+//
+// GET /logs/unknown-senders
+func (s *Server) handleLogsGetLogsUnknownSendersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: LogsGetLogsUnknownSendersOperation,
+			ID:   "logs_get_logs_unknown_senders",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, LogsGetLogsUnknownSendersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *LogsGetLogsUnknownSendersOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    LogsGetLogsUnknownSendersOperation,
+			OperationSummary: "Senders whose syslog was dropped because no source declares them (the 10 seen most recently since the listener started)",
+			OperationID:      "logs_get_logs_unknown_senders",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *LogsGetLogsUnknownSendersOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.LogsGetLogsUnknownSenders(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.LogsGetLogsUnknownSenders(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeLogsGetLogsUnknownSendersResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

@@ -181,13 +181,13 @@ func TestBuiltinGenericParsersOnRealisticFixtures(t *testing.T) {
 	feodo := "# Feodo\n#\n185.220.101.47\n# c\n45.148.10.95\n"
 	ipsum := "# IPsum\n1.1.1.1\t8\n2.2.2.2\t3\n"
 	tor := "185.220.101.1\n185.220.101.2\n"
-	hagezi := "# hagezi\nevil.example.com\nphish.example.net\n"
+	hagezi := "# hagezi\nevil-site.top\nphish.evil-site.xyz\n"
 	cases := map[string]struct {
 		in       string
 		accepted int
 		rejected int
 		first    string
-	}{"abusech-feodo": {feodo, 2, 0, "185.220.101.47"}, "ipsum": {ipsum, 2, 0, "1.1.1.1"}, "tor-exit": {tor, 2, 0, "185.220.101.1"}, "hagezi-tif": {hagezi, 2, 0, "evil.example.com"}}
+	}{"abusech-feodo": {feodo, 2, 0, "185.220.101.47"}, "ipsum": {ipsum, 2, 0, "1.1.1.1"}, "tor-exit": {tor, 2, 0, "185.220.101.1"}, "hagezi-tif": {hagezi, 2, 0, "evil-site.top"}}
 	for id, c := range cases {
 		s, _ := BuiltinByID(id)
 		r, err := ParseFeed(context.Background(), []byte(c.in), s.Kind, *s.Parser)

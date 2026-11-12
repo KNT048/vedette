@@ -134,7 +134,7 @@ func TestNetStateReadsCardsCountersAndTheDefaultRoute(t *testing.T) {
 		t.Fatalf("pending %v decoys %v: not before slices 3-4 and 3-5", st.Pending, st.Decoys)
 	}
 	b, _ := json.Marshal(st)
-	for _, nul := range []string{`"interfaces":null`, `"decoys":null`, `"ntp":null`, `"addresses":null`} {
+	for _, nul := range []string{`"interfaces":null`, `"decoys":null`, `"ntp":null`, `"addresses":null`, `"resolvers":null`} {
 		if strings.Contains(string(b), nul) {
 			t.Errorf("%s in %s", nul, b)
 		}

@@ -4,10 +4,10 @@ summary: { en: "Proves you own a domain or the box's public IP, then lists subdo
 tier: optional
 default: false
 depends: [core, inventory]
-permissions: [outbound:https]   # tìm subdomain (CT), httpx, và ba dịch vụ "IP của tôi" công khai (D-81: AWS, Cloudflare, Google Cloud) để hộp tự thấy IP công cộng; không có máy chủ nào của dự án
+permissions: [outbound:https]   # tìm subdomain (CT, crt.sh), lượt quét của `scan` (D-229), và ba dịch vụ "IP của tôi" công khai (D-81: AWS, Cloudflare, Google Cloud) để hộp tự thấy IP công cộng; không có máy chủ nào của dự án
 ports: []
-container: [core, scan]         # API và dữ liệu ở `core`; subfinder/dnsx/httpx/cổng chạy như việc trong `scan` (D-55)
+container: [core]               # API và dữ liệu ở `core`; máy quét bề mặt ngoài của `scan` (Go thuần, kết nối TCP) cũng chạy trong `core` (D-229)
 tables_prefix: exp_
 stories: [S-EXP-1]
-decisions: [D-5, D-25, D-26, D-55, D-79, D-81]
+decisions: [D-5, D-25, D-26, D-55, D-79, D-81, D-229]
 milestone: M4

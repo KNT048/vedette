@@ -173,7 +173,7 @@ func TestRegress_BuiltinSourceLimits(t *testing.T) {
 	gen := func(n int) []byte {
 		var b strings.Builder
 		for i := 0; i < n; i++ {
-			fmt.Fprintf(&b, "d%d.example.com\n", i)
+			fmt.Fprintf(&b, "d%d.evil.top\n", i)
 		}
 		return []byte(b.String())
 	}

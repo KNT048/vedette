@@ -1255,7 +1255,13 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDCommitment(ctx context.
 // Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 // right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 // (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-// when the commitment is missing.
+// when the commitment is missing. After those checks the Vulnerability scans module does the scan
+// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
+// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
+// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
+// within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in
+// the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the
+// scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanOK, _ error) {
@@ -1946,6 +1952,16 @@ func (UnimplementedHandler) LogsGetLogsSiem(ctx context.Context) (r *LogsGetLogs
 //
 // GET /logs/sources
 func (UnimplementedHandler) LogsGetLogsSources(ctx context.Context) (r *LogsGetLogsSourcesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// LogsGetLogsUnknownSenders implements logs_get_logs_unknown_senders operation.
+//
+// Senders whose syslog was dropped because no source declares them (the 10 seen most recently since
+// the listener started).
+//
+// GET /logs/unknown-senders
+func (UnimplementedHandler) LogsGetLogsUnknownSenders(ctx context.Context) (r *LogsGetLogsUnknownSendersOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { installStore, sessionStore } from '@/mocks/stores'
+import { installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { containerSensorStore } from '@/features/inventory/mocks'
 import { MOCK_SETUP_CODE } from './mocks'
 
@@ -122,6 +122,30 @@ describe('container-only install (D-381)', () => {
     expect(within(small).getByText(/Reports/)).toBeInTheDocument()
     expect(within(small).queryByText(/internal traps/i)).toBeNull()
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
+  })
+  it('Scans, Credentialed scan: says it is not on this install, never invites turning it on (S-CORE-9 G5, D-420)', async () => {
+    renderApp('/scans?tab=credentialed')
+    expect(await screen.findByText('Credentialed scan is not on this install')).toBeInTheDocument()
+    expect(screen.getByText(/needs the appliance install/)).toBeInTheDocument()
+    expect(screen.queryByText(/Turn the module on/)).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
+  })
+
+  it('MCP: says nothing outside the container can reach it, not "use an SSH tunnel" (S-MCP-1, D-420)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'mcp-server' ? { ...m, enabled: true } : m)))
+    renderApp('/settings/mcp')
+    expect(await screen.findByText(/the MCP port is not published/)).toBeInTheDocument()
+    expect(screen.getByText(/Listening inside the vedette-core container only/)).toBeInTheDocument()
+    expect(screen.queryByText(/must go through an SSH tunnel/)).toBeNull()
+  })
+
+  it('SIEM forwarding: "Honeypot touches" cannot be ticked and says why (S-LOG-3, D-420)', async () => {
+    renderApp('/settings/siem')
+    const box = await screen.findByRole('checkbox', { name: 'Honeypot touches' })
+    expect(box).toBeDisabled()
+    expect(box).not.toBeChecked()
+    expect(screen.getByText('Not on this install: the honeypot needs the appliance install.')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Alerts sent' })).toBeEnabled()
   })
 
   // The setup page re-mounts its sections once right after first paint (inventory.test.tsx clickUntil): click again until the dialog shows.

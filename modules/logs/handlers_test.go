@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
+	"github.com/knt048/vedette/modules/logs/listen"
 )
 
 type logsOnly struct {
@@ -85,6 +87,8 @@ func TestContract_PRE1_RolesAndTheModuleGate(t *testing.T) {
 		{"GET", "/logs/sources", "", "", 401},
 		{"GET", "/logs/events?window=24h", "viewer", "", 200},
 		{"GET", "/logs/digest", "viewer", "", 200},
+		{"GET", "/logs/unknown-senders", "viewer", "", 403}, // addresses of dropped senders: operator and up, like the hint
+		{"GET", "/logs/unknown-senders", "operator", "", 200},
 		{"POST", "/logs/sources", "viewer", goodSource, 403},
 		{"POST", "/logs/sources", "operator", goodSource, 403},
 		{"PUT", "/logs/retention", "operator", `{"days":7}`, 403},
@@ -101,6 +105,45 @@ func TestContract_PRE1_RolesAndTheModuleGate(t *testing.T) {
 	}
 	if count(t, e.cfg, `SELECT count(*) FROM logs_sources`) != 1 {
 		t.Error("the data is kept while the module is off")
+	}
+}
+
+// S-LOG-1: syslog from an address that no source declares is dropped, and the API names the sender (from the socket) so the page can say
+// "lines arrive from 127.0.0.1, which is not a source"; declaring it clears the hint.
+func TestAnUndeclaredSenderIsListedOverHTTP(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	e.gate.Set("logs", true)
+	e.svc.cfg.Syslog = SyslogConfig{Host: "127.0.0.1", Ports: []int{0}, Limits: listen.Limits{BatchWait: 10 * time.Millisecond}}
+	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "192.168.1.1", Proto: "udp", Port: 514}); err != nil {
+		t.Fatal(err)
+	}
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	var udp net.Addr
+	waitUntil(t, "the UDP socket", func() bool { udp, _ = e.addrs(); return udp != nil })
+	c, err := dialCtx("udp4", udp.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	for range 2 {
+		_, _ = io.WriteString(c, "<189>devname=fg srcip=10.6.6.6 says it is 192.168.1.1")
+	}
+	waitUntil(t, "both datagrams to be counted", func() bool { return e.svc.ListenStatus().Stats.Unknown == 2 })
+	code, b := e.call("GET", "/logs/unknown-senders", "operator", "")
+	list, _ := b["items"].([]any)
+	if code != 200 || len(list) != 1 {
+		t.Fatalf("%d %v", code, b)
+	}
+	if got := list[0].(map[string]any); got["ip"] != "127.0.0.1" || got["proto"] != "udp" || got["count"] != float64(2) || got["last_seen"] == nil {
+		t.Errorf("sender %v (the address is the socket's, not one written in the line)", got)
+	}
+	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-LOCAL", SenderIP: "127.0.0.1", Proto: "udp", Port: 514}); err != nil {
+		t.Fatal(err)
+	}
+	if _, b := e.call("GET", "/logs/unknown-senders", "operator", ""); len(b["items"].([]any)) != 0 {
+		t.Errorf("a sender declared now is still listed: %v", b)
 	}
 }
 

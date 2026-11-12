@@ -32,8 +32,8 @@ func TestContract_INV12_Verdict(t *testing.T) {
 		{"one block-class source blocks", "ip", "45.148.10.95", []Sighting{{Source: "abusech-feodo", BlockClass: true}}, Whitelist{}, VerdictBlock},
 		{"empty source names do not count", "ip", "45.148.10.95", []Sighting{{Source: ""}, {Source: "custom-a"}}, Whitelist{}, VerdictAlert},
 		{"no sightings", "ip", "45.148.10.95", nil, Whitelist{}, VerdictNone},
-		{"domain alert", "domain", "Evil.Example.com.", one("custom-a"), Whitelist{}, VerdictAlert},
-		{"domain block", "domain", "evil.example.com", []Sighting{{Source: "a"}, {Source: "b"}}, Whitelist{}, VerdictBlock},
+		{"domain alert", "domain", "Evil.Site.top.", one("custom-a"), Whitelist{}, VerdictAlert},
+		{"domain block", "domain", "evil.site.top", []Sighting{{Source: "a"}, {Source: "b"}}, Whitelist{}, VerdictBlock},
 		{"whitelisted domain", "domain", "login.microsoft.com", []Sighting{{Source: "a"}, {Source: "b"}}, wl(t, "microsoft.com"), VerdictNone},
 		{"whitelist exact", "domain", "microsoft.com", one("a"), wl(t, "Microsoft.com."), VerdictNone},
 		{"whitelist is by label, not suffix text", "domain", "evilmicrosoft.com", one("a"), wl(t, "microsoft.com"), VerdictAlert},
@@ -135,7 +135,7 @@ func TestRegress_WhitelistEntries(t *testing.T) {
 			t.Errorf("entry %q accepted: %v", bad, err)
 		}
 	}
-	if w, err := NewWhitelist(nil); err != nil || Judge("domain", "evil.example.com", two, w) != VerdictBlock {
+	if w, err := NewWhitelist(nil); err != nil || Judge("domain", "evil.site.top", two, w) != VerdictBlock {
 		t.Errorf("empty whitelist: %v", err)
 	}
 }

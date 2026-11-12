@@ -363,7 +363,7 @@ func TestRecordOutcomeUpdatesPullState(t *testing.T) {
 	rec := func(o outcome) {
 		write(t, db, func(tx *sql.Tx) error { return recordOutcome(t.Context(), tx, "ipsum", o) })
 	}
-	rec(outcome{Started: epoch0, Finished: epoch0.Add(time.Second), OK: true, Accepted: 10, Rejected: 2, Records: 10, Note: "2 of 12 rows were rejected.", ETag: `"a"`, Reasons: []Reason{{"x", 2}}})
+	rec(outcome{Started: epoch0, Finished: epoch0.Add(time.Second), OK: true, Accepted: 10, Rejected: 2, Records: 10, Note: "2 of 12 rows were rejected.", ETag: `"a"`, Reasons: []Reason{{Reason: "x", Count: 2}}})
 	r, _ := s.source(t.Context(), "ipsum")
 	if r.Status != "ok" || *r.Records != 10 || r.Failures != 0 || *r.Error != "2 of 12 rows were rejected." || *r.ETag != `"a"` || !r.LastSuccess.Equal(epoch0.Add(time.Second)) {
 		t.Errorf("after ok: %+v", r)

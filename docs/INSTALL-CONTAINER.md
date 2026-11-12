@@ -18,6 +18,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 | Updating Vedette | **you** run `pull` and `up` (below) | in the page, in batches, with rollback |
 | Backup | **you** back up the Docker volume (below) | snapshots and rotation by the helper |
 | "This box" in the device list | present, without a package list | with the package list |
+| MCP server (outside AI tools and SIEMs reading the box) | **not reachable yet**: it listens on 127.0.0.1:8765 inside the `vedette-core` container and `compose.yaml` does not publish that port, so no tool on this machine or another can reach it (an SSH tunnel to the machine does not help) | yes, on the machine's localhost |
 
 ## What you need
 
@@ -129,6 +130,9 @@ Vedette knows it is a container-only install from `-host-socket=` in `compose.ya
 - Settings → Box network says the network of the machine is yours to set up.
 - Settings → Modules shows Honeypot (and Credentialed scans) as "Not on this install"; the setup bundles leave them out. A honeypot turned on before this version shows only why it cannot run; turn it off in Settings → Modules.
 - The first-run setup names `docker logs vedette-core` for the setup code.
+- Scans → Credentialed scan says the module is not on this install instead of inviting you to turn it on (D-420).
+- Settings → MCP server says nothing outside the container can reach it yet (D-420); publishing the port safely is packaging work still to come.
+- Settings → SIEM forwarding greys out "Honeypot touches": there is no honeypot to forward (D-420).
 
 Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3).
 

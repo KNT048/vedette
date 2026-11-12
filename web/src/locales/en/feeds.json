@@ -161,6 +161,7 @@
     "everyDays_other": "Every {{count}} days",
     "everyWeek": "Every week",
     "never": "Never",
+    "firstFetch": "Fetched at the next scheduled check (every 5 minutes), or now with Fetch now.",
     "answeredBy": "Answered by {{source}}",
     "records_one": "{{n}} record",
     "records_other": "{{n}} records",
@@ -195,6 +196,7 @@
     "editTitle": "Edit {{name}}",
     "customBody": "Vedette fetches this feed directly from its address on the schedule you choose.",
     "name": "Name",
+    "nameHint": "Up to 60 characters.",
     "type": "Feed type",
     "typeHint": {
       "ioc": "Indicators: IP address, domain, URL or file hash, with confidence and first seen.",
@@ -222,6 +224,7 @@
       "name": "Enter a name.",
       "url": "Enter a full address such as https://example.com/feed.json.",
       "https": "Use an https:// address. http:// is only allowed for internal addresses.",
+      "blocked": "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.",
       "header": "Enter a header name such as X-Api-Key.",
       "user": "Enter the user name.",
       "secret": "Enter the secret.",
@@ -241,7 +244,10 @@
       "lines": "Plain list (one per line)"
     },
     "recordsPath": "Records path",
-    "recordsHint": "JSONPath to the list of records, for example $.vulnerabilities[*]. Supported: .key, ['key'], [n], [*].",
+    "recordsHint": {
+      "vulnerabilities": "JSONPath to the list of records, for example $.vulnerabilities[*]. Supported: .key, ['key'], [n], [*].",
+      "ioc": "JSONPath to the list of records, for example $.data[*] or $.indicators[*]. Supported: .key, ['key'], [n], [*]."
+    },
     "delimiter": "Delimiter",
     "delims": {
       "comma": "Comma (,)",

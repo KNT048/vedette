@@ -69,6 +69,7 @@ function Tables({ items }: { items: Feed[] }) {
       <span><Chip tone={f.status === 'ok' ? 'ok' : f.status === 'error' ? 'danger' : 'off'}>{t(`status.${f.status}`)}</Chip></span>
       {f.answered_by ? <span className="text-[12px] text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
       {f.error ? <span className="max-w-64 text-[12px] text-muted">{f.error}</span> : null}
+      {f.status === 'never' && f.enabled ? <span className="max-w-64 text-[12px] text-muted">{t('row.firstFetch')}</span> : null}
     </span>
   )
   const toggle = (f: Feed) => (

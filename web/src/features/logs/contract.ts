@@ -37,6 +37,17 @@ export const SourcesResponse = z.object({
   retention_days: z.number().int(),
 })
 
+// A sender whose syslog the box dropped because no source declares it, or declares it with another protocol (FORBID-5). The address comes
+// from the socket, never from the line text; the box keeps 256 such senders in memory, counted since the syslog listener last started,
+// and returns the 10 seen most recently. A sender declared now with the protocol it used is left out.
+export const UnknownSender = z.object({
+  ip: z.string().max(45).describe('The sender address as the socket saw it (IPv4, or IPv6 when the box listens on IPv6)'),
+  proto: Proto.describe('How the last message arrived'),
+  count: z.number().int().min(1).describe('Datagrams and connections dropped since the syslog listener last started'),
+  last_seen: iso,
+})
+export const UnknownSendersResponse = z.object({ items: z.array(UnknownSender).max(10) })
+
 export const NewItem = z.object({ id: z.string(), signature: z.string(), source_id: z.string(), source_name: z.string(), count: z.number().int(), first_seen: iso, sample: z.string() })
 export const SpikeItem = z.object({ id: z.string(), signature: z.string(), source_id: z.string(), source_name: z.string(), count: z.number().int(), baseline_per_day: z.number(), sample: z.string() })
 // A connection from a LAN device to an address on a threat feed (S-LOG-2, S-LOG-4). Stored in collection logs_ioc_hits as
@@ -92,6 +103,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/logs/sources', status: 201, summary: 'Create a log source (device type, sender IP, protocol, port)', stories: ['S-LOG-1'], role: 'admin', body: SourceInput, response: LogSource },
   { method: 'put', path: '/logs/sources/{id}', summary: 'Update a log source', stories: ['S-LOG-1'], role: 'admin', params: id, body: SourceInput, response: LogSource },
   { method: 'delete', path: '/logs/sources/{id}', summary: 'Delete a log source; already received logs are kept until retention expires', stories: ['S-LOG-1'], role: 'admin', params: id, response: null },
+  { method: 'get', path: '/logs/unknown-senders', summary: 'Senders whose syslog was dropped because no source declares them (the 10 seen most recently since the listener started)', stories: ['S-LOG-1'], role: 'operator', response: UnknownSendersResponse },
   { method: 'get', path: '/logs/digest', summary: 'Digest: connections to known-bad addresses (from SPAN metadata and syslog), new log types, spikes', stories: ['S-LOG-1', 'S-LOG-2', 'S-LOG-4'], role: 'viewer', response: Digest },
   { method: 'get', path: '/logs/events', summary: 'Search stored log events by time range, source and keyword', stories: ['S-LOG-1'], role: 'viewer',
     query: z.object({ window: EventWindow, source: z.string().optional(), q: z.string().max(200).optional() }), response: EventsResponse, example: { query: { window: '24h', source: '', q: '' } } },

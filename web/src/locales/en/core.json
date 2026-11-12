@@ -910,8 +910,8 @@
       },
       "9": {
         "name": "External exposure",
-        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs; and HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; the requests carry no product name or identifier. An IP counts only when at least two of the three agree. The first check after install is a full check of 15 requests. Then auto-detect (on by default) asks each service once every recheck interval (60 minutes by default, 1 minute to 24 hours). A full check also runs at most once an hour by itself, when you select Detect now, when you turn auto-detect on, when you verify a public IP again, and just before a scan of a public IP (at most one every 5 minutes).",
-        "to": "Certificate-transparency search services; checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare), ifconfig.me/ip (Google Cloud). No Vedette-run server",
+        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs: one search at crt.sh when you scan a domain. The scan itself goes only to your own verified targets: ports only on this box's verified public IPs, and one web-page check by name on ports 80 and 443 for the names of your domain. It sends nothing else of yours. And HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; the requests carry no product name or identifier. An IP counts only when at least two of the three agree. The first check after install is a full check of 15 requests. Then auto-detect (on by default) asks each service once every recheck interval (60 minutes by default, 1 minute to 24 hours). A full check also runs at most once an hour by itself, when you select Detect now, when you turn auto-detect on, when you verify a public IP again, and just before a scan of a public IP (at most one every 5 minutes).",
+        "to": "crt.sh (certificate-transparency search, run by Sectigo); your own targets when you scan; checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare), ifconfig.me/ip (Google Cloud). No Vedette-run server",
         "control": "Turn off auto-detect under External exposure (then it is sent only when you select Detect now), or turn off the External exposure module.",
         "link": "Open modules"
       },
@@ -973,6 +973,7 @@
     "disabledToast": "MCP server is off. Tokens are kept but do not work.",
     "readOnly": "Read-only",
     "onHint": "Listening on this machine only (localhost).",
+    "onHintContainer": "Listening inside the vedette-core container only: nothing outside it can reach the MCP server on this install yet.",
     "offHint": "No port is open. Turn it on to create tokens and connect.",
     "connect": "Connect",
     "connectDesc": "Paste this config into your MCP tool and replace <token> with a token below.",
@@ -981,6 +982,7 @@
     "endpoint": "MCP address",
     "clientConfig": "Config for the MCP tool",
     "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
+    "remoteContainer": "On this container-only install the MCP port is not published, so no tool outside the vedette-core container can reach it, on this machine or another, and an SSH tunnel to the machine does not help. MCP works on the appliance install for now.",
     "notListening": "The port is not open yet.",
     "notListeningHint": "Do not give a token to this address until the port is open: another program listening there would receive it.",
     "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",

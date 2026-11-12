@@ -3,7 +3,9 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -187,23 +189,51 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	return nil
 }
 
-// Scan scans one target now (POST …/scan, PRE-1, INV-1): the gate first, then the runner the scan module
-// registered, then one snapshot for the day. Without a runner the answer is 501 after the gate.
+// ScanEvery is the least time between two scans of one target (D-229): a scan asks crt.sh and probes the target, so a click
+// that repeats is answered 429 rather than sent again.
+const ScanEvery = 10 * time.Minute
+
+// Scan scans one target now (POST …/scan, PRE-1, INV-1, INV-12): the gate first, then one scan at a time on the box (409 busy)
+// and at most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, then one snapshot
+// for the day. Without a runner the answer is 501 after the gate. Every attempt on a target that exists is audited as
+// exposure.scan with its outcome, refused or failed ones too (LEGAL §3).
 func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 	t, reason, err := s.gate(ctx, user, id)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
 	}
+	snap, err := s.scan(ctx, user, t, reason)
+	if err != nil {
+		s.auditFailedScan(ctx, user, t, err)
+		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+	}
+	return snap, nil
+}
+
+func (s *Service) scan(ctx context.Context, user string, t Target, reason BlockedReason) (Snapshot, error) {
 	if reason != "" {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, s.refusal(t, reason, s.clock()))
+		return Snapshot{}, s.refusal(t, reason, s.clock())
 	}
 	r := s.scanRunner()
 	if r == nil {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, ErrNotImplemented)
+		return Snapshot{}, ErrNotImplemented
 	}
-	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value})
+	if !s.scanMu.TryLock() {
+		return Snapshot{}, ErrScanBusy
+	}
+	defer s.scanMu.Unlock()
+	now := s.clock()
+	if last, ok := s.lastScan[t.ID]; ok && now.Sub(last) < ScanEvery && !last.After(now) {
+		next := last.Add(ScanEvery)
+		return Snapshot{}, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
+			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
+	}
+	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user})
+	if !errors.Is(err, ErrScanOff) { // the scan module was off: nothing was asked or probed, so it does not count
+		s.lastScan[t.ID] = now
+	}
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		return Snapshot{}, err
 	}
 	at := s.clock()
 	content = sanitize(content)
@@ -213,23 +243,68 @@ func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 	}
 	snap := Snapshot{ID: store.NewID("sn"), Date: at.In(s.cfg.Location).Format(dayFormat), ScannedAt: store.FormatTS(at), Content: content, Counts: countsOf(content, extra, at)}
 	err = s.write(ctx, func(tx *sql.Tx, emit func(string, any)) error {
-		if _, err := loadTarget(ctx, tx, id); err != nil { // deleted while the scan ran
+		if _, err := loadTarget(ctx, tx, t.ID); err != nil { // deleted while the scan ran
 			return err
 		}
-		if err := upsertSnapshot(ctx, tx, id, snap); err != nil {
+		if err := upsertSnapshot(ctx, tx, t.ID, snap); err != nil {
 			return err
 		}
 		detail := fmt.Sprintf("%d subdomains, %d ports", snap.Counts.Subdomains, snap.Counts.Ports)
 		if err := s.audit(ctx, tx, user, "exposure.scan", t.Value, detail); err != nil {
 			return err
 		}
-		emit(EventSnapshotCreated, SnapshotCreatedEvent{TargetID: id, Date: snap.Date, Counts: snap.Counts})
+		emit(EventSnapshotCreated, SnapshotCreatedEvent{TargetID: t.ID, Date: snap.Date, Counts: snap.Counts})
 		return nil
 	})
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		return Snapshot{}, err
 	}
 	return snap, nil
+}
+
+// auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
+// the scan module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
+func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
+	detail := "failed: the scan stopped (" + clipText(cause.Error(), 200) + ")"
+	var ae *APIError
+	if errors.As(cause, &ae) {
+		detail = "not done: " + ae.Code + ": " + clipText(ae.Message, 300)
+	}
+	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
+	defer cancel()
+	err := s.write(actx, func(tx *sql.Tx, _ func(string, any)) error {
+		return s.audit(actx, tx, user, "exposure.scan", t.Value, detail)
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(actx, "auditing an exposure scan failed", "target", t.Value, "error", err)
+	}
+}
+
+func clipText(v string, n int) string {
+	if r := []rune(v); len(r) > n {
+		return string(r[:n])
+	}
+	return v
+}
+
+// ScannableIP says whether ip is a verified IP target that may be scanned now (D-57 (7), LEGAL §3): the scan of a domain asks it
+// before it port-scans an address one of the domain's names points at. It runs the same gate as a scan of that target (INV-1,
+// INV-13: it may run one full check of the box's IPs, as actor), so an address that is not the box's own verified, committed and
+// current IP is never port-scanned.
+func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+	ip = ip.Unmap()
+	if !IsPublicIPv4(ip) {
+		return false, nil
+	}
+	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
+	if err != nil || !ok || t.Kind != KindIP {
+		return false, err
+	}
+	_, reason, err := s.gate(ctx, actor, t.ID)
+	if err != nil {
+		return false, fmt.Errorf("exposure: checking whether %s may be scanned: %w", ip, err)
+	}
+	return reason == "", nil
 }
 
 // countsOf computes the numbers of a snapshot (INV-8); certs_expiring counts the certificates that

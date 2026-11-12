@@ -54,16 +54,17 @@ function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: stri
   )
 }
 
-export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; source?: LogSource; onAdded?: (s: LogSource) => void }) {
+// sender pre-fills a new source with the address and protocol of a sender the box dropped (the unknown-sender hint, S-LOG-1).
+export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; source?: LogSource; sender?: { ip: string; proto: Proto }; onAdded?: (s: LogSource) => void }) {
   const { t } = useTranslation('logs')
   const add = useAddSource()
   const edit = useEditSource()
   const [kind, setKind] = useState<SourceKind | null>(source?.kind ?? null)
   const [find, setFind] = useState('')
   const [name, setName] = useState(source?.name ?? '')
-  const [ip, setIp] = useState(source?.sender_ip ?? '')
-  const [proto, setProto] = useState<Proto>(source?.proto ?? 'udp')
-  const [port, setPort] = useState(String(source?.port ?? 514))
+  const [ip, setIp] = useState(source?.sender_ip ?? sender?.ip ?? '')
+  const [proto, setProto] = useState<Proto>(source?.proto ?? sender?.proto ?? 'udp')
+  const [port, setPort] = useState(String(source?.port ?? defaultPort(sender?.proto ?? 'udp')))
   const [error, setError] = useState<{ field?: FormField; message: string } | null>(null)
   const pending = add.isPending || edit.isPending
   const fieldErr = (f: FormField) => (error?.field === f ? error.message : undefined)

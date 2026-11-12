@@ -20,9 +20,9 @@ type Reason struct {
 	Example string `json:"-"`
 }
 
-// Reject is one rejected row. Row is the line of the input for a plain list
-// (comments and blank lines counted); for the other formats the record number
-// (from 1, after header and comments). Reason shows the value (quoteVal); only
+// Reject is one rejected row. Row is the line of the input for a plain list and
+// for CSV (comments, blank lines and the header counted; a record that spans
+// lines is at the line it starts); for the other formats the record number (from 1). Reason shows the value (quoteVal); only
 // parse-test returns Rejects over the API; a pull keeps the masked Reasons (INV-3).
 type Reject struct {
 	Row    int    `json:"row"`

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -258,7 +259,7 @@ func TestRegress_CSVFieldsPerRowAreCapped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Accepted != 2 || r.Rejected != 1 || r.Rejects[0].Row != 2 || !strings.Contains(r.Rejects[0].Reason, "more than 1000 fields") {
+	if r.Accepted != 2 || r.Rejected != 1 || r.Rejects[0].Row != 3 || !strings.Contains(r.Rejects[0].Reason, "more than 1000 fields") {
 		t.Errorf("%+v", r.Stats)
 	}
 	if _, err := ParseFeed(context.Background(), []byte(wide+"\n1.1.1.1\n"), KindIOC, p); !errors.Is(err, ErrBadSample) {
@@ -377,7 +378,7 @@ func TestRegress_CSVUnterminatedQuoteIsCounted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Accepted+r.Rejected != 4 || r.Rejected != 1 || r.Rejects[0].Row != 1 || !strings.Contains(r.Rejects[0].Reason, "quote") {
+	if r.Accepted+r.Rejected != 4 || r.Rejected != 1 || r.Rejects[0].Row != 2 || !strings.Contains(r.Rejects[0].Reason, "quote") {
 		t.Errorf("%+v", r.Stats)
 	}
 	if got := indicators(r); !reflect.DeepEqual(got, []string{"8.8.4.4", "1.1.1.1", "9.9.9.9"}) {
@@ -539,5 +540,24 @@ func TestRegress_RedirectDropsReferer(t *testing.T) {
 		if r != "" {
 			t.Errorf("hop %d sent Referer %q", i, r)
 		}
+	}
+}
+
+// A rejected CSV record is reported at the line of the pasted sample where it starts: the header, comments, blank lines, CRLF and
+// quoted fields that span lines all count.
+func TestParseCSVRejectsCarryTheSampleLine(t *testing.T) {
+	t.Parallel()
+	p := DefaultParser(KindIOC, FormatCSV)
+	in := "# feed\r\ndst_ip,note\r\n\r\n8.8.8.8,\"two\r\nlines\"\r\nnot-an-ip,x\n1.1.1.1,y\n# end\nbad2,z\n"
+	r, err := ParseFeed(context.Background(), []byte(in), KindIOC, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []int
+	for _, x := range r.Rejects {
+		rows = append(rows, x.Row)
+	}
+	if !slices.Equal(rows, []int{6, 9}) || r.Accepted != 2 {
+		t.Errorf("rejects at %v, accepted %d: %+v", rows, r.Accepted, r.Stats)
 	}
 }

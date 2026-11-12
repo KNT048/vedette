@@ -133,6 +133,9 @@ func (f *fakeTelegram) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_, _ = io.WriteString(w, `{"ok":true,"result":[`+strings.Join(out, ",")+`]}`)
 				return
 			}
+			if r.Context().Err() != nil { // the listener that made this call is gone: its poll must not signal the next one's
+				return
+			}
 			select {
 			case f.waiting <- struct{}{}:
 			default:
@@ -288,6 +291,10 @@ func (te *tgEnv) start() (stop func() error) {
 	ctx, cancel := context.WithCancel(te.ctx())
 	done := make(chan error, 1)
 	j := te.job()
+	select { // a signal left by the previous listener's long poll must not stand for this one's
+	case <-te.tg.waiting:
+	default:
+	}
 	go func() { done <- j.Run(ctx) }()
 	var once sync.Once
 	var err error

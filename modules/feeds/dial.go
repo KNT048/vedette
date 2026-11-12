@@ -111,7 +111,10 @@ func addrForms(ip netip.Addr) []netip.Addr {
 	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 && b[10] == 0 && b[11] == 0:
 		copy(v4[:], b[12:16])
 	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 1:
-		v4 = [4]byte{b[6], b[7], b[9], b[10]} // RFC 6052 for a /48 prefix
+		for _, x := range nat64Local(b) {
+			out = append(out, netip.AddrFrom4(x))
+		}
+		return out
 	case b[0] == 0x20 && b[1] == 0x02:
 		copy(v4[:], b[2:6])
 	case allZero(b[:12]) && !ip.IsUnspecified() && ip != netip.IPv6Loopback():
@@ -120,6 +123,25 @@ func addrForms(ip netip.Addr) []netip.Addr {
 		return out
 	}
 	return append(out, netip.AddrFrom4(v4))
+}
+
+// nat64Local lists the IPv4 addresses a 64:ff9b:1::/48 (RFC 8215) address can carry. The operator's prefix is a sub-prefix of that /48,
+// so its length is /48, /56, /64 or /96 (never /32 or /40) and is not known from the address: it is read in each of those RFC 6052 layouts
+// (byte 8 is the reserved u octet) and every reading is judged. A reading inside 0.0.0.0/8 is dropped: a translator never forwards to
+// "this network", and it is what the zero suffix of a shorter prefix looks like in a longer layout.
+func nat64Local(b [16]byte) [][4]byte {
+	var out [][4]byte
+	for _, v4 := range [][4]byte{
+		{b[6], b[7], b[9], b[10]},
+		{b[7], b[9], b[10], b[11]},
+		{b[9], b[10], b[11], b[12]},
+		{b[12], b[13], b[14], b[15]},
+	} {
+		if v4[0] != 0 {
+			out = append(out, v4)
+		}
+	}
+	return out
 }
 
 func allZero(b []byte) bool {

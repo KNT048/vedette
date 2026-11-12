@@ -48,6 +48,12 @@ describe('feed parsers (S-FEED-5)', () => {
     expect(r.reasons.some((x) => x.reason.startsWith('unsupported pattern object'))).toBe(true)
   })
 
+  it('CSV rejects are numbered by the line of the sample (header, comments, blank lines and multi-line quotes count)', () => {
+    const p = defaultParser('ioc', 'csv')
+    const r = parseFeed('# feed\r\ndst_ip,note\r\n\r\n8.8.8.8,"two\r\nlines"\r\nnot-an-ip,x\n1.1.1.1,y\n# end\nbad2,z\n', 'ioc', p)
+    expect(r.rejects.map((x) => x.row)).toEqual([6, 9])
+  })
+
   it('plain list skips comments and blank lines, detects the kind, rejects junk', () => {
     const r = run('ioc', 'lines')
     expect(r.accepted).toBe(4)

@@ -228,6 +228,7 @@ var Operations = map[string]Operation{
 	"logs_get_logs_events":                                  {Method: "GET", Path: "/logs/events", MinRole: Viewer, Tag: "logs"},
 	"logs_get_logs_siem":                                    {Method: "GET", Path: "/logs/siem", MinRole: Admin, Tag: "logs"},
 	"logs_get_logs_sources":                                 {Method: "GET", Path: "/logs/sources", MinRole: Viewer, Tag: "logs"},
+	"logs_get_logs_unknown_senders":                         {Method: "GET", Path: "/logs/unknown-senders", MinRole: Operator, Tag: "logs"},
 	"logs_post_logs_siem_test":                              {Method: "POST", Path: "/logs/siem/test", MinRole: Admin, Tag: "logs"},
 	"logs_post_logs_sources":                                {Method: "POST", Path: "/logs/sources", MinRole: Admin, Tag: "logs"},
 	"logs_put_logs_retention":                               {Method: "PUT", Path: "/logs/retention", MinRole: Admin, Tag: "logs"},

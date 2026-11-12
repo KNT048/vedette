@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Digest, EventsResponse, EventWindow, LogSource, SiemConfig, SiemInput, SourceInput, SourcesResponse } from './types'
+import type { Digest, EventsResponse, EventWindow, LogSource, SiemConfig, SiemInput, SourceInput, SourcesResponse, UnknownSendersResponse } from './types'
 
 export const useSources = () => useQuery({ queryKey: ['logs', 'sources'], queryFn: () => api.get<SourcesResponse>('/logs/sources') })
+// Operator and up (the addresses of dropped senders); refreshed with the rest of the page (query key under 'logs').
+export const useUnknownSenders = (enabled: boolean) => useQuery({ queryKey: ['logs', 'unknown-senders'], queryFn: () => api.get<UnknownSendersResponse>('/logs/unknown-senders'), enabled })
 export const useDigest = () => useQuery({ queryKey: ['logs', 'digest'], queryFn: () => api.get<Digest>('/logs/digest') })
 
 export const useEvents = (p: { window: EventWindow; source: string; q: string }) =>

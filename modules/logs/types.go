@@ -88,6 +88,19 @@ type SourcesView struct {
 	RetentionDays int      `json:"retention_days"`
 }
 
+// UnknownSender is a sender whose syslog was dropped because no source declares it with the protocol it used (UnknownSender of contract.ts).
+type UnknownSender struct {
+	IP       string    `json:"ip"`
+	Proto    string    `json:"proto"`
+	Count    int64     `json:"count"`
+	LastSeen time.Time `json:"last_seen"`
+}
+
+// UnknownSendersView is the answer of GET /logs/unknown-senders.
+type UnknownSendersView struct {
+	Items []UnknownSender `json:"items"`
+}
+
 // Event is one stored line as the API shows it (LogEvent).
 type Event struct {
 	ID         string    `json:"id"`

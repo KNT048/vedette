@@ -71681,6 +71681,119 @@ func (s *LogsGetLogsSourcesOKSourcesItemState) UnmarshalText(data []byte) error 
 	}
 }
 
+type LogsGetLogsUnknownSendersOK struct {
+	Items []LogsGetLogsUnknownSendersOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *LogsGetLogsUnknownSendersOK) GetItems() []LogsGetLogsUnknownSendersOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *LogsGetLogsUnknownSendersOK) SetItems(val []LogsGetLogsUnknownSendersOKItemsItem) {
+	s.Items = val
+}
+
+type LogsGetLogsUnknownSendersOKItemsItem struct {
+	// Datagrams and connections dropped since the syslog listener last started.
+	Count int `json:"count"`
+	// The sender address as the socket saw it (IPv4, or IPv6 when the box listens on IPv6).
+	IP       string    `json:"ip"`
+	LastSeen time.Time `json:"last_seen"`
+	// How the last message arrived.
+	Proto LogsGetLogsUnknownSendersOKItemsItemProto `json:"proto"`
+}
+
+// GetCount returns the value of Count.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) GetCount() int {
+	return s.Count
+}
+
+// GetIP returns the value of IP.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetProto returns the value of Proto.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) GetProto() LogsGetLogsUnknownSendersOKItemsItemProto {
+	return s.Proto
+}
+
+// SetCount sets the value of Count.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetIP sets the value of IP.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetProto sets the value of Proto.
+func (s *LogsGetLogsUnknownSendersOKItemsItem) SetProto(val LogsGetLogsUnknownSendersOKItemsItemProto) {
+	s.Proto = val
+}
+
+// How the last message arrived.
+type LogsGetLogsUnknownSendersOKItemsItemProto string
+
+const (
+	LogsGetLogsUnknownSendersOKItemsItemProtoUDP LogsGetLogsUnknownSendersOKItemsItemProto = "udp"
+	LogsGetLogsUnknownSendersOKItemsItemProtoTCP LogsGetLogsUnknownSendersOKItemsItemProto = "tcp"
+	LogsGetLogsUnknownSendersOKItemsItemProtoTLS LogsGetLogsUnknownSendersOKItemsItemProto = "tls"
+)
+
+// AllValues returns all LogsGetLogsUnknownSendersOKItemsItemProto values.
+func (LogsGetLogsUnknownSendersOKItemsItemProto) AllValues() []LogsGetLogsUnknownSendersOKItemsItemProto {
+	return []LogsGetLogsUnknownSendersOKItemsItemProto{
+		LogsGetLogsUnknownSendersOKItemsItemProtoUDP,
+		LogsGetLogsUnknownSendersOKItemsItemProtoTCP,
+		LogsGetLogsUnknownSendersOKItemsItemProtoTLS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsUnknownSendersOKItemsItemProto) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsUnknownSendersOKItemsItemProtoUDP:
+		return []byte(s), nil
+	case LogsGetLogsUnknownSendersOKItemsItemProtoTCP:
+		return []byte(s), nil
+	case LogsGetLogsUnknownSendersOKItemsItemProtoTLS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsUnknownSendersOKItemsItemProto) UnmarshalText(data []byte) error {
+	switch LogsGetLogsUnknownSendersOKItemsItemProto(data) {
+	case LogsGetLogsUnknownSendersOKItemsItemProtoUDP:
+		*s = LogsGetLogsUnknownSendersOKItemsItemProtoUDP
+		return nil
+	case LogsGetLogsUnknownSendersOKItemsItemProtoTCP:
+		*s = LogsGetLogsUnknownSendersOKItemsItemProtoTCP
+		return nil
+	case LogsGetLogsUnknownSendersOKItemsItemProtoTLS:
+		*s = LogsGetLogsUnknownSendersOKItemsItemProtoTLS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type LogsPostLogsSiemTestOK struct {
 	At     time.Time `json:"at"`
 	Detail string    `json:"detail"`

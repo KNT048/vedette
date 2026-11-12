@@ -383,7 +383,7 @@ func TestTheUnknownSenderTableHoldsTheMostRecentOnly(t *testing.T) {
 	l := newLRU(256)
 	base := time.Unix(0, 0)
 	for i := range 1000 {
-		l.touch(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i)}), base.Add(time.Duration(i)))
+		l.touch(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i)}), "udp", base.Add(time.Duration(i)))
 	}
 	got := l.list()
 	if len(got) != 256 {
@@ -392,8 +392,8 @@ func TestTheUnknownSenderTableHoldsTheMostRecentOnly(t *testing.T) {
 	if got[0].IP != netip.AddrFrom4([4]byte{10, 0, 3, 231}) { // i = 999
 		t.Errorf("most recent = %v", got[0].IP)
 	}
-	l.touch(got[255].IP, base)
-	if l.list()[0].IP != got[255].IP || l.list()[0].Count != 2 {
+	l.touch(got[255].IP, "tcp", base)
+	if l.list()[0].IP != got[255].IP || l.list()[0].Count != 2 || l.list()[0].Proto != "tcp" {
 		t.Error("a repeat sender is not moved to the front and counted")
 	}
 }

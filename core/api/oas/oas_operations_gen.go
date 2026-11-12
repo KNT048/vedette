@@ -210,6 +210,7 @@ const (
 	LogsGetLogsEventsOperation                              OperationName = "LogsGetLogsEvents"
 	LogsGetLogsSiemOperation                                OperationName = "LogsGetLogsSiem"
 	LogsGetLogsSourcesOperation                             OperationName = "LogsGetLogsSources"
+	LogsGetLogsUnknownSendersOperation                      OperationName = "LogsGetLogsUnknownSenders"
 	LogsPostLogsSiemTestOperation                           OperationName = "LogsPostLogsSiemTest"
 	LogsPostLogsSourcesOperation                            OperationName = "LogsPostLogsSources"
 	LogsPutLogsRetentionOperation                           OperationName = "LogsPutLogsRetention"

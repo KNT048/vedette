@@ -221,6 +221,7 @@ var operationRolesSession = map[string][]string{
 	LogsGetLogsEventsOperation:                              []string{},
 	LogsGetLogsSiemOperation:                                []string{},
 	LogsGetLogsSourcesOperation:                             []string{},
+	LogsGetLogsUnknownSendersOperation:                      []string{},
 	LogsPostLogsSiemTestOperation:                           []string{},
 	LogsPostLogsSourcesOperation:                            []string{},
 	LogsPutLogsRetentionOperation:                           []string{},

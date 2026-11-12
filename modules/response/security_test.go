@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -288,29 +289,36 @@ func TestContract_INV19_StepIsRecordedBeforeItIsSent(t *testing.T) {
 
 // INV-19, INV-13: a step that runs out of its own time limit is failed with "state unknown, check the device": it may have been
 // applied, so the box does not claim that nothing changed.
+//
+// The item's 50 ms run on the clock of a synctest bubble, which moves only while every goroutine of the test waits: the read before the
+// run, the record of it and the recheck (all inside the item's time since D-356) never use it up, so it runs out only once the run step
+// is with the executor, which waits on its context. On the wall clock a loaded runner spent the 50 ms before the send ("Held: the step
+// ended before it could be sent").
 func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
 	t.Parallel()
-	var steps []response.DeviceStep
-	e := newEnv(t, func(c *response.Config) {
-		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
-			if s.Phase != "run" { // the read before the run answers (D-356); the run never does
-				return nil
-			}
-			<-ctx.Done()
-			return ctx.Err()
-		}}
+	synctest.Test(t, func(t *testing.T) {
+		var steps []response.DeviceStep
+		e := newEnv(t, func(c *response.Config) {
+			c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
+				if s.Phase != "run" { // the read before the run answers (D-356); the run never does
+					return nil
+				}
+				<-ctx.Done()
+				return ctx.Err()
+			}}
+		})
+		e.svc.SetStepLimitForTest(50 * time.Millisecond)
+		e.firewall("fgt_ban_ip")
+		e.turnOn()
+		e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
+		e.fire(e.iocEvent("e1", "198.51.100.7"))
+		got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
+		e.must(err)
+		it := got.Items[0]
+		if it.Status != response.ItemFailed || it.Result == nil || !strings.Contains(*it.Result, "State unknown") || !e.logHas("failed", "State unknown") || got.Status != response.StatusFailed {
+			t.Fatalf("item %+v, request %s", it, got.Status)
+		}
 	})
-	e.svc.SetStepLimitForTest(time.Second) // the limit covers the rechecks before the send too: a short one can end before the send on a loaded runner
-	e.firewall("fgt_ban_ip")
-	e.turnOn()
-	e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
-	e.fire(e.iocEvent("e1", "198.51.100.7"))
-	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
-	e.must(err)
-	it := got.Items[0]
-	if it.Status != response.ItemFailed || it.Result == nil || !strings.Contains(*it.Result, "State unknown") || !e.logHas("failed", "State unknown") || got.Status != response.StatusFailed {
-		t.Fatalf("item %+v, request %s", it, got.Status)
-	}
 }
 
 // INV-19: after a restart an item can be left "running" (a step may have been applied) or never started. The sweep fails them,

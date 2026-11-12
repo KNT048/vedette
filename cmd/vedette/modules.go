@@ -55,6 +55,9 @@ type deps struct {
 	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
 	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
 	OIDC    *authoidc.Service // SSO sign-in (auth-oidc, D-194); its accounts and sessions are core/auth's
+	// Argon2 is the password hashing of core/auth (auth.Config.Argon2): zero, the production parameters, in serve. The wiring tests set
+	// authtest.Cheap, a real argon2id that is fast: at 64 MiB and three passes under -race, the build of each stack alone hashed for a while.
+	Argon2 auth.Params
 	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
 	BaseURL string
 	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it

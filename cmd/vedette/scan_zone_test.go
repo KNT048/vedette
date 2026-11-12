@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
@@ -46,7 +47,7 @@ func TestScanReadsTheOrgTimeZone(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
-	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: func() time.Time { return now }, Bus: events.NewBus(log)}
+	d := deps{Log: log, DB: db, Reg: reg, Secrets: sec, Audit: aud, Clock: func() time.Time { return now }, Bus: events.NewBus(log), Argon2: authtest.Cheap}
 	if err := buildServices(ctx, &d); err != nil {
 		t.Fatal(err)
 	}

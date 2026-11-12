@@ -12,7 +12,6 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/modreg"
-	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/modules"
@@ -186,11 +185,12 @@ func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	e := startHPHost(t, false)
-	db := storetest.New(t)
-	wired := wiredModules()
-	if err := migrateAll(ctx, db, wired); err != nil {
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
+	wired := wiredModules()
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: slog.New(slog.DiscardHandler)})
 	if err != nil {
 		t.Fatal(err)

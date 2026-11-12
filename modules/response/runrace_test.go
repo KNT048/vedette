@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/modules/response"
@@ -230,42 +231,48 @@ func (h *hangExec) Execute(_ context.Context, s response.DeviceStep) (response.D
 
 // INV-19 (L6): runItem stops waiting at the item's deadline even when the executor does not: the item is recorded "State unknown",
 // the approver gets an answer and the device-step lock is released, so the next item (here: a second request) is not stuck behind it.
+// The item's 100 ms and the 10 s guard run on the clock of a synctest bubble, which moves only while every goroutine of the test waits:
+// the read before the run, its record and the recheck (inside the item's time since D-356) never use them up, and the 100 ms run out
+// only once the run step is with the executor, which ignores its context. On the wall clock a loaded runner spent the 100 ms before the
+// send ("Held: the step ended before it could be sent").
 func TestContract_INV19_ExecutorThatIgnoresItsContextCannotHoldTheRun(t *testing.T) {
 	t.Parallel()
-	h := &hangExec{release: make(chan struct{}), started: make(chan struct{}, 4)}
-	t.Cleanup(func() { close(h.release) })
-	e := newEnv(t, func(c *response.Config) { c.Executor = h })
-	e.firewall("fgt_ban_ip")
-	e.turnOn()
-	e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
-	e.svc.SetStepLimitForTest(time.Second) // the limit covers the rechecks before the send too: 100 ms ran out on a loaded runner (-race) and the step was held instead
-	e.fire(e.iocEvent("e1", "198.51.100.7"))
-	e.fire(e.iocEvent("e2", "198.51.100.8"))
-	reqs := e.actions()
-	if len(reqs) != 2 {
-		t.Fatalf("%d requests", len(reqs))
-	}
-	for i, r := range reqs {
-		done := make(chan struct{})
-		var got response.ActionRequest
-		var err error
-		go func() { got, err = e.svc.Approve(context.Background(), oper, r.ID, nil, ""); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-			t.Fatalf("request %d: Approve is still waiting for the executor", i+1)
+	synctest.Test(t, func(t *testing.T) {
+		h := &hangExec{release: make(chan struct{}), started: make(chan struct{}, 4)}
+		t.Cleanup(func() { close(h.release) })
+		e := newEnv(t, func(c *response.Config) { c.Executor = h })
+		e.firewall("fgt_ban_ip")
+		e.turnOn()
+		e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
+		e.svc.SetStepLimitForTest(100 * time.Millisecond)
+		e.fire(e.iocEvent("e1", "198.51.100.7"))
+		e.fire(e.iocEvent("e2", "198.51.100.8"))
+		reqs := e.actions()
+		if len(reqs) != 2 {
+			t.Fatalf("%d requests", len(reqs))
 		}
-		e.must(err)
-		it := got.Items[0]
-		if it.Status != response.ItemFailed || !strings.Contains(resultOf(it), "State unknown") || got.Status != response.StatusFailed {
-			t.Fatalf("request %d: item %s %q, request %s", i+1, it.Status, resultOf(it), got.Status)
+		for i, r := range reqs {
+			done := make(chan struct{})
+			var got response.ActionRequest
+			var err error
+			go func() { got, err = e.svc.Approve(context.Background(), oper, r.ID, nil, ""); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+				t.Fatalf("request %d: Approve is still waiting for the executor", i+1)
+			}
+			e.must(err)
+			it := got.Items[0]
+			if it.Status != response.ItemFailed || !strings.Contains(resultOf(it), "State unknown") || got.Status != response.StatusFailed {
+				t.Fatalf("request %d: item %s %q, request %s", i+1, it.Status, resultOf(it), got.Status)
+			}
 		}
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.calls != 2 {
-		t.Fatalf("%d executor calls, want 2", h.calls)
-	}
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if h.calls != 2 {
+			t.Fatalf("%d executor calls, want 2", h.calls)
+		}
+	})
 }
 
 func itoaTest(i int) string { return strconv.Itoa(i) }

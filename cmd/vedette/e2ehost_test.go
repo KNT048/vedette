@@ -331,6 +331,8 @@ func TestE2EBoxHarnessHost(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(t.Context())
 	host := startE2EHost(t)
+	seedMigrated(t, filepath.Join(host.dataDir, "vedette.db"))
+	seedMigrated(t, filepath.Join(dir, "bare", "data", "vedette.db"))
 	bare := startE2EBare(ctx, t, dir)
 	done := make(chan error, 1)
 	go func() {

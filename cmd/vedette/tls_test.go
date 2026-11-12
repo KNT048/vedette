@@ -11,7 +11,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
+	"io/fs"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -142,6 +144,9 @@ func startArgs(t *testing.T, dir string, extra ...string) (addr string, tap *log
 	tap, done = &logTap{}, make(chan error, 1)
 	pr, pw := io.Pipe()
 	args := append([]string{"-db", filepath.Join(dir, "v.db"), "-key", filepath.Join(dir, "v.key")}, extra...)
+	if _, err := os.Stat(filepath.Join(dir, "v.db")); errors.Is(err, fs.ErrNotExist) {
+		seedMigrated(t, filepath.Join(dir, "v.db"))
+	}
 	stopped := make(chan struct{})
 	go func() { defer close(stopped); done <- run(ctx, args, io.Discard, pw); _ = pw.Close() }()
 	waitStopped(t, cancel, stopped)
@@ -274,7 +279,7 @@ func TestOwnCertificateOnLoopback(t *testing.T) {
 // Loopback over plain HTTP allows only the loopback names unless -hosts adds more (D-77 neighbour: DNS rebinding).
 func TestLoopbackHTTPHostAllowlist(t *testing.T) {
 	t.Parallel()
-	in := start(t)
+	in := startMigrated(t)
 	for host, want := range map[string]int{"localhost": 200, "127.0.0.1": 200, "[::1]:9": 200, "evil.example": 421, "192.0.2.5": 421} {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+in.addr+"/api/v1/setup", nil)
 		if err != nil {

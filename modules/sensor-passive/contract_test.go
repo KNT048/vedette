@@ -85,6 +85,7 @@ func selectors(af *ast.File, pkg string) []string {
 // package that could send or listen is imported.
 func TestContract_INV1_NeverTransmits(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	checkNeverTransmits(t)
 }
 
@@ -139,6 +140,7 @@ func checkNeverTransmits(t *testing.T) {
 // INV-2: only CAP_NET_RAW, no listening port.
 func TestContract_INV2_OnlyNetRawNoListener(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	raw, err := os.ReadFile("MANIFEST.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -375,6 +377,7 @@ func TestContract_INV7_ExclusionBeforeExtraction(t *testing.T) {
 // INV-8: the sensor only calls out, and a batch is applied once per (epoch, seq).
 func TestContract_INV8_OutboundOnlyIdempotentBySeq(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	checkNeverTransmits(t) // no listener and no sender: the package cannot be called into
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
@@ -439,6 +442,7 @@ func TestContract_INV9_InterfaceRulesAndOwnOnlyWarning(t *testing.T) {
 // INV-10: Fingerbank is not part of this module yet; nothing in it can reach out.
 func TestContract_INV10_FingerbankAbsent(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	for name, af := range sources(t) {
 		ast.Inspect(af, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok && strings.Contains(strings.ToLower(id.Name), "fingerbank") {
@@ -486,6 +490,7 @@ func TestContract_POST2_CaptureMovesToTheNewCard(t *testing.T) {
 // POST-3: the same seq twice creates no second observation; a lower one neither; a new epoch starts over.
 func TestContract_POST3_SameSeqNoSecondObservation(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	epoch := strings.Repeat("b", 32)
 	req := func(epoch string, seq int64, v string) *sensorlink.ObservationsRequest {
@@ -620,6 +625,7 @@ func nopLog() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
 // MigrationsUsePrefix: DATA_MODEL rule, checked by effect.
 func TestMigrationsUsePrefix(t *testing.T) {
+	backendOnly(t)
 	storetest.AssertMigrationsUsePrefix(t, "sensor-passive", sp.Migrations, "sp_", storetest.Migration{Module: "core", FS: core.Migrations})
 }
 

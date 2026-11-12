@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/inventory"
@@ -167,20 +167,13 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	logsDB, err := store.Open(ctx, filepath.Join(dir, "logs.db"), log)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = logsDB.Close() })
-	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
-		t.Fatal(err)
-	}
+	logsDB := storetest.Migrated(t, storetest.Migration{Module: logs.ModuleID, FS: logs.VolumeMigrations})
 	aud := audit.New(nil)
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Argon2: authtest.Cheap}
 	if err := buildServices(t.Context(), &d); err != nil {
 		t.Fatal(err)
 	}
@@ -197,11 +190,12 @@ func TestSwitchingTheHoneypotOffRunsItsTeardown(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
-	db := storetest.New(t)
-	wired := wiredModules()
-	if err := migrateAll(ctx, db, wired); err != nil {
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), log)
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
+	wired := wiredModules()
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		t.Fatal(err)

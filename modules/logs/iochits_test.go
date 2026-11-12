@@ -81,6 +81,8 @@ type iocPubs struct {
 	order []string
 	hits  []IocHit
 	bad   []BadAddressEvent
+	// summaries are the logs.anomaly.detected events (the one "more bad connections" summary of an hour that ran over its budget).
+	summaries []AnomalyEvent
 	// onPublish, when set, runs for every event with its name and the id of the hit (before it is recorded here).
 	onPublish func(ctx context.Context, name, id string)
 }
@@ -99,6 +101,9 @@ func (p *iocPubs) Publish(ctx context.Context, e events.Event) error {
 		if p.onPublish != nil {
 			p.onPublish(ctx, e.Name, e.Data.(BadAddressEvent).ID)
 		}
+	case EventAnomalyDetected:
+		p.summaries = append(p.summaries, e.Data.(AnomalyEvent))
+		return nil
 	default:
 		return fmt.Errorf("unexpected event %s", e.Name)
 	}
@@ -604,6 +609,10 @@ func TestIOCFloodIsBounded(t *testing.T) {
 	}
 	if n := hitCount(t, e); n != 4*MaxIocHitsPerBatch {
 		t.Fatalf("%d rows: a hit past the budget must still be stored", n)
+	}
+	// the hits past the budget are said once, as one summary (not one event per batch that ran over)
+	if len(p.summaries) != 1 || !strings.HasPrefix(p.summaries[0].Target, "ioc:"+IocSummaryTarget) || !strings.Contains(p.summaries[0].Title, "known-bad") {
+		t.Fatalf("summaries: %+v", p.summaries)
 	}
 	e.advance(time.Hour) // the next clock hour: the budget is new
 	ff.listed["ip:47.0.0.9"] = Listing{Feeds: []string{"flood"}, Confidence: 0.5}

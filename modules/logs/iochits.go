@@ -33,7 +33,7 @@ const (
 	// MaxIocRows is the most hits the table keeps; the oldest go first. MaxIocHitsPerBatch is the most new hits one batch stores (the
 	// pairs past it are not looked at: a device that sends hundreds of distinct bad addresses in one batch is one story, and the first
 	// ones tell it). IocEventsPerHour is the most hits announced in an hour; a hit past it is stored and shown in the digest, but not
-	// announced (the incident that the earlier ones opened is where a person looks). ponytail: three constants; the upgrade is a summary event.
+	// announced one by one (the incident that the earlier ones opened is where a person looks, and one summary event says that more came).
 	MaxIocRows         = 10_000
 	MaxIocHitsPerBatch = 50
 	IocEventsPerHour   = 100
@@ -117,6 +117,8 @@ type BadAddressEvent struct {
 	AssetID  *string      `json:"asset_id"`
 	// Blocked is IocHit.Blocked (D-227): the SIEM bad_conn record carries it.
 	Blocked bool `json:"blocked"`
+	// ListedAs is IocHit.ListedAs (D-228, D-433): the SIEM bad_conn record carries it, so a SIEM can group the subdomains of one listed name.
+	ListedAs *string `json:"listed_as"`
 }
 
 // connKey is a connection seen in a batch; connObs is the first line that showed it.
@@ -307,6 +309,10 @@ func (s *Service) noteLookupFailure(ctx context.Context, err error) {
 		return
 	}
 	s.iocWarned.Store(&msg)
+	if errors.Is(err, context.DeadlineExceeded) {
+		s.cfg.Log.WarnContext(ctx, "logs: the threat feeds answered too slowly; lines are stored without a match for now", "err", err)
+		return
+	}
 	s.cfg.Log.WarnContext(ctx, "logs: the threat feeds could not be read; lines are stored without a match for now", "err", err)
 }
 
@@ -377,15 +383,33 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	return nil
 }
 
-// noteBudgetOut logs, once per clock hour, that hits were stored and not announced because the hourly budget ran out.
+// IocSummaryTarget is the start of the target of the summary event of an hour in which hits went past IocEventsPerHour (S-LOG-4); the
+// clock hour is appended, so each hour that overflows is its own incident.
+const IocSummaryTarget = "more bad connections"
+
+// noteBudgetOut logs, once per clock hour, that hits were stored and not announced because the hourly budget ran out, and announces
+// that once as a logs.anomaly.detected event (notify opens a log_anomaly incident from it): "at least N more", the count of the batch
+// that first ran over. The hits are in the digest.
 func (s *Service) noteBudgetOut(ctx context.Context, n int) {
 	s.iocMu.Lock()
 	hour := s.now().Unix() / 3600
 	first := s.iocCapLogged != hour
 	s.iocCapLogged = hour
 	s.iocMu.Unlock()
-	if first {
-		s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
+	if !first {
+		return
+	}
+	s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
+	ev := AnomalyEvent{Source: "logs", Target: fmt.Sprintf("ioc:%s %d", IocSummaryTarget, hour),
+		Title:    fmt.Sprintf("At least %d more connections to known-bad addresses this hour, not announced one by one", n),
+		What:     fmt.Sprintf("%d bad connections have already been announced this hour; more were found and are not announced one by one.", IocEventsPerHour),
+		Action:   "Open Logs and read the bad connections of the digest: a device that meets this many listed addresses in an hour is probably infected.",
+		Severity: "medium", Devices: []DeviceInfo{}}
+	if s.cfg.Events == nil {
+		return
+	}
+	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAnomalyDetected, Data: ev}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "logs: announcing the bad connections summary failed", "err", err)
 	}
 }
 
@@ -494,7 +518,7 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 		What:     clipRunes(what, MaxEventText),
 		Action:   action,
 		Severity: sev, Devices: devices,
-		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID, Blocked: h.Blocked,
+		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID, Blocked: h.Blocked, ListedAs: h.ListedAs,
 	}
 }
 

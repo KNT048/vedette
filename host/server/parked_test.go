@@ -78,7 +78,7 @@ func newParkFx(t testing.TB) *parkFx {
 				rc.OnParked(func() { x.onParked.Add(1) })
 				if a.Dispatch != "" {
 					id, fail := rc.RunID, a.Dispatch == "fail"
-					rc.OnParked(func() { go x.settleLoop(id, fail) })
+					rc.OnParked(func() { go x.settleLoop(id, fail) }) //nolint:contextcheck // the settle goroutine outlives the run's context, as host.self_update's will
 				}
 				return server.Parked{Deadline: time.Now().Add(2 * time.Hour), Result: map[string]string{"phase": "staged"}}, nil
 			},
@@ -118,17 +118,17 @@ func (x *parkFx) settleLoop(runID string, fail bool) {
 	}
 }
 
-func startPark(t testing.TB, mutate ...func(*server.Options)) (*servertest.Harness, *parkFx) {
+func startPark(t testing.TB) (*servertest.Harness, *parkFx) {
 	t.Helper()
 	x := newParkFx(t)
-	h := prepareAwait(t, x.cmds, mutate...)
+	h := prepareAwait(t, x.cmds)
 	x.srv.Store(h.Server)
 	h.Serve(t)
 	return h, x
 }
 
 // restartPark is the next host process on the same state, socket path aside; it does not listen yet.
-func restartPark(t testing.TB, h *servertest.Harness, resume func(api.Run) bool) (*servertest.Harness, *parkFx) {
+func restartPark(t testing.TB, h *servertest.Harness, resume func(api.Run) bool) *servertest.Harness {
 	t.Helper()
 	x := newParkFx(t)
 	h2 := prepareAwait(t, x.cmds, func(o *server.Options) {
@@ -136,7 +136,7 @@ func restartPark(t testing.TB, h *servertest.Harness, resume func(api.Run) bool)
 		o.Resume = resume
 	})
 	x.srv.Store(h2.Server)
-	return h2, x
+	return h2
 }
 
 // sigterm is what the SIGTERM handler of cmd/vedette-host does: Shutdown.
@@ -162,10 +162,10 @@ func recv[T any](t testing.TB, ch <-chan T, what string) T {
 	return zero
 }
 
-// parkRun starts test.self_park and waits until the run is parked.
-func parkRun(t testing.TB, h *servertest.Harness, a parkArgs, id string) api.Run {
+// parkRun starts test.self_park without a settle goroutine and waits until the run is parked.
+func parkRun(t testing.TB, h *servertest.Harness, id string) api.Run {
 	t.Helper()
-	r := run(t, h.Client, "test.self_park", a, id)
+	r := run(t, h.Client, "test.self_park", parkArgs{}, id)
 	var got api.Run
 	waitFor(t, "run "+r.RunID+" to park", func() bool {
 		got, _ = h.Client.GetRun(context.Background(), r.RunID)
@@ -180,7 +180,7 @@ func parkRun(t testing.TB, h *servertest.Harness, a parkArgs, id string) api.Run
 func TestParked_SIGTERMWhileParkedKeepsTheRunRunningAndTheLockHeld(t *testing.T) {
 	t.Parallel()
 	h, x := startPark(t)
-	parked := parkRun(t, h, parkArgs{}, rid1)
+	parked := parkRun(t, h, rid1)
 	if string(parked.Result) != `{"phase":"staged"}` {
 		t.Fatalf("parked run = %+v", parked)
 	}
@@ -213,7 +213,7 @@ func TestParked_SIGTERMWhileParkedKeepsTheRunRunningAndTheLockHeld(t *testing.T)
 
 	var asked []api.Run
 	var socketAtResume atomic.Bool
-	h2, _ := restartPark(t, h, func(r api.Run) bool {
+	h2 := restartPark(t, h, func(r api.Run) bool {
 		asked = append(asked, r)
 		_, err := os.Lstat(h.Socket + "2")
 		socketAtResume.Store(err == nil)
@@ -290,7 +290,7 @@ func TestParked_SIGTERMBeforeParkingFailsTheRunShuttingDownAndReleasesTheLock(t 
 			recv(t, x.started, "the command to start")
 			sigterm(t, h)
 			var asked atomic.Int64
-			h2, _ := restartPark(t, h, func(api.Run) bool { asked.Add(1); return true })
+			h2 := restartPark(t, h, func(api.Run) bool { asked.Add(1); return true })
 			if h2.Server.WriteActive() || asked.Load() != 0 {
 				t.Fatalf("lock %v, Resume asked %d times: a run that never parked holds nothing", h2.Server.WriteActive(), asked.Load())
 			}
@@ -314,7 +314,7 @@ func TestParked_SIGTERMBeforeParkingFailsTheRunShuttingDownAndReleasesTheLock(t 
 func TestParked_SettleEndsTheRunOnceAndARacingSecondGetsNotParked(t *testing.T) {
 	t.Parallel()
 	h, x := startPark(t)
-	parked := parkRun(t, h, parkArgs{}, rid1)
+	parked := parkRun(t, h, rid1)
 	// A bad status, an unknown run and the awaiting Settle change nothing.
 	for _, st := range []api.Status{api.StatusRunning, api.StatusAwaitingConfirm, api.StatusRefused, api.StatusFailed, "bogus"} {
 		if err := h.Server.SettleParked(parked.RunID, st, nil, nil); err == nil || errors.Is(err, server.ErrNotParked) {
@@ -389,9 +389,9 @@ func TestParked_APanickingResumeCountsAsNo(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			h, _ := startPark(t)
-			parked := parkRun(t, h, parkArgs{}, rid1)
+			parked := parkRun(t, h, rid1)
 			sigterm(t, h)
-			h2, _ := restartPark(t, h, resume)
+			h2 := restartPark(t, h, resume)
 			if h2.Server.WriteActive() {
 				t.Fatal("a parked run that was not resumed must not hold the lock")
 			}
@@ -414,12 +414,12 @@ func TestParked_APanickingResumeCountsAsNo(t *testing.T) {
 func TestParked_SettleAfterShutdownBeganIsRefusedAndChangesNothing(t *testing.T) {
 	t.Parallel()
 	h, _ := startPark(t)
-	parked := parkRun(t, h, parkArgs{}, rid1)
+	parked := parkRun(t, h, rid1)
 	sigterm(t, h)
 	if err := h.Server.SettleParked(parked.RunID, api.StatusSucceeded, nil, nil); !errors.Is(err, server.ErrShuttingDown) {
 		t.Fatalf("SettleParked after Shutdown = %v", err)
 	}
-	h2, _ := restartPark(t, h, func(api.Run) bool { return true })
+	h2 := restartPark(t, h, func(api.Run) bool { return true })
 	h2.Serve(t)
 	got, err := h2.Client.GetRun(context.Background(), parked.RunID)
 	if err != nil || got.Status != api.StatusRunning || got.ParkedDeadline == nil || got.FinishedAt != nil {
@@ -434,7 +434,7 @@ func TestParked_SettleRacingShutdownLeavesAConsistentRun(t *testing.T) {
 	t.Parallel()
 	for i := range 8 {
 		h, _ := startPark(t)
-		parked := parkRun(t, h, parkArgs{}, uuid(100+i))
+		parked := parkRun(t, h, uuid(100+i))
 		var settleErr error
 		var wg sync.WaitGroup
 		start := make(chan struct{})
@@ -448,7 +448,7 @@ func TestParked_SettleRacingShutdownLeavesAConsistentRun(t *testing.T) {
 		})
 		close(start)
 		wg.Wait()
-		h2, _ := restartPark(t, h, func(api.Run) bool { return true })
+		h2 := restartPark(t, h, func(api.Run) bool { return true })
 		h2.Serve(t)
 		got, err := h2.Client.GetRun(context.Background(), parked.RunID)
 		if err != nil {
@@ -562,7 +562,7 @@ func TestParked_WhileParkedAWhileAwaitingCommandFindsNothingToConfirm(t *testing
 	x.srv.Store(h.Server)
 	px.srv.Store(h.Server)
 	h.Serve(t)
-	parked := parkRun(t, h, parkArgs{}, rid1)
+	parked := parkRun(t, h, rid1)
 	_, err := h.Client.Run(context.Background(), "test.confirm", runIDArgs{RunID: parked.RunID}, rid2, "admin")
 	_ = clientErr(t, err, http.StatusPreconditionFailed, api.CodeNotAwaitingConfirm)
 	_, err = h.Client.Run(context.Background(), "test.park", nil, rid3, "admin")
@@ -575,7 +575,7 @@ func TestParked_OnlyOneRunHoldingTheLockIsResumed(t *testing.T) {
 	t.Parallel()
 	// Two parked run files can only come from a damaged state directory; the lock allows one.
 	h, _ := startPark(t)
-	a := parkRun(t, h, parkArgs{}, rid1)
+	a := parkRun(t, h, rid1)
 	sigterm(t, h)
 	src, err := os.ReadFile(h.StateDir + "/runs/" + a.RunID + ".json")
 	if err != nil {
@@ -586,7 +586,7 @@ func TestParked_OnlyOneRunHoldingTheLockIsResumed(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int64
-	h2, _ := restartPark(t, h, func(api.Run) bool { calls.Add(1); return true })
+	h2 := restartPark(t, h, func(api.Run) bool { calls.Add(1); return true })
 	h2.Serve(t)
 	var parkedRuns, failed int
 	runs, _ := h2.Client.ListRuns(context.Background(), 50)

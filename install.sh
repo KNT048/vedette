@@ -797,9 +797,9 @@ do_install() {
 }
 
 # forward_check (D-267): Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
-# without a rule in DOCKER-USER the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. vedette-host keeps two
-# rules in DOCKER-USER for the container network while that chain exists; here the effect is checked, and a firewall that is not
-# Docker's is only reported, never changed.
+# without a rule in DOCKER-USER the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. vedette-host keeps five
+# fixed rules in DOCKER-USER for the container network while that chain exists, and above them one ACCEPT per uplink bridge of the box named
+# br-… (D-396); here the five are checked, and a firewall that is not Docker's is only reported, never changed.
 forward_check() {
 	have iptables || return 0
 	fw_net=$(sed -n 's/^Subnet=//p' "$NETWORK_FILE" | head -n 1)
@@ -809,34 +809,37 @@ forward_check() {
 			warn "$NETWORK_FILE is from an install that did not name the bridge vedette0, so vedette-host puts no rules in DOCKER-USER (D-267): run --uninstall --yes and install again"
 			return 0
 		fi
-		say "Docker is on this box: vedette-host keeps four rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net (comment vedette-int; --uninstall removes them; D-267)"
+		say "Docker is on this box: vedette-host keeps five rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net, plus one ACCEPT per uplink bridge of the box named br-… (comment vedette-int; --uninstall removes them; D-267, D-396)"
 		n=0
 		while [ "$n" -lt 15 ]; do
 			fwd_rules_present "$fw_net" && return 0
 			sleep 2
 			n=$((n + 1))
 		done
-		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet (journalctl -u vedette-host)"
+		warn "the five DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443, 514 or 6514, the containers may not reach the internet, and other containers may reach Vedette's unpublished ports (journalctl -u vedette-host)"
 	elif iptables -w 5 -S FORWARD 2>/dev/null | grep -qx -- '-P FORWARD DROP'; then
 		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
 	fi
 }
 
-# fwd_rules_present <subnet>: the four rules of D-267 are in DOCKER-USER (same words as host/ops/dockerfwd.go)
+# fwd_rules_present <subnet>: the five fixed rules of D-267 and D-396 are in DOCKER-USER (same words as fwdRules in host/ops/dockerfwd.go;
+# TestInstallSh_ForwardRulesOfTheHost holds that); the ACCEPTs of the box's own bridges are the host's to keep and are not looked at here
 fwd_rules_present() {
 	iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN >/dev/null 2>&1 &&
 		iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN >/dev/null 2>&1 &&
 		iptables -w 5 -C DOCKER-USER -o vedette0 -d "$1" -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT >/dev/null 2>&1 &&
-		iptables -w 5 -C DOCKER-USER -i vedette0 -s "$1" -m comment --comment vedette-int -j ACCEPT >/dev/null 2>&1
+		iptables -w 5 -C DOCKER-USER -i vedette0 -s "$1" -m comment --comment vedette-int -j ACCEPT >/dev/null 2>&1 &&
+		iptables -w 5 -C DOCKER-USER ! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP >/dev/null 2>&1
 }
 
-# remove_forward_rules: the rules vedette-host put in DOCKER-USER (D-267): the lines bound to the bridge vedette0 that carry the comment
-# vedette-int and end in ACCEPT or RETURN; nothing else (iptables prints -i and -o after -s and -d, so they are not at a fixed place)
+# remove_forward_rules: the rules vedette-host put in DOCKER-USER (D-267, D-396): the lines bound to the bridge vedette0 that carry the
+# comment vedette-int and end in ACCEPT, RETURN or DROP (the fixed five and the ACCEPT of every bridge of the box, gone ones too); nothing
+# else (iptables prints -i and -o after -s and -d, so they are not at a fixed place; the DROP prints "! -i vedette0", a word of its own)
 remove_forward_rules() {
 	have iptables || return 0
 	iptables -w 5 -S DOCKER-USER >"$TMP/du.rules" 2>/dev/null || return 0
-	grep -E '^-A DOCKER-USER .*-[io] vedette0 .*--comment vedette-int -j (ACCEPT|RETURN)$' "$TMP/du.rules" | sed 's/^-A /-D /' | while IFS= read -r l; do
-		# shellcheck disable=SC2086 # the words of one rule iptables printed, none holds a space or a glob
+	grep -E '^-A DOCKER-USER .*-[io] vedette0 .*--comment vedette-int -j (ACCEPT|RETURN|DROP)$' "$TMP/du.rules" | sed 's/^-A /-D /' | while IFS= read -r l; do
+		# shellcheck disable=SC2086 # the words of one rule iptables printed, none holds a space or a glob ("!" and "br-+" are not globs)
 		iptables -w 5 $l >/dev/null 2>&1 || true
 	done
 }

@@ -284,8 +284,9 @@ exit 0
 // StatefulIptables makes (NewMachine does it) the fake iptables one that has no DOCKER-USER chain until the
 // marker "docker-user" is set (every call then fails, like on a box without Docker); with the marker, "-S
 // DOCKER-USER" prints the rules as "-A DOCKER-USER <rule>" lines, "-I DOCKER-USER <n> <rule>" puts the rule at
-// position n and "-C DOCKER-USER <rule>" succeeds only for a remembered one (the same words; the real
-// iptables compares the rule, not the words). DockerFlush forgets the rules (Docker restarted). Rules added with Rule fire first.
+// position n, "-C DOCKER-USER <rule>" succeeds only for a remembered one (the same words; the real
+// iptables compares the rule, not the words) and "-D DOCKER-USER <rule>" removes the first such line or
+// fails (install.sh --uninstall). DockerFlush forgets the rules (Docker restarted). Rules added with Rule fire first.
 func (m *Machine) StatefulIptables() {
 	m.writeFakeWith(ops.BinIptables, `R="$REC/ipt.rules"
 [ -e "$REC/mark.docker-user" ] || exit 1
@@ -298,6 +299,11 @@ case "$args" in
     n=$(wc -l < "$R")
     [ "$pos" -le $((n + 1)) ] || { echo "index of insertion too big" >&2; exit 1; }
     { head -n $((pos - 1)) "$R"; echo "$rule"; tail -n +"$pos" "$R"; } > "$R.new"; mv "$R.new" "$R"; exit 0 ;;
+  "-w 5 -D DOCKER-USER "*)
+    rule="${args#-w 5 -D DOCKER-USER }"
+    grep -qxF -- "$rule" "$R" || { echo "Bad rule (does a matching rule exist in that chain?)." >&2; exit 1; }
+    gone=; while IFS= read -r l; do if [ -z "$gone" ] && [ "$l" = "$rule" ]; then gone=1; else printf '%s\n' "$l"; fi; done < "$R" > "$R.new"
+    mv "$R.new" "$R"; exit 0 ;;
 esac
 exit 2
 `)

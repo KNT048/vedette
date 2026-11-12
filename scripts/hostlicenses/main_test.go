@@ -50,7 +50,7 @@ func TestGenerateNamesEveryLinkedModule(t *testing.T) {
 // a license file, still fail; a module that has a license file keeps its own text even when it is listed.
 func TestNoLicenseFileException(t *testing.T) {
 	empty := t.TempDir()
-	if err := os.WriteFile(filepath.Join(empty, "README.md"), []byte("License: MIT\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(empty, "README.md"), []byte("License: MIT\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var w bytes.Buffer
@@ -75,7 +75,7 @@ func TestNoLicenseFileException(t *testing.T) {
 		}
 	}
 	withFile := t.TempDir()
-	if err := os.WriteFile(filepath.Join(withFile, "LICENSE"), []byte("upstream text\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(withFile, "LICENSE"), []byte("upstream text\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	w.Reset()

@@ -463,6 +463,62 @@ test.describe('updates', () => {
   })
 })
 
+// S-CORE-2 criterion D-316: the system helper is the first step of the software run. The mock's outcome is set in its store (no button).
+test.describe('updates: system helper (D-316)', () => {
+  test.skip(({ isMobile }) => isMobile, 'desktop only')
+  const helperRow = (page: Page) => page.locator('#vedette tbody tr').filter({ hasText: /^System helper/ })
+  async function updateWith(page: Page, code: string | null) {
+    // Before the app's code on every load: a patch written while the app runs is lost when the mock saves its own copy.
+    await page.addInitScript((c) => {
+      const k = 'vedette-mock-db-v4'
+      const db = JSON.parse(localStorage.getItem(k) ?? '{}')
+      db.core_updates_host_scenario = { code: c, version: null }
+      localStorage.setItem(k, JSON.stringify(db))
+    }, code)
+    await startSample(page)
+    await page.goto('/settings/updates')
+    await expect(page.getByText('Includes system helper 0.9.4.')).toBeVisible()
+    await expect(helperRow(page)).toContainText('Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.')
+    await expect(helperRow(page).getByRole('button')).toHaveCount(0)
+    await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
+    await expect(page.getByText('Step 1 of 4: update the system helper')).toBeVisible()
+    await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.')).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Back to .*Vedette software/ })).toBeDisabled()
+  }
+
+  test('success: the helper is updated first, then the images', async ({ page }) => {
+    const errors = collectErrors(page)
+    await updateWith(page, null)
+    await expect(helperRow(page)).toContainText('0.9.4')
+    await toastText(page, /installed in the spare slot/)
+    await expect(softwareVersion(page)).toHaveText(/^0\.9\.4( |$)/)
+    await expect(page.locator('#vedette').getByRole('table', { name: 'Update history' })).toContainText(/System helper.*Update.*0\.9\.3 > 0\.9\.4/)
+    noErrors(errors)
+  })
+
+  test('the new helper does not start: the run went back, nothing else changed', async ({ page }) => {
+    const errors = collectErrors(page)
+    await updateWith(page, 'self_update_unhealthy')
+    const why = 'The new system helper 0.9.4 did not start correctly, so the box went back to 0.9.3 by itself. Nothing else was changed.'
+    await expect(page.getByRole('heading', { name: 'Update to 0.9.4 did not start; back on 0.9.3' })).toBeVisible()
+    await expect(page.locator('#vedette').getByText(why, { exact: true })).toBeVisible()
+    await expect(helperRow(page)).toContainText('0.9.3')
+    await expect(softwareVersion(page)).toHaveText(/^0\.9\.3( |$)/)
+    await expect(page.getByRole('button', { name: /^Update Vedette software$/ })).toBeEnabled()
+    noErrors(errors)
+  })
+
+  test('refused (bad signature): failed, nothing installed', async ({ page }) => {
+    const errors = collectErrors(page)
+    await updateWith(page, 'signature_invalid')
+    await expect(page.getByRole('heading', { name: 'Update of Vedette software to 0.9.4 failed' })).toBeVisible()
+    await expect(page.locator('#vedette').getByText('The system helper in this update is not signed by the Vedette release key. Nothing was installed.', { exact: true })).toBeVisible()
+    await expect(helperRow(page)).toContainText('0.9.3')
+    await expect(softwareVersion(page)).toHaveText(/^0\.9\.3( |$)/)
+    noErrors(errors)
+  })
+})
+
 test.describe('privacy', () => {
   test('14 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
     const errors = collectErrors(page)

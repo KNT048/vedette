@@ -15923,9 +15923,12 @@ func (s *CoreGetCoreUpdatesOKAdvisoriesItemStatus) UnmarshalText(data []byte) er
 type CoreGetCoreUpdatesOKAvailableItem struct {
 	Channel   CoreGetCoreUpdatesOKAvailableItemChannel `json:"channel"`
 	Component string                                   `json:"component"`
-	Note      string                                   `json:"note"`
-	SizeKB    float64                                  `json:"size_kb"`
-	Version   string                                   `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -15936,6 +15939,11 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) GetChannel() CoreGetCoreUpdatesOKAva
 // GetComponent returns the value of Component.
 func (s *CoreGetCoreUpdatesOKAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CoreGetCoreUpdatesOKAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -15961,6 +15969,11 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) SetChannel(val CoreGetCoreUpdatesOKA
 // SetComponent sets the value of Component.
 func (s *CoreGetCoreUpdatesOKAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CoreGetCoreUpdatesOKAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -16061,6 +16074,9 @@ func (s *CoreGetCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreUpdatesOKComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                 `json:"id"`
 	InstalledAt time.Time                              `json:"installed_at"`
 	Kind        CoreGetCoreUpdatesOKComponentsItemKind `json:"kind"`
@@ -16499,7 +16515,8 @@ type CoreGetCoreUpdatesOKRun struct {
 	Action CoreGetCoreUpdatesOKRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -16511,12 +16528,14 @@ type CoreGetCoreUpdatesOKRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CoreGetCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -16745,6 +16764,7 @@ func (s *CoreGetCoreUpdatesOKRunStatus) UnmarshalText(data []byte) error {
 type CoreGetCoreUpdatesOKRunStep string
 
 const (
+	CoreGetCoreUpdatesOKRunStepHost     CoreGetCoreUpdatesOKRunStep = "host"
 	CoreGetCoreUpdatesOKRunStepDownload CoreGetCoreUpdatesOKRunStep = "download"
 	CoreGetCoreUpdatesOKRunStepStart    CoreGetCoreUpdatesOKRunStep = "start"
 	CoreGetCoreUpdatesOKRunStepRestore  CoreGetCoreUpdatesOKRunStep = "restore"
@@ -16754,6 +16774,7 @@ const (
 // AllValues returns all CoreGetCoreUpdatesOKRunStep values.
 func (CoreGetCoreUpdatesOKRunStep) AllValues() []CoreGetCoreUpdatesOKRunStep {
 	return []CoreGetCoreUpdatesOKRunStep{
+		CoreGetCoreUpdatesOKRunStepHost,
 		CoreGetCoreUpdatesOKRunStepDownload,
 		CoreGetCoreUpdatesOKRunStepStart,
 		CoreGetCoreUpdatesOKRunStepRestore,
@@ -16764,6 +16785,8 @@ func (CoreGetCoreUpdatesOKRunStep) AllValues() []CoreGetCoreUpdatesOKRunStep {
 // MarshalText implements encoding.TextMarshaler.
 func (s CoreGetCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CoreGetCoreUpdatesOKRunStepHost:
+		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepDownload:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepStart:
@@ -16780,6 +16803,9 @@ func (s CoreGetCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CoreGetCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 	switch CoreGetCoreUpdatesOKRunStep(data) {
+	case CoreGetCoreUpdatesOKRunStepHost:
+		*s = CoreGetCoreUpdatesOKRunStepHost
+		return nil
 	case CoreGetCoreUpdatesOKRunStepDownload:
 		*s = CoreGetCoreUpdatesOKRunStepDownload
 		return nil
@@ -16800,6 +16826,7 @@ func (s *CoreGetCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 type CoreGetCoreUpdatesOKRunStepsItem string
 
 const (
+	CoreGetCoreUpdatesOKRunStepsItemHost     CoreGetCoreUpdatesOKRunStepsItem = "host"
 	CoreGetCoreUpdatesOKRunStepsItemDownload CoreGetCoreUpdatesOKRunStepsItem = "download"
 	CoreGetCoreUpdatesOKRunStepsItemStart    CoreGetCoreUpdatesOKRunStepsItem = "start"
 	CoreGetCoreUpdatesOKRunStepsItemRestore  CoreGetCoreUpdatesOKRunStepsItem = "restore"
@@ -16809,6 +16836,7 @@ const (
 // AllValues returns all CoreGetCoreUpdatesOKRunStepsItem values.
 func (CoreGetCoreUpdatesOKRunStepsItem) AllValues() []CoreGetCoreUpdatesOKRunStepsItem {
 	return []CoreGetCoreUpdatesOKRunStepsItem{
+		CoreGetCoreUpdatesOKRunStepsItemHost,
 		CoreGetCoreUpdatesOKRunStepsItemDownload,
 		CoreGetCoreUpdatesOKRunStepsItemStart,
 		CoreGetCoreUpdatesOKRunStepsItemRestore,
@@ -16819,6 +16847,8 @@ func (CoreGetCoreUpdatesOKRunStepsItem) AllValues() []CoreGetCoreUpdatesOKRunSte
 // MarshalText implements encoding.TextMarshaler.
 func (s CoreGetCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CoreGetCoreUpdatesOKRunStepsItemHost:
+		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepsItemDownload:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepsItemStart:
@@ -16835,6 +16865,9 @@ func (s CoreGetCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CoreGetCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 	switch CoreGetCoreUpdatesOKRunStepsItem(data) {
+	case CoreGetCoreUpdatesOKRunStepsItemHost:
+		*s = CoreGetCoreUpdatesOKRunStepsItemHost
+		return nil
 	case CoreGetCoreUpdatesOKRunStepsItemDownload:
 		*s = CoreGetCoreUpdatesOKRunStepsItemDownload
 		return nil
@@ -19045,9 +19078,12 @@ func (s *CorePatchCoreUpdatesOKAdvisoriesItemStatus) UnmarshalText(data []byte) 
 type CorePatchCoreUpdatesOKAvailableItem struct {
 	Channel   CorePatchCoreUpdatesOKAvailableItemChannel `json:"channel"`
 	Component string                                     `json:"component"`
-	Note      string                                     `json:"note"`
-	SizeKB    float64                                    `json:"size_kb"`
-	Version   string                                     `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -19058,6 +19094,11 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) GetChannel() CorePatchCoreUpdatesO
 // GetComponent returns the value of Component.
 func (s *CorePatchCoreUpdatesOKAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CorePatchCoreUpdatesOKAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -19083,6 +19124,11 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) SetChannel(val CorePatchCoreUpdate
 // SetComponent sets the value of Component.
 func (s *CorePatchCoreUpdatesOKAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CorePatchCoreUpdatesOKAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -19183,6 +19229,9 @@ func (s *CorePatchCoreUpdatesOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePatchCoreUpdatesOKComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                   `json:"id"`
 	InstalledAt time.Time                                `json:"installed_at"`
 	Kind        CorePatchCoreUpdatesOKComponentsItemKind `json:"kind"`
@@ -19621,7 +19670,8 @@ type CorePatchCoreUpdatesOKRun struct {
 	Action CorePatchCoreUpdatesOKRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -19633,12 +19683,14 @@ type CorePatchCoreUpdatesOKRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CorePatchCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -19867,6 +19919,7 @@ func (s *CorePatchCoreUpdatesOKRunStatus) UnmarshalText(data []byte) error {
 type CorePatchCoreUpdatesOKRunStep string
 
 const (
+	CorePatchCoreUpdatesOKRunStepHost     CorePatchCoreUpdatesOKRunStep = "host"
 	CorePatchCoreUpdatesOKRunStepDownload CorePatchCoreUpdatesOKRunStep = "download"
 	CorePatchCoreUpdatesOKRunStepStart    CorePatchCoreUpdatesOKRunStep = "start"
 	CorePatchCoreUpdatesOKRunStepRestore  CorePatchCoreUpdatesOKRunStep = "restore"
@@ -19876,6 +19929,7 @@ const (
 // AllValues returns all CorePatchCoreUpdatesOKRunStep values.
 func (CorePatchCoreUpdatesOKRunStep) AllValues() []CorePatchCoreUpdatesOKRunStep {
 	return []CorePatchCoreUpdatesOKRunStep{
+		CorePatchCoreUpdatesOKRunStepHost,
 		CorePatchCoreUpdatesOKRunStepDownload,
 		CorePatchCoreUpdatesOKRunStepStart,
 		CorePatchCoreUpdatesOKRunStepRestore,
@@ -19886,6 +19940,8 @@ func (CorePatchCoreUpdatesOKRunStep) AllValues() []CorePatchCoreUpdatesOKRunStep
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePatchCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePatchCoreUpdatesOKRunStepHost:
+		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepDownload:
 		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepStart:
@@ -19902,6 +19958,9 @@ func (s CorePatchCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePatchCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 	switch CorePatchCoreUpdatesOKRunStep(data) {
+	case CorePatchCoreUpdatesOKRunStepHost:
+		*s = CorePatchCoreUpdatesOKRunStepHost
+		return nil
 	case CorePatchCoreUpdatesOKRunStepDownload:
 		*s = CorePatchCoreUpdatesOKRunStepDownload
 		return nil
@@ -19922,6 +19981,7 @@ func (s *CorePatchCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 type CorePatchCoreUpdatesOKRunStepsItem string
 
 const (
+	CorePatchCoreUpdatesOKRunStepsItemHost     CorePatchCoreUpdatesOKRunStepsItem = "host"
 	CorePatchCoreUpdatesOKRunStepsItemDownload CorePatchCoreUpdatesOKRunStepsItem = "download"
 	CorePatchCoreUpdatesOKRunStepsItemStart    CorePatchCoreUpdatesOKRunStepsItem = "start"
 	CorePatchCoreUpdatesOKRunStepsItemRestore  CorePatchCoreUpdatesOKRunStepsItem = "restore"
@@ -19931,6 +19991,7 @@ const (
 // AllValues returns all CorePatchCoreUpdatesOKRunStepsItem values.
 func (CorePatchCoreUpdatesOKRunStepsItem) AllValues() []CorePatchCoreUpdatesOKRunStepsItem {
 	return []CorePatchCoreUpdatesOKRunStepsItem{
+		CorePatchCoreUpdatesOKRunStepsItemHost,
 		CorePatchCoreUpdatesOKRunStepsItemDownload,
 		CorePatchCoreUpdatesOKRunStepsItemStart,
 		CorePatchCoreUpdatesOKRunStepsItemRestore,
@@ -19941,6 +20002,8 @@ func (CorePatchCoreUpdatesOKRunStepsItem) AllValues() []CorePatchCoreUpdatesOKRu
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePatchCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePatchCoreUpdatesOKRunStepsItemHost:
+		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepsItemDownload:
 		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepsItemStart:
@@ -19957,6 +20020,9 @@ func (s CorePatchCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePatchCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 	switch CorePatchCoreUpdatesOKRunStepsItem(data) {
+	case CorePatchCoreUpdatesOKRunStepsItemHost:
+		*s = CorePatchCoreUpdatesOKRunStepsItemHost
+		return nil
 	case CorePatchCoreUpdatesOKRunStepsItemDownload:
 		*s = CorePatchCoreUpdatesOKRunStepsItemDownload
 		return nil
@@ -26144,9 +26210,12 @@ func (s *CorePostCoreUpdatesApplyOKAdvisoriesItemStatus) UnmarshalText(data []by
 type CorePostCoreUpdatesApplyOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesApplyOKAvailableItemChannel `json:"channel"`
 	Component string                                         `json:"component"`
-	Note      string                                         `json:"note"`
-	SizeKB    float64                                        `json:"size_kb"`
-	Version   string                                         `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -26157,6 +26226,11 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetChannel() CorePostCoreUpdat
 // GetComponent returns the value of Component.
 func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -26182,6 +26256,11 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetChannel(val CorePostCoreUpd
 // SetComponent sets the value of Component.
 func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -26282,6 +26361,9 @@ func (s *CorePostCoreUpdatesApplyOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesApplyOKComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                       `json:"id"`
 	InstalledAt time.Time                                    `json:"installed_at"`
 	Kind        CorePostCoreUpdatesApplyOKComponentsItemKind `json:"kind"`
@@ -26720,7 +26802,8 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	Action CorePostCoreUpdatesApplyOKRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -26732,12 +26815,14 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesApplyOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -26966,6 +27051,7 @@ func (s *CorePostCoreUpdatesApplyOKRunStatus) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesApplyOKRunStep string
 
 const (
+	CorePostCoreUpdatesApplyOKRunStepHost     CorePostCoreUpdatesApplyOKRunStep = "host"
 	CorePostCoreUpdatesApplyOKRunStepDownload CorePostCoreUpdatesApplyOKRunStep = "download"
 	CorePostCoreUpdatesApplyOKRunStepStart    CorePostCoreUpdatesApplyOKRunStep = "start"
 	CorePostCoreUpdatesApplyOKRunStepRestore  CorePostCoreUpdatesApplyOKRunStep = "restore"
@@ -26975,6 +27061,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesApplyOKRunStep values.
 func (CorePostCoreUpdatesApplyOKRunStep) AllValues() []CorePostCoreUpdatesApplyOKRunStep {
 	return []CorePostCoreUpdatesApplyOKRunStep{
+		CorePostCoreUpdatesApplyOKRunStepHost,
 		CorePostCoreUpdatesApplyOKRunStepDownload,
 		CorePostCoreUpdatesApplyOKRunStepStart,
 		CorePostCoreUpdatesApplyOKRunStepRestore,
@@ -26985,6 +27072,8 @@ func (CorePostCoreUpdatesApplyOKRunStep) AllValues() []CorePostCoreUpdatesApplyO
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesApplyOKRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesApplyOKRunStepHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepStart:
@@ -27001,6 +27090,9 @@ func (s CorePostCoreUpdatesApplyOKRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesApplyOKRunStep) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesApplyOKRunStep(data) {
+	case CorePostCoreUpdatesApplyOKRunStepHost:
+		*s = CorePostCoreUpdatesApplyOKRunStepHost
+		return nil
 	case CorePostCoreUpdatesApplyOKRunStepDownload:
 		*s = CorePostCoreUpdatesApplyOKRunStepDownload
 		return nil
@@ -27021,6 +27113,7 @@ func (s *CorePostCoreUpdatesApplyOKRunStep) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesApplyOKRunStepsItem string
 
 const (
+	CorePostCoreUpdatesApplyOKRunStepsItemHost     CorePostCoreUpdatesApplyOKRunStepsItem = "host"
 	CorePostCoreUpdatesApplyOKRunStepsItemDownload CorePostCoreUpdatesApplyOKRunStepsItem = "download"
 	CorePostCoreUpdatesApplyOKRunStepsItemStart    CorePostCoreUpdatesApplyOKRunStepsItem = "start"
 	CorePostCoreUpdatesApplyOKRunStepsItemRestore  CorePostCoreUpdatesApplyOKRunStepsItem = "restore"
@@ -27030,6 +27123,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesApplyOKRunStepsItem values.
 func (CorePostCoreUpdatesApplyOKRunStepsItem) AllValues() []CorePostCoreUpdatesApplyOKRunStepsItem {
 	return []CorePostCoreUpdatesApplyOKRunStepsItem{
+		CorePostCoreUpdatesApplyOKRunStepsItemHost,
 		CorePostCoreUpdatesApplyOKRunStepsItemDownload,
 		CorePostCoreUpdatesApplyOKRunStepsItemStart,
 		CorePostCoreUpdatesApplyOKRunStepsItemRestore,
@@ -27040,6 +27134,8 @@ func (CorePostCoreUpdatesApplyOKRunStepsItem) AllValues() []CorePostCoreUpdatesA
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesApplyOKRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesApplyOKRunStepsItemHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepsItemDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepsItemStart:
@@ -27056,6 +27152,9 @@ func (s CorePostCoreUpdatesApplyOKRunStepsItem) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesApplyOKRunStepsItem) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesApplyOKRunStepsItem(data) {
+	case CorePostCoreUpdatesApplyOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemHost
+		return nil
 	case CorePostCoreUpdatesApplyOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesApplyOKRunStepsItemDownload
 		return nil
@@ -27400,9 +27499,12 @@ func (s *CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatus) UnmarshalText(dat
 type CorePostCoreUpdatesBundleOKStateAvailableItem struct {
 	Channel   CorePostCoreUpdatesBundleOKStateAvailableItemChannel `json:"channel"`
 	Component string                                               `json:"component"`
-	Note      string                                               `json:"note"`
-	SizeKB    float64                                              `json:"size_kb"`
-	Version   string                                               `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -27413,6 +27515,11 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetChannel() CorePostCor
 // GetComponent returns the value of Component.
 func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -27438,6 +27545,11 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetChannel(val CorePostC
 // SetComponent sets the value of Component.
 func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -27538,6 +27650,9 @@ func (s *CorePostCoreUpdatesBundleOKStateChannel) UnmarshalText(data []byte) err
 }
 
 type CorePostCoreUpdatesBundleOKStateComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                             `json:"id"`
 	InstalledAt time.Time                                          `json:"installed_at"`
 	Kind        CorePostCoreUpdatesBundleOKStateComponentsItemKind `json:"kind"`
@@ -27976,7 +28091,8 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	Action CorePostCoreUpdatesBundleOKStateRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -27988,12 +28104,14 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesBundleOKStateRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -28222,6 +28340,7 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStatus) UnmarshalText(data []byte) e
 type CorePostCoreUpdatesBundleOKStateRunStep string
 
 const (
+	CorePostCoreUpdatesBundleOKStateRunStepHost     CorePostCoreUpdatesBundleOKStateRunStep = "host"
 	CorePostCoreUpdatesBundleOKStateRunStepDownload CorePostCoreUpdatesBundleOKStateRunStep = "download"
 	CorePostCoreUpdatesBundleOKStateRunStepStart    CorePostCoreUpdatesBundleOKStateRunStep = "start"
 	CorePostCoreUpdatesBundleOKStateRunStepRestore  CorePostCoreUpdatesBundleOKStateRunStep = "restore"
@@ -28231,6 +28350,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesBundleOKStateRunStep values.
 func (CorePostCoreUpdatesBundleOKStateRunStep) AllValues() []CorePostCoreUpdatesBundleOKStateRunStep {
 	return []CorePostCoreUpdatesBundleOKStateRunStep{
+		CorePostCoreUpdatesBundleOKStateRunStepHost,
 		CorePostCoreUpdatesBundleOKStateRunStepDownload,
 		CorePostCoreUpdatesBundleOKStateRunStepStart,
 		CorePostCoreUpdatesBundleOKStateRunStepRestore,
@@ -28241,6 +28361,8 @@ func (CorePostCoreUpdatesBundleOKStateRunStep) AllValues() []CorePostCoreUpdates
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesBundleOKStateRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunStepHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepStart:
@@ -28257,6 +28379,9 @@ func (s CorePostCoreUpdatesBundleOKStateRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesBundleOKStateRunStep) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesBundleOKStateRunStep(data) {
+	case CorePostCoreUpdatesBundleOKStateRunStepHost:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepHost
+		return nil
 	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepDownload
 		return nil
@@ -28277,6 +28402,7 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStep) UnmarshalText(data []byte) err
 type CorePostCoreUpdatesBundleOKStateRunStepsItem string
 
 const (
+	CorePostCoreUpdatesBundleOKStateRunStepsItemHost     CorePostCoreUpdatesBundleOKStateRunStepsItem = "host"
 	CorePostCoreUpdatesBundleOKStateRunStepsItemDownload CorePostCoreUpdatesBundleOKStateRunStepsItem = "download"
 	CorePostCoreUpdatesBundleOKStateRunStepsItemStart    CorePostCoreUpdatesBundleOKStateRunStepsItem = "start"
 	CorePostCoreUpdatesBundleOKStateRunStepsItemRestore  CorePostCoreUpdatesBundleOKStateRunStepsItem = "restore"
@@ -28286,6 +28412,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesBundleOKStateRunStepsItem values.
 func (CorePostCoreUpdatesBundleOKStateRunStepsItem) AllValues() []CorePostCoreUpdatesBundleOKStateRunStepsItem {
 	return []CorePostCoreUpdatesBundleOKStateRunStepsItem{
+		CorePostCoreUpdatesBundleOKStateRunStepsItemHost,
 		CorePostCoreUpdatesBundleOKStateRunStepsItemDownload,
 		CorePostCoreUpdatesBundleOKStateRunStepsItemStart,
 		CorePostCoreUpdatesBundleOKStateRunStepsItemRestore,
@@ -28296,6 +28423,8 @@ func (CorePostCoreUpdatesBundleOKStateRunStepsItem) AllValues() []CorePostCoreUp
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepsItemDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepsItemStart:
@@ -28312,6 +28441,9 @@ func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) MarshalText() ([]byte, err
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesBundleOKStateRunStepsItem(data) {
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemHost:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemHost
+		return nil
 	case CorePostCoreUpdatesBundleOKStateRunStepsItemDownload:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemDownload
 		return nil
@@ -28677,9 +28809,12 @@ func (s *CorePostCoreUpdatesCheckOKAdvisoriesItemStatus) UnmarshalText(data []by
 type CorePostCoreUpdatesCheckOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesCheckOKAvailableItemChannel `json:"channel"`
 	Component string                                         `json:"component"`
-	Note      string                                         `json:"note"`
-	SizeKB    float64                                        `json:"size_kb"`
-	Version   string                                         `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -28690,6 +28825,11 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetChannel() CorePostCoreUpdat
 // GetComponent returns the value of Component.
 func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -28715,6 +28855,11 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetChannel(val CorePostCoreUpd
 // SetComponent sets the value of Component.
 func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -28815,6 +28960,9 @@ func (s *CorePostCoreUpdatesCheckOKChannel) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesCheckOKComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                       `json:"id"`
 	InstalledAt time.Time                                    `json:"installed_at"`
 	Kind        CorePostCoreUpdatesCheckOKComponentsItemKind `json:"kind"`
@@ -29253,7 +29401,8 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	Action CorePostCoreUpdatesCheckOKRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -29265,12 +29414,14 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesCheckOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -29499,6 +29650,7 @@ func (s *CorePostCoreUpdatesCheckOKRunStatus) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesCheckOKRunStep string
 
 const (
+	CorePostCoreUpdatesCheckOKRunStepHost     CorePostCoreUpdatesCheckOKRunStep = "host"
 	CorePostCoreUpdatesCheckOKRunStepDownload CorePostCoreUpdatesCheckOKRunStep = "download"
 	CorePostCoreUpdatesCheckOKRunStepStart    CorePostCoreUpdatesCheckOKRunStep = "start"
 	CorePostCoreUpdatesCheckOKRunStepRestore  CorePostCoreUpdatesCheckOKRunStep = "restore"
@@ -29508,6 +29660,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesCheckOKRunStep values.
 func (CorePostCoreUpdatesCheckOKRunStep) AllValues() []CorePostCoreUpdatesCheckOKRunStep {
 	return []CorePostCoreUpdatesCheckOKRunStep{
+		CorePostCoreUpdatesCheckOKRunStepHost,
 		CorePostCoreUpdatesCheckOKRunStepDownload,
 		CorePostCoreUpdatesCheckOKRunStepStart,
 		CorePostCoreUpdatesCheckOKRunStepRestore,
@@ -29518,6 +29671,8 @@ func (CorePostCoreUpdatesCheckOKRunStep) AllValues() []CorePostCoreUpdatesCheckO
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesCheckOKRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesCheckOKRunStepHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepStart:
@@ -29534,6 +29689,9 @@ func (s CorePostCoreUpdatesCheckOKRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesCheckOKRunStep) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesCheckOKRunStep(data) {
+	case CorePostCoreUpdatesCheckOKRunStepHost:
+		*s = CorePostCoreUpdatesCheckOKRunStepHost
+		return nil
 	case CorePostCoreUpdatesCheckOKRunStepDownload:
 		*s = CorePostCoreUpdatesCheckOKRunStepDownload
 		return nil
@@ -29554,6 +29712,7 @@ func (s *CorePostCoreUpdatesCheckOKRunStep) UnmarshalText(data []byte) error {
 type CorePostCoreUpdatesCheckOKRunStepsItem string
 
 const (
+	CorePostCoreUpdatesCheckOKRunStepsItemHost     CorePostCoreUpdatesCheckOKRunStepsItem = "host"
 	CorePostCoreUpdatesCheckOKRunStepsItemDownload CorePostCoreUpdatesCheckOKRunStepsItem = "download"
 	CorePostCoreUpdatesCheckOKRunStepsItemStart    CorePostCoreUpdatesCheckOKRunStepsItem = "start"
 	CorePostCoreUpdatesCheckOKRunStepsItemRestore  CorePostCoreUpdatesCheckOKRunStepsItem = "restore"
@@ -29563,6 +29722,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesCheckOKRunStepsItem values.
 func (CorePostCoreUpdatesCheckOKRunStepsItem) AllValues() []CorePostCoreUpdatesCheckOKRunStepsItem {
 	return []CorePostCoreUpdatesCheckOKRunStepsItem{
+		CorePostCoreUpdatesCheckOKRunStepsItemHost,
 		CorePostCoreUpdatesCheckOKRunStepsItemDownload,
 		CorePostCoreUpdatesCheckOKRunStepsItemStart,
 		CorePostCoreUpdatesCheckOKRunStepsItemRestore,
@@ -29573,6 +29733,8 @@ func (CorePostCoreUpdatesCheckOKRunStepsItem) AllValues() []CorePostCoreUpdatesC
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesCheckOKRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesCheckOKRunStepsItemHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepsItemDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepsItemStart:
@@ -29589,6 +29751,9 @@ func (s CorePostCoreUpdatesCheckOKRunStepsItem) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesCheckOKRunStepsItem) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesCheckOKRunStepsItem(data) {
+	case CorePostCoreUpdatesCheckOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemHost
+		return nil
 	case CorePostCoreUpdatesCheckOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesCheckOKRunStepsItemDownload
 		return nil
@@ -31159,9 +31324,12 @@ func (s *CorePostCoreUpdatesRollbackOKAdvisoriesItemStatus) UnmarshalText(data [
 type CorePostCoreUpdatesRollbackOKAvailableItem struct {
 	Channel   CorePostCoreUpdatesRollbackOKAvailableItemChannel `json:"channel"`
 	Component string                                            `json:"component"`
-	Note      string                                            `json:"note"`
-	SizeKB    float64                                           `json:"size_kb"`
-	Version   string                                            `json:"version"`
+	// Software only: the system helper (vedette-host) version this release brings, when it is above the
+	// running one; the software run then updates it first (D-316). Absent otherwise.
+	HostVersion OptString `json:"host_version"`
+	Note        string    `json:"note"`
+	SizeKB      float64   `json:"size_kb"`
+	Version     string    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -31172,6 +31340,11 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetChannel() CorePostCoreUp
 // GetComponent returns the value of Component.
 func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetComponent() string {
 	return s.Component
+}
+
+// GetHostVersion returns the value of HostVersion.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetHostVersion() OptString {
+	return s.HostVersion
 }
 
 // GetNote returns the value of Note.
@@ -31197,6 +31370,11 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetChannel(val CorePostCore
 // SetComponent sets the value of Component.
 func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetComponent(val string) {
 	s.Component = val
+}
+
+// SetHostVersion sets the value of HostVersion.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetHostVersion(val OptString) {
+	s.HostVersion = val
 }
 
 // SetNote sets the value of Note.
@@ -31297,6 +31475,9 @@ func (s *CorePostCoreUpdatesRollbackOKChannel) UnmarshalText(data []byte) error 
 }
 
 type CorePostCoreUpdatesRollbackOKComponentsItem struct {
+	// "host": the system helper vedette-host (appliance only; a container-only install has no such row),
+	// kind software, updated by the software run (its first step, host), previous always null: it is never
+	// rolled back by hand (D-316).
 	ID          string                                          `json:"id"`
 	InstalledAt time.Time                                       `json:"installed_at"`
 	Kind        CorePostCoreUpdatesRollbackOKComponentsItemKind `json:"kind"`
@@ -31735,7 +31916,8 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	Action CorePostCoreUpdatesRollbackOKRunAction `json:"action"`
 	// "software": the whole release, every service in lockstep.
 	Component string `json:"component"`
-	// Only when failed or reverted: why, in words, naming the service that failed.
+	// Only when failed or reverted: why, in words, naming the service that failed; for the system helper
+	// (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// Release running when the run started.
@@ -31747,12 +31929,14 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
 	// before or without that.
 	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
-	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
-	// the other services; restore: put back the database from before the update; restart: Vedette itself
-	// restarts (the page loses its connection for a moment).
+	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
+	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
+	// and verify the signed images; start: the other services; restore: put back the database from before
+	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
-	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
-	// (only when it puts back the database), restart.
+	// The steps of this run in order: update = host (only when the release brings a newer system helper,
+	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
+	// database), restart (a rollback never takes the helper back).
 	Steps []CorePostCoreUpdatesRollbackOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -31981,6 +32165,7 @@ func (s *CorePostCoreUpdatesRollbackOKRunStatus) UnmarshalText(data []byte) erro
 type CorePostCoreUpdatesRollbackOKRunStep string
 
 const (
+	CorePostCoreUpdatesRollbackOKRunStepHost     CorePostCoreUpdatesRollbackOKRunStep = "host"
 	CorePostCoreUpdatesRollbackOKRunStepDownload CorePostCoreUpdatesRollbackOKRunStep = "download"
 	CorePostCoreUpdatesRollbackOKRunStepStart    CorePostCoreUpdatesRollbackOKRunStep = "start"
 	CorePostCoreUpdatesRollbackOKRunStepRestore  CorePostCoreUpdatesRollbackOKRunStep = "restore"
@@ -31990,6 +32175,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesRollbackOKRunStep values.
 func (CorePostCoreUpdatesRollbackOKRunStep) AllValues() []CorePostCoreUpdatesRollbackOKRunStep {
 	return []CorePostCoreUpdatesRollbackOKRunStep{
+		CorePostCoreUpdatesRollbackOKRunStepHost,
 		CorePostCoreUpdatesRollbackOKRunStepDownload,
 		CorePostCoreUpdatesRollbackOKRunStepStart,
 		CorePostCoreUpdatesRollbackOKRunStepRestore,
@@ -32000,6 +32186,8 @@ func (CorePostCoreUpdatesRollbackOKRunStep) AllValues() []CorePostCoreUpdatesRol
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesRollbackOKRunStep) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesRollbackOKRunStepHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepStart:
@@ -32016,6 +32204,9 @@ func (s CorePostCoreUpdatesRollbackOKRunStep) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesRollbackOKRunStep) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesRollbackOKRunStep(data) {
+	case CorePostCoreUpdatesRollbackOKRunStepHost:
+		*s = CorePostCoreUpdatesRollbackOKRunStepHost
+		return nil
 	case CorePostCoreUpdatesRollbackOKRunStepDownload:
 		*s = CorePostCoreUpdatesRollbackOKRunStepDownload
 		return nil
@@ -32036,6 +32227,7 @@ func (s *CorePostCoreUpdatesRollbackOKRunStep) UnmarshalText(data []byte) error 
 type CorePostCoreUpdatesRollbackOKRunStepsItem string
 
 const (
+	CorePostCoreUpdatesRollbackOKRunStepsItemHost     CorePostCoreUpdatesRollbackOKRunStepsItem = "host"
 	CorePostCoreUpdatesRollbackOKRunStepsItemDownload CorePostCoreUpdatesRollbackOKRunStepsItem = "download"
 	CorePostCoreUpdatesRollbackOKRunStepsItemStart    CorePostCoreUpdatesRollbackOKRunStepsItem = "start"
 	CorePostCoreUpdatesRollbackOKRunStepsItemRestore  CorePostCoreUpdatesRollbackOKRunStepsItem = "restore"
@@ -32045,6 +32237,7 @@ const (
 // AllValues returns all CorePostCoreUpdatesRollbackOKRunStepsItem values.
 func (CorePostCoreUpdatesRollbackOKRunStepsItem) AllValues() []CorePostCoreUpdatesRollbackOKRunStepsItem {
 	return []CorePostCoreUpdatesRollbackOKRunStepsItem{
+		CorePostCoreUpdatesRollbackOKRunStepsItemHost,
 		CorePostCoreUpdatesRollbackOKRunStepsItemDownload,
 		CorePostCoreUpdatesRollbackOKRunStepsItemStart,
 		CorePostCoreUpdatesRollbackOKRunStepsItemRestore,
@@ -32055,6 +32248,8 @@ func (CorePostCoreUpdatesRollbackOKRunStepsItem) AllValues() []CorePostCoreUpdat
 // MarshalText implements encoding.TextMarshaler.
 func (s CorePostCoreUpdatesRollbackOKRunStepsItem) MarshalText() ([]byte, error) {
 	switch s {
+	case CorePostCoreUpdatesRollbackOKRunStepsItemHost:
+		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepsItemDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepsItemStart:
@@ -32071,6 +32266,9 @@ func (s CorePostCoreUpdatesRollbackOKRunStepsItem) MarshalText() ([]byte, error)
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) UnmarshalText(data []byte) error {
 	switch CorePostCoreUpdatesRollbackOKRunStepsItem(data) {
+	case CorePostCoreUpdatesRollbackOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemHost
+		return nil
 	case CorePostCoreUpdatesRollbackOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesRollbackOKRunStepsItemDownload
 		return nil

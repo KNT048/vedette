@@ -13594,7 +13594,8 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                           },
                           "kind": {
                             "type": "string",
@@ -13665,6 +13666,10 @@
                             "type": "number"
                           },
                           "note": {
+                            "type": "string"
+                          },
+                          "host_version": {
+                            "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
                           }
                         },
@@ -13822,19 +13827,21 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "host",
                                   "download",
                                   "start",
                                   "restore",
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
                                 {
                                   "type": "string",
                                   "enum": [
+                                    "host",
                                     "download",
                                     "start",
                                     "restore",
@@ -13845,7 +13852,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -13869,7 +13876,7 @@
                               "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                               "type": [
                                 "string",
                                 "null"
@@ -14033,7 +14040,8 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                           },
                           "kind": {
                             "type": "string",
@@ -14104,6 +14112,10 @@
                             "type": "number"
                           },
                           "note": {
+                            "type": "string"
+                          },
+                          "host_version": {
+                            "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
                           }
                         },
@@ -14261,19 +14273,21 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "host",
                                   "download",
                                   "start",
                                   "restore",
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
                                 {
                                   "type": "string",
                                   "enum": [
+                                    "host",
                                     "download",
                                     "start",
                                     "restore",
@@ -14284,7 +14298,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -14308,7 +14322,7 @@
                               "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                               "type": [
                                 "string",
                                 "null"
@@ -14466,7 +14480,8 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                           },
                           "kind": {
                             "type": "string",
@@ -14537,6 +14552,10 @@
                             "type": "number"
                           },
                           "note": {
+                            "type": "string"
+                          },
+                          "host_version": {
+                            "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
                           }
                         },
@@ -14694,19 +14713,21 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "host",
                                   "download",
                                   "start",
                                   "restore",
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
                                 {
                                   "type": "string",
                                   "enum": [
+                                    "host",
                                     "download",
                                     "start",
                                     "restore",
@@ -14717,7 +14738,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -14741,7 +14762,7 @@
                               "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                               "type": [
                                 "string",
                                 "null"
@@ -14952,7 +14973,8 @@
                             "type": "object",
                             "properties": {
                               "id": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                               },
                               "kind": {
                                 "type": "string",
@@ -15023,6 +15045,10 @@
                                 "type": "number"
                               },
                               "note": {
+                                "type": "string"
+                              },
+                              "host_version": {
+                                "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                                 "type": "string"
                               }
                             },
@@ -15180,19 +15206,21 @@
                                   "items": {
                                     "type": "string",
                                     "enum": [
+                                      "host",
                                       "download",
                                       "start",
                                       "restore",
                                       "restart"
                                     ]
                                   },
-                                  "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                                  "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                                 },
                                 "step": {
                                   "anyOf": [
                                     {
                                       "type": "string",
                                       "enum": [
+                                        "host",
                                         "download",
                                         "start",
                                         "restore",
@@ -15203,7 +15231,7 @@
                                       "type": "null"
                                     }
                                   ],
-                                  "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                                  "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                                 },
                                 "started_at": {
                                   "type": "string",
@@ -15227,7 +15255,7 @@
                                   "description": "\"system\" for the automatic updater"
                                 },
                                 "error": {
-                                  "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                                  "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                                   "type": [
                                     "string",
                                     "null"
@@ -15373,7 +15401,8 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                           },
                           "kind": {
                             "type": "string",
@@ -15444,6 +15473,10 @@
                             "type": "number"
                           },
                           "note": {
+                            "type": "string"
+                          },
+                          "host_version": {
+                            "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
                           }
                         },
@@ -15601,19 +15634,21 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "host",
                                   "download",
                                   "start",
                                   "restore",
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
                                 {
                                   "type": "string",
                                   "enum": [
+                                    "host",
                                     "download",
                                     "start",
                                     "restore",
@@ -15624,7 +15659,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -15648,7 +15683,7 @@
                               "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                               "type": [
                                 "string",
                                 "null"
@@ -17446,7 +17481,8 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "\"host\": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)"
                           },
                           "kind": {
                             "type": "string",
@@ -17517,6 +17553,10 @@
                             "type": "number"
                           },
                           "note": {
+                            "type": "string"
+                          },
+                          "host_version": {
+                            "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
                           }
                         },
@@ -17674,19 +17714,21 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "host",
                                   "download",
                                   "start",
                                   "restore",
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
                                 {
                                   "type": "string",
                                   "enum": [
+                                    "host",
                                     "download",
                                     "start",
                                     "restore",
@@ -17697,7 +17739,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -17721,7 +17763,7 @@
                               "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316",
                               "type": [
                                 "string",
                                 "null"

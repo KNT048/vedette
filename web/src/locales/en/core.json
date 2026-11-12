@@ -529,6 +529,7 @@
       "pack-mitigation": "Mitigation guide pack",
       "pack-nuclei": "Scan template pack",
       "pack-parsers": "Log parser pack",
+      "host": "System helper",
       "os": "Operating system"
     },
     "kind": {
@@ -547,6 +548,10 @@
       "valid": "Valid",
       "invalid": "Invalid",
       "unsigned": "Unsigned"
+    },
+    "host": {
+      "how": "Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.",
+      "includes": "Includes system helper {{version}}."
     },
     "latest": "Up to date",
     "apply": "Update",
@@ -776,6 +781,7 @@
       },
       "stepOf": "Step {{n}} of {{total}}:",
       "step": {
+        "host": "update the system helper",
         "download": "download and check the signed images",
         "start": "start the sensor, scan and decoy parts",
         "restart": "restart Vedette and check it is healthy",
@@ -783,6 +789,7 @@
       },
       "stepDone": "(done)",
       "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
+      "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.",
       "reconnecting": "Reconnecting to Vedette…",
       "failedToast": {
         "update": "The update did not finish. The audit log says where it stopped.",
@@ -851,7 +858,7 @@
       "6": {
         "name": "Update checks",
         "what": "Your current Vedette version, inside the request to GitHub. For the operating system the box runs apt through the privileged helper vedette-host, and the request carries what any apt client sends: the release and architecture of this machine and the package names it asks about. To install an update, the same helper pulls the container images of the Vedette release by digest, and the request carries what any container client sends: the image name and digest and the architecture of this machine. vedette-host also builds the scan image on this machine, at install on every box (whether or not active scanning is turned on) and again whenever the scan image is pulled or updated: a build container installs nmap from the Debian package repository, and that request carries what any apt client sends (the release and architecture of the scan image and the package name nmap). No Vedette data, no inventory, no findings.",
-        "to": "GitHub releases (signed software updates; a release file download is redirected to a GitHub-owned file host, objects.githubusercontent.com or release-assets.githubusercontent.com), ghcr.io (the signed container images of a release, pulled by digest) with the host it redirects to for the image layers, pkg-containers.githubusercontent.com, and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead. The scan image build always contacts deb.debian.org from inside the build container, also on Ubuntu, and the local mirror you gave apt on the box does not apply to it.",
+        "to": "GitHub releases (signed software updates and the package of the system helper vedette-host; a release file download is redirected to a GitHub-owned file host, objects.githubusercontent.com or release-assets.githubusercontent.com), ghcr.io (the signed container images of a release, pulled by digest) with the host it redirects to for the image layers, pkg-containers.githubusercontent.com, and the distribution's package mirrors: archive.ubuntu.com and security.ubuntu.com on Ubuntu, deb.debian.org and security.debian.org on Debian. You can point apt at a local mirror inside your network instead. The scan image build always contacts deb.debian.org from inside the build container, also on Ubuntu, and the local mirror you gave apt on the box does not apply to it.",
         "control": "Turn off to update by hand or by bundle only. Operating system updates you start yourself, or that unattended-upgrades runs, still contact the mirrors unless you point apt at a local mirror. An update you install by hand from the registry, not from a bundle, still contacts ghcr.io. No setting skips the scan image build at install or when the image is pulled. A box that cannot reach deb.debian.org installs without active scanning and tries the build again the next time the scan image is pulled; turning off update checks stops the later updates, not the build at install.",
         "switch": "Automatic update check"
       },

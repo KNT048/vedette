@@ -974,7 +974,7 @@
     "disabledToast": "MCP server is off. Tokens are kept but do not work.",
     "readOnly": "Read-only",
     "onHint": "Listening on this machine only (localhost).",
-    "onHintContainer": "Listening on the localhost of the machine that runs the vedette-core container only.",
+    "onHintContainer": "Listening inside the vedette-core container. The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.",
     "offHint": "No port is open. Turn it on to create tokens and connect.",
     "connect": "Connect",
     "connectDesc": "Paste this config into your MCP tool and replace <token> with a token below.",

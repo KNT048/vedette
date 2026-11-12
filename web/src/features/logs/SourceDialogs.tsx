@@ -204,7 +204,7 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
     const url = URL.createObjectURL(new Blob([tls.pem], { type: 'application/x-pem-file' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = 'vedette-syslog-tls.pem'
+    a.download = tls.kind === 'box_ca' ? 'vedette-box-ca.pem' : 'vedette-syslog-tls.pem'
     a.click()
     URL.revokeObjectURL(url)
   }

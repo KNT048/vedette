@@ -345,6 +345,7 @@ func (s *Service) trustAnchors() []*x509.Certificate {
 	}
 	raw, err := s.cfg.TrustAnchor()
 	if err != nil {
+		s.cfg.Log.Warn("logs: the box certificate authority cannot be read; the Sources page hides the certificate card", "err", err)
 		return nil
 	}
 	var out []*x509.Certificate

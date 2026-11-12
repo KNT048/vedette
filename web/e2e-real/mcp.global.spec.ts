@@ -137,6 +137,8 @@ test('a real MCP client with the token: initialize, tools/list shows only its sc
   const seen = JSON.stringify(call.body.result.structuredContent)
   const inv = (await api<{ items: { ip: string | null; mac: string | null; is_box: boolean }[] }>(admin, 'GET', '/inventory/devices')).body.items
   expect(inv.length, 'the box has devices to read').toBeGreaterThan(0)
+  const got = call.body.result.structuredContent as { items: unknown[] }
+  expect(got.items.length, 'list_assets is not empty').toBeGreaterThan(0)
   for (const d of inv) if (d.mac) expect(seen.toLowerCase(), 'a MAC never reaches the agent (INV-7)').not.toContain(d.mac.toLowerCase())
 
   const out = await rpc('tools/call', { name: 'list_findings', arguments: { status: 'all' } }, token, 4)

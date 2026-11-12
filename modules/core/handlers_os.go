@@ -145,8 +145,6 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			go h.resume()
 		}
 		h.resumeUpdate()
-		h.wg.Add(1)
-		go h.resumeRestore()
 	}
 	return h, nil
 }

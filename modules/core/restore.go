@@ -20,9 +20,12 @@ import (
 // writes a snapshot of its data WITH the key, which the host keeps as the pre_restore backup and puts back by
 // itself when the restored data does not start (status reverted). A successful restore stops core and swaps its
 // database: whatever core wrote about the run is gone with the old file. So the host's run is the record: core
-// keeps only a copy in core_setting data.restore, and at start-up (and on a read before that) it asks the host
-// for the latest backup.restore and settles it into whichever database it now runs on: one audit row
-// data.restore_done per run, the copy, and the removal of the snapshot.
+// keeps only a copy in core_setting data.restore, and the first read of the run in a process (the Data page
+// polls it, and reconnects to it after the restart) asks the host for the latest backup.restore and settles it
+// into whichever database core now runs on: one audit row data.restore_done per run, the copy, and the removal
+// of the snapshot. ponytail: no start-up pass (it would spend a host request on every start); a box restored
+// and never opened again keeps its end unaudited and its snapshot until the start-up sweep (1 hour), upgrade:
+// a start-up pass once the host's rate limit has room for it.
 const (
 	keyRestore     = "data.restore"
 	restoreTimeout = 35 * time.Minute // backup.restore's own limit is 30 minutes
@@ -266,46 +269,20 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 }
 
 // followRestore waits for a restore run to end and settles it. Core is stopped by a restore that gets that far:
-// the follower then dies with the process and resumeRestore of the next one does the rest.
+// the follower then dies with the process and the first read in the next one does the rest.
 func (h *OSHandlers) followRestore(run api.Run) {
 	defer h.wg.Done()
+	id := run.RunID
 	run, err := waitRun(h.ctx, h.log, h.host, run, restoreTimeout)
-	if err != nil {
+	if err != nil && !run.Status.Terminal() { // waitRun also errs for a run that ended badly: that one is settled
 		if !errors.Is(err, context.Canceled) {
-			h.log.Warn("core: lost track of the restore run; it is settled on the next read", "run", run.RunID, "error", err)
+			h.log.Warn("core: lost track of the restore run; it is settled on the next read", "run", id, "error", err)
 		}
 		return
 	}
 	if err := h.settleRestore(h.ctx, run); err != nil {
 		h.log.Error("core: could not settle the restore run", "run", run.RunID, "error", err)
 	}
-}
-
-// resumeRestore is the start-up pass: settle the latest restore into this database, or follow it when it is
-// still going. One try: a host that does not answer yet leaves it to the first read.
-func (h *OSHandlers) resumeRestore() {
-	defer h.wg.Done()
-	ctx, cancel := context.WithTimeout(h.ctx, loadTimeout)
-	runs, err := h.host.ListRuns(ctx, listRunsWindow)
-	cancel()
-	if err != nil {
-		return
-	}
-	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore })
-	if i < 0 {
-		h.restoreSynced.Store(true)
-		return
-	}
-	if runs[i].Status.Terminal() {
-		if err := h.settleRestore(h.ctx, runs[i]); err != nil {
-			h.log.Error("core: could not settle the restore run", "run", runs[i].RunID, "error", err)
-			return
-		}
-		h.restoreSynced.Store(true)
-		return
-	}
-	h.wg.Add(1)
-	h.followRestore(runs[i]) // its Done balances the Add just above; ours is deferred
 }
 
 // settleRestore records the end of a restore run once per database: the copy in core_setting and the audit row

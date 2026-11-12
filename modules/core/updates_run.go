@@ -712,11 +712,19 @@ func refusalOf(err error) (api.Run, error) {
 	if !errors.As(err, &he) {
 		return api.Run{}, err
 	}
-	switch he.Code {
-	case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
+	if tryLater(he.Code) {
 		return api.Run{}, err
 	}
 	return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: he.Code, Message: he.Message}}, nil
+}
+
+// tryLater: the host did not take the call and asks for it again later.
+func tryLater(code string) bool {
+	switch code {
+	case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
+		return true
+	}
+	return false
 }
 
 // codeNotOffered: the release the run installs is no longer offered (a newer check replaced it) after a restart.
@@ -759,7 +767,10 @@ func (h *OSHandlers) findRun(ctx context.Context, command, requestID string) (ap
 		return api.Run{}, false, err
 	}
 	for _, r := range runs {
-		if r.RequestID == requestID && r.Command == command {
+		// the host also records a refusal under the call's key (host-api 4), but a "try later" did not take the call
+		// and freed the key: that one is not the call's outcome, the call is sent again (slice 6 lab: a busy
+		// host.self_update right after the install ended the whole run as failed)
+		if r.RequestID == requestID && r.Command == command && (r.Status != api.StatusRefused || r.Error == nil || !tryLater(r.Error.Code)) {
 			return r, true, nil
 		}
 	}

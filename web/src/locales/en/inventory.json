@@ -278,6 +278,7 @@
     "noRanges": "No ranges yet. Add at least one range to let Vedette scan.",
     "duplicate": "{{value}} is already in the list.",
     "problem": {
+      "empty": "Type a range first. Write it like 192.168.10.0/24.",
       "noPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25.",
       "format": "\"{{value}}\" is not a valid range. Write it like 192.168.10.0/24.",
       "hostBits": "{{value}} is not written correctly: the address part must be the first address of the range. Use {{net}}.",

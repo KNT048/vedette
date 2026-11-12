@@ -39,9 +39,20 @@ describe('container-only install (D-381)', () => {
     const off = await screen.findByRole('switch', { name: 'Turn on module Credentialed scan' })
     expect(off).toBeDisabled()
     expect(within(off.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
-    const on = screen.getByRole('switch', { name: 'Turn on module Internal traps' })
+    const on = screen.getByRole('switch', { name: 'Turn off module Internal traps' })
     expect(on).toBeEnabled()
     expect(within(on.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
+  })
+
+  it('Modules: the active sensor does not claim nmap here; the response gallery cannot clone a trap template', async () => {
+    renderApp('/settings/modules')
+    expect(await screen.findByText('Light scans of your network inside the allowed time window.')).toBeInTheDocument()
+    expect(screen.queryByText(/nmap/)).toBeNull()
+    renderApp('/response')
+    const clone = await screen.findByRole('button', { name: /^Clone Trap touched: block the source on FortiGate/ })
+    expect(clone).toBeDisabled()
+    expect(within(clone.closest('li')!).getByText(/Not available on this install/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Clone Known-bad connection: add the destination to the block list/ })).toBeEnabled()
   })
 
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {
@@ -60,7 +71,7 @@ describe('container-only install (D-381)', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     const small = (await screen.findByRole('radio', { name: /Small business/ })).closest('div')!
     expect(within(small).getByText(/Reports/)).toBeInTheDocument()
-    expect(within(small).queryByText(/Internal traps/)).toBeNull()
+    expect(within(small).queryByText(/internal traps/i)).toBeNull()
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
   })
 })

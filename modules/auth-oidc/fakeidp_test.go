@@ -172,14 +172,21 @@ type world struct {
 
 const origin = "https://vedette.test"
 
-func newWorld(t *testing.T) *world {
+func newWorld(t *testing.T) *world { return newWorldBase(t, nil) }
+
+// newWorldBase is newWorld with this transport under the module's client; nil = the httptest client's, which trusts the fake IdP's
+// certificate.
+func newWorldBase(t *testing.T, base http.RoundTripper) *world {
 	t.Helper()
 	env := authtest.New(t)
 	if err := store.Migrate(t.Context(), env.DB, "auth-oidc", authoidc.Migrations); err != nil {
 		t.Fatal(err)
 	}
 	idp := newFakeIDP(t)
-	svc, err := authoidc.New(authoidc.Deps{DB: env.DB, Secrets: env.Secrets, Auth: env.Svc, Audit: env.Audit, Log: discard(), Clock: env.Clock.Now, IDPBase: idp.srv.Client().Transport})
+	if base == nil {
+		base = idp.srv.Client().Transport
+	}
+	svc, err := authoidc.New(authoidc.Deps{DB: env.DB, Secrets: env.Secrets, Auth: env.Svc, Audit: env.Audit, Log: discard(), Clock: env.Clock.Now, IDPBase: base})
 	if err != nil {
 		t.Fatal(err)
 	}

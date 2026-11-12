@@ -58,6 +58,7 @@ export const TotpStart = z.object({ secret: z.string().describe('20-byte base32 
 export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('Created by an SSO sign-in (D-195): signs in only through the identity provider; its role follows the IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset') })
 export const UserCreated = z.object({ user: AdminUser, temp_password: z.string().describe('Returned once only') })
 const OidcRoleRow = z.object({ group: z.string(), role: Role })
+const OidcCaCert = z.object({ subject: z.string(), expires_at: ts })
 export const OidcConfig = z.object({
   issuer: z.string(), client_id: z.string(), secret_last4: z.string().nullable(),
   scopes: z.string().describe('Space-separated scopes asked for at sign-in; always contains openid (D-194). Default "openid email profile"; add "groups" for IdPs that need it (Okta, Authentik)'),
@@ -66,10 +67,13 @@ export const OidcConfig = z.object({
   role_map: z.array(OidcRoleRow).describe('Group to role; a person in several mapped groups gets the highest of their roles'),
   redirect_uri: z.string().describe('The address to register at the identity provider: this box\'s address as the browser reached it, plus /sso/callback'),
   sso_users: z.number().int().describe('Accounts that sign in only through SSO; they cannot sign in while the module is off'),
+  ca_pem: z.string().describe('PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to the system roots (D-378); empty = system roots only'),
+  ca_certs: z.array(OidcCaCert).describe('The saved CA certificates, one row each'),
 })
 export const OidcSave = z.object({
   issuer: z.string(), client_id: z.string(), client_secret: z.string().describe('Empty keeps the stored secret'),
   scopes: z.string(), groups_claim: z.string(), default_role: Role.nullable(), role_map: z.array(OidcRoleRow),
+  ca_pem: z.string().optional().describe('D-378: 1 to 5 PEM CA certificates, at most 64 KB (400 invalid_ca: not PEM, another block such as a private key, not a CA, expired). Absent keeps the saved ones; empty removes them'),
 })
 export const OidcStart = z.object({ authorize_url: z.string().describe('The identity provider\'s authorization endpoint with client_id, redirect_uri, scope, state, nonce, code_challenge (S256)'), binding: z.string().describe('Random value the page keeps in session storage and sends back with the callback, so the sign-in can only finish in the tab that started it') })
 export const OidcCallback = z.object({ code: z.string(), state: z.string(), binding: z.string() })

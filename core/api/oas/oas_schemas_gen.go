@@ -14751,6 +14751,11 @@ func (s *CoreGetCoreNetworkSpanStatusOKVerdict) UnmarshalText(data []byte) error
 }
 
 type CoreGetCoreOidcOK struct {
+	// The saved CA certificates, one row each.
+	CaCerts []CoreGetCoreOidcOKCaCertsItem `json:"ca_certs"`
+	// PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to
+	// the system roots (D-378); empty = system roots only.
+	CaPem    string `json:"ca_pem"`
 	ClientID string `json:"client_id"`
 	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
 	DefaultRole NilCoreGetCoreOidcOKDefaultRole `json:"default_role"`
@@ -14768,6 +14773,16 @@ type CoreGetCoreOidcOK struct {
 	SecretLast4 NilString `json:"secret_last4"`
 	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
 	SSOUsers int `json:"sso_users"`
+}
+
+// GetCaCerts returns the value of CaCerts.
+func (s *CoreGetCoreOidcOK) GetCaCerts() []CoreGetCoreOidcOKCaCertsItem {
+	return s.CaCerts
+}
+
+// GetCaPem returns the value of CaPem.
+func (s *CoreGetCoreOidcOK) GetCaPem() string {
+	return s.CaPem
 }
 
 // GetClientID returns the value of ClientID.
@@ -14815,6 +14830,16 @@ func (s *CoreGetCoreOidcOK) GetSSOUsers() int {
 	return s.SSOUsers
 }
 
+// SetCaCerts sets the value of CaCerts.
+func (s *CoreGetCoreOidcOK) SetCaCerts(val []CoreGetCoreOidcOKCaCertsItem) {
+	s.CaCerts = val
+}
+
+// SetCaPem sets the value of CaPem.
+func (s *CoreGetCoreOidcOK) SetCaPem(val string) {
+	s.CaPem = val
+}
+
 // SetClientID sets the value of ClientID.
 func (s *CoreGetCoreOidcOK) SetClientID(val string) {
 	s.ClientID = val
@@ -14858,6 +14883,31 @@ func (s *CoreGetCoreOidcOK) SetSecretLast4(val NilString) {
 // SetSSOUsers sets the value of SSOUsers.
 func (s *CoreGetCoreOidcOK) SetSSOUsers(val int) {
 	s.SSOUsers = val
+}
+
+type CoreGetCoreOidcOKCaCertsItem struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Subject   string    `json:"subject"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CoreGetCoreOidcOKCaCertsItem) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetSubject returns the value of Subject.
+func (s *CoreGetCoreOidcOKCaCertsItem) GetSubject() string {
+	return s.Subject
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CoreGetCoreOidcOKCaCertsItem) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *CoreGetCoreOidcOKCaCertsItem) SetSubject(val string) {
+	s.Subject = val
 }
 
 type CoreGetCoreOidcOKDefaultRole string
@@ -36871,6 +36921,11 @@ func (s *CorePutCoreNetworkSpanReqFiltersItemType) UnmarshalText(data []byte) er
 }
 
 type CorePutCoreOidcOK struct {
+	// The saved CA certificates, one row each.
+	CaCerts []CorePutCoreOidcOKCaCertsItem `json:"ca_certs"`
+	// PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to
+	// the system roots (D-378); empty = system roots only.
+	CaPem    string `json:"ca_pem"`
 	ClientID string `json:"client_id"`
 	// Role for a person in none of the mapped groups; null = no access, the default (D-195).
 	DefaultRole NilCorePutCoreOidcOKDefaultRole `json:"default_role"`
@@ -36888,6 +36943,16 @@ type CorePutCoreOidcOK struct {
 	SecretLast4 NilString `json:"secret_last4"`
 	// Accounts that sign in only through SSO; they cannot sign in while the module is off.
 	SSOUsers int `json:"sso_users"`
+}
+
+// GetCaCerts returns the value of CaCerts.
+func (s *CorePutCoreOidcOK) GetCaCerts() []CorePutCoreOidcOKCaCertsItem {
+	return s.CaCerts
+}
+
+// GetCaPem returns the value of CaPem.
+func (s *CorePutCoreOidcOK) GetCaPem() string {
+	return s.CaPem
 }
 
 // GetClientID returns the value of ClientID.
@@ -36935,6 +37000,16 @@ func (s *CorePutCoreOidcOK) GetSSOUsers() int {
 	return s.SSOUsers
 }
 
+// SetCaCerts sets the value of CaCerts.
+func (s *CorePutCoreOidcOK) SetCaCerts(val []CorePutCoreOidcOKCaCertsItem) {
+	s.CaCerts = val
+}
+
+// SetCaPem sets the value of CaPem.
+func (s *CorePutCoreOidcOK) SetCaPem(val string) {
+	s.CaPem = val
+}
+
 // SetClientID sets the value of ClientID.
 func (s *CorePutCoreOidcOK) SetClientID(val string) {
 	s.ClientID = val
@@ -36978,6 +37053,31 @@ func (s *CorePutCoreOidcOK) SetSecretLast4(val NilString) {
 // SetSSOUsers sets the value of SSOUsers.
 func (s *CorePutCoreOidcOK) SetSSOUsers(val int) {
 	s.SSOUsers = val
+}
+
+type CorePutCoreOidcOKCaCertsItem struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Subject   string    `json:"subject"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CorePutCoreOidcOKCaCertsItem) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetSubject returns the value of Subject.
+func (s *CorePutCoreOidcOKCaCertsItem) GetSubject() string {
+	return s.Subject
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CorePutCoreOidcOKCaCertsItem) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *CorePutCoreOidcOKCaCertsItem) SetSubject(val string) {
+	s.Subject = val
 }
 
 type CorePutCoreOidcOKDefaultRole string
@@ -37102,7 +37202,10 @@ func (s *CorePutCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreOidcReq struct {
-	ClientID string `json:"client_id"`
+	// D-378: 1 to 5 PEM CA certificates, at most 64 KB (400 invalid_ca: not PEM, another block such as a
+	// private key, not a CA, expired). Absent keeps the saved ones; empty removes them.
+	CaPem    OptString `json:"ca_pem"`
+	ClientID string    `json:"client_id"`
 	// Empty keeps the stored secret.
 	ClientSecret string                           `json:"client_secret"`
 	DefaultRole  NilCorePutCoreOidcReqDefaultRole `json:"default_role"`
@@ -37110,6 +37213,11 @@ type CorePutCoreOidcReq struct {
 	Issuer       string                           `json:"issuer"`
 	RoleMap      []CorePutCoreOidcReqRoleMapItem  `json:"role_map"`
 	Scopes       string                           `json:"scopes"`
+}
+
+// GetCaPem returns the value of CaPem.
+func (s *CorePutCoreOidcReq) GetCaPem() OptString {
+	return s.CaPem
 }
 
 // GetClientID returns the value of ClientID.
@@ -37145,6 +37253,11 @@ func (s *CorePutCoreOidcReq) GetRoleMap() []CorePutCoreOidcReqRoleMapItem {
 // GetScopes returns the value of Scopes.
 func (s *CorePutCoreOidcReq) GetScopes() string {
 	return s.Scopes
+}
+
+// SetCaPem sets the value of CaPem.
+func (s *CorePutCoreOidcReq) SetCaPem(val OptString) {
+	s.CaPem = val
 }
 
 // SetClientID sets the value of ClientID.

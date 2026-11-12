@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/api/routes"
@@ -43,6 +44,7 @@ type Config struct {
 	DefaultRole                   routes.Role
 	RoleMap                       []RoleRow
 	RedirectURI                   string
+	CAPEM                         string // D-378: normalised PEM of the identity provider's CA; "" = system roots only
 	secretID                      string
 }
 
@@ -52,6 +54,7 @@ type Save struct {
 	Scopes, GroupsClaim            string
 	DefaultRole                    routes.Role
 	RoleMap                        []RoleRow
+	CAPEM                          *string // D-378: nil keeps the saved CA, "" removes it
 }
 
 var (
@@ -67,8 +70,8 @@ func (s *Service) load(ctx context.Context) (Config, error) {
 	var c Config
 	var def sql.NullString
 	var roleMap string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT issuer, client_id, secret_id, secret_last4, scopes, groups_claim, default_role, role_map, redirect_uri FROM oidc_config WHERE id = 1`).
-		Scan(&c.Issuer, &c.ClientID, &c.secretID, &c.SecretLast4, &c.Scopes, &c.GroupsClaim, &def, &roleMap, &c.RedirectURI)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT issuer, client_id, secret_id, secret_last4, scopes, groups_claim, default_role, role_map, redirect_uri, ca_pem FROM oidc_config WHERE id = 1`).
+		Scan(&c.Issuer, &c.ClientID, &c.secretID, &c.SecretLast4, &c.Scopes, &c.GroupsClaim, &def, &roleMap, &c.RedirectURI, &c.CAPEM)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Config{}, errNotConfigured
 	}
@@ -120,7 +123,7 @@ func validIssuer(raw string) (string, bool) {
 // normalize checks a Save (INV-2) and returns it trimmed, with the scopes deduplicated and empty mapping rows dropped. An empty secret
 // keeps the stored one only for the same issuer and client: otherwise a changed issuer (an attacker's host, from a stolen admin
 // session) would receive the real secret at its token endpoint (INV-3).
-func normalize(in Save, cur Config) (Save, *apierr.Error) {
+func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
 	var ok bool
 	if in.Issuer, ok = validIssuer(in.Issuer); !ok {
 		return Save{}, apierr.New(400, "invalid_issuer", "The issuer must be an https address, for example https://sso.example.com/realms/main.")
@@ -170,6 +173,15 @@ func normalize(in Save, cur Config) (Save, *apierr.Error) {
 		return Save{}, apierr.New(400, "too_many", "At most 10 role mapping rows.")
 	}
 	in.RoleMap = rows
+	if in.CAPEM == nil {
+		in.CAPEM = &cur.CAPEM
+	} else {
+		ca, err := parseCA(*in.CAPEM, now)
+		if err != nil {
+			return Save{}, err
+		}
+		in.CAPEM = &ca
+	}
 	return in, nil
 }
 
@@ -184,7 +196,7 @@ func (s *Service) Store(ctx context.Context, actor, origin string, in Save) (Con
 	if err != nil && !errors.Is(err, errNotConfigured) {
 		return Config{}, err
 	}
-	in, verr := normalize(in, cur)
+	in, verr := normalize(in, cur, s.now())
 	if verr != nil {
 		return Config{}, verr
 	}
@@ -208,12 +220,13 @@ func (s *Service) Store(ctx context.Context, actor, origin string, in Save) (Con
 				return err
 			}
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO oidc_config (id, issuer, client_id, secret_id, secret_last4, scopes, groups_claim, default_role, role_map, redirect_uri, updated_at)
-			VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		_, err := tx.ExecContext(ctx, `INSERT INTO oidc_config (id, issuer, client_id, secret_id, secret_last4, scopes, groups_claim, default_role, role_map, redirect_uri, ca_pem, updated_at)
+			VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (id) DO UPDATE SET issuer = excluded.issuer, client_id = excluded.client_id, secret_id = excluded.secret_id,
 				secret_last4 = excluded.secret_last4, scopes = excluded.scopes, groups_claim = excluded.groups_claim,
-				default_role = excluded.default_role, role_map = excluded.role_map, redirect_uri = excluded.redirect_uri, updated_at = excluded.updated_at`,
-			in.Issuer, in.ClientID, secretID, last4, in.Scopes, in.GroupsClaim, def, string(roleMap), callbackURL(origin), store.FormatTS(s.now()))
+				default_role = excluded.default_role, role_map = excluded.role_map, redirect_uri = excluded.redirect_uri, ca_pem = excluded.ca_pem,
+				updated_at = excluded.updated_at`,
+			in.Issuer, in.ClientID, secretID, last4, in.Scopes, in.GroupsClaim, def, string(roleMap), callbackURL(origin), *in.CAPEM, store.FormatTS(s.now()))
 		if err != nil {
 			return fmt.Errorf("authoidc: save config: %w", err)
 		}

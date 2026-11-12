@@ -38,7 +38,8 @@ type Service struct {
 	audit   *audit.Log
 	log     *slog.Logger
 	now     func() time.Time
-	client  *http.Client
+	client  *http.Client     // every call to the identity provider; clientFor adds the saved CA (D-378)
+	base    http.RoundTripper // the transport client wraps
 	limit   *limiter
 
 	mu    sync.Mutex
@@ -53,7 +54,10 @@ func New(d Deps) (*Service, error) {
 	if d.Clock == nil {
 		d.Clock = time.Now
 	}
-	return &Service{db: d.DB, secrets: d.Secrets, auth: d.Auth, audit: d.Audit, log: d.Log, now: d.Clock, client: newClient(d.IDPBase), limit: newLimiter(d.Clock)}, nil
+	if d.IDPBase == nil {
+		d.IDPBase = http.DefaultTransport.(*http.Transport).Clone()
+	}
+	return &Service{db: d.DB, secrets: d.Secrets, auth: d.Auth, audit: d.Audit, log: d.Log, now: d.Clock, client: newClient(d.IDPBase), base: d.IDPBase, limit: newLimiter(d.Clock)}, nil
 }
 
 // Endpoints is the result of Test (POST /core/oidc/test).
@@ -69,7 +73,7 @@ func (s *Service) Test(ctx context.Context, actor string) (Endpoints, error) {
 	if err != nil {
 		return Endpoints{}, err
 	}
-	d, derr := s.discover(ctx, c.Issuer, true)
+	d, derr := s.discover(ctx, c, true)
 	if err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		detail := "ok"
 		if derr != nil {
@@ -93,7 +97,7 @@ func publicReason(err error) string {
 	var x509Err *tls.CertificateVerificationError
 	switch {
 	case errors.As(err, &x509Err) || strings.Contains(msg, "x509:"):
-		return "the box does not trust the identity provider's certificate"
+		return "the box does not trust the identity provider's certificate (an internal CA? paste it under Identity provider CA certificate)"
 	case errors.Is(err, context.DeadlineExceeded) || strings.Contains(msg, "Client.Timeout"):
 		return "no answer within 10 seconds"
 	case errors.Is(err, errTooLarge):

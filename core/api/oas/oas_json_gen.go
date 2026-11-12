@@ -30787,6 +30787,18 @@ func (s *CoreGetCoreOidcOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetCoreOidcOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("ca_certs")
+		e.ArrStart()
+		for _, elem := range s.CaCerts {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ca_pem")
+		e.Str(s.CaPem)
+	}
+	{
 		e.FieldStart("client_id")
 		e.Str(s.ClientID)
 	}
@@ -30828,16 +30840,18 @@ func (s *CoreGetCoreOidcOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreOidcOK = [9]string{
-	0: "client_id",
-	1: "default_role",
-	2: "groups_claim",
-	3: "issuer",
-	4: "redirect_uri",
-	5: "role_map",
-	6: "scopes",
-	7: "secret_last4",
-	8: "sso_users",
+var jsonFieldsNameOfCoreGetCoreOidcOK = [11]string{
+	0:  "ca_certs",
+	1:  "ca_pem",
+	2:  "client_id",
+	3:  "default_role",
+	4:  "groups_claim",
+	5:  "issuer",
+	6:  "redirect_uri",
+	7:  "role_map",
+	8:  "scopes",
+	9:  "secret_last4",
+	10: "sso_users",
 }
 
 // Decode decodes CoreGetCoreOidcOK from json.
@@ -30849,8 +30863,38 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "client_id":
+		case "ca_certs":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.CaCerts = make([]CoreGetCoreOidcOKCaCertsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CoreGetCoreOidcOKCaCertsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.CaCerts = append(s.CaCerts, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_certs\"")
+			}
+		case "ca_pem":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.CaPem = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_pem\"")
+			}
+		case "client_id":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ClientID = string(v)
@@ -30862,7 +30906,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_id\"")
 			}
 		case "default_role":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultRole.Decode(d); err != nil {
 					return err
@@ -30872,7 +30916,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_role\"")
 			}
 		case "groups_claim":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.GroupsClaim = string(v)
@@ -30884,7 +30928,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"groups_claim\"")
 			}
 		case "issuer":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Issuer = string(v)
@@ -30896,7 +30940,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"issuer\"")
 			}
 		case "redirect_uri":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.RedirectURI = string(v)
@@ -30908,7 +30952,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"redirect_uri\"")
 			}
 		case "role_map":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.RoleMap = make([]CoreGetCoreOidcOKRoleMapItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -30926,7 +30970,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"role_map\"")
 			}
 		case "scopes":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Scopes = string(v)
@@ -30938,7 +30982,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scopes\"")
 			}
 		case "secret_last4":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.SecretLast4.Decode(d); err != nil {
 					return err
@@ -30948,7 +30992,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
 		case "sso_users":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.SSOUsers = int(v)
@@ -30970,7 +31014,7 @@ func (s *CoreGetCoreOidcOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -31012,6 +31056,119 @@ func (s *CoreGetCoreOidcOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreOidcOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreOidcOKCaCertsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreOidcOKCaCertsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("subject")
+		e.Str(s.Subject)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreOidcOKCaCertsItem = [2]string{
+	0: "expires_at",
+	1: "subject",
+}
+
+// Decode decodes CoreGetCoreOidcOKCaCertsItem from json.
+func (s *CoreGetCoreOidcOKCaCertsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreOidcOKCaCertsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "subject":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Subject = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"subject\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreOidcOKCaCertsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreOidcOKCaCertsItem) {
+					name = jsonFieldsNameOfCoreGetCoreOidcOKCaCertsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreOidcOKCaCertsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreOidcOKCaCertsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -74271,6 +74428,18 @@ func (s *CorePutCoreOidcOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreOidcOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("ca_certs")
+		e.ArrStart()
+		for _, elem := range s.CaCerts {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ca_pem")
+		e.Str(s.CaPem)
+	}
+	{
 		e.FieldStart("client_id")
 		e.Str(s.ClientID)
 	}
@@ -74312,16 +74481,18 @@ func (s *CorePutCoreOidcOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreOidcOK = [9]string{
-	0: "client_id",
-	1: "default_role",
-	2: "groups_claim",
-	3: "issuer",
-	4: "redirect_uri",
-	5: "role_map",
-	6: "scopes",
-	7: "secret_last4",
-	8: "sso_users",
+var jsonFieldsNameOfCorePutCoreOidcOK = [11]string{
+	0:  "ca_certs",
+	1:  "ca_pem",
+	2:  "client_id",
+	3:  "default_role",
+	4:  "groups_claim",
+	5:  "issuer",
+	6:  "redirect_uri",
+	7:  "role_map",
+	8:  "scopes",
+	9:  "secret_last4",
+	10: "sso_users",
 }
 
 // Decode decodes CorePutCoreOidcOK from json.
@@ -74333,8 +74504,38 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "client_id":
+		case "ca_certs":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.CaCerts = make([]CorePutCoreOidcOKCaCertsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePutCoreOidcOKCaCertsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.CaCerts = append(s.CaCerts, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_certs\"")
+			}
+		case "ca_pem":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.CaPem = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_pem\"")
+			}
+		case "client_id":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ClientID = string(v)
@@ -74346,7 +74547,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_id\"")
 			}
 		case "default_role":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultRole.Decode(d); err != nil {
 					return err
@@ -74356,7 +74557,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_role\"")
 			}
 		case "groups_claim":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.GroupsClaim = string(v)
@@ -74368,7 +74569,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"groups_claim\"")
 			}
 		case "issuer":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Issuer = string(v)
@@ -74380,7 +74581,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"issuer\"")
 			}
 		case "redirect_uri":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.RedirectURI = string(v)
@@ -74392,7 +74593,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"redirect_uri\"")
 			}
 		case "role_map":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.RoleMap = make([]CorePutCoreOidcOKRoleMapItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -74410,7 +74611,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"role_map\"")
 			}
 		case "scopes":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Scopes = string(v)
@@ -74422,7 +74623,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scopes\"")
 			}
 		case "secret_last4":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.SecretLast4.Decode(d); err != nil {
 					return err
@@ -74432,7 +74633,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
 		case "sso_users":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.SSOUsers = int(v)
@@ -74454,7 +74655,7 @@ func (s *CorePutCoreOidcOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -74496,6 +74697,119 @@ func (s *CorePutCoreOidcOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreOidcOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreOidcOKCaCertsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreOidcOKCaCertsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("subject")
+		e.Str(s.Subject)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreOidcOKCaCertsItem = [2]string{
+	0: "expires_at",
+	1: "subject",
+}
+
+// Decode decodes CorePutCoreOidcOKCaCertsItem from json.
+func (s *CorePutCoreOidcOKCaCertsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreOidcOKCaCertsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "subject":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Subject = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"subject\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreOidcOKCaCertsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreOidcOKCaCertsItem) {
+					name = jsonFieldsNameOfCorePutCoreOidcOKCaCertsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreOidcOKCaCertsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreOidcOKCaCertsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -74705,6 +75019,12 @@ func (s *CorePutCoreOidcReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreOidcReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.CaPem.Set {
+			e.FieldStart("ca_pem")
+			s.CaPem.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("client_id")
 		e.Str(s.ClientID)
 	}
@@ -74738,14 +75058,15 @@ func (s *CorePutCoreOidcReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreOidcReq = [7]string{
-	0: "client_id",
-	1: "client_secret",
-	2: "default_role",
-	3: "groups_claim",
-	4: "issuer",
-	5: "role_map",
-	6: "scopes",
+var jsonFieldsNameOfCorePutCoreOidcReq = [8]string{
+	0: "ca_pem",
+	1: "client_id",
+	2: "client_secret",
+	3: "default_role",
+	4: "groups_claim",
+	5: "issuer",
+	6: "role_map",
+	7: "scopes",
 }
 
 // Decode decodes CorePutCoreOidcReq from json.
@@ -74757,8 +75078,18 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "ca_pem":
+			if err := func() error {
+				s.CaPem.Reset()
+				if err := s.CaPem.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_pem\"")
+			}
 		case "client_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.ClientID = string(v)
@@ -74770,7 +75101,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_id\"")
 			}
 		case "client_secret":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ClientSecret = string(v)
@@ -74782,7 +75113,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"client_secret\"")
 			}
 		case "default_role":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DefaultRole.Decode(d); err != nil {
 					return err
@@ -74792,7 +75123,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_role\"")
 			}
 		case "groups_claim":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.GroupsClaim = string(v)
@@ -74804,7 +75135,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"groups_claim\"")
 			}
 		case "issuer":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Issuer = string(v)
@@ -74816,7 +75147,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"issuer\"")
 			}
 		case "role_map":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.RoleMap = make([]CorePutCoreOidcReqRoleMapItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -74834,7 +75165,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"role_map\"")
 			}
 		case "scopes":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Scopes = string(v)
@@ -74855,7 +75186,7 @@ func (s *CorePutCoreOidcReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

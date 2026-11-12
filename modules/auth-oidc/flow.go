@@ -99,7 +99,7 @@ func (s *Service) Start(ctx context.Context, origin string, ip netip.Addr) (Star
 		at := strings.TrimSuffix(c.RedirectURI, "/sso/callback")
 		return Started{}, apierr.New(409, "sso_wrong_address", "SSO sign-in works at "+at+". Open Vedette there to sign in with SSO.").With("address", at)
 	}
-	d, err := s.discover(ctx, c.Issuer, false)
+	d, err := s.discover(ctx, c, false)
 	if err != nil {
 		s.log.WarnContext(ctx, "SSO discovery failed", "issuer", c.Issuer, "err", reason(err))
 		return Started{}, idpUnreachable(c.Issuer)
@@ -212,7 +212,7 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 	if in.Code == "" || len(in.Code) > maxCodeLen {
 		return refuse("token", ssoFailed())
 	}
-	d, err := s.discover(ctx, c.Issuer, false)
+	d, err := s.discover(ctx, c, false)
 	if err != nil {
 		s.log.WarnContext(ctx, "SSO discovery failed", "issuer", c.Issuer, "err", reason(err))
 		return refuse("token", idpUnreachable(c.Issuer))
@@ -224,7 +224,7 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 	ep := d.provider.Endpoint()
 	ep.AuthStyle = d.authStyle // D-194 (1): the method the provider names, never a retry with the secret in another place
 	oc := oauth2.Config{ClientID: c.ClientID, ClientSecret: string(secret), Endpoint: ep, RedirectURL: f.redirectURI}
-	tok, err := oc.Exchange(oidc.ClientContext(ctx, s.client), in.Code, oauth2.VerifierOption(f.verifier))
+	tok, err := oc.Exchange(oidc.ClientContext(ctx, d.client), in.Code, oauth2.VerifierOption(f.verifier))
 	if err != nil {
 		var re *oauth2.RetrieveError
 		if errors.As(err, &re) { // the identity provider answered and refused the code

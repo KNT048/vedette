@@ -82,6 +82,8 @@ func (l *limited) Close() error { return l.rc.Close() }
 // idp is the discovered identity provider of one issuer.
 type idp struct {
 	issuer    string
+	caPEM     string       // the saved CA this was discovered with (D-378)
+	client    *http.Client // clientFor(caPEM): discovery, keys (the provider keeps it) and the token exchange
 	provider  *oidc.Provider
 	jwksURL   string
 	algs      []string // allowedAlgs that the provider says it signs ID tokens with
@@ -90,17 +92,19 @@ type idp struct {
 }
 
 // discover reads <issuer>/.well-known/openid-configuration through the capped client, or returns the cached result for that issuer
-// (1 hour; Store and Test drop it). go-oidc checks that the document's issuer is the configured one. Every endpoint must be https.
-func (s *Service) discover(ctx context.Context, issuer string, fresh bool) (*idp, error) {
+// (1 hour; Store and Test drop it), through clientFor(the saved CA). go-oidc checks that the document's issuer is the configured one. Every endpoint must be https.
+func (s *Service) discover(ctx context.Context, c Config, fresh bool) (*idp, error) {
+	issuer := c.Issuer
 	s.mu.Lock()
 	cached := s.cache
 	s.mu.Unlock()
-	if !fresh && cached != nil && cached.issuer == issuer && s.now().Sub(cached.fetchedAt) < discoveryTTL {
+	if !fresh && cached != nil && cached.issuer == issuer && cached.caPEM == c.CAPEM && s.now().Sub(cached.fetchedAt) < discoveryTTL {
 		return cached, nil
 	}
 	// The provider keeps this context for its key set, so it must not end with this request: WithoutCancel. Only the client in it
 	// is used; its timeout bounds every call.
-	pctx := oidc.ClientContext(context.WithoutCancel(ctx), s.client)
+	client := s.clientFor(c.CAPEM)
+	pctx := oidc.ClientContext(context.WithoutCancel(ctx), client)
 	done := make(chan struct{})
 	var p *oidc.Provider
 	var err error
@@ -148,7 +152,7 @@ func (s *Service) discover(ctx context.Context, issuer string, fresh bool) (*idp
 		}
 		style = oauth2.AuthStyleInParams
 	}
-	d := &idp{issuer: issuer, provider: p, jwksURL: meta.JWKS, algs: algs, authStyle: style, fetchedAt: s.now()}
+	d := &idp{issuer: issuer, caPEM: c.CAPEM, client: client, provider: p, jwksURL: meta.JWKS, algs: algs, authStyle: style, fetchedAt: s.now()}
 	s.mu.Lock()
 	s.cache = d
 	s.mu.Unlock()

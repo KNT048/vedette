@@ -71609,6 +71609,9 @@ type LogsGetLogsDigestOKBadConnectionsItem struct {
 	// Threat feeds that list the destination.
 	Feeds []string `json:"feeds"`
 	ID    string   `json:"id"`
+	// The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF,
+	// D-228, D-425): look this name up in Feeds. null when a feed lists dest itself.
+	ListedAs NilString `json:"listed_as"`
 	// How the box saw it. SPAN metadata: span_dns | span_sni | span_http | span_flow. Syslog: "syslog:".
 	SeenVia string    `json:"seen_via"`
 	SrcIP   string    `json:"src_ip"`
@@ -71653,6 +71656,11 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) GetFeeds() []string {
 // GetID returns the value of ID.
 func (s *LogsGetLogsDigestOKBadConnectionsItem) GetID() string {
 	return s.ID
+}
+
+// GetListedAs returns the value of ListedAs.
+func (s *LogsGetLogsDigestOKBadConnectionsItem) GetListedAs() NilString {
+	return s.ListedAs
 }
 
 // GetSeenVia returns the value of SeenVia.
@@ -71708,6 +71716,11 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) SetFeeds(val []string) {
 // SetID sets the value of ID.
 func (s *LogsGetLogsDigestOKBadConnectionsItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetListedAs sets the value of ListedAs.
+func (s *LogsGetLogsDigestOKBadConnectionsItem) SetListedAs(val NilString) {
+	s.ListedAs = val
 }
 
 // SetSeenVia sets the value of SeenVia.

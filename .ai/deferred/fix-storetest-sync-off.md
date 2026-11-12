@@ -1,3 +1,4 @@
 # Deferred — fix/storetest-sync-off
 
 - [ ] 2026-11-12 — LOW (Opus review): response's `eventually` (links_test.go) polls a fixed 5 s of wall time; with the package now parallel under -race on a loaded runner the headroom is smaller. Watch CI; if it flakes, poll on the test's own signal or raise the bound — vì sao để sau: no failure seen — ở đâu: modules/response/links_test.go eventually
+- [ ] 2026-11-12 — modules/response is 172 s on CI under -race after this PR (target < 120 s): TestEventFloodDoesNotEvictUnprocessedEvents (521 StoreEvent writes, ~35 s alone under -race) is the floor now; batch the noise inserts or lower the count with SetBacklogForTest while keeping "unprocessed events are never evicted below the bound" — vì sao để sau: wind-down, the package is well inside the timeout — ở đâu: modules/response/security_test.go

@@ -3,7 +3,6 @@
 package storetest
 
 import (
-	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -191,7 +190,7 @@ func NewMigrated(t testing.TB, module, dir string) *store.DB {
 // cmd/vedette/tpldb_test.go). The database is in the state store.Migrate of each one leaves; nothing is shared between tests.
 func Migrated(t testing.TB, migs ...Migration) *store.DB {
 	t.Helper()
-	b, err := template(migs)
+	b, err := template(t, migs)
 	if err != nil {
 		t.Fatalf("storetest: migrate: %v", err)
 	}
@@ -223,7 +222,7 @@ var (
 )
 
 // template returns the bytes of a closed database that migs were applied to, building it on the first call for that list.
-func template(migs []Migration) ([]byte, error) {
+func template(t testing.TB, migs []Migration) ([]byte, error) {
 	key, err := templateKey(migs)
 	if err != nil {
 		return nil, err
@@ -235,7 +234,7 @@ func template(migs []Migration) ([]byte, error) {
 		templates[key] = m
 	}
 	templatesMu.Unlock()
-	m.once.Do(func() { m.b, m.err = buildTemplate(migs) })
+	m.once.Do(func() { m.b, m.err = buildTemplate(t, migs) })
 	if m.err == nil && len(m.b) == 0 {
 		return nil, errors.New("the template database was not built (an earlier build panicked)")
 	}
@@ -267,13 +266,13 @@ func templateKey(migs []Migration) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func buildTemplate(migs []Migration) ([]byte, error) {
+func buildTemplate(t testing.TB, migs []Migration) ([]byte, error) {
+	ctx := t.Context() // alive for the whole build: it runs inside the calling test (sync.Once), before the test can end
 	dir, err := os.MkdirTemp("", "vedette-storetest-")
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
-	ctx := context.Background()
 	p := filepath.Join(dir, "template.db")
 	db, err := store.Open(ctx, p, slog.New(slog.DiscardHandler))
 	if err != nil {

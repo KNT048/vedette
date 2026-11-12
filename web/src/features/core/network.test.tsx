@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -8,6 +8,10 @@ import { networkStore, SILENT_DEVICES } from '@/mocks/network'
 import { GUIDES } from './guideData'
 
 vi.setConfig({ testTimeout: 30_000 })
+// D-403: SPAN is hidden in the GUI for v1 (SPAN_IN_UI false) but its code is kept, so this file runs the SPAN pages as offered
+// (post-v1); "SPAN hidden for v1" at the end runs the v1 setting.
+const span = vi.hoisted(() => ({ SPAN_IN_UI: true }))
+vi.mock('@/lib/span', () => span)
 const T = { timeout: 5000 }
 const user = () => userEvent.setup()
 const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
@@ -525,5 +529,46 @@ describe('box network: the rules of the host (L1)', () => {
     networkStore.update((s) => ({ ...s, pending: { previous: { ...s.mgmt, address: null }, expires_at: new Date(Date.now() + 60_000).toISOString() } }))
     await open()
     expect(await screen.findByText(/the box returns to the previous settings/, undefined, T)).toBeInTheDocument()
+  })
+})
+
+describe('box network: SPAN hidden for v1 (D-403)', () => {
+  beforeEach(() => { span.SPAN_IN_UI = false })
+  afterEach(() => { span.SPAN_IN_UI = true })
+  const main = () => document.getElementById('main')!
+
+  it('a box without SPAN: no SPAN settings, no switch guides, no SPAN role, no sentence about mirrored traffic', async () => {
+    asAdmin()
+    await call('PUT', '/interfaces', { roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } })
+    await open()
+    expect(screen.getByText('Where the box sits on your network: its ports, management address, decoy addresses and time source.')).toBeInTheDocument()
+    expect(document.getElementById('span')).toBeNull()
+    expect(document.getElementById('guides')).toBeNull()
+    for (const n of ['eth1', 'eth2']) expect(within(screen.getByRole('combobox', { name: `Role of ${n}` })).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    expect(main().textContent).not.toMatch(/SPAN|mirror/i)
+    await expectNoA11yViolations()
+  })
+
+  it('a box that already has SPAN shows it read-only, with the way to stop it, and nothing to turn it on again', async () => {
+    const u = user()
+    asAdmin()
+    await open()
+    const sec = within(spanSection())
+    expect(await sec.findByText('Receiving mirrored traffic', undefined, T)).toBeInTheDocument()
+    expect(sec.getByRole('note')).toHaveTextContent('This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only. To stop using eth1 for it, set the role of eth1 to Unused under Interfaces.')
+    expect(sec.getByRole('switch', { name: 'Capture mirrored traffic' })).toBeDisabled()
+    expect(sec.getByLabelText('Capture port')).toBeDisabled()
+    expect(sec.getByRole('button', { name: 'Add exclusion' })).toBeDisabled()
+    expect(sec.queryByRole('button', { name: 'Save SPAN settings' })).toBeNull()
+    expect(document.getElementById('guides')).toBeNull()
+    const role = (n: string) => screen.getByRole('combobox', { name: `Role of ${n}` })
+    expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'SPAN capture', 'Unused'])
+    expect(within(role('eth2')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    await expectNoA11yViolations()
+    await u.selectOptions(role('eth1'), 'unused')
+    await waitFor(() => expect(document.getElementById('span')).toBeNull(), T)
+    expect((await get()).span).toMatchObject({ enabled: false, interface: null })
+    expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    expect(main().textContent).not.toMatch(/SPAN|mirror/i)
   })
 })

@@ -11,6 +11,10 @@ import { installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { containerSensorStore } from '@/features/inventory/mocks'
 import { MOCK_SETUP_CODE } from './mocks'
 
+// D-403: SPAN is hidden in the GUI for v1 (SPAN_IN_UI false); the SPAN tick of Configure is kept, and one test runs it as offered (post-v1).
+const span = vi.hoisted(() => ({ SPAN_IN_UI: false }))
+vi.mock('@/lib/span', () => span)
+
 const HOST_PATHS = ['/core/updates/os', '/core/data/backups', '/core/data/restore/run', '/core/network']
 let calls: string[] = []
 beforeEach(() => {
@@ -19,7 +23,7 @@ beforeEach(() => {
   const real = globalThis.fetch
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { calls.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); span.SPAN_IN_UI = false })
 const hostCalls = () => calls.filter((u) => HOST_PATHS.some((p) => new URL(u, location.origin).pathname === `/api/v1${p}`))
 
 describe('container-only install (D-381)', () => {
@@ -33,7 +37,8 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByRole('button', { name: 'Download backup' })).toBeNull()
     expect(screen.queryByText('Backups on this box')).toBeNull()
     renderApp('/settings/network')
-    expect(await screen.findByText(/Prepare the SPAN card on this machine yourself/)).toBeInTheDocument()
+    expect(await screen.findByText('Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools.')).toBeInTheDocument()
+    expect(document.getElementById('main')!.textContent).not.toMatch(/SPAN|mirror/i) // D-403
     expect(hostCalls()).toEqual([])
   })
 
@@ -260,7 +265,8 @@ describe('container-only install (D-381)', () => {
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
   // S-CORE-8 G6, D-387, D-393: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
-  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
+  it('Sensors (SPAN offered, post-v1): Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
+    span.SPAN_IN_UI = true
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
@@ -294,6 +300,39 @@ describe('container-only install (D-381)', () => {
     expect(again.getAllByRole('option')[0]).toHaveTextContent('Automatic (the one card of this machine with an address)')
     await u.click(again.getByRole('button', { name: 'Cancel' }))
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
+  })
+
+  // D-403: SPAN hidden for v1. "Listen on" stays (D-393: which card of a machine with two addresses), the SPAN tick goes.
+  it('Sensors (SPAN hidden for v1): Configure chooses the card to listen on with no SPAN tick and no word about SPAN or mirrored traffic', async () => {
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    await openSensorDialog(u)
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent("Choose the card the sensor listens on among the cards it reported. This machine's network is yours: Vedette does not change the card.")
+    expect(within(dlg).queryByRole('checkbox')).toBeNull()
+    expect(dlg.textContent).not.toMatch(/SPAN|mirror/i)
+    expect(document.getElementById('sensors')!.textContent).not.toMatch(/SPAN|mirror/i)
+    await u.selectOptions(within(dlg).getByRole('combobox', { name: 'Listen on' }), 'eno2')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
+  })
+
+  it('Sensors (SPAN hidden for v1): a card already saved as SPAN shows ticked and can be unticked, not ticked again', async () => {
+    containerSensorStore.update((c) => ({ ...c, chosen: 'eno2', span: true }))
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    await openSensorDialog(u)
+    const dlg = screen.getByRole('dialog')
+    const box = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
+    expect(box).toBeChecked()
+    expect(box).toHaveAccessibleDescription('eno2 is saved as a SPAN port. This version of Vedette no longer sets SPAN up: you can untick it, not tick it again.')
+    await u.click(box)
+    expect(box).not.toBeChecked()
+    expect(box).toBeDisabled()
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
   })
 
   it('Sensors: a refused card shows under Listen on; an answer that is not about a field stays under the form (walk 4)', async () => {

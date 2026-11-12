@@ -1414,6 +1414,7 @@
   },
   "network": {
     "meta": "Where the box sits on your network and how it listens to a switch mirror.",
+    "metaNoSpan": "Where the box sits on your network: its ports, management address, decoy addresses and time source.",
     "helper": "Changes here are applied by vedette-host, a small helper on the box that runs a fixed list of commands. The web app never runs shell commands.",
     "role": {
       "management": "Management",
@@ -1548,6 +1549,7 @@
       "last": "Last packet",
       "never": "None yet",
       "statusNote": "The status shows the saved settings and refreshes every 5 seconds.",
+      "kept": "This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only. To stop using {{iface}} for it, set the role of {{iface}} to Unused under Interfaces.",
       "verdict": {
         "off": {
           "title": "SPAN is off",
@@ -1802,7 +1804,8 @@
     "network": {
       "meta": "This is a container-only install: the network of this machine is yours to set up.",
       "title": "Network of this machine",
-      "desc": "Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools."
+      "desc": "Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools.",
+      "descNoSpan": "Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools."
     }
   }
 }

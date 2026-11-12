@@ -13,6 +13,7 @@ import { Field, Label, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
+import { SPAN_IN_UI } from '@/lib/span'
 import { useSensorCard, useSensors } from './api'
 import { errMsg } from './kinds'
 import type { Sensor, SensorStatus } from './types'
@@ -28,24 +29,27 @@ function Hearing({ sensor }: { sensor: Sensor }) {
     <dl className="grid gap-3 text-sm sm:grid-cols-2">
       {sensor.capture_error ? <div className="sm:col-span-2"><dt className="text-[13px] text-muted">{t('sensors.capture.label')}</dt><dd className="text-warn">{t('sensors.capture.notCapturing')}: {t(`sensors.capture.${sensor.capture_error}`)}</dd></div> : null}
       <div><dt className="text-[13px] text-muted">{t('sensors.interface')}</dt><dd className="font-medium">{sensor.interface ?? '–'}{sensor.span ? <span className="ml-2 text-[12px] font-normal text-muted">{t('sensors.spanOn')}</span> : null}</dd></div>
-      <div>
-        <dt className="text-[13px] text-muted">{t('sensors.spanStatus')}</dt>
-        <dd className="grid gap-1"><Chip tone={VERDICT_TONE[st.verdict]}>{t(`sensors.verdict.${st.verdict}`)}</Chip>{st.verdict === 'ok' || st.verdict === 'own_only' ? <span className="text-[12px] text-muted">{t('sensors.rate', { pps: st.packets_per_s, macs: st.other_macs })}</span> : null}</dd>
-      </div>
+      {SPAN_IN_UI || sensor.span ? (
+        <div>
+          <dt className="text-[13px] text-muted">{t('sensors.spanStatus')}</dt>
+          <dd className="grid gap-1"><Chip tone={VERDICT_TONE[st.verdict]}>{t(`sensors.verdict.${st.verdict}`)}</Chip>{st.verdict === 'ok' || st.verdict === 'own_only' ? <span className="text-[12px] text-muted">{t('sensors.rate', { pps: st.packets_per_s, macs: st.other_macs })}</span> : null}</dd>
+        </div>
+      ) : null}
     </dl>
   )
 }
 
-/** Appliance: SPAN is set in Settings → Box network (D-56). This dialog only shows what the sensor hears now and links there. */
+/** Appliance: SPAN is set in Settings → Box network (D-56). This dialog only shows what the sensor hears now and links there.
+ *  D-403 (SPAN hidden for v1): it says the sensor listens on the management port; the SPAN lines stay only for a sensor already on a SPAN card. */
 function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.configBody')}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.configBody' : 'sensors.configBodyNoSpan')}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
-          <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
-          <Link to="/settings/network" className="text-sm font-medium text-accent underline-offset-4 hover:underline" onClick={onClose}>{t('sensors.spanLink')}</Link>
+          {SPAN_IN_UI || sensor.span ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
+          <Link to="/settings/network" className="text-sm font-medium text-accent underline-offset-4 hover:underline" onClick={onClose}>{t(SPAN_IN_UI ? 'sensors.spanLink' : 'sensors.networkLink')}</Link>
           <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
         </div>
       </DialogContent>
@@ -62,6 +66,9 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   const current = sensor.chosen ? (sensor.interface ?? '') : ''
   const [card, setCard] = useState(current)
   const [span, setSpan] = useState(sensor.chosen && sensor.span)
+  // D-403 (SPAN hidden for v1): the SPAN tick shows only for a card already saved as SPAN, and can then be unticked, not ticked again.
+  const spanKept = sensor.chosen && sensor.span
+  const showSpan = SPAN_IN_UI || spanKept
   const [error, setError] = useState<string | null>(null)
   // The saved card may be missing from the last heartbeat (unplugged, renamed): keep it as an option so it can be changed.
   const cards = current && !sensor.interfaces.includes(current) ? [current, ...sensor.interfaces] : sensor.interfaces
@@ -73,7 +80,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   const [errorAt, setErrorAt] = useState<'card' | 'span' | 'form'>('form')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.card.body' : 'sensors.card.bodyNoSpan')}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
           {cards.length === 0 ? (
@@ -98,17 +105,17 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                 </Field>
                 {error && errorAt === 'card' ? <p role="alert" id="sensor-card-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
               </div>
-              <div className="grid gap-1">
+              {showSpan ? <div className="grid gap-1">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === ''} onCheckedChange={(v) => { setSpan(v === true); setError(null) }}
+                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === '' || (!SPAN_IN_UI && !span)} onCheckedChange={(v) => { setSpan(v === true); setError(null) }}
                     aria-invalid={error && errorAt === 'span' ? true : undefined} aria-describedby={error && errorAt === 'span' ? 'sensor-span-error sensor-span-hint' : 'sensor-span-hint'} />
                   <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
                 </div>
                 {error && errorAt === 'span' ? <p role="alert" id="sensor-span-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
                 {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one (D-393). */}
-                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint')}</p>
-              </div>
-              <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
+                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
+              </div> : null}
+              {showSpan ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
               {error && errorAt === 'form' ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
@@ -148,7 +155,7 @@ export function SensorsSection() {
     ) },
   ]
   return (
-    <Section id="sensors" title={t('sensors.title')} description={install ? t(install === 'container' ? 'sensors.descriptionContainer' : 'sensors.description') : undefined} stories={['S-INV-1', 'S-CORE-8']}>
+    <Section id="sensors" title={t('sensors.title')} description={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI ? '' : 'NoSpan'}`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => <DataTable caption={t('sensors.caption')} data={d.sensors} columns={columns} />}

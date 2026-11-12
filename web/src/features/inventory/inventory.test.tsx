@@ -981,7 +981,8 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', `/devices/${f.id}`)).json!.asset.regular_scan).toBe('never')
   })
 
-  it('the sensor dialog shows the SPAN status and links to Box network; it has no SPAN switch', async () => {
+  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
+  it('the sensor dialog shows the SPAN status a box already has and links to Box network; it has no SPAN switch', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
@@ -990,7 +991,27 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(await within(dlg).findByText('Receiving', undefined, T)).toBeInTheDocument()
     expect(within(dlg).getByText('eth1')).toBeInTheDocument()
     expect(within(dlg).queryByRole('switch')).not.toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Configure SPAN in Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+    expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+  })
+
+  it('SPAN hidden for v1 (D-403): a box without SPAN says the sensor listens on the management port, with no word about SPAN or mirrored traffic', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    const r = await fetch(`${location.origin}/api/v1/core/network/interfaces`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } }) })
+    expect(r.status).toBe(200)
+    renderApp('/devices/setup')
+    await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
+    const sec = document.getElementById('sensors')!
+    expect(sec).toHaveTextContent("It listens on the box's management port, set in Settings → Box network.")
+    await waitFor(() => expect(within(sec).getByRole('cell', { name: 'eth0' })).toBeInTheDocument(), T)
+    expect(sec.textContent).not.toMatch(/SPAN|mirror/i)
+    await clickUntil(user, () => screen.getAllByRole('button', { name: 'Configure sensor vedette-hq' })[0]!, () => screen.getByRole('dialog'))
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent("The port the sensor listens on: the box's management port, set in Settings.")
+    expect(within(dlg).getByText('eth0')).toBeInTheDocument()
+    expect(within(dlg).queryByText('Mirrored traffic')).toBeNull()
+    expect(dlg.textContent).not.toMatch(/SPAN|mirror/i)
+    expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
   it('single-box only: one local sensor, no kind/site/enrollment fields, no "other site" button, no remote-sensor endpoints', async () => {

@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api'
 import { useNetwork, useNetworkActions } from './api'
 import { ContainerNetwork, InstallPending } from './ContainerOnly'
 import { useInstallKind } from '@/lib/modules'
+import { SPAN_IN_UI } from '@/lib/span'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
@@ -43,7 +44,8 @@ function Interfaces({ d }: { d: NetworkState }) {
       ? <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
       : (
         <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={row.original.role} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
-          {(['management', 'span', 'unused'] as const).map((r) => <option key={r} value={r}>{t(`network.role.${r}`)}</option>)}
+          {/* D-403: SPAN is offered only as the role a card already has, so it can be set back to Unused. */}
+          {(['management', 'span', 'unused'] as const).filter((r) => SPAN_IN_UI || r !== 'span' || row.original.role === 'span').map((r) => <option key={r} value={r}>{t(`network.role.${r}`)}</option>)}
         </Select>
       )
   const columns: ColumnDef<NetInterface>[] = [
@@ -212,6 +214,9 @@ function NtpForm({ d }: { d: NetworkState }) {
   )
 }
 
+/** D-403: a box that already has SPAN set up (on, or a card with the SPAN role) keeps seeing it while the GUI does not offer it. */
+const spanSetUp = (d: NetworkState) => d.span.enabled || d.interfaces.some((i) => i.role === 'span')
+
 function Body({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')
   return (
@@ -223,8 +228,8 @@ function Body({ d }: { d: NetworkState }) {
         <Pending d={d} />
         <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
       </Section>
-      <SpanCard key={JSON.stringify(d.span)} d={d} />
-      <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} />
+      {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
+      {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}
       <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} stories={['S-CORE-8']}>
         {d.decoy_ips.length
           ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-[12.5px]">{ip}</li>)}</ul>
@@ -245,7 +250,7 @@ export default function NetworkSection() {
   const q = useNetwork(install === 'appliance') // D-381: never asked on a container-only install, where it can only answer 409
   return (
     <>
-      <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t('network.meta')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
+      <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t(SPAN_IN_UI ? 'network.meta' : 'network.metaNoSpan')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
       {install === 'container' ? <ContainerNetwork /> : install ? <QueryState query={q}>{(d) => <Body d={d} />}</QueryState> : <InstallPending />}
     </>
   )

@@ -465,6 +465,7 @@
       "inventory.settings": "Change device discovery settings",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
+      "notify.approval_fallback": "Approval request sent without buttons",
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
       "notify.zalo_message": "Zalo message from someone who is not an approver",

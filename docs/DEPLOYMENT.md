@@ -87,7 +87,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Nội dung | **một** tiến trình OpenCanary (BSD-3) nghe mọi địa chỉ của container (D-90 (1)) + honey token; hit ghi ra `log/opencanary.jsonl`, cấu hình đọc từ `config/` (D-89) |
 | Mạng | network namespace **`vedette-hp`** do `vedette-host` tạo và sở hữu (D-102); unit có `Network=ns:/run/netns/vedette-hp` và không mạng nào khác (không `vedette-int`, không đường tới `core`: hit đi qua tệp, D-89). Mỗi IP phụ/decoy là **một link macvlan với MAC riêng** trên card quản trị, host thêm/gỡ bằng `decoy_ip.*` mà không khởi động lại container. Trong namespace: `arp_ignore=1`, `arp_announce=2`, `rp_filter=2`, `ip_unprivileged_port_start=0`, bảng định tuyến riêng mỗi IP, và ruleset nft chặn mọi kết nối mới đi ra (chỉ trả lời kết nối vào) |
 | Capability | **không** (`DropCapability=ALL`, không `AddCapability`; D-162): `ip_unprivileged_port_start=0` là sysctl theo namespace nên bind 22/80/445/1433/3389 không cần `NET_BIND_SERVICE`. Image chạy `USER 1000:0` từ lệnh đầu tiên (không khởi động bằng root): `init.py` là tiến trình 1, đọc audit của Samba từ stdout của `smbd` (`full_audit:syslog = false`, không `/dev/log`). Image gồm OpenCanary + Samba (tiến trình riêng, GPL-3, không liên kết) + `init.py`; chi tiết D-162 |
-| Volume | `config/` gắn chỉ đọc, `log/` ghi được với `:U` (podman đặt chủ thư mục là uid 1000 của image, vì `UserNS=auto` chọn dải lúc khởi động; `init.py` đặt mode 0755 để `core` đọc qua bit "other"); **postinst chỉ tạo `log/` khi chưa có và không kiểm lại chủ/mode** (container sở hữu nó sau lần chạy đầu); hạn mức đĩa ở WP-08; không cert, không DB |
+| Volume | `config/` gắn chỉ đọc, `log/` là volume tmpfs `vedette-hp-log` (64 MiB, 1024 tệp, D-318) ghi được với `:U` (podman đặt chủ là uid 1000 của image, vì `UserNS=auto` chọn dải lúc khởi động; `init.py` đặt mode 0755 để `core` đọc qua bit "other"); postinst vẫn tạo thư mục `log/` cũ khi chưa có (không còn dùng); không cert, không DB |
 | Cổng | 22, 80, 445, 1433, 3389 **chỉ trên IP phụ/decoy** (INV-2 của honeypot); không trên IP quản trị |
 | Health check | `/vedette honeypot healthcheck` (D-137): đọc `opencanary.conf` (`/var/lib/vedette/honeypot/config/`, gắn chỉ đọc), lấy cổng của dịch vụ đầu tiên đang bật có khoá `.port` (`smb` không có: cổng đó của Samba) rồi nối TCP tới `127.0.0.1:<cổng>` trong 2 s (`lo` bật và `oif lo accept`, D-121 L8; nối từ loopback bị `core` bỏ như nguồn không thể có thật, D-89 (e)); không dịch vụ nào của OpenCanary đang bật thì khoẻ (không gì phải nghe). Không gọi `core`. **Image `honeypot` phải chứa `/vedette`** (binary tĩnh, 0755): image do dự án dựng ở WP-08, không phải image OpenCanary gốc |
 | Số container | **một** container cho mọi IP (D-90 (1), D-102); "một container mỗi IP" của bản nháp bị bỏ (câu hỏi A5 đã đóng) |
@@ -240,7 +240,7 @@ User=<core_uid>
 Group=<sensor_gid>
 ```
 
-Hai tệp `.volume` do `vedette-host` ghi từ văn bản hằng (D-147), bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core`/`sensor`/`scan` (bootstrap, start, switch, rollback); không có khoá nào khác. Setgid của thư mục mỗi vai không đặt được bằng `.volume`, nên không dựa vào nó: `pki.WriteBundle` của `core` (thành viên `sensor_gid` nhờ `--group-add`) `fchown` tệp bó khoá sang nhóm của thư mục vai trước khi đổi tên (tệp 0640, D-147 (9)); lab xác nhận. Volume chỉ được ghi ở bootstrap và `container.start`, không ở rollback; đổi `core_uid` về sau không chown lại volume đã có.
+Hai tệp `.volume` của khoá do `vedette-host` ghi từ văn bản hằng (D-147), bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core`/`sensor`/`scan` (bootstrap, start, switch, rollback); không có khoá nào khác. Setgid của thư mục mỗi vai không đặt được bằng `.volume`, nên không dựa vào nó: `pki.WriteBundle` của `core` (thành viên `sensor_gid` nhờ `--group-add`) `fchown` tệp bó khoá sang nhóm của thư mục vai trước khi đổi tên (tệp 0640, D-147 (9)); lab xác nhận. Volume chỉ được ghi ở bootstrap và `container.start`, không ở rollback; đổi `core_uid` về sau không chown lại volume đã có.
 
 `/etc/containers/systemd/vedette-core.container`
 
@@ -263,7 +263,8 @@ PublishPort=514:5514/udp
 PublishPort=514:5514/tcp
 Volume=<core_data>:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
-Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro
+# log/ của honeypot là volume tmpfs có trần (D-318), xem vedette-hp-log.volume bên dưới
+Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec
 # cả thư mục, không phải tệp socket: bind-mount một tệp giữ inode cũ và mất kết nối khi host tạo lại socket (D-123)
 Volume=/run/vedette:/run/vedette
 # bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
@@ -358,7 +359,7 @@ ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
-Volume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U
+Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]
@@ -373,7 +374,22 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-Thư mục trên hộp là hằng `/var/lib/vedette-honeypot` (D-123 (1)); `core` gắn cả thư mục vào `/var/lib/vedette/honeypot`, mặc định của `-honeypot-dir` (D-89); `config/` và `log/` gắn ở **cùng đường dẫn tuyệt đối** trong container vì `opencanary.conf` ghi đường dẫn log. Đường dẫn thật và quyền của `log/` khi dùng `UserNS=auto` chốt ở WP-08.
+Thư mục trên hộp là hằng `/var/lib/vedette-honeypot` (D-123 (1)); `core` gắn `config/` đọc-ghi và `log/` chỉ đọc dưới `/var/lib/vedette/honeypot`, mặc định của `-honeypot-dir` (D-89); `config/` và `log/` gắn ở **cùng đường dẫn tuyệt đối** trong container vì `opencanary.conf` ghi đường dẫn log. Quyền của `log/` khi dùng `UserNS=auto`: `:U` đặt chủ là uid 1000 của image, `init.py` đặt mode 0755 (D-162).
+
+`/etc/containers/systemd/vedette-hp-log.volume` (D-318)
+
+```ini
+[Unit]
+Description=Vedette honeypot log (tmpfs, size-capped)
+
+[Volume]
+VolumeName=vedette-hp-log
+Type=tmpfs
+Device=tmpfs
+Options=size=64m,nr_inodes=1024,nosuid,nodev,noexec
+```
+
+`log/` của honeypot **không còn là thư mục trên đĩa của hộp**: là volume tmpfs tối đa 64 MiB và 1024 tệp (OpenCanary xoay 10 MiB × 3 bản, khoảng 40 MiB, nên đủ chỗ), nên kẻ chiếm container không làm đầy hệ tệp của `vedette.db` bằng cách ghi tệp khác vào `log/` (chạm trần thì `ENOSPC` trong container; không ảnh hưởng gì ngoài nó). `vedette-host` ghi tệp `.volume` từ văn bản hằng, bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core` hoặc `honeypot` (như hai volume khoá, §6.1); không khoá nào khác, không `User=`/`Group=` (`:U` của honeypot đặt chủ). `noexec` nằm cả trong `Options=` lẫn trên dòng `Volume=` của hai unit: phép bind của Podman vào container có cờ riêng và không mang `noexec` của tmpfs sang (`make honeypot-check` bắt được), nên chỉ dòng `Volume=` mới có hiệu lực trong container. Podman gắn tmpfs khi container đầu tiên dùng volume khởi động; `core` luôn chạy nên volume sống qua việc khởi động lại honeypot. **Log mất khi hộp khởi động lại** (tmpfs): chấp nhận được vì `core` đọc từng dòng vào CSDL và bộ đọc tự bắt đầu lại khi tệp bị thay hay cắt (INV-16). Dòng `core` chưa đọc mất khi `core` và `honeypot` cùng dừng (reboot, hoặc honeypot khởi động lại lúc `core` đang dừng); khi `core` chạy bình thường chỉ mất dòng chưa kịp đọc (một chu kỳ poll). **Hai unit `core` và `honeypot` dùng chung volume này nên phải đổi cùng một lượt**: một unit còn bind thư mục cũ thì `core` đọc tmpfs rỗng trong khi honeypot ghi ra đĩa, và mọi hit mất mà không có lỗi. Bản cài trước D-318 không tự chuyển (unit cũ "không phải của host", INV-17): chạy `vedette-host -bootstrap -force-units` cho **core và honeypot cùng nhau**; bootstrap từ chối (`invalid_args`, trước khi ghi gì) khi chỉ một trong hai được ghi mà unit kia còn bind cũ. Đường ra đĩa còn lại của container bị chiếm là stdout/stderr vào journald (`LogDriver=journald`): bị chặn bởi `SystemMaxUse` của journald (mặc định 10% hệ tệp, tối đa 4 GiB), không phải bởi 64 MiB này. Cả 64 MiB là RAM tính vào cgroup 256 MiB của honeypot (`--memory-swap` bằng `--memory`, không đẩy ra swap được). Đổi trần cần `podman volume rm vedette-hp-log` sau khi dừng `core` và `honeypot`: `podman volume create --ignore` của Quadlet không đổi tuỳ chọn của volume đã có. Thư mục cũ `/var/lib/vedette-honeypot/log` (bản cài trước D-318) không còn được dùng và không bị xoá.
 
 `/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `RunInit=true` và `Image=<ID 64 hex>` của image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); ghim theo ID, D-147), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
 

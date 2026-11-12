@@ -18,12 +18,14 @@ import (
 	"io/fs"
 	"log/slog"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -218,8 +220,12 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 	if event == "box-ca.migrate" {
 		log.InfoContext(ctx, "the box CA was moved into the database (core_secret, D-351); its files are removed")
 	}
-	if why != "" { // a sealed or legacy CA that could not be kept
-		if legacy.found && event != "box-ca.migrate" {
+	switch {
+	case why != "" && event == "box-ca.migrate": // the sealed CA does not decrypt, but the old files hold a CA that does
+		log.ErrorContext(ctx, "the box CA in the database does not decrypt with this master key; the CA of the old files is used instead: agents enrolled after it was moved into the database must run the install command again, or put the right vedette.key back",
+			"reason", why)
+	case why != "": // a sealed or legacy CA that could not be kept
+		if legacy.found {
 			s.quarantineLegacy(ctx, now, log)
 		}
 		log.ErrorContext(ctx, "the box CA could not be kept and was replaced; enrolled agents must run the install command again", "reason", why)
@@ -396,9 +402,12 @@ func newBoxCA(now time.Time) (*boxCA, []byte, error) {
 	return &boxCA{cert: cert, key: key}, plain, nil
 }
 
+// trustAnchorRetry is the Retry-After (seconds) of a /intake/ca.pem refused while the leaf is re-issued under a new CA.
+const trustAnchorRetry = 30
+
 // intakeTrustAnchor is what GET /intake/ca.pem serves (agent-intake INV-11): the box CA's certificate for the box's own pair, only
-// while the leaf in use is signed by it (L3: a CA replaced while the new leaf could not be written is not handed out, the request
-// fails until the next check writes the leaf); for a certificate the owner supplied (-tls-cert), the file as supplied, read at each
+// while the leaf in use is signed by it (L3: a CA replaced while the new leaf could not be written is not handed out: 503
+// server_busy with Retry-After, never logged per request, and the renewer is asked to check now); for a certificate the owner supplied (-tls-cert), the file as supplied, read at each
 // request (agent-intake keeps only its CERTIFICATE blocks: the chain, or the leaf alone; a key in the same file never leaves); nil
 // when the box serves no TLS (loopback).
 func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore, renew *selfSignedRenewer) func(context.Context) ([]byte, error) {
@@ -420,7 +429,9 @@ func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore, renew 
 			return nil, err
 		}
 		if leaf, err := renew.leaf(); err != nil || notSignedBy(leaf, c) {
-			return nil, errors.New("tls: the certificate in use is not signed by the box CA yet; it is re-issued at the next check")
+			renew.Kick() // the check re-issues the leaf soon (at most once per addrSyncGap); it logs its own failure
+			return nil, apierr.New(http.StatusServiceUnavailable, "server_busy", "The box certificate is being renewed. Try again in a minute.").
+				With("retry_after", trustAnchorRetry)
 		}
 		return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.cert.Raw}), nil
 	}

@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -761,6 +762,8 @@ func TestIntakeTrustAnchor(t *testing.T) {
 	}
 	if got, err := anchor(t.Context()); err == nil {
 		t.Fatalf("a CA that does not sign the leaf in use was served:\n%s", got)
+	} else if e, ok := apierr.As(err); !ok || e.Status != 503 || e.Code != "server_busy" || e.Extra["retry_after"] != trustAnchorRetry {
+		t.Fatalf("refusal = %v, want 503 server_busy with retry_after", err)
 	}
 	if err := renew.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
 		t.Fatal(err)
@@ -948,5 +951,41 @@ func TestBoxCALegacyFilesAreSealedWithoutSelfSignedTLS(t *testing.T) {
 	empty := t.TempDir()
 	if err := testCA(t, empty).migrateLegacy(t.Context(), nil); err != nil || sealedRows(t, testCA(t, empty)) != 0 {
 		t.Fatalf("no files: %v", err)
+	}
+}
+
+// A sealed CA that does not decrypt under this master key, next to old files that hold a usable CA: the files' CA is sealed and
+// used, the files are removed (not quarantined), and the ERROR says what happened instead of "replaced".
+func TestBoxCAUndecryptableRowWithLegacyFilesUsesTheFiles(t *testing.T) {
+	t.Parallel()
+	dbPath := filepath.Join(t.TempDir(), "vedette.db")
+	keyA := make([]byte, secrets.KeySize)
+	_, _ = rand.Read(keyA)
+	a := newTestCAStore(t, dbPath, keyA, t.TempDir())
+	if _, err := a.ensure(t.Context(), time.Now(), nil, true); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	legacy := writeLegacyCA(t, dir, time.Now())
+	keyB := make([]byte, secrets.KeySize)
+	_, _ = rand.Read(keyB)
+	secB, _ := secrets.New(keyB)
+	b, err := newBoxCAStore(a.db, secB, audit.New(nil), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logBuf bytes.Buffer
+	ca, err := b.ensure(t.Context(), time.Now(), slog.New(slog.NewTextHandler(&logBuf, nil)), true)
+	if err != nil || !ca.cert.Equal(legacy.cert) || sealedRows(t, b) != 2 {
+		t.Fatalf("%v, %d rows", err, sealedRows(t, b))
+	}
+	if !strings.Contains(logBuf.String(), "does not decrypt") || strings.Contains(logBuf.String(), "could not be kept") {
+		t.Errorf("log %q", logBuf.String())
+	}
+	if c, k := legacyFiles(dir); fileExists(c) || fileExists(k) {
+		t.Error("the migrated files are still there")
+	}
+	if q, _ := filepath.Glob(filepath.Join(dir, "*.quarantine-*")); len(q) != 0 {
+		t.Errorf("migrated files were quarantined: %v", q)
 	}
 }

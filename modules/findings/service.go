@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -198,12 +199,71 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 			}
 			res.Touched++
 		}
-		return nil
+		return s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
 	})
 	if err != nil {
 		return UpsertResult{}, err
 	}
 	return res, nil
+}
+
+// noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
+// matcher although its CVE is in the list that was matched: the device's software changed, or CISA changed the vendor or
+// product of the entry (D-439). Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
+// in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
+// the version matcher.
+func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, now time.Time) error {
+	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
+	if err != nil {
+		return fmt.Errorf("findings: reading suspected findings: %w", err)
+	}
+	var open []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("findings: reading suspected findings: %w", err)
+		}
+		open = append(open, c)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("findings: reading suspected findings: %w", err)
+	}
+	if len(open) == 0 {
+		return nil
+	}
+	listed := make(map[string]bool, len(vulns))
+	for _, v := range vulns {
+		listed[v.CVE] = true
+	}
+	matched := make(map[string]bool, len(m.New)+len(m.Existing))
+	for _, x := range m.New {
+		matched[x.CVE] = true
+	}
+	for _, x := range m.Existing {
+		matched[x.CVE] = true
+	}
+	for _, cve := range open {
+		if !listed[cve] || matched[cve] {
+			continue
+		}
+		r, err := loadByPair(ctx, tx, assetID, cve)
+		if err != nil {
+			return err
+		}
+		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" {
+			continue // said already
+		}
+		h := HistoryEntry{TS: now, User: SystemUser, Action: "no_longer_matches",
+			Note: "The device no longer matches this entry (its software changed, or CISA changed the entry's vendor or product). Close it yourself if it does not apply."}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return err
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.no_longer_matches", Target: r.ID, Detail: cve}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ConfirmFromScan records a positive scan result for a pair (PRE-2, POST-2). The finding must exist

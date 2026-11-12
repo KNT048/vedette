@@ -145,6 +145,7 @@
     "confirmed": "Scan confirmed a match",
     "rescanned": "Rescanned, still matches",
     "rescan_clear": "Rescanned, no longer matches",
+    "no_longer_matches": "No longer matches this device",
     "patched": "Marked as patched",
     "mitigated": "Marked as mitigated",
     "false_positive": "Marked as false positive",

@@ -620,6 +620,7 @@ func TestE2EBoxHarness(t *testing.T) {
 //	POST /expire-codes  {"email": "..."} -> 204; the pending email code of that user is made to expire (the box has no fake clock, and the
 //	                    real lifetime is 10 minutes), by writing core_email_code.expires_at through a second connection to the box's database
 //	POST /exposure/prober, /exposure/txt, /exposure/scan: the exposure fakes (e2eexposure_test.go, #263)
+//	POST /packs/seed    {"cve": "CVE-2099-…"} -> 204; a confirmed mitigation pack for that made-up CVE (e2epack_test.go)
 //
 // It fills ready.SMTPPort, Control and ControlToken. Everything here is in a _test.go file: the production binary has none of it.
 func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady, sensors *e2eSensors) (stop func(), err error) {
@@ -664,6 +665,7 @@ func startE2EControl(ctx context.Context, dbPath string, ready *e2eReady, sensor
 		w.WriteHeader(http.StatusNoContent)
 	})
 	e2eExposureRoutes(mux)
+	e2ePackRoutes(mux, dbPath)
 	if sensors != nil {
 		sensors.routes(mux)
 	}

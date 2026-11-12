@@ -628,3 +628,27 @@ func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetV
 	}
 	return f.fakeInv.Assets(ctx, ids)
 }
+
+// D-439: when CISA changes the product of an entry, the finding of the old product stays open and says so once in its
+// history; a list without the CVE judges nothing.
+func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	const q = `SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`
+	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{{CVE: "CVE-2021-44228", Vendor: "Apache", Product: "Log4j"}}); err != nil || e.count(q) != 0 {
+		t.Fatalf("a list without the CVE noted something: %v", err)
+	}
+	for range 2 {
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{moved}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.count(q); n != 1 {
+		t.Fatalf("history rows: %d, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`); n != 1 {
+		t.Fatalf("the finding was closed: %d suspected", n)
+	}
+}

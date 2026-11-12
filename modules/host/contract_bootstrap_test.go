@@ -158,7 +158,7 @@ func TestContract_Bootstrap_PutsTheDockerForwardRulesInPlaceBeforeTheScanBuild(t
 	e.m.WriteRoot("etc/containers/systemd/vedette-int.network", "[Network]\nNetworkName=vedette-int\nSubnet=172.30.77.0/24\nGateway=172.30.77.1\nPodmanArgs=--interface-name=vedette0\n")
 	e.m.DockerChain(true)
 	lines := e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest))
-	if r := e.m.DockerRules(); len(r) != 4 {
+	if r := e.m.DockerRules(); len(r) != 5 {
 		t.Fatalf("DOCKER-USER after the bootstrap: %q", r)
 	}
 	added, build := -1, -1

@@ -71,7 +71,7 @@ function checkOrg(b: Partial<PdplOrg>): Response | PdplOrg {
   const s = (v: unknown) => String(v ?? '').trim()
   const name = s(b.name)
   if (name.length < 2 || name.length > 120) return fail(400, 'invalid_name', 'The organisation name must be 2 to 120 characters.')
-  if (!/^\d{10}(-\d{3})?$/.test(s(b.tax_code))) return fail(400, 'invalid_tax_code', 'The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678.')
+  if (!/^\d{10}(-\d{3})?$/.test(s(b.tax_code))) return fail(400, 'invalid_tax_code', 'The tax code is 10 digits, or 10 digits, a hyphen and 3 digits for a branch. Example 0312345678.')
   if (s(b.address).length < 5 || s(b.address).length > 200) return fail(400, 'invalid_address', 'Enter the head office address (5 to 200 characters).')
   if (s(b.sector).length < 2 || s(b.sector).length > 80) return fail(400, 'invalid_sector', 'Pick the field of activity.')
   const emp = Number(b.employees)

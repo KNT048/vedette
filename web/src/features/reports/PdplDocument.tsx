@@ -42,21 +42,20 @@ export function PdplDocument({ report: r }: { report: PdplReport }) {
       <section aria-labelledby="pd-inv">
         {h('pd-inv', 'doc.pdpl.s.inventory')}
         <p>{t('doc.pdpl.inventorySummary', { total: r.inventory.total, approved: r.inventory.approved, unapproved: r.inventory.unapproved, fragile: r.inventory.fragile })}</p>
-        <p className="mt-1 text-muted">{t('doc.pdpl.byKind')} {r.inventory.by_kind.map((k) => `${t(`doc.kind.${k.kind}`, { defaultValue: k.kind })} ${k.n}`).join(', ')}.</p>
-        <div className="mt-2"><Scroll>
+        {r.inventory.by_kind.length > 0 ? <p className="mt-1 text-muted">{t('doc.pdpl.byKind')} {r.inventory.by_kind.map((k) => `${t(`doc.kind.${k.kind}`, { defaultValue: k.kind })} ${k.n}`).join(', ')}.</p> : null}
+        {r.inventory.key_systems.length === 0 ? <p className="mt-2 text-muted">{r.inventory.total === 0 ? t('doc.pdpl.noDevices') : t('doc.pdpl.noKeySystems')}</p> : <div className="mt-2"><Scroll>
           <table className="w-full border-collapse text-[13px]">
             <caption className="mb-1 text-left text-muted">{t('doc.pdpl.keyCaption')}</caption>
             <thead><tr className="border-b border-rule text-left text-muted"><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.device')}</th><th scope="col" className="py-1 pr-3 font-medium">IP</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.kind')}</th><th scope="col" className="py-1 font-medium">{t('doc.col.os')}</th></tr></thead>
             <tbody>{r.inventory.key_systems.map((k) => <tr key={k.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{k.name}</td><td className="py-1 pr-3">{k.ip}</td><td className="py-1 pr-3">{t(`doc.kind.${k.kind}`, { defaultValue: k.kind })}</td><td className="py-1">{k.os}</td></tr>)}</tbody>
           </table>
-        </Scroll></div>
+        </Scroll></div>}
       </section>
 
       <section aria-labelledby="pd-mea">
         {h('pd-mea', 'doc.pdpl.s.measures')}
         <Scroll>
-          <table className="w-full border-collapse text-[13px]">
-            <caption className="sr-only">{t('doc.pdpl.s.measures')}</caption>
+          <table className="w-full border-collapse text-[13px]" aria-labelledby="pd-mea">
             <thead><tr className="border-b border-rule text-left text-muted"><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.measure')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.status')}</th><th scope="col" className="py-1 font-medium">{t('doc.col.detail')}</th></tr></thead>
             <tbody>{r.measures.map((m) => (
               <tr key={m.id} className="border-b border-rule align-top last:border-b-0">
@@ -73,8 +72,7 @@ export function PdplDocument({ report: r }: { report: PdplReport }) {
         {h('pd-risk', 'doc.pdpl.s.risks')}
         {r.risks.length === 0 ? <p className="text-muted">{t('doc.pdpl.noRisks')}</p> : (
           <Scroll>
-            <table className="w-full border-collapse text-[13px]">
-              <caption className="sr-only">{t('doc.pdpl.s.risks')}</caption>
+            <table className="w-full border-collapse text-[13px]" aria-labelledby="pd-risk">
               <thead><tr className="border-b border-rule text-left text-muted"><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.device')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.cve')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.product')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.status')}</th><th scope="col" className="py-1 font-medium">{t('doc.col.since')}</th></tr></thead>
               <tbody>{r.risks.map((f) => <tr key={f.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{f.device}</td><td className="py-1 pr-3">{f.cve}</td><td className="py-1 pr-3">{f.product}</td><td className="py-1 pr-3"><StatusChip status={f.status} /></td><td className="py-1">{fmtDate(f.since)}</td></tr>)}</tbody>
             </table>

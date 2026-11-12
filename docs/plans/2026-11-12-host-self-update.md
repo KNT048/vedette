@@ -208,6 +208,20 @@ Settled while building 2a:
   host call), a host without the command while the manifest has a newer host (`host_too_old`, no host call, no image
   touched), and a release without a newer host (no step). `modules/core/CONTRACT.md` / `IMPACT.md`.
 
+Built in slice 5 (branch `feat/core-updates-host`): `modules/core/updates_host.go` (plan, download, sentences, sweep)
+with the hooks in `updates_run.go` and `updates_check.go`; tests in `updates_host_test.go`. Settled while building it:
+- The package's architecture is the host's (`/v1/info.arch`), the one `Check` 3 compares with, not core's `GOARCH`.
+- Core's wait ends at `parked_deadline` + 5 min once the run parked, else `started_at` + 10 + 130 + 5 min (the latest
+  the deadline can be); past it the run ends with the "stopped half way" sentence (`self_update_interrupted`).
+- The `host` history entry is written when the host step succeeds, in the same transaction as the step, not when the
+  run ends: the helper stays new even when an image step fails later (criterion (f)), and D-342 (4) "history only for
+  `done`" is about the software entry.
+- Criterion (e) "busy": core keeps the host's code `transition_pending` (409, the "Not available right now" title of
+  the GUI) and its sentence now names the runbook section; a new `busy` mapping would hide the container-journal case.
+- A download that fails ends the run (no retry loop; nothing changed) with its own sentence; `current_package_missing`
+  (a box installed before slice 3 keeps no package) also says to run `install.sh`. A running helper that is not a
+  release version counts as older: the step is planned and the host refuses `host_version_unknown`.
+
 ### Slice 6: lab (LAB-VM.md, default passt network, no cable needed)
 
 On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using test-channel artifacts built with

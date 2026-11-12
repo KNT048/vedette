@@ -460,7 +460,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
-| `transition_pending` | 412 | An update of Vedette is waiting to be completed or could not be recovered, so the box cannot be wiped now. Nothing was deleted. See the RUNBOOK (update journal) and finish or roll back the update first. (backend only, D-154: the host answers it to `backup.purge`) | `POST /core/data/purge`; as 409 with "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal)." in `run.error` of `POST /core/updates/apply` and `/rollback` and for the other host calls (D-342) |
+| `transition_pending` | 412 | An update of Vedette is waiting to be completed or could not be recovered, so the box cannot be wiped now. Nothing was deleted. See the RUNBOOK (update journal) and finish or roll back the update first. (backend only, D-154: the host answers it to `backup.purge`) | `POST /core/data/purge`; as 409 with "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal, or "vedette-host self-update stopped half way")." in `run.error` of `POST /core/updates/apply` and `/rollback` and for the other host calls (D-342; also every helper action after a system helper update that stopped half way, D-316 (e)) |
 
 #### HTTP 413 (1 mã)
 

@@ -82,10 +82,19 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **Thao tác mới trên `OSHandlers`**: `CorePostCoreUpdatesApply`, `CorePostCoreUpdatesRollback`; hàm của đường nối `runView`, `historyView` (phía kiểm tra gọi trong `updatesView`). Phía chạy gọi `offered`, `runningRestoresData`, `updatesView`, `setManual` của phía kiểm tra (`updates_check.go`).
 - **`core_setting`**: `core_update_run` (run + kế hoạch: mỗi lời gọi host có `request_id`, `sent`, `run_id`, `status`; byte index/manifest đã ký của lần Apply tới khi run kết thúc; `progress` cho luật 6 giờ), `core_update_history` (≤ 100). Đổi hình dạng = run đang chạy lúc nâng cấp không đọc được (đọc lỗi = coi là bận).
 - **`busy()` của OS** nay gồm run phần mềm: `GET /core/updates/os` báo `busy`, check/install/reboot/tải backup trả 409 `busy`, `Busy` (purge, INV-14) đúng trong suốt run. **`mapHostCode`** thêm `no_previous`, `previous_revoked`, `rollback_not_allowed`, `rollback_backup_missing`, `rollback_is_upgrade`, `current_version_unknown`, `transition_pending` → 409 (trước đây 502 `host_error`), API_CONVENTIONS §3.3.
-- **`Host`** dùng `StateContainers`, `ContainerPull`, `ContainerStart`, `ContainerRollback`, `GetRun`, `ListRuns(500)`, `Events`. Đổi mã lỗi của `host/api/containers.go` = sửa `updateReason`.
+- **`Host`** dùng `StateContainers`, `ContainerPull`, `ContainerStart`, `ContainerRollback`, `GetRun`, `ListRuns(500)`, `Events`, và (bước `host`, D-316) `Info`, `SelfUpdate`. Đổi mã lỗi của `host/api/containers.go` = sửa `updateReason`; của `host/api/selfupdate.go` = sửa `hostWhy`.
 - **Audit** mới: `update.apply_done`, `update.rollback_done` (nhãn ở `web/src/locales/en/core.json`).
 - **Phía kiểm tra** (`updates_check.go`): `runningFrom` nhận cả `offer` khi phiên bản của nó là bản đang chạy (sau Apply, trước lần kiểm tiếp; lần kiểm đó chuyển nó thành `running`); `restoresData` là một luật cho cả `rollback_restores_data` của trang lẫn `confirm_required`: không biết manifest trên appliance = có khôi phục DB.
-- **Test**: `updates_run_test.go` (host giả `updHost`, phía kiểm tra thật với `releaseServer` của `updates_check_test.go`); `export_updates_test.go` (`HoldFollowerForTest`, `EndFollowerForTest`).
+- **Test**: `updates_run_test.go` (host giả `updHost`, phía kiểm tra thật với `releaseServer` của `updates_check_test.go`); `export_updates_test.go` (`HoldFollowerForTest`, `EndFollowerForTest`, `SetUpdateRetryForTest`, `HostWhyForTest`).
+
+## Modifying: bước trình trợ giúp của run phần mềm (D-316, INV-35 "The system helper goes first": `modules/core/updates_host.go`)
+- **`Host`** thêm `Info` và `SelfUpdate` (`*client.Client` có sẵn); mọi host giả nhúng `core.Host` nên chỉ cần thêm khi được gọi (`hostBase` của `os_resilience_test.go`, `updHost`).
+- **`core_setting` `core_update_run`**: thêm `host` `{from, to, file}` và `package` của lời gọi `host.self_update`; run cũ không có chúng vẫn đọc được (trường tuỳ chọn).
+- **Tệp**: `<core_data>/host-packages/<32 hex>.deb` (0600), host đọc theo descriptor (host-api 6.14 Check 6). Đổi tên thư mục = đổi `host/ops` `corePackagesDir` cùng lúc. Quét lúc khởi động như `snapshots/`.
+- **Mạng**: tải gói từ cùng gốc phát hành và cùng `releaseHosts` của PRIVACY luồng 6 (không đích mới); `userAgent()` dùng chung với tải tài liệu.
+- **Câu chữ**: `hostWhy` phải trùng `hostError` của `web/src/features/core/mocks.ts` (story S-CORE-2 tiêu chí D-316); đổi một bên = đổi bên kia và `TestUpdateHostSentences`. `mapHostCode(transition_pending)` nay nêu thêm mục RUNBOOK "vedette-host self-update stopped half way" (API_CONVENTIONS cùng câu).
+- **Phía kiểm tra**: `refreshHost` đọc `state/containers` và `/v1/info` cùng một bản sao 10 s; `availableOf` nhận `helper` (`host_version`, cỡ gói).
+- **`updRun.retry`**: chỉ test đặt (thời gian giữa hai lần thử của follower).
 
 ## Modifying: kết nối tới thiết bị (D-93, lát 13b-1: `web/src/features/core/{contract.ts,connectionsMock.ts,ConnectionsSection.tsx}`, `api/openapi.json`, `core/api`)
 - **Năm route mới, 501 tới lát 13b-4** (`/core/connections*`, INV-23): ogen sinh handler từ `api/openapi.json`; `server.Fallback` trả 501 cho tới khi `core/conn` có backend. **`core/server/modules_test.go` (`contractRoutes`) và `api/route-modules.json`** đã đổi: năm route rời `ai`, vào `core`.

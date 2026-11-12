@@ -104,6 +104,7 @@ type Config struct {
 type stored struct {
 	Profile
 	secretID string
+	lastTest *LastTest // the last connection test of the profile as saved; nil = not tested since it was added or its connection changed
 }
 
 // snapshot is one immutable generation of the saved settings. A change builds the next one, writes it, then swaps it in.
@@ -281,7 +282,8 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	q := s.cfg.DB.Reader()
 	sn := &snapshot{cfg: DefaultSettings(), assign: Assignments{Jobs: make(map[Job]Slot, len(Jobs()))}}
 
-	rows, err := q.QueryContext(ctx, `SELECT key, value FROM ai_setting WHERE key IN ('config', 'assign')`)
+	var tests map[string]LastTest
+	rows, err := q.QueryContext(ctx, `SELECT key, value FROM ai_setting WHERE key IN ('config', 'assign', 'profile_tests')`)
 	if err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
 	}
@@ -306,6 +308,11 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 				return nil, fmt.Errorf("settings assign: %w", err)
 			}
 			sn.assign.InternalOnly = v.InternalOnly
+		case "profile_tests":
+			// what only a row shows: a value that cannot be read leaves every profile "not tested", it does not stop the module
+			if json.Unmarshal([]byte(value), &tests) != nil {
+				tests = nil
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -343,6 +350,9 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	_ = prof.Close()
 	for _, r := range raws {
 		st := stored{Profile: r.p}
+		if t, ok := tests[r.p.ID]; ok {
+			st.lastTest = &t
+		}
 		if r.secretID.Valid {
 			key, err := s.cfg.Secrets.Open(ctx, q, r.secretID.String, secretPurpose)
 			if err != nil {

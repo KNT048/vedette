@@ -27,7 +27,8 @@ export function useRemoveProfile() {
 }
 export function useTestProfile() {
   const done = useInvalidateAi()
-  return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSuccess: done, gcTime: 0 })
+  // a failed test of a saved profile is its last test too (S-AI-1): refresh the list either way
+  return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSettled: done, gcTime: 0 })
 }
 export const useAssignments = () => useQuery({ queryKey: ['ai', 'assignments'], queryFn: () => api.get<Assignments>('/ai/assignments') })
 export function useSaveAssignments() {

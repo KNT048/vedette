@@ -118,6 +118,7 @@ Wants=network-online.target
 
 [Container]
 ContainerName=vedette-core
+HostName=vedette
 Image=` + repoCore + `@{{.Digest}}
 Pull=never
 Network=vedette-int.network

@@ -118,6 +118,26 @@ func certBoxName(ctx context.Context, b *boxHostName) string {
 	return name
 }
 
+// localSuffixes are the name spaces no one can register publicly: mDNS (.local, RFC 6762), home networks (.home.arpa, RFC 8375),
+// private use (.internal, ICANN 2024) and the de facto home-router domain .lan.
+var localSuffixes = []string{".local", ".lan", ".home.arpa", ".internal"}
+
+// defaultAllowed says whether a name of the box's own certificate may be a Host the box answers to without -hosts: an IP address, a
+// single label ("vedette", "office-box") or a name under localSuffixes. The machine's name may come from DHCP (option 12 sets the
+// nodename on many distributions), so a hostile DHCP server could name the box rb.attacker.example; were that in the allowlist, a page
+// on that domain could rebind it to the box. The certificate may still carry it; answering to it needs -hosts.
+func defaultAllowed(h string) bool {
+	if _, err := netip.ParseAddr(h); err == nil || !strings.Contains(h, ".") {
+		return true
+	}
+	for _, s := range localSuffixes {
+		if strings.HasSuffix(h, s) {
+			return true
+		}
+	}
+	return false
+}
+
 // ensureCertAt creates the self-signed certificate and its key on first start, like ensureKey: P-256, 825 days, both files mode
 // 0600, the names of hosts (plus localNames) as subject alternative names, signed by the box CA (ca, D-262). When the key file
 // exists the pair is kept as it is (the owner may have put their own there), except that a pair this function made (subject
@@ -424,14 +444,16 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	}
 	// The box's name (D-316 follow-up of #471): added when vedette-host reports one the certificate lacks (an upgraded box, a host that
 	// answered only after start, a renamed machine); a host that has not answered keeps the names the certificate has.
+	// The name goes after localNames, so "vedette" stays the first name that is not loopback (the default base URL, notify.go).
 	nameChange := false
+	var named []string
 	if r.box != nil {
 		if box := r.box(ctx); box != "" {
-			hosts = append(hosts, box)
+			named = []string{box}
 			// "vedette" (no name from the host) is one of localNames: it rides along with the next re-issue, as before.
 			nameChange = box != fallbackBoxName && !slices.Contains(leaf.DNSNames, box)
 		} else {
-			hosts = append(hosts, leaf.DNSNames...)
+			named = leaf.DNSNames
 		}
 	}
 	if !addrChange && !nameChange && leaf.NotAfter.Sub(r.now()) > selfSignedRenewBefore && (caErr != nil || !notSignedBy(leaf, ca)) {
@@ -446,7 +468,7 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	if caErr != nil {
 		return caErr
 	}
-	certPEM, err := selfSignedPEM(ca, signer, append(hosts, r.localList()...), r.now())
+	certPEM, err := selfSignedPEM(ca, signer, append(append(hosts, r.localList()...), named...), r.now())
 	if err != nil {
 		return err
 	}

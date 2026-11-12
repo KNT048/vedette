@@ -25,9 +25,7 @@ import (
 var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
 		mustTemplate("core-1", coreUnitTextD318), // D-318 (2026-11-12): the honeypot log volume, 514 only
-		// #471 (2026-11-12): HostName=vedette, until core took the box's name from vedette-host. The D-214 template before it (6514
-		// published, no HostName) is byte for byte the current one again, so it is no longer listed: such a unit is current.
-		mustTemplate("core-2", coreUnitText471),
+		mustTemplate("core-2", coreUnitTextD214), // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
 	},
 	api.ServiceHoneypot: {
 		mustTemplate("honeypot-1", honeypotUnitTextD318), // D-318 (2026-11-12): before ContainersConfModule (#486)
@@ -145,14 +143,13 @@ Restart=always
 TimeoutStartSec=300
 `
 
-const coreUnitText471 = `[Unit]
+const coreUnitTextD214 = `[Unit]
 Description=Vedette core
 After=network-online.target vedette-host.service
 Wants=network-online.target
 
 [Container]
 ContainerName=vedette-core
-HostName=vedette
 Image=` + repoCore + `@{{.Digest}}
 Pull=never
 Network=vedette-int.network

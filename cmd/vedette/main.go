@@ -206,7 +206,9 @@ func isLoopback(addr string) (bool, error) {
 // CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
 //
 // The box's own pair also covers the box's name (certBoxName of box: the OS host name vedette-host reports, core's own host name
-// without a host), and without -hosts the allowlist holds it too. It is asked once here (at most boxNameTimeout): vedette-host
+// without a host), after localNames so that "vedette" stays the first name (boxBaseURL). Without -hosts the allowlist is the names
+// of the box's own pair that pass defaultAllowed (an address, one label, or .local/.lan/.home.arpa/.internal), the box's name among
+// them when it passes: the name may come from DHCP, so a name in a public domain is answered to only through -hosts. It is asked once here (at most boxNameTimeout): vedette-host
 // starts before core, so the name is normally known at the first start and on every later one. It only ever adds to the names of
 // before (localNames keeps "vedette", the addresses stay), so no name that opened the box before stops working. A box whose
 // certificate lacks it (an upgraded box) gets it at the renewer's first Check, right after start; one whose host does not answer
@@ -232,8 +234,8 @@ func transport(ctx context.Context, o options, ca *boxCAStore, box *boxHostName)
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
 		certHosts := hosts
-		if name = certBoxName(ctx, box); name != "" {
-			certHosts = append(slices.Clone(hosts), name)
+		if name = certBoxName(ctx, box); name != "" { // after localNames: "vedette" stays the first name, the default base URL
+			certHosts = append(append(slices.Clone(hosts), localNames()...), name)
 		}
 		if err := ensureCertAt(ctx, ca, certPath, keyPath, certHosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
@@ -248,9 +250,13 @@ func transport(ctx context.Context, o options, ca *boxCAStore, box *boxHostName)
 			box: func(ctx context.Context) string { return certBoxName(ctx, box) }}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
-	if len(hosts) == 0 {
-		hosts = names
-		if name != "" && !slices.Contains(names, name) { // an upgraded box: the renewer's first Check adds it to the certificate
+	switch {
+	case len(hosts) > 0: // -hosts: exactly those
+	case o.tlsCert != "":
+		hosts = names // an owner's certificate: the names the owner put in it
+	default: // the box's own: only names no one outside can own (defaultAllowed, DNS rebinding); others need -hosts
+		hosts = slices.DeleteFunc(names, func(h string) bool { return !defaultAllowed(h) })
+		if name != "" && defaultAllowed(name) && !slices.Contains(hosts, name) { // an upgraded box: the first Check adds it to the certificate
 			hosts = append(hosts, name)
 		}
 	}

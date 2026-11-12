@@ -95,36 +95,6 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 	}
 }
 
-// #471: a box on the core template with HostName=vedette (the second earlier one) gets the unit without it at the next host start;
-// the container keeps running and takes the new text at its next restart.
-func TestContract_UnitMigration_CoreLosesHostNameAtStart(t *testing.T) {
-	t.Parallel()
-	e := startCtr(t)
-	old := e.writeLegacy(t, api.ServiceCore, digA, 1, true)
-	if !strings.Contains(old, "\nHostName=vedette\n") {
-		t.Fatalf("the second earlier core template is not the one with HostName=vedette:\n%s", old)
-	}
-	e.m.SetRunning(api.ServiceCore, true)
-	e.m.Mark("host-starting", true)
-	rec := e.startHost(t)
-	got := e.unit(t, api.ServiceCore)
-	if want := e.render(t, api.ServiceCore, digA, true); got != want || strings.Contains(got, "HostName=") {
-		t.Fatalf("core was not moved to the current template:\n%s", got)
-	}
-	if strings.Replace(old, "HostName=vedette\n", "", 1) != got {
-		t.Error("the migration changed more than the HostName line")
-	}
-	if p, err := e.m.Prev(api.ServiceCore); err != nil || p != old {
-		t.Errorf("core's old bytes are not kept in .prev: %v", err)
-	}
-	if !e.m.IsRunning(api.ServiceCore) || !slices.Equal(e.ctl(), []string{"daemon-reload"}) {
-		t.Errorf("core was touched beyond one daemon-reload: running %t, systemctl %v", e.m.IsRunning(api.ServiceCore), e.ctl())
-	}
-	if txt := rec.text(); !strings.Contains(txt, `container.start unit_migrated {"digest":`) || !strings.Contains(txt, `"service":"core"`) {
-		t.Errorf("no unit_migrated line for core: %s", txt)
-	}
-}
-
 // The migration runs once per start: the retries of the journal recovery after READY (recoverAndFinish) do not try it again, so a
 // migration that fails leaves one unit_migration_failed line per start, not one per retry.
 func TestContract_UnitMigration_RunsOncePerStartNotInTheRetriesAfterReady(t *testing.T) {

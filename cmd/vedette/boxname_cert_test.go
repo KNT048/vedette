@@ -26,7 +26,7 @@ func TestCertBoxNameIsOnlyAValidReportedName(t *testing.T) {
 		}
 	}
 	down := newBoxHostNameFrom((&fakeInfo{err: errors.New("down")}).Info, time.Now)
-	down.useRow(func(context.Context) string { return "office-box" })
+	down.useRow(func(context.Context) (string, error) { return "office-box", nil })
 	if name, _ := down.Get(t.Context()); name != "office-box" {
 		t.Fatalf("the row's name is not used while the host is down: %q", name)
 	}
@@ -39,22 +39,27 @@ func TestCertBoxNameIsOnlyAValidReportedName(t *testing.T) {
 }
 
 // line 3 of fix-host-reports-hostname (r2 LOW 2): after a restart of core while the host is down, the name is the device row's, read
-// once; ok stays false; a name the row should not hold is not passed on; the host's answer wins as soon as it comes.
+// until one read succeeds (a failed read is tried again); ok stays false; a name the row should not hold is not passed on; the host's
+// answer wins as soon as it comes.
 func TestBoxHostNameUsesTheRowUntilTheHostAnswers(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
 	f := &fakeInfo{err: errors.New("host restarting")}
 	b := newBoxHostNameFrom(f.Info, func() time.Time { return now })
 	reads := 0
-	row := "office-box"
-	b.useRow(func(context.Context) string { reads++; return row })
+	rowErr := errors.New("database busy")
+	b.useRow(func(context.Context) (string, error) { reads++; return "office-box", rowErr })
+	if got, ok := b.Get(t.Context()); got != fallbackBoxName || ok {
+		t.Fatalf("row read failed: %q %v", got, ok)
+	}
+	rowErr = nil
 	for range 3 {
 		if got, ok := b.Get(t.Context()); got != "office-box" || ok {
 			t.Fatalf("host down: %q %v", got, ok)
 		}
 	}
-	if reads != 1 {
-		t.Fatalf("the row was read %d times", reads)
+	if reads != 2 {
+		t.Fatalf("the row was read %d times, want 2 (one failed, one kept)", reads)
 	}
 	f.err, f.name = nil, "lab-box"
 	now = now.Add(boxNameRetry)
@@ -63,7 +68,7 @@ func TestBoxHostNameUsesTheRowUntilTheHostAnswers(t *testing.T) {
 	}
 
 	bad := newBoxHostNameFrom((&fakeInfo{err: errors.New("down")}).Info, time.Now)
-	bad.useRow(func(context.Context) string { return "box\nINJECT" })
+	bad.useRow(func(context.Context) (string, error) { return "box\nINJECT", nil })
 	if got, ok := bad.Get(t.Context()); got != fallbackBoxName || ok {
 		t.Fatalf("an invalid row name: %q %v", got, ok)
 	}
@@ -152,7 +157,7 @@ func TestHostDownAtStartTheNameComesWithTheFirstAnswer(t *testing.T) {
 	now := time.Now()
 	f := &fakeInfo{err: errors.New("host restarting")}
 	box := newBoxHostNameFrom(f.Info, func() time.Time { return now })
-	box.useRow(func(context.Context) string { return "stale-row" })
+	box.useRow(func(context.Context) (string, error) { return "stale-row", nil })
 	dir := t.TempDir()
 	hosts, renew := boxTransport(t, dir, testCA(t, dir), box)
 	first := servedLeaf(t, renew)
@@ -201,5 +206,80 @@ func TestHostsFlagAllowlistGetsNoName(t *testing.T) {
 	}
 	if l := servedLeaf(t, renew); !slices.Contains(l.DNSNames, "office-box") || !slices.Contains(l.DNSNames, "box.acme.example") {
 		t.Fatalf("certificate %v", l.DNSNames)
+	}
+}
+
+// Review r1 L1 (DNS rebinding): DHCP can set the machine's name, so a name in a public domain goes into the certificate but never
+// into the default allowlist, at the first start, after the first Check, or at the next start when the certificate already has it.
+// A single label or a name under .local, .lan, .home.arpa or .internal is answered to.
+func TestPublicDomainBoxNameIsNotAnswered(t *testing.T) {
+	t.Parallel()
+	for name, answered := range map[string]bool{
+		"rb.attacker.example": false, "box.corp.example": false, "lan.example": false, "evil.local.example": false,
+		"office-box": true, "office-box.local": true, "box.lan": true, "box.home.arpa": true, "box.corp.internal": true,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			ca := testCA(t, dir)
+			box := newBoxHostNameFrom((&fakeInfo{name: name}).Info, time.Now)
+			for start := range 2 {
+				hosts, renew := boxTransport(t, dir, ca, box)
+				if err := renew.Check(t.Context(), nil); err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Contains(servedLeaf(t, renew).DNSNames, name) {
+					t.Fatalf("start %d: the certificate lacks %s", start, name)
+				}
+				allowed := server.HostMatcher(hosts, nil)
+				if allowed(name) != answered || allowed(name+":8443") != answered || !allowed("vedette") {
+					t.Fatalf("start %d: %s answered %t, want %t (allowlist %v)", start, name, allowed(name), answered, hosts)
+				}
+			}
+		})
+	}
+}
+
+// Review r1 L3: the box's name comes after localNames in the certificate, so the default allowlist still starts with "vedette" and the
+// base URL in links (notify.go baseURL, the first name that is not loopback) does not change on an upgraded box.
+func TestBoxNameKeepsVedetteFirstAndTheBaseURL(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	ca := testCA(t, dir)
+	box := newBoxHostNameFrom((&fakeInfo{name: "office-box"}).Info, time.Now)
+	for _, step := range []string{"first start", "after Check", "next start"} {
+		hosts, renew := boxTransport(t, dir, ca, box)
+		if step == "after Check" {
+			if err := renew.Check(t.Context(), nil); err != nil {
+				t.Fatal(err)
+			}
+		}
+		dns := servedLeaf(t, renew).DNSNames
+		if v, o := slices.Index(dns, fallbackBoxName), slices.Index(dns, "office-box"); v < 0 || o < 0 || v > o {
+			t.Fatalf("%s: certificate names %v, want vedette before office-box", step, dns)
+		}
+		if got := baseURL(hosts, "0.0.0.0:8443"); got != "https://vedette:8443" {
+			t.Fatalf("%s: base URL %q (allowlist %v)", step, got, hosts)
+		}
+	}
+}
+
+// Review r1 L4: Cached never asks the host; it gives what Get last learned.
+func TestBoxHostNameCachedNeverAsksTheHost(t *testing.T) {
+	t.Parallel()
+	f := &fakeInfo{name: "office-box"}
+	b := newBoxHostNameFrom(f.Info, time.Now)
+	if got := b.Cached(t.Context()); got != fallbackBoxName || f.calls != 0 {
+		t.Fatalf("before any Get: %q after %d calls", got, f.calls)
+	}
+	b.Get(t.Context())
+	for range 3 {
+		if got := b.Cached(t.Context()); got != "office-box" || f.calls != 1 {
+			t.Fatalf("after Get: %q after %d calls", got, f.calls)
+		}
+	}
+	var none *boxHostName
+	if got := none.Cached(t.Context()); got != fallbackBoxName {
+		t.Fatalf("nil: %q", got)
 	}
 }

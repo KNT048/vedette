@@ -82,22 +82,23 @@ export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(
 
 // ---- cập nhật ----
 export const UpdateChannel = z.enum(['stable', 'beta'])
-export const UpdateComponent = z.object({ id: z.string(), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']),
+export const UpdateComponent = z.object({ id: z.string().describe('"host": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)'), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']),
   rollback_restores_data: z.boolean().describe('Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss') })
-export const UpdateAvailable = z.object({ component: z.string(), version: z.string(), channel: UpdateChannel, size_kb: z.number(), note: z.string() })
+export const UpdateAvailable = z.object({ component: z.string(), version: z.string(), channel: UpdateChannel, size_kb: z.number(), note: z.string(),
+  host_version: z.string().optional().describe('Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise') })
 export const UpdateHistory = z.object({ id: z.string(), ts, component: z.string(), from: z.string().nullable(), to: z.string(), action: z.enum(['update', 'rollback', 'bundle']), user: z.string() })
 export const Advisory = z.object({ id: z.string(), title: z.string(), severity: z.enum(['critical', 'high', 'medium']), published: z.string(), fixed_in: z.string(), summary: z.string(), status: z.enum(['affected', 'fixed']) })
 export const ManagedPackage = z.object({ id: z.string(), name: z.string(), version: z.string(), status: z.enum(['ok', 'update_pending']) })
-const UpdateStep = z.enum(['download', 'start', 'restore', 'restart'])
+const UpdateStep = z.enum(['host', 'download', 'start', 'restore', 'restart'])
 export const UpdateRun = z.object({
   id: z.string().describe('Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it'),
   action: z.enum(['update', 'rollback']), component: z.string().describe('"software": the whole release, every service in lockstep'),
   from: z.string().nullable().describe('Release running when the run started'), to: z.string().describe('Release the run installs (update) or goes back to (rollback)'),
   status: z.enum(['running', 'done', 'failed', 'reverted']).describe('reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped before or without that'),
-  steps: z.array(UpdateStep).describe('The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart'),
-  step: UpdateStep.nullable().describe('One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)'),
+  steps: z.array(UpdateStep).describe('The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)'),
+  step: UpdateStep.nullable().describe('One of steps while running; null when ended. host: update the system helper vedette-host (Vedette keeps running; a step that does not succeed ends the run before any image changes); download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)'),
   started_at: ts, finished_at: ts.nullable(), user: z.string().describe('"system" for the automatic updater'),
-  error: z.string().nullable().describe('Only when failed or reverted: why, in words, naming the service that failed'),
+  error: z.string().nullable().describe('Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316'),
 })
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts,

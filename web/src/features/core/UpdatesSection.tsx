@@ -57,6 +57,7 @@ function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; r
         </ol>
       ) : null}
       {run.status === 'running' && run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
+      {run.status === 'running' && run.step === 'host' ? <p className="text-[13px] text-muted">{t('updates.run.hostNote')}</p> : null}
       {reconnecting ? <p role="status" className="text-[13px] text-muted">{t('updates.run.reconnecting')}</p> : null}
       {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-[13px] text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
       {why ? <p role={sawEnd ? 'alert' : undefined} className="text-sm text-danger">{why}</p> : null}
@@ -77,6 +78,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const file = useRef<HTMLInputElement>(null)
   const comp = (id: string) => t(`updates.comp.${id}`, { defaultValue: id })
   const availableOf = (id: string): UpdateAvailable | undefined => s.available.find((a) => a.component === id)
+  // The system helper (D-316) has no Apply of its own: the software release brings it, and the software run updates it first.
+  const hostNext = availableOf('software')?.host_version
+  const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
 
   async function check() {
     try {
@@ -115,15 +119,16 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   }
 
   const columns: ColumnDef<UpdateComponent>[] = [
-    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span><span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span></div> },
+    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.how')}</span> : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
     { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => (row.original.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${row.original.signature}`)}</Chip>) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
+      if (row.original.id === 'host') return hostNext ? <span className="font-mono text-[12.5px]">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
       const a = availableOf(row.original.id)
       if (!a) return <span className="text-muted">{t('updates.latest')}</span>
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="grid"><span className="font-mono text-[12.5px]">{a.version}</span><span className="max-w-xs text-[12px] text-muted">{a.note}</span></div>
+          <div className="grid"><span className="font-mono text-[12.5px]">{a.version}</span><span className="max-w-xs text-[12px] text-muted">{a.note}</span>{includesHost(a)}</div>
           <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
         </div>
       )
@@ -192,8 +197,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             return (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{c.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>}</div>
+                {c.id === 'host' ? <span className="text-[12px] text-muted">{t('updates.host.how')}</span> : null}
                 <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
-                {a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
+                {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)
+                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
+                {a ? includesHost(a) : null}
                 {c.previous ? <div><Button size="sm" disabled={admin.disabled || (running && c.id === 'software')} title={admin.title} onClick={() => askRollback(c)}>{t('updates.rollbackTo', { version: c.previous })} <span className="sr-only">{comp(c.id)}</span></Button></div> : null}
               </div>
             )

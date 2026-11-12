@@ -877,7 +877,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
     // D-340: the software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
-    expect(screen.getByText(/^Step 1 of 3:/)).toBeInTheDocument()
+    expect(screen.getByText(/^Step 1 of 4: update the system helper/)).toBeInTheDocument() // D-316: the release brings a newer helper
     expect(screen.getByRole('button', { name: /^Back to .*Vedette software/i })).toBeDisabled()
     expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
@@ -888,7 +888,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
-    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     await u.click(await screen.findByRole('button', { name: /^Back to 0\.9\.3/ }))
     const dlg = await screen.findByRole('dialog')
     expect(dlg).toHaveTextContent('Data written since the update is lost.')
@@ -905,7 +905,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
-    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     const r = await fetch(`${location.origin}/api/v1/core/updates/rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ component: 'software' }) })
     expect(r.status).toBe(409)
     expect(((await r.json()) as { error: { code: string } }).error.code).toBe('confirm_required')

@@ -513,6 +513,8 @@ const CATALOG: UpdateAvailable[] = [
   { component: 'pack-mitigation', version: '2026.11.06', channel: 'stable', size_kb: 410, note: 'Adds mitigation guidance for Ivanti Connect Secure.' },
   { component: 'pack-parsers', version: '1.4.1', channel: 'stable', size_kb: 96, note: 'Fixes how FortiGate 7.4 logs are read.' },
 ]
+/** Trình trợ giúp `vedette-host` mà mỗi bản phát hành mang theo (manifest `host.version`, D-316). */
+const HOST_IN: Record<string, string> = { '0.9.4': '0.9.4', '0.10.0-beta.1': '0.10.0-beta.1' }
 /** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật (D-104, D-340). */
 const RESTORES_DATA = new Set(['0.9.4'])
 const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
@@ -520,7 +522,7 @@ const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; c
   channel: 'stable',
   mode: 'manual',
   last_check: daysAgo(0, 2),
-  components: [comp('software', 'software', '0.9.3', '0.9.2', 9), comp('data', 'data', '20261106.08', '20261106.04', 0), comp('pack-mitigation', 'content', '2026.11.04', '2026.10.28', 2), comp('pack-nuclei', 'content', '2026.11.05', '2026.11.01', 1), comp('pack-parsers', 'content', '1.4.0', '1.3.2', 14)],
+  components: [comp('software', 'software', '0.9.3', '0.9.2', 9), comp('host', 'software', '0.9.3', null, 9), comp('data', 'data', '20261106.08', '20261106.04', 0), comp('pack-mitigation', 'content', '2026.11.04', '2026.10.28', 2), comp('pack-nuclei', 'content', '2026.11.05', '2026.11.01', 1), comp('pack-parsers', 'content', '1.4.0', '1.3.2', 14)],
   history: [
     { id: 'h8', ts: daysAgo(0, 4), component: 'data', from: '20261106.04', to: '20261106.08', action: 'update', user: 'system' },
     { id: 'h7', ts: daysAgo(1), component: 'pack-nuclei', from: '2026.11.01', to: '2026.11.05', action: 'update', user: 'system' },
@@ -533,7 +535,7 @@ const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; c
   channel: 'stable',
   mode: 'manual',
   last_check: nowIso(),
-  components: [comp('software', 'software', '0.9.3', null, 0), comp('data', 'data', '20261106.08', null, 0), comp('pack-mitigation', 'content', '2026.11.04', null, 0), comp('pack-nuclei', 'content', '2026.11.05', null, 0), comp('pack-parsers', 'content', '1.4.0', null, 0)],
+  components: [comp('software', 'software', '0.9.3', null, 0), comp('host', 'software', '0.9.3', null, 0), comp('data', 'data', '20261106.08', null, 0), comp('pack-mitigation', 'content', '2026.11.04', null, 0), comp('pack-nuclei', 'content', '2026.11.05', null, 0), comp('pack-parsers', 'content', '1.4.0', null, 0)],
   history: [],
 }))
 const privacyStore = collection<{ install_id: string; telemetry: boolean; last_sent: string | null; update_check: boolean }>('core_privacy', () => ({ install_id: `ins-${hex(8)}`, telemetry: false, last_sent: daysAgo(0, 0.7), update_check: true }),
@@ -563,12 +565,57 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
 export const RUN_STEP_MS = import.meta.env.MODE === 'test' ? 300 : 1500
 const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['steps'] => (action === 'update' ? ['download', 'start', 'restart'] : restore ? ['start', 'restore', 'restart'] : ['start', 'restart'])
 
+/**
+ * How the system helper step of the next software update ends (S-CORE-2 criterion D-316); code null = it succeeds. Only tests and
+ * e2e set it (no button: on a real box the host decides). `version` stands in for the helper version of the release (an older
+ * build or a test build for those refusals).
+ */
+export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old'
+export const hostScenario = collection<{ code: HostOutcome | null; version: string | null }>('core_updates_host_scenario', () => ({ code: null, version: null }))
+/** The words core sends for each code (the story's sentences; slice 5 maps the host codes to these, core CONTRACT INV-21). */
+export function hostError(code: HostOutcome, v: string, running: string, release: string): string {
+  switch (code) {
+    case 'self_update_unhealthy': case 'install_failed': return `The new system helper ${v} did not start correctly, so the box went back to ${running} by itself. Nothing else was changed.`
+    case 'signature_invalid': return 'The system helper in this update is not signed by the Vedette release key. Nothing was installed.'
+    case 'checksum_mismatch': return 'The downloaded system helper does not match the signed release. Nothing was installed.'
+    case 'downgrade_not_allowed': return `System helper ${v} is older than the one running (${running}). The helper is never taken back by an update.`
+    case 'test_version_refused': return `${v} is a test build. It is never installed on a real box.`
+    case 'dependencies_unavailable': return "The new system helper needs operating system packages that the box's package sources do not offer. Nothing was installed."
+    case 'dpkg_locked': return 'The box is installing operating system packages. Try again in a few minutes.'
+    case 'rollback_failed': case 'self_update_interrupted': return 'The system helper update stopped half way and could not be undone. Vedette keeps running; follow the runbook section "vedette-host self-update stopped half way".'
+    case 'host_too_old': return `This box's system helper (${running}) is too old to update itself. Run install.sh of release ${release} on the box (it upgrades the helper and keeps your data), then apply again.`
+  }
+}
+const hostRow = () => updStore.get().components.find((c) => c.id === 'host')
+/** The helper version a software release brings when the run must update it first: above the running one, or forced by a scenario. */
+function hostTarget(release: string): string | undefined {
+  const cur = hostRow()
+  const sc = hostScenario.get()
+  const v = sc.version ?? HOST_IN[release]
+  if (!cur || !v) return undefined // container-only install, or a release without a helper
+  return compareVersion(v, cur.version) > 0 || sc.code ? v : undefined
+}
+/** End of the host step: the helper is on the new version (history row `host`), or the run ends before any image changes. */
+function settleHost(run: UpdateRun, to: string): boolean {
+  const cur = hostRow()!
+  const { code } = hostScenario.get()
+  if (!code) {
+    updStore.update((s) => ({ ...s, components: s.components.map((c) => (c.id === 'host' ? { ...c, version: to, installed_at: nowIso() } : c)), history: [{ id: newId('h'), ts: nowIso(), component: 'host', from: cur.version, to, action: 'update' as const, user: run.user }, ...s.history].slice(0, 100) }))
+    return true
+  }
+  const reverted = code === 'self_update_unhealthy' || code === 'install_failed'
+  updStore.update((s) => ({ ...s, run: { ...run, status: reverted ? 'reverted' : 'failed', step: null, finished_at: nowIso(), error: hostError(code, to, cur.version, run.to) } }))
+  return false
+}
+
 /** Đưa lần chạy phần mềm đang chạy tới bước đúng với thời gian đã trôi; xong thì đổi phiên bản và ghi lịch sử. */
 function tickRun() {
   const run = updStore.get().run
   if (!run || run.status !== 'running') return
   const steps = run.steps
   const i = Math.floor((Date.now() - Date.parse(run.started_at)) / RUN_STEP_MS)
+  const host = steps[0] === 'host' && i >= 1 ? hostTarget(run.to) : undefined
+  if (host && !settleHost(run, host)) return
   if (i < steps.length) {
     if (run.step !== steps[i]) updStore.update((s) => ({ ...s, run: { ...run, step: steps[i]! } }))
     return
@@ -579,8 +626,11 @@ function tickRun() {
 }
 
 function startRun(action: UpdateRun['action'], component: string, from: string, to: string, user: string, restore = false) {
-  const steps = runSteps(action, restore)
+  const host = action === 'update' && component === 'software' ? hostTarget(to) : undefined // a rollback never takes the helper back
+  const steps: UpdateRun['steps'] = host ? ['host', ...runSteps(action, restore)] : runSteps(action, restore)
   const run: UpdateRun = { id: newId('ur'), action, component, from, to, status: 'running', steps, step: steps[0]!, started_at: nowIso(), finished_at: null, user, error: null }
+  // criterion (h): a helper without host.self_update stops the run before any host call, nothing installed
+  if (host && hostScenario.get().code === 'host_too_old') Object.assign(run, { status: 'failed', step: null, finished_at: run.started_at, error: hostError('host_too_old', host, hostRow()!.version, to) })
   updStore.update((s) => ({ ...s, run }))
 }
 
@@ -595,7 +645,10 @@ function updView(): UpdatesState {
     return !cur || compareVersion(a.version, cur.version) > 0
   })
   // chỉ giữ bản mới nhất cho mỗi thành phần
-  const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0))
+  const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0)).map((a) => {
+    const host = a.component === 'software' ? hostTarget(a.version) : undefined
+    return host ? { ...a, host_version: host } : a
+  })
   return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
 }
 

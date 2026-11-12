@@ -160,7 +160,7 @@ func TestContract_Conntrack_AKilledConntrackIsAFailureNotZeroDeleted(t *testing.
 	t.Parallel()
 	e, logs := startConntrack(t)
 	fake := filepath.Join(e.m.Bin, ops.BinConntrack)
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\nkill -9 $$\n"), 0o755); err != nil {
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nkill -9 $$\n"), 0o700); err != nil { //nolint:gosec // a fake binary must be executable
 		t.Fatal(err)
 	}
 	if r := e.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
@@ -188,7 +188,7 @@ func TestContract_Conntrack_TheWatchLoopClearsOnceAfterARestartAndStopsOnClose(t
 			if i > 30000 {
 				t.Fatalf("no conntrack call number %d from the watch loop", n)
 			}
-			time.Sleep(time.Millisecond)
+			<-time.After(time.Millisecond)
 		}
 	}
 	waitCalls(1) // the first look after the host starts
@@ -197,7 +197,7 @@ func TestContract_Conntrack_TheWatchLoopClearsOnceAfterARestartAndStopsOnClose(t
 	e.o.Close()
 	n := len(conntrackCalls(e))
 	e.m.ContainerRestarted(api.ServiceCore)
-	time.Sleep(50 * time.Millisecond) // a negative check: it can only miss a late call, never fail without one
+	<-time.After(50 * time.Millisecond) // a negative check: it can only miss a late call, never fail without one
 	if got := len(conntrackCalls(e)); got != n {
 		t.Fatalf("the watch loop kept running after Close: %d calls, %d at Close", got, n)
 	}

@@ -374,7 +374,7 @@ func (tr *tlsRig) wedge() {
 	}
 	tr.start()
 	tr.set("tls")
-	raw, err := net.Dial("tcp4", tr.tlsAddr())
+	raw, err := (&net.Dialer{}).DialContext(context.Background(), "tcp4", tr.tlsAddr())
 	if err != nil {
 		tr.t.Fatal(err)
 	}
@@ -467,7 +467,7 @@ func closedByServer(t *testing.T, c net.Conn) bool {
 	_ = c.SetReadDeadline(time.Now().Add(30 * time.Second))
 	_, err := c.Read(make([]byte, 1))
 	var ne net.Error
-	return err != nil && !(errors.As(err, &ne) && ne.Timeout())
+	return err != nil && (!errors.As(err, &ne) || !ne.Timeout())
 }
 
 // D-435: a source that pins a client certificate takes lines only from the connection that presents exactly that certificate; no
@@ -569,7 +569,7 @@ func TestAConnectionCutBySetSourcesIsNotAFailedHandshake(t *testing.T) {
 	tr := newTLSRig(t, Limits{}, true)
 	tr.start()
 	tr.set("tls")
-	raw, err := net.Dial("tcp4", tr.tlsAddr()) // connects and says nothing: the server waits in the handshake
+	raw, err := (&net.Dialer{}).DialContext(context.Background(), "tcp4", tr.tlsAddr()) // connects and says nothing: the server waits in the handshake
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -955,11 +955,7 @@ func (s *Server) certRejected(ip netip.Addr, none bool) {
 	defer s.logMu.Unlock()
 	if now := s.now(); now.Sub(s.lastCertLg) >= s.lim.ErrorLogEvery {
 		s.lastCertLg = now
-		why := "presented another certificate"
-		if none {
-			why = "presented no certificate"
-		}
-		s.cfg.Log.WarnContext(s.ctx, "logs: a syslog TLS sender was refused: its source requires a client certificate and it "+why+"; more are only counted", "sender", ip.String())
+		s.cfg.Log.WarnContext(s.ctx, "logs: a syslog TLS sender was refused: its source requires a client certificate and it presented none or another; more are only counted", "sender", ip.String(), "presented_none", none)
 	}
 }
 

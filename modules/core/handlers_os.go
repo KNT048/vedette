@@ -479,7 +479,7 @@ func (h *OSHandlers) CorePostCoreUpdatesOsInstall(ctx context.Context, req *oas.
 				return nil // the host took it; only its answer was lost
 			}
 			keepSnap = !known // the host may be running it and reading the snapshot: the start-up sweep removes it later
-			return hostErr(ctx, h.log, err)
+			return notTaken(ctx, h.log, err, run)
 		}
 		return nil
 	})
@@ -785,7 +785,7 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 			var found, known bool
 			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupCreate, id); !found {
 				keepSnap = !known // the host may be reading it: the start-up sweep removes it later
-				return hostErr(ctx, h.log, err)
+				return notTaken(ctx, h.log, err, run)
 			}
 		}
 		run, err = waitRun(ctx, h.log, h.host, run, 16*time.Minute)
@@ -834,7 +834,8 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 
 // recoverRun is for a write command whose answer may have been lost (the call went out and nothing came back:
 // a timeout, a reset connection, the caller leaving). The host remembers the run by request id (host-api 4, 11):
-// found is true with the run when it took the command. known is false when the host could not be asked, so the
+// found is true with the run when it took the command. A run it refused is not one to follow: found is false and
+// the run is returned for notTaken to answer its code. known is false when the host could not be asked, so the
 // command may be running and its snapshot must stay.
 func (h *OSHandlers) recoverRun(ctx context.Context, err error, command, requestID string) (run api.Run, found, known bool) {
 	var he *client.Error
@@ -848,17 +849,29 @@ func (h *OSHandlers) recoverRun(ctx context.Context, err error, command, request
 		return api.Run{}, false, false
 	}
 	for _, r := range runs {
-		if r.RequestID == requestID && r.Command == command && !neverRan(r) {
-			return r, true, true
+		if r.RequestID == requestID && r.Command == command {
+			return r, r.Status != api.StatusRefused, true
 		}
 	}
 	return api.Run{}, false, true
 }
 
-// neverRan: the host refused the call in its check (busy, dpkg_locked, ...) and still recorded the refusal as a run
-// under the call's key (host-api 4, 11); nothing ran, so it is never the run of that command: not the OS run after
-// a restart, not a restore to settle (no data.restore_done), not the run a lost answer stood for.
-func neverRan(r api.Run) bool { return r.Status == api.StatusRefused }
+// notTaken is the answer to a write command the host did not take after its answer was lost: the code of the
+// refusal it recorded under the key (recoverRun), else the call's own error.
+func notTaken(ctx context.Context, log *slog.Logger, err error, run api.Run) error {
+	if run.Status == api.StatusRefused && run.Error != nil {
+		return mapHostCode(ctx, log, run.Error.Code, run.Error.Message, 0)
+	}
+	return hostErr(ctx, log, err)
+}
+
+// refusedElsewhere: a refused run that is not the run core recorded for its command (mine). The host records a
+// refusal as a run (host-api 4): one refused by its check never started, so it is not the OS run after a restart
+// nor a restore to settle. A run core recorded was accepted (202) and may still be refused while it runs
+// (host/server: schema_newer, low_disk, dpkg_locked, ...): that one is the run and is settled like any end.
+func refusedElsewhere(r api.Run, mine string) bool {
+	return r.Status == api.StatusRefused && r.RunID != mine
+}
 
 // snapshotFailure is the answer for a snapshot that could not be written: 409 low_disk when the disk is full
 // or too small for a copy, else 502 snapshot_failed; never a 500.

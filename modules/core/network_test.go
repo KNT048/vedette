@@ -1205,8 +1205,8 @@ func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
 	}
 }
 
-// M1: the passive sensor reads its cards through Cards. No socket file: the operating system's interfaces (ok
-// false); a host that does not answer: the last good list, or ok false before there is one; never an error.
+// M1: the passive sensor reads its cards through Cards. No socket file: ok false (cmd/vedette's HostCards makes it an
+// error, D-385); a host that does not answer: the last good list, or ok false before there is one; never an error.
 func TestNetworkCardsSurviveAMissingOrFailingHost(t *testing.T) {
 	t.Parallel()
 	t.Run("socket file absent", func(t *testing.T) {

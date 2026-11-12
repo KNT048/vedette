@@ -1472,9 +1472,11 @@ func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok b
 }
 
 // Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
-// file is absent: a container-only install): the caller then reads the interfaces of the operating system it
-// runs on. A host that is there but does not answer right now gives the last good list (or, before there is
-// one, ok=false): the passive sensor must not fail, or go into back-off, because the helper hiccups.
+// file is absent, or a host that says this is no appliance). Only "no socket configured" (HasHost false) means a
+// container-only install, where sensor-passive takes the box's cards from the sensor's heartbeat (D-263, D-385);
+// its HostCards turns ok=false with HasHost into an error. A host that is there but does not answer right now gives
+// the last good list (or, before there is one, ok=false): the passive sensor must not fail, or go into back-off,
+// because the helper hiccups.
 func (h *NetworkHandlers) Cards(ctx context.Context) (cards []Card, ok bool, err error) {
 	if h == nil || h.host == nil {
 		return nil, false, nil
@@ -1488,7 +1490,7 @@ func (h *NetworkHandlers) Cards(ctx context.Context) (cards []Card, ok bool, err
 		last := h.lastCards
 		h.cardsMu.Unlock()
 		if last == nil {
-			h.log.WarnContext(ctx, "core: vedette-host does not answer and no list of cards is known yet; the sensor reads the operating system's interfaces", "error", err)
+			h.log.WarnContext(ctx, "core: vedette-host does not answer and no list of cards is known yet; the passive sensor's batches wait until it answers", "error", err)
 		}
 		return last, last != nil, nil
 	}

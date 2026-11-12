@@ -874,6 +874,72 @@ func TestItemsAboutTheBoxAreRefused(t *testing.T) {
 	}
 }
 
+// Container-only (D-385): without a host the box's own cards are those of the sensor's heartbeat of the last 90 s, never the
+// core container's. No such heartbeat → the batch is not applied (503 store_busy, the sensor sends it again), and an old
+// heartbeat lets no card be chosen either. With a host, the host's cards decide and the heartbeat's do not (D-118).
+func TestNoHostTheBoxIsWhatTheFreshHeartbeatReports(t *testing.T) {
+	t.Parallel()
+	backendOnly(t)
+	e := newEnv(t, nil, false)
+	e.host.setNoHost(true)
+	ctx := t.Context()
+	var now time.Time
+	e.setClock(func() time.Time { return now })
+	now = pktgen.T0.Add(time.Minute)
+	const hostMAC, hostIP = "0a:00:00:00:99:01", "192.168.10.141"
+	batch := func(seq int64) (sensorlink.ObservationsReply, error) {
+		return e.svc.Observations(ctx, request(epochA, seq,
+			boxItem("hostname", "evil", hostMAC, ""),             // the MAC of the real host card
+			boxItem("hostname", "evil", macN(1), hostIP),         // another MAC claiming its address
+			boxItem("hostname", "fine", pktgen.Box.String(), ""), // the card the fake host would report: not the box here
+		))
+	}
+	busy := func(what string, err error) {
+		t.Helper()
+		var se *sensorlink.Error
+		if !errors.As(err, &se) || se.Code != sensorlink.CodeStoreBusy {
+			t.Fatalf("%s: %v, want store_busy", what, err)
+		}
+	}
+	_, err := batch(1)
+	busy("before any heartbeat", err)
+	beat := func() {
+		t.Helper()
+		hb := &sensorlink.PassiveHeartbeat{Version: "1.0.0", Drops: map[string]int64{}, Interfaces: []sensorlink.HeartbeatIface{
+			{Name: "enp2s0", MAC: hostMAC, Link: true, IPv4: []string{hostIP + "/24"}}, {Name: "enp3s0", MAC: "0a:00:00:00:99:02", Link: true, IPv4: []string{}}}}
+		if _, err := e.svc.PassiveHeartbeat(ctx, hb); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beat()
+	now = now.Add(89 * time.Second)
+	rep, err := batch(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := codes(rep); c[0] != "refused" || c[1] != "refused" || c[2] != "" {
+		t.Fatalf("codes %v: the heartbeat's cards are the box, the fake host's are not", c)
+	}
+	now = now.Add(time.Second) // 90 s after the heartbeat: the sensor is offline, its list is too old
+	_, err = batch(2)
+	busy("a heartbeat 90 s old", err)
+	if err := e.svc.SetInterface(ctx, "admin@example.org", sp.SensorID, "enp3s0", true); !errors.Is(err, sp.ErrBadInterface) || !strings.Contains(err.Error(), "has not reported its network cards") {
+		t.Fatalf("a card from a heartbeat 90 s old: %v", err)
+	}
+	beat()
+	if err := e.svc.SetInterface(ctx, "admin@example.org", sp.SensorID, "enp3s0", true); err != nil {
+		t.Fatalf("a card of the fresh heartbeat: %v", err)
+	}
+	e.host.setNoHost(false) // with a host, its cards decide; the heartbeat's do not
+	rep, err = batch(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := codes(rep); c[0] != "" || c[1] != "" || c[2] != "refused" {
+		t.Fatalf("codes %v with a host: the host's cards are the box", c)
+	}
+}
+
 // The same through the real link, from a sensor that does not know which MAC is the box's (its own view of the cards lacks it):
 // the capture reads the box's frames and reports them, and it is core's check that stops them.
 func TestASensorThatDoesNotKnowTheBoxIsStillRefused(t *testing.T) {

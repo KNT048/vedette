@@ -333,11 +333,22 @@ func (b boxSet) has(o observe.Observation) bool {
 }
 
 // boxAddresses reads the cards of the box from the host (the authority; the heartbeat of a sensor is not): what a sensor says
-// about them is refused, the box is described by the host alone (INV-6, D-118).
+// about them is refused, the box is described by the host alone (INV-6, D-118). A host that is configured but gives no list
+// fails the batch (the sensor sends it again), as in SetInterface. Only without a host (container-only, D-168, D-385) the
+// cards are those of the sensor's heartbeat of the last 90 s: the sensor runs on the host network and is the only one that
+// sees the box's real cards, the core container sees only its own bridge link. With no such heartbeat the batch fails too:
+// a box whose cards are unknown would be recorded as a device of its own network.
 func (s *Service) boxAddresses(ctx context.Context) (boxSet, error) {
-	cards, err := s.host.Interfaces(ctx)
+	cards, fromHost, err := s.host.HostCards(ctx)
 	if err != nil {
 		return boxSet{}, fmt.Errorf("sensorpassive: list interfaces: %w", err)
+	}
+	if !fromHost {
+		hb := s.freshBeat()
+		if hb == nil {
+			return boxSet{}, errors.New("sensorpassive: no host and no heartbeat in the last 90 s, so the box's own cards are not known")
+		}
+		cards = cardsOfHeartbeat(hb.ifaces)
 	}
 	b := boxSet{macs: map[string]bool{}, ips: map[netip.Addr]bool{}}
 	for _, c := range cards {

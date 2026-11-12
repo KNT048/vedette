@@ -305,7 +305,7 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 		t.Fatalf("running=%v conflicts=%v", e3.host.isRunning(), e3.svc.TrapConflicts())
 	}
 	for _, tr := range overviewTraps(t, e3) {
-		if tr.State != honeypot.StateOff {
+		if tr.Enabled != (tr.State == honeypot.StateFailed) { // no clash, but not listening either: the box says it could not set the address up
 			t.Fatalf("a secondary IP the host could not set up shows %s as %s", tr.Service, tr.State)
 		}
 	}

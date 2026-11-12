@@ -302,7 +302,7 @@ func TestHoneypotHostDownOrAbsentNothingListens(t *testing.T) {
 				t.Fatalf("host status %v %q, want a reason with %q", ok, why, c.reason)
 			}
 			_, o := s.do("GET", "/honeypot", "viewer", "")
-			if ssh := field(t, o, "traps").([]any)[2].(map[string]any); ssh["state"] != "off" {
+			if ssh := field(t, o, "traps").([]any)[2].(map[string]any); ssh["state"] == "listening" {
 				t.Fatalf("a trap claims %v with no host", ssh["state"])
 			}
 			if c.sock != "" { // a down host is not "done" for the teardown only when something was handed over; nothing was

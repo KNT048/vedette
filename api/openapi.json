@@ -28593,6 +28593,20 @@
                         "null"
                       ]
                     },
+                    "secondary_mac": {
+                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "problem": {
+                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "hostname": {
                       "type": "string"
                     },
@@ -28679,9 +28693,12 @@
                             "enum": [
                               "off",
                               "listening",
-                              "conflict"
+                              "conflict",
+                              "starting",
+                              "stopping",
+                              "failed"
                             ],
-                            "description": "conflict = on, but the secondary IP clashes with a device in the inventory"
+                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
                           },
                           "since": {
                             "anyOf": [
@@ -28773,6 +28790,8 @@
                   },
                   "required": [
                     "secondary_ip",
+                    "secondary_mac",
+                    "problem",
                     "hostname",
                     "lan",
                     "box",
@@ -28803,7 +28822,7 @@
     "/honeypot/config": {
       "put": {
         "operationId": "honeypot_put_honeypot_config",
-        "summary": "Set the secondary IP and decoy hostname (rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box)",
+        "summary": "Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box",
         "tags": [
           "honeypot"
         ],
@@ -28848,6 +28867,20 @@
                         "null"
                       ]
                     },
+                    "secondary_mac": {
+                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "problem": {
+                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "hostname": {
                       "type": "string"
                     },
@@ -28934,9 +28967,12 @@
                             "enum": [
                               "off",
                               "listening",
-                              "conflict"
+                              "conflict",
+                              "starting",
+                              "stopping",
+                              "failed"
                             ],
-                            "description": "conflict = on, but the secondary IP clashes with a device in the inventory"
+                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
                           },
                           "since": {
                             "anyOf": [
@@ -29028,6 +29064,8 @@
                   },
                   "required": [
                     "secondary_ip",
+                    "secondary_mac",
+                    "problem",
                     "hostname",
                     "lan",
                     "box",
@@ -29101,6 +29139,32 @@
                           "enabled": {
                             "type": "boolean"
                           },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "off",
+                              "listening",
+                              "conflict",
+                              "starting",
+                              "stopping",
+                              "failed"
+                            ],
+                            "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
+                          },
+                          "reason": {
+                            "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "created_at": {
                             "type": "string",
                             "format": "date-time",
@@ -29134,6 +29198,9 @@
                           "name",
                           "ip",
                           "enabled",
+                          "state",
+                          "reason",
+                          "mac",
                           "created_at",
                           "services"
                         ],
@@ -29181,12 +29248,17 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "spare_checked": {
+                      "type": "boolean",
+                      "description": "false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet"
                     }
                   },
                   "required": [
                     "items",
                     "suggestions",
-                    "spare_ips"
+                    "spare_ips",
+                    "spare_checked"
                   ],
                   "additionalProperties": false
                 }
@@ -29279,6 +29351,32 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "listening",
+                        "conflict",
+                        "starting",
+                        "stopping",
+                        "failed"
+                      ],
+                      "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
+                    },
+                    "reason": {
+                      "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mac": {
+                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -29312,6 +29410,9 @@
                     "name",
                     "ip",
                     "enabled",
+                    "state",
+                    "reason",
+                    "mac",
                     "created_at",
                     "services"
                   ],
@@ -29439,6 +29540,32 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "listening",
+                        "conflict",
+                        "starting",
+                        "stopping",
+                        "failed"
+                      ],
+                      "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
+                    },
+                    "reason": {
+                      "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mac": {
+                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -29472,6 +29599,9 @@
                     "name",
                     "ip",
                     "enabled",
+                    "state",
+                    "reason",
+                    "mac",
                     "created_at",
                     "services"
                   ],
@@ -30615,6 +30745,20 @@
                         "null"
                       ]
                     },
+                    "secondary_mac": {
+                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "problem": {
+                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "hostname": {
                       "type": "string"
                     },
@@ -30701,9 +30845,12 @@
                             "enum": [
                               "off",
                               "listening",
-                              "conflict"
+                              "conflict",
+                              "starting",
+                              "stopping",
+                              "failed"
                             ],
-                            "description": "conflict = on, but the secondary IP clashes with a device in the inventory"
+                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
                           },
                           "since": {
                             "anyOf": [
@@ -30795,6 +30942,8 @@
                   },
                   "required": [
                     "secondary_ip",
+                    "secondary_mac",
+                    "problem",
                     "hostname",
                     "lan",
                     "box",

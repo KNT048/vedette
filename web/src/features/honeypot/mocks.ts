@@ -109,7 +109,13 @@ function inLan(ip: string) {
 const assetName = (a: { hostname: string | null; ip: string }) => a.hostname ?? a.ip
 const conflictAsset = (ip: string | null) => (ip ? assetsStore.get().find((a) => a.ip === ip) : undefined)
 
-function decoyView(d: StoredDecoy): Decoy { return { ...d, services: personalityDef(d.personality).services } }
+// The mock host always succeeds at once: a decoy listens when it is on and a trap is on, and has a stable locally administered MAC.
+const macOf = (ip: string) => `06:b7:36:${ip.split('.').slice(1).map((n) => Number(n).toString(16).padStart(2, '0')).join(':')}`
+function decoyView(d: StoredDecoy): Decoy {
+  const anyTrap = Object.values(config.get().traps).some((t) => t.enabled)
+  const state: Decoy['state'] = !d.enabled || !anyTrap ? 'off' : conflictAsset(d.ip) ? 'conflict' : 'listening'
+  return { ...d, state, reason: d.enabled && !anyTrap ? 'No trap is on, so nothing listens on this address.' : state === 'conflict' ? 'A device of the inventory has this address' : null, mac: state === 'listening' ? macOf(d.ip) : null, services: personalityDef(d.personality).services }
+}
 
 const maskPassword = (pw: string) => '\u2022'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
 
@@ -168,7 +174,7 @@ function overview(): HpOverview {
   const today = new Date().toDateString()
   const last = real[0]
   return {
-    secondary_ip: c.secondary_ip, hostname: c.hostname, lan: boxInfo().lan, box: { ip: boxInfo().ip, name: boxInfo().hostname }, ignored_7d: c.ignored_7d,
+    secondary_ip: c.secondary_ip, secondary_mac: c.secondary_ip && traps.some((t) => t.state === 'listening') ? macOf(c.secondary_ip) : null, problem: null, hostname: c.hostname, lan: boxInfo().lan, box: { ip: boxInfo().ip, name: boxInfo().hostname }, ignored_7d: c.ignored_7d,
     conflict_asset: conflict ? { id: conflict.id, name: assetName(conflict) } : null, traps,
     summary: { today: real.filter((h) => new Date(h.ts).toDateString() === today).length, week: real.filter((h) => new Date(h.ts).getTime() >= weekAgo).length, last_hit_at: last?.ts ?? null, last_src: last ? (hitView(last).src_name ?? last.src_ip) : null },
     updated_at: nowIso(),
@@ -187,6 +193,14 @@ export const handlers = [
     const b = await body<{ secondary_ip: string; hostname: string }>(request)
     const ip = String(b.secondary_ip ?? '').trim()
     const hostname = String(b.hostname ?? '').trim()
+    // An empty IP removes the decoy IP, only while every trap is off (a resource in use cannot be released).
+    if (!ip && config.get().secondary_ip) {
+      if (Object.values(config.get().traps).some((t) => t.enabled)) return fail(409, 'traps_on', 'Turn all traps off before removing the decoy IP.')
+      if (!hostname) return fail(400, 'bad_hostname', 'Enter a fake hostname, for example FILESRV-OLD. Pick a name that looks like an old file server in your company.')
+      audit('honeypot.config', config.get().secondary_ip!, `decoy IP removed, hostname ${hostname}`)
+      config.update((c) => ({ ...c, secondary_ip: null, hostname }))
+      return HttpResponse.json(overview())
+    }
     if (!ip) return fail(400, 'bad_ip', 'Enter a secondary IP for the decoy, for example 192.168.10.240. Pick an address no device uses.')
     if (!IPV4_RE.test(ip) || /(^|\.)0\d/.test(ip)) return fail(400, 'bad_ip', 'The secondary IP is not valid. Use the form 192.168.10.240, each number 0 to 255, no leading zeros.')
     if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on.')
@@ -262,7 +276,7 @@ export const handlers = [
   // --- S-HP-2: decoy personalities ---
   http.get(`${API}/honeypot/decoys`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: decoys.get().map(decoyView), suggestions: suggestions(), spare_ips: spareIps() })
+    return HttpResponse.json({ items: decoys.get().map(decoyView), suggestions: suggestions(), spare_ips: spareIps(), spare_checked: assetsStore.get().some((a) => a.ip !== boxInfo().ip && inLan(a.ip)) })
   }),
 
   http.post(`${API}/honeypot/decoys`, async ({ request }) => {

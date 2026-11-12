@@ -83,8 +83,18 @@ func (s *Service) SetConfig(ctx context.Context, actor, ipRaw, hostname string) 
 	if err != nil {
 		return Overview{}, err
 	}
-	ip, err := checkIP(w, ipRaw, secondary)
-	if err != nil {
+	// An empty IP removes the decoy IP, only while every trap is off: nothing then listens on it, and the box never turns
+	// traps off behind the owner's back (a resource in use cannot be released: AWS Elastic IP, Azure public IP; the Canary
+	// console asks to disable a Canary before deleting it). Without an IP set there is nothing to clear.
+	clearing := strings.TrimSpace(ipRaw) == "" && w.secIP.IsValid()
+	var ip netip.Addr
+	if clearing {
+		for _, svc := range Services {
+			if w.traps[svc].enabled {
+				return Overview{}, conflictErr("traps_on", "Turn all traps off before removing the decoy IP.")
+			}
+		}
+	} else if ip, err = checkIP(w, ipRaw, secondary); err != nil {
 		return Overview{}, err
 	}
 	hostname = strings.TrimSpace(hostname)
@@ -98,6 +108,23 @@ func (s *Service) SetConfig(ctx context.Context, actor, ipRaw, hostname string) 
 		return Overview{}, conflictErr("hostname_in_use", fmt.Sprintf("The name %s belongs to device %s in the inventory. Pick another name.", hostname, at))
 	}
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		if clearing {
+			var cur configRow
+			if err := loadJSON(ctx, tx, "config", &cur); err != nil {
+				return err
+			}
+			var on int // checked again where the write is: a trap turned on since the read above must not keep a removed IP
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM hp_trap WHERE enabled = 1`).Scan(&on); err != nil {
+				return fmt.Errorf("honeypot: check traps: %w", err)
+			}
+			if on > 0 {
+				return conflictErr("traps_on", "Turn all traps off before removing the decoy IP.")
+			}
+			if err := s.saveJSON(ctx, tx, "config", configRow{Hostname: hostname}, actor); err != nil {
+				return err
+			}
+			return s.auditTx(ctx, tx, actor, "honeypot.config", cur.SecondaryIP, "decoy IP removed, hostname "+hostname)
+		}
 		var n int
 		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM hp_decoys WHERE ip = ?`, ip.String()).Scan(&n); err != nil {
 			return fmt.Errorf("honeypot: check decoys: %w", err)
@@ -177,9 +204,10 @@ func (s *Service) Decoys(ctx context.Context) (DecoysResponse, error) {
 	if err != nil {
 		return DecoysResponse{}, err
 	}
-	out := DecoysResponse{Items: make([]Decoy, 0, len(w.decoys)), Suggestions: suggestions(w.devices), SpareIPs: spareIPs(w)}
+	out := DecoysResponse{Items: make([]Decoy, 0, len(w.decoys)), Suggestions: suggestions(w.devices), SpareIPs: spareIPs(w), SpareChecked: w.discovered()}
+	hv := s.hostView()
 	for _, d := range w.decoys {
-		out.Items = append(out.Items, d.Decoy)
+		out.Items = append(out.Items, w.withState(d, hv))
 	}
 	return out, nil
 }
@@ -234,7 +262,7 @@ func (s *Service) AddDecoy(ctx context.Context, actor string, in DecoyInput) (De
 		return Decoy{}, err
 	}
 	s.Kick()
-	return d, nil
+	return w.withState(decoyRow{Decoy: d, ip: ip}, s.hostView()), nil
 }
 
 // checkHostLimit refuses when adding add more addresses (secondary IP and decoys together) would pass what the host
@@ -255,6 +283,47 @@ func checkHostLimit(ctx context.Context, q querier, add int) error {
 		return conflictErr("limit_reached", fmt.Sprintf("The box can hold %d addresses for traps, the secondary IP included. Delete a decoy before adding another.", maxHostIPs))
 	}
 	return nil
+}
+
+// withState puts what the host says on a decoy: listening only when the container runs with a trap on and the host holds the
+// address, not because the switch is on. Reasons are plain sentences for the screen.
+func (w *world) withState(d decoyRow, hv hostView) Decoy {
+	out := d.Decoy
+	set := func(state, reason string) Decoy {
+		out.State = state
+		if reason != "" {
+			out.Reason = ptr(reason)
+		}
+		return out
+	}
+	if m := hv.macs[d.ip]; m != "" && hv.placed[d.ip] {
+		out.MAC = ptr(m)
+	}
+	anyTrap := false
+	for _, t := range w.traps {
+		anyTrap = anyTrap || t.enabled
+	}
+	switch why, hostFault := hv.conflicts[d.ip], hv.hostFailed[d.ip]; {
+	case !d.Enabled:
+		if hv.pending && hv.placed[d.ip] {
+			return set(StateStopping, "")
+		}
+		return set(StateOff, "")
+	case !anyTrap:
+		return set(StateOff, "No trap is on, so nothing listens on this address.")
+	case w.ipProblem(d.ip) != "":
+		return set(StateConflict, w.ipProblem(d.ip))
+	case why != "" && hostFault:
+		return set(StateFailed, why)
+	case why != "":
+		return set(StateConflict, why)
+	case hv.available && hv.running && hv.placed[d.ip]:
+		return set(StateListening, "")
+	case hv.pending:
+		return set(StateStarting, "")
+	default:
+		return set(StateFailed, reasonOrDefault(hv.reason))
+	}
 }
 
 // SetDecoyEnabled is PATCH /honeypot/decoys/{id}.
@@ -282,9 +351,13 @@ func (s *Service) SetDecoyEnabled(ctx context.Context, actor, id string, enabled
 	if err != nil {
 		return Decoy{}, err
 	}
+	w, err := s.load(ctx)
+	if err != nil {
+		return Decoy{}, err
+	}
 	for _, d := range rows {
 		if d.ID == id {
-			return d.Decoy, nil
+			return w.withState(d, s.hostView()), nil
 		}
 	}
 	return Decoy{}, notFound("No such decoy.")

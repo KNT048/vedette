@@ -29,22 +29,41 @@ type hostCache struct {
 	// hostFailed marks the entries of conflicts the host refused for its own failure (ErrHostFailed): no clash, the trap
 	// on that address shows "off".
 	hostFailed map[netip.Addr]bool
+	// placed are the addresses the host holds of the wanted ones after the last Apply; macs the MACs it gave them (when the host says).
+	placed map[netip.Addr]bool
+	macs   map[netip.Addr]string
 }
 
-// listening reports that the container was started with a configuration that has this service on, on a host that is an
-// appliance. It does not mean the port was probed: the box never connects to its own trap (INV-1, FORBID-3).
-func (s *Service) listening(svc ServiceName) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.host.available && s.host.running && s.host.services[svc]
+// refusal is the back-off of one address the host refused: the first refusals are retried at the next Apply, from the
+// third on only every refuseBackoff (a host that refuses is not asked, audited and logged each minute; the host takes
+// 10 writes a minute, ten failing decoys would use them all).
+type refusal struct {
+	n         int
+	until     time.Time
+	err       error
+	hostFault bool
 }
 
-// refused is the reason the last Apply did not hand ip to the host, "" when it did or never tried; hostFault says the
-// host refused it for its own failure, not because of the address.
-func (s *Service) refused(ip netip.Addr) (why string, hostFault bool) {
+const (
+	refuseFreeTries = 3
+	refuseBackoff   = 10 * time.Minute
+)
+
+// macReporter is the optional part of a Host that knows the MACs of the addresses it holds (vedette-host state/net).
+type macReporter interface {
+	DecoyMACs(ctx context.Context) map[netip.Addr]string
+}
+
+// hostView is the host cache with whether a change is still waiting for the host: one consistent read for the overview.
+type hostView struct {
+	hostCache
+	pending bool
+}
+
+func (s *Service) hostView() hostView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.host.conflicts[ip], s.host.hostFailed[ip]
+	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen}
 }
 
 // TrapConflicts lists the secondary or decoy addresses the last Apply left out of the host and why (a device or the box
@@ -183,6 +202,14 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 func (s *Service) Apply(ctx context.Context) error {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
+	s.mu.Lock()
+	gen := s.kickGen
+	s.mu.Unlock()
+	defer func() { // what was asked before this Apply started is now answered, well or badly
+		s.mu.Lock()
+		s.doneGen = max(s.doneGen, gen)
+		s.mu.Unlock()
+	}()
 	if !s.on() { // checked under the lock the teardown also holds: an Apply that waited behind a switch-off must not bring the traps back (D-189)
 		return nil
 	}
@@ -226,7 +253,8 @@ func (s *Service) Apply(ctx context.Context) error {
 		s.cfg.Log.InfoContext(ctx, "honeypot: traps cannot listen", "reason", reason)
 		return errors.Join(errs...)
 	}
-	placed, refused, err := s.syncIPs(ctx, ips, filesOK)
+	ask, backedOff := s.backOff(ips, services)
+	placed, refused, err := s.syncIPs(ctx, ask, filesOK)
 	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
 		return errors.Join(append(errs, err, parent.Err())...)
 	}
@@ -234,14 +262,23 @@ func (s *Service) Apply(ctx context.Context) error {
 		errs = append(errs, err)
 	}
 	hostFailed := map[netip.Addr]bool{}
+	for ip, r := range backedOff { // not asked this time: what it said last time still stands
+		conflicts[ip] = r.err.Error()
+		hostFailed[ip] = r.hostFault
+	}
 	for ip, rerr := range refused {
 		conflicts[ip] = rerr.Error()
-		if errors.Is(rerr, ErrHostFailed) {
+		hostFault := errors.Is(rerr, ErrHostFailed)
+		if hostFault {
 			hostFailed[ip] = true
 		}
+		s.noteRefused(ip, rerr, hostFault)
 		if s.due("refused " + ip.String()) {
 			s.cfg.Log.WarnContext(ctx, "honeypot: the host did not take a decoy address; the other traps go on", "ip", ip.String(), "reason", rerr.Error())
 		}
+	}
+	for _, ip := range placed {
+		delete(s.refusals, ip)
 	}
 	switch {
 	case len(services) == 0 || len(ips) == 0:
@@ -270,7 +307,61 @@ func (s *Service) Apply(ctx context.Context) error {
 		}
 		s.setHost(hostCache{available: true, running: true, services: m, conflicts: conflicts, hostFailed: hostFailed})
 	}
+	s.notePlaced(ctx, placed)
 	return errors.Join(errs...)
+}
+
+// backOff splits the wanted addresses into the ones to ask the host for now and the ones in back-off (refused before,
+// not due yet). A change of what is wanted starts over; an address no longer wanted is forgotten.
+func (s *Service) backOff(ips []netip.Addr, services []ServiceName) (ask []netip.Addr, backedOff map[netip.Addr]*refusal) {
+	sig := fmt.Sprint(ips, services)
+	if sig != s.sig {
+		clear(s.refusals)
+		s.sig = sig
+	}
+	now := s.now()
+	for _, ip := range ips {
+		if r := s.refusals[ip]; r != nil && now.Before(r.until) {
+			if backedOff == nil {
+				backedOff = map[netip.Addr]*refusal{}
+			}
+			backedOff[ip] = r
+			continue
+		}
+		ask = append(ask, ip)
+	}
+	return ask, backedOff
+}
+
+func (s *Service) noteRefused(ip netip.Addr, err error, hostFault bool) {
+	if s.refusals == nil {
+		s.refusals = map[netip.Addr]*refusal{}
+	}
+	r := s.refusals[ip]
+	if r == nil {
+		r = &refusal{}
+		s.refusals[ip] = r
+	}
+	r.n++
+	r.err, r.hostFault = err, hostFault
+	if r.n >= refuseFreeTries {
+		r.until = s.now().Add(refuseBackoff)
+	}
+}
+
+// notePlaced remembers which addresses the host holds and, when the host says, their MACs, for the overview.
+func (s *Service) notePlaced(ctx context.Context, placed []netip.Addr) {
+	var macs map[netip.Addr]string
+	if r, ok := s.cfg.Host.(macReporter); ok && len(placed) > 0 {
+		macs = r.DecoyMACs(ctx)
+	}
+	set := make(map[netip.Addr]bool, len(placed))
+	for _, ip := range placed {
+		set[ip] = true
+	}
+	s.mu.Lock()
+	s.host.placed, s.host.macs = set, macs
+	s.mu.Unlock()
 }
 
 func (s *Service) setHost(h hostCache) {

@@ -33371,6 +33371,17 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -33425,6 +33436,25 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItemServicesItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s HoneypotGetHoneypotDecoysOKItemsItemState) Validate() error {
+	switch s {
+	case "off":
+		return nil
+	case "listening":
+		return nil
+	case "conflict":
+		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *HoneypotGetHoneypotDecoysOKSuggestionsItem) Validate() error {
@@ -34053,6 +34083,12 @@ func (s HoneypotGetHoneypotOKTrapsItemState) Validate() error {
 		return nil
 	case "conflict":
 		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -34202,6 +34238,17 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -34256,6 +34303,25 @@ func (s *HoneypotPatchHoneypotDecoysIDOKServicesItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s HoneypotPatchHoneypotDecoysIDOKState) Validate() error {
+	switch s {
+	case "off":
+		return nil
+	case "listening":
+		return nil
+	case "conflict":
+		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *HoneypotPatchHoneypotTrapsServiceOK) Validate() error {
@@ -34485,6 +34551,12 @@ func (s HoneypotPatchHoneypotTrapsServiceOKTrapsItemState) Validate() error {
 		return nil
 	case "conflict":
 		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -34552,6 +34624,17 @@ func (s *HoneypotPostHoneypotDecoysCreated) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -34606,6 +34689,25 @@ func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s HoneypotPostHoneypotDecoysCreatedState) Validate() error {
+	switch s {
+	case "off":
+		return nil
+	case "listening":
+		return nil
+	case "conflict":
+		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *HoneypotPostHoneypotDecoysReq) Validate() error {
@@ -35337,6 +35439,12 @@ func (s HoneypotPutHoneypotConfigOKTrapsItemState) Validate() error {
 	case "listening":
 		return nil
 	case "conflict":
+		return nil
+	case "starting":
+		return nil
+	case "stopping":
+		return nil
+	case "failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

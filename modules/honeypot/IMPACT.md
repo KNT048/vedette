@@ -41,3 +41,5 @@
 - `response`: trigger `honeypot` và các mẫu `tpl-trap-*`, `tpl-sweep-vlan` không còn sự kiện; quy tắc giữ nguyên, không lỗi.
 - `notify`: không còn cảnh báo chạm bẫy. `logs/siem`: kênh `honeypot` không có bản ghi.
 - Container `honeypot` dừng, IP phụ gỡ. `hp_*` giữ nguyên, bật lại thấy lại lịch sử.
+
+- **`Host` tuỳ chọn `DecoyMACs(ctx) map[netip.Addr]string`** (S-HP-1): `cmd/vedette/honeypothost.go` đọc từ cùng lần `state/net` với `holds`; bỏ đi thì GUI không hiện MAC, không gì khác đổi. `Trap.state`/`Decoy.state` có thêm `starting|stopping|failed`: GUI (`TrapStateChip`), mock (`features/honeypot/mocks.ts`) và `api/openapi.json` phải đổi cùng lượt.

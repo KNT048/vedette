@@ -20,6 +20,7 @@ import { RespondLink } from './hitParts'
 import DecoysSection from './Decoys'
 import TokensSection from './Tokens'
 import CoverageSection from './Coverage'
+import { TrapStateChip } from './TrapStateChip'
 import type { Hit, HpOverview, HpService, Trap } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -48,6 +49,7 @@ function HoneypotBody() {
   const o = overview.data
   const title = !o ? t('titleLoading')
     : !o.traps.some((x) => x.enabled) ? t('title.noTraps')
+    : o.problem ? t('title.failed')
     : o.summary.today > 0 ? t('title.today', { count: o.summary.today })
     : o.summary.week > 0 ? t('title.week', { count: o.summary.week, when: fmtRelative(o.summary.last_hit_at), src: o.summary.last_src ?? '' })
     : t('title.quiet')
@@ -62,6 +64,12 @@ function HoneypotBody() {
               <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
                 <p className="font-medium text-danger">{t('conflict.title', { ip: data.secondary_ip })}</p>
                 <p className="mt-1">{t('conflict.body', { name: data.conflict_asset.name })} <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${data.conflict_asset.id}`}>{t('conflict.open')}</Link></p>
+              </div>
+            ) : null}
+            {data.problem ? (
+              <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
+                <p className="font-medium text-danger">{t('title.failed')}</p>
+                <p className="mt-1">{t('decoy.problem', { reason: data.problem.replace(/[.\s]+$/, '') })}</p>
               </div>
             ) : null}
             {!data.secondary_ip ? (
@@ -101,7 +109,7 @@ function DecoySection({ data }: { data: HpOverview }) {
     e.preventDefault()
     setError(null)
     save.mutate({ secondary_ip: ip.trim(), hostname: host.trim() }, {
-      onSuccess: () => toast.success(t('decoy.saved')),
+      onSuccess: () => toast.success(t(ip.trim() === '' ? 'decoy.removed' : 'decoy.saved')),
       onError: (er) => {
         const field = er instanceof ApiError && /hostname/.test(er.code) ? 'host' : 'ip'
         setError({ field, message: errMsg(er) })
@@ -124,6 +132,7 @@ function DecoySection({ data }: { data: HpOverview }) {
             {t('common:save')}
           </Button>
         </form>
+        {data.secondary_mac ? <p className="mt-3 text-[13px] text-muted">{t('decoy.mac', { mac: data.secondary_mac })}</p> : null}
         {!can ? <p className="mt-3 text-[13px] text-muted">{t('needAdmin')}</p> : null}
       </Panel>
     </Section>
@@ -152,7 +161,7 @@ function TrapsSection({ data }: { data: HpOverview }) {
   }
   const noIp = !data.secondary_ip
 
-  const stateChip = (tr: Trap) => tr.state === 'listening' ? <Chip tone="ok">{t('state.listening')}</Chip> : tr.state === 'conflict' ? <Chip tone="danger">{t('state.conflict')}</Chip> : <Chip tone="off">{noIp ? t('state.needIp') : t('state.off')}</Chip>
+  const stateChip = (tr: Trap) => <TrapStateChip state={tr.state}>{tr.state === 'off' && noIp ? t('state.needIp') : undefined}</TrapStateChip>
   const switchOf = (tr: Trap) => {
     const blocked = !admin ? t('common:needRole', { role: t('common:role.admin') }) : noIp && !tr.enabled ? t('traps.needIpReason') : undefined
     return <Switch checked={tr.enabled} disabled={!!blocked || toggle.isPending} title={blocked} aria-label={t('traps.switchLabel', { service: svc(tr.service) })} onCheckedChange={(v) => flip(tr, v)} />

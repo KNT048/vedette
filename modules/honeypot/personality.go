@@ -111,6 +111,17 @@ func spareIPs(w *world) []string {
 	return out
 }
 
+// discovered says whether the inventory has a device (not the box) in the box's network: before that "unused" is a claim
+// nobody checked.
+func (w *world) discovered() bool {
+	for _, d := range w.devices {
+		if !d.IsBox && d.IP.IsValid() && w.lan.Contains(d.IP) {
+			return true
+		}
+	}
+	return false
+}
+
 // usable is true for an address inside the prefix that is neither its network nor its broadcast address.
 func usable(p netip.Prefix, ip netip.Addr) bool {
 	if !p.Contains(ip) || p.Bits() >= 31 {

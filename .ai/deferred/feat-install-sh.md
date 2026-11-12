@@ -5,4 +5,3 @@
 - [ ] 2026-11-11 After WP-08e (honeypot image) is on `main`: `make install-artifacts` includes the honeypot when `localhost/vedette-honeypot:$TEST_VERSION` exists; add a honeypot service line to the install-check and the decoy check to the on-box run (docs/INSTALL-TEST.md step 5 already has it).
 - [ ] 2026-11-11 WP-08j (release preflight): refuse a release version that has a `-test.` prerelease (the test channel and `install.sh` rely on it, D-166 (11)); the release job must also never set `VEDETTE_VERSION` to one.
 - [ ] 2026-11-11 **BLOCKS THE FIRST RELEASE (08k)** — list the packages `--uninstall` (dry run) will hand back to apt (D-166 (19)) in the RUNBOOK. (The NTP text of Settings → Box network and Privacy flow 10 is fixed in fix/web-text, D-360, S-CORE-8.)
-- [ ] 2026-11-11 docs/RUNBOOK.md §1.3 (delete the data by hand) and the postrm message should name `install.sh --uninstall --yes`.

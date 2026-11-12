@@ -25,7 +25,7 @@ func TestSensorsHandler(t *testing.T) {
 		t.Fatalf("%d sensors", len(out.Sensors))
 	}
 	s := out.Sensors[0]
-	if s.ID != sp.SensorID || s.Name != "vedette-test" || !s.Interface.Null || s.Span || string(s.Status) != "never_connected" || !s.LastSeen.Null ||
+	if s.ID != sp.SensorID || s.Name != "vedette-test" || !s.Interface.Null || s.Span || s.Chosen || string(s.Status) != "never_connected" || !s.LastSeen.Null ||
 		len(s.Interfaces) != 0 || string(s.SpanStatus.Verdict) != "off" || s.DevicesSeen != 0 {
 		t.Errorf("sensor %+v", s)
 	}
@@ -45,7 +45,7 @@ func TestSensorsHandler(t *testing.T) {
 	}
 }
 
-// PATCH /inventory/sensors/{id} (D-387): without a host the SPAN card is chosen among the heartbeat's cards, a refusal is a
+// PATCH /inventory/sensors/{id} (D-387, D-393): without a host the card is chosen among the heartbeat's cards (SPAN or not), a refusal is a
 // plain sentence under bad_interface, and with a host it is 409 set_in_box_network and nothing changes.
 func TestPatchSensorChoosesTheSpanCardOnlyWithoutAHost(t *testing.T) {
 	t.Parallel()
@@ -99,10 +99,14 @@ func TestPatchSensorChoosesTheSpanCardOnlyWithoutAHost(t *testing.T) {
 		t.Fatalf("SPAN on the card with an address: %d %s %q", st, c, m)
 	}
 	got, err := patch("eth1", true)
-	if err != nil || got.ID != sp.SensorID || got.Interface.Value != "eth1" || !got.Span {
+	if err != nil || got.ID != sp.SensorID || got.Interface.Value != "eth1" || !got.Span || !got.Chosen {
 		t.Fatalf("SPAN on eth1: %+v %v", got, err)
 	}
-	if got, err = patch("", false); err != nil || got.Span {
+	// D-393: a card with an address is chosen to listen on, without SPAN; "" goes back to the default card (not a choice).
+	if got, err = patch("eth0", false); err != nil || got.Interface.Value != "eth0" || got.Span || !got.Chosen {
+		t.Fatalf("listen on eth0: %+v %v", got, err)
+	}
+	if got, err = patch("", false); err != nil || got.Span || got.Chosen {
 		t.Fatalf("SPAN off: %+v %v", got, err)
 	}
 	if _, err := h.InventoryPatchInventorySensorsID(ctx, &oas.InventoryPatchInventorySensorsIDReq{}, oas.InventoryPatchInventorySensorsIDParams{ID: "sn-other"}); err == nil {

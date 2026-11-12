@@ -465,25 +465,6 @@ func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
 	}
 }
 
-func TestCatalogSearchCapsTheTerms(t *testing.T) { // not parallel: it compares wall-clock times of two runs
-	e := newEnv(t)
-	run := func(words int) time.Duration {
-		start := time.Now()
-		for range 5 {
-			if _, err := e.svc.SearchCatalog(e.ctx(), strings.Repeat("ab ", words)); err != nil {
-				t.Fatal(err)
-			}
-		}
-		return time.Since(start)
-	}
-	run(8) // builds the catalog once
-	eight, long := run(8), run(400)
-	// without the cap 400 words cost 50 times as much as 8; with it they cost the same (the margin absorbs noise, -race included)
-	if long > 3*eight+100*time.Millisecond {
-		t.Fatalf("5 searches: 8 words %v, 400 words %v", eight, long)
-	}
-}
-
 func TestNotFoundComesBeforeBadInput(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

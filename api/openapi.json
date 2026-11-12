@@ -34569,7 +34569,7 @@
                             "type": "string"
                           },
                           "interface": {
-                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network",
+                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
                             "type": [
                               "string",
                               "null"
@@ -34579,7 +34579,8 @@
                             "type": "array",
                             "items": {
                               "type": "string"
-                            }
+                            },
+                            "description": "The cards the sensor reported in its last heartbeat"
                           },
                           "span": {
                             "type": "boolean"
@@ -34620,8 +34621,10 @@
                             "type": "string",
                             "enum": [
                               "online",
-                              "offline"
-                            ]
+                              "offline",
+                              "never_connected"
+                            ],
+                            "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
                           },
                           "last_seen": {
                             "anyOf": [
@@ -34665,6 +34668,187 @@
                   },
                   "required": [
                     "sensors"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/sensors/{id}": {
+      "patch": {
+        "operationId": "inventory_patch_inventory_sensors_id",
+        "summary": "Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-CORE-8",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interface": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 15
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "A card of the sensor's last heartbeat (younger than 90 s); null: no card chosen, the sensor listens on the default one (D-380)"
+                  },
+                  "span": {
+                    "type": "boolean",
+                    "description": "The card receives mirrored traffic; it must have no IPv4 address. true needs an interface"
+                  }
+                },
+                "required": [
+                  "interface",
+                  "span"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "interface": {
+                      "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The cards the sensor reported in its last heartbeat"
+                    },
+                    "span": {
+                      "type": "boolean"
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "packets_per_s",
+                        "other_macs"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Live mirrored-traffic health, the same as Settings → Box network"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "online",
+                        "offline",
+                        "never_connected"
+                      ],
+                      "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
+                    },
+                    "last_seen": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "devices_seen": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "interface",
+                    "interfaces",
+                    "span",
+                    "span_status",
+                    "status",
+                    "last_seen",
+                    "version",
+                    "devices_seen"
                   ],
                   "additionalProperties": false
                 }

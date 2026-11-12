@@ -365,7 +365,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (89 mã)
+#### HTTP 409 (90 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -423,6 +423,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rule_rate_limited` | 409 | Limit of N runs per hour reached. | rule runs (resp_log only: an event is not an API call) |
 | `same_approver` | 409 | You already approved this request. A second, different person must approve it. | module response (validator dùng chung) |
 | `selection_differs` | 409 | The second approver must approve the same actions as the first. | module response (validator dùng chung) |
+| `set_in_box_network` | 409 | On this box the card the sensor listens on is chosen in Settings → Box network. Backend [ĐX] (D-387): có `vedette-host` (appliance, hay host đã cấu hình mà không đưa được danh sách card), nơi host áp card SPAN (D-56, D-118); không gì đổi. | `PATCH /inventory/sensors/{id}` |
 | `skill_off` | 409 | The "Ask your data" skill is turned off. Turn it on in Settings, AI assistant, Skills. | `POST /ai/ask` |
 | `sso_user` | 409 | This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider. | `PATCH /core/users/{id}` (role), `POST /core/users/{id}/reset-password`, `POST /core/account/password`, `POST /core/account/2fa/start`, `POST /core/account/2fa/email/start` (D-195 (2), (5)) |
 | `sso_wrong_address` | 409 | SSO sign-in works at ${address}. Open Vedette there to sign in with SSO. | `POST /auth/oidc/start` from an address other than the redirect URI saved in Settings, Users (D-194 (5)); `address` in the body |

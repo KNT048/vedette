@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, RegularScan, SampleResult, SensorsResponse, SettingsInput, SettingsSaved, WazuhConnection, WazuhInput, WazuhTestResult,
+  ImportResult, InventorySettings, RegularScan, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
@@ -17,6 +17,11 @@ export const useCatalog = (q: string) =>
   useQuery({ queryKey: ['inventory', 'catalog', q.trim().slice(0, CATALOG_Q_MAX)], queryFn: () => api.get<CatalogResponse>(catalogPath(q)), placeholderData: (prev) => prev, enabled: q.trim() !== '' })
 export const useSettings = (enabled = true) => useQuery({ queryKey: ['inventory', 'settings'], queryFn: () => api.get<InventorySettings>('/inventory/settings'), retry: false, enabled })
 export const useSensors = () => useQuery({ queryKey: ['inventory', 'sensors'], queryFn: () => api.get<SensorsResponse>('/inventory/sensors'), retry: false })
+/** Container-only install (D-387): choose the SPAN card among the cards the sensor reported; the row follows the answer. */
+export function useSensorCard(id: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (b: SensorPatch) => api.patch<Sensor>(`/inventory/sensors/${encodeURIComponent(id)}`, b), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'sensors'] }) })
+}
 /** `enabled` false while the agent-intake module is off: a module that is off answers 404 (rules/modules.md), so the GUI does not ask. */
 export const useAgents = (enabled = true) => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false, enabled })
 

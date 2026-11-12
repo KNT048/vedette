@@ -204,11 +204,11 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
           {[7, 30, 90, 180].map((n) => <option key={n} value={n}>{t('retention.option', { n })}</option>)}
         </Select>
       </Field>
-      <Dialog open={pending !== null} onOpenChange={(o) => { if (!o) setPending(null) }}>
+      <Dialog open={pending !== null} onOpenChange={(o) => { if (!o && !set.isPending) setPending(null) }}>
         {pending !== null ? (
           <DialogContent title={t('retention.shortenTitle', { n: pending })} description={t('retention.shortenBody', { n: pending })}>
             <DialogFooter>
-              <Button onClick={() => setPending(null)}>{t('common:cancel')}</Button>
+              <Button disabled={set.isPending} onClick={() => setPending(null)}>{t('common:cancel')}</Button>
               <Button variant="danger" disabled={set.isPending} onClick={() => save(pending)}>{t('retention.shortenConfirm')}</Button>
             </DialogFooter>
           </DialogContent>

@@ -228,7 +228,8 @@ func (e *GuardError) Error() string {
 // refuseTestVersion refuses a version with a -test. prerelease: that is the version of the test release install.sh --test-artifacts
 // installs (D-166 (11)); a published release must never look like one, and install.sh refuses it on its side too.
 func refuseTestVersion(v string) error {
-	if _, pre, ok := strings.Cut(v, "-"); ok && (pre == "test" || strings.HasPrefix(pre, "test.")) {
+	// install.sh's rule (`*-test.*`) so that no version the builder accepts is one install.sh would then refuse; a -test suffix too.
+	if l := strings.ToLower(v); strings.Contains(l, "-test.") || strings.HasSuffix(l, "-test") {
 		return fmt.Errorf("version %q has a -test. prerelease: that is a test version (install.sh --test-artifacts), never a release", v)
 	}
 	return nil

@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 c=${CONTAINER:-podman}
-ver=9.8.7
+ver=9.8.7-test.1 # a -test. version: host-deb's release preflight (clean tree, no sequence floor needed) applies only to a real one
 case $(uname -m) in aarch64 | arm64) arch=arm64 ;; *) arch=amd64 ;; esac
 # shellcheck disable=SC1091
 set -a; . deploy/containers/pins.env; . deploy/deb/check-pins.env; set +a

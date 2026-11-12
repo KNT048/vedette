@@ -17,7 +17,14 @@ PLATFORMS ?= linux/amd64,linux/arm64
 # The index sequence floor compiled into vedette-host, the only binary that links internal/release (core does not, a test keeps that true).
 # A plain decimal: it is the -X value of internal/release.MinSequenceText. With RELEASE_PREV_INDEX (the published index, a directory) it is
 # that index's sequence, read and verified by `release min-sequence`; without it, 0 (development, the first release).
-MIN_SEQUENCE ?= $(if $(RELEASE_PREV_INDEX),$(shell $(RELEASE_GO) min-sequence -prev-index $(RELEASE_PREV_INDEX) $(RELEASE_KEYS_ARG)),0)
+# host-deb of a real version refuses to default it (below): give RELEASE_PREV_INDEX, or MIN_SEQUENCE=0 for the very first release.
+ifndef MIN_SEQUENCE
+ifneq ($(RELEASE_PREV_INDEX),)
+MIN_SEQUENCE := $(shell go run ./scripts/release min-sequence -prev-index '$(RELEASE_PREV_INDEX)' $(if $(RELEASE_KEYS),-keys-dir '$(RELEASE_KEYS)'))
+else
+MIN_SEQUENCE := 0
+endif
+endif
 RELEASE_PKG := github.com/knt048/vedette/internal/release
 
 # Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2 (D-62).
@@ -52,7 +59,7 @@ help:
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
-	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb refuses a vedette-host built with -tags releasetestkeys (go run ./scripts/release check-binaries BINARY... for core and the rest) and sets file times from SOURCE_DATE_EPOCH (commit time)"
+	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
 	@echo "make clean         xoá build output và báo cáo test"
@@ -278,16 +285,22 @@ ARCH ?= amd64
 DEB_OUT ?= dist
 # The file time inside the .deb (nfpm reads SOURCE_DATE_EPOCH): the commit time, so two builds of one commit give the same bytes.
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
+# A real release is any VERSION that is not a test one (-test. anywhere, like install.sh, or a -test suffix): only that one gets the release preflight.
+RELEASE_BUILD := $(if $(or $(findstring -test.,$(VERSION)),$(filter %-test,$(VERSION))),,1)
 check-min-sequence:
 	@printf '%s' "$(MIN_SEQUENCE)" | grep -Eq '^(0|[1-9][0-9]{0,17})$$' || { echo "MIN_SEQUENCE must be a plain decimal number (0, or no leading zero, at most 18 digits), got '$(MIN_SEQUENCE)'" >&2; exit 1; }
 host-deb: check-min-sequence
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "host-deb: VERSION must be SemVer without v (VERSION=0.1.0), got '$(VERSION)'" >&2; exit 1; }
 	@case "$(ARCH)" in amd64|arm64) ;; *) echo "host-deb: ARCH must be amd64 or arm64, got '$(ARCH)'" >&2; exit 1;; esac
+	@printf '%s' "$(SOURCE_DATE_EPOCH)" | grep -Eq '^[0-9]{1,12}$$' || { echo "host-deb: SOURCE_DATE_EPOCH must be Unix seconds (default: the commit time of HEAD; is this a git checkout?), got '$(SOURCE_DATE_EPOCH)'" >&2; exit 1; }
+ifneq ($(RELEASE_BUILD),)
+	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "host-deb: a release ($(VERSION)) needs the sequence floor of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
+	@case " $$GOFLAGS $$(go env GOFLAGS) " in *-overlay*|*-tags*) echo "host-deb: a release ($(VERSION)) is not built with -overlay or -tags in GOFLAGS (it could embed other keys); unset GOFLAGS" >&2; exit 1;; esac
+endif
 	mkdir -p $(DEB_OUT)/host-deb/$(ARCH)
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X $(RELEASE_PKG).MinSequenceText=$(MIN_SEQUENCE)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
-	go run ./scripts/release check-binaries $(DEB_OUT)/host-deb/$(ARCH)/vedette-host
+	GOFLAGS= go run ./scripts/release check-binaries $(if $(RELEASE_BUILD),-release) $(DEB_OUT)/host-deb/$(ARCH)/vedette-host
 	go run ./scripts/hostlicenses -goos linux -goarch $(ARCH) -out $(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses
-	@printf '%s' "$(SOURCE_DATE_EPOCH)" | grep -Eq '^[0-9]{1,12}$$' || { echo "host-deb: SOURCE_DATE_EPOCH must be Unix seconds (default: the commit time of HEAD; is this a git checkout?), got '$(SOURCE_DATE_EPOCH)'" >&2; exit 1; }
 	SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
 
 # Installs the package twice in a systemd container per target OS (Debian 13, Ubuntu 24.04, pinned by digest in deploy/deb/check-pins.env)
@@ -347,7 +360,8 @@ install-check:
 	scripts/dev/install-check.sh
 # ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
 # Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
-# build and push the images (08k) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
+# build and push the images (08k); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
+# index's sequence becomes the host's floor; MIN_SEQUENCE=0 only for the very first release) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
 # from the clock is refused) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
 # (release-manifest.json + index.json, unsigned) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only; RELEASE_SLOT=rescue after a leak of the active key, docs/RELEASE_KEYS.md) ->
 # release-verify (the box's verifier over the output, with the keys of RELEASE_KEYS or, when unset, the ones compiled into the build).

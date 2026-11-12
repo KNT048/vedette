@@ -329,6 +329,21 @@ func TestIOCListedNeedsASwitchedOnFeedWithListings(t *testing.T) {
 	}
 }
 
+// IOCSubdomainsOn (logs' parent walk, D-425): true only while a built-in feed that lists subdomains (hagezi TIF) is switched on.
+func TestIOCSubdomainsOnFollowsTheSwitchOfHageziTIF(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	for _, on := range []int{1, 0} {
+		write(t, db, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET enabled = ? WHERE id = 'hagezi-tif'`, on)
+			return err
+		})
+		if ok, err := s.IOCSubdomainsOn(t.Context()); ok != (on == 1) || err != nil {
+			t.Errorf("hagezi TIF enabled=%d: %v %v", on, ok, err)
+		}
+	}
+}
+
 func TestDeleteCustomRemovesWhatItLoaded(t *testing.T) {
 	t.Parallel()
 	_, db := newStore(t)

@@ -165,7 +165,7 @@ function DigestSections() {
             </div>
           ) },
           { id: 'dst', header: t('digest.bad.col.dst'), accessorFn: (r) => r.dest, cell: ({ row: { original: r } }) => (
-            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.blocked ? <Chip tone="warn" title={t('digest.bad.blockedHint')}>{t('digest.bad.blocked')}</Chip> : null}<Link to={`/lookup?q=${encodeURIComponent(r.dest)}`} className="text-[12px] text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.dest })}</Link></div>
+            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="text-[12px] text-muted" title={t('digest.bad.listedAsHint')}>{t('digest.bad.listedAs', { name: r.listed_as })}</span> : null}{r.blocked ? <Chip tone="warn" title={t('digest.bad.blockedHint')}>{t('digest.bad.blocked')}</Chip> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-[12px] text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
           ) },
           { id: 'via', header: t('digest.bad.col.via'), accessorFn: (r) => via(r.seen_via), cell: ({ row }) => <span className="text-[13px]">{via(row.original.seen_via)}</span> },
           { id: 'feed', header: t('digest.bad.col.feed'), accessorFn: (r) => r.feeds.join(', '), cell: ({ row }) => <span className="text-[13px] text-muted">{row.original.feeds.join(', ')}</span> },

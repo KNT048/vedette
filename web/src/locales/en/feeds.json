@@ -113,7 +113,7 @@
   "settings": {
     "nav": "Feeds",
     "title": "Feeds",
-    "direct": "Vedette fetches each feed directly from its source. GitHub is only used for software updates."
+    "direct": "Vedette fetches each feed directly from its source. Some sources publish their lists on GitHub, so those come from raw.githubusercontent.com; Vedette's own GitHub repository is used only for software updates."
   },
   "builtin": {
     "title": "Built-in feeds",
@@ -158,6 +158,8 @@
   "row": {
     "every_one": "Every hour",
     "every_other": "Every {{count}} hours",
+    "everyDays_other": "Every {{count}} days",
+    "everyWeek": "Every week",
     "never": "Never",
     "answeredBy": "Answered by {{source}}",
     "records_one": "{{n}} record",
@@ -179,8 +181,6 @@
   },
   "dialog": {
     "schedule": "Fetch schedule",
-    "everyHours_one": "Every hour",
-    "everyHours_other": "Every {{count}} hours",
     "address": "Address",
     "mirrorHint": "Use a mirror if you host a copy of this feed yourself. https only, except addresses on your network.",
     "reset": "Reset to default",

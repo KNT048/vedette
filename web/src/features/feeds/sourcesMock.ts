@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
+import { fmtNumber } from '@/lib/format'
 import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput } from './contract'
 import { checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS } from './defaults'
 import { checkParser, ParserConfigError, parseFeed } from './parsers'
@@ -131,8 +132,9 @@ export const sourceHandlers = [
       try {
         const { out } = runSample({ kind: f.kind, parser: f.parser })
         records = out.accepted
-        if (out.accepted === 0) { status = 'error'; error = out.rejected ? `All ${out.rejected} rows were rejected: ${out.reasons[0]?.reason ?? 'unknown reason'}.` : 'The feed returned no records.' }
-        else if (out.rejected) error = `${out.rejected} of ${out.accepted + out.rejected} rows were rejected.`
+        // Same text as the server (modules/feeds/pull.go accepted, note).
+        if (out.accepted === 0) { status = 'error'; error = out.rejected ? `All ${fmtNumber(out.rejected)} rows were rejected: ${out.reasons[0]?.reason ?? 'unknown reason'}.` : 'The feed returned no records.' }
+        else if (out.rejected) error = `${fmtNumber(out.rejected)} of ${fmtNumber(out.accepted + out.rejected)} rows were rejected.${out.reasons[0] ? ` Most often: ${out.reasons[0].reason}.` : ''} A few bad lines in a public list are normal; they are skipped.`
       } catch (e) { status = 'error'; error = e instanceof Error ? e.message : String(e) }
     } else records = f.records
     const patch = { last_fetch: nowIso(), records, status, error }

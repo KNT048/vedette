@@ -97,6 +97,18 @@ describe('feeds: custom feed form matrix (docs/QA.md §2)', () => {
     expect(within(dlg).getByLabelText('Password')).toHaveValue('')
   })
 
+  it('a user name or header name typed for one type does not come back with it (walk 2026-11-12)', async () => {
+    const dlg = await openAdd()
+    await pick(dlg, 'Authentication')('Basic (user and password)')
+    await userEvent.type(within(dlg).getByLabelText('User name'), 'alice')
+    await pick(dlg, 'Authentication')('Custom header')
+    await userEvent.clear(within(dlg).getByLabelText('Header name')); await userEvent.type(within(dlg).getByLabelText('Header name'), 'X-Token')
+    await pick(dlg, 'Authentication')('Basic (user and password)')
+    expect(within(dlg).getByLabelText('User name')).toHaveValue('')
+    await pick(dlg, 'Authentication')('Custom header')
+    expect(within(dlg).getByLabelText('Header name')).toHaveValue('X-Api-Key')
+  })
+
   it('a header name error is shown at the header name, a missing user at the user name, not under the secret', async () => {
     const dlg = await openAdd()
     await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
@@ -369,5 +381,16 @@ describe('feeds: parser preview form matrix (docs/QA.md §2, QA walk 2026-11-12)
       if (o === 'CSV') await userEvent.selectOptions(within(dlg).getByLabelText('Format'), 'CSV')
       else await userEvent.click(within(dlg).getByRole('button', { name: o }))
     }, dlg)
+  })
+})
+
+describe('feeds: Settings -> Feeds walk 2026-11-12 (S-FEED-4)', () => {
+  it('the header names GitHub-hosted lists, and long schedules read in days and weeks', async () => {
+    renderApp('/settings/feeds')
+    expect(await screen.findByText(/Some sources publish their lists on GitHub, so those come from raw\.githubusercontent\.com/)).toBeInTheDocument()
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Settings for / }))[0]!)
+    const dlg = await screen.findByRole('dialog')
+    const opts = within(within(dlg).getByLabelText('Fetch schedule')).getAllByRole('option')
+    expect(opts.map((o) => [o.textContent, (o as HTMLOptionElement).value])).toEqual(expect.arrayContaining([['Every 3 days', '72'], ['Every week', '168'], ['Every 24 hours', '24']]))
   })
 })

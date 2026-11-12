@@ -13,6 +13,9 @@ import (
 	"sync"
 )
 
+// ShellChars may never be in a command line (response INV-14b, SYS-1): the allow-list of an SSH connection, the reader and the writer all refuse them.
+const ShellChars = ";|&$`<>()\\!~^"
+
 //go:embed cli-ban.json
 var data []byte
 

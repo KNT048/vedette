@@ -16,6 +16,8 @@ const ok204 = () => new HttpResponse(null, { status: 204 })
 const notFound = () => fail(404, 'not_found', 'This connection no longer exists.')
 const TIDY = (s: string) => s.replace(/\s+/g, ' ').trim()
 const KINDS: readonly string[] = CONNECTION_KINDS
+/** core/conn/cliban ShellChars: no command line may hold them (the real box refuses them in an SSH allow-list entry). */
+const SHELL_CHARS = ';|&$`<>()\\!~^'
 const AUTHS = ['none', 'token', 'basic', 'ssh-key']
 export const USER_RE = /^[^\s:\p{Cc}\p{Cf}]{1,64}$/u
 
@@ -194,7 +196,8 @@ function check(b: Partial<ConnectorInput>, existing?: Connector): Response | Che
   }
   const allow = [...new Set((b.allow ?? []).map((a) => a.trim()).filter(Boolean))]
   if (allow.length === 0) return bad('allow_required', 'Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used.', 'allow')
-  if (allow.length > 30 || allow.some((a) => [...a].length > 200 || /[\n\r]/.test(a))) return bad('invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.', 'allow')
+  if (allow.length > 30 || allow.some((a) => [...a].length > 200 || /\p{Cc}|[\u2028\u2029]/u.test(a))) return bad('invalid_allow', 'The allow-list holds up to 30 entries of 200 characters each, one per line.', 'allow')
+  if (ssh && allow.some((a) => [...SHELL_CHARS].some((c) => a.includes(c)))) return bad('invalid_allow', `A command in the allow-list cannot contain the characters ${[...SHELL_CHARS].join(' ')} (a command is sent as one plain line, never to a shell).`, 'allow')
   if (!ssh && allow.some((a) => /\s/.test(a))) return bad('invalid_allow', 'A host or address in the allow-list cannot contain spaces.', 'allow')
   if (!ssh && !allow.every((a) => under(a, target))) { const t = target.replace(/\/+$/, ''); return bad('invalid_allow', `Each allow-list entry must be an address under ${t}, for example ${t}/api/.`, 'allow') }
   if (b.asset_id && !assetsStore.get().some((a) => a.id === b.asset_id)) return bad('unknown_asset', 'The device you linked is not in the inventory.', 'asset_id')

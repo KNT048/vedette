@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
+import { ApiError } from '@/lib/api'
 import { useGeneral, useSaveGeneral } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { browserTimeZone, TIMEZONES, validTimeZone } from './util'
@@ -28,7 +29,10 @@ function Form({ initial }: { initial: GeneralSettings }) {
     try {
       await save.mutateAsync({ ...v, name: v.name.trim() })
       toast.success(t('common:saved'))
-    } catch (err) { setError(errMsg(err, t)) }
+    } catch (err) { // under the field it is about
+      if (err instanceof ApiError && /timezone/.test(`${err.code} ${String(err.details.field ?? '')}`)) setTzError(errMsg(err, t))
+      else setError(errMsg(err, t))
+    }
   }
   return (
     <form onSubmit={(e) => void submit(e)} className="grid max-w-xl gap-4" noValidate>

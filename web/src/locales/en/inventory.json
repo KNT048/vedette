@@ -374,6 +374,8 @@
       "label": "SPAN card",
       "hint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
       "noSpan": "None (listen on the card with this machine's address)",
+      "notListening": "The sensor is not listening on any card: by itself it only takes the one card of this machine that has an address.",
+      "notReported": "{{name}} (not reported now)",
       "none": "No card reported yet: start the sensor with compose.sensors.yaml.",
       "saved": "Sensor card saved."
     },

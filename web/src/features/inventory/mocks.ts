@@ -62,8 +62,10 @@ export const containerSensorStore = collection<{ connected: boolean; cards: Repo
 /** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
 function containerSensors() {
   const c = containerSensorStore.get()
+  // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none
   const withAddress = c.cards.filter((x) => x.link && x.ipv4)
-  const dflt = withAddress.length === 1 ? withAddress[0]!.name : null // D-380: the one card with an address, else none
+  const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
+  const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null
   return sensorsStore.get().map((s) => ({
     ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
     interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span,
@@ -619,13 +621,14 @@ export const handlers = [
   // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
   http.patch(`${API}/inventory/sensors/:id`, async ({ request, params }) => {
     const denied = guard('admin'); if (denied) return denied
+    if (!sensorsStore.get().some((s) => s.id === params.id)) return fail(404, 'not_found', 'No such sensor. This box has one sensor, sn-local.')
     if (installStore.get().kind !== 'container') return fail(409, 'set_in_box_network', 'On this box the card the sensor listens on is chosen in Settings → Box network.')
-    if (!sensorsStore.get().some((s) => s.id === params.id)) return fail(404, 'not_found', 'No such sensor.')
     const b = await body<{ interface?: unknown; span?: unknown }>(request)
     if (typeof b.span !== 'boolean' || (b.interface !== null && (typeof b.interface !== 'string' || b.interface.length > 15))) return fail(400, 'invalid', 'Give interface (a card name or null) and span (true or false).')
     const c = containerSensorStore.get()
     const name = b.interface === '' ? null : b.interface as string | null
     if (name && !c.connected) return fail(400, 'bad_interface', 'The sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again.')
+    if (name && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$/.test(name)) return fail(400, 'bad_interface', `"${name}" is not an interface name.`)
     const card = name ? c.cards.find((x) => x.name === name) : undefined
     if (b.span && !name) return fail(400, 'bad_interface', 'A SPAN port needs an interface.')
     if (name && !card) return fail(400, 'bad_interface', `"${name}" is not an interface of this box.`)

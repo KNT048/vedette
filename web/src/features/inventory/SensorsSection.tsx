@@ -58,12 +58,14 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   const current = sensor.span ? (sensor.interface ?? '') : ''
   const [card, setCard] = useState(current)
   const [error, setError] = useState<string | null>(null)
+  // The saved SPAN card may be missing from the last heartbeat (unplugged, renamed): keep it as an option so it can be changed.
+  const cards = current && !sensor.interfaces.includes(current) ? [current, ...sensor.interfaces] : sensor.interfaces
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
-          {sensor.interfaces.length === 0 ? (
+          {cards.length === 0 ? (
             <>
               <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.none')}</p>
               <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
@@ -73,10 +75,11 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
               e.preventDefault(); setError(null)
               save.mutate({ interface: card || null, span: card !== '' }, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => setError(errMsg(er)) })
             }}>
+              {!sensor.interface ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.notListening')}</p> : null}
               <Field label={t('sensors.card.label')} htmlFor="sensor-span-card" hint={t('sensors.card.hint')} className="max-w-sm">
                 <Select id="sensor-span-card" value={card} onChange={(e) => { setCard(e.target.value); setError(null) }}>
                   <option value="">{t('sensors.card.noSpan')}</option>
-                  {sensor.interfaces.map((n) => <option key={n} value={n}>{n}</option>)}
+                  {cards.map((n) => <option key={n} value={n}>{sensor.interfaces.includes(n) ? n : t('sensors.card.notReported', { name: n })}</option>)}
                 </Select>
               </Field>
               <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
@@ -98,7 +101,8 @@ export function SensorsSection() {
   const { t } = useTranslation('inventory')
   const q = useSensors()
   const install = useInstallKind()
-  const [config, setConfig] = useState<Sensor | null>(null)
+  const [configId, setConfigId] = useState<string | null>(null)
+  const config = q.data?.sensors.find((s) => s.id === configId) // live: a heartbeat that arrives while the dialog is open shows in it
   const columns: ColumnDef<Sensor>[] = [
     { id: 'name', header: t('sensors.col.name'), accessorFn: (s) => s.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { id: 'iface', header: t('sensors.col.interface'), accessorFn: (s) => s.interface ?? '', cell: ({ row }) => row.original.interface ? <span>{row.original.interface}{row.original.span ? <span className="ml-2 text-[12px] text-muted">{t('sensors.spanOn')}</span> : null}</span> : <span className="text-muted">–</span> },
@@ -112,19 +116,19 @@ export function SensorsSection() {
     { id: 'seen', header: t('sensors.col.devices'), accessorFn: (s) => s.devices_seen },
     { id: 'version', header: t('sensors.col.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'actions', header: () => <span className="sr-only">{t('sensors.col.actions')}</span>, enableSorting: false, cell: ({ row }) => (
-      <Button size="sm" onClick={() => setConfig(row.original)} aria-label={t('sensors.configure', { name: row.original.name })}>{t('sensors.config')}</Button>
+      <Button size="sm" disabled={!install} onClick={() => setConfigId(row.original.id)} aria-label={t('sensors.configure', { name: row.original.name })}>{t('sensors.config')}</Button>
     ) },
   ]
   return (
-    <Section id="sensors" title={t('sensors.title')} description={t(install === 'container' ? 'sensors.descriptionContainer' : 'sensors.description')} stories={['S-INV-1', 'S-CORE-8']}>
+    <Section id="sensors" title={t('sensors.title')} description={install ? t(install === 'container' ? 'sensors.descriptionContainer' : 'sensors.description') : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => <DataTable caption={t('sensors.caption')} data={d.sensors} columns={columns} />}
         </QueryState>
       </RequireModule>
       {config ? (install === 'container'
-        ? <CardDialog key={config.id} sensor={config} onClose={() => setConfig(null)} />
-        : <StatusDialog key={config.id} sensor={config} onClose={() => setConfig(null)} />) : null}
+        ? <CardDialog key={config.id} sensor={config} onClose={() => setConfigId(null)} />
+        : <StatusDialog key={config.id} sensor={config} onClose={() => setConfigId(null)} />) : null}
     </Section>
   )
 }

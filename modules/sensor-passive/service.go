@@ -408,6 +408,9 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 // host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
 // through Settings, Box network, which calls SetInterface itself.
 func (s *Service) ChooseCard(ctx context.Context, actor, id, iface string, span bool) error {
+	if id != SensorID {
+		return ErrNotFound
+	}
 	if _, fromHost, err := s.host.HostCards(ctx); fromHost || err != nil {
 		return ErrUseBoxNetwork
 	}

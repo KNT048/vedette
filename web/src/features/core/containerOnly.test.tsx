@@ -116,6 +116,14 @@ describe('container-only install (D-381)', () => {
     expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
+  it('Sensors: two cards with an address, no SPAN card chosen: the dialog says the sensor is not listening (D-380)', async () => {
+    containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    await openSensorDialog(u)
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+  })
+
   it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {
     installStore.set({ kind: 'appliance' })
     sessionStore.set({ userId: 'u-admin' })

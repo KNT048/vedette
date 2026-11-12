@@ -1,6 +1,7 @@
 package sensorpassive_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -68,6 +69,13 @@ func TestPatchSensorChoosesTheSpanCardOnlyWithoutAHost(t *testing.T) {
 	if list, _ := e.svc.Status(t.Context()); list[0].Span {
 		t.Fatalf("with a host the refusal changed the sensor: %+v", list[0])
 	}
+	e.host.setListErr(errors.New("vedette-host gave no list of cards")) // configured but silent: still an appliance
+	if _, err := patch("eth1", true); err == nil {
+		t.Fatal("a configured host that gives no list: accepted")
+	} else if st, c, _ := code(err); st != 409 || c != "set_in_box_network" {
+		t.Fatalf("a configured host that gives no list: %v", err)
+	}
+	e.host.setListErr(nil)
 
 	e.host.setNoHost(true)
 	if _, err := patch("eth1", true); err == nil {

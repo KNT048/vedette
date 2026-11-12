@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,6 +32,22 @@ func TestInfo(t *testing.T) {
 	want := []string{"test.echo", "test.fail", "test.hang", "test.panic", "test.read", "test.refuse", "test.slow", "test.timeout"}
 	if strings.Join(info.Commands, ",") != strings.Join(want, ",") {
 		t.Fatalf("commands = %v", info.Commands)
+	}
+	// #471: the machine's host name when it is a valid one, otherwise no field at all (core then uses "vedette").
+	name, err := os.Hostname()
+	switch {
+	case runtime.GOOS != "linux":
+		if info.Hostname != "" {
+			t.Fatalf("hostname off Linux = %q", info.Hostname)
+		}
+	case err == nil && api.ValidHostname(name):
+		if info.Hostname != name {
+			t.Fatalf("hostname = %q, want the machine's %q", info.Hostname, name)
+		}
+	default:
+		if info.Hostname != "" {
+			t.Fatalf("hostname = %q for a machine name that is not valid (%q)", info.Hostname, name)
+		}
 	}
 }
 

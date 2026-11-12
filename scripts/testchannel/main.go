@@ -294,7 +294,7 @@ func (s signSpec) build() (index, indexSig, manifest, manifestSig []byte, err er
 	m := release.Manifest{
 		Schema: 1, Version: s.version, Channel: "beta", ReleasedAt: s.now, DBSchema: 0,
 		Rollback:     release.Rollback{Safe: false},
-		InstallModes: []string{"appliance"},
+		InstallModes: []string{"appliance", "container"}, // a container-only lab is offered only a container release (S-CORE-9 G4)
 		Content:      []release.Content{}, Bundled: []release.Bundled{},
 		Notes: "TEST CHANNEL: signed with throwaway keys, not a release.",
 	}

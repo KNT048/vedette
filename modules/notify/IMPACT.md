@@ -23,6 +23,12 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 4. **`TokenRecorder.RecordReplyCode(ctx, ReplyCode{RequestID, UserID, Address, Approve, CodeHash, ExpiresAt})`** (13b-8): gọi trước khi gửi mã Zalo cá nhân; băm theo `docs/specs/approval-tokens.md` §7 (vector cố định trong spec, test hai bên cùng dùng). Đổi công thức băm = mọi mã đang mở không khớp.
 5. **Đăng ký `response.decision.made`** (13b-8): gỡ nút/sửa tin trong Slack/Telegram. **Telegram đã có (13b-8 lát 2, `tgbuttons.go`)**: handler chỉ đánh dấu hàng `notify_tg_button` (`state='remove'`) khi `final=true`; job `deliver` (`Flush` → `clearButtons`) gỡ bàn phím bằng `channel.TelegramBot.RemoveButtons` (`editMessageReplyMarkup`, bàn phím rỗng), cũng đánh dấu yêu cầu đã hết hạn (`expires_at`) vì sự kiện là best effort (D-144); `message_id` lấy từ câu trả lời `sendMessage` (`Receipt.MessageID`, `SendRecord.MessageID`, kiểm dạng, 0 = không biết thì không gỡ được). Đổi payload `{request_id, final}` của `response.decision.made` = nút không được gỡ (chỉ còn đường hết hạn). Bỏ việc "subscribe `response.approval.requested`" (`.ai/deferred/feat-notify-module.md`): `response` gọi thẳng `SendApprovalRequest` sau commit.
 
+## Modifying: `Incident.attempt` (API `GET /notify/incidents`, `/notify/incidents/{id}`; walk 3)
+- **logs** phát `blocked` trong `logs.bad_address.detected` (D-227); notify đọc nó, không đọc bảng `logs_*`. Đổi tên trường = mọi lần thử thành "Connection to a known-bad address" và gộp sai (kết nối gộp vào lần thử). **SPA** `kindKey` (`shared.tsx`) chọn nhãn. Webhook payload không đổi (`kind` vẫn `bad_address`; tiêu đề đã nói "tried to reach").
+
+## Modifying: quy tắc địa chỉ của SMTP (`channel.EmailConfig.BoxAddrsFunc`, `AllowLoopback`; `notify.Config.SMTPLoopback`)
+- **core** (2FA email đi qua kênh này): địa chỉ hộp chưa biết không chặn email (khác webhook), nên mã đăng nhập không dừng khi host chưa trả lời. **cmd/vedette**: chỉ test đặt `notifySMTPLoopback` (`notify_wiring_test.go`), hộp e2e (`TestE2EBox`) và `web/e2e-real` email dựa vào đó; `main` không bao giờ đặt. Một hộp đã lưu SMTP `127.0.0.1` trước bản này (chưa bao giờ gửi được: core luôn chạy trong container, loopback là chính nó): lần gửi ghi "The SMTP server cannot be this machine, …" trong History, lưu lại kênh thì báo `bad_host` dưới ô SMTP server.
+
 ## Modifying: `GET /notify/channels` `approvals`, `approvers`
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 

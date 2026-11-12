@@ -80,7 +80,7 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
 	return false
 }
 
-var errForbiddenDial = errors.New("notify: webhook: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
+var errForbiddenDial = errors.New("notify: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
 
 // ErrBoxAddrsUnknown means the box does not know its own addresses yet (vedette-host has not answered since the start), so a
 // webhook target cannot be checked against them: the webhook is not saved or built, and no connection is made (#157).

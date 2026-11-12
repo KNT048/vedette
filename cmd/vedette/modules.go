@@ -81,6 +81,9 @@ type deps struct {
 	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
 	HostNet *hostNetCache
+	// BoxName is the box's own name (#471): the OS host name vedette-host reports, "vedette" without one. The inventory's box row, the
+	// Logs sources page and the SIEM records share it. nil in tests: "vedette".
+	BoxName *boxHostName
 	// TrustAnchor, HostAllowed and OsqueryDir feed agent-intake's install scripts, ca.pem and package mirror (WP-26 slice 3); all may be
 	// nil or empty in tests, and the module then answers 404 for what it lacks.
 	TrustAnchor func() ([]byte, error)

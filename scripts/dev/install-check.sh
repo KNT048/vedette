@@ -119,6 +119,8 @@ EOT
 	grep -q 'unsupported OS' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no 'unsupported OS' message"; }
 	x 'systemd-run -q --unit=vic-blocker /root/art/vedette-testchannel serve -dir /tmp -listen 127.0.0.1:8443 && sleep 1; sh /root/art/install.sh --test-artifacts /root/art; r=$?; systemctl stop vic-blocker; exit $r' >"$work/o.txt" 2>&1 && fail "a busy port 8443 was accepted"
 	grep -q 'port 8443 is already in use' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no busy-port message"; }
+	x 'systemd-run -q --unit=vic-blocker /root/art/vedette-testchannel serve -dir /tmp -listen 127.0.0.1:6514 && sleep 1; sh /root/art/install.sh --test-artifacts /root/art; r=$?; systemctl stop vic-blocker; exit $r' >"$work/o.txt" 2>&1 && fail "a busy syslog TLS port 6514 was accepted"
+	grep -q 'port 6514 is already in use' "$work/o.txt" || { cat "$work/o.txt" >&2; fail "no busy-port message for 6514"; }
 	x 'sh /root/art/install.sh --bogus' >/dev/null 2>&1 && fail "an unknown option was accepted"
 	# a release script (version filled in) never installs test artifacts (M3)
 	x 'sed "s/^VEDETTE_VERSION=\"\"/VEDETTE_VERSION=\"1.2.3\"/" /root/art/install.sh >/root/rel.sh; sh /root/rel.sh --test-artifacts /root/art; r=$?; rm -f /root/rel.sh; exit $r' >"$work/o.txt" 2>&1 && fail "a release install.sh accepted --test-artifacts"
@@ -131,7 +133,7 @@ EOT
 	x '! test -e /etc/containers/registries.conf.d/vedette-test-mirror.conf' || fail "a stale test mirror was not removed"
 	snap_files "$work/$n.refused"
 	same "$work/$n.before" "$work/$n.refused" "a refused install changed the box"
-	ok "refusals (no release, unsupported OS, busy port 8443, bad option, release script + test folder, open test folder, stale mirror) change nothing"
+	ok "refusals (no release, unsupported OS, busy port 8443 or 6514, bad option, release script + test folder, open test folder, stale mirror) change nothing"
 
 	# ---- an install that stops half way is repaired by the next run (H1) ------------------------------------------------
 	x 'cp -a /root/art /root/art-bad && cd /root/art-bad && printf x >>index.json.minisig && grep -v " registry/" SHA256SUMS | grep -v " index.json.minisig\$" >/root/s && sha256sum index.json.minisig >>/root/s && grep " registry/" SHA256SUMS >>/root/s && cp /root/s SHA256SUMS && rm /root/s'

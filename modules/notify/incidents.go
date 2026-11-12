@@ -43,6 +43,8 @@ func (in IncidentInput) validate() error {
 		return bad("link must be a path inside Vedette, such as /logs")
 	case len(in.Devices) > maxDevices:
 		return bad("too many devices")
+	case in.Attempt && in.Kind != IncidentBadAddress:
+		return bad("only a bad_address incident can be an attempt")
 	}
 	for _, d := range in.Devices {
 		if d.ID == "" || len(d.ID) > 96 || strings.TrimSpace(d.Name) == "" || utf8.RuneCountInString(d.Name) > 253 {
@@ -53,7 +55,11 @@ func (in IncidentInput) validate() error {
 }
 
 func dedupeKey(in IncidentInput) string {
-	h := sha256.Sum256([]byte(string(in.Kind) + "\x00" + in.Source + "\x00" + in.Target))
+	k := string(in.Kind) + "\x00" + in.Source + "\x00" + in.Target
+	if in.Attempt {
+		k += "\x00attempt"
+	}
+	h := sha256.Sum256([]byte(k))
 	return hex.EncodeToString(h[:])
 }
 
@@ -75,10 +81,17 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 	}
 	ts := store.FormatTS(at)
 	key := dedupeKey(in)
+	first := key // a repeat counts on an open incident of this key before one of its own: for an attempt, the open connection (D-227 (4))
+	if in.Attempt {
+		conn := in
+		conn.Attempt = false
+		first = dedupeKey(conn)
+	}
 	ob := &events.Outbox{}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		ob = &events.Outbox{}
-		switch err := tx.QueryRowContext(ctx, `SELECT id FROM notify_incident WHERE dedupe_key = ? AND status <> 'resolved'`, key).Scan(&id); {
+		switch err := tx.QueryRowContext(ctx, `SELECT id FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved' ORDER BY dedupe_key = ? DESC LIMIT 1`,
+			first, key, first).Scan(&id); {
 		case err == nil:
 			created = false
 			_, err = tx.ExecContext(ctx, `UPDATE notify_incident SET count = count + 1, last_seen = CASE WHEN ? > last_seen THEN ? ELSE last_seen END WHERE id = ?`, ts, ts, id)
@@ -90,8 +103,8 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 			return fmt.Errorf("notify: find incident: %w", err)
 		}
 		created, id = true, store.NewID("in")
-		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, string(in.Kind), strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
 		}
 		names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
@@ -138,13 +151,13 @@ func scanSends(rows *sql.Rows) ([]SendView, error) {
 	return out, rows.Err()
 }
 
-const incidentCols = `id, kind, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note`
+const incidentCols = `id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note`
 
 func scanIncident(r scanner) (Incident, error) {
 	var i Incident
 	var kind, sev, status string
 	var by, at, note sql.NullString
-	if err := r.Scan(&i.ID, &kind, &i.Title, &i.Link, &sev, &i.What, &i.Action, &i.FirstSeen, &i.LastSeen, &i.Count, &status, &by, &at, &note); err != nil {
+	if err := r.Scan(&i.ID, &kind, &i.Attempt, &i.Title, &i.Link, &sev, &i.What, &i.Action, &i.FirstSeen, &i.LastSeen, &i.Count, &status, &by, &at, &note); err != nil {
 		return i, err
 	}
 	i.Kind, i.Severity, i.Status = IncidentKind(kind), Severity(sev), IncidentStatus(status)

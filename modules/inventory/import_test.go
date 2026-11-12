@@ -117,12 +117,58 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		}
 	})
 
+	t.Run("a mixed file, a stray quote and an unknown product are line errors, never a garbage device", func(t *testing.T) {
+		e := newEnv(t)
+		before, _ := e.svc.Devices(e.ctx())
+		r := e.importCSV("\ufeffname;ip;product;version;kind\r\nsemi,192.168.53.1,Prod,1,server\r\nquote\"bad;192.168.53.2;;;\r\ndns;192.168.53.3;Dns;;\r\nok;192.168.53.4;FortiGate;;\r\n")
+		if r.Created != 1 || r.Skipped != 3 || len(r.Errors) != 3 {
+			t.Fatalf("result = %+v", r)
+		}
+		for i, want := range []string{"one cell but the header has 5", "double quote", `Product "Dns" not recognised`} {
+			if r.Errors[i].Line != i+2 || !strings.Contains(r.Errors[i].Message, want) {
+				t.Errorf("error %d = %+v, want line %d with %q", i, r.Errors[i], i+2, want)
+			}
+		}
+		if strings.Contains(r.Errors[2].Message, "suggestion box") {
+			t.Errorf("message points to a box the dialog does not have: %q", r.Errors[2].Message)
+		}
+		after, _ := e.svc.Devices(e.ctx())
+		if after.Counts.All != before.Counts.All+1 {
+			t.Fatalf("devices %d -> %d", before.Counts.All, after.Counts.All)
+		}
+		// Excel and people leave empty last columns out, or end a line with a separator
+		r = e.importCSV("name,ip,product,version,kind\r\nshort,192.168.54.1\r\ntrailing,192.168.54.2,FortiGate,,,\r\n")
+		if r.Created != 2 || len(r.Errors) != 0 {
+			t.Fatalf("short row and trailing separator: %+v", r)
+		}
+		r = e.importCSV("name,ip\r\nok,192.168.55.1\r\n\"\r")
+		if r.Created != 1 || len(r.Errors) != 1 || r.Errors[0].Line != 3 || !strings.Contains(r.Errors[0].Message, "never closed") {
+			t.Fatalf("unclosed quote on a blank-looking row: %+v", r)
+		}
+		r = e.importCSV("name,ip\n\"open,192.168.53.9\nnext,192.168.53.10\n")
+		if r.Created != 0 || len(r.Errors) == 0 || !strings.Contains(r.Errors[0].Message, "never closed") {
+			t.Fatalf("unclosed quote: %+v", r)
+		}
+	})
+
+	t.Run("a public IP or one outside the saved ranges is added with a note", func(t *testing.T) {
+		e := newEnv(t)
+		if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings("192.168.0.0/16")); err != nil {
+			t.Fatal(err)
+		}
+		r := e.importCSV("name,ip\ninside,192.168.1.1\npub,8.8.8.8\nfar,172.16.5.5\n")
+		if r.Created != 3 || len(r.Notes) != 2 || r.Notes[0].Line != 3 || !strings.Contains(r.Notes[0].Message, "public address") || r.Notes[1].Line != 4 || !strings.Contains(r.Notes[1].Message, "outside your saved network ranges") {
+			t.Fatalf("result = %+v", r)
+		}
+	})
+
 	t.Run("limits", func(t *testing.T) {
 		e := newEnv(t)
 		for name, tc := range map[string]struct {
 			text, code string
 		}{
 			"empty":         {"  \n ", "empty_file"},
+			"header only":   {"name,ip,product\r\n\r\n", "no_rows"},
 			"no header":     {"foo,bar\n1,2\n", "bad_header"},
 			"too large":     {"name\n" + strings.Repeat("a", inventory.MaxImportBytes), "too_large"},
 			"too many rows": {"name\n" + strings.Repeat("x\n", inventory.MaxImportRows+1), "too_many_rows"},

@@ -457,7 +457,7 @@ func TestContract_INV10_FingerbankAbsent(t *testing.T) {
 func TestContract_POST1_OnlineWhileCapturing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, frames(), true)
-	if list, _ := e.svc.Status(t.Context()); list[0].Status != "offline" || list[0].LastSeen != nil || len(list[0].Interfaces) != 0 {
+	if list, _ := e.svc.Status(t.Context()); list[0].Status != "never_connected" || list[0].LastSeen != nil || len(list[0].Interfaces) != 0 {
 		t.Fatalf("before the sensor said anything: %+v", list[0])
 	}
 	e.setInterface("eth0", false)

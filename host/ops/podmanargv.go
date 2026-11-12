@@ -121,6 +121,23 @@ func untagArgv(id, tag string) ([]string, error) {
 // listImagesArgv lists every image in Podman's storage as JSON (read only).
 func listImagesArgv() []string { return []string{"image", "ls", "--format", "json"} }
 
+// volumeExistsArgv is "volume exists vedette-creds-<role>" for a role of the closed list (D-316 (10)): exit 0 there, 1 not there.
+func volumeExistsArgv(role string) ([]string, error) {
+	if !slices.Contains(credsRoles, role) {
+		return nil, errPodmanArgs
+	}
+	return []string{"volume", "exists", "vedette-creds-" + role}, nil
+}
+
+// isVolumeExistsArgv says whether args is volumeExistsArgv of a role.
+func isVolumeExistsArgv(args []string) bool {
+	if len(args) != 3 || args[0] != "volume" || args[1] != "exists" {
+		return false
+	}
+	role, ok := strings.CutPrefix(args[2], "vedette-creds-")
+	return ok && slices.Contains(credsRoles, role)
+}
+
 // isPullRef says whether s is exactly release.RegistryPrefix + service + "@" + digest.
 func isPullRef(s string) bool {
 	rest, ok := strings.CutPrefix(s, release.RegistryPrefix)
@@ -232,7 +249,7 @@ func isNmapCheckArgv(a []string) bool {
 // validatePodman is the validator of the podman binary: the shapes above.
 func validatePodman(args []string) error {
 	switch {
-	case isBuildArgv(args), isNmapCheckArgv(args):
+	case isBuildArgv(args), isNmapCheckArgv(args), isVolumeExistsArgv(args):
 		return nil
 	case len(args) == 3 && args[0] == "tag" && imageIDRE.MatchString(args[1]) && isNmapTag(args[2]):
 		return nil

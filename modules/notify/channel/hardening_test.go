@@ -78,7 +78,7 @@ func TestContract_SYS6_SMTPServerResponsesAreBounded(t *testing.T) {
 			t.Parallel()
 			port, roots := streamServer(t, c.implicit, c.greeted)
 			s, err := NewEmail(EmailConfig{Host: "127.0.0.1", Port: port, Security: c.security, Username: "u", Password: secrets.NewValue("p"),
-				From: "alerts@acme.example", To: []string{"it@acme.example"}, RootCAs: roots})
+				From: "alerts@acme.example", To: []string{"it@acme.example"}, RootCAs: roots, AllowLoopback: true})
 			if err != nil {
 				t.Fatal(err)
 			}

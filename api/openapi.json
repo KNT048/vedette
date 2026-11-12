@@ -13781,6 +13781,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -14046,6 +14067,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14058,7 +14134,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -14235,6 +14313,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -14500,6 +14599,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14512,7 +14666,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -14683,6 +14839,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -14948,6 +15125,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14960,7 +15192,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -15184,6 +15418,27 @@
                               "host_version": {
                                 "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                                 "type": "string"
+                              },
+                              "images": {
+                                "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "service": {
+                                      "type": "string"
+                                    },
+                                    "digest": {
+                                      "type": "string",
+                                      "description": "sha256:<64 hex>"
+                                    }
+                                  },
+                                  "required": [
+                                    "service",
+                                    "digest"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -15449,6 +15704,61 @@
                             "additionalProperties": false
                           },
                           "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                        },
+                        "running_revoked": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "description": "The running release"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "description": "Short English reason signed by the Vedette project"
+                                },
+                                "since": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "block_install",
+                                    "block_install_and_warn",
+                                    "rollback_if_possible"
+                                  ],
+                                  "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "reason",
+                                "since",
+                                "action"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                        },
+                        "stale_since": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                         }
                       },
                       "required": [
@@ -15461,7 +15771,9 @@
                         "history",
                         "advisories",
                         "run",
-                        "managed"
+                        "managed",
+                        "running_revoked",
+                        "stale_since"
                       ],
                       "additionalProperties": false
                     }
@@ -15620,6 +15932,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -15886,6 +16219,61 @@
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
                     },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
                     "applied": {
                       "type": "number",
                       "description": "Items installed automatically in automatic mode"
@@ -15902,6 +16290,8 @@
                     "advisories",
                     "run",
                     "managed",
+                    "running_revoked",
+                    "stale_since",
                     "applied"
                   ],
                   "additionalProperties": false
@@ -17708,6 +18098,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -17973,6 +18384,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -17985,7 +18451,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -34049,12 +34517,35 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Rows that were added but need a word: a public IP, or an IP outside the saved network ranges"
                     }
                   },
                   "required": [
                     "created",
                     "skipped",
-                    "errors"
+                    "errors",
+                    "notes"
                   ],
                   "additionalProperties": false
                 }
@@ -34204,7 +34695,7 @@
                             "type": "string"
                           },
                           "interface": {
-                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network",
+                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
                             "type": [
                               "string",
                               "null"
@@ -34214,7 +34705,8 @@
                             "type": "array",
                             "items": {
                               "type": "string"
-                            }
+                            },
+                            "description": "The cards the sensor reported in its last heartbeat"
                           },
                           "span": {
                             "type": "boolean"
@@ -34255,8 +34747,10 @@
                             "type": "string",
                             "enum": [
                               "online",
-                              "offline"
-                            ]
+                              "offline",
+                              "never_connected"
+                            ],
+                            "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
                           },
                           "last_seen": {
                             "anyOf": [
@@ -34300,6 +34794,187 @@
                   },
                   "required": [
                     "sensors"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/sensors/{id}": {
+      "patch": {
+        "operationId": "inventory_patch_inventory_sensors_id",
+        "summary": "Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-CORE-8",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interface": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 15
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "A card of the sensor's last heartbeat (younger than 90 s); null: no card chosen, the sensor listens on the default one (D-380)"
+                  },
+                  "span": {
+                    "type": "boolean",
+                    "description": "The card receives mirrored traffic; it must have no IPv4 address. true needs an interface"
+                  }
+                },
+                "required": [
+                  "interface",
+                  "span"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "interface": {
+                      "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The cards the sensor reported in its last heartbeat"
+                    },
+                    "span": {
+                      "type": "boolean"
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "packets_per_s",
+                        "other_macs"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Live mirrored-traffic health, the same as Settings → Box network"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "online",
+                        "offline",
+                        "never_connected"
+                      ],
+                      "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
+                    },
+                    "last_seen": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "devices_seen": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "interface",
+                    "interfaces",
+                    "span",
+                    "span_status",
+                    "status",
+                    "last_seen",
+                    "version",
+                    "devices_seen"
                   ],
                   "additionalProperties": false
                 }
@@ -37882,6 +38557,10 @@
                               "unknown_device"
                             ]
                           },
+                          "attempt": {
+                            "type": "boolean",
+                            "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
+                          },
                           "title": {
                             "type": "string",
                             "description": "One plain-words sentence: who did what"
@@ -38022,6 +38701,7 @@
                         "required": [
                           "id",
                           "kind",
+                          "attempt",
                           "title",
                           "link",
                           "devices",
@@ -38105,6 +38785,10 @@
                             "log_anomaly",
                             "unknown_device"
                           ]
+                        },
+                        "attempt": {
+                          "type": "boolean",
+                          "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
                         },
                         "title": {
                           "type": "string",
@@ -38246,6 +38930,7 @@
                       "required": [
                         "id",
                         "kind",
+                        "attempt",
                         "title",
                         "link",
                         "devices",
@@ -38386,6 +39071,10 @@
                             "unknown_device"
                           ]
                         },
+                        "attempt": {
+                          "type": "boolean",
+                          "description": "bad_address only: the device that logged the connection blocked it, so it was an attempt, not a connection (D-227); false for the other kinds"
+                        },
                         "title": {
                           "type": "string",
                           "description": "One plain-words sentence: who did what"
@@ -38526,6 +39215,7 @@
                       "required": [
                         "id",
                         "kind",
+                        "attempt",
                         "title",
                         "link",
                         "devices",

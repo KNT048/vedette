@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"mime/quotedprintable"
 	"net"
+	"net/netip"
 	"net/smtp"
 	"net/textproto"
 	"strconv"
@@ -39,6 +40,13 @@ type EmailConfig struct {
 	To       []string       // recipients, at least one; see ParseRecipients
 	RootCAs  *x509.CertPool // nil = system roots; tests add their own CA
 	Now      func() time.Time
+	// BoxAddrsFunc lists this box's own addresses, asked at save and at every connection: the server is never one of them, as
+	// for a webhook. known=false only leaves that list out (loopback, link-local, multicast and unspecified are refused all the
+	// same): the email channel also carries the two-step sign-in codes, which must not stop while the host has not answered (#157).
+	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
+	// AllowLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests listen on 127.0.0.1); production
+	// code never sets it: core never runs on the host network, so loopback is core itself.
+	AllowLoopback bool
 }
 
 const (
@@ -52,6 +60,7 @@ type emailSender struct {
 	cfg  EmailConfig
 	addr string
 	tls  *tls.Config
+	box  func() ([]netip.Addr, bool) // always known: see EmailConfig.BoxAddrsFunc
 }
 
 // ParseRecipients splits a "a@x.com, b@y.com" field (commas or semicolons) and validates each address.
@@ -67,10 +76,19 @@ func ParseRecipients(s string) ([]string, error) {
 	}
 	for _, a := range out {
 		if !validEmail(a) {
-			return nil, cfgErr("bad_to", "A recipient email is not valid. Separate several recipients with commas.")
+			return nil, badRecipient(a)
 		}
 	}
 	return out, nil
+}
+
+// badRecipient names the recipient that is not an email address. It is what the person typed: one line, control
+// characters removed, cut to 60 characters; the GUI shows it as text.
+func badRecipient(a string) error {
+	if a = Line(a, 60); a == "" { // nothing printable is left to name
+		return cfgErr("bad_to", "A recipient email is not valid. Separate several recipients with commas.")
+	}
+	return cfgErr("bad_to", a+" is not a valid email address. Separate several recipients with commas.")
 }
 
 // NewEmail validates cfg at the boundary (INV-8) and returns the adapter.
@@ -83,6 +101,20 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	cfg.Host = strings.TrimSpace(cfg.Host)
 	if !validHost(cfg.Host) {
 		return nil, cfgErr("bad_host", "The SMTP server must be a domain name or an IP address, for example smtp.company.com.")
+	}
+	box := func() ([]netip.Addr, bool) {
+		if cfg.BoxAddrsFunc == nil {
+			return nil, true
+		}
+		addrs, _ := cfg.BoxAddrsFunc()
+		return addrs, true
+	}
+	// The webhook's rule (forbiddenAddr): in a container 127.0.0.1 is core itself, and link-local holds the cloud metadata service.
+	// A name that resolves to such an address is refused when connecting (dialControl).
+	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
+	boxAddrs, _ := box()
+	if a, err := netip.ParseAddr(host); (err == nil && forbiddenAddr(a, cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && strings.HasSuffix(host, ".localhost")) {
+		return nil, cfgErr("bad_host", "The SMTP server cannot be this machine, a link-local or multicast address, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
 	}
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, cfgErr("bad_port", "The SMTP port is a number from 1 to 65535 (usually 587 or 465).")
@@ -118,7 +150,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	}
 	for _, a := range cfg.To {
 		if !validEmail(a) {
-			return nil, cfgErr("bad_to", "A recipient email is not valid. Separate several recipients with commas.")
+			return nil, badRecipient(a)
 		}
 	}
 	if cfg.Now == nil {
@@ -129,6 +161,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		cfg:  cfg,
 		addr: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
 		tls:  &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12, RootCAs: cfg.RootCAs},
+		box:  box,
 	}, nil
 }
 
@@ -249,7 +282,7 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 		return fmt.Errorf("notify: email: %s: %s", stage, transportReason(err, sec))
 	}
 
-	d := net.Dialer{}
+	d := net.Dialer{Control: dialControl(e.cfg.AllowLoopback, e.box)} // after name resolution: a name that resolves to a forbidden address is refused too
 	raw0, err := d.DialContext(ctx, "tcp", e.addr)
 	if err != nil {
 		return fail("connect", err)

@@ -110,6 +110,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if kind, ok := healthCommand(args); ok { // the HealthCmd= of the units: before any flag, no database, no key
 		return runHealthCommand(ctx, kind)
 	}
+	if resetAdminCommand(args) { // D-389: the console's way back in for a locked-out administrator
+		return runResetAdmin(ctx, args[1:], stdout, stderr)
+	}
 	var o options
 	flags, showVersion := newFlags(&o, stdout)
 	if err := flags.Parse(args); err != nil {
@@ -320,7 +323,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db))) // before the services: deps.Wake hands them sched.Wake
 	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: boxBaseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
-		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
+		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), BoxName: newBoxHostName(o.hostSocket), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
 		Restart: func() {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
 			cancel()

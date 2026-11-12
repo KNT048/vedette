@@ -206,6 +206,7 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 		Action   string   `json:"action"`
 		Severity Severity `json:"severity"`
 		Devices  []Device `json:"devices"`
+		Blocked  bool     `json:"blocked"` // logs.bad_address.detected only: the device that logged it blocked the connection (D-227)
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -214,7 +215,7 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 		return fmt.Errorf("%w: a logs event needs a title of at most 200 characters", ErrInvalidNotice)
 	}
 	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: kind, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity, What: e.What, Action: e.Action,
-		Link: "/logs", Devices: e.Devices})
+		Link: "/logs", Devices: e.Devices, Attempt: e.Blocked && kind == IncidentBadAddress})
 	return err
 }
 

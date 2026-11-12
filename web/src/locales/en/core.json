@@ -278,6 +278,7 @@
         "enable": "Enable user",
         "password_reset": "Reset password",
         "2fa_reset": "Reset two-step sign-in",
+        "console_reset": "Reset an administrator from the box console",
         "sso_relink": "Move an SSO account to a new identity provider"
       },
       "account": {
@@ -592,6 +593,20 @@
     "advisoryAffected": "Affects you",
     "advisoryFixed": "Fixed in your build",
     "fixedIn": "Fixed in {{version}}.",
+    "revoked": {
+      "title": "Vedette {{version}}, which this box runs, has been withdrawn",
+      "body": "Reason given by the Vedette project: {{reason}}. Replace it with another release as soon as you can.",
+      "open": "Open Updates",
+      "quietTitle": "Vedette {{version}} has been withdrawn",
+      "quietBody": "Reason given by the Vedette project: {{reason}}. No box installs it any more; this box keeps running it until the next update."
+    },
+    "stale": {
+      "title": "The update information on this box is out of date",
+      "body": "It ran out on {{date}}, so newer releases and withdrawn ones may be missing.",
+      "checkOn": "The box gets new information at its next update check; if it stays out of date, make sure the box can reach github.com over HTTPS.",
+      "checkOff": "Update checks are off in Privacy: turn them on or import an offline bundle.",
+      "checkOffNoBundle": "Update checks are off in Privacy: turn them on."
+    },
     "bundle": {
       "title": "Bundle for air-gapped networks",
       "desc": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",
@@ -1200,6 +1215,9 @@
       "confirm": "Confirm and turn on",
       "enabled": "Two-step sign-in is on.",
       "disabled": "Two-step sign-in is off.",
+      "lostUser": "Lost your phone or mailbox? Ask an administrator to turn two-step sign-in off for you in Settings → Users.",
+      "lostAdmin": "Lost your phone or mailbox? Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run this on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
+      "lostAdminCommand": "Reset from the box console",
       "offAsk": {
         "title": "Turn off two-step sign-in?",
         "body": "The account will be protected by the password alone.",
@@ -1217,7 +1235,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
-      "endOf": "End session {{device}}",
+      "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
       "endedAll": "All other sessions ended."
@@ -1714,9 +1732,24 @@
     "updates": {
       "meta": "This is a container-only install on your own Docker or Podman, without the helper vedette-host, so you update Vedette and this machine yourself.",
       "title": "Update Vedette",
-      "desc": "Take the vedette.env of the new release (keep the old one), check its signature as the release page says, then pull the new images and start them on the machine that runs Vedette.",
-      "label": "In the folder of compose.yaml (podman compose works the same)",
-      "back": "To go back, put the old vedette.env back and run the same two commands. Keep the same -f files on every command if you added the sensors or syslog. A version that changes the database may not go back: read the release notes and back up first."
+      "desc": "Vedette looks for a new release by itself and says so here. You update it on the machine that runs it: take the vedette.env of the new release (keep the old one), check its signature, then pull the new images and start them.",
+      "engine": "Commands for",
+      "label": "In the folder of compose.yaml",
+      "back": "To go back, put the old vedette.env back and run pull and up -d again. Keep the same -f files on every command if you added the sensors or syslog. A version that changes the database may not go back: read the release notes and back up first.",
+      "offer": "Vedette {{version}} is available. This machine runs {{running}}.",
+      "checkOff": "The update check is off, so Vedette cannot tell you here when a new release is out. Watch the release page, or turn the check on under",
+      "privacyLink": "Privacy",
+      "notYet": "No release information yet: no update check has succeeded on this install. Vedette looks every 6 hours; until a release is published, or while it cannot reach github.com over HTTPS, there is nothing new to show.",
+      "latest": "No newer release is offered to this install (it runs {{version}}). Last checked {{when}}.",
+      "block1": "Update to {{version}}",
+      "stepKeep": "In the folder of compose.yaml, keep the file you run now for the way back (named after the version it runs):",
+      "backOffer": "To go back, put {{kept}} back as vedette.env and run pull and up -d again. Keep the same -f files on every command if you added the sensors or syslog. A version that changes the database may not go back: read the release notes and back up first.",
+      "stepFetch": "Download vedette.env and vedette.env.minisig of Vedette {{version}} from its release page into this folder, then check the signature with the vedette.pub you kept from the install (not one taken from the same page):",
+      "verifyWhy": "Check that each image of {{version}} is the one the Vedette project signed, with the cosign.pub you kept from the install:",
+      "verifyLabel": "One line per image, by the digest in the signed release information",
+      "matchWhy_one": "Check that the new vedette.env names this image; it must print {{count}}, or do not go on:",
+      "matchWhy_other": "Check that the new vedette.env names these same images; it must print {{count}}, or do not go on:",
+      "stepLines": "Copy your two lines VEDETTE_BIND_IP and VEDETTE_HOSTS from {{kept}} into the new vedette.env (a release leaves them empty), then pull the new images and start them:"
     },
     "os": {
       "title": "Operating system",

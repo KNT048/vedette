@@ -64,7 +64,7 @@ export const AddDeviceInput = z.object({
 })
 export const AddDeviceResult = z.object({ id: z.string(), display: z.string(), kev_cves: z.number().int() })
 export const ImportInput = z.object({ filename: z.string(), size: z.number().int(), sha256: z.string(), text: z.string().describe('UTF-8 CSV content, at most 200 KB and 500 rows') })
-export const ImportResult = z.object({ created: z.number().int(), skipped: z.number().int(), errors: z.array(z.object({ line: z.number().int(), message: z.string() })) })
+export const ImportResult = z.object({ created: z.number().int(), skipped: z.number().int(), errors: z.array(z.object({ line: z.number().int(), message: z.string() })), notes: z.array(z.object({ line: z.number().int(), message: z.string() })).describe('Rows that were added but need a word: a public IP, or an IP outside the saved network ranges') })
 
 export const ActiveWindow = z.object({
   enabled: z.boolean(), days: z.array(z.number().int().min(1).max(7)).describe('1 = Monday … 7 = Sunday'),
@@ -81,14 +81,18 @@ export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
 
-export const SensorStatus = z.enum(['online', 'offline'])
+export const SensorStatus = z.enum(['online', 'offline', 'never_connected']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)')
 /** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
 export const Sensor = z.object({
-  id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network'), interfaces: z.array(z.string()), span: z.boolean(),
+  id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),
   span_status: z.object({ verdict: z.enum(['off', 'ok', 'own_only', 'no_traffic', 'no_link']), packets_per_s: z.number().int(), other_macs: z.number().int() }).describe('Live mirrored-traffic health, the same as Settings → Box network'),
   status: SensorStatus, last_seen: dt.nullable(), version: z.string().nullable(), devices_seen: z.number().int(),
 })
 export const SensorsResponse = z.object({ sensors: z.array(Sensor) })
+export const SensorPatch = z.object({
+  interface: z.string().max(15).nullable().describe('A card of the sensor\'s last heartbeat (younger than 90 s); null: no card chosen, the sensor listens on the default one (D-380)'),
+  span: z.boolean().describe('The card receives mirrored traffic; it must have no IPv4 address. true needs an interface'),
+})
 
 /** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy (D-33). */
 export const AgentKind = z.enum(['osquery'])
@@ -151,6 +155,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
   { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
   { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
+  { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
   { method: 'post', path: '/inventory/agents/tokens', status: 201, summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },

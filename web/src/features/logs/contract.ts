@@ -51,7 +51,7 @@ export const UnknownSendersResponse = z.object({ items: z.array(UnknownSender).m
 export const NewItem = z.object({ id: z.string(), signature: z.string(), source_id: z.string(), source_name: z.string(), count: z.number().int(), first_seen: iso, sample: z.string() })
 export const SpikeItem = z.object({ id: z.string(), signature: z.string(), source_id: z.string(), source_name: z.string(), count: z.number().int(), baseline_per_day: z.number(), sample: z.string() })
 // A connection from a LAN device to an address on a threat feed (S-LOG-2, S-LOG-4). Stored in collection logs_ioc_hits as
-// { id, ts, asset_id, src_ip, dest, dest_kind, seen_via, feeds, confidence }; the response module reads the stored rows with peek.
+// { id, ts, asset_id, src_ip, dest, dest_kind, seen_via, feeds, confidence, blocked, listed_as }; the response module reads the stored rows with peek.
 // The API row adds asset_name, resolved from the inventory when read.
 export const IocHit = z.object({
   id: z.string(), ts: iso,
@@ -64,6 +64,7 @@ export const IocHit = z.object({
   feeds: z.array(z.string()).describe('Threat feeds that list the destination'),
   confidence: z.number().min(0).max(1).describe('0 to 1; response rules only act automatically on high confidence'),
   blocked: z.boolean().describe('The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say'),
+  listed_as: z.string().nullable().describe('The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF, D-228, D-425): look this name up in Feeds. null when a feed lists dest itself'),
 })
 export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 

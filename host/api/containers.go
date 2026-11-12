@@ -56,7 +56,7 @@ const (
 	CodeSequenceRegress     = "sequence_regress"       // the index is older than the stored one
 	CodePlatformMismatch    = "platform_mismatch"      // no image for linux/<GOARCH>
 	CodeManifestMismatch    = "manifest_mismatch"      // version differs from the args, or the hash differs from the index
-	CodeBundleUnsupported   = "bundle_unsupported"     // source=bundle is not built yet
+	CodeBundleUnsupported   = "bundle_unsupported"     // source=bundle on a host older than D-452 (this host no longer sends it)
 	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything (D-130)
 	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess (D-130)
 	CodePullFailed          = "pull_failed"            // run ended failed: podman could not pull or tag
@@ -64,6 +64,17 @@ const (
 	// nmap that the host builds on the box from it was not (no package mirror, a build error, or nmap below the floor). The previous
 	// localhost/vedette-scan-nmap image, if any, is untouched and the previous unit keeps running (D-147).
 	CodeScanBuildFailed = "scan_build_failed"
+
+	// Codes of container.pull with source=bundle (spec 6.7, D-452). The bundle is <core_data>/bundles/<bundle_id>.tar.
+	// CodeBundleNotFound (412): core has not written that bundle (or core_data is not set or not safe to read).
+	CodeBundleNotFound = "bundle_not_found"
+	// CodeBundleInvalid: the file or the tar is not what the bundle contract allows (a link, not core's, over 8 GiB, a name
+	// outside the closed list, a link or device entry, a member over its cap, a duplicate, a missing document or image, an
+	// image archive that is not a complete OCI layout). 412 when Check finds it, a failed run when the run does.
+	CodeBundleInvalid = "bundle_invalid"
+	// CodeArchiveDigestMismatch ends a bundle pull as failed: the image archive is not the image the signed manifest names
+	// (its index.json names another digest, or a blob does not hash to its name).
+	CodeArchiveDigestMismatch = "archive_digest_mismatch"
 
 	// Refusals of container.start with a version and of container.rollback (spec 6.8, 6.10, D-104, D-138).
 	CodeDowngradeNotAllowed   = "downgrade_not_allowed"   // the version is lower than the running one: going back is container.rollback
@@ -130,11 +141,13 @@ type ContainerRollbackResult struct {
 
 // ContainerPullArgs are the args of container.pull (spec 6.7). Index and Manifest are the signed
 // documents, base64, with their minisign signatures (each at most 256 KiB decoded); the host
-// verifies them itself and never takes an image reference, a digest or a path from here.
+// verifies them itself and never takes an image reference, a digest or a path from here. With
+// source=bundle the four documents are not sent: the host reads them from the bundle core wrote at
+// <core_data>/bundles/<bundle_id>.tar (D-452).
 type ContainerPullArgs struct {
 	Service     string `json:"service"`
 	Version     string `json:"version"`
-	Source      string `json:"source"` // "registry" | "bundle" (bundle: bundle_unsupported until it is built)
+	Source      string `json:"source"` // "registry" | "bundle"
 	BundleID    string `json:"bundle_id,omitempty"`
 	Index       string `json:"index,omitempty"`
 	IndexSig    string `json:"index_sig,omitempty"`

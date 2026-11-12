@@ -115,7 +115,7 @@ ssh_cmd() {
 root_user() {
 	[ "$(id -u)" -eq 0 ] || die "$1 needs root: sudo $0 $1"
 	local u=${SUDO_USER:-}
-	[ -n "$u" ] && [ "$u" != root ] || die "$1: run it with sudo from your own account (SUDO_USER is the user who gets access)"
+	if [ -z "$u" ] || [ "$u" = root ]; then die "$1: run it with sudo from your own account (SUDO_USER is the user who gets access)"; fi
 	printf '%s' "$u" | grep -Eq '^[a-z_][a-z0-9_-]{0,31}$' || die "unexpected SUDO_USER '$u'"
 	id "$u" >/dev/null 2>&1 || die "no such user $u"
 	RUSER=$u
@@ -330,7 +330,7 @@ mem_guard() {
 	local f=${LAB_MEMINFO:-/proc/meminfo} total avail need used_after # LAB_MEMINFO: lab-vm-test.sh only
 	total=$(awk '$1=="MemTotal:" {print int($2/1024)}' "$f")
 	avail=$(awk '$1=="MemAvailable:" {print int($2/1024)}' "$f")
-	[ -n "$total" ] && [ -n "$avail" ] || die "cannot read MemTotal/MemAvailable from $f"
+	if [ -z "$total" ] || [ -z "$avail" ]; then die "cannot read MemTotal/MemAvailable from $f"; fi
 	need=$((MEM_MB + MEM_HEADROOM_MB))
 	[ "$avail" -ge "$need" ] || die "memory: MemAvailable ${avail} MiB < ${need} MiB (VM ${MEM_MB} + headroom ${MEM_HEADROOM_MB}); refused"
 	used_after=$((total - avail + MEM_MB))
@@ -362,7 +362,7 @@ lan_tap() { # sets TAP to the char device of the lan-up macvtap; checks it is ou
 	idx=$(cat "/sys/class/net/$LAN_LINK/ifindex")
 	TAP=/dev/tap$idx
 	[ -c "$TAP" ] || die "--lan: $TAP is missing (is $LAN_LINK a macvtap?)"
-	[ -r "$TAP" ] && [ -w "$TAP" ] || die "--lan: $TAP is not readable/writable by $(id -un); rerun  sudo $0 lan-up <nic>"
+	if [ ! -r "$TAP" ] || [ ! -w "$TAP" ]; then die "--lan: $TAP is not readable/writable by $(id -un); rerun  sudo $0 lan-up <nic>"; fi
 }
 
 cmd_start() {
@@ -374,7 +374,7 @@ cmd_start() {
 	lab_dir
 	local d=$LAB/$vm port other p
 	port=$(vm_port "$vm")
-	[ -f "$d/disk.qcow2" ] && [ -f "$d/seed.iso" ] || die "$vm is not created: $0 create $vm"
+	if [ ! -f "$d/disk.qcow2" ] || [ ! -f "$d/seed.iso" ]; then die "$vm is not created: $0 create $vm"; fi
 	if p=$(vm_pid "$vm"); then say "$vm already runs (pid $p); ssh: $0 ssh"; return 0; fi
 	if other=$(running_vm); then die "another lab VM runs: $other (one at a time; $0 stop)"; fi
 	if p=$(pgrep -f '^qemu-system-x86_64 -name vedette-lab-' | tr '\n' ' '); [ -n "$p" ]; then
@@ -472,9 +472,9 @@ cmd_stop() {
 		timeout "$T_QUICK" nc -N -w 5 -U "$d/qmp.sock" >/dev/null 2>&1 || say "QMP did not answer"
 	if ! wait_gone "$p" "$T_POWERDOWN"; then
 		say "no power-off after ${T_POWERDOWN}s: SIGTERM"
-		vm_pid "$vm" >/dev/null && kill -TERM "$p" 2>/dev/null || true
+		if vm_pid "$vm" >/dev/null; then kill -TERM "$p" 2>/dev/null || true; fi
 		if ! wait_gone "$p" 10; then
-			vm_pid "$vm" >/dev/null && kill -KILL "$p" 2>/dev/null || true
+			if vm_pid "$vm" >/dev/null; then kill -KILL "$p" 2>/dev/null || true; fi
 			wait_gone "$p" 5 || die "pid $p does not exit"
 		fi
 	fi

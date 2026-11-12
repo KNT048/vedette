@@ -104,7 +104,8 @@
     "status": {
       "ok": "Succeeded",
       "schema_error": "Bad format",
-      "capped": "Blocked by cap"
+      "capped": "Blocked by cap",
+      "failed": "Failed: not sent or not answered"
     },
     "fallback": "Fallback used"
   },
@@ -188,9 +189,10 @@
     "title": "AI log digest",
     "description": "The AI reads aggregated logs and says what to look at first. Logs are untrusted data: the AI only summarises and does nothing on your behalf.",
     "refresh": "Regenerate now",
+    "none": "No summary has been made at this level yet. Press Regenerate now.",
     "working": "Summarising",
     "tier": "{{tier}} level: {{cadence}}.",
-    "cite": "Aggregated logs on this box",
+    "cite": "Kinds of log line and their counts on this box, never the lines",
     "severity": {
       "high": "High",
       "medium": "Medium",

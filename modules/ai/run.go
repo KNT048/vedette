@@ -142,9 +142,9 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 		b, _ := json.Marshal(sealed.Links)
 		links = string(b)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, outcome, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), nullable(e.Outcome), sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
 		sealed.TokensIn, sealed.TokensOut, string(sealed.Result), links, sealed.PrevHash, sealed.Hash); err != nil {
 		return ActivityEntry{}, fmt.Errorf("ai: write activity: %w", err)
 	}
@@ -403,6 +403,24 @@ func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
 	}
 }
 
+// capSummary is the activity summary of a call the daily cap stopped (outcome capped).
+const capSummary = "Not sent: today's token cap is used up and the level is already the minimum."
+
+// notSent is the outcome of a call whose every attempt was skipped before a request was sent: capped when a profile's own daily cap
+// was one of the reasons, otherwise not_sent. "" when a request was sent.
+func notSent(res CallResult) string {
+	out := OutcomeNotSent
+	for _, a := range res.Attempts {
+		if !a.Skipped {
+			return ""
+		}
+		if errors.Is(a.Err, errProfileCapSkip) {
+			out = OutcomeCapped
+		}
+	}
+	return out
+}
+
 // failed records a call that got no answer and returns the error the person sees.
 func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, err error) error {
 	if ctx.Err() != nil {
@@ -448,7 +466,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		}
 		return apiUnavailable("The AI profile did not accept tool calls, which asking your data needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
 	case errors.Is(err, ErrCapped):
-		entry.Summary = "Not sent: today's token cap is used up and the level is already the minimum."
+		entry.Summary, entry.Outcome = capSummary, OutcomeCapped
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
@@ -459,6 +477,9 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			return s.unavailable(spec.Job, reasons)
 		}
 		entry.Summary = "No profile answered: " + strings.Join(reasons, "; ")
+		if out := notSent(res); out != "" { // every profile was skipped: no request left the box
+			entry.Summary, entry.Outcome = "Not sent: no AI profile could take the call: "+strings.Join(reasons, "; "), out
+		}
 		if res.Downgrade != nil {
 			// the failed attempts still used tokens and may have lowered the level: keep both facts
 			if rerr := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {

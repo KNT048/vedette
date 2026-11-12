@@ -30,6 +30,12 @@ function renderUi(ui: React.ReactNode, role: Role = 'admin') {
 const clearProfiles = () => { aiProfilesStore.set([]); aiAssignStore.update((a) => ({ ...a, jobs: Object.fromEntries(Object.keys(a.jobs).map((k) => [k, { primary: null, fallback: null }])) as typeof a.jobs })); aiConfigStore.update((c) => ({ ...c, configured: false })) }
 
 describe('ai: assistant (S-AI-5, S-AI-6)', () => {
+  it('the log of calls says a call the provider did not answer failed, not blocked by the cap (S-AI-4)', async () => {
+    renderApp('/assistant')
+    const table = await screen.findByRole('table', { name: 'Log of AI calls' })
+    expect(await within(table).findByText('Failed: not sent or not answered')).toBeInTheDocument()
+    expect(within(table).queryByText('Blocked by cap')).not.toBeInTheDocument()
+  })
   it('first sentence says how many tokens were used; no a11y violations', async () => {
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 60,000 tokens used today/ })).toBeInTheDocument()
@@ -169,6 +175,17 @@ describe('ai: token meter, caps, fallback (S-AI-4)', () => {
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, base_url: 'https://api.anthropic.com' } : p.id === 'p-haiku' ? { ...p, daily_cap: 1000 } : p)))
     const r2 = await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
     expect(((await r2.json()) as { profile: string }).profile).toBe('Company Ollama server') // chính Haiku hết trần, dự phòng Ollama
+  })
+
+  it('a call no profile answered is failed in the log of calls, one a profile cap stopped is capped (S-AI-4, POST-5)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'cve-news': { primary: 'p-haiku', fallback: null } } }))
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
+    await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
+    expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'cve-news', status: 'failed' })
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://api.anthropic.com', daily_cap: 1000 } : p)))
+    await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
+    expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'cve-news', status: 'capped' })
   })
 
   it('when neither primary nor fallback can answer the error says what to do', async () => {
@@ -554,6 +571,13 @@ describe('ai: log digest panel (S-AI-4)', () => {
     await waitFor(() => expect(aiRunsStore.get().filter((r) => r.skill === 'log-digest')).toHaveLength(1))
     expect(aiRunsStore.get()[0]).toMatchObject({ profile: 'Company Ollama server' })
     await expectNoA11yViolations()
+  })
+
+  it('nothing generated yet (null, no AI call) says so and the button still works', async () => {
+    server.use(http.get(`${location.origin}/api/v1/ai/logs/digest`, () => HttpResponse.json({ digest: null })))
+    renderUi(<LogsPanel />)
+    expect(await screen.findByText('No summary has been made at this level yet. Press Regenerate now.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Regenerate now' })).toBeEnabled()
   })
 
   it('minimum level has fewer items; maximum has the read-only investigation tools', async () => {

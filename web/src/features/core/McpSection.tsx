@@ -41,7 +41,7 @@ function Body({ s }: { s: McpState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const m = useMcpMutations()
-  const container = useInstallKind() === 'container' // D-420 (4): the container does not publish the MCP port (S-CORE-9)
+  const container = useInstallKind() === 'container' // D-395: the port is on the localhost of the machine that runs the container (S-CORE-9)
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
@@ -85,9 +85,7 @@ function Body({ s }: { s: McpState }) {
               { label: t('mcp.endpoint'), value: <span className="font-mono text-[12.5px]">{s.endpoint}</span> },
             ]} />
             <div className="mt-3"><CodeBlock label={t('mcp.clientConfig')} code={JSON.stringify({ mcpServers: { vedette: { type: 'http', url: s.endpoint, headers: { Authorization: 'Bearer <token>' } } } }, null, 2)} /></div>
-            {container
-              ? <p role="note" className="mt-2 rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{t('mcp.remoteContainer')}</p>
-              : <p className="mt-2 text-[13px] text-muted">{t('mcp.remote')}</p>}
+            <p className="mt-2 text-[13px] text-muted">{t(container ? 'mcp.remoteContainer' : 'mcp.remote')}</p>
             <p className="mt-1 text-[13px] text-muted">{t('mcp.verify')}</p>
           </Section>
 

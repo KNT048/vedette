@@ -124,6 +124,7 @@ Pull=never
 Network=vedette-int.network
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
+PublishPort=127.0.0.1:8765:8765
 PublishPort=514:5514/udp
 PublishPort=514:5514/tcp
 PublishPort=6514:5515/tcp

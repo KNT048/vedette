@@ -486,6 +486,25 @@ func TestContract_INV5_LoopbackOnly(t *testing.T) {
 			t.Errorf("%s: %v", addr, err)
 		}
 	}
+	// D-395: in a container the unspecified address of its own namespace is allowed (the unit publishes the port on the host's
+	// 127.0.0.1 only), and the endpoint shown is the host's side of that publish; a named address off loopback stays refused.
+	for _, addr := range []string{"192.168.1.5:8765", "10.0.0.1:1", "172.30.0.2:8765"} {
+		_, err := mcpserver.New(mcpserver.Config{DB: db, Audit: audit.New(nil), Log: slog.New(slog.DiscardHandler), Source: sampleSource(), Modules: &switches{},
+			Listen: netip.MustParseAddrPort(addr), InContainer: true})
+		if err == nil || !strings.Contains(err.Error(), "loopback") {
+			t.Errorf("in a container, %s: %v", addr, err)
+		}
+	}
+	for _, addr := range []string{"0.0.0.0:8765", "[::]:8765"} {
+		s, err := mcpserver.New(mcpserver.Config{DB: db, Audit: audit.New(nil), Log: slog.New(slog.DiscardHandler), Source: sampleSource(), Modules: &switches{},
+			Listen: netip.MustParseAddrPort(addr), InContainer: true})
+		if err != nil {
+			t.Fatalf("in a container, %s: %v", addr, err)
+		}
+		if bind, url := s.Endpoint(); bind.String() != "127.0.0.1:8765" || url != "http://127.0.0.1:8765/mcp" {
+			t.Errorf("in a container, %s: endpoint %s %s", addr, bind, url)
+		}
+	}
 }
 
 // POST-1, SYS-5: the port is open while the module is on and closed when it goes off; tokens are kept. Off, a request that

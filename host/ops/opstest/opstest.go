@@ -398,11 +398,11 @@ func (m *Machine) Envs(bin string) [][]string {
 		}
 	}
 	for _, line := range strings.Split(string(b), "\n") {
-		switch {
-		case line == "=== env":
+		switch line {
+		case "=== env":
 			done()
 			cur, started = []string{}, true
-		case line == "":
+		case "":
 		default:
 			if kv, ok := exportLine(line); ok {
 				if k, _, _ := strings.Cut(kv, "="); !slices.Contains([]string{"PWD", "SHLVL", "_", "OLDPWD"}, k) {

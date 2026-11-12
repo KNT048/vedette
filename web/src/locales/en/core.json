@@ -163,6 +163,7 @@
     "test": "Test connection",
     "testOk": "Read the identity provider's OIDC configuration.",
     "saveFirst": "Save the settings before testing",
+    "err": { "issuer": "Enter the issuer address.", "client": "Enter the Client ID.", "secret": "Enter the Client secret." },
     "noAccess": "No access",
     "scopes": "Scopes",
     "scopesHint": "Separated by spaces; must include openid. Add groups if your identity provider needs it to send groups (Okta, Authentik).",
@@ -685,6 +686,8 @@
         "empty": "The start and the end are the same, so the window is empty.",
         "save": "Save window",
         "saved": "Maintenance window saved.",
+        "savedCancelled": "Maintenance window saved. The scheduled reboot was outside it, so it was cancelled. Schedule it again if you still need it.",
+        "rebootWarn": "A reboot is scheduled for {{time}}. If the new window does not include that time, saving cancels the reboot.",
         "modeLabel": "Window mode"
       },
       "installSecurity": "Install security updates",

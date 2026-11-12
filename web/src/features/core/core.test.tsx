@@ -602,6 +602,16 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-view')!.disabled).toBe(true))
   })
 
+  it('OIDC: lưu trống báo cả ba ô một lần (QA b8)', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
+    await u.click(await screen.findByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Enter the issuer address.')).toBeInTheDocument()
+    expect(screen.getByText('Enter the Client ID.')).toBeInTheDocument()
+    expect(screen.getByText('Enter the Client secret.')).toBeInTheDocument()
+  })
+
   it('OIDC: bật, lưu, thử, và nút SSO hiện ở trang đăng nhập', async () => {
     const u = user()
     renderApp('/settings/users')
@@ -1656,6 +1666,23 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
       expect((await patch({ window: { mode: 'weekly', days: [1], from: '02:00', to: '04:00' } })).status).toBe(400)
       expect((await patch({ window: { mode: 'window', days: [1], from: '25:00', to: '04:00' } })).status).toBe(400)
     })
+  })
+
+  it('saving a window warns first and says so when it cancelled the scheduled reboot (QA b3)', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await screen.findByRole('button', { name: 'Check now' }, T)
+    const os = osSection()
+    await u.click(await os.findByRole('button', { name: 'Schedule reboot' }, T))
+    const d = within(await screen.findByRole('dialog', { name: 'Schedule a reboot' }))
+    await u.click(d.getByRole('radio', { name: 'At the start of the next maintenance window' }))
+    await u.click(d.getByRole('button', { name: /^Schedule/ }))
+    await os.findByText(/Reboot scheduled for/)
+    await u.click(os.getByLabelText('Sunday'))
+    await u.click(os.getByLabelText('Monday'))
+    expect(os.getByText(/saving cancels the reboot/)).toBeInTheDocument()
+    await u.click(os.getByRole('button', { name: 'Save window' }))
+    expect(await screen.findByText(/it was cancelled\. Schedule it again/)).toBeInTheDocument()
   })
 
   describe('form matrix: schedule a reboot', () => {

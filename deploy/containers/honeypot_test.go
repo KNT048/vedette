@@ -117,7 +117,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 	if !strings.Contains(cf, "COPY --from=build /out/vedette "+health[0]+"\n") {
 		t.Errorf("the image must hold the core binary at %q, the path of the unit's HealthCmd", health[0])
 	}
-	if !strings.Contains(cf, "./cmd/vedette\n") || !strings.Contains(cf, "CGO_ENABLED=0") {
+	if !strings.Contains(cf, "-o /out/vedette ./cmd/vedette;") || !strings.Contains(cf, "CGO_ENABLED=0") {
 		t.Error("the health binary is the static (no cgo) build of ./cmd/vedette: nothing of it can link a GPL library")
 	}
 	if !slices.Equal(u["DropCapability"], []string{"ALL"}) || len(u["AddCapability"]) != 0 || len(u["User"]) != 0 {

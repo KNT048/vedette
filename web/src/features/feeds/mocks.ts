@@ -6,7 +6,7 @@ import { API, audit, body, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, isOn } from '@/mocks/stores'
 import { collection, newId, nowIso } from '@/mocks/db'
 import type { Asset, AssetKind } from '@/lib/types'
-import { kevStatus, sourceHandlers } from './sourcesMock'
+import { feedOn, kevStatus, sourceHandlers } from './sourcesMock'
 import { FEED_DOMAIN_RE } from './parsers'
 import { displayOf, keyOf, kindOf } from './slug'
 import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, Vuln, WeeklyItem, YouHave } from './types'
@@ -18,13 +18,28 @@ const inWindow = (v: Vuln, hours: number) => new Date(`${v.date_added}T23:59:59Z
 const weeklyAnswers = collection<Record<string, 'have' | 'not_relevant'>>('feeds_weekly_answers', () => ({}))
 
 // IOC mẫu cho tra cứu (S-FEED-3). Bản thật: feeds/ioc/* từ builder (DATA_PIPELINE §2b).
-const IOCS: IocHit[] = [
-  { value: '185.220.101.47', type: 'ip', category: 'Tor exit node, SSH scanning', sources: ['Tor exit list', 'IPsum (8 sources)'], score: 0.92, first_seen: '2026-09-12', last_seen: '2026-11-05', verdict: 'block' },
-  { value: '45.148.10.95', type: 'ip', category: 'VPN vulnerability scanner', sources: ['ET Open compromised', 'IPsum (5 sources)'], score: 0.81, first_seen: '2026-10-20', last_seen: '2026-11-04', verdict: 'block' },
-  { value: '103.75.190.12', type: 'ip', category: 'RDP password guessing', sources: ['IPsum (3 sources)'], score: 0.55, first_seen: '2026-10-30', last_seen: '2026-11-05', verdict: 'alert' },
-  { value: 'update-dsm-synology.com', type: 'domain', category: 'Fake NAS update page', sources: ['hagezi TIF', 'Phishing.Database'], score: 0.88, first_seen: '2026-10-29', last_seen: '2026-11-05', verdict: 'block' },
-  { value: 'cdn-telemetry-sync.net', type: 'domain', category: 'Malware command-and-control server', sources: ['hagezi TIF'], score: 0.7, first_seen: '2026-10-02', last_seen: '2026-11-01', verdict: 'alert' },
+const IOCS: Omit<IocHit, 'sources'>[] = [
+  { value: '185.220.101.47', type: 'ip', category: 'Tor exit node, SSH scanning', score: 0.92, first_seen: '2026-09-12', last_seen: '2026-11-05', verdict: 'block' },
+  { value: '45.148.10.95', type: 'ip', category: 'VPN vulnerability scanner', score: 0.81, first_seen: '2026-10-20', last_seen: '2026-11-04', verdict: 'block' },
+  { value: '103.75.190.12', type: 'ip', category: 'RDP password guessing', score: 0.55, first_seen: '2026-10-30', last_seen: '2026-11-05', verdict: 'alert' },
+  { value: 'update-dsm-synology.com', type: 'domain', category: 'Fake NAS update page', score: 0.88, first_seen: '2026-10-29', last_seen: '2026-11-05', verdict: 'block' },
+  { value: 'cdn-telemetry-sync.net', type: 'domain', category: 'Malware command-and-control server', score: 0.7, first_seen: '2026-10-02', last_seen: '2026-11-01', verdict: 'alert' },
 ]
+
+// The built-in feeds that list each sample indicator (id, name as shown). Like the box, a lookup names only feeds that are on, and an
+// indicator that no feed that is on lists is not found (POST-4).
+const LISTED: Record<string, [string, string][]> = {
+  '185.220.101.47': [['tor-exit', 'Tor exit list'], ['ipsum', 'IPsum (8 sources)']],
+  '45.148.10.95': [['et-open', 'ET Open compromised'], ['ipsum', 'IPsum (5 sources)']],
+  '103.75.190.12': [['ipsum', 'IPsum (3 sources)']],
+  'update-dsm-synology.com': [['hagezi-tif', 'hagezi TIF']],
+  'cdn-telemetry-sync.net': [['hagezi-tif', 'hagezi TIF']],
+}
+function iocHit(value: string): IocHit | null {
+  const base = IOCS.find((i) => i.value === value)
+  const sources = (LISTED[value] ?? []).filter(([id]) => feedOn(id)).map(([, label]) => label)
+  return base && sources.length ? { ...base, sources } : null
+}
 
 function matchAssets(vendor: string, product: string): MatchedAsset[] {
   const key = keyOf(vendor, product)
@@ -141,7 +156,7 @@ export const handlers = [
     if (!q) return fail(400, 'empty_query', 'Enter a CVE, product name, IP or domain.')
     let r: SearchResult
     if (/^cve-\d{4}-\d{4,}$/i.test(q)) r = { kind: 'cve', cve: q.toUpperCase(), found: data.vulns.some((v) => v.cve === q.toUpperCase()) }
-    else if (IPV4_RE.test(q) || FEED_DOMAIN_RE.test(q)) r = { kind: 'ioc', value: q.toLowerCase(), type: IPV4_RE.test(q) ? 'ip' : 'domain', hit: IOCS.find((i) => i.value === q.toLowerCase()) ?? null }
+    else if (IPV4_RE.test(q) || FEED_DOMAIN_RE.test(q)) r = { kind: 'ioc', value: q.toLowerCase(), type: IPV4_RE.test(q) ? 'ip' : 'domain', hit: iocHit(q.toLowerCase()) }
     else {
       const t = q.toLowerCase()
       r = { kind: 'text', q, vulns: data.vulns.filter((v) => `${v.vendor} ${v.product} ${v.name} ${displayOf(v.vendor, v.product)}`.toLowerCase().includes(t)).map((v) => ({ ...v, display: displayOf(v.vendor, v.product) })) }

@@ -159,7 +159,7 @@ test('the box is device 1 and the only device (S-INV-5, count only)', async ({ p
   expect(list.body.items).toHaveLength(1)
   expect(list.body.items[0]!.is_box).toBe(true)
   await page.goto('/devices')
-  await expect(h1(page)).toContainText(/^1 device, /)
+  await expect(h1(page)).toContainText('Only the Vedette box so far') // #493: the box alone gets its own title
   await expect(page.getByText('This box').first()).toBeVisible()
   noErrors(errors, /status of 4\d\d/)
 })

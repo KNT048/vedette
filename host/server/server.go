@@ -40,10 +40,12 @@ type Options struct {
 	// request like busy does: no run, one audit line. It must not block or take locks the server holds.
 	WriteGate func() *Refusal
 	// Resume is asked, during New (so before Listen), about each run a restart found in
-	// awaiting_confirm (D-100). True: the run stays awaiting and keeps the write lock; the caller
-	// then re-arms its timer (after New returns) and settles the run with Settle, at once if
-	// revert_at has passed. False, nil, a panic, or a second awaiting run: the run is settled
-	// failed host_restarted like any run a crash cut short. Resume must only read.
+	// awaiting_confirm (D-100) or parked (running with parked_deadline, D-316). True: the run stays
+	// as it was and keeps the write lock; the caller then re-arms its timer or settle goroutine
+	// (after New returns) and ends the run with Settle or SettleParked, at once if revert_at has
+	// passed. False, nil, a panic, or a second such run: the run is settled failed host_restarted
+	// like any run a crash cut short. Any other run a restart finds unfinished is never offered (it
+	// was cut short mid-command and fails host_restarted). Resume must only read.
 	Resume    func(api.Run) bool
 	PeerCheck peer.Checker // layers 2 and 3 of the peer check; required
 	Version   string
@@ -83,9 +85,10 @@ type Server struct {
 	draining atomic.Bool
 	wg       sync.WaitGroup
 
-	mu       sync.Mutex // guards active, waiting, inflight, live and the submit sequence
-	active   string     // run id holding the write lock, "" when free (a waiting run holds it)
+	mu       sync.Mutex // guards active, waiting, parked, inflight, live and the submit sequence
+	active   string     // run id holding the write lock, "" when free (a waiting or parked run holds it)
 	waiting  *liveRun   // the run parked in awaiting_confirm, nil when none; it is active
+	parked   *liveRun   // the running run parked by Parked, nil when none; it is active
 	inflight string     // run id of the WhileAwaiting command running now, "" when none
 	live     map[string]*eventLog
 
@@ -174,17 +177,18 @@ func New(o Options) (*Server, error) {
 func (s *Server) AuditError() error { return s.audit.brokenErr() }
 
 // recover fails every run a crash left in progress as host_restarted, audits it, and gives it a
-// final event. A run found in awaiting_confirm is kept instead when Options.Resume says so (D-100).
+// final event. A run found in awaiting_confirm (D-100) or parked (D-316) is kept instead when
+// Options.Resume says so; at most one of them, since it holds the write lock.
 func (s *Server) recover() {
 	for _, sr := range s.runs.nonTerminal() {
-		if s.resumeAwaiting(sr) {
+		if s.resumeAwaiting(sr) || s.resumeParked(sr) {
 			continue
 		}
 		now := s.now().UTC()
 		sr.Run.Status = api.StatusFailed
 		sr.Run.FinishedAt = &now
 		sr.Run.Error = &api.RunError{Code: api.CodeHostRestarted, Message: "The host restarted while the command was running."}
-		sr.Run.RevertAt = nil
+		sr.Run.RevertAt, sr.Run.ParkedDeadline = nil, nil
 		if sr.Run.AuditID == "" {
 			sr.Run.AuditID, _ = newID("au_")
 		}
@@ -383,8 +387,10 @@ func (s *Server) Serve(ln net.Listener) error {
 
 // Shutdown stops accepting work: new requests get 503 host_shutting_down, running commands have
 // their context cancelled, and it waits for them (bounded by ctx) before closing the listener
-// and the audit log. A run awaiting confirmation stays awaiting on disk (the next start decides,
-// Options.Resume); Settle after Shutdown began returns ErrShuttingDown and changes nothing.
+// and the audit log. A run awaiting confirmation or parked stays as it is on disk, with the write
+// lock it holds (the next start decides, Options.Resume); Claim, Settle and SettleParked after
+// Shutdown began return ErrShuttingDown and change nothing. A command that returns Parked after
+// Shutdown began is not parked: its run ends failed host_shutting_down.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.mu.Lock() // under the lock so a Settle either sees draining or has already joined the wait group
 	s.draining.Store(true)

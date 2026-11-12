@@ -110,7 +110,10 @@ type Run struct {
 	Result     json.RawMessage `json:"result,omitempty"`
 	Error      *RunError       `json:"error,omitempty"`
 	RevertAt   *time.Time      `json:"revert_at,omitempty"`
-	AuditID    string          `json:"audit_id"`
+	// ParkedDeadline is set while a running run is parked (server.Parked, D-316): the run outlives
+	// the host process, and its command's own code ends it (server.SettleParked) by then.
+	ParkedDeadline *time.Time `json:"parked_deadline,omitempty"`
+	AuditID        string     `json:"audit_id"`
 }
 
 // RunList is the body of GET /v1/runs.

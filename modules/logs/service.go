@@ -53,6 +53,10 @@ type Config struct {
 	// BoxAddrs is the box's own addresses, which no SIEM may be at (SYS-7); known=false means the box does not know them yet, and then
 	// no connection is made (fail closed). Nil: no address is excluded (tests).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// Hostname is the box's name, the HOSTNAME of every syslog and CEF-over-syslog record and the "box" of every JSON record sent to the
+	// SIEM (#471). Wiring passes the OS host name vedette-host reports (core runs in a container, whose own name is not the machine's),
+	// already checked against RFC 1123. Nil or "": "vedette". The formatters still make it a plain token (asciiToken, siemText).
+	Hostname func(ctx context.Context) string
 	// Feeds is where destinations are looked up (iochits.go). Nil: no lookup, no bad connections. The adapter answers ErrFeedsOff while the
 	// feeds module is off (PRE-3). The hits are announced on Events: logs.ioc_hit.detected and logs.bad_address.detected.
 	Feeds Feeds
@@ -253,6 +257,16 @@ func (s *Service) box(ctx context.Context) (BoxInfo, error) {
 		return BoxInfo{}, fmt.Errorf("logs: reading the box address: %w", err)
 	}
 	return b, nil
+}
+
+// hostname is Config.Hostname, "vedette" without one.
+func (s *Service) hostname(ctx context.Context) string {
+	if s.cfg.Hostname != nil {
+		if h := s.cfg.Hostname(ctx); h != "" {
+			return h
+		}
+	}
+	return "vedette"
 }
 
 func (s *Service) devicesFor(ctx context.Context, rows []sourceRow) (map[string]Device, error) {

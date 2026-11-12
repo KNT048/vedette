@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net/netip"
-	"os"
 	"strings"
 	"sync"
 
@@ -49,6 +48,7 @@ func logsService(d deps) *logs.Service {
 	cfg.Syslog.TLS = d.SyslogTLS
 	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
 	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
+	cfg.Hostname = d.BoxName.Get        // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
@@ -149,11 +149,7 @@ func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[strin
 type logsBox struct{ d deps }
 
 func (b logsBox) Info(ctx context.Context) (logs.BoxInfo, error) {
-	host, _ := os.Hostname()
-	if host == "" {
-		host = "vedette"
-	}
-	info := logs.BoxInfo{Hostname: host}
+	info := logs.BoxInfo{Hostname: b.d.BoxName.Get(ctx)}
 	st, err := b.d.Inventory.Settings(ctx)
 	if err != nil {
 		return info, err

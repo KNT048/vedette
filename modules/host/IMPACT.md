@@ -114,6 +114,9 @@
 - Bộ áp (`ops.Apply`, `ApplyWithDeps` cho test) có runner riêng (`applierBinaries`); `cmd/vedette-host -self-update-apply rn_<16 hex>` là đường vào duy nhất, từ chối khi không root, có cờ khác, hay không chạy từ `<state>/selfupdate/applier`. Đổi pha, cách chọn cài, phép kiểm khoẻ → `TestContract_SelfUpdate_*` và RUNBOOK §5.6.
 - Seam test mới: `Deps.StartUnit` (thay `systemd-run`, sau cùng bộ kiểm), `Deps.PID`; `ApplyDeps.Stop` (bộ áp "chết" sau một pha). Production không đặt chúng.
 
+## Modifying: `GET /v1/info` `hostname` (`api.Info.Hostname`, `api.ValidHostname`, `host/server/sysinfo_linux.go`, #471)
+- **core** (`cmd/vedette/boxname.go` `boxHostName`): tên của dòng thiết bị của chính hộp (job `box` của inventory), `hostname` của trang nguồn Logs (`logsBox`) và HOSTNAME/`box` của bản ghi SIEM (`logs.Config.Hostname`). Nhớ 10 phút, hỏi lại sau 30 s khi host không trả lời (giữ tên tốt cuối), `vedette` khi trường thiếu hay sai luật. Nới `ValidHostname` là cho chữ của người quản trị máy vào dòng thiết bị và bản ghi syslog (formatter SIEM vẫn làm thành token ASCII); thắt lại làm máy có tên cũ hợp lệ thành `vedette`. Trường là tuỳ chọn và không đổi `proto`: bỏ trường là `core` dùng `vedette`, không lỗi. Đổi nguồn (nodename của `uname`) cần host còn chung UTS namespace với máy (`ProtectHostname=` bị cấm trong unit, `deploy/systemd/unit_test.go`).
+
 ## Absence of this component
 - Kiểu "Chỉ container": Settings → Updates (OS) và Box network hiện "không hỗ trợ ở kiểu cài này"; honeypot không dựng được IP phụ (macvlan), SPAN không cấu hình được; cập nhật phần mềm Vedette làm tay. `client.ErrUnreachable` là tín hiệu.
 - Appliance mất liên lạc với `host`: các module khác vẫn chạy; không cài bản vá, không đổi mạng, không đổi/hoàn tác image cho tới khi khôi phục.

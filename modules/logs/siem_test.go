@@ -383,6 +383,46 @@ func TestSiemSendsEachFormatAndSignsTheWebhook(t *testing.T) {
 	}
 }
 
+// #471: the records carry the box's name from Config.Hostname (the OS host name core gets from vedette-host), not the name of core's
+// container; without one, "vedette".
+func TestSiemRecordsCarryTheBoxHostname(t *testing.T) {
+	e := newSiemEnv(t)
+	pc, _ := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", "127.0.0.1:0")
+	defer func() { _ = pc.Close() }()
+	hook := make(chan []byte, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { b, _ := io.ReadAll(r.Body); hook <- b }))
+	defer srv.Close()
+	syslogRow := siemRow{SiemView: SiemView{Format: "syslog", Host: "127.0.0.1", Port: pc.LocalAddr().(*net.UDPAddr).Port, Proto: "udp"}}
+	jsonRow := siemRow{SiemView: SiemView{Format: "json", URL: srv.URL + "/hook"}, key: secrets.NewValue(siemKey)}
+	for _, tc := range []struct {
+		name string
+		fn   func(context.Context) string
+		want string
+	}{
+		{"the host's name", func(context.Context) string { return "box-01.corp.example" }, "box-01.corp.example"},
+		{"no name", func(context.Context) string { return "" }, "vedette"},
+		{"no source", nil, "vedette"},
+	} {
+		e.svc.cfg.Hostname = tc.fn
+		if _, err := e.svc.siemSend(t.Context(), syslogRow, []siemRecord{goldenRecord()}); err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]byte, 4096)
+		_ = pc.SetReadDeadline(time.Now().Add(5 * time.Second))
+		n, _, err := pc.ReadFrom(buf)
+		if want := "<131>1 2026-11-09T10:00:00.000Z " + tc.want + " vedette - "; err != nil || !strings.HasPrefix(string(buf[:n]), want) {
+			t.Errorf("%s: syslog %q, want the prefix %q (%v)", tc.name, buf[:n], want, err)
+		}
+		if _, err := e.svc.siemSend(t.Context(), jsonRow, []siemRecord{goldenRecord()}); err != nil {
+			t.Fatal(err)
+		}
+		var body map[string]string
+		if err := json.Unmarshal(<-hook, &body); err != nil || body["box"] != tc.want {
+			t.Errorf("%s: json box %q, want %q (%v)", tc.name, body["box"], tc.want, err)
+		}
+	}
+}
+
 func TestSiemTestStoresTheResultAndNeedsAConfiguration(t *testing.T) {
 	e := newSiemEnv(t)
 	if _, err := e.svc.TestSiem(t.Context(), "a@x"); code(err) != "not_configured" {

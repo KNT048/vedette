@@ -152,12 +152,15 @@ type OSInfo struct {
 	Kernel  string `json:"kernel"`
 }
 
-// Info is the body of GET /v1/info.
+// Info is the body of GET /v1/info. Hostname is the machine's OS host name (#471): core runs in a container whose own name is not
+// the machine's. It is optional: absent when the name is unreadable or fails ValidHostname, and a host older than the field never
+// sends it, so a reader falls back on its own name.
 type Info struct {
 	HostVersion string    `json:"host_version"`
 	Proto       int       `json:"proto"`
 	Commands    []string  `json:"commands"`
 	Runner      string    `json:"runner"`
+	Hostname    string    `json:"hostname,omitempty"`
 	OS          OSInfo    `json:"os"`
 	Arch        string    `json:"arch"`
 	BootedAt    time.Time `json:"booted_at"`

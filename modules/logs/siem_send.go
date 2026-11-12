@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"os"
 	"strconv"
 	"syscall"
 	"time"
@@ -141,7 +140,7 @@ func (s *Service) sendOut(ctx context.Context, cfg siemRow, recs []siemRecord) (
 // siemSend writes records to the destination of cfg and returns a sentence for the test result. Sending never touches the database:
 // the caller holds no writer while this runs.
 func (s *Service) siemSend(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) {
-	host, _ := os.Hostname()
+	host := s.hostname(ctx)
 	if cfg.Format == "json" {
 		return s.sendWebhook(ctx, cfg, recs, host)
 	}

@@ -24,7 +24,7 @@ export function answerQuestion(question: string): Answer {
   const q = norm(question)
   const assets = assetsStore.get()
   const findings = findingsStore.get()
-  // the box itself is named apart, as on Devices and in Reports (modules/ai/ask_tools.go inventoryCite, D-TBD-aiw3)
+  // the box itself is named apart, as on Devices and in Reports (modules/ai/ask_tools.go inventoryCite, D-422)
   const others = assets.filter((a) => a.id !== BOX_ID).length
   const inv = { title: others === assets.length ? `Inventory: ${plural(others, 'device')} searched` : others === 0 ? 'Inventory: only the Vedette box searched' : `Inventory: ${plural(others, 'device')} and the Vedette box searched` }
   const tc = (tool: string, args: string, n: number): ToolCall => ({ tool, args, result: DEV(n) })

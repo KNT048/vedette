@@ -36,7 +36,7 @@ const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => 
 //  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com/v1beta
 //  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
 //             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226). Bản cài chỉ-container
-//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy (walk 3, D-TBD-aiw3)
+//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy (walk 3, D-422)
 const KINDS: ProfileKind[] = ['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom']
 const DEFAULTS: Record<ProfileKind, { base_url: string; model: string; api_style: ApiStyle; location: 'internal' | 'cloud'; name: string }> = {
   anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', api_style: 'anthropic', location: 'cloud', name: 'Claude' },
@@ -197,7 +197,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
   // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
   const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
-  // D-TBD-aiw3: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
+  // D-422: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
   // resolve it, so the address of a local model starts empty there and the hint says to use the machine's LAN IP.
   const container = useInstallKind() === 'container'
   const defaultsOf = (k: ProfileKind) => (container && k === 'openai-compatible' ? { ...DEFAULTS[k], base_url: '' } : DEFAULTS[k])

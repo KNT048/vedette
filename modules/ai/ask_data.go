@@ -24,7 +24,7 @@ type AssetRow struct {
 	Software []string // "Display name version"
 	LastSeen string
 	// IsBox marks the Vedette box itself: it is searched like any device, but the citation names it apart, as Devices and Reports
-	// do not count it as a device of the network (D-TBD-aiw3). Not sent to the model.
+	// do not count it as a device of the network (D-422). Not sent to the model.
 	IsBox bool
 }
 

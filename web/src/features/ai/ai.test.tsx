@@ -675,7 +675,7 @@ describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
     expect(within(dlg).getByRole('checkbox', { name: /I understand/ })).not.toBeChecked()
   })
 
-  it('on a container-only install the local model address starts empty and the hint says to use the LAN IP (D-TBD-aiw3)', async () => {
+  it('on a container-only install the local model address starts empty and the hint says to use the LAN IP (D-422)', async () => {
     installStore.set({ kind: 'container' })
     try {
       clearProfiles()

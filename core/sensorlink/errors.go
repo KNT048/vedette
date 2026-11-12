@@ -28,6 +28,7 @@ const (
 	CodeProtoUnsupported = "proto_unsupported"
 	CodeRateLimited      = "rate_limited"
 	CodeStoreBusy        = "store_busy"
+	CodeNotReady         = "not_ready" // core cannot judge the request yet (passive: the box's own cards are unknown, D-385); never about the items
 	CodeInternal         = "internal"
 )
 
@@ -45,6 +46,7 @@ var codes = map[string]struct {
 	CodeProtoUnsupported: {http.StatusUpgradeRequired, "Unsupported protocol version."},
 	CodeRateLimited:      {http.StatusTooManyRequests, "Too many requests."},
 	CodeStoreBusy:        {http.StatusServiceUnavailable, "The store is busy."},
+	CodeNotReady:         {http.StatusServiceUnavailable, "Core cannot take this yet."},
 	CodeInternal:         {http.StatusInternalServerError, "Internal error."},
 }
 

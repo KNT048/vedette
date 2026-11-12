@@ -508,7 +508,8 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
       await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
       await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
     }
-    await expect(page.getByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeVisible()
+    // the empty list says plainly why: nothing found, or no switched-on feed lists any IP or domain yet (the e2e box pulls no IOC feed)
+    await expect(page.getByText(/^(None of your devices connected to a listed bad address in the last 24 hours\.|No switched-on threat feed lists any IP address or domain yet, so no connection can be matched\.)/)).toBeVisible()
     // Feeds off: the page says that instead (PRE-3); the digest itself keeps working
     const mods = await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')
     const feedsWas = mods.body.modules.find((m) => m.id === 'feeds')?.enabled === true

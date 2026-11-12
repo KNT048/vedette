@@ -22930,7 +22930,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "The first rejected rows"
+                      "description": "The first rejected rows: row is the line of the sample for a plain list, otherwise the record number; reason shows the value, cut and quoted"
                     },
                     "truncated": {
                       "type": "boolean",

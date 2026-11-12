@@ -79,6 +79,7 @@ type Service struct {
 	mirrorMu    sync.Mutex
 	chunkWait   time.Duration // mirrorChunkWait, mirrorMaxTime (tests shorten them)
 	maxDownload time.Duration
+	mirrorEvent func(key string, held bool) // tests only: called when a source address takes or gives back its slot
 }
 
 // New returns the service.

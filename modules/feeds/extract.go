@@ -33,10 +33,12 @@ type cell struct {
 }
 
 // rawRow is one extracted record, keyed by record field id. A row-level reject
-// stops the row before any field is built.
+// stops the row before any field is built. line is the 1-based line of the
+// input it came from, set only by the plain-list format (0 = use the record number).
 type rawRow struct {
 	reject *rej
 	cells  []idCell
+	line   int
 }
 
 type idCell struct {
@@ -299,15 +301,18 @@ func isHostsSink(tok string) bool {
 
 // extractLines reads a list of indicators, one token per line (the first),
 // comments with #. A hosts-file line ("0.0.0.0 evil.example.com [more names]")
-// yields its names, never the sink address.
+// yields its names, never the sink address. Every row keeps its line number,
+// comments and blank lines counted, so a rejection points at the line.
 func extractLines(text string, maxRows int) []rawRow {
 	var out []rawRow
+	n := 0
 	add := func(v string) {
-		out = append(out, rawRow{cells: []idCell{{"indicator", cell{s: v, set: true}}}})
+		out = append(out, rawRow{cells: []idCell{{"indicator", cell{s: v, set: true}}}, line: n})
 	}
 	for rest := text; rest != "" && len(out) <= maxRows; {
 		var line string
 		line, rest = nextLine(rest)
+		n++
 		line = jsTrim(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

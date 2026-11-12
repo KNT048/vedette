@@ -236,7 +236,7 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 		return SiemView{}, apierr.New(400, "bad_events", "Choose at least one event type to forward.")
 	}
 	if in.Secret != "" && utf8.RuneCountInString(in.Secret) < minSiemKey {
-		return SiemView{}, apierr.New(400, "bad_secret", "The signing key needs at least 16 characters. Press Generate if you want a random one.")
+		return SiemView{}, apierr.New(400, "bad_secret", "The signing key needs at least 16 characters. Press Generate random if you want a random one.")
 	}
 	if in.Secret != "" && (len(in.Secret) > 512 || siemText(in.Secret, 512) != in.Secret) {
 		return SiemView{}, apierr.New(400, "bad_secret", "The signing key can be at most 512 bytes, with no control characters and no space at either end.")

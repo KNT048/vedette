@@ -15,12 +15,15 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useUsers } from '@/features/core/api'
+import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
+// The box names the wrong webhook field by its code: the message goes under that field, as in the log source form.
+const WEBHOOK_FIELD_OF: Record<string, 'url' | 'secret'> = { bad_url: 'url', secret_required: 'secret', bad_secret: 'secret' }
 
 function randomKey() {
   const b = new Uint8Array(24)
@@ -45,12 +48,15 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const [appToken, setAppToken] = useState('')
   const [botToken, setBotToken] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErr, setFieldErr] = useState<Record<string, string>>({})
   const [warn, setWarn] = useState<boolean | null>(null) // null = no warning; value = whether to send a test after saving
   const busy = save.isPending
 
   function submit(e: FormEvent | { preventDefault(): void }, thenTest = false, confirmed = false) {
     e.preventDefault()
     setError(null)
+    // The webhook form checks what it can before sending (same rules and words as the box), so every wrong field shows at once.
+    if (showErrors(type === 'webhook' ? checkWebhook() : {})) return
     // Turning the email channel off stops two-step email codes too (D-35): say who is affected before doing it.
     if (type === 'email' && channel.enabled && !enabled && codeUsers > 0 && !confirmed) { setWarn(thenTest); return }
     const canApprove = APPROVAL_CHANNELS.includes(type)
@@ -61,10 +67,31 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
         toast.success(t('channels.saved', { name }))
         onSaved(thenTest)
       },
-      onError: (er) => setError(errMsg(er)),
+      onError: (er) => {
+        const f = type === 'webhook' && er instanceof ApiError ? WEBHOOK_FIELD_OF[er.code] : undefined
+        if (f) showErrors({ [f]: errMsg(er) })
+        else setError(errMsg(er))
+      },
     })
   }
-  const set = (k: string, v: string) => setFields((f) => ({ ...f, [k]: v }))
+  function checkWebhook() {
+    const errs: Record<string, string> = {}
+    const url = (fields.url ?? '').trim()
+    const u = url ? checkFeedUrl(url) : channel.fields.url ? 'ok' : 'url' // empty keeps the saved URL
+    if (u !== 'ok') errs.url = t(u === 'https' ? 'channels.err.insecureUrl' : 'channels.err.badUrl')
+    if (secret ? secret.length < 16 : !channel.secret_last4) errs.secret = t(secret ? 'channels.err.shortKey' : 'channels.err.noKey')
+    return errs
+  }
+  // Focus after React has drawn the error, so a screen reader reads the field with its message (as the log source form does).
+  function showErrors(errs: Record<string, string>) {
+    setFieldErr(errs)
+    const first = ['url', 'secret'].find((k) => errs[k])
+    if (first) setTimeout(() => document.getElementById(`ch-${type}-${first}`)?.focus(), 0)
+    return first !== undefined
+  }
+  const fixed = (k: string) => setFieldErr((e) => (e[k] ? { ...e, [k]: '' } : e))
+  const aria = (id: string, k: string) => ({ 'aria-invalid': fieldErr[k] ? true : undefined, 'aria-describedby': `${id}-${fieldErr[k] ? 'error' : 'hint'}` })
+  const set = (k: string, v: string) => { setFields((f) => ({ ...f, [k]: v })); fixed(k) }
   const eligible = (users.data?.items ?? []).filter((u) => !u.disabled && u.role !== 'viewer')
   const free = eligible.filter((u) => !approvers.some((a) => a.user_id === u.id))
   const addApprover = () => {
@@ -95,8 +122,8 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
             }
             const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : t(`channels.f.${type}.${k}.hint`)
             return (
-              <Field key={k} label={label} hint={hint} htmlFor={id}>
-                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" aria-describedby={`${id}-hint`} />
+              <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
+                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
           })}
@@ -116,10 +143,10 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
               </div>
             </div>
           ) : (
-            <Field label={t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`}>
+            <Field label={t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
               <div className="flex gap-2">
-                <Input id={`ch-${type}-secret`} type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" aria-describedby={`ch-${type}-secret-hint`} />
-                {type === 'webhook' ? <Button onClick={() => setSecret(randomKey())}>{t('channels.generate')}</Button> : null}
+                <Input id={`ch-${type}-secret`} type="password" value={secret} onChange={(e) => { setSecret(e.target.value); fixed('secret') }} autoComplete="new-password" {...aria(`ch-${type}-secret`, 'secret')} />
+                {type === 'webhook' ? <Button onClick={() => { setSecret(randomKey()); fixed('secret') }}>{t('channels.generate')}</Button> : null}
               </div>
             </Field>
           )}

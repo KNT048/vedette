@@ -7,6 +7,7 @@ import { API, audit, body, currentUser, DOMAIN_RE, EMAIL_RE, fail, guard, IPV4_R
 import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/stores'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
+import { isInternalHost } from '@/features/feeds/defaults'
 import { CHANNEL_TYPES, FIELDS, ROUTE_SEVERITIES } from './types'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult } from './types'
 
@@ -216,7 +217,8 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
-  if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
+  if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
+  if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')
 }
 

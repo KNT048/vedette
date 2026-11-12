@@ -33,11 +33,11 @@
   ],
   "rejects": [
     {
-      "row": 4,
+      "row": 7,
       "reason": "indicator: \"this\" is not a valid indicator"
     },
     {
-      "row": 5,
+      "row": 8,
       "reason": "indicator: \"198.51.100.23\" is a private, reserved or special-purpose address"
     }
   ],

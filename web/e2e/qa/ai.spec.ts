@@ -90,7 +90,7 @@ test.describe('ai: clean install', () => {
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     // a clean install already lists the box itself as its first device (inventory mock, 830c3ad), so the answer comes from one device; the empty-inventory answer is covered by vitest
     await expect(page.getByText(/No device in the inventory has RDP/)).toBeVisible()
-    await expect(page.getByText('Sources: Inventory: 1 device')).toBeVisible()
+    await expect(page.getByText('Sources: Inventory: 1 device searched')).toBeVisible()
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await shot(page, 'ai', `assistant-clean-asked-${device(page)}`)
     // trang Log chưa có nguồn log: không dựng khung AI (không có gì để tóm tắt)
@@ -113,7 +113,7 @@ test.describe('ai: clean install', () => {
     await expect(dlg.getByLabel('Server address')).toHaveValue('https://generativelanguage.googleapis.com/v1beta')
     await expect(dlg.getByLabel('Model')).toHaveValue('gemini-3.6-flash')
     await kind.selectOption({ label: 'OpenAI-compatible (Ollama, vLLM, LM Studio)' })
-    await expect(dlg.getByLabel('Server address')).toHaveValue('http://localhost:11434/v1')
+    await expect(dlg.getByLabel('Server address')).toHaveValue('http://host.containers.internal:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
     await expect(dlg.getByText(/may leave if it forwards to a cloud provider/)).toBeVisible()
     await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài

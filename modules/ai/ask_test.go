@@ -277,7 +277,7 @@ func TestAskToolLoopAnswerTableAndLabels(t *testing.T) {
 	if len(calls) != 1 || calls[0].(map[string]any)["tool"] != "search_assets" || calls[0].(map[string]any)["args"] != `{"port":3389}` || calls[0].(map[string]any)["result"] != "2 devices" {
 		t.Fatalf("tool_calls = %v", calls)
 	}
-	if c := list(got["citations"]); len(c) != 1 || c[0].(map[string]any)["title"] != "Inventory: 4 devices" {
+	if c := list(got["citations"]); len(c) != 1 || c[0].(map[string]any)["title"] != "Inventory: 4 devices searched" {
 		t.Fatalf("citations = %v", c) // the box's own source, not one the model wrote
 	}
 	if h := list(got["hooks"]); len(h) != 0 {

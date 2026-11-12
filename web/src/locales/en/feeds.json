@@ -250,7 +250,7 @@
     },
     "header": "First row is a header",
     "note": {
-      "json": "Each record is mapped with a JSONPath relative to it, such as $.cveID.",
+      "json": "Each record is mapped with a JSONPath relative to it, such as {{example}}.",
       "csv": "Lines starting with # are skipped. Name a column from the header, or give its number.",
       "rss": "Use item fields: title, link, description, pubDate (or published), category, id.",
       "stix": "Vedette reads indicator objects and their patterns, such as [ipv4-addr:value = '203.0.113.7'], [domain-name:value = '...'], [url:value = '...'] and file hashes. A bundle or a TAXII collection response both work. Fields are fixed; nothing to map.",
@@ -270,7 +270,7 @@
     },
     "required": "required",
     "source": "Source",
-    "srcJson": "JSONPath, for example $.cveID. Empty = not mapped.",
+    "srcJson": "JSONPath, for example {{example}}. Empty = not mapped.",
     "srcCsv": "Column name or number. Empty = not mapped.",
     "srcRss": "Item field. Empty = not mapped.",
     "regex": "Regex (optional)",
@@ -298,7 +298,10 @@
     "previewCaption": "Preview of normalised records",
     "noRecords": "No records came out. Check the paths, column names or regex.",
     "whyRejected": "Why rows were rejected",
-    "firstRejected": "First rejected rows (numbers): {{rows}}",
+    "firstRejectedLines": "First rejected lines of the sample",
+    "firstRejectedRows": "First rejected records",
+    "rejectLine": "Line {{n}}:",
+    "rejectRow": "Record {{n}}:",
     "showSample": "Show the sample used"
   }
 }

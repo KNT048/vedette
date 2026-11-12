@@ -57,6 +57,12 @@
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
     "urlSaved": "Saved: {{url}}. The rest of the address is a secret and is not shown. Leave empty to keep it.",
     "generate": "Generate random",
+    "err": {
+      "badUrl": "The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.",
+      "insecureUrl": "Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.",
+      "noKey": "Enter the webhook signing key.",
+      "shortKey": "The signing key needs at least 16 characters. Press Generate random if you want a random one."
+    },
     "save": "Save",
     "saveTest": "Save and send test",
     "saved": "Channel {{name}} saved.",
@@ -125,7 +131,7 @@
         },
         "secret": {
           "label": "Signing key",
-          "hint": "The box signs the JSON body with HMAC-SHA256 and puts the result, as sha256=<hex>, in the X-Vedette-Signature header. The receiver recomputes it with the same key to verify. At least 16 characters."
+          "hint": "Each request carries two headers: X-Vedette-Timestamp (Unix seconds) and X-Vedette-Signature (sha256=<hex>). The hex is HMAC-SHA256 with this key over the timestamp, a dot and the raw body (timestamp + \".\" + body). The receiver recomputes it the same way, compares in constant time and rejects an old timestamp. At least 16 characters."
         }
       },
       "slack": {
@@ -354,7 +360,7 @@
     "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
     "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent.",
     "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
-    "metaNone": "Vedette only alerts for products you own. Every new vulnerability in the last {{days}} days already has a notice.",
+    "metaNone": "Vedette only alerts for products you own. In the last {{days}} days no new vulnerability was skipped for matching none of your devices.",
     "caption": "Sent messages",
     "col": {
       "time": "Time",

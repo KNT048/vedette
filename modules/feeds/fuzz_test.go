@@ -62,7 +62,7 @@ func checkInvariants(t *testing.T, kind Kind, r Result) {
 					t.Fatalf("bad domain accepted: %q", ind)
 				}
 			case "url":
-				if u, err := url.Parse(ind); !validIndicatorURL(ind) || err != nil || !publicHost(u.Hostname()) {
+				if u, err := url.Parse(ind); !validIndicatorURL(ind) || err != nil || !hostRejection(u.Hostname()).none() {
 					t.Fatalf("bad url accepted: %q", ind)
 				}
 			case "hash":

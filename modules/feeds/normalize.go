@@ -267,13 +267,31 @@ var emptyFileHashes = map[string]bool{
 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": true,
 }
 
-// publicHost: an IP literal must be public, a name must not be local.
-func publicHost(host string) bool {
+// testTLDs are the reserved top-level labels for documentation and tests (RFC 2606,
+// RFC 6761), a subset of reservedTLDs: refused, but they are not local hosts.
+var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true}
+
+// hostRejection says why a URL host is refused (an IP literal must be public, a
+// name must not be local or reserved); none() when the host is public. The
+// template starts with the %s for the URL; the reason only names the class.
+func hostRejection(host string) rej {
 	h := strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(host, "["), "]"))
 	if a, err := netip.ParseAddr(h); err == nil {
-		return !isSpecialAddr(a)
+		if isSpecialAddr(a) {
+			return rj("%s points at a private, reserved or special-purpose address")
+		}
+		return rej{}
 	}
-	return validDomain(h) && !reservedName(h)
+	if !validDomain(h) {
+		return rj("%s points at a local or private host")
+	}
+	if i := strings.LastIndexByte(h, '.'); i > 0 && testTLDs[h[i+1:]] {
+		return rj("%s points at a reserved example or test name")
+	}
+	if reservedName(h) {
+		return rj("%s points at a local or private host")
+	}
+	return rej{}
 }
 
 // normaliseIOC validates and canonicalises one IOC value of a kind. A rejection
@@ -302,8 +320,12 @@ func normaliseIOC(kind, value string) (string, rej) {
 		if !validIndicatorURL(value) {
 			return "", rj("%s is not a valid url")
 		}
-		if u, err := url.Parse(value); err != nil || !publicHost(u.Hostname()) {
+		u, err := url.Parse(value)
+		if err != nil {
 			return "", rj("%s points at a local or private host")
+		}
+		if why := hostRejection(u.Hostname()); !why.none() {
+			return "", why
 		}
 		return value, rej{}
 	case "hash":

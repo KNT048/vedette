@@ -185,10 +185,13 @@ func (s *Server) callParked(command string, fn func()) {
 	fn()
 }
 
-// resumeAwaiting keeps sr as the awaiting run when it is one, no other run holds the lock (a second
-// awaiting run, or a parked one), and Options.Resume says so.
+// resumeAwaiting keeps sr as the awaiting run when it is one of a command declared Awaits, no
+// other run holds the lock (a second awaiting run, or a parked one), and Options.Resume says so.
 func (s *Server) resumeAwaiting(sr storedRun) bool {
-	if sr.Run.Status != api.StatusAwaitingConfirm || sr.Run.RevertAt == nil || s.o.Resume == nil || s.active != "" || !s.askResume(sr.Run) {
+	if sr.Run.Status != api.StatusAwaitingConfirm || sr.Run.RevertAt == nil || s.o.Resume == nil || s.active != "" {
+		return false
+	}
+	if cmd, ok := s.reg.Lookup(sr.Run.Command); !ok || !cmd.awaits || !s.askResume(sr.Run) {
 		return false
 	}
 	if limit := sr.Run.StartedAt.Add(maxRevertWindow); sr.Run.RevertAt.After(limit) {

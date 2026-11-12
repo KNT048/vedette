@@ -807,10 +807,12 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 		if pk, ok := asParked(out.res); ok {
 			// A Parked that comes back after the deadline or after Shutdown began is not parked: the
 			// run then ends timeout or host_shutting_down, and nothing was started for it (D-316 (6)).
-			if out.err == nil && ctx.Err() == nil && s.enterParked(lr, cmd, pk, rc) {
-				return // parked: SettleParked ends the run and releases the lock, here or after a restart
-			}
-			if out.err == nil {
+			switch {
+			case out.err == nil && ctx.Err() == nil:
+				if out.err = s.enterParked(lr, cmd, pk, rc); out.err == nil {
+					return // parked: SettleParked ends the run and releases the lock, here or after a restart
+				}
+			case out.err == nil:
 				out.err = errors.New("invalid Parked")
 			}
 			out.res = nil
@@ -863,7 +865,7 @@ func (s *Server) outcome(ctx context.Context, res any, err error, abandoned bool
 			return api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command result could not be stored."}
 		}
 		return api.StatusSucceeded, b, nil
-	case s.baseCtx.Err() != nil || s.draining.Load(): // draining is set just before the cancel: a park refused in between is a shutdown too
+	case s.baseCtx.Err() != nil || errors.Is(err, errParkDraining): // a park refused for Shutdown just before the cancel is a shutdown too
 		return api.StatusFailed, nil, &api.RunError{Code: api.CodeShuttingDown, Message: "The host is shutting down."}
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		return api.StatusFailed, nil, &api.RunError{Code: api.CodeTimeout, Message: "The command timed out."}

@@ -324,6 +324,8 @@ func (rc *RunContext) AfterFinish(fn func(ctx context.Context, st api.Status)) {
 // the run ends any other way (an invalid Awaiting or Parked included). Call it from Run only.
 // Neither OnParked nor AfterFinish callbacks survive a host restart: after one, whoever resumed
 // the run (Options.Resume, then Ops.Start from net/pending.json or the journal) must re-arm itself.
+// The context Run got is cancelled as soon as Run returns, a park included: a goroutine started
+// here must not use it (give it a context of its own, as the settle goroutine of a Parked run needs).
 func (rc *RunContext) OnParked(fn func()) { rc.parked = append(rc.parked, fn) }
 
 // Log appends one line (cut to 2 KiB, control characters removed) to the run's event stream.

@@ -91,19 +91,26 @@ func (s *Server) SettleParked(runID string, status api.Status, result any, rerr 
 	return nil
 }
 
-// enterParked parks lr after its command returned pk. It reports false (the caller then finishes
-// the run as failed) for a Parked that is not valid: the command is not declared Parks, is not a
-// write run holding the lock, a run already waits or is parked, or Deadline is not in the future or
-// is further than maxParkWindow from the start of the run. It also reports false once Shutdown has
-// begun: the run then ends as any run the shutdown cut short, and nothing was started for it.
-func (s *Server) enterParked(lr *liveRun, cmd Command, pk Parked, rc *RunContext) bool {
+// errParkDraining is enterParked's answer once Shutdown has begun: outcome maps it to
+// host_shutting_down even in the short window before the server context is cancelled.
+var errParkDraining = errors.New("host: shutdown began before the run parked")
+
+// enterParked parks lr after its command returned pk and reports nil. It reports an error (the
+// caller then finishes the run as failed, command_failed) for a Parked that is not valid: the
+// command is not declared Parks, is not a write run holding the lock, a run already waits or is
+// parked, or Deadline is not in the future or is further than maxParkWindow from the start of the
+// run; also when the parked run cannot be stored, since a park that is not on disk would not survive
+// the restart it exists for (INV-3). It reports errParkDraining once Shutdown has begun: the run
+// then ends as any run the shutdown cut short. In every error case nothing was started for the run
+// (OnParked does not run) and the run is not parked.
+func (s *Server) enterParked(lr *liveRun, cmd Command, pk Parked, rc *RunContext) error {
 	run := &lr.sr.Run
 	deadline := pk.Deadline.UTC()
 	now := s.now()
 	// Measured like the bound of enterAwaiting: elapsed on the monotonic clock plus what is left.
 	if !cmd.parks || !lr.sr.Write || deadline.IsZero() || !deadline.After(now) || now.Sub(lr.started)+deadline.Sub(now) > maxParkWindow {
 		s.log.Error("a command returned an invalid Parked", "command", lr.sub.command)
-		return false
+		return errors.New("invalid Parked")
 	}
 	// s.mu is held while the state is written, as in enterAwaiting: a SettleParked that finds the
 	// run parked waits for the write to finish, so its final record never gets overwritten by this one.
@@ -111,14 +118,23 @@ func (s *Server) enterParked(lr *liveRun, cmd Command, pk Parked, rc *RunContext
 	if s.draining.Load() {
 		s.mu.Unlock()
 		s.log.Warn("shutdown began before the run parked; it ends failed", "run_id", run.RunID)
-		return false
+		return errParkDraining
 	}
 	if s.active != run.RunID || s.waiting != nil || s.parked != nil {
 		s.mu.Unlock()
 		s.log.Error("a command returned Parked without holding the write lock, or while a run waits", "command", lr.sub.command)
-		return false
+		return errors.New("invalid Parked")
 	}
+	// The run file first: whatever follows (the parked line, OnParked, the command's dispatch) may
+	// rely on a restart finding the run parked on disk (Options.Resume). A failed write undoes the park.
+	prevResult := run.Result
 	run.ParkedDeadline, run.Result = &deadline, s.storeResult(s.baseCtx, pk.Result)
+	if err := s.runs.put(lr.sr); err != nil {
+		run.ParkedDeadline, run.Result = nil, prevResult
+		s.mu.Unlock()
+		s.log.Error("could not save a parked run; it ends failed", "run_id", run.RunID)
+		return errors.New("parked run not stored")
+	}
 	lr.after = rc.after
 	s.parked = lr
 	id, err := newID("au_")
@@ -132,25 +148,30 @@ func (s *Server) enterParked(lr *liveRun, cmd Command, pk Parked, rc *RunContext
 		// As for awaiting_confirm: the run is parked anyway, and a broken chain refuses every later write.
 		s.log.Error("could not audit parked", "run_id", run.RunID)
 	}
-	// Stored before the event goes out and before OnParked: whatever the command starts after parking
-	// finds the run parked on disk, so a restart from then on keeps it (Options.Resume).
-	if err := s.runs.put(lr.sr); err != nil {
-		s.log.Error("could not save a parked run", "run_id", run.RunID)
-	}
 	lr.ev.add(api.Event{Kind: api.KindLog, Line: "The run is parked until " + deadline.Format(time.RFC3339) + "; it goes on outside the host process."})
 	s.persistEvents(lr)
 	s.mu.Unlock()
 	for _, fn := range rc.parked {
 		s.callParked(lr.sub.command, fn)
 	}
-	return true
+	return nil
 }
 
-// resumeParked keeps sr as the parked run when it is one, no other run holds the lock, and
-// Options.Resume says so. The caller re-arms its settle goroutine after New returns.
+// resumeParked keeps sr as the parked run when it is one of a command declared Parks (a damaged
+// file must not make any other run hold the lock with nothing to settle it), no other run holds the
+// lock, and Options.Resume says so. A stored parked_deadline beyond maxParkWindow from the start of
+// the run is clamped, never trusted. The caller re-arms its settle goroutine after New returns.
 func (s *Server) resumeParked(sr storedRun) bool {
-	if sr.Run.Status != api.StatusRunning || sr.Run.ParkedDeadline == nil || s.o.Resume == nil || s.active != "" || !s.askResume(sr.Run) {
+	if sr.Run.Status != api.StatusRunning || sr.Run.ParkedDeadline == nil || s.o.Resume == nil || s.active != "" {
 		return false
+	}
+	if cmd, ok := s.reg.Lookup(sr.Run.Command); !ok || !cmd.parks || !s.askResume(sr.Run) {
+		return false
+	}
+	if limit := sr.Run.StartedAt.Add(maxParkWindow); sr.Run.ParkedDeadline.After(limit) {
+		s.log.Warn("the stored parked_deadline is beyond the park window; clamped", "run_id", sr.Run.RunID)
+		clamped := limit.UTC()
+		sr.Run.ParkedDeadline = &clamped
 	}
 	lr := s.resumedRun(sr)
 	s.mu.Lock()

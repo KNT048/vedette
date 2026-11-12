@@ -270,8 +270,8 @@ var documentedCommandsPart1 = []string{
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 
-// notYetImplemented are the commands of spec section 6 that later slices bring (containers).
-var notYetImplemented = []string{}
+// notYetImplemented are the commands of spec section 6 that later slices bring (host.self_update, D-316).
+var notYetImplemented = []string{"host.self_update"}
 
 func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {
 	t.Parallel()

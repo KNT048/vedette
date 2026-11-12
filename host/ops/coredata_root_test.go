@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
@@ -80,18 +81,18 @@ func TestStartSweepCannotBeHeldByCoreRefillingADirectory(t *testing.T) {
 	held := false
 	select {
 	case <-done:
-	case <-time.After(3 * time.Second):
+	case <-time.After(ops.HangBound):
 		held = true
 	}
 	stop.Store(true)
 	wg.Wait()
 	select {
 	case <-done:
-	case <-time.After(60 * time.Second):
+	case <-time.After(ops.HangBound):
 		t.Fatal("Start did not return after core stopped refilling")
 	}
 	if held {
-		t.Errorf("the root host was still in Start after 3 s while core refilled a planted .vedette-restore-* directory (%d files created)", n.Load())
+		t.Errorf("the root host was still in Start after %v while core refilled a planted .vedette-restore-* directory (%d files created)", ops.HangBound, n.Load())
 	}
 	if _, err := os.Stat(planted); err != nil {
 		t.Errorf("the sweep must not delete a directory: %v", err)

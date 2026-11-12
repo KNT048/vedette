@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type fakeSock struct {
 	mu       sync.Mutex
 	mac      [6]byte
 	sent     [][]byte
-	inbox    [][]byte // returned one per Recv; when empty Recv waits (shortened) and times out
+	inbox    [][]byte // returned one per Recv; when empty Recv waits the whole wait and times out, as a socket does
 	closed   int
 	sendErr  error
 	recvErr  error
@@ -50,7 +51,7 @@ func (s *fakeSock) Recv(wait time.Duration) ([]byte, error) {
 	}
 	s.timeouts++
 	s.mu.Unlock()
-	tm := time.NewTimer(min(wait, 2*time.Millisecond))
+	tm := time.NewTimer(wait) // the bubble's clock (synctest): no real time passes
 	<-tm.C
 	return nil, errRecvTimeout
 }
@@ -64,11 +65,13 @@ func (s *fakeSock) Close() error {
 
 func (s *fakeSock) push(f []byte) { s.mu.Lock(); s.inbox = append(s.inbox, f); s.mu.Unlock() }
 
-func fastProber(s *fakeSock) *arpProber {
-	return &arpProber{
-		dial:   func(string) (arpSocket, error) { return s, nil },
-		probes: 3, gap: 20 * time.Millisecond, wait: 40 * time.Millisecond, gwEvery: 20 * time.Millisecond, gwTotal: 100 * time.Millisecond,
-	}
+// testProber is the real prober (the timings of D-101) on the fake socket. Every test that runs it does so inside a
+// synctest bubble: the clock is the bubble's, so the timings are exact and cost no real time (D-373: no test depends on
+// the speed of the machine).
+func testProber(s *fakeSock) *arpProber {
+	p := newARPProber()
+	p.dial = func(string) (arpSocket, error) { return s, nil }
+	return p
 }
 
 var (
@@ -82,27 +85,29 @@ func reply(sender [6]byte, ip, target netip.Addr) []byte {
 
 func TestProbeNoConflictSendsThreeProbesAndListensTwoSeconds(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	start := time.Now()
-	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-	if err != nil || res.Conflict {
-		t.Fatalf("%+v %v", res, err)
-	}
-	if len(s.sent) != 3 {
-		t.Fatalf("sent %d probes", len(s.sent))
-	}
-	for _, f := range s.sent {
-		p, err := parseARP(f)
-		if err != nil || p.Op != arpOpRequest || p.SenderIP != netip.IPv4Unspecified() || p.TargetIP != probed || p.SenderMAC != macA {
-			t.Fatalf("not an RFC 5227 probe: %+v %v", p, err)
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		start := time.Now()
+		res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+		if err != nil || res.Conflict {
+			t.Fatalf("%+v %v", res, err)
 		}
-	}
-	if d := time.Since(start); d < 2*20*time.Millisecond+40*time.Millisecond {
-		t.Fatalf("probing took %v: the gaps and the final wait were not observed", d)
-	}
-	if s.closed != 1 {
-		t.Fatalf("closed %d times", s.closed)
-	}
+		if len(s.sent) != 3 {
+			t.Fatalf("sent %d probes", len(s.sent))
+		}
+		for _, f := range s.sent {
+			p, err := parseARP(f)
+			if err != nil || p.Op != arpOpRequest || p.SenderIP != netip.IPv4Unspecified() || p.TargetIP != probed || p.SenderMAC != macA {
+				t.Fatalf("not an RFC 5227 probe: %+v %v", p, err)
+			}
+		}
+		if d := time.Since(start); d != 2*time.Second+2*time.Second { // two 1 s gaps and the final 2 s wait, to the nanosecond
+			t.Fatalf("probing took %v: the gaps and the final wait were not observed", d)
+		}
+		if s.closed != 1 {
+			t.Fatalf("closed %d times", s.closed)
+		}
+	})
 }
 
 func TestProbeConflictOnAnyARPFromTheAddress(t *testing.T) {
@@ -114,55 +119,63 @@ func TestProbeConflictOnAnyARPFromTheAddress(t *testing.T) {
 	for name, f := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			s := &fakeSock{mac: macA}
-			s.push(f)
-			res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-			if err != nil || !res.Conflict || res.MAC != "02:00:00:00:00:0b" {
-				t.Fatalf("%+v %v", res, err)
-			}
-			if s.closed != 1 {
-				t.Fatalf("closed %d", s.closed)
-			}
+			synctest.Test(t, func(t *testing.T) {
+				s := &fakeSock{mac: macA}
+				s.push(f)
+				res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+				if err != nil || !res.Conflict || res.MAC != "02:00:00:00:00:0b" {
+					t.Fatalf("%+v %v", res, err)
+				}
+				if s.closed != 1 {
+					t.Fatalf("closed %d", s.closed)
+				}
+			})
 		})
 	}
 }
 
 func TestProbeIgnoresOurOwnMACAndOtherHostsAndGarbage(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	s.push(reply(macA, probed, gwIP)) // our own frame looped back
-	s.push(reply(macB, gwIP, probed)) // another host, another address
-	s.push([]byte{1, 2, 3})           // junk
-	s.push(nil)                       // a frame the socket said to ignore
-	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-	if err != nil || res.Conflict {
-		t.Fatalf("%+v %v", res, err)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		s.push(reply(macA, probed, gwIP)) // our own frame looped back
+		s.push(reply(macB, gwIP, probed)) // another host, another address
+		s.push([]byte{1, 2, 3})           // junk
+		s.push(nil)                       // a frame the socket said to ignore
+		res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+		if err != nil || res.Conflict {
+			t.Fatalf("%+v %v", res, err)
+		}
+	})
 }
 
 // A conflicting host whose card delivers a longer frame (FCS kept, a trailer) is still seen: refusing long frames
 // would make the probe say "free" for an address in use.
 func TestProbeSeesAConflictInALongerFrame(t *testing.T) {
 	t.Parallel()
-	for _, extra := range []int{22, 100, 1000} {
-		s := &fakeSock{mac: macA}
-		s.push(append(reply(macB, probed, gwIP), make([]byte, extra)...))
-		res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-		if err != nil || !res.Conflict {
-			t.Fatalf("a %d-byte ARP reply from the probed address was ignored: %+v %v", 42+extra, res, err)
+	synctest.Test(t, func(t *testing.T) {
+		for _, extra := range []int{22, 100, 1000} {
+			s := &fakeSock{mac: macA}
+			s.push(append(reply(macB, probed, gwIP), make([]byte, extra)...))
+			res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+			if err != nil || !res.Conflict {
+				t.Fatalf("a %d-byte ARP reply from the probed address was ignored: %+v %v", 42+extra, res, err)
+			}
 		}
-	}
+	})
 }
 
 // RFC 5227 2.1.1: another host probing the same address during our probe is a conflict too.
 func TestProbeConflictWhenAnotherHostProbesTheSameAddress(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	s.push(probeFrame(macB, probed))
-	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-	if err != nil || !res.Conflict || res.MAC != "02:00:00:00:00:0b" {
-		t.Fatalf("%+v %v", res, err)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		s.push(probeFrame(macB, probed))
+		res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+		if err != nil || !res.Conflict || res.MAC != "02:00:00:00:00:0b" {
+			t.Fatalf("%+v %v", res, err)
+		}
+	})
 }
 
 func TestProbeConflictDecision(t *testing.T) {
@@ -191,25 +204,27 @@ func TestProbeConflictDecision(t *testing.T) {
 // Only a reply from the gateway's address, addressed to our source address, answers the gateway check.
 func TestGatewayCheckAcceptsOnlyAReplyToUs(t *testing.T) {
 	t.Parallel()
-	other := netip.MustParseAddr("192.168.10.77")
-	for name, f := range map[string][]byte{
-		"the gateway's own request":     encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: other}),
-		"the gateway's reply to a peer": reply(macB, gwIP, other),
-		"a gratuitous request":          encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: gwIP}),
-		"a reply from our own MAC":      reply(macA, gwIP, probed),
-		"a reply from another address":  reply(macB, other, probed),
-	} {
-		s := &fakeSock{mac: macA}
-		s.push(f)
-		if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); !errors.Is(err, ErrGatewaySilent) {
-			t.Errorf("%s answered the gateway check: %v", name, err)
+	synctest.Test(t, func(t *testing.T) {
+		other := netip.MustParseAddr("192.168.10.77")
+		for name, f := range map[string][]byte{
+			"the gateway's own request":     encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: other}),
+			"the gateway's reply to a peer": reply(macB, gwIP, other),
+			"a gratuitous request":          encodeARP(macB, arpPacket{Op: arpOpRequest, SenderMAC: macB, SenderIP: gwIP, TargetIP: gwIP}),
+			"a reply from our own MAC":      reply(macA, gwIP, probed),
+			"a reply from another address":  reply(macB, other, probed),
+		} {
+			s := &fakeSock{mac: macA}
+			s.push(f)
+			if err := testProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); !errors.Is(err, ErrGatewaySilent) {
+				t.Errorf("%s answered the gateway check: %v", name, err)
+			}
 		}
-	}
-	s := &fakeSock{mac: macA}
-	s.push(reply(macB, gwIP, probed))
-	if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err != nil {
-		t.Fatalf("the gateway's reply to us was refused: %v", err)
-	}
+		s := &fakeSock{mac: macA}
+		s.push(reply(macB, gwIP, probed))
+		if err := testProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err != nil {
+			t.Fatalf("the gateway's reply to us was refused: %v", err)
+		}
+	})
 }
 
 // The socket is bound to one card; a frame that arrives on another card's index, or one we sent, is dropped.
@@ -228,51 +243,58 @@ func TestARPFromCard(t *testing.T) {
 
 func TestProbeAcceptsAPaddedReply(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	s.push(append(reply(macB, probed, gwIP), make([]byte, 18)...))
-	res, err := fastProber(s).Probe(context.Background(), "eth0", probed)
-	if err != nil || !res.Conflict {
-		t.Fatalf("%+v %v", res, err)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		s.push(append(reply(macB, probed, gwIP), make([]byte, 18)...))
+		res, err := testProber(s).Probe(context.Background(), "eth0", probed)
+		if err != nil || !res.Conflict {
+			t.Fatalf("%+v %v", res, err)
+		}
+	})
 }
 
 func TestProbeContextCancelStopsAndCloses(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	p := fastProber(s)
-	p.gap, p.wait = time.Hour, time.Hour
-	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(30*time.Millisecond, cancel)
-	start := time.Now()
-	_, err := p.Probe(ctx, "eth0", probed)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v", err)
-	}
-	if time.Since(start) > 2*time.Second || s.closed != 1 {
-		t.Fatalf("took %v, closed %d", time.Since(start), s.closed)
-	}
-	// Already cancelled before the first probe: nothing is sent.
-	s2 := &fakeSock{mac: macA}
-	if _, err := fastProber(s2).Probe(ctx, "eth0", probed); !errors.Is(err, context.Canceled) || len(s2.sent) != 0 || s2.closed != 1 {
-		t.Fatalf("pre-cancelled: err %v sent %d closed %d", err, len(s2.sent), s2.closed)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		p := testProber(s)
+		p.gap, p.wait = time.Hour, time.Hour
+		ctx, cancel := context.WithCancel(context.Background())
+		time.AfterFunc(30*time.Millisecond, cancel)
+		start := time.Now()
+		_, err := p.Probe(ctx, "eth0", probed)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v", err)
+		}
+		// The cancel at 30 ms is seen when the read in progress ends: one receive slice.
+		if d := time.Since(start); d != recvSlice || s.closed != 1 {
+			t.Fatalf("took %v (want %v), closed %d", d, recvSlice, s.closed)
+		}
+		// Already cancelled before the first probe: nothing is sent.
+		s2 := &fakeSock{mac: macA}
+		if _, err := testProber(s2).Probe(ctx, "eth0", probed); !errors.Is(err, context.Canceled) || len(s2.sent) != 0 || s2.closed != 1 {
+			t.Fatalf("pre-cancelled: err %v sent %d closed %d", err, len(s2.sent), s2.closed)
+		}
+	})
 }
 
 func TestProbeClosesTheSocketOnEveryErrorPath(t *testing.T) {
 	t.Parallel()
-	for name, mk := range map[string]func() *fakeSock{
-		"send error":    func() *fakeSock { return &fakeSock{mac: macA, sendErr: errors.New("boom")} },
-		"receive error": func() *fakeSock { return &fakeSock{mac: macA, recvErr: errors.New("boom")} },
-	} {
-		s := mk()
-		if _, err := fastProber(s).Probe(context.Background(), "eth0", probed); err == nil || s.closed != 1 {
-			t.Errorf("%s: err %v closed %d", name, err, s.closed)
+	synctest.Test(t, func(t *testing.T) {
+		for name, mk := range map[string]func() *fakeSock{
+			"send error":    func() *fakeSock { return &fakeSock{mac: macA, sendErr: errors.New("boom")} },
+			"receive error": func() *fakeSock { return &fakeSock{mac: macA, recvErr: errors.New("boom")} },
+		} {
+			s := mk()
+			if _, err := testProber(s).Probe(context.Background(), "eth0", probed); err == nil || s.closed != 1 {
+				t.Errorf("%s: err %v closed %d", name, err, s.closed)
+			}
+			s = mk()
+			if err := testProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err == nil || s.closed != 1 {
+				t.Errorf("gateway, %s: err %v closed %d", name, err, s.closed)
+			}
 		}
-		s = mk()
-		if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err == nil || s.closed != 1 {
-			t.Errorf("gateway, %s: err %v closed %d", name, err, s.closed)
-		}
-	}
+	})
 }
 
 func TestProbeRefusesBadInputBeforeOpeningASocket(t *testing.T) {
@@ -301,60 +323,64 @@ func TestProbeRefusesBadInputBeforeOpeningASocket(t *testing.T) {
 
 func TestGatewayCheckAnswersAfterRetries(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	// The third request is answered.
-	s.onSend = func([]byte) {
-		if len(s.sent) == 3 {
-			s.inbox = append(s.inbox, reply(macB, gwIP, probed))
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		// The third request is answered.
+		s.onSend = func([]byte) {
+			if len(s.sent) == 3 {
+				s.inbox = append(s.inbox, reply(macB, gwIP, probed))
+			}
 		}
-	}
-	if err := fastProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err != nil {
-		t.Fatal(err)
-	}
-	if len(s.sent) != 3 || s.closed != 1 {
-		t.Fatalf("sent %d, closed %d", len(s.sent), s.closed)
-	}
-	p, err := parseARP(s.sent[0])
-	if err != nil || p.Op != arpOpRequest || p.SenderIP != probed || p.TargetIP != gwIP || p.SenderMAC != macA {
-		t.Fatalf("not a request from the new address: %+v %v", p, err)
-	}
+		if err := testProber(s).GatewayCheck(context.Background(), "eth0", probed, gwIP); err != nil {
+			t.Fatal(err)
+		}
+		if len(s.sent) != 3 || s.closed != 1 {
+			t.Fatalf("sent %d, closed %d", len(s.sent), s.closed)
+		}
+		p, err := parseARP(s.sent[0])
+		if err != nil || p.Op != arpOpRequest || p.SenderIP != probed || p.TargetIP != gwIP || p.SenderMAC != macA {
+			t.Fatalf("not a request from the new address: %+v %v", p, err)
+		}
+	})
 }
 
 func TestGatewayCheckTimesOutAndIgnoresOurOwnFrames(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	s.push(reply(macA, gwIP, probed)) // our MAC claiming the gateway's address
-	s.push(reply(macB, probed, gwIP)) // someone else
-	// The request count follows the wall clock, so a loaded machine sends fewer: a long window (15 retry
-	// intervals) makes "it retried" robust, and the upper bound still catches a loop that does not wait.
-	p := fastProber(s)
-	p.gwTotal = 300 * time.Millisecond
-	start := time.Now()
-	err := p.GatewayCheck(context.Background(), "eth0", probed, gwIP)
-	if !errors.Is(err, ErrGatewaySilent) {
-		t.Fatalf("err = %v", err)
-	}
-	if n := len(s.sent); n < 2 || n > 16 {
-		t.Fatalf("%d requests in a window of 15 retry intervals", n)
-	}
-	if d := time.Since(start); d < 300*time.Millisecond || d > 3*time.Second {
-		t.Fatalf("took %v", d)
-	}
-	if s.closed != 1 {
-		t.Fatalf("closed %d", s.closed)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		s.push(reply(macA, gwIP, probed)) // our MAC claiming the gateway's address
+		s.push(reply(macB, probed, gwIP)) // someone else
+		// D-101: one request a second for 15 seconds. The bubble's clock makes both numbers exact.
+		p := testProber(s)
+		start := time.Now()
+		err := p.GatewayCheck(context.Background(), "eth0", probed, gwIP)
+		if !errors.Is(err, ErrGatewaySilent) {
+			t.Fatalf("err = %v", err)
+		}
+		if n := len(s.sent); n != 15 {
+			t.Fatalf("%d requests in 15 s, want one a second", n)
+		}
+		if d := time.Since(start); d != 15*time.Second {
+			t.Fatalf("took %v, want 15s", d)
+		}
+		if s.closed != 1 {
+			t.Fatalf("closed %d", s.closed)
+		}
+	})
 }
 
 func TestGatewayCheckContextCancel(t *testing.T) {
 	t.Parallel()
-	s := &fakeSock{mac: macA}
-	p := fastProber(s)
-	p.gwTotal, p.gwEvery = time.Hour, time.Hour
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
-	defer cancel()
-	if err := p.GatewayCheck(ctx, "eth0", probed, gwIP); !errors.Is(err, context.DeadlineExceeded) || s.closed != 1 {
-		t.Fatalf("err %v closed %d", err, s.closed)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		s := &fakeSock{mac: macA}
+		p := testProber(s)
+		p.gwTotal, p.gwEvery = time.Hour, time.Hour
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+		defer cancel()
+		if err := p.GatewayCheck(ctx, "eth0", probed, gwIP); !errors.Is(err, context.DeadlineExceeded) || s.closed != 1 {
+			t.Fatalf("err %v closed %d", err, s.closed)
+		}
+	})
 }
 
 func TestRealTimingsAreTheOnesOfD101(t *testing.T) {

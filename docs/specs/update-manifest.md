@@ -203,7 +203,7 @@ Hai kiểu cài (D-55): chế độ "Chỉ container" không có luồng này.
 
 ### Cập nhật chính `vedette-host`
 
-Host là tiến trình root nhỏ; cập nhật nó là việc nhạy cảm nhất. Manifest có mục `host` (§4.2) để bản `.deb` do host/installer xử lý. **Đã chốt (D-57 (21))**: host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước; lệnh đó chưa có trong `host-api.md` (để sau, không thuộc WP-07b phần 3).
+Host là tiến trình root nhỏ; cập nhật nó là việc nhạy cảm nhất. Manifest có mục `host` (§4.2) để bản `.deb` do host/installer xử lý. **Đã chốt (D-57 (21))**: host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước. **Thiết kế (D-316):** `host-api.md` §6.14 `host.self_update`: host kiểm index và manifest như `container.pull`, chỉ cài tệp có SHA-256 bằng mục `host.files[]` `vedette-host_<host.version>_<arch>.deb`, chỉ đi lên (`host.version` so với bản host đang chạy, không so `version` của manifest).
 
 ## 10. Hoàn tác
 

@@ -139,20 +139,16 @@ func startAwait(t testing.TB) (*servertest.Harness, *awaitFx) {
 	return h, x
 }
 
-// waitStatus polls the run until it has the status.
+// waitStatus reads the run until it has the status.
 func waitStatus(t testing.TB, c *client.Client, runID string, want api.Status) api.Run {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		r, err := c.GetRun(context.Background(), runID)
-		if err == nil && r.Status == want {
-			return r
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("run %s: want %s, have %+v (%v)", runID, want, r, err)
-		}
-		<-time.After(5 * time.Millisecond)
-	}
+	var r api.Run
+	var err error
+	waitFor(t, "run "+runID+" to be "+string(want), func() bool {
+		r, err = c.GetRun(context.Background(), runID)
+		return err == nil && r.Status == want
+	})
+	return r
 }
 
 // park starts test.park and waits until the run awaits confirmation.
@@ -235,7 +231,7 @@ func TestAwaiting_HoldsTheWriteLockAndAnswersPendingConfirm(t *testing.T) {
 		if st != api.StatusSucceeded {
 			t.Fatalf("AfterFinish saw %s", st)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(hangBound):
 		t.Fatal("AfterFinish of the awaiting run never ran")
 	}
 }
@@ -408,7 +404,7 @@ func TestAwaiting_SettleWorksExactlyOnceUnderConcurrency(t *testing.T) {
 	}
 	select {
 	case <-x.after:
-	case <-time.After(5 * time.Second):
+	case <-time.After(hangBound):
 		t.Fatal("no AfterFinish")
 	}
 	select {

@@ -150,19 +150,15 @@ func TestNucleiJobGoesOutAndItsResultComesBackParsed(t *testing.T) {
 	}
 }
 
-// Extra (a) of the #138 review: nuclei 3.2 and later may write "host" as a bare hostname with "port" and "url" apart. The fixtures
-// carry both shapes so the result path is ready for either; this test says which one nucleiout accepts today (it logs the
-// answer for the second, and does not fail on it: the fix is Emily's, in nucleiout.hostOf).
+// Extra (a) of the #138 review: the pinned nuclei v3.11.1 writes "host" as the bare address with "port" and "url" apart (lab VM,
+// 2026-11-12, modules/scan/nucleiout/testdata/matched.jsonl); older versions wrote host:port. Both shapes must parse.
 func TestNucleiOutputShapesOfTheLabLine(t *testing.T) {
 	t.Parallel()
 	tpl, tg := []string{"CVE-2024-1", "CVE-2024-2"}, []string{"192.168.10.20:8080", "10.0.0.7:22"}
-	if res, err := nucleiout.Parse(fixture(t, "nuclei_host_port.jsonl"), tpl, tg); err != nil || len(res) != 3 {
-		t.Fatalf("the host:port shape: %v %d", err, len(res))
-	}
-	res, err := nucleiout.Parse(fixture(t, "nuclei_bare_host.jsonl"), tpl, tg)
-	t.Logf("nucleiout accepts the bare-host shape today: %v (results %d, error %v)", err == nil, len(res), err)
-	if err == nil && len(res) != 3 {
-		t.Fatalf("the bare-host shape was accepted with %d results", len(res))
+	for _, f := range []string{"nuclei_host_port.jsonl", "nuclei_bare_host.jsonl"} {
+		if res, err := nucleiout.Parse(fixture(t, f), tpl, tg); err != nil || len(res) != 3 || res[0].Target != "192.168.10.20:8080" || res[2].Target != "10.0.0.7:22" {
+			t.Fatalf("%s: %v %+v", f, err, res)
+		}
 	}
 }
 

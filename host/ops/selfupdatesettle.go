@@ -129,8 +129,14 @@ func (o *Ops) settleLoop(ctx context.Context, runID string) {
 			o.settle(runID, api.StatusFailed, nil, &api.RunError{Code: api.CodeSelfUpdateInterrupted, Message: "The host lost track of the update of the system helper. See the RUNBOOK: vedette-host self-update stopped half way."})
 		}
 	}()
-	var deadline time.Time // the last deadline read: the safety net works even when the journal stops reading
-	if j, st := o.loadSUJournal(); runID != "" && st == jOK && j.RunID == runID && j.Attempt == 0 {
+	// last is the last journal read well, seeded here: the safety net and its audit line work even when the
+	// journal never reads again after this (review r2 L1, L3).
+	var last suJournal
+	j, st := o.loadSUJournal()
+	if st == jOK {
+		last = j
+	}
+	if runID != "" && st == jOK && j.RunID == runID && j.Attempt == 0 {
 		// The first dispatch also needs a whole applier run before the deadline (review M2): a host that died
 		// between the park and the dispatch and comes back late must not start an applier that outlives core's wait.
 		if o.d.Now().Add(applierRuntimeMax).After(j.Deadline) {
@@ -141,9 +147,10 @@ func (o *Ops) settleLoop(ctx context.Context, runID string) {
 		if !o.dispatch(ctx, j, 1) {
 			return
 		}
+		last.Attempt, last.Phase = 1, phDispatched
 	}
 	for ctx.Err() == nil {
-		if o.settleRound(ctx, runID, &deadline) {
+		if o.settleRound(ctx, runID, &last) {
 			return
 		}
 		if !o.d.Sleep(ctx, suPoll) {
@@ -157,14 +164,14 @@ func (o *Ops) pastNet(deadline time.Time) bool {
 	return !deadline.IsZero() && o.d.Now().After(deadline.Add(suSafetyMargin))
 }
 
-// settleRound is one look; true when the loop is done. deadline keeps the last deadline the journal gave.
-func (o *Ops) settleRound(ctx context.Context, runID string, deadline *time.Time) bool {
+// settleRound is one look; true when the loop is done. last keeps the last journal that read well.
+func (o *Ops) settleRound(ctx context.Context, runID string, last *suJournal) bool {
 	j, st := o.loadSUJournal()
 	switch {
 	case st == jUnreadable:
-		if o.pastNet(*deadline) { // a journal that never reads again must not hold the lock past the net (review M4)
+		if o.pastNet(last.Deadline) { // a journal that never reads again must not hold the lock past the net (review M4)
 			o.suGate.Store(true)
-			o.note(api.CmdHostSelfUpdate, "self_update_interrupted", map[string]any{"attempt": 0})
+			o.note(api.CmdHostSelfUpdate, "self_update_interrupted", map[string]any{"attempt": last.Attempt})
 			return o.settle(runID, api.StatusFailed, nil, interruptedErr())
 		}
 		return false // an I/O error: look again
@@ -173,7 +180,7 @@ func (o *Ops) settleRound(ctx context.Context, runID string, deadline *time.Time
 		o.suGate.Store(true)
 		return o.settle(runID, api.StatusFailed, nil, interruptedErr())
 	}
-	*deadline = j.Deadline
+	*last = j
 	if ended(j) {
 		return o.finish(ctx, runID, j)
 	}

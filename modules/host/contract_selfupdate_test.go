@@ -560,3 +560,40 @@ func TestContract_SelfUpdate_AnApplierCutAtRollingBackRollsBack(t *testing.T) {
 		t.Fatalf("dispatches %d, apt %v", len(a), w.M.Calls("apt-get"))
 	}
 }
+
+// Review H1: an applier whose own context ends (RuntimeMaxSec, a reboot, systemctl stop) writes nothing more, so
+// the last real phase stays and the host starts it again: no rollback decided on children that only failed
+// because of the stop.
+func TestContract_SelfUpdate_AStoppedApplierWritesNothingMoreAndIsStartedAgain(t *testing.T) {
+	t.Parallel()
+	w := opstest.NewSUWorld(t, suFrom, suTo)
+	var once atomic.Bool
+	w.Cancel = func(phase string) bool { return phase == "installing" && once.CompareAndSwap(false, true) }
+	suWant(t, suRun(t, w), api.StatusSucceeded, "")
+	if a, _ := w.Dispatches(); len(a) != 2 {
+		t.Fatalf("dispatches %d", len(a))
+	}
+	if c := callsWith(w, "apt-get", "--allow-downgrades"); len(c) != 0 {
+		t.Fatalf("a rollback ran: %v", c)
+	}
+	assertSettledOn(t, w, suTo, suFrom)
+}
+
+// The applier copy changed before a second dispatch (spec 6.14): it is not started; the run is interrupted.
+func TestContract_SelfUpdate_AChangedApplierCopyIsNotStartedAgain(t *testing.T) {
+	t.Parallel()
+	w := opstest.NewSUWorld(t, suFrom, suTo)
+	w.Stop = func(phase string) bool {
+		if phase != "installing" {
+			return false
+		}
+		if err := os.WriteFile(suFile(w, "applier"), []byte("not the copy"), 0o700); err != nil { //nolint:gosec // test: the applier copy
+			t.Error(err)
+		}
+		return true
+	}
+	suWant(t, suRun(t, w), api.StatusFailed, api.CodeSelfUpdateInterrupted)
+	if a, _ := w.Dispatches(); len(a) != 1 {
+		t.Fatalf("dispatches %d", len(a))
+	}
+}

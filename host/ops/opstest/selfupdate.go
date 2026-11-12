@@ -168,6 +168,9 @@ type SUWorld struct {
 	Applies atomic.Int32
 	// Stop, when set, is asked after each phase the applier writes: true kills that applier there.
 	Stop func(phase string) bool
+	// Cancel, when set, is asked after each phase too: true cancels that applier's context there (RuntimeMaxSec,
+	// a reboot, systemctl stop) and lets it go on, as the real one would until it notices.
+	Cancel func(phase string) bool
 	// Hold, when set, makes each applier wait for a value before it starts.
 	Hold chan struct{}
 
@@ -245,7 +248,7 @@ func (w *SUWorld) fakes() {
   *" --allow-downgrades install "*)
     [ -e "$REC/mark.rollback-apt-fails" ] && exit 100
     rm -f "$REC/mark.inst-new" "$REC/mark.half"; req_restart; exit 0 ;;
-  *"DPkg::Lock::Timeout=600"*" install "*)
+  *"DPkg::Lock::Timeout="*" install "*)
     [ -e "$REC/mark.apt-fails" ] && exit 100
     [ -e "$REC/mark.half" ] && { echo "E: dpkg was interrupted, you must manually run 'dpkg --configure -a'"; exit 100; }
     [ -e "$REC/mark.lock-outlives" ] && { echo "E: Could not get lock /var/lib/dpkg/lock-frontend"; exit 100; }
@@ -428,7 +431,16 @@ func (w *SUWorld) startUnit(argv []string) error {
 	w.applierBin = append(w.applierBin, b)
 	w.mu.Unlock()
 	w.M.Mark("applier-running", true)
+	actx, cancel := context.WithCancel(w.ctx)
+	stop := func(phase string) bool {
+		if w.Cancel != nil && w.Cancel(phase) {
+			cancel()
+			return false
+		}
+		return w.Stop != nil && w.Stop(phase)
+	}
 	go func() {
+		defer cancel()
 		defer w.M.Mark("applier-running", false)
 		if w.Hold != nil {
 			select {
@@ -438,8 +450,8 @@ func (w *SUWorld) startUnit(argv []string) error {
 			}
 		}
 		w.Applies.Add(1)
-		_ = ops.ApplyWithDeps(w.ctx, ops.ApplyConfig{StateDir: filepath.Dir(filepath.Dir(path)), RunID: argv[len(argv)-1]}, ops.ApplyDeps{
-			Root: w.M.Root, BinPaths: w.M.BinPaths(), Arch: "amd64", LockHeld: w.lockHeld, Stop: w.Stop,
+		_ = ops.ApplyWithDeps(actx, ops.ApplyConfig{StateDir: filepath.Dir(filepath.Dir(path)), RunID: argv[len(argv)-1]}, ops.ApplyDeps{
+			Root: w.M.Root, BinPaths: w.M.BinPaths(), Arch: "amd64", LockHeld: w.lockHeld, Stop: stop,
 			Sleep: func(ctx context.Context, _ time.Duration) bool { return ctx.Err() == nil },
 		})
 	}()

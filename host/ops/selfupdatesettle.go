@@ -63,7 +63,9 @@ func (o *Ops) startSelfUpdate() {
 	switch {
 	case st == jAbsent:
 	case st != jOK:
-		o.log.Error("the self-update journal does not read; it is kept for a person (RUNBOOK)")
+		// An applier may still be running dpkg (review M5): refuse every write until a person looks (RUNBOOK 5.6).
+		o.suGate.Store(true)
+		o.log.Error("the self-update journal does not read; it is kept for a person and write commands are refused (RUNBOOK)")
 	case j.RunID == resumed:
 		o.suFollow = &suFollow{runID: j.RunID, phase: j.Phase}
 	case j.Attempt == 0:
@@ -127,13 +129,21 @@ func (o *Ops) settleLoop(ctx context.Context, runID string) {
 			o.settle(runID, api.StatusFailed, nil, &api.RunError{Code: api.CodeSelfUpdateInterrupted, Message: "The host lost track of the update of the system helper. See the RUNBOOK: vedette-host self-update stopped half way."})
 		}
 	}()
+	var deadline time.Time // the last deadline read: the safety net works even when the journal stops reading
 	if j, st := o.loadSUJournal(); runID != "" && st == jOK && j.RunID == runID && j.Attempt == 0 {
+		// The first dispatch also needs a whole applier run before the deadline (review M2): a host that died
+		// between the park and the dispatch and comes back late must not start an applier that outlives core's wait.
+		if o.d.Now().Add(applierRuntimeMax).After(j.Deadline) {
+			o.settle(runID, api.StatusFailed, nil, &api.RunError{Code: api.CodeApplierFailed, Message: "The update of the system helper could not start in time. Nothing was changed."})
+			o.cleanSelfUpdate()
+			return
+		}
 		if !o.dispatch(ctx, j, 1) {
 			return
 		}
 	}
 	for ctx.Err() == nil {
-		if o.settleRound(ctx, runID) {
+		if o.settleRound(ctx, runID, &deadline) {
 			return
 		}
 		if !o.d.Sleep(ctx, suPoll) {
@@ -142,20 +152,32 @@ func (o *Ops) settleLoop(ctx context.Context, runID string) {
 	}
 }
 
-// settleRound is one look; true when the loop is done.
-func (o *Ops) settleRound(ctx context.Context, runID string) bool {
+// pastNet says whether the safety net applies: the deadline is known and now is past it plus the margin.
+func (o *Ops) pastNet(deadline time.Time) bool {
+	return !deadline.IsZero() && o.d.Now().After(deadline.Add(suSafetyMargin))
+}
+
+// settleRound is one look; true when the loop is done. deadline keeps the last deadline the journal gave.
+func (o *Ops) settleRound(ctx context.Context, runID string, deadline *time.Time) bool {
 	j, st := o.loadSUJournal()
 	switch {
 	case st == jUnreadable:
+		if o.pastNet(*deadline) { // a journal that never reads again must not hold the lock past the net (review M4)
+			o.suGate.Store(true)
+			o.note(api.CmdHostSelfUpdate, "self_update_interrupted", map[string]any{"attempt": 0})
+			return o.settle(runID, api.StatusFailed, nil, interruptedErr())
+		}
 		return false // an I/O error: look again
 	case st != jOK || (runID != "" && j.RunID != runID):
 		o.log.ErrorContext(ctx, "the self-update journal is gone or not this run's")
 		o.suGate.Store(true)
 		return o.settle(runID, api.StatusFailed, nil, interruptedErr())
-	case ended(j):
+	}
+	*deadline = j.Deadline
+	if ended(j) {
 		return o.finish(ctx, runID, j)
 	}
-	if o.d.Now().After(j.Deadline.Add(suSafetyMargin)) { // the safety net: whatever the unit does
+	if o.pastNet(j.Deadline) { // the safety net: whatever the unit does
 		return o.interrupt(runID, j)
 	}
 	if o.applierAlive(ctx) {
@@ -165,8 +187,12 @@ func (o *Ops) settleRound(ctx context.Context, runID string) bool {
 	if !o.d.Sleep(ctx, suPoll) {
 		return true
 	}
-	if j2, st2 := o.loadSUJournal(); st2 == jOK && ended(j2) {
-		return o.finish(ctx, runID, j2)
+	j2, st2 := o.loadSUJournal()
+	if st2 == jOK && j2.RunID == j.RunID {
+		if ended(j2) {
+			return o.finish(ctx, runID, j2)
+		}
+		j = j2 // the attempt is written from what the journal holds now
 	}
 	if o.applierAlive(ctx) {
 		return false
@@ -216,6 +242,16 @@ func (o *Ops) dispatch(ctx context.Context, j suJournal, attempt int) bool {
 	}
 	if err != nil {
 		o.log.ErrorContext(ctx, "could not start the applier", "attempt", attempt, "error", err.Error())
+		// Review M3: the host is stopping (or systemd-run was cut short): settle nothing and leave the journal at this
+		// attempt for the next host, which finds the unit running or dead. A start job that systemd may still have
+		// queued counts too: when the unit is not known to be gone, keep following it.
+		if ctx.Err() != nil {
+			return false
+		}
+		if o.applierAlive(ctx) {
+			o.note(api.CmdHostSelfUpdate, "self_update_dispatched", map[string]any{"unit": upgradeUnit, "attempt": attempt})
+			return true
+		}
 		if attempt == 1 {
 			o.settle(runID, api.StatusFailed, nil, &api.RunError{Code: api.CodeApplierFailed, Message: "The host could not start the transient unit that installs the update. Nothing was changed."})
 			o.cleanSelfUpdate()
@@ -256,7 +292,12 @@ func (o *Ops) finish(ctx context.Context, runID string, j suJournal) bool {
 	case phInstalled:
 		if err := o.commitInstalled(j); err != nil {
 			o.log.ErrorContext(ctx, "could not record the installed package; trying again", "error", err.Error())
-			return false
+			if !o.pastNet(j.Deadline) {
+				return false
+			}
+			// Past the net (review M4): the new version runs; the run ends succeeded, but the journal stays and the
+			// gate is up until a person records the package (RUNBOOK 5.6).
+			keep = true
 		}
 		o.note(api.CmdHostSelfUpdate, "self_update_installed", detail)
 		status = api.StatusSucceeded

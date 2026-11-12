@@ -61,6 +61,7 @@ type applier struct {
 	d      ApplyDeps
 	log    *slog.Logger
 	runner *vexec.Runner
+	ctx    context.Context //nolint:containedctx // the applier's own lifetime: no phase is written once it ended
 	j      suJournal
 	fromOK bool // the kept package of from has the journal's hash: a reinstall is possible
 }
@@ -98,6 +99,7 @@ func ApplyWithDeps(ctx context.Context, cfg ApplyConfig, d ApplyDeps) error {
 }
 
 func (a *applier) run(ctx context.Context) error {
+	a.ctx = ctx
 	b, st := readSUIn(a.cfg.StateDir, suJournalName)
 	if st != jOK {
 		return errors.New("ops: the journal does not read")
@@ -116,7 +118,7 @@ func (a *applier) run(ctx context.Context) error {
 		}
 		return a.install(ctx)
 	case phInstalling, phChecking:
-		if a.installed(ctx, j.To.Version) && a.healthy(ctx, j.To.Version) {
+		if a.effect(ctx, j.To.Version) {
 			return a.end(phInstalled, "")
 		}
 		if !stagedOK {
@@ -129,19 +131,40 @@ func (a *applier) run(ctx context.Context) error {
 	return nil // already ended
 }
 
+// The applier's budgets (TestTimeLimitsAreConsistent: two effect checks and two halves fit RuntimeMaxSec).
+// applyStep bounds the lock waits (the probe before the tool and apt's own DPkg::Lock::Timeout share
+// applierLockBudget), the tool with postinst's try-restart, and the applier's own restart when postinst did not
+// restart (policy-rc.d). applyHalf adds the health windows: one install, or one reinstall of from, with its
+// check. applyEffect bounds an effect check (one look and the stability window).
+const (
+	applyStep   = applierLockBudget + hostStartLimit
+	applyHalf   = applyStep + suHealthWindow + suStableWindow
+	applyEffect = suStableWindow + 30*time.Second
+)
+
+// effect is the effect check of version within applyEffect: installed and healthy now, without installing.
+func (a *applier) effect(ctx context.Context, version string) bool {
+	eff, cancel := context.WithTimeout(ctx, applyEffect)
+	defer cancel()
+	return a.installed(eff, version) && a.healthy(eff, nil, version)
+}
+
 // install is steps 2-4 for the staged package, then step 5 when it does not work.
 func (a *applier) install(ctx context.Context) error {
 	if err := a.phase(phInstalling, ""); err != nil {
 		return err
 	}
-	staged := stagedPath(a.cfg.StateDir, a.j.To.SHA256)
-	if !a.installFile(ctx, staged, false) {
+	half, cancelHalf := context.WithTimeout(ctx, applyHalf)
+	defer cancelHalf()
+	step, cancel := context.WithTimeout(half, applyStep)
+	defer cancel()
+	if !a.installFile(step, stagedPath(a.cfg.StateDir, a.j.To.SHA256), false) {
 		return a.rollback(ctx, api.CodeInstallFailed)
 	}
 	if err := a.phase(phChecking, ""); err != nil {
 		return err
 	}
-	if a.installed(ctx, a.j.To.Version) && a.healthy(ctx, a.j.To.Version) {
+	if a.installed(half, a.j.To.Version) && a.healthy(half, step, a.j.To.Version) {
 		return a.end(phInstalled, "")
 	}
 	return a.rollback(ctx, api.CodeSelfUpdateUnhealthy)
@@ -154,33 +177,45 @@ func (a *applier) rollback(ctx context.Context, reason string) error {
 		return err
 	}
 	from := a.j.From.Version
-	if a.installed(ctx, from) && a.healthy(ctx, from) {
+	if a.effect(ctx, from) {
 		return a.end(phRolledBack, reason)
 	}
-	if a.fromOK && a.installFile(ctx, a.keptPath(from), true) && a.installed(ctx, from) && a.healthy(ctx, from) {
+	half, cancelHalf := context.WithTimeout(ctx, applyHalf)
+	defer cancelHalf()
+	step, cancel := context.WithTimeout(half, applyStep)
+	defer cancel()
+	if a.fromOK && a.installFile(step, a.keptPath(from), true) && a.installed(half, from) && a.healthy(half, step, from) {
 		return a.end(phRolledBack, reason)
 	}
-	_ = a.end(phRollbackFail, reason)
+	if err := a.end(phRollbackFail, reason); err != nil {
+		return err
+	}
 	return errors.New("ops: the previous version could not be put back")
 }
 
 // installFile installs file (staged, or kept with downgrade) the way step 2 chooses: apt when vedette-host is
-// installed and dpkg --audit is clean, else dpkg -i of this package after the lock wait, with one retry when it
-// met the lock. It reports whether the tool succeeded; the effect is checked by the caller.
-func (a *applier) installFile(ctx context.Context, file string, downgrade bool) bool {
-	if a.cleanDpkg(ctx) {
-		a.logLine("Installing with apt-get")
-		code := a.exec(ctx, hostStartLimit+applierLockBudget+5*time.Minute, binAptGet, aptInstallArgv(file, downgrade)...)
-		return code == 0
-	}
-	a.logLine("dpkg is half done for vedette-host: installing with dpkg -i")
+// installed and dpkg --audit is clean, else dpkg -i of this package; either way after the F_GETLK wait on the
+// four lock files (apt's DPkg::Lock::Timeout covers only dpkg's frontend lock, not apt's archives lock: review
+// M6), and apt gets what is left of the lock budget as its own timeout. dpkg -i, which never waits, is tried
+// once more when it met the lock. step bounds all of it. It reports whether the tool succeeded; the caller
+// checks the effect.
+func (a *applier) installFile(step context.Context, file string, downgrade bool) bool {
 	budget := applierLockBudget
-	for try := 0; try < 2; try++ {
-		if !a.waitLock(ctx, &budget) {
+	if a.cleanDpkg(step) {
+		if !a.waitLock(step, &budget) {
 			a.logLine("The package lock stayed held for ten minutes")
 			return false
 		}
-		if a.exec(ctx, hostStartLimit+5*time.Minute, binDpkg, dpkgInstallArgv(file)...) == 0 {
+		a.logLine("Installing with apt-get")
+		return a.exec(step, binAptGet, aptInstallArgv(file, downgrade, int(budget.Seconds()))...) == 0
+	}
+	a.logLine("dpkg is half done for vedette-host: installing with dpkg -i")
+	for try := 0; try < 2; try++ {
+		if !a.waitLock(step, &budget) {
+			a.logLine("The package lock stayed held for ten minutes")
+			return false
+		}
+		if a.exec(step, binDpkg, dpkgInstallArgv(file)...) == 0 {
 			return true
 		}
 		if !a.lockHeld() {
@@ -237,23 +272,31 @@ func (a *applier) query(ctx context.Context) (version, status string) {
 }
 
 // healthy is step 4 for version: started.json of that version, this boot, and pid = MainPID of an active
-// vedette-host.service within the health window (the applier restarts the host itself when, applyRestartAfter
-// after the install, no host of that version wrote it: postinst did not restart, policy-rc.d), then the same
-// MainPID and no new restart for the stability window.
-func (a *applier) healthy(ctx context.Context, version string) bool {
+// vedette-host.service, then the same MainPID and no new restart for the stability window. After an install
+// (step != nil) it waits up to the health window for that, and restarts the host itself (bounded by step) when,
+// applyRestartAfter after the install, no host of that version wrote it (postinst did not restart: policy-rc.d).
+// As an effect check (step == nil) it looks once: a host that runs has already written its witness.
+func (a *applier) healthy(ctx, step context.Context, version string) bool {
+	looks := 0
+	if step != nil {
+		looks = int(suHealthWindow / applyPoll)
+	}
 	restarted := false
 	var pid, restarts int
 	found := false
-	for i := 0; i <= int(suHealthWindow/applyPoll); i++ {
+	for i := 0; i <= looks; i++ {
 		if s, ok := a.started(); ok && s.Version == version && s.BootID == a.bootID() {
 			if active, mainPID, n := a.show(ctx); active && mainPID == s.PID {
 				pid, restarts, found = mainPID, n, true
 				break
 			}
 		}
+		if i == looks {
+			break
+		}
 		if !restarted && time.Duration(i)*applyPoll >= applyRestartAfter {
 			a.logLine("No host of version " + version + " started: restarting vedette-host.service")
-			a.exec(ctx, hostStartLimit+time.Minute, binSystemctl, argsRestartHost...)
+			a.exec(step, binSystemctl, argsRestartHost...)
 			restarted = true
 			continue
 		}
@@ -332,7 +375,14 @@ func (a *applier) fileHash(p string) string {
 }
 
 // phase writes the phase (and the reason) into the journal; a test's Stop may end the applier right after.
+//
+// Once the applier's own context has ended (RuntimeMaxSec, a reboot, systemctl stop: review H1) nothing more
+// is written: every child failed only because of that, so the last real phase stays and the host starts the
+// applier again (attempt 2) or ends the run interrupted, never on a decision taken in that state.
 func (a *applier) phase(p, reason string) error {
+	if err := a.ctx.Err(); err != nil {
+		return err
+	}
 	a.j.Phase = p
 	if reason != "" {
 		r := reason
@@ -378,10 +428,8 @@ func (a *applier) logLine(l string) {
 	a.j.Log = append(a.j.Log, l)
 }
 
-// exec runs a child within limit and returns its exit code (-1 when it could not run).
-func (a *applier) exec(ctx context.Context, limit time.Duration, bin string, args ...string) int {
-	ctx, cancel := context.WithTimeout(ctx, limit)
-	defer cancel()
+// exec runs a child within ctx (the step's budget) and returns its exit code (-1 when it could not run).
+func (a *applier) exec(ctx context.Context, bin string, args ...string) int {
 	res, err := a.runner.Run(ctx, bin, args, nil)
 	var ee *vexec.ExitError
 	switch {

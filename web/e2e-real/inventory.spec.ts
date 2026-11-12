@@ -34,7 +34,8 @@ test.describe('operator, day to day', () => {
     expect(gone.status, 'DELETE the box device').toBe(409)
     expect(JSON.stringify(gone.body)).toContain('box_device')
     await open(page)
-    await expect(h1(page)).toHaveText(/^\d+ devices?,/)
+    // Parallel specs may not have added a device yet: a box-only list has its own heading (#489).
+    await expect(h1(page)).toHaveText(/^(\d+ devices?,|Only the Vedette box so far)/)
     await shot(page, 'real-inventory', 'list')
     await page.goto(`/devices/${boxDev!.id}`)
     await expect(page.getByRole('button', { name: 'Remove from list' })).toBeDisabled()

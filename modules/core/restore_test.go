@@ -30,7 +30,7 @@ func (f *restoreHost) StateBackups(context.Context) (api.BackupList, error) {
 	return api.BackupList{Backups: slices.Clone(f.backups)}, nil
 }
 
-func (f *restoreHost) BackupRestore(_ context.Context, id, snap, rid, actor string) (api.Run, error) {
+func (f *restoreHost) BackupRestore(_ context.Context, _, snap, rid, actor string) (api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++

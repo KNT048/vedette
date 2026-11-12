@@ -4,7 +4,8 @@
 # kind flaky: quarantine; reason is the issue https://github.com/KNT048/vedette/issues/N; at most 7 days, then fix or delete it
 #             (an expired flaky line is no longer skipped, and scripts/ci's guard test fails).
 # `go run ./scripts/ci skip` prints the -skip pattern. go test -skip matches names in every package: a name here must be unique.
-slow	TestSuiteThroughTheDispatcher	modules/sensor-active	slow: 20 s wall time; daily run	2026-11-12
+slow	TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap	cmd/vedette	slow: 83 s wall time (2000 devices through the observation path); daily run	2026-11-12
+slow	TestSuiteThroughTheDispatcher modules/sensor-active	slow: 20 s wall time; daily run	2026-11-12
 slow	TestSuiteThroughTheLink	modules/sensor-passive	slow: 19 s wall time; daily run	2026-11-12
 slow	TestE2EBoxHarnessHost	cmd/vedette	slow: 17 s wall time; daily run	2026-11-12
 slow	TestContract_Container_AnInvalidJournalIsMovedAsideAtStartKeepingTheLastThree	modules/host	slow: 14 s wall time; daily run	2026-11-12

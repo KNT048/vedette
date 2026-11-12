@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # make check-fast — the pre-push gate (D-370): only what changed against origin/main, no -race, no reverse dependencies, no
 # Playwright, no test of scripts/ci/skip-tests.txt, so it needs no heavy-job slot and takes minutes. CI runs every package, the
-# merge queue on the merged tree (D-245, D-365), -race on main and daily, the skip list daily (D-376), and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
+# merge queue on the merged tree (D-245, D-365), -race and the skip list in the daily run only (D-376), and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
 # Assumes macOS or Linux (the Makefile refuses native Windows; use WSL2).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -83,5 +83,5 @@ if [ "$ran" = 0 ]; then
 	if has '^(Makefile|scripts/|\.github/)'; then echo "check-fast: build/CI files only; CI runs the full suite"
 	else echo "check-fast: docs only, no code to check"; fi
 fi
-echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: every package; -race on main and daily)"
+echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: every package; -race in the daily run)"
 make clean

@@ -147,7 +147,7 @@ test-go-release:
 	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
-# RACE= drops the race detector: a pull request's and the merge queue's go-test do (D-371, D-376); main and the daily run keep -race.
+# RACE= drops the race detector: every go-test but the daily run's does (D-371, D-376), so main's test cache serves the merge queue.
 # scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
 # exactly one shard. The shard's packages may come from go test's cache, except those whose tests read files through a child
 # process (go build, go list), which the cache cannot see: they always run (`ci shard I N uncached`, D-365). GOTESTFLAGS adds go

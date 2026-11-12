@@ -325,13 +325,13 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		!strings.Contains(code, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}") {
 		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
 	}
-	// D-371, D-376: a push to main and the daily run keep -race; a pull request and the merge queue drop it. Only the daily run
+	// D-371, D-376: only the daily run uses -race (main's no-race test cache then serves the merge queue). Only the daily run
 	// sets SKIPTESTS empty, so it alone runs the tests of skip-tests.txt.
 	if got := len(regexp.MustCompile(`\b(RACE|SKIPTESTS)\b`).FindAllString(code, -1)); got != 6 ||
-		!strings.Contains(code, "RACE: ${{ (github.event_name == 'push' || github.event_name == 'schedule') && '-race' || '' }}") ||
+		!strings.Contains(code, "RACE: ${{ github.event_name == 'schedule' && '-race' || '' }}") ||
 		!strings.Contains(code, "SKIPTESTS: ${{ github.event_name != 'schedule' && '1' || '' }}") ||
 		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE" SKIPTESTS="$SKIPTESTS"`) {
-		t.Errorf("go-test must keep -race on main and daily only, and run the skip list daily only (%d RACE/SKIPTESTS settings)", got)
+		t.Errorf("go-test must use -race and run the skip list in the daily run only (%d RACE/SKIPTESTS settings)", got)
 	}
 	if !regexp.MustCompile(`(?m)^SKIPTESTS \?= 1$`).MatchString(mk) ||
 		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) .*-skip "\$\$skip"`).FindAllString(mk, -1)) != 2 {

@@ -7,7 +7,7 @@
 # Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-lint, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web
 # suite. go-static and go-lint each keep a rolling Go cache that only main saves (D-372).
-# go-test runs -race on a push to main and the daily run only (D-371, D-376): pull requests and the merge queue run without it,
+# go-test runs -race in the daily run only (D-371, D-376): pull requests, the merge queue and pushes to main run without it,
 # and skip the slow and quarantined tests of scripts/ci/skip-tests.txt, which only the daily run runs.
 # A push to main runs the Go jobs, mostly from the cache, to save main's Go caches (the merge queue already ran every job on that
 # tree; a merge_group ref cannot save a cache others can read), not web-verify; the daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
@@ -157,11 +157,11 @@ jobs:
             ~/go/pkg/mod
           key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
-      - name: go test (-race on main and daily), shard ${{ matrix.shard }} of 4
+      - name: go test (-race daily only), shard ${{ matrix.shard }} of 4
         env:
-          # D-371, D-376: a pull request and the merge queue test without the race detector (4-8x faster: modules/ai 17 s vs 180 s);
-          # a push to main and the daily run keep -race, so a race is still caught within a day of its merge.
-          RACE: ${{ (github.event_name == 'push' || github.event_name == 'schedule') && '-race' || '' }}
+          # D-371, D-376: only the daily run uses the race detector (4-8x slower: modules/ai 180 s vs 17 s); pull requests, the merge
+          # queue and pushes to main test without it, so the queue reuses main's test cache. A race is caught within a day of its merge.
+          RACE: ${{ github.event_name == 'schedule' && '-race' || '' }}
           # D-376: the tests of scripts/ci/skip-tests.txt (slow, quarantined flaky) run only in the daily schedule.
           SKIPTESTS: ${{ github.event_name != 'schedule' && '1' || '' }}
           # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).

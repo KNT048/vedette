@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
 import { assetsStore, boxInfo, modulesStore } from '@/mocks/stores'
 import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
+import { iocListed } from '@/features/feeds/sourcesMock'
 import { CATALOG } from './catalog'
 import { KIND_IDS } from './kinds'
 import { SIEM_EVENTS } from './types'
@@ -75,8 +76,10 @@ const events = collection<LogEvent[]>('logs_events', seedEvents, () => [])
 
 function digest(): Digest {
   const lines = sources.get().reduce((n, s) => n + s.lines_per_hour * 24, 0)
+  const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false // PRE-3: with Feeds off the list is empty (the page says why)
+  const matching = !feedsOff && iocListed() // like the box: false when no switched-on feed lists an indicator
   // Cài sạch: chưa có log thật nên digest rỗng (digest mẫu nhắc IP và thiết bị không tồn tại trong cài đặt này).
-  if (dataMode() === 'clean') return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: [], spikes: [], bad_connections: [] }
+  if (dataMode() === 'clean') return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: matching }
   const fresh: NewItem[] = [
     { id: 'n-1', signature: 'Blocked access to port 3389 (Remote Desktop) from the Internet', source_id: 'ls-1', source_name: nameOf('ls-1'), count: 212, first_seen: daysAgo(0, 6), sample: 'type="traffic" level="warning" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action="deny"' },
     { id: 'n-2', signature: '4720: A new user account was created', source_id: 'ls-3', source_name: nameOf('ls-3'), count: 1, first_seen: daysAgo(0, 2), sample: 'Subject Account Name: admin.it Target Account Name: support_tmp' },
@@ -90,10 +93,9 @@ function digest(): Digest {
   // Like the box (INV-7, iochits.go): the hits of the last 24 hours, newest first, at most 20, and the device resolved from the inventory when read, so
   // removing or renaming a device is reflected.
   const since = Date.now() - 86400e3
-  const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false // PRE-3: with Feeds off the list is empty (the page says why)
   const bad: IocHit[] = feedsOff ? [] : iocHits.get().filter((r) => new Date(r.ts).getTime() >= since).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 20)
     .map((r) => { const a = assets.find((x) => x.ip === r.src_ip); return { ...r, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null } })
-  return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: fresh, spikes, bad_connections: bad }
+  return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: fresh, spikes, bad_connections: bad, ioc_matching: matching }
 }
 
 function validateSource(b: Partial<SourceInput>, selfId?: string) {

@@ -70,13 +70,15 @@ func TestContract_Scan_PullBuildsTheImageOnTheBoxAndRecordsIt(t *testing.T) {
 		t.Fatalf("builds: %v", builds)
 	}
 	f := strings.Fields(builds[0])
-	if len(f) != 12 || f[0] != "build" || f[1] != "--pull=never" || f[2] != "--no-cache" || f[3] != "--iidfile" || f[4] != f[11]+"/iid" || f[6] != "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+scanBase ||
-		f[8] != "NMAP_MIN_VERSION=7.95" || f[10] != scanTag+v1 || !filepath.IsAbs(f[11]) {
+	// The build's network is vedette-int and nothing else (#467: the one network Docker's FORWARD drop lets through, D-267), without NET_RAW.
+	if len(f) != 16 || f[0] != "build" || f[1] != "--pull=never" || f[2] != "--no-cache" || f[3] != "--network" || f[4] != "vedette-int" || f[5] != "--cap-drop" ||
+		f[6] != "NET_RAW" || f[7] != "--iidfile" || f[8] != f[15]+"/iid" || f[10] != "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+scanBase || f[12] != "NMAP_MIN_VERSION=7.95" ||
+		f[14] != scanTag+v1 || !filepath.IsAbs(f[15]) {
 		t.Errorf("build argv: %q", f)
 	}
 	for _, a := range f {
-		if strings.Contains(a, "--network") || a == "host" {
-			t.Errorf("the build argv sets a network: %q", f)
+		if strings.HasPrefix(a, "--network=") || strings.HasPrefix(a, "--net=") || a == "host" {
+			t.Errorf("the build argv sets another network: %q", f)
 		}
 	}
 	// Nothing of the build is left behind in the state directory.

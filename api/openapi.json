@@ -12763,6 +12763,32 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Accounts that sign in only through SSO; they cannot sign in while the module is off"
+                    },
+                    "ca_pem": {
+                      "type": "string",
+                      "description": "PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to the system roots (D-378); empty = system roots only"
+                    },
+                    "ca_certs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "expires_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The saved CA certificates, one row each"
                     }
                   },
                   "required": [
@@ -12774,7 +12800,9 @@
                     "default_role",
                     "role_map",
                     "redirect_uri",
-                    "sso_users"
+                    "sso_users",
+                    "ca_pem",
+                    "ca_certs"
                   ],
                   "additionalProperties": false
                 }
@@ -12864,6 +12892,10 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "ca_pem": {
+                    "description": "D-378: 1 to 5 PEM CA certificates, at most 64 KB (400 invalid_ca: not PEM, another block such as a private key, not a CA, expired). Absent keeps the saved ones; empty removes them",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -12958,6 +12990,32 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Accounts that sign in only through SSO; they cannot sign in while the module is off"
+                    },
+                    "ca_pem": {
+                      "type": "string",
+                      "description": "PEM of the CA certificates the box trusts for calls to this identity provider only, in addition to the system roots (D-378); empty = system roots only"
+                    },
+                    "ca_certs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "expires_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The saved CA certificates, one row each"
                     }
                   },
                   "required": [
@@ -12969,7 +13027,9 @@
                     "default_role",
                     "role_map",
                     "redirect_uri",
-                    "sso_users"
+                    "sso_users",
+                    "ca_pem",
+                    "ca_certs"
                   ],
                   "additionalProperties": false
                 }
@@ -34703,6 +34763,10 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "ioc_matching": {
+                      "type": "boolean",
+                      "description": "false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)"
                     }
                   },
                   "required": [
@@ -34711,7 +34775,8 @@
                     "baseline_days",
                     "new",
                     "spikes",
-                    "bad_connections"
+                    "bad_connections",
+                    "ioc_matching"
                   ],
                   "additionalProperties": false
                 }

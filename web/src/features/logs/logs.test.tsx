@@ -336,7 +336,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('an empty list of bad connections says plainly that nothing was found, and says why when Feeds is off', async () => {
-    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [] }
+    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
     const first = renderApp('/logs')
     expect(await screen.findByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeInTheDocument()
@@ -347,6 +347,14 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     renderApp('/logs')
     expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
     // with Feeds off nothing was matched, so the list must not read as "no device connected" (D-300; QA walk 2026-11-12)
+    expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
+  })
+
+  it('Feeds on but no switched-on feed lists an indicator: the empty list says nothing could be matched (QA walk a)', async () => {
+    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: false }
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
+    renderApp('/logs')
+    expect(await screen.findByText(/No switched-on threat feed lists any IP address or domain yet/)).toBeInTheDocument()
     expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
   })
 

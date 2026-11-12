@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -79,7 +80,7 @@ func goodBuild(t *testing.T) []string {
 func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 	t.Parallel()
 	b := goodBuild(t)
-	want := []string{"build", "--pull=never", "--no-cache", "--iidfile", "/var/lib/vedette-host/build/scan-123/iid", "--build-arg", "BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor,
+	want := []string{"build", "--pull=never", "--no-cache", "--network", "vedette-int", "--cap-drop", "NET_RAW", "--iidfile", "/var/lib/vedette-host/build/scan-123/iid", "--build-arg", "BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor,
 		"--tag", "localhost/vedette-scan-nmap:1.4.0", "/var/lib/vedette-host/build/scan-123"}
 	if strings.Join(b, " ") != strings.Join(want, " ") {
 		t.Fatalf("build argv %q, want %q", b, want)
@@ -99,16 +100,19 @@ func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 	}
 	mut := func(i int, v string) []string { c := append([]string{}, b...); c[i] = v; return c }
 	bad := [][]string{
-		mut(1, "--pull=always"), mut(1, "--pull"), mut(2, "--cache-from=x"), mut(3, "--output"), mut(4, "/etc/passwd"), mut(4, "/var/lib/vedette-host/build/scan-123/other"),
-		mut(4, "/var/lib/vedette-host/build/scan-123/iid "), mut(4, "/var/lib/vedette-host/build/scan-124/iid"), mut(4, "iid"),
-		mut(5, "--build-arg=X"), mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-core@"+baseDig),
-		mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan:latest"), mut(6, "BASE_IMAGE=docker.io/library/debian@"+baseDig), mut(6, "BASE_IMAGE=localhost/vedette-scan-nmap@"+baseDig),
-		mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+baseDig+"\nUSER 0"), mut(6, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:abc"), mut(6, "APT_PROXY=http://x"),
-		mut(8, "NMAP_MIN_VERSION=1.0"), mut(8, "NMAP_MIN_VERSION="+nmapFloor+" x"), mut(9, "-t"), mut(10, "localhost/vedette-scan:1.4.0"), mut(10, "localhost/vedette-scan-nmap:latest"),
-		mut(10, "localhost/vedette-scan-nmap:-1.4.0"), mut(10, "docker.io/x/y:1.4.0"), mut(10, "localhost/vedette-scan-nmap"),
-		mut(11, "relative/dir"), mut(11, "/"), mut(11, "/var/../etc"), mut(11, "/var/lib/./x"), mut(11, "/var/lib/vedette-host/build/scan-1 "), mut(11, "/a\nb"), mut(11, "-f"), mut(11, "/var/lib/x/.hidden"),
-		mut(11, "/"+strings.Repeat("a", 300)), mut(11, "https://example.com/x.git"), mut(11, "/a:b"), mut(11, "/a//b"),
-		append(append([]string{}, b...), "--network=host"), append([]string{"--root", "/x"}, b...), b[:11], append(append([]string{}, b[:11]...), "-"), {"build"}, {"build", "-"},
+		mut(1, "--pull=always"), mut(1, "--pull"), mut(2, "--cache-from=x"), mut(7, "--output"), mut(8, "/etc/passwd"), mut(8, "/var/lib/vedette-host/build/scan-123/other"),
+		mut(8, "/var/lib/vedette-host/build/scan-123/iid "), mut(8, "/var/lib/vedette-host/build/scan-124/iid"), mut(8, "iid"),
+		mut(9, "--build-arg=X"), mut(10, "BASE_IMAGE=ghcr.io/knt048/vedette-core@"+baseDig),
+		mut(10, "BASE_IMAGE=ghcr.io/knt048/vedette-scan:latest"), mut(10, "BASE_IMAGE=docker.io/library/debian@"+baseDig), mut(10, "BASE_IMAGE=localhost/vedette-scan-nmap@"+baseDig),
+		mut(10, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+baseDig+"\nUSER 0"), mut(10, "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:abc"), mut(10, "APT_PROXY=http://x"),
+		mut(12, "NMAP_MIN_VERSION=1.0"), mut(12, "NMAP_MIN_VERSION="+nmapFloor+" x"), mut(13, "-t"), mut(14, "localhost/vedette-scan:1.4.0"), mut(14, "localhost/vedette-scan-nmap:latest"),
+		mut(14, "localhost/vedette-scan-nmap:-1.4.0"), mut(14, "docker.io/x/y:1.4.0"), mut(14, "localhost/vedette-scan-nmap"),
+		mut(15, "relative/dir"), mut(15, "/"), mut(15, "/var/../etc"), mut(15, "/var/lib/./x"), mut(15, "/var/lib/vedette-host/build/scan-1 "), mut(15, "/a\nb"), mut(15, "-f"), mut(15, "/var/lib/x/.hidden"),
+		mut(15, "/"+strings.Repeat("a", 300)), mut(15, "https://example.com/x.git"), mut(15, "/a:b"), mut(15, "/a//b"),
+		mut(3, "--net"), mut(4, "host"), mut(4, "podman"), mut(4, "none"), mut(4, "vedette-int "), mut(4, "container:vedette-core"), mut(4, "ns:/proc/1/ns/net"),
+		slices.Delete(slices.Clone(b), 3, 5), append(slices.Delete(slices.Clone(b), 3, 5), "--network", "vedette-int"),
+		mut(5, "--cap-add"), mut(6, "ALL"), mut(6, "SYS_ADMIN"), mut(6, "net_raw"), mut(5, "--cap-drop=NET_RAW"), slices.Delete(slices.Clone(b), 5, 7),
+		append(append([]string{}, b...), "--network=host"), append([]string{"--root", "/x"}, b...), b[:15], append(append([]string{}, b[:15]...), "-"), {"build"}, {"build", "-"},
 		{"run", "--rm", "--privileged", "--entrypoint", "nmap", buildID, "--version"},
 		append(append([]string{}, check[:15]...), "-A"), append(append([]string{}, check[:14]...), "x", "--version"), append(append([]string{}, check[:13]...), "sh", buildID, "--version"),
 		{"run", "--rm", "--pull=never", "--network", "host", "--cap-drop", "ALL", "--read-only", "--security-opt", "no-new-privileges", "--memory=256m", "--pids-limit=64", "--entrypoint", "nmap", buildID, "--version"},
@@ -137,7 +141,7 @@ func TestPodmanGrammarOfTheScanBuild(t *testing.T) {
 // FuzzValidatePodmanBuild: whatever the validator accepts as a build or a check of the scan image has exactly the fixed shape (so no
 // piece of free text reached it), and the builders only make what it accepts.
 func FuzzValidatePodmanBuild(f *testing.F) {
-	f.Add("build\x00--pull=never\x00--no-cache\x00--iidfile\x00/var/lib/x/y/iid\x00--build-arg\x00BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig + "\x00--build-arg\x00NMAP_MIN_VERSION=" + nmapFloor + "\x00--tag\x00localhost/vedette-scan-nmap:1.4.0\x00/var/lib/x/y")
+	f.Add("build\x00--pull=never\x00--no-cache\x00--network\x00vedette-int\x00--cap-drop\x00NET_RAW\x00--iidfile\x00/var/lib/x/y/iid\x00--build-arg\x00BASE_IMAGE=ghcr.io/knt048/vedette-scan@" + baseDig + "\x00--build-arg\x00NMAP_MIN_VERSION=" + nmapFloor + "\x00--tag\x00localhost/vedette-scan-nmap:1.4.0\x00/var/lib/x/y")
 	f.Add("run\x00--rm\x00--pull=never\x00--network\x00none\x00--cap-drop\x00ALL\x00--read-only\x00--security-opt\x00no-new-privileges\x00--memory=256m\x00--pids-limit=64\x00--entrypoint\x00nmap\x00" + buildID + "\x00--version")
 	f.Add("tag\x00" + buildID + "\x00localhost/vedette-scan-nmap:1.4.0")
 	f.Add("")
@@ -153,7 +157,8 @@ func FuzzValidatePodmanBuild(f *testing.F) {
 		}
 		switch args[0] {
 		case "build":
-			if len(args) != 12 || args[4] != args[11]+"/iid" || !strings.HasPrefix(args[6], "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:") || !validBuildDir(args[11]) || strings.Contains(args[11], "..") {
+			if len(args) != 16 || args[3] != "--network" || args[4] != "vedette-int" || args[5] != "--cap-drop" || args[6] != "NET_RAW" || args[8] != args[15]+"/iid" ||
+				!strings.HasPrefix(args[10], "BASE_IMAGE=ghcr.io/knt048/vedette-scan@sha256:") || !validBuildDir(args[15]) || strings.Contains(args[15], "..") {
 				t.Fatalf("an accepted build has the wrong shape: %q", args)
 			}
 		case "run":

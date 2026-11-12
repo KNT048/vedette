@@ -700,6 +700,8 @@ bootstrap() {
 		fetch "$REPO_URL/releases/download/v$RELEASE/release-manifest.json.minisig" "$DOCS/release-manifest.json.minisig" 4096
 	fi
 	systemctl daemon-reload
+	# the scan image is built on vedette-int (#467): Quadlet makes the network only when its unit starts, and no container has started yet
+	systemctl start vedette-int-network.service || die "the container network vedette-int could not be made (journalctl -u vedette-int-network)"
 	say "bootstrap: verifying the release and pulling its images (several minutes; the scan image is built on the box)"
 	set +e
 	if [ -n "$SERVICES" ]; then

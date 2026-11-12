@@ -46,7 +46,7 @@ var rules = []rule{
 	{"CLAUDE.md", Result{}},
 	{"CONTRIBUTING.md", Result{}},
 	{"SECURITY.md", Result{}},
-	{"PRIVACY.md", Result{}},
+	{"PRIVACY.md", Result{Web: true}}, // web/src/features/core/privacyFlows.test.ts holds the Privacy page to its flow table (#472)
 	{"NOTICE", Result{}},
 	{"LICENSE", Result{}},
 	{".mcp.json.example", Result{}},

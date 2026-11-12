@@ -59,7 +59,10 @@ func (h *OIDCHandlers) CoreGetCoreOidc(ctx context.Context) (*oas.CoreGetCoreOid
 	out := &oas.CoreGetCoreOidcOK{
 		Issuer: c.Issuer, ClientID: c.ClientID, Scopes: c.Scopes, GroupsClaim: c.GroupsClaim, RedirectURI: c.RedirectURI, SSOUsers: n,
 		SecretLast4: oas.NilString{Null: true}, DefaultRole: oas.NilCoreGetCoreOidcOKDefaultRole{Null: true},
-		RoleMap: make([]oas.CoreGetCoreOidcOKRoleMapItem, 0, len(c.RoleMap)),
+		RoleMap: make([]oas.CoreGetCoreOidcOKRoleMapItem, 0, len(c.RoleMap)), CaPem: c.CAPEM, CaCerts: []oas.CoreGetCoreOidcOKCaCertsItem{},
+	}
+	for _, x := range c.CACerts() {
+		out.CaCerts = append(out.CaCerts, oas.CoreGetCoreOidcOKCaCertsItem{Subject: x.Subject, ExpiresAt: x.NotAfter})
 	}
 	if c.SecretLast4 != "" {
 		out.SecretLast4 = oas.NewNilString(c.SecretLast4)
@@ -93,6 +96,9 @@ func (h *OIDCHandlers) CorePutCoreOidc(ctx context.Context, req *oas.CorePutCore
 	for _, r := range req.RoleMap {
 		in.RoleMap = append(in.RoleMap, RoleRow{Group: r.Group, Role: routes.Role(r.Role)})
 	}
+	if v, ok := req.CaPem.Get(); ok {
+		in.CAPEM = &v
+	}
 	if _, err := h.s.Store(ctx, who, origin(x), in); err != nil {
 		return nil, err
 	}
@@ -103,7 +109,10 @@ func (h *OIDCHandlers) CorePutCoreOidc(ctx context.Context, req *oas.CorePutCore
 	out := &oas.CorePutCoreOidcOK{
 		Issuer: c.Issuer, ClientID: c.ClientID, Scopes: c.Scopes, GroupsClaim: c.GroupsClaim, RedirectURI: c.RedirectURI, SSOUsers: n,
 		SecretLast4: oas.NewNilString(c.SecretLast4), DefaultRole: oas.NilCorePutCoreOidcOKDefaultRole{Null: true},
-		RoleMap: make([]oas.CorePutCoreOidcOKRoleMapItem, 0, len(c.RoleMap)),
+		RoleMap: make([]oas.CorePutCoreOidcOKRoleMapItem, 0, len(c.RoleMap)), CaPem: c.CAPEM, CaCerts: []oas.CorePutCoreOidcOKCaCertsItem{},
+	}
+	for _, x := range c.CACerts() {
+		out.CaCerts = append(out.CaCerts, oas.CorePutCoreOidcOKCaCertsItem{Subject: x.Subject, ExpiresAt: x.NotAfter})
 	}
 	if c.DefaultRole != "" {
 		out.DefaultRole = oas.NewNilCorePutCoreOidcOKDefaultRole(oas.CorePutCoreOidcOKDefaultRole(c.DefaultRole))

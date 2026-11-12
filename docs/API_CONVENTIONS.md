@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (230 mã)
+#### HTTP 400 (231 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -188,6 +188,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_categories` | 400 | Unknown or empty log category in the download request. | `GET /core/logs/export` |
 | `invalid_channel` | 400 | The channel is stable or beta. | `PATCH /core/updates` |
 | `invalid_claim` | 400 | Enter the name of the groups claim, for example groups (letters, digits and _ . : / -, at most 64). | `PUT /core/oidc` (D-195 (1)) |
+| `invalid_ca` | 400 | The CA certificate <why>. Paste the PEM of the CA that signed the identity provider's certificate (-----BEGIN CERTIFICATE-----). | `PUT /core/oidc` (D-378) |
 | `invalid_client` | 400 | Enter the Client ID (at most 200 characters). | `PUT /core/oidc` |
 | `invalid_code` | 400 | The code is 6 digits. | `POST /auth/login`; `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (từ `VerifyTwoStep`, trả nguyên, D-98) |
 | `invalid_config` | 400 | The scan configuration is not valid. | `PUT /scans/config` |

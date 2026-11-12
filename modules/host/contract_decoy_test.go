@@ -585,11 +585,12 @@ func TestContract_Decoy_AMACKeyThatIsALinkOrWrongFailsTheAddAndInventsNothing(t 
 
 func TestContract_Decoy_AFailedStepIsUndoneAndNothingIsRecorded(t *testing.T) {
 	t.Parallel()
-	for _, pattern := range []string{"link set vdhc0a80164 netns", "addr add", "route replace default", "rule add"} {
+	// "route flush" exits 2 without the kernel's "FIB table does not exist": only that answer is "nothing to flush" (#475).
+	for pattern, code := range map[string]int{"link set vdhc0a80164 netns": 1, "addr add": 1, "route flush": 2, "route replace default": 1, "rule add": 1} {
 		t.Run(pattern, func(t *testing.T) {
 			t.Parallel()
 			d := startDecoy(t)
-			d.m.Rule(ops.BinIP, pattern, "", 1, "", "")
+			d.m.Rule(ops.BinIP, pattern, "", code, "", "")
 			r, err := d.call(t, "decoy_ip.add", api.DecoyAddArgs{IP: decoyIP1})
 			if err != nil || r.Status != api.StatusFailed || r.Error.Code != api.CodeDecoyFailed {
 				t.Fatalf("%+v %v", r, err)

@@ -143,7 +143,7 @@ func isLocalTag(s string) bool {
 
 // The build of the scan image on the box (D-147) adds four shapes (podman builds as root, so each is as closed as the rest):
 //
-//	build --pull=never --no-cache --iidfile <context dir>/iid --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
+//	build --pull=never --no-cache --network vedette-int --cap-drop NET_RAW --iidfile <context dir>/iid --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
 //	run --rm --pull=never --network none --cap-drop ALL --read-only --security-opt no-new-privileges --memory=256m --pids-limit=64 --entrypoint nmap <image id> --version
 //	tag <image id> localhost/vedette-scan-nmap:<version>      puts the previous image back under its tag after a build that failed the check
 //	image inspect --format json <image id>                    (also a shape of the list above: ref is an ID)
@@ -151,6 +151,9 @@ func isLocalTag(s string) bool {
 // The base reference is the pull reference of the digest that was verified, the floor is a constant, the tag is built from a version that
 // passed tagVersionRE, the context is a directory the host made (a plain absolute path), and the Containerfile in it is a constant of the
 // binary. Nothing a request carried is text in any of them. --no-cache because a cached apt layer would never see a newer nmap.
+// --network vedette-int (#467): the RUN step needs the internet, and on a box with Docker (FORWARD policy DROP) only Vedette's own network
+// is let through, by the DOCKER-USER rules of dockerfwd.go (D-267); podman's default network would be dropped. Never host, never another.
+// --cap-drop NET_RAW: the build shares that bridge with core, and apt needs no raw socket (even if a containers.conf grants NET_RAW).
 
 const (
 	nmapTagPrefix = "localhost/vedette-scan-nmap:"
@@ -187,7 +190,7 @@ func buildArgv(digest, version, dir string) ([]string, error) {
 	if err != nil || !validBuildDir(dir) {
 		return nil, errPodmanArgs
 	}
-	return []string{"build", "--pull=never", "--no-cache", "--iidfile", dir + "/" + iidName, "--build-arg", "BASE_IMAGE=" + ref, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor, "--tag", tag, dir}, nil
+	return []string{"build", "--pull=never", "--no-cache", "--network", intNetwork, "--cap-drop", "NET_RAW", "--iidfile", dir + "/" + iidName, "--build-arg", "BASE_IMAGE=" + ref, "--build-arg", "NMAP_MIN_VERSION=" + nmapFloor, "--tag", tag, dir}, nil
 }
 
 // iidName is the file in the build context directory where podman writes the ID of the image it built.
@@ -209,11 +212,12 @@ func tagIDArgv(id, version string) ([]string, error) {
 }
 
 func isBuildArgv(a []string) bool {
-	if len(a) != 12 || a[0] != "build" || a[1] != "--pull=never" || a[2] != "--no-cache" || a[3] != "--iidfile" || a[5] != "--build-arg" || a[7] != "--build-arg" ||
-		a[8] != "NMAP_MIN_VERSION="+nmapFloor || a[9] != "--tag" || !isNmapTag(a[10]) || !validBuildDir(a[11]) || a[4] != a[11]+"/"+iidName {
+	if len(a) != 16 || a[0] != "build" || a[1] != "--pull=never" || a[2] != "--no-cache" || a[3] != "--network" || a[4] != intNetwork || a[5] != "--cap-drop" ||
+		a[6] != "NET_RAW" || a[7] != "--iidfile" || a[9] != "--build-arg" || a[11] != "--build-arg" || a[12] != "NMAP_MIN_VERSION="+nmapFloor || a[13] != "--tag" ||
+		!isNmapTag(a[14]) || !validBuildDir(a[15]) || a[8] != a[15]+"/"+iidName {
 		return false
 	}
-	ref, ok := strings.CutPrefix(a[6], "BASE_IMAGE=")
+	ref, ok := strings.CutPrefix(a[10], "BASE_IMAGE=")
 	return ok && isPullRef(ref) && strings.HasPrefix(ref, release.RegistryPrefix+api.ServiceScan+"@")
 }
 

@@ -38,7 +38,9 @@ import (
 // request. A file without the bridge name (an older install) is left alone: a re-install is needed.
 
 const (
-	netFileRel     = unitsRel + "/vedette-int.network"
+	// intNetwork is NetworkName= of the network file (install.sh writes it): the containers' network, and the scan build's (#467).
+	intNetwork     = "vedette-int"
+	netFileRel     = unitsRel + "/" + intNetwork + ".network"
 	maxNetFileSize = 4 << 10
 	fwdChain       = "DOCKER-USER"
 	fwdComment     = "vedette-int"

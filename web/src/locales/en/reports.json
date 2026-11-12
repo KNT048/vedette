@@ -67,6 +67,8 @@
       "next": "Next send: {{time}}.",
       "off": "Automatic sending is off.",
       "channel": "Sent through the email channel in Settings, Alert channels.",
+      "noChannel": "No email channel is on, so nothing will be sent until you set one up.",
+      "setupChannel": "Set up the email channel",
       "saved": "Schedule saved",
       "saving": "Saving",
       "badEmail": "The email is not valid. Use the form name@company.com.",
@@ -78,7 +80,7 @@
       "title": "Sent",
       "description": "Each sent report keeps that week's figures as they were; open it again to print or save as PDF.",
       "empty": "No report sent yet",
-      "emptyBody": "Click Send now or turn on automatic sending to start a history.",
+      "emptyBody": "Use Send now in the report preview once the report has content, or turn on automatic sending to start a history.",
       "caption": "History of weekly reports sent",
       "col": {
         "time": "Time",
@@ -177,14 +179,16 @@
     "processingServiceHint": "For example processing customer, payroll or marketing data on behalf of other organisations. This type gets no exemption.",
     "err": {
       "name": "Enter the organisation name (2 to 120 characters).",
-      "tax": "The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678.",
+      "tax": "The tax code is 10 digits, or 10 digits, a hyphen and 3 digits for a branch. Example 0312345678.",
       "address": "Enter the head office address (at least 5 characters).",
       "sector": "Pick the field of activity.",
       "employees": "Enter the headcount, a whole number from 0.",
       "size": "Pick the organisation size.",
       "contactName": "Enter the name of the person in charge of data protection.",
       "contactEmail": "The email is not valid. Use the form name@company.com.",
-      "contactPhone": "The phone number starts with 0 or +84 and has 10 to 11 digits."
+      "contactEmailRequired": "Enter the contact email. It is required.",
+      "contactPhone": "The phone number starts with 0 or +84 and has 10 to 11 digits.",
+      "contactPhoneRequired": "Enter the contact phone number. It is required."
     }
   },
   "doc": {
@@ -284,6 +288,8 @@
       "noFlags": "No special traits declared",
       "inventorySummary": "The inventory records {{total}} devices: {{approved}} approved, {{unapproved}} awaiting approval, {{fragile}} fragile devices (printers, cameras, NAS) that are only listened to passively.",
       "byKind": "By type:",
+      "noDevices": "No devices are recorded yet.",
+      "noKeySystems": "No server, NAS or firewall in the inventory.",
       "keyCaption": "Key systems: servers, NAS and firewalls",
       "noRisks": "No unresolved exploited vulnerability in the current data.",
       "obligationsIntro": "The items below concern records, processes and contracts. Vedette cannot see them, so it does not claim they are met; the responsible person confirms each one.",
@@ -324,32 +330,37 @@
       "firewall": {
         "title": "A firewall at the network edge",
         "ok": "The inventory includes a firewall.",
-        "attention": "The inventory shows no firewall."
+        "attention": "The inventory shows no firewall.",
+        "unknown": "No devices are recorded yet, so Vedette cannot tell whether there is a firewall."
       },
       "patching": {
         "title": "Exploited vulnerabilities are handled",
         "ok": "No unresolved findings.",
-        "attention": "{{n}} unresolved findings: {{names}}."
+        "attention": "{{n}} unresolved findings: {{names}}.",
+        "unknown": "No data: there are no devices yet, or the exploited-vulnerability feed is off."
       },
       "eol": {
         "title": "Operating systems still supported",
         "ok": "No operating system at or near end of support.",
-        "attention": "{{n}} machines on an operating system at or near end of support: {{names}}."
+        "attention": "{{n}} machines on an operating system at or near end of support: {{names}}.",
+        "unknown": "No data: there are no devices in the inventory yet."
       },
       "unapproved": {
         "title": "Every device on the network is approved",
         "ok": "No device awaits approval.",
-        "attention": "{{n}} devices not approved: {{names}}."
+        "attention": "{{n}} devices not approved: {{names}}.",
+        "unknown": "No data: there are no devices in the inventory yet."
       },
       "remote": {
         "title": "No unnecessary remote access",
         "ok": "No device exposes RDP.",
-        "attention": "{{n}} machines expose RDP (3389): {{names}}. Confirm the port is not reachable from the Internet."
+        "attention": "{{n}} machines expose RDP (3389): {{names}}. Confirm the port is not reachable from the Internet.",
+        "unknown": "No data: there are no devices yet, or the vulnerability scan module is off."
       },
       "logging": {
         "title": "Central log collection",
         "ok": "The logs module is on.",
-        "attention": "The logs module is off, so there is no central log."
+        "unknown": "The logs module is off, so there is no central log."
       },
       "honeypot": {
         "title": "A trap to catch lateral movement",

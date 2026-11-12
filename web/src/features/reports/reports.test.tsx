@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
-import { aiAssignStore, aiConfigStore, aiRunsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { aiAssignStore, assetsStore, aiConfigStore, aiRunsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { regimeOf } from './pdpl'
 import { buildWeekly } from './weekly'
 
@@ -90,6 +90,15 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(s).toMatchObject({ day: 5, hour: 17, recipients: ['director@acme.example', 'accounting@acme.example'] })
     expect(new Date(s.next_run).getDay()).toBe(5)
     expect(screen.getByText(/Next send:/)).toBeInTheDocument()
+  })
+
+  it('schedule: with no email channel on, automatic sending warns and links to Alert channels instead of promising a next send', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    expect((await api('/notify/channels/email', { method: 'DELETE' })).status).toBe(204)
+    renderApp('/reports')
+    const warn = await screen.findByText(/No email channel is on, so nothing will be sent/)
+    expect(within(warn.parentElement as HTMLElement).getByRole('link', { name: 'Set up the email channel' })).toHaveAttribute('href', '/settings/channels')
+    expect(screen.queryByText(/Next send:/)).toBeNull()
   })
 
   it('schedule: a bad email is flagged at once; a typed but un-added email blocks Save; the server refuses automatic sending with no recipients', async () => {
@@ -229,7 +238,7 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     await enabled(await screen.findByLabelText('Organisation name'))
     await userEvent.clear(screen.getByLabelText('Organisation name'))
     await userEvent.click(screen.getByRole('button', { name: 'Save details' }))
-    for (const m of ['Enter the organisation name', 'The tax code is 10 digits', 'Enter the head office address', 'Pick the field of activity', 'Enter the headcount', 'Pick the organisation size', 'Enter the name of the person', 'The email is not valid', 'The phone number starts with 0']) expect(await screen.findByText(new RegExp(m))).toBeInTheDocument()
+    for (const m of ['Enter the organisation name', 'The tax code is 10 digits', 'Enter the head office address', 'Pick the field of activity', 'Enter the headcount', 'Pick the organisation size', 'Enter the name of the person', 'Enter the contact email. It is required.', 'Enter the contact phone number. It is required.']) expect(await screen.findByText(new RegExp(m))).toBeInTheDocument()
     expect(screen.getByLabelText('Tax code')).toBeInvalid()
     await userEvent.type(screen.getByLabelText('Organisation name'), 'Sample Co')
     await fillOrg({ tax: '123' })
@@ -258,6 +267,17 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     for (const must of ['91/2025/QH15', 'Decree 356/2025/ND-CP', '72 hours', '60 days', 'Article 23', 'Articles 21, 22', 'Article 20', 'Form 09']) expect(text).toContain(must)
     expect(text).not.toMatch(DIACRITICS)
     await expectNoA11yViolations()
+  })
+
+  it('with no devices the report has no raw translation keys, one measures heading and sensible empty text', async () => {
+    assetsStore.set([])
+    renderApp('/reports?tab=pdpl')
+    await fillOrg()
+    const doc = await generate()
+    expect(doc.textContent).not.toMatch(/\bdoc\.[a-z]/)
+    expect(within(doc).getAllByText('3. Technical protection measures')).toHaveLength(1)
+    expect(within(doc).getByText('No devices are recorded yet.')).toBeInTheDocument()
+    expect(doc.textContent).not.toContain('By type:')
   })
 
   it('AI commentary sits in the AI block with model and profile; the print page shows the same report', async () => {

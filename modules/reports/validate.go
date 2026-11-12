@@ -85,7 +85,7 @@ func checkOrg(o PdplOrg) (PdplOrg, *apierr.Error) {
 		return o, bad("invalid_name", "The organisation name must be 2 to 120 characters.")
 	}
 	if o.TaxCode, ok = field(o.TaxCode); !ok || !taxRE.MatchString(o.TaxCode) {
-		return o, bad("invalid_tax_code", "The tax code is 10 digits, or 10 digits, a dash and 3 digits for a branch. Example 0312345678.")
+		return o, bad("invalid_tax_code", "The tax code is 10 digits, or 10 digits, a hyphen and 3 digits for a branch. Example 0312345678.")
 	}
 	if o.Address, ok = field(o.Address); !ok || runes(o.Address) < 5 || runes(o.Address) > 200 {
 		return o, bad("invalid_address", "Enter the head office address (5 to 200 characters).")

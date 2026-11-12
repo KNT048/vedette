@@ -299,6 +299,7 @@
     }
   },
   "notHere": {
+    "page": "Honeypot",
     "title": "Traps need the appliance install",
     "body": "This is a container-only install: there is no vedette-host to run the honeypot container and its decoy address, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
     "modules": "Turn the module off in Settings, Modules"

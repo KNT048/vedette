@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -85,6 +86,35 @@ func TestUpdateCheckJobRunsEverySixHours(t *testing.T) {
 	}
 	if e.srv.total() != n || len(e.auditUsers("update.check")) != 2 {
 		t.Errorf("update checks off: %d requests, %d check rows", e.srv.total()-n, len(e.auditUsers("update.check")))
+	}
+}
+
+// D-398: a box that never checked (a fresh setup, or one recreated before its first check) is woken two minutes after its
+// process started and checks then, not one tick later; the first tick still makes no request.
+func TestUpdateCheckFirstCheckSoonAfterStart(t *testing.T) {
+	t.Parallel()
+	woken := make(chan struct{})
+	var once sync.Once
+	e := newUpdEnv(t, osOpts{noHost: true, wake: func() { once.Do(func() { close(woken) }) }})
+	e.srv.standard(t, 5)
+	e.clock.Advance(2*time.Minute - 20*time.Millisecond) // the wake is then 20 ms of real time away
+	if err := e.upd.UpdateTick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.srv.total(); n != 0 {
+		t.Fatalf("the first tick made %d requests, want none", n)
+	}
+	select {
+	case <-woken:
+	case <-time.After(30 * time.Second):
+		t.Fatal("the job was not woken for the first check")
+	}
+	e.clock.Advance(20 * time.Millisecond)
+	if err := e.upd.UpdateTick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.srv.hit("/index/index.json"); n != 1 {
+		t.Fatalf("index fetched %d times by the woken run, want 1", n)
 	}
 }
 

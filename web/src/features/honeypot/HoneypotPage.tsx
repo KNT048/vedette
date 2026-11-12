@@ -32,16 +32,17 @@ export default function HoneypotPage() {
   const hp = useModules().data?.modules.find((m) => m.id === 'honeypot')
   if (hp?.available === false) return (
     <>
-      <PageHeader title={t('notHere.title')} stories={['S-HP-1', 'S-CORE-9']} />
+      <PageHeader title={t('notHere.page')} stories={['S-HP-1', 'S-CORE-9']} />
       <EmptyState title={t('notHere.title')}>
         <p>{t('notHere.body')}</p>
         {hp.enabled ? <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p> : null}
       </EmptyState>
     </>
   )
-  return <HoneypotBody />
+  return <RequireModule module="honeypot"><HoneypotBody /></RequireModule>
 }
 
+// Mounted only once GET /modules says the module is on (RequireModule): its reads never go to a route that is not there (walk 4: 404s on container-only).
 function HoneypotBody() {
   const { t } = useTranslation('honeypot')
   const overview = useOverview()
@@ -55,7 +56,7 @@ function HoneypotBody() {
     : o.summary.week > 0 ? t('title.week', { count: o.summary.week, when: fmtRelative(o.summary.last_hit_at), src: o.summary.last_src ?? '' })
     : t('title.quiet')
   return (
-    <RequireModule module="honeypot">
+    <>
       <PageHeader title={title} stories={['S-HP-1', 'S-HP-2']}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{o ? t('meta', { time: fmtDateTime(o.updated_at) }) : null}</span>} />
       <QueryState query={overview}>
@@ -94,7 +95,7 @@ function HoneypotBody() {
           </>
         )}
       </QueryState>
-    </RequireModule>
+    </>
   )
 }
 

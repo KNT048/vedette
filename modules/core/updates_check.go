@@ -70,6 +70,9 @@ type updCheck struct {
 
 	checkMu sync.Mutex  // one check at a time: two checks could otherwise store an older index over a newer one
 	next    time.Time   // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
+	wake    func()      // OSConfig.Wake; nil: none
+	wakeMu  sync.Mutex  // guards wakeT alone, so Close never waits for a check in flight
+	wakeT   *time.Timer // the early run of a box that never checked (D-398)
 	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing (D-388)
 
 	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
@@ -83,7 +86,7 @@ type updCheck struct {
 }
 
 func (u *updCheck) init(c OSConfig, now time.Time) error {
-	u.version, u.base, u.client, u.trust, u.started = c.Version, c.ReleaseBase, c.HTTPClient, c.Trust, now
+	u.version, u.base, u.client, u.trust, u.started, u.wake = c.Version, c.ReleaseBase, c.HTTPClient, c.Trust, now, c.Wake
 	u.dataDir = c.DataDir
 	if u.base == "" {
 		u.base = DefaultReleaseBase

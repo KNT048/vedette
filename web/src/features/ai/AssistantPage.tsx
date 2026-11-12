@@ -16,6 +16,8 @@ import ActivityPanel from './ActivityPanel'
 import { ActionError, ToSettings, useAiGate } from './parts'
 import type { AiRun, AskResult, Usage } from './types'
 
+// The box's limit for a question (modules/ai ask.go askQuestionMax; POST /ai/ask refuses longer with invalid_question).
+const ASK_MAX = 500
 const SUGGESTED = ['rdp', 'unapproved', 'confirmed', 'nas', 'camera', 'oldOs'] as const
 
 export default function AssistantPage() {
@@ -45,9 +47,12 @@ function Ask() {
   const [q, setQ] = useState('')
   const [shown, setShown] = useState<AskResult | null>(null)
   const result = shown ?? ask.data ?? asks.data?.items[0] ?? null
+  // A failed Ask is said where its answer would be, with the question, not above it with an older answer below (walk 3 G13).
+  const failed = !shown && !ask.isPending && ask.error ? ask.error : null
+  const long = q.length > ASK_MAX
 
   function run(text: string) {
-    if (!text.trim()) return
+    if (!text.trim() || text.length > ASK_MAX) return
     setShown(null)
     ask.mutate(text, { onSuccess: (r) => { if (r.downgraded) toast.warning(t('ask.downgraded', { from: t(`settings.tier.${r.downgraded.from}.name`), to: t(`settings.tier.${r.downgraded.to}.name`) })) } })
   }
@@ -60,12 +65,13 @@ function Ask() {
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <form className="grid grid-cols-[minmax(0,1fr)] gap-3" onSubmit={(e) => { e.preventDefault(); run(q) }}>
-            <Field label={t('ask.label')} htmlFor="ai-q" hint={t('ask.hint')}>
+            <Field label={t('ask.label')} htmlFor="ai-q" hint={t('ask.hint')} error={long ? t('ask.tooLong', { max: ASK_MAX, n: q.length }) : undefined}>
               <div className="flex flex-wrap gap-2">
-                <Input id="ai-q" className="min-w-0 flex-1 basis-72" value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder={t('ask.placeholder')} disabled={!gate.canRun} />
-                <Button type="submit" variant="primary" disabled={!gate.canRun || ask.isPending || q.trim().length < 3} title={gate.reason}>{ask.isPending ? t('ask.asking') : t('ask.submit')}</Button>
+                <Input id="ai-q" className="min-w-0 flex-1 basis-72" value={q} onChange={(e) => setQ(e.target.value)} maxLength={ASK_MAX} placeholder={t('ask.placeholder')} disabled={!gate.canRun} aria-invalid={long ? true : undefined} aria-describedby={long ? 'ai-q-error' : q.length >= ASK_MAX * 0.8 ? 'ai-q-hint ai-q-count' : 'ai-q-hint'} />
+                <Button type="submit" variant="primary" disabled={!gate.canRun || ask.isPending || q.trim().length < 3 || long} title={gate.reason}>{ask.isPending ? t('ask.asking') : t('ask.submit')}</Button>
               </div>
             </Field>
+            {q.length >= ASK_MAX * 0.8 && !long ? <p id="ai-q-count" className="-mt-2 text-[12px] text-muted">{t('ask.count', { n: q.length, max: ASK_MAX })}</p> : null}
             <div role="group" aria-label={t('ask.suggested')} className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] text-muted">{t('ask.suggested')}</span>
               {SUGGESTED.map((k) => (
@@ -73,10 +79,16 @@ function Ask() {
               ))}
             </div>
           </form>
-          <ActionError error={ask.error} />
           {ask.isPending ? <p role="status" className="text-sm text-muted">{t('ask.working')}</p> : null}
-          {result && !ask.isPending ? <Answer r={result} /> : null}
-          {!result && !ask.isPending ? <p className="text-sm text-muted">{t('ask.empty')}</p> : null}
+          {failed ? (
+            <div className="grid gap-2" role="region" aria-label={t('ask.answerFor', { q: ask.variables ?? '' })}>
+              <p className="text-sm"><span className="text-muted">{t('ask.you')}</span> {ask.variables}</p>
+              <p className="text-sm font-medium">{t('ask.failed')}</p>
+              <ActionError error={failed} />
+            </div>
+          ) : null}
+          {result && !ask.isPending && !failed ? <Answer r={result} /> : null}
+          {!result && !ask.isPending && !failed ? <p className="text-sm text-muted">{t('ask.empty')}</p> : null}
           {asks.data && asks.data.items.length > 1 ? (
             <div className="text-[13px]">
               <p className="mb-1 text-muted">{t('ask.history')}</p>
@@ -167,6 +179,7 @@ function Meter({ query }: { query: { data: Usage | undefined; error: unknown; is
                   { id: 'runs', header: t('meter.col.runs'), accessorKey: 'runs' },
                   { id: 'tokens', header: t('meter.col.tokens'), accessorKey: 'tokens', cell: ({ getValue }: { getValue: () => unknown }) => fmtNumber(getValue() as number) },
                 ]} empty={t('meter.skillEmpty')} />
+              {u.by_skill.length ? <p className="-mt-3 text-[13px] text-muted">{t('meter.callsNote')}</p> : null}
               <div>
                 <h3 className="mb-1 text-sm font-medium">{t('meter.downgrades')}</h3>
                 {u.downgrades.length === 0 ? <p className="text-sm text-muted">{t('meter.noDowngrades')}</p> : (

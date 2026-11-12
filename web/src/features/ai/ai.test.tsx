@@ -110,6 +110,23 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     await userEvent.type(box, 'c device')
     await userEvent.click(screen.getByRole('button', { name: 'Ask' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('The provider did not answer.')
+    // walk 3 G13: the failure stands where the answer would be, with the question; no "No questions yet" under it
+    const region = screen.getByRole('region', { name: 'Answer to: abc device' })
+    expect(within(region).getByText('No answer: the question did not get through.')).toBeInTheDocument()
+    expect(within(region).getByRole('alert')).toHaveTextContent('The provider did not answer.')
+    expect(screen.queryByText(/No questions yet/)).toBeNull()
+  })
+
+  it('walk 3 G13: a question longer than the box takes (500) says so and Ask stays off; near the limit a counter shows', async () => {
+    renderApp('/assistant')
+    const box = await screen.findByLabelText('Question')
+    await enabled(box)
+    await userEvent.click(box)
+    await userEvent.paste('x'.repeat(420))
+    expect(screen.getByText('420 of 500 characters')).toBeInTheDocument()
+    fireEvent.change(box, { target: { value: 'x'.repeat(12000) } }) // a programmatic fill skips maxLength
+    expect(box).toHaveAccessibleDescription('A question has 500 characters at most; this one has 12000. Shorten it, then ask.')
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled()
   })
 
   it('a viewer sees the meter but cannot ask', async () => {
@@ -246,6 +263,32 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     // việc chưa có hồ sơ chính tự lấy hồ sơ mới nên dùng được ngay
     expect(aiAvailable('ask-my-data')).toBe(true)
     expect(aiConfigStore.get()).toMatchObject({ configured: true, model: 'claude-haiku-5-5', key_last4: '9z9z' })
+  })
+
+  it('walk 3 G13: Add says why it is off; the consent names a host only for a valid address; changing the type keeps a typed address and model', async () => {
+    clearProfiles()
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    const add = within(dlg).getByRole('button', { name: 'Add profile' })
+    expect(add).toBeDisabled()
+    expect(add).toHaveAccessibleDescription('Add profile stays off until you tick the box above: it confirms you know where the data goes.')
+    expect(within(dlg).getByRole('checkbox', { name: /will be sent to api\.anthropic\.com\./ })).toBeInTheDocument()
+    const url = within(dlg).getByLabelText('Server address')
+    await userEvent.clear(url)
+    await userEvent.type(url, 'not-https')
+    expect(within(dlg).getByRole('checkbox', { name: /will be sent to the server address above\./ })).toBeInTheDocument()
+    await userEvent.clear(url)
+    await userEvent.type(url, 'https://gw.example.com/v1')
+    await userEvent.clear(within(dlg).getByLabelText('Model'))
+    await userEvent.type(within(dlg).getByLabelText('Model'), 'my-model')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'OpenAI')
+    expect(url).toHaveValue('https://gw.example.com/v1')
+    expect(within(dlg).getByLabelText('Model')).toHaveValue('my-model')
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
+    expect(within(dlg).getByRole('button', { name: 'Add profile' })).toBeEnabled()
+    expect(within(dlg).queryByText(/stays off until you tick/)).toBeNull()
   })
 
   it('custom provider: API style, address, optional key for a server inside the network, plain http allowed there only', async () => {

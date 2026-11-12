@@ -17,9 +17,12 @@ describe('reports: weekly report (S-REP-1)', () => {
     renderApp('/reports')
     expect(await screen.findByRole('heading', { level: 1, name: 'This week 3 findings are unresolved and 2 devices await approval.' })).toBeInTheDocument()
     const doc = await screen.findByRole('article', { name: 'Weekly security report' })
-    const remaining = within(doc).getByRole('table', { name: 'Remaining' })
-    expect(within(remaining).getByText('NAS-PHOTOS')).toBeInTheDocument()
-    expect(within(remaining).getByText('CVE-2022-27593')).toBeInTheDocument()
+    // A finding new this week and still open is listed once, under What is new; Remaining counts it (walk 3 G13).
+    const fresh = within(doc).getByRole('table', { name: 'What is new' })
+    expect(within(fresh).getByText('NAS-PHOTOS')).toBeInTheDocument()
+    expect(within(fresh).getByText('CVE-2022-27593')).toBeInTheDocument()
+    expect(within(doc).getAllByText('CVE-2022-27593')).toHaveLength(1)
+    expect(within(doc).getByText(/^(Plus the new findings? listed above|Every unresolved finding is new this week|The new finding listed above)/)).toBeInTheDocument()
     expect(within(doc).getByText(/Patch or apply a temporary fix for CVE-2022-27593 on NAS-PHOTOS \(confirmed\)/)).toBeInTheDocument()
     expect(within(doc).queryByText(/Honeypot touches$/)).toBeNull() // không bịa số bẫy/log
     expect(within(doc).getByText(/are not part of this report yet/)).toBeInTheDocument()
@@ -117,6 +120,22 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(((await bad.json()) as { error: { message: string } }).error.message).toMatch(/at least one recipient/)
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 0, hour: 8, recipients: ['a@b.vn'] }) })).status).toBe(400)
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 1, hour: 30, recipients: ['a@b.vn'] }) })).status).toBe(400)
+  })
+
+  it('schedule (walk 3 G13): an address longer than the box allows is refused on Add with the reason; a refusal at Save names the address at the field', async () => {
+    renderApp('/reports')
+    const input = await screen.findByLabelText('Recipients')
+    await enabled(input)
+    await userEvent.click(input)
+    await userEvent.paste(`${'a'.repeat(300)}@example.com`)
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(input).toHaveAccessibleDescription('An email address has 120 characters at most; this one has 312.')
+    expect(screen.queryByRole('button', { name: /^Remove a{300}/ })).toBeNull()
+    await userEvent.clear(input)
+    server.use(http.put('*/api/v1/reports/schedule', () => HttpResponse.json({ error: { code: 'invalid_input', message: 'The field "recipients[0]" is missing or has a value that is not allowed. Fix it and try again.', field: 'recipients[0]' } }, { status: 400 })))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(input).toHaveAccessibleDescription('The box did not accept "director@acme.example": it is not a valid email address. Remove it, then save.'))
+    expect(screen.queryByText(/recipients\[0\]/)).toBeNull()
   })
 
   it('AI commentary lives only inside the AI block, labelled with model and profile, records one run', async () => {

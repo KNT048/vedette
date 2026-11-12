@@ -38,3 +38,29 @@ export const FIELDS: Record<ChannelType, string[]> = {
 
 /** Kênh có thể nhận duyệt hành động (D-38, D-46). Zalo OA và webhook chỉ gửi tin kèm liên kết mở Vedette. */
 export const APPROVAL_CHANNELS: ChannelType[] = ['slack', 'telegram', 'email', 'zalo-personal']
+
+const v4Forbidden = (a: number, b: number, c: number, d: number) => a === 127 || (a === 169 && b === 254) || (a >= 224 && a <= 239) || (a === 0 && b === 0 && c === 0 && d === 0)
+
+/**
+ * A webhook or SMTP host the box never connects to, judged as the box judges a literal IP (modules/notify/channel forbiddenAddr,
+ * after Unmap): loopback and *.localhost, link-local (cloud metadata 169.254.169.254), multicast, unspecified, also inside an
+ * IPv4-mapped IPv6 address. Only real IP literals: a DNS name such as 224.alerts.example.com is judged by the box when it connects.
+ */
+export const forbiddenHost = (host: string) => {
+  const h = host.toLowerCase().replace(/\.$/, '')
+  if (h === 'localhost' || h.endsWith('.localhost')) return true
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h)
+  if (v4) return v4Forbidden(Number(v4[1]), Number(v4[2]), Number(v4[3]), Number(v4[4]))
+  const m = /^\[([0-9a-f:.]+)\]$/.exec(h)
+  if (!m) return false
+  const parts = m[1]!.split('::')
+  if (parts.length > 2) return false
+  const side = (x: string) => (x ? x.split(':').map((p) => (/^[0-9a-f]{1,4}$/.test(p) ? parseInt(p, 16) : NaN)) : [])
+  const head = side(parts[0]!), tail = parts.length === 2 ? side(parts[1]!) : []
+  const fill = 8 - head.length - tail.length
+  if (head.concat(tail).some(Number.isNaN) || (parts.length === 1 ? fill !== 0 : fill < 1)) return false
+  const x = [...head, ...Array<number>(Math.max(fill, 0)).fill(0), ...tail] // URL writes IPv6 compressed, an embedded IPv4 as hex
+  if (x.slice(0, 5).every((v) => v === 0) && x[5] === 0xffff) return v4Forbidden(x[6]! >> 8, x[6]! & 255, x[7]! >> 8, x[7]! & 255) // IPv4-mapped
+  const zero7 = x.slice(0, 7).every((v) => v === 0)
+  return (zero7 && (x[7] === 0 || x[7] === 1)) || (x[0]! & 0xffc0) === 0xfe80 || x[0]! >> 8 === 0xff
+}

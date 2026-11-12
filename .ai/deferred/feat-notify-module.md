@@ -1,7 +1,5 @@
 - [x] Subscribe `response.approval.requested` (call SendApprovalRequest): replaced by a direct call, response sends through the Notifier port wired to notify.SendApprovalRequest — Done (#128, D-124)
-- [ ] Retention of notify_send, notify_incident and notify_notice (DATA_MODEL: 1 year, marked [ĐX]): not pruned; only notify_kev is (30 days).
 - [x] Unwired in cmd/vedette: `Tokens` (response module's token record) — Done (#128)
 - [x] Unwired in cmd/vedette: `Config.BoxAddrs` (host LAN IP, WP-08, see the packaging line below) — Moved → #62
-- [ ] notify GUI follow-up PR: seal webhook URL (SYS-4). `fields.url` of the webhook channel is a bearer secret (path/query tokens) but is stored and returned in plain; needs a contract.ts + GUI change (seal the URL in core/secrets, show `scheme://host/…` plus last4). Supervisor does it with the GUI work.
 - [x] Producers of events notify subscribes to: honeypot publishes `honeypot.hit.created` — Done (#72)
 - [x] Packaging (owner:kien, podman): when the box runs in a podman network that is not the host network, the box's own addresses (webhook guard, Config.BoxAddrs) read from the interfaces are the container's; they must also include the host LAN IP, or a webhook could point at the host. Pass the host addresses through Config.BoxAddrs from the packaging config. — Moved → #62

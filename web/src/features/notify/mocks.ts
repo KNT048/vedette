@@ -13,9 +13,10 @@ import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryIte
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
 // approvals: module khác (response) đọc bằng peek('notify_channels'): mỗi kênh có approvals?: boolean và approvers?: {user_id, address}[]. Giữ nguyên hình dạng này (D-46).
-interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string }
+interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string }
 const blank = (type: ChannelType): StoredChannel => ({ type, configured: false, enabled: false, fields: {}, secret: '', min_severity: 'medium', last_test: null })
-const SAVED_FIELDS: Record<ChannelType, string[]> = { ...FIELDS, slack: ['label', 'channel_id'] }
+// The webhook URL is a bearer secret (SYS-4): the mock keeps it apart from `fields`, as the backend seals it, and shows only scheme://host/… and its last 4 characters.
+const SAVED_FIELDS: Record<ChannelType, string[]> = { ...FIELDS, slack: ['label', 'channel_id'], webhook: [] }
 
 const channels = collection<StoredChannel[]>('notify_channels', () => [
   { type: 'telegram', configured: true, enabled: true, fields: { chat_id: '-1002145678901' }, secret: '123456789:EXAMPLE_not_a_real_token_0000000000', min_severity: 'medium', last_test: { at: daysAgo(2), ok: true, detail: 'Telegram received the test message (chat -1002145678901).' } },
@@ -116,7 +117,8 @@ function history(): HistoryItem[] {
 }
 
 const last4 = (v?: string) => (v ? v.slice(-4) : null)
-const pub = (c: StoredChannel): Channel => { const { secret, app_token, bot_token, approvals, approvers, ...r } = c; return { ...r, secret_last4: last4(secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
+const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…${(u as string).slice(-4)}` } catch { return '' } }
+const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // Quy tắc kênh (đối chiếu 2026-11): Telegram Bot API (token <số bot>:<chuỗi>; chat_id số, nhóm/kênh siêu nhóm bắt đầu -100, kênh công khai @tên);
@@ -150,6 +152,12 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
     addrs.set(key, u.email)
   }
   return null
+}
+
+/** The URL a save means: an empty one, or the masked one the API showed, keeps the saved URL. */
+const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
+  const given = (f.url ?? '').trim()
+  return given && given !== shownUrl(cur.url) ? given : cur.url ?? ''
 }
 
 function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChannel) {
@@ -206,7 +214,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     return need('SMTP password')
   }
   let u: URL | null = null
-  try { u = new URL((f.url ?? '').trim()) } catch { /* không phải URL */ }
+  try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
   return need('webhook signing key')
@@ -214,7 +222,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
 
 /** Mô phỏng một lần gửi: host đuôi .invalid/.test không tới được; token Telegram/Zalo chứa "invalid" bị từ chối. Các trường hợp còn lại thành công. */
 function deliver(c: StoredChannel): { ok: boolean; detail: string } {
-  const host = c.type === 'email' ? c.fields.host ?? '' : c.type === 'webhook' ? (() => { try { return new URL(c.fields.url ?? '').hostname } catch { return '' } })() : ''
+  const host = c.type === 'email' ? c.fields.host ?? '' : c.type === 'webhook' ? (() => { try { return new URL(c.url ?? '').hostname } catch { return '' } })() : ''
   if (/\.(invalid|test)$/.test(host)) return { ok: false, detail: `Could not connect to ${host}. Check the host name, the port and any firewall between the box and that machine.` }
   if ((c.type === 'telegram' || c.type === 'zalo') && /invalid/i.test(c.secret)) {
     return { ok: false, detail: c.type === 'telegram'
@@ -230,7 +238,7 @@ function deliver(c: StoredChannel): { ok: boolean; detail: string } {
     case 'webhook': return { ok: true, detail: 'The webhook returned HTTP 200.' }
   }
 }
-const destOf = (c: StoredChannel) => (c.type === 'telegram' ? `chat ${c.fields.chat_id}` : c.type === 'slack' ? (c.fields.label || 'Slack webhook') : c.type === 'zalo' ? `OA ${c.fields.oa_id}` : c.type === 'zalo-personal' ? `Zalo ${c.fields.user_id}` : c.type === 'email' ? (c.fields.to ?? '') : (c.fields.url ?? ''))
+const destOf = (c: StoredChannel) => (c.type === 'telegram' ? `chat ${c.fields.chat_id}` : c.type === 'slack' ? (c.fields.label || 'Slack webhook') : c.type === 'zalo' ? `OA ${c.fields.oa_id}` : c.type === 'zalo-personal' ? `Zalo ${c.fields.user_id}` : c.type === 'email' ? (c.fields.to ?? '') : (c.url ? new URL(c.url).origin : ''))
 const isType = (v: unknown): v is ChannelType => CHANNEL_TYPES.includes(v as ChannelType)
 
 export const handlers = [
@@ -315,7 +323,7 @@ export const handlers = [
     const secret = (b.secret ?? '').trim()
     const approvals = b.approvals === true
     const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim() })) : []
-    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, min_severity: b.min_severity!, last_test: null, approvals, approvers,
+    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)

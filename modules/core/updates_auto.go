@@ -23,7 +23,8 @@ const (
 	updateCheckEvery  = 6 * time.Hour    // update-manifest §12
 	updateCheckJitter = 30 * time.Minute // ± around updateCheckEvery
 	// autoFresh is how old the last good check may be when the automatic mode installs: one regular interval and a tick.
-	// A check that fails (an index held back to hide a revocation, §13) leaves last_check old, so nothing installs.
+	// A check that fails (an index held back to hide a revocation, §13) stops installs until a check succeeds (upd.failed);
+	// after a restart, last_check (moved only by a good check) growing past this does the same.
 	autoFresh = updateCheckEvery + updateCheckJitter + UpdateTickEvery
 	// autoMinLeft: a run does not start when less of the window is left (pulls and core's switch take a while).
 	autoMinLeft = 30 * time.Minute
@@ -141,7 +142,8 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 	return err
 }
 
-// autoPlan is the release the automatic mode installs now, read under urun.mu: the mode is still automatic, the last good
+// autoPlan is the release the automatic mode installs now, read under urun.mu: the mode is still automatic, the latest
+// check of this process did not fail (from the page or the job; after a restart only the age rule remains), the last good
 // check is at most autoFresh old and its index is not past expires_at (revocations are known, §6, §13), something is
 // offered (verified again, revoked releases dropped), and no run to that release was made yet (D-388: one that failed or
 // was reverted is left to an administrator; one that ended done while this build still runs the older version would
@@ -162,6 +164,10 @@ func (h *OSHandlers) autoPlan(ctx context.Context) (*verifiedRelease, error) {
 	if r.offer == nil {
 		return nil, errNoUpdate
 	}
+	if h.upd.failed.Load() {
+		h.skipOnce(ctx, "auto-failed-check", "the last update check failed")
+		return nil, errAutoSkip
+	}
 	if age := h.now().Sub(s.LastCheck); age > autoFresh || age < 0 || r.idx.Expired(h.now()) {
 		h.skipOnce(ctx, "auto-stale", "the last good update check is too old or its index has expired", "last_check", s.LastCheck)
 		return nil, errAutoSkip
@@ -181,7 +187,7 @@ func (h *OSHandlers) autoPlan(ctx context.Context) (*verifiedRelease, error) {
 // skipOnce logs, once per kind, why the automatic mode did not install.
 func (h *OSHandlers) skipOnce(ctx context.Context, kind, why string, args ...any) {
 	if h.upd.firstWarn(kind) {
-		h.log.WarnContext(ctx, "core: the automatic software update waits: "+why, args...)
+		h.log.WarnContext(ctx, "core: the automatic software update waits", append([]any{"why", why}, args...)...)
 	}
 }
 
@@ -197,5 +203,12 @@ func (h *OSHandlers) inWindow(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	now := h.now()
-	return st.Window.contains(now, loc) && st.Window.contains(now.Add(autoMinLeft), loc), nil
+	if !st.Window.contains(now, loc) {
+		return false, nil
+	}
+	if !st.Window.contains(now.Add(autoMinLeft), loc) { // a window of 30 minutes or less never has enough left
+		h.skipOnce(ctx, "auto-window-short", "less than 30 minutes of the maintenance window is left")
+		return false, nil
+	}
+	return true, nil
 }

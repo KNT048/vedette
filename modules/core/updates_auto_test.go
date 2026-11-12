@@ -182,6 +182,23 @@ func TestUpdateAutoNeedsAFreshGoodCheck(t *testing.T) {
 	}
 }
 
+// A Check now that fails an hour after a good check stops the automatic mode too, though the good check is still young.
+func TestUpdateAutoStopsAfterAFailedCheckNow(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	e.srv.put("/index/index.json.minisig", []byte("not a signature"))
+	e.clock.Advance(time.Hour)
+	wantStatus(t, e.oper.post("/core/updates/check", nil), 502, core.CodeUpdateCheckFailed)
+	e.clock.Advance(core.UpdateTickEvery)
+	if err := e.handler.UpdateTick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if run := getVal(e.admin.get("/core/updates"), "run"); run != nil || len(fh.callList()) != 0 {
+		t.Fatalf("installed after a failed check: run %v, calls %q", run, fh.callList())
+	}
+}
+
 func TestUpdateAutoDoesNotRetryAFailedRelease(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)

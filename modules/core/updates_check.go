@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -67,8 +68,9 @@ type updCheck struct {
 	trust   func() (release.Trust, error)
 	started time.Time // process start: the installed_at of the running release (no better record exists in core)
 
-	checkMu sync.Mutex // one check at a time: two checks could otherwise store an older index over a newer one
-	next    time.Time  // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
+	checkMu sync.Mutex  // one check at a time: two checks could otherwise store an older index over a newer one
+	next    time.Time   // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
+	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing (D-388)
 
 	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
 	contAt time.Time
@@ -570,6 +572,7 @@ func (h *OSHandlers) check(ctx context.Context, c caller) error {
 	h.upd.src = h.releaseBase()
 	detail, cerr := h.runCheck(ctx, c.Email)
 	h.upd.next = h.now().Add(checkInterval())
+	h.upd.failed.Store(cerr != nil)
 	if cerr != nil {
 		cerr = h.checkFailure(ctx, cerr)
 		code := "error"

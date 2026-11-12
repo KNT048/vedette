@@ -2,6 +2,7 @@ package logs
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -283,5 +284,48 @@ func trickle(t *testing.T, perHour int) {
 		if sig := e.svc.sigs.Of("fortigate", l).Signature; !seen[sig] {
 			t.Fatalf("%d an hour: %s was neither announced nor named", perHour, sig)
 		}
+	}
+}
+
+// detailsOf answers as one lookup per signature did: over more than one chunk of signatures, the newest non-empty destination and
+// sample of each win, a signature with no row is the zero detail, and a day older than the counters kept is not read.
+func TestDetailsOfIsOneLookupPerSignature(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.svc.now()
+	dayOf := func(back int) string { return now.UTC().Add(-time.Duration(back) * day).Format("2006-01-02") }
+	first := now.UTC().Format("2006-01-02T15:04:05.000Z")
+	var sigs []string
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		for i := range 2*detailChunk + 5 {
+			sig := fmt.Sprintf("sig%04d", i)
+			sigs = append(sigs, sig)
+			for back, row := range [][2]string{{"", "today"}, {"203.0.113.1", ""}, {"203.0.113.2", "older"}, {"", ""}} { // back 0..3
+				if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, 'ls-1', ?, ?, 1, ?, ?, 1)`,
+					dayOf(back), sig, row[0], first, row[1]); err != nil {
+					return err
+				}
+			}
+		}
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, 'ls-1', 'sig-old', '198.51.100.9', 1, ?, 'gone', 1)`,
+			dayOf(BaselineDays+3), first)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.detailsOf(t.Context(), "ls-1", append(sigs, "sig-none", "sig-old", sigs[0]), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sig := range sigs {
+		if d := got[sig]; d.dest != "203.0.113.1" || d.sample != "today" {
+			t.Fatalf("%s: %+v, want the newest non-empty destination and sample", sig, d)
+		}
+		if one, err := e.svc.detailOf(t.Context(), "ls-1", sig, now); err != nil || one != got[sig] {
+			t.Fatalf("%s: detailOf %+v %v, detailsOf %+v", sig, one, err, got[sig])
+		}
+	}
+	if got["sig-none"] != (detail{}) || got["sig-old"] != (detail{}) {
+		t.Fatalf("no row in the counters kept: %+v %+v", got["sig-none"], got["sig-old"])
 	}
 }

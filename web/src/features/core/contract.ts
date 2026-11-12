@@ -19,13 +19,15 @@ export const Me = z.object({ id: z.string(), name: z.string(), email: z.string()
 export const SetupStatus = z.object({ complete: z.boolean(), org: z.string(), data_mode: z.enum(['sample', 'clean']).describe('sample = trial build with sample data; clean = real install, every table starts empty') })
 export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
 export const EmailCodeSent = z.object({ sent_to: z.string().describe('Masked sign-in email, like a•••@acme.example'), resend_after: z.number().int().describe('Seconds before another code can be sent (60)') })
-export const ModuleState = z.object({ id: ModuleId, enabled: z.boolean(), tier: Tier, depends: z.array(ModuleId), enabled_at: ts.nullable() })
-export const ModulesResponse = z.object({ modules: z.array(ModuleState) })
+const available = z.boolean().describe('false: this install cannot run the module (needs_host in its manifest on a container-only install: honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance')
+export const InstallKind = z.enum(['appliance', 'container']).describe('appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer\'s Docker or Podman, no helper (D-168). The one place the GUI learns it (D-381)')
+export const ModuleState = z.object({ id: ModuleId, enabled: z.boolean(), tier: Tier, depends: z.array(ModuleId), enabled_at: ts.nullable(), available })
+export const ModulesResponse = z.object({ modules: z.array(ModuleState), install: InstallKind })
 export const ToggleResponse = z.object({ modules: z.array(ModuleState), affected: z.array(ModuleId).describe('Enabled modules that depend on the module just turned off') })
 
 // ---- cài đặt ban đầu ----
 export const BundleId = z.enum(['smb', 'mid', 'custom'])
-export const SetupModule = z.object({ id: ModuleId, tier: Tier, depends: z.array(ModuleId) })
+export const SetupModule = z.object({ id: ModuleId, tier: Tier, depends: z.array(ModuleId), available })
 export const SetupPayload = z.object({
   sample: z.boolean().optional().describe('true = use sample data and sign in as the sample administrator; other fields are ignored'),
   org: z.string().optional(),
@@ -238,11 +240,11 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/auth/login/resend-code', summary: 'Send a new two-step email code during sign-in (needs the password again; 429 resend_too_soon within 60 s, too_many_codes after 5 per hour)', stories: ['S-CORE-3'], role: 'public', body: z.object({ email: z.string(), password: z.string() }), response: EmailCodeSent },
   { method: 'post', path: '/auth/logout', summary: 'Sign out', stories: ['S-CORE-3'], role: 'public', response: null },
   { method: 'get', path: '/modules', summary: 'On/off state of every module', stories: ['S-CORE-1'], role: 'viewer', response: ModulesResponse },
-  { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies', stories: ['S-CORE-1'], role: 'admin',
+  { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)', stories: ['S-CORE-1'], role: 'admin',
     params: id, body: z.object({ enabled: z.boolean(), with_dependencies: z.boolean().optional() }), response: ToggleResponse },
   // cài đặt ban đầu
-  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule) }) },
-  { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
+  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind }) },
+  { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
   { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
   { method: 'post', path: '/auth/oidc/start', summary: 'Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited', stories: ['S-CORE-3'], role: 'public', response: OidcStart },
   { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },

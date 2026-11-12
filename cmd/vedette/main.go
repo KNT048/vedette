@@ -314,7 +314,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
 		}
 	}
-	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log, ContainerOnly: o.hostSocket == ""}) // D-381: the install kind, from the one flag compose sets empty (D-168)
 	if err != nil {
 		return err
 	}

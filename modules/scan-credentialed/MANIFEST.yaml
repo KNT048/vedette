@@ -2,6 +2,7 @@ id: scan-credentialed
 name: { en: "Credentialed scans" }
 summary: { en: "Scans important servers with an SSH account through a separate Greenbone container, for the packages and versions a network scan cannot see." }
 tier: optional
+needs_host: true      # D-381: chỉ chạy khi có vedette-host (appliance); bản chỉ container không bật được
 default: false
 depends: [core, inventory, scan]
 permissions: ["container:greenbone", outbound:https]   # container qua vedette-host (Podman/Quadlet, D-55); outbound:https = kéo feed NVT của Greenbone

@@ -34,6 +34,7 @@ func (h *ModuleHandlers) CoreGetModules(context.Context) (*oas.CoreGetModulesOK,
 			Tier:      oas.CoreGetModulesOKModulesItemTier(s.Tier),
 			Enabled:   s.Enabled,
 			EnabledAt: nilTime(s.EnabledAt),
+			Available: s.Available,
 			Depends:   make([]oas.CoreGetModulesOKModulesItemDependsItem, 0, len(s.Depends)),
 		}
 		for _, d := range s.Depends {
@@ -41,7 +42,15 @@ func (h *ModuleHandlers) CoreGetModules(context.Context) (*oas.CoreGetModulesOK,
 		}
 		items = append(items, it)
 	}
-	return &oas.CoreGetModulesOK{Modules: items}, nil
+	return &oas.CoreGetModulesOK{Modules: items, Install: oas.CoreGetModulesOKInstall(installKind(h.reg))}, nil
+}
+
+// installKind is the install kind of GET /modules and GET /core/setup/modules (D-381), from the registry.
+func installKind(reg *modreg.Registry) string {
+	if reg.ContainerOnly() {
+		return "container"
+	}
+	return "appliance"
 }
 
 // CorePatchModulesID implements core_patch_modules_id (admin): turn a module on or off.
@@ -78,6 +87,7 @@ func (h *ModuleHandlers) CorePatchModulesID(ctx context.Context, req *oas.CorePa
 			Tier:      oas.CorePatchModulesIDOKModulesItemTier(s.Tier),
 			Enabled:   s.Enabled,
 			EnabledAt: nilTime(s.EnabledAt),
+			Available: s.Available,
 			Depends:   make([]oas.CorePatchModulesIDOKModulesItemDependsItem, 0, len(s.Depends)),
 		}
 		for _, d := range s.Depends {

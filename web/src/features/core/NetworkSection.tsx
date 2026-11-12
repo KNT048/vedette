@@ -11,6 +11,8 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useNetwork, useNetworkActions } from './api'
+import { ContainerNetwork, InstallPending } from './ContainerOnly'
+import { useInstallKind } from '@/lib/modules'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
@@ -239,11 +241,12 @@ function Body({ d }: { d: NetworkState }) {
 
 export default function NetworkSection() {
   const { t } = useTranslation('core')
-  const q = useNetwork()
+  const install = useInstallKind()
+  const q = useNetwork(install === 'appliance') // D-381: never asked on a container-only install, where it can only answer 409
   return (
     <>
-      <PageHeader title={t('settings.network')} meta={t('network.meta')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
-      <QueryState query={q}>{(d) => <Body d={d} />}</QueryState>
+      <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t('network.meta')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
+      {install === 'container' ? <ContainerNetwork /> : install ? <QueryState query={q}>{(d) => <Body d={d} />}</QueryState> : <InstallPending />}
     </>
   )
 }

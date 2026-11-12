@@ -197,7 +197,7 @@ func (h *OSHandlers) downloadHostPackage(ctx context.Context, version string, fi
 	}
 	dctx, cancel := context.WithTimeout(ctx, hostPackageFetch)
 	defer cancel()
-	req, err := http.NewRequestWithContext(dctx, http.MethodGet, h.upd.base+"/v"+version+"/"+file.Name, nil)
+	req, err := http.NewRequestWithContext(dctx, http.MethodGet, h.releaseBase()+"/v"+version+"/"+file.Name, nil)
 	if err != nil {
 		return fail("request", err)
 	}

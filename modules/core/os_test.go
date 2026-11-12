@@ -77,6 +77,7 @@ type osOpts struct {
 	noHost    bool          // core.Host is nil: a container-only install
 	coreClock time.Duration // how far behind the host clock core's clock is
 	host      core.Host     // use this instead of the in-process host
+	testBase  bool          // a -test. build with no ReleaseBase whose core_data/test-release-base names the release server (#469)
 }
 
 func newOSEnv(t *testing.T, o osOpts) *osEnv {

@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -58,6 +61,8 @@ var (
 type updCheck struct {
 	version string // the running release (main.version)
 	base    string // DefaultReleaseBase, or a test server
+	dataDir string // core_data: where a test-channel build looks for testBaseFile
+	src     string // where this check downloads from: releaseBase(), read once at its start (checkMu)
 	client  *http.Client
 	trust   func() (release.Trust, error)
 	started time.Time // process start: the installed_at of the running release (no better record exists in core)
@@ -76,6 +81,7 @@ type updCheck struct {
 
 func (u *updCheck) init(c OSConfig, now time.Time) error {
 	u.version, u.base, u.client, u.trust, u.started = c.Version, c.ReleaseBase, c.HTTPClient, c.Trust, now
+	u.dataDir = c.DataDir
 	if u.base == "" {
 		u.base = DefaultReleaseBase
 	}
@@ -89,6 +95,62 @@ func (u *updCheck) init(c OSConfig, now time.Time) error {
 		u.trust = release.Embedded
 	}
 	return nil
+}
+
+// testBaseFile is the one-line file in core_data that points a TEST-CHANNEL box at a local release source (#469, D-382),
+// so that an install of 0.0.1-test.1 can be updated to test.2 from the GUI. It is read only by a build whose own version has
+// a -test. prerelease (the version of `make install-artifacts`; release-manifest and the release preflight refuse that version,
+// so no published release ever has it) and only when it names an http(s) address of this machine or its LAN. Nothing else
+// changes: the documents are still verified with the keys compiled into this build, and the host verifies them again.
+const testBaseFile = "test-release-base"
+
+// isTestVersion: a -test. prerelease, the same rule as scripts/release (refuseTestVersion) and install.sh.
+func isTestVersion(v string) bool {
+	l := strings.ToLower(v)
+	return strings.Contains(l, "-test.") || strings.HasSuffix(l, "-test")
+}
+
+// releaseBase is where the release documents come from: the configured base (tests), on a test-channel build the address
+// in testBaseFile, else DefaultReleaseBase. The file is read on every use, so it can be written after the install.
+func (h *OSHandlers) releaseBase() string {
+	u := &h.upd
+	if u.base != DefaultReleaseBase || u.dataDir == "" || !isTestVersion(u.version) {
+		return u.base
+	}
+	path := filepath.Join(u.dataDir, testBaseFile)
+	if st, err := os.Lstat(path); err != nil || !st.Mode().IsRegular() { // a FIFO would block the check
+		return u.base
+	}
+	f, err := os.Open(path) //nolint:gosec // the constant name testBaseFile under core_data
+	if err != nil {
+		return u.base
+	}
+	defer func() { _ = f.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(f, 257))
+	if err != nil {
+		return u.base
+	}
+	b := strings.TrimSpace(string(raw))
+	if v, ok := testBase(b); ok {
+		return v
+	}
+	if u.firstWarn("test-release-base") {
+		h.log.Warn("core: " + testBaseFile + " is not an http(s) address of this machine or its LAN (a private IP; no query, fragment, user info or trailing slash); using the release source")
+	}
+	return u.base
+}
+
+// testBase accepts http(s)://<private or loopback IP>[:port][/path] only.
+func testBase(b string) (string, bool) {
+	p, err := url.Parse(b)
+	if err != nil || len(b) > 256 || (p.Scheme != "http" && p.Scheme != "https") || p.User != nil || p.RawQuery != "" || p.Fragment != "" || strings.ContainsAny(b, "?#") || strings.HasSuffix(b, "/") {
+		return "", false
+	}
+	ip, err := netip.ParseAddr(p.Hostname())
+	if err != nil || (!ip.IsLoopback() && !ip.IsPrivate()) {
+		return "", false
+	}
+	return b, true
 }
 
 // newReleaseClient is the client of the update check: explicit timeouts, no environment proxy, and redirects only over
@@ -414,7 +476,12 @@ func (h *OSHandlers) fetchDoc(ctx context.Context, rawURL string, limit int64) (
 }
 
 // fetchPair downloads a document and its .minisig.
+// docURL is a URL under the fixed upd.base (the one the signed index may name); the bytes come from the check's source,
+// which differs from it only on a test-channel build (releaseBase).
 func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []byte, err error) {
+	if rest, ok := strings.CutPrefix(docURL, h.upd.base); ok && h.upd.src != "" {
+		docURL = h.upd.src + rest
+	}
 	if doc, err = h.fetchDoc(ctx, docURL, release.MaxDocBytes); err != nil {
 		return nil, nil, err
 	}
@@ -424,7 +491,7 @@ func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []b
 	return doc, sig, nil
 }
 
-// manifestURL is the only place a release's manifest is accepted from (D-341): the index names it, and it must be
+// manifestURL is (under the fixed base, never the test source) the only place a release's manifest is accepted from (D-341): the index names it, and it must be
 // exactly this (case-insensitive, as GitHub owners are), so a signed index cannot send the box to another host.
 func (h *OSHandlers) manifestURL(version string) string {
 	return h.upd.base + "/v" + version + "/release-manifest.json"
@@ -477,6 +544,7 @@ func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePos
 	defer leave()
 	h.upd.checkMu.Lock()
 	defer h.upd.checkMu.Unlock()
+	h.upd.src = h.releaseBase()
 	detail, cerr := h.runCheck(ctx, c.Email)
 	if cerr != nil {
 		cerr = h.checkFailure(ctx, cerr)

@@ -286,10 +286,11 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 	if err != nil {
 		return nil, err
 	}
-	if err := o.portsFree(svc, p.oldUnit, want); err != nil { // before the journal and the backup: the old release keeps running (D-455)
+	state := o.unitActive(ctx, svc)
+	wasActive := state == api.UnitActive
+	if err := o.portsFreeToStart(ctx, svc, p.oldUnit, want, state); err != nil { // before the journal and the backup: the old release keeps running (D-455)
 		return nil, err
 	}
-	wasActive := o.unitActive(ctx, svc) == api.UnitActive
 	ver, from := rec.Version, p.oldDigest
 	res := api.ContainerStartResult{Service: svc, Version: &ver, Digest: rec.Digest, PreviousDigest: &from, Healthy: true, Restarted: true, IndexExpired: p.expired}
 	o.noteExpired(rc, api.CmdContainerStart, p)
@@ -321,6 +322,12 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 		}
 		id := bk.BackupID
 		res.BackupID = &id
+	}
+	// Once more after the backup, which can take minutes (D-455): a port taken meanwhile still refuses before the unit changes. The
+	// pre_update backup stays, like any backup (retention ages it).
+	if err := o.portsFreeToStart(ctx, svc, p.oldUnit, want, state); err != nil {
+		o.removeJournal(svc)
+		return nil, err
 	}
 	if err := o.writeUnitForStart(ctx, svc, want); err != nil {
 		o.removeJournal(svc)
@@ -452,7 +459,7 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 	if err != nil || !o.imageIs(ctx, ref, service, p.prev.Digest) {
 		return nil, refuse412(api.CodeNoPrevious, "The image of the previous version is no longer on this machine.")
 	}
-	if err := o.portsFreeFor(service, old, p.prev.Digest); err != nil { // the rollback writes the current template (D-455)
+	if err := o.portsFreeFor(ctx, service, old, p.prev.Digest); err != nil { // the rollback writes the current template (D-455)
 		return nil, err
 	}
 	return p, nil

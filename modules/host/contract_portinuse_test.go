@@ -14,9 +14,11 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// A unit change that adds a host port another program listens on (D-455): an update in place does not run install.sh, so the host
-// refuses the change (412 port_in_use) before it touches the running release, and the unit migration at start keeps the earlier
-// unit. The fake /proc of the machine has a socket table and the process that holds the socket.
+// A unit change that adds a host port (D-455). An update in place does not run install.sh, so before it restarts a service on a
+// unit that publishes a port the earlier unit did not, the host looks at who listens there and refuses (412 port_in_use) with the
+// running release untouched. A change that would only take effect at a later restart (the migration at start, a start without
+// restart of a running service) never adds a port. The fake /proc of the machine has a socket table and the process that holds
+// the socket.
 
 const (
 	pinTCPHeader = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
@@ -47,10 +49,10 @@ func holdPort8765(t *testing.T, m *opstest.Machine, cg string) {
 }
 
 // legacyCore3 is core's unit as host releases before D-395 wrote it (core-3: no 127.0.0.1:8765).
-func legacyCore3(t *testing.T, m *opstest.Machine, digest string) string {
+func legacyCore3(t *testing.T, m *opstest.Machine, digest string, install bool) string {
 	t.Helper()
 	cfg := m.Config()
-	l, err := ops.RenderLegacyUnits(api.ServiceCore, digest, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
+	l, err := ops.RenderLegacyUnits(api.ServiceCore, digest, install, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
 	if err != nil || len(l) < 3 || strings.Contains(string(l[2]), ":8765") {
 		t.Fatalf("no core-3 template without 8765: %v", err)
 	}
@@ -60,20 +62,30 @@ func legacyCore3(t *testing.T, m *opstest.Machine, digest string) string {
 	return string(l[2])
 }
 
-func TestContract_PortInUse_AStartThatAddsABusyPortIsRefusedBeforeAnythingChanges(t *testing.T) {
+func TestContract_PortInUse_ARestartThatAddsABusyPortIsRefusedAndAStartWithoutRestartKeepsTheUnit(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
-	old := legacyCore3(t, e.m, digA)
+	old := legacyCore3(t, e.m, digA, true)
 	e.m.SetRunning(api.ServiceCore, true)
 	holdPort8765(t, e.m, pinUserCg)
-	for _, restart := range []bool{true, false} { // a restart, and the start that only writes the current template
-		ce := e.refusedWith(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceCore, Restart: restart}, 412, api.CodePortInUse)
-		if !strings.Contains(ce.Message, "8765/tcp (python3, pid 4242)") || !strings.Contains(ce.Message, "Nothing was changed.") {
-			t.Errorf("the refusal does not name the port and the program: %s", ce.Message)
-		}
+	rec := e.startHost(t)
+	ce := e.refusedWith(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceCore, Restart: true}, 412, api.CodePortInUse)
+	if !strings.Contains(ce.Message, "8765/tcp (python3, pid 4242)") || !strings.Contains(ce.Message, "Nothing was changed.") {
+		t.Errorf("the refusal does not name the port and the program: %s", ce.Message)
 	}
 	if e.unit(t, api.ServiceCore) != old || len(e.ctl()) != 0 || !e.m.IsRunning(api.ServiceCore) || e.journalExists(api.ServiceCore) {
 		t.Fatalf("the refused start changed something: %v", e.ctl())
+	}
+	// Without restart a running, healthy core is left alone and so is its unit: the change waits for a restart (audited), no 412.
+	r := e.start(t, api.ServiceCore, false)
+	if res := result[api.ContainerStartResult](t, r); r.Status != api.StatusSucceeded || res.Restarted {
+		t.Fatalf("%+v %+v", r, res)
+	}
+	if e.unit(t, api.ServiceCore) != old || len(e.ctl()) != 0 {
+		t.Fatalf("a start without restart moved the unit: %v", e.ctl())
+	}
+	if n := strings.Count(rec.text(), `container.start unit_migration_deferred {"digest":"`+digA+`","ports":["8765/tcp"],"run_id":"`); n != 1 {
+		t.Fatalf("%d deferral lines of the start, want 1: %s", n, rec.text())
 	}
 	// The port held by core's own container (a container of the unit runs in a sub-cgroup of it) is not a conflict.
 	holdPort8765(t, e.m, pinCoreCg)
@@ -81,11 +93,67 @@ func TestContract_PortInUse_AStartThatAddsABusyPortIsRefusedBeforeAnythingChange
 		t.Fatalf("%+v %+v", r, r.Error)
 	}
 	if e.unit(t, api.ServiceCore) != e.render(t, api.ServiceCore, digA, true) {
-		t.Fatal("the start did not write the current template")
+		t.Fatal("the restart did not write the current template")
 	}
-	// The unit publishes 8765 now: a program on it no longer blocks a restart (the port is not new; the running container holds it).
+	// The unit publishes 8765 now and core runs: the port is no longer new, a program on it does not block a restart.
 	holdPort8765(t, e.m, pinUserCg)
 	if r := e.start(t, api.ServiceCore, true); r.Status != api.StatusSucceeded {
+		t.Fatalf("%+v %+v", r, r.Error)
+	}
+}
+
+// A start without restart that puts [Install] back on a unit of an earlier template keeps that template.
+func TestContract_PortInUse_PuttingInstallBackKeepsTheEarlierTemplate(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	legacyCore3(t, e.m, digA, false)
+	e.m.SetRunning(api.ServiceCore, true)
+	if r := e.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
+		t.Fatalf("%+v %+v", r, r.Error)
+	}
+	cfg := e.m.Config()
+	l, err := ops.RenderLegacyUnits(api.ServiceCore, digA, true, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
+	if err != nil || e.unit(t, api.ServiceCore) != string(l[2]) {
+		t.Fatalf("the unit is not core-3 with [Install]:\n%s", e.unit(t, api.ServiceCore))
+	}
+	if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) {
+		t.Fatalf("%v", got)
+	}
+}
+
+// container.stop persist drops [Install] from the unit's own template; it never moves the unit to the current one.
+func TestContract_PortInUse_AStopWithPersistKeepsTheEarlierTemplate(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.writeLegacy(t, api.ServiceHoneypot, digA, 0, true)
+	e.m.SetRunning(api.ServiceHoneypot, true)
+	if r := e.stop(t, api.ServiceHoneypot, true); r.Status != api.StatusSucceeded {
+		t.Fatalf("%+v %+v", r, r.Error)
+	}
+	cfg := e.m.Config()
+	l, err := ops.RenderLegacyUnits(api.ServiceHoneypot, digA, false, cfg.CoreUID, cfg.CoreGID, cfg.SensorUID, cfg.SensorGID, cfg.CoreData)
+	if err != nil || e.unit(t, api.ServiceHoneypot) != string(l[0]) {
+		t.Fatalf("the unit is not honeypot-1 without [Install]:\n%s", e.unit(t, api.ServiceHoneypot))
+	}
+}
+
+// A stopped service holds no port: a start looks at every port of its unit, not only the new ones, and refuses before the restart.
+func TestContract_PortInUse_AStoppedServiceIsCheckedOnEveryPort(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceCore, digA, true) // the current template: 8765 is not new
+	holdPort8765(t, e.m, pinUserCg)
+	for _, restart := range []bool{false, true} {
+		r := e.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceCore, Restart: restart}, api.StatusRefused, api.CodePortInUse)
+		if !strings.Contains(r.Error.Message, "8765/tcp (python3, pid 4242)") {
+			t.Errorf("%s", r.Error.Message)
+		}
+	}
+	if len(e.ctl()) != 0 || e.journalExists(api.ServiceCore) {
+		t.Fatalf("the refused start changed something: %v", e.ctl())
+	}
+	e.m.RemoveRoot("proc/net/tcp")
+	if r := e.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
 		t.Fatalf("%+v %+v", r, r.Error)
 	}
 }
@@ -96,7 +164,7 @@ func TestContract_PortInUse_ACoreSwitchIsRefusedAndTheRunningReleaseStays(t *tes
 	t.Parallel()
 	e := startUpd(t)
 	e.adopt(t, "core", rel1(d1, d1))
-	old := legacyCore3(t, e.m, d1)
+	old := legacyCore3(t, e.m, d1, true)
 	e.pullRel(t, "core", rel2(d2, d2))
 	holdPort8765(t, e.m, pinUserCg)
 	e.forget()
@@ -121,7 +189,7 @@ func TestContract_PortInUse_ACoreSwitchIsRefusedAndTheRunningReleaseStays(t *tes
 		t.Fatal("the switch did not write the current template")
 	}
 	// container.rollback writes the current template too: from a unit of an earlier release it is refused the same way.
-	legacyCore3(t, e.m, d2)
+	legacyCore3(t, e.m, d2, true)
 	holdPort8765(t, e.m, pinUserCg)
 	e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodePortInUse)
 	if v, _ := e.versions(t, "core"); v != v2 {
@@ -129,29 +197,27 @@ func TestContract_PortInUse_ACoreSwitchIsRefusedAndTheRunningReleaseStays(t *tes
 	}
 }
 
-// The unit migration at start (D-316 (10)) does not write a unit whose new port is busy: the earlier unit stays, one
-// unit_migration_deferred line names the port, and the next start, with the port free, migrates.
-func TestContract_PortInUse_TheMigrationAtStartWaitsForTheNewPort(t *testing.T) {
+// The unit migration at start (D-316 (10)) never adds a host port (it runs at boot, before other programs bind theirs): core's
+// earlier unit stays, busy port or not, with one unit_migration_deferred line per start; the restart of a container.start moves it.
+func TestContract_PortInUse_TheMigrationAtStartNeverAddsAPort(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
-	old := legacyCore3(t, e.m, digA)
+	old := legacyCore3(t, e.m, digA, true)
 	e.m.SetRunning(api.ServiceCore, true)
-	holdPort8765(t, e.m, pinUserCg)
-	rec := e.startHost(t)
-	if e.unit(t, api.ServiceCore) != old || slices.Contains(e.ctl(), "daemon-reload") {
-		t.Fatalf("the unit was migrated onto a busy port: %v", e.ctl())
-	}
-	txt := rec.text()
-	if !strings.Contains(txt, "container.start unit_migration_deferred") || !strings.Contains(txt, `"ports":["8765/tcp (python3, pid 4242)"]`) ||
-		strings.Contains(txt, "unit_migrated") || strings.Contains(txt, "unit_migration_failed") {
-		t.Fatalf("audit: %s", txt)
+	for range 2 {
+		rec := e.startHost(t)
+		if e.unit(t, api.ServiceCore) != old || slices.Contains(e.ctl(), "daemon-reload") {
+			t.Fatalf("the migration added a port: %v", e.ctl())
+		}
+		txt := rec.text()
+		if strings.Count(txt, "unit_migration_deferred") != 1 || !strings.Contains(txt, `"ports":["8765/tcp"]`) || strings.Contains(txt, "unit_migrated") {
+			t.Fatalf("audit: %s", txt)
+		}
 	}
 	if !e.state(t)[api.ServiceCore].Installed {
 		t.Error("the kept unit is not the host's")
 	}
-	e.m.RemoveRoot("proc/net/tcp")
-	rec = e.startHost(t)
-	if e.unit(t, api.ServiceCore) != e.render(t, api.ServiceCore, digA, true) || !strings.Contains(rec.text(), "unit_migrated") {
-		t.Fatalf("the next start did not migrate: %s", rec.text())
+	if r := e.start(t, api.ServiceCore, true); r.Status != api.StatusSucceeded || e.unit(t, api.ServiceCore) != e.render(t, api.ServiceCore, digA, true) {
+		t.Fatalf("the restart did not move the unit: %+v", r)
 	}
 }

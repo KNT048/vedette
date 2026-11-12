@@ -1,8 +1,11 @@
 package ops
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
+	"io"
 	"log/slog"
 	"net/netip"
 	"os"
@@ -10,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
@@ -71,6 +75,11 @@ func TestPublishedPortsForms(t *testing.T) {
 		{"PublishPort=0:80", nil},
 		{"PublishPort=70000:80", nil},
 		{"#PublishPort=80:80", nil},
+		{"PublishPort = 8765:8765 ", []hostPort{{port: 8765}}}, // spaces around "=" and after the value
+		{"PublishPort=8765:8765/sctp", nil},                    // another protocol: never treated as tcp
+		{"PublishPort=8765:8765/tcp,udp", nil},
+		{"PublishPort=8765:8765/", nil},
+		{"PublishPorts=80:80", nil},
 	}
 	for _, c := range cases {
 		if got := publishedPorts([]byte("[Container]\n" + c.line + "\n")); !slices.Equal(got, c.want) {
@@ -143,7 +152,10 @@ func TestParseProcNet(t *testing.T) {
 		procRow("XYZ:223D", "0A", "16") + // not an address
 		procRow("0100007F:223D", "0A", "-1") + // not an inode
 		"garbage\n"
-	got := parseProcNet(strings.NewReader(tcp), false)
+	got, err := parseProcNet(strings.NewReader(tcp), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []sockEntry{
 		{addr: netip.MustParseAddr("127.0.0.1"), port: 8765, inode: 11},
 		{addr: netip.MustParseAddr("0.0.0.0"), port: 6514, inode: 12},
@@ -156,7 +168,10 @@ func TestParseProcNet(t *testing.T) {
 		procRow("00000000000000000000000000000000:223D", "0A", "21") + // [::]:8765
 		procRow("00000000000000000000000001000000:223D", "0A", "22") + // [::1]:8765
 		procRow("0000000000000000FFFF00000100007F:223D", "0A", "23") // [::ffff:127.0.0.1]:8765
-	got = parseProcNet(strings.NewReader(tcp6), false)
+	got, err = parseProcNet(strings.NewReader(tcp6), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want = []sockEntry{
 		{addr: netip.MustParseAddr("::"), port: 8765, inode: 21},
 		{addr: netip.MustParseAddr("::1"), port: 8765, inode: 22},
@@ -167,8 +182,16 @@ func TestParseProcNet(t *testing.T) {
 	}
 	// UDP: a bound socket holds its port in any state.
 	udp := procNetHeader + procRow("00000000:0202", "07", "31") + procRow("0100007F:0202", "01", "32")
-	if got := parseProcNet(strings.NewReader(udp), true); len(got) != 2 || !got[0].udp || got[0].port != 514 || got[1].inode != 32 {
-		t.Fatalf("udp: %v", got)
+	if got, err := parseProcNet(strings.NewReader(udp), true); err != nil || len(got) != 2 || !got[0].udp || got[0].port != 514 || got[1].inode != 32 {
+		t.Fatalf("udp: %v %v", got, err)
+	}
+	// A read error is returned with what came before it; so is a line longer than any the kernel prints.
+	got, err = parseProcNet(io.MultiReader(strings.NewReader(procNetHeader+procRow("0100007F:223D", "0A", "11")), iotest.ErrReader(errors.New("boom"))), false)
+	if err == nil || len(got) != 1 {
+		t.Fatalf("read error: %v %v", got, err)
+	}
+	if got, err = parseProcNet(strings.NewReader(procRow("0100007F:223D", "0A", "11")+strings.Repeat("x", 5000)+"\n"), false); err == nil || len(got) != 1 {
+		t.Fatalf("long line: %v %v", got, err)
 	}
 }
 
@@ -320,7 +343,7 @@ func TestBusyPortsNamesTheProgramAndSparesTheServiceItself(t *testing.T) {
 			t.Parallel()
 			p := newFakeProc(t)
 			c.setup(p)
-			got := busyList(p.ops(t).busyPorts(api.ServiceCore, old, want))
+			got := busyList(p.ops(t).busyPorts(context.Background(), api.ServiceCore, old, want))
 			if len(got) == 0 {
 				got = nil
 			}
@@ -347,7 +370,8 @@ func TestPortsFreeRefusesWith412PortInUse(t *testing.T) {
 	p.process("4242", "python3", cgUser, "41")
 	p.process("600", "rsyslogd", cgUser, "51")
 	o := p.ops(t)
-	err = o.portsFree(api.ServiceCore, old, want)
+	ctx := context.Background()
+	err = o.portsFree(ctx, api.ServiceCore, old, want)
 	var ref *server.Refusal
 	if !errors.As(err, &ref) || ref.Status != 412 || ref.Code != api.CodePortInUse {
 		t.Fatalf("%v", err)
@@ -357,15 +381,32 @@ func TestPortsFreeRefusesWith412PortInUse(t *testing.T) {
 			t.Errorf("message %q lacks %q", ref.Message, s)
 		}
 	}
-	if err := o.portsFree(api.ServiceCore, want, want); err != nil {
+	if err := o.portsFree(ctx, api.ServiceCore, want, want); err != nil {
 		t.Fatalf("the same unit: %v", err)
 	}
-	// A table that is there but not a file the host can read: logged, no refusal (the check never blocks on its own misreading).
+	// A stopped service (no old unit to compare with): every port is looked at, 8443 included.
+	r := newFakeProc(t)
+	r.table("tcp", procRow("00000000:20FB", "0A", "61"))
+	r.process("70", "nginx", cgUser, "61")
+	if err := r.ops(t).portsFree(ctx, api.ServiceCore, nil, want); !errors.As(err, &ref) || !strings.Contains(ref.Message, "Port 8443/tcp (nginx, pid 70) is in use") {
+		t.Fatalf("every port of a stopped service: %v", err)
+	}
+	if err := r.ops(t).portsFree(ctx, api.ServiceCore, old, want); err != nil {
+		t.Fatalf("a running service's own port: %v", err)
+	}
+	// A table that is there but cannot be read (a directory: the read fails): logged, no refusal (the check never blocks on its
+	// own misreading).
 	q := newFakeProc(t)
 	if err := os.Mkdir(filepath.Join(q.root, "proc", "net", "tcp"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := q.ops(t).portsFree(api.ServiceCore, old, want); err != nil {
+	var logged bytes.Buffer
+	qo := q.ops(t)
+	qo.log = slog.New(slog.NewTextHandler(&logged, nil))
+	if err := qo.portsFree(ctx, api.ServiceCore, old, want); err != nil {
 		t.Fatalf("an unreadable table refused: %v", err)
+	}
+	if !strings.Contains(logged.String(), "could not read a socket table to its end") || !strings.Contains(logged.String(), "table=proc/net/tcp") {
+		t.Fatalf("the unreadable table was not logged: %s", logged.String())
 	}
 }

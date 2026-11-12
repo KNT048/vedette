@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -19,17 +20,19 @@ import (
 
 // Host ports a unit change adds (D-455). A unit that publishes a host port another program listens on does not start: Podman
 // cannot reserve the port, the container exits, and for core that takes 8443 down with it. install.sh refuses a busy port on a
-// fresh box, but an update in place never runs install.sh, so the host looks itself, before it writes a unit that publishes a port
-// the unit it replaces did not (D-395 added 127.0.0.1:8765, D-214 6514): container.start and container.rollback refuse
-// 412 port_in_use and leave the running release alone; the unit migration at start keeps the earlier unit (unit_migration_deferred)
-// and tries again at the next start.
+// fresh box, but an update in place never runs install.sh, so the host looks itself, right before it restarts a service on a unit
+// that publishes a port the unit it replaces did not (D-395 added 127.0.0.1:8765, D-214 6514): container.start and
+// container.rollback refuse 412 port_in_use and leave the running release alone. A change that would only take effect at a later
+// restart never adds a port: the unit migration at host start (which runs at boot, before other services have bound their ports)
+// and a container.start without restart of a running service keep the unit on its earlier template (unit_migration_deferred), and
+// the next container.start that restarts the service checks and writes it, with the health revert behind it.
 //
 // It reads the kernel's socket tables (/proc/net/tcp, tcp6, udp, udp6) and, only for a listener it found, which processes hold that
 // socket (/proc/<pid>/fd) and their name and cgroup: no program runs, no socket is opened. A socket held by a process of the service's
-// own systemd unit (the container being replaced, its conmon) is not a conflict. A port the earlier unit already published is not
-// looked at: the running container holds it, and judging its owner is what would go wrong (ponytail: a unit already rewritten on
-// disk whose running container is still the earlier one is not covered; the migration that wrote it checked the port then).
-// A table the host cannot read says nothing (logged): the check never blocks an update on its own misreading.
+// own systemd unit (the container being replaced, its conmon) is not a conflict. While the service runs, a port the earlier unit
+// already published is not looked at (the running container holds it); a stopped service has nothing that holds a port, so every
+// port of its unit is looked at. A table the host cannot read says nothing (logged): the check never blocks an update on its own
+// misreading.
 
 const (
 	maxProcNetLines = 1 << 20 // listeners come first in the kernel's tables; a busy box has many connections after them
@@ -52,20 +55,26 @@ func (p hostPort) String() string {
 }
 
 // publishedPorts reads the PublishPort= lines of a unit the host wrote: [ip:]hostPort:containerPort[/proto], an IPv6 address in
-// brackets. A line without a fixed host port, or with a range, is not one the host writes and is skipped (a test pins that every
-// line of every template is read).
+// brackets, spaces allowed around "=". A line without a fixed host port, with a range, or with another protocol than tcp or udp
+// (sctp, "tcp,udp") is not one the host writes and is skipped (a test pins that every line of every template is read).
 func publishedPorts(unit []byte) []hostPort {
 	var out []hostPort
 	for line := range strings.SplitSeq(string(unit), "\n") {
-		v, ok := strings.CutPrefix(line, "PublishPort=")
-		if !ok {
+		key, v, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "PublishPort" {
 			continue
 		}
+		v = strings.TrimSpace(v)
 		udp := false
-		if s, ok := strings.CutSuffix(v, "/udp"); ok {
-			v, udp = s, true
-		} else {
-			v = strings.TrimSuffix(v, "/tcp")
+		if i := strings.IndexByte(v, '/'); i >= 0 {
+			switch v[i:] {
+			case "/tcp":
+			case "/udp":
+				udp = true
+			default:
+				continue
+			}
+			v = v[:i]
 		}
 		i := strings.LastIndexByte(v, ':')
 		if i < 0 {
@@ -114,8 +123,9 @@ type sockEntry struct {
 }
 
 // parseProcNet reads /proc/net/tcp, tcp6, udp or udp6 text: TCP sockets in LISTEN (0A), every UDP socket (a bound one holds its port
-// whether connected or not). Lines that do not parse are skipped; input is bounded by lines.
-func parseProcNet(r io.Reader, udp bool) []sockEntry {
+// whether connected or not). Lines that do not parse are skipped; input is bounded by lines. A read error (or an over-long line) is
+// returned with the sockets read before it.
+func parseProcNet(r io.Reader, udp bool) ([]sockEntry, error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 512), 4096)
 	var out []sockEntry
@@ -136,7 +146,7 @@ func parseProcNet(r io.Reader, udp bool) []sockEntry {
 		}
 		out = append(out, sockEntry{addr: addr, port: uint16(port), udp: udp, inode: inode})
 	}
-	return out
+	return out, sc.Err()
 }
 
 // procNetAddr reads an address of /proc/net/{tcp,udp}{,6}: the kernel prints each 32-bit word it holds in network order as a
@@ -163,8 +173,8 @@ func clashes(p hostPort, s sockEntry) bool {
 }
 
 // sockets reads the four socket tables under the root. A table that is not there (no IPv6) has nothing; one that cannot be read
-// is logged and has nothing.
-func (o *Ops) sockets() []sockEntry {
+// is logged and has what was read of it.
+func (o *Ops) sockets(ctx context.Context) []sockEntry {
 	var out []sockEntry
 	for _, t := range []struct {
 		rel string
@@ -173,12 +183,16 @@ func (o *Ops) sockets() []sockEntry {
 		f, err := os.Open(o.path(t.rel))
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
-				o.log.Warn("could not read a socket table; the port check goes on without it", "table", t.rel, "error", err.Error())
+				o.log.WarnContext(ctx, "could not read a socket table; the port check goes on without it", "table", t.rel, "error", err.Error())
 			}
 			continue
 		}
-		out = append(out, parseProcNet(f, t.udp)...)
+		s, err := parseProcNet(f, t.udp)
 		_ = f.Close()
+		if err != nil {
+			o.log.WarnContext(ctx, "could not read a socket table to its end; the port check goes on with what was read", "table", t.rel, "error", err.Error())
+		}
+		out = append(out, s...)
 	}
 	return out
 }
@@ -294,14 +308,14 @@ func (b busyPort) String() string {
 	return b.hostPort.String()
 }
 
-// busyPorts lists the ports want adds over old on which a program outside the service's own unit listens. Nothing is read when the
-// change adds no port.
-func (o *Ops) busyPorts(service string, old, want []byte) []busyPort {
+// busyPorts lists the ports want adds over old (every port of want when old is nil) on which a program outside the service's own
+// unit listens. Nothing is read when the change adds no port.
+func (o *Ops) busyPorts(ctx context.Context, service string, old, want []byte) []busyPort {
 	added := addedPorts(old, want)
 	if len(added) == 0 {
 		return nil
 	}
-	socks := o.sockets()
+	socks := o.sockets(ctx)
 	inodes := map[uint64]bool{}
 	for _, p := range added {
 		for _, s := range socks {
@@ -348,24 +362,53 @@ func busyList(bs []busyPort) []string {
 	return out
 }
 
+func portList(ps []hostPort) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = p.String()
+	}
+	return out
+}
+
+// noteUnitDeferred says, in the log and the audit trail, that a unit stays on its earlier template because the current one would add
+// host ports and nothing restarts the service now (the migration at start, a container.start without restart of a running service).
+func (o *Ops) noteUnitDeferred(ctx context.Context, service, digest, runID string, added []hostPort) {
+	detail := map[string]any{"service": service, "digest": digest, "ports": portList(added)}
+	if runID != "" {
+		detail["run_id"] = runID
+	}
+	o.log.InfoContext(ctx, "the unit stays on its earlier template until the service restarts: the current one publishes new host ports",
+		"service", service, "ports", strings.Join(portList(added), ", "))
+	o.note(api.CmdContainerStart, "unit_migration_deferred", detail)
+}
+
 // portsFreeFor is portsFree for the unit the host would write for digest (Check, and container.rollback's plan).
-func (o *Ops) portsFreeFor(service string, old []byte, digest string) error {
+func (o *Ops) portsFreeFor(ctx context.Context, service string, old []byte, digest string) error {
 	want, err := o.renderUnitFor(service, digest)
 	if err != nil {
 		return err
 	}
-	return o.portsFree(service, old, want)
+	return o.portsFree(ctx, service, old, want)
 }
 
-// portsFree refuses (412 port_in_use) a unit change that adds a port another program listens on, naming the ports and the
-// processes; nothing has been changed when it does.
-func (o *Ops) portsFree(service string, old, want []byte) error {
-	busy := o.busyPorts(service, old, want)
+// portsFreeToStart is the look right before a restart: a stopped service (inactive or failed) holds no port, so every port of want
+// is looked at; a running one, only the ports want adds over old.
+func (o *Ops) portsFreeToStart(ctx context.Context, service string, old, want []byte, state string) error {
+	if isStopped(state) {
+		old = nil
+	}
+	return o.portsFree(ctx, service, old, want)
+}
+
+// portsFree refuses (412 port_in_use) a unit change that adds a port another program listens on (every port of want when old is
+// nil), naming the ports and the processes; nothing has been changed when it does.
+func (o *Ops) portsFree(ctx context.Context, service string, old, want []byte) error {
+	busy := o.busyPorts(ctx, service, old, want)
 	if len(busy) == 0 {
 		return nil
 	}
 	list := busyList(busy)
-	o.log.Warn("a port the new unit publishes is in use by another program; the unit is not changed", "service", service, "ports", strings.Join(list, ", "))
+	o.log.WarnContext(ctx, "a port the new unit publishes is in use by another program; the unit is not changed", "service", service, "ports", strings.Join(list, ", "))
 	what := "Port " + list[0] + " is"
 	if len(list) > 1 {
 		what = "Ports " + strings.Join(list, ", ") + " are"

@@ -24,7 +24,7 @@ has none.
 | 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, `gates.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
 | 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the platform's `config` in `images.json`) | maintainer | `release.in.json`, `images.json`, `dist/sbom` | printed commands | none |
 | 7 | run the printed cosign commands | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
-| 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
+| 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, `gates.json` (the `.deb` hashes), cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
 | 9 | `make release-container-assets` | maintainer | git at `v<v>`, `release.in.json` | the four container-only files | none |
 | 10 | **[A]** `make release-bake-install MINISIGN_KEY=…` (active; the backup key only for a rescue) | maintainer | `install.sh` at the tag, `release-manifest.json`, the `.deb` | `dist/release/install.sh` (3 baked lines), `install.sh.minisig` with the trusted comment `file:install.sh version:<v>` | **minisign active key** |
 | 11 | `make release-sign MINISIGN_KEY=…` (active), then `RELEASE_SLOT=backup` with the offline key | **kien** | `dist/release` | `.minisig` files; `index.json.backup.minisig` | **minisign active**, then **backup** (USB) |
@@ -54,9 +54,10 @@ floor, per `.deb` arch its file name, SHA-256 and size (of the bytes compared wi
 uses (push compares it with a list already in the registry, `images.json` records it, part C requires each SBOM's trivy `ImageID` to
 equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image). A
 final run removes an earlier `gates.json` first, so a failed run never leaves a previous pass; `-preflight` writes and removes nothing.
-Steps 4 and 5 read it strictly (known fields only, both packages and the four images once each) and refuse when it is missing, of
+Steps 4, 5 and 8 read it strictly (known fields only, both packages and the four images once each) and refuse when it is missing, of
 another version, or names other bytes: "run make release-gates again". A `make images` or `make host-deb` between step 3 and steps
-4–5 is therefore caught, not shipped.
+4–8 is therefore caught, not shipped (step 8 checks the hashes the manifest names, so bake-install and publish, which compare with
+the signed manifest, inherit it).
 
 **`release-push`** (`scripts/release` `push`, podman only). For each of `core`, `sensor`, `scan-base` (published as **`vedette-scan`**:
 the manifest, the cosign identity and `vedette.env` all call it `scan`, and the box builds its scan image FROM it, D-147) and `honeypot`:
@@ -65,7 +66,7 @@ the manifest, the cosign identity and `vedette.env` all call it `scan`, and the 
    (default linux/amd64 + linux/arm64); `podman images --all --format json` gives each platform image's ID (its config digest), size
    and labels, and every platform must carry `org.opencontainers.image.version=<v>` and have the config digest `gates.json` records
    (`-gates`, default `<out>/gates.json`; a missing record or one of another version is refused). All four lists are read and compared
-   before anything is pushed. A rehearsal needs a `gates.json` too.
+   before anything is pushed.
 2. Refuses when a **local** image is named `ghcr.io/knt048/vedette-<service>:<v>`: podman resolves a name in local storage first and
    has no `docker://` form for `manifest inspect` (measured, podman 5.7), so the read-back below would read the local copy.
 3. Is `…:<v>` already in the registry (`podman manifest inspect`, with podman's login)? "manifest unknown" → push. Present → read it
@@ -81,9 +82,9 @@ the manifest, the cosign identity and `vedette.env` all call it `scan`, and the 
 6. `podman manifest inspect …:<v>`: the version tag must name the same per-platform digests. The tag is for people; nothing
    downstream reads it.
 
-Also refused: a registry other than `ghcr.io/knt048` unless it is on 127.0.0.1/[::1]/localhost (a **rehearsal**: TLS verification, the
-`-test.` refusal and the git checks are off; Linux only, because podman on macOS runs in a VM whose 127.0.0.1 is not the Mac's); a
-non-SemVer or `-test.` version; uncommitted changes to tracked files; HEAD not equal to tag `v<v>`; `CONTAINER=docker` (§4).
+Also refused: a registry other than `ghcr.io/knt048` unless it is on 127.0.0.1/[::1]/localhost (a **rehearsal**: TLS verification and the
+git checks are off; Linux only, because podman on macOS runs in a VM whose 127.0.0.1 is not the Mac's); a
+non-SemVer or `-test.` version (a rehearsal too); uncommitted changes to tracked files; HEAD not equal to tag `v<v>`; `CONTAINER=docker` (§4).
 The git check proves the **tree** is the tag, not that the images were built from it: untracked files are not looked at, and the images
 are only tied to `<v>` by their version label (and B's gates); build them from the tag in the same session.
 `images.json` is written only after all four are in the registry and read back:
@@ -236,3 +237,7 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
 - Release notes: written by hand into `release.in.json` after step 5 (they are signed in the manifest and reused as the GitHub notes).
 - Only a loopback registry, a fake registry (`httptest`) and fakes of `gh` were used: the first real ghcr push and publish are kien's
   (`.ai/deferred/feat-release-push.md`).
+- **Rehearsing** steps 1–5 is as strict as a release (no bypass, no rehearsal record): in a scratch full clone, tag a real SemVer
+  version locally (`git tag v9.9.0`, never pushed), run steps 1–3 with `MIN_SEQUENCE=0` (a first release), then
+  `make release-push VERSION=9.9.0 REGISTRY=127.0.0.1:<port>` against a local `registry:2`. `release-in` refuses the rehearsal's
+  `images.json` by design.

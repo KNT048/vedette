@@ -192,7 +192,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 	if err != nil {
 		return err
 	}
-	say(stdout, "wrote %s: release-push and release-in ship only these images and packages", p)
+	say(stdout, "wrote %s: release-push, release-in and release-manifest ship only these images and packages", p)
 	return nil
 }
 
@@ -230,7 +230,7 @@ func writeGates(dir string, g *GatesDoc) (string, error) {
 func readGates(p string) (*GatesDoc, error) {
 	raw, err := readSmall(p, 64<<10)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("no gates record %s: run make release-gates (step 3) first; release-push and release-in ship only what it checked", p)
+		return nil, fmt.Errorf("no gates record %s: run make release-gates (step 3) first; release-push, release-in and release-manifest ship only what it checked", p)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("gates record: %w", err)
@@ -296,7 +296,7 @@ func countFunc[T any](s []T, f func(T) bool) int {
 
 // gatesAgain is the remedy every refusal against the record names.
 func gatesAgain(version string) string {
-	return "run make release-gates VERSION=" + version + " again (it checks what is there now) before release-push and release-in"
+	return "run make release-gates VERSION=" + version + " again (it checks what is there now)"
 }
 
 // checkVersion refuses a record of another release.
@@ -346,6 +346,18 @@ func (g *GatesDoc) checkDeb(arch, path, sum string, size int64) error {
 		}
 	}
 	return fmt.Errorf("%s has sha256 %s (%d bytes) now, the gates checked %s (%s, %d bytes): it was built again after the gates; %s", path, sum, size, orNone(d.SHA256), d.File, d.Size, gatesAgain(g.Version))
+}
+
+// checkHost refuses host packages whose recorded hashes (h, as release-manifest or release-in computed them from paths, in the same
+// order) are not the bytes the gates checked.
+func (g *GatesDoc) checkHost(h *release.HostPart, paths []string) error {
+	for i, f := range h.Files {
+		_, arch, _ := release.ParseHostPackageName(f.Name) // buildHostPart parsed it
+		if err := g.checkDeb(arch, paths[i], f.SHA256, f.Size); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func orNone(s string) string {

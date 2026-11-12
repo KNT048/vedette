@@ -294,6 +294,9 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 	if _, err := release.CompareVersions(o.Version, o.Version); err != nil {
 		return nil, fmt.Errorf("version %q is not SemVer (no v, no build metadata)", o.Version)
 	}
+	if err := refuseTestVersion(o.Version); err != nil { // a rehearsal too: it pushes a real version the gates passed
+		return nil, err
+	}
 	if !registryRE.MatchString(o.Registry) {
 		return nil, fmt.Errorf("registry %q is malformed", o.Registry)
 	}
@@ -318,14 +321,9 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 	}
 	if rehearsal {
 		// Linux only: podman on macOS runs in a VM (podman machine), whose 127.0.0.1 is not the Mac's.
-		say(stdout, "rehearsal: %s is on this machine; TLS verification, the -test. refusal and the git checks are off", o.Registry)
-	} else {
-		if err := refuseTestVersion(o.Version); err != nil {
-			return nil, err
-		}
-		if err := checkReleaseTree(ctx, run, o.Repo, o.Version); err != nil {
-			return nil, err
-		}
+		say(stdout, "rehearsal: %s is on this machine; TLS verification and the git checks are off", o.Registry)
+	} else if err := checkReleaseTree(ctx, run, o.Repo, o.Version); err != nil {
+		return nil, err
 	}
 	var tls []string
 	if rehearsal {
@@ -627,11 +625,8 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 	if err != nil {
 		return in, fmt.Errorf("%w (host-deb writes them to %s; a version with a prerelease needs the SemVer spelling, not nfpm's ~: make release-deb-name)", err, o.DebDir)
 	}
-	for i, f := range hp.Files {
-		_, arch, _ := release.ParseHostPackageName(f.Name) // buildHostPart parsed it
-		if err := gates.checkDeb(arch, h.Files[i], f.SHA256, f.Size); err != nil {
-			return in, err
-		}
+	if err := gates.checkHost(hp, h.Files); err != nil {
+		return in, err
 	}
 	in.Host = &h
 	if err := checkInstallModes(in.InstallModes); err != nil {

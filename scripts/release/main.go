@@ -4,7 +4,7 @@
 // published. It runs on the maintainer's machine, offline except push and publish (D-457); it creates no tag and holds no key.
 //
 //	go run ./scripts/release cosign-plan -in release.in.json -images dist/release/images.json -sbom dist/sbom -key ~/keys/cosign.key -out dist/release/cosign   (prints the sign lines, then a cosign attest --type cyclonedx line per platform SBOM)
-//	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
+//	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-gates dist/release/gates.json] [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
 //	go run ./scripts/release container-assets -in release.in.json -out dist/release [-ref v0.2.0 -compose-dir deploy/compose/container-only]   (D-451: the compose files and the filled vedette.env, read from git at the tag; sign signs them, verify checks them)
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
@@ -182,11 +182,19 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	repo := fs.String("repo", ".", "repository root")
 	keys := fs.String("keys-dir", "", "directory with minisign.pub, minisign-backup.pub, cosign.pub (default: the keys compiled in)")
 	now := fs.String("now", "", "RFC 3339 time to use as released_at when the description has none (default now; at most 10 minutes from the clock)")
+	gatesPath := fs.String("gates", "dist/release/gates.json", "the record of release gates: the two .deb must be the bytes it checked")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	inputs, err := readInputs(*in)
 	if err != nil {
+		return err
+	}
+	gates, err := readGates(*gatesPath)
+	if err != nil {
+		return err
+	}
+	if err := gates.checkVersion(inputs.Version); err != nil {
 		return err
 	}
 	env := Env{Now: time.Now(), CosignDir: *cosignDir}
@@ -239,6 +247,10 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	}
 	res, err := BuildManifest(inputs, env)
 	if err != nil {
+		return err
+	}
+	// the hashes the manifest names (and later signs) are the bytes the gates checked: a make host-deb after step 3 is refused here
+	if err := gates.checkHost(res.Host, inputs.Host.Files); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(*out, 0o755); err != nil { //nolint:gosec // build output, not secret

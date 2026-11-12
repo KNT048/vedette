@@ -86,7 +86,8 @@ type Env struct {
 type Result struct {
 	Manifest []byte
 	DBSchema int
-	Findings []Finding // reasons rollback.safe=true is not allowed (empty when the migrations are add-only)
+	Findings []Finding         // reasons rollback.safe=true is not allowed (empty when the migrations are add-only)
+	Host     *release.HostPart // the packages as the manifest names them (the sha256 and size it hashed)
 }
 
 const maxHashedFile = 1 << 30
@@ -198,6 +199,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		return res, err
 	}
 	m.Host = h
+	res.Host = h
 	if in.SBOM != nil {
 		sum, _, err := hashFile(in.SBOM.File)
 		if err != nil {

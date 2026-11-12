@@ -61,7 +61,7 @@ help:
 	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
-	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job (D-457, D-401), after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; then dist/release/gates.json, the record release-push and release-in refuse to differ from; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
+	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job (D-457, D-401), after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; then dist/release/gates.json, the record release-push, release-in and release-manifest refuse to differ from; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
@@ -386,7 +386,7 @@ notices-check:
 # verified sequence of that index, checked again by `release gates` since make lets a MIN_SEQUENCE from the environment win; MIN_SEQUENCE=0
 # for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset).
 # Only when all of it passed does `release gates` write $(RELEASE_OUT)/gates.json (each .deb's sha256 and size, each image platform's
-# config digest); it removes an earlier one first. release-push and release-in refuse anything that differs from it.
+# config digest); it removes an earlier one first. release-push, release-in and release-manifest refuse anything that differs from it.
 .PHONY: release-gates
 RELEASE_GATES_ARGS = -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' $(if $(RELEASE_PREV_INDEX),-prev-index '$(RELEASE_PREV_INDEX)') $(RELEASE_KEYS_ARG)
 release-gates: check-min-sequence
@@ -474,7 +474,7 @@ release-cosign-plan:
 	@$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -images $(RELEASE_OUT)/images.json -sbom dist/sbom -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign -cosign "$${COSIGN_BIN:-$$(scripts/release/cosign.sh)}"
 
 release-manifest: check-min-sequence
-	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) -gates $(RELEASE_OUT)/gates.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
 	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_KEYS_ARG)
 
 # D-451: read from git at the release tag (RELEASE_REF, default v<version>), like the migrations of release-manifest.

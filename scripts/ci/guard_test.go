@@ -281,9 +281,9 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE"`) {
 		t.Errorf("go-test must drop -race on a pull request only (%d RACE settings)", got)
 	}
-	if !regexp.MustCompile(`(?m)^RACE \?= -race$`).MatchString(mk) ||
+	if !regexp.MustCompile(`(?m)^RACE \?= -race$`).MatchString(mk) || len(regexp.MustCompile(`(?m)^\s*(override\s+|export\s+)?RACE\s*[:+?!]?=`).FindAllString(mk, -1)) != 1 ||
 		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) `).FindAllString(mk, -1)) != 2 {
-		t.Error("make test-go-shard must run both go test calls with $(RACE), -race unless set")
+		t.Error("make test-go-shard must run both go test calls with $(RACE), set once in the Makefile to -race unless given")
 	}
 	cached := regexp.MustCompile(`(?m)^\t.*go test .*\$\$c\b.*$`).FindAllString(mk, -1)
 	if len(cached) != 1 || strings.Contains(cached[0], "-count") {

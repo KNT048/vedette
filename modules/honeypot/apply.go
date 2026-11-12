@@ -310,7 +310,10 @@ func (s *Service) Apply(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
 		reason := "the host did not take any decoy address"
-		if filesOK && len(refused) < len(ask) { // not every address asked for was refused: an answer is missing (busy, lost)
+		switch {
+		case !filesOK: // nothing was asked
+			reason = "the trap configuration could not be written"
+		case len(refused) < len(ask): // not every address asked for was refused: an answer is missing (busy, lost)
 			reason = notConfirmed
 		}
 		set(hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed})

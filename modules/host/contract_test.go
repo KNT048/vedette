@@ -45,7 +45,7 @@ const (
 // WP-07b implements the OS, backup, log and network and decoy commands (contract_os_test.go checks the list
 // against the spec); the container commands follow in later slices. Sorted.
 var documentedCommands = []string{
-	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
 }
 

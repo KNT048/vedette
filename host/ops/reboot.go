@@ -33,6 +33,9 @@ type rebootGate struct {
 // WriteGate is the server's Options.WriteGate: a refusal while a reboot is under way, nil otherwise.
 // It reads an atomic and the boot id, takes no lock, and never blocks.
 func (o *Ops) WriteGate() *server.Refusal {
+	if r := o.selfUpdateGate(); r != nil {
+		return r
+	}
 	g := o.gate.Load()
 	if g == nil {
 		return nil

@@ -1024,6 +1024,7 @@ type Locker interface {
 // start job, and no --no-block is needed. A journal that cannot be completed stays (phase restored) and
 // the next start tries again.
 func (o *Ops) AfterReady(ctx context.Context, l Locker) {
+	o.afterReadySelfUpdate(ctx) // started.json first, then the self-update's settle loop (D-316): nothing waits before READY
 	o.mu.Lock()
 	o.afterCtx, o.afterL = ctx, l
 	o.mu.Unlock()

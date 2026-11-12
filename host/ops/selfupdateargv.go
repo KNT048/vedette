@@ -143,17 +143,22 @@ func validateSystemdRun(stateDir string) func([]string) error {
 
 // --- the applier runner's forms --------------------------------------------------------------------
 
-// argsAptInstallPre is the applier's apt-get install (spec 6.14 applier step 3): apt waits for the dpkg lock
-// up to ten minutes itself, removes nothing, installs new dependencies from the mirror.
-var argsAptInstallPre = []string{
-	"-y", "-q", "--no-remove", "--no-install-recommends", "-o", "DPkg::Lock::Timeout=600",
-	"-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold",
-}
+// argsAptInstallHead and argsAptInstallTail frame the applier's apt-get install (spec 6.14 applier step 3): apt
+// waits for dpkg's frontend lock itself for what is left of the lock budget (DPkg::Lock::Timeout, 0 to 600 s),
+// removes nothing, installs new dependencies from the mirror.
+var (
+	argsAptInstallHead = []string{"-y", "-q", "--no-remove", "--no-install-recommends", "-o"}
+	argsAptInstallTail = []string{"-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold"}
+	aptLockTimeoutRE   = regexp.MustCompile(`^DPkg::Lock::Timeout=(0|[1-9][0-9]{0,2})$`)
+)
 
 // aptInstallArgv installs the staged file, or with downgrade the kept file of the version that was running
-// (the rollback; --allow-downgrades only ever with a kept file, never with the staged one).
-func aptInstallArgv(file string, downgrade bool) []string {
-	a := slices.Clone(argsAptInstallPre)
+// (the rollback; --allow-downgrades only ever with a kept file, never with the staged one). lockS is apt's own
+// lock wait in seconds, clamped to 0..600.
+func aptInstallArgv(file string, downgrade bool, lockS int) []string {
+	a := slices.Clone(argsAptInstallHead)
+	a = append(a, fmt.Sprintf("DPkg::Lock::Timeout=%d", min(max(lockS, 0), int(applierLockBudget.Seconds()))))
+	a = append(a, argsAptInstallTail...)
 	if downgrade {
 		a = append(a, "--allow-downgrades")
 	}
@@ -162,19 +167,32 @@ func aptInstallArgv(file string, downgrade bool) []string {
 
 func validateApplierApt(stateDir string) func([]string) error {
 	return func(args []string) error {
-		n := len(argsAptInstallPre)
-		if len(args) < n+2 || !slices.Equal(args[:n], argsAptInstallPre) {
-			return errors.New("not one of the fixed apt command lines of the applier")
+		h, t := len(argsAptInstallHead), len(argsAptInstallTail)
+		bad := errors.New("not one of the fixed apt command lines of the applier")
+		if len(args) < h+1+t+2 || !slices.Equal(args[:h], argsAptInstallHead) || !slices.Equal(args[h+1:h+1+t], argsAptInstallTail) {
+			return bad
 		}
-		rest := args[n:]
+		if m := aptLockTimeoutRE.FindStringSubmatch(args[h]); m == nil || len(m[1]) > 3 || atoiMax(m[1]) > int(applierLockBudget.Seconds()) {
+			return bad
+		}
+		rest := args[h+1+t:]
 		switch {
 		case len(rest) == 2 && rest[0] == "install" && isStagedPath(stateDir, rest[1]):
 			return nil
 		case len(rest) == 3 && rest[0] == "--allow-downgrades" && rest[1] == "install" && isKeptPath(stateDir, rest[2]):
 			return nil
 		}
-		return errors.New("not one of the fixed apt command lines of the applier")
+		return bad
 	}
+}
+
+// atoiMax reads up to three decimal digits (the regexp checked them).
+func atoiMax(s string) int {
+	n := 0
+	for _, c := range s {
+		n = n*10 + int(c-'0')
+	}
+	return n
 }
 
 func dpkgInstallArgv(file string) []string { return []string{"-i", file} }

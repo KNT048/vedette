@@ -269,9 +269,22 @@ func decodeSUStrict(b []byte, v any) error {
 
 // readSU reads one file of <state>/selfupdate through an os.Root: a regular file (not a link), at most
 // maxSUFile bytes. jAbsent when it is not there, jInvalid when it is not a plain small file, jUnreadable
-// on an I/O error.
-func (o *Ops) readSU(name string) ([]byte, jstate) {
-	r, err := openRootOf(suDir(o.cfg.StateDir))
+// on an I/O error or when the file was replaced while it was opened (the writer renames: read it again).
+func (o *Ops) readSU(name string) ([]byte, jstate) { return readSUIn(o.cfg.StateDir, name) }
+
+// readSUIn is readSU for a state directory (the applier has no Ops). The host and the applier both write the
+// journal by rename, so a read that met a rename is tried again (three times in all).
+func readSUIn(stateDir, name string) ([]byte, jstate) {
+	for range 2 {
+		if b, st := readSUOnce(stateDir, name); st != jUnreadable {
+			return b, st
+		}
+	}
+	return readSUOnce(stateDir, name)
+}
+
+func readSUOnce(stateDir, name string) ([]byte, jstate) {
+	r, err := openRootOf(suDir(stateDir))
 	if err != nil {
 		return nil, jUnreadable
 	}
@@ -293,7 +306,13 @@ func (o *Ops) readSU(name string) ([]byte, jstate) {
 		return nil, jUnreadable
 	}
 	defer func() { _ = f.Close() }()
-	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() || !os.SameFile(fi, lst) {
+	fi, err := f.Stat()
+	switch {
+	case err != nil:
+		return nil, jUnreadable
+	case !os.SameFile(fi, lst):
+		return nil, jUnreadable // replaced (an atomic rename) between the look and the open: look again
+	case !fi.Mode().IsRegular():
 		return nil, jInvalid
 	}
 	b, err := io.ReadAll(io.LimitReader(f, maxSUFile+1))
@@ -333,12 +352,15 @@ func (o *Ops) loadSUJournal() (suJournal, jstate) {
 // saveSU writes one file of <state>/selfupdate atomically (0600). It encodes without HTML escaping, so a log
 // line full of "<" or ">=" (dpkg's dependency output) keeps its size, and it refuses what readSU would refuse:
 // more than maxSUFile bytes. One limit for the writer and the reader, so a written journal always reads.
-func (o *Ops) saveSU(name string, v any) error {
+func (o *Ops) saveSU(name string, v any) error { return saveSUIn(o.cfg.StateDir, name, v) }
+
+// saveSUIn is saveSU for a state directory (the applier has no Ops).
+func saveSUIn(stateDir, name string, v any) error {
 	b, err := encodeSU(v)
 	if err != nil {
 		return fmt.Errorf("ops: %s: %w", name, err)
 	}
-	return writeFileAtomic(filepath.Join(suDir(o.cfg.StateDir), name), b, 0o600)
+	return writeFileAtomic(filepath.Join(suDir(stateDir), name), b, 0o600)
 }
 
 // encodeSU is the JSON of a self-update file: no HTML escaping, at most maxSUFile bytes.
@@ -379,6 +401,19 @@ func (o *Ops) keptFile(name string) (string, int64, error) {
 		return "", 0, fmt.Errorf("ops: %s changed while it was read", name)
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+// sha256Reader is the lowercase hex SHA-256 of what r holds, read up to maxHostPackage bytes.
+func sha256Reader(r io.Reader) (string, error) {
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(r, maxHostPackage+1))
+	if err != nil {
+		return "", err
+	}
+	if n > maxHostPackage {
+		return "", errors.New("too large")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // keptVersions lists the versions in packages/ for this machine's architecture, sorted by SemVer. Names

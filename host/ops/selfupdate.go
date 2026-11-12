@@ -202,6 +202,8 @@ func (o *Ops) noOpenRecovery() error {
 // inactive, failed or unknown (activating, active, deactivating, reloading). A systemctl that cannot be
 // asked counts as alive: better a busy than two appliers.
 func (o *Ops) applierAlive(ctx context.Context) bool {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	res, _, err := o.exec(ctx, binSystemctl, "is-active", upgradeUnit)
 	if err != nil {
 		return true
@@ -350,6 +352,7 @@ func (o *Ops) runSelfUpdate(ctx context.Context, rc *server.RunContext, a api.Ho
 	// crash left (AfterFinish does not survive a restart) is for the orphan-journal step at Start (slice 2b).
 	runID := rc.RunID
 	rc.AfterFinish(func(context.Context, api.Status) { o.dropStagedJournal(runID) })
+	rc.OnParked(func() { o.startSettle(runID) }) // its first round dispatches the applier: park first, dispatch after
 	parked = true
 	rc.Log("Staged; the update goes on outside the host process")
 	return server.Parked{Deadline: j.Deadline, Result: api.HostSelfUpdateResult{From: j.From.Version, To: j.To.Version, Changed: true, SHA256: j.To.SHA256}}, nil

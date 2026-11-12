@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func FuzzValidateSystemdRun(f *testing.F) {
 func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 	t.Parallel()
 	applierOnly := map[string][][]string{
-		binAptGet:    {aptInstallArgv(suStaged, false), aptInstallArgv(suKept, true)},
+		binAptGet:    {aptInstallArgv(suStaged, false, 600), aptInstallArgv(suKept, true, 0)},
 		binDpkg:      {dpkgInstallArgv(suStaged), dpkgInstallArgv(suKept)},
 		binSystemctl: {argsRestartHost, argsShowHost},
 	}
@@ -124,25 +125,36 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 		suState + "/selfupdate/packages/vedette-host_1.3.0_i386.deb", suState + "/selfupdate/packages/vedette-host_1.3.0-rc-1_amd64.deb",
 		suState + "/selfupdate/packages/vedette-host_1.3.0~rc.1_amd64.deb", "/tmp/selfupdate/staged/" + suSHA + ".deb", "/var/lib/vedette/core/host-packages/x.deb",
 	} {
-		if ValidateApplierArgv(suState, binDpkg, dpkgInstallArgv(p)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(p, true)) == nil {
+		if ValidateApplierArgv(suState, binDpkg, dpkgInstallArgv(p)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(p, true, 600)) == nil {
 			t.Errorf("accepted the path %q", p)
 		}
 	}
+	// apt's own lock wait is 0..600 s, nothing else (review M6: what is left of the budget after the probe).
+	for _, v := range []string{"601", "-1", "06", "1e3", "", "600 "} {
+		a := aptInstallArgv(suStaged, false, 600)
+		a[len(argsAptInstallHead)] = "DPkg::Lock::Timeout=" + v
+		if ValidateApplierArgv(suState, binAptGet, a) == nil {
+			t.Errorf("accepted the lock timeout %q", v)
+		}
+	}
 	// --allow-downgrades only with a kept file, never with the staged one.
-	if ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suStaged, true)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suKept, false)) == nil {
+	if ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suStaged, true, 600)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suKept, false, 600)) == nil {
 		t.Error("allow-downgrades and the file do not go together")
 	}
 }
 
 func FuzzValidateSelfUpdateArgv(f *testing.F) {
-	for _, a := range [][]string{aptInstallArgv(suStaged, false), aptInstallArgv(suKept, true), dpkgInstallArgv(suKept), aptSimInstallArgv(suStaged), dpkgDebFieldArgv(suStaged)} {
+	for _, a := range [][]string{aptInstallArgv(suStaged, false, 600), aptInstallArgv(suKept, true, 0), dpkgInstallArgv(suKept), aptSimInstallArgv(suStaged), dpkgDebFieldArgv(suStaged)} {
 		f.Add(strings.Join(a, "\x00"))
 	}
 	f.Fuzz(func(t *testing.T, joined string) {
 		a := strings.Split(joined, "\x00")
 		last := a[len(a)-1]
-		if ValidateApplierArgv(suState, binAptGet, a) == nil && !slices.Equal(a, aptInstallArgv(last, len(a) == len(argsAptInstallPre)+3)) {
-			t.Fatalf("applier apt accepted %q", a)
+		if ValidateApplierArgv(suState, binAptGet, a) == nil {
+			n, _ := strconv.Atoi(strings.TrimPrefix(a[len(argsAptInstallHead)], "DPkg::Lock::Timeout="))
+			if !slices.Equal(a, aptInstallArgv(last, slices.Contains(a, "--allow-downgrades"), n)) || n > 600 {
+				t.Fatalf("applier apt accepted %q", a)
+			}
 		}
 		if ValidateApplierArgv(suState, binDpkg, a) == nil && !slices.Equal(a, []string{"--audit"}) && !slices.Equal(a, dpkgInstallArgv(last)) {
 			t.Fatalf("applier dpkg accepted %q", a)
@@ -391,10 +403,17 @@ func checkSelfUpdateLimits(t *testing.T) {
 	if !strings.Contains(string(unit), fmt.Sprintf("\nTimeoutStartSec=%dmin\n", int(hostStartLimit.Minutes()))) {
 		t.Errorf("vedette-host.service does not declare TimeoutStartSec=%v", hostStartLimit)
 	}
-	health := suHealthWindow + suStableWindow
-	// One applier run: install (lock wait + install with the host's restart) + health, then a rollback of the same shape.
-	if one := 2 * (applierLockBudget + hostStartLimit + health); one > applierRuntimeMax {
+	// One applier run, from the applier's own bounds (contexts, not estimates): an effect check (a second applier
+	// starts with one), a half (lock waits shared with apt's own timeout, the tool with postinst's restart or the
+	// applier's own restart, then the health windows), the rollback's effect check, and the rollback's half.
+	if applyStep != applierLockBudget+hostStartLimit || applyHalf != applyStep+suHealthWindow+suStableWindow {
+		t.Error("the applier's step and half are not the sums they are documented as")
+	}
+	if one := 2*applyEffect + 2*applyHalf; one > applierRuntimeMax {
 		t.Errorf("one applier run needs %v, RuntimeMaxSec is %v", one, applierRuntimeMax)
+	}
+	if lock := aptInstallArgv("x", false, 1<<20)[len(argsAptInstallHead)]; lock != fmt.Sprintf("DPkg::Lock::Timeout=%d", int(applierLockBudget.Seconds())) {
+		t.Errorf("apt's own lock wait %s is not capped by the budget", lock)
 	}
 	if suAptUpdateLimit >= suPreParkTimeout {
 		t.Errorf("apt-get update (%v) does not fit the pre-park timeout (%v)", suAptUpdateLimit, suPreParkTimeout)
@@ -409,5 +428,35 @@ func checkSelfUpdateLimits(t *testing.T) {
 	}
 	if coreWaitPastDeadline <= 0 {
 		t.Error("core must wait past the deadline")
+	}
+}
+
+// State formats (spec 6.14, review M6): the files of the self-update as this release writes them (taken at the
+// phase checking, testdata/selfupdate-state-v1) read with this release's strict readers. A release that changes
+// a format adds its own folder, and the folder of the release before must still read: the previous host may be
+// put back on the state the new one wrote before the run succeeded.
+func TestTheStateFormatsOfEachReleaseRead(t *testing.T) {
+	t.Parallel()
+	dirs, _ := filepath.Glob(filepath.Join("testdata", "selfupdate-state-*"))
+	if len(dirs) == 0 {
+		t.Fatal("no state folder")
+	}
+	for _, d := range dirs {
+		read := func(name string) []byte {
+			b, err := os.ReadFile(filepath.Join(d, name)) //nolint:gosec // test: fixed names
+			if err != nil {
+				t.Fatal(err)
+			}
+			return b
+		}
+		if _, err := parseSUVersions(read(suVersionsName)); err != nil {
+			t.Errorf("%s versions: %v", d, err)
+		}
+		if j, err := parseSUJournal(read(suJournalName)); err != nil || j.Phase != phChecking {
+			t.Errorf("%s journal: %v", d, err)
+		}
+		if _, err := parseSUStarted(read(suStartedName)); err != nil {
+			t.Errorf("%s started: %v", d, err)
+		}
 	}
 }

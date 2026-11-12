@@ -214,6 +214,9 @@ func (o *Ops) finishReverted(ctx context.Context, c *server.Claimed, code, msg s
 // timer). It only reads. Without a note nothing can be reverted from here, and the run fails as
 // host_restarted; an overlay left behind is cleaned by Start.
 func (o *Ops) Resume(run api.Run) bool {
+	if run.Command == api.CmdHostSelfUpdate {
+		return o.resumeSelfUpdate(run)
+	}
 	if run.Command != api.CmdNetApply {
 		return false
 	}

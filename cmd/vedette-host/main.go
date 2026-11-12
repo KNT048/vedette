@@ -53,10 +53,11 @@ type environment struct {
 	configOwner int // the uid that must own host.conf (0 in production)
 	newChecker  func(coreUID int, unit, cgroup string) (peer.Checker, error)
 	logger      *slog.Logger
+	executable  func() (string, error) // the path of this binary (os.Executable), for -self-update-apply
 }
 
 func realEnvironment(logger *slog.Logger) environment {
-	return environment{goos: runtime.GOOS, euid: os.Geteuid(), configOwner: 0, newChecker: peer.New, logger: logger}
+	return environment{goos: runtime.GOOS, euid: os.Geteuid(), configOwner: 0, newChecker: peer.New, logger: logger, executable: os.Executable}
 }
 
 func run(ctx context.Context, args []string, stdout io.Writer, env environment) error {
@@ -71,6 +72,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	doRecover := fs.Bool("recover-core-data", false, "after core_data_unrecoverable: show what is in core_data, and with -use and -yes put it right; refuses while the daemon or core runs (RUNBOOK 5.5)")
 	recoverUse := fs.String("use", "", "-recover-core-data: rollback (put the .rollback copies back) or current (keep the files now there)")
 	recoverYes := fs.Bool("yes", false, "-recover-core-data: do what -use says; without it only shows")
+	applyRun := fs.String("self-update-apply", "", "internal: the applier of host.self_update, run by systemd-run from <state>/selfupdate/applier with the run id; never by hand (D-316)")
 	var bf bootFlags
 	fs.StringVar(&bf.index, "index", "", "-bootstrap: index.json")
 	fs.StringVar(&bf.indexSig, "index-sig", "", "-bootstrap: index.json.minisig")
@@ -93,6 +95,17 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	if *doRecover && (*bootstrap || bf.given()) {
 		return errors.New("-recover-core-data and -bootstrap are separate commands")
 	}
+	if *applyRun != "" {
+		var others []string
+		fs.Visit(func(f *flag.Flag) {
+			if f.Name != "self-update-apply" {
+				others = append(others, f.Name)
+			}
+		})
+		if len(others) > 0 {
+			return fmt.Errorf("-self-update-apply takes no other flag (got -%s)", others[0])
+		}
+	}
 	if *showVersion {
 		_, err := fmt.Fprintln(stdout, version)
 		return err
@@ -102,6 +115,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	if env.euid != 0 {
 		return errors.New("refusing to start: vedette-host must run as root")
+	}
+	if *applyRun != "" {
+		return runApply(ctx, *applyRun, env)
 	}
 	cfg, err := config.Load(*confPath, env.configOwner)
 	if err != nil {

@@ -322,12 +322,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	stopGuards = startGuards(ctx, reg, log, d, wired)
+	perMinute := publicPerMinute(o.hostSocket)
+	log.InfoContext(ctx, "per-address limit of public requests without a session (D-320)", "per_minute", perMinute, "on", perMinute > 0)
 	api, err := server.New(server.Config{
-		API:        newHandler(d),
-		Auth:       d.Auth.Sessions,
-		Modules:    reg,
-		Log:        log,
-		BodyLimits: bodyLimits(wired),
+		API:             newHandler(d),
+		Auth:            d.Auth.Sessions,
+		Modules:         reg,
+		Log:             log,
+		BodyLimits:      bodyLimits(wired),
+		PublicPerMinute: perMinute, // D-320
 	})
 	if err != nil {
 		return err
@@ -464,4 +467,17 @@ func ensureKey(path string) error {
 		return fmt.Errorf("key file: %w", err)
 	}
 	return secrets.GenerateKeyFile(path)
+}
+
+// publicPerMinute is the per-address limit of public requests (D-320): on an appliance (vedette-host's socket is there) core sees each
+// client's own address; a container-only install may see every client as the port proxy's one address (Docker Desktop, rootless),
+// where a per-address limit would be one limit for the whole box, so it is off there.
+func publicPerMinute(hostSocket string) int {
+	if hostSocket == "" {
+		return 0
+	}
+	if fi, err := os.Stat(hostSocket); err != nil || fi.Mode()&os.ModeSocket == 0 {
+		return 0
+	}
+	return server.PublicPerMinuteDefault
 }

@@ -11,7 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
+	"os/exec" //nolint:depguard // build helper outside the product: fixed argv (pnpm), no shell
 	"path/filepath"
 	"regexp"
 	"sort"

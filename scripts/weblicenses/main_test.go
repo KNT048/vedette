@@ -12,11 +12,11 @@ func TestRender(t *testing.T) {
 	d := t.TempDir()
 	withFile, bare := filepath.Join(d, "a"), filepath.Join(d, "b")
 	for _, p := range []string{withFile, bare} {
-		if err := os.MkdirAll(p, 0o755); err != nil {
+		if err := os.MkdirAll(p, 0o750); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(withFile, "LICENSE"), []byte("MIT text A"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(withFile, "LICENSE"), []byte("MIT text A"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	in, _ := json.Marshal(map[string][]pkg{"MIT": {
@@ -27,7 +27,7 @@ func TestRender(t *testing.T) {
 	if err := render(in, out); err != nil {
 		t.Fatal(err)
 	}
-	b, _ := os.ReadFile(out)
+	b, _ := os.ReadFile(out) //nolint:gosec // temp file of this test
 	if s := string(b); !strings.Contains(s, "MIT text A") || !strings.Contains(s, "b 2.0.0") || !strings.Contains(s, "ships no license file") {
 		t.Fatalf("unexpected output:\n%s", s)
 	}

@@ -61876,8 +61876,8 @@ type HoneypotGetHoneypotOK struct {
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
 	Lan NilString `json:"lan"`
-	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
-	// otherwise.
+	// Why a switched-on trap is not listening (state failed, or conflict with no inventory device in
+	// conflict_asset), with the host reason when it gave one; null otherwise.
 	Problem     NilString `json:"problem"`
 	SecondaryIP NilString `json:"secondary_ip"`
 	// MAC address the box gave the secondary IP, as the host reports it; null until known.
@@ -62784,8 +62784,8 @@ type HoneypotPatchHoneypotTrapsServiceOK struct {
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
 	Lan NilString `json:"lan"`
-	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
-	// otherwise.
+	// Why a switched-on trap is not listening (state failed, or conflict with no inventory device in
+	// conflict_asset), with the host reason when it gave one; null otherwise.
 	Problem     NilString `json:"problem"`
 	SecondaryIP NilString `json:"secondary_ip"`
 	// MAC address the box gave the secondary IP, as the host reports it; null until known.
@@ -64780,8 +64780,8 @@ type HoneypotPutHoneypotConfigOK struct {
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
 	Lan NilString `json:"lan"`
-	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
-	// otherwise.
+	// Why a switched-on trap is not listening (state failed, or conflict with no inventory device in
+	// conflict_asset), with the host reason when it gave one; null otherwise.
 	Problem     NilString `json:"problem"`
 	SecondaryIP NilString `json:"secondary_ip"`
 	// MAC address the box gave the secondary IP, as the host reports it; null until known.

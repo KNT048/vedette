@@ -1,6 +1,7 @@
 package honeypot
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -426,6 +427,9 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 			}
 		case secConflict:
 			t.State = StateConflict
+			if conflict == nil && out.Problem == nil { // no inventory device to point at (the box's IP, outside the LAN, refused by the host): say why
+				out.Problem = ptr(reasonOrDefault(cmp.Or(w.ipProblem(w.secIP), why)))
+			}
 		case secFailed:
 			t.State, reason = StateFailed, why
 		case up && hv.placed[w.secIP]: // the host confirmed it holds the decoy IP, not only that the container runs (#475)

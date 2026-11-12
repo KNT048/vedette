@@ -17,7 +17,7 @@ import (
 )
 
 // hostCache is what the last Apply learned: Apply is the only writer, Overview reads it (INV-7: a trap listens only
-// when the container is up with a configuration that has it).
+// when the container is up with a configuration that has it and the host confirmed it holds the address).
 type hostCache struct {
 	available bool
 	running   bool
@@ -29,7 +29,9 @@ type hostCache struct {
 	// hostFailed marks the entries of conflicts the host refused for its own failure (ErrHostFailed): no clash, the trap
 	// on that address shows "failed".
 	hostFailed map[netip.Addr]bool
-	// placed are the addresses the host holds of the wanted ones after the last Apply; macs the MACs it gave them (when the host says).
+	// placed are the wanted addresses the host confirmed it holds at the last Apply (it took them now, or took them before
+	// and did not refuse them since; an address only on the "applied" record is not confirmed): what the states and the
+	// MACs read. macs the MACs it gave them (when the host says).
 	placed map[netip.Addr]bool
 	macs   map[netip.Addr]string
 }
@@ -265,7 +267,7 @@ func (s *Service) Apply(ctx context.Context) error {
 	}
 	ask, backedOff := s.backOff(ips, services)
 	keep := slices.Collect(maps.Keys(backedOff))
-	placed, refused, err := s.syncIPs(ctx, ask, keep, filesOK)
+	placed, confirmed, refused, err := s.syncIPs(ctx, ask, keep, filesOK)
 	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
 		return errors.Join(append(errs, err, parent.Err())...)
 	}
@@ -291,8 +293,8 @@ func (s *Service) Apply(ctx context.Context) error {
 	for _, ip := range placed {
 		delete(s.refusals, ip)
 	}
-	// What the host holds and its MACs go into the same cache write as the rest, so a reader never sees the new state with the old addresses.
-	placedSet, macs := s.placedAndMACs(ctx, placed)
+	// What the host confirmed and its MACs go into the same cache write as the rest, so a reader never sees the new state with the old addresses.
+	placedSet, macs := s.placedAndMACs(ctx, confirmed)
 	set := func(h hostCache) {
 		h.placed, h.macs = placedSet, macs
 		s.setHost(h)
@@ -307,7 +309,11 @@ func (s *Service) Apply(ctx context.Context) error {
 		if err := s.cfg.Host.StopContainer(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
-		set(hostCache{available: true, reason: "the host did not take any decoy address", conflicts: conflicts, hostFailed: hostFailed})
+		reason := "the host did not take any decoy address"
+		if filesOK && len(refused) < len(ask) { // not every address asked for was refused: an answer is missing (busy, lost)
+			reason = notConfirmed
+		}
+		set(hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed})
 		errs = append(errs, errors.New("honeypot: the host did not take any decoy address"))
 	case !filesOK:
 		set(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts, hostFailed: hostFailed})
@@ -386,13 +392,19 @@ func (s *Service) setHost(h hostCache) {
 
 // syncIPs adds the wanted decoy IPs (when add is true), removes the ones handed over earlier that are no longer wanted,
 // and remembers the set (hp_config "applied") so a restart can still remove a stale one. An address the host refuses is
-// returned in refused with the host's error; keep lists wanted addresses that are not asked for now (back-off) and must stay as they are, it does not stop the others; placed is what the host holds of the wanted ones.
-// err carries what went wrong besides refusals (a removal, the database).
-func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool) (placed []netip.Addr, refused map[netip.Addr]error, err error) {
+// returned in refused with the host's error; keep lists wanted addresses that are not asked for now (back-off) and must stay as they are, it does not stop the others.
+// placed is what the host may hold of the wanted ones (it decides whether the container runs: one slow answer must not
+// stop the traps); confirmed is what it said it holds (it took it now, or confirmed it at the last Apply and has not
+// refused it since): only that is "listening" (S-HP-1, #475). err carries what went wrong besides refusals (a removal, the database).
+func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool) (placed, confirmed []netip.Addr, refused map[netip.Addr]error, err error) {
 	var prev []string
 	if err := loadJSON(ctx, s.db.Reader(), "applied", &prev); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	s.mu.Lock()
+	before := s.host.placed // confirmed at the last Apply; setHost always puts a new map, this one is never written again
+	s.mu.Unlock()
+	took := map[netip.Addr]bool{} // the host said yes this Apply
 	have := map[netip.Addr]bool{}
 	var errs []error
 	refused = map[netip.Addr]error{}
@@ -447,6 +459,7 @@ func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool
 			}
 			continue
 		}
+		took[ip] = true
 	}
 	for ip := range have {
 		if !slices.Contains(want, ip) && !slices.Contains(keep, ip) { // keep: in back-off, not asked this time and not removed either (no host write)
@@ -461,9 +474,12 @@ func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool
 		if have[ip] && !unknown[ip] {
 			placed = append(placed, ip)
 		}
+		if took[ip] || (have[ip] && before[ip] && refused[ip] == nil) {
+			confirmed = append(confirmed, ip)
+		}
 	}
 	save()
-	return placed, refused, errors.Join(errs...)
+	return placed, confirmed, refused, errors.Join(errs...)
 }
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
@@ -505,7 +521,7 @@ func (s *Service) disable(ctx context.Context) error {
 			// every one is gone and the container is not running.
 			var rerr error
 			if len(applied) > 0 {
-				_, _, rerr = s.syncIPs(ctx, nil, nil, false)
+				_, _, _, rerr = s.syncIPs(ctx, nil, nil, false)
 			}
 			if rerr != nil || st.Running {
 				s.setHost(hostCache{reason: turningOff})
@@ -519,7 +535,7 @@ func (s *Service) disable(ctx context.Context) error {
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
 		errs = append(errs, err)
 	}
-	_, _, err = s.syncIPs(ctx, nil, nil, false)
+	_, _, _, err = s.syncIPs(ctx, nil, nil, false)
 	errs = append(errs, err)
 	if err := errors.Join(errs...); err != nil {
 		s.setHost(hostCache{available: true, reason: turningOff})

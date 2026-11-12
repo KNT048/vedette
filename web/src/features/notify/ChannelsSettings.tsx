@@ -263,20 +263,20 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const lastTest = (r: Channel) => {
     if (!r.configured) return null
     if (test.isPending && test.variables === r.type) return <span role="status" className="inline-flex items-center gap-1.5 text-muted"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />{t('channels.testing')}</span>
-    if (!r.last_test) return <span className="text-muted">{t('channels.testNever')}</span>
-    if (r.last_test.ok) return <span className="text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
+    if (!r.last_test) return <span className="text-[13px] text-muted">{t('channels.testNever')}</span>
+    if (r.last_test.ok) return <span className="text-[13px] text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
     return (
-      <span className="grid max-w-72 gap-0.5">
-        <span className="font-medium text-danger">{t('channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
+      <span className="grid min-w-[12rem] max-w-72 gap-0.5">
+        <span className="text-[13px] font-medium text-danger">{t('channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
         <span className="text-[12px]">{r.last_test.detail}</span>
         {r.enabled ? <span className="text-[12px] text-muted">{t('channels.onButFailed')}</span> : null}
       </span>
     )
   }
-  const actions = (r: Channel) => {
+  const actions = (r: Channel, stacked = false) => {
     const name = t(`ch.${r.type}`)
     return (
-      <div className="flex flex-wrap gap-1">
+      <div className={stacked ? 'grid justify-items-start gap-1' : 'flex flex-wrap gap-1'}>
         <Button size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
         {r.configured ? (
           <>
@@ -288,13 +288,20 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
       </div>
     )
   }
+  // Three columns, so the table fits the ~730 px content column of a 1280 px screen (app sidebar + settings nav): where it sends and
+  // from which severity under the channel's name, the last test under its status, the actions stacked (walk 3 G13, D-423).
   const columns: ColumnDef<Channel>[] = [
-    { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row }) => chName(row.original) },
-    { id: 'dest', header: t('channels.col.dest'), enableSorting: false, cell: ({ row }) => <span className="inline-block min-w-[10rem] break-words">{dest(row.original)}</span> },
-    { id: 'min', header: t('channels.col.min'), enableSorting: false, cell: ({ row }) => min(row.original) },
-    { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row }) => status(row.original) },
-    { id: 'test', header: t('channels.col.test'), enableSorting: false, cell: ({ row }) => lastTest(row.original) },
-    { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row }) => actions(row.original) },
+    { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row: { original: r } }) => (
+      <span className="grid gap-0.5">
+        {chName(r)}
+        {r.configured ? <span className="max-w-[18rem] break-words text-[12px] text-muted">{dest(r)}</span> : null}
+        {r.configured ? <span className="text-[12px] text-muted">{min(r)}</span> : null}
+      </span>
+    ) },
+    { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row: { original: r } }) => (
+      <span className="grid justify-items-start gap-1">{status(r)}{lastTest(r)}</span>
+    ) },
+    { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row }) => actions(row.original, true) },
   ]
   // Under 768 px each channel is a card with its actions in it (the table's pattern, as Feeds does; D-423).
   const mobileRow = (r: Channel) => (

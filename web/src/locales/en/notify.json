@@ -358,6 +358,7 @@
     "history": "All sent messages"
   },
   "history": {
+    "via": "{{channel}} to {{to}}",
     "title": "History",
     "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
     "retention": "History and resolved incidents are kept for 1 year.",

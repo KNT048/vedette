@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
+	"time"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
 )
 
@@ -32,6 +35,33 @@ func aiLogDigest(d *deps) func(context.Context) (ai.LogDigestData, bool, error) 
 		var out ai.LogDigestData
 		if err := json.Unmarshal(raw, &out); err != nil {
 			return ai.LogDigestData{}, false, fmt.Errorf("logs digest: %w", err)
+		}
+		return out, true, nil
+	}
+}
+
+// aiLogAround is ai.Config.LogAround: what the logs counted about one address (kinds of line, counts and connections to listed
+// destinations; D-223), for the events_around tool of log investigation. Field by field: logs.Around has no line to drop.
+func aiLogAround(d *deps) func(context.Context, netip.Addr, time.Time, time.Time) (ai.LogAroundData, bool, error) {
+	return func(ctx context.Context, ip netip.Addr, from, to time.Time) (ai.LogAroundData, bool, error) {
+		if d.Reg != nil && !d.Reg.Enabled("logs") {
+			return ai.LogAroundData{}, false, nil
+		}
+		svc := logsService(*d)
+		if svc == nil {
+			return ai.LogAroundData{}, false, nil
+		}
+		a, err := svc.EventsAround(ctx, ip, from, to)
+		if err != nil {
+			return ai.LogAroundData{}, false, fmt.Errorf("logs around an address: %w", err)
+		}
+		out := ai.LogAroundData{Lines: a.Lines}
+		for _, k := range a.Kinds {
+			out.Kinds = append(out.Kinds, ai.LogAroundKind{Signature: k.Signature, SourceName: k.SourceName, Count: k.Count})
+		}
+		for _, h := range a.Connections {
+			out.Connections = append(out.Connections, ai.LogDigestBadConn{TS: store.FormatTS(h.TS), AssetName: h.AssetName, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind,
+				SeenVia: h.SeenVia, Feeds: h.Feeds, Confidence: h.Confidence})
 		}
 		return out, true, nil
 	}

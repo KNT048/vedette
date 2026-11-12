@@ -42,6 +42,7 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Serv
 	}
 	// the log-digest job reads the digest of the logs module (ailogdigest.go)
 	cfg.LogDigest = aiLogDigest(d)
+	cfg.LogAround = aiLogAround(d)
 
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg

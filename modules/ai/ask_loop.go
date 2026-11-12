@@ -49,7 +49,11 @@ type toolSession struct {
 
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
 	ts := &toolSession{svc: s, job: job, impl: map[string]toolImpl{}}
-	for _, t := range append(s.productTools(), s.connectionTools(ctx)...) {
+	tools := s.productTools()
+	if job == JobAskMyData { // log investigation reads the box only (D-223): the connections are not listed, and not asked
+		tools = append(tools, s.connectionTools(ctx)...)
+	}
+	for _, t := range tools {
 		if _, dup := ts.impl[t.Name]; dup {
 			continue
 		}
@@ -314,6 +318,9 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 	lctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	req.Tools = ts.defs()
+	// Providers differ on structured output together with tools (Gemini 2.x refuses the pair), so a job with a schema asks for the
+	// JSON in its task and its strict Check reads the last answer (D-223).
+	req.Schema = nil
 	msgs := append([]provider.Message(nil), req.Messages...)
 	var (
 		last     CallResult

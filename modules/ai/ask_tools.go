@@ -205,8 +205,9 @@ var (
 		"asset_id": {kind: "string", re: idArgRE, max: 96}, "limit": {kind: "int", min: 1, max: askRowsMax}}
 )
 
-func productTool(name, desc, schema string, spec map[string]argSpec, required []string, run func(context.Context, map[string]any) (toolOut, error)) toolImpl {
-	return toolImpl{Tool: Tool{Name: name, Description: desc, Access: AccessRead, Enabled: true, Jobs: []Job{JobAskMyData}, Schema: json.RawMessage(schema)},
+// productTool is a tool of the box for "Ask your data" and the jobs named; log investigation gets the four of D-223.
+func productTool(name, desc, schema string, spec map[string]argSpec, required []string, run func(context.Context, map[string]any) (toolOut, error), jobs ...Job) toolImpl {
+	return toolImpl{Tool: Tool{Name: name, Description: desc, Access: AccessRead, Enabled: true, Jobs: append([]Job{JobAskMyData}, jobs...), Schema: json.RawMessage(schema)},
 		parse: func(raw json.RawMessage) (map[string]any, error) { return parseArgs(raw, spec, required...) }, run: run}
 }
 
@@ -216,14 +217,19 @@ func (s *Service) productTools() []toolImpl {
 	var out []toolImpl
 	if d := s.cfg.Data; d != nil {
 		out = append(out,
-			productTool("search_assets", searchAssetsDesc, searchAssetsSchema, searchAssetsArgs, nil, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolSearchAssets(ctx, d, a) }),
+			productTool("search_assets", searchAssetsDesc, searchAssetsSchema, searchAssetsArgs, nil, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolSearchAssets(ctx, d, a) }, JobLogInvestigate),
 			productTool("list_findings", listFindingsDesc, listFindingsSchema, listFindingsArgs, nil, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolListFindings(ctx, d, a) }),
 			productTool("get_finding", getFindingDesc, getFindingSchema, map[string]argSpec{"id": {kind: "string", re: idArgRE, max: 96}}, []string{"id"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolGetFinding(ctx, d, a) }),
-			productTool("lookup_ioc", lookupIOCDesc, lookupIOCSchema, map[string]argSpec{"kind": {kind: "string", enum: []string{"ip", "domain"}}, "value": {kind: "string", max: 253}}, []string{"kind", "value"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupIOC(ctx, d, a) }),
+			productTool("lookup_ioc", lookupIOCDesc, lookupIOCSchema, map[string]argSpec{"kind": {kind: "string", enum: []string{"ip", "domain"}}, "value": {kind: "string", max: 253}}, []string{"kind", "value"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupIOC(ctx, d, a) }, JobLogInvestigate),
 		)
 	}
 	if f := s.cfg.Facts; f != nil {
-		out = append(out, productTool("lookup_cve", lookupCVEDesc, lookupCVESchema, map[string]argSpec{"cve": {kind: "string", re: cveArgRE, max: 24}}, []string{"cve"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupCVE(ctx, f, a) }))
+		out = append(out, productTool("lookup_cve", lookupCVEDesc, lookupCVESchema, map[string]argSpec{"cve": {kind: "string", re: cveArgRE, max: 24}}, []string{"cve"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupCVE(ctx, f, a) }, JobLogInvestigate))
+	}
+	if s.cfg.LogAround != nil {
+		t := productTool("events_around", eventsAroundDesc, eventsAroundSchema, eventsAroundArgs, []string{"ip"}, s.toolEventsAround)
+		t.Jobs = []Job{JobLogInvestigate}
+		out = append(out, t)
 	}
 	return out
 }

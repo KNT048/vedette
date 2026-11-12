@@ -5,21 +5,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/ai"
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // The AI log digest (S-AI-4, INV-3, INV-6, INV-12, D-221).
 
 // fakeLogs is the digest of the logs module as the port hands it over.
 type fakeLogs struct {
-	mu   sync.Mutex
-	on   bool
-	data ai.LogDigestData
-	err  error
+	mu     sync.Mutex
+	on     bool
+	data   ai.LogDigestData
+	err    error
+	around ai.LogAroundData
+	asked  []string // the address and range of each events_around read
+}
+
+func (f *fakeLogs) readAround(_ context.Context, ip netip.Addr, from, to time.Time) (ai.LogAroundData, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.asked = append(f.asked, fmt.Sprintf("%s %s %s", ip, from.Format(time.RFC3339), to.Format(time.RFC3339)))
+	return f.around, f.on, nil
 }
 
 func (f *fakeLogs) read(context.Context) (ai.LogDigestData, bool, error) {
@@ -305,5 +317,80 @@ func TestLogDigestBigCountsAreNotBlockedAsIDNumbers(t *testing.T) {
 	a.digest("POST", "operator", 200, "")
 	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "123,456,789") || !strings.Contains(user, "987,654,321 lines") {
 		t.Fatalf("request = %s", user)
+	}
+}
+
+// Log investigation (S-AI-4 at the maximum level, D-223): the model may check points with read-only tools, one of which counts what
+// the logs say about an address; the calls are shown with the digest and recorded in the activity row.
+func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
+	a := newAPI(t)
+	a.logs.set(someDigest())
+	a.logs.around = ai.LogAroundData{Lines: 1240, Kinds: []ai.LogAroundKind{{Signature: "sshd: Failed password for invalid user <*> from <ip> port <n>", SourceName: "FW-HQ", Count: 1240}}}
+	a.addProfile(cloudBody("Claude", keyA))
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":1000000,"redact_pii":true}`, 200, "")
+	a.fake.play(turn{calls: []provider.ToolCall{call("events_around", `{"ip":"::ffff:203.0.113.9","minutes":60}`)}}, turn{text: "```json\n" + goodDigest + "\n```"})
+	d := digestOf(t, a.digest("POST", "operator", 200, ""))
+	calls := d["tool_calls"].([]any)
+	if len(calls) != 1 || calls[0].(map[string]any)["tool"] != "events_around" || calls[0].(map[string]any)["result"] != "1,240 lines of 1 kind, 0 bad connections" ||
+		!strings.Contains(d["cadence"].(string), "read-only tools") || d["summary"] != "Look at PC-ACCOUNTS-03 first." {
+		t.Fatalf("digest = %v", d)
+	}
+	if got := strings.Join(a.logs.asked, ";"); got != "203.0.113.9 2026-11-10T02:00:00Z 2026-11-10T03:00:00Z" {
+		t.Fatalf("asked %q", got)
+	}
+	reqs := a.fake.askRequests()
+	var offered []string
+	for _, td := range reqs[len(reqs)-2].Tools {
+		offered = append(offered, td.Name)
+	}
+	if strings.Join(offered, ",") != "events_around,lookup_cve,lookup_ioc,search_assets" || reqs[len(reqs)-2].Schema != nil {
+		t.Fatalf("offered %v, schema %v", offered, reqs[len(reqs)-2].Schema)
+	}
+	if res := toolResults(reqs[len(reqs)-1]); len(res) != 1 || !strings.Contains(res[0].Content, `"lines":"1,240"`) {
+		t.Fatalf("tool result = %+v", res)
+	}
+	rows := a.activity()
+	if last := rows[len(rows)-1]; last.Job != "log-investigate" || len(last.Tools) != 1 || last.Tools[0].Name != "events_around" {
+		t.Fatalf("row = %+v", last)
+	}
+	// the stored digest keeps its calls
+	if got := digestOf(t, a.digest("GET", "viewer", 200, "")); len(got["tool_calls"].([]any)) != 1 {
+		t.Fatalf("GET = %v", got)
+	}
+	// Log investigation that cannot run (its skill off): the plain digest, and the level says why no tool was used
+	a.want("PUT", "/ai/skills/log-investigate", "admin", `{"enabled":false}`, 200, "")
+	a.fake.setAnswer(goodDigest)
+	d = digestOf(t, a.digest("POST", "operator", 200, ""))
+	if len(d["tool_calls"].([]any)) != 0 || !strings.Contains(d["cadence"].(string), "no read-only tools were used") || len(a.fake.lastRequest(t).Tools) != 0 {
+		t.Fatalf("digest = %v", d)
+	}
+	if rows := a.activity(); rows[len(rows)-1].Job != "log-digest" {
+		t.Fatalf("row = %+v", rows[len(rows)-1])
+	}
+}
+
+// The log digest is the first maker of memory suggestions (INV-8, D-223): only while an administrator allows them, at most two, and
+// each waits in the list for an accept.
+func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
+	a := newAPI(t)
+	a.logs.set(someDigest())
+	a.addProfile(cloudBody("Claude", keyA))
+	a.fake.setAnswer(goodDigest)
+	a.digest("POST", "operator", 200, "")
+	if sch := string(a.fake.lastRequest(t).Schema.JSON); strings.Contains(sch, "remember") {
+		t.Fatalf("suggestions are off, the schema asks for them: %s", sch)
+	}
+	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
+	a.fake.setAnswer(strings.Replace(goodDigest, `{"summary"`, `{"remember":["The NAS makes a backup every night at 01:00.","FW-HQ is the only firewall.","A third one."],"summary"`, 1))
+	a.digest("POST", "operator", 200, "")
+	if sch := string(a.fake.lastRequest(t).Schema.JSON); !strings.Contains(sch, `"required":["summary","items","remember"]`) {
+		t.Fatalf("schema = %s", sch)
+	}
+	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
+	if len(sg) != 2 || sg[0].(map[string]any)["evidence"] != "log summary of 10 Nov 2026" {
+		t.Fatalf("suggestions = %v", sg)
+	}
+	if items := a.want("GET", "/ai/memory", "admin", "", 200, "")["items"].([]any); len(items) != 0 {
+		t.Fatalf("a suggestion became memory without an accept: %v", items)
 	}
 }

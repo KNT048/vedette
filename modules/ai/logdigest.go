@@ -10,6 +10,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -76,7 +77,7 @@ type LogDigestResult struct {
 	Cadence     string          `json:"cadence"`
 	Summary     string          `json:"summary"`
 	Items       []LogDigestItem `json:"items"`
-	ToolCalls   []struct{}      `json:"tool_calls"` // log-investigate (tools over the logs) is not built: always empty
+	ToolCalls   []AskToolCall   `json:"tool_calls"` // the read-only tools the AI used at the maximum level (log-investigate, D-223)
 	Model       string          `json:"model"`
 	Profile     string          `json:"profile"`
 	Tokens      struct {
@@ -88,8 +89,10 @@ type LogDigestResult struct {
 
 // logDigestBody is what is stored in ai_result.payload for kind log_digest (key = the level the digest was made at).
 type logDigestBody struct {
-	Summary string          `json:"summary"`
-	Items   []LogDigestItem `json:"items"`
+	Summary      string          `json:"summary"`
+	Items        []LogDigestItem `json:"items"`
+	Investigated bool            `json:"investigated,omitempty"` // made by log-investigate, with tools
+	ToolCalls    []AskToolCall   `json:"tool_calls,omitempty"`
 }
 
 const (
@@ -111,18 +114,38 @@ const (
 
 const digestNone = "There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here."
 
+// digestRemember is the field of the answer that suggests memories (INV-8, D-223): only in the schema while suggestions are allowed.
+const (
+	digestRemember     = `"remember":{"type":"array","items":{"type":"string"}},`
+	digestRememberMax  = 2
+	digestRememberTask = ` In "remember" give at most two lasting facts about this network that the data shows and that would help later summaries (for example which device makes a nightly backup), one short sentence each, or an empty list. Never put a person's name, a password, a key or an address of a threat feed there. An administrator reviews each one before it is kept.`
+	digestToolsTask    = ` You may check a point with the read-only tools before you write it: events_around for what the logs counted about one IP address around a time, lookup_ioc, search_assets and lookup_cve. Call a tool only when a point needs it; then reply with the JSON object only, with no markdown around it.`
+)
+
 const digestSchema = `{"type":"object","properties":{"summary":{"type":"string"},"items":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["high","medium","info"]},"title":{"type":"string"},"evidence":{"type":"array","items":{"type":"string"}},"recommendation":{"type":"string"}},"required":["severity","title","evidence","recommendation"],"additionalProperties":false}}},"required":["summary","items"],"additionalProperties":false}`
 
 const digestTask = `Summarise the last 24 hours of logs of a small company's network for an IT person, in plain English, from the one data block: the kinds of log line (signatures) with their counts, new kinds, kinds far above their usual rate, and connections to addresses on threat feeds. You are not given log lines, only their kinds and counts. In "summary" write at most three sentences saying what to look at first, or that nothing stands out. In "items" list at most eight points, the most important first. Each has a "severity" (high: a connection to a listed address or a very large spike of failed logons or errors; medium: a spike or a new kind that deserves a look; info: the rest), a short "title", "evidence" (at most four short lines quoting the counts and kinds from the data), and a "recommendation" (one or two sentences of what to do). Use only the data block; do not invent devices, addresses, counts or causes, and say "not known" when the data does not say. Reply with one JSON object only.`
 
-func digestCadence(t Tier) string {
-	switch t {
-	case TierMin:
-		return "A short summary of the most serious points, made when you ask"
-	case TierMed:
-		return "A full summary of new kinds of line, spikes and bad connections, made when you ask"
+// digestSchemaFor is the schema of the answer; with remember the field that suggests memories is in it (and required, as strict
+// structured output wants every property listed).
+func digestSchemaFor(remember bool) string {
+	if !remember {
+		return digestSchema
 	}
-	return "Same as the medium level; investigating with read-only tools is not built yet"
+	out := strings.Replace(digestSchema, `"properties":{"summary"`, `"properties":{`+digestRemember+`"summary"`, 1)
+	return strings.Replace(out, `"required":["summary","items"],"additionalProperties":false}`, `"required":["summary","items","remember"],"additionalProperties":false}`, 1)
+}
+
+func digestCadence(t Tier, investigated bool) string {
+	switch {
+	case t == TierMin:
+		return "A short summary of the most serious points, made when you ask"
+	case t == TierMed:
+		return "A full summary of new kinds of line, spikes and bad connections, made when you ask"
+	case investigated:
+		return "A full summary made when you ask, with the AI checking points through read-only tools (what the logs counted for an address, devices, threat feeds, the exploited list)"
+	}
+	return "Same as the medium level: no read-only tools were used, because Log investigation has no AI profile that can take it or its skill is off (Settings, AI assistant)"
 }
 
 // digestBlock is the data block of the call: signatures, counts and connections, capped. Every text came from a device or a feed, so
@@ -170,8 +193,9 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 }
 
 type digestAnswer struct {
-	Summary string `json:"summary"`
-	Items   []struct {
+	Summary  string   `json:"summary"`
+	Remember []string `json:"remember"`
+	Items    []struct {
 		Severity       string   `json:"severity"`
 		Title          string   `json:"title"`
 		Evidence       []string `json:"evidence"`
@@ -179,25 +203,43 @@ type digestAnswer struct {
 	} `json:"items"`
 }
 
-// parseDigest reads the model's answer strictly: the schema's fields and nothing else, a known severity, text cleaned and cut.
-func parseDigest(text string) (logDigestBody, error) {
+// unfence takes the JSON out of a markdown code block: an answer given without structured output (the tool loop) may come in one.
+func unfence(text string) string {
+	t := strings.TrimSpace(text)
+	if !strings.HasPrefix(t, "```") {
+		return t
+	}
+	if i := strings.IndexByte(t, '\n'); i >= 0 {
+		t = t[i+1:]
+	}
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(t), "```"))
+}
+
+// parseDigest reads the model's answer strictly: the schema's fields and nothing else, a known severity, text cleaned and cut. With
+// remember the answer must have the remember field (at most digestRememberMax suggestions are kept); without, that field is refused.
+func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 	var a digestAnswer
-	dec := json.NewDecoder(bytes.NewReader([]byte(strings.TrimSpace(text))))
+	text = unfence(text)
+	dec := json.NewDecoder(bytes.NewReader([]byte(text)))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "summary", "items") {
-		return logDigestBody{}, ErrBadOutput
+	keys := []string{"summary", "items"}
+	if remember {
+		keys = append(keys, "remember")
+	}
+	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, keys...) || (!remember && a.Remember != nil) {
+		return logDigestBody{}, nil, ErrBadOutput
 	}
 	out := logDigestBody{Summary: cleanLine(a.Summary, digestMaxSummary), Items: []LogDigestItem{}}
 	if out.Summary == "" {
-		return logDigestBody{}, ErrBadOutput
+		return logDigestBody{}, nil, ErrBadOutput
 	}
 	for _, it := range a.Items {
 		if it.Severity != "high" && it.Severity != "medium" && it.Severity != "info" {
-			return logDigestBody{}, ErrBadOutput
+			return logDigestBody{}, nil, ErrBadOutput
 		}
 		title := cleanLine(it.Title, digestMaxTitle)
 		if title == "" {
-			return logDigestBody{}, ErrBadOutput
+			return logDigestBody{}, nil, ErrBadOutput
 		}
 		if len(out.Items) == digestMaxItems {
 			break
@@ -210,11 +252,17 @@ func parseDigest(text string) (logDigestBody, error) {
 		}
 		out.Items = append(out.Items, LogDigestItem{Severity: it.Severity, Title: title, Evidence: ev, Recommendation: cleanLine(it.Recommendation, digestMaxRec)})
 	}
-	return out, nil
+	var mem []string
+	for _, r := range a.Remember {
+		if r = cleanLine(r, memoryMax); utf8.RuneCountInString(r) >= memoryMin && len(mem) < digestRememberMax {
+			mem = append(mem, r)
+		}
+	}
+	return out, mem, nil
 }
 
 func (s *Service) digestView(tier Tier, body logDigestBody, model, profile string, tin, tout int, at time.Time) LogDigestResult {
-	v := LogDigestResult{Tier: tier, GeneratedAt: FormatTS(at), Cadence: digestCadence(tier), Summary: body.Summary, Items: body.Items, ToolCalls: []struct{}{}, Model: model, Profile: profile}
+	v := LogDigestResult{Tier: tier, GeneratedAt: FormatTS(at), Cadence: digestCadence(tier, body.Investigated), Summary: body.Summary, Items: body.Items, ToolCalls: nonNilCalls(body.ToolCalls), Model: model, Profile: profile}
 	v.Tokens.Input, v.Tokens.Output = tin, tout
 	if v.Items == nil {
 		v.Items = []LogDigestItem{}
@@ -294,7 +342,9 @@ func (s *Service) CachedLogDigest(ctx context.Context) (*LogDigestResult, error)
 
 // LogDigest is POST /ai/logs/digest: the AI summarises the digest of the logs now. The same inputs (the digest, the level, the
 // company rules and memory) answer from the stored result without tokens. A digest of a box with no log events is the "empty"
-// answer: the AI is not asked.
+// answer: the AI is not asked. At the maximum level the job is log-investigate, whose model may check points with read-only tools
+// (D-223), when that job can run; otherwise it is the plain log-digest. While suggestions are allowed, the answer may carry up to two
+// memories the AI suggests (INV-8): they wait for an administrator.
 func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult, error) {
 	if err := s.Ready(JobLogDigest); err != nil {
 		return LogDigestResult{}, err
@@ -307,38 +357,59 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if d.empty() {
 		return s.digestEmpty(tier, s.cfg.Clock()), nil
 	}
+	job, task, version := JobLogDigest, digestTask, "log-digest-v1"
+	var ts *toolSession
+	if tier == TierMax && s.Ready(JobLogInvestigate) == nil {
+		job, task, version = JobLogInvestigate, digestTask+digestToolsTask, "log-investigate-v1"
+		ts = s.newToolSession(ctx, job)
+	}
+	suggest, err := suggestOn(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return LogDigestResult{}, err
+	}
+	if suggest {
+		task += digestRememberTask
+	}
 	block := digestBlock(d, tier)
 	har := s.harness.Load()
-	mem, err := s.memoryForCall(ctx, har.runner, JobLogDigest)
+	mem, err := s.memoryForCall(ctx, har.runner, job)
 	if err != nil {
 		return LogDigestResult{}, err
 	}
 	var rules []string
 	for _, r := range har.rules {
-		if r.Enabled && r.appliesTo(JobLogDigest) {
+		if r.Enabled && r.appliesTo(job) {
 			rules = append(rules, r.Text)
 		}
 	}
 	var body logDigestBody
+	var remember []string
 	now := s.cfg.Clock()
 	maxTokens := 2500
 	if tier == TierMin {
 		maxTokens = 1200
 	}
 	var hash string
+	summary := fmt.Sprintf("Summarised the log digest: %d new kinds of line, %d spikes, %d bad connections", len(d.New), len(d.Spikes), len(d.BadConnections))
+	if ts != nil {
+		summary = fmt.Sprintf("Investigated the log digest: %d new kinds of line, %d spikes, %d bad connections", len(d.New), len(d.Spikes), len(d.BadConnections))
+	}
 	spec := JobSpec{
-		Job: JobLogDigest, Actor: actor, Task: digestTask,
+		Job: job, Actor: actor, Task: task, tools: ts,
 		Question:  "What in the logs of the last 24 hours should be looked at first?",
 		Data:      []DataBlock{block},
-		Schema:    &provider.Schema{Name: "log_digest", JSON: json.RawMessage(digestSchema)},
+		Schema:    &provider.Schema{Name: "log_digest", JSON: json.RawMessage(digestSchemaFor(suggest))},
 		MaxTokens: maxTokens,
-		Summary:   fmt.Sprintf("Summarised the log digest: %d new kinds of line, %d spikes, %d bad connections", len(d.New), len(d.Spikes), len(d.BadConnections)),
+		Summary:   summary,
 		Check: func(text string) error {
 			var perr error
-			body, perr = parseDigest(text)
+			body, remember, perr = parseDigest(text, suggest)
 			return perr
 		},
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
+			if ts != nil {
+				body.Investigated, body.ToolCalls = true, nonNilCalls(ts.calls)
+			}
 			payload, err := json.Marshal(body)
 			if err != nil {
 				return fmt.Errorf("ai: encode log digest: %w", err)
@@ -356,12 +427,12 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	}
 	// The pieces of the knowledge base the call would carry are part of the inputs, like in explain: a changed document is a cache miss.
 	// Retrieved once here and handed to RunJob (one retrieval, one hook pass).
-	know, err := s.knowledgeForCall(ctx, har.runner, JobLogDigest, knowledgeQuery(spec))
+	know, err := s.knowledgeForCall(ctx, har.runner, job, knowledgeQuery(spec))
 	if err != nil {
 		return LogDigestResult{}, err
 	}
 	spec.knowledge = &know
-	hash = HashContent("log-digest-v1\n" + string(tier) + "\n" + block.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
+	hash = HashContent(version + "\n" + string(tier) + "\n" + block.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n") + fmt.Sprintf("\nsuggest:%t", suggest))
 	if v, ok, err := s.loadDigest(ctx, tier, hash); err != nil || ok {
 		return v, err
 	}
@@ -369,5 +440,19 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if err != nil {
 		return LogDigestResult{}, err
 	}
+	if !res.Blocked {
+		s.suggestFromDigest(ctx, remember, now)
+	}
 	return s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now), nil
+}
+
+// suggestFromDigest hands the memories the AI suggested to SuggestMemory, which keeps them for an administrator (INV-8). A suggestion
+// that is not kept (suggestions just turned off, too many waiting, a text the hooks stop) is not an error of the digest.
+func (s *Service) suggestFromDigest(ctx context.Context, remember []string, at time.Time) {
+	for _, text := range remember {
+		err := s.SuggestMemory(ctx, text, "log summary of "+at.UTC().Format("2 Jan 2006"))
+		if err != nil && !errors.Is(err, ErrSuggestionsOff) && !errors.Is(err, ErrTooManySuggestions) && !errors.Is(err, ErrInvalidPromptInput) {
+			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggested by the log digest", "error", err)
+		}
+	}
 }

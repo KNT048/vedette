@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -89,6 +90,10 @@ type Config struct {
 	// LogDigest reads the digest of the logs (kinds of line, counts, spikes, bad connections, never a line); the bool is false while the
 	// logs module is off. nil = the log digest answers 409 ai_unavailable. The adapter is in cmd/vedette; ai never imports logs.
 	LogDigest func(ctx context.Context) (LogDigestData, bool, error)
+	// LogAround reads what the logs counted about one address from from to to (kinds of line and counts, connections to listed
+	// destinations, never a line; D-223): the events_around tool of log investigation. The bool is false while the logs module is off.
+	// nil = the tool is not offered.
+	LogAround func(ctx context.Context, ip netip.Addr, from, to time.Time) (LogAroundData, bool, error)
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
 	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.

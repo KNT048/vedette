@@ -450,7 +450,10 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		// the question ran out of time, or the model kept asking for tools and never answered: the calls that were made keep their row
 		s.nameLastProfile(&entry, res)
 		entry.Summary = "Stopped: the question used up its time."
-		msg := "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+		msg := "The AI did not finish in time. Try again, or use a faster profile for this job."
+		if spec.Job == JobAskMyData {
+			msg = "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+		}
 		if !errors.Is(err, errAskDeadline) {
 			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
 			msg = "The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job."
@@ -464,7 +467,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
-		return apiUnavailable("The AI profile did not accept tool calls, which asking your data needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
+		return apiUnavailable("The AI profile did not accept tool calls, which " + spec.Job.Name() + " needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
 	case errors.Is(err, ErrCapped):
 		entry.Summary, entry.Outcome = capSummary, OutcomeCapped
 		if rerr := s.record(ctx, entry); rerr != nil {

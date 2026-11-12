@@ -24,10 +24,12 @@ RUN set -eu; \
       case "${VERSION}" in *-test.*) ;; *) echo "TEST_KEYS_B64 is for a -test. version only, got '${VERSION}'" >&2; exit 1;; esac; \
       printf '%s' "${TEST_KEYS_B64}" | base64 -d > internal/release/keys_prod.go; \
     fi; \
+    test -s internal/webui/licenses/web-third-party-licenses.txt || { echo "internal/webui/licenses/web-third-party-licenses.txt is missing: run make core-image (make webui-dist writes it)" >&2; exit 1; }; \
     test -s internal/webui/dist/index.html || { echo "internal/webui/dist/index.html is missing: run make core-image (it runs make webui-dist first)" >&2; exit 1; }; \
     if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette; \
+    install -D -m 0644 internal/webui/licenses/web-third-party-licenses.txt /out/licenses/web-third-party-licenses.txt; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-core -tags webui -out /out/licenses/third-party-licenses
 RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active
 # The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
@@ -74,7 +76,8 @@ ARG VERSION
 LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=build /out/vedette /vedette
 # The third-party licenses (D-155 (10)): the Go license and the license file of every Go module linked into /vedette, made by scripts/hostlicenses
-# from the same module graph as the binary (a linked module with no license file fails the build); the osquery license texts sit next to it.
+# from the same module graph as the binary (a linked module with no license file fails the build); the licenses of the npm packages of the
+# embedded web interface (made by make webui-dist, scripts/weblicenses) and the osquery license texts sit next to it.
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --from=osquery /lic/ /usr/share/doc/vedette/osquery/
 # The pinned osquery packages: a leaf directory that does not exist yet (the default of -osquery-dir). Root-owned, world-readable; core only reads it.

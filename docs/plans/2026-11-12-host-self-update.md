@@ -254,8 +254,33 @@ On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using te
   `systemd-run --unit=<same>` exits 1 with "Unit <name>.service was already loaded or has a fragment file" (the text
   `opstest` fakes). With `--collect` (what `selfupdateargv.go` passes) the failed unit is collected and the second run starts.
 - `--property=RuntimeMaxSec=` ends a transient unit with `Result=timeout`.
-- Checks 1–6, 6b and 8 need an update to install: they wait for the test update channel (#469: kept test keys, a
-  test release source for core), then run on `ubuntu2404` and `debian13`.
+
+**Upgrade runs (2026-11-12, test channel #469/D-382, builds `0.0.1-test.1…4` with one kept keys folder, core and host
+driven through the API):**
+- Two bugs found and fixed first: a test-channel host refused every test build (`test_version_refused`, #506, D-382 (6));
+  core ended the whole update when the host answered `busy` once (it found the host's refused run by the call's key,
+  #508; the same for core's switch after a snapshot refusal).
+- Check 1, `ubuntu2404` test.1 → test.2 and `debian13` (Debian 13.7) test.3 → test.4: run `done` (host, download,
+  start, restart); the applier ran in `0::/system.slice/vedette-host-upgrade.service`; `dpkg-query` shows the new
+  version; vedette-host has a new MainPID; `selfupdate/packages/` holds both packages; core and sensor run the new
+  digests; the administrator signs in afterwards (data kept). The honeypot was off.
+- Check 2 (partly): no build that exits 1 was made, but a new host killed during `checking` ("did not stay up") was
+  rolled back: `rolling_back` → `rolled_back`, `dpkg-query` shows `from` again, the run `reverted`.
+- Check 4 (partly): a reboot while the applier waited for the dpkg lock in `installing`; after the boot the applier ran
+  again with `attempt` 2, installed and checked, `dpkg-query` shows the new version `ii`, nothing looped. (The run then
+  stopped at the image download only because the lab's transient test source did not survive the reboot; a second
+  apply finished `done`.) A reboot during dpkg's unpack was not made.
+- Check 5: `policy-rc.d` exit 101: the applier logged "No host of version … started: restarting vedette-host.service",
+  run `done`.
+- Check 6: the dpkg lock held at Check → host `412 dpkg_locked`, nothing changed (core then ends the run; waiting
+  instead is in the findings inbox). The lock taken after Check: apt waited 90 s and went on.
+- Check 6b: `systemctl kill -s TERM vedette-host` while parked (apt waiting on the lock): "a parked run survived the
+  restart", the run went on and ended `done`.
+- Check 8: postinst `try-restart` of the Type=notify host did not hang (every update above).
+- Software rollback test.2 → test.1 (core image rollback #432, `confirm_data_loss`): core and sensor run test.1 again,
+  the host's `container.rollback` runs succeeded with `restored_backup_id`, core healthy; but history and the run
+  shown do not list the rollback (INV-35 rebuild; findings inbox).
+- Not done yet: check 2 with a build that exits 1, check 3 (`Depends`), check 4 during dpkg's unpack, Ubuntu 26.04.
 
 ## 2. Risks
 

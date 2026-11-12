@@ -229,6 +229,7 @@ prepare_test() {
 }
 
 preflight() {
+	rerun=
 	say "preflight"
 	[ "$(uname -s)" = Linux ] || die "Vedette installs only on Linux (Ubuntu 24.04, 26.04, Debian 13)"
 	[ -r /etc/os-release ] || die "no /etc/os-release: cannot tell the OS; supported: Ubuntu 24.04, Ubuntu 26.04, Debian 13"
@@ -264,6 +265,7 @@ preflight() {
 	[ "${mem:-0}" -ge 3600000 ] || warn "only $((mem / 1024)) MiB of memory: the minimum is 4 GiB (8 GiB recommended)"
 	if [ -s "$STATE/owner" ]; then
 		# our own marker: a run that stopped half way, or a finished install: repair or upgrade it, in the same channel
+		rerun=1
 		have_channel=$(kv channel "$STATE/owner")
 		[ "$have_channel" = "$WANT" ] || die "this box has a $have_channel install of Vedette, and this is the $WANT channel. Run sh install.sh --uninstall --yes (from the $have_channel channel) first. Nothing was changed."
 	else
@@ -300,7 +302,12 @@ preflight() {
 	esac
 	# the last step before the first change: from here on a re-run repairs instead of refusing (H1 of review 1)
 	[ -s "$STATE/owner" ] || printf 'channel=%s\n' "$WANT" >"$STATE/owner"
-	say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443 and 8444 free"
+	if [ -n "$rerun" ]; then
+		# a re-run does not check the ports: Vedette itself may hold them (the check above is for a fresh box only)
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443 and 8444 not checked)"
+	else
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443 and 8444 free"
+	fi
 }
 
 # ---- 2. packages -----------------------------------------------------------------------------------------------------
@@ -748,7 +755,11 @@ start_and_wait() {
 summary() {
 	ip=$mgmt_ip
 	[ -n "$ip" ] || ip="<address of this box>"
-	code=$(journalctl -u vedette-core.service -o cat --no-pager 2>/dev/null | grep 'setup_code' | tail -n 1 | grep -Eo '[A-HJ-NP-Z2-9]{5}(-[A-HJ-NP-Z2-9]{5}){3}' | tail -n 1 || true)
+	# the core logs a code only while setup is open, but an old line stays in the journal after setup: ask the core first
+	code=
+	if ! curl -ksf --max-time 10 https://127.0.0.1:8443/api/v1/setup 2>/dev/null | grep -Eq '"complete" *: *true'; then
+		code=$(journalctl -u vedette-core.service -o cat --no-pager 2>/dev/null | grep 'setup_code' | tail -n 1 | grep -Eo '[A-HJ-NP-Z2-9]{5}(-[A-HJ-NP-Z2-9]{5}){3}' | tail -n 1 || true)
+	fi
 	printf '\n'
 	say "Vedette is running."
 	say "  open:        https://$ip:8443   (the certificate is self-signed: accept it once)"

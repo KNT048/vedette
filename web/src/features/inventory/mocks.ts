@@ -250,23 +250,29 @@ function detectDelimiter(text: string): string {
   const count = (d: string) => first.split(d).length - 1
   return [';', '\t'].reduce((best, d) => (count(d) > count(best) ? d : best), ',')
 }
-function parseCsv(text: string): string[][] {
+/** Như bản Go: dấu nháy lạc / không đóng không dừng việc đọc, chỉ đánh dấu dòng (chỉ số dòng → lý do) để báo lỗi theo số dòng. */
+function parseCsv(text: string): { rows: string[][]; problems: Map<number, string> } {
   const delim = detectDelimiter(text)
   const rows: string[][] = []
+  const problems = new Map<number, string>()
   let row: string[] = []
   let cell = ''
-  let q = false
+  let q = false, atStart = true, closed = false, openRow = 0
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!
     if (q) {
-      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else q = false } else cell += c
-    } else if (c === '"') q = true
-    else if (c === delim) { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = '' }
-    else cell += c
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else { q = false; closed = true } } else cell += c
+    } else if (c === '"' && atStart) { q = true; atStart = false; openRow = rows.length }
+    else if (c === delim) { row.push(cell); cell = ''; atStart = true; closed = false }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; atStart = true; closed = false }
+    else {
+      if (c === '"' || closed) problems.set(rows.length, 'A double quote is in the wrong place in this row. Put a whole cell in quotes, or remove the stray quote.')
+      atStart = false; cell += c
+    }
   }
+  if (q) problems.set(openRow, 'A double quote was opened and never closed, so this row runs into the rows below it. Close the quote or remove it.')
   if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
-  return rows
+  return { rows, problems }
 }
 /** Hạ chữ thường, mọi ký tự lạ thành "_": "IP Address" → ip_address. */
 const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
@@ -279,6 +285,14 @@ const KIND_LABEL: Record<string, AssetKind> = {
   wi_fi_ap: 'ap', wifi: 'ap', access_point: 'ap', camera_recorder: 'nvr', iot_device: 'iot', website: 'web', laptop: 'pc', computer: 'pc', desktop: 'pc', other: 'unknown',
 }
 const parseKind = (text: string): AssetKind | undefined => { const k = fold(text); return KINDS.find((x) => x === k) ?? KIND_LABEL[k] }
+/** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
+function ipNote(ip: string, ranges: string[]): string {
+  const [a, b] = ip.split('.').map(Number) as [number, number]
+  const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 127
+  if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
+  if (ranges.length && !ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
+  return ''
+}
 const MAX_IMPORT_BYTES = 200_000
 const MAX_IMPORT_ROWS = 500
 
@@ -497,13 +511,15 @@ export const handlers = [
     const b = await body<{ filename: string; size: number; text: string }>(request)
     if (typeof b.text !== 'string' || !b.text.trim()) return fail(400, 'empty_file', 'The file is empty. Download the template, fill in your devices and choose it again.')
     if (b.text.length > MAX_IMPORT_BYTES) return fail(400, 'too_large', `The file is too large (max ${MAX_IMPORT_BYTES / 1000} KB). Split it into smaller files.`)
-    const table = parseCsv(b.text.replace(/^\uFEFF/, ''))
+    const { rows: table, problems } = parseCsv(b.text.replace(/^\uFEFF/, ''))
     const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
     if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
+    if (!data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
     if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
-    const res: ImportResult = { created: 0, skipped: 0, errors: [] }
+    const res: ImportResult = { created: 0, skipped: 0, errors: [], notes: [] }
+    const ranges = loadSettings().lan_ranges
     const seenIps = new Set<string>()
     const seenNames = new Set<string>()
     const noIpNames = new Set(allAssets().filter((a) => !hasIp(a) && a.hostname).map((a) => a.hostname!.toLowerCase()))
@@ -511,11 +527,13 @@ export const handlers = [
       const line = hi + i + 2
       if (cells.every((c) => !c.trim())) return
       // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
-      const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
+      if (problems.has(hi + 1 + i)) return err(problems.get(hi + 1 + i)!)
+      if (cells.length !== header.length) return err(`This row has ${cells.length === 1 ? '1 column' : `${cells.length} columns`} but the header has ${header.length}. Check that every row uses the same separator (comma, semicolon or tab) as the header row.`)
+      const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
-      if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use names as in the suggestion box when declaring by hand, for example FortiGate, Synology, WordPress.`)
+      if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
       if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
       const kindText = get('kind')
       const kind = kindText ? parseKind(kindText) : undefined
@@ -531,6 +549,8 @@ export const handlers = [
       }
       createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind })
       res.created++
+      const note = v.ip ? ipNote(v.ip, ranges) : ''
+      if (note) res.notes.push({ line, message: note })
     })
     audit('inventory.import', b.filename ? String(b.filename).slice(0, 80) : 'csv', `${res.created} devices, ${res.errors.length} errors`)
     return HttpResponse.json(res)

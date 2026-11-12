@@ -124,7 +124,7 @@ func FuzzParseCSV(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, text string) {
-		rows := parseCSV(text)
+		rows, _ := parseCSV(text)
 		cells := 0
 		for _, r := range rows {
 			if r == nil {

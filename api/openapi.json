@@ -34049,12 +34049,35 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Rows that were added but need a word: a public IP, or an IP outside the saved network ranges"
                     }
                   },
                   "required": [
                     "created",
                     "skipped",
-                    "errors"
+                    "errors",
+                    "notes"
                   ],
                   "additionalProperties": false
                 }

@@ -158,7 +158,12 @@
     "working": "Importing",
     "done_one": "Added {{count}} device from the file.",
     "done_other": "Added {{count}} devices from the file.",
-    "summary": "Added {{created}} devices, skipped {{skipped}} rows.",
+    "summary": "{{added}}, {{skipped}}.",
+    "added_one": "Added {{count}} device",
+    "added_other": "Added {{count}} devices",
+    "skipped_one": "skipped {{count}} row",
+    "skipped_other": "skipped {{count}} rows",
+    "notesHint": "These rows were added. Check them:",
     "errorsHint": "Fix the rows below in your file and import again. Import only the fixed rows to avoid duplicates.",
     "line": "Line {{line}}:",
     "close": "Close"

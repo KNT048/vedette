@@ -120,14 +120,16 @@ export function searchCatalog(q: string, limit = 30): SearchResult {
   return { items: hits.slice(0, limit).map((x) => x.e), total: hits.length }
 }
 
-/** Khớp tên một ô CSV với danh sách: id, tên hiển thị, "hãng sản phẩm" hoặc kết quả tìm kiếm đầu tiên nếu khớp mọi từ. */
+/** Khớp CHÍNH XÁC tên một ô CSV: id, tên hiển thị, "hãng sản phẩm" hoặc bí danh. Không khớp mờ: "Dns" không được thành D-Link. */
 export function findCatalog(text: string): CatalogEntry | undefined {
   const n = fold(text)
   if (!n) return undefined
-  const exact = CATALOG.find((e) => e.id === text.trim() || HAY.get(e.id)!.name === n || fold(`${e.vendor} ${e.product}`) === n || HAY.get(e.id)!.al.includes(n))
+  const exact = CATALOG.find((e) => e.id === text.trim() || HAY.get(e.id)!.name === n || fold(`${e.vendor} ${e.product}`) === n)
   if (exact) return exact
-  const terms = wordsOf(n)
-  return searchCatalog(text, 5).items.find((e) => terms.every((t) => HAY.get(e.id)!.all.includes(t)))
+  // Nhiều sản phẩm cùng bí danh/tên hãng: lấy cái đầu (phổ biến nhất) chỉ khi cùng một hãng ("synology"); khác hãng ("dns": D-Link, BIND) thì không đoán.
+  const byAlias = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
+  const hits = byAlias.length ? byAlias : CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n)
+  return hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined
 }
 
 /** Sản phẩm người dùng tự nhập (hãng + sản phẩm): khớp theo đúng cặp trong KEV nếu có, không thì theo mọi sản phẩm của hãng. */

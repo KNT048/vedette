@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -22,6 +23,8 @@ type ImportResult struct {
 	Created int           `json:"created"`
 	Skipped int           `json:"skipped"`
 	Errors  []ImportError `json:"errors"`
+	// Notes are rows that were added but need a word: a public IP, or an IP outside the saved network ranges.
+	Notes []ImportError `json:"notes"`
 }
 
 const bom = "\uFEFF"
@@ -57,13 +60,18 @@ func detectDelimiter(text string) byte {
 }
 
 // parseCSV reads CSV text (RFC 4180 quoting, any of CRLF, LF, CR as a line end) into rows of cells. It never
-// fails: it is fed by people and by Excel (SYS-6). Memory stays proportional to the input.
-func parseCSV(text string) [][]string {
+// fails: it is fed by people and by Excel (SYS-6). Memory stays proportional to the input. A quote that is not at
+// the start of a cell, text after a closing quote, or a quote still open at the end of the file does not stop the
+// parse: the row is listed in the returned map (row index -> reason) so the import can report that line instead
+// of guessing what the person meant.
+func parseCSV(text string) ([][]string, map[int]string) {
 	delim := detectDelimiter(text)
 	var rows [][]string
 	var row []string
 	var cell strings.Builder
-	quoted := false
+	problems := map[int]string{}
+	quoted, atStart, closed := false, true, false
+	openRow := 0
 	for i := 0; i < len(text); i++ {
 		c := text[i]
 		switch {
@@ -73,16 +81,17 @@ func parseCSV(text string) [][]string {
 					cell.WriteByte('"')
 					i++
 				} else {
-					quoted = false
+					quoted, closed = false, true
 				}
 			} else {
 				cell.WriteByte(c)
 			}
-		case c == '"':
-			quoted = true
+		case c == '"' && atStart:
+			quoted, atStart, openRow = true, false, len(rows)
 		case c == delim:
 			row = append(row, cell.String())
 			cell.Reset()
+			atStart, closed = true, false
 		case c == '\n' || c == '\r':
 			if c == '\r' && i+1 < len(text) && text[i+1] == '\n' {
 				i++
@@ -90,15 +99,23 @@ func parseCSV(text string) [][]string {
 			row = append(row, cell.String())
 			rows = append(rows, row)
 			row, cell = nil, strings.Builder{}
+			atStart, closed = true, false
 		default:
+			if c == '"' || closed {
+				problems[len(rows)] = "A double quote is in the wrong place in this row. Put a whole cell in quotes, or remove the stray quote."
+			}
+			atStart = false
 			cell.WriteByte(c)
 		}
+	}
+	if quoted {
+		problems[openRow] = "A double quote was opened and never closed, so this row runs into the rows below it. Close the quote or remove it."
 	}
 	if cell.Len() > 0 || len(row) > 0 {
 		row = append(row, cell.String())
 		rows = append(rows, row)
 	}
-	return rows
+	return rows, problems
 }
 
 // foldKey lower-cases, strips accents and turns every other character into "_": "IP Address" -> ip_address.
@@ -131,7 +148,7 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 	if len(text) > MaxImportBytes {
 		return ImportResult{}, badRequest("too_large", fmt.Sprintf("The file is too large (max %d KB). Split it into smaller files.", MaxImportBytes/1000))
 	}
-	table := parseCSV(strings.TrimPrefix(text, bom))
+	table, problems := parseCSV(strings.TrimPrefix(text, bom))
 	hi := 0
 	for hi < len(table) && !anyText(table[hi]) {
 		hi++
@@ -154,10 +171,17 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 		return ImportResult{}, badRequest("bad_header", "The first row must be column headers with at least a name or product column. Download the template to see the format.")
 	}
 	data := table[hi+1:]
+	if !slices.ContainsFunc(data, anyText) {
+		return ImportResult{}, badRequest("no_rows", "No device rows were found below the column headers. Add at least one row and choose the file again.")
+	}
 	if len(data) > MaxImportRows {
 		return ImportResult{}, badRequest("too_many_rows", fmt.Sprintf("At most %d rows per import. This file has %d rows.", MaxImportRows, len(data)))
 	}
 	cat, err := s.Catalog(ctx)
+	if err != nil {
+		return ImportResult{}, err
+	}
+	st, err := s.Settings(ctx)
 	if err != nil {
 		return ImportResult{}, err
 	}
@@ -176,6 +200,16 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 			continue
 		}
 		r := row{line: hi + i + 2}
+		if msg := problems[hi+1+i]; msg != "" {
+			r.err = msg
+			rows = append(rows, r)
+			continue
+		}
+		if len(cells) != len(header) {
+			r.err = columnCountMessage(len(cells), len(header))
+			rows = append(rows, r)
+			continue
+		}
 		get := func(k string) string {
 			for j, h := range header {
 				if h == k && j < len(cells) {
@@ -193,9 +227,9 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 		rows = append(rows, r)
 	}
 
-	res := ImportResult{Errors: []ImportError{}}
+	res := ImportResult{Errors: []ImportError{}, Notes: []ImportError{}}
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		res = ImportResult{Errors: []ImportError{}} // the transaction body must be safe to start from scratch
+		res = ImportResult{Errors: []ImportError{}, Notes: []ImportError{}} // the transaction body must be safe to start from scratch
 		noIPNames, err := namesWithoutIP(ctx, tx)
 		if err != nil {
 			return err
@@ -236,6 +270,9 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 				return err
 			}
 			res.Created++
+			if note := ipNote(st, a.ip); note != "" {
+				res.Notes = append(res.Notes, ImportError{Line: r.line, Message: note})
+			}
 		}
 		name := "csv"
 		if filename != "" {
@@ -257,10 +294,10 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 	var entry *catEntry
 	if productText != "" {
 		if utf8.RuneCountInString(productText) > maxLabel {
-			return fmt.Sprintf(`Product "%s…" is too long (at most %d characters). Use names as in the suggestion box when declaring by hand, for example FortiGate, Synology, WordPress.`, clip(productText, 40), maxLabel), a, ""
+			return fmt.Sprintf(`Product "%s…" is too long (at most %d characters). Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`, clip(productText, 40), maxLabel), a, ""
 		}
 		if entry = cat.find(productText); entry == nil {
-			return fmt.Sprintf(`Product "%s" not recognised. Use names as in the suggestion box when declaring by hand, for example FortiGate, Synology, WordPress.`, clip(productText, 40)), a, ""
+			return fmt.Sprintf(`Product "%s" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`, clip(productText, 40)), a, ""
 		}
 	}
 	if productText == "" && get("name") == "" {
@@ -277,6 +314,35 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 	}
 	a.entry = entry
 	return "", a, kind
+}
+
+// columnCountMessage explains a row whose cell count differs from the header, the usual sign of a file that
+// mixes delimiters.
+func columnCountMessage(got, want int) string {
+	return fmt.Sprintf("This row has %s but the header has %d. Check that every row uses the same separator (comma, semicolon or tab) as the header row.", plural(got, "column"), want)
+}
+
+func plural(n int, word string) string {
+	if n == 1 {
+		return "1 " + word
+	}
+	return fmt.Sprintf("%d %ss", n, word)
+}
+
+// ipNote says what is unusual about an imported IP: a public address, or one outside the saved network ranges
+// (declaring such a device by hand is allowed, but Vedette will not scan it, INV-7).
+func ipNote(st Settings, ip string) string {
+	a, ok := ipv4(ip)
+	if !ok {
+		return ""
+	}
+	if !a.IsPrivate() && !a.IsLinkLocalUnicast() && !a.IsLoopback() {
+		return fmt.Sprintf("IP %s is a public address. The device was added, but Vedette only scans your own network ranges.", ip)
+	}
+	if len(st.LANRanges) > 0 && !st.InScope(a) {
+		return fmt.Sprintf("IP %s is outside your saved network ranges. The device was added, but Vedette will not scan it.", ip)
+	}
+	return ""
 }
 
 func anyText(cells []string) bool {

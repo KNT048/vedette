@@ -357,33 +357,43 @@ func (c *Catalog) Search(q string) CatalogResult {
 	return res
 }
 
-// find matches the text of a CSV cell: an id, a display name, "vendor product", an alias, or the first
-// search hit that contains every word.
+// find matches the text of a CSV cell exactly: an id, a display name, "vendor product" or an alias. There is no
+// fuzzy fallback: a product the catalog does not know must stay unknown (the hand-entry box suggests, a person
+// picks; a file cannot pick), or "Dns" would silently become D-Link. An alias shared by several products ("dns"
+// is D-Link's NAS series and BIND) is not a match.
 func (c *Catalog) find(text string) *catEntry {
 	n := fold(text)
 	if n == "" {
 		return nil
 	}
 	id := strings.TrimSpace(text)
+	var aliasHits, vendorHits []*catEntry
 	for _, e := range c.entries {
-		if e.id == id || e.hName == n || e.hVendorProduct == n || indexOf(e.hAlias, n) {
+		if e.id == id || e.hName == n || e.hVendorProduct == n {
 			return e
 		}
-	}
-	terms := searchTerms(text)
-	list, _ := c.search(text, 5)
-	for _, e := range list {
-		all := true
-		for _, t := range terms {
-			if !strings.Contains(e.hAll, t) {
-				all = false
-			}
+		if indexOf(e.hAlias, n) {
+			aliasHits = append(aliasHits, e)
 		}
-		if all {
-			return e
+		if e.curated && e.hVendor == n {
+			vendorHits = append(vendorHits, e)
 		}
 	}
-	return nil
+	hits := aliasHits
+	if len(hits) == 0 {
+		hits = vendorHits
+	}
+	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND): the
+	// first (most popular) is taken only when they all have the same vendor, so the make is never a guess.
+	for _, e := range hits {
+		if e.hVendor != hits[0].hVendor {
+			return nil
+		}
+	}
+	if len(hits) == 0 {
+		return nil
+	}
+	return hits[0]
 }
 
 // custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one,

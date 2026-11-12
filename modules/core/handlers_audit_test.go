@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/modules/core"
 )
 
 func (w *world) auditRows(n int, user, action string) {
@@ -214,11 +215,13 @@ func TestContract_INV17_AuditExportIsCSVAndIsAudited(t *testing.T) {
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'audit.export' AND user = 'admin@acme.example' AND detail LIKE 'csv; filters group=scan'"); n != 1 {
 		t.Fatal("no audit.export row")
 	}
-	// No 200-row cap and no memory of the whole log: more than one page.
-	w.auditRows(2500, "bot@acme.example", "scan.bulk")
+	// No 200-row cap and no memory of the whole log: more than one page of the export's reads (each Append is several
+	// statements, seconds under -race for a few thousand rows, so it is one page and a bit, not several).
+	bulk := core.AuditExportPageForTest + 100
+	w.auditRows(bulk, "bot@acme.example", "scan.bulk")
 	big := admin.get("/core/audit/export?group=scan")
-	if got := strings.Count(big.Raw, "\r\n"); got != 1+3+2500 {
-		t.Fatalf("export lines = %d, want %d", got, 1+3+2500)
+	if got := strings.Count(big.Raw, "\r\n"); got != 1+3+bulk {
+		t.Fatalf("export lines = %d, want %d", got, 1+3+bulk)
 	}
 	if !strings.Contains(big.Raw[:200], "scan.bulk") {
 		t.Fatal("not newest first")

@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,7 +41,9 @@ func TestEveryErrorCodeOfCoreIsCatalogued(t *testing.T) {
 		t.Fatalf("only %d codes found: the scan is broken", len(found))
 	}
 	for code, file := range found {
-		if !regexp.MustCompile("(?m)^\\| `" + regexp.QuoteMeta(code) + "` \\|").Match(doc) {
+		// A line that starts with "| `code` |" (what the multi-line regexp ^\| `code` \| matched, without a scan of the whole
+		// document by a regexp for each code: seconds under -race).
+		if row := []byte("| `" + code + "` |"); !bytes.HasPrefix(doc, row) && !bytes.Contains(doc, append([]byte("\n"), row...)) {
 			t.Errorf("code %q (%s) is not in API_CONVENTIONS 3.3", code, file)
 		}
 	}

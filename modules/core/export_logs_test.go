@@ -96,3 +96,6 @@ func init() {
 		exportClasses[tbl] = classesOf(p)
 	}
 }
+
+// AuditExportPageForTest is how many rows GET /core/audit/export reads per query.
+const AuditExportPageForTest = auditExportPage

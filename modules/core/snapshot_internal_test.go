@@ -24,11 +24,7 @@ import (
 
 func snapshotTestDB(t *testing.T) *store.DB {
 	t.Helper()
-	db := storetest.New(t)
-	if err := store.Migrate(t.Context(), db, "core", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	return db
+	return storetest.Migrated(t, storetest.Migration{Module: "core", FS: Migrations})
 }
 
 func putRow(ctx context.Context, db *store.DB, n int) error {

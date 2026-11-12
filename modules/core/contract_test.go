@@ -7,11 +7,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -35,16 +38,22 @@ func TestMain(m *testing.M) {
 		}
 		os.Exit(0)
 	}
+	// Most tests here wait, not compute: on the child processes of host/ops (the fake apt, systemctl and netplan scripts) and
+	// on SQLite's file syncs. -parallel defaults to GOMAXPROCS, which left cores idle; twice that, unless -parallel is given,
+	// took the package from about 70 s to about 55 s under -race on 3 CPUs.
+	flag.Parse()
+	set := false
+	flag.Visit(func(f *flag.Flag) { set = set || f.Name == "test.parallel" })
+	if !set {
+		_ = flag.Set("test.parallel", strconv.Itoa(2*runtime.GOMAXPROCS(0)))
+	}
 	os.Exit(m.Run())
 }
 
+// migrated is a database in the state core's migrations leave, a copy of one built once per test process (storetest.Migrated).
 func migrated(t *testing.T) *store.DB {
 	t.Helper()
-	db := storetest.New(t)
-	if err := store.Migrate(t.Context(), db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	return db
+	return storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations})
 }
 
 func count(t *testing.T, db *store.DB, query string) int {

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -256,17 +257,19 @@ func TestCloseRemovesTheSpool(t *testing.T) {
 }
 
 // A big log costs disk, not memory: 100,000 rows (about 33 MB of file) are read and written through while the heap
-// stays far below the size of the file. GC is made eager so garbage does not hide a buffered file.
+// stays far below the size of the file. GC is made eager so garbage does not hide a buffered file. The JSON and the CSV
+// export run at the same time (under -race each takes tens of seconds), so the bound holds for both together.
 func TestALargeLogStaysInBoundedMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("large")
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(10))
 	const n = 100_000
+	detail := strings.Repeat("d", 250) // once: the source's own garbage is not what is measured
 	r := logexport.New()
 	r.Register("audit", func(_ context.Context, _, _ time.Time, w io.Writer) error {
 		for i := range n {
-			if _, err := fmt.Fprintf(w, "{\"id\":\"au-%d\",\"ts\":\"2026-11-09T08:00:00.000Z\",\"detail\":\"%s\",\"password\":\"x\"}\n", i, strings.Repeat("d", 250)); err != nil {
+			if _, err := fmt.Fprintf(w, "{\"id\":\"au-%d\",\"ts\":\"2026-11-09T08:00:00.000Z\",\"detail\":\"%s\",\"password\":\"x\"}\n", i, detail); err != nil {
 				return err
 			}
 		}
@@ -293,24 +296,31 @@ func TestALargeLogStaysInBoundedMemory(t *testing.T) {
 	runtime.GC()
 	var base runtime.MemStats
 	runtime.ReadMemStats(&base)
+	var wg sync.WaitGroup
 	for _, format := range []logexport.Format{logexport.JSON, logexport.CSV} {
-		e, err := r.Build(t.Context(), logexport.Request{Categories: []string{"audit"}, Format: format, MaxBytes: 1 << 30, Dir: t.TempDir()})
-		if err != nil {
-			t.Fatal(err)
-		}
-		size, err := io.Copy(io.Discard, e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = e.Close()
-		if e.Rows != n || size < 25<<20 {
-			t.Fatalf("%s: rows = %d, bytes = %d", format, e.Rows, size)
-		}
+		dir := t.TempDir()
+		wg.Go(func() {
+			e, err := r.Build(t.Context(), logexport.Request{Categories: []string{"audit"}, Format: format, MaxBytes: 1 << 30, Dir: dir})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			size, err := io.Copy(io.Discard, e)
+			_ = e.Close()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if e.Rows != n || size < 25<<20 {
+				t.Errorf("%s: rows = %d, bytes = %d", format, e.Rows, size)
+			}
+		})
 	}
+	wg.Wait()
 	close(stop)
 	<-done
 	if grown := peak.Load() - min(peak.Load(), base.HeapAlloc); grown > 12<<20 {
-		t.Fatalf("the heap grew by %d MB while a 33 MB file went through", grown>>20)
+		t.Fatalf("the heap grew by %d MB while a 33 MB JSON file and its CSV went through", grown>>20)
 	}
 }
 

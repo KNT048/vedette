@@ -135,10 +135,8 @@ type Env struct {
 // the Service is built (for example MaxHashing).
 func New(t testing.TB, modify ...func(*auth.Config)) *Env {
 	t.Helper()
-	db := storetest.New(t)
-	if err := store.Migrate(t.Context(), db, "core", os.DirFS(migrationsDir(t))); err != nil {
-		t.Fatal(err)
-	}
+	// A copy of a database the core migrations ran on once per process: under -race the migrations were most of a short test.
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: os.DirFS(migrationsDir(t))})
 	sec, err := secrets.New(bytes.Repeat([]byte{9}, secrets.KeySize))
 	if err != nil {
 		t.Fatal(err)

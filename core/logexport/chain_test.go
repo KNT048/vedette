@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,7 +31,7 @@ type chainEnv struct {
 
 func newChainEnv(t *testing.T, at ...time.Time) *chainEnv {
 	t.Helper()
-	db := storetest.NewMigrated(t, "core", coreMigrations)
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: os.DirFS(coreMigrations)})
 	var now time.Time
 	l := audit.New(func() time.Time { return now })
 	for i, ts := range at {

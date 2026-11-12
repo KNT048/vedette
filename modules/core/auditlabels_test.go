@@ -27,6 +27,20 @@ var (
 	auditFile    = regexp.MustCompile(`\.(json|csv)$`) // a file name on the same line, not an action
 )
 
+// mayCallAudit is false for a line auditCall cannot match: every match holds "ction" (Action, action, auditAction) or one of
+// the calls. It only spares the regexp most of the repository's lines (seconds under -race); auditCall still decides.
+func mayCallAudit(code string) bool {
+	if strings.Contains(code, "ction") {
+		return true
+	}
+	for _, call := range []string{".step(", ".refuse(", ".audit(", ".auditTx(", ".record("} {
+		if strings.Contains(code, call) {
+			return true
+		}
+	}
+	return false
+}
+
 func auditActionsInSource(t *testing.T) map[string]string {
 	t.Helper()
 	root := "../.."
@@ -51,7 +65,7 @@ func auditActionsInSource(t *testing.T) map[string]string {
 		}
 		for _, line := range strings.Split(string(src), "\n") {
 			code := strings.TrimSpace(line)
-			if strings.HasPrefix(code, "//") || !auditCall.MatchString(code) || auditNoise.MatchString(code) {
+			if strings.HasPrefix(code, "//") || !mayCallAudit(code) || !auditCall.MatchString(code) || auditNoise.MatchString(code) {
 				continue
 			}
 			for _, m := range auditLiteral.FindAllStringSubmatch(code, -1) {

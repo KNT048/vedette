@@ -22,7 +22,7 @@ has none.
 | 3 | **[B]** `release-gates`: `make vuln-scan`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1) | none |
 | 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
 | 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
-| 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the config digest of the pushed local platform image) | maintainer | `release.in.json`, `images.json`, `dist/sbom`, local lists | printed commands | none |
+| 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the platform's `config` in `images.json`) | maintainer | `release.in.json`, `images.json`, `dist/sbom` | printed commands | none |
 | 7 | run the printed cosign commands | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
 | 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
 | 9 | `make release-container-assets` | maintainer | git at `v<v>`, `release.in.json` | the four container-only files | none |
@@ -68,10 +68,11 @@ are only tied to `<v>` by their version label (and B's gates); build them from t
 
 ```json
 {"version":"X.Y.Z","images":[{"service":"core","repo":"ghcr.io/knt048/vedette-core","index_digest":"sha256:<64hex>",
-  "platforms":[{"platform":"linux/amd64","digest":"sha256:<64hex>"},{"platform":"linux/arm64","digest":"sha256:<64hex>"}]}, …]}
+  "platforms":[{"platform":"linux/amd64","digest":"sha256:<64hex>","config":"sha256:<64hex>"},{"platform":"linux/arm64",…}]}, …]}
 ```
 
-Services in order core, sensor, scan, honeypot; platforms sorted. Part C reads it for `cosign attest` (per-platform SBOMs
+Services in order core, sensor, scan, honeypot; platforms sorted; `config` is the config digest of the platform image pushed (the
+local image ID, which a push does not change). Part C reads it for `cosign attest` (per-platform SBOMs
 `dist/sbom/<image>-<arch>.cdx.json` attach to the platform digests; the local name `scan-base` maps to service `scan`).
 
 **`release-in`** (`in`): reads `images.json` strictly (four services, each once, repo `ghcr.io/knt048/vedette-<service>`: a rehearsal's

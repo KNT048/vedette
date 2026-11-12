@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,10 +33,10 @@ type CosignPlanOpts struct {
 // CosignPlan returns the argv of every command of the plan, in order: cd, mkdir of Out, the sign lines, the attest lines. It refuses
 // anything it cannot prove belongs to this release: images.json and release.in.json naming another version, other or repeated
 // services, other index digests or other platforms; an SBOM that is missing, not a regular file inside dist/ reached without a
-// symlink, not CycloneDX, or made from another image than the platform image of the local list `release push` pushed (trivy's
-// ImageID against the config digest podman reports, read through run); Out or SBOMDir outside dist/; a key, binary or directory a
-// shell or cosign could read as something else.
-func CosignPlan(ctx context.Context, run runFunc, in Inputs, images *ImagesDoc, o CosignPlanOpts) ([][]string, error) {
+// symlink, not CycloneDX, or made from another image than the one `release push` pushed for that platform (trivy's ImageID against
+// the config digest images.json records: a rebuild after the push has other config digests); Out or SBOMDir outside dist/; a key,
+// binary or directory a shell or cosign could read as something else. It reads only files: no podman, no network.
+func CosignPlan(in Inputs, images *ImagesDoc, o CosignPlanOpts) ([][]string, error) {
 	if err := planArg("-cosign", o.Bin); err != nil {
 		return nil, err
 	}
@@ -97,18 +96,9 @@ func CosignPlan(ctx context.Context, run runFunc, in Inputs, images *ImagesDoc, 
 		if local == "" {
 			return nil, fmt.Errorf("no local image is published as %q", im.Service)
 		}
-		lp, err := localPlatforms(ctx, run, "localhost/vedette-"+local+":"+in.Version, plats)
-		if err != nil {
-			return nil, fmt.Errorf("each SBOM is matched to the platform image of the local list that was pushed: %w", err)
-		}
 		for _, p := range pushed.Platforms {
-			arch := strings.TrimPrefix(p.Platform, "linux/")
-			j := slices.IndexFunc(lp, func(l localPlatform) bool { return l.Platform == p.Platform })
-			if j < 0 || lp[j].Version != in.Version {
-				return nil, fmt.Errorf("%s %s: the local image is not version %s", im.Service, p.Platform, in.Version)
-			}
-			sbom := filepath.Join(o.SBOMDir, local+"-"+arch+".cdx.json")
-			if err := checkSBOM(o.Dir, sbom, lp[j].Config); err != nil {
+			sbom := filepath.Join(o.SBOMDir, local+"-"+strings.TrimPrefix(p.Platform, "linux/")+".cdx.json")
+			if err := checkSBOM(o.Dir, sbom, p.Config); err != nil {
 				return nil, fmt.Errorf("%s %s: %w", im.Service, p.Platform, err)
 			}
 			argv, err := AttestArgv(o.Bin, o.Key, im.Service, p.Digest, sbom)
@@ -235,7 +225,7 @@ func checkSBOM(dir, rel, config string) error {
 		}
 	}
 	if len(ids) != 1 || ids[0] != config {
-		return fmt.Errorf("SBOM %s is of image %v, not of the local image %s that was pushed (make sbom RELEASE=1 IMAGE_TAG=<version>)", rel, ids, config)
+		return fmt.Errorf("SBOM %s is of image %v, not of the image %s that was pushed (make sbom RELEASE=1 IMAGE_TAG=<version> of the images release-push pushed)", rel, ids, config)
 	}
 	return nil
 }

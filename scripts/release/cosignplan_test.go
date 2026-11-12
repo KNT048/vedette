@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"slices"
@@ -14,8 +13,8 @@ import (
 )
 
 // planTree writes, under a fresh working directory, what steps 3–5 leave for the plan: release.in.json, dist/release/images.json
-// and the eight SBOMs of make sbom (named after the local images, scan-base for service scan), each naming the config digest of
-// its platform image in localStore (version 0.2.0) as trivy does.
+// and the eight SBOMs of make sbom (named after the local images, scan-base for service scan), each naming as trivy does the config
+// digest images.json records for its platform.
 func planTree(t *testing.T) (dir string, doc *ImagesDoc) {
 	t.Helper()
 	dir = t.TempDir()
@@ -61,17 +60,16 @@ func readInJSON(t *testing.T) Inputs {
 	return in
 }
 
-// planRun is `release cosign-plan -key /keys/cosign.key ARGS` with podman faked by store.
-func planRun(store func([]string) ([]byte, error), args ...string) (string, error) {
+// planRun is `release cosign-plan -key /keys/cosign.key ARGS`.
+func planRun(args ...string) (string, error) {
 	var out bytes.Buffer
-	fr := &fakeRun{fn: store}
-	err := cosignPlanCmd(context.Background(), fr.run, append([]string{"-key", "/keys/cosign.key"}, args...), &out)
+	err := cmdCosignPlan(append([]string{"-key", "/keys/cosign.key"}, args...), &out)
 	return out.String(), err
 }
 
 func TestCosignPlanSignsAndAttests(t *testing.T) {
 	dir, doc := planTree(t)
-	out, err := planRun(localStore("0.2.0"), "-cosign", "/opt/cosign v2/cosign")
+	out, err := planRun("-cosign", "/opt/cosign v2/cosign")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,10 +130,9 @@ func TestCosignPlanRefuses(t *testing.T) {
 		writeJSON(t, "release.in.json", in)
 	}
 	for name, c := range map[string]struct {
-		args  []string
-		mut   func(t *testing.T)
-		store func([]string) ([]byte, error)
-		want  string
+		args []string
+		mut  func(t *testing.T)
+		want string
 	}{
 		"no key":            {args: []string{"-key", ""}, want: "-key is required"},
 		"relative key":      {args: []string{"-key", "keys/cosign.key"}, want: "absolute"},
@@ -161,13 +158,10 @@ func TestCosignPlanRefuses(t *testing.T) {
 		"sbom with two image ids": {mut: func(t *testing.T) {
 			writeSBOM(t, "dist/sbom/core-amd64.cdx.json", "sha256:"+cfgID("core", "amd64"), digestOf("x"))
 		}, want: "is of image"},
-		"local image of another version": {store: localStore("0.1.9"), want: "not version 0.2.0"},
-		"no local list": {store: func(a []string) ([]byte, error) {
-			if a[1] == "manifest" && a[2] == "exists" {
-				return nil, os.ErrNotExist
-			}
-			return localStore("0.2.0")(a)
-		}, want: "no local manifest list"},
+		"rebuilt after the push": {mut: func(t *testing.T) { // the SBOM is of a local image whose config is not the one pushed
+			images(t, func(d *ImagesDoc) { d.Images[0].Platforms[1].Config = digestOf("pushed core arm64") })
+		}, want: "core linux/arm64: SBOM dist/sbom/core-arm64.cdx.json is of image"},
+		"images.json without config": {mut: func(t *testing.T) { images(t, func(d *ImagesDoc) { d.Images[2].Platforms[0].Config = "" }) }, want: "malformed"},
 		"sbom symlink": {mut: func(t *testing.T) {
 			must(t, os.Rename("dist/sbom/core-amd64.cdx.json", "elsewhere.json"))
 			must(t, os.Symlink("../../elsewhere.json", "dist/sbom/core-amd64.cdx.json"))
@@ -199,11 +193,7 @@ func TestCosignPlanRefuses(t *testing.T) {
 			if c.mut != nil {
 				c.mut(t)
 			}
-			store := c.store
-			if store == nil {
-				store = localStore("0.2.0")
-			}
-			out, err := planRun(store, c.args...)
+			out, err := planRun(c.args...)
 			if err == nil || out != "" || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("out %q, err %v (want %q)", out, err, c.want)
 			}

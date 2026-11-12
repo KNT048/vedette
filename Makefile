@@ -442,7 +442,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 
 # WP-08k step 6 (D-457 part C): one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
-# (each SBOM must be trivy's SBOM of the local platform image that was pushed: needs the local lists, like release-in). Printed with
+# (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
 # the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The attest lines upload to ghcr with
 # the registry login cosign reads (docker config, or REGISTRY_AUTH_FILE=<podman auth.json>).
 release-cosign-plan:

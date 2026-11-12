@@ -171,9 +171,10 @@ func TestPushWritesImagesJSON(t *testing.T) {
 			for i, svc := range []string{"core", "sensor", "scan", "honeypot"} {
 				repo := reg + "/vedette-" + svc
 				fmt.Fprintf(&want, "    {\n      \"service\": %q,\n      \"repo\": %q,\n      \"index_digest\": %q,\n      \"platforms\": [\n"+
-					"        {\n          \"platform\": \"linux/amd64\",\n          \"digest\": %q\n        },\n"+
-					"        {\n          \"platform\": \"linux/arm64\",\n          \"digest\": %q\n        }\n      ]\n    }",
-					svc, repo, digestBytes(listJSON(both("remote "+repo))), digestOf("remote "+repo+"amd64"), digestOf("remote "+repo+"arm64"))
+					"        {\n          \"platform\": \"linux/amd64\",\n          \"digest\": %q,\n          \"config\": %q\n        },\n"+
+					"        {\n          \"platform\": \"linux/arm64\",\n          \"digest\": %q,\n          \"config\": %q\n        }\n      ]\n    }",
+					svc, repo, digestBytes(listJSON(both("remote "+repo))), digestOf("remote "+repo+"amd64"), "sha256:"+cfgID(localNames[i], "amd64"),
+					digestOf("remote "+repo+"arm64"), "sha256:"+cfgID(localNames[i], "arm64"))
 				if i < 3 {
 					want.WriteString(",")
 				}
@@ -383,7 +384,8 @@ func imagesFor(version string) *ImagesDoc {
 	d := &ImagesDoc{Version: version}
 	for _, svc := range []string{"core", "sensor", "scan", "honeypot"} {
 		d.Images = append(d.Images, PushedImage{Service: svc, Repo: "ghcr.io/knt048/vedette-" + svc, IndexDigest: digestOf(svc + version),
-			Platforms: []PlatformDigest{{"linux/amd64", digestOf(svc + "a")}, {"linux/arm64", digestOf(svc + "b")}}})
+			Platforms: []PlatformDigest{{"linux/amd64", digestOf(svc + "a"), "sha256:" + cfgID(localName(svc), "amd64")},
+				{"linux/arm64", digestOf(svc + "b"), "sha256:" + cfgID(localName(svc), "arm64")}}})
 	}
 	return d
 }

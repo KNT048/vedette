@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -73,5 +74,3 @@ func TestExportAlertsIsTheDeliveryLogByDateRangeWithoutTokens(t *testing.T) {
 		t.Fatalf("an empty range gave %v", rows)
 	}
 }
-
-func itoa(n int) string { return string(rune('0'+n/10)) + string(rune('0'+n%10)) }

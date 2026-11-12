@@ -1218,8 +1218,8 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("wlp3s0", "192.168.18.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
 		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "192.168.18.142/24"), card("enp3s0")}, "wlp3s0"},
 		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}, ""},
-		// D-393: a Docker or Podman host lists its container bridges (docker0, br-… of a compose network), veth and lo with
-		// addresses and link up; they are never a candidate, or every container-only box would have "two cards".
+		// D-393 (SYS-6): the sensor leaves container bridges, veth and lo out of its heartbeat, but the heartbeat is untrusted;
+		// an older or compromised sensor that lists them up with an address never makes them a candidate.
 		"container bridges are not cards": {[]sensorlink.HeartbeatIface{card("lo", "127.0.0.1/8"), card("docker0", "172.17.0.1/16"), card("br-1a2b3c4d5e6f", "172.18.0.1/16"), card("veth12ab"), card("podman0", "10.88.0.1/16"), card("enp2s0", "192.168.18.141/24")}, "enp2s0"},
 	} {
 		if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: c.cards, Drops: map[string]int64{}}); err != nil {

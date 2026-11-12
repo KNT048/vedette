@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -253,7 +254,7 @@ if [ "$NAME" = systemctl ] && [ "$1" = reboot ]; then
 fi
 {
   echo "=== env"
-  env | grep -v '^\(PWD\|SHLVL\|_\|OLDPWD\)=' | sort
+  export -p
 } >> "$REC/$NAME.env"
 {
   echo "=== call"
@@ -382,27 +383,78 @@ func (m *Machine) Calls(bin string) [][]string {
 }
 
 // Envs returns, for each call of a fake binary, the environment it saw (KEY=value lines, sorted,
-// without the variables the shell adds itself).
+// without the variables the shell adds itself). The fake records it with the builtin `export -p` and the
+// parsing, filtering and sorting happen here: `env | grep | sort` in the fake cost three more processes on
+// every call of every fake, most of the run time of the host tests under -race.
 func (m *Machine) Envs(bin string) [][]string {
 	b, _ := os.ReadFile(filepath.Join(m.Rec, bin+".env")) //nolint:gosec // test support: a path under the fake rec dir
 	var out [][]string
 	var cur []string
 	started := false
+	done := func() {
+		if started {
+			slices.Sort(cur)
+			out = append(out, cur)
+		}
+	}
 	for _, line := range strings.Split(string(b), "\n") {
 		switch {
 		case line == "=== env":
-			if started {
-				out = append(out, cur)
-			}
+			done()
 			cur, started = []string{}, true
-		case line != "":
-			cur = append(cur, line)
+		case line == "":
+		default:
+			if kv, ok := exportLine(line); ok {
+				if k, _, _ := strings.Cut(kv, "="); !slices.Contains([]string{"PWD", "SHLVL", "_", "OLDPWD"}, k) {
+					cur = append(cur, kv)
+				}
+			}
 		}
 	}
-	if started {
-		out = append(out, cur)
-	}
+	done()
 	return out
+}
+
+// exportLine turns one line of `export -p` into KEY=value: dash quotes the value 'like this' ('"'"' for a quote),
+// bash in POSIX mode (macOS /bin/sh) "like this" (backslash before $ ` " \). A variable without a value (bash:
+// `export OLDPWD`) is skipped; a line that is not `export ...` is kept as it is, so an assertion on it fails.
+// ponytail: one line per variable; a value with a newline is not parsed (no fake is given one).
+func exportLine(line string) (string, bool) {
+	rest, ok := strings.CutPrefix(line, "export ")
+	if !ok {
+		return line, true
+	}
+	name, word, ok := strings.Cut(rest, "=")
+	if !ok {
+		return "", false
+	}
+	var b strings.Builder
+	for i := 0; i < len(word); i++ {
+		switch c := word[i]; c {
+		case '\'':
+			j := strings.IndexByte(word[i+1:], '\'')
+			if j < 0 {
+				return line, true
+			}
+			b.WriteString(word[i+1 : i+1+j])
+			i += j + 1
+		case '"':
+			for i++; i < len(word) && word[i] != '"'; i++ {
+				if word[i] == '\\' && i+1 < len(word) && strings.IndexByte("$`\"\\", word[i+1]) >= 0 {
+					i++
+				}
+				b.WriteByte(word[i])
+			}
+		case '\\':
+			if i+1 < len(word) {
+				i++
+				b.WriteByte(word[i])
+			}
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return name + "=" + b.String(), true
 }
 
 // AllCalls returns every call of every fake but ip, as "binary arg arg ...".
@@ -475,7 +527,7 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
 func (m *Machine) StatefulIP() {
 	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
-mkdir -p "$S/host" "$S/ns"
+{ [ -d "$S/host" ] && [ -d "$S/ns" ]; } || mkdir -p "$S/host" "$S/ns"
 mode=host
 if [ "$1" = "-n" ]; then shift 2; mode=ns; fi
 args="$*"
@@ -488,7 +540,12 @@ case "$mode:$args" in
   "host:netns exec vedette-hp /usr/sbin/sysctl -n "*)
     set -- $args; shift 5
     for k in "$@"; do
-      v=$(grep -o " $k=[^ ]*" "$S/sysctl" 2>/dev/null | tail -1 | sed 's/.*=//')
+      v="" # the last value "sysctl -w" set for k (builtins only: this runs on every look of the decoy)
+      if [ -r "$S/sysctl" ]; then
+        while IFS= read -r l; do
+          for w in $l; do case $w in "$k="*) v=${w##*=} ;; esac; done
+        done < "$S/sysctl"
+      fi
       [ -e "$REC/mark.sysctl-wrong" ] && v=9
       echo "$v"
     done
@@ -536,11 +593,14 @@ case "$mode:$args" in
     printf '[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"link_type":"loopback","address":"00:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8}]}'
     for f in "$S"/ns/*; do
       [ -e "$f" ] || continue
-      n=$(basename "$f"); mac=$(sed -n 's/^mac=//p' "$f"); up=$(sed -n 's/^up=//p' "$f")
+      n=${f##*/}; mac=""; up=""; addrs=""
+      while IFS= read -r l; do
+        case $l in mac=*) mac=${l#mac=} ;; up=*) up=${l#up=} ;; addr=*) addrs="$addrs ${l#addr=}" ;; esac
+      done < "$f"
       fl='"BROADCAST","MULTICAST"'; [ "$up" = 1 ] && fl="$fl"',"UP","LOWER_UP"'
       printf ',{"ifindex":2,"ifname":"%s","flags":[%s],"link_type":"ether","address":"%s","addr_info":[' "$n" "$fl" "$mac"
       first=1
-      for a in $(sed -n 's/^addr=//p' "$f"); do
+      for a in $addrs; do
         [ $first = 1 ] || printf ','
         first=0
         printf '{"family":"inet","local":"%s","prefixlen":%s}' "${a%/*}" "${a#*/}"

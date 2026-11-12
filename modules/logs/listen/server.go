@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// Limits are the bounds of the listener (S-LOG-1, SYS-6; starting points to measure, ponytail). A zero field takes its default.
+// Limits are the bounds of the listener (S-LOG-1, SYS-6; measured on the lab box in D-222, ponytail). A zero field takes its default.
 type Limits struct {
 	MaxLine          int           // bytes of one message kept (8 KiB, the rsyslog default); a longer one is cut and counted
 	MaxFrame         int           // largest datagram, octet count or newline-less line read (64 KiB)

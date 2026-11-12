@@ -564,6 +564,37 @@ func TestSiemRecordsFromEventsAreClean(t *testing.T) {
 	}
 }
 
+// A bad connection the device blocked says so in every format (D-227): CEF act=blocked, syslog and JSON blocked="true"; one that went
+// through, or an event without the key, is blocked="false" and has no act.
+func TestSiemBadConnCarriesBlocked(t *testing.T) {
+	e := newSiemEnv(t)
+	bus := events.NewBus(slog.New(slog.DiscardHandler))
+	e.svc.Subscribe(bus)
+	e.saveSiem(SiemInput{Enabled: true, Format: "cef", Host: "192.168.10.50", Port: 514, Proto: "udp", Events: []string{"bad_conn"}})
+	e.svc.siemRunning.Store(true)
+	row, _ := e.svc.loadSiem(t.Context(), e.cfg.Reader(), false)
+	e.svc.siemCache.Store(&row)
+	hit := map[string]any{"id": "b-1", "src_ip": "192.168.10.9", "dest": "a.bad.example.net", "dest_kind": "domain", "seen_via": "syslog:FW", "blocked": true}
+	publish(t, bus, siemEventBadAddress, hit)
+	hit["blocked"] = false
+	publish(t, bus, siemEventBadAddress, hit)
+	delete(hit, "blocked")
+	publish(t, bus, siemEventBadAddress, hit)
+	recs, _ := e.svc.siemQ.peek(10)
+	if len(recs) != 3 {
+		t.Fatalf("%d records", len(recs))
+	}
+	for i, want := range []string{"true", "false", "false"} {
+		cef, sl, js := string(formatCEF(recs[i])), string(formatSyslog(recs[i], "box")), string(formatJSON(recs[i], "box"))
+		if strings.Contains(cef, "act=blocked") != (want == "true") || strings.Contains(cef, "act=") != (want == "true") {
+			t.Errorf("record %d cef %s", i, cef)
+		}
+		if !strings.Contains(sl, ` blocked="`+want+`"`) || !strings.Contains(js, `"blocked":"`+want+`"`) {
+			t.Errorf("record %d syslog %s json %s", i, sl, js)
+		}
+	}
+}
+
 // A SIEM that never answers must not slow the bus or the module that publishes, and must not make the queue grow. Time is the bubble's:
 // the sender sits in its first send for the whole test, and every publish returns while it does without any bubble time passing (a
 // publish that waited on the sender would let the clock run, or leave the bubble deadlocked), whatever the load of the machine.

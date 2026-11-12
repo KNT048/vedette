@@ -191,7 +191,8 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 		return newSiemRecord("ioc.hit", "high", now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "id")}, siemField{Key: "src_ip", CEF: "src", Val: str(m, "src_ip")},
 			siemField{Key: "dest", CEF: "dst", Val: str(m, "dest")}, siemField{Key: "dest_kind", Val: str(m, "dest_kind")},
-			siemField{Key: "seen_via", Val: str(m, "seen_via")}, siemField{Key: "asset_id", Val: str(m, "asset_id")})
+			siemField{Key: "seen_via", Val: str(m, "seen_via")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
+			siemField{Key: "blocked", CEF: "act", Val: strconv.FormatBool(m["blocked"] == true)}) // D-227; an event without the key is "false"
 	})
 	return func() {
 		for _, u := range undo {

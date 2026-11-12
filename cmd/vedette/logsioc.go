@@ -39,6 +39,10 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 		}
 		l.Feeds = append(l.Feeds, s.SourceName)
 		l.Confidence = max(l.Confidence, s.Confidence)
+		if s.Subdomains && kind == "domain" { // the feed lists the name with all of its subdomains (hagezi TIF, D-228)
+			l.SubFeeds = append(l.SubFeeds, s.SourceName)
+			l.SubConfidence = max(l.SubConfidence, s.Confidence)
+		}
 	}
 	return l, len(l.Feeds) > 0, nil // an indicator that no enabled feed lists is not a hit
 }

@@ -491,7 +491,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 | `too_many_nodes` | 429 | This enrollment token already has the most machines it can have. Revoke it and make a new one. | `POST /intake/osquery/enroll` khi token đã có 500 máy hoặc hộp đã có 5.000 máy (agent-intake INV-14, D-265 (2); kèm `retry_after` 3600 và `Retry-After`); máy-với-máy, osquery chỉ ghi log và thử lại |
 
-#### HTTP 502 (22 mã)
+#### HTTP 502 (23 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -532,7 +532,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
 
-#### HTTP 503 (4 mã)
+#### HTTP 503 (5 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|

@@ -121,6 +121,39 @@ func TestContract_TokenNamesExpiryAndCap(t *testing.T) {
 	}
 }
 
+// The status answer can be about one machine (S-INV-4): host_last_seen is that machine's last_seen under THIS token, null before it enrols,
+// matched by name ignoring case; another machine of the token, or of another token, never shows in it; an unclean name gets no host field.
+func TestContract_StatusIsPerMachine(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 7)
+	_, other := w.token("other", 7)
+	ask := func(tok string, id any) reply {
+		return w.post("/intake/osquery/status", peerA, map[string]any{"host_identifier": id}, "Authorization", "Bearer "+tok)
+	}
+	if r := ask(secret, "srv-1"); r.code != 200 || r.body["host_last_seen"] != nil || !has(r.body, "host_last_seen") {
+		t.Fatalf("before enrolment: %d %s", r.code, r.raw)
+	}
+	w.enroll(other, "srv-2", peerA) // a machine of another token under another name
+	w.enroll(secret, "srv-1", peerA)
+	if r := ask(secret, "SRV-1"); r.code != 200 || r.body["host_last_seen"] == nil || r.body["hosts"] != float64(1) {
+		t.Fatalf("after enrolment (name in another case): %d %s", r.code, r.raw)
+	}
+	if r := ask(secret, "srv-2"); r.code != 200 || r.body["host_last_seen"] != nil || !has(r.body, "host_last_seen") {
+		t.Fatalf("a machine of another token answered: %d %s", r.code, r.raw)
+	}
+	for _, bad := range []any{"", "a\nb", strings.Repeat("a", 201), 7} {
+		if r := ask(secret, bad); r.code == 200 && has(r.body, "host_last_seen") {
+			t.Errorf("name %v got a host field: %s", bad, r.raw)
+		}
+	}
+	// No body at all keeps the token-wide answer.
+	if r := w.post("/intake/osquery/status", peerA, nil, "Authorization", "Bearer "+secret); r.code != 200 || has(r.body, "host_last_seen") {
+		t.Fatalf("no body: %d %s", r.code, r.raw)
+	}
+}
+
+func has(m map[string]any, k string) bool { _, ok := m[k]; return ok }
+
 // POST-1: one enrolment and one result log put the device in the inventory with its software, source agent; the status answer follows.
 func TestContract_POST1_EnrolAndLogShowTheDeviceWithItsSoftware(t *testing.T) {
 	w := newWorld(t)

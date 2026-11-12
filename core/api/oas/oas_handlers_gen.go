@@ -25141,8 +25141,8 @@ func (s *Server) handleInventoryPostIntakeOsqueryLogRequest(args [0]string, args
 
 // handleInventoryPostIntakeOsqueryStatusRequest handles inventory_post_intake_osquery_status operation.
 //
-// The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer
-// header, never in the URL.
+// The install script asks "has THIS machine enrolled yet" (body: its host_identifier; empty body =
+// token-wide counts only); token goes in the Authorization: Bearer header, never in the URL.
 //
 // POST /intake/osquery/status
 func (s *Server) handleInventoryPostIntakeOsqueryStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25151,26 +25151,45 @@ func (s *Server) handleInventoryPostIntakeOsqueryStatusRequest(args [0]string, a
 	ctx := r.Context()
 
 	var (
-		err error
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostIntakeOsqueryStatusOperation,
+			ID:   "inventory_post_intake_osquery_status",
+		}
 	)
 
 	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostIntakeOsqueryStatusRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response *InventoryPostIntakeOsqueryStatusOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostIntakeOsqueryStatusOperation,
-			OperationSummary: "The install script asks \"has this machine reported in yet\"; token goes in the Authorization: Bearer header, never in the URL",
+			OperationSummary: "The install script asks \"has THIS machine enrolled yet\" (body: its host_identifier; empty body = token-wide counts only); token goes in the Authorization: Bearer header, never in the URL",
 			OperationID:      "inventory_post_intake_osquery_status",
-			Body:             nil,
+			Body:             request,
 			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
 
 		type (
-			Request  = struct{}
+			Request  = OptInventoryPostIntakeOsqueryStatusReq
 			Params   = struct{}
 			Response = *InventoryPostIntakeOsqueryStatusOK
 		)
@@ -25183,12 +25202,12 @@ func (s *Server) handleInventoryPostIntakeOsqueryStatusRequest(args [0]string, a
 			mreq,
 			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryPostIntakeOsqueryStatus(ctx)
+				response, err = s.h.InventoryPostIntakeOsqueryStatus(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryPostIntakeOsqueryStatus(ctx)
+		response, err = s.h.InventoryPostIntakeOsqueryStatus(ctx, request)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

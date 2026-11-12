@@ -692,12 +692,15 @@ export const handlers = [
   http.get(`${API}/install/osquery.ps1`, () => new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
 
   // Script cài hỏi trạng thái bằng token trong header (không bao giờ trong URL). Token chỉ cho phép việc này và đăng ký osquery.
-  http.post(`${API}/intake/osquery/status`, ({ request }) => {
+  http.post(`${API}/intake/osquery/status`, async ({ request }) => {
     const m = /^Bearer (vdt_osquery_[a-z0-9]{32})$/.exec(request.headers.get('authorization') ?? '')
     const t = m ? agentsStore.get().find((x) => x.last4 === m[1]!.slice(-4)) : undefined
     if (!t) return fail(403, 'invalid_token', 'This enrollment token is not valid. Create a new one in Vedette.')
     if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one in Vedette.')
-    return HttpResponse.json({ enrolled: t.last_received !== null, hosts: t.hosts })
+    // The mock keeps no nodes: a named machine counts as enrolled when the token has any machine (the real box matches the name under the token).
+    const b = await body<{ host_identifier?: string }>(request)
+    const named = typeof b?.host_identifier === 'string' && b.host_identifier.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(b.host_identifier)
+    return HttpResponse.json({ enrolled: t.last_received !== null, hosts: t.hosts, ...(named ? { host_last_seen: t.hosts > 0 ? new Date().toISOString() : null } : {}) })
   }),
 
   // osquery TLS remote API (D-169): machine to machine, no GUI calls these; the mock answers with the real shapes so the contract tests and OpenAPI cover them.

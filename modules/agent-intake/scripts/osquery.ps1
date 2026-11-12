@@ -28,6 +28,9 @@ if ($Uninstall) {
 if (-not $Token) { throw 'Missing -Token. Copy the install command from Vedette, Devices, Scope and sensors.' }
 if (-not (Test-Path $Curl)) { throw 'curl.exe was not found. Use Windows Server 2019 or later, or follow Advanced: manual setup in Vedette.' }
 
+# The name this machine enrols under is chosen here (--host_identifier=specified), so the status check below asks for exactly that name.
+$hostId = [regex]::Replace([System.Net.Dns]::GetHostName(), '[^A-Za-z0-9._-]', '')
+if (-not $hostId) { throw "Cannot read this machine's host name." }
 $Tmp = Join-Path $env:TEMP ('vedette-osquery-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $Tmp | Out-Null
 try {
@@ -47,7 +50,7 @@ try {
   Set-Content -Path (Join-Path $Dir 'enroll.secret') -Value $Token -NoNewline -Encoding ascii
   $hostPort = $Box -replace '^https://', ''
   @(
-    '--config_plugin=tls', '--logger_plugin=tls', '--host_identifier=hostname',
+    '--config_plugin=tls', '--logger_plugin=tls', '--host_identifier=specified', "--specified_identifier=$hostId",
     "--enroll_secret_path=$Dir\enroll.secret", "--tls_server_certs=$Ca", "--tls_hostname=$hostPort",
     '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log'
   ) | Set-Content -Path (Join-Path $Dir 'osquery.flags') -Encoding ascii
@@ -59,18 +62,23 @@ try {
     Pop-Location
   }
   Set-Service osqueryd -StartupType Automatic
-  # status: hosts = machines that enrolled with this token; success = it grew past what it was before the restart (or the first report is in)
-  $base = 0
-  try { $b = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"; if ($b -match '"hosts":(\d{1,9})') { $base = [int]$Matches[1] } } catch { $base = 0 }
+  # status for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when the box last heard from a machine of
+  # this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved since before the restart.
+  $statusBody = Join-Path $Tmp 'status.json'
+  Set-Content -Path $statusBody -Value ('{"host_identifier":"' + $hostId + '"}') -Encoding ascii -NoNewline
+  function Get-Seen {
+    $r = $null
+    try { $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" -H 'Content-Type: application/json' --data-binary "@$statusBody" "$Box/api/v1/intake/osquery/status" } catch { $r = $null }
+    if ("$r" -match '"host_last_seen":"([^"]*)"') { return $Matches[1] }
+    return ''
+  }
+  $base = Get-Seen
   Restart-Service osqueryd
 
   Write-Host 'Waiting for this machine to enrol with Vedette (up to 2 minutes)...'
   for ($i = 0; $i -lt 24; $i++) {
-    $r = $null
-    try { $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status" } catch { $r = $null }
-    $now = 0
-    if ($r -match '"hosts":(\d{1,9})') { $now = [int]$Matches[1] }
-    if ((Get-Service osqueryd).Status -eq 'Running' -and ($now -gt $base -or $r -match '"enrolled":true')) { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
+    $now = Get-Seen
+    if ($hostId -and $now -and $now -ne $base -and (Get-Service osqueryd).Status -eq 'Running') { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
     Start-Sleep -Seconds 5
   }
   Write-Warning 'osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: Get-Service osqueryd'

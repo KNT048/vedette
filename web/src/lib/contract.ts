@@ -18,6 +18,8 @@ export interface Endpoint {
   params?: z.ZodObject
   query?: z.ZodObject
   body?: z.ZodType
+  /** true = the request body may be left out (an empty request is accepted); `requestBody.required` is false. Only where an older caller sends none. */
+  bodyOptional?: boolean
   /** null = 204 không có nội dung. 'file' = tải tệp (CSV, JSON, rule). 'text' = văn bản thuần `text/plain; charset=utf-8` (danh sách chặn cho firewall). */
   response: z.ZodType | null | 'file' | 'text'
   /** Media type of a 'file' response; default application/octet-stream. */

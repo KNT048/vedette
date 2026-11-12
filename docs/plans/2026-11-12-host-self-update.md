@@ -287,7 +287,13 @@ driven through the API):**
 - Check 8: postinst `try-restart` of the Type=notify host did not hang (every update above).
 - Software rollback test.2 → test.1 (core image rollback #432, `confirm_data_loss`): core and sensor run test.1 again,
   the host's `container.rollback` runs succeeded with `restored_backup_id`, core healthy; but history and the run
-  shown do not list the rollback (INV-35 rebuild; findings inbox).
+  shown do not list the rollback (INV-35 rebuild; findings inbox). Fixed by #521; re-run below.
+- Re-run after #521 (`ubuntu2404`, fresh VM, builds `0.0.1-test.5`/`test.6` from main 681a3c4e): install test.5, update
+  to test.6 `done` (host step included: `dpkg-query` 0.0.1~test.6, new host MainPID, both packages kept), then software
+  rollback test.6 → test.5 with `confirm_data_loss`: run `rollback` `done` (steps start, restore, restart), history lists
+  the rollback first, then the update and the host update; core is back on the test.5 digest; `software` shows
+  test.5 with `previous` test.6. The host stays on test.6 (as designed). One oddity: after the restore the update's history
+  `ts` is the time core rebuilt it (14:52:37), not when it ended (14:50:58) (findings inbox, L).
 - Not done yet: check 2 with a build that exits 1, check 3 (`Depends`), check 4 during dpkg's unpack, Ubuntu 26.04.
 
 ## 2. Risks

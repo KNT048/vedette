@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The parts of GET /v1/state/net that tell core what the box itself depends on, so that response never acts on it (D-325, D-390): the
+// The parts of GET /v1/state/net that tell core what the box itself depends on, so that response never acts on it (D-325, D-450): the
 // IPv6 default routes, the default gateways' MACs and the resolvers in use. Each is a bounded read of a kernel file or of the kernel's
 // neighbour table; what does not parse is skipped. No program runs.
 
@@ -41,7 +41,7 @@ const (
 	ndaLLAddr      = 2
 	nlaTypeMask    = 0x3fff // drops the NESTED and NET_BYTEORDER flags of an attribute type
 	// REACHABLE, STALE, DELAY, PROBE, PERMANENT: the kernel's NUD_VALID without NOARP (a NOARP entry's address is not one a
-	// neighbour answered with; D-390 review, LOW 2)
+	// neighbour answered with; D-450 review, LOW 2)
 	nudValid = 0x02 | 0x04 | 0x08 | 0x10 | 0x80
 )
 
@@ -50,7 +50,7 @@ const zero128 = "00000000000000000000000000000000"
 // parseDefaultRoutes6 reads /proc/net/ipv6_route text and returns every IPv6 default route, lowest metric first (file order on a tie):
 // destination ::/0, flags UP and GATEWAY and not REJECT, a unicast next hop (link-local is the usual one: a router advertisement's) on a
 // valid interface name. The file lists every routing table (a VPN's, a VRF's, a policy table's) and each next hop of an equal-cost
-// route on a line of its own, and any of them may carry the box's traffic, so all are reported (D-390 review, LOW 1); the same next hop
+// route on a line of its own, and any of them may carry the box's traffic, so all are reported (D-450 review, LOW 1); the same next hop
 // on the same card once. Lines that do not parse are skipped; input and line count are bounded, the maxRoutes6 lowest-metric routes are
 // kept, and the scanner stops at an over-long line (as parseDefaultRoute). Never nil.
 func parseDefaultRoutes6(r io.Reader) []api.NetRoute {
@@ -157,7 +157,7 @@ func (o *Ops) resolvers() []string {
 	return out
 }
 
-// readResolvConf parses one resolv.conf. The host is root and /run/systemd/resolve belongs to systemd-resolve (D-390 review, M2): a
+// readResolvConf parses one resolv.conf. The host is root and /run/systemd/resolve belongs to systemd-resolve (D-450 review, M2): a
 // link there to /dev/watchdog would arm it when opened, one to /proc/kmsg would block the read. So a link is followed one level only,
 // as Ubuntu's /etc/resolv.conf needs (an absolute target is read under the root), and the file is then opened by readResolvFile, which
 // never follows a link in the last component.

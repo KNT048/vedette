@@ -29,14 +29,14 @@ type hostMACs struct {
 	failedAt time.Time // the last failed ask: no new ask for hostNetBackoff, so a hung host costs one timeout, not one per caller
 	forcedAt time.Time // the last ask that skipped the TTL (Fresh)
 	last     []string
-	infra    []response.HostInfra // the trusted gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-390)
+	infra    []response.HostInfra // the trusted gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-450)
 	vetted   map[netip.Addr]*infraVet
 	// report is told what an answer changed in the box's gateways and resolvers (action, address, detail; see vet and observe), at most
 	// once per infraSettle per address and event. It runs under mu and must not block. nil = nobody is told.
 	report func(action string, addr netip.Addr, detail string)
 }
 
-// D-390 review: the default gateways and the resolvers come from the box's routes, its neighbour table and resolv.conf, all of which a
+// D-450 review: the default gateways and the resolvers come from the box's routes, its neighbour table and resolv.conf, all of which a
 // host on the LAN can steer (a rogue router advertisement or DHCP server, ARP/ND poisoning). Seeding what it steers at once would make
 // that host never-touch during exactly the attack. So only the addresses of core's first answer after start are trusted at once; an
 // address first seen later is a candidate, seeded neither by IP nor by MAC until it has been in infraAnswers answers in a row spanning
@@ -294,7 +294,7 @@ func auditInfra(ctx context.Context, d *deps, action string, a netip.Addr, detai
 
 // hostInfraOf reads, as dynamic, what the network can steer: the kernel's IPv4 and IPv6 default gateways with their MACs and the DNS
 // servers the box uses (a DHCP lease's, a router advertisement's); and, as saved, the gateway and DNS servers the administrator saved for
-// the management card (D-325, D-390). A host older than D-390 sends no IPv6 route, MAC or resolver: only the rest is read.
+// the management card (D-325, D-450). A host older than D-450 sends no IPv6 route, MAC or resolver: only the rest is read.
 func hostInfraOf(st api.NetState) (dynamic, saved []response.HostInfra) {
 	var out []response.HostInfra
 	add := func(s, kind, mac string) {

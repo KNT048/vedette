@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// --- /proc/net/ipv6_route (D-390) ----------------------------------------------------------------------
+// --- /proc/net/ipv6_route (D-450) ----------------------------------------------------------------------
 
 // The kernel's own text: a default route learned from a router advertisement (flags UP|GATEWAY|EXPIRES|ADDRCONF), the on-link
 // prefix, and the "unreachable" default the kernel keeps on lo (REJECT, no gateway).
@@ -117,7 +117,7 @@ func FuzzParseDefaultRoutes6(f *testing.F) {
 	})
 }
 
-// --- resolv.conf (D-390) ---------------------------------------------------------------------------------
+// --- resolv.conf (D-450) ---------------------------------------------------------------------------------
 
 // What systemd-resolved writes to /run/systemd/resolve/resolv.conf when a DHCP lease gave the servers.
 const resolvedText = "# This is /run/systemd/resolve/resolv.conf managed by man:systemd-resolved(8).\n" +
@@ -183,7 +183,7 @@ func FuzzParseResolvConf(f *testing.F) {
 	})
 }
 
-// --- the neighbour table (D-390) -------------------------------------------------------------------------
+// --- the neighbour table (D-450) -------------------------------------------------------------------------
 
 func nlMsg(typ uint16, body []byte) []byte {
 	b := make([]byte, nlmsgHdrLen, nlmsgHdrLen+len(body))
@@ -327,9 +327,9 @@ func FuzzNeighbourEntry(f *testing.F) {
 	})
 }
 
-// --- state/net (D-390) ----------------------------------------------------------------------------------
+// --- state/net (D-450) ----------------------------------------------------------------------------------
 
-// D-390: state/net reports the IPv6 default route, the MAC of each default gateway from the neighbour table (the entry on the route's
+// D-450: state/net reports the IPv6 default route, the MAC of each default gateway from the neighbour table (the entry on the route's
 // card) and the DNS servers in use, whoever set them (here a DHCP lease, as systemd-resolved lists it). A neighbour table that cannot
 // be read leaves the MACs out and changes nothing else.
 func TestNetStateReportsTheIPv6RouteTheGatewayMACsAndTheResolvers(t *testing.T) {
@@ -397,7 +397,7 @@ func TestNetStateWithoutIPv6OrResolvConf(t *testing.T) {
 	}
 }
 
-// D-390 review (M2): the root host reads a file that systemd-resolved's user can replace. Only a regular file of 1 byte to 64 KiB is read,
+// D-450 review (M2): the root host reads a file that systemd-resolved's user can replace. Only a regular file of 1 byte to 64 KiB is read,
 // never through a link in /run/systemd/resolve (a link to /dev/watchdog would arm it, one to /proc/kmsg would block), and /etc/resolv.conf
 // is followed one level only.
 func TestResolversReadOnlySmallRegularFilesNotDevices(t *testing.T) {

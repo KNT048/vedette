@@ -73,8 +73,8 @@ type NetRoute struct {
 	Iface string `json:"iface"`
 	// Gateway is the next hop as plain address text, never with a zone: an IPv6 link-local next hop ("fe80::1") is on Iface.
 	Gateway string `json:"gateway"`
-	// MAC is the gateway's link-layer address from the kernel's neighbour table (D-390); absent when the table has no usable entry for it
-	// on Iface (no traffic yet, or a resolution that failed). Absent from a host older than D-390.
+	// MAC is the gateway's link-layer address from the kernel's neighbour table (D-450); absent when the table has no usable entry for it
+	// on Iface (no traffic yet, or a resolution that failed). Absent from a host older than D-450.
 	MAC string `json:"mac,omitempty"`
 }
 
@@ -99,12 +99,12 @@ type NetState struct {
 	Config       NetConfig      `json:"config"`
 	DefaultRoute *NetRoute      `json:"default_route"`
 	// DefaultRoutes6 are the IPv6 default routes of every routing table, each next hop of an equal-cost route on its own, lowest metric
-	// first; [] when there is none (D-390; absent from an older host).
+	// first; [] when there is none (D-450; absent from an older host).
 	DefaultRoutes6 []NetRoute  `json:"default_routes6"`
 	Pending        *NetPending `json:"pending"`
 	Decoys         []NetDecoy  `json:"decoys"`
 	// Resolvers are the DNS servers the box's resolver uses now, whoever set them (a DHCP lease, netplan, an administrator): the
-	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs (D-390). An older host does not
+	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs (D-450). An older host does not
 	// send the field.
 	Resolvers []string `json:"resolvers"`
 }

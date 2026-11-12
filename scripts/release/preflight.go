@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -34,7 +33,16 @@ type BinaryRules struct {
 // (a binary without it cannot be shown clean); with rules.Release also the dirty tree and a missing production key.
 // It reads the build info the way `go version -m` does, without running anything.
 func CheckBinary(path string, rules BinaryRules) error {
-	bi, err := buildinfo.ReadFile(path)
+	data, err := readSmall(path, maxBinary)
+	if err != nil {
+		return err
+	}
+	return checkBinaryData(path, data, rules)
+}
+
+// checkBinaryData is CheckBinary of a binary already read (the vedette-host inside a .deb, release gates); path names it in messages.
+func checkBinaryData(path string, data []byte, rules BinaryRules) error {
+	bi, err := buildinfo.Read(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("%s: no Go build information (is it a Go binary?): %w", path, err)
 	}
@@ -54,20 +62,13 @@ func CheckBinary(path string, rules BinaryRules) error {
 	if set["vcs.modified"] != "false" {
 		return fmt.Errorf("%s was built from a tree with uncommitted changes (vcs.modified=%q): commit first, a release is its commit", path, set["vcs.modified"])
 	}
-	return checkKeys(path, rules.Keys)
+	return keysIn(path, data, rules.Keys)
 }
 
-// checkKeys refuses a binary that does not contain every key line verbatim (Go keeps string constants as they are).
-func checkKeys(path string, keys []string) error {
+// keysIn refuses a binary that does not contain every key line verbatim (Go keeps string constants as they are).
+func keysIn(path string, data []byte, keys []string) error {
 	if len(keys) == 0 {
 		return errors.New("no production keys to look for")
-	}
-	if fi, err := os.Stat(path); err != nil || fi.Size() > maxBinary {
-		return fmt.Errorf("%s: cannot read it (or it is over %d MB)", path, maxBinary>>20)
-	}
-	data, err := os.ReadFile(path) //nolint:gosec // the path is the binary the maintainer asked to check
-	if err != nil {
-		return err
 	}
 	for _, k := range keys {
 		if !bytes.Contains(data, []byte(k)) {

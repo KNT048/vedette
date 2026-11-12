@@ -19,7 +19,7 @@ has none.
 | 0 | `git tag -s v<v>` on the release commit, `git push origin v<v>` | **kien, by hand** | | tag | git signing key (optional), GitHub push |
 | 1 | `make images IMAGE_TAG=<v> IMAGE_VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first) | maintainer | tree at the tag, `pins.env` | 4 local podman manifest lists `localhost/vedette-{core,sensor,scan-base,honeypot}:<v>`, amd64 + arm64 | none |
 | 2 | `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`), then **[A]** `make release-deb-name VERSION=<v>` (a prerelease: nfpm's `~` name → SemVer; a plain `<v>` needs nothing) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
-| 3 | **[B]** `release-gates`: `make vuln-scan`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1) | none |
+| 3 | **[B]** `make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first): `make vuln-scan`, `sbom`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor (D-401) | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1) | none |
 | 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
 | 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
 | 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the platform's `config` in `images.json`) | maintainer | `release.in.json`, `images.json`, `dist/sbom` | printed commands | none |
@@ -37,6 +37,15 @@ RELEASE_PREV_INDEX=<prev>` → `release-publish RELEASE_PREV_INDEX=<prev> PUBLIS
 index, after the same live-index check; then archive the new index as the next `<prev>`.
 
 ### What each new step does
+
+**`release-gates`** (D-401; `release gates` after three make targets). Stops at the first failure: VERSION SemVer and not `-test.`, the
+tree clean and HEAD = tag `v<v>`; `make vuln-scan` and `make sbom` of the lists tagged `<v>` with `RELEASE=1` (dist/vuln, dist/sbom for
+part C); `make notices-check`; `check-binaries -release` on the `vedette-host` read out of each `.deb`; the version label of every platform
+of the four lists, and core's `io.github.knt048.vedette.min-sequence` label = the floor; each `.deb` built again with
+`make host-deb … MIN_SEQUENCE=<floor>` into a temporary directory and compared byte for byte (the package is reproducible; a stripped
+binary does not show its floor). The floor is the verified sequence of `RELEASE_PREV_INDEX` (checked by the Go step too, since an
+environment `MIN_SEQUENCE` would win in make), so images and packages must have been
+built with that same `<prev>`.
 
 **`release-push`** (`scripts/release` `push`, podman only). For each of `core`, `sensor`, `scan-base` (published as **`vedette-scan`**:
 the manifest, the cosign identity and `vedette.env` all call it `scan`, and the box builds its scan image FROM it, D-147) and `honeypot`:

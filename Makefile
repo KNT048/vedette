@@ -108,6 +108,7 @@ verify-go-static:
 	$(MAKE) generate-check test-go-shards-check
 	$(MAKE) notices-check NOTICES_WEB_LICENSES=0
 	bash scripts/dev/orphan-reaper-test.sh
+	bash scripts/dev/lab-vm-test.sh
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
 generate: generate-sql generate-api

@@ -124,15 +124,13 @@ func (s *Service) PassiveHeartbeat(ctx context.Context, hb *sensorlink.PassiveHe
 		switch {
 		case sensorlink.ValidDropKey(k):
 			known[k] = v
-		case !s.unknown[k]: // a newer sensor counts something this core does not know: ignored, said once
-			s.unknown[k] = true
+		case s.firstUnknown(k): // a newer sensor counts something this core does not know: ignored, said once
 			s.log.WarnContext(ctx, "sensor-passive: the sensor reports a counter this core does not know, ignored", "counter", k)
 		}
 	}
 	capErr := hb.CaptureError
 	if capErr != "" && !slices.Contains(sensorlink.CaptureErrors, capErr) { // a newer sensor's reason: shown as the general one, said once
-		if !s.unknown["capture_error:"+capErr] {
-			s.unknown["capture_error:"+capErr] = true
+		if s.firstUnknown("capture_error:" + capErr) {
 			s.log.WarnContext(ctx, "sensor-passive: the sensor reports a capture error this core does not know, shown as capture_failed", "reason", capErr)
 		}
 		capErr = sensorlink.CaptureFailed
@@ -140,6 +138,19 @@ func (s *Service) PassiveHeartbeat(ctx context.Context, hb *sensorlink.PassiveHe
 	s.hb = &heartbeat{at: now, ifaces: slices.Clone(hb.Interfaces), drops: known, version: hb.Version, captureErr: capErr}
 	s.hbMu.Unlock()
 	return s.instance, nil
+}
+
+// maxUnknown bounds what core remembers of names it does not know (drop keys, capture reasons): a sensor that sends a new name in
+// every beat must not grow core's memory or its log without end. Past it, unknown names are still ignored, only no longer logged.
+const maxUnknown = 64
+
+// firstUnknown reports whether key is an unknown name heard for the first time (and remembers it); s.hbMu is held.
+func (s *Service) firstUnknown(key string) bool {
+	if s.unknown[key] || len(s.unknown) >= maxUnknown {
+		return false
+	}
+	s.unknown[key] = true
+	return true
 }
 
 func minTime(a, b time.Time) time.Time {

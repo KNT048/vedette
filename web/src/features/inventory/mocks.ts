@@ -21,7 +21,7 @@ import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } fr
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
-const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach (it is open as localhost or 127.0.0.1 only), so an install script would point nowhere. Add the box's network name or address to VEDETTE_HOSTS (container-only install) or open Vedette at its network address, then copy the command again.")
+const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
 
 const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string }[] }).vulns

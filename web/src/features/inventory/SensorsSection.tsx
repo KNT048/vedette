@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Label, Select } from '@/components/ui/input'
+import { ApiError } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useSensorCard, useSensors } from './api'
@@ -67,8 +68,9 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   // What "Automatic" gives now: known only while nothing is chosen (then `interface` is the default card, D-380).
   const autoLabel = sensor.chosen ? t('sensors.card.autoChosen') : sensor.interface ? t('sensors.card.auto', { name: sensor.interface }) : t('sensors.card.autoNone')
   const unchanged = card === current && (card !== '' && span) === (sensor.chosen && sensor.span)
-  // The answer of a refused save goes next to what it is about: the SPAN tick when SPAN was asked for (a SPAN card has no address), else the card.
-  const [errorAt, setErrorAt] = useState<'card' | 'span'>('card')
+  // A 400 bad_interface is about the choice: it goes next to the SPAN tick when SPAN was asked for (a SPAN card has no address), else
+  // next to the card. Anything else (module off, the box busy, no network) is not about a field and stays under the form.
+  const [errorAt, setErrorAt] = useState<'card' | 'span' | 'form'>('form')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}>
@@ -83,7 +85,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
             <form className="grid gap-4" noValidate onSubmit={(e) => {
               e.preventDefault(); setError(null)
               const asked = { interface: card || null, span: card !== '' && span }
-              save.mutate(asked, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => { setErrorAt(asked.span ? 'span' : 'card'); setError(errMsg(er)) } })
+              save.mutate(asked, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => { setErrorAt(er instanceof ApiError && er.code === 'bad_interface' ? (asked.span ? 'span' : 'card') : 'form'); setError(errMsg(er)) } })
             }}>
               {!sensor.interface ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.notListening')}</p> : null}
               <div className="grid gap-1">
@@ -107,6 +109,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                 <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint')}</p>
               </div>
               <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
+              {error && errorAt === 'form' ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
                 <Button type="submit" variant="primary" disabled={unchanged || save.isPending}>{t('common:save')}</Button>

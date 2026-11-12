@@ -32,7 +32,8 @@ if [ "$ACTION" = uninstall ]; then
 fi
 
 [ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices, Scope and sensors." >&2; exit 2; }
-ARCH=$(uname -m)
+# The package must match the userland, not the kernel: a 32-bit system on a 64-bit kernel (Raspberry Pi OS armhf) says aarch64 in uname -m.
+ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
 case "$ARCH" in
   x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;
   aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;

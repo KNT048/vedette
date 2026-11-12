@@ -133,7 +133,7 @@ func (s *Service) anchor() ([]byte, error) {
 // noBoxAddress is the answer for a script whose box address would be the placeholder (D-399 (2)): a script pinned to
 // <VEDETTE_BOX_IP> passes its SHA-256 check and then fails on every server, so it is not served at all.
 func noBoxAddress() *apierr.Error {
-	return apierr.New(404, "no_box_address", "This box knows no address that other machines can reach (it is open as localhost or 127.0.0.1 only), so an install script would point nowhere. Add the box's network name or address to VEDETTE_HOSTS (container-only install) or open Vedette at its network address, then copy the command again.")
+	return apierr.New(404, "no_box_address", "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 }
 
 func noCertificate() *apierr.Error {

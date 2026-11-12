@@ -70,6 +70,8 @@ VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browse
 
 Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
+osquery agents on your servers download their installer from this box and report to it at the address in `VEDETTE_HOSTS`, so they need an address other machines can reach: with `VEDETTE_BIND_IP=127.0.0.1` (this machine only) the agent page shows no install command and says so. The box serves osquery for x86_64 and arm64 (aarch64) Linux servers and x64 Windows Server (D-399).
+
 Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
 ## 3. Start, and sign in the first time
@@ -93,7 +95,7 @@ docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up
 docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
 ```
 
-Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0, group 65532 (to read its credentials), with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees).
+Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0, group 65532 (to read its credentials), with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees). A sensor started rootless still reports, but cannot open the card: Sensors then shows "Reporting, not capturing" with the reason (D-399); start it as root.
 
 ## 5. Update, and check what you run
 

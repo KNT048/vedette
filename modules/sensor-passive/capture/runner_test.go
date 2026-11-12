@@ -362,12 +362,14 @@ func TestHeartbeatSaysWhyTheCaptureDoesNotRun(t *testing.T) {
 		e.src.mu.Unlock()
 		e.start(t)
 		eventually(t, "capture_error "+c.want, func() bool { return e.link.lastCaptureError() == c.want })
+		e.cfg.set(sensorlink.Config{Interface: "", Filters: []sensorlink.Filter{}}) // no card wanted while the open still fails: nothing to report
+		eventually(t, "none while no card is wanted", func() bool { return e.link.lastCaptureError() == "" })
+		e.cfg.set(sensorlink.Config{Interface: "eth0", Filters: []sensorlink.Filter{}}) // the card again, still failing: the reason again
+		eventually(t, "capture_error "+c.want+" again", func() bool { return e.link.lastCaptureError() == c.want })
 		e.src.mu.Lock()
 		e.src.fail = false
 		e.src.mu.Unlock()
-		eventually(t, "no capture_error once the card opens", func() bool { return len(e.src.opens()) > 1 && e.link.lastCaptureError() == "" })
-		e.cfg.set(sensorlink.Config{Interface: "", Filters: []sensorlink.Filter{}})
-		eventually(t, "none while no card is wanted", func() bool { return e.link.lastCaptureError() == "" })
+		eventually(t, "no capture_error once the card opens", func() bool { return e.link.lastCaptureError() == "" })
 	}
 }
 

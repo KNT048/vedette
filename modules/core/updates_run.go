@@ -257,7 +257,8 @@ func (h *OSHandlers) CorePostCoreUpdatesRollback(ctx context.Context, req *oas.C
 }
 
 // beginUpdate is the common start of a run: no purge, not busy, the plan, then in one transaction the admin
-// check, the audit row of the intent, the stored run and what the action adds (also); then the follower.
+// check (none for the automatic mode, c = systemCaller), the audit row of the intent, the stored run and what the
+// action adds (also); then the follower.
 func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(context.Context) (*updateRunRec, string, func(*sql.Tx) error, error)) error {
 	leave, ok := h.gate.Enter()
 	if !ok {
@@ -272,6 +273,9 @@ func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(contex
 	if h.busy(ctx) {
 		return apierr.New(409, codeBusy, "An operating system update is running. Wait for it to finish, then try again.")
 	}
+	if h.restoreRunning(ctx) {
+		return apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish, then try again.")
+	}
 	rec, detail, also, err := plan(ctx)
 	if err != nil {
 		return err
@@ -281,8 +285,10 @@ func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(contex
 		action = "update.rollback"
 	}
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
-		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
-			return err
+		if !c.system() {
+			if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
+				return err
+			}
 		}
 		if err := h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: action, Target: softwareComponent, Detail: cutAtRune(detail, auditMaxDetail)}); err != nil {
 			return err

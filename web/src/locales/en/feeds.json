@@ -166,6 +166,7 @@
     "records_one": "{{n}} record",
     "records_other": "{{n}} records",
     "enable": "Enable {{name}}",
+    "disable": "Disable {{name}}",
     "nowOn": "{{name}} is on",
     "nowOff": "{{name}} is off",
     "fetchNow": "Fetch now",

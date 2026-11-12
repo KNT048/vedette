@@ -26,6 +26,7 @@ export default function ModulesSection() {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const q = useModules()
+  const install = q.data?.install
   const toggle = useToggleModule()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
@@ -52,7 +53,7 @@ export default function ModulesSection() {
         {({ modules }) => {
           const columns: ColumnDef<ModuleState>[] = [
             { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => (
-              <div className="grid max-w-md"><span className="font-medium">{name(row.original.id)}</span><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.summary`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>
+              <div className="grid max-w-md"><span className="font-medium">{name(row.original.id)}</span><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>
             ) },
             { id: 'depends', header: t('modules.col.needs'), enableSorting: false, accessorFn: (m) => m.depends.join(','), cell: ({ row }) => (row.original.depends.length ? <span className="text-[13px]">{row.original.depends.map(name).join(', ')}</span> : <span className="text-muted">–</span>) },
             { id: 'state', header: t('modules.col.state'), accessorFn: (m) => Number(m.enabled), cell: ({ row }) => {
@@ -65,7 +66,7 @@ export default function ModulesSection() {
               const m = row.original
               const locked = m.tier === 'core'
               const notHere = !m.available && !m.enabled // D-381: a module this install cannot run cannot be turned on; one left on can be turned off
-              return <Switch checked={m.enabled} disabled={locked || notHere || gate.disabled || toggle.isPending} title={locked ? t('modules.coreLocked') : notHere ? t('modules.notHereWhy') : gate.title} aria-label={t('modules.toggle', { name: name(m.id) })} onCheckedChange={(v) => onSwitch(modules, m, v)} />
+              return <Switch checked={m.enabled} disabled={locked || notHere || gate.disabled || toggle.isPending} title={locked ? t('modules.coreLocked') : notHere ? t('modules.notHereWhy') : gate.title} aria-label={t(m.enabled ? 'modules.toggleOff' : 'modules.toggle', { name: name(m.id) })} onCheckedChange={(v) => onSwitch(modules, m, v)} />
             } },
           ]
           return <DataTable data={modules} columns={columns} caption={t('modules.caption')} pageSize={30} filterPlaceholder={t('modules.filter')} />

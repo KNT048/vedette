@@ -599,7 +599,8 @@
     "description": "Ready-made rules, switched off and in dry run. Clone one, then edit it to fit your network.",
     "clone": "Clone",
     "cloneFor": "Clone {{name}}",
-    "cloned": "Cloned: switched off, in dry run"
+    "cloned": "Cloned: switched off, in dry run",
+    "notHere": "Not available on this install: it needs internal traps, which this install cannot run."
   },
   "safety": {
     "title": "Safety envelope",

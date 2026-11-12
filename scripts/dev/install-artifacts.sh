@@ -44,7 +44,8 @@ drop() {
 		ds=$("$c" manifest inspect "$1" | sed -n 's/.*"digest": *"\(sha256:[0-9a-f]\{64\}\)".*/\1/p')
 		"$c" manifest rm "$1" >/dev/null 2>&1 || true
 		for d in $ds; do
-			id=$("$c" images -a --digests --format '{{.Digest}} {{.ID}}' | awk -v d="$d" '$1 == d { print $2; exit }')
+			# awk reads to the end: an early exit would SIGPIPE podman and, under pipefail, stop the cleanup
+			id=$("$c" images -a --digests --format '{{.Digest}} {{.ID}}' | awk -v d="$d" '$1 == d && id == "" { id = $2 } END { print id }') || id=
 			[ -z "$id" ] || "$c" rmi -f "$id" >/dev/null 2>&1 || true
 		done
 	else
@@ -99,7 +100,7 @@ if [ -n "$fast" ]; then
 else
 	services="core sensor scan"
 	make --no-print-directory images PLATFORMS="linux/$arch" IMAGE_TAG="$version" IMAGE_VERSION="$version" TEST_KEYS_B64="$test_keys_b64" >/dev/null
-	built+=("localhost/vedette-sensor:$version" "localhost/vedette-scan-base:$version" "localhost/vedette-core:$version")
+	built+=("localhost/vedette-sensor:$version" "localhost/vedette-scan-base:$version" "localhost/vedette-core:$version" "localhost/vedette-honeypot:$version") # make images builds the honeypot too
 fi
 # the honeypot image belongs to WP-08e: used when it was built with the same tag, else the install has no honeypot
 if "$c" image exists "localhost/vedette-honeypot:$version" || "$c" manifest exists "localhost/vedette-honeypot:$version" 2>/dev/null; then

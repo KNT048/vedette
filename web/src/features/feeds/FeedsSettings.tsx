@@ -73,7 +73,7 @@ function Tables({ items }: { items: Feed[] }) {
     </span>
   )
   const toggle = (f: Feed) => (
-    <Switch checked={f.enabled} disabled={!admin || patch.isPending} title={reason} aria-label={t('row.enable', { name: f.name })}
+    <Switch checked={f.enabled} disabled={!admin || patch.isPending} title={reason} aria-label={t(f.enabled ? 'row.disable' : 'row.enable', { name: f.name })}
       onCheckedChange={(v) => patch.mutate({ id: f.id, enabled: v }, { onSuccess: () => toast.success(v ? t('row.nowOn', { name: f.name }) : t('row.nowOff', { name: f.name })) })} />
   )
   const last = (f: Feed) => (f.last_fetch ? <span title={f.last_fetch}>{fmtRelative(f.last_fetch)}</span> : <span className="text-muted">{t('row.never')}</span>)

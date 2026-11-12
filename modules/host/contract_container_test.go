@@ -1370,6 +1370,14 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if (svc == api.ServiceCore || svc == api.ServiceSensor || svc == api.ServiceScan) && strings.Contains(text, "UserNS") {
 				t.Errorf("%s runs without UserNS", svc)
 			}
+			// ContainersConfModule=: only the honeypot, the packaged module that clears default_sysctls in vedette-hp (#486)
+			var wantMod []string
+			if svc == api.ServiceHoneypot {
+				wantMod = []string{ops.HoneypotConfModule}
+			}
+			if !slices.Equal(u["ContainersConfModule"], wantMod) {
+				t.Errorf("%s: ContainersConfModule=%v, want %v", svc, u["ContainersConfModule"], wantMod)
+			}
 			// Published ports: only core, and only these (no IP of the box in the line).
 			if !slices.Equal(u["PublishPort"], w.publishes) {
 				t.Errorf("%s: PublishPort=%v", svc, u["PublishPort"])
@@ -1441,7 +1449,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment", "HostName"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment", "ContainersConfModule", "HostName"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)

@@ -40,7 +40,7 @@ help:
 	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
-	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
+	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race (gồm contract), golangci-lint, govulncheck"
 	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   các phần của verify-go mà CI chạy song song (D-140)"
 	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
 	@echo "make contract      go test ./modules/... -run Contract"
@@ -97,14 +97,15 @@ verify-web: node-version-check
 	$(MAKE) clean
 
 verify-go: verify-go-static
-	$(MAKE) test-go vuln
+	$(MAKE) lint-go test-go vuln
 	$(MAKE) clean
 
-# CI job "go-static" (D-140): everything in verify-go except the tests and govulncheck, which run in their own jobs.
+# CI job "go-static" (D-140): everything in verify-go except golangci-lint (job go-lint), the tests and govulncheck. No
+# `make contract` (D-372): go-test runs every TestContract… already, with -race on the merge queue; `make contract` stays for check.
 verify-go-static:
 	go build ./...
 	go vet ./...
-	$(MAKE) generate-check contract lint-go test-go-shards-check
+	$(MAKE) generate-check test-go-shards-check
 	$(MAKE) notices-check NOTICES_WEB_LICENSES=0
 	bash scripts/dev/orphan-reaper-test.sh
 

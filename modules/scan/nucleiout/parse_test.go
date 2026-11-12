@@ -103,6 +103,12 @@ func TestParse_HostAndPort(t *testing.T) {
 		`"host":"a@192.168.10.21","port":"5000"`:              "",
 		`"host":"","port":"5000"`:                             "",
 		`"host":"192.168.10.21.evil.example","port":"5000"`:   "",
+		`"host":"192.168.10.21","port":"5000/anything"`:       "", // a port that is not only digits
+		`"host":"http","port":"//192.168.10.21:5000"`:         "", // the two fields making up a URL together
+		`"host":"192.168.10.21","port":"5000?x"`:              "",
+		`"host":"192.168.010.21","port":"5000"`:               "",
+		`"host":"192.168.10.21","port":"+5000"`:               "",
+		`"host":"192.168.10.21","port":"65536"`:               "",
 	} {
 		line := `{"template-id":"CVE-2022-27593",` + in + `,"matcher-status":false}`
 		res, err := Parse([]byte(line), templates, targets)

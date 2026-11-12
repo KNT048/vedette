@@ -462,6 +462,12 @@ func (m *Machine) ImageRemoved() []string {
 	return strings.Fields(string(b))
 }
 
+// ImageUntagged lists the local tags the fake podman took off with untag, in order.
+func (m *Machine) ImageUntagged() []string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "img", "untagged"))
+	return strings.Fields(string(b))
+}
+
 func (m *Machine) img() string {
 	m.t.Helper()
 	d := filepath.Join(m.Rec, "img")

@@ -112,6 +112,11 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 			if len(img.Untag) == len(d.Names) {
 				img.Untag = img.Untag[1:] // only local tags: one stays, rmi by ID removes an image with one name
 			}
+			if len(d.Names)-len(img.Untag) > 1 {
+				// two or more registry names would be left, and rmi by ID would refuse it on every run: left alone, not
+				// counted against the cap (not seen in the lab, where a pulled image had one registry name; IMPACT.md)
+				continue
+			}
 		}
 		if services[service].byID {
 			img.Digests = append(img.Digests, "sha256:"+d.ID) // the image built on the box is kept by its ID (D-147)
@@ -126,21 +131,24 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 	return res, nil
 }
 
-// untagImage takes img's extra local tags off; false when one of them could not be (the image then stays, named).
-func (o *Ops) untagImage(ctx context.Context, img listedImage) bool {
+// untagImage takes img's extra local tags off and returns the tags it took off; false when one of them could not be (the
+// image then stays, with the tags not yet taken off).
+func (o *Ops) untagImage(ctx context.Context, img listedImage) ([]string, bool) {
+	var done []string
 	for _, tag := range img.Untag {
 		argv, err := untagArgv(img.ID, tag)
 		if err != nil {
-			return false
+			return done, false
 		}
 		uctx, cancel := context.WithTimeout(ctx, rmiLimit)
 		_, code, err := o.exec(uctx, binPodman, argv...)
 		cancel()
 		if err != nil || code != 0 {
-			return false
+			return done, false
 		}
+		done = append(done, tag)
 	}
-	return true
+	return done, true
 }
 
 // ownedName says whether name is a reference into one of the two repositories of service.
@@ -222,7 +230,7 @@ func (o *Ops) retainImages(ctx context.Context, rc *server.RunContext, command, 
 		if err != nil {
 			continue
 		}
-		ok := o.untagImage(ctx, img)
+		untagged, ok := o.untagImage(ctx, img)
 		if ok {
 			rctx, cancel := context.WithTimeout(ctx, rmiLimit)
 			_, code, err := o.exec(rctx, binPodman, argv...)
@@ -230,6 +238,9 @@ func (o *Ops) retainImages(ctx context.Context, rc *server.RunContext, command, 
 			ok = err == nil && code == 0
 		}
 		detail := map[string]any{"service": service, "image_id": img.ID, "digests": img.Digests, "run_id": rcID(rc)}
+		if len(untagged) > 0 {
+			detail["untagged"] = untagged // also when rmi then failed: the image is left with one name, its tags are gone
+		}
 		if !ok {
 			rcLog(rc, "retention: podman could not remove "+img.ID+"; it stays")
 			o.log.WarnContext(ctx, "retention: podman rmi failed", "service", service, "image_id", img.ID)

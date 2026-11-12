@@ -14,13 +14,15 @@ The raw outputs the tests read are in `host/ops/testdata/podman49/` and `modules
 | `rmi <Id>`, one name | exit 0, `Untagged: <name>` / `Deleted: <id>` | | |
 | `rmi <Id>`, no name | exit 0, `Deleted: <id>` | | |
 | `rmi <Id>`, **two names** | **exit 125**, `Error: unable to delete image "<id>" by ID with more than one tag ([...]): please force removal` | **retention always failed for a pulled release** (both names), so old images were never removed | removed it (wrong) |
+| `untag <Id> <local tag>`, then `rmi <Id>` (a second short session the same day) | `untag` exit 0, no output, `Names` left with the digest name only; then `rmi <Id>` exit 0, `Untagged: <digest name>` / `Deleted: <id>` (`host/ops/testdata/podman49/untag-then-rmi.txt`, `image-ls-after-untag.json`) | the sequence retention now runs | answers `untag` (new) |
 | `rmi <Id>`, used by a container | exit 2, `Error: image used by <ctr>: image is in use by a container...` | skipped earlier (`Containers` ≠ 0) | exit 2 (right) |
 | `pull -q <repo>@<d>` | prints the 64-hex image ID | | |
 | `image inspect --format json` | one-element array; `Digest` = the digest pulled by (the index digest for the releases and for busybox by digest), `RepoTags` = local tags, `Architecture: amd64`, `Os: linux`; 11.5 KB for core | parsed right | |
 | `container inspect` | `ImageDigest` = pulled digest, `Image` = image ID, `State.Health.Status: healthy` (no `Healthcheck` key) | parsed right | |
 
 **Fix:** retention now runs `podman untag <Id> <local tag>` for the local tags of an image with more than one name (keeping one
-name), then `rmi <Id>`; a failed untag skips the rmi. New argv shape `untag <64 hex> <localhost/vedette-<service>:<version> |
+name), then `rmi <Id>`; a failed untag skips the rmi, and the audit line names the tags taken off when the rmi then fails.
+An image that would still have two registry names is left out (it could never be removed by ID; not seen in the lab). New argv shape `untag <64 hex> <localhost/vedette-<service>:<version> |
 localhost/vedette-scan-nmap:<version>>`, validated like the rest. The fake now prints the real `Names`, refuses `rmi` of an
 image with two names (exit 125) and answers `untag`.
 

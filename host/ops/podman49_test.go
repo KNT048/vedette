@@ -3,6 +3,7 @@ package ops
 import (
 	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
@@ -49,6 +50,21 @@ func TestRealPodmanImageListOfARelease(t *testing.T) {
 		if a, err := untagArgv(i.ID, tag); err != nil || validatePodman(a) != nil {
 			t.Fatalf("untag %q: %q %v", tag, a, err)
 		}
+	}
+}
+
+// An image that would keep two registry names after its local tags are off can never be removed by ID: left out of the list
+// (so it takes none of the 16 removals of a run); one with only local tags keeps one of them.
+func TestImageListUntagPlan(t *testing.T) {
+	t.Parallel()
+	core := "ghcr.io/knt048/vedette-core"
+	twoRegistry := listEntry(dg1, []string{"localhost/vedette-core:1.0.0", core + "@" + dg1, core + "@" + dg2}, nil, 0)
+	localOnly := listEntry(dg2, []string{"localhost/vedette-core:1.0.0", "localhost/vedette-core:1.1.0"}, nil, 0)
+	dg3 := "sha256:" + strings.Repeat("3", 64)
+	one := listEntry(dg3, []string{core + "@" + dg3}, nil, 0)
+	imgs, err := parseImageList(listJSON(twoRegistry, localOnly, one), api.ServiceCore)
+	if err != nil || len(imgs) != 2 || imgs[0].ID != dg2[len("sha256:"):] || !slices.Equal(imgs[0].Untag, []string{"localhost/vedette-core:1.1.0"}) || len(imgs[1].Untag) != 0 {
+		t.Fatalf("%+v %v", imgs, err)
 	}
 }
 

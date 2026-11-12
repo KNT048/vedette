@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -122,10 +123,16 @@ func targetOf(host, port string) string {
 		}
 		return t
 	}
-	if port == "" {
+	// the bare shape: an IPv4 address in its canonical form (jobs name nothing else) and a strict decimal port, each checked
+	// on its own so that text in either cannot make up the other (a "port" of "80/x" or "//10.0.0.5:80" is refused)
+	n, err := strconv.Atoi(port)
+	if err != nil || n < 1 || n > 65535 || strconv.Itoa(n) != port {
 		return ""
 	}
-	return hostOf(host + ":" + port)
+	if a, err := netip.ParseAddr(host); err != nil || !a.Is4() || a.String() != host {
+		return ""
+	}
+	return host + ":" + port
 }
 
 // hostOf takes host:port out of nuclei's host field, which is "host:port" or "scheme://host[:port][/...]"; an http or

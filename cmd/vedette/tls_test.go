@@ -47,7 +47,7 @@ func TestEnsureCert(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
-	if err := ensureCert(crt, key, []string{"box.acme.example", "192.0.2.10"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"box.acme.example", "192.0.2.10"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []string{crt, key} {
@@ -81,7 +81,7 @@ func TestEnsureCert(t *testing.T) {
 	}
 	// Idempotent: a second call leaves the pair alone.
 	before, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
-	if err := ensureCert(crt, key, []string{"other.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"other.example"}); err != nil {
 		t.Fatal(err)
 	}
 	if after, _ := os.ReadFile(crt); string(after) != string(before) { //nolint:gosec // a path the test made
@@ -91,7 +91,7 @@ func TestEnsureCert(t *testing.T) {
 	if err := os.Remove(crt); err != nil {
 		t.Fatal(err)
 	}
-	if err := ensureCert(crt, key, nil); err == nil {
+	if err := ensureCert(t, crt, key, nil); err == nil {
 		t.Fatal("a key without its certificate was accepted")
 	}
 	if err := os.Remove(key); err != nil {
@@ -100,7 +100,7 @@ func TestEnsureCert(t *testing.T) {
 	if err := os.WriteFile(crt, []byte("leftover"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := ensureCert(crt, key, nil); err != nil {
+	if err := ensureCert(t, crt, key, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := loadTLS(crt, key); err != nil {
@@ -248,7 +248,7 @@ func TestOwnCertificateOnLoopback(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key := filepath.Join(dir, "own.crt"), filepath.Join(dir, "own.key")
-	if err := ensureCert(crt, key, []string{"nas.home.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"nas.home.example"}); err != nil {
 		t.Fatal(err)
 	}
 	addr, _, cancel, done := startArgs(t, dir, "-listen", "127.0.0.1:0", "-tls-cert", crt, "-tls-key", key)
@@ -372,7 +372,7 @@ func TestLoadTLSRefusesAGroupOrWorldReadableKey(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
-	if err := ensureCert(crt, key, []string{"box.acme.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"box.acme.example"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := loadTLS(crt, key); err != nil {
@@ -411,7 +411,7 @@ func TestWildcardCertificateDefaultAllowlist(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key, _ := writeTestPair(t, dir, &x509.Certificate{Subject: pkix.Name{CommonName: "corp"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"*.corp.example"}})
-	_, hosts, _, _, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key})
+	_, hosts, _, _, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,7 +485,7 @@ func TestEnsureCertRenewsItsOwnPairNearExpiry(t *testing.T) {
 			t.Parallel()
 			crt, key, k := writeTestPair(t, t.TempDir(), tc.tmpl)
 			before, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
-			if err := ensureCert(crt, key, []string{"new.example"}); err != nil {
+			if err := ensureCert(t, crt, key, []string{"new.example"}); err != nil {
 				t.Fatal(err)
 			}
 			after, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
@@ -530,7 +530,7 @@ func TestStrictTransportSecurityOnlyWithAnOwnerCertificate(t *testing.T) {
 		"self-signed":          {options{db: db, listen: "0.0.0.0:8443"}, false},
 		"plain http, loopback": {options{db: db, listen: "127.0.0.1:8080"}, false},
 	} {
-		_, hosts, hsts, _, err := transport(tc.o)
+		_, hosts, hsts, _, err := testTransport(t, tc.o)
 		if err != nil || hsts != tc.want {
 			t.Fatalf("%s: hsts = %v, err %v, want %v", name, hsts, err, tc.want)
 		}
@@ -604,7 +604,7 @@ func TestLoadTLSRefusesASymlinkToAWorldReadableKey(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
-	if err := ensureCert(crt, key, []string{"box.acme.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"box.acme.example"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(key, 0o644); err != nil { //nolint:gosec // the point of the test
@@ -633,7 +633,7 @@ func TestSelfSignedRenewerSwapsInTheRenewedCertificate(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	o := options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}
-	cfg, _, _, renew, err := transport(o)
+	cfg, _, _, renew, err := testTransport(t, o)
 	if err != nil || renew == nil {
 		t.Fatalf("transport: renew=%v err=%v", renew, err)
 	}
@@ -678,7 +678,7 @@ func TestSelfSignedRenewerSwapsInTheRenewedCertificate(t *testing.T) {
 	}
 
 	crt, key, _ := writeTestPair(t, t.TempDir(), &x509.Certificate{Subject: pkix.Name{CommonName: "box"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"box.corp.example"}})
-	if _, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key}); err != nil || renew != nil {
+	if _, _, _, renew, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", tlsCert: crt, tlsKey: key}); err != nil || renew != nil {
 		t.Fatalf("an owner's pair got a renewer: %v %v", renew, err)
 	}
 }

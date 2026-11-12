@@ -99,7 +99,8 @@ func newWorld(t *testing.T) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc, err := agentintake.New(agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg})
+	svc, err := agentintake.New(agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
+		TrustAnchor: func(context.Context) ([]byte, error) { return []byte(anchorFile), nil }})
 	if err != nil {
 		t.Fatal(err)
 	}

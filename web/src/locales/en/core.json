@@ -234,7 +234,8 @@
       "sensor": "Sensor",
       "notify": "Notifications",
       "sensor-ca": "Sensor CA",
-      "sensor-cert": "Sensor certificates"
+      "sensor-cert": "Sensor certificates",
+      "box-ca": "Box CA"
     },
     "action": {
       "auth": {
@@ -476,6 +477,9 @@
       "notify.resend": "Send alert again",
       "notify.rules_save": "Save alert rules",
       "notify.stale_dropped": "Old alerts dropped",
+      "box-ca.create": "Create box certificate authority",
+      "box-ca.migrate": "Move box certificate authority into the database",
+      "box-ca.replace": "Replace box certificate authority",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",
       "sensor-cert.issue": "Issue sensor certificate",

@@ -46,8 +46,11 @@ type Config struct {
 	Software observe.SoftwareSink // the inventory: the software list of a device
 	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
 	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
-	Clock    func() time.Time
-	Log      *slog.Logger
+	// TrustAnchor gives the PEM osquery pins to trust the box's 8443 (GET /intake/ca.pem, INV-11): the box CA's certificate, or the
+	// file of an owner's certificate. Only its CERTIFICATE blocks are served. nil: the box serves no TLS, the route answers 404.
+	TrustAnchor func(context.Context) ([]byte, error)
+	Clock       func() time.Time
+	Log         *slog.Logger
 }
 
 // Service is the osquery intake. Create it with New.

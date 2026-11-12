@@ -117,7 +117,7 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 		t.Fatalf("no HTTPS TLS must give no syslog TLS, got %v", got)
 	}
 	dir := t.TempDir()
-	cfg, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
+	cfg, _, _, renew, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
 	if err != nil || cfg == nil || renew == nil {
 		t.Fatalf("transport: cfg=%v renew=%v err=%v", cfg, renew, err)
 	}
@@ -142,7 +142,7 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 	if cfg.NextProtos == nil {
 		t.Error("cloning must not change the HTTPS configuration")
 	}
-	lo, _, _, _, err := transport(options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
+	lo, _, _, _, err := testTransport(t, options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
 	if err != nil || syslogTLS(lo) != nil {
 		t.Fatalf("a loopback box has no certificate: %v", err)
 	}

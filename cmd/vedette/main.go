@@ -168,8 +168,9 @@ func isLoopback(addr string) (bool, error) {
 // -hosts and what localNames finds). The allowlist is -hosts when given, otherwise the names of the
 // certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
 // certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
-// no HSTS, or a browser would refuse to let the owner click through its warning for a year.
-func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
+// no HSTS, or a browser would refuse to let the owner click through its warning for a year. The box's own pair is signed by the box
+// CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
+func transport(ctx context.Context, o options, ca *boxCAStore) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
 	hosts, err = parseHosts(o.hosts)
 	flagHosts := hosts
 	if err != nil {
@@ -186,7 +187,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-		if err := ensureCertAt(certPath, keyPath, hosts, time.Now, o.log); err != nil {
+		if err := ensureCertAt(ctx, ca, certPath, keyPath, hosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
 		}
 	}
@@ -195,7 +196,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 		return nil, nil, false, nil, err
 	}
 	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
-		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, ca: ca, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
@@ -223,18 +224,6 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	o.log = log
-	tlsCfg, hosts, hsts, renew, err := transport(o)
-	if err != nil {
-		return err
-	}
-	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
-	if o.hostSocket != "" {
-		if renew != nil {
-			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
-		} else {
-			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
-		}
-	}
 	db, err := store.Open(ctx, o.db, log)
 	if err != nil {
 		return err
@@ -267,6 +256,23 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		log.ErrorContext(ctx, "compacting the database after a purge failed; it is tried again at the next start", "error", err)
 	}
 	aud := audit.New(nil)
+	// TLS comes after the database (D-351): the box CA that signs the self-made leaf is a core_secret row.
+	boxCAs, err := newBoxCAStore(db, sec, aud, filepath.Dir(o.db))
+	if err != nil {
+		return err
+	}
+	tlsCfg, hosts, hsts, renew, err := transport(ctx, o, boxCAs)
+	if err != nil {
+		return err
+	}
+	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
+	if o.hostSocket != "" {
+		if renew != nil {
+			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
+		} else {
+			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
+		}
+	}
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		return err
@@ -280,6 +286,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
+	d.TrustAnchor = intakeTrustAnchor(tlsCfg, o.tlsCert, boxCAs)
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}

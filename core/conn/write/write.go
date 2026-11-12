@@ -60,11 +60,13 @@ const (
 
 // Budgets (D-94): HTTP and MCP calls are bounded by transport.CallTimeout (15 s) in the client, an SSH line by
 // transport.LineTimeout (20 s) and an SSH session by transport.SessionTimeout (60 s) in the session. StepBudget bounds one step of
-// an item whatever the caller's context says; response adds its own 90 s for the item.
+// an item whatever the caller's context says; response adds its own 90 s for the item. LeaveBudget (5 s, D-358) bounds the line that
+// leaves configuration mode after a refused SSH line, on top of the session and within the step.
 const (
 	CallBudget    = transport.CallTimeout
 	LineBudget    = transport.LineTimeout
 	SessionBudget = transport.SessionTimeout
+	LeaveBudget   = transport.LeaveTimeout
 	StepBudget    = 90 * time.Second
 )
 
@@ -109,7 +111,8 @@ type Config struct {
 // Writer sends the steps.
 type Writer struct {
 	c               *conn.Service
-	afterCredential func() // tests edit the connection here
+	afterCredential func()        // tests edit the connection here
+	leaveBudget     time.Duration // the leave line's own budget after a refused SSH line (LeaveBudget; tests shorten it)
 }
 
 // New returns a Writer.
@@ -117,7 +120,7 @@ func New(c Config) (*Writer, error) {
 	if c.Conns == nil {
 		return nil, errors.New("write: Config needs Conns")
 	}
-	return &Writer{c: c.Conns}, nil
+	return &Writer{c: c.Conns, leaveBudget: LeaveBudget}, nil
 }
 
 var (
@@ -514,9 +517,15 @@ func (w *Writer) ssh(ctx context.Context, c conn.Connection, secret secrets.Valu
 		o, err := sess.Run(ctx, l)
 		if err != nil {
 			r := failure(err, true, reads, c, redact)
-			if i > 0 && !reads && r.Status == StatusFailed {
-				// An earlier line was accepted: a refusal now leaves the device half way, which is not "nothing changed".
-				r.Status = StatusUnknown
+			if i > 0 && !reads {
+				if r.Status == StatusFailed {
+					// An earlier line was accepted: a refusal now leaves the device half way, which is not "nothing changed".
+					r.Status = StatusUnknown
+				}
+				// D-358: an earlier line may have entered configuration mode. When the device refused this line (the session is at
+				// its prompt) the line that leaves that mode without saving goes out once, with its own budget; the outcome stays.
+				// After line 0 nothing was entered, and a time-out or a closed session types nothing (Leave only closes).
+				sess.Leave(ctx, leaveLine(s.Lines[:i]), w.leaveBudget)
 			}
 			return r
 		}

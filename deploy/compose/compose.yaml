@@ -16,6 +16,7 @@ x-build-args: &pins
   NUCLEI_BIN_SHA256_ARM64: ${NUCLEI_BIN_SHA256_ARM64}
   SCAN_PACK_VERSION: ${SCAN_PACK_VERSION}
   VERSION: 0.0.0-dev
+  MIN_SEQUENCE: "0"
 
 x-hardening: &hardening
   user: "65532:65532"

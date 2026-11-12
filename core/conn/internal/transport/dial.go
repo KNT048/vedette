@@ -25,6 +25,7 @@ const (
 	CallTimeout    = 15 * time.Second
 	LineTimeout    = 20 * time.Second // SSH: one line
 	SessionTimeout = 60 * time.Second // SSH: the whole session
+	LeaveTimeout   = 5 * time.Second  // SSH: the line that leaves configuration mode after a refused line, on top of the session (D-358)
 )
 
 // RefusedError is a dial the address policy stopped: no socket was opened to Addr.

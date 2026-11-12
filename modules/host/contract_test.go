@@ -448,6 +448,9 @@ func TestContract_POST4_TimeoutReleasesTheLock(t *testing.T) {
 	if done.Status != api.StatusFailed || done.Error.Code != api.CodeTimeout {
 		t.Fatalf("done = %+v", done)
 	}
+	// A stall longer than KillGrace when the deadline passes can make the host judge the run abandoned (INV-3): the
+	// lock is then freed when the command returns, just after (see INV-12 below). Wait for that, bounded by a real hang.
+	eventually(t, "the write lock is free", func() bool { return !h.Server.WriteActive() })
 	if _, err := h.Client.Run(context.Background(), "test.ok", nil, rid2, "admin"); err != nil {
 		t.Fatalf("lock still held: %v", err)
 	}
@@ -571,6 +574,12 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 	do := func(i int, command, body string) {
 		rawReq(t, h, "/v1/commands/"+command, hdr(id(i)), body)
 		waitIdle(t, h)
+		// A terminal run normally frees the write lock in the same step, but not one the host judged abandoned (INV-3):
+		// test.stuck honours its 50 ms deadline, yet a stall of the process longer than KillGrace (100 ms) at that moment
+		// makes the grace timer and the command's return ready together, and execute's select takes either. The run is
+		// then failed/timeout as usual, and the lock is freed only when the goroutine returns, just after. The next command
+		// must not meet that lock: it would be refused busy and write no accepted line (CI: 4 accepted lines, not 5).
+		eventually(t, "the write lock is free", func() bool { return !h.Server.WriteActive() })
 	}
 	good := `{"args":{"name":"x","ip":"192.168.1.5","scope":"all","at":"10:30"}}`
 	do(1, "test.ok", `{}`)                                    // succeeded
@@ -586,21 +595,17 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 	if len(runs) != 8 {
 		t.Fatalf("%d runs", len(runs))
 	}
+	// Every line is on file once its run is terminal: the accepted line before the 202, a result line before the run is
+	// recorded terminal (finish) or refused (refuse). No wait: a missing line here is a bug, not timing.
 	var recs []api.AuditRecord
 	accepted := 0
-	// The lines are written by the server's goroutines: wait (bounded) for all of them rather than read the file
-	// at the first instant every run is terminal (it was 4 accepted lines instead of 5 under load).
-	eventually(t, "the audit lines of the 8 commands", func() bool {
-		recs, accepted = nil, 0
-		for _, a := range audit(t, h) {
-			if a.Result == "accepted" { // written when a run starts, before the result line
-				accepted++
-				continue
-			}
-			recs = append(recs, a)
+	for _, a := range audit(t, h) {
+		if a.Result == "accepted" { // written when a run starts, before the result line
+			accepted++
+			continue
 		}
-		return len(recs) == 8 && accepted == 5
-	})
+		recs = append(recs, a)
+	}
 	// 5 commands ran (ok, fail, set, stuck, set): each has an accepted line and a result line; the 3 refusals only a result line.
 	if len(recs) != 8 || accepted != 5 {
 		t.Fatalf("%d result lines and %d accepted lines for 8 commands (5 ran)", len(recs), accepted)

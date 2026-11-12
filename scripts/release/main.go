@@ -12,6 +12,7 @@
 //	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
+//	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
 package main
@@ -38,7 +39,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|index|min-sequence|check-binaries|sign|verify [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|index|min-sequence|check-binaries|sign|verify|packs [flags]")
 		return 2
 	}
 	var err error
@@ -58,6 +59,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdSign(ctx, args[1:], stdin, stdout)
 	case "verify":
 		err = cmdVerify(args[1:], stdout)
+	case "packs":
+		err = cmdPacks(ctx, args[1:], stdin, stdout)
 	default:
 		say(stderr, "release: unknown command %q", args[0])
 		return 2

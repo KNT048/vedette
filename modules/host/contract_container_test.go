@@ -1141,7 +1141,8 @@ func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	e.m.SetRunning(api.ServiceHoneypot, true)
 	e.start(t, api.ServiceHoneypot, false)
 	if j := e.m.CallsWithJournal(); !slices.Equal(j, []string{"daemon-reload"}) {
-		t.Fatalf("the bytes changed without a journal: %v", j)
+		// The calls say which look of runningHealthy did not see the healthy container (CI once took the restart path).
+		t.Fatalf("the bytes changed without a journal: %v\nsystemctl %q\npodman %q", j, e.m.Calls("systemctl"), e.m.Calls("podman"))
 	}
 	if e.journalExists(api.ServiceHoneypot) {
 		t.Fatal("the journal stayed")

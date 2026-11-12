@@ -33,6 +33,7 @@ const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
   return [
     L(0, 420, 'log-digest', 4800, 900), L(0, 360, 'log-digest', 4600, 880), L(0, 300, 'log-digest', 4900, 910),
     S(0, 250, 'explain-finding', 2300, 1100, 'CVE-2022-27593'),
+    { ...r(1, 900, 'explain-finding', 0, 0, 'CVE-2026-96951', ''), model: 'claude-sonnet-5-5', profile: undefined, status: 'failed' as const }, // the provider did not answer
     r(1, 800, 'weekly-report', 3900, 1500), S(1, 600, 'ask-my-data', 1100, 320, 'Which machines still expose RDP?'),
     r(2, 700, 'cve-news', 3400, 700, 'CVE-2026-119977'), S(3, 900, 'explain-finding', 2500, 1200, 'CVE-2026-96951'),
     L(5, 500, 'log-digest', 21000, 3900), S(9, 480, 'ask-my-data', 1300, 450, 'Which devices are not approved yet?'), S(14, 300, 'pdpl-assessment', 11000, 4200),
@@ -85,9 +86,10 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
   const cfg = aiConfigStore.get()
   const used = todayTokens()
   const cap = num(cfg.daily_cap)
-  const capped = (reason: string) => {
-    aiRunsStore.update((l) => [{ id: newId('ai'), ts: nowIso(), skill: job, model: cfg.model, tokens_in: 0, tokens_out: 0, status: 'capped' as const, target }, ...l])
-    recordActivity({ job, profile: '', model: cfg.model, hooks: act.hooks ?? [], tools: act.tools ?? [], input: act.input ?? `${job}:${target ?? ''}`, output: '', summary: `Not sent: ${reason}`, tokens_in: 0, tokens_out: 0, result: 'error', trigger: act.trigger })
+  // status capped = a cap stopped the call before anything was sent; failed = a profile was asked and did not answer (POST-5)
+  const capped = (reason: string, status: 'capped' | 'failed' = 'capped') => {
+    aiRunsStore.update((l) => [{ id: newId('ai'), ts: nowIso(), skill: job, model: cfg.model, tokens_in: 0, tokens_out: 0, status, target }, ...l])
+    recordActivity({ job, profile: '', model: cfg.model, hooks: act.hooks ?? [], tools: act.tools ?? [], input: act.input ?? `${job}:${target ?? ''}`, output: '', summary: `${status === 'capped' ? 'Not sent' : 'No profile answered'}: ${reason}`, tokens_in: 0, tokens_out: 0, result: 'error', trigger: act.trigger })
     return { error: fail(429, 'daily_cap', reason) }
   }
   if (used >= cfg.daily_cap && cfg.tier === 'min') return capped(`Today's ${cap} token cap is used up and the tier is already the minimum. Raise the cap in Settings, AI assistant, or wait until tomorrow.`)
@@ -100,7 +102,7 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
     if (profileUsed(p) + tin + tout > p.daily_cap) { why.push(`${p.name}: daily cap reached`); continue }
     pick = p; idx = i; break
   }
-  if (!pick) return capped(`No AI profile could answer ${JOB_NAME[job]} (${why.join('; ')}). Check the profiles in Settings, AI assistant, or add a fallback.`)
+  if (!pick) return capped(`No AI profile could answer ${JOB_NAME[job]} (${why.join('; ')}). Check the profiles in Settings, AI assistant, or add a fallback.`, why.every((w) => w.endsWith('daily cap reached')) ? 'capped' : 'failed')
   recordAiRun(job, tin, tout, target, pick, idx > 0)
   recordActivity({ job, profile: pick.name, model: pick.model, hooks: act.hooks ?? [], tools: act.tools ?? [], links: act.links, input: act.input ?? `${job}:${target ?? ''}`, output: act.output ?? `${job}:${target ?? ''}:${tin}:${tout}`, summary: act.summary ?? `${JOB_NAME[job]}${target ? ` for ${target}` : ''}`, tokens_in: tin, tokens_out: tout, result: act.result ?? (idx > 0 ? 'fallback_used' : 'ok'), trigger: act.trigger })
   let downgraded: { from: AiTier; to: AiTier } | null = null

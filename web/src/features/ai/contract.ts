@@ -40,7 +40,7 @@ export const Usage = z.object({
   by_skill: z.array(z.object({ skill: z.string(), runs: z.number(), tokens: z.number() })),
   downgrades: z.array(z.object({ id: z.string(), ts: iso, from: AiTier, to: AiTier, reason: z.string() })),
 })
-export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
+export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped', 'failed']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
 // ---- Activity log (S-AI-8, D-48): guaranteed record of what the AI did, hash-chained
 export const ActivityResult = z.enum(['ok', 'blocked_by_hook', 'fallback_used', 'error'])
 export const ActivityTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), args: z.string().describe('Arguments summarised, never secrets') })
@@ -161,6 +161,6 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/cve/{id}/cached', summary: 'Previously generated explanation and news for a CVE', stories: ['S-AI-2', 'S-AI-3'], role: 'viewer', params: z.object({ id: cve }), response: CachedCve, example: { params: { id: 'CVE-2022-27593' } } },
   { method: 'post', path: '/ai/cve/{id}/explain', summary: 'AI explains a CVE in terms of my devices', stories: ['S-AI-2'], role: 'operator', params: z.object({ id: cve }), response: ExplainResult },
   { method: 'post', path: '/ai/cve/{id}/news', summary: 'Box fetches advisories/PoC/RSS for a CVE, then the AI summarizes them', stories: ['S-AI-3'], role: 'operator', params: z.object({ id: cve }), response: NewsResult },
-  { method: 'get', path: '/ai/logs/digest', summary: 'AI log digest for the selected tier', stories: ['S-AI-4'], role: 'viewer', response: z.object({ digest: LogDigest }) },
+  { method: 'get', path: '/ai/logs/digest', summary: 'AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)', stories: ['S-AI-4'], role: 'viewer', response: z.object({ digest: LogDigest.nullable() }) },
   { method: 'post', path: '/ai/logs/digest', summary: 'Regenerate the log digest now', stories: ['S-AI-4'], role: 'operator', response: z.object({ digest: LogDigest }) },
 ])

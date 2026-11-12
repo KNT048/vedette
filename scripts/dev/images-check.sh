@@ -62,6 +62,12 @@ cn=vedette-core-check-$$
 trap 'cleanup; $c rm -f "$cn" >/dev/null 2>&1 || true; $c rmi -f "localhost/vedette-core:$tag" >/dev/null 2>&1 || true' EXIT
 $c run -d --name "$cn" -p 127.0.0.1::8443 --tmpfs /var/lib/vedette:rw,mode=1777 "localhost/vedette-core:$tag" -listen 0.0.0.0:8443 -host-socket "" >/dev/null
 port=$($c port "$cn" 8443/tcp | head -1 | sed 's/.*://')
+# D-345: the pack folder is readable by core's user (65532): a 0755 folder of 0644 files, owned by root
+packs=$($c export "$cn" | tar -tvf - opt/vedette/content/mitigation 2>/dev/null) || fail "core: no /opt/vedette/content/mitigation in the image"
+grep -Eq '^drwxr-xr-x .*opt/vedette/content/mitigation/?$' <<<"$packs" || fail "core: the pack folder is not 0755: $packs"
+bad=$(grep -v '/$' <<<"$packs" | grep -Ev '^-rw-r--r-- ' || true) # here-strings, no early-closing pipe under pipefail
+[ -z "$bad" ] || fail "core: a pack file is not 0644: $bad"
+ok "core: the signed pack folder is 0755 with 0644 files"
 cget() { curl -sk --max-time 5 --resolve "localhost:$port:127.0.0.1" "$@"; }
 page=
 for _ in $(seq 1 30); do

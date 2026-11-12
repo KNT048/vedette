@@ -367,7 +367,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (90 mã)
+#### HTTP 409 (91 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -461,6 +461,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rollback_backup_missing` | 409 | The copy of the database from before the update is no longer on the box, so the rollback cannot put it back. Chỉ backend (D-342): host `rollback_backup_missing`. | `POST /core/updates/rollback` (`run.error`) |
 | `rollback_is_upgrade` | 409 | The previous version is newer than the running one. Install it as an update instead. Chỉ backend (D-342): `core.previous` cao hơn bản đang chạy (sau một lần rollback), kiểm trước mọi lời gọi host. | `POST /core/updates/rollback` |
 | `current_version_unknown` | 409 | The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record). Chỉ backend (D-342): host chưa ghi bản đang chạy (bootstrap 3-8b). | `POST /core/updates/apply`, `POST /core/updates/rollback` |
+| `approver_not_ready` | 409 | This message went to one approver, who can no longer approve (why). It was not sent again. | `POST /notify/history/{id}/resend` (module notify INV-11) |
 
 #### HTTP 412 (1 mã)
 
@@ -538,14 +539,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 |---|---|---|---|
 | `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
 
-#### HTTP 503 (5 mã)
+#### HTTP 503 (6 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `server_busy` | 503 | The box is busy checking other sign-ins. Try again in a few seconds. | **Any operation that writes** when the database writer stays taken by another transaction for 5 s (`store.RequestWriteWait`, D-246, INV-29 of core: "The box is busy saving other changes. Try again in a few seconds.", `Retry-After: 5`, `retry_after: 5`; nothing was written); `POST /auth/login`; `POST /auth/login/resend-code`; `GET /response/blocklist/{token}.txt` (the store cannot be read: 503 with `Retry-After`, never an empty list, blocklist-format 6); `GET /intake/ca.pem` (agent-intake, D-351: the box CA was replaced and the leaf signed by the new one is not served yet; "The box certificate is being renewed. Try again in a minute.", `retry_after: 30` and `Retry-After`); `POST /ai/hooks/test` (module ai: 503 khi một lần thử hook khác đang chạy và lần này không giành được khe trong thời hạn hook, 5 giây; thông báo: "The box is busy testing another hook. Try again in a moment."; **không** kèm `Retry-After`, như logs; `modules/ai/CONTRACT.md` INV-12); `GET /logs/events` (module logs: 503 khi đã có 2 lần tìm chạy cùng lúc và lần thứ ba không giành được khe trong 5 giây, hoặc một lần tìm chạy quá 5 giây; thông báo: "The box is busy searching the logs. Choose a shorter time range or a more specific keyword, then try again."; **không** kèm `Retry-After` hay `retry_after`: GUI hiện lỗi và nút thử lại; `modules/logs/CONTRACT.md`); mọi thao tác phải băm hoặc kiểm mật khẩu (`POST /core/users`, `/core/users/{id}/reset-password`, `/core/account/password`, `/core/account/2fa/disable`, `/core/setup`). Mã mới **[ĐX]** (WP-04b rà soát bảo mật): ít nhất một lần chờ quá 2 giây hoặc hàng đợi băm đầy. Kèm `retry_after` (giây) trong `error` và `Retry-After`. Không phải `busy` (409, cập nhật hệ điều hành). Lần thử bị từ chối vì bận **không** tính vào giới hạn đăng nhập sai |
 | `twofa_email_unavailable` | 503 | The email channel cannot send two-step codes now. | `POST /auth/login`; `POST /auth/login/resend-code` |
 | `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. (`POST /core/data/purge` answers it with status 502, D-154: a configured helper that holds the backups does not answer, its socket file missing included, and nothing is deleted.) Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
-| `approver_not_ready` | 409 | This message went to one approver, who can no longer approve (why). It was not sent again. | `POST /notify/history/{id}/resend` (module notify INV-11) |
 | `approver_check_unavailable` | 503 | Vedette could not check the approver just now. Try again in a moment. (`retry_after` seconds, `Retry-After` header, §8; the user directory or the link store did not answer, D-438.) | `POST /notify/history/{id}/resend` |
 | `update_source_unreachable` | 503 | Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again. Chỉ backend (D-341): lỗi mạng, hết giờ (30 s mỗi tệp), chuyển hướng ra ngoài các host GitHub của PRIVACY luồng 6, hoặc trả lời khác 200. | `POST /core/updates/check` |
 | `scanner_unavailable` | 503 | The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again. | `POST /scans/runs`; job quét lịch và quét lại KEV của `scan` (D-125: không có heartbeat của worker, hoặc heartbeat báo thiếu nuclei hay gói mẫu) |

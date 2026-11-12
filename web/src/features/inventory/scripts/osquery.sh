@@ -9,7 +9,7 @@
 #   4. enables and starts the osqueryd service, then waits for the first check-in and prints the result
 set -eu
 BOX='@@BOX@@'
-VERSION='@@VERSION@@'
+OSQ_VERSION='@@VERSION@@'
 TOKEN=''
 ACTION=install
 while [ $# -gt 0 ]; do
@@ -34,11 +34,14 @@ fi
 [ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices, Scope and sensors." >&2; exit 2; }
 ARCH=$(uname -m)
 [ "$ARCH" = x86_64 ] || { echo "Only x86_64 servers are supported for now (this one is $ARCH)." >&2; exit 1; }
-. /etc/os-release
-case " ${ID:-} ${ID_LIKE:-} " in
-  *" debian "*|*" ubuntu "*) FMT=deb; FILE="osquery_${VERSION}-1.linux_amd64.deb" ;;
-  *" rhel "*|*" centos "*|*" fedora "*|*" rocky "*|*" almalinux "*) FMT=rpm; FILE="osquery-${VERSION}-1.linux.x86_64.rpm" ;;
-  *) echo "Unsupported Linux distribution: ${PRETTY_NAME:-unknown}. Supported: Debian, Ubuntu, RHEL, Rocky, AlmaLinux." >&2; exit 1 ;;
+# os-release is read in subshells: sourced here it would overwrite this script's own variables (VERSION, NAME, ...)
+OSF=/etc/os-release; [ -r "$OSF" ] || OSF=/usr/lib/os-release
+OS_IDS=$( . "$OSF" 2>/dev/null; printf ' %s %s ' "${ID:-}" "${ID_LIKE:-}" ) || OS_IDS=
+OS_NAME=$( . "$OSF" 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}" ) || OS_NAME=unknown
+case "$OS_IDS" in
+  *" debian "*|*" ubuntu "*) FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_amd64.deb" ;;
+  *" rhel "*|*" centos "*|*" fedora "*|*" rocky "*|*" almalinux "*) FMT=rpm; FILE="osquery-${OSQ_VERSION}-1.linux.x86_64.rpm" ;;
+  *) echo "Unsupported Linux distribution: ${OS_NAME}. Supported: Debian, Ubuntu, RHEL, Rocky, AlmaLinux." >&2; exit 1 ;;
 esac
 
 mkdir -p "$DIR"
@@ -79,5 +82,5 @@ while [ $i -lt 24 ]; do
   fi
   i=$((i+1)); sleep 5
 done
-echo "osquery is installed and running, but Vedette has not seen a check-in yet. Check: systemctl status osqueryd" >&2
+echo "osquery is installed and running, but Vedette has not received its first report yet. This is normal: osquery sends its first report within about an hour. If it is still missing after two hours, check: systemctl status osqueryd" >&2
 exit 3

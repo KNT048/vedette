@@ -67,5 +67,5 @@ try {
     if ($r -match '"enrolled":true') { Write-Host 'Done: this machine checked in with Vedette.'; return }
     Start-Sleep -Seconds 5
   }
-  Write-Warning 'osquery is installed and running, but Vedette has not seen a check-in yet. Check: Get-Service osqueryd'
+  Write-Warning 'osquery is installed and running, but Vedette has not received its first report yet. This is normal: osquery sends its first report within about an hour. If it is still missing after two hours, check: Get-Service osqueryd'
 } finally { Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue }

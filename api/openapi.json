@@ -3185,7 +3185,7 @@
     "/ai/knowledge": {
       "get": {
         "operationId": "ai_get_ai_knowledge",
-        "summary": "Knowledge base documents with indexing status, and the profile that builds the index",
+        "summary": "Knowledge base documents with indexing status, and the AI profile chosen for the index",
         "tags": [
           "ai"
         ],
@@ -3202,7 +3202,7 @@
                   "type": "object",
                   "properties": {
                     "index_profile": {
-                      "description": "AI profile id that builds the index; null = none chosen",
+                      "description": "AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null = none chosen",
                       "type": [
                         "string",
                         "null"
@@ -3641,7 +3641,7 @@
     "/ai/knowledge/settings": {
       "put": {
         "operationId": "ai_put_ai_knowledge_settings",
-        "summary": "Choose the AI profile that builds the index",
+        "summary": "Choose the AI profile for the index (required; the index is built on the box)",
         "tags": [
           "ai"
         ],
@@ -3680,7 +3680,7 @@
                   "type": "object",
                   "properties": {
                     "index_profile": {
-                      "description": "AI profile id that builds the index; null = none chosen",
+                      "description": "AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null = none chosen",
                       "type": [
                         "string",
                         "null"
@@ -34992,6 +34992,10 @@
                             "minimum": 0,
                             "maximum": 1,
                             "description": "0 to 1; response rules only act automatically on high confidence"
+                          },
+                          "blocked": {
+                            "type": "boolean",
+                            "description": "The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say"
                           }
                         },
                         "required": [
@@ -35004,7 +35008,8 @@
                           "dest_kind",
                           "seen_via",
                           "feeds",
-                          "confidence"
+                          "confidence",
+                          "blocked"
                         ],
                         "additionalProperties": false
                       }

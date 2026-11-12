@@ -142,7 +142,7 @@ func (UnimplementedHandler) AiGetAiHooks(ctx context.Context) (r *AiGetAiHooksOK
 
 // AiGetAiKnowledge implements ai_get_ai_knowledge operation.
 //
-// Knowledge base documents with indexing status, and the profile that builds the index.
+// Knowledge base documents with indexing status, and the AI profile chosen for the index.
 //
 // GET /ai/knowledge
 func (UnimplementedHandler) AiGetAiKnowledge(ctx context.Context) (r *AiGetAiKnowledgeOK, _ error) {
@@ -386,7 +386,7 @@ func (UnimplementedHandler) AiPutAiKnowledgeID(ctx context.Context, req *AiPutAi
 
 // AiPutAiKnowledgeSettings implements ai_put_ai_knowledge_settings operation.
 //
-// Choose the AI profile that builds the index.
+// Choose the AI profile for the index (required; the index is built on the box).
 //
 // PUT /ai/knowledge/settings
 func (UnimplementedHandler) AiPutAiKnowledgeSettings(ctx context.Context, req *AiPutAiKnowledgeSettingsReq) (r *AiPutAiKnowledgeSettingsOK, _ error) {

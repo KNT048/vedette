@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -61,6 +62,9 @@ type updHost struct {
 	pkgSHA      string
 	lost        bool
 	down        int
+	lists       int
+	stateDown   int             // StateContainers answers unreachable that many times
+	dropped     map[string]bool // "start core": every call never reaches the host (no run, no answer)
 }
 
 func ver(s string) *string { return &s }
@@ -84,7 +88,7 @@ func newUpdHost(t *testing.T, st api.ContainersState) *updHost {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 	return &updHost{cl: hostclient.New(sock), st: st, hold: map[string]bool{}, refuse: map[string]string{},
-		once: map[string]string{}, args: map[string]string{}, pulled: map[string][]string{}, ends: map[string]api.RunError{}, now: time.Now,
+		once: map[string]string{}, dropped: map[string]bool{}, args: map[string]string{}, pulled: map[string][]string{}, ends: map[string]api.RunError{}, now: time.Now,
 		hostVersion: "1.3.0", commands: []string{api.CmdContainerPull, api.CmdHostSelfUpdate}}
 }
 
@@ -147,6 +151,9 @@ func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string)
 	defer f.mu.Unlock()
 	key := short + " " + svc
 	f.calls = append(f.calls, strings.TrimSpace(key+" "+version+" "+extra))
+	if f.dropped[key] {
+		return api.Run{}, fmt.Errorf("%w: connection reset by peer", hostclient.ErrUnreachable)
+	}
 	if a, ok := f.args[rid]; ok && a != args {
 		return api.Run{}, &hostclient.Error{Status: 422, Code: "request_id_reuse", Message: "other arguments"}
 	}
@@ -199,6 +206,25 @@ func (f *updHost) addRun(r api.Run) {
 	f.runs = append([]*updRun{{run: r}}, f.runs...)
 }
 
+// endRun ends a run addRun put in the list as running: it succeeded.
+func (f *updHost) endRun(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fin := f.now()
+	for _, r := range f.runs {
+		if r.run.RunID == id {
+			r.run.Status, r.run.FinishedAt = api.StatusSucceeded, &fin
+		}
+	}
+}
+
+// listed is how many times the run side read the host's list of runs.
+func (f *updHost) listed() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lists
+}
+
 func (f *updHost) setState(st api.ContainersState) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -214,6 +240,10 @@ func (f *updHost) callList() []string {
 func (f *updHost) StateContainers(context.Context) (api.ContainersState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.stateDown > 0 {
+		f.stateDown--
+		return api.ContainersState{}, fmt.Errorf("%w: no socket yet", hostclient.ErrUnreachable)
+	}
 	b, _ := json.Marshal(f.st) // a deep copy
 	var out api.ContainersState
 	return out, json.Unmarshal(b, &out)
@@ -280,6 +310,7 @@ func (f *updHost) GetRun(_ context.Context, id string) (api.Run, error) {
 func (f *updHost) ListRuns(_ context.Context, limit int) ([]api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.lists++
 	if f.down > 0 {
 		f.down--
 		return nil, fmt.Errorf("%w: no socket yet", hostclient.ErrUnreachable)
@@ -302,6 +333,8 @@ type runEnv struct {
 	*osEnv
 	srv *releaseServer
 	fh  *updHost
+
+	retry time.Duration // the follower's wait between tries after e.start (0 = the default)
 }
 
 // newRunEnv: the host reports st, core runs running, srv publishes the manifests of running and 1.4.0 (images of
@@ -348,7 +381,7 @@ func (e *runEnv) start(t *testing.T, version string) *core.OSHandlers {
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: e.fh,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
 		Zone: e.h.OrgTimeZone, Clock: e.clock.Now, Gate: e.purgeGate,
-		Version: version, ReleaseBase: e.srv.URL, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
+		Version: version, UpdateRetry: e.retry, ReleaseBase: e.srv.URL, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -470,11 +503,10 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 func TestUpdateCoreSwitchIsNotSentAgainAfterARestart(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
-	fh.refuse["start core"] = api.CodeBusy // the host does not take it: the follower keeps trying
+	fh.dropped["start core"] = true // the call never reaches the host and the answer is lost: core cannot know
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	waitCall(t, fh, "start core")
 	e.handler.Close()
-	delete(fh.refuse, "start core")
 	e.handler = e.start(t, "1.3.0")
 	run := endedRun(t, e)
 	if run["status"] != "failed" || !strings.Contains(run["error"].(string), "has no record that Vedette itself switched to 1.4.0") {
@@ -653,6 +685,164 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 	hist := e.admin.get("/core/updates").JSON["history"].([]any)
 	if len(hist) != 2 || hist[0].(map[string]any)["action"] != "rollback" || hist[1].(map[string]any)["action"] != "update" {
 		t.Errorf("history = %v", hist)
+	}
+}
+
+// The lab sequence: the rollback restored the database, core is back up and follows the restored update run while the
+// host has not ended the rollback's run yet (it waits for core's health first). The update must not be settled done
+// then: it waits for the host's run to end, and the rollback is rebuilt from it.
+func TestUpdateRollbackStillRunningAtTheHostIsWaitedFor(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", false)
+	fh.hold["start core"] = true
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	eventuallyOS(t, "the run id of core's switch to be stored", func() bool {
+		var raw string
+		_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
+		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 7
+	})
+	e.handler.Close()
+	fh.release("start core")
+	fh.addRun(api.Run{RunID: "rn_00000000000000ff", Command: api.CmdContainerRollback, Status: api.StatusRunning, StartedAt: time.Now(),
+		Actor: "other@acme.example", RequestID: "11111111-1111-4111-8111-111111111111", Result: json.RawMessage(`{"digest":"d","from_digest":"f","restored_backup_id":"b1"}`)})
+	nilCore := lockstep("1.3.0", "1.4.0") // the real host reports core's version as null until the rollback's run ends
+	nilCore.Services[0].Version = nil
+	fh.setState(nilCore)
+	e.retry = time.Millisecond
+	before := fh.listed()
+	e.handler = e.start(t, "1.3.0")
+	eventuallyOS(t, "the follower to look at the host's runs more than once", func() bool { return fh.listed() >= before+4 })
+	if r, _ := e.admin.get("/core/updates").JSON["run"].(map[string]any); r == nil || r["status"] != "running" {
+		t.Fatalf("the run was settled while the rollback still ran at the host: %v", r)
+	}
+	fh.setState(lockstep("1.3.0", "1.4.0"))
+	fh.endRun("rn_00000000000000ff")
+	run := endedRun(t, e)
+	if run["action"] != "rollback" || run["status"] != "done" || run["from"] != "1.4.0" || run["to"] != "1.3.0" {
+		t.Fatalf("run = %v", run)
+	}
+	hist := e.admin.get("/core/updates").JSON["history"].([]any)
+	if len(hist) != 2 || hist[0].(map[string]any)["action"] != "rollback" {
+		t.Errorf("history = %v", hist)
+	}
+}
+
+// A host that answers rebooting, dpkg_locked or install_in_progress is busy for a while, not final: the run keeps
+// waiting under the same key and goes on when the host takes the call (the refused runs the host records are not
+// the call's outcome).
+func TestUpdateRunWaitsOutATransientHostRefusal(t *testing.T) {
+	t.Parallel()
+	for _, code := range []string{api.CodeRebooting, api.CodeDpkgLocked, api.CodeInstallInProgress} {
+		t.Run(code, func(t *testing.T) {
+			t.Parallel()
+			e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+			core.SetUpdateRetryForTest(e.handler, time.Millisecond)
+			fh.refuse["start core"] = code
+			wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+			eventuallyOS(t, "core's switch to be sent three times", func() bool { return countOf(fh.callList(), "start core 1.4.0 snap") >= 3 })
+			if r, _ := e.admin.get("/core/updates").JSON["run"].(map[string]any); r == nil || r["status"] != "running" {
+				t.Fatalf("the run ended on %s: %v", code, r)
+			}
+			fh.mu.Lock()
+			delete(fh.refuse, "start core")
+			fh.mu.Unlock()
+			if run := endedRun(t, e); run["status"] != "done" {
+				t.Fatalf("run = %v", run)
+			}
+		})
+	}
+}
+
+// coreSwitchSent reads the stored run: is core's switch marked as sent?
+func coreSwitchSent(t *testing.T, e *runEnv) bool {
+	t.Helper()
+	var raw string
+	_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
+	var rec struct {
+		Calls []struct {
+			Service, Command string
+			Sent             bool
+		}
+	}
+	if err := json.Unmarshal([]byte(raw), &rec); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range rec.Calls {
+		if c.Service == api.ServiceCore && c.Command == api.CmdContainerStart {
+			return c.Sent
+		}
+	}
+	return false
+}
+
+// The host refuses core's switch because the box is rebooting; core restarts with the box. The refusal bound no key,
+// so the switch was not sent: the run sends it again and ends done (not "no record that Vedette switched").
+func TestUpdateCoreSwitchRefusedAsRebootingIsSentAfterTheRestart(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.refuse["start core"] = api.CodeRebooting
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	eventuallyOS(t, "the refused switch to be marked as not sent", func() bool { return !coreSwitchSent(t, e) })
+	e.handler.Close()
+	fh.mu.Lock()
+	delete(fh.refuse, "start core")
+	fh.mu.Unlock()
+	e.handler = e.start(t, "1.3.0")
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+}
+
+// A host that cannot be read when the update is settled does not make the run forget the rollback: it is tried again.
+func TestUpdateRollbackLostToARestoredDatabaseSurvivesFailedHostReads(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", false)
+	fh.hold["start core"] = true
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	eventuallyOS(t, "the run id of core's switch to be stored", func() bool {
+		var raw string
+		_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
+		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 7
+	})
+	e.handler.Close()
+	fh.release("start core")
+	fin := time.Now()
+	fh.addRun(api.Run{RunID: "rn_00000000000000ff", Command: api.CmdContainerRollback, Status: api.StatusSucceeded, StartedAt: fin.Add(-time.Minute), FinishedAt: &fin,
+		Actor: "other@acme.example", RequestID: "11111111-1111-4111-8111-111111111111", Result: json.RawMessage(`{"digest":"d","from_digest":"f","restored_backup_id":"b1"}`)})
+	fh.setState(lockstep("1.3.0", "1.4.0"))
+	fh.mu.Lock()
+	fh.stateDown, fh.down = 3, 2
+	fh.mu.Unlock()
+	e.retry = time.Millisecond
+	e.handler = e.start(t, "1.3.0")
+	// the follower meets the failed reads, not the page's GET below
+	eventuallyOS(t, "the failed state reads to be used up", func() bool { fh.mu.Lock(); defer fh.mu.Unlock(); return fh.stateDown == 0 })
+	if run := endedRun(t, e); run["action"] != "rollback" || run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+}
+
+func TestRetryWait(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		want time.Duration
+	}{
+		{"no error", nil, 5 * time.Second},
+		{"unrelated error", errors.New("x"), 5 * time.Second},
+		{"no retry_after_s", &hostclient.Error{Code: api.CodeBusy}, 5 * time.Second},
+		{"shorter than the pause", &hostclient.Error{Code: api.CodeRateLimited, RetryAfterS: 2}, 5 * time.Second},
+		{"longer than the pause", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}, time.Minute},
+		{"wrapped", fmt.Errorf("x: %w", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}), time.Minute},
+		{"capped", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 99999}, 5 * time.Minute},
+	} {
+		if got := core.RetryWaitForTest(tc.err, 5*time.Second); got != tc.want {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }
 

@@ -150,6 +150,14 @@ func formatCEF(r siemRecord) []byte {
 	n := 0
 	for _, f := range r.Fields {
 		std := f.CEF
+		// A flag (blocked, D-227): the CEF deviceAction says "blocked" when it is true and nothing when it is not (never "allowed": a
+		// line that does not say the device stopped the connection is not known to have gone through).
+		if std == "act" {
+			if f.Val == "true" {
+				ext = append(ext, "act=blocked")
+			}
+			continue
+		}
 		if std == "src" || std == "dst" { // these two keys hold an address; a name goes to a custom string
 			if _, err := netip.ParseAddr(f.Val); err != nil {
 				std = ""

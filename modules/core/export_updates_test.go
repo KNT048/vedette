@@ -39,3 +39,6 @@ func SetUpdateRetryForTest(h *OSHandlers, d time.Duration) { h.urun.retry = d }
 func HostWhyForTest(code, v, running, release string) string {
 	return hostWhy(context.Background(), &updateRunRec{To: release, Host: &runHost{From: running, To: v}}, code)
 }
+
+// RetryWaitForTest is retryWait.
+func RetryWaitForTest(err error, base time.Duration) time.Duration { return retryWait(err, base) }

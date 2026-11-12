@@ -325,11 +325,17 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		!strings.Contains(code, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}") {
 		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
 	}
-	// D-371: only a pull request drops -race; the merge queue (the merge gate), main and the daily run keep it.
-	if got := len(regexp.MustCompile(`\bRACE\b`).FindAllString(code, -1)); got != 3 ||
-		!strings.Contains(code, "RACE: ${{ github.event_name != 'pull_request' && '-race' || '' }}") ||
-		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE"`) {
-		t.Errorf("go-test must drop -race on a pull request only (%d RACE settings)", got)
+	// D-371, D-376: a push to main and the daily run keep -race; a pull request and the merge queue drop it. Only the daily run
+	// sets SKIPTESTS empty, so it alone runs the tests of skip-tests.txt.
+	if got := len(regexp.MustCompile(`\b(RACE|SKIPTESTS)\b`).FindAllString(code, -1)); got != 6 ||
+		!strings.Contains(code, "RACE: ${{ (github.event_name == 'push' || github.event_name == 'schedule') && '-race' || '' }}") ||
+		!strings.Contains(code, "SKIPTESTS: ${{ github.event_name != 'schedule' && '1' || '' }}") ||
+		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE" SKIPTESTS="$SKIPTESTS"`) {
+		t.Errorf("go-test must keep -race on main and daily only, and run the skip list daily only (%d RACE/SKIPTESTS settings)", got)
+	}
+	if !regexp.MustCompile(`(?m)^SKIPTESTS \?= 1$`).MatchString(mk) ||
+		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) .*-skip "\$\$skip"`).FindAllString(mk, -1)) != 2 {
+		t.Error("make test-go-shard must skip the skip list by default (SKIPTESTS ?= 1) in both go test calls")
 	}
 	if !regexp.MustCompile(`(?m)^RACE \?= -race$`).MatchString(mk) || len(regexp.MustCompile(`(?m)^\s*(override\s+|export\s+)?RACE\s*[:+?!]?=`).FindAllString(mk, -1)) != 1 ||
 		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) `).FindAllString(mk, -1)) != 2 {

@@ -942,7 +942,7 @@
     "downloaded": "Downloaded {{file}}",
     "backup": {
       "title": "Backup",
-      "desc": "Settings, users (no passwords), modules, devices, findings and the log. No AI keys or tokens.",
+      "desc": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. No AI keys or tokens. Keep the file as safe as the box: the hashes could be attacked offline.",
       "button": "Download backup"
     },
     "export": {

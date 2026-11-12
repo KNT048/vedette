@@ -522,7 +522,7 @@ func (UnimplementedHandler) CoreGetCoreConnections(ctx context.Context) (r *Core
 
 // CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 //
-// Download a backup (no passwords or keys).
+// Download a backup (password hashes, never passwords or keys).
 //
 // GET /core/data/backup
 func (UnimplementedHandler) CoreGetCoreDataBackup(ctx context.Context) (r CoreGetCoreDataBackupOK, _ error) {

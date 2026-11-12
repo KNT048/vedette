@@ -7743,7 +7743,7 @@ func (s *Server) handleCoreGetCoreConnectionsRequest(args [0]string, argsEscaped
 
 // handleCoreGetCoreDataBackupRequest handles core_get_core_data_backup operation.
 //
-// Download a backup (no passwords or keys).
+// Download a backup (password hashes, never passwords or keys).
 //
 // GET /core/data/backup
 func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7812,7 +7812,7 @@ func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreDataBackupOperation,
-			OperationSummary: "Download a backup (no passwords or keys)",
+			OperationSummary: "Download a backup (password hashes, never passwords or keys)",
 			OperationID:      "core_get_core_data_backup",
 			Body:             nil,
 			RawBody:          rawBody,

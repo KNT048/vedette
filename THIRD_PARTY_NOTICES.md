@@ -170,7 +170,7 @@ Release builder (WP-08f, D-164, maintainer's machine only, never shipped): `scri
 | Tor exit list | — | attribution: torproject |
 | Team Cymru bogons | — | attribution |
 | Cisco Umbrella top-1M, Majestic Million | — / CC-BY 3.0 | allow-lists |
-| Spamhaus DROP | separate terms, **pending confirmation** | name not used in marketing |
+| Spamhaus DROP | not used in v1 (D-367) | name not used in marketing |
 
 Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CISA KEV (CC0), FIRST EPSS (attribution), the CVE list of nuclei-templates (MIT). Sources are shown on every screen.
 

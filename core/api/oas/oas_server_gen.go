@@ -349,7 +349,7 @@ type Handler interface {
 	CoreGetCoreConnections(ctx context.Context) (*CoreGetCoreConnectionsOK, error)
 	// CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 	//
-	// Download a backup (no passwords or keys).
+	// Download a backup (password hashes, never passwords or keys).
 	//
 	// GET /core/data/backup
 	CoreGetCoreDataBackup(ctx context.Context) (CoreGetCoreDataBackupOK, error)

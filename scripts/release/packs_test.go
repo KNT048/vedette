@@ -50,10 +50,10 @@ func TestSignPacksMakesWhatTheBoxVerifies(t *testing.T) {
 	if err := release.VerifyContent(stmt, u.Signature, r.trust); err != nil {
 		t.Fatalf("the box does not verify it: %v", err)
 	}
-	if list, _ := os.ReadFile(filepath.Join(dir, "packs.list")); !bytes.Equal(list, stmt) {
+	if list, _ := os.ReadFile(filepath.Join(dir, "packs.list")); !bytes.Equal(list, stmt) { //nolint:gosec // test: a file the test wrote
 		t.Fatal("packs.list is not the signed statement")
 	}
-	if sig, _ := os.ReadFile(filepath.Join(dir, "packs.minisig")); !strings.Contains(string(sig), "file:packs.list version:2026.12.2.1") {
+	if sig, _ := os.ReadFile(filepath.Join(dir, "packs.minisig")); !strings.Contains(string(sig), "file:packs.list version:2026.12.2.1") { //nolint:gosec // test: a file the test wrote
 		t.Fatalf("trusted comment: %s", sig)
 	}
 	// The next set must be newer; the same version again is refused, as the box would.

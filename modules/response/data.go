@@ -199,18 +199,24 @@ func (s *Service) isDeviceKind(k string) bool {
 // enabled, ai_may_propose and connection_id, which belong to the user. The sample connection ids of the file are not
 // copied: a built-in device action starts with no connection and the customer picks one.
 func (s *Service) seedCatalog(ctx context.Context, tx *sql.Tx) error {
+	// One statement for every action: SQLite parses it once instead of once per action.
+	st, err := tx.PrepareContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, precheck_expect, risk, enabled, ai_may_propose, position)
+VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (id) DO UPDATE SET pack = excluded.pack, kind = excluded.kind, name = excluded.name, description = excluded.description,
+  tool = excluded.tool, rollback_tool = excluded.rollback_tool, run = excluded.run, rollback = excluded.rollback, verify = excluded.verify,
+  precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, precheck_expect = excluded.precheck_expect, risk = excluded.risk, position = excluded.position
+WHERE resp_catalog.builtin = 1`)
+	if err != nil {
+		return fmt.Errorf("response: seed the catalog: %w", err)
+	}
+	defer func() { _ = st.Close() }()
 	for i, a := range s.cat {
 		desc := a.Description
 		if a.Unverified {
 			desc += " " + s.catNote + "."
 		}
 		run, rollback, verify, pre, refuse := mustJSON(a.Run), mustJSON(a.Rollback), mustJSON(a.Verify), mustJSON(a.Precheck), mustJSON(nonNilStrings(a.PrecheckRefuse))
-		_, err := tx.ExecContext(ctx, `INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, tool, rollback_tool, run, rollback, verify, precheck, precheck_refuse, precheck_expect, risk, enabled, ai_may_propose, position)
-VALUES (?, 1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (id) DO UPDATE SET pack = excluded.pack, kind = excluded.kind, name = excluded.name, description = excluded.description,
-  tool = excluded.tool, rollback_tool = excluded.rollback_tool, run = excluded.run, rollback = excluded.rollback, verify = excluded.verify,
-  precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, precheck_expect = excluded.precheck_expect, risk = excluded.risk, position = excluded.position
-WHERE resp_catalog.builtin = 1`,
+		_, err = st.ExecContext(ctx,
 			a.ID, a.Pack, a.Kind, a.Name, desc, nullable(a.Tool), nullable(a.RollbackTool), run, rollback, verify, pre, refuse, a.PrecheckExpect, string(a.Risk), boolInt(a.Enabled), boolInt(a.AIMayPropose), i)
 		if err != nil {
 			return fmt.Errorf("response: seed action %s: %w", a.ID, err)

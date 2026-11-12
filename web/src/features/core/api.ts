@@ -120,7 +120,8 @@ export function useUpdateMutations() {
   return {
     refresh: () => qc.fetchQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 0 }),
     settings: useMutation({ mutationFn: (v: { channel?: UpdateChannel; mode?: 'auto' | 'manual' }) => api.patch<UpdatesState>('/core/updates', v), onSuccess: set }),
-    check: useMutation({ mutationFn: () => api.post<UpdatesState & { applied: number }>('/core/updates/check'), onSuccess: set }),
+    // A failed check is stored (last_check_error, D-392): read the state again so the page says so.
+    check: useMutation({ mutationFn: () => api.post<UpdatesState & { applied: number }>('/core/updates/check'), onSuccess: set, onError: () => void qc.invalidateQueries({ queryKey: ['core', 'updates'] }) }),
     apply: useMutation({ mutationFn: (component: string) => api.post<UpdatesState>('/core/updates/apply', { component }), onSuccess: set }),
     rollback: useMutation({ mutationFn: (v: { component: string; confirm_data_loss?: boolean }) => api.post<UpdatesState>('/core/updates/rollback', v), onSuccess: set }),
     importBundle: useMutation({ mutationFn: (v: { name: string; size: number; sha256: string; content: string }) => api.post<{ applied: number; state: UpdatesState }>('/core/updates/bundle', v), onSuccess: (r) => set(r.state) }),

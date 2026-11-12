@@ -312,7 +312,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     const server = watch5xx(page)
     const c = await as('admin')
     const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
     try {
       const before = await auditIds(c)
       await page.goto('/settings/channels')
@@ -453,7 +453,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
 
 test.describe('the box refuses what D-86 forbids, and keeps the rest (INV-8)', () => {
   const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-  const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+  const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
   const INSECURE = 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.'
   const body = (url: string) => ({ enabled: false, fields: { url }, secret: WEBHOOK_KEY, min_severity: 'medium' })
 

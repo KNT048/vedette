@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -383,8 +384,8 @@ func (o *Ops) hostHasLink(name string) (bool, error) {
 
 // ipRun runs one ip command line and reports success; a non-zero exit is an error naming the verb.
 func (o *Ops) ipRun(ctx context.Context, args []string) error {
-	_, code, err := o.exec(ctx, binIP, args...)
-	return ipErr(args, code, err)
+	res, code, err := o.exec(ctx, binIP, args...)
+	return ipErr(args, res.Stderr, code, err)
 }
 
 // fibTableMissingRE is the kernel's answer (through iproute2 6.19 and later, exit 2, then "Flush terminated") to
@@ -401,17 +402,31 @@ func (o *Ops) routeFlush(ctx context.Context, table int) error {
 	if err == nil && code == 2 && fibTableMissingRE.Match(res.Stderr) {
 		return nil
 	}
-	return ipErr(args, code, err)
+	return ipErr(args, res.Stderr, code, err)
 }
 
-func ipErr(args []string, code int, err error) error {
+// ipErr is the error of one ip call. A non-zero exit carries the first line of ip's stderr (quoted, at most
+// maxStderrHead bytes) so the host's log says why. These errors go to the host's log only: the API and the audit lines
+// get fixed sentences and codes, never this text.
+func ipErr(args []string, stderr []byte, code int, err error) error {
 	if err != nil {
 		return fmt.Errorf("ops: ip %s: %w", strings.Join(args[:min(len(args), 4)], " "), err)
 	}
 	if code != 0 {
+		if h := stderrHead(stderr); h != "" {
+			return fmt.Errorf("ops: ip %s failed (exit %d): %q", strings.Join(args[:min(len(args), 4)], " "), code, h)
+		}
 		return fmt.Errorf("ops: ip %s failed (exit %d)", strings.Join(args[:min(len(args), 4)], " "), code)
 	}
 	return nil
+}
+
+const maxStderrHead = 200
+
+// stderrHead is the first non-empty line of a program's stderr, cut to maxStderrHead bytes and to valid UTF-8.
+func stderrHead(b []byte) string {
+	line, _, _ := bytes.Cut(bytes.TrimSpace(b), []byte("\n"))
+	return strings.ToValidUTF8(string(line[:min(len(line), maxStderrHead)]), "")
 }
 
 // buildDecoy makes the link, moves it into the namespace and configures it. It deletes only what

@@ -426,8 +426,8 @@ func checkSelfUpdateLimits(t *testing.T) {
 	if suRunWindow+suPreParkTimeout > 3*time.Hour { // server.maxParkWindow, measured from the start of the run
 		t.Errorf("the run window does not fit the server's park window")
 	}
-	if coreWaitPastDeadline <= 0 {
-		t.Error("core must wait past the deadline")
+	if coreWaitPastDeadline <= suSafetyMargin {
+		t.Errorf("core gives the run up %v past the deadline, before the host's safety net (%v) settles it", coreWaitPastDeadline, suSafetyMargin)
 	}
 }
 

@@ -46,8 +46,10 @@ const (
 	// suHealthWindow and suStableWindow: started.json of the new version within 120 s, then 30 s unchanged.
 	suHealthWindow = 120 * time.Second
 	suStableWindow = 30 * time.Second
-	// coreWaitPastDeadline is how long core waits past the deadline before it gives the run up (slice 5).
-	coreWaitPastDeadline = 5 * time.Minute
+	// coreWaitPastDeadline is how long core waits past the deadline before it gives the run up (slice 5,
+	// modules/core selfUpdateGrace): past the host's own safety net (suSafetyMargin) plus 5 minutes, so core never
+	// calls a run stopped half way that the host still settles.
+	coreWaitPastDeadline = 20 * time.Minute
 )
 
 // usrLibVedette is where the package puts the binary: low_disk looks at its filesystem too.

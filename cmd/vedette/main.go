@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -146,8 +147,34 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	} else if o.sensorCreds != "" {
 		return errors.New("-sensor-creds needs -sensor-listen")
 	}
+	if err := syslogPortClash(o); err != nil {
+		return err
+	}
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	return serve(ctx, log, o)
+}
+
+// syslogPortClash refuses a -syslog-port whose plain port or TLS port (the plain port + 1) is one the process
+// already serves on: -listen or -sensor-listen. 0 means 514 (TLS 6514) or 5514 (TLS 5515).
+func syslogPortClash(o options) error {
+	own := map[int]string{}
+	for flag, addr := range map[string]string{"-listen": o.listen, "-sensor-listen": o.sensorListen} {
+		if _, p, err := net.SplitHostPort(addr); err == nil {
+			if n, err := strconv.Atoi(p); err == nil {
+				own[n] = flag
+			}
+		}
+	}
+	ports := []int{514, 6514, 5514, 5515}
+	if o.syslogPort != 0 {
+		ports = []int{o.syslogPort, o.syslogPort + 1}
+	}
+	for _, p := range ports {
+		if flag, ok := own[p]; ok {
+			return fmt.Errorf("-syslog-port %d: port %d (the plain syslog port or the TLS port, which is the plain port + 1) is already used by %s", o.syslogPort, p, flag)
+		}
+	}
+	return nil
 }
 
 // isLoopback reports whether a -listen address is loopback: a literal loopback IP or "localhost". An empty

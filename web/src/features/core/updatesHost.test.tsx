@@ -34,6 +34,8 @@ const ENDS: [HostOutcome, 'reverted' | 'failed', string][] = [
   ['rollback_failed', 'failed', HALF_WAY],
   ['self_update_interrupted', 'failed', HALF_WAY],
   ['host_too_old', 'failed', "This box's system helper (0.9.3) is too old to update itself. Run install.sh of release 0.9.4 on the box (it upgrades the helper and keeps your data), then apply again."],
+  ['current_package_missing', 'failed', 'Updating the system helper to 0.9.4 failed: the box has no copy of the running helper to go back to, so it was not updated. Run install.sh of release 0.9.4 on the box (it keeps your data), then apply again.'],
+  ['host_download_failed', 'failed', 'Updating the system helper to 0.9.4 failed: its package could not be downloaded. Check that the box can reach github.com over HTTPS, then apply again.'],
 ]
 
 describe('core: system helper update (S-CORE-2 criterion D-316)', () => {

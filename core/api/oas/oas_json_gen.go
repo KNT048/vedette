@@ -32556,19 +32556,29 @@ func (s *CoreGetCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCoreGetCoreUpdatesOK = [10]string{
-	0: "advisories",
-	1: "available",
-	2: "channel",
-	3: "check_enabled",
-	4: "components",
-	5: "history",
-	6: "last_check",
-	7: "managed",
-	8: "mode",
-	9: "run",
+var jsonFieldsNameOfCoreGetCoreUpdatesOK = [12]string{
+	0:  "advisories",
+	1:  "available",
+	2:  "channel",
+	3:  "check_enabled",
+	4:  "components",
+	5:  "history",
+	6:  "last_check",
+	7:  "managed",
+	8:  "mode",
+	9:  "run",
+	10: "running_revoked",
+	11: "stale_since",
 }
 
 // Decode decodes CoreGetCoreUpdatesOK from json.
@@ -32722,6 +32732,26 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -32733,7 +32763,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -34505,6 +34535,193 @@ func (s CoreGetCoreUpdatesOKRunStepsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreUpdatesOKRunStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreUpdatesOKRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CoreGetCoreUpdatesOKRunningRevoked from json.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOKRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreUpdatesOKRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreUpdatesOKRunningRevoked) {
+					name = jsonFieldsNameOfCoreGetCoreUpdatesOKRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetCoreUpdatesOKRunningRevokedAction as json.
+func (s CoreGetCoreUpdatesOKRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetCoreUpdatesOKRunningRevokedAction from json.
+func (s *CoreGetCoreUpdatesOKRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOKRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetCoreUpdatesOKRunningRevokedAction(v) {
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn
+	case CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CoreGetCoreUpdatesOKRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreUpdatesOKRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreUpdatesOKRunningRevokedAction) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -38456,19 +38673,29 @@ func (s *CorePatchCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePatchCoreUpdatesOK = [10]string{
-	0: "advisories",
-	1: "available",
-	2: "channel",
-	3: "check_enabled",
-	4: "components",
-	5: "history",
-	6: "last_check",
-	7: "managed",
-	8: "mode",
-	9: "run",
+var jsonFieldsNameOfCorePatchCoreUpdatesOK = [12]string{
+	0:  "advisories",
+	1:  "available",
+	2:  "channel",
+	3:  "check_enabled",
+	4:  "components",
+	5:  "history",
+	6:  "last_check",
+	7:  "managed",
+	8:  "mode",
+	9:  "run",
+	10: "running_revoked",
+	11: "stale_since",
 }
 
 // Decode decodes CorePatchCoreUpdatesOK from json.
@@ -38622,6 +38849,26 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -38633,7 +38880,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -40405,6 +40652,193 @@ func (s CorePatchCoreUpdatesOKRunStepsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePatchCoreUpdatesOKRunStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePatchCoreUpdatesOKRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CorePatchCoreUpdatesOKRunningRevoked from json.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePatchCoreUpdatesOKRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePatchCoreUpdatesOKRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePatchCoreUpdatesOKRunningRevoked) {
+					name = jsonFieldsNameOfCorePatchCoreUpdatesOKRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePatchCoreUpdatesOKRunningRevokedAction as json.
+func (s CorePatchCoreUpdatesOKRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePatchCoreUpdatesOKRunningRevokedAction from json.
+func (s *CorePatchCoreUpdatesOKRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePatchCoreUpdatesOKRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePatchCoreUpdatesOKRunningRevokedAction(v) {
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn
+	case CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CorePatchCoreUpdatesOKRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePatchCoreUpdatesOKRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePatchCoreUpdatesOKRunningRevokedAction) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -53112,19 +53546,29 @@ func (s *CorePostCoreUpdatesApplyOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesApplyOK = [10]string{
-	0: "advisories",
-	1: "available",
-	2: "channel",
-	3: "check_enabled",
-	4: "components",
-	5: "history",
-	6: "last_check",
-	7: "managed",
-	8: "mode",
-	9: "run",
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOK = [12]string{
+	0:  "advisories",
+	1:  "available",
+	2:  "channel",
+	3:  "check_enabled",
+	4:  "components",
+	5:  "history",
+	6:  "last_check",
+	7:  "managed",
+	8:  "mode",
+	9:  "run",
+	10: "running_revoked",
+	11: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesApplyOK from json.
@@ -53278,6 +53722,26 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -53289,7 +53753,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -55066,6 +55530,193 @@ func (s *CorePostCoreUpdatesApplyOKRunStepsItem) UnmarshalJSON(data []byte) erro
 }
 
 // Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOKRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKRunningRevoked from json.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesApplyOKRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesApplyOKRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesApplyOKRunningRevoked) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesApplyOKRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesApplyOKRunningRevokedAction as json.
+func (s CorePostCoreUpdatesApplyOKRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKRunningRevokedAction from json.
+func (s *CorePostCoreUpdatesApplyOKRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesApplyOKRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesApplyOKRunningRevokedAction(v) {
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesApplyOKRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunningRevokedAction) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CorePostCoreUpdatesApplyReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -55341,19 +55992,29 @@ func (s *CorePostCoreUpdatesBundleOKState) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesBundleOKState = [10]string{
-	0: "advisories",
-	1: "available",
-	2: "channel",
-	3: "check_enabled",
-	4: "components",
-	5: "history",
-	6: "last_check",
-	7: "managed",
-	8: "mode",
-	9: "run",
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKState = [12]string{
+	0:  "advisories",
+	1:  "available",
+	2:  "channel",
+	3:  "check_enabled",
+	4:  "components",
+	5:  "history",
+	6:  "last_check",
+	7:  "managed",
+	8:  "mode",
+	9:  "run",
+	10: "running_revoked",
+	11: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesBundleOKState from json.
@@ -55507,6 +56168,26 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -55518,7 +56199,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -57295,6 +57976,193 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) UnmarshalJSON(data []byte
 }
 
 // Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateRunningRevoked from json.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesBundleOKStateRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesBundleOKStateRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateRunningRevoked) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesBundleOKStateRunningRevokedAction as json.
+func (s CorePostCoreUpdatesBundleOKStateRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateRunningRevokedAction from json.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesBundleOKStateRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesBundleOKStateRunningRevokedAction(v) {
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevokedAction) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CorePostCoreUpdatesBundleReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -57514,9 +58382,17 @@ func (s *CorePostCoreUpdatesCheckOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesCheckOK = [11]string{
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOK = [13]string{
 	0:  "advisories",
 	1:  "applied",
 	2:  "available",
@@ -57528,6 +58404,8 @@ var jsonFieldsNameOfCorePostCoreUpdatesCheckOK = [11]string{
 	8:  "managed",
 	9:  "mode",
 	10: "run",
+	11: "running_revoked",
+	12: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesCheckOK from json.
@@ -57693,6 +58571,26 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -57704,7 +58602,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -59476,6 +60374,193 @@ func (s CorePostCoreUpdatesCheckOKRunStepsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesCheckOKRunStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOKRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKRunningRevoked from json.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesCheckOKRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesCheckOKRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesCheckOKRunningRevoked) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesCheckOKRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesCheckOKRunningRevokedAction as json.
+func (s CorePostCoreUpdatesCheckOKRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKRunningRevokedAction from json.
+func (s *CorePostCoreUpdatesCheckOKRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesCheckOKRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesCheckOKRunningRevokedAction(v) {
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesCheckOKRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunningRevokedAction) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -62492,19 +63577,29 @@ func (s *CorePostCoreUpdatesRollbackOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("run")
 		s.Run.Encode(e)
 	}
+	{
+		e.FieldStart("running_revoked")
+		s.RunningRevoked.Encode(e)
+	}
+	{
+		e.FieldStart("stale_since")
+		s.StaleSince.Encode(e, json.EncodeDateTime)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesRollbackOK = [10]string{
-	0: "advisories",
-	1: "available",
-	2: "channel",
-	3: "check_enabled",
-	4: "components",
-	5: "history",
-	6: "last_check",
-	7: "managed",
-	8: "mode",
-	9: "run",
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOK = [12]string{
+	0:  "advisories",
+	1:  "available",
+	2:  "channel",
+	3:  "check_enabled",
+	4:  "components",
+	5:  "history",
+	6:  "last_check",
+	7:  "managed",
+	8:  "mode",
+	9:  "run",
+	10: "running_revoked",
+	11: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesRollbackOK from json.
@@ -62658,6 +63753,26 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
+		case "running_revoked":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.RunningRevoked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"running_revoked\"")
+			}
+		case "stale_since":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stale_since\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -62669,7 +63784,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -64441,6 +65556,193 @@ func (s CorePostCoreUpdatesRollbackOKRunStepsItem) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+	{
+		e.FieldStart("since")
+		json.EncodeDateTime(e, s.Since)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKRunningRevoked = [4]string{
+	0: "action",
+	1: "reason",
+	2: "since",
+	3: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKRunningRevoked from json.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesRollbackOKRunningRevoked to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "since":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.Since = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"since\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesRollbackOKRunningRevoked")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesRollbackOKRunningRevoked) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesRollbackOKRunningRevoked[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesRollbackOKRunningRevokedAction as json.
+func (s CorePostCoreUpdatesRollbackOKRunningRevokedAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKRunningRevokedAction from json.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevokedAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesRollbackOKRunningRevokedAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesRollbackOKRunningRevokedAction(v) {
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible
+	default:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesRollbackOKRunningRevokedAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevokedAction) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -148266,6 +149568,50 @@ func (s *NilCoreGetCoreUpdatesOKRunStep) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes CoreGetCoreUpdatesOKRunningRevoked as json.
+func (o NilCoreGetCoreUpdatesOKRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CoreGetCoreUpdatesOKRunningRevoked from json.
+func (o *NilCoreGetCoreUpdatesOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCoreGetCoreUpdatesOKRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CoreGetCoreUpdatesOKRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCoreGetCoreUpdatesOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCoreGetCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CoreGetCoreUpdatesOsOKReleaseUpgrade as json.
 func (o NilCoreGetCoreUpdatesOsOKReleaseUpgrade) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -148570,6 +149916,50 @@ func (s NilCorePatchCoreUpdatesOKRunStep) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePatchCoreUpdatesOKRunStep) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePatchCoreUpdatesOKRunningRevoked as json.
+func (o NilCorePatchCoreUpdatesOKRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePatchCoreUpdatesOKRunningRevoked from json.
+func (o *NilCorePatchCoreUpdatesOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePatchCoreUpdatesOKRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePatchCoreUpdatesOKRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePatchCoreUpdatesOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePatchCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -148926,6 +150316,50 @@ func (s *NilCorePostCoreUpdatesApplyOKRunStep) UnmarshalJSON(data []byte) error 
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreUpdatesApplyOKRunningRevoked as json.
+func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKRunningRevoked from json.
+func (o *NilCorePostCoreUpdatesApplyOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesApplyOKRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesApplyOKRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesApplyOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesApplyOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreUpdatesBundleOKStateRun as json.
 func (o NilCorePostCoreUpdatesBundleOKStateRun) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -149014,6 +150448,50 @@ func (s *NilCorePostCoreUpdatesBundleOKStateRunStep) UnmarshalJSON(data []byte) 
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreUpdatesBundleOKStateRunningRevoked as json.
+func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateRunningRevoked from json.
+func (o *NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesBundleOKStateRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesBundleOKStateRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesBundleOKStateRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesBundleOKStateRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreUpdatesCheckOKRun as json.
 func (o NilCorePostCoreUpdatesCheckOKRun) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -149098,6 +150576,50 @@ func (s NilCorePostCoreUpdatesCheckOKRunStep) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePostCoreUpdatesCheckOKRunStep) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesCheckOKRunningRevoked as json.
+func (o NilCorePostCoreUpdatesCheckOKRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKRunningRevoked from json.
+func (o *NilCorePostCoreUpdatesCheckOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesCheckOKRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesCheckOKRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesCheckOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesCheckOKRunningRevoked) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -149318,6 +150840,50 @@ func (s NilCorePostCoreUpdatesRollbackOKRunStep) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePostCoreUpdatesRollbackOKRunStep) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesRollbackOKRunningRevoked as json.
+func (o NilCorePostCoreUpdatesRollbackOKRunningRevoked) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKRunningRevoked from json.
+func (o *NilCorePostCoreUpdatesRollbackOKRunningRevoked) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesRollbackOKRunningRevoked to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesRollbackOKRunningRevoked
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesRollbackOKRunningRevoked) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesRollbackOKRunningRevoked) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -592,6 +592,20 @@
     "advisoryAffected": "Affects you",
     "advisoryFixed": "Fixed in your build",
     "fixedIn": "Fixed in {{version}}.",
+    "revoked": {
+      "title": "Vedette {{version}}, which this box runs, has been withdrawn",
+      "body": "Reason given by the Vedette project: {{reason}}. Replace it with another release as soon as you can.",
+      "open": "Open Updates",
+      "quietTitle": "Vedette {{version}} has been withdrawn",
+      "quietBody": "Reason given by the Vedette project: {{reason}}. No box installs it any more; this box keeps running it until the next update."
+    },
+    "stale": {
+      "title": "The update information on this box is out of date",
+      "body": "It ran out on {{date}}, so newer releases and withdrawn ones may be missing.",
+      "checkOn": "The box gets new information at its next update check; if it stays out of date, make sure the box can reach github.com over HTTPS.",
+      "checkOff": "Update checks are off in Privacy: turn them on or import an offline bundle.",
+      "checkOffNoBundle": "Update checks are off in Privacy: turn them on."
+    },
     "bundle": {
       "title": "Bundle for air-gapped networks",
       "desc": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",

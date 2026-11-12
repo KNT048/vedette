@@ -185,7 +185,7 @@ Quy tắc: A/B theo **tag/digest** (D-55 thay "A/B slot binary" của D-12 bằn
 Hành vi hộp:
 
 - `block_install`: không bao giờ cài bản/digest đó (cả khi auto, cả bằng bundle).
-- Bản **đang chạy** bị thu hồi: banner mức nghiêm trọng trên mọi trang + thông báo kênh admin; `rollback_if_possible` chỉ tự lùi khi chế độ `auto`, tag N−1 còn, không bị thu hồi và `rollback.safe`; còn lại để admin quyết.
+- Bản **đang chạy** bị thu hồi: banner mức nghiêm trọng trên mọi trang khi `action` là `block_install_and_warn` hay `rollback_if_possible`, chỉ ghi chú trên trang Updates khi là `block_install` (D-386, `UpdatesState.running_revoked`) + thông báo kênh admin (chưa xây); `rollback_if_possible` chỉ tự lùi khi chế độ `auto`, tag N−1 còn, không bị thu hồi và `rollback.safe`; còn lại để admin quyết.
 - Khoá bị thu hồi: manifest ký bằng khoá đó bị từ chối kể cả đã cài trước đó (hộp không gỡ phần mềm, chỉ ngừng tin thêm).
 - Revocation tự có chữ ký trong `index.json`; `index.json` mới hơn thay thế (theo `sequence`). Hộp lưu bản cao nhất đã thấy để một index cũ không "hồi sinh" bản bị thu hồi.
 
@@ -261,7 +261,7 @@ sbom.json
 | SYS-7 | URL tải thuộc **danh sách host cố định** khai trong PRIVACY (GitHub, registry, mirror apt); không theo redirect ra ngoài danh sách |
 | SYS-8 | AI không có đường kích hoạt cập nhật |
 
-Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký được nên hộp từ chối; (b) lộ khoá ký → thu hồi khoá trong `index.json` ký bằng khoá dự phòng ngoại tuyến đã nhúng sẵn (D-103) + binary mới (điểm yếu nếu cả hai lộ); (c) rollback/replay manifest cũ có lỗ hổng → `sequence`; (d) freeze (giữ index cũ để hộp không thấy bản vá) → `expires_at` + banner; (e) đầu độc bundle → kiểm lại toàn bộ chữ ký; (f) lan rộng bản lỗi → cohort + `beta` ≥ 7 ngày + health check + rollback; (g) `core` bị chiếm → host xác minh độc lập.
+Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký được nên hộp từ chối; (b) lộ khoá ký → thu hồi khoá trong `index.json` ký bằng khoá dự phòng ngoại tuyến đã nhúng sẵn (D-103) + binary mới (điểm yếu nếu cả hai lộ); (c) rollback/replay manifest cũ có lỗ hổng → `sequence`; (d) freeze (giữ index cũ để hộp không thấy bản vá) → `expires_at` + cảnh báo trên trang Updates (D-386, `UpdatesState.stale_since`); (e) đầu độc bundle → kiểm lại toàn bộ chữ ký; (f) lan rộng bản lỗi → cohort + `beta` ≥ 7 ngày + health check + rollback; (g) `core` bị chiếm → host xác minh độc lập.
 
 ## 14. Versioning
 

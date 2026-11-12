@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -43,12 +44,18 @@ type fakeProviders struct {
 	probeIn, probeOut int      // tokens of every probe call; 0 = the default 14 in and 3 out
 	answer            string   // the text of every answer that is not a probe
 	usageIn, usageOut int      // tokens of every answer that is not a probe; 0 = the default 14 in and 3 out
+	noClient          string   // the profile whose client cannot be built ("" = none)
 	reqs              []provider.Request
 	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
 	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.noClient == p.Name { // the client cannot be built: the router skips the profile and nothing is sent
+		return nil, errors.New("fake: the profile settings are not valid")
+	}
 	return fakeProvider{f, p}, nil
 }
 

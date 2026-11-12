@@ -105,7 +105,7 @@
       "ok": "Succeeded",
       "schema_error": "Bad format",
       "capped": "Blocked by cap",
-      "failed": "Failed: no answer from the provider"
+      "failed": "Failed: not sent or not answered"
     },
     "fallback": "Fallback used"
   },

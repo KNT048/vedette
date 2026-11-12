@@ -21,6 +21,12 @@ const (
 	ResultError         ActivityResult = "error"
 )
 
+// The outcomes of a call that got no answer and sent nothing (column outcome of ai_activity).
+const (
+	OutcomeCapped  = "capped"   // the shared daily cap or the profile's own cap stopped it
+	OutcomeNotSent = "not_sent" // no profile could take it (privacy rule, changed settings, settings no client can be built from)
+)
+
 // ActivityTool is a tool call as recorded: the arguments are a short summary without secrets.
 type ActivityTool struct {
 	Name   string `json:"name"`
@@ -52,7 +58,10 @@ type ActivityEntry struct {
 	Profile string `json:"profile"` // "" when no profile was reached (blocked, capped)
 	// ProfileID is the id of that profile. It is stored beside the row but is not part of the hash and not shown: it only lets the
 	// meter count the tokens of a profile after a restart even if the profile has been renamed.
-	ProfileID  string         `json:"-"`
+	ProfileID string `json:"-"`
+	// Outcome is how a call that got no answer ended (OutcomeCapped, OutcomeNotSent; "" otherwise), stored beside the row like ProfileID
+	// and not hashed. GET /ai/runs reads its status from it.
+	Outcome    string         `json:"-"`
 	Model      string         `json:"model"`
 	Trigger    string         `json:"trigger"` // user:<email> or system:<what>
 	Hooks      []string       `json:"hooks"`   // names of hooks that acted

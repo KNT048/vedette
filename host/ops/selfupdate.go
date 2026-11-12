@@ -464,7 +464,7 @@ func (o *Ops) simulateHostInstall(ctx context.Context, rc *server.RunContext, st
 	}
 	if err := o.recordAddedPackages(added); err != nil {
 		o.log.ErrorContext(ctx, "could not record the packages the self-update adds", "error", err.Error())
-		return fail(api.CodeApplierFailed, "The host could not record the packages the update adds. Nothing was changed.")
+		return fail(api.CodeApplierFailed, "The host could not record the packages the update adds in "+filepath.Join(suDir(o.cfg.StateDir), suAddedName)+" (it must be a plain file of at most 64 KiB). Nothing was changed.")
 	}
 	return nil
 }
@@ -472,8 +472,9 @@ func (o *Ops) simulateHostInstall(ctx context.Context, rc *server.RunContext, st
 // SelfUpdateSim reads the simulated install of the host package (apt-get -s ... install <file>): ok when it
 // installs vedette-host, removes or purges nothing, and upgrades no other installed package (an "Inst" line
 // with "[old version]" for another name); new dependencies (no brackets) are allowed and returned in added,
-// in apt's order. A new package whose name is not a Debian package name, or a line over 4 KiB, ends the
-// reading as a refusal. It never panics (fuzzed).
+// in apt's order. A new package whose name is not a plain Debian package name (addedPkgName: no ":arch",
+// which install.sh's list filter would never purge), or a line over 4 KiB, ends the reading as a refusal
+// (dependencies_unavailable). It never panics (fuzzed).
 func SelfUpdateSim(out []byte) (added []string, ok bool) {
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	sc.Buffer(make([]byte, 0, 4096), maxSimLine)
@@ -492,7 +493,7 @@ func SelfUpdateSim(out []byte) (added []string, ok bool) {
 			sawHost = true
 			continue
 		}
-		if strings.HasPrefix(after, "[") || !pkgNameRE.MatchString(name) {
+		if strings.HasPrefix(after, "[") || !addedPkgName(name) {
 			return nil, false
 		}
 		added = append(added, name)
@@ -503,11 +504,15 @@ func SelfUpdateSim(out []byte) (added []string, ok bool) {
 	return added, true
 }
 
+// addedPkgName is the name rule of selfupdate/installed-by-us: a Debian package name without an architecture
+// qualifier, the same names install.sh's filter (^[a-z0-9][a-z0-9+.-]*$) keeps.
+func addedPkgName(n string) bool { return pkgNameRE.MatchString(n) && !strings.Contains(n, ":") }
+
 // recordAddedPackages is Run 3c (D-316 (9)): the packages the simulation says apt will newly install for the
 // new host (a Depends it added), merged into selfupdate/installed-by-us BEFORE anything is installed, like
 // install.sh's record_new_packages. install.sh --uninstall reads this file next to its own
-// /var/lib/vedette-install/installed-by-us and purges a name only when apt's autoremove then finds it unneeded
-// and it is not marked manual. One name per line, sorted, no duplicate; a name stays after a rollback (apt
+// /var/lib/vedette-install/installed-by-us and purges a name only when it is not marked manual and either apt's
+// autoremove then finds it unneeded or a purge of it removes nothing outside those lists. One name per line, sorted, no duplicate; a name stays after a rollback (apt
 // keeps the dependency installed) and after a run that ends before the install (uninstall checks that the
 // package is installed). Nothing new → no write. A file that does not read (a link, too large) stops the run
 // before any change: never install what --uninstall would not know.
@@ -521,7 +526,7 @@ func (o *Ops) recordAddedPackages(added []string) error {
 	}
 	names := slices.Clone(added)
 	for l := range strings.Lines(string(b)) {
-		if n := strings.TrimSuffix(l, "\n"); pkgNameRE.MatchString(n) {
+		if n := strings.TrimSuffix(l, "\n"); addedPkgName(n) {
 			names = append(names, n)
 		}
 	}

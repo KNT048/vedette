@@ -383,6 +383,7 @@ func TestSelfUpdateSimulation(t *testing.T) {
 		"empty":           "",
 		"host named late": strings.Replace(ok, "Inst vedette-host", "Inst vedette-hostx", 1),
 		"not a name":      ok + "Inst ../../etc/passwd (1.0 x [amd64])\n",
+		"foreign arch":    ok + "Inst libfoo1:i386 (1.0 Ubuntu:24.04/noble [i386])\n", // install.sh's list filter would never purge it
 	} {
 		if added, accepted := SelfUpdateSim([]byte(out)); accepted || added != nil {
 			t.Errorf("%s: accepted (%v)", name, added)
@@ -399,7 +400,7 @@ func FuzzSelfUpdateSim(f *testing.F) {
 			t.Fatal("a removal was accepted")
 		}
 		for _, n := range added {
-			if !ok || !pkgNameRE.MatchString(n) || isHostPkg(n) {
+			if !ok || !addedPkgName(n) || strings.Contains(n, ":") || isHostPkg(n) {
 				t.Fatalf("added %q (ok %v)", n, ok)
 			}
 		}

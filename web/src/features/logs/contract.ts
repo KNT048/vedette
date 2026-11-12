@@ -32,7 +32,7 @@ export const SourceInput = z.object({
   port: z.number().int().min(1).max(65535),
 })
 export const SourcesResponse = z.object({
-  box: z.object({ ip: z.string().nullable().describe('Box address on the LAN; null when no LAN range is declared'), hostname: z.string(), lan: z.string().nullable(), iface: z.string() }),
+  box: z.object({ ip: z.string().nullable().describe('Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a container cannot see the host\'s LAN address)'), hostname: z.string(), lan: z.string().nullable(), iface: z.string() }),
   sources: z.array(LogSource),
   retention_days: z.number().int(),
 })
@@ -53,7 +53,7 @@ export const IocHit = z.object({
   feeds: z.array(z.string()).describe('Threat feeds that list the destination'),
   confidence: z.number().min(0).max(1).describe('0 to 1; response rules only act automatically on high confidence'),
 })
-export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
+export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 
 export const LogEvent = z.object({ id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string() })
 export const EventWindow = z.enum(['1h', '24h', '7d'])

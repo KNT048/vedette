@@ -79,16 +79,52 @@ func (s *Service) PruneActivity(ctx context.Context) (int, error) {
 	return removed, nil
 }
 
-// Jobs are the scheduled jobs of the module: the retention prune, which is offered only when core's ChainPruner is wired. It only
-// deletes rows past the retention, so it is housekeeping (D-160) and keeps its timer while the module is off.
+// verifyEvery is how often the verify job checks the chain of the activity log.
+const verifyEvery = 24 * time.Hour
+
+// Jobs are the scheduled jobs of the module. "activity-prune" is offered only when core's ChainPruner is wired; it only deletes rows
+// past the retention, so it is housekeeping (D-160) and keeps its timer while the module is off. "activity-verify" is offered only
+// when Alert is wired; it calls out to notify, so it is no housekeeping and runs only while the module is on.
 func (s *Service) Jobs() []jobs.Job {
-	if s.cfg.ChainPruner == nil {
+	var out []jobs.Job
+	if s.cfg.ChainPruner != nil {
+		out = append(out, jobs.Job{Module: "ai", Name: "activity-prune", Every: pruneEvery, Housekeeping: true, Run: func(ctx context.Context) error {
+			_, err := s.PruneActivity(ctx)
+			return err
+		}})
+	}
+	if s.cfg.Alert != nil {
+		out = append(out, jobs.Job{Module: "ai", Name: "activity-verify", Every: verifyEvery, Run: s.verifyAndAlert})
+	}
+	return out
+}
+
+// verifyAndAlert checks the chain (INV-18) and, when it is broken, raises one incident notice (S-AI-8, D-430). The text names the
+// count and the first bad row, never the content of a row. The same break (first bad row and count) is raised once per process: the
+// box does not repeat a notice every day, and a restart raises a break that is still there once more. A chain that verifies again
+// (the log was restored) clears the memory, so a new break is raised.
+func (s *Service) verifyAndAlert(ctx context.Context) error {
+	res, err := s.VerifyActivity(ctx)
+	if err != nil {
+		return err
+	}
+	if res.OK {
+		s.alerted.Store(nil)
 		return nil
 	}
-	return []jobs.Job{{Module: "ai", Name: "activity-prune", Every: pruneEvery, Housekeeping: true, Run: func(ctx context.Context) error {
-		_, err := s.PruneActivity(ctx)
-		return err
-	}}}
+	key := fmt.Sprintf("%s/%d", res.EntryID, res.Count)
+	if last := s.alerted.Load(); last != nil && *last == key {
+		return nil
+	}
+	text := fmt.Sprintf("The hash chain of the AI activity log is broken at row %d of %d (entry %s). Someone may have edited or removed rows of the log. Open AI, Activity and use Verify to see it.", res.BrokenAt, res.Count, res.EntryID)
+	if res.EntryID == "" {
+		text = fmt.Sprintf("The hash chain of the AI activity log does not match what the box recorded (%d rows). Rows at the end of the log may have been removed. Open AI, Activity and use Verify to see it.", res.Count)
+	}
+	if err := s.cfg.Alert(ctx, "ai-activity-chain-"+key, "The AI activity log failed its check", text); err != nil {
+		return fmt.Errorf("ai: raise the broken chain: %w", err)
+	}
+	s.alerted.Store(&key)
+	return nil
 }
 
 // exportCols are the columns of the hash and nothing else: no seq, no profile_id, so an export verifies offline.

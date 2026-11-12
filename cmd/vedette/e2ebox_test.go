@@ -39,6 +39,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/pdftext/pdftexttest"
 	"github.com/knt048/vedette/modules/feeds"
 )
 
@@ -67,9 +68,11 @@ type e2eReady struct {
 	SyslogPort string `json:"syslog_port,omitempty"`
 	// syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1, as the listener maps it) and the PEM of the test
 	// certificate it presents (syslogTestTLS); the listener opens once a source with proto tls exists
-	SyslogTLSPort string      `json:"syslog_tls_port,omitempty"`
-	SyslogTLSCert string      `json:"syslog_tls_cert,omitempty"`
-	devs          *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
+	SyslogTLSPort string `json:"syslog_tls_port,omitempty"`
+	SyslogTLSCert string `json:"syslog_tls_cert,omitempty"`
+	// the pages the fake internet of the CVE news fetch serves, as host/path (e2enews_test.go); the CVE they are about is e2eNewsCVE
+	NewsPages []string    `json:"news_pages,omitempty"`
+	devs      *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -475,6 +478,8 @@ func TestE2EBox(t *testing.T) {
 	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
 	seed.Devices, seed.devs = logins, devs
 	seed.SyslogTLSCert = tlsPEM
+	pdftexttest.BuildChild(t)        // D-264: the PDF child of the knowledge base; a test binary registers none by itself (UseSelf is main's), so a PDF upload would end as ErrNoChild
+	seed.NewsPages = startE2ENews(t) // before any box starts: both read the seam when their ai service is built
 	data, sock := "", ""
 	if host != nil {
 		data, sock = host.dataDir, host.socket

@@ -16,6 +16,8 @@ export interface Box {
   syslog_port?: string
   /** Syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1) and the PEM of the test certificate it presents. */
   syslog_tls_port?: string; syslog_tls_cert?: string
+  /** The pages the fake internet of the CVE news fetch serves, as host/path (D-426); the CVE they are about is CVE-2026-0001, the one catalog entry of the run. */
+  news_pages?: string[]
 }
 
 /** The sensors of the run (slice 7): the REAL vedette-sensor binary, started as a child of the box through its control endpoint. `passive` replays a

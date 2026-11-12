@@ -161,6 +161,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 - Chấp nhận (walk 3, 2026-11-12; D-225): bằng chứng của đề xuất memory đọc được: `From the question "<câu hỏi>"; tools read: <công cụ>` (≤ 200 ký tự) và `From the log summary of <ngày>`; thẻ Memory hiện `<bằng chứng> · <lúc>` (thay "Noticed in asked … and read …").
 **S-AI-8** (P2, P4) `[đạt]` (D-48) — Tôi xem và tải về mọi việc AI đã làm (lần gọi, công cụ, hook, đề xuất, hành động) với chuỗi hash chống sửa.
 - Chấp nhận (D-360): thẻ Knowledge nói đúng điều kho tri thức làm (D-209): chỉ mục dựng ngay trên hộp bằng FTS5 nên dựng chỉ mục không gửi chữ nào của tài liệu tới nhà cung cấp AI; hồ sơ AI của chỉ mục vẫn bắt buộc chọn cho tới khi có embeddings, và hồ sơ cloud bị từ chối khi quy tắc riêng tư bật; không còn câu nói "hồ sơ đọc từng tài liệu" hay "chữ rời mạng".
+- Chấp nhận (D-430): hộp tự kiểm chuỗi hash của nhật ký mỗi 24 giờ (job `activity-verify`); khi chuỗi hỏng, mọi kênh báo bật nhận được một thông báo sự cố mức high nói chuỗi hỏng ở dòng thứ mấy trong bao nhiêu dòng và dòng đầu tiên sai (không có nội dung dòng); cùng một chỗ hỏng chỉ báo một lần mỗi lần chạy của hộp, không báo lại mỗi ngày; chuỗi kiểm lại đúng thì lần hỏng sau lại báo; module notify tắt thì việc thử lại ở lượt sau.
 
 ## RESP — Phản ứng
 

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"encoding/json"
 	"os"
 	"slices"
 	"strings"
@@ -50,6 +51,20 @@ func TestRealPodmanImageListOfARelease(t *testing.T) {
 		if a, err := untagArgv(i.ID, tag); err != nil || validatePodman(a) != nil {
 			t.Fatalf("untag %q: %q %v", tag, a, err)
 		}
+	}
+}
+
+// After the real untag of its local tag the lab image is left with its one registry name (the state rmi <Id> accepts),
+// and a foreign image like it is never one of this service's.
+func TestRealPodmanImageListAfterUntag(t *testing.T) {
+	t.Parallel()
+	b := labOutput(t, "image-ls-after-untag.json")
+	var docs []imageListDoc
+	if err := json.Unmarshal(b, &docs); err != nil || len(docs) != 1 || len(docs[0].Names) != 1 || strings.HasPrefix(docs[0].Names[0], "localhost/") {
+		t.Fatalf("%+v %v", docs, err)
+	}
+	if imgs, err := parseImageList(b, api.ServiceCore); err != nil || len(imgs) != 0 {
+		t.Fatalf("%+v %v", imgs, err)
 	}
 }
 

@@ -28,10 +28,11 @@ on:
 permissions:
   contents: read
 
-# A newer push to a pull request supersedes the older run; runs on main are never cancelled, so every
-# main commit gets a result.
+# A newer push to a pull request supersedes the older run; runs on main are never cancelled once they run, but a waiting push run
+# is replaced by a newer one (GitHub keeps one pending run per group): the newest main tree saves the cache. The group holds the
+# event, so the daily schedule never waits behind, or is replaced by, a push (D-365).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -86,7 +87,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: ${{ github.event_name == 'schedule' && 50 || 20 }} # the daily run tests everything twice
     strategy:
       fail-fast: false
       matrix:
@@ -113,7 +114,7 @@ jobs:
         env:
           # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).
           # -shuffle stays off elsewhere: it is not a cacheable flag, so it would turn the test cache off (go help test).
-          GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on' || '' }}
+          GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}
         run: make test-go-shard SHARD=${{ matrix.shard }}
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')

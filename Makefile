@@ -129,13 +129,17 @@ test-go-release:
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
 # scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
-# exactly one shard. GOTESTFLAGS adds go test flags (CI's daily run: -count=2 -shuffle=on, uncached).
+# exactly one shard. The shard's packages may come from go test's cache, except those whose tests read files through a child
+# process (go build, go list), which the cache cannot see: they always run (`ci shard I N uncached`, D-365). GOTESTFLAGS adds go
+# test flags (CI's daily run: -count=2 -shuffle=on and a longer -timeout, uncached).
 # -timeout 18m (the job allows 20 m) is a stopgap: modules/response alone passes go test's default 10 m under -race on CI and turned
 # main red (2026-11-12). The real fix is fast response tests (branch fix/storetest-sync-off, target < 120 s); then lower it.
 SHARDS ?= 4
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
-	go test -race -timeout 18m $(GOTESTFLAGS) $$(go run ./scripts/ci shard $(SHARD) $(SHARDS))
+	@c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
+	if [ -n "$$c" ]; then go test -race -timeout 18m $(GOTESTFLAGS) $$c || exit 1; fi; \
+	if [ -n "$$u" ]; then go test -race -count=1 -timeout 18m $(GOTESTFLAGS) $$u; fi
 
 # The shards together must be exactly `go list ./...` (no package lost, none twice).
 test-go-shards-check:

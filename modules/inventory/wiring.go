@@ -425,16 +425,26 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 	if err := s.auditTx(ctx, tx, actor, "inventory.add_manual", a.entry.display, ""); err != nil {
 		return err
 	}
-	s.pendMu.Lock()
-	if s.pending == nil {
-		s.pending = map[*sql.Tx]*outbox{}
-	}
-	s.pending[tx] = &o
-	s.pendMu.Unlock()
+	s.keep(tx, &o)
 	return nil
 }
 
-// Settle ends AddManualDevice for tx: when the caller's transaction committed the events go out, when it rolled
+// keep holds o's events until Settle(tx) (AddManualDevice, SetupScope); a second call in the same transaction adds to the first.
+func (s *Service) keep(tx *sql.Tx, o *outbox) {
+	s.pendMu.Lock()
+	defer s.pendMu.Unlock()
+	if s.pending == nil {
+		s.pending = map[*sql.Tx]*outbox{}
+	}
+	if p := s.pending[tx]; p != nil {
+		p.events = append(p.events, o.events...)
+		p.after = append(p.after, o.after...)
+		return
+	}
+	s.pending[tx] = o
+}
+
+// Settle ends AddManualDevice and SetupScope for tx: when the caller's transaction committed the events go out, when it rolled
 // back they are dropped. The caller must call it once it knows which; a transaction with no pending events is
 // a no-op.
 func (s *Service) Settle(ctx context.Context, tx *sql.Tx, committed bool) {

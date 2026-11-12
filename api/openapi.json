@@ -8848,7 +8848,7 @@
     "/core/data/backup": {
       "get": {
         "operationId": "core_get_core_data_backup",
-        "summary": "Download a backup (no passwords or keys)",
+        "summary": "Download a backup (password hashes, never passwords or keys)",
         "tags": [
           "core"
         ],

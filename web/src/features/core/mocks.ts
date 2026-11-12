@@ -8,6 +8,7 @@ import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
 import { BUNDLES } from './bundles'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
+import { cidrRange, overlapping } from '@/features/inventory/validate'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
 import { connectionsHandlers } from './connectionsMock'
@@ -59,6 +60,10 @@ const setupHandlers = [
     if (badLan) return fail(400, 'invalid_lan', `The range "${badLan}" is not valid. Write it like 192.168.10.0/24.`)
     const pub = lan.find((x) => !isPrivateCidr(x))
     if (pub) return fail(400, 'public_range', `${pub} is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.`)
+    // The ranges become the scope of Devices → Scope and sensors (below), so they obey that page's rule too (inventory INV-6, #350).
+    const uniqueLan = [...new Set(lan.map((r) => cidrRange(r).network))] // host bits cleared first, as the backend does
+    const clash = uniqueLan.map((r) => [r, overlapping(r, uniqueLan)] as const).find(([, o]) => o)
+    if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
     let enable: ModuleId[]
     const all = modulesStore.get() // danh sách module mặc định; kiểm tra xong mới dọn kho (lỗi thì không mất gì)
     if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle]

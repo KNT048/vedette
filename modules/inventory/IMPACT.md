@@ -46,3 +46,6 @@
 - Devices, Scope and sensors, màn hình agent trống; cột "Do you have it?" của feeds thành `null`.
 - `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (kéo theo `mitigation`), `exposure`, `scan`, `honeypot`, `logs`, `response`, `reports` chạy suy giảm hoặc báo thiếu phụ thuộc.
 - Không finding mới; không quét nội bộ. Bảng `inv_*` giữ nguyên.
+
+## Modifying: `inventory.Service.SetupScope(ctx, tx, actor, ranges, confirmed)` và `Settle` (D-298, #350)
+- **core** (`POST /core/setup`, cổng `core.SetupScope` của `HandlersConfig.Scope`, nối ở `cmd/vedette/wiring.go`): dải và cam kết của trình hướng dẫn thành phạm vi của Devices → Scope and sensors trong giao dịch cài đặt. Đổi chữ ký = sửa interface `core.SetupScope`; đổi luật INV-6 = đổi cả lỗi của cài đặt (mock `web/src/features/core/mocks.ts` kiểm `overlap_range` giống vậy). `Settle` dùng chung với `AddManualDevice` (feeds): sự kiện của một giao dịch được gộp (`keep`).

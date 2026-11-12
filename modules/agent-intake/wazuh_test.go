@@ -651,17 +651,24 @@ func TestWazuh_StaleAndDuplicateAgentsAreSkipped(t *testing.T) {
 }
 
 // Round 1, MEDIUM-3: a pass that does not fit in one pull's budget goes on at the next tick from the agent after the last one done.
+// The budget runs out while the second agent's package page is being read; the test ends it itself, so no real time is waited on.
 func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
-	r.svc.SetWazuhBudgetForTest(500 * time.Millisecond)
+	var endBudget context.CancelFunc
+	r.svc.SetWazuhBudgetForTest(func(ctx context.Context) (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(ctx)
+		r.fake.mu.Lock() // the fake's handler reads it under the same lock
+		endBudget = cancel
+		r.fake.mu.Unlock()
+		return ctx, cancel
+	})
+	pages := 0
 	r.fake.mu.Lock()
-	r.fake.onPackage = func(ctx context.Context) { // each agent's package page takes 300 ms, or until the client gives up
-		tm := time.NewTimer(300 * time.Millisecond)
-		defer tm.Stop()
-		select {
-		case <-tm.C:
-		case <-ctx.Done():
+	r.fake.onPackage = func(ctx context.Context) { // called under the fake's lock, one request at a time
+		if pages++; pages == 2 {
+			endBudget()  // the budget runs out during the second agent's package page
+			<-ctx.Done() // the client gives up on the request
 		}
 	}
 	r.fake.mu.Unlock()
@@ -677,7 +684,7 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r.fake.mu.Lock() // the cut request may still be in the fake's handler
 	r.fake.onPackage = nil
 	r.fake.mu.Unlock()
-	r.svc.SetWazuhBudgetForTest(time.Hour)
+	r.svc.SetWazuhBudgetForTest(nil)
 	r.clock.Advance(time.Minute) // the next tick, not the next interval
 	r.pull()
 	st, _, agents, pkgs := r.state()

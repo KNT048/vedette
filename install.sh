@@ -730,7 +730,7 @@ bootstrap() {
 	0) ;;
 	4) say "a release is already installed here; update the containers from Settings -> Updates" ;;
 	3) die "vedette-host refused the release (its message is above): signature, platform or disk. Nothing was started." ;;
-	5) die "a unit file in /etc/containers/systemd is not Vedette's own (unit_foreign). Look at it; nothing was replaced." ;;
+	5) die "a unit file in /etc/containers/systemd is not Vedette's own (unit_foreign), or a credential volume was made for other ids (unit_unsafe); the line above says which. Look at it; nothing was replaced." ;;
 	*) die "vedette-host -bootstrap failed with exit $rc (its message is above); run this script again after fixing it" ;;
 	esac
 }

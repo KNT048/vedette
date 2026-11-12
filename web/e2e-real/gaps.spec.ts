@@ -15,9 +15,7 @@ const KNOWN_404: Record<string, Record<string, string>> = {}
 const KNOWN_501: Record<string, Record<string, string>> = {}
 
 /** A 501 the page may or may not trigger (it depends on which module switches the other specs left): allowed, never required. */
-const MAYBE_501: Record<string, Record<string, string>> = {
-  '/logs': { 'GET /api/v1/ai/logs/digest': 'Mlee (ai) · .ai/deferred/feat-ai-activity.md:18 (the log digest, not built)' },
-}
+const MAYBE_501: Record<string, Record<string, string>> = {}
 
 const SECTIONS = ['general', 'modules', 'users', 'connections', 'audit', 'updates', 'network', 'privacy', 'mcp', 'data', 'feeds', 'response', 'ai', 'siem']
 const ROUTES = ['/', '/lookup', '/devices', '/devices/setup', '/findings', '/honeypot', '/response', '/account', '/logs', '/scans', '/assistant', ...SECTIONS.map((s) => `/settings/${s}`)]

@@ -199,6 +199,16 @@ type updateSettings struct {
 	Channel   string    `json:"channel"` // stable | beta
 	Mode      string    `json:"mode"`    // auto | manual
 	LastCheck time.Time `json:"last_check"`
+	// LastCheckError is the latest check's failure, kept across restarts and cleared by the next good check (D-392).
+	LastCheckError *checkErrorView `json:"last_check_error,omitempty"`
+}
+
+// checkErrorView is UpdateCheckError (contract.ts): when the latest check failed, its code and the box's own sentence
+// for it (checkFailure's message, never text received from the network).
+type checkErrorView struct {
+	At      time.Time `json:"at"`
+	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateCheckFailed
+	Message string    `json:"message"`
 }
 
 func defaultUpdateSettings() updateSettings { return updateSettings{Channel: "stable", Mode: "manual"} }
@@ -583,6 +593,11 @@ func (h *OSHandlers) check(ctx context.Context, c caller) error {
 		code := "error"
 		if ae, ok := apierr.As(cerr); ok {
 			code = ae.Code
+			// Kept for the page and for the automatic mode after a restart (D-392); a cancelled request is not a
+			// failure of the source and leaves the record as it was. Not written = the in-memory flag still holds.
+			if err := h.putCheckError(context.WithoutCancel(ctx), c.Email, &checkErrorView{At: h.now().UTC(), Code: ae.Code, Message: ae.Message}); err != nil {
+				h.log.ErrorContext(ctx, "core: the failed update check could not be recorded", "error", err)
+			}
 		}
 		detail = "failed: " + code
 	}
@@ -640,7 +655,7 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 		if err != nil {
 			return err
 		}
-		cur.LastCheck = h.now().UTC()
+		cur.LastCheck, cur.LastCheckError = h.now().UTC(), nil
 		return h.putSetting(wctx, tx, keyUpdates, cur, by)
 	})
 	if err != nil {
@@ -651,6 +666,18 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	}
 	h.log.InfoContext(ctx, "core: update check", "sequence", idx.Sequence, "channel", s.Channel, "offer", why)
 	return fmt.Sprintf("running %s, channel %s, index %d sha256 %s: %s", h.upd.version, s.Channel, idx.Sequence, idx.RawSHA256, why), nil
+}
+
+// putCheckError stores the failure of the latest check in core_updates (the channel and mode as they are now).
+func (h *OSHandlers) putCheckError(ctx context.Context, by string, e *checkErrorView) error {
+	return h.db.Write(ctx, func(tx *sql.Tx) error {
+		cur, err := updSettingsTx(ctx, tx)
+		if err != nil {
+			return err
+		}
+		cur.LastCheckError = e
+		return h.putSetting(ctx, tx, keyUpdates, cur, by)
+	})
 }
 
 // fetchOffer downloads and verifies the channel's latest manifest when the index makes this box eligible. why is the
@@ -800,7 +827,8 @@ type updatesStateView struct {
 	Channel      string                `json:"channel"`
 	Mode         string                `json:"mode"`
 	CheckEnabled bool                  `json:"check_enabled"`
-	LastCheck    *time.Time            `json:"last_check"` // null until the first check
+	LastCheck    *time.Time            `json:"last_check"`       // null until the first check
+	LastCheckErr *checkErrorView       `json:"last_check_error"` // null unless the latest check failed (D-392)
 	Components   []updateComponentView `json:"components"`
 	Available    []updateAvailableView `json:"available"`
 	History      []updateHistoryView   `json:"history"`
@@ -884,7 +912,7 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		last = &s.LastCheck
 	}
 	return updatesStateView{
-		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last,
+		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last, LastCheckErr: s.LastCheckError,
 		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
 		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
 		Managed:        managedOf(r.running, r.offer),

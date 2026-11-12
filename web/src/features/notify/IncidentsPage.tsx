@@ -7,9 +7,10 @@ import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/compone
 import { SeverityChip } from '@/components/common/StatusChip'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime } from '@/lib/format'
+import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useChannels, useIncidents } from './api'
-import { DeliveryBadges, IncidentStatusChip } from './shared'
+import { DeliveryBadges, IncidentStatusChip, kindKey } from './shared'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline'
@@ -37,11 +38,14 @@ function Content() {
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
   const [filter, setFilter] = useState<'open' | 'all'>('open')
   const [kind, setKind] = useState<IncidentKind | 'all'>('all')
+  // a container-only install cannot run the honeypot (module state available=false, D-381): no trap can be touched, so no trap filter
+  const noTraps = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
+  const kinds = INCIDENT_KINDS.filter((k) => k !== 'trap' || !noTraps)
   const fresh = q.data?.incidents.filter((a) => a.status === 'new').length ?? 0
   const title = !q.data ? t('incidents.titleLoading') : fresh === 0 ? t('incidents.titleNone') : t('incidents.title', { count: fresh })
   const columns: ColumnDef<Incident>[] = [
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
-      <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-[12px] text-muted">{t(`incidents.kind.${r.kind}`)}</span></div>
+      <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-[12px] text-muted">{t(kindKey(r))}</span></div>
     ) },
     { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityChip severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
@@ -62,7 +66,7 @@ function Content() {
           return (
             <Section id="list" title={t('incidents.caption')}>
               <div className="mb-3 flex flex-wrap gap-2">
-                <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={setKind} options={[{ value: 'all', label: t('incidents.kf.all') }, ...INCIDENT_KINDS.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
+                <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={setKind} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
                 <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={setFilter} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
               </div>
               {rows.length === 0 ? (
@@ -75,7 +79,7 @@ function Content() {
                         <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
                         <SeverityChip severity={r.severity} />
                       </div>
-                      <p className="text-[13px] text-muted">{t(`incidents.kind.${r.kind}`)}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
+                      <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} /><Seen i={r} /></div>
                       <div><RespondLink i={r} /></div>
                     </div>

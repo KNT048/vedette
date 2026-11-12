@@ -8,6 +8,7 @@ import (
 	"mime"
 	"mime/quotedprintable"
 	"net/mail"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -19,16 +20,19 @@ func emailCfg(f *fakeSMTP, security string) EmailConfig {
 	return EmailConfig{
 		Host: "127.0.0.1", Port: f.port(), Security: security, Username: f.user, Password: secrets.NewValue(f.pass),
 		From: "alerts@acme.example", To: []string{"it@acme.example", "director@acme.example"}, RootCAs: f.roots,
-		Now: func() time.Time { return time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC) },
+		Now: func() time.Time { return time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC) }, AllowLoopback: true,
 	}
 }
 
 func TestContract_INV8_SMTPConfig(t *testing.T) {
 	t.Parallel()
-	ok := EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"), From: "alerts@acme.example", To: []string{"it@acme.example"}}
+	box := []netip.Addr{netip.MustParseAddr("192.168.1.9")}
+	ok := EmailConfig{Host: "smtp.acme.example", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"), From: "alerts@acme.example", To: []string{"it@acme.example"},
+		BoxAddrsFunc: func() ([]netip.Addr, bool) { return box, true }}
 	if _, err := NewEmail(ok); err != nil {
 		t.Fatal(err)
 	}
+	box = append(box, netip.MustParseAddr("10.0.0.7")) // an address the box gets after the first check counts too
 	for name, c := range map[string]struct {
 		mod  func(*EmailConfig)
 		code string
@@ -52,6 +56,15 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"no recipients":  {func(c *EmailConfig) { c.To = nil }, "bad_to"},
 		"bad recipient":  {func(c *EmailConfig) { c.To = []string{"it@acme.example", "nope"} }, "bad_to"},
 		"rcpt injection": {func(c *EmailConfig) { c.To = []string{"a@acme.example\r\nBcc: x@y.zz"} }, "bad_to"},
+		// the webhook's rule (walk 3): in a container 127.0.0.1 is core itself; link-local holds the metadata service
+		"loopback":         {func(c *EmailConfig) { c.Host = "127.0.0.1" }, "bad_host"},
+		"loopback /8":      {func(c *EmailConfig) { c.Host = "127.0.0.53" }, "bad_host"},
+		"localhost name":   {func(c *EmailConfig) { c.Host = "mail.localhost" }, "bad_host"},
+		"metadata":         {func(c *EmailConfig) { c.Host = "169.254.169.254" }, "bad_host"},
+		"unspecified":      {func(c *EmailConfig) { c.Host = "0.0.0.0" }, "bad_host"},
+		"multicast":        {func(c *EmailConfig) { c.Host = "224.0.0.1" }, "bad_host"},
+		"box address":      {func(c *EmailConfig) { c.Host = "192.168.1.9" }, "bad_host"},
+		"box address late": {func(c *EmailConfig) { c.Host = "10.0.0.7" }, "bad_host"},
 	} {
 		cfg := ok
 		c.mod(&cfg)
@@ -83,6 +96,34 @@ func TestParseRecipients(t *testing.T) {
 		if _, err := ParseRecipients(bad); !errors.Is(err, ErrInvalidConfig) {
 			t.Errorf("ParseRecipients(%q) = %v", bad, err)
 		}
+	}
+	// the bad one is named (walk 3): one line, cut to 60 characters
+	for in, want := range map[string]string{
+		"boss@walk3.example, not-an-email":                   "not-an-email is not a valid email address. Separate several recipients with commas.",
+		"a@acme.example, x\u202e@" + strings.Repeat("y", 80): "x@" + strings.Repeat("y", 57) + "… is not a valid email address. Separate several recipients with commas.",
+		"a@acme.example, \u200b":                             "A recipient email is not valid. Separate several recipients with commas.",
+	} {
+		var ce *ConfigError
+		if _, err := ParseRecipients(in); !errors.As(err, &ce) || ce.Code != "bad_to" || ce.Msg != want {
+			t.Errorf("ParseRecipients(%q) = %v, want %q", in, err, want)
+		}
+	}
+}
+
+// A name that resolves to a forbidden address passes the save check; the connection is refused (the webhook's dialControl).
+func TestSMTPRefusesALoopbackConnection(t *testing.T) {
+	t.Parallel()
+	f := startFakeSMTP(t, &fakeSMTP{})
+	s, err := NewEmail(emailCfg(f, SecurityNone))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.(*emailSender).cfg.AllowLoopback = false // as if smtp.acme.example had resolved to 127.0.0.1
+	if _, err := s.Send(context.Background(), sample); err == nil || !strings.Contains(err.Error(), "refusing to connect") {
+		t.Fatalf("err = %v, want the connection refused", err)
+	}
+	if _, _, from, _, _ := f.snapshot(); from != "" {
+		t.Errorf("the server got MAIL FROM %q", from)
 	}
 }
 

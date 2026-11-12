@@ -271,8 +271,12 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 				return nil, err
 			}
 		}
-		return channel.NewEmail(channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
-			Password: sv, From: f["from"], To: to, Now: s.now})
+		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
+			Password: sv, From: f["from"], To: to, Now: s.now, BoxAddrsFunc: s.boxAddrs, AllowLoopback: s.cfg.SMTPLoopback}
+		if s.cfg.SMTPLoopback {
+			ec.BoxAddrsFunc = nil // the interface list holds 127.0.0.1
+		}
+		return channel.NewEmail(ec)
 	case channel.Webhook:
 		return channel.NewWebhook(channel.WebhookConfig{URL: secrets.NewValue(f["url"]), SigningKey: sv, BoxAddrsFunc: s.boxAddrs, Client: s.webhookClient, Now: s.now})
 	}

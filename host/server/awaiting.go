@@ -94,7 +94,7 @@ func checkFinal(status api.Status, rerr *api.RunError) error {
 	case status == api.StatusSucceeded:
 	case (status == api.StatusFailed || status == api.StatusReverted) && rerr != nil:
 	default:
-		return fmt.Errorf("host: %q with that error is not a final state of an awaiting run", status)
+		return fmt.Errorf("host: %q with that error is not a final state of an awaiting or parked run", status)
 	}
 	return nil
 }
@@ -166,13 +166,13 @@ func (s *Server) enterAwaiting(lr *liveRun, cmd Command, aw Awaiting, rc *RunCon
 	return true
 }
 
-// persistEvents saves the events of a waiting run now and after every later event, so a restart
-// resumes from the true last seq (the timer's own log lines count).
+// persistEvents saves the events of an awaiting or parked run now and after every later event, so a
+// restart resumes from the true last seq (the timer's own log lines count).
 func (s *Server) persistEvents(lr *liveRun) {
 	path := s.runs.eventsPath(lr.sr.Run.RunID)
-	lr.ev.setPersist(path, func(error) { s.log.Error("could not save events of an awaiting run", "run_id", lr.sr.Run.RunID) })
+	lr.ev.setPersist(path, func(error) { s.log.Error("could not save events of a parked run", "run_id", lr.sr.Run.RunID) })
 	if err := lr.ev.save(path); err != nil {
-		s.log.Error("could not save events of an awaiting run", "run_id", lr.sr.Run.RunID)
+		s.log.Error("could not save events of a parked run", "run_id", lr.sr.Run.RunID)
 	}
 }
 
@@ -185,17 +185,33 @@ func (s *Server) callParked(command string, fn func()) {
 	fn()
 }
 
-// resumeAwaiting keeps sr as the awaiting run when it is one and Options.Resume says so.
+// resumeAwaiting keeps sr as the awaiting run when it is one, no other run holds the lock (a second
+// awaiting run, or a parked one), and Options.Resume says so.
 func (s *Server) resumeAwaiting(sr storedRun) bool {
-	if sr.Run.Status != api.StatusAwaitingConfirm || sr.Run.RevertAt == nil || s.o.Resume == nil || s.waiting != nil || !s.askResume(sr.Run) {
+	if sr.Run.Status != api.StatusAwaitingConfirm || sr.Run.RevertAt == nil || s.o.Resume == nil || s.active != "" || !s.askResume(sr.Run) {
 		return false
 	}
-	sr.Write = true // a run that holds the lock always releases it (a damaged file must not wedge it)
 	if limit := sr.Run.StartedAt.Add(maxRevertWindow); sr.Run.RevertAt.After(limit) {
 		s.log.Warn("the stored revert_at is beyond the confirm window; clamped", "run_id", sr.Run.RunID)
 		clamped := limit.UTC()
 		sr.Run.RevertAt = &clamped
 	}
+	lr := s.resumedRun(sr)
+	s.mu.Lock()
+	s.active, s.waiting = sr.Run.RunID, lr
+	s.live[sr.Run.RunID] = lr.ev
+	s.mu.Unlock()
+	if err := s.runs.put(lr.sr); err != nil {
+		s.log.Error("could not save a resumed run", "run_id", sr.Run.RunID)
+	}
+	s.log.Info("a run awaiting confirmation survived the restart", "run_id", sr.Run.RunID, "command", sr.Run.Command)
+	return true
+}
+
+// resumedRun rebuilds the live run of a stored run that a restart keeps (awaiting or parked), with
+// its saved events as a stream that is not finished and is saved after every event again.
+func (s *Server) resumedRun(sr storedRun) *liveRun {
+	sr.Write = true // a run that holds the lock always releases it (a damaged file must not wedge it)
 	lr := &liveRun{
 		sr: sr,
 		sub: submission{
@@ -204,16 +220,8 @@ func (s *Server) resumeAwaiting(sr storedRun) bool {
 		},
 		ev: resumeEventLog(s.runs, sr.Run, s.now),
 	}
-	s.mu.Lock()
-	s.active, s.waiting = sr.Run.RunID, lr
-	s.live[sr.Run.RunID] = lr.ev
-	s.mu.Unlock()
-	lr.ev.setPersist(s.runs.eventsPath(sr.Run.RunID), func(error) { s.log.Error("could not save events of an awaiting run", "run_id", sr.Run.RunID) })
-	if err := s.runs.put(lr.sr); err != nil {
-		s.log.Error("could not save a resumed run", "run_id", sr.Run.RunID)
-	}
-	s.log.Info("a run awaiting confirmation survived the restart", "run_id", sr.Run.RunID, "command", sr.Run.Command)
-	return true
+	lr.ev.setPersist(s.runs.eventsPath(sr.Run.RunID), func(error) { s.log.Error("could not save events of a parked run", "run_id", sr.Run.RunID) })
+	return lr
 }
 
 // askResume calls Options.Resume; a panic counts as no.
@@ -227,7 +235,8 @@ func (s *Server) askResume(run api.Run) (keep bool) {
 	return s.o.Resume(run)
 }
 
-// resumeEventLog reloads the saved events of an awaiting run as a stream that is not finished.
+// resumeEventLog reloads the saved events of an awaiting or parked run as a stream that is not
+// finished; without a readable file it starts with one state event of the run's status.
 func resumeEventLog(st *runStore, run api.Run, now func() time.Time) *eventLog {
 	l := newEventLog(now)
 	var ef eventsFile
@@ -238,7 +247,7 @@ func resumeEventLog(st *runStore, run api.Run, now func() time.Time) *eventLog {
 		}
 		return l
 	}
-	l.add(api.Event{Kind: api.KindState, Status: api.StatusAwaitingConfirm})
+	l.add(api.Event{Kind: api.KindState, Status: run.Status})
 	return l
 }
 

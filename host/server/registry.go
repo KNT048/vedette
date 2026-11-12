@@ -41,6 +41,7 @@ type Command struct {
 	whileAwaiting bool
 	runIDOf       func(args any) string
 	awaits        bool  // may return Awaiting
+	parks         bool  // may return Parked
 	specErr       error // a mistake in the Spec, reported by NewRegistry
 	maxBody       int64 // 0 = the default maxBodyBytes
 }
@@ -91,6 +92,10 @@ type Spec[A any] struct {
 	// Write command and cannot also be WhileAwaiting; an Awaiting from any other command fails the
 	// run as invalid (command_failed).
 	Awaits bool
+	// Parks marks host.self_update (D-316): the only kind of command whose Run may return Parked. It
+	// must be a Write command and cannot also be Awaits or WhileAwaiting; a Parked from any other
+	// command fails the run as invalid (command_failed).
+	Parks bool
 	// MaxBody is the largest request body in bytes; 0 means 512 KiB, at most 4 MiB.
 	MaxBody int64
 	// Validate checks the decoded args; return Invalid(...) for field errors. May be nil for no args.
@@ -103,15 +108,21 @@ type Spec[A any] struct {
 	// Return a *Refusal to refuse; the run is recorded as refused with the matching HTTP status.
 	Check func(ctx context.Context, args A) error
 	// Run does the work. It must obey ctx. Return nil error with a JSON-encodable result, an Awaiting
-	// (the run waits for Settle and keeps the write lock), a *Refusal, a *Failure, or any other error (reported as command_failed without its text).
+	// (the run waits for Settle and keeps the write lock), a Parked (the run stays running past the
+	// process and keeps the write lock until SettleParked), a *Refusal, a *Failure, or any other error
+	// (reported as command_failed without its text).
 	Run func(ctx context.Context, rc *RunContext, args A) (any, error)
 }
 
 // Define turns a Spec into a Command.
 func Define[A any](s Spec[A]) Command {
 	c := Command{name: s.Name, write: s.Write, timeout: s.Timeout, whileAwaiting: s.WhileAwaiting, maxBody: s.MaxBody}
-	c.awaits = s.Awaits
+	c.awaits, c.parks = s.Awaits, s.Parks
 	switch {
+	case s.Parks && (s.Awaits || s.WhileAwaiting):
+		c.specErr = errors.New("spec flag Parks excludes Awaits and WhileAwaiting")
+	case s.Parks && !s.Write:
+		c.specErr = errors.New("spec flag Parks needs a Write command")
 	case s.Awaits && s.WhileAwaiting:
 		c.specErr = errors.New("spec flags Awaits and WhileAwaiting exclude each other")
 	case s.Awaits && !s.Write:
@@ -306,12 +317,13 @@ func (rc *RunContext) AfterFinish(fn func(ctx context.Context, st api.Status)) {
 	rc.after = append(rc.after, fn)
 }
 
-// OnParked registers fn to run right after the run is parked in awaiting_confirm, when the write
-// lock and the waiting state are already published: arm the revert timer here, so that a timer
-// that fires at once can never find the run "not yet awaiting". fn must not block. It does not
-// run when the run ends any other way (an invalid Awaiting included). Call it from Run only.
+// OnParked registers fn to run right after the run is parked (in awaiting_confirm, or running as
+// Parked), when the write lock and the parked state are already published and stored: arm the
+// revert timer here, or start the goroutine that does the work outside the process and settles the
+// run, so that it can never find the run "not yet parked". fn must not block. It does not run when
+// the run ends any other way (an invalid Awaiting or Parked included). Call it from Run only.
 // Neither OnParked nor AfterFinish callbacks survive a host restart: after one, whoever resumed
-// the run (Options.Resume, then Ops.Start from net/pending.json) must re-arm its timer itself.
+// the run (Options.Resume, then Ops.Start from net/pending.json or the journal) must re-arm itself.
 func (rc *RunContext) OnParked(fn func()) { rc.parked = append(rc.parked, fn) }
 
 // Log appends one line (cut to 2 KiB, control characters removed) to the run's event stream.

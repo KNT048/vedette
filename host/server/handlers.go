@@ -596,7 +596,7 @@ type liveRun struct {
 	sr    storedRun
 	sub   submission
 	ev    *eventLog
-	after []func(context.Context, api.Status) // AfterFinish callbacks of a run parked in awaiting_confirm
+	after []func(context.Context, api.Status) // AfterFinish callbacks of a run parked in awaiting_confirm or by Parked
 	// started is s.now() at the start of the run, with its monotonic reading when the clock has one:
 	// the wall clock may step while the command runs, and the 660 s bound must not move with it.
 	started time.Time
@@ -624,7 +624,7 @@ func (lr *liveRun) finish(s *Server, status api.Status, result json.RawMessage, 
 	}()
 	now := s.now().UTC()
 	run := &lr.sr.Run
-	run.Status, run.FinishedAt, run.Result, run.Error, run.RevertAt = status, &now, result, rerr, nil
+	run.Status, run.FinishedAt, run.Result, run.Error, run.RevertAt, run.ParkedDeadline = status, &now, result, rerr, nil, nil
 	e := auditEntry{
 		ID: run.AuditID, RequestID: run.RequestID, Actor: run.Actor, Peer: lr.sub.p, Command: run.Command,
 		ArgsDigest: lr.sub.digest, ArgsRedacted: lr.sub.redacted, Result: auditResult(status), RunID: run.RunID,
@@ -804,6 +804,17 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 			}
 			out.res = nil
 		}
+		if pk, ok := asParked(out.res); ok {
+			// A Parked that comes back after the deadline or after Shutdown began is not parked: the
+			// run then ends timeout or host_shutting_down, and nothing was started for it (D-316 (6)).
+			if out.err == nil && ctx.Err() == nil && s.enterParked(lr, cmd, pk, rc) {
+				return // parked: SettleParked ends the run and releases the lock, here or after a restart
+			}
+			if out.err == nil {
+				out.err = errors.New("invalid Parked")
+			}
+			out.res = nil
+		}
 		status, result, rerr := s.outcome(ctx, out.res, out.err, false)
 		lr.finish(s, status, result, rerr, false)
 		s.runAfter(lr.sub.command, rc.after, status)
@@ -852,7 +863,7 @@ func (s *Server) outcome(ctx context.Context, res any, err error, abandoned bool
 			return api.StatusFailed, nil, &api.RunError{Code: api.CodeCommandFailed, Message: "The command result could not be stored."}
 		}
 		return api.StatusSucceeded, b, nil
-	case s.baseCtx.Err() != nil:
+	case s.baseCtx.Err() != nil || s.draining.Load(): // draining is set just before the cancel: a park refused in between is a shutdown too
 		return api.StatusFailed, nil, &api.RunError{Code: api.CodeShuttingDown, Message: "The host is shutting down."}
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		return api.StatusFailed, nil, &api.RunError{Code: api.CodeTimeout, Message: "The command timed out."}

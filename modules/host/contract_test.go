@@ -419,6 +419,58 @@ func TestContract_INV3_ACommandThatIgnoresItsDeadlineStillHoldsTheLock(t *testin
 	waitIdleLock(t, h)
 }
 
+// A parked run (server.Parked, D-316) keeps the write lock across the host's own restart when
+// Options.Resume keeps it, and releases it when Resume does not.
+func TestContract_INV3_AParkedRunHoldsTheLockAcrossAHostRestart(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	cmds := append(f.cmds, server.Define(server.Spec[struct{}]{
+		Name: "test.parks", Write: true, Parks: true, Timeout: 5 * time.Second,
+		Run: func(context.Context, *server.RunContext, struct{}) (any, error) {
+			return server.Parked{Deadline: time.Now().Add(time.Hour)}, nil
+		},
+	}))
+	h := servertest.Start(t, cmds, func(o *server.Options) { o.Now = time.Now })
+	parked, err := h.Client.Run(context.Background(), "test.parks", nil, rid1, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the run to park", func() bool {
+		r, err := h.Client.GetRun(context.Background(), parked.RunID)
+		return err == nil && r.ParkedDeadline != nil
+	})
+	busyFor := func(h *servertest.Harness, id string) {
+		t.Helper()
+		_, err := h.Client.Run(context.Background(), "test.ok", nil, id, "admin")
+		var e *client.Error
+		if !errors.As(err, &e) || e.Status != http.StatusConflict || e.Code != api.CodeBusy || e.RunID != parked.RunID {
+			t.Fatalf("a write while the run is parked: %v", err)
+		}
+	}
+	busyFor(h, rid2)
+	restart := func(prev *servertest.Harness, socket string, keep bool) *servertest.Harness {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := prev.Server.Shutdown(ctx); err != nil { // the SIGTERM of a restart
+			t.Fatal(err)
+		}
+		return servertest.Start(t, cmds, func(o *server.Options) {
+			o.Now, o.StateDir, o.AuditPath, o.SocketPath = time.Now, h.StateDir, h.AuditPath, socket
+			o.Resume = func(api.Run) bool { return keep }
+		})
+	}
+	h2 := restart(h, h.Socket+"2", true)
+	busyFor(h2, "33333333-3333-4333-8333-333333333333")
+	h3 := restart(h2, h.Socket+"3", false)
+	if _, err := h3.Client.Run(context.Background(), "test.ok", nil, "44444444-4444-4444-8444-444444444444", "admin"); err != nil {
+		t.Fatalf("the lock of a parked run that was not resumed is still held: %v", err)
+	}
+	if r, err := h3.Client.GetRun(context.Background(), parked.RunID); err != nil || r.Status != api.StatusFailed || r.Error == nil || r.Error.Code != api.CodeHostRestarted {
+		t.Fatalf("run = %+v %v", r, err)
+	}
+}
+
 // waitIdleLock retries a write until the lock is free.
 func waitIdleLock(t *testing.T, h *servertest.Harness) {
 	t.Helper()

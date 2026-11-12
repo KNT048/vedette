@@ -1760,12 +1760,12 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
   it('privacy flow 6 says the scan image build contacts deb.debian.org from inside the build container, ignoring the local mirror (D-147)', async () => {
     renderApp('/settings/privacy')
     const row = (await screen.findByText(/^6\. Update checks/)).closest('tr')!
-    expect(row).toHaveTextContent('builds the scan image on this machine')
-    expect(row).toHaveTextContent(/at install on every box \(whether or not active scanning is turned on\) and again whenever the scan image is pulled or updated/)
-    expect(row).toHaveTextContent(/No setting skips the scan image build/)
+    expect(row).toHaveTextContent('builds the `scan` image on the box')
+    expect(row).toHaveTextContent(/at install on every box \(whether or not active scanning is turned on\) and again whenever the `scan` image is pulled or updated/)
+    expect(row).toHaveTextContent(/There is no setting that skips the `scan` image build/)
     expect(row).toHaveTextContent(/installs without active scanning/)
     expect(row).toHaveTextContent(/nmap from the Debian package repository/)
-    expect(row).toHaveTextContent(/always contacts deb\.debian\.org from inside the build container, also on Ubuntu/)
+    expect(row).toHaveTextContent(/it contacts Debian's `deb\.debian\.org` from inside the build container, also on an Ubuntu box/)
     expect(row).toHaveTextContent(/does not apply to it/)
   })
 })

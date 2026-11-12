@@ -60,6 +60,8 @@ type Feeds interface {
 	Lookup(ctx context.Context, kind, value string) (l Listing, found bool, err error)
 	// On says whether lookups can be answered now (false while the feeds module is off, PRE-3): the digest shows no bad connections then.
 	On() bool
+	// Listed says whether a switched-on feed lists at least one indicator now (Digest.IOCMatching).
+	Listed(ctx context.Context) (bool, error)
 }
 
 // IocHit is a connection to a listed destination as the API shows it (IocHit of contract.ts) and as the event logs.ioc_hit.detected carries it.

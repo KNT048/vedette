@@ -141246,6 +141246,10 @@ func (s *LogsGetLogsDigestOK) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
 	{
+		e.FieldStart("ioc_matching")
+		e.Bool(s.IocMatching)
+	}
+	{
 		e.FieldStart("lines_24h")
 		e.Int(s.Lines24h)
 	}
@@ -141267,13 +141271,14 @@ func (s *LogsGetLogsDigestOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsDigestOK = [6]string{
+var jsonFieldsNameOfLogsGetLogsDigestOK = [7]string{
 	0: "bad_connections",
 	1: "baseline_days",
 	2: "generated_at",
-	3: "lines_24h",
-	4: "new",
-	5: "spikes",
+	3: "ioc_matching",
+	4: "lines_24h",
+	5: "new",
+	6: "spikes",
 }
 
 // Decode decodes LogsGetLogsDigestOK from json.
@@ -141327,8 +141332,20 @@ func (s *LogsGetLogsDigestOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"generated_at\"")
 			}
-		case "lines_24h":
+		case "ioc_matching":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.IocMatching = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ioc_matching\"")
+			}
+		case "lines_24h":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Lines24h = int(v)
@@ -141340,7 +141357,7 @@ func (s *LogsGetLogsDigestOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"lines_24h\"")
 			}
 		case "new":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.New = make([]LogsGetLogsDigestOKNewItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -141358,7 +141375,7 @@ func (s *LogsGetLogsDigestOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"new\"")
 			}
 		case "spikes":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Spikes = make([]LogsGetLogsDigestOKSpikesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -141385,7 +141402,7 @@ func (s *LogsGetLogsDigestOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

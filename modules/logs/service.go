@@ -467,6 +467,14 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 		if d.BadConnections, err = s.iocHits(ctx, `ts >= ?`, DigestMax, store.FormatTS(s.now().Add(-24*time.Hour))); err != nil {
 			return Digest{}, err
 		}
+		if s.cfg.Feeds != nil {
+			listed, err := s.cfg.Feeds.Listed(ctx)
+			if err != nil {
+				s.cfg.Log.WarnContext(ctx, "logs: digest: cannot tell whether a feed lists indicators", "err", err)
+				listed = true // the page keeps the plain "none" text
+			}
+			d.IOCMatching = listed
+		}
 	}
 	found, names, err := s.snapshotted(ctx)
 	if err != nil {

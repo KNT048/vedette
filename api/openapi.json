@@ -34703,6 +34703,10 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "ioc_matching": {
+                      "type": "boolean",
+                      "description": "false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)"
                     }
                   },
                   "required": [
@@ -34711,7 +34715,8 @@
                     "baseline_days",
                     "new",
                     "spikes",
-                    "bad_connections"
+                    "bad_connections",
+                    "ioc_matching"
                   ],
                   "additionalProperties": false
                 }

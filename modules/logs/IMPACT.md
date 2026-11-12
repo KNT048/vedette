@@ -12,7 +12,7 @@
 - **core (Kiên)**: `POST /core/data/purge` xoá `logs.db` từ danh sách tên tệp dữ liệu module của `cmd/vedette` (D-151); bản sao lưu không chứa nó. **Migration của `logs.db` phải chỉ thêm** (D-151): thêm cột/bảng/chỉ mục, không bao giờ DROP/RENAME/DELETE/UPDATE; `TestVolumeMigrationsAreAddOnly` chặn.
 
 ## Modifying: `logs.Feeds` (port, `Config.Feeds`), adapter `logsFeeds` trong `cmd/vedette/logsioc.go` (L4)
-- **feeds**: adapter dùng `feeds.IOCKey` (khoá chuẩn: IP đúng địa chỉ, miền chữ thường) và `Store.IOCLookup` (các `Sightings` của feed: tên + độ tin cậy; một chỉ báo không feed nào còn liệt kê không phải hit). Đổi `IOCKey`, `IOCRecord` hay tên feed → đổi cái `bad_connections` hiện (`feeds`, `confidence`). Module `feeds` tắt → adapter trả `logs.ErrFeedsOff` (PRE-3): không hit.
+- **feeds**: adapter dùng `feeds.IOCKey` (khoá chuẩn: IP đúng địa chỉ, miền chữ thường), `Store.IOCListed` (digest `ioc_matching`) và `Store.IOCLookup` (các `Sightings` của feed: tên + độ tin cậy; một chỉ báo không feed nào còn liệt kê không phải hit). Đổi `IOCKey`, `IOCRecord` hay tên feed → đổi cái `bad_connections` hiện (`feeds`, `confidence`). Module `feeds` tắt → adapter trả `logs.ErrFeedsOff` (PRE-3): không hit.
 - **cmd/vedette** (`logs.go`: một dòng `cfg.Feeds = logsFeeds{&d}`; `logsioc.go`: adapter và `logsIocEvidence`). Dịch vụ `feeds` tra ở mỗi lần gọi vì được dựng sau `logs`.
 - **Chữ ký `Lookup`** đổi = đổi adapter và `fakeFeeds` trong `iochits_test.go`.
 

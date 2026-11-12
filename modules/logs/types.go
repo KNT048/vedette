@@ -133,7 +133,8 @@ type SpikeItem struct {
 }
 
 // Digest is the answer of GET /logs/digest. New and Spikes come from the signature counters (INV-6); BadConnections are the newest
-// hits of the last 24 hours (iochits.go, INV-7), empty while the feeds module is off (PRE-3).
+// hits of the last 24 hours (iochits.go, INV-7), empty while the feeds module is off (PRE-3). IOCMatching is false when no connection can be
+// matched at all: the feeds module is off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet).
 type Digest struct {
 	GeneratedAt    time.Time   `json:"generated_at"`
 	Lines24h       int         `json:"lines_24h"`
@@ -141,6 +142,7 @@ type Digest struct {
 	New            []NewItem   `json:"new"`
 	Spikes         []SpikeItem `json:"spikes"`
 	BadConnections []IocHit    `json:"bad_connections"`
+	IOCMatching    bool        `json:"ioc_matching"`
 }
 
 // Line is one received line handed to Ingest.

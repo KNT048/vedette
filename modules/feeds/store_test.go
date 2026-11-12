@@ -307,6 +307,28 @@ func TestApplyIOCsMergesFeedsAndCountsChanges(t *testing.T) {
 	}
 }
 
+// IOCListed (logs' digest): true only while a switched-on feed lists an indicator.
+func TestIOCListedNeedsASwitchedOnFeedWithListings(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	if ok, err := s.IOCListed(t.Context()); ok || err != nil {
+		t.Fatalf("nothing loaded: %v %v", ok, err)
+	}
+	applyI(t, db, epoch0, "ipsum", []iocInput{{Kind: "ip", Value: "185.220.101.47"}})
+	if ok, err := s.IOCListed(t.Context()); !ok || err != nil {
+		t.Fatalf("ipsum lists one: %v %v", ok, err)
+	}
+	if err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET enabled = 0 WHERE id = 'ipsum'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.IOCListed(t.Context()); ok || err != nil {
+		t.Fatalf("ipsum off: %v %v", ok, err)
+	}
+}
+
 func TestDeleteCustomRemovesWhatItLoaded(t *testing.T) {
 	t.Parallel()
 	_, db := newStore(t)

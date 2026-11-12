@@ -193,3 +193,30 @@ func TestTextRefusesInvisibleAndBidiControls(t *testing.T) {
 		}
 	}
 }
+
+// servicesOf keeps what the inventory accepts (D-350): tcp and udp only, a port 1..65535, at most maxServices; a name or version
+// longer than its column is left out rather than refusing the device's whole list.
+func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("x", 150)
+	h := host{ports: []portInfo{
+		{number: 22, proto: "tcp", name: "ssh", product: "OpenSSH", version: long, conf: 10},
+		{number: 53, proto: "udp", name: long},
+		{number: 3868, proto: "sctp", name: "diameter"},
+		{number: 0, proto: "tcp", name: "zero"},
+	}}
+	got := servicesOf(h)
+	if len(got) != 2 || got[0].Port != 22 || got[0].Version != "" || got[0].Product != "OpenSSH" || got[1].Port != 53 || got[1].Name != "" || got[1].Proto != "udp" {
+		t.Fatalf("services = %+v", got)
+	}
+	if got[0].Confidence != serviceConf(10) || got[1].Confidence != serviceConf(0) {
+		t.Fatalf("confidence = %v, %v", got[0].Confidence, got[1].Confidence)
+	}
+	many := host{}
+	for i := 1; i <= maxServices+5; i++ {
+		many.ports = append(many.ports, portInfo{number: i, proto: "tcp"})
+	}
+	if n := len(servicesOf(many)); n != maxServices {
+		t.Fatalf("%d services, want the cap %d", n, maxServices)
+	}
+}

@@ -39,7 +39,7 @@ Common to every slice: module code in `modules/logs/` only; cmd additive lines i
 - Tests: baseline math with a fake clock (`synctest`); warm-up silent; clean install gives empty digest; profile loader rejects unknown fields; fuzz `FuzzSignature` per profile; flood test: 1M identical lines make one signature row.
 - Touches: `notify` already subscribes (Emily's); nothing of Kiên's. `ai` digest later reads `Digest` through a port (WP-25).
 
-### L4: IOC matching (syslog first) and bad connections
+### L4: IOC matching (syslog first) and bad connections — DONE in feat/logs-l4-ioc (D-213; the SPAN half comes with L6; the open parts are in `.ai/deferred/feat-logs-l4-ioc.md`)
 - Stories: S-LOG-2, S-LOG-4 (syslog half).
 - Does: extract public destination IPs/domains from parsed events (firewall traffic, DNS logs), skip private/special; look up through a `logs.Feeds` port (adapter on `feeds.Store.IOCLookup`; feeds off = no hits and the digest says so, PRE-3); `logs_ioc_hits` (dedupe by (src,dest) per 24 h, cap rows); `bad_connections` in the digest with device resolved at read time; events `logs.ioc_hit` and `logs.bad_address.detected` (notify incident); `IocHits(ctx, since, minConf)` read port for `response` (`Evidence.IocHit`) and the `known_bad` export source. Feed lookups are cached per run; a feed pull does not block ingest.
 - INV/POST: INV-7, POST-2, PRE-3, INV-11 (raw lines never go to AI).
@@ -84,7 +84,7 @@ Order and size: L1 (M), L2 (L), L3 (L), L4 (M), L5 (M), L7 (M) are ours and need
 - [ ] 2026-11-10 — measure the writer load and `q` search cost with 5M rows before L1 merges; decide whether `logs_events` needs its own SQLite file — ở đâu: L1, `modules/logs/store.go`.
 - [ ] 2026-11-10 — a "who is sending?" hint for dropped unknown senders needs a story (S-LOG-1 criterion) — ở đâu: Quyết định 2.
 - [x] 2026-11-12 — L6 sensor transport and SPAN metadata: deferred past v1 (D-297); the owner:kien issue is [#363](https://github.com/KNT048/vedette/issues/363) "L6 (post-v1)" — ở đâu: sensor-protocol 12 q4/q5, D-112 (7), D-114 (3).
-- [ ] 2026-11-10 — `response` reads `IocHits` and `Counts` (13b-10 `Evidence.IocHit`, `log_threshold`): issue text at the end of L3 and L4 — Kiên.
+- [x] 2026-11-10 — `response` reads `IocHits` and `Counts` (13b-10 `Evidence.IocHit`, `log_threshold`): issue text at the end of L3 and L4 — Kiên. — Done: L3 part earlier (Counts wired in #341); L4 part: issue [#376](https://github.com/KNT048/vedette/issues/376) (wire `Evidence.IocHit`, subscribe to `logs.ioc_hit.detected`), owner:kien.
 - [x] 2026-11-10 — check by-IP device lookup in inventory for `asset_id`: Done in L1: there is none; `cmd/vedette/logs.go` `logsInventory` lists every device with `DevicesOfKind(inventory.Kinds)` (uncapped) and picks the addresses. Issue text for Kiên below.
 
 ## L1 outcome (WP-24, branch feat/logs-module)
@@ -94,7 +94,7 @@ Quyết định cần ghi (L1):
 - Ingest writes one transaction per batch (<= 500 lines) on logs.db only; `TestIngestNeverWaitsForTheCoreWriter` holds the core writer and ingests anyway. No latency budget test was needed because the writers are separate.
 - `ts` is the receive time; the newest-first search walks the ts index backwards (ids are not a time order when more than one listener feeds the table).
 - Limits (starting points to measure): line stored <= 2,048 bytes, 500 lines per batch, 20M stored lines at most, count of a search capped at 100,000.
-- The digest in L1 has only `lines_24h`; `new`, `spikes`, `bad_connections` are empty until L3/L4 (the GUI says nothing is new even when something is: acceptable while the module is off by default and L3 follows).
+- The digest in L1 has only `lines_24h`; `new`, `spikes`, `bad_connections` are empty until L3/L4 (the GUI says nothing is new even when something is: acceptable while the module is off by default and L3 follows). Closed: L3 made `new` and `spikes` real, L4 made `bad_connections` real.
 - The SIEM operations answer 501 from `server.Fallback` until L5.
 
 Issue texts for Kiên (open when the PR is opened; label owner:kien):

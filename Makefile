@@ -14,8 +14,9 @@ PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSIO
 PACK_DIR := deploy/containers/scan-base/pack
 # Multi-arch images (WP-08d, D-158): `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64
-# The index sequence floor compiled into vedette-host, the only binary that links internal/release (core does not, a test keeps that true).
-# A plain decimal: it is the -X value of internal/release.MinSequenceText. The release job (WP-08f/k) passes the sequence of the index current at build time.
+# The index sequence floor compiled into the binaries that link internal/release: vedette-host, and core (since D-347, for the signed
+# mitigation packs; a test keeps the list exact). A plain decimal: it is the -X value of internal/release.MinSequenceText. The release
+# job (WP-08f/k) passes the sequence of the index current at build time.
 MIN_SEQUENCE ?= 0
 RELEASE_PKG := github.com/knt048/vedette/internal/release
 
@@ -50,6 +51,7 @@ help:
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (D-345; MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
@@ -221,8 +223,8 @@ webui-csp-check: webui-dist
 	$(MAKE) clean
 
 # The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
-core-image: webui-dist
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
+core-image: webui-dist check-min-sequence
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
@@ -237,15 +239,15 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 # Multi-arch (WP-08d, D-158): one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's, WP-08k).
 # The Go and download stages run on this machine ($BUILDPLATFORM) and the target stages only COPY, so arm64 needs no qemu/binfmt.
 # podman: `podman build --platform a,b --manifest`; docker: buildx writes an OCI archive to dist/images/ (the classic image store holds no
-# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile.
+# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile, $(3) = extra build arguments.
 ifeq ($(CONTAINER),docker)
-MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) .; }
+MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) $(3) .; }
 else
-MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) .; }
+MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
 endif
 comma := ,
-images: webui-dist scan-pack
-	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
+images: webui-dist scan-pack check-min-sequence
+	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The honeypot image (WP-08e, D-162): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
@@ -359,7 +361,7 @@ install-check:
 #   COSIGN_KEY / MINISIGN_KEY  paths of the private key files (outside the repo, mode 600); passphrases are never arguments:
 #                  cosign reads COSIGN_PASSWORD from your shell, minisign asks on the terminal (PASSPHRASE_STDIN=1 reads one line of stdin)
 #   MINISIGN_BIN   a minisign you trust (default: the pinned one, fetched by scripts/release/minisign.sh)
-.PHONY: release-cosign-plan release-manifest release-refresh release-sign release-verify release-interop
+.PHONY: release-cosign-plan release-manifest release-refresh release-sign release-verify release-interop release-packs
 RELEASE_OUT := dist/release
 RELEASE_IN ?= release.in.json
 RELEASE_PREV_INDEX ?=
@@ -389,6 +391,13 @@ release-sign:
 release-verify:
 	$(RELEASE_GO) verify -dir $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG)
 	@if [ "$(RELEASE)" != 1 ]; then rm -rf $(RELEASE_OUT); rmdir dist 2>/dev/null || true; fi
+
+# The confirmed mitigation packs that ship in the core image (D-345): signed before the image is built, on the maintainer's machine.
+# PACKS_VERSION: dotted numbers newer than content/mitigation/packs/VERSION. The result (VERSION, packs.list, packs.minisig) is committed.
+release-packs:
+	@test -n "$$MINISIGN_KEY" || { echo "release-packs: set MINISIGN_KEY to the path of the minisign secret key (outside the repo)" >&2; exit 1; }
+	@test -n "$(PACKS_VERSION)" || { echo "release-packs: set PACKS_VERSION (dotted numbers, such as 2026.12.2.1)" >&2; exit 1; }
+	$(RELEASE_GO) packs -dir content/mitigation/packs -version "$(PACKS_VERSION)" -key "$$MINISIGN_KEY" -minisign "$${MINISIGN_BIN:-$$(scripts/release/minisign.sh)}" $(RELEASE_KEYS_ARG) $(if $(PASSPHRASE_STDIN),-passphrase-stdin)
 
 # The builder and the verifier against the real, pinned minisign (fails when the tool is missing, unlike `go test`, which skips).
 release-interop:

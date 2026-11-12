@@ -188,6 +188,9 @@ func TestContract_INV17_AuditExportIsCSVAndIsAudited(t *testing.T) {
 	if cd := r.Header.Get("Content-Disposition"); !strings.HasPrefix(cd, "attachment;") || !strings.Contains(cd, "vedette-audit.csv") {
 		t.Fatalf("Content-Disposition = %q", cd)
 	}
+	if ct, cc := r.Header.Get("Content-Type"), r.Header.Get("Cache-Control"); ct != "text/csv; charset=utf-8" || cc != "no-store" {
+		t.Fatalf("Content-Type = %q, Cache-Control = %q", ct, cc)
+	}
 	if !strings.HasPrefix(r.Raw, "\ufefftime,user,action,target,detail\r\n") {
 		t.Fatalf("export does not start with the BOM and the header: %q", r.Raw[:40])
 	}

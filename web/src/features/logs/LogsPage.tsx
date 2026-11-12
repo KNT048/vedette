@@ -141,7 +141,7 @@ function DigestSections() {
         return (
           <>
             <Section id="bad" title={t('digest.bad.title')} description={t('digest.bad.description')} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : <EmptyState title={t('digest.bad.empty')}>{feedsOn === undefined ? null : feedsOn ? t('digest.bad.emptyWhy') : t('digest.bad.emptyFeedsOff')}</EmptyState>}
+              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : <EmptyState title={t('digest.bad.empty')}>{feedsOn === false ? t('digest.bad.emptyFeedsOff') : null}</EmptyState>}
             </Section>
             <Section id="new" title={t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>
               {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={t('digest.new.empty', { days })} />}

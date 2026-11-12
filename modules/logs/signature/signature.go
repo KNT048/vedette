@@ -93,29 +93,46 @@ type Rule struct {
 	// RemotePatterns (any type) find the remote peer's address by a pattern with a named group "addr"; tried in order after RemoteFields.
 	// A line the profile does not settle goes to the generic reader (ParseAddr over the usual daemon layouts).
 	RemotePatterns []string `json:"remote_patterns,omitempty"`
+	// The connection a line is about (L4, D-213; conn.go). A kv rule: LocalField is the key of the LAN device that made it, DestIPField the key
+	// of the address it went to, DestHostFields the keys of the names it asked for (a DNS query, a web host); each is read only when it is
+	// written exactly once outside quotes. A template rule: ConnPattern has the named groups "local" and "dest" (addresses) and must match
+	// exactly once. Not the sender of the log; a line that these do not settle has no connection.
+	LocalField     string   `json:"local_field,omitempty"`
+	DestIPField    string   `json:"dest_ip_field,omitempty"`
+	DestHostFields []string `json:"dest_host_fields,omitempty"`
+	ConnPattern    string   `json:"conn_pattern,omitempty"`
+	// ConnWhen (kv): a line has a connection only when each key listed is written once and holds one of the values (FortiGate: type traffic or utm, not event
+	// lines, whose fields an attacker partly writes). ConnRefuse (template): a line that matches it has none (MikroTik: a connection that is not new).
+	ConnWhen   map[string][]string `json:"conn_when,omitempty"`
+	ConnRefuse string              `json:"conn_refuse,omitempty"`
 }
 
 // Sample is a documented line and what the rule must make of it; Load runs every sample.
 type Sample struct {
-	Line      string `json:"line"`
-	Signature string `json:"signature"`
-	Src       string `json:"src,omitempty"`
-	Dest      string `json:"dest,omitempty"`
-	Remote    string `json:"remote,omitempty"` // the remote peer's address the rule must find (empty: none)
+	Line      string   `json:"line"`
+	Signature string   `json:"signature"`
+	Src       string   `json:"src,omitempty"`
+	Dest      string   `json:"dest,omitempty"`
+	Remote    string   `json:"remote,omitempty"` // the remote peer's address the rule must find (empty: none)
+	Local     string   `json:"local,omitempty"`  // the LAN device of the connection the rule must find (empty: none)
+	Dests     []string `json:"dests,omitempty"`  // its destinations as "ip:<address>" or "domain:<name>"
 }
 
 type profile struct {
 	File
-	patterns  []*regexp.Regexp
-	prefix    *regexp.Regexp
-	src, dst  *regexp.Regexp
-	remote    []*regexp.Regexp
-	mined     map[string]bool
-	wanted    map[string]bool
-	vocab     map[string]map[string]bool
-	shape     *regexp.Regexp // of the first field
-	headVocab map[string]bool
-	bounded   bool
+	patterns   []*regexp.Regexp
+	prefix     *regexp.Regexp
+	src, dst   *regexp.Regexp
+	remote     []*regexp.Regexp
+	conn       *regexp.Regexp
+	connRefuse *regexp.Regexp
+	connWanted map[string]bool
+	mined      map[string]bool
+	wanted     map[string]bool
+	vocab      map[string]map[string]bool
+	shape      *regexp.Regexp // of the first field
+	headVocab  map[string]bool
+	bounded    bool
 }
 
 // Set is the loaded profiles, by device kind.
@@ -130,7 +147,9 @@ type Result struct {
 	Src, Dest string // a plain address or name, or empty
 	// Remote is the address of the remote peer the line is about (D-210): never the device that sent the log. Unmapped, no zone,
 	// Countable; the zero Addr when the line has none or the text is not an address.
-	Remote  netip.Addr
+	Remote netip.Addr
+	// Conn is the connection the line is about (D-213): zero when the line has none.
+	Conn    Conn
 	Profile string // the profile id, or GenericProfile
 	// Bounded says that the signature comes from a vocabulary that shipped data bounds (a known log id, a known event id): the number
 	// of signatures a device can make is small whatever it sends. Every other result (the miner, a profile whose text is free) is
@@ -184,9 +203,16 @@ func Load(fsys fs.FS, dir string) (*Set, error) {
 			if r.Remote.IsValid() {
 				remote = r.Remote.String()
 			}
-			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest || remote != s.Remote {
-				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q remote %q, the sample says signature %q src %q dest %q remote %q",
-					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, remote, s.Signature, s.Src, s.Dest, s.Remote)
+			local, dests := "", []string(nil)
+			if r.Conn.Local.IsValid() {
+				local = r.Conn.Local.String()
+				for _, d := range r.Conn.Dests {
+					dests = append(dests, d.Kind+":"+d.Value)
+				}
+			}
+			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest || remote != s.Remote || local != s.Local || !slices.Equal(dests, s.Dests) {
+				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q remote %q local %q dests %q, the sample says signature %q src %q dest %q remote %q local %q dests %q",
+					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, remote, local, dests, s.Signature, s.Src, s.Dest, s.Remote, s.Local, s.Dests)
 			}
 		}
 	}
@@ -249,8 +275,11 @@ func compile(f File) (*profile, error) {
 		if len(r.Fields) == 0 || len(r.Fields) > MaxFields {
 			return nil, fmt.Errorf("a kv rule needs 1 to %d fields", MaxFields)
 		}
-		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" {
-			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field, dst_field, remote_fields and remote_patterns")
+		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" || r.ConnPattern != "" || r.ConnRefuse != "" {
+			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field, dst_field, remote_fields, remote_patterns, local_field, dest_ip_field and dest_host_fields")
+		}
+		if err := p.compileConnFields(r); err != nil {
+			return nil, err
 		}
 		for _, k := range r.Fields {
 			if !validKey(k) {
@@ -306,7 +335,8 @@ func compile(f File) (*profile, error) {
 		if len(r.Patterns) == 0 || len(r.Patterns) > MaxPatterns {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
-		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" {
+		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" ||
+			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnWhen) != 0 || r.ConnRefuse != "" {
 			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
@@ -326,8 +356,25 @@ func compile(f File) (*profile, error) {
 			p.patterns = append(p.patterns, re)
 		}
 	case TypeTemplate:
-		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab)+len(r.RemoteFields) != 0 || r.SrcField != "" || r.DstField != "" {
-			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern and remote_patterns")
+		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" ||
+			r.LocalField != "" || r.DestIPField != "" || len(r.ConnWhen) != 0 {
+			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern, remote_patterns and conn_pattern")
+		}
+		if r.ConnPattern != "" {
+			if p.conn, err = compileGroup(r.ConnPattern, "local"); err != nil {
+				return nil, err
+			}
+			if r.ConnRefuse != "" {
+				if len(r.ConnRefuse) > MaxPatternBytes {
+					return nil, fmt.Errorf("conn_refuse: a pattern of at most %d bytes", MaxPatternBytes)
+				}
+				if p.connRefuse, err = regexp.Compile(r.ConnRefuse); err != nil {
+					return nil, fmt.Errorf("conn_refuse: %w", err)
+				}
+			}
+			if p.conn.SubexpIndex("dest") < 0 {
+				return nil, errors.New("conn_pattern needs the named groups \"local\" and \"dest\"")
+			}
 		}
 		if len(r.HeadVocab) > MaxVocab {
 			return nil, fmt.Errorf("head_vocab has more than %d words", MaxVocab)
@@ -536,8 +583,46 @@ func (p *profile) read(msg string) (Result, bool) {
 	if !settled && len(p.remote) > 0 {
 		r.Remote = p.remoteByPatterns(msg)
 	}
+	switch {
+	case p.connWanted != nil:
+		r.Conn = p.connByFields(msg)
+	case p.conn != nil:
+		r.Conn = p.connByPattern(msg)
+	}
 	r.Profile = p.ID
 	return r, true
+}
+
+// compileConnFields checks the connection fields of a kv rule: all or none of the local field and a destination field.
+func (p *profile) compileConnFields(r Rule) error {
+	if r.LocalField == "" && r.DestIPField == "" && len(r.DestHostFields) == 0 {
+		return nil
+	}
+	if r.LocalField == "" || r.DestIPField == "" && len(r.DestHostFields) == 0 || len(r.DestHostFields) > MaxDests {
+		return fmt.Errorf("local_field and at least one destination field (dest_ip_field, dest_host_fields: at most %d) go together", MaxDests)
+	}
+	p.connWanted = map[string]bool{}
+	for k, vals := range r.ConnWhen {
+		if !validKey(k) || len(vals) == 0 || len(vals) > 8 {
+			return fmt.Errorf("conn_when %q: a key name and 1 to 8 values", k)
+		}
+		for _, v := range vals {
+			if v == "" || len(v) > maxValue || clean(v) != v {
+				return fmt.Errorf("conn_when %q: %q is not a plain value", k, v)
+			}
+		}
+		p.connWanted[k] = true
+	}
+	for _, k := range append([]string{r.LocalField, r.DestIPField}, r.DestHostFields...) {
+		if k == "" {
+			continue
+		}
+		if !validKey(k) || p.connWanted[k] {
+			return fmt.Errorf("connection field %q is not a key name, or is listed twice", k)
+		}
+		p.connWanted[k] = true
+	}
+	return nil
 }
 
 // hasRemote says whether the profile has rules of its own for the remote address: then no other reader looks at its lines.

@@ -14,7 +14,7 @@ import (
 func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	for _, id := range []string{"audit", "response", "honeypot", "scan_probes", "ai_activity"} {
+	for _, id := range []string{"audit", "response", "honeypot", "scan_probes", "ai_activity", "device_logs", "known_bad"} {
 		if !s.d.Logs.Has(id) {
 			t.Errorf("%s has no log source", id)
 		}
@@ -28,11 +28,11 @@ func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"alerts", "known_bad"}
+	want := []string{"alerts"}
 	if slices.Compare(e.Missing, want) != 0 {
 		t.Fatalf("missing = %v, want %v (when a module registers its source, move it out of this list)", e.Missing, want)
 	}
-	if !strings.Contains(string(body), `"missing":["alerts","known_bad"]`) {
+	if !strings.Contains(string(body), `"missing":["alerts"]`) {
 		t.Fatalf("the file does not say what is missing: %.400s", body)
 	}
 }

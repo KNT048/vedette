@@ -121,6 +121,15 @@ func TestBuildContainerAssetsRefusals(t *testing.T) {
 		"template line missing": {env(func(e string) string { return strings.Replace(e, "VEDETTE_SENSOR_IMAGE=\n", "", 1) }), "no VEDETTE_SENSOR_IMAGE= line"},
 		"unknown image line":    {env(func(e string) string { return e + "VEDETTE_HONEYPOT_IMAGE=\n" }), "does not fill"},
 		"exported image line":   {env(func(e string) string { return e + "export VEDETTE_OTHER_IMAGE=x\n" }), "does not fill"},
+		"BOM on a real line": {env(func(e string) string {
+			return strings.Replace(e, "\nVEDETTE_CORE_IMAGE=\n", "\n"+bom+"VEDETTE_CORE_IMAGE=\n", 1)
+		}), "does not fill"},
+		"space before a real line": {env(func(e string) string {
+			return strings.Replace(e, "\nVEDETTE_SCAN_IMAGE=\n", "\n VEDETTE_SCAN_IMAGE=\n", 1)
+		}), "does not fill"},
+		"export of a real line": {env(func(e string) string {
+			return strings.Replace(e, "\nVEDETTE_SENSOR_IMAGE=\n", "\nexport VEDETTE_SENSOR_IMAGE=\n", 1)
+		}), "does not fill"},
 		"carriage return": {env(func(e string) string {
 			return strings.Replace(e, "VEDETTE_CORE_IMAGE=\n", "VEDETTE_CORE_IMAGE=\r\n", 1)
 		}), "must be empty"},
@@ -158,6 +167,9 @@ func writeAssets(t *testing.T) func(dir string, in Inputs) {
 
 var bothModes = []string{"appliance", "container"}
 
+// bom is U+FEFF, the byte order mark an editor may put before a line.
+var bom = string(rune(0xFEFF))
+
 func TestContainerAssetsSignAndVerify(t *testing.T) {
 	r := newRig(t)
 	opts := buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree, services: []string{"core", "sensor", "scan"}, installModes: bothModes, beforeSign: writeAssets(t)}
@@ -182,6 +194,12 @@ func TestContainerAssetsSignAndVerify(t *testing.T) {
 	// every way the published files can be wrong is refused by verify
 	resign := func(dir, name, tc string) {
 		must(t, testSigner{t, r.active}.SignFile(context.Background(), filepath.Join(dir, name), filepath.Join(dir, name+".minisig"), tc))
+	}
+	appendEnv := func(dir, line string) {
+		p := filepath.Join(dir, containerEnv)
+		b, _ := os.ReadFile(p)
+		must(t, os.WriteFile(p, append(b, line+"\n"...), 0o600))
+		resign(dir, containerEnv, "file:vedette.env version:0.1.0")
 	}
 	cases := map[string]struct {
 		mut  func(dir string)
@@ -210,6 +228,16 @@ func TestContainerAssetsSignAndVerify(t *testing.T) {
 			must(t, os.WriteFile(p, b, 0o600))
 			resign(d, containerEnv, "file:vedette.env version:0.1.0")
 		}, "vedette.env"},
+		// the builder's image-line rule holds at verify too: a second spelling of an image line is refused even when signed
+		"exported image line, signed": {func(d string) {
+			appendEnv(d, "export VEDETTE_CORE_IMAGE=ghcr.io/knt048/vedette-core@"+digestOf("evil"))
+		}, "not one the manifest names"},
+		"blank before =, signed": {func(d string) { appendEnv(d, "VEDETTE_SCAN_IMAGE =x") }, "not one the manifest names"},
+		"leading space, signed":  {func(d string) { appendEnv(d, " VEDETTE_SENSOR_IMAGE=x") }, "not one the manifest names"},
+		"BOM, signed":            {func(d string) { appendEnv(d, bom+"VEDETTE_CORE_IMAGE=x") }, "not one the manifest names"},
+		"a right line twice, signed": {func(d string) {
+			appendEnv(d, "VEDETTE_CORE_IMAGE=ghcr.io/knt048/vedette-core@"+digestOf("core0.1.0"))
+		}, "2 times"},
 		"signed by the backup key": {func(d string) {
 			must(t, testSigner{t, r.backup}.SignFile(context.Background(), filepath.Join(d, "compose.yaml"), filepath.Join(d, "compose.yaml.minisig"), "file:compose.yaml version:0.1.0"))
 		}, "signed by"},
@@ -236,6 +264,34 @@ func TestContainerAssetsSignAndVerify(t *testing.T) {
 	must(t, err)
 	if _, err := VerifyDir(d, "", r.trust); err == nil || !strings.Contains(err.Error(), "does not list install mode container") {
 		t.Errorf("assets of an appliance-only release: %v", err)
+	}
+}
+
+// A rescue release (D-259) signs the four files with the backup key, like its manifest; a signature left from another run is
+// refused for them as for the documents.
+func TestRescueWithContainerAssets(t *testing.T) {
+	r := newRig(t)
+	svc := []string{"core", "sensor", "scan"}
+	pub, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree, services: svc, installModes: bothModes, beforeSign: writeAssets(t)})
+	must(t, err)
+	rescue := buildOpts{version: "0.1.1", channel: "stable", cur: addOnlyTree, services: svc, installModes: bothModes, prevDir: pub,
+		revoke: []string{r.trust.Active.KeyID()}, rescue: true, beforeSign: writeAssets(t)}
+	resc, err := r.build(rescue)
+	must(t, err)
+	s, err := VerifyDir(resc, pub, r.trust)
+	if err != nil || !s.Rescue || !s.ContainerAssets {
+		t.Fatalf("%+v %v", s, err)
+	}
+	sig, _ := os.ReadFile(filepath.Join(resc, "vedette.env.minisig"))
+	if _, keyID, err := minisigCommentAndKey(sig, r.trust); err != nil || keyID != r.trust.Backup.KeyID() {
+		t.Errorf("vedette.env of a rescue is signed by %s (%v), want the backup key %s", keyID, err, r.trust.Backup.KeyID())
+	}
+	rescue.beforeSign = func(d string, in Inputs) {
+		writeAssets(t)(d, in)
+		must(t, os.WriteFile(filepath.Join(d, "compose.yaml.minisig"), []byte("left from another run"), 0o600))
+	}
+	if _, err := r.build(rescue); err == nil || !strings.Contains(err.Error(), "compose.yaml.minisig is already there") {
+		t.Errorf("a stale asset signature in a rescue: %v", err)
 	}
 }
 

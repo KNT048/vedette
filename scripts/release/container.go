@@ -40,7 +40,8 @@ var containerImageKeys = []struct{ key, service string }{
 var containerImageRE = regexp.MustCompile(`^ghcr\.io/knt048/vedette-(core|sensor|scan)@sha256:[0-9a-f]{64}$`)
 
 // anyImageLineRE catches an image line of the template the builder does not know (a fourth service added to compose without the builder).
-var anyImageLineRE = regexp.MustCompile(`^\s*(export\s+)?[A-Za-z_][A-Za-z0-9_]*_IMAGE\s*=`)
+// A byte order mark, leading blanks, `export` and blanks before "=" count too: the builder and verify use the same rule.
+var anyImageLineRE = regexp.MustCompile(`^[\s\x{FEFF}]*(export\s+)?[A-Za-z_][A-Za-z0-9_]*_IMAGE\s*=`)
 
 // checkInstallModes refuses what internal/release refuses later on the box (an empty list, a value other than appliance and
 // container, a repeat), so the maintainer hears it from the builder.
@@ -291,25 +292,34 @@ func verifyContainerAssets(dir string, m *release.Manifest, trust release.Trust)
 	return true, nil
 }
 
-// checkEnvImages: each of the three image lines is there once and equals the manifest's pull reference of that service.
+// checkEnvImages: every image line (the builder's rule, anyImageLineRE: a BOM, blanks, `export`, `KEY =` included) is exactly one
+// of the three wanted lines, and each of those is there once and equals the manifest's pull reference of that service.
 func checkEnvImages(raw []byte, m *release.Manifest) error {
+	want := map[string]int{}
 	for _, c := range containerImageKeys {
 		im, ok := m.Image(c.service)
 		if !ok {
 			return fmt.Errorf("the manifest has no %s image, which a container-only install runs", c.service)
 		}
-		want := c.key + "=" + release.RegistryPrefix + c.service + "@" + im.Digest
-		n := 0
-		for _, l := range strings.Split(string(raw), "\n") {
-			if strings.HasPrefix(l, c.key+"=") {
-				n++
-				if l != want || !containerImageRE.MatchString(strings.TrimPrefix(l, c.key+"=")) {
-					return fmt.Errorf("vedette.env: %q, want %q", l, want)
-				}
-			}
+		v := release.RegistryPrefix + c.service + "@" + im.Digest
+		if !containerImageRE.MatchString(v) {
+			return fmt.Errorf("the manifest's %s reference %q is not ghcr.io/knt048/vedette-%s@sha256:<64 hex>", c.service, v, c.service)
 		}
+		want[c.key+"="+v] = 0
+	}
+	for _, l := range strings.Split(string(raw), "\n") {
+		if !anyImageLineRE.MatchString(l) {
+			continue
+		}
+		n, ok := want[l]
+		if !ok {
+			return fmt.Errorf("vedette.env: image line %q is not one the manifest names", l)
+		}
+		want[l] = n + 1
+	}
+	for l, n := range want {
 		if n != 1 {
-			return fmt.Errorf("vedette.env has %d %s lines, want 1", n, c.key)
+			return fmt.Errorf("vedette.env has %q %d times, want once", l, n)
 		}
 	}
 	return nil

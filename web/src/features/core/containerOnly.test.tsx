@@ -26,7 +26,7 @@ describe('container-only install (D-381)', () => {
   it('Updates shows the compose commands and no appliance control; Data shows the volume backup; neither calls the host', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Update Vedette')).toBeInTheDocument()
-    expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
+    expect(screen.getAllByText(/docker compose --env-file vedette.env pull/)).not.toHaveLength(0)
     expect(screen.queryByRole('button', { name: /Check for releases|Export|Import/ })).toBeNull()
     renderApp('/settings/data')
     expect(await screen.findAllByText(/vedette_data/)).not.toHaveLength(0)
@@ -44,17 +44,27 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText(/oversized syslog packets/)).toBeInTheDocument()
     // in the order that is safe: keep, download + minisign, cosign + the digests of vedette.env, and only then pull and up -d
     const items = within(screen.getByRole('list')).getAllByRole('listitem')
+    // the list keeps its numbers: the grid is on an inner element, not on the li (QA L3)
+    for (const li of items) expect(li.className).toBe('')
     const steps = items.map((li) => li.querySelector('code')!.textContent!)
     expect(steps.map((c) => c.split(/[ =]/)[0])).toEqual(['mkdir', 'u', 'cosign', 'docker'])
-    // all four files of the running release go to a folder named after it: a later update keeps its own way back (D-451)
+    // all four files of the running release go to a NEW folder named after it: mkdir without -p refuses an existing one (D-451)
     const four = 'vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml'
-    expect(steps[0]).toBe(`mkdir -p vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
-    // the four files and their signatures of the offered version, from the release assets; each checked with the kept key
-    expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig"; done`)
+    expect(steps[0]).toBe(`mkdir vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
+    // the four files and their signatures of the offered version, from the release assets; the loop stops at the first failure
+    expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`)
+    // each file's signed comment must be exactly "file:<that file> version:<offered>" (minisign -VQm prints only that comment)
     const fetch = items[1]!
     const codes = [...fetch.querySelectorAll('code')].map((c) => c.textContent)
-    expect(codes[1]).toBe(four.split(' ').map((f) => `minisign -Vm ${f} -p vedette.pub`).join('\n'))
-    expect(within(fetch).getByText(/trusted comment ending in version:0\.9\.4, or do not go on/)).toBeInTheDocument()
+    expect(codes[1]).toBe(`for f in ${four}; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done`)
+    expect(within(fetch).getByText(/the vedette\.pub you kept from the install \(in this folder, not one taken from the release page\)/)).toBeInTheDocument()
+    expect(within(fetch).getByText(/At the first FAILED, stop/)).toBeInTheDocument()
+    // every block has a label (QA L4)
+    for (const name of ['Keep the files you run now', 'Download the files', 'Check the signatures', 'Check that vedette.env names these images', 'Pull the new images and start them', 'Put the files of vedette-0.9.3 back and start them']) {
+      expect(screen.getByText(name, { selector: 'span' })).toBeInTheDocument()
+    }
+    // the -f files of the add-ons are said before the pull block, in the exact form
+    expect(within(items[3]!).getByText(/add -f compose\.yaml -f compose\.sensors\.yaml -f compose\.syslog\.yaml after --env-file vedette\.env in both commands/)).toBeInTheDocument()
     // one line per image this install runs (not the honeypot), by the digest of the release information
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
@@ -62,7 +72,9 @@ describe('container-only install (D-381)', () => {
     const grep = screen.getByText(/^grep -cF/).textContent!
     for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
     expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()
-    expect(screen.getByText(/copy the four files of vedette-0\.9\.3 back into this folder \(cp vedette-0\.9\.3\/\* \.\)/)).toBeInTheDocument()
+    // if a check fails, or later: the way back is a block of its own, copied as it is
+    expect(screen.getByText('If any check fails, stop and put your files back.')).toBeInTheDocument()
+    expect(screen.getByText(/^cp vedette-0\.9\.3/).textContent).toBe('cp vedette-0.9.3/* .\ndocker compose --env-file vedette.env pull\ndocker compose --env-file vedette.env up -d')
     expect(screen.getByText(/from vedette-0\.9\.3\/vedette\.env into the new vedette\.env/)).toBeInTheDocument()
     // the only address is the release assets of the offered version
     expect(screen.getAllByText(/https?:\/\//).map((e) => e.textContent!.match(/https?:\/\/\S+/g)).flat()).toEqual(['https://github.com/KNT048/vedette/releases/download/v0.9.4'])
@@ -71,6 +83,36 @@ describe('container-only install (D-381)', () => {
     await u.click(screen.getByRole('button', { name: 'Podman' }))
     expect(screen.getByText(/^podman compose --env-file vedette.env pull/).textContent).toBe('podman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
     expect(screen.queryByText(/docker compose/)).toBeNull()
+    expect(screen.getByText(/^cp vedette-0\.9\.3/).textContent).toBe('cp vedette-0.9.3/* .\npodman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
+  })
+
+  const offerState = (version: string, running: string, images: { service: string; digest: string }[]) => ({
+    channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T00:00:00Z',
+    components: [{ id: 'software', kind: 'software', version: running, previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }],
+    available: [{ component: 'software', version, channel: 'stable', size_kb: 1, note: '', images }],
+    history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null,
+  })
+  const good = (s: string) => ({ service: s, digest: `sha256:${(s === 'core' ? 'c' : 'd').repeat(64)}` })
+
+  it.each([
+    ['an offered version with a shell character', '0.9.4;rm', '0.9.3'],
+    ['a running version that cannot name a folder', '0.9.4', ''],
+  ])('Updates shows no command at all for %s, only where the steps are (D-451)', async (_, version, running) => {
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState(version, running, [good('core')]))))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(/cannot be put into a command as it is, so no commands are shown here/)).toBeInTheDocument()
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.queryByText(/mkdir|curl|minisign|cosign verify|grep -cF/)).toBeNull()
+  })
+
+  it('Updates puts only a known service with a well-formed digest into a command (D-451)', async () => {
+    const images = [good('core'), good('sensor'), { service: 'scan', digest: "sha256:x' ; rm -rf ~ '" }, { service: 'evil', digest: `sha256:${'e'.repeat(64)}` }]
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState('0.9.4', '0.9.3', images))))
+    renderApp('/settings/updates')
+    const lines = (await screen.findByText(/^cosign verify/)).textContent!.split('\n')
+    expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor'])
+    expect(screen.getByText(/^grep -cF/).textContent).not.toMatch(/rm -rf|evil/)
+    expect(screen.getByText(/it must print 2, or do not go on/)).toBeInTheDocument()
   })
 
   it.each([
@@ -85,6 +127,9 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|Update information has never been read)/)).toBeInTheDocument()
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
+    // the block says what it does and does not do; no "kept files" that this state never made (QA M3)
+    expect(screen.getByText(/They do not move you to a new release: the image digests are fixed in vedette\.env/)).toBeInTheDocument()
+    expect(screen.queryByText(/kept|go back/)).toBeNull()
   })
 
   it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {

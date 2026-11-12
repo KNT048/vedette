@@ -41,6 +41,9 @@ const CONTAINER_SERVICES = ['core', 'sensor', 'scan']
 /** release.RegistryPrefix: the only registry and repository family of the release images (D-104 (1)). */
 const REGISTRY = 'ghcr.io/knt048/vedette-'
 type Image = { service: string; digest: string }
+/** Only a known service with a well-formed digest goes into a command line (the manifest was verified, this is the page's own guard). */
+const DIGEST = /^sha256:[0-9a-f]{64}$/
+const usableImage = (i: Image) => CONTAINER_SERVICES.includes(i.service) && DIGEST.test(i.digest)
 /** One `cosign verify` per image of the release this install runs, by the digest of its signed manifest. */
 const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
 /** The image lines of the downloaded vedette.env must name those same digests: it prints how many lines do (one per image). */
@@ -48,13 +51,17 @@ const matchCmd = (images: readonly Image[]) => `grep -cF ${images.map((i) => `-e
 const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/
 /** The four files every release publishes for this install, each with a .minisig (D-451): an update replaces all of them. */
 const RELEASE_FILES = ['vedette.env', 'compose.yaml', 'compose.sensors.yaml', 'compose.syslog.yaml']
-/** The kept folder is named after the release it runs, so a second update never overwrites the way back (mv -n refuses). */
-const keptName = (running: string) => `vedette-${SAFE_VERSION.test(running) ? running : 'old'}`
-const keepCmd = (kept: string) => `mkdir -p ${kept} && mv -n ${RELEASE_FILES.join(' ')} ${kept}/`
-/** The release assets on GitHub Releases (D-150, D-451), the same place install.sh and the box download from. */
-const fetchCmd = (version: string) => `u=https://github.com/KNT048/vedette/releases/download/v${SAFE_VERSION.test(version) ? version : '<version>'}
-for f in ${RELEASE_FILES.join(' ')}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig"; done`
-const minisignCmd = RELEASE_FILES.map((f) => `minisign -Vm ${f} -p vedette.pub`).join('\n')
+/** The kept folder is named after the release it runs; mkdir (no -p) refuses an existing one, so nothing kept is overwritten. */
+const keepCmd = (kept: string) => `mkdir ${kept} && mv -n ${RELEASE_FILES.join(' ')} ${kept}/`
+/** The release assets on GitHub Releases (D-150, D-451), the same place install.sh and the box download from; stops at the first failure. */
+const fetchCmd = (version: string) => `u=https://github.com/KNT048/vedette/releases/download/v${version}
+for f in ${RELEASE_FILES.join(' ')}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`
+/** `minisign -VQm` prints only the trusted comment (measured with the pinned 0.12, TestInteropMinisignCLI): it must be exactly
+ * "file:<that file> version:<offered>", so a signed file of another release, or another file's signature, does not pass. */
+const checkCmd = (version: string) =>
+  `for f in ${RELEASE_FILES.join(' ')}; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:${version}" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done`
+/** -f files of the add-ons, for the hint next to every pull and up -d. */
+const ADDON_FILES = '-f compose.yaml -f compose.sensors.yaml -f compose.syslog.yaml'
 
 /**
  * Settings → Updates on a container-only install (S-CORE-9 G4, D-381): core's own update check says whether a newer
@@ -77,7 +84,7 @@ export function ContainerUpdates() {
           {offer ? <OfferSteps offer={offer} running={q.data?.components.find((c) => c.id === 'software')?.version ?? ''} engine={engine} /> : !q.data && !q.error ? null : (
             <>
               <CodeBlock label={t('container.updates.label')} code={forEngine(UPDATE_CMD, engine)} />
-              <p className="text-[13px] text-muted">{t('container.updates.back')}</p>
+              <p className="text-[13px] text-muted">{t('container.updates.again', { files: ADDON_FILES })}</p>
             </>
           )}
         </div>
@@ -94,8 +101,8 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   const running = s.components.find((c) => c.id === 'software')?.version ?? ''
   const main = offer ? (
     <div className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
-      <p className="font-medium">{t('container.updates.offer', { version: offer.version, running })}</p>
-      {offer.note ? <p className="whitespace-pre-line text-muted">{offer.note}</p> : null}
+      <p className="font-medium [overflow-wrap:anywhere]">{t('container.updates.offer', { version: offer.version, running })}</p>
+      {offer.note ? <p className="whitespace-pre-line text-muted [overflow-wrap:anywhere]">{offer.note}</p> : null}
     </div>
   ) : !s.check_enabled ? (
     <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
@@ -118,28 +125,47 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
  */
 function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; running: string; engine: Engine }) {
   const { t } = useTranslation('core')
-  const kept = keptName(running)
-  const images = (offer.images ?? []).filter((i) => CONTAINER_SERVICES.includes(i.service))
+  const version = offer.version
+  const heading = <h3 className="mt-2 text-sm font-semibold [overflow-wrap:anywhere]">{t('container.updates.block1', { version })}</h3>
+  // A version that cannot go into a command as it is gets no commands at all (no placeholder for the customer to fix by hand).
+  if (!SAFE_VERSION.test(version) || !SAFE_VERSION.test(running)) return (
+    <>
+      {heading}
+      <p className="text-sm [overflow-wrap:anywhere]">{t('container.updates.unsafe', { version, running })}</p>
+    </>
+  )
+  const kept = `vedette-${running}`
+  const images = (offer.images ?? []).filter(usableImage)
   return (
     <>
-      <h3 className="mt-2 text-sm font-semibold">{t('container.updates.block1', { version: offer.version })}</h3>
-      <ol className="grid list-decimal gap-3 pl-5 text-sm">
-        <li className="grid gap-1.5">{t('container.updates.stepKeep', { kept })}<CodeBlock code={keepCmd(kept)} /></li>
-        <li className="grid gap-1.5">
-          {t('container.updates.stepFetch', { version: offer.version })}<CodeBlock code={fetchCmd(offer.version)} />
-          {t('container.updates.stepVerify', { version: offer.version })}<CodeBlock code={minisignCmd} />
-        </li>
+      {heading}
+      <ol className="grid list-decimal gap-3 pl-5 text-sm [overflow-wrap:anywhere]">
+        <li><div className="grid gap-1.5">
+          {t('container.updates.stepKeep', { kept })}
+          <CodeBlock label={t('container.updates.keepLabel')} code={keepCmd(kept)} />
+        </div></li>
+        <li><div className="grid gap-1.5">
+          {t('container.updates.stepFetch', { version })}
+          <CodeBlock label={t('container.updates.fetchLabel')} code={fetchCmd(version)} />
+          {t('container.updates.stepVerify', { version })}
+          <CodeBlock label={t('container.updates.checkLabel')} code={checkCmd(version)} />
+        </div></li>
         {images.length ? (
-          <li className="grid gap-1.5">
-            {t('container.updates.verifyWhy', { version: offer.version })}
+          <li><div className="grid gap-1.5">
+            {t('container.updates.verifyWhy', { version })}
             <CodeBlock label={t('container.updates.verifyLabel')} code={verifyCmd(images)} />
             {t('container.updates.matchWhy', { count: images.length })}
-            <CodeBlock code={matchCmd(images)} />
-          </li>
+            <CodeBlock label={t('container.updates.matchLabel')} code={matchCmd(images)} />
+          </div></li>
         ) : null}
-        <li className="grid gap-1.5">{t('container.updates.stepLines', { kept })}<CodeBlock code={forEngine(UPDATE_CMD, engine)} /></li>
+        <li><div className="grid gap-1.5">
+          {t('container.updates.stepLines', { kept, files: ADDON_FILES })}
+          <CodeBlock label={t('container.updates.pullLabel')} code={forEngine(UPDATE_CMD, engine)} />
+        </div></li>
       </ol>
-      <p className="text-[13px] text-muted">{t('container.updates.backOffer', { kept })}</p>
+      <p className="text-sm font-medium">{t('container.updates.failStop')}</p>
+      <p className="text-[13px] text-muted">{t('container.updates.backOffer', { files: ADDON_FILES })}</p>
+      <CodeBlock label={t('container.updates.backLabel', { kept })} code={forEngine(`cp ${kept}/* .\n${UPDATE_CMD}`, engine)} />
     </>
   )
 }

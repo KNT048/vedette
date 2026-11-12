@@ -208,6 +208,14 @@ func TestInteropMinisignCLI(t *testing.T) {
 			t.Errorf("trusted comment missing: %s", o)
 		}
 	}
+	// the customer's check of the container-only files (ContainerOnly.tsx, docs/INSTALL-CONTAINER.md, D-451): `minisign -VQm` prints
+	// exactly the trusted comment, which the page compares with "file:<that file> version:<release>"
+	for _, f := range containerAssets {
+		o, err := ms(t, bin, "", "-VQm", filepath.Join(out, f), "-p", pub("minisign.pub"))
+		if err != nil || o != "file:"+f+" version:0.1.0-beta.1\n" {
+			t.Errorf("minisign -VQm %s: %v %q", f, err, o)
+		}
+	}
 	// the tool refuses a tampered document, and so does the box's verifier
 	mp := filepath.Join(out, manifestFile)
 	orig, _ := os.ReadFile(mp)

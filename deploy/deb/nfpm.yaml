@@ -20,7 +20,8 @@ description: |-
    start vedette-host.service.
 
 # Minimums, not exact versions (D-155). Why each one:
-#  podman (>= 4.4)   Quadlet units (/etc/containers/systemd) exist from 4.4; Ubuntu 24.04 has 4.9, Debian 13 has 5.x
+#  podman (>= 4.8)   Quadlet units (/etc/containers/systemd) exist from 4.4, ContainersConfModule= of the honeypot unit from 4.8 (#486);
+#                    Ubuntu 24.04 has 4.9, Debian 13 has 5.x
 #  systemd (>= 254)  RestartSteps= and RestartMaxDelaySec= of vedette-host.service (D-150); Ubuntu 24.04 has 255
 #  nftables          the ruleset inside the namespace vedette-hp (nft, run through ip netns exec)
 #  iproute2          ip: decoy links and ip netns (D-102)
@@ -31,7 +32,7 @@ description: |-
 #  unattended-upgrades  the apt configuration the host writes (52vedette-unattended) does nothing without it (D-53)
 #  passwd            useradd and groupadd of the postinst
 depends:
-  - podman (>= 4.4)
+  - podman (>= 4.8)
   - systemd (>= 254)
   - nftables
   - iproute2
@@ -52,6 +53,13 @@ contents:
       group: root
   - src: deploy/systemd/vedette-host.service
     dst: /usr/lib/systemd/system/vedette-host.service
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  # the containers.conf module of the honeypot unit (ops.HoneypotConfModule, #486): constant, not for an administrator to edit
+  - src: deploy/deb/honeypot-containers.conf
+    dst: /usr/lib/vedette/honeypot-containers.conf
     file_info:
       mode: 0644
       owner: root

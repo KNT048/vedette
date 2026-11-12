@@ -13,6 +13,7 @@ NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
+ContainersConfModule=/usr/lib/vedette/honeypot-containers.conf
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
 Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald

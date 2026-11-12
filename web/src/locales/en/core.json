@@ -52,6 +52,7 @@
     "notHere": "Not on this install",
     "notHereWhy": "Needs the appliance install: this container-only install has no vedette-host to run it.",
     "toggle": "Turn on module {{name}}",
+    "toggleOff": "Turn off module {{name}}",
     "enabledToast": "{{name}} is on",
     "disabledToast": "{{name}} is off. Modules affected: {{count}}. Data is kept.",
     "deps": {
@@ -965,6 +966,7 @@
     "titleOff": "MCP server is off",
     "meta": "Lets outside AI tools or a SIEM look up the box's devices, findings and vulnerability feeds. Read-only; there are no write tools.",
     "switch": "Turn on MCP server",
+    "switchOff": "Turn off MCP server",
     "enabledToast": "MCP server is on.",
     "disabledToast": "MCP server is off. Tokens are kept but do not work.",
     "readOnly": "Read-only",
@@ -1318,7 +1320,8 @@
       "desc": "Modules are separate pieces of work you switch on and off. Pick the closest bundle and change it later in Settings, Modules.",
       "smb": {
         "name": "Small business",
-        "desc": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep."
+        "desc": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep.",
+        "descNoTraps": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, weekly report. Light, little upkeep."
       },
       "mid": {
         "name": "Mid-size business",

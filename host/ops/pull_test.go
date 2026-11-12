@@ -27,6 +27,7 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 			{"image", "inspect", "--format", "json", tag},
 			{"tag", ref, tag},
 			{"rmi", strings.Repeat("1", 64)},
+			{"untag", strings.Repeat("1", 64), tag},
 			{"image", "ls", "--format", "json"},
 		} {
 			if err := validatePodman(a); err != nil {
@@ -194,6 +195,10 @@ func FuzzValidatePodmanPull(f *testing.F) {
 			}
 		case "rmi":
 			if len(args) != 2 || !imageIDRE.MatchString(args[1]) {
+				t.Fatalf("accepted %q", args)
+			}
+		case "untag":
+			if len(args) != 3 || !imageIDRE.MatchString(args[1]) || !isLocalTag(args[2]) && !isNmapTag(args[2]) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "tag":

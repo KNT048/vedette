@@ -15,7 +15,11 @@ import (
 )
 
 // Image retention (spec 6.8, D-104 (6), D-130 (4), D-138). After a start or rollback that worked, the
-// images of that service that nothing keeps are removed with "podman rmi <image id>":
+// images of that service that nothing keeps are removed with "podman rmi <image id>", after "podman untag <id> <tag>"
+// of its local tags: Podman refuses rmi by ID of an image with more than one name (exit 125, "by ID with more than
+// one tag"), and every release the host pulled has two, localhost/vedette-<service>:<version> and the pull reference
+// (Podman 4.9.3 in the lab VM, 2026-11-12, docs/lab/2026-11-12-podman-nuclei.md). The image keeps one name, so a
+// failed rmi leaves it listed for the next run:
 //
 //	kept: the digest of every unit, of every current and previous version, of every pulled record
 //	      (of all services, so an image two services share is never removed), and the digest the
@@ -51,6 +55,7 @@ type listedImage struct {
 	ID      string   // what rmi is given: the 64-hex image ID (a digest names a manifest, not always one image)
 	Digests []string // every digest the image is known by (Digest and its RepoDigests); the keep check reads these
 	InUse   bool
+	Untag   []string // local tags taken off before rmi, so that the image has one name left (rmi by ID refuses more)
 }
 
 var errImageList = errors.New("ops: podman image ls output is not usable")
@@ -98,6 +103,16 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 			continue
 		}
 		img := listedImage{ID: d.ID, Digests: []string{d.Digest}, InUse: d.Containers != 0}
+		if len(d.Names) > 1 { // Podman's own names; RepoTags is null and RepoDigests does not count (lab, Podman 4.9.3)
+			for _, n := range d.Names {
+				if isLocalTag(n) || isNmapTag(n) {
+					img.Untag = append(img.Untag, n)
+				}
+			}
+			if len(img.Untag) == len(d.Names) {
+				img.Untag = img.Untag[1:] // only local tags: one stays, rmi by ID removes an image with one name
+			}
+		}
 		if services[service].byID {
 			img.Digests = append(img.Digests, "sha256:"+d.ID) // the image built on the box is kept by its ID (D-147)
 		}
@@ -109,6 +124,23 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 		res = append(res, img)
 	}
 	return res, nil
+}
+
+// untagImage takes img's extra local tags off; false when one of them could not be (the image then stays, named).
+func (o *Ops) untagImage(ctx context.Context, img listedImage) bool {
+	for _, tag := range img.Untag {
+		argv, err := untagArgv(img.ID, tag)
+		if err != nil {
+			return false
+		}
+		uctx, cancel := context.WithTimeout(ctx, rmiLimit)
+		_, code, err := o.exec(uctx, binPodman, argv...)
+		cancel()
+		if err != nil || code != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // ownedName says whether name is a reference into one of the two repositories of service.
@@ -190,11 +222,15 @@ func (o *Ops) retainImages(ctx context.Context, rc *server.RunContext, command, 
 		if err != nil {
 			continue
 		}
-		rctx, cancel := context.WithTimeout(ctx, rmiLimit)
-		_, code, err := o.exec(rctx, binPodman, argv...)
-		cancel()
+		ok := o.untagImage(ctx, img)
+		if ok {
+			rctx, cancel := context.WithTimeout(ctx, rmiLimit)
+			_, code, err := o.exec(rctx, binPodman, argv...)
+			cancel()
+			ok = err == nil && code == 0
+		}
 		detail := map[string]any{"service": service, "image_id": img.ID, "digests": img.Digests, "run_id": rcID(rc)}
-		if err != nil || code != 0 {
+		if !ok {
 			rcLog(rc, "retention: podman could not remove "+img.ID+"; it stays")
 			o.log.WarnContext(ctx, "retention: podman rmi failed", "service", service, "image_id", img.ID)
 			detail["removed"] = false

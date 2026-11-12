@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). Six shapes and no others:
+// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). Seven shapes and no others:
 //
 //	container inspect vedette-<service>
 //	pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>
@@ -18,6 +18,10 @@ import (
 //	tag <pull reference> localhost/vedette-<service>:<version>
 //	image ls --format json                     what retention reads (slice 3-8a)
 //	rmi <64 hex>                               what retention removes: an image ID, never a name, never -f
+//	untag <64 hex> <local tag>                 retention, before rmi: Podman refuses "rmi <ID>" of an image with more than one name
+//	                                           (exit 125, Podman 4.9.3 in the lab, 2026-11-12), and a pulled release has two (its
+//	                                           local tag and its pull reference); local tag: localhost/vedette-<service>:<version>
+//	                                           or localhost/vedette-scan-nmap:<version>
 //
 // Every shape is built here from the closed service list, a digest that passed digestRE and a version
 // that passed tagVersionRE; the registry part is the compile-time constant release.RegistryPrefix. Nothing
@@ -104,6 +108,14 @@ func rmiArgv(id string) ([]string, error) {
 		return nil, errPodmanArgs
 	}
 	return []string{"rmi", id}, nil
+}
+
+// untagArgv takes one local tag off an image (by its ID), so that the image keeps a single name and rmi of its ID removes it.
+func untagArgv(id, tag string) ([]string, error) {
+	if !imageIDRE.MatchString(id) || !isLocalTag(tag) && !isNmapTag(tag) {
+		return nil, errPodmanArgs
+	}
+	return []string{"untag", id, tag}, nil
 }
 
 // listImagesArgv lists every image in Podman's storage as JSON (read only).
@@ -233,6 +245,8 @@ func validatePodman(args []string) error {
 	case slices.Equal(args, listImagesArgv()):
 		return nil
 	case len(args) == 2 && args[0] == "rmi" && imageIDRE.MatchString(args[1]):
+		return nil
+	case len(args) == 3 && args[0] == "untag" && imageIDRE.MatchString(args[1]) && (isLocalTag(args[2]) || isNmapTag(args[2])):
 		return nil
 	}
 	return errPodmanArgs

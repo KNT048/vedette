@@ -49,6 +49,7 @@ type Result struct {
 type line struct {
 	TemplateID    string `json:"template-id"`
 	Host          string `json:"host"`
+	Port          string `json:"port"`
 	MatcherStatus *bool  `json:"matcher-status"`
 	Request       string `json:"request"`
 	Response      string `json:"response"`
@@ -93,7 +94,7 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	if !slices.Contains(templates, l.TemplateID) {
 		return Result{}, errors.New("a template the job did not ask for")
 	}
-	target := hostOf(l.Host)
+	target := targetOf(l.Host, l.Port)
 	if target == "" || !slices.Contains(targets, target) {
 		return Result{}, errors.New("a target the job did not name")
 	}
@@ -107,6 +108,24 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 		Template: l.TemplateID, Target: target, Matched: *l.MatcherStatus,
 		Request: Clean(l.Request, MaxRequest), Response: Clean(l.Response, MaxResponse), Error: Clean(l.Error, MaxError),
 	}, nil
+}
+
+// targetOf is the host:port a line is about. The pinned nuclei v3.11.1 writes "host" as the bare address with "port"
+// apart (and "url" beside them), for http and tcp templates alike; its "host was skipped as it was found unresponsive"
+// line has no port and keeps the input ("http://host:port") in "host" (lab VM, 2026-11-12, testdata/matched.jsonl).
+// The older shapes ("host:port", a URL) still read through hostOf; when "port" is given too, the two must agree.
+func targetOf(host, port string) string {
+	if strings.Contains(host, ":") {
+		t := hostOf(host)
+		if port != "" && !strings.HasSuffix(t, ":"+port) {
+			return ""
+		}
+		return t
+	}
+	if port == "" {
+		return ""
+	}
+	return hostOf(host + ":" + port)
 }
 
 // hostOf takes host:port out of nuclei's host field, which is "host:port" or "scheme://host[:port][/...]"; an http or

@@ -1,12 +1,31 @@
 package nucleiout
 
 import (
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// The error-log lines below are HAND-MADE in the shape of nuclei v3.11.1's JSONLogRequest (pkg/output/output.go), not a
-// recording: the lab check against the pinned binary is a deferred item (.ai/deferred/feat-scan-autostop.md).
+// The stderr of the run recorded in testdata/matched.jsonl (lab VM, nuclei v3.11.1, -elog /dev/stderr). Seen there: a
+// target that drops packets gives network-temporary-error for http templates but unknown-error ("context cancelled
+// before establishing connection") for the tcp one; no route to host is network-permanent-error ("port closed or
+// filtered"), like a refusal; a TLS error on a plain port has no kind at all. Only the first is counted (D-165).
+func TestParseHostErrorsOfTheLabRecording(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile("testdata/elog.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets := []string{"192.168.10.21:5000", "192.168.10.22:80", "192.168.11.30:80", "192.168.10.21:21"}
+	got := ParseHostErrors(b, targets, 3)
+	if want := []HostError{{Target: "192.168.10.22:80", Errors: 2}}; !slices.Equal(got, want) {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// The error-log lines of the table are hand-made in the shape of nuclei v3.11.1's JSONLogRequest (pkg/output/output.go);
+// TestParseHostErrorsOfTheLabRecording reads real ones (testdata/elog.txt).
 var hostErrTargets = []string{"192.168.10.21:5000", "192.168.10.21:443", "192.168.10.21:22"}
 
 func errLog(address, input, kind string) string {

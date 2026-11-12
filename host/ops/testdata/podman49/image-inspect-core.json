@@ -1,0 +1,185 @@
+[
+     {
+          "Id": "19982429c04ab281451f051d0d792d56066f4685e2d60f0b9a96d1e9b73d6b75",
+          "Digest": "sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+          "RepoTags": [
+               "localhost/vedette-core:0.0.1-test.1"
+          ],
+          "RepoDigests": [
+               "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+               "localhost/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12"
+          ],
+          "Parent": "",
+          "Comment": "",
+          "Created": "2026-11-12T05:35:59.988178097Z",
+          "Config": {
+               "User": "65532:65532",
+               "Env": [
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+               ],
+               "Entrypoint": [
+                    "/vedette"
+               ],
+               "WorkingDir": "/home/nonroot",
+               "Labels": {
+                    "io.buildah.version": "1.42.1",
+                    "org.opencontainers.image.licenses": "Apache-2.0",
+                    "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+                    "org.opencontainers.image.title": "vedette-core",
+                    "org.opencontainers.image.version": "0.0.1-test.1"
+               }
+          },
+          "Version": "",
+          "Author": "",
+          "Architecture": "amd64",
+          "Os": "linux",
+          "Size": 125063645,
+          "VirtualSize": 125063645,
+          "GraphDriver": {
+               "Name": "overlay",
+               "Data": {
+                    "LowerDir": "/var/lib/containers/storage/overlay/94c5632015852b5a1744087147368f2404ab6bc0c2c99fb9d7bd453b95657abf/diff:/var/lib/containers/storage/overlay/a177f81a05cde59374ad39dc804e2ee79f2ec7133c28f3004d57e792beaa4774/diff:/var/lib/containers/storage/overlay/6c14ea3b716f2eb78f98a8dd6c9692c6feb4d012f62641aca0b142a4fc997177/diff:/var/lib/containers/storage/overlay/a3b0efce869cc1895fcabdf49e428dbe523c39ff5c27316a80584bbeacff2f0f/diff:/var/lib/containers/storage/overlay/b9ae9d2cddffe0a3aa6e46620d9cc3f925014c4d64325ad4943716122d54e2e7/diff:/var/lib/containers/storage/overlay/550fcf73b742d6f9005f9ab18587028e0e0fe0f52f768228d38dcf3da22a8170/diff:/var/lib/containers/storage/overlay/48bf31582f5063e768851207c1d8be07dda2561105d494b855acaf3c1e14a528/diff:/var/lib/containers/storage/overlay/c2eb118b0a99ea5502a57deb35f47371a639c986ea3ae42b39772a97b9b0af37/diff:/var/lib/containers/storage/overlay/6958c2216b6d3fb41a12b5c359acf8cf221c51ca02ba230545861e43b6139757/diff:/var/lib/containers/storage/overlay/0be7479d15ab5eaf441f5dadf9ed038fdfc29cdcbcfd893cae3f73707f29be01/diff:/var/lib/containers/storage/overlay/af226568c2bb2405f41932d0d4fda095537ca85c9a6dc3771c1b0b570c9bc3a4/diff:/var/lib/containers/storage/overlay/bc83d9299b6df7c8f4ae928657a551918e2963c2b14b69227ba013209f4b8578/diff:/var/lib/containers/storage/overlay/88e8049b3371de268e9bbebe919a6ee34e8334e25ddaae62743e3981becd2ab1/diff:/var/lib/containers/storage/overlay/744d6479e3bd9e84cc4bc8c4d3c157a1c927c0aa15bc7e7f5d22ab05c3dcd0ab/diff:/var/lib/containers/storage/overlay/c04fee03b0cedd5832b2c0d201d789cac52bb2d6da2587766846190e8f29795e/diff:/var/lib/containers/storage/overlay/117068fd3d9b139a9d441f8a1ae27ec5b734ac50440bc4945ae9ce89026de330/diff:/var/lib/containers/storage/overlay/9486261b5a13f63ca6904b36721527ac8f19df53d300560138d69ae9b4c203de/diff",
+                    "UpperDir": "/var/lib/containers/storage/overlay/0e794a877812704d7f558c48d7eff0d4a1fcd9e9e9447d771cfa55999513ba99/diff",
+                    "WorkDir": "/var/lib/containers/storage/overlay/0e794a877812704d7f558c48d7eff0d4a1fcd9e9e9447d771cfa55999513ba99/work"
+               }
+          },
+          "RootFS": {
+               "Type": "layers",
+               "Layers": [
+                    "sha256:9486261b5a13f63ca6904b36721527ac8f19df53d300560138d69ae9b4c203de",
+                    "sha256:621c35e751a51a9a9dc3e80aa0b7fe8be2a93402ea6ccd307d30852cd7776cda",
+                    "sha256:b64fe4bb89ff075efc03878811052cbaf4f9dd891aed968e9ed6993fedf1f4a7",
+                    "sha256:b5764396d8d3f88c6c91b8e97022f147ec721afcf85710d96775922e0df881af",
+                    "sha256:275a30dd8ce958b21daa9ad962c6fbc09f98306ee2f486b65c9075dc257b1412",
+                    "sha256:4d049f83d9cf21d1f5cc0e11deaf36df02790d0e60c1a3829538fb4b61685368",
+                    "sha256:af5aa97ebe6ce1604747ec1e21af7136ded391bcabe4acef882e718a87c86bcc",
+                    "sha256:6f1cdceb6a3146f0ccb986521156bef8a422cdbb0863396f7f751f575ba308f4",
+                    "sha256:bd3cdfae1d3fdd83a2231d608969b38b82349777c2fff9a7c12d54f8ac5c9b38",
+                    "sha256:4cde6b0bb6f50a5f255eef7b2a42162c661cf776b803225dcac9a659e396bb6b",
+                    "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
+                    "sha256:187cfc6d1e3e8a40a5e64653bcd3239c140807dcf1c09e48021178705a5a6139",
+                    "sha256:0762a1f6557d1e88a761ab05aa7f65a10dc0e559913ea13befb873d907e1a396",
+                    "sha256:c6ba9aca58b311bdec50311c87f577f3a6e3832d4e7304d92acf5bebe9c183ee",
+                    "sha256:7e3ee4d65fcd012055893f9ada6ac0436900f29886889eb3c9fe4dc0e7b65949",
+                    "sha256:559f1d85a7819e7cdb711af3c73d8f7c81d005534421fa9f543908b821612f59",
+                    "sha256:a9dc97db70ea7d1d1e99b453a8cf54053bbc02428a433e8e019388f5c7da239a",
+                    "sha256:514a501e84dfb4173c262323d61d9eb205d07870ee07069feb52413b77617505"
+               ]
+          },
+          "Labels": {
+               "io.buildah.version": "1.42.1",
+               "org.opencontainers.image.licenses": "Apache-2.0",
+               "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+               "org.opencontainers.image.title": "vedette-core",
+               "org.opencontainers.image.version": "0.0.1-test.1"
+          },
+          "Annotations": {
+               "org.opencontainers.image.base.digest": "sha256:336e53e9941facdb69b755e6fd2c63f5400abd3b1ba47bb17ebafc2b1547cebd",
+               "org.opencontainers.image.base.name": "gcr.io/distroless/static-debian13@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329",
+               "org.opencontainers.image.created": "2026-11-12T05:35:59.988178097Z",
+               "org.opencontainers.image.source": "https://github.com/GoogleContainerTools/distroless"
+          },
+          "ManifestType": "application/vnd.oci.image.manifest.v1+json",
+          "User": "65532:65532",
+          "History": [
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build @trixie//base-files/amd64:data_statusd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build @trixie//netbase/amd64:data_statusd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build @trixie//tzdata/amd64:data_statusd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build @trixie//tzdata-legacy/amd64:data_statusd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build @trixie//media-types/amd64:data_statusd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:rootfs"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:passwd"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:home"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:group"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:tmp"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //static:nsswitch"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:os_release_debian13"
+               },
+               {
+                    "created": "1970-01-01T00:00:00Z",
+                    "created_by": "bazel build //common:cacerts_debian13_amd64_tar"
+               },
+               {
+                    "created": "2026-11-11T14:08:12.567519133Z",
+                    "created_by": "/bin/sh -c #(nop) ARG VERSION",
+                    "comment": "FROM gcr.io/distroless/static-debian13@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329",
+                    "empty_layer": true
+               },
+               {
+                    "created": "2026-11-11T14:10:48.137314157Z",
+                    "created_by": "/bin/sh -c #(nop) LABEL org.opencontainers.image.title=\"vedette-core\" org.opencontainers.image.version=\"${VERSION}\" org.opencontainers.image.source=\"https://github.com/KNT048/vedette\" org.opencontainers.image.licenses=\"Apache-2.0\"",
+                    "empty_layer": true
+               },
+               {
+                    "created": "2026-11-12T05:35:54.504025952Z",
+                    "created_by": "/bin/sh -c #(nop) COPY file:b4edbec1036ba66776036e2a9886510bfa7340cfc7444c6110e4931dfc063260 in /vedette      "
+               },
+               {
+                    "created": "2026-11-12T05:35:56.137006534Z",
+                    "created_by": "/bin/sh -c #(nop) COPY dir:3a7577696fae81c50bc91e33571bbc344307c69e4d9a6a075689940318bb9b26 in /usr/share/vedette/osquery/      "
+               },
+               {
+                    "created": "2026-11-12T05:35:58.950667094Z",
+                    "created_by": "/bin/sh -c #(nop) COPY dir:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef in /var/lib/vedette/      "
+               },
+               {
+                    "created": "2026-11-12T05:35:59.328261478Z",
+                    "created_by": "/bin/sh -c #(nop) COPY dir:a9ed137cf49a621478b8c4851c52b81b9b0701672dd4c94968c766975c25fa7a in /var/lib/vedette-creds/      "
+               },
+               {
+                    "created": "2026-11-12T05:35:59.690629345Z",
+                    "created_by": "/bin/sh -c #(nop) COPY dir:735531ed06f552e1ba8628332470d4f45e656b5e66a9708b1d7dcf8289f1e6ad in /opt/vedette/content/mitigation/      "
+               },
+               {
+                    "created": "2026-11-12T05:35:59.89846772Z",
+                    "created_by": "/bin/sh -c #(nop) USER 65532:65532",
+                    "empty_layer": true
+               },
+               {
+                    "created": "2026-11-12T05:35:59.989050265Z",
+                    "created_by": "/bin/sh -c #(nop) ENTRYPOINT [\"/vedette\"]",
+                    "empty_layer": true
+               }
+          ],
+          "NamesHistory": [
+               "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+               "localhost/vedette-core:0.0.1-test.1"
+          ]
+     }
+]

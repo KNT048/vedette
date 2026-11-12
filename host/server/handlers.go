@@ -37,6 +37,7 @@ const (
 	routeStateBackups
 	routeStateNet
 	routeStateContainers
+	routeStateHost
 	routeBackupContent
 	routeExportContent
 )
@@ -58,6 +59,8 @@ func route(method, path string) (kind routeKind, arg string) {
 		return routeStateNet, ""
 	case method == http.MethodGet && path == "/v1/state/containers":
 		return routeStateContainers, ""
+	case method == http.MethodGet && path == "/v1/state/host":
+		return routeStateHost, ""
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/backups/"):
 		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/backups/"), "/content"); ok && !strings.Contains(id, "/") {
 			return routeBackupContent, id
@@ -165,7 +168,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
-	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeBackupContent, routeExportContent:
+	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeBackupContent, routeExportContent:
 		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
@@ -184,6 +187,8 @@ func (s *Server) readerAvailable(kind routeKind) bool {
 		return rd.Net != nil
 	case routeStateContainers:
 		return rd.Containers != nil
+	case routeStateHost:
+		return rd.Host != nil
 	case routeBackupContent:
 		return rd.BackupContent != nil
 	case routeExportContent:
@@ -760,7 +765,7 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 	ctx, cancel := context.WithTimeout(s.baseCtx, cmd.timeout)
 	defer cancel()
 	rc := &RunContext{
-		RunID: lr.sr.Run.RunID, Actor: lr.sr.Run.Actor,
+		RunID: lr.sr.Run.RunID, Actor: lr.sr.Run.Actor, RequestID: lr.sr.Run.RequestID,
 		log:  func(line string) { lr.ev.add(api.Event{Kind: api.KindLog, Line: line}) },
 		prog: func(pc int) { v := min(max(pc, 0), 100); lr.ev.add(api.Event{Kind: api.KindProgress, Percent: &v}) },
 	}

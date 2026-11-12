@@ -119,6 +119,38 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
 - Timing in tests: `testing/synctest` or waiting on state, never wall-clock deadlines (D-373 (3)). The 120 s health and
   30 s stability windows are `Deps` seams.
 
+Split of slice 2 (2026-11-12, two PRs, each with its Opus review):
+- **2a** (branch `feat/host-self-update-cmd`): `host/api/selfupdate.go`, `host/client` `SelfUpdate`/`StateHost`,
+  `GET /v1/state/host` (`server.Readers.Host`), `selfupdateargv.go` (both runners' builders and validators;
+  `core/exec` `NEEDRESTART_*` with their one value each), `selfupdatestate.go` (the file-name validator, the
+  strict readers and atomic writers, adoption at `Start` with the trim to two files), `Check` and `Run` up to
+  `server.Parked` (with `rc.RequestID` in the journal; a run that does not park cleans its staged journal in
+  `AfterFinish`), the `os.install` second layer of FORBID-7, the `opstest` helpers for Check and Run, and the rows
+  INV-26, INV-27, INV-29 and FORBID-7. The command is **not** in the registry yet: nothing settles a parked run
+  before 2b, and a production command that parks without its settle goroutine would hold the write lock.
+- **2b**: the settle goroutine (dispatch, re-dispatch, deadline, orphan journals, write gate, and the merge gate of
+  `.ai/deferred/feat-host-parked-run.md`: recover a panic into `SettleParked(failed)` and a tested safety net past
+  `parked_deadline` + margin), `Start`/`AfterReady`/`Resume`, `started.json`, the applier, the `-self-update-apply`
+  flag, the fake world of the applier and of the host restart, the registry entry, INV-28, INV-30, POST-5, the
+  `testdata` state folder (M6), RUNBOOK.
+
+Settled while building 2a:
+- The verification shared by `container.pull`, `-bootstrap` and `host.self_update` is `verifyRelease(command,
+  version, index, index_sig, manifest, manifest_sig)` in `host/ops/pull.go` (index, manifest, version, channel hash,
+  appliance install mode); `verifyPull` adds the platform, the image and cosign (review r1 LOW).
+- The simulation refuses (`dependencies_unavailable`) when apt would **upgrade** another installed package, not only
+  remove or purge one: a new `Depends` may add packages, never move one that `os.install` owns ("Install the
+  pending OS updates first"). `SelfUpdateSimOK`, fuzzed (review r1 LOW).
+- The one file-name validator refuses a prerelease with a `-` inside and build metadata, so the Debian version is
+  always the SemVer one with its first `-` turned into `~` (review r1 LOW, host side; the builder side is slice 3).
+- Adoption trims `packages/` to the two versions of `versions.json` at once (review r1 LOW).
+- Parked-run deferred line 4 (`afterReadyGiveUp` while a parked self-update holds the lock): no change. `Check`
+  refuses `transition_pending` while any unit journal or `restore.json` exists, so `AfterReady` has nothing to
+  restore whenever a self-update is parked (test: the case "an open unit change" of
+  `TestSelfUpdate_RefusalsAreAllDecidedInCheckWithNoWrite`).
+- The run window is exactly 10 + 2 × 60 = 130 min (spec 6.14 said "+ 10 slack", which is 140): no slack is needed,
+  because a second applier starts only when now + 60 min ≤ deadline; core's 5 min past the deadline stay.
+
 ### Slice 3: ship the first kept package (`install.sh`, release builder)
 
 - `install.sh` `install_deb`: after the install is verified, put the `.deb` at

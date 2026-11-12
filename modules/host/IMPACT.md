@@ -98,6 +98,15 @@
 ## Modifying: `GET /v1/state/net` (D-101)
 - **core** (`span_status`): host chỉ có bộ đếm giao diện; `other_macs`, `last_packet_at` lấy từ `sensor-passive` `SpanStats()`. Thêm đếm MAC vào host là đưa phân tích lưu lượng vào root (INV-18).
 
+## Modifying: `host.self_update` (`host/ops/selfupdate{,state,argv}.go`, `host/api/selfupdate.go`, D-316, lát 2a)
+- Người gọi: chưa ai (lệnh chưa vào bảng lệnh tới lát 2b; `core` gọi ở lát 5 qua `client.SelfUpdate`, đọc `client.StateHost`). `GET /v1/state/host` mới (`server.Readers.Host`); `RunContext.RequestID` mới (nhật ký ghi nó).
+- `verifyPull` giờ là `verifyRelease` (chung với `host.self_update`) + nền tảng, ảnh, cosign; `noteIndexStored` nhận tên lệnh. Đổi `verifyRelease` → kiểm cả `container.pull`, `-bootstrap` và `host.self_update` (`TestContract_Pull_*`, `TestContract_Bootstrap_*`, `TestSelfUpdate_*`).
+- `newRunner` nhận thư mục trạng thái và có thêm `systemd-run`, `dpkg-deb`, `dpkg-query`, dạng mô phỏng `apt-get -s … install <staged>`, `systemctl is-active vedette-host-upgrade.service`; `validateSystemctl` không bao giờ nhận `vedette-host.service`. `ValidateHostArgv`/`ValidateApplierArgv` đọc đúng danh sách của runner: đổi một bộ kiểm → `TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes`.
+- `core/exec`: `NEEDRESTART_MODE`/`NEEDRESTART_SUSPEND` vào danh sách khoá, mỗi khoá đúng một giá trị (`l`, `1`).
+- `os.install` bỏ `vedette-host` khỏi danh sách nâng cấp (FORBID-7).
+- `Ops.Start` nhận `.deb` giữ của bản đang chạy (`adoptHostPackage`), ghi `versions.json`, tỉa `packages/` về hai tệp; không làm gì khi có `journal.json` hay bản dựng dev. Thư mục `selfupdate/`, `selfupdate/staged/`, `selfupdate/packages/` tạo 0700 ở `NewWithDeps`.
+- Định dạng `versions.json`, `journal.json`, `started.json` là hợp đồng giữa bản N và N±1 (spec §6.14 "Định dạng trạng thái không đổi khi chưa commit"): thêm trường = bản trước từ chối tệp (đọc chặt); mọi đổi định dạng chạy sau `SettleParked(succeeded)` và giữ thư mục mẫu `testdata` (lát 2b).
+
 ## Absence of this component
 - Kiểu "Chỉ container": Settings → Updates (OS) và Box network hiện "không hỗ trợ ở kiểu cài này"; honeypot không dựng được IP phụ (macvlan), SPAN không cấu hình được; cập nhật phần mềm Vedette làm tay. `client.ErrUnreachable` là tín hiệu.
 - Appliance mất liên lạc với `host`: các module khác vẫn chạy; không cài bản vá, không đổi mạng, không đổi/hoàn tác image cho tới khi khôi phục.

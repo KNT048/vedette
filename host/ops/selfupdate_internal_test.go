@@ -1,0 +1,384 @@
+package ops
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+)
+
+// host.self_update, slice 2a: the argv validators of the two runners, the strict readers of the state
+// files and the time limits (spec 6.14, D-316). Small and table-driven; fuzz targets keep them honest.
+
+const suState = "/var/lib/vedette-host"
+
+var (
+	suSHA    = strings.Repeat("ab", 32)
+	suStaged = suState + "/selfupdate/staged/" + suSHA + ".deb"
+	suKept   = suState + "/selfupdate/packages/vedette-host_1.3.0_amd64.deb"
+)
+
+// INV-27: one systemd-run form, the run id the only part that changes.
+func TestValidateSystemdRun(t *testing.T) {
+	t.Parallel()
+	v := validateSystemdRun(suState)
+	good := systemdRunArgv(suState, "rn_0123456789abcdef")
+	if err := v(good); err != nil {
+		t.Fatalf("%q: %v", good, err)
+	}
+	if !slices.Contains(good, "--property=RuntimeMaxSec=60min") || good[len(good)-3] != suState+"/selfupdate/applier" {
+		t.Fatalf("argv %q", good)
+	}
+	bad := [][]string{nil, good[:len(good)-1], append(slices.Clone(good), "x")}
+	for i := range good {
+		b := slices.Clone(good)
+		b[i] += "x"
+		bad = append(bad, b)
+	}
+	for _, id := range []string{"rn_0123456789ABCDEF", "rn_0123", "", "--help", "rn_0123456789abcdef\n"} {
+		b := slices.Clone(good)
+		b[len(b)-1] = id
+		bad = append(bad, b)
+	}
+	other := slices.Clone(good)
+	other[len(other)-3] = "/usr/lib/vedette/vedette-host"
+	bad = append(bad, other, validSystemdRunOtherState())
+	for _, b := range bad {
+		if v(b) == nil {
+			t.Errorf("accepted %q", b)
+		}
+	}
+}
+
+func validSystemdRunOtherState() []string { return systemdRunArgv("/tmp/evil", "rn_0123456789abcdef") }
+
+func FuzzValidateSystemdRun(f *testing.F) {
+	f.Add(strings.Join(systemdRunArgv(suState, "rn_0123456789abcdef"), "\x00"))
+	f.Add("--unit=vedette-host\x00/bin/sh")
+	v := validateSystemdRun(suState)
+	f.Fuzz(func(t *testing.T, joined string) {
+		args := strings.Split(joined, "\x00")
+		if v(args) == nil && !slices.Equal(args, systemdRunArgv(suState, args[len(args)-1])) {
+			t.Fatalf("accepted %q", args)
+		}
+	})
+}
+
+// INV-27: what the host runner refuses and only the applier runner accepts.
+func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
+	t.Parallel()
+	applierOnly := map[string][][]string{
+		binAptGet:    {aptInstallArgv(suStaged, false), aptInstallArgv(suKept, true)},
+		binDpkg:      {dpkgInstallArgv(suStaged), dpkgInstallArgv(suKept)},
+		binSystemctl: {argsRestartHost, argsShowHost},
+	}
+	for bin, forms := range applierOnly {
+		for _, a := range forms {
+			if err := ValidateHostArgv(suState, "vedette-core.service", bin, a); err == nil {
+				t.Errorf("the host runner accepts %s %q", bin, a)
+			}
+			if err := ValidateApplierArgv(suState, bin, a); err != nil {
+				t.Errorf("the applier runner refuses %s %q: %v", bin, a, err)
+			}
+		}
+	}
+	// A host.conf that names vedette-host as core's unit does not open a way to stop or restart it.
+	for _, a := range [][]string{{"stop", hostUnit}, {"start", hostUnit}, {"restart", hostUnit}} {
+		if ValidateHostArgv(suState, hostUnit, binSystemctl, a) == nil {
+			t.Errorf("the host runner accepts systemctl %q", a)
+		}
+	}
+	hostForms := map[string][][]string{
+		binSystemdRun: {systemdRunArgv(suState, "rn_0123456789abcdef")},
+		binDpkgDeb:    {dpkgDebFieldArgv(suStaged)},
+		binDpkgQuery:  {argsDpkgQueryHost},
+		binAptGet:     {aptSimInstallArgv(suStaged), argsUpdate},
+		binSystemctl:  {{"is-active", upgradeUnit}},
+	}
+	for bin, forms := range hostForms {
+		for _, a := range forms {
+			if err := ValidateHostArgv(suState, "vedette-core.service", bin, a); err != nil {
+				t.Errorf("the host runner refuses %s %q: %v", bin, a, err)
+			}
+		}
+	}
+	// The applier never starts units and never asks dpkg-deb.
+	for _, bin := range []string{binSystemdRun, binDpkgDeb, binPodman, binIP} {
+		if ValidateApplierArgv(suState, bin, []string{"--version"}) == nil {
+			t.Errorf("the applier runner has %s", bin)
+		}
+	}
+	// Paths: only the staged and kept forms under this state directory.
+	for _, p := range []string{
+		suState + "/selfupdate/staged/" + suSHA + ".deb.x", suState + "/selfupdate/staged/../" + suSHA + ".deb",
+		suState + "/selfupdate/packages/vedette-host_1.3.0_i386.deb", suState + "/selfupdate/packages/vedette-host_1.3.0-rc-1_amd64.deb",
+		suState + "/selfupdate/packages/vedette-host_1.3.0~rc.1_amd64.deb", "/tmp/selfupdate/staged/" + suSHA + ".deb", "/var/lib/vedette/core/host-packages/x.deb",
+	} {
+		if ValidateApplierArgv(suState, binDpkg, dpkgInstallArgv(p)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(p, true)) == nil {
+			t.Errorf("accepted the path %q", p)
+		}
+	}
+	// --allow-downgrades only with a kept file, never with the staged one.
+	if ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suStaged, true)) == nil || ValidateApplierArgv(suState, binAptGet, aptInstallArgv(suKept, false)) == nil {
+		t.Error("allow-downgrades and the file do not go together")
+	}
+}
+
+func FuzzValidateSelfUpdateArgv(f *testing.F) {
+	for _, a := range [][]string{aptInstallArgv(suStaged, false), aptInstallArgv(suKept, true), dpkgInstallArgv(suKept), aptSimInstallArgv(suStaged), dpkgDebFieldArgv(suStaged)} {
+		f.Add(strings.Join(a, "\x00"))
+	}
+	f.Fuzz(func(t *testing.T, joined string) {
+		a := strings.Split(joined, "\x00")
+		last := a[len(a)-1]
+		if ValidateApplierArgv(suState, binAptGet, a) == nil && !slices.Equal(a, aptInstallArgv(last, len(a) == len(argsAptInstallPre)+3)) {
+			t.Fatalf("applier apt accepted %q", a)
+		}
+		if ValidateApplierArgv(suState, binDpkg, a) == nil && !slices.Equal(a, []string{"--audit"}) && !slices.Equal(a, dpkgInstallArgv(last)) {
+			t.Fatalf("applier dpkg accepted %q", a)
+		}
+		for _, bin := range []string{binDpkgDeb, binAptGet} {
+			if ValidateHostArgv(suState, "vedette-core.service", bin, a) == nil && slices.Contains(a, "install") && !slices.Contains(a, "-s") {
+				t.Fatalf("host %s accepted a real install %q", bin, a)
+			}
+		}
+		if (strings.Contains(last, "..") || strings.Contains(last, "//")) && (ValidateApplierArgv(suState, binDpkg, a) == nil || ValidateApplierArgv(suState, binAptGet, a) == nil) {
+			t.Fatalf("accepted the path %q", last)
+		}
+	})
+}
+
+// The one file-name validator (spec 6.14): SemVer form, no "-" inside the prerelease, no build metadata.
+func TestHostPackageName(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]string{
+		"vedette-host_1.4.0_amd64.deb": "1.4.0", "vedette-host_0.2.0-rc.1_arm64.deb": "0.2.0-rc.1", "vedette-host_1.4.0-test.1_amd64.deb": "1.4.0-test.1",
+	} {
+		if v, _, ok := parseHostPkgName(name); !ok || v != want {
+			t.Errorf("%s: %q %v", name, v, ok)
+		}
+	}
+	for _, name := range []string{
+		"vedette-host_1.4_amd64.deb", "vedette-host_01.4.0_amd64.deb", "vedette-host_1.4.0~rc.1_amd64.deb", "vedette-host_1.4.0-rc-1_amd64.deb",
+		"vedette-host_1.4.0+b1_amd64.deb", "vedette-host_1.4.0_i386.deb", "vedette-host_1.4.0_amd64.deb/", "../vedette-host_1.4.0_amd64.deb",
+		"vedette-core_1.4.0_amd64.deb", "vedette-host_1.4.0_amd64.deb.tmp", "",
+	} {
+		if _, _, ok := parseHostPkgName(name); ok {
+			t.Errorf("accepted %q", name)
+		}
+	}
+	if debVersion("0.2.0-rc.1") != "0.2.0~rc.1" || debVersion("1.4.0") != "1.4.0" {
+		t.Error("debVersion")
+	}
+	if !isTestVersion("1.4.0-test.2") || !isTestVersion("1.4.0-TEST") || isTestVersion("1.4.0-rc.1") {
+		t.Error("isTestVersion")
+	}
+}
+
+func FuzzParseHostPkgName(f *testing.F) {
+	f.Add("vedette-host_1.4.0_amd64.deb")
+	f.Add("vedette-host_0.2.0-rc.1_arm64.deb")
+	f.Fuzz(func(t *testing.T, name string) {
+		if v, arch, ok := parseHostPkgName(name); ok && hostPkgName(v, arch) != name {
+			t.Fatalf("%q -> %q %q", name, v, arch)
+		}
+	})
+}
+
+func goodJournal() suJournal {
+	at := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
+	return suJournal{
+		RunID: "rn_0123456789abcdef", RequestID: "01234567-89ab-4def-8123-456789abcdef",
+		From: suRef{Version: "1.3.0", SHA256: suSHA}, To: suTo{Version: "1.4.0", SHA256: strings.Repeat("cd", 32), Size: 1234},
+		ApplierSHA256: strings.Repeat("ef", 32), Phase: phStaged, Attempt: 0, BootID: "11111111-2222-4333-8444-555555555555",
+		StartedAt: at, Deadline: at.Add(suRunWindow), Log: []string{},
+	}
+}
+
+func suJSON(t testing.TB, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// The journal reader is strict: one valid shape, everything else refused.
+func TestJournalReaderIsStrict(t *testing.T) {
+	t.Parallel()
+	if _, err := parseSUJournal(suJSON(t, goodJournal())); err != nil {
+		t.Fatal(err)
+	}
+	reason := "self_update_unhealthy"
+	odd := "something"
+	for name, mut := range map[string]func(*suJournal){
+		"attempt 0 dispatched": func(j *suJournal) { j.Phase = phDispatched },
+		"attempt 1 staged":     func(j *suJournal) { j.Attempt = 1 },
+		"attempt 3":            func(j *suJournal) { j.Phase, j.Attempt = phDispatched, 3 },
+		"unknown phase":        func(j *suJournal) { j.Phase = "done" },
+		"deadline too far":     func(j *suJournal) { j.Deadline = j.StartedAt.Add(suRunWindow + time.Second) },
+		"deadline before":      func(j *suJournal) { j.Deadline = j.StartedAt },
+		"to not above from":    func(j *suJournal) { j.To.Version = "1.3.0" },
+		"debian form":          func(j *suJournal) { j.To.Version = "1.4.0~rc.1" },
+		"run id":               func(j *suJournal) { j.RunID = "rn_x" },
+		"request id":           func(j *suJournal) { j.RequestID = "x" },
+		"boot id":              func(j *suJournal) { j.BootID = "" },
+		"size":                 func(j *suJournal) { j.To.Size = maxHostPackage + 1 },
+		"sha":                  func(j *suJournal) { j.ApplierSHA256 = "AB" },
+		"reason":               func(j *suJournal) { j.Reason = &odd },
+		"control in log":       func(j *suJournal) { j.Log = []string{"a\x1b[31m"} },
+		"long log line":        func(j *suJournal) { j.Log = []string{strings.Repeat("a", maxSULogLine+1)} },
+		"too many lines":       func(j *suJournal) { j.Log = make([]string, maxSULogLines+1) },
+	} {
+		j := goodJournal()
+		mut(&j)
+		if _, err := parseSUJournal(suJSON(t, j)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	j := goodJournal()
+	j.Phase, j.Attempt, j.Reason = phRollingBack, 2, &reason
+	if _, err := parseSUJournal(suJSON(t, j)); err != nil {
+		t.Errorf("a rollback journal: %v", err)
+	}
+	raw := suJSON(t, goodJournal())
+	for name, b := range map[string][]byte{
+		"unknown field": []byte(strings.Replace(string(raw), `"log":[]`, `"log":[],"x":1`, 1)),
+		"no log":        []byte(strings.Replace(string(raw), `,"log":[]`, ``, 1)),
+		"trailing":      append(slices.Clone(raw), []byte(" {}")...),
+		"null":          []byte("null"),
+		"too large":     []byte(`{"run_id":"` + strings.Repeat("a", maxSUFile) + `"}`),
+	} {
+		if _, err := parseSUJournal(b); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func FuzzParseSUJournal(f *testing.F) {
+	f.Add(suJSON(f, goodJournal()))
+	f.Add([]byte(`{"phase":"staged"}`))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		j, err := parseSUJournal(b)
+		if err != nil {
+			return
+		}
+		if again, err := parseSUJournal(suJSON(t, j)); err != nil || again.RunID != j.RunID || again.Phase != j.Phase {
+			t.Fatalf("does not round trip: %v", err)
+		}
+	})
+}
+
+func TestVersionsAndStartedReadersAreStrict(t *testing.T) {
+	t.Parallel()
+	good := `{"current":{"version":"1.3.0","sha256":"` + suSHA + `","size":10},"previous":null}`
+	if _, err := parseSUVersions([]byte(good)); err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range []string{
+		strings.Replace(good, `"previous":null`, `"previous":{"version":"1.3.0","sha256":"`+suSHA+`","size":10}`, 1),
+		strings.Replace(good, `1.3.0`, `1.3.0~rc.1`, 1), strings.Replace(good, `"size":10`, `"size":0`, 1), good + "x", `null`,
+	} {
+		if _, err := parseSUVersions([]byte(b)); err == nil {
+			t.Errorf("accepted %s", b)
+		}
+	}
+	st := `{"version":"1.4.0","pid":4242,"boot_id":"11111111-2222-4333-8444-555555555555","at":"2026-11-12T10:00:00Z"}`
+	if _, err := parseSUStarted([]byte(st)); err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range []string{strings.Replace(st, `4242`, `1`, 1), strings.Replace(st, `1.4.0`, `1.4 0`, 1), strings.Replace(st, `"at"`, `"x"`, 1), st + "{}"} {
+		if _, err := parseSUStarted([]byte(b)); err == nil {
+			t.Errorf("accepted %s", b)
+		}
+	}
+}
+
+func FuzzParseSUVersions(f *testing.F) {
+	f.Add([]byte(`{"current":{"version":"1.3.0","sha256":"` + suSHA + `","size":10},"previous":null}`))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if v, err := parseSUVersions(b); err == nil {
+			if _, err := parseSUVersions(suJSON(t, v)); err != nil {
+				t.Fatalf("does not round trip: %v", err)
+			}
+		}
+	})
+}
+
+func FuzzParseSUStarted(f *testing.F) {
+	f.Add([]byte(`{"version":"1.4.0","pid":4242,"boot_id":"11111111-2222-4333-8444-555555555555","at":"2026-11-12T10:00:00Z"}`))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if s, err := parseSUStarted(b); err == nil {
+			if _, err := parseSUStarted(suJSON(t, s)); err != nil {
+				t.Fatalf("does not round trip: %v", err)
+			}
+		}
+	})
+}
+
+// The simulated install: a new dependency is fine; removing, purging or upgrading another package is not.
+func TestSelfUpdateSimulation(t *testing.T) {
+	t.Parallel()
+	ok := "Inst conntrack (1:1.4.8-1 Ubuntu:24.04/noble [amd64])\nInst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\nConf vedette-host (1.4.0 local-deb [amd64])\n"
+	if !SelfUpdateSimOK([]byte(ok)) {
+		t.Fatal("a plain install was refused")
+	}
+	for name, out := range map[string]string{
+		"removal":         ok + "Remv podman [4.9.3]\n",
+		"purge":           ok + "Purg podman [4.9.3]\n",
+		"other upgrade":   ok + "Inst podman [4.9.3] (5.0.0 Ubuntu:24.04/noble-updates [amd64])\n",
+		"no host line":    "Inst conntrack (1:1.4.8-1 Ubuntu:24.04/noble [amd64])\n",
+		"line too long":   ok + strings.Repeat("x", maxSimLine+1) + "\n",
+		"empty":           "",
+		"host named late": strings.Replace(ok, "Inst vedette-host", "Inst vedette-hostx", 1),
+	} {
+		if SelfUpdateSimOK([]byte(out)) {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func FuzzSelfUpdateSimOK(f *testing.F) {
+	f.Add([]byte("Inst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\n"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if SelfUpdateSimOK(b) && (strings.Contains(string(b), "\nRemv ") || strings.HasPrefix(string(b), "Remv ")) {
+			t.Fatal("a removal was accepted")
+		}
+	})
+}
+
+// checkSelfUpdateLimits is the host.self_update part of TestTimeLimitsAreConsistent (spec 6.14 "Thời hạn").
+func checkSelfUpdateLimits(t *testing.T) {
+	t.Helper()
+	unit, err := os.ReadFile(filepath.Join("..", "..", "deploy", "systemd", "vedette-host.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(unit), fmt.Sprintf("\nTimeoutStartSec=%dmin\n", int(hostStartLimit.Minutes()))) {
+		t.Errorf("vedette-host.service does not declare TimeoutStartSec=%v", hostStartLimit)
+	}
+	health := suHealthWindow + suStableWindow
+	// One applier run: install (lock wait + install with the host's restart) + health, then a rollback of the same shape.
+	if one := 2 * (applierLockBudget + hostStartLimit + health); one > applierRuntimeMax {
+		t.Errorf("one applier run needs %v, RuntimeMaxSec is %v", one, applierRuntimeMax)
+	}
+	if suAptUpdateLimit >= suPreParkTimeout {
+		t.Errorf("apt-get update (%v) does not fit the pre-park timeout (%v)", suAptUpdateLimit, suPreParkTimeout)
+	}
+	// The run: before parking and two applier runs. No slack is needed for the applier itself: a second one
+	// starts only when now + one run <= deadline, so none outlives it (core waits coreWaitPastDeadline more).
+	if need := suPreParkTimeout + 2*applierRuntimeMax; need > suRunWindow {
+		t.Errorf("the run window %v does not cover %v", suRunWindow, need)
+	}
+	if suRunWindow+suPreParkTimeout > 3*time.Hour { // server.maxParkWindow, measured from the start of the run
+		t.Errorf("the run window does not fit the server's park window")
+	}
+	if coreWaitPastDeadline <= 0 {
+		t.Error("core must wait past the deadline")
+	}
+}

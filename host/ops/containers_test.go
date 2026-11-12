@@ -212,6 +212,7 @@ func FuzzParseInspect(f *testing.F) {
 // does, and a step that is made of several has a limit at least their sum.
 func TestTimeLimitsAreConsistent(t *testing.T) {
 	t.Parallel()
+	checkSelfUpdateLimits(t) // host.self_update (D-316, spec 6.14 "Thời hạn")
 	for _, svc := range unitServices {
 		text, err := renderUnit(svc, goldFill(true))
 		if err != nil {

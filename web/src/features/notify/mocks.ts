@@ -137,6 +137,8 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   if (!rule) return fail(400, 'approvals_unsupported', 'This channel cannot take approvals. It sends a link that opens Vedette instead.')
   const list = b.approvers ?? []
   if (!list.length) return fail(400, 'approvers_required', 'Add at least one approver, or turn off "Approve actions from this channel".')
+  // S-NOT-1 (review of #172, L1): approvals need the numeric chat; a public @name is fine for alerts only.
+  if (type === 'telegram' && !/^-?\d{5,20}$/.test((b.fields?.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
   const seen = new Set<string>()
   const addrs = new Map<string, string>() // address → email of the user it belongs to (D-242: one address is one approver)
   for (const a of list) {
@@ -167,24 +169,24 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   const need = (label: string) => (!cur.secret && !secret ? fail(400, 'secret_required', `Enter the ${label}. This channel has no saved key yet.`) : null)
   if (!ROUTE_SEVERITIES.includes(b.min_severity as never)) return fail(400, 'bad_severity', 'Choose a minimum severity: Critical, High, Medium or Low.')
   const badApprovers = checkApprovers(type, b); if (badApprovers) return badApprovers
+  // Each type checks in the order of its adapter (modules/notify/channel/*.go, then SaveChannel), so one input gets the same code from both.
   if (type === 'telegram') {
-    if (!/^(-?\d{5,20}|@[A-Za-z0-9_]{5,32})$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUpdates to see the number.')
-    // S-NOT-1 (review of #172, L1): approvals need the numeric chat; a public @name is fine for alerts only.
-    if (b.approvals === true && !/^-?\d{5,20}$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
+    const bad = need('bot token'); if (bad) return bad
     if (secret && !/^\d{6,12}:[A-Za-z0-9_-]{30,}$/.test(secret)) return fail(400, 'bad_token', 'A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.')
-    return need('bot token')
+    if (!/^(-?\d{5,20}|@[A-Za-z0-9_]{5,32})$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUpdates to see the number.')
+    return null
   }
   if (type === 'slack') {
     let u: URL | null = null
     try { u = new URL(secret) } catch { /* không phải URL */ }
+    if (!cur.secret && !secret) return fail(400, 'secret_required', 'Enter the Incoming Webhook URL.')
     if (secret && (!u || u.protocol !== 'https:' || u.hostname !== 'hooks.slack.com' || !u.pathname.startsWith('/services/'))) return fail(400, 'bad_webhook', 'A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app.')
     if ((f.label ?? '').trim().length > 80) return fail(400, 'bad_label', 'The channel label can be at most 80 characters.')
-    const bad = need('Incoming Webhook URL'); if (bad) return bad
+    const app = (b.app_token ?? '').trim(), bot = (b.bot_token ?? '').trim()
+    if (app && !/^xapp-[\w-]{10,}$/.test(app)) return fail(400, 'bad_app_token', 'The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information.')
+    if (bot && !/^xoxb-[\w-]{10,}$/.test(bot)) return fail(400, 'bad_bot_token', 'The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app.')
     if (b.approvals === true) {
       if (!/^[CGD][A-Z0-9]{8,12}$/.test((f.channel_id ?? '').trim())) return fail(400, 'bad_channel_id', 'A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom.')
-      const app = (b.app_token ?? '').trim(), bot = (b.bot_token ?? '').trim()
-      if (app && !/^xapp-[\w-]{10,}$/.test(app)) return fail(400, 'bad_app_token', 'The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information.')
-      if (bot && !/^xoxb-[\w-]{10,}$/.test(bot)) return fail(400, 'bad_bot_token', 'The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app.')
       if (!app && !cur.app_token) return fail(400, 'secret_required', 'Enter the app-level token (xapp-…). Approving in Slack needs Socket Mode.')
       if (!bot && !cur.bot_token) return fail(400, 'secret_required', 'Enter the bot token (xoxb-…). Approving in Slack needs it to read button presses and reply.')
     }
@@ -193,26 +195,37 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   if (type === 'zalo') {
     if (!/^\d{6,20}$/.test((f.oa_id ?? '').trim())) return fail(400, 'bad_oa_id', 'OA ID is a string of digits, shown in the Official Account management page.')
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA.')
+    const bad = need('access token'); if (bad) return bad
     if (secret && secret.length < 20) return fail(400, 'bad_token', 'The Zalo access token is too short. Copy the whole string from Zalo Developers.')
-    return need('access token')
+    return null
   }
   if (type === 'zalo-personal') {
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
     return !cur.secret && !secret ? fail(400, 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.') : null
   }
   if (type === 'email') {
+    // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
+    const portText = (f.port ?? '').trim()
+    if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+    if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
+    if (to.some((x) => !EMAIL_RE.test(x))) return fail(400, 'bad_to', 'A recipient email is not valid. Separate several recipients with commas.')
     const host = (f.host ?? '').trim()
     if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    const port = Number(f.port)
-    if (!Number.isInteger(port) || port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+    const port = Number(portText)
+    if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
     if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
     if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
     if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
-    if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+    if (f.security === 'none') {
+      // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
+      if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
+    } else {
+      if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+      const bad = need('SMTP password'); if (bad) return bad
+    }
     if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
-    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
-    if (!to.length || to.some((x) => !EMAIL_RE.test(x))) return fail(400, 'bad_to', 'A recipient email is not valid. Separate several recipients with commas.')
-    return need('SMTP password')
+    return null
   }
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }

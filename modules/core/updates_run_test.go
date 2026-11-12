@@ -151,15 +151,23 @@ func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string)
 		return api.Run{}, &hostclient.Error{Status: 422, Code: "request_id_reuse", Message: "other arguments"}
 	}
 	for _, r := range f.runs {
-		if r.run.RequestID == rid {
+		if r.run.RequestID == rid && r.run.Status != api.StatusRefused { // a refusal binds no key (host-api 4)
 			return r.run, nil
 		}
 	}
-	if code := f.refuse[key]; code != "" {
+	if code := f.refuse[key]; code != "" { // like the host, a refusal is also a run in the list, under the call's key
+		f.seq++
+		now := f.now()
+		f.runs = append([]*updRun{{run: api.Run{RunID: fmt.Sprintf("rn_%016x", f.seq), Command: cmd, Status: api.StatusRefused, StartedAt: now, FinishedAt: &now,
+			Actor: actor, RequestID: rid, Error: &api.RunError{Code: code, Message: "refused by the fake"}}, svc: svc, ver: version}}, f.runs...)
 		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused by the fake"}
 	}
 	if code := f.once[key]; code != "" {
 		delete(f.once, key)
+		f.seq++
+		now := f.now()
+		f.runs = append([]*updRun{{run: api.Run{RunID: fmt.Sprintf("rn_%016x", f.seq), Command: cmd, Status: api.StatusRefused, StartedAt: now, FinishedAt: &now,
+			Actor: actor, RequestID: rid, Error: &api.RunError{Code: code, Message: "refused once by the fake"}}, svc: svc, ver: version}}, f.runs...)
 		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused once by the fake"}
 	}
 	f.args[rid] = args // a refusal frees the id (host-api 4); a run binds it

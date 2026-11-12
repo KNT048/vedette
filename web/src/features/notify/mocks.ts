@@ -227,7 +227,7 @@ function deliver(c: StoredChannel): { ok: boolean; detail: string } {
   if ((c.type === 'telegram' || c.type === 'zalo') && /invalid/i.test(c.secret)) {
     return { ok: false, detail: c.type === 'telegram'
       ? 'Telegram returned 401 Unauthorized: the bot token is wrong or was revoked. Get a new token from @BotFather and save it.'
-      : 'Zalo says the access token is invalid or expired. Get a new token in Zalo Developers and save it.' }
+      : 'Zalo refused the message (code -220): the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it.' }
   }
   switch (c.type) {
     case 'zalo-personal': return { ok: true, detail: `Zalo personal sent the test message to ${c.fields.user_id}.` }

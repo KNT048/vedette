@@ -56,6 +56,28 @@ var channelName = map[channel.Type]string{
 	channel.Email: "The mail server", channel.Webhook: "The webhook server",
 }
 
+// zaloOAHints says what to do for the Zalo OA errors a person can fix, from the OA API error list
+// (https://stc-developers.zdn.vn/docs/v2/official-account/phu-luc/ma-loi/index.html); other codes keep the bare code.
+var zaloOAHints = map[int]string{
+	-216: zaloTokenHint, // Access token is invalid
+	-220: zaloTokenHint, // access_token is expired or removed
+	-213: "the recipient does not follow the OA. Ask them to follow it and send it a message, then try again.",
+	-230: zaloWindowHint, // User has not interacted with the OA in the past 7 days
+	-232: zaloWindowHint, // ... or the last interaction has expired
+	-211: "the OA is out of message quota. Check the OA's service package in Zalo.",
+	-32:  "the app or the OA called Zalo too often. Try again in a minute.",
+	-209: "the Zalo app is not activated. Turn it on in Zalo Developers (Manage app > Settings).",
+	-212: "the Zalo app has not registered the Official Account message API. Register it in Zalo Developers.",
+	-223: "the OA has not granted the app permission to send. Ask the OA admin to approve the app's request.",
+	-320: "paid messages need the Zalo app linked to a Zalo Cloud Account. Link one in Zalo Developers.",
+	-321: "the Zalo Cloud Account linked to the app is out of money or cannot be charged. Top it up in Zalo.",
+}
+
+const (
+	zaloTokenHint  = "the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it."
+	zaloWindowHint = "Zalo delivers these messages only to people who interacted with the OA in the last 7 days. Ask the recipient to send the OA a message, then try again."
+)
+
 // friendlyError is the text of a send failure for people: it says what happened and never repeats what the
 // other side wrote (provider answers and server banners are untrusted and may carry internals). A status
 // code is shown for Telegram, Slack and Zalo (HTTP) and for email (the SMTP code, never called HTTP); a
@@ -82,6 +104,9 @@ func friendlyError(err error) string {
 	case errors.As(err, &pe):
 		if pe.Code == 0 {
 			return channelName[pe.Channel] + " refused the message."
+		}
+		if hint, ok := zaloOAHints[pe.Code]; ok && pe.Channel == channel.Zalo {
+			return fmt.Sprintf("Zalo refused the message (code %d): %s", pe.Code, hint)
 		}
 		return fmt.Sprintf("%s refused the message (code %d).", channelName[pe.Channel], pe.Code)
 	case errors.Is(err, errSecretUnreadable):

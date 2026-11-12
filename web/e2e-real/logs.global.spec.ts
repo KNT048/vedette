@@ -566,7 +566,7 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
     const page = await ctx.newPage()
     const errors = collectErrors(page)
     await page.goto('/logs')
-    await expect(h1(page)).toContainText('Today:')
+    await expect(h1(page)).toContainText(/^(Today:|Learning what is normal:)/) // a fresh box may still be in the 7-day warm-up (the spec at :280 checks which)
     // at phone width the sources and the events are lists of cards, not tables
     await expect(page.getByRole('list', { name: 'Log sources currently received' }).getByRole('listitem').filter({ hasText: src.name })).toBeVisible()
     await page.getByLabel('Keyword').fill(tok)

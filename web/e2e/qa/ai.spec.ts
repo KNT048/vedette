@@ -113,7 +113,7 @@ test.describe('ai: clean install', () => {
     await expect(dlg.getByLabel('Server address')).toHaveValue('https://generativelanguage.googleapis.com/v1beta')
     await expect(dlg.getByLabel('Model')).toHaveValue('gemini-3.6-flash')
     await kind.selectOption({ label: 'OpenAI-compatible (Ollama, vLLM, LM Studio)' })
-    await expect(dlg.getByLabel('Server address')).toHaveValue('http://localhost:11434/v1')
+    await expect(dlg.getByLabel('Server address')).toHaveValue('http://host.containers.internal:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
     await expect(dlg.getByText(/may leave if it forwards to a cloud provider/)).toBeVisible()
     await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài

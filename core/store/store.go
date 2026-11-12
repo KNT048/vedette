@@ -284,9 +284,7 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return fmt.Errorf("store: begin: %w", err)
 	}
 	if db.frozen.Load() { // checked with the write lock held: a writer that queued behind the purge lands here
-		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
-			db.log.ErrorContext(ctx, "rollback failed", "error", rbErr)
-		}
+		db.rollback(ctx, tx)
 		return ErrFrozen
 	}
 	committed := false
@@ -295,9 +293,7 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 			return
 		}
 		p := recover() // nil on a normal error return and on Goexit
-		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
-			db.log.ErrorContext(ctx, "rollback failed", "error", rbErr)
-		}
+		db.rollback(ctx, tx)
 		if p != nil {
 			panic(p)
 		}
@@ -310,6 +306,31 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	}
 	committed = true
 	return nil
+}
+
+// rollback ends a transaction that is not committed. A rollback that finds no transaction is not a failure: SQLite has already rolled
+// it back itself, which it does when a statement is interrupted (the driver interrupts it when ctx ends, so every write cut by a
+// shutdown can land here) and on some I/O errors, and its documentation says the ROLLBACK that follows then fails with no harm
+// (https://www.sqlite.org/lang_transaction.html, "Response To Errors Within A Transaction"). Whether that ROLLBACK reaches SQLite or
+// database/sql's own rollback on the end of ctx gets there first (sql.ErrTxDone) is a race; either way nothing is left half-written.
+func (db *DB) rollback(ctx context.Context, tx *sql.Tx) {
+	err := tx.Rollback()
+	switch {
+	case err == nil || errors.Is(err, sql.ErrTxDone):
+	case isNoTransaction(err):
+		db.log.DebugContext(ctx, "rollback: SQLite had already rolled the transaction back", "error", err)
+	default:
+		db.log.ErrorContext(ctx, "rollback failed", "error", err)
+	}
+}
+
+// sqliteError is SQLITE_ERROR, the code of "cannot rollback - no transaction is active".
+const sqliteError = 1
+
+// isNoTransaction reports the driver's error for a ROLLBACK with no transaction active.
+func isNoTransaction(err error) bool {
+	var se *sqlite.Error
+	return errors.As(err, &se) && se.Code() == sqliteError && strings.Contains(se.Error(), "no transaction is active")
 }
 
 // Check runs PRAGMA integrity_check and foreign_key_check (DATA_MODEL section 6 rule 7).

@@ -851,3 +851,30 @@ func TestIOCEventLinesMakeNoHit(t *testing.T) {
 		t.Fatal("an event line made a hit")
 	}
 }
+
+// D-227: a line the device blocked (FortiGate action deny/blocked/…) is said as an attempt, "tried to reach … (blocked by <source>)", and
+// kept as blocked for the page; a line that went through says "connected to"; a blocked attempt does not hide, for 24 hours, the
+// connection of the same pair that follows it.
+func TestIOCBlockedLineIsAnAttempt(t *testing.T) {
+	t.Parallel()
+	e, src, _, p := iocEnv(t)
+	e.feedAll(src, []string{strings.Replace(traffic(lanDevice, badIP), `action="accept"`, `action="deny"`, 1)})
+	if h, b := p.counts(); h != 1 || b != 1 || !p.hits[0].Blocked {
+		t.Fatalf("events %d %d %+v", h, b, p.hits)
+	}
+	if b := p.bad[0]; !strings.Contains(b.Title, "tried to reach "+badIP+" (blocked by FW-HQ)") || !strings.Contains(b.What, "tried to reach "+badIP) ||
+		strings.Contains(b.Title+b.What, "connected to") {
+		t.Errorf("blocked: %q / %q", b.Title, b.What)
+	}
+	if d := e.digest(); len(d.BadConnections) != 1 || !d.BadConnections[0].Blocked {
+		t.Fatalf("digest %+v", d.BadConnections)
+	}
+	e.advance(time.Hour)
+	e.feedAll(src, []string{traffic(lanDevice, badIP)})
+	if h, _ := p.counts(); h != 2 || p.hits[1].Blocked {
+		t.Fatalf("the connection after the attempt: %d %+v", h, p.hits)
+	}
+	if b := p.bad[1]; !strings.Contains(b.Title, "connected to "+badIP) || strings.Contains(b.Title+b.What, "tried to reach") {
+		t.Errorf("allowed: %q / %q", b.Title, b.What)
+	}
+}

@@ -32,7 +32,7 @@ const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', secret_required: 'secret', bad_token: 'secret' },
   'zalo-personal': { bad_user_id: 'user_id' }, // at save an approver's ID is `bad_approver_address`; `bad_user_id` is the recipient
   email: { bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', secret_required: 'secret', bad_from: 'from', bad_to: 'to' },
-  webhook: { bad_url: 'url', secret_required: 'secret', bad_secret: 'secret' },
+  webhook: { bad_url: 'url', url_unreadable: 'url', secret_required: 'secret', bad_secret: 'secret' },
 }
 
 function randomKey() {

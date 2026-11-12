@@ -313,6 +313,23 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(sl).getByLabelText('Incoming Webhook URL')).not.toHaveAttribute('aria-invalid')
   })
 
+  it('webhook: a saved URL the box cannot read (400 url_unreadable) shows under the URL, not the signing key', async () => {
+    // only the box answers it (a sealed URL that cannot be opened): the mock keeps the URL in clear
+    const MSG = 'The saved webhook URL cannot be read. Enter it again and save.'
+    server.use(http.put('*/api/v1/notify/channels/webhook', () => HttpResponse.json({ error: { code: 'url_unreadable', message: MSG } }, { status: 400 })))
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    const url = within(dlg).getByLabelText('Webhook URL')
+    await userEvent.type(url, 'https://hooks.company.example/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(url).toHaveAccessibleDescription(MSG))
+    expect(url).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dlg).getByLabelText('Signing key')).not.toHaveAttribute('aria-invalid')
+    expect(within(dlg).queryByRole('alert')).toBeNull()
+  })
+
   it('SMTP email: the port follows the encryption; leaving SSL/TLS drops 465 for 587 (QA walk b)', async () => {
     renderChannels()
     await press('Edit Email')

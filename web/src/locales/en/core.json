@@ -464,6 +464,7 @@
       "inventory.set_notes": "Change device notes",
       "inventory.set_regular_scan": "Change regular scanning of a device",
       "inventory.settings": "Change device discovery settings",
+      "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
       "notify.approval_fallback": "Approval request sent without buttons",

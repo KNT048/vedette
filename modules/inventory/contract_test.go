@@ -96,6 +96,7 @@ func foldWinner(list []inventory.ObservationRow, field string) (inventory.Observ
 }
 
 func TestContract_INV1_ObservationsAppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.record(obsv(macA, observe.Vendor, "Acme", observe.Passive, 0.7), obsv(macA, observe.Hostname, "nas01", observe.Passive, 0.7))
 	id := e.idByMAC(macA)
@@ -176,6 +177,7 @@ func TestContract_INV1_ObservationsAppendOnly(t *testing.T) {
 func ptr[T any](v T) *T { return &v }
 
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
+	t.Parallel()
 	// FORBID-4: no other Go package touches inv_* tables. The scan is by effect on the source tree: any SQL verb
 	// followed by an inv_ table outside modules/inventory fails.
 	re := regexp.MustCompile(`(?i)\b(from|join|into|update|delete\s+from)\s+inv_`)
@@ -216,6 +218,7 @@ func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 }
 
 func TestContract_INV3_TheBoxIsTheFirstDevice(t *testing.T) {
+	t.Parallel()
 	box := fakeBox{items: []inventory.SoftwareItem{{Display: "OpenSSH server", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.2, KevKeys: []string{"openbsd|openssh"}}}}
 	e := newEnv(t, withBox(box))
 	id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2", OS: "Ubuntu 24.04"})
@@ -261,6 +264,7 @@ func TestContract_INV3_TheBoxIsTheFirstDevice(t *testing.T) {
 }
 
 func TestContract_INV4_ManualDeclaration(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	forti := inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", Name: "Branch FW", IP: "192.168.30.1"}
 	id := e.addDevice(forti)
@@ -338,6 +342,7 @@ func TestContract_INV4_ManualDeclaration(t *testing.T) {
 }
 
 func TestContract_INV5_ManualDevicesAreNeverScanned(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.30.0/24")
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.30.1"})
@@ -359,6 +364,7 @@ func TestContract_INV5_ManualDevicesAreNeverScanned(t *testing.T) {
 }
 
 func TestContract_INV9_NewDevicesArePendingAndAnnounced(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.record(obs(netip.MustParseAddr("192.168.10.77"), "", observe.Hostname, "laptop", observe.Passive, 0.7))
 	l, _ := e.svc.Devices(e.ctx())
@@ -397,6 +403,7 @@ func obs(ip netip.Addr, mac string, field observe.Field, value string, src obser
 }
 
 func TestContract_INV10_KEVMatchIsByProductNeverConfirmed(t *testing.T) {
+	t.Parallel()
 	kev := fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001", "CVE-2024-0002"}, "fortinet|multiple products": {"CVE-2023-0009"}}}
 	e := newEnv(t, withKEV(kev))
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
@@ -439,6 +446,7 @@ func TestContract_INV10_KEVMatchIsByProductNeverConfirmed(t *testing.T) {
 }
 
 func TestContract_INV11_DeleteRemovesTheDeviceAndAnnouncesIt(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.30.1", Name: "fw"})
 	e.findg[id] = 3
@@ -473,5 +481,6 @@ func TestContract_INV11_DeleteRemovesTheDeviceAndAnnouncesIt(t *testing.T) {
 }
 
 func TestMigrationsUsePrefix(t *testing.T) {
+	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "inventory", inventory.Migrations, "inv_", storetest.Migration{Module: "core", FS: core.Migrations})
 }

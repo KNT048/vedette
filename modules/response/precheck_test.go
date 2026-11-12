@@ -34,6 +34,7 @@ func apiAction() response.CatalogInput {
 
 // INV-14c (D-95): the check before and the read-back text are typed and validated when an action is saved.
 func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	get := response.Tpl{Method: "GET", Path: "/d/{domain}"}
 	api := func(f func(x *response.CatalogInput)) response.CatalogInput { x := apiAction(); f(&x); return x }
@@ -131,6 +132,7 @@ func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
 // INV-14c (D-95 (3), M4 of the WP-13a review): a device action that names a port needs a check before it with at least one refusal
 // text, so a trunk or uplink port is never touched. Refused when saved; an older row without one is "not available".
 func TestContract_INV14c_PortActionNeedsACheckBefore(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for name, mod := range map[string]func(x *response.CatalogInput){
 		"no check":           func(x *response.CatalogInput) { x.Precheck, x.PrecheckRefuse = response.Tpl{}, nil },
@@ -167,6 +169,7 @@ func TestContract_INV14c_PortActionNeedsACheckBefore(t *testing.T) {
 
 // INV-14c (13b-2, action-templates 12.1): the shipped data carries the fixes.
 func TestContract_INV14c_LibraryDataFixes(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c, err := e.svc.Catalog(e.ctx(), true)
 	e.must(err)
@@ -237,6 +240,7 @@ func TestContract_INV14c_LibraryDataFixes(t *testing.T) {
 
 // An existing install keeps what its database says: seeding again refreshes the templates and the check, never the switch.
 func TestLibrarySeedKeepsTheUsersSwitchAndRefreshesTheCheck(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	_, err := e.svc.Catalog(e.ctx(), true)
 	e.must(err)
@@ -261,6 +265,7 @@ func TestLibrarySeedKeepsTheUsersSwitchAndRefreshesTheCheck(t *testing.T) {
 // INV-9 (D-95 (4)): the fingerprint of an action covers its check, its refusal texts and its read-back text. Editing any of them cancels
 // the open requests; a change that did not go through ChangeAction refuses the run.
 func TestContract_INV9_PrecheckAndExpectAreInTheFingerprint(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) (*env, response.CatalogAction, string) {
 		e := precheckEnv(t)
 		in := apiAction()
@@ -309,6 +314,7 @@ func TestContract_INV9_PrecheckAndExpectAreInTheFingerprint(t *testing.T) {
 
 // FORBID-5 (D-97): the AI proposals route exists only in the preview build; the real build answers 404 like an unknown route.
 func TestContract_FORBID5_AiProposalsRouteIsPreviewOnly(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	h := response.NewResponseHandlers(e.svc)
 	res, err := h.ResponsePostResponseAiProposals(e.ctx(), &oas.ResponsePostResponseAiProposalsReq{})
@@ -323,6 +329,7 @@ func TestContract_FORBID5_AiProposalsRouteIsPreviewOnly(t *testing.T) {
 
 // INV-14b (D-94): no template sets a credential, address or hop-by-hop header, on the custom path, in any step.
 func TestContract_INV14b_NoCredentialOrHopHeadersInCustomActions(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	bad := []string{"Authorization: Bearer {name}", "authorization: x", "AUTHORIZATION: x", "Cookie: a=b", "Host: evil.lan", "Proxy-Authorization: x", "Proxy-Foo: x", "proxy-connection: x",
 		"Connection: close", "Keep-Alive: 5", "TE: trailers", "Transfer-Encoding: chunked", "Upgrade: websocket", "Trailer: x", "Forwarded: for=1.2.3.4", "X-Forwarded-For: 1.2.3.4",
@@ -374,6 +381,7 @@ func TestContract_INV14b_NoCredentialOrHopHeadersInCustomActions(t *testing.T) {
 
 // 12.1 (5): a value only the device can give is not available until a later version reads it (the time to live is worked out without the device).
 func TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for _, id := range []string{"cisco_acl_deny", "cisco_port_vlan_quarantine", "aoscx_acl_deny", "aoscx_vlan_quarantine"} {
 		cid, on := "cn-ssh", true
@@ -403,6 +411,7 @@ func TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet(t *testing.T) {
 
 // D-88 (26): GET /response/catalog hides the header values of every template, the check before included, from everyone but an admin.
 func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Run.Headers, in.Rollback.Headers = "X-Trace: s3cretrun", "X-Trace: s3cretrollback"
@@ -433,6 +442,7 @@ func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
 // "port name" type ({port} is a TCP or UDP number, {id} a whole number, {name} a free name), so in a customer's command or API
 // path all of {interface}, {port}, {id} and {name} need the check before with a refusal text.
 func TestContract_INV14_PortNamedThroughAnotherPlaceholderStillNeedsACheck(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for name, cli := range map[string]string{
 		"{port} in the interface name": "interface GigabitEthernet1/0/{port}\nshutdown",
@@ -478,6 +488,7 @@ func TestContract_INV14_PortNamedThroughAnotherPlaceholderStillNeedsACheck(t *te
 // either may be a line of the action or of its undo (a first line that is the same in both, a pager or terminal setup line, is fine),
 // and the commands listed in data/cli-ban.json are refused in them.
 func TestContract_INV14_SSHCheckBeforeAndReadBackCannotWrite(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for name, mod := range map[string]func(x *response.CatalogInput){
 		"the check shuts the port": func(x *response.CatalogInput) {
@@ -518,6 +529,7 @@ func TestContract_INV14_SSHCheckBeforeAndReadBackCannotWrite(t *testing.T) {
 // Spec 9.3 (general ban, as data): a customer's command lines may not contain the refused commands, in any step. Built-in actions are
 // reviewed data and are not held to the run-line list (FortiOS "delete" of its own object), but their reads are.
 func TestContract_INV14_CustomCommandsObeyTheRefusedCommandList(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for _, cmd := range []string{"reload", "Reboot now", "erase startup-config", "write erase", "format flash:", "delete flash:x", "factory-reset", "no username admin", "username evil secret x",
 		"enable secret 5 x", "crypto key generate rsa", "copy running-config tftp://10.0.0.9/x", "copy flash: scp://10.0.0.9/x"} {
@@ -536,6 +548,7 @@ func TestContract_INV14_CustomCommandsObeyTheRefusedCommandList(t *testing.T) {
 
 // Spec 1.6 and 9.1 (3): the read-back runs after the action and after the undo, so it only reads: an API call is a GET without a body.
 func TestContract_INV14_ReadBackMustBeReadOnly(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for _, m := range []string{"DELETE", "POST", "PUT", "PATCH"} {
 		in := apiAction()
@@ -561,6 +574,7 @@ func TestContract_INV14_ReadBackMustBeReadOnly(t *testing.T) {
 
 // An MCP action has no named read tool for its check before or read-back, so one that carries either is not available.
 func TestContract_INV14_MCPActionWithACheckOrReadBackIsNotAvailable(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	a, err := e.svc.AddAction(e.ctx(), admin, response.CatalogInput{Name: "M", Description: "d", ConnectionID: "cn-mcp", Tool: strp("block"), RollbackTool: strp("unblock"), Risk: response.RiskLow, Enabled: true,
 		Run: response.Tpl{Body: `{"ip":"{ip}"}`}, Rollback: response.Tpl{Body: `{"ip":"{ip}"}`}})
@@ -581,6 +595,7 @@ func TestContract_INV14_MCPActionWithACheckOrReadBackIsNotAvailable(t *testing.T
 // L8: a read-back or check before that holds only headers is not empty: it is validated, so it cannot carry a credential header or raw
 // control characters past the checks.
 func TestContract_INV14b_HeaderOnlyStepsAreRefused(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for name, mod := range map[string]func(x *response.CatalogInput){
 		"verify with only a credential header":   func(x *response.CatalogInput) { x.Verify = response.Tpl{Headers: "Authorization: Bearer abc"} },
@@ -609,6 +624,7 @@ func TestContract_INV14b_HeaderOnlyStepsAreRefused(t *testing.T) {
 // L9: headers that make a server act as another method, client or path are refused like the credential headers (D-94), in every
 // step, the check before included.
 func TestContract_INV14b_MethodOverrideAndForwardingHeadersAreRefused(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for _, h := range []string{"X-HTTP-Method-Override: DELETE", "X-HTTP-Method: PUT", "X-Method-Override: POST", "X-Real-IP: 10.0.0.1", "X-Original-URL: /admin", "X-Rewrite-URL: /admin",
 		"Via: 1.1 proxy", "X-Forwarded: for=1.2.3.4", "x-http-method-override: delete"} {
@@ -632,6 +648,7 @@ func TestContract_INV14b_MethodOverrideAndForwardingHeadersAreRefused(t *testing
 // D-95 (1), amended 2026-11-10: a check before may also name a text its output must contain; it is validated, stored, shown and
 // fingerprinted like the refusal texts.
 func TestContract_INV14c_PrecheckExpectIsTypedStoredAndFingerprinted(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	long := strings.Repeat("x", 81)
 	for name, mod := range map[string]func(x *response.CatalogInput){
@@ -691,6 +708,7 @@ func TestContract_INV14c_PrecheckExpectIsTypedStoredAndFingerprinted(t *testing.
 // The approver sees what runs around the change: the check before (exact call or lines, and when it refuses) and the read-back (exact
 // call and what it must contain).
 func TestContract_INV14c_ApprovalShowsTheCheckBeforeAndTheReadBack(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Name = "Quarantine an IP (API)"
@@ -718,6 +736,7 @@ func TestContract_INV14c_ApprovalShowsTheCheckBeforeAndTheReadBack(t *testing.T)
 
 // L10: an action whose check before has no form the bound connection can run is not available on that connection.
 func TestContract_INV14c_PrecheckMustFitTheConnectionKind(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	// a library-style action with both forms of run and rollback but a command-only check, bound to an API connection
 	e.exec1(`INSERT INTO resp_catalog (id, builtin, pack, kind, name, description, connection_id, run, rollback, verify, precheck, precheck_refuse, risk, enabled, ai_may_propose, position)
@@ -757,6 +776,7 @@ VALUES ('x_port', 0, 'generic', 'device', 'Port', 'd', 'cn-http', ?, ?, '{}', ?,
 // INV-9 (L12): the undo tool is checked before the run as well as at the undo: an action whose undo tool changed after the request was
 // made does not start, because it could not be undone as it was approved.
 func TestContract_INV9_UndoToolIsCheckedBeforeTheRun(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	act, err := e.svc.AddAction(e.ctx(), admin, response.CatalogInput{Name: "M", Description: "d", ConnectionID: "cn-mcp", Tool: strp("block"), RollbackTool: strp("unblock"), Risk: response.RiskLow, Enabled: true,
 		Run: response.Tpl{Body: `{"ip":"{ip}"}`}, Rollback: response.Tpl{Body: `{"ip":"{ip}"}`}})
@@ -779,6 +799,7 @@ func TestContract_INV9_UndoToolIsCheckedBeforeTheRun(t *testing.T) {
 
 // Spec 6.2: ArubaOS-Switch is not a built-in action until a lab confirms it; a customer can still add one as a custom action.
 func TestLibraryHasNoArubaOSSwitchBuiltIn(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c, err := e.svc.Catalog(e.ctx(), true)
 	e.must(err)

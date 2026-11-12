@@ -36,6 +36,7 @@ func (e *env) phaseList() string { return strings.Join(e.exec.phases(), ",") }
 
 // M3: the headers of a step, with their typed values filled in, are in the request the approver reads; so is {expiry_s} as the number that is sent.
 func TestDevice_HeadersAreShownToTheApprover(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Run.Headers = "X-Block-Scope: {domain}\nX-Commit: now"
@@ -61,6 +62,7 @@ func TestDevice_HeadersAreShownToTheApprover(t *testing.T) {
 }
 
 func TestDevice_ExpirySecondsAreShownAsTheNumberThatIsSent(t *testing.T) {
+	t.Parallel()
 	e := banRequest(t)
 	req := e.only()
 	body := ""
@@ -71,13 +73,14 @@ func TestDevice_ExpirySecondsAreShownAsTheNumberThatIsSent(t *testing.T) {
 		t.Fatalf("the request shows the body %q", body)
 	}
 	e.approveOnly()
-	if run := e.exec.steps[0]; run.Body != body {
+	if run := e.exec.runStep(); run.Body != body {
 		t.Fatalf("shown %q, sent %q", body, run.Body)
 	}
 }
 
 // L1: the stored steps are compared with what the catalog row renders; a row edited behind the API sends nothing.
 func TestDevice_ExecThatDiffersFromTheApprovedChangeIsNotSent(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_vip_disable")
 	e.turnOn()
@@ -93,6 +96,7 @@ func TestDevice_ExecThatDiffersFromTheApprovedChangeIsNotSent(t *testing.T) {
 }
 
 func TestDevice_ExecAlteredAfterTheRunIsNotSentAsAnUndo(t *testing.T) {
+	t.Parallel()
 	e := banRequest(t)
 	got := e.approveOnly()
 	e.exec1(`UPDATE resp_actions SET items = json_set(items, '$[0].exec.rollback.body', '{"ip_addresses":["192.168.10.1"]}') WHERE id = ?`, got.ID)
@@ -109,6 +113,11 @@ type panicky struct{ inner response.Executor }
 
 func (p panicky) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	if s.Phase == "run" {
+		if f, ok := p.inner.(*fakeExecutor); ok { // the write reached the device before the crash: the fake reads back as after a run
+			f.mu.Lock()
+			f.last = "run"
+			f.mu.Unlock()
+		}
 		panic("writer bug after the request was sent")
 	}
 	return p.inner.Execute(ctx, s)
@@ -117,18 +126,19 @@ func (p panicky) Execute(ctx context.Context, s response.DeviceStep) (response.D
 // M1: a crash during a write is state unknown, in force, never "Nothing was changed". Read back at once: the device shows the change, shows something
 // else, or cannot tell.
 func TestDevice_PanicDuringAWriteIsUnknownAndSettledByTheReadBack(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		verify   map[string]response.StepStatus
 		present  string
 		wantItem response.ItemStatus
 		inForce  bool
 	}{
-		"the read-back cannot tell":   {map[string]response.StepStatus{"verify": response.StepUnknown}, "", response.ItemFailed, true},
+		"the read-back cannot tell":   {map[string]response.StepStatus{"readback": response.StepUnknown}, "", response.ItemFailed, true},
 		"the read-back shows it":      {nil, "198.51.100.7", response.ItemExecuted, true},
 		"the read-back does not show": {nil, "nothing listed", response.ItemFailed, false},
 	} {
 		e := banRequest(t, func(c *response.Config) { c.Executor = panicky{c.Executor} })
-		e.exec.status, e.exec.present, e.exec.last = tc.verify, tc.present, "run" // the panic comes before the fake sees the run
+		e.exec.status, e.exec.present = tc.verify, tc.present
 		got := e.approveOnly()
 		it := got.Items[0]
 		in, err := e.svc.ChangesInForce(e.ctx(), "cn-fw")
@@ -144,6 +154,7 @@ func TestDevice_PanicDuringAWriteIsUnknownAndSettledByTheReadBack(t *testing.T) 
 
 // L2: an undo whose read-back prints nothing proves nothing: the item stays in force and says so.
 func TestDevice_SilentReadBackAfterTheUndoIsNotProof(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	e.approveOnly()
@@ -161,6 +172,7 @@ func TestDevice_SilentReadBackAfterTheUndoIsNotProof(t *testing.T) {
 
 // L3: the retry of an undo whose outcome is not clear reads first. Unclear: wait (the rollback is not sent again). Gone: done. Present: send again.
 func TestDevice_RetryOfAnUnclearUndoReadsFirst(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	e.approveOnly()
@@ -184,6 +196,7 @@ func TestDevice_RetryOfAnUnclearUndoReadsFirst(t *testing.T) {
 }
 
 func TestDevice_RetryOfAnUnclearUndoSendsAgainWhenTheChangeIsStillThere(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	e.approveOnly()
@@ -200,6 +213,7 @@ func TestDevice_RetryOfAnUnclearUndoSendsAgainWhenTheChangeIsStillThere(t *testi
 
 // H2: a refusal text written the way a device pretty-prints JSON still refuses; the text is saved in the form it is compared in.
 func TestDevice_JSONRefusalTextWithASpaceStillRefuses(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	act, err := e.svc.AddAction(e.ctx(), admin, response.CatalogInput{Name: "Shut a port (API)", Description: "d", ConnectionID: "cn-http", Risk: response.RiskMedium, Enabled: true,
 		Run: response.Tpl{Method: "PUT", Path: "/api/ports/{interface}", Body: `{"enabled":false}`}, Rollback: response.Tpl{Method: "PUT", Path: "/api/ports/{interface}", Body: `{"enabled":true}`},
@@ -220,6 +234,7 @@ func TestDevice_JSONRefusalTextWithASpaceStillRefuses(t *testing.T) {
 
 // H2: an expect written with spaces is found in compacted JSON output after the run, and is absent from it after the undo.
 func TestDevice_JSONExpectWithSpacesIsFoundInTheReadBack(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Verify = response.Tpl{Method: "GET", Path: "/d/{domain}", Expect: `"domain": "{domain}"`}
@@ -249,6 +264,7 @@ func TestDevice_JSONExpectWithSpacesIsFoundInTheReadBack(t *testing.T) {
 // H3: a stop pressed while the check before runs stops the write. The run is re-checked right before it goes out: the stop, the execution
 // switch, the breaker and the action still being enabled.
 func TestDevice_EmergencyStopDuringTheCheckBeforeStopsTheWrite(t *testing.T) {
+	t.Parallel()
 	var e *env
 	e = newEnv(t, func(c *response.Config) {
 		c.Executor = &afterExec{inner: c.Executor, after: func(s response.DeviceStep) {
@@ -270,6 +286,7 @@ func TestDevice_EmergencyStopDuringTheCheckBeforeStopsTheWrite(t *testing.T) {
 }
 
 func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *testing.T) {
+	t.Parallel()
 	for name, act := range map[string]func(e *env){
 		"execution switched off": func(e *env) { _, err := e.svc.SetExecution(e.ctx(), admin, false, ""); e.must(err) },
 		"action disabled": func(e *env) {
@@ -292,7 +309,7 @@ func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *te
 		e.fire(e.trap("h1", "192.168.10.157"))
 		e.exec.pre = staticAccess
 		got := e.approveOnly()
-		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed {
+		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed { // not even the read before the run (D-356) goes out
 			t.Errorf("%s: steps %s, item %+v", name, e.phaseList(), got.Items[0])
 		}
 	}
@@ -301,6 +318,7 @@ func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *te
 // H3 and D-88 (4): an undo is not blocked by the execution switch (the sweep removes a change at the end of its time with the switch off), but
 // the emergency stop blocks it until an admin resumes.
 func TestDevice_UndoIsBlockedByTheEmergencyStopNotByTheExecutionSwitch(t *testing.T) {
+	t.Parallel()
 	e := banRequest(t)
 	e.exec.present = "198.51.100.7"
 	e.approveOnly()
@@ -335,6 +353,7 @@ func TestDevice_UndoIsBlockedByTheEmergencyStopNotByTheExecutionSwitch(t *testin
 
 // M2(a): a rotated token (a new version of the connection) does not strand the undo; another address does. The result never says "Nothing was changed".
 func TestDevice_UndoSurvivesAnEditedConnectionButNotAnotherAddress(t *testing.T) {
+	t.Parallel()
 	e := banRequest(t)
 	e.exec.present = "198.51.100.7"
 	e.approveOnly()
@@ -368,6 +387,7 @@ func TestDevice_UndoSurvivesAnEditedConnectionButNotAnotherAddress(t *testing.T)
 
 // M2(b): an unclear outcome is read back by the sweep. The text is there: in force, with its undo time. Another text: not in force.
 func TestDevice_SweepSettlesAStateUnknownItemByReadingTheDevice(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		output  string
 		want    response.ItemStatus
@@ -400,6 +420,7 @@ func TestDevice_SweepSettlesAStateUnknownItemByReadingTheDevice(t *testing.T) {
 
 // M2(b): a person can undo an item whose state is unknown: the rollback is sent and the read-back must no longer hold the text.
 func TestDevice_StateUnknownItemCanBeUndone(t *testing.T) {
+	t.Parallel()
 	e := banRequest(t)
 	e.exec.status = map[string]response.StepStatus{"run": response.StepUnknown}
 	e.exec.present = " "
@@ -420,6 +441,7 @@ func TestDevice_StateUnknownItemCanBeUndone(t *testing.T) {
 // L6: an action whose address is outside the allow-list of its connection could never be sent: it is not available, with the reason, when the
 // request is made.
 func TestDevice_AddressOutsideTheAllowListIsNotAvailable(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.conns.list[0].Allow = []string{"https://fw.lan/api/v2/cmdb/"} // the ban API lives under /monitor/

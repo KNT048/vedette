@@ -27,6 +27,7 @@ func embeddedCatalog(t *testing.T) *Catalog {
 // The web catalog (catalog.ts) and this one read the same two data files and must answer alike: the golden file
 // is produced by the TypeScript side (catalog.golden.test.ts) and judged here.
 func TestContract_INV12_CatalogMatchesTheWebGolden(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../content/catalog/search-golden.json")
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +81,7 @@ func TestContract_INV12_CatalogMatchesTheWebGolden(t *testing.T) {
 }
 
 func TestContract_INV12_CatalogShape(t *testing.T) {
+	t.Parallel()
 	c := embeddedCatalog(t)
 	r := c.Search("")
 	if len(r.Items) != MaxCatalogHits || r.Total != len(c.entries) || r.Total < 800 {
@@ -155,6 +157,7 @@ func FuzzFold(f *testing.F) {
 }
 
 func TestSearchTermsAreCapped(t *testing.T) {
+	t.Parallel()
 	if got := searchTerms(strings.Repeat("ab ", 50)); len(got) != maxTerms {
 		t.Fatalf("%d terms, want %d", len(got), maxTerms)
 	}
@@ -171,6 +174,7 @@ func TestSearchTermsAreCapped(t *testing.T) {
 }
 
 func TestRangeOverlapIsNamedLikeTheMock(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		in   []string

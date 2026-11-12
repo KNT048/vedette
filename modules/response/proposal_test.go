@@ -12,6 +12,7 @@ import (
 // INV-15 (H1): a stored proposal cannot smuggle text. A {text} value with shell characters is refused by its type; a stray "text" or
 // "cli" key on a device action is ignored (only the catalog template's placeholders are read); no device action can take {text}.
 func TestContract_INV15_ProposalTextCannotReachACommand(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "msg_send", response.CatalogUpdate{Enabled: &on, AIMayPropose: &on})
@@ -44,6 +45,7 @@ func TestContract_INV15_ProposalTextCannotReachACommand(t *testing.T) {
 // INV-15 (2) (L1): the AI proposes only the actions the admin allowed it to (ai_may_propose). A stored proposal for an action without
 // the flag is refused 403 tool_not_allowed: it does not become a request, count towards the breaker or fill the queue.
 func TestContract_INV15_ProposalNeedsAIMayPropose(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	off, on := false, true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &off})
@@ -65,6 +67,7 @@ func TestContract_INV15_ProposalNeedsAIMayPropose(t *testing.T) {
 // into the proposal: naming another device cannot move the never-touch check off the device the plan is about. A directory that
 // cannot answer refuses (fail closed).
 func TestContract_INV10_ProposalSubjectIsTheFindingsAsset(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
@@ -95,6 +98,7 @@ func TestContract_INV10_ProposalSubjectIsTheFindingsAsset(t *testing.T) {
 // requests, an emergency stop, a breaker reset, the sweep and reads. The chain must still verify and no item may be left
 // "running" once everything returned.
 func TestConcurrentApproveStopResetSweepKeepsTheChain(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()

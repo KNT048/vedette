@@ -9,6 +9,7 @@ import (
 // INV-19: resp_log refuses every SQL form that rewrites or removes a row, not only UPDATE/DELETE and INSERT OR REPLACE (REPLACE INTO,
 // upserts, UPDATE OR REPLACE ...). The chain still verifies and a normal append still works afterwards.
 func TestContract_INV19_RespLogRefusesEveryRewrite(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -54,6 +55,7 @@ func TestContract_INV19_RespLogRefusesEveryRewrite(t *testing.T) {
 // INV-19 (L3): the append-only log cannot be grown by one row per trigger event. A burst that overflows the backlog is counted in full
 // (the metric) but writes one coalesced line (and one audit line) per minute, with the count since the last line.
 func TestContract_INV19_EventDropLinesAreCoalescedPerMinute(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.svc.SetBacklogForTest(2)
 	for i := range 50 {

@@ -84,6 +84,7 @@ func (a *api) want(method, path, user, body string, status int, errCode string) 
 }
 
 func TestHandlersRolesAndShapes(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 
 	// who may do what comes from the route table
@@ -243,6 +244,7 @@ func boolStr(b bool) string {
 }
 
 func TestHandlersModuleOffIsNotFound(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	a.gate.Set("inventory", false)
 	a.want("GET", "/inventory/devices", "viewer", "", 404, "not_found")

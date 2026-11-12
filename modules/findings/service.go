@@ -93,6 +93,26 @@ func (s *Service) Get(ctx context.Context, id string) (Record, error) {
 	return loadByID(ctx, s.cfg.DB.Reader(), id)
 }
 
+// CountByAsset returns how many findings each asset has, every status included: the number inventory shows as findings_count, which
+// is also what deleting the device deletes (OnAssetDeleted). One grouped read; an asset with none is absent.
+func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding GROUP BY asset_id`)
+	if err != nil {
+		return nil, fmt.Errorf("findings: count by asset: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]int{}
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, fmt.Errorf("findings: count by asset: %w", err)
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
+
 // List returns the findings of one asset, or of every asset when assetID is empty, newest first.
 func (s *Service) List(ctx context.Context, assetID string) ([]Record, error) {
 	return listRecords(ctx, s.cfg.DB.Reader(), assetID)

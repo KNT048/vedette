@@ -36,6 +36,7 @@ func (e *env) confirmScope(ranges ...string) {
 }
 
 func TestContract_INV6_NetworkRanges(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	save := func(ranges ...string) error {
 		_, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings(ranges...))
@@ -131,6 +132,7 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 }
 
 func TestContract_INV7_ActiveScanNeedsScopeAndWindow(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	with := func(f func(*inventory.SettingsInput)) error {
 		in := okSettings("192.168.10.0/24")
@@ -206,6 +208,7 @@ func intsToStrings(in []int) []string {
 }
 
 func TestContract_INV8_FragileDevicesAreScannedOnceGently(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.10.0/24")
 	e.record(obs(netip.MustParseAddr("192.168.10.40"), macA, observe.Kind, "nas", observe.Agent, 0.9))
@@ -289,6 +292,7 @@ func TestContract_INV8_FragileDevicesAreScannedOnceGently(t *testing.T) {
 }
 
 func TestContract_POST3_ScanPolicyAndInScope(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := e.ctx()
 	ip := netip.MustParseAddr
@@ -339,6 +343,7 @@ func TestContract_POST3_ScanPolicyAndInScope(t *testing.T) {
 }
 
 func TestContract_POST5_SettingsKeepTheAttestationWhileTheRangesDoNotChange(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	in := okSettings("192.168.10.0/24", "10.0.0.0/8")
 	in.Active.Enabled, in.ScopeConfirmed = true, true
@@ -379,6 +384,7 @@ func TestContract_POST5_SettingsKeepTheAttestationWhileTheRangesDoNotChange(t *t
 }
 
 func TestSettingsIgnoreTheClientsAttestationFields(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	bogusAt, bogusBy := "2001-01-01T00:00:00.000Z", "someone@else.example"
 	in := okSettings("192.168.10.0/24")
@@ -397,6 +403,7 @@ func TestSettingsIgnoreTheClientsAttestationFields(t *testing.T) {
 // D-45, D-84 (H1): a device whose kind is unknown may be fragile, so its first scan is the gentle one; after it
 // the device stays passive-only until its kind is set, then it follows the rules of its kind.
 func TestContract_INV8_UnclassifiedDevicesAreScannedOnceGently(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.10.0/24")
 	e.record(obs(netip.MustParseAddr("192.168.10.50"), macA, observe.Vendor, "Acme", observe.Passive, 0.5))
@@ -454,6 +461,7 @@ func TestContract_INV8_UnclassifiedDevicesAreScannedOnceGently(t *testing.T) {
 // with regular_scan=never, and fragile or unclassified devices after their gentle scan; not a fragile device that
 // has not had its gentle scan, nor an ordinary device.
 func TestContract_INV8_ProtectedIPs(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.10.0/24")
 	ip := netip.MustParseAddr

@@ -29,6 +29,7 @@ const staticAccess = "Name: Gi1/0/12\nAdministrative Mode: static access\nSwitch
 
 // INV-22, D-95 (1): a check before that prints a refusal text fails the item, and nothing is written (no run step is sent).
 func TestDevice_PrecheckRefusalSendsNothingToWrite(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre = "Name: Gi1/0/12\nAdministrative Mode: trunk\nSwitchport: Enabled"
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
@@ -50,6 +51,7 @@ func TestDevice_PrecheckRefusalSendsNothingToWrite(t *testing.T) {
 
 // D-95 (1a): the check before must contain precheck_expect; an output that does not is refused (a text nobody foresaw is not an all-clear).
 func TestDevice_PrecheckExpectMissingIsRefused(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre = "Name: Gi1/0/12\nSomething nobody foresaw"
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
@@ -61,6 +63,7 @@ func TestDevice_PrecheckExpectMissingIsRefused(t *testing.T) {
 
 // D-95 (1b): a check that prints nothing (after the output is normalised) is refused, whatever the device meant by it.
 func TestDevice_EmptyPrecheckOutputFailsClosed(t *testing.T) {
+	t.Parallel()
 	for _, out := range []string{" ", "\r\n", "\x1b[0m \t"} {
 		e := switchRequest(t)
 		e.exec.pre = out
@@ -75,13 +78,14 @@ func TestDevice_EmptyPrecheckOutputFailsClosed(t *testing.T) {
 // The order, the exact rendering of every step and the read-back: precheck, run, verify; the lines are the template filled, one line each;
 // the undo is the rollback and then a read-back that must not hold the text.
 func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.pre = staticAccess
 	e.exec.present = "Gi1/0/12 disabled"
 	req := e.only()
 	got, err := e.svc.Approve(e.ctx(), oper, req.ID, nil, "")
 	e.must(err)
-	if strings.Join(e.exec.phases(), ",") != "precheck,run,verify" {
+	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify" { // the read before the run (D-356): not the same read as the check
 		t.Fatalf("steps = %v", e.exec.phases())
 	}
 	want := map[string]string{
@@ -101,10 +105,10 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 	if _, err := e.svc.Rollback(e.ctx(), oper, req.ID); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(e.exec.phases(), ",") != "precheck,run,verify,rollback,verify" {
+	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify,rollback,verify" {
 		t.Fatalf("steps = %v", e.exec.phases())
 	}
-	if g := strings.Join(e.exec.steps[3].Lines, "|"); g != "terminal length 0|configure terminal|interface Gi1/0/12|no shutdown|end" {
+	if g := strings.Join(e.exec.steps[4].Lines, "|"); g != "terminal length 0|configure terminal|interface Gi1/0/12|no shutdown|end" {
 		t.Errorf("rollback lines = %s", g)
 	}
 	if it := e.only().Items[0]; it.Status != response.ItemRolledBack || it.Result == nil || !strings.Contains(*it.Result, "the change is gone") {
@@ -115,10 +119,12 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 // D-95 (2): after the undo the read-back must NOT hold the text. A device that still shows the change leaves the item executed with the
 // reason (the sweep tries again), and the failure is logged once.
 func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
-	e.exec.pre, e.exec.present, e.exec.after = staticAccess, "Gi1/0/12 disabled", "Gi1/0/12 disabled"
+	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
+	e.exec.after = "Gi1/0/12 disabled" // after the run (not before it: that would be a change already there, D-356)
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
 	e.must(e.svc.Sweep(e.ctx()))
@@ -140,6 +146,7 @@ func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 // D-95 (2): a read-back needs a text to look for. Without one the item is not "checked" and the read-back is not even sent (a 2xx or a
 // silent command is never "verified").
 func TestDevice_VerifyNeedsExpect(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Verify = response.Tpl{Method: "GET", Path: "/d/{domain}"} // a read-back without a text
@@ -166,7 +173,7 @@ func TestDevice_VerifyNeedsExpect(t *testing.T) {
 	e2.fire(ev)
 	got2, err := e2.svc.Approve(e2.ctx(), oper, e2.only().ID, nil, "")
 	e2.must(err)
-	if strings.Join(e2.exec.phases(), ",") != "run,verify" || got2.Items[0].Verified == nil || got2.Items[0].Verified.OK {
+	if strings.Join(e2.exec.phases(), ",") != "verify,run,verify" || got2.Items[0].Verified == nil || got2.Items[0].Verified.OK {
 		t.Fatalf("steps %v, item %+v", e2.exec.phases(), got2.Items[0])
 	}
 	if got2.Items[0].Status != response.ItemExecuted {
@@ -176,6 +183,7 @@ func TestDevice_VerifyNeedsExpect(t *testing.T) {
 
 // D-94 (4): {expiry_s} is the undo time in seconds, filled when the request is made; an item without an undo time cannot use it.
 func TestDevice_ExpirySecondsAreTheUndoTime(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -184,7 +192,7 @@ func TestDevice_ExpirySecondsAreTheUndoTime(t *testing.T) {
 	if _, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, ""); err != nil {
 		t.Fatal(err)
 	}
-	run := e.exec.steps[0]
+	run := e.exec.runStep()
 	if run.Phase != "run" || run.Method != "POST" || run.URL != "https://fw.lan/api/v2/monitor/user/banned/add_users" || run.Body != `{"ip_addresses":["198.51.100.7"],"expiry":1800}` {
 		t.Fatalf("run step: %+v", run)
 	}
@@ -201,6 +209,7 @@ func TestDevice_ExpirySecondsAreTheUndoTime(t *testing.T) {
 
 // The exact text of the step is what the approver saw: the API call of the change is the call of the run step.
 func TestDevice_RunStepIsWhatTheApproverSaw(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_vip_disable")
 	e.turnOn()
@@ -211,7 +220,7 @@ func TestDevice_RunStepIsWhatTheApproverSaw(t *testing.T) {
 		t.Fatal(err)
 	}
 	shown := req.Items[0].Change.Rest
-	run := e.exec.steps[0]
+	run := e.exec.runStep()
 	if shown == nil || shown.Method != run.Method || shown.URL != run.URL || shown.Body == nil || *shown.Body != run.Body {
 		t.Fatalf("shown %+v, sent %+v", shown, run)
 	}
@@ -219,6 +228,7 @@ func TestDevice_RunStepIsWhatTheApproverSaw(t *testing.T) {
 
 // D-94 (4): an action that needs a value read from the device while it runs is not available until 13c.
 func TestDevice_RuntimeValueIsUnavailable(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_acl_deny")
 	cat, err := e.svc.Catalog(e.ctx(), false)
@@ -239,6 +249,7 @@ func TestDevice_RuntimeValueIsUnavailable(t *testing.T) {
 // D-95 (3): an action that names a port needs a check before it with a refusal text. A row whose check was emptied behind the API is
 // not available, so it cannot be requested or run.
 func TestDevice_PortActionNeedsAPrecheck(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_port_shut")
 	e.exec1(`UPDATE resp_catalog SET precheck = '{}', precheck_refuse = '[]' WHERE id = 'cisco_port_shut'`)
@@ -261,6 +272,7 @@ func TestDevice_PortActionNeedsAPrecheck(t *testing.T) {
 // 13b-6: a connection that is not ready (never tested, last test failed) and a write tool on a connection that is not an MCP server make
 // an action unavailable, with the reason in plain words.
 func TestDevice_NotReadyAndToolOnANonMCPConnection(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	reason := func() string {
@@ -292,6 +304,7 @@ func TestDevice_NotReadyAndToolOnANonMCPConnection(t *testing.T) {
 
 // INV-22: a device item made by an older version has no stored steps: it fails with that reason and nothing is sent; so does its undo.
 func TestDevice_ItemWithoutExecFails(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -322,6 +335,7 @@ func TestDevice_ItemWithoutExecFails(t *testing.T) {
 
 // D-94 (5), INV-22: what a device printed is compared and dropped. It is in no table, no log line and no result.
 func TestDevice_OutputIsNeverStoredOrLogged(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	const marker = "CANARY-DEVICE-OUTPUT-4711"
 	e.exec.pre = marker + "\nAdministrative Mode: trunk"
@@ -344,6 +358,7 @@ func TestDevice_OutputIsNeverStoredOrLogged(t *testing.T) {
 // What the executor says decides what is recorded: nothing sent (nothing changed), refused by the device (nothing changed), unknown (state
 // unknown: counts as in force, so the connection cannot be deleted), a connection that changed (a refusal, nothing sent).
 func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		status   response.StepStatus
 		code     string // log kind
@@ -374,9 +389,9 @@ func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
 		}
 		// An outcome that is not clear is read back once at once (fgt_ban_ip has a read-back text); the read-back prints nothing here, which
 		// settles nothing, so the item stays unknown.
-		want := "run"
+		want := "verify,run" // the read before the run (D-356), then the run
 		if c.inForce {
-			want = "run,verify"
+			want = "verify,run,verify"
 		}
 		if strings.Join(e.exec.phases(), ",") != want {
 			t.Errorf("%s: steps %v, want %s", c.status, e.exec.phases(), want)
@@ -386,6 +401,7 @@ func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
 
 // A check before that cannot be read changed nothing, even when it never answered in time (it only reads): "nothing was changed", never "state unknown".
 func TestDevice_PrecheckThatDoesNotAnswerChangedNothing(t *testing.T) {
+	t.Parallel()
 	e := switchRequest(t)
 	e.exec.status = map[string]response.StepStatus{"precheck": response.StepUnknown}
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
@@ -402,6 +418,7 @@ func TestDevice_PrecheckThatDoesNotAnswerChangedNothing(t *testing.T) {
 // An emergency stop that commits after the approval and before the step goes out means no step at all: the claim reads the switch inside
 // its own transaction (INV-9).
 func TestDevice_EmergencyStopBeforeTheClaimSendsNothing(t *testing.T) {
+	t.Parallel()
 	late := &stopOnList{}
 	e := newEnv(t, func(c *response.Config) { late.inner = c.Connections; c.Connections = late })
 	e.firewall("fgt_ban_ip")
@@ -419,6 +436,7 @@ func TestDevice_EmergencyStopBeforeTheClaimSendsNothing(t *testing.T) {
 
 // The claim reads the connections again: one that is gone by then (the second read after the approval) stops the step.
 func TestDevice_ClaimRefusesAConnectionThatIsGone(t *testing.T) {
+	t.Parallel()
 	late := &stopOnList{}
 	e := newEnv(t, func(c *response.Config) { late.inner = c.Connections; c.Connections = late })
 	e.firewall("fgt_ban_ip")
@@ -437,6 +455,7 @@ func TestDevice_ClaimRefusesAConnectionThatIsGone(t *testing.T) {
 // 13b-6: an item that ran and whose connection has gone since cannot be undone from here. The sweep does not try again and the item leaves the
 // sweep, one line says so in the log, and nothing crashes.
 func TestDevice_UndoForAGoneConnectionIsNotRetried(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -464,6 +483,7 @@ func TestDevice_UndoForAGoneConnectionIsNotRetried(t *testing.T) {
 
 // A late result for a connection that vanished while the step ran: the result is recorded, the item leaves the sweep, one clear line.
 func TestDevice_LateResultForAGoneConnection(t *testing.T) {
+	t.Parallel()
 	var e *env
 	e = newEnv(t, func(c *response.Config) {
 		c.Executor = &afterExec{inner: c.Executor, after: func(s response.DeviceStep) {

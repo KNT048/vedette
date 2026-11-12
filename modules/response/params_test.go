@@ -9,6 +9,7 @@ import (
 )
 
 func TestCheckValue(t *testing.T) {
+	t.Parallel()
 	ok := []struct {
 		t    ParamType
 		in   string
@@ -45,6 +46,7 @@ func TestCheckValue(t *testing.T) {
 }
 
 func TestContract_INV14b_EscapeAndFill(t *testing.T) {
+	t.Parallel()
 	if got := escapeFor(TJSON, "a\"b\\c\n"); got != `a\"b\\c\n` {
 		t.Errorf("json: %q", got)
 	}
@@ -72,6 +74,7 @@ func TestContract_INV14b_EscapeAndFill(t *testing.T) {
 }
 
 func TestValidateTpl(t *testing.T) {
+	t.Parallel()
 	good := []Tpl{{CLI: "diagnose user banned-ip add src4 {ip}"}, {Method: "POST", Path: "/api/v2/x/{name}", Body: `{"ip":"{ip}","e":{expiry_s}}`}, {CLI: "config firewall address\n edit \"vedette-{ip}\"\nend"}}
 	for _, g := range good {
 		if why := ValidateTpl(g, "Action"); why != "" {
@@ -93,6 +96,7 @@ func TestValidateTpl(t *testing.T) {
 // characters out of the shipped templates (INV-14b) and the pfSense alias rollback that was a copy of its run step (D-88 amendment
 // 2026-11-09), listed here.
 func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
+	t.Parallel()
 	mock, err := os.ReadFile("../../web/src/features/response/templates/action-templates.sample.json")
 	if err != nil {
 		t.Skip("the web tree is not here")
@@ -125,6 +129,7 @@ func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 }
 
 func TestForbiddenAddr(t *testing.T) {
+	t.Parallel()
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "192.168.10.2", "::ffff:127.0.0.1"} {
 		if !forbiddenAddr(netip.MustParseAddr(a), false, box) {
@@ -142,6 +147,7 @@ func TestForbiddenAddr(t *testing.T) {
 }
 
 func TestTouches(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		entry, value string
 		want         bool

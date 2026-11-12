@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
-	"os/exec"
+	"os/exec" //nolint:depguard // test of a release tool outside the product: only exec.LookPath("git")
 	"path/filepath"
 	"strings"
 	"testing"

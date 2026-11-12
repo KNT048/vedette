@@ -70,8 +70,8 @@ var fingerprints = []fingerprint{
 	// Network devices and firewalls.
 	{"FortiGate", true, true, func(p page) bool { return in(p.title, "fortigate") || in(p.body, "ftnt-fortinet-grid", "fgt_lang") }},
 	{"MikroTik RouterOS", true, true, func(p page) bool {
-		return in(p.title, "routeros", "mikrotik") || in(p.body, "webfig") || in(p.location, "/webfig")
-	}}, //nolint:misspell // RouterOS is the product name
+		return in(p.title, "routeros", "mikrotik") || in(p.body, "webfig") || in(p.location, "/webfig") //nolint:misspell // RouterOS is the product name
+	}},
 	{"pfSense", true, true, func(p page) bool { return in(p.title, "pfsense") }},
 	{"OPNsense", true, true, func(p page) bool { return in(p.title, "opnsense") }},
 	{"Sophos Firewall", true, true, func(p page) bool {

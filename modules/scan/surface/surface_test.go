@@ -427,7 +427,7 @@ func TestRedirectsAreNotFollowed(t *testing.T) {
 		if !slices.Equal(paths, []string{"/"}) {
 			t.Fatalf("paths asked %v", paths)
 		}
-		if len(got.Admin) != 1 || got.Admin[0].Product != "MikroTik RouterOS" || got.Admin[0].URL != "http://203.0.113.7" { //nolint:misspell // RouterOS is the product name
+		if len(got.Admin) != 1 || got.Admin[0].Product != "MikroTik RouterOS" || got.Admin[0].URL != "http://203.0.113.7" {
 			t.Fatalf("admin %+v", got.Admin)
 		}
 		if len(got.Ports) != 2 || got.Ports[1].Product != "Fortinet SSL VPN" {

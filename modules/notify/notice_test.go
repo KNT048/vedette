@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -417,20 +418,40 @@ func TestFriendlyErrorNeverRepeatsTheOtherSide(t *testing.T) {
 		err  error
 		want string
 	}{
-		"smtp":     {&channel.StatusError{Channel: channel.Email, Code: 550, Reason: "mx.internal.corp says no"}, "The mail server refused the message (SMTP code 550)."},
-		"telegram": {&channel.StatusError{Channel: channel.Telegram, Code: 403, Reason: "bot was blocked"}, "Telegram refused the message (HTTP 403)."},
-		"webhook":  {&channel.StatusError{Channel: channel.Webhook, Code: 404, Reason: "no such path /internal"}, "The webhook server answered with an error, so it did not accept the message."},
-		"provider": {&channel.ProviderError{Channel: channel.Zalo, Code: -201, Reason: "secret detail"}, "Zalo refused the message (code -201)."},
-		"zalo token": {&channel.ProviderError{Channel: channel.Zalo, Code: -220, Reason: "secret detail"},
-			"Zalo refused the message (code -220): the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it."},
-		"zalo 7 days": {&channel.ProviderError{Channel: channel.Zalo, Code: -230, Reason: "secret detail"},
-			"Zalo refused the message (code -230): Zalo delivers these messages only to people who interacted with the OA in the last 7 days. Ask the recipient to send the OA a message, then try again."},
+		"smtp":                              {&channel.StatusError{Channel: channel.Email, Code: 550, Reason: "mx.internal.corp says no"}, "The mail server refused the message (SMTP code 550)."},
+		"telegram":                          {&channel.StatusError{Channel: channel.Telegram, Code: 403, Reason: "bot was blocked"}, "Telegram refused the message (HTTP 403)."},
+		"webhook":                           {&channel.StatusError{Channel: channel.Webhook, Code: 404, Reason: "no such path /internal"}, "The webhook server answered with an error, so it did not accept the message."},
+		"provider":                          {&channel.ProviderError{Channel: channel.Zalo, Code: -201, Reason: "secret detail"}, "Zalo refused the message (code -201)."},
 		"zalo personal keeps the bare code": {&channel.ProviderError{Channel: channel.ZaloPersonal, Code: -216, Reason: "secret detail"}, "Zalo refused the message (code -216)."},
 		"timeout":                           {errors.New("notify: slack: send failed: timed out"), "The server did not answer in time."},
 		"other":                             {errors.New("notify: slack: send failed: dial tcp 10.1.1.1:443: connect: connection refused"), "The message could not be sent. The server could not be reached or answered something unexpected."},
 	} {
 		if got := friendlyError(c.err); got != c.want {
 			t.Errorf("%s: %q, want %q", name, got, c.want)
+		}
+	}
+	// Every Zalo OA code with a fix gets its own hint; a neighbouring code without one stays bare.
+	for code, hint := range map[int]string{
+		-216: "the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it.",
+		-220: "the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it.",
+		-213: "the recipient does not follow the OA. Ask them to follow it and send it a message, then try again.",
+		-230: "Zalo delivers these messages only to people who interacted with the OA in the last 7 days. Ask the recipient to send the OA a message, then try again.",
+		-232: "Zalo delivers these messages only to people who interacted with the OA in the last 7 days. Ask the recipient to send the OA a message, then try again.",
+		-211: "the OA is out of message quota. Check the OA's service package in Zalo.",
+		-32:  "the app or the OA called Zalo too often. Try again in a minute.",
+		-209: "the Zalo app is not activated. Turn it on in Zalo Developers (Manage app > Settings).",
+		-212: "the Zalo app has not registered the Official Account message API. Register it in Zalo Developers.",
+		-223: "the OA has not granted the app permission to send. Ask the OA admin to approve the app's request.",
+		-320: "paid messages need the Zalo app linked to a Zalo Cloud Account. Link one in Zalo Developers.",
+		-321: "the Zalo Cloud Account linked to the app is out of money or cannot be charged. Top it up in Zalo.",
+		-217: "",
+	} {
+		want := fmt.Sprintf("Zalo refused the message (code %d).", code)
+		if hint != "" {
+			want = fmt.Sprintf("Zalo refused the message (code %d): %s", code, hint)
+		}
+		if got := friendlyError(&channel.ProviderError{Channel: channel.Zalo, Code: code, Reason: "secret detail"}); got != want {
+			t.Errorf("zalo %d: %q, want %q", code, got, want)
 		}
 	}
 }

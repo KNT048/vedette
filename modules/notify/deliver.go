@@ -66,6 +66,11 @@ var zaloOAHints = map[int]string{
 	-232: zaloWindowHint, // ... or the last interaction has expired
 	-211: "the OA is out of message quota. Check the OA's service package in Zalo.",
 	-32:  "the app or the OA called Zalo too often. Try again in a minute.",
+	-209: "the Zalo app is not activated. Turn it on in Zalo Developers (Manage app > Settings).",
+	-212: "the Zalo app has not registered the Official Account message API. Register it in Zalo Developers.",
+	-223: "the OA has not granted the app permission to send. Ask the OA admin to approve the app's request.",
+	-320: "paid messages need the Zalo app linked to a Zalo Cloud Account. Link one in Zalo Developers.",
+	-321: "the Zalo Cloud Account linked to the app is out of money or cannot be charged. Top it up in Zalo.",
 }
 
 const (

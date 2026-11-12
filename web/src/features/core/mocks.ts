@@ -2,7 +2,7 @@
 import { http, HttpResponse } from 'msw'
 import { logExportHandlers } from './logExport'
 import { API, audit, body, currentUser, fail, guard, EMAIL_RE } from '@/mocks/http'
-import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, isOn, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
+import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, installStore, isOn, moduleAvailable, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
 import { collection, dataMode, daysAgo, newId, nowIso, peek, resetMockDb, setDataMode } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
@@ -29,7 +29,7 @@ const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 // ---------- Cài đặt ban đầu ----------
 const setupHandlers = [
   // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
-  http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends })) })),
+  http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind })),
 
   http.post(`${API}/core/setup`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
@@ -66,11 +66,14 @@ const setupHandlers = [
     if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
     let enable: ModuleId[]
     const all = modulesStore.get() // danh sách module mặc định; kiểm tra xong mới dọn kho (lỗi thì không mất gì)
-    if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle]
+    // D-381: a bundle leaves out what this install cannot run; a custom choice naming it is refused.
+    if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle].filter(moduleAvailable)
     else if (b.bundle === 'custom') {
       enable = (b.modules ?? []) as ModuleId[]
       const unknown = enable.find((m) => !all.some((x) => x.id === m))
       if (unknown) return fail(400, 'invalid_module', `No module "${unknown}".`)
+      const notHere = enable.find((m) => !moduleAvailable(m))
+      if (notHere) return fail(409, 'not_appliance', `Module ${notHere} needs vedette-host, which only the appliance install has. This is a container-only install, so it cannot run here.`)
       if (!enable.includes('core')) enable = ['core', ...enable]
       for (const id of enable) {
         const lacking = all.find((x) => x.id === id)?.depends.filter((d) => !enable.includes(d)) ?? []
@@ -79,7 +82,9 @@ const setupHandlers = [
     } else return fail(400, 'invalid_bundle', 'Choose a module bundle: small, medium or custom.')
 
     // Cài thật: xoá sạch rồi vào chế độ 'clean' để MỌI module bắt đầu rỗng (không tài khoản, thiết bị, cảnh báo mẫu).
+    const install = installStore.get() // the install kind is the box, not its data
     resetMockDb()
+    installStore.set(install)
     setDataMode('clean')
     const user: User = { id: newId('u'), name, email, role: 'admin', password: String(a.password), twofa: false, created_at: nowIso(), last_login: nowIso() }
     usersStore.set([user])

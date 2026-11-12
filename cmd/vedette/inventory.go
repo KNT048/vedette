@@ -80,7 +80,7 @@ func inventoryJobs(d deps) []jobs.Job {
 			}
 			cancel()
 		}
-		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host, IP: ip}); err != nil {
+		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host, IP: ip, ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()}); err != nil {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)

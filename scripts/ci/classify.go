@@ -25,6 +25,7 @@ var rules = []rule{
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files
 	{"web/src/features/core/testdata/", Result{true, true}},                // Go reads connections_matrix.json and keys/
 	{"web/src/features/core/bundles.ts", Result{true, true}},               // modules/core/handlers_setup_test.go
+	{"web/src/features/core/ContainerOnly.tsx", Result{true, true}},        // deploy/compose/compose_test.go: its backup image equals pins.env (D-381)
 	{"web/src/features/inventory/agentConfig.ts", Result{true, true}},      // modules/agent-intake/schedule_test.go: the Go schedule equals the GUI list
 	{"web/src/features/inventory/installScripts.ts", Result{true, true}},   // modules/agent-intake/install_test.go: the served scripts and OSQUERY_VERSION equal the GUI's
 	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template

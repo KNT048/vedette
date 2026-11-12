@@ -6,7 +6,7 @@ import { Link } from 'react-router'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
-import { QueryState } from '@/components/common/States'
+import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -15,6 +15,8 @@ import { ApiError, download } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
+import { ContainerUpdates } from './ContainerOnly'
+import { useInstallKind } from '@/lib/modules'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
@@ -265,6 +267,19 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 })
 
 export default function UpdatesSection() {
+  const { t } = useTranslation('core')
+  const install = useInstallKind()
+  // D-381: a container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9 G4).
+  if (install === 'container') return (
+    <>
+      <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} stories={['S-CORE-2', 'S-CORE-9']} />
+      <ContainerUpdates />
+    </>
+  )
+  return install ? <ApplianceUpdates /> : <Loading />
+}
+
+function ApplianceUpdates() {
   const { t } = useTranslation('core')
   const q = useUpdates()
   const os = useOsState()

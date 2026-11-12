@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useModules } from '@/lib/modules'
 import { useHits, useOverview, useSaveConfig, useTestHit, useToggleTrap } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
@@ -24,6 +25,22 @@ import type { Hit, HpOverview, HpService, Trap } from './types'
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export default function HoneypotPage() {
+  const { t } = useTranslation('honeypot')
+  // D-381: on a container-only install the module cannot run; one turned on before shows why, and no control that would do nothing.
+  const notHere = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
+  if (notHere) return (
+    <RequireModule module="honeypot">
+      <PageHeader title={t('notHere.title')} stories={['S-HP-1', 'S-CORE-9']} />
+      <EmptyState title={t('notHere.title')}>
+        <p>{t('notHere.body')}</p>
+        <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p>
+      </EmptyState>
+    </RequireModule>
+  )
+  return <HoneypotBody />
+}
+
+function HoneypotBody() {
   const { t } = useTranslation('honeypot')
   const overview = useOverview()
   const hits = useHits()
@@ -63,7 +80,7 @@ export default function HoneypotPage() {
             <Section id="hits" title={t('hits.title')} description={t('hits.description')}>
               <QueryState query={hits}>{(h) => <HitsTable items={h.items} anyTrapOn={data.traps.some((x) => x.enabled)} />}</QueryState>
             </Section>
-            <CoverageSection />
+            <CoverageSection listening={data.traps.some((x) => x.state === 'listening')} />
           </>
         )}
       </QueryState>

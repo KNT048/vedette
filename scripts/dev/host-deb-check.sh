@@ -157,6 +157,7 @@ EOT
 	ok "one containers:2147483647:2147483648 line in /etc/subuid and /etc/subgid"
 	want "/usr/lib/vedette/vedette-host 755 root:root" '^/usr/lib/vedette/vedette-host f 755 root:root '
 	want "unit in /usr/lib/systemd/system 644 root:root" '^/usr/lib/systemd/system/vedette-host.service f 644 root:root '
+	want "honeypot containers.conf module 644 root:root (#486)" '^/usr/lib/vedette/honeypot-containers.conf f 644 root:root '
 	# /usr/share/doc/vedette-host/{NOTICE,third-party-licenses} are not checked here: the container images exclude /usr/share/doc (dpkg path-exclude); deploy/deb/deb_test.go checks them in the package
 	want "/etc/vedette 755 root:root" '^/etc/vedette d 755 root:root '
 	want "/etc/containers/systemd 755 root:root" '^/etc/containers/systemd d 755 root:root '

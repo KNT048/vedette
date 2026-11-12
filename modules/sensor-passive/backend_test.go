@@ -71,6 +71,7 @@ func wantCode(t *testing.T, err error, code string) {
 // reverse; the heartbeat route is shared but its body is the role's (the other role's fields are unknown fields).
 func TestRolesAreSeparate(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	link := linktest.New(t, linktest.Passive(e.svc))
 	ctx := t.Context()
@@ -100,6 +101,7 @@ func TestRolesAreSeparate(t *testing.T) {
 // sensor wanted (D-111 (2), SYS-6).
 func TestBudgetsStopAFloodOfNewDevices(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	var buf syncBuffer
 	e := newEnv(t, nil, false, withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
 	ctx := t.Context()
@@ -160,6 +162,7 @@ func TestBudgetsStopAFloodOfNewDevices(t *testing.T) {
 // most that many rows. A value that was passed before is a repeat, not a new one.
 func TestBudgetsStopAFloodOfNewValues(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	var now time.Time
@@ -209,6 +212,7 @@ func TestBudgetsStopAFloodOfNewValues(t *testing.T) {
 // When the store fails, a batch has used none of the budget and nothing is saved: the sensor sends it again (503 store_busy).
 func TestAFailedBatchUsesNoBudget(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false, withFlakyStore(1))
 	ctx := t.Context()
 	var now time.Time
@@ -248,6 +252,7 @@ func TestAFailedBatchUsesNoBudget(t *testing.T) {
 // passive observation of a name can know. Outside 0..1 the item is no good.
 func TestConfidenceIsClampedPerField(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	m := macN(3)
@@ -288,6 +293,7 @@ func TestConfidenceIsClampedPerField(t *testing.T) {
 // Every item is checked at the edge, one by one: a bad one is rejected with its index and the rest goes on (sensor-protocol.md 6.2).
 func TestItemsAreCheckedAtTheEdge(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	long := strings.Repeat("x", 201)
@@ -349,6 +355,7 @@ func TestItemsAreCheckedAtTheEdge(t *testing.T) {
 // An item the inventory refuses at its boundary is rejected as refused, and the rest of the batch is recorded in the same call.
 func TestAnItemTheInventoryRefusesIsRejectedAsRefused(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false, withReject("refused-name"))
 	rep, err := e.svc.Observations(t.Context(), request(epochA, 1,
 		item(macN(1), "hostname", "one", 0.5), item(macN(2), "hostname", "refused-name", 0.5), item(macN(3), "hostname", "three", 0.5)))
@@ -369,6 +376,7 @@ func TestAnItemTheInventoryRefusesIsRejectedAsRefused(t *testing.T) {
 // Epochs: a replay is not applied twice; a new epoch (the sensor restarted) is accepted from seq 1; only the two newest epochs are kept.
 func TestEpochsAreKeptTwoAtATime(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	link := linktest.New(t, linktest.Passive(e.svc))
 	c := link.Client(t, sensorlink.Passive)
@@ -411,6 +419,7 @@ func TestEpochsAreKeptTwoAtATime(t *testing.T) {
 // runs), a sensor that lists cards the box does not have steers nothing, and a SPAN card has no IP in the host's list.
 func TestTheCardIsChosenAgainstTheHostNotTheSensor(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	link := linktest.New(t, linktest.Passive(e.svc))
 	pas := link.Client(t, sensorlink.Passive)
@@ -467,6 +476,7 @@ func TestTheCardIsChosenAgainstTheHostNotTheSensor(t *testing.T) {
 // the heartbeat is refused; the card in the heartbeat the host would have refused is accepted only because there is no host.
 func TestNoHostTheCardIsChosenAgainstTheHeartbeat(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	e.host.setNoHost(true)
 	link := linktest.New(t, linktest.Passive(e.svc))
@@ -523,6 +533,7 @@ func TestNoHostTheCardIsChosenAgainstTheHeartbeat(t *testing.T) {
 // version, devices, cards, the verdicts off / no_link / no_traffic / own_only / ok.
 func TestHeartbeatDrivesTheViews(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	var mu sync.Mutex
@@ -603,6 +614,7 @@ func TestHeartbeatDrivesTheViews(t *testing.T) {
 // it. When the filters cannot be read it says "do not capture" (D-80 (3)).
 func TestConfigLongPoll(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	e.sensorBeat()
 	link := linktest.New(t, linktest.Passive(e.svc))
@@ -811,6 +823,7 @@ func boxItem(field, value string, mac string, ip string) sensorlink.ObservationI
 // not change. A sensor that does not know its own MAC gets no further than core's check.
 func TestItemsAboutTheBoxAreRefused(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	if _, err := e.inv.EnsureBox(ctx, inventory.BoxInfo{Hostname: "vedette", IP: pktgen.BoxIP.String()}); err != nil {
@@ -883,6 +896,7 @@ func TestASensorThatDoesNotKnowTheBoxIsStillRefused(t *testing.T) {
 // M4: one MAC that claims many addresses is over budget after four.
 func TestBudgetStopsOneMACWithManyAddresses(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	items := make([]sensorlink.ObservationItem, 20)
 	for i := range items {
@@ -903,6 +917,7 @@ func TestBudgetStopsOneMACWithManyAddresses(t *testing.T) {
 // store nothing; after the TTL it is written again.
 func TestARepeatFloodDoesNotWrite(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	var now time.Time
@@ -953,6 +968,7 @@ func TestARepeatFloodDoesNotWrite(t *testing.T) {
 // M5: core takes at most 6000 items a minute from the passive role, whatever they say; the rest is over budget without being read.
 func TestItemsPerMinuteAreCapped(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	var now time.Time
@@ -982,6 +998,7 @@ func TestItemsPerMinuteAreCapped(t *testing.T) {
 // L3: a batch the listener let in just before the module was turned off is not recorded (SYS-5).
 func TestAModuleThatIsOffRecordsNothing(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	e.off.Store(true)
 	_, err := e.svc.Observations(t.Context(), request(epochA, 1, item(macN(1), "hostname", "h", 0.6)))
@@ -1001,6 +1018,7 @@ func TestAModuleThatIsOffRecordsNothing(t *testing.T) {
 // L4: the row of the sensor is created once, not on every poll of the config or every read.
 func TestTheSensorRowIsCreatedOnce(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	if _, err := e.svc.Status(ctx); err != nil {
@@ -1025,6 +1043,7 @@ func TestTheSensorRowIsCreatedOnce(t *testing.T) {
 // L6: after a restart the devices of the inventory are known to the budget: a flood that spends the minute does not make them new.
 func TestTheBudgetKnowsTheDevicesTheInventoryHas(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	ctx := t.Context()
 	var now time.Time
@@ -1053,6 +1072,7 @@ func TestTheBudgetKnowsTheDevicesTheInventoryHas(t *testing.T) {
 // a counter is still refused by the listener.
 func TestUnknownDropCountersAreIgnoredAndLoggedOnce(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	var buf syncBuffer
 	e := newEnv(t, nil, false, withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
 	link := linktest.New(t, linktest.Passive(e.svc))

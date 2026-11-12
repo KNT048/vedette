@@ -39,6 +39,14 @@ const (
 	hpLogInodes = 1024
 )
 
+// HoneypotConfModule is the containers.conf module the honeypot unit loads (ContainersConfModule=, Podman >= 4.8): it
+// clears default_sysctls (#486). The container joins the host-owned namespace vedette-hp from its own user namespace
+// (UserNS=auto), where crun may not write a sysctl of that namespace, so a distribution default such as Ubuntu 26.04's
+// net.ipv4.ping_group_range stops every start. The namespace's own sysctls are vedette-host's (INV-20 of honeypot).
+// The file is constant text shipped in the vedette-host .deb (deploy/deb/nfpm.yaml), so dpkg installs and purges it
+// with the binary. Exported for the package and contract tests.
+const HoneypotConfModule = "/usr/lib/vedette/honeypot-containers.conf"
+
 // installSection is what makes a service start at boot. Quadlet applies [Install] when it generates
 // the unit (a generated unit cannot be enabled or disabled), so "persist" is its presence.
 const installSection = "\n[Install]\nWantedBy=multi-user.target\n"
@@ -186,6 +194,7 @@ NoNewPrivileges=true
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
+ContainersConfModule=` + HoneypotConfModule + `
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
 Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald

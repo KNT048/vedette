@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/host/ops"
 )
 
 const root = "../.."
@@ -218,7 +220,7 @@ func TestPackage_PrereleaseSortsBeforeRelease(t *testing.T) {
 
 // Depends: minimums, not exact versions (D-155). Every entry is named here on purpose, with the reason in deploy/deb/nfpm.yaml.
 func TestPackage_Depends(t *testing.T) {
-	want := []string{"podman (>= 4.4)", "systemd (>= 254)", "nftables", "iproute2", "procps", "conntrack", "chrony", "netplan.io", "unattended-upgrades", "passwd"}
+	want := []string{"podman (>= 4.8)", "systemd (>= 254)", "nftables", "iproute2", "procps", "conntrack", "chrony", "netplan.io", "unattended-upgrades", "passwd"}
 	var got []string
 	for d := range strings.SplitSeq(fields(build(t, "0.1.0", "amd64").control)["Depends"], ", ") {
 		got = append(got, d)
@@ -238,6 +240,7 @@ func TestPackage_Files(t *testing.T) {
 	want := map[string]int64{
 		"usr/lib/vedette/vedette-host":                    0o755,
 		"usr/lib/systemd/system/vedette-host.service":     0o644,
+		"usr/lib/vedette/honeypot-containers.conf":        0o644,
 		"usr/share/doc/vedette-host/copyright":            0o644,
 		"usr/share/doc/vedette-host/NOTICE":               0o644,
 		"usr/share/doc/vedette-host/third-party-licenses": 0o644,
@@ -278,6 +281,11 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	p := build(t, "0.1.0", "amd64")
 	if !bytes.Equal(p.files["usr/lib/systemd/system/vedette-host.service"].data, repoFile(t, "deploy/systemd/vedette-host.service")) {
 		t.Error("the unit in the package differs from deploy/systemd/vedette-host.service")
+	}
+	// the honeypot unit names this file (ContainersConfModule=, #486): same path, and it clears default_sysctls
+	if c := p.files[strings.TrimPrefix(ops.HoneypotConfModule, "/")].data; !bytes.Equal(c, repoFile(t, "deploy/deb/honeypot-containers.conf")) ||
+		!bytes.Contains(c, []byte("\n[containers]\ndefault_sysctls = []\n")) {
+		t.Errorf("the package has no %s that clears default_sysctls", ops.HoneypotConfModule)
 	}
 	if c := p.files["usr/share/doc/vedette-host/copyright"].data; !bytes.Contains(c, []byte("Apache License")) || !bytes.Contains(c, []byte("Version 2.0")) {
 		t.Error("the copyright file is not the Apache License 2.0 text")

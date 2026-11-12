@@ -359,7 +359,7 @@ install_packages() {
 	fi
 	touch "$STATE/asked-packages" "$STATE/removed-packages"
 	podman_ver=$(podman --version | awk '{print $3}')
-	[ "$(printf '4.4\n%s\n' "${podman_ver%%-*}" | sort -V | head -n 1)" = 4.4 ] || die "podman $podman_ver is older than 4.4 (no Quadlet)"
+	[ "$(printf '4.8\n%s\n' "${podman_ver%%-*}" | sort -V | head -n 1)" = 4.8 ] || die "podman $podman_ver is older than 4.8 (Quadlet ContainersConfModule=)"
 	say "podman $podman_ver"
 	# effect, not exit code of apt: the tool vedette-host runs after core restarts (D-268) answers
 	/usr/sbin/conntrack --version >/dev/null 2>&1 || die "conntrack is not usable at /usr/sbin/conntrack after the install"

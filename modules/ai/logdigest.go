@@ -457,7 +457,7 @@ func (s *Service) suggestFrom(ctx context.Context, remember []string, evidence, 
 			kept++
 		}
 		if err != nil && !errors.Is(err, ErrSuggestionsOff) && !errors.Is(err, ErrTooManySuggestions) && !errors.Is(err, ErrInvalidPromptInput) {
-			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggested by "+by, "error", err)
+			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggestion", "by", by, "error", err)
 		}
 	}
 	return kept

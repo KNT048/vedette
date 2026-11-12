@@ -296,6 +296,30 @@ func TestContract_Recover_AStoppedRunIsFinishedAndLosesNothing(t *testing.T) {
 	})
 }
 
+// R2-M1: core ran between a stopped run and its rerun (systemd starts it at boot): its fresh database is core's own,
+// and nothing is renamed onto it or onto the files the first run kept.
+func TestContract_Recover_ARerunAfterCoreRanRefusesAndKeepsEverything(t *testing.T) {
+	t.Parallel()
+	e := startRecover(t)
+	for _, n := range []string{"vedette.db", "vedette.db-wal", "vedette.key"} {
+		e.mv(t, n, n+".replaced-111")
+	}
+	e.mv(t, "vedette.db-wal.rollback", "vedette.db-wal")
+	e.mv(t, "vedette.key.rollback", "vedette.key")
+	e.patchJournal(t, recoverProgress("putting"))
+	// Core started: SQLite made an empty database, removed the old WAL, and core left a WAL of its own.
+	e.coreFile(t, "vedette.db", "db: core's fresh one")
+	if err := os.Remove(filepath.Join(e.m.CoreData, "vedette.db-wal")); err != nil {
+		t.Fatal(err)
+	}
+	e.coreFile(t, "vedette.db-shm", "shm: of the fresh one")
+	e.recoverRefused(t, ops.RecoverArgs{Use: ops.RecoverUseRollback, Apply: true}, ops.RecoverCoreRan)
+	tr := e.tree(t)
+	if tr["vedette.db.replaced-111"] != "db: half-migrated" || tr["vedette.db"] != "db: core's fresh one" || tr["vedette.db.rollback"] != "db: old" {
+		t.Errorf("a file was overwritten: %v", tr)
+	}
+}
+
 // H1: the copy of the database is gone but copies of its WAL/SHM are not (the host's own putAsideBack leaves this
 // when it quarantines a copy that is not a regular file): the sidecars must never be put back beside the live
 // database.

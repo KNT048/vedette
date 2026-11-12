@@ -32,6 +32,7 @@ const (
 	RecoverUnitMismatch     = "unit_mismatch"        // the copies are of another release than the unit pins
 	RecoverDBCopyMissing    = "db_copy_missing"      // copies of the database's WAL/SHM without the database copy
 	RecoverInProgress       = "recovery_in_progress" // an earlier -use rollback stopped half way: only it can finish
+	RecoverCoreRan          = "core_ran_since"       // a live file where a copy goes back: core ran after a stopped recovery
 	RecoverAuditDown        = "audit_unavailable"    // the start line could not be written, so nothing was changed
 )
 
@@ -262,7 +263,7 @@ func (o *Ops) RecoverCoreData(ctx context.Context, a RecoverArgs, logf func(stri
 		}
 	}
 	if !o.reconcileCoreVersion() {
-		return bsErr(RecoverVersions, "the files are in place but the recorded versions could not be brought in line with the unit; the journal was kept: fix that, then run -use rollback again, which finishes the versions and the journal")
+		return bsErr(RecoverVersions, "the files are in place but the recorded versions could not be brought in line with the unit; the journal was kept: fix that, then run -use "+a.Use+" again, which finishes the versions and the journal")
 	}
 	o.removeJournal(api.ServiceCore)
 	o.forgetRecoveryNotes(api.ServiceCore)
@@ -309,7 +310,10 @@ func (o *Ops) putRecovered(tree *coreTree, t *transition, names []string) error 
 			return bsErr(BootstrapFailed, "the progress could not be saved in the journal; run -use rollback again")
 		}
 	}
-	if err := tree.putCopies(t.Recover.Names, t.Recover.At); err != nil {
+	if err := tree.putCopies(t.Recover.Names); err != nil {
+		if errors.Is(err, errCoreRan) {
+			return bsErr(RecoverCoreRan, "core ran after an earlier -use rollback stopped half way: a live "+oneLine(err)+" that this command did not put back is core's own, and the old WAL that was put back may be gone. Nothing was changed. Look at the files in core_data (vedette.db*, and *.replaced-* which keep what the first run set aside); the safe ways out are restoring a backup (RUNBOOK 5.3) or -use current if core's data is the one to keep")
+		}
 		return bsErr(BootstrapFailed, "core_data could not be put back: "+oneLine(err)+"; run -use rollback again")
 	}
 	return nil
@@ -417,9 +421,12 @@ func (t *coreTree) moveAway(n string, at int64) error {
 	return t.root.Rename(n, fmt.Sprintf("%s%s%d", n, replacedInfix, at))
 }
 
+// errCoreRan says putCopies found a live file where a copy was to go.
+var errCoreRan = errors.New("ops: a live file is in the place of an aside copy")
+
 // putCopies renames each copy that is still there back to its name: the key and anything else first, the
 // database's sidecars next, the database last. A copy that is gone was put back by an earlier run.
-func (t *coreTree) putCopies(names []string, at int64) error {
+func (t *coreTree) putCopies(names []string) error {
 	order := slices.Clone(names)
 	rank := func(n string) int {
 		switch {
@@ -442,8 +449,17 @@ func (t *coreTree) putCopies(names []string, at int64) error {
 		if err != nil || !st.Mode().IsRegular() {
 			return fmt.Errorf("the aside copy of %q is not usable", n)
 		}
-		if err := t.moveAway(n, at); err != nil { // never overwrite: nothing should be there, but anything is kept
-			return err
+		// Phase 1 left nothing at these names, so a live file here is not ours: core ran since (it is the only thing that
+		// makes a database or a WAL). Never rename onto it (RENAME_NOREPLACE by hand: Lstat in the root, refuse).
+		if _, err := t.root.Lstat(n); err == nil {
+			return fmt.Errorf("%w: %q", errCoreRan, n)
+		}
+		if n == coreDBFile { // a WAL or journal that is not one this run put back would be replayed on the old database
+			for _, sfx := range sidecars {
+				if _, err := t.root.Lstat(coreDBFile + sfx); err == nil && !slices.Contains(names, coreDBFile+sfx) {
+					return fmt.Errorf("%w: %q", errCoreRan, coreDBFile+sfx)
+				}
+			}
 		}
 		if err := t.root.Rename(n+asideSuffix, n); err != nil {
 			return fmt.Errorf("put %q back: %w", n, err)

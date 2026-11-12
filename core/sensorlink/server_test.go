@@ -121,7 +121,7 @@ func TestProtoHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
 	p := r.good(t)
-	for _, v := range []string{"", "0", "1", "2", "4", "1.0", "11"} {
+	for _, v := range []string{"", "0", "1", "2", "3", "5", "1.0", "11"} { // 3: a sensor of before D-399
 		hdr := map[string]string{sensorlink.ProtoHeader: v}
 		if v == "" {
 			hdr[sensorlink.ProtoHeader] = "" // removes it

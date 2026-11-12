@@ -68197,16 +68197,19 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	DevicesSeen int    `json:"devices_seen"`
 	ID          string `json:"id"`
 	// The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in
-	// Settings → Box network.
-	Interface  NilString   `json:"interface"`
+	// Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387).
+	Interface NilString `json:"interface"`
+	// The cards the sensor reported in its last heartbeat.
 	Interfaces []string    `json:"interfaces"`
 	LastSeen   NilDateTime `json:"last_seen"`
 	Name       string      `json:"name"`
 	Span       bool        `json:"span"`
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryGetInventorySensorsOKSensorsItemSpanStatus `json:"span_status"`
-	Status     InventoryGetInventorySensorsOKSensorsItemStatus     `json:"status"`
-	Version    NilString                                           `json:"version"`
+	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
+	// never_connected: no heartbeat ever (D-387).
+	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
+	Version NilString                                       `json:"version"`
 }
 
 // GetDevicesSeen returns the value of DevicesSeen.
@@ -68408,11 +68411,14 @@ func (s *InventoryGetInventorySensorsOKSensorsItemSpanStatusVerdict) UnmarshalTe
 	}
 }
 
+// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
+// never_connected: no heartbeat ever (D-387).
 type InventoryGetInventorySensorsOKSensorsItemStatus string
 
 const (
-	InventoryGetInventorySensorsOKSensorsItemStatusOnline  InventoryGetInventorySensorsOKSensorsItemStatus = "online"
-	InventoryGetInventorySensorsOKSensorsItemStatusOffline InventoryGetInventorySensorsOKSensorsItemStatus = "offline"
+	InventoryGetInventorySensorsOKSensorsItemStatusOnline         InventoryGetInventorySensorsOKSensorsItemStatus = "online"
+	InventoryGetInventorySensorsOKSensorsItemStatusOffline        InventoryGetInventorySensorsOKSensorsItemStatus = "offline"
+	InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected InventoryGetInventorySensorsOKSensorsItemStatus = "never_connected"
 )
 
 // AllValues returns all InventoryGetInventorySensorsOKSensorsItemStatus values.
@@ -68420,6 +68426,7 @@ func (InventoryGetInventorySensorsOKSensorsItemStatus) AllValues() []InventoryGe
 	return []InventoryGetInventorySensorsOKSensorsItemStatus{
 		InventoryGetInventorySensorsOKSensorsItemStatusOnline,
 		InventoryGetInventorySensorsOKSensorsItemStatusOffline,
+		InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected,
 	}
 }
 
@@ -68429,6 +68436,8 @@ func (s InventoryGetInventorySensorsOKSensorsItemStatus) MarshalText() ([]byte, 
 	case InventoryGetInventorySensorsOKSensorsItemStatusOnline:
 		return []byte(s), nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusOffline:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -68443,6 +68452,9 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) UnmarshalText(data []b
 		return nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusOffline:
 		*s = InventoryGetInventorySensorsOKSensorsItemStatusOffline
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
+		*s = InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69059,6 +69071,302 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryPatchInventorySensorsIDOK struct {
+	DevicesSeen int    `json:"devices_seen"`
+	ID          string `json:"id"`
+	// The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in
+	// Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387).
+	Interface NilString `json:"interface"`
+	// The cards the sensor reported in its last heartbeat.
+	Interfaces []string    `json:"interfaces"`
+	LastSeen   NilDateTime `json:"last_seen"`
+	Name       string      `json:"name"`
+	Span       bool        `json:"span"`
+	// Live mirrored-traffic health, the same as Settings → Box network.
+	SpanStatus InventoryPatchInventorySensorsIDOKSpanStatus `json:"span_status"`
+	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
+	// never_connected: no heartbeat ever (D-387).
+	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
+	Version NilString                                `json:"version"`
+}
+
+// GetDevicesSeen returns the value of DevicesSeen.
+func (s *InventoryPatchInventorySensorsIDOK) GetDevicesSeen() int {
+	return s.DevicesSeen
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPatchInventorySensorsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetInterface returns the value of Interface.
+func (s *InventoryPatchInventorySensorsIDOK) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetInterfaces returns the value of Interfaces.
+func (s *InventoryPatchInventorySensorsIDOK) GetInterfaces() []string {
+	return s.Interfaces
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryPatchInventorySensorsIDOK) GetLastSeen() NilDateTime {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPatchInventorySensorsIDOK) GetName() string {
+	return s.Name
+}
+
+// GetSpan returns the value of Span.
+func (s *InventoryPatchInventorySensorsIDOK) GetSpan() bool {
+	return s.Span
+}
+
+// GetSpanStatus returns the value of SpanStatus.
+func (s *InventoryPatchInventorySensorsIDOK) GetSpanStatus() InventoryPatchInventorySensorsIDOKSpanStatus {
+	return s.SpanStatus
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryPatchInventorySensorsIDOK) GetStatus() InventoryPatchInventorySensorsIDOKStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPatchInventorySensorsIDOK) GetVersion() NilString {
+	return s.Version
+}
+
+// SetDevicesSeen sets the value of DevicesSeen.
+func (s *InventoryPatchInventorySensorsIDOK) SetDevicesSeen(val int) {
+	s.DevicesSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPatchInventorySensorsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetInterface sets the value of Interface.
+func (s *InventoryPatchInventorySensorsIDOK) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetInterfaces sets the value of Interfaces.
+func (s *InventoryPatchInventorySensorsIDOK) SetInterfaces(val []string) {
+	s.Interfaces = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryPatchInventorySensorsIDOK) SetLastSeen(val NilDateTime) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPatchInventorySensorsIDOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetSpan sets the value of Span.
+func (s *InventoryPatchInventorySensorsIDOK) SetSpan(val bool) {
+	s.Span = val
+}
+
+// SetSpanStatus sets the value of SpanStatus.
+func (s *InventoryPatchInventorySensorsIDOK) SetSpanStatus(val InventoryPatchInventorySensorsIDOKSpanStatus) {
+	s.SpanStatus = val
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryPatchInventorySensorsIDOK) SetStatus(val InventoryPatchInventorySensorsIDOKStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPatchInventorySensorsIDOK) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Live mirrored-traffic health, the same as Settings → Box network.
+type InventoryPatchInventorySensorsIDOKSpanStatus struct {
+	OtherMacs   int                                                 `json:"other_macs"`
+	PacketsPerS int                                                 `json:"packets_per_s"`
+	Verdict     InventoryPatchInventorySensorsIDOKSpanStatusVerdict `json:"verdict"`
+}
+
+// GetOtherMacs returns the value of OtherMacs.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) GetOtherMacs() int {
+	return s.OtherMacs
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) GetVerdict() InventoryPatchInventorySensorsIDOKSpanStatusVerdict {
+	return s.Verdict
+}
+
+// SetOtherMacs sets the value of OtherMacs.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) SetOtherMacs(val int) {
+	s.OtherMacs = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatus) SetVerdict(val InventoryPatchInventorySensorsIDOKSpanStatusVerdict) {
+	s.Verdict = val
+}
+
+type InventoryPatchInventorySensorsIDOKSpanStatusVerdict string
+
+const (
+	InventoryPatchInventorySensorsIDOKSpanStatusVerdictOff       InventoryPatchInventorySensorsIDOKSpanStatusVerdict = "off"
+	InventoryPatchInventorySensorsIDOKSpanStatusVerdictOk        InventoryPatchInventorySensorsIDOKSpanStatusVerdict = "ok"
+	InventoryPatchInventorySensorsIDOKSpanStatusVerdictOwnOnly   InventoryPatchInventorySensorsIDOKSpanStatusVerdict = "own_only"
+	InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoTraffic InventoryPatchInventorySensorsIDOKSpanStatusVerdict = "no_traffic"
+	InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoLink    InventoryPatchInventorySensorsIDOKSpanStatusVerdict = "no_link"
+)
+
+// AllValues returns all InventoryPatchInventorySensorsIDOKSpanStatusVerdict values.
+func (InventoryPatchInventorySensorsIDOKSpanStatusVerdict) AllValues() []InventoryPatchInventorySensorsIDOKSpanStatusVerdict {
+	return []InventoryPatchInventorySensorsIDOKSpanStatusVerdict{
+		InventoryPatchInventorySensorsIDOKSpanStatusVerdictOff,
+		InventoryPatchInventorySensorsIDOKSpanStatusVerdictOk,
+		InventoryPatchInventorySensorsIDOKSpanStatusVerdictOwnOnly,
+		InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoTraffic,
+		InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoLink,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPatchInventorySensorsIDOKSpanStatusVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOff:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOk:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOwnOnly:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoTraffic:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPatchInventorySensorsIDOKSpanStatusVerdict) UnmarshalText(data []byte) error {
+	switch InventoryPatchInventorySensorsIDOKSpanStatusVerdict(data) {
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOff:
+		*s = InventoryPatchInventorySensorsIDOKSpanStatusVerdictOff
+		return nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOk:
+		*s = InventoryPatchInventorySensorsIDOKSpanStatusVerdictOk
+		return nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictOwnOnly:
+		*s = InventoryPatchInventorySensorsIDOKSpanStatusVerdictOwnOnly
+		return nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoTraffic:
+		*s = InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoTraffic
+		return nil
+	case InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoLink:
+		*s = InventoryPatchInventorySensorsIDOKSpanStatusVerdictNoLink
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
+// never_connected: no heartbeat ever (D-387).
+type InventoryPatchInventorySensorsIDOKStatus string
+
+const (
+	InventoryPatchInventorySensorsIDOKStatusOnline         InventoryPatchInventorySensorsIDOKStatus = "online"
+	InventoryPatchInventorySensorsIDOKStatusOffline        InventoryPatchInventorySensorsIDOKStatus = "offline"
+	InventoryPatchInventorySensorsIDOKStatusNeverConnected InventoryPatchInventorySensorsIDOKStatus = "never_connected"
+)
+
+// AllValues returns all InventoryPatchInventorySensorsIDOKStatus values.
+func (InventoryPatchInventorySensorsIDOKStatus) AllValues() []InventoryPatchInventorySensorsIDOKStatus {
+	return []InventoryPatchInventorySensorsIDOKStatus{
+		InventoryPatchInventorySensorsIDOKStatusOnline,
+		InventoryPatchInventorySensorsIDOKStatusOffline,
+		InventoryPatchInventorySensorsIDOKStatusNeverConnected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPatchInventorySensorsIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPatchInventorySensorsIDOKStatusOnline:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKStatusOffline:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPatchInventorySensorsIDOKStatus) UnmarshalText(data []byte) error {
+	switch InventoryPatchInventorySensorsIDOKStatus(data) {
+	case InventoryPatchInventorySensorsIDOKStatusOnline:
+		*s = InventoryPatchInventorySensorsIDOKStatusOnline
+		return nil
+	case InventoryPatchInventorySensorsIDOKStatusOffline:
+		*s = InventoryPatchInventorySensorsIDOKStatusOffline
+		return nil
+	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
+		*s = InventoryPatchInventorySensorsIDOKStatusNeverConnected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPatchInventorySensorsIDReq struct {
+	// A card of the sensor's last heartbeat (younger than 90 s); null: no card chosen, the sensor listens
+	// on the default one (D-380).
+	Interface NilString `json:"interface"`
+	// The card receives mirrored traffic; it must have no IPv4 address. true needs an interface.
+	Span bool `json:"span"`
+}
+
+// GetInterface returns the value of Interface.
+func (s *InventoryPatchInventorySensorsIDReq) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetSpan returns the value of Span.
+func (s *InventoryPatchInventorySensorsIDReq) GetSpan() bool {
+	return s.Span
+}
+
+// SetInterface sets the value of Interface.
+func (s *InventoryPatchInventorySensorsIDReq) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetSpan sets the value of Span.
+func (s *InventoryPatchInventorySensorsIDReq) SetSpan(val bool) {
+	s.Span = val
 }
 
 type InventoryPostIntakeOsqueryConfigOK struct {
@@ -70006,7 +70314,9 @@ func (s *InventoryPostInventoryDevicesReq) SetVersion(val OptString) {
 type InventoryPostInventoryImportOK struct {
 	Created int                                        `json:"created"`
 	Errors  []InventoryPostInventoryImportOKErrorsItem `json:"errors"`
-	Skipped int                                        `json:"skipped"`
+	// Rows that were added but need a word: a public IP, or an IP outside the saved network ranges.
+	Notes   []InventoryPostInventoryImportOKNotesItem `json:"notes"`
+	Skipped int                                       `json:"skipped"`
 }
 
 // GetCreated returns the value of Created.
@@ -70017,6 +70327,11 @@ func (s *InventoryPostInventoryImportOK) GetCreated() int {
 // GetErrors returns the value of Errors.
 func (s *InventoryPostInventoryImportOK) GetErrors() []InventoryPostInventoryImportOKErrorsItem {
 	return s.Errors
+}
+
+// GetNotes returns the value of Notes.
+func (s *InventoryPostInventoryImportOK) GetNotes() []InventoryPostInventoryImportOKNotesItem {
+	return s.Notes
 }
 
 // GetSkipped returns the value of Skipped.
@@ -70032,6 +70347,11 @@ func (s *InventoryPostInventoryImportOK) SetCreated(val int) {
 // SetErrors sets the value of Errors.
 func (s *InventoryPostInventoryImportOK) SetErrors(val []InventoryPostInventoryImportOKErrorsItem) {
 	s.Errors = val
+}
+
+// SetNotes sets the value of Notes.
+func (s *InventoryPostInventoryImportOK) SetNotes(val []InventoryPostInventoryImportOKNotesItem) {
+	s.Notes = val
 }
 
 // SetSkipped sets the value of Skipped.
@@ -70061,6 +70381,31 @@ func (s *InventoryPostInventoryImportOKErrorsItem) SetLine(val int) {
 
 // SetMessage sets the value of Message.
 func (s *InventoryPostInventoryImportOKErrorsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+type InventoryPostInventoryImportOKNotesItem struct {
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+}
+
+// GetLine returns the value of Line.
+func (s *InventoryPostInventoryImportOKNotesItem) GetLine() int {
+	return s.Line
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventoryImportOKNotesItem) GetMessage() string {
+	return s.Message
+}
+
+// SetLine sets the value of Line.
+func (s *InventoryPostInventoryImportOKNotesItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventoryImportOKNotesItem) SetMessage(val string) {
 	s.Message = val
 }
 

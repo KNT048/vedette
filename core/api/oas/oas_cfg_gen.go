@@ -15,6 +15,7 @@ var regexMap = map[string]ogenregex.Regexp{
 	"^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$": ogenregex.MustCompile("^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$"),
 	"^([01]\\d|2[0-3]):[0-5]\\d$":                                          ogenregex.MustCompile("^([01]\\d|2[0-3]):[0-5]\\d$"),
 	"^CVE-\\d{4}-\\d{4,}$":                                                 ogenregex.MustCompile("^CVE-\\d{4}-\\d{4,}$"),
+	"^[0-9a-f]{64}$":                                                       ogenregex.MustCompile("^[0-9a-f]{64}$"),
 	"^[A-Za-z0-9_-]{1,64}$":                                                ogenregex.MustCompile("^[A-Za-z0-9_-]{1,64}$"),
 	"^[\\w.-]{1,96}$":                                                      ogenregex.MustCompile("^[\\w.-]{1,96}$"),
 	"^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$":                                        ogenregex.MustCompile("^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$"),

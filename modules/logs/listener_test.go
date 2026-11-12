@@ -1,19 +1,24 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -664,5 +669,128 @@ func TestALeftOverTLSRowIsServedAndNotWarnedAboutOnABoxWithTLS(t *testing.T) {
 	waitUntil(t, "the TLS socket for the old row", func() bool { return e.tlsAddr() != nil })
 	if n := logs.count("are not served"); n != 0 {
 		t.Errorf("the not-served warning was logged %d times on a box that serves TLS", n)
+	}
+}
+
+// D-434: the Sources answer carries the certificate of the TLS port (fingerprint, subject, self-signed, PEM), and nothing on a box without TLS.
+func TestSourcesShowTheBoxCertificateOfTheTLSPort(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	view, err := e.svc.Sources(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tc := view.Box.TLS
+	if tc == nil {
+		t.Fatal("no certificate in the box block of a box with TLS")
+	}
+	cert, _ := e.svc.cfg.Syslog.TLS.GetCertificate(nil)
+	sum := sha256.Sum256(cert.Certificate[0])
+	block, _ := pem.Decode([]byte(tc.PEM))
+	if tc.Fingerprint != hex.EncodeToString(sum[:]) || tc.Kind != "self_signed" || tc.Port != 6514 || tc.Subject != "CN=box" || block == nil || !bytes.Equal(block.Bytes, cert.Certificate[0]) || tc.NotAfter.IsZero() {
+		t.Errorf("certificate info %+v", tc)
+	}
+	plain := syslogEnv(t)
+	if view, err := plain.svc.Sources(t.Context()); err != nil || view.Box.TLS != nil {
+		t.Errorf("a box without TLS showed a certificate: %+v %v", view.Box.TLS, err)
+	}
+}
+
+// D-435: a TLS source may pin a client certificate; the pin is validated, stored, shown, and handed to the listener; other protocols refuse it.
+func TestTLSSourceClientCertificatePin(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	pin := strings.Repeat("ab", 32)
+	in := Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "10.9.9.9", Proto: "tls", Port: 6514, ClientCertSHA256: pin}
+	for name, bad := range map[string]func(*Input){
+		"on udp":      func(i *Input) { i.Proto, i.Port = "udp", 514 },
+		"upper case":  func(i *Input) { i.ClientCertSHA256 = strings.ToUpper(pin) },
+		"short":       func(i *Input) { i.ClientCertSHA256 = pin[:63] },
+		"not hex":     func(i *Input) { i.ClientCertSHA256 = strings.Repeat("zz", 32) },
+		"with colons": func(i *Input) { i.ClientCertSHA256 = "ab:" + pin[3:] },
+	} {
+		b := in
+		bad(&b)
+		if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", b); code(err) != "bad_client_cert" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	s, err := e.svc.AddSource(t.Context(), "admin@acme.example", in)
+	if err != nil || s.ClientCert == nil || *s.ClientCert != pin {
+		t.Fatalf("%+v %v", s, err)
+	}
+	m, _, err := e.svc.listenSources(t.Context())
+	if err != nil || m[netip.MustParseAddr("10.9.9.9")].ClientCertSHA256 != pin {
+		t.Fatalf("the listener was not given the pin: %+v %v", m, err)
+	}
+	in.ClientCertSHA256 = ""
+	s, err = e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, in)
+	if err != nil || s.ClientCert != nil {
+		t.Fatalf("the pin was not removed: %+v %v", s, err)
+	}
+}
+
+// A leaf signed by a CA (the box's own CA on a default box, D-262/D-351): the card hands out the CA, not the leaf, names it as the box CA
+// when the CA is the box's, and says "issued" (with the owner's chain) for another authority. A private key in the trust file is never kept.
+func TestBoxCertificateCardNamesTheCAThatSignedTheLeaf(t *testing.T) {
+	t.Parallel()
+	mk := func(cn string, parent *x509.Certificate, pkey *ecdsa.PrivateKey, ca bool) (*x509.Certificate, *ecdsa.PrivateKey, []byte) {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tpl := &x509.Certificate{SerialNumber: big.NewInt(time.Now().UnixNano()), Subject: pkix.Name{CommonName: cn}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour),
+			BasicConstraintsValid: true, IsCA: ca, IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}}
+		if ca {
+			tpl.KeyUsage = x509.KeyUsageCertSign
+		}
+		signer, signKey := tpl, key
+		if parent != nil {
+			signer, signKey = parent, pkey
+		}
+		der, err := x509.CreateCertificate(rand.Reader, tpl, signer, &key.PublicKey, signKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, _ := x509.ParseCertificate(der)
+		return c, key, der
+	}
+	for name, tc := range map[string]struct {
+		caName, kind string
+		anchorErr    bool
+		wantCard     bool
+	}{
+		"the box CA":         {"Vedette box CA", "box_ca", false, true},
+		"an owner's CA":      {"Acme Root", "issued", false, true},
+		"the box CA is busy": {"Vedette box CA", "", true, false},
+	} {
+		e, _ := tlsEnv(t)
+		ca, caKey, caDER := mk(tc.caName, nil, nil, true)
+		_, leafKey, leafDER := mk("box", ca, caKey, false)
+		leaf := &tls.Certificate{Certificate: [][]byte{leafDER}, PrivateKey: leafKey}
+		e.svc.cfg.Syslog.TLS = &tls.Config{GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return leaf, nil }}
+		keyDER, _ := x509.MarshalPKCS8PrivateKey(caKey)
+		file := append(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})...)
+		e.svc.cfg.TrustAnchor = func() ([]byte, error) {
+			if tc.anchorErr {
+				return nil, errors.New("being renewed")
+			}
+			return file, nil
+		}
+		view, err := e.svc.Sources(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := view.Box.TLS
+		if !tc.wantCard {
+			if got != nil {
+				t.Errorf("%s: a card was shown while the CA cannot be handed out: %+v", name, got)
+			}
+			continue
+		}
+		sum := sha256.Sum256(caDER)
+		if got == nil || got.Kind != tc.kind || got.Subject != "CN="+tc.caName || got.Issuer != "CN="+tc.caName || got.Fingerprint != hex.EncodeToString(sum[:]) || strings.Contains(got.PEM, "PRIVATE") || strings.Count(got.PEM, "BEGIN CERTIFICATE") != 1 {
+			t.Errorf("%s: %+v", name, got)
+		}
 	}
 }

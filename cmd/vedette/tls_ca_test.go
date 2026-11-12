@@ -292,6 +292,47 @@ func TestBoxCASurvivesRenewalAndAddressChange(t *testing.T) {
 	}
 }
 
+// D-397: a start with a -hosts entry the box's own leaf lacks (VEDETTE_HOSTS changed, then `up -d`) re-issues the leaf: same key,
+// same CA (an agent pinned to it keeps working), the old names kept, logged. An owner's certificate is never touched
+// (TestEnsureCertRenewsItsOwnPairNearExpiry), and a start whose -hosts the leaf covers, or that dropped a name, changes nothing.
+func TestEnsureCertReissuesForANewHostsEntry(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
+	if err := ensureCert(t, crt, key, []string{"box.acme.example"}); err != nil {
+		t.Fatal(err)
+	}
+	s, ca, first := testCA(t, dir), sealedCert(t, dir), readCert(t, crt)
+	var logBuf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logBuf, nil))
+	hosts := []string{"box.acme.example", "Core.Acme.Example", "192.0.2.44"}
+	if err := ensureCertAt(t.Context(), s, crt, key, hosts, time.Now, log); err != nil {
+		t.Fatal(err)
+	}
+	second := readCert(t, crt)
+	if second.SerialNumber.Cmp(first.SerialNumber) == 0 {
+		t.Fatal("the leaf was not re-issued for the new -hosts entries")
+	}
+	for _, h := range []string{"box.acme.example", "core.acme.example", "192.0.2.44"} {
+		verifyUnderOnlyTheCA(t, dir, second, h, time.Now())
+	}
+	if !second.PublicKey.(*ecdsa.PublicKey).Equal(first.PublicKey) || !sealedCert(t, dir).Equal(ca) || len(auditRows(t, s)) != 1 {
+		t.Fatal("the re-issue changed the key or the CA")
+	}
+	if !strings.Contains(logBuf.String(), "re-issued for the names of -hosts or the box name") || !strings.Contains(logBuf.String(), "192.0.2.44") {
+		t.Errorf("not logged: %q", logBuf.String())
+	}
+	before := mustRead(t, crt)
+	for _, h := range [][]string{hosts, {"box.acme.example"}} {
+		if err := ensureCertAt(t.Context(), s, crt, key, h, time.Now, nil); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(before, mustRead(t, crt)) {
+			t.Fatalf("-hosts %v the leaf covers: replaced", h)
+		}
+	}
+}
+
 // writeOldSelfSigned writes what a box before D-262 had: a self-signed leaf (CA:FALSE) for its key.
 func writeOldSelfSigned(t *testing.T, crt, key string, dns []string, ips ...string) *ecdsa.PrivateKey {
 	t.Helper()

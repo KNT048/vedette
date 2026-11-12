@@ -8,6 +8,7 @@ export type SourceState = z.infer<typeof C.SourceState>
 export type LogSource = z.infer<typeof C.LogSource>
 export type SourceInput = z.infer<typeof C.SourceInput>
 export type SourcesResponse = z.infer<typeof C.SourcesResponse>
+export type BoxTls = z.infer<typeof C.BoxTls>
 export type UnknownSender = z.infer<typeof C.UnknownSender>
 export type UnknownSendersResponse = z.infer<typeof C.UnknownSendersResponse>
 export type NewItem = z.infer<typeof C.NewItem>

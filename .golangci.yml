@@ -40,7 +40,11 @@ linters:
             - pkg: github.com/knt048/vedette/modules
               desc: "core must not import modules (dependency direction is module -> core)"
     forbidigo:
+      analyze-types: true
       forbid:
+        # D-431: the news fetcher's network seam is for tests only (the rule is switched off for _test.go below).
+        - pattern: ^\(\*github\.com/knt048/vedette/modules/ai\.Service\)\.SetNewsNetwork$
+          msg: "SetNewsNetwork is a test seam (D-431): call it from a _test.go file only"
         - pattern: ^http\.DefaultClient$
           msg: "use an http.Client with timeouts (ENGINEERING §2.4)"
         - pattern: ^http\.(Get|Head|Post|PostForm)$
@@ -55,6 +59,12 @@ linters:
       static-msg: true
       key-naming-case: snake
       context: scope
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [forbidigo]
+        text: "SetNewsNetwork"
 
 formatters:
   enable:

@@ -26,6 +26,7 @@
 
 ## Modifying: `Activity.Append(entry)` / `Activity.Verify()` (D-48)
 - **core/logs export** (`ai_activity`), **GUI Activity panel**: đổi công thức hash → chuỗi cũ không kiểm lại được; phải có bước di trú (ghi `version` vào entry).
+- **`activity-verify`** (D-430): gọi `Activity.Verify` mỗi 24 giờ và `Config.Alert` → `notify.Publish` (kind incident) khi hỏng; đổi `VerifyResult` hay chữ ký `Alert` thì sửa `cmd/vedette/ai.go` và `verify_alert_test.go`.
 
 ## Modifying: `Hooks.Run(when, text)`
 - Mọi `RunJob`, `Ask`. Đổi thứ tự (block trước mask) hoặc thêm hook dựng sẵn → thay đổi dữ liệu rời hộp (PRIVACY luồng 3).

@@ -14,7 +14,7 @@ import { resetMockDb } from '@/mocks/db'
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBoxBackups, usePurge, useRestore, useRestoreRun } from './api'
-import { useInstallKind } from '@/lib/modules'
+import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
 import { fmtDateTime } from '@/lib/format'
@@ -44,7 +44,10 @@ export default function DataSection() {
   const dl = (path: string, file: string) => () => void download(path, file).then((saved) => toast.success(t('data.downloaded', { file: saved }))).catch((e) => toast.error(errMsg(e, t)))
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
-  const [cats, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
+  const [picked, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
+  // S-CORE-6 (walk 4): an install that cannot run traps (container-only, D-381) has no honeypot hits: the box greys it and leaves it out.
+  const noTraps = useModuleAvailable('honeypot') === false
+  const cats = noTraps ? picked.filter((c) => c !== 'honeypot') : picked
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [fmt, setFmt] = useState<'json' | 'csv'>('json')
@@ -90,8 +93,8 @@ export default function DataSection() {
             <div className="grid gap-2 sm:grid-cols-2">
               {LOG_CATEGORIES.map((c) => (
                 <div key={c.id} className="flex items-center gap-2">
-                  <Checkbox id={`log-${c.id}`} checked={cats.includes(c.id)} disabled={gate.disabled} onCheckedChange={(on) => setCats((l) => (on ? [...l, c.id] : l.filter((x) => x !== c.id)))} />
-                  <Label htmlFor={`log-${c.id}`}>{t(`data.logs.cat.${c.id}`)}</Label>
+                  <Checkbox id={`log-${c.id}`} checked={cats.includes(c.id)} disabled={gate.disabled || (noTraps && c.id === 'honeypot')} onCheckedChange={(on) => setCats((l) => (on ? [...l, c.id] : l.filter((x) => x !== c.id)))} />
+                  <Label htmlFor={`log-${c.id}`}>{t(`data.logs.cat.${c.id}`)}{noTraps && c.id === 'honeypot' ? <span className="text-muted"> {t('data.logs.noTraps')}</span> : null}</Label>
                 </div>
               ))}
             </div>

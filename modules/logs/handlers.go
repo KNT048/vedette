@@ -69,7 +69,7 @@ func (h *LogsHandlers) LogsPostLogsSources(ctx context.Context, req *oas.LogsPos
 	if err != nil {
 		return nil, err
 	}
-	s, err := h.svc.AddSource(ctx, user, Input{Kind: string(req.Kind), Name: req.Name, SenderIP: req.SenderIP, Proto: string(req.Proto), Port: req.Port})
+	s, err := h.svc.AddSource(ctx, user, Input{Kind: string(req.Kind), Name: req.Name, SenderIP: req.SenderIP, Proto: string(req.Proto), Port: req.Port, ClientCertSHA256: req.ClientCertSHA256.Or("")})
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (h *LogsHandlers) LogsPutLogsSourcesID(ctx context.Context, req *oas.LogsPu
 	if err != nil {
 		return nil, err
 	}
-	s, err := h.svc.UpdateSource(ctx, user, params.ID, Input{Kind: string(req.Kind), Name: req.Name, SenderIP: req.SenderIP, Proto: string(req.Proto), Port: req.Port})
+	s, err := h.svc.UpdateSource(ctx, user, params.ID, Input{Kind: string(req.Kind), Name: req.Name, SenderIP: req.SenderIP, Proto: string(req.Proto), Port: req.Port, ClientCertSHA256: req.ClientCertSHA256.Or("")})
 	if err != nil {
 		return nil, err
 	}

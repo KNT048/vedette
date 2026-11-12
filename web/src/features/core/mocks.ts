@@ -897,7 +897,8 @@ function privacyView() {
     { id: 7, state: 'conditional', control: 'reason' },
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
-    { id: 10, state: 'on', control: 'reason' }, // always on (D-166 (4)): the distribution's own chrony sources stay whatever is entered; the real backend answers true too
+    // on (D-166 (4)): the distribution's own chrony sources stay whatever is entered; off on a container-only install, which sets no time source (S-CORE-4)
+    { id: 10, state: installStore.get().kind === 'container' ? 'off' : 'on', control: 'reason' },
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },

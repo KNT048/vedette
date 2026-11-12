@@ -37,8 +37,9 @@ func (e *UnavailableError) Unwrap() error { return ErrUnavailable }
 // Attempt is one profile tried for a call, for the activity log and the run record.
 type Attempt struct {
 	ProfileID, Profile string
-	Err                error // nil on success; a provider error (safe to show) or a skip reason
-	Skipped            bool  // true when no request was sent (cap, privacy, build error, changed settings)
+	Model              string // the model of the profile when the attempt was made (an edit during the call does not change it)
+	Err                error  // nil on success; a provider error (safe to show) or a skip reason
+	Skipped            bool   // true when no request was sent (cap, privacy, build error, changed settings)
 }
 
 // Refused reports whether the attempt ended in a model refusal (provider.ErrRefused).
@@ -226,7 +227,7 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		p := c.p
 		skipErr := func(why error) {
 			reasons = append(reasons, p.Name+": "+why.Error())
-			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: why, Skipped: true})
+			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model, Err: why, Skipped: true})
 		}
 		skip := func(why string) { skipErr(errors.New(why)) }
 		if cur := r.st.Load(); cur != st { // the settings changed while this call was running
@@ -265,14 +266,14 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 				hold.Cancel()
 			}
 			// The request was handed to the provider, so the attempt counts, also when the caller has gone: the caller records it.
-			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: err})
+			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model, Err: err})
 			if ctx.Err() != nil { // the caller gave up or ran out of time: do not burn the fallback
 				return res, ctx.Err()
 			}
 			reasons = append(reasons, p.Name+": "+err.Error())
 			continue
 		}
-		res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name})
+		res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model})
 		res.Response, res.ProfileID, res.Profile, res.Model, res.Fallback = resp, p.ID, p.Name, p.Model, c.fallback
 		res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
 		return res, nil

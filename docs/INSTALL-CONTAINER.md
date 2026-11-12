@@ -68,7 +68,7 @@ VEDETTE_BIND_IP=192.168.10.5        # the address of THIS machine the web page i
 VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browser; comma separated for several
 ```
 
-Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
+Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate (change the line and run `up -d` again: at that start core gives its certificate the new names, from the same box CA, so an agent you installed keeps trusting it, and says so in its log; names you removed stay in the certificate but get `421`); any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
 Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
@@ -138,7 +138,7 @@ Without an offered release, the page shows only `pull` and `up -d`: they pull ag
 
 ## 6. Back up, stop, remove
 
-Everything Vedette keeps, including the key that unlocks its secrets, is in the Docker volume `vedette_data` (the two small `creds-*` volumes hold the sensor credentials; they are rebuilt only if core does so, which the lab has not proved, so back them up the same way if you run sensors). There is no snapshot made by a helper in this install, so you copy the volume yourself, with core stopped, and keep the copy as safe as a password:
+Everything Vedette keeps, including the key that unlocks its secrets, is in the Docker or Podman volume `vedette_data`. The two small `creds-*` volumes hold the sensors' credentials, and core writes them again from `vedette_data` at every start (`core/pki` `Authority.Start`), so they need no backup: after `down --volumes` and a restore of `vedette_data` alone, the sensor reconnects (seen on Podman in the 2026-11-13 walk). There is no snapshot made by a helper in this install, so you copy the volume yourself, with core stopped, and keep the copy as safe as a password:
 
 ```sh
 docker compose --env-file vedette.env stop core
@@ -158,6 +158,16 @@ docker run --rm --network none -v vedette_data:/data -v "$PWD":/backup:ro \
   docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
   sh -c 'cd /data && tar xzf /backup/vedette-data.tgz'
 docker compose --env-file vedette.env start core
+```
+
+With Podman the commands are the same with `podman` for `docker` (`podman compose …`, `podman run …`), as the Docker / Podman switch of Settings → Data shows them. On a machine with SELinux (Fedora, RHEL), the `"$PWD":/backup` mount needs `:Z` in the backup command and `:ro,Z` in the restore command, or the container cannot write or read the file; Podman ignores it where SELinux is off. The backup with Podman:
+
+```sh
+podman compose --env-file vedette.env stop core
+podman run --rm --network none -v vedette_data:/data:ro -v "$PWD":/backup:Z \
+  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  sh -c 'umask 077 && tar czf /backup/vedette-data.tgz -C /data .'
+podman compose --env-file vedette.env start core
 ```
 
 `down` stops and removes the containers and keeps the data. `down --volumes` deletes the data too. "Delete all data" in Settings → Data makes core exit; Docker restarts it as a fresh box (`restart: unless-stopped`), with a new setup code in the log.

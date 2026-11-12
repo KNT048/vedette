@@ -68347,10 +68347,15 @@ func (s *InventoryGetInventorySensorsOK) SetSensors(val []InventoryGetInventoryS
 }
 
 type InventoryGetInventorySensorsOKSensorsItem struct {
+	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
+	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
+	// (D-393).
+	Chosen      bool   `json:"chosen"`
 	DevicesSeen int    `json:"devices_seen"`
 	ID          string `json:"id"`
-	// The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in
-	// Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387).
+	// The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default
+	// card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only
+	// install with PATCH /inventory/sensors/{id} (D-387, D-393).
 	Interface NilString `json:"interface"`
 	// The cards the sensor reported in its last heartbeat.
 	Interfaces []string    `json:"interfaces"`
@@ -68363,6 +68368,11 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
+}
+
+// GetChosen returns the value of Chosen.
+func (s *InventoryGetInventorySensorsOKSensorsItem) GetChosen() bool {
+	return s.Chosen
 }
 
 // GetDevicesSeen returns the value of DevicesSeen.
@@ -68413,6 +68423,11 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) GetStatus() InventoryGetInve
 // GetVersion returns the value of Version.
 func (s *InventoryGetInventorySensorsOKSensorsItem) GetVersion() NilString {
 	return s.Version
+}
+
+// SetChosen sets the value of Chosen.
+func (s *InventoryGetInventorySensorsOKSensorsItem) SetChosen(val bool) {
+	s.Chosen = val
 }
 
 // SetDevicesSeen sets the value of DevicesSeen.
@@ -69227,10 +69242,15 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 }
 
 type InventoryPatchInventorySensorsIDOK struct {
+	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
+	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
+	// (D-393).
+	Chosen      bool   `json:"chosen"`
 	DevicesSeen int    `json:"devices_seen"`
 	ID          string `json:"id"`
-	// The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in
-	// Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387).
+	// The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default
+	// card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only
+	// install with PATCH /inventory/sensors/{id} (D-387, D-393).
 	Interface NilString `json:"interface"`
 	// The cards the sensor reported in its last heartbeat.
 	Interfaces []string    `json:"interfaces"`
@@ -69243,6 +69263,11 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
+}
+
+// GetChosen returns the value of Chosen.
+func (s *InventoryPatchInventorySensorsIDOK) GetChosen() bool {
+	return s.Chosen
 }
 
 // GetDevicesSeen returns the value of DevicesSeen.
@@ -69293,6 +69318,11 @@ func (s *InventoryPatchInventorySensorsIDOK) GetStatus() InventoryPatchInventory
 // GetVersion returns the value of Version.
 func (s *InventoryPatchInventorySensorsIDOK) GetVersion() NilString {
 	return s.Version
+}
+
+// SetChosen sets the value of Chosen.
+func (s *InventoryPatchInventorySensorsIDOK) SetChosen(val bool) {
+	s.Chosen = val
 }
 
 // SetDevicesSeen sets the value of DevicesSeen.

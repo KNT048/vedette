@@ -45,15 +45,15 @@ const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
-type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'span_status'>
+type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status'>
 const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
-/** Container-only install (D-263, D-387): the cards the sensor container reported in its heartbeat and the SPAN card the admin
- *  chose. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
+/** Container-only install (D-263, D-387, D-393): the cards the sensor container reported in its heartbeat and the card the admin
+ *  chose (null: the default card, D-380), SPAN or not. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
 type ReportedCard = { name: string; ipv4: string | null; link: boolean }
 export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
   connected: true, chosen: null, span: false,
@@ -69,7 +69,7 @@ function containerSensors() {
   const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null
   return sensorsStore.get().map((s) => ({
     ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
-    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span,
+    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span, chosen: c.chosen !== null,
     span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
   }))
 }
@@ -651,7 +651,7 @@ export const handlers = [
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
     const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
-    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
+    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, chosen: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
   }),
 
   // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).

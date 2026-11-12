@@ -192,6 +192,7 @@ type Sensor struct {
 	Interface   *string    `json:"interface"`
 	Interfaces  []string   `json:"interfaces"`
 	Span        bool       `json:"span"`
+	Chosen      bool       `json:"chosen"` // Interface is a stored choice, not the default card (D-380, D-393)
 	SpanStatus  SpanStatus `json:"span_status"`
 	Status      string     `json:"status"` // online | offline | never_connected
 	LastSeen    *string    `json:"last_seen"`
@@ -264,7 +265,8 @@ func (s *Service) online(r sensorRow) bool {
 
 // Status lists the sensors of this box (GET /inventory/sensors): at most one. Everything about the sensor comes from its
 // heartbeat (D-112 (5)): online within 90 s of the last one, its version, devices heard, the cards it reported and the SPAN
-// measurement; what the admin chose (interface, SPAN) is core's own.
+// measurement; what the admin chose (interface, SPAN) is core's own. Chosen says the card is a stored choice: false while it is the
+// default (D-380), so the GUI of a container-only install shows "Automatic" and never saves the default by accident (D-393).
 func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if err := s.ensureSensor(ctx); err != nil {
 		return nil, err
@@ -288,7 +290,7 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if n := s.listenOn(ctx, r); n != "" {
 		iface = &n
 	}
-	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span,
+	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span, Chosen: r.iface.String != "",
 		SpanStatus: SpanStatus{st.Verdict, st.PPS, st.OtherMACs}, Status: "offline", LastSeen: nullable(r.lastSeen),
 		Version: nullable(r.version), DevicesSeen: r.devices}
 	switch {
@@ -410,7 +412,8 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	return nil
 }
 
-// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387): only when core
+// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387, D-393: any card of
+// the fresh heartbeat, with or without an address, SPAN or not; "" goes back to the default card): only when core
 // runs without vedette-host, where the sensor's fresh heartbeat is the list of cards (D-263, D-385). With a host, or a configured
 // host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
 // through Settings, Box network, which calls SetInterface itself.

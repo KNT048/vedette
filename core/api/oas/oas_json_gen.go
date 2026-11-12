@@ -138056,6 +138056,10 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryGetInventorySensorsOKSensorsItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("chosen")
+		e.Bool(s.Chosen)
+	}
+	{
 		e.FieldStart("devices_seen")
 		e.Int(s.DevicesSeen)
 	}
@@ -138101,17 +138105,18 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventorySensorsOKSensorsItem = [10]string{
-	0: "devices_seen",
-	1: "id",
-	2: "interface",
-	3: "interfaces",
-	4: "last_seen",
-	5: "name",
-	6: "span",
-	7: "span_status",
-	8: "status",
-	9: "version",
+var jsonFieldsNameOfInventoryGetInventorySensorsOKSensorsItem = [11]string{
+	0:  "chosen",
+	1:  "devices_seen",
+	2:  "id",
+	3:  "interface",
+	4:  "interfaces",
+	5:  "last_seen",
+	6:  "name",
+	7:  "span",
+	8:  "span_status",
+	9:  "status",
+	10: "version",
 }
 
 // Decode decodes InventoryGetInventorySensorsOKSensorsItem from json.
@@ -138123,8 +138128,20 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "devices_seen":
+		case "chosen":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Chosen = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"chosen\"")
+			}
+		case "devices_seen":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.DevicesSeen = int(v)
@@ -138136,7 +138153,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"devices_seen\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -138148,7 +138165,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interface":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Interface.Decode(d); err != nil {
 					return err
@@ -138158,7 +138175,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"interface\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Interfaces = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -138178,7 +138195,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "last_seen":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -138188,7 +138205,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -138200,7 +138217,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Span = bool(v)
@@ -138212,7 +138229,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -138222,7 +138239,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"span_status\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -138232,7 +138249,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -138252,7 +138269,7 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Decode(d *jx.Decoder) error 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -139374,6 +139391,10 @@ func (s *InventoryPatchInventorySensorsIDOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryPatchInventorySensorsIDOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("chosen")
+		e.Bool(s.Chosen)
+	}
+	{
 		e.FieldStart("devices_seen")
 		e.Int(s.DevicesSeen)
 	}
@@ -139419,17 +139440,18 @@ func (s *InventoryPatchInventorySensorsIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryPatchInventorySensorsIDOK = [10]string{
-	0: "devices_seen",
-	1: "id",
-	2: "interface",
-	3: "interfaces",
-	4: "last_seen",
-	5: "name",
-	6: "span",
-	7: "span_status",
-	8: "status",
-	9: "version",
+var jsonFieldsNameOfInventoryPatchInventorySensorsIDOK = [11]string{
+	0:  "chosen",
+	1:  "devices_seen",
+	2:  "id",
+	3:  "interface",
+	4:  "interfaces",
+	5:  "last_seen",
+	6:  "name",
+	7:  "span",
+	8:  "span_status",
+	9:  "status",
+	10: "version",
 }
 
 // Decode decodes InventoryPatchInventorySensorsIDOK from json.
@@ -139441,8 +139463,20 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "devices_seen":
+		case "chosen":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Chosen = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"chosen\"")
+			}
+		case "devices_seen":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.DevicesSeen = int(v)
@@ -139454,7 +139488,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"devices_seen\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -139466,7 +139500,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "interface":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Interface.Decode(d); err != nil {
 					return err
@@ -139476,7 +139510,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interface\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Interfaces = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -139496,7 +139530,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "last_seen":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -139506,7 +139540,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -139518,7 +139552,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Span = bool(v)
@@ -139530,7 +139564,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -139540,7 +139574,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span_status\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -139550,7 +139584,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -139570,7 +139604,7 @@ func (s *InventoryPatchInventorySensorsIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

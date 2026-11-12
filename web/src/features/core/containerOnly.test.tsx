@@ -166,16 +166,19 @@ describe('container-only install (D-381)', () => {
     await screen.findByRole('button', { name: 'Configure sensor vedette-hq' }, { timeout: 5000 })
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
-  // S-CORE-8 G6, D-387: the SPAN card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
-  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses a card with an address', async () => {
+  // S-CORE-8 G6, D-387, D-393: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
+  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     expect(within(dlg).queryByRole('link', { name: /Box network/ })).toBeNull()
-    const pick = within(dlg).getByRole('combobox', { name: 'SPAN card' })
-    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(["None (listen on the card with this machine's address)", 'eno1', 'eno2', 'wlp2s0'])
+    const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Automatic (eno1)', 'eno1', 'eno2', 'wlp2s0'])
+    const spanBox = within(dlg).getByRole('checkbox', { name: /SPAN card/ })
+    expect(spanBox).toBeDisabled() // Automatic: no SPAN
     await u.selectOptions(pick, 'eno1')
+    await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
     await u.selectOptions(pick, 'eno2')
@@ -201,12 +204,31 @@ describe('container-only install (D-381)', () => {
     expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
-  it('Sensors: two cards with an address, no SPAN card chosen: the dialog says the sensor is not listening (D-380)', async () => {
+  // D-393 (M3): two cards with an address and no SPAN card: no default (D-380), so the admin picks the card to listen on.
+  it('Sensors: two cards with an address: the dialog says the sensor is not listening, the admin picks one, then back to Automatic', async () => {
     containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
-    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let dlg = screen.getByRole('dialog')
+    expect(within(dlg).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option')[0]).toHaveTextContent('Automatic (no card: more than one card has an address)')
+    await u.selectOptions(pick, 'eno2')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'eno2' })).toBeInTheDocument())
+    // Reopened, it shows the stored choice, not Automatic; Automatic stores no card again.
+    await openSensorDialog(u)
+    dlg = screen.getByRole('dialog')
+    pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(pick).toHaveValue('eno2')
+    expect(within(dlg).getByRole('button', { name: 'Save' })).toBeDisabled()
+    await u.selectOptions(pick, '')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: null, span: false })
   })
 
   it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {

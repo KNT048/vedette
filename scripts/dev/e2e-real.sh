@@ -33,7 +33,7 @@ pw=
 hold=${HOLD:-}
 lock="${TMPDIR:-/tmp}/vedette-e2e-real-build.lock.$(printf '%s' "$PWD" | cksum | cut -d' ' -f1)" # one lock per checkout: dist lives in it
 locked=
-unlock() { [ -z "$locked" ] || { rm -rf web/dist internal/webui/dist "$lock"; locked=; }; }
+unlock() { [ -z "$locked" ] || { rm -rf web/dist internal/webui/dist internal/webui/licenses "$lock"; locked=; }; }
 out="web/test-results/real-$$" # this run's traces; the shared name would be emptied by the other run
 cleanup() {
 	rc=$?

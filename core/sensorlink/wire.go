@@ -324,6 +324,15 @@ func ValidDropKey(k string) bool { return slices.Contains(DropKeys, k) }
 // ValidIfaceName reports whether s is a card name of the protocol (sensor-protocol.md section 5).
 func ValidIfaceName(s string) bool { return ifaceRE.MatchString(s) }
 
+// virtualRE names links that are not network cards: loopback, container and virtual links, bridges, bonds, VPN tunnels,
+// VLANs, and the box's own container bridge vedette0 (install.sh, D-267). One rule for the Box network page (core) and
+// for the sensor's cards without a host (sensor-passive, D-380, D-393).
+var virtualRE = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]`)
+
+// VirtualIfaceName reports whether s names a link that is not a network card (see virtualRE): never a default card, and
+// never offered as a card to listen on.
+func VirtualIfaceName(s string) bool { return virtualRE.MatchString(s) }
+
 // ValidMAC reports whether s is a MAC of the protocol: six lower-case hex pairs separated by colons.
 func ValidMAC(s string) bool { return macRE.MatchString(s) }
 

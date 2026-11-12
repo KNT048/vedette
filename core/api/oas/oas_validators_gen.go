@@ -9331,6 +9331,24 @@ func (s *CoreGetCoreUpdatesOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -9615,6 +9633,40 @@ func (s CoreGetCoreUpdatesOKHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CoreGetCoreUpdatesOKLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CoreGetCoreUpdatesOKLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -10974,6 +11026,24 @@ func (s *CorePatchCoreUpdatesOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -11258,6 +11328,40 @@ func (s CorePatchCoreUpdatesOKHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePatchCoreUpdatesOKLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePatchCoreUpdatesOKLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -14708,6 +14812,24 @@ func (s *CorePostCoreUpdatesApplyOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -14992,6 +15114,40 @@ func (s CorePostCoreUpdatesApplyOKHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesApplyOKLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -15383,6 +15539,24 @@ func (s *CorePostCoreUpdatesBundleOKState) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -15667,6 +15841,40 @@ func (s CorePostCoreUpdatesBundleOKStateHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -16058,6 +16266,24 @@ func (s *CorePostCoreUpdatesCheckOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -16342,6 +16568,40 @@ func (s CorePostCoreUpdatesCheckOKHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesCheckOKLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -17521,6 +17781,24 @@ func (s *CorePostCoreUpdatesRollbackOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.LastCheckError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_check_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Managed == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -17805,6 +18083,40 @@ func (s CorePostCoreUpdatesRollbackOKHistoryItemAction) Validate() error {
 	case "rollback":
 		return nil
 	case "bundle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesRollbackOKLastCheckErrorCode) Validate() error {
+	switch s {
+	case "update_source_unreachable":
+		return nil
+	case "update_check_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

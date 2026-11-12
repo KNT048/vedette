@@ -1,0 +1,1 @@
+- [ ] 2026-11-12 — no test pins that `cmd/vedette/wiring.go` passes `Reg.ContainerOnly()` into `DispatcherOptions`, nor the no-template-pack branch on container-only (left over from the G-E review LOW) — vì sao để sau: LOW coverage — ở đâu: cmd/vedette/wiring.go, modules/sensor-active/dispatch.go

@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/netip"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 	"github.com/knt048/vedette/host/api"
@@ -350,16 +350,13 @@ func (h *NetworkHandlers) packetsPerSecond(c *api.NetInterface) int {
 	return h.cache.pps[c.Name]
 }
 
-// virtualName is the name of a link that is not a card: container and virtual links, bridges, bonds, VLANs.
-// vedette-host lists every interface that has an address (core must know them all as "the box"), so the screen
-// keeps the cards and the two roles.
-// vedette is the box's own container bridge vedette0 (install.sh, D-267; #471).
-var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]`)
-
+// cardsOf keeps the cards and the two roles: vedette-host lists every interface that has an address (core must know them
+// all as "the box"), but a link that is not a card (sensorlink.VirtualIfaceName: container and virtual links, bridges,
+// bonds, VLANs, the box's own bridge vedette0; #471) is not offered.
 func cardsOf(st api.NetState) []api.NetInterface {
 	var out []api.NetInterface
 	for _, i := range st.Interfaces {
-		if i.Role != "" || !virtualName.MatchString(i.Name) {
+		if i.Role != "" || !sensorlink.VirtualIfaceName(i.Name) {
 			out = append(out, i)
 		}
 	}

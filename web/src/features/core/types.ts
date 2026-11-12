@@ -46,6 +46,7 @@ export type BoxBackups = z.infer<typeof C.BoxBackups>
 export type RestoreRun = z.infer<typeof C.RestoreRun>
 export type OsRebootBody = z.infer<typeof C.OsRebootBody>
 export type UpdatesState = z.infer<typeof C.UpdatesState>
+export type UpdateCheckError = z.infer<typeof C.UpdateCheckError>
 
 export type PrivacyFlow = z.infer<typeof C.PrivacyFlow>
 export type PrivacyState = z.infer<typeof C.PrivacyState>

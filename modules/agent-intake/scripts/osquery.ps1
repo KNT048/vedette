@@ -5,7 +5,7 @@
 #   2. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
 #   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it
-#   4. waits for the first check-in and prints the result
+#   4. waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
 param([string]$Token = '', [switch]$Uninstall)
 $ErrorActionPreference = 'Stop'
 $Box = '@@BOX@@'
@@ -59,13 +59,19 @@ try {
     Pop-Location
   }
   Set-Service osqueryd -StartupType Automatic
+  # status: hosts = machines that enrolled with this token; success = it grew past what it was before the restart (or the first report is in)
+  $base = 0
+  try { $b = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"; if ($b -match '"hosts":(\d+)') { $base = [int]$Matches[1] } } catch { $base = 0 }
   Restart-Service osqueryd
 
-  Write-Host 'Waiting for the first check-in (up to 2 minutes)...'
+  Write-Host 'Waiting for this machine to enrol with Vedette (up to 2 minutes)...'
   for ($i = 0; $i -lt 24; $i++) {
     $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"
-    if ($r -match '"enrolled":true') { Write-Host 'Done: this machine checked in with Vedette.'; return }
+    $now = 0
+    if ($r -match '"hosts":(\d+)') { $now = [int]$Matches[1] }
+    if ($now -gt $base -or $r -match '"enrolled":true') { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
     Start-Sleep -Seconds 5
   }
-  Write-Warning 'osquery is installed and running, but Vedette has not received its first report yet. This is normal: osquery sends its first report within about an hour. If it is still missing after two hours, check: Get-Service osqueryd'
+  Write-Warning 'osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: Get-Service osqueryd'
+  exit 3
 } finally { Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue }

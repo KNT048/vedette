@@ -197,6 +197,31 @@ func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
 	}
 }
 
+// A normal first install exits 0 once the machine has enrolled: osquery's first report comes up to an hour later and is not waited for
+// (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is "hosts grew past
+// the count taken before the restart" or "the first report is already in", never only enrolled:true.
+func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
+	const ok = "Installed and enrolled; the first report arrives within about an hour."
+	sh, ps1 := readFile(t, "scripts/osquery.sh"), readFile(t, "scripts/osquery.ps1")
+	if !strings.Contains(sh, `echo "`+ok+`"; exit 0`) || !strings.Contains(ps1, `Write-Host '`+ok+`'; return`) {
+		t.Error("a script does not end a first install with the enrolled message and success")
+	}
+	for name, body := range map[string]string{"sh": sh, "ps1": ps1} {
+		if !strings.Contains(body, `"hosts":`) || !strings.Contains(body, `"enrolled":true`) {
+			t.Errorf("%s: success must be hosts growing or enrolled:true", name)
+		}
+		if strings.Contains(body, "has not received its first report yet") {
+			t.Errorf("%s: still reports a missing first report as the end of the install", name)
+		}
+	}
+	if !strings.Contains(sh, "did not enrol") || !strings.HasSuffix(strings.TrimSpace(sh), "exit 3") {
+		t.Error("the Linux script must end with exit 3 only when the machine did not enrol")
+	}
+	if !strings.Contains(ps1, "did not enrol") || !strings.Contains(ps1, "exit 3") {
+		t.Error("the Windows script must fail with 3 only when the machine did not enrol")
+	}
+}
+
 // An arbitrary Host header is never put into a script: only a name the server's allow-list lets in, rebuilt from validated parts, or the
 // configured address, or the placeholder.
 func TestInstall_HostIsNeverReflected(t *testing.T) {

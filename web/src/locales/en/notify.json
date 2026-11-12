@@ -93,7 +93,7 @@
         },
         "port": {
           "label": "Port",
-          "hint": "587 for STARTTLS, 465 for SSL/TLS. Changing the encryption changes the port to match."
+          "hint": "587 for STARTTLS or no encryption, 465 for SSL/TLS. Changing the encryption changes the port to match."
         },
         "security": {
           "label": "Encryption",

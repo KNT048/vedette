@@ -85,8 +85,8 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 <Field key={k} label={label} htmlFor={id}>
                   <Select id={id} value={fields[k] ?? 'starttls'} onChange={(e) => {
                     const v = e.target.value
-                    // Cổng mặc định đi theo kiểu mã hoá: 465 = SSL/TLS ngầm, 587 = STARTTLS (không đổi nếu người dùng đã tự đặt cổng khác).
-                    setFields((f) => ({ ...f, security: v, port: v === 'ssl' && f.port === '587' ? '465' : v === 'starttls' && f.port === '465' ? '587' : f.port ?? '' }))
+                    // Cổng mặc định đi theo kiểu mã hoá: 465 = SSL/TLS ngầm, 587 = STARTTLS hoặc không mã hoá (không đổi nếu người dùng đã tự đặt cổng khác).
+                    setFields((f) => ({ ...f, security: v, port: v === 'ssl' && f.port === '587' ? '465' : v !== 'ssl' && f.port === '465' ? '587' : f.port ?? '' }))
                   }}>
                     {(['starttls', 'ssl', 'none'] as const).map((o) => <option key={o} value={o}>{t(`channels.f.email.security.${o}`)}</option>)}
                   </Select>

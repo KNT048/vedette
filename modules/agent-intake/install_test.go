@@ -147,17 +147,18 @@ func TestInstall_VersionsAgree(t *testing.T) {
 	if pins["OSQUERY_VERSION"] != agentintake.OsqueryVersion || guiVersion(t) != agentintake.OsqueryVersion {
 		t.Fatalf("versions: PINS %q, GUI %q, Go %q", pins["OSQUERY_VERSION"], guiVersion(t), agentintake.OsqueryVersion)
 	}
-	for _, k := range []string{"OSQUERY_DEB_AMD64_SHA256", "OSQUERY_RPM_X86_64_SHA256", "OSQUERY_MSI_SHA256",
+	for _, k := range []string{"OSQUERY_DEB_AMD64_SHA256", "OSQUERY_RPM_X86_64_SHA256", "OSQUERY_DEB_ARM64_SHA256", "OSQUERY_RPM_AARCH64_SHA256", "OSQUERY_MSI_SHA256",
 		"OSQUERY_LICENSE_SHA256", "OSQUERY_LICENSE_APACHE_SHA256", "OSQUERY_LICENSE_GPL2_SHA256"} {
 		if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(pins[k]) {
 			t.Errorf("PINS %s = %q is not a SHA-256", k, pins[k])
 		}
 	}
-	if len(pins) != 7 {
-		t.Errorf("PINS has %d keys, want the version, three package hashes and three licence hashes", len(pins))
+	if len(pins) != 9 {
+		t.Errorf("PINS has %d keys, want the version, five package hashes and three licence hashes", len(pins))
 	}
 	sh := readFile(t, "scripts/osquery.sh")
-	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.x86_64.rpm"`} {
+	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm"`,
+		"x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;", "aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;"} { // D-399: the six names of mirrorFiles
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script does not ask for %s", want)
 		}
@@ -261,23 +262,29 @@ func TestInstall_HostIsNeverReflected(t *testing.T) {
 			t.Errorf("Host %q reached the script", c.host)
 		}
 	}
-	// no configured address and no usable Host: the placeholder, never a guess
+	// no configured address and no usable Host: never a guess, and no script pinned to the placeholder either (D-399 (2): it would
+	// pass its SHA-256 check and then fail on every server); the admin's page still shows the placeholder
 	w2 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = "" })
-	_, body := w2.get("/install/osquery.ps1", "evil.example", "")
-	if !strings.Contains(string(body), "$Box = 'https://<VEDETTE_BOX_IP>:8443'") {
-		t.Error("no placeholder when the box does not know its address")
+	for _, p := range []string{"/install/osquery.sh", "/install/osquery.ps1"} {
+		for _, host := range []string{"evil.example", "localhost:8443", "127.0.0.1:8443"} {
+			if res, body := w2.get(p, host, ""); res.code != 404 || res.errCode() != "no_box_address" || strings.Contains(string(body), "VEDETTE_BOX_IP") {
+				t.Errorf("%s with Host %q and no address: %d %q", p, host, res.code, res.errCode())
+			}
+		}
+	}
+	if res, _ := w2.get("/inventory/agents", "localhost:8443", "admin"); res.code != 200 || res.body["server_url"] != "https://<VEDETTE_BOX_IP>:8443" {
+		t.Errorf("the admin's page: %d, server_url %v", res.code, res.body["server_url"])
 	}
 	// a configured address that is not https or holds a quote is not used either
 	for _, bad := range []string{"http://192.168.10.250:8443", "https://x'; id", "https://a b"} {
 		w3 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = bad })
-		_, body := w3.get("/install/osquery.sh", "", "")
-		if !strings.Contains(string(body), "BOX='https://<VEDETTE_BOX_IP>:8443'") {
-			t.Errorf("configured address %q was used", bad)
+		if res, body := w3.get("/install/osquery.sh", "", ""); res.code != 404 || strings.Contains(string(body), "192.168.10.250") || strings.Contains(string(body), "; id") {
+			t.Errorf("configured address %q was used: %d", bad, res.code)
 		}
 	}
 	// without an allow-list function the Host is never trusted
 	w4 := newWorld(t, func(c *agentintake.Config) { c.HostAllowed = nil })
-	_, body = w4.get("/install/osquery.sh", "box.corp.example", "")
+	_, body := w4.get("/install/osquery.sh", "box.corp.example", "")
 	if !strings.Contains(string(body), "BOX='"+boxURL+"'") {
 		t.Error("a Host was used with no allow-list")
 	}
@@ -350,6 +357,8 @@ func TestContract_INV11_CaPemServesTheCertificateOnly(t *testing.T) {
 var mirrorNames = []string{
 	"osquery_" + agentintake.OsqueryVersion + "-1.linux_amd64.deb",
 	"osquery-" + agentintake.OsqueryVersion + "-1.linux.x86_64.rpm",
+	"osquery_" + agentintake.OsqueryVersion + "-1.linux_arm64.deb",
+	"osquery-" + agentintake.OsqueryVersion + "-1.linux.aarch64.rpm",
 	"osquery-" + agentintake.OsqueryVersion + ".msi",
 	"SHA256SUMS",
 }
@@ -402,7 +411,7 @@ func TestMirror_AllowListAndTraversal(t *testing.T) {
 	for _, name := range []string{
 		"..", "../secret.txt", "..%2fsecret.txt", "%2e%2e%2fsecret.txt", "%2e%2e", "..%252fsecret.txt", "%2fetc%2fpasswd", "/etc/passwd", "%5c..%5csecret.txt", "..\\secret.txt",
 		"osquery-" + agentintake.OsqueryVersion + ".msi%00.txt", "SHA256SUMS%00", "SHA256SUMS%00.deb", "sha256sums", "Sha256Sums", "SHA256SUMS/", "SHA256SUMS%20", "%20SHA256SUMS",
-		"other.deb", "secret.txt", "osquery_" + agentintake.OsqueryVersion + "-1.linux_arm64.deb", "osquery_9.9.9-1.linux_amd64.deb", ".", "%2e", "",
+		"other.deb", "secret.txt", "osquery_" + agentintake.OsqueryVersion + "-1.linux_armhf.deb", "osquery_9.9.9-1.linux_amd64.deb", ".", "%2e", "",
 	} {
 		res, body := w.get("/install/osquery/"+name, "", "")
 		if res.code == 200 || strings.Contains(string(body), "TOPSECRET") || strings.Contains(string(body), "not on the list") {

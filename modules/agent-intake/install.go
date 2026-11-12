@@ -130,6 +130,12 @@ func (s *Service) anchor() ([]byte, error) {
 	return out, nil
 }
 
+// noBoxAddress is the answer for a script whose box address would be the placeholder (D-399 (2)): a script pinned to
+// <VEDETTE_BOX_IP> passes its SHA-256 check and then fails on every server, so it is not served at all.
+func noBoxAddress() *apierr.Error {
+	return apierr.New(404, "no_box_address", "This box knows no address that other machines can reach (it is open as localhost or 127.0.0.1 only), so an install script would point nowhere. Add the box's network name or address to VEDETTE_HOSTS (container-only install) or open Vedette at its network address, then copy the command again.")
+}
+
 func noCertificate() *apierr.Error {
 	return apierr.New(404, "no_certificate", "This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address.")
 }
@@ -206,6 +212,9 @@ func (h *InstallHandlers) script(ctx context.Context, windows bool, contentType 
 	if err != nil {
 		return nil, fmt.Errorf("agentintake: the box certificate: %w", err)
 	}
+	if h.s.boxURL(x.R.Host) == boxPlaceholder {
+		return nil, noBoxAddress()
+	}
 	body := sh
 	if windows {
 		body = ps1
@@ -232,7 +241,7 @@ func (h *InstallHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inve
 
 // ---- the package mirror ----
 
-// The package files of the image (WP-26 slice 3, D-169 (10)): exactly these four names exist, whatever the request says. They are fixed
+// The package files of the image (WP-26 slice 3, D-169 (10), D-399): exactly these six names exist, whatever the request says. They are fixed
 // text built from OsqueryVersion; a request's name is only a key into this table, and what is opened is the name stored in it.
 const (
 	mirrorSums         = "SHA256SUMS"
@@ -249,6 +258,8 @@ var mirrorFiles = func() map[string]mirrorFile {
 	for _, f := range []mirrorFile{
 		{"osquery_" + OsqueryVersion + "-1.linux_amd64.deb", "application/octet-stream"},
 		{"osquery-" + OsqueryVersion + "-1.linux.x86_64.rpm", "application/octet-stream"},
+		{"osquery_" + OsqueryVersion + "-1.linux_arm64.deb", "application/octet-stream"}, // D-399
+		{"osquery-" + OsqueryVersion + "-1.linux.aarch64.rpm", "application/octet-stream"},
 		{"osquery-" + OsqueryVersion + ".msi", "application/octet-stream"},
 		{mirrorSums, "text/plain; charset=utf-8"},
 	} {
@@ -257,7 +268,7 @@ var mirrorFiles = func() map[string]mirrorFile {
 	return m
 }()
 
-// InventoryGetInstallOsqueryFile implements GET /install/osquery/{file}: one of the four files of the image, streamed with its length.
+// InventoryGetInstallOsqueryFile implements GET /install/osquery/{file}: one of the six files of the image, streamed with its length.
 func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, params oas.InventoryGetInstallOsqueryFileParams) (oas.InventoryGetInstallOsqueryFileOK, error) {
 	none := oas.InventoryGetInstallOsqueryFileOK{}
 	if h.s == nil {

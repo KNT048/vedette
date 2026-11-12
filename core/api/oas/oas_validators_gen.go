@@ -38203,6 +38203,24 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.CaptureError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "capture_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -38260,6 +38278,21 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventorySensorsOKSensorsItemCaptureError) Validate() error {
+	switch s {
+	case "no_permission":
+		return nil
+	case "no_interface":
+		return nil
+	case "filters_invalid":
+		return nil
+	case "capture_failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryGetInventorySensorsOKSensorsItemSpanStatus) Validate() error {
@@ -38780,6 +38813,24 @@ func (s *InventoryPatchInventorySensorsIDOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.CaptureError.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "capture_error",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -38837,6 +38888,21 @@ func (s *InventoryPatchInventorySensorsIDOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryPatchInventorySensorsIDOKCaptureError) Validate() error {
+	switch s {
+	case "no_permission":
+		return nil
+	case "no_interface":
+		return nil
+	case "filters_invalid":
+		return nil
+	case "capture_failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryPatchInventorySensorsIDOKSpanStatus) Validate() error {

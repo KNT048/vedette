@@ -1,5 +1,5 @@
 #!/bin/sh
-# Vedette osquery installer for Linux (Debian/Ubuntu and RHEL/Rocky/Alma). Served by your Vedette box: @@BOX@@
+# Vedette osquery installer for Linux (Debian/Ubuntu and RHEL/Rocky/Alma; x86_64 or arm64). Served by your Vedette box: @@BOX@@
 # Run as root. Safe to run again: it upgrades or repairs. Remove everything with: --uninstall
 # What it does, in order:
 #   1. writes the Vedette box CA certificate (embedded below) to /etc/osquery/vedette-ca.pem
@@ -33,14 +33,18 @@ fi
 
 [ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices, Scope and sensors." >&2; exit 2; }
 ARCH=$(uname -m)
-[ "$ARCH" = x86_64 ] || { echo "Only x86_64 servers are supported for now (this one is $ARCH)." >&2; exit 1; }
+case "$ARCH" in
+  x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;
+  aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;
+  *) echo "osquery from this box runs on x86_64 and arm64 (aarch64) servers only; this one is $ARCH." >&2; exit 1 ;;
+esac
 # os-release is read in subshells: sourced here it would overwrite this script's own variables (VERSION, NAME, ...)
 OSF=/etc/os-release; [ -r "$OSF" ] || OSF=/usr/lib/os-release
 OS_IDS=$( . "$OSF" 2>/dev/null; printf ' %s %s ' "${ID:-}" "${ID_LIKE:-}" ) || OS_IDS=
 OS_NAME=$( . "$OSF" 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}" ) || OS_NAME=unknown
 case "$OS_IDS" in
-  *" debian "*|*" ubuntu "*) FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_amd64.deb" ;;
-  *" rhel "*|*" centos "*|*" fedora "*|*" rocky "*|*" almalinux "*) FMT=rpm; FILE="osquery-${OSQ_VERSION}-1.linux.x86_64.rpm" ;;
+  *" debian "*|*" ubuntu "*) FMT=deb; FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb" ;;
+  *" rhel "*|*" centos "*|*" fedora "*|*" rocky "*|*" almalinux "*) FMT=rpm; FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm" ;;
   *) echo "Unsupported Linux distribution: ${OS_NAME}. Supported: Debian, Ubuntu, RHEL, Rocky, AlmaLinux." >&2; exit 1 ;;
 esac
 

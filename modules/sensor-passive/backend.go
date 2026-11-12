@@ -129,7 +129,15 @@ func (s *Service) PassiveHeartbeat(ctx context.Context, hb *sensorlink.PassiveHe
 			s.log.WarnContext(ctx, "sensor-passive: the sensor reports a counter this core does not know, ignored", "counter", k)
 		}
 	}
-	s.hb = &heartbeat{at: now, ifaces: slices.Clone(hb.Interfaces), drops: known, version: hb.Version}
+	capErr := hb.CaptureError
+	if capErr != "" && !slices.Contains(sensorlink.CaptureErrors, capErr) { // a newer sensor's reason: shown as the general one, said once
+		if !s.unknown["capture_error:"+capErr] {
+			s.unknown["capture_error:"+capErr] = true
+			s.log.WarnContext(ctx, "sensor-passive: the sensor reports a capture error this core does not know, shown as capture_failed", "reason", capErr)
+		}
+		capErr = sensorlink.CaptureFailed
+	}
+	s.hb = &heartbeat{at: now, ifaces: slices.Clone(hb.Interfaces), drops: known, version: hb.Version, captureErr: capErr}
 	s.hbMu.Unlock()
 	return s.instance, nil
 }

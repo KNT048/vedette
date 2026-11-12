@@ -268,11 +268,16 @@ describe('container-only install (D-381)', () => {
     const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
     expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Automatic (eno1)', 'eno1', 'eno2', 'wlp2s0'])
     const spanBox = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
-    expect(spanBox).toBeDisabled() // Automatic: no SPAN
+    expect(spanBox).toBeDisabled() // Automatic: no SPAN, and the hint says why (walk 4)
+    expect(spanBox).toHaveAccessibleDescription(/Choose a card under Listen on first/)
     await u.selectOptions(pick, 'eno1')
+    expect(spanBox).toHaveAccessibleDescription(/Prepare the card on this machine first/)
     await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    // the refusal sits under the SPAN tick it is about, not in a toast (walk 4)
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
+    expect(spanBox).toHaveAttribute('aria-invalid', 'true')
+    expect(spanBox).toHaveAccessibleDescription(/"eno1" has an IP address; a SPAN port has none\./)
     await u.selectOptions(pick, 'eno2') // another card: SPAN is decided again for it
     expect(spanBox).not.toBeChecked()
     await u.click(spanBox)
@@ -288,6 +293,20 @@ describe('container-only install (D-381)', () => {
     expect(again.getAllByRole('option')[0]).toHaveTextContent('Automatic (the one card of this machine with an address)')
     await u.click(again.getByRole('button', { name: 'Cancel' }))
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
+  })
+
+  // D-399 (3), walk 4: a rootless sensor reports, but its capture socket cannot open; the row must not look healthy.
+  it('Sensors: a sensor that reports but cannot capture says so and why, in the row and in Configure', async () => {
+    containerSensorStore.set({ ...containerSensorStore.get(), capture_error: 'no_permission' })
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    expect(await screen.findByText('Reporting, not capturing', undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.getByText(/capturing needs root and CAP_NET_RAW, which a rootless Docker or Podman does not give/)).toBeInTheDocument()
+    expect(screen.queryByText('Reporting')).toBeNull()
+    await openSensorDialog(u)
+    expect(within(screen.getByRole('dialog')).getByText(/Reporting, not capturing: It cannot open the network card/)).toBeInTheDocument()
+    containerSensorStore.set({ ...containerSensorStore.get(), connected: false }) // a sensor not online says nothing about its capture now
+    expect((await (await fetch(`${location.origin}/api/v1/inventory/sensors`)).json()).sensors[0].capture_error).toBeNull()
   })
 
   it('Sensors: a sensor never started says Not connected yet and how to start it; no card reported yet, no Save', async () => {

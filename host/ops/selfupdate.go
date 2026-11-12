@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -457,27 +458,33 @@ func (o *Ops) simulateHostInstall(ctx context.Context, rc *server.RunContext, st
 	if err != nil {
 		return err
 	}
-	if code != 0 || !SelfUpdateSimOK(res.Stdout) {
+	added, ok := SelfUpdateSim(res.Stdout)
+	if code != 0 || !ok {
 		return fail(api.CodeDependenciesUnavailable, "apt cannot install the new system helper without removing or upgrading other packages, or a dependency is missing from the mirror. Install the pending OS updates, then try again. Nothing was changed.")
+	}
+	if err := o.recordAddedPackages(added); err != nil {
+		o.log.ErrorContext(ctx, "could not record the packages the self-update adds", "error", err.Error())
+		return fail(api.CodeApplierFailed, "The host could not record the packages the update adds. Nothing was changed.")
 	}
 	return nil
 }
 
-// SelfUpdateSimOK reads the simulated install of the host package (apt-get -s ... install <file>): true when
-// it installs vedette-host, removes or purges nothing, and upgrades no other installed package (an "Inst"
-// line with "[old version]" for another name); new dependencies (no brackets) are allowed. Lines over 4 KiB
-// end the reading as a refusal. It never panics (fuzzed).
-func SelfUpdateSimOK(out []byte) bool {
+// SelfUpdateSim reads the simulated install of the host package (apt-get -s ... install <file>): ok when it
+// installs vedette-host, removes or purges nothing, and upgrades no other installed package (an "Inst" line
+// with "[old version]" for another name); new dependencies (no brackets) are allowed and returned in added,
+// in apt's order. A new package whose name is not a Debian package name, or a line over 4 KiB, ends the
+// reading as a refusal. It never panics (fuzzed).
+func SelfUpdateSim(out []byte) (added []string, ok bool) {
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	sc.Buffer(make([]byte, 0, 4096), maxSimLine)
 	sawHost := false
 	for sc.Scan() {
 		line := sc.Text()
 		if strings.HasPrefix(line, "Remv ") || strings.HasPrefix(line, "Purg ") {
-			return false
+			return nil, false
 		}
-		rest, ok := strings.CutPrefix(line, "Inst ")
-		if !ok {
+		rest, found := strings.CutPrefix(line, "Inst ")
+		if !found {
 			continue
 		}
 		name, after, _ := strings.Cut(rest, " ")
@@ -485,11 +492,49 @@ func SelfUpdateSimOK(out []byte) bool {
 			sawHost = true
 			continue
 		}
-		if strings.HasPrefix(after, "[") {
-			return false
+		if strings.HasPrefix(after, "[") || !pkgNameRE.MatchString(name) {
+			return nil, false
+		}
+		added = append(added, name)
+	}
+	if sc.Err() != nil || !sawHost {
+		return nil, false
+	}
+	return added, true
+}
+
+// recordAddedPackages is Run 3c (D-316 (9)): the packages the simulation says apt will newly install for the
+// new host (a Depends it added), merged into selfupdate/installed-by-us BEFORE anything is installed, like
+// install.sh's record_new_packages. install.sh --uninstall reads this file next to its own
+// /var/lib/vedette-install/installed-by-us and purges a name only when apt's autoremove then finds it unneeded
+// and it is not marked manual. One name per line, sorted, no duplicate; a name stays after a rollback (apt
+// keeps the dependency installed) and after a run that ends before the install (uninstall checks that the
+// package is installed). Nothing new → no write. A file that does not read (a link, too large) stops the run
+// before any change: never install what --uninstall would not know.
+func (o *Ops) recordAddedPackages(added []string) error {
+	if len(added) == 0 {
+		return nil
+	}
+	b, st := o.readSU(suAddedName)
+	if st != jOK && st != jAbsent {
+		return fmt.Errorf("ops: %s does not read", suAddedName)
+	}
+	names := slices.Clone(added)
+	for l := range strings.Lines(string(b)) {
+		if n := strings.TrimSuffix(l, "\n"); pkgNameRE.MatchString(n) {
+			names = append(names, n)
 		}
 	}
-	return sc.Err() == nil && sawHost
+	slices.Sort(names)
+	names = slices.Compact(names)
+	out := strings.Join(names, "\n") + "\n"
+	if bytes.Equal([]byte(out), b) {
+		return nil
+	}
+	if len(out) > maxSUFile {
+		return fmt.Errorf("ops: %s would be over %d bytes", suAddedName, maxSUFile)
+	}
+	return writeFileAtomic(filepath.Join(suDir(o.cfg.StateDir), suAddedName), []byte(out), 0o600)
 }
 
 // copyApplier is Run 4: the running binary (/proc/self/exe; Deps.SelfExe in tests) copied to

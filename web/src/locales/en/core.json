@@ -803,7 +803,7 @@
       },
       "stepDone": "(done)",
       "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
-      "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.",
+      "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.",
       "reconnecting": "Reconnecting to Vedette…",
       "failedToast": {
         "update": "The update did not finish. The audit log says where it stopped.",

@@ -1,0 +1,5 @@
+# Việc để sau — fix/selfupdate-new-depends-uninstall (D-316 (9), S-CORE-2 (a))
+
+- [ ] 2026-11-12 — `make install-check` (case D-316 (9) mới trong N1 của `scripts/dev/install-check.sh`: `vic-dep` trên danh sách của host bị gỡ, `vic-orphan` không trên danh sách ở lại; lời chạy thử nêu `/var/lib/vedette-host/selfupdate/installed-by-us`) chưa chạy — vì sao để sau: việc nặng, agent không chạy (luật supervisor), lead chạy — ở đâu: scripts/dev/install-check.sh
+- [ ] 2026-11-12 — vitest `web/src/features/core/updatesHost.test.tsx` và spec QA `web/e2e/qa/core.spec.ts` chưa chạy trên máy (worktree không có `node_modules`); chỉ đổi chuỗi `updates.run.hostNote` và hai kỳ vọng khớp chuỗi đó — vì sao để sau: không có phụ thuộc web trong worktree — ở đâu: make check / CI job `web`
+- [ ] 2026-11-12 — Câu GUI `updates.run.hostNote` đổi ("…settings that need the helper cannot be changed until this step ends."): người kiểm độc lập xem lại bước 1 của lần cập nhật phần mềm trên trang Settings → Updates (desktop + điện thoại) theo docs/QA.md §1 — vì sao để sau: người làm không tự nghiệm thu — ở đâu: web/src/locales/en/core.json, S-CORE-2 (a)

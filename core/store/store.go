@@ -313,8 +313,11 @@ func (db *DB) Write(ctx context.Context, fn func(tx *sql.Tx) error) error {
 // shutdown can land here) and on some I/O errors, and its documentation says the ROLLBACK that follows then fails with no harm
 // (https://www.sqlite.org/lang_transaction.html, "Response To Errors Within A Transaction"). Whether that ROLLBACK reaches SQLite or
 // database/sql's own rollback on the end of ctx gets there first (sql.ErrTxDone) is a race; either way nothing is left half-written.
-func (db *DB) rollback(ctx context.Context, tx *sql.Tx) {
-	err := tx.Rollback()
+func (db *DB) rollback(ctx context.Context, tx *sql.Tx) { db.logRollback(ctx, tx.Rollback()) }
+
+// logRollback logs what a rollback answered: nothing for a success or a transaction database/sql had already ended, debug for one SQLite
+// had already rolled back, ERROR for anything else (another SQLITE_ERROR included).
+func (db *DB) logRollback(ctx context.Context, err error) {
 	switch {
 	case err == nil || errors.Is(err, sql.ErrTxDone):
 	case isNoTransaction(err):

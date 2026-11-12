@@ -35,8 +35,14 @@ func (s *syncBuf) String() string {
 
 func openLogged(t *testing.T) (*store.DB, *syncBuf) {
 	t.Helper()
+	return openLoggedAt(t, slog.LevelInfo)
+}
+
+// openLoggedAt is openLogged with the log kept from level up.
+func openLoggedAt(t *testing.T, level slog.Level) (*store.DB, *syncBuf) {
+	t.Helper()
 	buf := &syncBuf{}
-	db, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "w.db"), slog.New(slog.NewTextHandler(buf, nil)))
+	db, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "w.db"), slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level})))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,9 +269,10 @@ func TestWriteLogsALongTransaction(t *testing.T) {
 // A rollback that finds the transaction already gone is not an error. SQLite rolls a transaction back by itself when a statement is
 // interrupted (the driver interrupts it when ctx ends, so at every shutdown) and on some I/O errors; the ROLLBACK that Write sends then
 // fails with "no transaction is active", which Write logged as ERROR, and the end-to-end harness fails on any ERROR line (CI, #374).
-// Here fn ends the transaction under database/sql itself, which leaves SQLite in that state on every run.
+// Here fn ends the transaction under database/sql itself, which leaves SQLite in that state on every run. The rollback is still written,
+// at debug.
 func TestWriteWhoseTransactionSQLiteAlreadyEndedLogsNoError(t *testing.T) {
-	db, logs := openLogged(t)
+	db, logs := openLoggedAt(t, slog.LevelDebug)
 	boom := errors.New("boom")
 	err := db.Write(t.Context(), func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(t.Context(), "INSERT INTO t VALUES ('gone')"); err != nil {
@@ -279,8 +286,9 @@ func TestWriteWhoseTransactionSQLiteAlreadyEndedLogsNoError(t *testing.T) {
 	if !errors.Is(err, boom) {
 		t.Fatalf("Write = %v, want fn's error", err)
 	}
-	if out := logs.String(); strings.Contains(out, "level=ERROR") {
-		t.Errorf("a rollback with no transaction left was logged as an error:\n%s", out)
+	if out := logs.String(); strings.Contains(out, "level=ERROR") ||
+		!strings.Contains(out, `level=DEBUG msg="rollback: SQLite had already rolled the transaction back"`) || !strings.Contains(out, "no transaction is active") {
+		t.Errorf("a rollback with no transaction left: want one debug line and no error:\n%s", out)
 	}
 	if err := insert(t.Context(), db, "after"); err != nil || count(t, db, "after") != 1 || count(t, db, "gone") != 0 {
 		t.Errorf("the writer after it: %v, %d rows 'after', %d rows 'gone'", err, count(t, db, "after"), count(t, db, "gone"))

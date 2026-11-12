@@ -88,11 +88,11 @@ export function answerQuestion(question: string): Answer {
 
   if (has(q, ['camera', 'hikvision', 'nvr', 'recorder'])) {
     const rows = assets.filter((a) => a.kind === 'camera' || a.kind === 'nvr')
-    if (rows.length === 0) return { answer: ['The inventory has no camera or recorder.'], table: null, tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', 0)], citations: [inv] }
+    if (rows.length === 0) return { answer: ['The inventory has no camera or recorder.'], table: null, tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', [])], citations: [inv] }
     return {
       answer: [`There ${rows.length === 1 ? 'is' : 'are'} ${plural(rows.length, 'camera or recorder', 'cameras and recorders')}: ${list(rows.map(name))}.`, 'Cameras are fragile devices, so Vedette only listens passively and never scans them actively. Block cameras from reaching the Internet.'],
       table: assetTable(rows, { col: 'Vendor and model', of: (a) => `${a.vendor?.value ?? '–'} ${a.model?.value ?? ''}`.trim() }),
-      tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', rows.length)], citations: [inv],
+      tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', rows)], citations: [inv],
     }
   }
 

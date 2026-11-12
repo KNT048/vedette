@@ -2,6 +2,8 @@ package honeypot
 
 import (
 	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -45,5 +47,37 @@ func TestParseLineSMBPortsAsStrings(t *testing.T) {
 		if rec.SrcPort != tc.src || rec.DstPort != tc.dst {
 			t.Errorf("%s: ports %d/%d, want %d/%d", name, rec.SrcPort, rec.DstPort, tc.src, tc.dst)
 		}
+	}
+}
+
+// The first request of a scanner is GET / (OpenCanary's redirect to the login page, logtype 3003) or a refused method (3002):
+// both belong to the HTTP trap and show what was asked.
+func TestHTTPRedirectAndRefusedMethodAreHTTPHits(t *testing.T) {
+	t.Parallel()
+	for lt, want := range map[int]string{
+		ltHTTPRedirect: "request GET / (redirected to the login page), User-Agent: curl/8",
+		ltHTTPOther:    "request with a method the page refuses, / , User-Agent: curl/8",
+	} {
+		line := `{"logtype":` + strconv.Itoa(lt) + `,"src_host":"192.168.18.50","dst_host":"192.168.18.240","src_port":5,"dst_port":80,"utc_time":"2026-11-12 10:00:00.1","logdata":{"HOSTNAME":"192.168.18.240","PATH":"/","USERAGENT":"curl/8"}}`
+		r, err := ParseLine([]byte(line))
+		if err != nil {
+			t.Fatal(err)
+		}
+		svc, scan, ok := classify(r.LogType)
+		if svc != HTTP || scan || !ok {
+			t.Fatalf("%d: %v %v %v", lt, svc, scan, ok)
+		}
+		if got := detail(r, svc); lt == ltHTTPRedirect && got != want {
+			t.Fatalf("%q", got)
+		} else if lt == ltHTTPOther && !strings.HasPrefix(got, "request with a method the page refuses") {
+			t.Fatalf("%q", got)
+		}
+	}
+}
+
+func TestSMBConnectDetail(t *testing.T) {
+	t.Parallel()
+	if got := detail(Record{LogType: ltSMBFile, Filename: "/"}, SMB); got != "share opened" {
+		t.Fatalf("%q", got)
 	}
 }

@@ -5,6 +5,8 @@
   "git.enabled": false,
   "http.banner": "Apache/2.4.52 (Ubuntu)",
   "http.enabled": true,
+  "http.log_redirect_request": true,
+  "http.log_unimplemented_method_requests": true,
   "http.port": 80,
   "http.skin": "nasLogin",
   "httpproxy.enabled": false,

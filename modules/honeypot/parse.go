@@ -29,17 +29,19 @@ const (
 
 // OpenCanary logtypes the module reads (opencanary/logger.py). Others (boot, ping, services that are off) are skipped.
 const (
-	ltSSHNew      = 4000
-	ltSSHVersion  = 4001
-	ltSSHLogin    = 4002
-	ltSMBFile     = 5000
-	ltPortSYN     = 5001
-	ltPortNmapEnd = 5005 // 5001..5005: the portscan module; it is off (D-90 (5)), the mapping is ready for when it is on
-	ltHTTPGet     = 3000
-	ltHTTPLogin   = 3001
-	ltMSSQLSQL    = 9001
-	ltMSSQLWin    = 9002
-	ltRDP         = 14001
+	ltSSHNew       = 4000
+	ltSSHVersion   = 4001
+	ltSSHLogin     = 4002
+	ltSMBFile      = 5000
+	ltPortSYN      = 5001
+	ltPortNmapEnd  = 5005 // 5001..5005: the portscan module; it is off (D-90 (5)), the mapping is ready for when it is on
+	ltHTTPGet      = 3000
+	ltHTTPLogin    = 3001
+	ltHTTPOther    = 3002 // a method the fake page refuses (HEAD, PUT ...); needs http.log_unimplemented_method_requests
+	ltHTTPRedirect = 3003 // GET / (the redirect to the login page); needs http.log_redirect_request
+	ltMSSQLSQL     = 9001
+	ltMSSQLWin     = 9002
+	ltRDP          = 14001
 )
 
 // Record is one OpenCanary line reduced to the fields the module uses, every text cut and cleaned.

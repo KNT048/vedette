@@ -26,6 +26,7 @@ var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
 		mustTemplate("core-1", coreUnitTextD318), // D-318 (2026-11-12): the honeypot log volume, 514 only
 		mustTemplate("core-2", coreUnitTextD214), // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
+		mustTemplate("core-3", coreUnitTextHostName), // #489 (2026-11-12): HostName=vedette, MCP port not published yet (D-395)
 	},
 	api.ServiceHoneypot: {
 		mustTemplate("honeypot-1", honeypotUnitTextD318), // D-318 (2026-11-12): before ContainersConfModule (#486)
@@ -209,4 +210,45 @@ HealthRetries=3
 
 [Service]
 Restart=always
+`
+
+const coreUnitTextHostName = `[Unit]
+Description=Vedette core
+After=network-online.target vedette-host.service
+Wants=network-online.target
+
+[Container]
+ContainerName=vedette-core
+HostName=vedette
+Image=` + repoCore + `@{{.Digest}}
+Pull=never
+Network=vedette-int.network
+PublishPort=8443:8443
+PublishPort=127.0.0.1:8444:8444
+PublishPort=514:5514/udp
+PublishPort=514:5514/tcp
+PublishPort=6514:5515/tcp
+Volume={{.DataDir}}:/var/lib/vedette
+Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
+Volume=/run/vedette:/run/vedette
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
+ReadOnly=true
+Tmpfs=/tmp:size=64m
+NoNewPrivileges=true
+DropCapability=ALL
+User={{.CoreUID}}:{{.CoreGID}}
+LogDriver=journald
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add={{.SensorGID}}
+Environment=GOMEMLIMIT=1800MiB
+HealthCmd=["/vedette","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=60s
+HealthRetries=3
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
+
+[Service]
+Restart=always
+TimeoutStartSec=300
 `

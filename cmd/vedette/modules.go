@@ -96,8 +96,10 @@ type deps struct {
 	// SyslogTLS is the certificate side of the syslog-over-TLS listener (6514), built from the HTTPS listener's configuration (syslogTLS);
 	// nil when the box serves no TLS. Set by serve; modules/logs does not read it yet (#266 item 2).
 	SyslogTLS *tls.Config
-	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen).
+	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen); in a container also 0.0.0.0.
 	MCPListen netip.AddrPort
+	// MCPInContainer says the process runs in a container (inContainer, D-395).
+	MCPInContainer bool
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
 	// module is off or the job runs. Never nil in serve.
 	Wake func(module, job string)

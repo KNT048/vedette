@@ -23,7 +23,7 @@ Open http://localhost:5173. On first run choose **Use sample data** to look arou
 
 ## Install on a box
 
-For a real box: a fresh **Ubuntu 24.04, Ubuntu 26.04 or Debian 13** (amd64 or arm64) with systemd, at least 4 GB of memory (8 GB recommended), 6 GB of free disk under `/var`, a wired network port, and the free TCP ports **8443** (the interface) and **8444** (the sensor link). Run it as root, on a machine that has nothing else of Vedette on it:
+For a real box: a fresh **Ubuntu 24.04, Ubuntu 26.04 or Debian 13** (amd64 or arm64) with systemd, at least 4 GB of memory (8 GB recommended), 6 GB of free disk under `/var`, a wired network port, and the free TCP ports **8443** (the interface), **8444** (the sensor link) and **8765** (the MCP server, on the machine's own 127.0.0.1). Run it as root, on a machine that has nothing else of Vedette on it:
 
 ```bash
 curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh

@@ -16,7 +16,7 @@
 - Đổi phiên bản hỗ trợ, header bắt buộc hoặc mã lỗi → khách MCP thật (Claude Code, v.v.) có thể không kết nối; `TestContract_Transport`, `TestContract_BothEras`.
 
 ## Modifying: bind/port (`-mcp-listen`, `DefaultListen`)
-- Đổi từ loopback sang giao diện khác = thay đổi bảo mật + PRIVACY (INV-5, FORBID-4); `New` và `parseMCPListen` từ chối, test `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. Cờ nằm trong `newFlags`: đơn vị Quadlet của `core` (host/ops) đọc cùng bộ cờ.
+- Đổi từ loopback sang giao diện khác = thay đổi bảo mật + PRIVACY (INV-5, FORBID-4); `New` và `parseMCPListen` từ chối, test `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. Cờ nằm trong `newFlags`: đơn vị Quadlet của `core` (`host/ops/quadlet.go`, `Exec=… -mcp-listen 0.0.0.0:8765`, `PublishPort=127.0.0.1:8765:8765`) và `deploy/compose/container-only/compose.yaml` (cùng cờ, `127.0.0.1:8765:8765`) đặt nó (D-395). Đổi cổng = đổi cả hai nơi, `install.sh` (kiểm cổng trống), `Endpoint` (báo `127.0.0.1` + cùng cổng) và chữ trên màn hình; đổi mẫu đơn vị cần dòng legacy trong `host/ops/quadlet_legacy.go`. Bỏ `InContainer`/`inContainer` → MCP lại không tới được ở cả hai kiểu cài.
 
 ## Modifying: `recordCall` / giới hạn
 - Bỏ dòng audit mỗi lời gọi vi phạm INV-8 (`TestContract_INV6_INV8_…`); nới giới hạn làm tăng trần dòng audit (D-232).

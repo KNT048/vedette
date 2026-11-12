@@ -184,13 +184,14 @@ func TestCoreServiceIsTheOneThingTheCustomerMustSet(t *testing.T) {
 		t.Errorf("core healthcheck must run /vedette healthcheck, got %v", core.Healthcheck)
 	}
 	cmd := strings.Join(core.Command, " ")
-	for _, want := range []string{"-host-socket= ", "-hosts=${VEDETTE_HOSTS:?", "-sensor-listen=:8444", "-syslog-port=5514"} {
+	for _, want := range []string{"-host-socket= ", "-hosts=${VEDETTE_HOSTS:?", "-sensor-listen=:8444", "-syslog-port=5514", "-mcp-listen=0.0.0.0:8765"} {
 		if !strings.Contains(cmd+" ", want) {
 			t.Errorf("core command lacks %q: %s", want, cmd)
 		}
 	}
-	if len(core.Ports) != 2 || !strings.HasSuffix(core.Ports[0], ":8443:8443") || core.Ports[1] != "127.0.0.1:8444:8444" {
-		t.Errorf("core publishes 8443 on the address given and 8444 on loopback only, got %v", core.Ports)
+	// 8444 and the MCP server's 8765 on the machine's loopback only (D-395): never on a LAN address
+	if len(core.Ports) != 3 || !strings.HasSuffix(core.Ports[0], ":8443:8443") || core.Ports[1] != "127.0.0.1:8444:8444" || core.Ports[2] != "127.0.0.1:8765:8765" {
+		t.Errorf("core publishes 8443 on the address given, 8444 and 8765 on loopback only, got %v", core.Ports)
 	}
 	// the name of the appliance's unit, so one log command is true on both installs; the name "This box" gets in the inventory
 	if core.ContainerName != "vedette-core" || core.Hostname != "vedette" {

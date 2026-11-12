@@ -124,6 +124,7 @@ Pull=never
 Network=vedette-int.network
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
+PublishPort=127.0.0.1:8765:8765
 PublishPort=514:5514/udp
 PublishPort=514:5514/tcp
 PublishPort=6514:5515/tcp
@@ -145,7 +146,7 @@ HealthCmd=["/vedette","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=60s
 HealthRetries=3
-Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514 -mcp-listen 0.0.0.0:8765
 
 [Service]
 Restart=always

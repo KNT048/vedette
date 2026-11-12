@@ -171,17 +171,27 @@ func waitUntil(t *testing.T, ok func() bool) {
 	}
 }
 
-// -mcp-listen takes a loopback address and port only (INV-5).
+// -mcp-listen takes a loopback address and port only (INV-5); in a container also the unspecified address (D-395).
 func TestParseMCPListen(t *testing.T) {
 	t.Parallel()
 	for _, ok := range []string{"127.0.0.1:8765", "[::1]:8765", "127.0.0.2:9000"} {
-		if _, err := parseMCPListen(ok); err != nil {
+		if _, err := parseMCPListen(ok, false); err != nil {
 			t.Errorf("%s: %v", ok, err)
 		}
 	}
-	for _, bad := range []string{"0.0.0.0:8765", ":8765", "localhost:8765", "192.168.1.5:8765", "127.0.0.1:0", "127.0.0.1", ""} {
-		if _, err := parseMCPListen(bad); err == nil {
+	for _, bad := range []string{"0.0.0.0:8765", "[::]:8765", ":8765", "localhost:8765", "192.168.1.5:8765", "127.0.0.1:0", "127.0.0.1", ""} {
+		if _, err := parseMCPListen(bad, false); err == nil {
 			t.Errorf("%s accepted", bad)
+		}
+	}
+	for _, ok := range []string{"0.0.0.0:8765", "[::]:8765", "127.0.0.1:8765"} {
+		if _, err := parseMCPListen(ok, true); err != nil {
+			t.Errorf("in a container, %s: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"172.30.0.2:8765", "192.168.1.5:8765", "0.0.0.0:0", ":8765"} {
+		if _, err := parseMCPListen(bad, true); err == nil {
+			t.Errorf("in a container, %s accepted", bad)
 		}
 	}
 }

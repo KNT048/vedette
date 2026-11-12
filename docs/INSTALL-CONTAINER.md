@@ -18,11 +18,11 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 | Updating Vedette | **you** run `pull` and `up` (below) | in the page, in batches, with rollback |
 | Backup | **you** back up the Docker volume (below) | snapshots and rotation by the helper |
 | "This box" in the device list | present, without a package list | with the package list |
-| MCP server (outside AI tools and SIEMs reading the box) | **not reachable yet**: it listens on 127.0.0.1:8765 inside the `vedette-core` container and `compose.yaml` does not publish that port, so no tool on this machine or another can reach it (an SSH tunnel to the machine does not help) | yes, on the machine's localhost |
+| MCP server (outside AI tools and SIEMs reading the box) | yes, on `127.0.0.1:8765` of the machine that runs Docker or Podman (`compose.yaml` publishes it there only, D-395); from another machine through an SSH tunnel to this one | yes, on the machine's localhost |
 
 ## What you need
 
-- Docker Engine with Compose v2 (`docker compose`), or Podman with `podman compose` and a compose v2 provider (`podman compose version` names it). Tested here: Docker Engine 29.1.3 with Compose 2.40.3, Podman 5.7.0 with that provider. Older versions are not claimed to work until the lab matrix says so; Docker before 28 also let neighbours on your LAN reach ports published on `127.0.0.1` (here 8444, which is mutual TLS).
+- Docker Engine with Compose v2 (`docker compose`), or Podman with `podman compose` and a compose v2 provider (`podman compose version` names it). Tested here: Docker Engine 29.1.3 with Compose 2.40.3, Podman 5.7.0 with that provider. Older versions are not claimed to work until the lab matrix says so; Docker before 28 also let neighbours on your LAN reach ports published on `127.0.0.1` (here 8444, which is mutual TLS, and 8765, the MCP server, which needs a token).
 - Podman only: `podman compose` hands the work to the compose provider (docker-compose), which talks to Podman's API socket. Rootless: run `systemctl --user enable --now podman.socket` once; rootful: `sudo systemctl enable --now podman.socket`. Without it every `podman compose` command fails with "Cannot connect to the Docker daemon at unix:///run/user/<uid>/podman/podman.sock".
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
@@ -65,7 +65,7 @@ docker logs vedette-core 2>&1 | grep setup_code      # podman logs vedette-core 
 
 The log line holds the one-time setup code (`"setup_code":"..."`). It is printed again at every start while setup is open and stops when the first administrator exists. Open `https://<VEDETTE_HOSTS>:8443`, enter the code, and follow the setup. The certificate is self-signed and made by the box on first start, so your browser warns once; it is kept in the data volume. Opening the page by a name or address that is not in `VEDETTE_HOSTS` shows "This address is not one Vedette answers to": use the one you set, or change the line and run `up -d` again.
 
-Check from another machine that only what you meant is open (`nmap` is yours to run on your own network): port 8443 on `VEDETTE_BIND_IP` and nothing else; port 8444 is on `127.0.0.1` only.
+Check from another machine that only what you meant is open (`nmap` is yours to run on your own network): port 8443 on `VEDETTE_BIND_IP` and nothing else; ports 8444 and 8765 are on `127.0.0.1` only.
 
 ## 4. Add the sensors, or the syslog receiver (optional)
 
@@ -92,6 +92,8 @@ grep -cF -e 'ghcr.io/knt048/vedette-core@sha256:<digest>' -e ... vedette.env    
 docker compose --env-file vedette.env pull           # podman compose ... the same
 docker compose --env-file vedette.env up -d
 ```
+
+A release can also change the compose files (the one with D-395 publishes the MCP port `127.0.0.1:8765`; with an older `compose.yaml` the MCP server cannot be reached): download `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml` of the new release with their `.minisig`, check each with `minisign -Vm`, and replace yours before `pull` and `up -d`.
 
 To go back, put the kept file back as `vedette.env` and run `pull` and `up -d` again. A version that changes the database may not be able to go back: the release notes say so; back up first.
 

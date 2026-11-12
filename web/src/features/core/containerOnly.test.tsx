@@ -156,12 +156,14 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
   })
 
-  it('MCP: says nothing outside the container can reach it, not "use an SSH tunnel" (S-MCP-1, D-420)', async () => {
+  it('MCP: on the localhost of the machine that runs the container, an SSH tunnel to that machine, update an older compose.yaml (S-MCP-1, D-395)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'mcp-server' ? { ...m, enabled: true } : m)))
     renderApp('/settings/mcp')
-    expect(await screen.findByText(/the MCP port is not published/)).toBeInTheDocument()
-    expect(screen.getByText(/Listening inside the vedette-core container only/)).toBeInTheDocument()
-    expect(screen.queryByText(/must go through an SSH tunnel/)).toBeNull()
+    expect(await screen.findByText(/publishes the port on 127\.0\.0\.1 of the machine that runs Docker or Podman, never on the LAN/)).toBeInTheDocument()
+    expect(screen.getByText(/with an older compose\.yaml no tool can connect until you update it/)).toBeInTheDocument()
+    expect(screen.getByText(/must go through an SSH tunnel to that machine/)).toBeInTheDocument()
+    expect(screen.getByText('Listening on the localhost of the machine that runs the vedette-core container only.')).toBeInTheDocument()
+    expect(screen.queryByText(/not published/)).toBeNull()
   })
 
   it('SIEM forwarding: "Honeypot touches" cannot be ticked and says why (S-LOG-3, D-420)', async () => {

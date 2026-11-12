@@ -46,6 +46,9 @@ const (
 	CodeTransitionPending = "transition_pending"
 	// CodeHostConfIncomplete: the unit needs a uid or gid that host.conf did not give the host.
 	CodeHostConfIncomplete = "host_conf_incomplete"
+	// CodePortInUse (412, container.start and container.rollback): the unit the command would write publishes a host port that the
+	// unit on disk does not, and another program listens on it, so the service would not start; nothing was changed (D-455).
+	CodePortInUse = "port_in_use"
 
 	// Refusals of container.pull (spec 6.7, D-104, D-130): what the host's own verification found.
 	CodeSignatureInvalid    = "signature_invalid"      // a document or a cosign signature does not verify, or does not parse

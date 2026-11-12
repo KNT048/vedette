@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — đọc file này trước
 
-Cập nhật: 2026-11-12. Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
+Cập nhật: 2026-11-12 (cuối ngày). Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
 
 **Mục tiêu cuối:** app chạy đủ chức năng trên backend thật. Mọi WP đã merge, E2E xanh, bản phát hành ký được và cài được (định nghĩa "xong" ở cuối file).
 
@@ -13,13 +13,15 @@ Cập nhật: 2026-11-12. Repo: `KNT048/vedette` (public, D-63; CI GitHub Action
 6. `docs/QA.md` — bắt buộc cho mọi màn hình.
 7. `.ai/deferred/` — việc để sau theo từng nhánh.
 
-## Ai đang làm gì (D-190, chia lại theo D-198)
+**Luật test (D-376):** agent không ngồi chờ test: chạy `make check-fast` một lần, push, CI là cổng. Test chậm vào danh sách `slow`, test chập chờn vào cách ly 7 ngày; cả hai ở `scripts/ci/skip-tests.txt`. `-race` chỉ chạy ở lượt hằng ngày. Test mới tối giản, kiểm chức năng.
+
+## Ai đang làm gì (D-190, chia lại theo D-198; Mac theo kien 2026-11-12)
 | Phiên | Ở đâu | Phạm vi |
 |---|---|---|
-| **AI-Supervisor** | Máy Mac của Kiên | Điều phối cả ba phía, kiểm mỗi 30 phút. Mỗi lát việc phía Mac chạy thành một session phụ của Claude Desktop |
-| **Session phụ (Mac)** | Worktree riêng trên máy Mac | WP-30 các lát 3, 5, 6, 7, 9a, 9b, 10 và spec WP-30 cho scan, ai, logs; WP-31 R3 (định danh kênh người duyệt); WP-27 `auth-oidc`, `reports`, `mcp-server`; phần còn lại của `notify`; lỗi GUI Settings của core |
-| **AI-Trưởng** | Box Ubuntu của Kiên (`byn`, tmux `claude`) | WP-08 phần còn lại; `honeypot` (gồm WP-30 lát 8a/8b); WP-30 lát 4 (qua `vedette-host`); phần còn lại của `scan`; WP-32 (cả hai phần); WP-26 `agent-intake`; WP-08h (`install.sh`) |
-| **AI-Mlee** | Box Ubuntu của Emily (`byn2`, tmux `claude`) | `ai` (WP-25), `logs` (WP-24), việc đang dở (feeds chia nhỏ IOC apply, spec e2e exposure) |
+| **AI-Supervisor** | Máy Mac của Kiên | Điều phối cả ba phía, kiểm mỗi 30 phút, gộp PR (merge captain). Phía Mac chạy bằng **subagent** của Supervisor, mỗi subagent một PR, push sớm; không còn session phụ của Claude Desktop |
+| **Subagent (Mac)** | Worktree riêng trên máy Mac | Việc nhỏ của phía Mac: BEFORE-V1, sửa lỗi QA, e2e-real, docs; WP-27 `auth-oidc` phần IdP sau CA riêng khi có story |
+| **AI-Trưởng** | Box Ubuntu của Kiên (`byn`, tmux `claude`) | `vedette-host` (`host.self_update`, D-316), WP-08 phần còn lại, lab, `agent-intake`, `scan`, `honeypot` |
+| **AI-Mlee** | Box Ubuntu của Emily (`byn2`, tmux `claude`) | `notify`, `ai`, `logs`, QA walk theo form (docs/QA.md §4) |
 
 Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã hết) rồi D-230…D-259 · Mlee D-200…D-229. Số đã ghi nằm trong `docs/DECISIONS.md`.
 
@@ -28,9 +30,9 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` còn lát 7 (#365) và `logs` còn L4 (nhánh `feat/logs-l4-ioc`); L6 để sau v1 (D-297).
 - **WP-30 xong** (lát 1–10, #335: `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`). Lát 1–9b: #204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311.
 - **WP-31 xong, trừ danh sách LAB** (đóng 2026-11-12, bảng trạng thái ở `wp31-findings.md` của supervisor): R1, R2, S, I, H, M3, M4/L10, R3 (L7: #234, #259) đã merge; phần đóng: M7 (MAC lạ ở IP decoy là thiết bị) và L12 (D-296), L14 sửa chữ D-189 (D-295); M1 còn một LOW chấp nhận (`.ai/deferred/fix-wp31-closeout-inventory.md`); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
-- **Đang mở (PR, 2026-11-12):** #372 (core: dọn bảng đăng nhập mỗi giờ, tiến trình con đọc PDF là mục tiêu của OOM killer) · #371 (CI: `-timeout 18m` mỗi shard, tạm thời cho gói response) · #370 (container-only: smoke tuỳ chọn trên Docker và Podman rootless) · #369 (sensorlink: kết nối chưa xác thực có hồ chứa riêng) · #368 (response: gateway và DNS của hộp là never-touch) · #367 (D-280 đã duyệt) · #366 (auth-oidc: ngân sách khởi tạo SSO) · #365 (ai 7: đề xuất AI tới response qua Propose) · #358 (core setup: dải LAN của wizard thành phạm vi inventory) · #352 (host: bốn luật DOCKER-USER cho cầu vedette0). Nhánh `feat/logs-l4-ioc` (logs L4) đang làm, chưa có PR.
-- **Đã merge gần đây:** #336 (gộp D-xx vào `DECISIONS.md`) · logs L3 #331, L5 #344 (chuyển SIEM), L7 #355, syslog 514 trong core #297 · ai: tin CVE #326 · response `log_threshold` #341, #361 · cmd/vedette test nhanh hơn #354, #362 · L6 để sau v1 (D-297, #364).
-- **Issue mở:** #363 (L6 post-v1: syslog và metadata SPAN qua sensor; Kiên) · #350 (dải LAN của wizard không tới inventory; Kiên, PR #358) · #338 (logs: cổng đếm theo địa chỉ; Emily) · #324 (core/exec: tiến trình con giới hạn tài nguyên để đọc PDF cho kho tri thức AI) · #298 (install test không dựng được artifact trên Mac) · #266 (logs L2: cổng syslog của container; #297 đã merge, còn câu hỏi giữ IP người gửi). Đã đóng: #332, #348, #115.
+- **Đang mở (PR, 2026-11-12):** #464 (logs: giới hạn listener syslog đo trên box lab, giữ mặc định, D-222; Mlee) · #463 (notify: cổng email rời 465 khi Encryption không còn SSL/TLS, QA walk b; Mlee).
+- **Đã merge gần đây (2026-11-12, mới nhất trước):** #462 (host: `host.self_update` áp dụng, chờ ổn định, quay lui; D-316 lát 2b; Trưởng) · #461, #455 (QA walk của Mlee: `docs/QA.md` §4; lỗi form nhóm a) · #460 (e2e-real: trang in `/reports/print/*`; Mac) · #458, #456, #450, #446 (host: pre_restore có nhóm lưu giữ riêng, self_update lát 2a và 1, lab Podman; Trưởng) · #454 (core: khôi phục sao lưu, luôn giữ bản dữ liệu hiện tại trước, D-377) · #448, #449 (cổng merge nhanh D-376; test cmd/vedette nhanh hơn) · #451, #452, #453, #457 (BEFORE-V1 Mac: build release ẩn dữ liệu mẫu D-369, dòng deferred đã xong, ghim lỗ hổng cũ) · #444 (notify: Zalo OA; Mlee).
+- **Issue mở:** #363 (L6 post-v1: syslog và metadata SPAN qua sensor; Kiên) · #298 (install test không dựng được artifact trên Mac) · #377…#395 (danh sách deferred post-v1 theo module). Đã đóng: #350, #338, #324, #266.
 
 ## Đã xong (đến 2026-11-12)
 **Phía Kiên — AI-Trưởng**
@@ -50,16 +52,15 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 
 ## Còn lại tới "app chạy đủ chức năng"
 **AI-Trưởng (Ubuntu `byn`)**
-- [ ] WP-08 phần còn lại: kiểm `install.sh` trên box Mlee (Ubuntu 26.04, LAN) và Mac độc lập qua SSH (#298 chặn bước dựng artifact trên Mac; xem `docs/INSTALL-TEST`); scan-base còn 28 ngoại lệ trivy hết hạn 2026-12-11 (ghim lại Debian, nâng nuclei).
-- [ ] #324 (core/exec: đọc PDF trong tiến trình con giới hạn tài nguyên, cho `ai`) · scan: kiểm trong LAB với nuclei v3.11.1 (`.ai/deferred/feat-scan-autostop.md`).
-- [ ] WP-26 `agent-intake`: các lát sau lát 1.
+- [ ] `host.self_update` các lát còn lại (D-316, sau lát 2b) · chạy lần 3 kiểm `install.sh` trên .141 (#298 chặn dựng artifact trên Mac; xem `docs/INSTALL-TEST.md`).
+- [ ] Hết hạn 2026-12-11: ghim lại `DEBIAN_IMAGE` và nâng nuclei lên 3.11.1 (28 ngoại lệ trivy của scan-base) · các mục lab (`.ai/deferred/`).
 
-**Session phụ trên Mac**
-- [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) và spec e2e-real SSO (WP-30) — xem `.ai/deferred/feat-auth-oidc.md`.
+**Mac (subagent của Supervisor)**
+- [ ] BEFORE-V1: danh sách đã xong, chỉ còn các lỗi QA đang được sửa.
+- [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) — xem `.ai/deferred/feat-auth-oidc.md`.
 
 **AI-Mlee (Ubuntu `byn2`)**
-- [ ] WP-24 logs: L6 (sensor SPAN, issue cho Kiên) và listener TLS 6514; L1–L5, L7 xong.
-- [ ] WP-25 ai: 5b (log digest, `log-investigate`, `events_around`) tiếp theo; lát 7 (đề xuất qua `Propose`, `ConfigRead`) giao cho Mac (handover-mac4, D-310..D-314). (1–4c, 5a, 6 đã merge.)
+- [ ] QA nhóm b: sửa notify (#463) · hai mục lab.
 
 **Chờ kien (người)**
 - [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.

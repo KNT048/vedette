@@ -1,7 +1,7 @@
 // Command release is the release builder (WP-08f, D-164): it turns a release description, the built image digests, the cosign
 // signatures and the previous release into the documents the box verifies (release-manifest.json, index.json), signs them
 // with the pinned minisign tool, and verifies the result with the box-side verifier (internal/release) before anything is
-// published. It runs on the maintainer's machine, offline; it pushes nothing, creates no tag and holds no key.
+// published. It runs on the maintainer's machine, offline except push and publish (D-457); it creates no tag and holds no key.
 //
 //	go run ./scripts/release cosign-plan -in release.in.json -key ~/keys/cosign.key -out dist/release/cosign
 //	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
@@ -14,6 +14,11 @@
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
+//	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release   (D-457: the lists of make images, by digest; writes images.json)
+//	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] -out release.in.json
+//	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR -keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
+//
+// push and publish talk to the registry and GitHub (podman's login, gh's token); every other command is offline.
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
 package main
@@ -40,7 +45,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|publish [flags]")
 		return 2
 	}
 	var err error
@@ -64,6 +69,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdVerify(args[1:], stdout)
 	case "packs":
 		err = cmdPacks(ctx, args[1:], stdin, stdout)
+	case "push":
+		err = cmdPush(ctx, args[1:], stdout)
+	case "in":
+		err = cmdInputs(ctx, args[1:], stdout)
+	case "publish":
+		err = cmdPublish(ctx, args[1:], stdout)
 	default:
 		say(stderr, "release: unknown command %q", args[0])
 		return 2

@@ -1,8 +1,11 @@
 package notify_test
 
 import (
+	"context"
 	"database/sql"
+	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -107,5 +110,45 @@ func TestTelegramAnswersOnTheReceiveLoopHaveAShortBudget(t *testing.T) {
 	}
 	if d := time.Since(start); d > 8*time.Second {
 		t.Fatalf("the second press was answered after %v", d)
+	}
+}
+
+// stopOnLog is a log handler that stops the listener (cancel) when a record with message msg is written: it lands a stop at an exact
+// point of the listener's loop.
+type stopOnLog struct {
+	msg    string
+	cancel context.CancelFunc
+}
+
+func (h stopOnLog) Enabled(context.Context, slog.Level) bool { return true }
+func (h stopOnLog) Handle(_ context.Context, r slog.Record) error {
+	if r.Message == h.msg {
+		h.cancel()
+	}
+	return nil
+}
+func (h stopOnLog) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h stopOnLog) WithGroup(string) slog.Handler      { return h }
+
+// A listener stopped while it reads the bot key returns nil, not "the saved key cannot be read" (#183): the stop is a stop, whatever
+// the key read answered. The key is made unreadable and the stop lands inside openSecret (at its warning), the interleaving that
+// failed TestContract_PRE8_TelegramPressesFromBeforeTheListenerAreDropped on CI when the stop cancelled the read of the key.
+func TestTelegramListenerStoppedWhileReadingTheKeyReturnsNil(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	te := newTGEnv(t, func(c *notify.Config) {
+		c.Log = slog.New(stopOnLog{msg: "notify: a saved channel secret cannot be opened", cancel: cancel})
+	})
+	te.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(te.ctx(), `UPDATE core_secret SET key_version = key_version + 100
+			WHERE id = (SELECT secret_id FROM notify_channel WHERE type = 'telegram')`)
+		return err
+	})
+	if err := te.job().Run(ctx); err != nil || ctx.Err() == nil {
+		t.Fatalf("stopped while reading the key: %v (stopped: %v)", err, ctx.Err() != nil)
+	}
+	// Not stopped, the same unreadable key is an error of the listener.
+	if err := te.job().Run(t.Context()); err == nil || !strings.Contains(err.Error(), "the saved key cannot be read") {
+		t.Fatalf("an unreadable key: %v", err)
 	}
 }

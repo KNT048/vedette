@@ -36,7 +36,7 @@ export default function History() {
     ) },
   ]
   return (
-    <Section id="history" title={t('history.title')} description={t('history.description')}>
+    <Section id="history" title={t('history.title')} description={`${t('history.description')} ${t('history.retention')}`}>
       <QueryState query={q}>
         {(d) => (
           <>

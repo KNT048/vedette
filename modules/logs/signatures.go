@@ -70,6 +70,7 @@ type sigBatch struct {
 	bucket map[bucketKey]*bucketVal
 	addrs  map[bucketKey]addrGroup // the remote addresses of the lines, by the same key as bucket (D-210)
 	commit *pendingUpdate          // what storeAddrs leaves in memory once the batch is stored
+	conns  map[connKey]connObs     // the connections the lines are about (D-213), the first line of each
 }
 
 // tally turns a batch of sanitized lines (in receive order) into counter increments. kinds maps a declared source id to its device
@@ -78,7 +79,7 @@ type sigBatch struct {
 func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, keep []Line, never func(netip.Addr) bool) sigBatch {
 	type memoKey struct{ kind, text string }
 	memo := map[memoKey]signature.Result{}
-	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]*bucketVal{}, addrs: map[bucketKey]addrGroup{}, commit: &pendingUpdate{}}
+	b := sigBatch{daily: map[dailyKey]*dailyVal{}, bucket: map[bucketKey]*bucketVal{}, addrs: map[bucketKey]addrGroup{}, commit: &pendingUpdate{}, conns: map[connKey]connObs{}}
 	for _, l := range keep {
 		kind := kinds[l.SourceID]
 		r, ok := memo[memoKey{kind, l.Text}]
@@ -112,6 +113,13 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 				b.addrs[bk] = g
 			}
 			g[r.Remote]++
+		}
+		if c := r.Conn; c.Local.IsValid() && !never(c.Local) { // the box, its gateway and a decoy are not a device that made a connection
+			for _, d := range c.Dests {
+				if k := (connKey{c.Local, d.Kind, d.Value}); b.conns[k].source == "" {
+					b.conns[k] = connObs{l.SourceID, l.At}
+				}
+			}
 		}
 	}
 	return b

@@ -50,7 +50,7 @@ function Content() {
   ]
   return (
     <>
-      <PageHeader title={title} stories={['S-ALERT-3']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')}<SampleDataNote /></span> : null} />
+      <PageHeader title={title} stories={['S-ALERT-3']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')} {t('incidents.retention')}<SampleDataNote /></span> : null} />
       <QueryState query={q}>
         {(d) => {
           const rows = d.incidents.filter((a) => (filter === 'all' || a.status !== 'resolved') && (kind === 'all' || a.kind === kind))

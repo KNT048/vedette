@@ -157,6 +157,12 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			if json.Unmarshal(raw, &m) != nil {
 				return nil
 			}
+			// A bad connection reaches notify as an incident of kind bad_address and this forwarder directly as logs.bad_address.detected: with
+			// both "alerts" and "bad_conn" chosen it would be sent twice, so the alert class leaves out the incident that the bad_conn
+			// record already stands for (D-213).
+			if name == siemEventIncident && str(m, "kind") == "bad_address" && slices.Contains(cfg.Events, "bad_conn") {
+				return nil
+			}
 			s.siemQ.push(build(m), gen)
 			return nil
 		}))

@@ -62,7 +62,7 @@ const config = collection<ScanConfig>('scan_config', () => ({
   rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
   schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }))
-const runs = collection<StoredRun[]>('scan_runs', seedRuns, () => [])
+export const runs = collection<StoredRun[]>('scan_runs', seedRuns, () => [])
 const probes = collection<ProbeEntry[]>('scan_probes', seedProbes, () => [])
 const events = collection<RescanEvent[]>('scan_events', seedEvents, () => [])
 const creds = collection<CredTarget[]>('scc_target', () => [])

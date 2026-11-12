@@ -94,8 +94,7 @@
         "confidence": "Confidence"
       },
       "lookup": "Look up {{dst}}",
-      "empty": "No connection to bad addresses in the last 24 hours.",
-      "emptyWhy": "Matching your devices' connections against threat feeds is not switched on yet, so an empty list does not mean the network is clean.",
+      "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
       "via": {
         "span_dns": "SPAN: DNS query",
@@ -166,6 +165,9 @@
     "description": "Logs past the period are deleted automatically. At the current rate, {{days}} days take about {{mb}} MB.",
     "label": "Keep logs for",
     "option": "{{n}} days",
+    "shortenTitle": "Keep logs for {{n}} days only?",
+    "shortenBody": "Log lines older than {{n}} days will be deleted at the next cleanup (within about an hour) and cannot be restored.",
+    "shortenConfirm": "Delete older lines",
     "saved": "Log retention saved."
   },
   "siem": {

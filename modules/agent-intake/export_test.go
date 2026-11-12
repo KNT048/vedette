@@ -22,5 +22,10 @@ func (s *Service) SetWazuhBudgetForTest(budget func(ctx context.Context) (contex
 	s.wazuhBudget = budget
 }
 
+// SetMirrorWaitsForTest shortens the write deadline of one chunk of a package download and the time one download may take.
+func (s *Service) SetMirrorWaitsForTest(chunk, total time.Duration) {
+	s.chunkWait, s.maxDownload = chunk, total
+}
+
 // AllowedWazuhCall is the allow-list of FORBID-4.
 func AllowedWazuhCall(method, path string) bool { return allowedCall(method, path) }

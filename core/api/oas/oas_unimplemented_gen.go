@@ -151,7 +151,7 @@ func (UnimplementedHandler) AiGetAiKnowledge(ctx context.Context) (r *AiGetAiKno
 
 // AiGetAiLogsDigest implements ai_get_ai_logs_digest operation.
 //
-// AI log digest for the selected tier.
+// AI log digest for the selected tier (null = none generated yet; no AI call, INV-6).
 //
 // GET /ai/logs/digest
 func (UnimplementedHandler) AiGetAiLogsDigest(ctx context.Context) (r *AiGetAiLogsDigestOK, _ error) {

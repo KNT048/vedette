@@ -460,3 +460,21 @@ func TestTheStateFormatsOfEachReleaseRead(t *testing.T) {
 		}
 	}
 }
+
+// A test build of vedette-host is refused on a release host and taken by a test host (slice 6 lab, D-382).
+func TestRefuseTestBuild(t *testing.T) {
+	for _, c := range []struct {
+		target, running string
+		testOnly, want  bool
+	}{
+		{"1.4.0-test.1", "1.3.0", false, true},
+		{"1.4.0-test.1", "1.3.0", true, false},
+		{"0.0.1-test.2", "0.0.1-test.1", false, false},
+		{"1.4.0", "1.3.0", false, false},
+		{"1.4.0", "1.3.0-test.1", false, false},
+	} {
+		if got := refuseTestBuild(c.target, c.running, c.testOnly); got != c.want {
+			t.Errorf("refuseTestBuild(%q, %q, %v) = %v, want %v", c.target, c.running, c.testOnly, got, c.want)
+		}
+	}
+}

@@ -73,6 +73,14 @@ func isTestVersion(v string) bool {
 	return strings.Contains(l, "-test.") || strings.HasSuffix(l, "-test")
 }
 
+// refuseTestBuild: a test build of the system helper is installed only by a host that is itself a test build, either
+// built with the test keys (releasetestkeys) or a test-channel build (make install-artifacts: a -test. version that trusts
+// the throwaway keys through the key overlay, D-166, D-382). A release host never installs one: scripts/release refuses a
+// -test. version, so no released host carries one, and the release documents are verified with its own keys anyway.
+func refuseTestBuild(target, running string, testOnly bool) bool {
+	return isTestVersion(target) && !testOnly && !isTestVersion(running)
+}
+
 var (
 	hex64RE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	// suRequestIDRE is the request id rule of the server (a UUID v4 in lowercase).

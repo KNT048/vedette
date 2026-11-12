@@ -139,4 +139,15 @@ func TestInventoryCiteNamesTheBoxApart(t *testing.T) {
 			t.Errorf("%d rows: %q, want %q", len(c.in), got, c.want)
 		}
 	}
+	// the tool's result line (what matched) and the explanation's citation count the same way
+	if got := boxApart(countAssets([]AssetRow{box})); got != "only the Vedette box" {
+		t.Errorf("summary = %q", got)
+	}
+	cites := citationsFor(CVEFacts{}, []AssetFact{{Name: "vedette", IsBox: true}, {Name: "NAS"}})
+	if got := cites[len(cites)-1].Title; got != "Inventory: 1 device and the Vedette box matching" {
+		t.Errorf("explain citation = %q", got)
+	}
+	if cites := citationsFor(CVEFacts{}, []AssetFact{{Name: "vedette", IsBox: true}}); cites[0].Title != "Inventory: only the Vedette box matching" {
+		t.Errorf("explain citation = %q", cites[0].Title)
+	}
 }

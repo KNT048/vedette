@@ -272,24 +272,34 @@ func (a AssetRow) matches(f map[string]any) bool {
 	return true
 }
 
-// inventoryCite says what search_assets looked through. The box itself is named apart: Devices says "Only the Vedette box so far" and
-// Reports counts no device then, so "1 device searched" would read as a device of the network that the rest of the app does not show.
-func inventoryCite(all []AssetRow) string {
-	others, box := 0, false
-	for _, a := range all {
+// boxApart counts devices with the Vedette box named apart (D-422): Devices says "Only the Vedette box so far" and Reports counts no
+// device then, so "1 device" would read as a device of the network that the rest of the app does not show. "3 devices", "only the
+// Vedette box", "2 devices and the Vedette box".
+func boxApart(others int, box bool) string {
+	switch {
+	case !box:
+		return plural(others, "device", "devices")
+	case others == 0:
+		return "only the Vedette box"
+	}
+	return plural(others, "device", "devices") + " and the Vedette box"
+}
+
+// countAssets splits rows into devices of the network and the box itself.
+func countAssets(rows []AssetRow) (others int, box bool) {
+	for _, a := range rows {
 		if a.IsBox {
 			box = true
 		} else {
 			others++
 		}
 	}
-	switch {
-	case !box:
-		return "Inventory: " + plural(others, "device", "devices") + " searched"
-	case others == 0:
-		return "Inventory: only the Vedette box searched"
-	}
-	return "Inventory: " + plural(others, "device", "devices") + " and the Vedette box searched"
+	return others, box
+}
+
+// inventoryCite says what search_assets looked through, the box named apart.
+func inventoryCite(all []AssetRow) string {
+	return "Inventory: " + boxApart(countAssets(all)) + " searched"
 }
 
 func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut, error) {
@@ -320,12 +330,13 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		rows[i] = map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "vendor": clip(a.Vendor, 60), "model": clip(a.Model, 60),
 			"os": clip(a.OS, 80), "approved": a.Approved, "last_seen": clip(a.LastSeen, 32), "ports": cleanAll(ports, 40), "software": cleanAll(sw, 80)}
 	}
-	total := 0
+	var matched []AssetRow
 	for _, a := range all {
 		if a.matches(raw) {
-			total++
+			matched = append(matched, a)
 		}
 	}
+	total := len(matched)
 	text, shown := rowsJSON("devices", total, rows)
 	t := &AskTable{Columns: []string{"Device", "IP", "Type", "Operating system"}, Rows: []AskRow{}}
 	for _, a := range hit[:shown] {
@@ -335,7 +346,7 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		}
 		t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(a.ID, 96), Cells: []string{clip(a.Name, 80), clip(a.IP, 45), clip(a.Kind, 32), os}})
 	}
-	out := toolOut{Text: text, Summary: plural(total, "device", "devices"), Cite: inventoryCite(all)}
+	out := toolOut{Text: text, Summary: boxApart(countAssets(matched)), Cite: inventoryCite(all)}
 	if len(t.Rows) > 0 {
 		out.Table = t
 	}

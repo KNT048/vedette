@@ -33,7 +33,7 @@ type LogAroundKind struct {
 const aroundKept = 24 * time.Hour
 
 const (
-	eventsAroundDesc   = "Count what the logs of the last 24 hours say about one IP address around a time: the kinds of log line (signatures) that named it as the remote side, how many lines of each kind and from which log source, and its connections to addresses on threat feeds (blocked: true means the device that logged it stopped it, an attempt that never reached the address). at is an ISO 8601 time (default: now) and minutes the half-width of the window around it (default 60). Log lines themselves are never given, only kinds and counts."
+	eventsAroundDesc   = "Count what the logs of the last 24 hours say about one IP address around a time: the kinds of log line (signatures) that named it as the remote side, how many lines of each kind and from which log source, and its connections to addresses on threat feeds (blocked: true means the device that logged it stopped it, an attempt that never reached the address; false means it went through or the log does not say; seen_via span_dns is a DNS lookup, not a connection). at is an ISO 8601 time (default: now) and minutes the half-width of the window around it (default 60). Log lines themselves are never given, only kinds and counts."
 	eventsAroundSchema = `{"type":"object","properties":{"ip":{"type":"string","maxLength":45},"at":{"type":"string","maxLength":32},"minutes":{"type":"integer","minimum":5,"maximum":720}},"required":["ip"],"additionalProperties":false}`
 )
 

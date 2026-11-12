@@ -311,8 +311,8 @@ const probeEstimate = 200
 
 // Probe tests a profile with the tiny prompts of provider.Probe. Like every call it is checked against the caps before any
 // request is sent (ErrCapped, ErrProfileCapped) and counted after (INV-4, PRE-3): the tokens of all three requests, also of those
-// that failed with known usage, are settled together, and the result reports that sum (what the provider bills for the test, not the
-// first request only). It returns the downgrade if the test lowered the level, so the caller can record it. The prompts hold no
+// that failed with known usage, are settled together, and the result reports that sum also when the test failed (what the provider
+// bills for the test, not the first request only; the caller writes it to the activity log, which the meter is seeded from). It returns the downgrade if the test lowered the level, so the caller can record it. The prompts hold no
 // customer data, so the privacy rule does not apply. p.DailyCap is the cap checked for the profile.
 func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, *Downgrade, error) {
 	cl, err := r.factory(p)
@@ -325,9 +325,7 @@ func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (pr
 	}
 	cp := &countingProvider{inner: cl}
 	res, perr := provider.Probe(ctx, cp, now)
-	if perr == nil {
-		res.TokensIn, res.TokensOut = cp.in, cp.out
-	}
+	res.TokensIn, res.TokensOut = cp.in, cp.out
 	return res, hold.Settle(cp.in, cp.out), perr
 }
 

@@ -471,6 +471,25 @@ func TestUsageByJobAndConnectionTestIsLogged(t *testing.T) {
 	}
 }
 
+// A test that fails after the provider billed it (a refusal with usage) keeps those tokens in its row, so a restart still counts them.
+func TestAFailedConnectionTestKeepsItsTokens(t *testing.T) {
+	a := newAPI(t)
+	p := a.addProfile(cloudBody("Saved", keyA))
+	a.fake.failWith("Saved", &provider.Error{Kind: provider.ErrRefused, Status: 400, Usage: provider.Usage{InputTokens: 20, OutputTokens: 5}})
+	body := `{"id":"` + p["id"].(string) + `",` + strings.Replace(cloudBody("Saved", ""), `"api_key":"",`, "", 1)[1:]
+	if code, _, raw := a.do("POST", "/ai/profiles/test", "admin", body); code == 200 {
+		t.Fatalf("a refused test passed: %s", raw)
+	}
+	rows := a.activity()
+	if last := rows[len(rows)-1]; last.Job != "connection-test" || last.Result != ai.ResultError || last.TokensIn != 20 || last.TokensOut != 5 {
+		t.Fatalf("test row = %+v", last)
+	}
+	b := newAPIOver(a.env)
+	if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_today"] != float64(25) {
+		t.Fatalf("used_today after a restart = %v", list[0])
+	}
+}
+
 func TestBriefForTheMitigationDoor(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()

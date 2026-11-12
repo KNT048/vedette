@@ -138,6 +138,11 @@ describe('Settings, AI assistant tabs', () => {
     await waitFor(() => expect(screen.queryByText('Choose an AI profile for the index before adding documents.')).toBeNull())
     await userEvent.upload(input, new File([new Uint8Array([0x13, 0x99, 0x00, 0xfe, 0x42])], 'broken.pdf', { type: 'application/pdf' }), { applyAccept: false })
     expect(await screen.findByText('broken.pdf is not a PDF file. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
+    // a text file the box would refuse is refused by the mock in the same words (decodeText): Latin-1 bytes, and a NUL
+    await userEvent.upload(input, new File([new Uint8Array([0x63, 0x61, 0x66, 0xe9])], 'menu.txt', { type: 'text/plain' }), { applyAccept: false })
+    expect(await screen.findByText('menu.txt is not UTF-8 text. Save it as UTF-8 and add it again. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
+    await userEvent.upload(input, new File([new Uint8Array([0x61, 0x00, 0x62])], 'nul.md', { type: 'text/markdown' }), { applyAccept: false })
+    expect(await screen.findByText('nul.md is not a text file. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
   })
 })
 

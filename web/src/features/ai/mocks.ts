@@ -6,7 +6,7 @@ import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, dataMode, newId, nowIso } from '@/mocks/db'
 import { AI_JOBS, aiAssignStore, aiAvailable, aiCandidates, aiConfigStore, aiProfilesStore, aiProfileUsable, aiRunsStore, assetsStore, findingsStore, isOn, recordAiRun } from '@/mocks/stores'
 import type { AiAssign, AiJob, AiProfile as StoredProfile } from '@/mocks/stores'
-import { answerQuestion } from './ask'
+import { answerQuestion, boxApart } from './ask'
 import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skillsView, suggestionsStore } from './harness'
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
@@ -214,7 +214,7 @@ function buildExplain(v: Kev): Omit<ExplainResult, 'cached' | 'generated_at' | '
     patch_steps: none ? [] : [`Open the vendor advisory (${v.links[0] ?? 'vendor page'}) and update to the patched build for the version you run.`, 'Back up the configuration or take a snapshot before updating.', 'After updating, rescan the device on the Vulnerability scans page to confirm the finding is gone.'],
     temp_mitigations: none ? [] : temp,
     detection_hints: none ? [] : [v.ransomware ? 'This vulnerability has been used for ransomware: look for files with odd new extensions and ransom notes in shared folders.' : 'Review the service access log for the last 7 days: odd requests from foreign IPs and new files in the web or system folders.', 'If you see signs, isolate the device from the network before anything else.'],
-    citations: [...v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url })), { title: `Inventory: ${plural(matched.length, 'device')} matching` }],
+    citations: [...v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url })), { title: `Inventory: ${boxApart(matched)} matching` }],
   }
 }
 
@@ -334,7 +334,7 @@ export const handlers = [
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
     if (ok.url.hostname.includes('unreachable')) return fail(502, 'unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
     if (ok.key?.startsWith('bad')) return fail(502, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
-    recordAiRun('connection-test', 14, 3, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
+    recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
     recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 42, tokens_out: 9, result: 'ok' }) // three requests: plain, tools, JSON format
     audit('ai.test', ok.name, `model=${b.model}`)
     return HttpResponse.json({ ok: true, latency_ms: b.location === 'internal' ? 180 : 420, tokens_in: 42, tokens_out: 9, capabilities: { tools: true, structured: true } })

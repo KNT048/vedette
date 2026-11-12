@@ -152,6 +152,18 @@ func digestCadence(t Tier, investigated bool) string {
 	return "Same as the medium level: no read-only tools were used, because Log investigation has no AI profile that can take it or its skill is off (Settings, AI assistant)"
 }
 
+// digestVerb says what the box knows of a hit, and no more (D-227): Blocked is true only when the line says the device stopped it,
+// so false means it went through or the line does not say; a SPAN DNS answer is a lookup of the name, not a connection.
+func digestVerb(x LogDigestBadConn) string {
+	switch {
+	case x.Blocked:
+		return "blocked attempt (stopped by the device that logged it)"
+	case x.SeenVia == "span_dns":
+		return "DNS lookup (the name was looked up; no connection is known)"
+	}
+	return "not marked blocked (it went through, or the log does not say)"
+}
+
 // digestBlock is the data block of the call: signatures, counts and connections, capped. Every text came from a device or a feed, so
 // each goes through clip (control characters removed, cut to length) and then the before-AI hooks, like any data block.
 func digestBlock(d LogDigestData, tier Tier) DataBlock {
@@ -176,7 +188,7 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 		}
 		fmt.Fprintf(&b, "- source %q: %s (%s lines in 24 hours, usually about %s a day)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), number(x.Count), number(int(math.Round(x.BaselinePerDay))))
 	}
-	b.WriteString("Connections to addresses on threat feeds (a blocked attempt never reached the address):\n")
+	b.WriteString("Traffic to addresses on threat feeds (a blocked attempt never reached the address; a DNS lookup is not a connection):\n")
 	for i, x := range d.BadConnections {
 		if i == n {
 			break
@@ -191,10 +203,8 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 				feeds = append(feeds, clip(f, digestNameChars))
 			}
 		}
-		what := "connected" // D-227: a blocked attempt is said as one, so the AI does not report it as a connection that went through
-		if x.Blocked {
-			what = "blocked attempt (stopped by the device that logged it)"
-		}
+		what := digestVerb(x)
+
 		fmt.Fprintf(&b, "- %s: %s, IP %s, to %s (%s), seen via %s, listed by %s, confidence %.2f, at %s\n", what, who, clip(x.SrcIP, 45), clip(x.Dest, 253), clip(x.DestKind, 8), clip(x.SeenVia, 60), strings.Join(feeds, ", "), x.Confidence, clip(x.TS, 32))
 	}
 	return DataBlock{Kind: DataLog, Source: "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", Text: b.String()}

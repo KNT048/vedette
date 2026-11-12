@@ -1141,7 +1141,8 @@ func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	e.m.SetRunning(api.ServiceHoneypot, true)
 	e.start(t, api.ServiceHoneypot, false)
 	if j := e.m.CallsWithJournal(); !slices.Equal(j, []string{"daemon-reload"}) {
-		t.Fatalf("the bytes changed without a journal: %v", j)
+		// The calls say which look of runningHealthy did not see the healthy container (CI once took the restart path).
+		t.Fatalf("the bytes changed without a journal: %v\nsystemctl %q\npodman %q", j, e.m.Calls("systemctl"), e.m.Calls("podman"))
 	}
 	if e.journalExists(api.ServiceHoneypot) {
 		t.Fatal("the journal stayed")
@@ -1302,12 +1303,12 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 	}
 	const keys = "vedette-creds-"
 	table := map[string]want{
-		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444", "514:5514/udp", "514:5514/tcp"},
+		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444", "514:5514/udp", "514:5514/tcp", "6514:5515/tcp"},
 			exec: "-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514",
 			volumes: []string{
 				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
-				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:ro",
+				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec", // the size-capped tmpfs volume (D-318)
 				"/run/vedette:/run/vedette",
 				keys + "passive.volume:/var/lib/vedette-creds/passive",
 				keys + "active.volume:/var/lib/vedette-creds/active",
@@ -1323,7 +1324,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
 			volumes: []string{
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro",
-				"/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U",
+				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec",
 			}},
 	}
 	for svc, w := range table {
@@ -1392,8 +1393,9 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			for _, v := range u["Volume"] {
 				parts := strings.Split(v, ":")
 				// "U" (podman gives the volume to the container's user) is for the honeypot's log volume alone (D-162)
-				honeypotLog := svc == api.ServiceHoneypot && v == "/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U"
-				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
+				honeypotLog := svc == api.ServiceHoneypot && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec"
+				coreLog := svc == api.ServiceCore && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec"
+				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog && !coreLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
 					t.Errorf("%s: odd Volume line %q", svc, v)
 				}
 				if strings.Contains(v, ".sock") && v != "/run/vedette:/run/vedette" {
@@ -1480,7 +1482,7 @@ func TestContract_INV17_TheHostWritesNoDropIns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, en := range entries {
-		isUnit := strings.HasSuffix(en.Name(), ".container") || slices.Contains([]string{"vedette-creds-passive.volume", "vedette-creds-active.volume"}, en.Name())
+		isUnit := strings.HasSuffix(en.Name(), ".container") || slices.Contains([]string{"vedette-creds-passive.volume", "vedette-creds-active.volume", "vedette-hp-log.volume"}, en.Name())
 		if en.IsDir() || !isUnit || strings.HasPrefix(en.Name(), ".") {
 			t.Errorf("the host left %q in the Quadlet directory", en.Name())
 		}
@@ -1576,6 +1578,82 @@ func TestContract_INV17_CredentialVolumes(t *testing.T) {
 		if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
 			t.Errorf("the host wrote through a link: %q", b)
 		}
+	}
+	if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
+		t.Errorf("the host wrote through a link: %q", b)
+	}
+}
+
+// TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs: log/ of the honeypot is a Quadlet volume of constant text, a tmpfs of at most 64 MiB
+// and 1024 files with no suid, no device and no exec; the honeypot writes it, core reads it and nothing else mounts it. The host writes
+// the file with the first start of core or honeypot, refuses a link at its name, and writes nothing through it (D-318).
+func TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs(t *testing.T) {
+	t.Parallel()
+	want := "[Unit]\nDescription=Vedette honeypot log (tmpfs, size-capped)\n\n[Volume]\nVolumeName=vedette-hp-log\nType=tmpfs\nDevice=tmpfs\nOptions=size=64m,nr_inodes=1024,nosuid,nodev,noexec\n"
+	if got := string(ops.HpLogVolumeText()); got != want {
+		t.Errorf("the log volume unit is %q, want %q", got, want)
+	}
+	for _, svc := range []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan} {
+		b, err := ops.RenderUnitIn(svc, digA, true, 10001, 10002, 10003, 10004, "/var/lib/vedette")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var vols []string
+		for _, v := range parseBuilt(t, string(b))["Volume"] {
+			if strings.Contains(v, "vedette-hp-log") || strings.Contains(v, "/honeypot/log") {
+				vols = append(vols, v)
+			}
+		}
+		switch svc {
+		case api.ServiceCore:
+			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec"}) {
+				t.Errorf("core mounts %v, want the log volume read-only", vols)
+			}
+		case api.ServiceHoneypot:
+			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec"}) {
+				t.Errorf("the honeypot mounts %v, want the log volume", vols)
+			}
+		default:
+			if len(vols) != 0 {
+				t.Errorf("%s mounts %v", svc, vols)
+			}
+		}
+	}
+	// the honeypot's first start writes it, and core's does too
+	for _, svc := range []string{api.ServiceHoneypot, api.ServiceCore} {
+		e := startCtr(t)
+		e.m.InstallUnit(svc, digA, false)
+		e.start(t, svc, false)
+		p := filepath.Join(e.m.UnitsDir(), "vedette-hp-log.volume")
+		b, err := os.ReadFile(p) //nolint:gosec // test: a path under the fake root
+		if err != nil || string(b) != want {
+			t.Errorf("%s start: %s is %q, %v", svc, p, b, err)
+		}
+		if st, err := os.Lstat(p); err != nil || st.Mode().Perm() != 0o644 || !st.Mode().IsRegular() {
+			t.Errorf("%s: %v %v", p, st, err)
+		}
+	}
+	// a start of sensor alone does not write it
+	e := startCtr(t)
+	e.m.InstallUnit(api.ServiceSensor, digA, false)
+	e.start(t, api.ServiceSensor, false)
+	if _, err := os.Lstat(filepath.Join(e.m.UnitsDir(), "vedette-hp-log.volume")); err == nil {
+		t.Error("a sensor start wrote the honeypot log volume")
+	}
+	// a link at the name is not followed
+	e2 := startCtr(t)
+	target := filepath.Join(e2.m.Root, "elsewhere")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(e2.m.UnitsDir(), "vedette-hp-log.volume")); err != nil {
+		t.Fatal(err)
+	}
+	e2.m.InstallUnit(api.ServiceHoneypot, digA, false)
+	before, _ := e2.m.Unit(api.ServiceHoneypot)
+	e2.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot, Restart: true}, api.StatusFailed, api.CodeUnitUnsafe)
+	if after, _ := e2.m.Unit(api.ServiceHoneypot); after != before {
+		t.Errorf("the honeypot unit changed after the refusal:\n%s", after)
 	}
 	if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
 		t.Errorf("the host wrote through a link: %q", b)

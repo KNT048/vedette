@@ -3771,7 +3771,7 @@
     "/ai/logs/digest": {
       "get": {
         "operationId": "ai_get_ai_logs_digest",
-        "summary": "AI log digest for the selected tier",
+        "summary": "AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)",
         "tags": [
           "ai"
         ],
@@ -3788,132 +3788,139 @@
                   "type": "object",
                   "properties": {
                     "digest": {
-                      "type": "object",
-                      "properties": {
-                        "tier": {
-                          "type": "string",
-                          "enum": [
-                            "min",
-                            "med",
-                            "max"
-                          ]
-                        },
-                        "generated_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "cadence": {
-                          "type": "string"
-                        },
-                        "summary": {
-                          "type": "string"
-                        },
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "severity": {
-                                "type": "string",
-                                "enum": [
-                                  "high",
-                                  "medium",
-                                  "info"
-                                ]
-                              },
-                              "title": {
-                                "type": "string"
-                              },
-                              "evidence": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "recommendation": {
-                                "type": "string"
-                              },
-                              "asset_id": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "severity",
-                              "title",
-                              "evidence",
-                              "recommendation"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "tool_calls": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string"
-                              },
-                              "args": {
-                                "type": "string"
-                              },
-                              "result": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "tool",
-                              "args",
-                              "result"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "model": {
-                          "type": "string"
-                        },
-                        "profile": {
-                          "type": "string"
-                        },
-                        "tokens": {
+                      "anyOf": [
+                        {
                           "type": "object",
                           "properties": {
-                            "input": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                            "tier": {
+                              "type": "string",
+                              "enum": [
+                                "min",
+                                "med",
+                                "max"
+                              ]
                             },
-                            "output": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "cadence": {
+                              "type": "string"
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": [
+                                      "high",
+                                      "medium",
+                                      "info"
+                                    ]
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "evidence": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "recommendation": {
+                                    "type": "string"
+                                  },
+                                  "asset_id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "title",
+                                  "evidence",
+                                  "recommendation"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "tool_calls": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "tool": {
+                                    "type": "string"
+                                  },
+                                  "args": {
+                                    "type": "string"
+                                  },
+                                  "result": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "tool",
+                                  "args",
+                                  "result"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "model": {
+                              "type": "string"
+                            },
+                            "profile": {
+                              "type": "string"
+                            },
+                            "tokens": {
+                              "type": "object",
+                              "properties": {
+                                "input": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "output": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "input",
+                                "output"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "empty": {
+                              "type": "boolean",
+                              "description": "true = no log events to summarize yet; AI not called, no tokens spent"
                             }
                           },
                           "required": [
-                            "input",
-                            "output"
+                            "tier",
+                            "generated_at",
+                            "cadence",
+                            "summary",
+                            "items",
+                            "tool_calls",
+                            "model",
+                            "profile",
+                            "tokens",
+                            "empty"
                           ],
                           "additionalProperties": false
                         },
-                        "empty": {
-                          "type": "boolean",
-                          "description": "true = no log events to summarize yet; AI not called, no tokens spent"
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "tier",
-                        "generated_at",
-                        "cadence",
-                        "summary",
-                        "items",
-                        "tool_calls",
-                        "model",
-                        "profile",
-                        "tokens",
-                        "empty"
-                      ],
-                      "additionalProperties": false
+                      ]
                     }
                   },
                   "required": [
@@ -5881,7 +5888,8 @@
                             "enum": [
                               "ok",
                               "schema_error",
-                              "capped"
+                              "capped",
+                              "failed"
                             ]
                           },
                           "target": {
@@ -8848,7 +8856,7 @@
     "/core/data/backup": {
       "get": {
         "operationId": "core_get_core_data_backup",
-        "summary": "Download a backup (no passwords or keys)",
+        "summary": "Download a backup (password hashes, never passwords or keys)",
         "tags": [
           "core"
         ],
@@ -29732,7 +29740,7 @@
           "200": {
             "description": "File download",
             "content": {
-              "application/octet-stream": {
+              "application/x-pem-file": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -35460,7 +35468,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -35841,7 +35849,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",

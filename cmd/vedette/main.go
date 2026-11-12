@@ -77,6 +77,8 @@ type options struct {
 	syslogPort int
 	// mcpListen is the loopback address of the read-only MCP server (mcp-server module, INV-5, D-230).
 	mcpListen string
+	// osqueryDir is the folder of the pinned osquery packages the agent-intake module serves (D-169 (10)); empty or missing = the mirror answers 404 mirror_missing.
+	osqueryDir string
 }
 
 // newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
@@ -99,6 +101,7 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	flags.StringVar(&o.sensorCreds, "sensor-creds", "", "directory where core writes the sensors' credentials, <dir>/passive/sensor.pem and <dir>/active/sensor.pem (needed with -sensor-listen); each role's folder is a volume shared with that container only")
 	flags.IntVar(&o.syslogPort, "syslog-port", 0, "port of the syslog listener of the logs module (UDP and TCP, only while the module is on and a source is declared); 0 = 514, or 5514 when this process may not bind 514")
 	flags.StringVar(&o.mcpListen, "mcp-listen", "127.0.0.1:8765", "loopback address and port of the read-only MCP server, open only while the mcp-server module is on; an address off loopback is refused (INV-5, D-230)")
+	flags.StringVar(&o.osqueryDir, "osquery-dir", defaultOsqueryDir, "folder with the pinned osquery packages (.deb, .rpm, .msi and SHA256SUMS) that the agent-intake module serves to servers under /install/osquery/; the core image carries them, a build without the folder answers 404 mirror_missing")
 	return flags, showVersion
 }
 
@@ -168,8 +171,9 @@ func isLoopback(addr string) (bool, error) {
 // -hosts and what localNames finds). The allowlist is -hosts when given, otherwise the names of the
 // certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
 // certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
-// no HSTS, or a browser would refuse to let the owner click through its warning for a year.
-func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
+// no HSTS, or a browser would refuse to let the owner click through its warning for a year. The box's own pair is signed by the box
+// CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
+func transport(ctx context.Context, o options, ca *boxCAStore) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
 	hosts, err = parseHosts(o.hosts)
 	flagHosts := hosts
 	if err != nil {
@@ -186,7 +190,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-		if err := ensureCertAt(certPath, keyPath, hosts, time.Now, o.log); err != nil {
+		if err := ensureCertAt(ctx, ca, certPath, keyPath, hosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
 		}
 	}
@@ -195,7 +199,7 @@ func transport(o options) (cfg *tls.Config, hosts []string, hsts bool, renew *se
 		return nil, nil, false, nil, err
 	}
 	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
-		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, ca: ca, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
@@ -211,6 +215,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	tightenContainerDataDir(o.db, log)
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -223,18 +228,6 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	o.log = log
-	tlsCfg, hosts, hsts, renew, err := transport(o)
-	if err != nil {
-		return err
-	}
-	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
-	if o.hostSocket != "" {
-		if renew != nil {
-			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
-		} else {
-			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
-		}
-	}
 	db, err := store.Open(ctx, o.db, log)
 	if err != nil {
 		return err
@@ -267,6 +260,26 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		log.ErrorContext(ctx, "compacting the database after a purge failed; it is tried again at the next start", "error", err)
 	}
 	aud := audit.New(nil)
+	// TLS comes after the database (D-351): the box CA that signs the self-made leaf is a core_secret row.
+	boxCAs, err := newBoxCAStore(db, sec, aud, filepath.Dir(o.db))
+	if err != nil {
+		return err
+	}
+	if err := boxCAs.migrateLegacy(ctx, log); err != nil { // whatever the TLS mode: no plaintext CA key stays on disk (D-351)
+		log.WarnContext(ctx, "the old box CA files could not be moved into the database; tried again at the next start", "error", err)
+	}
+	tlsCfg, hosts, hsts, renew, err := transport(ctx, o, boxCAs)
+	if err != nil {
+		return err
+	}
+	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
+	if o.hostSocket != "" {
+		if renew != nil {
+			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
+		} else {
+			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
+		}
+	}
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log})
 	if err != nil {
 		return err
@@ -280,6 +293,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
+	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), server.HostMatcher(hosts, boxOwnAddress(d.HostNet)), o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}
@@ -318,12 +332,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	stopGuards = startGuards(ctx, reg, log, d, wired)
+	perMinute := publicPerMinute(o.hostSocket)
+	log.InfoContext(ctx, "per-address limit of public requests without a session (D-320)", "per_minute", perMinute, "on", perMinute > 0)
 	api, err := server.New(server.Config{
-		API:        newHandler(d),
-		Auth:       d.Auth.Sessions,
-		Modules:    reg,
-		Log:        log,
-		BodyLimits: bodyLimits(wired),
+		API:             newHandler(d),
+		Auth:            d.Auth.Sessions,
+		Modules:         reg,
+		Log:             log,
+		BodyLimits:      bodyLimits(wired),
+		PublicPerMinute: perMinute, // D-320
 	})
 	if err != nil {
 		return err
@@ -451,6 +468,44 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 	return nil
 }
 
+// containerDataDir is the data directory of every container image and of the appliance (the -db and -key defaults live in it).
+const containerDataDir = "/var/lib/vedette"
+
+// tightenContainerDataDir is the call of serve: only the data directory of the images, only when core is not root.
+func tightenContainerDataDir(db string, log *slog.Logger) {
+	tightenDataDir(filepath.Dir(db), containerDataDir, os.Geteuid(), log)
+}
+
+// tightenDataDir removes group-write and any "other" access (mode bits 0o027) from dataDir when dir is exactly dataDir, is a real
+// directory (a symlink is left alone) and is owned by uid, which must not be root. Rootless Podman gives a new named volume the image
+// directory's owner but not its 0750 mode (buildah does not carry it), so the container-only install started with 0755; Docker keeps
+// 0750. It only clears those bits (0700 stays 0700; setuid, setgid and sticky are kept), never touches any other directory (a dev
+// -db path, /tmp, $HOME), and a failure is logged, not fatal: the key and database files are 0600 either way.
+func tightenDataDir(dir, dataDir string, uid int, log *slog.Logger) {
+	if dir != dataDir || uid == 0 {
+		return
+	}
+	fi, err := os.Lstat(dir)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok || int(st.Uid) != uid {
+		return
+	}
+	perm := fi.Mode().Perm()
+	want := perm &^ 0o027
+	if want == perm {
+		return
+	}
+	special := fi.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
+	if err := os.Chmod(dir, special|want); err != nil {
+		log.Warn("data directory is wider than 0750 and could not be tightened", "dir", dir, "mode", perm.String(), "err", err)
+		return
+	}
+	log.Info("data directory tightened", "dir", dir, "was", perm.String(), "now", want.String())
+}
+
 // ensureKey creates the master key on first start. An existing file is left alone (and validated by
 // LoadKeyFile): losing or replacing the key makes every stored secret unreadable.
 func ensureKey(path string) error {
@@ -460,4 +515,17 @@ func ensureKey(path string) error {
 		return fmt.Errorf("key file: %w", err)
 	}
 	return secrets.GenerateKeyFile(path)
+}
+
+// publicPerMinute is the per-address limit of public requests (D-320): on an appliance (vedette-host's socket is there) core sees each
+// client's own address; a container-only install may see every client as the port proxy's one address (Docker Desktop, rootless),
+// where a per-address limit would be one limit for the whole box, so it is off there.
+func publicPerMinute(hostSocket string) int {
+	if hostSocket == "" {
+		return 0
+	}
+	if fi, err := os.Stat(hostSocket); err != nil || fi.Mode()&os.ModeSocket == 0 {
+		return 0
+	}
+	return server.PublicPerMinuteDefault
 }

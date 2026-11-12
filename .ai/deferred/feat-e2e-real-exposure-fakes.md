@@ -1,6 +1,2 @@
 # Deferred from feat/e2e-real-exposure-fakes (WP-30, #263)
 
-- [ ] Mlee: extend `web/e2e-real/exposure.spec.ts` with the cases in `.ai/deferred/feat-e2e-real-exposure.md` using the fakes (control calls `POST /exposure/prober|txt|scan`, doc in `cmd/vedette/e2ebox_test.go` and `e2eexposure_test.go`). The fakes are shared by every box of the process; defaults: prober down, no TXT, empty scan.
-- [ ] `seed.setup.ts` still turns auto-detect off; with the fake prober down by default it is no longer needed to avoid real calls (leave it until the exposure spec is reworked).
-- [ ] BUG (found, on main, not caused by this PR: it fails the same with the fakes off): `exposure.spec.ts:203` "domains as an administrator › add: the box asks for a DNS TXT proof…" fails the axe check at line 258: `color-contrast (serious)` on `div[data-title=""]`. Owner: Mlee (spec) / GUI owner (contrast). Per D-171 the spec stays red until fixed; file an issue.
-- [ ] BUG (on main, macOS only, not from this PR): `modules/logs/listen` `TestAHugeDatagramIsCutAndCounted` (server_test.go:239) fails on macOS: `write udp4 …: message too long` (the datagram is bigger than macOS's net.inet.udp.maxdgram 9216). Passes on Linux CI. Owner: Mlee (logs L2, #267): size the datagram to the platform limit or skip on darwin.

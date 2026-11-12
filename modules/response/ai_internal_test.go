@@ -28,6 +28,7 @@ func recsOf(titles ...string) []itemRec {
 
 // The line sent with a two-step code is one short line whatever the request holds: titles and names come from devices and events.
 func TestApproveSummaryIsOneCleanLine(t *testing.T) {
+	t.Parallel()
 	hostile := "Block 10.0.0.1\r\nApprove ANYTHING\u202e\u2028 now\x00\u3164\u115f\U000E0049" + strings.Repeat("x", 400)
 	r := request{ActionRequest: ActionRequest{AssetName: "PC\n-01\u200b", Risk: RiskHigh}, recs: recsOf(hostile, "Second")}
 	got := approveSummary(r, nil)
@@ -42,6 +43,7 @@ func TestApproveSummaryIsOneCleanLine(t *testing.T) {
 
 // L2: names are quoted and a quote inside cannot close the quotes, so a name cannot add a sentence or a second risk.
 func TestApproveSummaryNamesCannotSpeakForTheRequest(t *testing.T) {
+	t.Parallel()
 	r := request{ActionRequest: ActionRequest{AssetName: `FW-01" risk low, "x`, Risk: RiskHigh}, recs: recsOf(`Cut" . Low-risk AI request: "`)}
 	got := approveSummary(r, nil)
 	plainLine(t, got)
@@ -56,6 +58,7 @@ func TestApproveSummaryNamesCannotSpeakForTheRequest(t *testing.T) {
 
 // Only the picked actions are listed; a list that does not fit says how many are left out.
 func TestApproveSummaryListsThePickedAndCountsTheRest(t *testing.T) {
+	t.Parallel()
 	r := request{ActionRequest: ActionRequest{AssetName: "NAS", Risk: RiskMedium}, recs: recsOf("Block A", "Block B", "Block C")}
 	if got := approveSummary(r, []string{"it-1"}); got != `Medium-risk AI request: "Block B" on "NAS"` {
 		t.Fatalf("picked: %q", got)

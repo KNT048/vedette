@@ -270,11 +270,11 @@ func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	}
 }
 
-// The index sequence floor goes only where internal/release is linked. Core does not link it; if that changes, core must take
-// MIN_SEQUENCE too (Containerfile, Makefile) and this test is updated with it.
+// The index sequence floor goes only where internal/release is linked: vedette-host, and core since D-347 (the signed mitigation
+// packs), which takes MIN_SEQUENCE too (Containerfile, Makefile core-image and images, compose). The sensor does not link it.
 func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
 	t.Parallel()
-	for bin, want := range map[string]bool{"vedette": false, "vedette-sensor": false, "vedette-host": true} {
+	for bin, want := range map[string]bool{"vedette": true, "vedette-sensor": false, "vedette-host": true} {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/"+bin) //nolint:gosec // test: fixed argv
@@ -285,7 +285,7 @@ func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
 			t.Fatalf("go list %s: %v", bin, err)
 		}
 		if got := strings.Contains(string(out), "\ngithub.com/knt048/vedette/internal/release\n"); got != want {
-			t.Errorf("%s links internal/release = %v, want %v: the Makefile and the Containerfiles pass MIN_SEQUENCE to vedette-host only", bin, got, want)
+			t.Errorf("%s links internal/release = %v, want %v: the Makefile and the Containerfiles pass MIN_SEQUENCE to vedette-host and core only", bin, got, want)
 		}
 	}
 }
@@ -309,6 +309,22 @@ func TestMinSequenceFlag(t *testing.T) {
 	for _, good := range []string{"0", "7", "1234567890123456"} {
 		if out, err := run("check-min-sequence", "MIN_SEQUENCE="+good); err != nil {
 			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
+		}
+	}
+	// core links internal/release too (D-347): both image targets hand the floor to its build, the other images get none
+	for _, target := range []string{"core-image", "images"} {
+		out, err := run("-n", target, "MIN_SEQUENCE=7")
+		if err != nil {
+			t.Fatal(target, err, out)
+		}
+		for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '&' }) { // images: one recipe line, builds joined by &&
+			core := strings.Contains(line, "deploy/containers/core/Containerfile")
+			if has := strings.Contains(line, "--build-arg MIN_SEQUENCE=7"); core != has && (core || strings.Contains(line, "/Containerfile")) {
+				t.Errorf("make %s: MIN_SEQUENCE on a build line: core=%v has=%v: %s", target, core, has, line)
+			}
+		}
+		if !strings.Contains(out, "core/Containerfile") || !strings.Contains(out, "--build-arg MIN_SEQUENCE=7") {
+			t.Errorf("make %s does not pass MIN_SEQUENCE to the core build:\n%s", target, out)
 		}
 	}
 	out, err := run("-n", "host-deb", "VERSION=1.2.3", "MIN_SEQUENCE=7")
@@ -339,6 +355,59 @@ func TestMinSequenceFlag(t *testing.T) {
 	}
 }
 
+// The release preflight is wired into the targets (the effects are tested in scripts/release): host-deb checks the binary it built and
+// gives nfpm a fixed file time; release-manifest passes the floor of the host to the index step.
+func TestHostDebPreflightWiring(t *testing.T) {
+	t.Parallel()
+	run := func(args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory", "-n"}, args...)...) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	out, err := run("host-deb", "VERSION=1.2.3", "SOURCE_DATE_EPOCH=1700000000", "MIN_SEQUENCE=0")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	for _, want := range []string{"GOFLAGS= go run ./scripts/release check-binaries -release dist/host-deb/amd64/vedette-host", "SOURCE_DATE_EPOCH=1700000000 VERSION=1.2.3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("host-deb: %q missing:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, "go build") > strings.Index(out, "check-binaries") {
+		t.Error("host-deb checks the binary before it is built")
+	}
+	// Refusals run for real: they stop before anything is built, so they are cheap.
+	runReal := func(env []string, args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory", "host-deb", "DEB_OUT=" + t.TempDir()}, args...)...) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		cmd.Env = append(os.Environ(), env...)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	refused := func(why string, env []string, args ...string) {
+		t.Helper()
+		if out, err := runReal(env, args...); err == nil || !strings.Contains(out, why) || strings.Contains(out, "go build") {
+			t.Errorf("%v %v: want a refusal with %q before the build: %v\n%s", env, args, why, err, out)
+		}
+	}
+	refused("SOURCE_DATE_EPOCH must be Unix seconds", nil, "VERSION=1.2.3", "SOURCE_DATE_EPOCH=yesterday", "MIN_SEQUENCE=0")
+	refused("needs the sequence floor", []string{"MIN_SEQUENCE="}, "VERSION=1.2.3", "SOURCE_DATE_EPOCH=1700000000")
+	refused("-overlay or -tags", []string{"GOFLAGS=-overlay=/nonexistent.json"}, "VERSION=1.2.3", "SOURCE_DATE_EPOCH=1700000000", "MIN_SEQUENCE=0")
+	refused("-overlay or -tags", []string{"GOFLAGS=-p=2 -tags=releasetestkeys"}, "VERSION=1.2.3", "SOURCE_DATE_EPOCH=1700000000", "MIN_SEQUENCE=0")
+	// a test version needs none of it (checked without building: the dry run prints the recipe the shell would run)
+	if out, err = run("host-deb", "VERSION=1.2.3-test.1", "SOURCE_DATE_EPOCH=1700000000"); err != nil || strings.Contains(out, "needs the sequence floor") || strings.Contains(out, "check-binaries -release") {
+		t.Errorf("a -test. version must skip the release preflight: %v\n%s", err, out)
+	}
+	if out, err = run("release-manifest", "RELEASE_PREV_INDEX=/nonexistent", "MIN_SEQUENCE=4"); err != nil || !strings.Contains(out, "-prev-index /nonexistent -min-sequence 4") {
+		t.Errorf("release-manifest must pass MIN_SEQUENCE to the index step: %v\n%s", err, out)
+	}
+}
+
 // The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
 func TestToolPinsAreExact(t *testing.T) {
 	t.Parallel()
@@ -355,6 +424,48 @@ func TestToolPinsAreExact(t *testing.T) {
 	}
 	if !regexp.MustCompile(`^docker\.io/aquasec/trivy:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$`).MatchString(got["TRIVY_IMAGE"]) {
 		t.Errorf("TRIVY_IMAGE=%q must be docker.io/aquasec/trivy:<MAJOR.MINOR.PATCH>@sha256:<64 hex>", got["TRIVY_IMAGE"])
+	}
+}
+
+// The core image carries the pinned osquery packages (WP-26 slice 3, D-169 (10)): the build stage reads deploy/osquery/PINS (not a copy of the
+// numbers), downloads from the official release, checks each file against its pinned SHA-256 before anything is copied, and the final stage
+// copies the folder to the default of -osquery-dir. Nothing is downloaded when the box runs.
+func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
+	t.Parallel()
+	text := read(t, "core/Containerfile")
+	stages := stagesOf(text)
+	var osq, final string
+	for _, s := range stages {
+		if strings.Contains(s.from, " AS osquery") {
+			osq = s.body
+		}
+	}
+	final = stages[len(stages)-1].body
+	if osq == "" {
+		t.Fatal("core/Containerfile has no osquery stage")
+	}
+	for _, want := range []string{
+		"COPY deploy/osquery/PINS /pins/osquery.pins", ". /pins/osquery.pins", "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/",
+		"${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}\" | sha256sum -c -", "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}\" | sha256sum -c -", "${OSQUERY_MSI_SHA256}  /out/${msi}\" | sha256sum -c -",
+		"set -eu", "curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o",
+		// the names the box serves (modules/agent-intake install.go mirrorFiles) and the scripts ask for
+		`deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"`, `rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"`, `msi="osquery-${OSQUERY_VERSION}.msi"`,
+	} {
+		if !strings.Contains(osq, want) {
+			t.Errorf("core/Containerfile osquery stage: missing %q", want)
+		}
+	}
+	if strings.Contains(osq, "|| true") || regexp.MustCompile(`(?m)^ARG OSQUERY`).MatchString(text) {
+		t.Error("core/Containerfile osquery stage: the pins come from deploy/osquery/PINS only, and a failed check must fail the build")
+	}
+	if !strings.Contains(final, "COPY --from=osquery /out/ /usr/share/vedette/osquery/\n") {
+		t.Error("core/Containerfile: the final stage must copy the verified osquery folder to /usr/share/vedette/osquery/")
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!deploy/osquery\n") {
+		t.Error(".dockerignore must let deploy/osquery into the build context")
+	}
+	if _, err := os.Stat("../osquery/PINS"); err != nil {
+		t.Error("deploy/osquery/PINS is missing")
 	}
 }
 

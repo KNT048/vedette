@@ -1,8 +1,2 @@
 # feat-e2e-real-response-chains (WP-30 slice 9b)
 Specs: `web/e2e-real/response-chain.global.spec.ts`. Known bugs are marked with `knownBug()` (the precondition stays a real assertion; the test fails the day the bug is fixed, so the marker gets removed).
-- [ ] KNT048/vedette#304: response does not subscribe to `honeypot.hit.created`, so a honeypot rule never fires on a real trap hit (S-RESP-3). Remove `knownBug` in the trap-hit test when fixed.
-- [ ] KNT048/vedette#305: after the emergency stop GET/PUT `/response/settings` answer 500 (`stopped_at` not in the schema). Remove `knownBug` in the emergency-stop test when fixed.
-- [ ] KNT048/vedette#306: the block list feed is served as `application/octet-stream`, `docs/specs/blocklist-format.md` says `text/plain; charset=utf-8` (ogen fixes the type of a file answer, `modules/response/handlers.go:489`). Firewalls read the body, so drift only. Remove `knownBug` in the text/plain test when the handler sets the type.
-- [ ] The response module has no `BaseURL` wired (`cmd/vedette/response.go`): the block list address in `GET /response/blocklist` is a relative path; the page must join it. Not a spec failure; check the Blocklist tab shows a full address on a box with a name.
-- [ ] Not covered (brief): AI paths of S-RESP-1/2, chat buttons (Telegram/Slack/Zalo need the internet), a second approver by email link (only one approver is listed on the email channel; the second must be in the app, D-124 is asserted through the app path only).
-- [ ] The private-address test (INV-17) accepts either outcome of the request (refused or approved) and only asserts the feed never lists the address; tighten once the intended answer for a private address is written in CONTRACT.

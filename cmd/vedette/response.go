@@ -412,17 +412,21 @@ func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
-		Mailer: responseMailer{n.CodeMailer()}}
+		Mailer: responseMailer{n.CodeMailer()}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
 	var hostState netStateReader
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)
 	}
-	cfg.BoxMACs = responseBoxMACs(&hostMACs{r: hostState, now: d.Clock})
+	hm := &hostMACs{r: hostState, now: d.Clock}
+	cfg.BoxMACs = responseBoxMACs(hm)
+	cfg.HostInfra = func() ([]response.HostInfra, error) { // D-325: the box's gateway and DNS servers are never-touch too
+		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)
+		defer cancel()
+		return hm.Infra(ctx)
+	}
 	if d.Conn != nil { // a nil *conn.Service inside the interface would not compare equal to nil
 		cfg.Connections = responseConnections{d.Conn}
-		// cfg.Evidence.IocHit stays nil until logs (WP-24) offers a lookup: an ioc_hit in an AI proposal is refused 422 evidence_invalid
-		// (fail closed, D-119). ConfigRead is set below with the ai module.
 		w, err := write.New(write.Config{Conns: d.Conn})
 		if err != nil {
 			return cfg, err
@@ -435,6 +439,10 @@ func responseConfig(d *deps) (response.Config, error) {
 	}
 	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names (D-311)
 		cfg.Evidence.ConfigRead = aiConfigRead(d.AI)
+	}
+	// ioc_hit evidence: a known-bad connection the Logs module recorded (L4, D-213), with no connection (D-337); Logs off = not found
+	if lg := logsService(*d); lg != nil {
+		cfg.Evidence.IocHit = logsIocEvidence(lg, func() bool { return d.Reg == nil || d.Reg.Enabled("logs") })
 	}
 	if d.Reg != nil {
 		cfg.Modules = d.Reg

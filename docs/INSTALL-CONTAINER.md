@@ -22,6 +22,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 ## What you need
 
 - Docker Engine with Compose v2 (`docker compose`), or Podman with `podman compose` and a compose v2 provider (`podman compose version` names it). Tested here: Docker Engine 29.1.3 with Compose 2.40.3, Podman 5.7.0 with that provider. Older versions are not claimed to work until the lab matrix says so; Docker before 28 also let neighbours on your LAN reach ports published on `127.0.0.1` (here 8444, which is mutual TLS).
+- Podman only: `podman compose` hands the work to the compose provider (docker-compose), which talks to Podman's API socket. Rootless: run `systemctl --user enable --now podman.socket` once; rootful: `sudo systemctl enable --now podman.socket`. Without it every `podman compose` command fails with "Cannot connect to the Docker daemon at unix:///run/user/<uid>/podman/podman.sock".
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
 - About 4 CPU cores and 8 GB of memory for a network of up to 1,000 devices (`docs/DEPLOYMENT.md` section 4). Core is limited to 2 GB, the sensor to 512 MB, the scan worker to 1 GB.
@@ -49,7 +50,7 @@ VEDETTE_BIND_IP=192.168.10.5        # the address of THIS machine the web page i
 VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browser; comma separated for several
 ```
 
-Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443 or 514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
+Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
 Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
@@ -70,7 +71,7 @@ Check from another machine that only what you meant is open (`nmap` is yours to 
 ```sh
 # Passive sensor and scan worker (Linux, Docker or Podman as root; not rootless, not Docker Desktop)
 docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up -d
-# Syslog from your devices (UDP and TCP 514 on VEDETTE_BIND_IP)
+# Syslog from your devices (UDP and TCP 514, TLS 6514/tcp, on VEDETTE_BIND_IP)
 docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
 ```
 

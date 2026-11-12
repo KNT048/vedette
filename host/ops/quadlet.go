@@ -26,11 +26,17 @@ const (
 	unitsRel = "etc/containers/systemd"
 	// maxUnitSize bounds what is read back (the largest template is under 2 KiB).
 	maxUnitSize = 16 << 10
-	// hpHostDir is where the honeypot's two folders live on the box: config/ (core writes it, the
-	// container reads it) and log/ (the container writes it, core reads it), D-89. Core mounts config
-	// read-write and log read-only, each at its -honeypot-dir default, and the honeypot container mounts the
-	// two folders at the same absolute paths, because opencanary.conf holds the log path (D-123 (1)).
+	// hpHostDir is where the honeypot's config/ lives on the box (core writes it, the container reads it), D-89.
+	// Core mounts it read-write and the honeypot container read-only, each at its -honeypot-dir default, at the
+	// same absolute path in both, because opencanary.conf holds the log path (D-123 (1)). The honeypot's log/ is
+	// not a folder of this directory any more: it is the size-capped tmpfs volume below (D-318).
 	hpHostDir = "/var/lib/vedette-honeypot"
+	// hpLogVolume is the volume of the honeypot's log/ (the container writes it, core reads it), D-89. It is a
+	// tmpfs of at most hpLogSize bytes and hpLogInodes files, so whoever takes the honeypot over cannot fill the
+	// disk of vedette.db with files in log/ (D-318). hpLogVolume + ".volume" is the Quadlet file.
+	hpLogVolume = "vedette-hp-log"
+	hpLogSize   = "64m"
+	hpLogInodes = 1024
 )
 
 // installSection is what makes a service start at boot. Quadlet applies [Install] when it generates
@@ -110,9 +116,10 @@ PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
 PublishPort=514:5514/udp
 PublishPort=514:5514/tcp
+PublishPort=6514:5515/tcp
 Volume={{.DataDir}}:/var/lib/vedette
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
-Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log:ro
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
 Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
@@ -180,7 +187,7 @@ ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
-Volume=` + hpHostDir + `/log:/var/lib/vedette/honeypot/log:U
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]
@@ -254,6 +261,27 @@ func renderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 func RenderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 	return renderVolume(role, coreUID, sensorGID)
 }
+
+// hpLogVolumeText is the .volume unit of the honeypot's log/ (D-318): constant text, no host.conf id (:U in the honeypot's unit gives
+// the volume to the container's user at start; core reads it through the "other" bits that init.py sets, D-162). Podman's local
+// driver mounts it as a tmpfs with these options when the first container that uses it starts. Podman's bind of the volume into a
+// container has its own flags and does not carry noexec over (honeypot-check showed it), so both units also say noexec on the
+// Volume= line: nothing in log/ is ever run.
+var hpLogVolumeText = []byte(`[Unit]
+Description=Vedette honeypot log (tmpfs, size-capped)
+
+[Volume]
+VolumeName=` + hpLogVolume + `
+Type=tmpfs
+Device=tmpfs
+Options=size=` + hpLogSize + `,nr_inodes=` + fmt.Sprint(hpLogInodes) + `,nosuid,nodev,noexec
+`)
+
+// hpLogVolumeFileName is the Quadlet file of the honeypot log volume.
+const hpLogVolumeFileName = hpLogVolume + ".volume"
+
+// HpLogVolumeText is the text of the honeypot log volume unit. Exported for the contract tests.
+func HpLogVolumeText() []byte { return slices.Clone(hpLogVolumeText) }
 
 // validID is a uid or gid a unit may carry: 1 up to what host.conf accepts (31 bits). Never 0.
 func validID(n int) bool { return n >= 1 && n <= 1<<31-1 }

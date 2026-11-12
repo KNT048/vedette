@@ -143,6 +143,13 @@ func (s *Service) blockEntries(ctx context.Context, q dbq) ([]BlockEntry, error)
 	if err != nil {
 		return nil, err
 	}
+	// Parsed once, not once per entry (firstTouched would parse the list for each of up to maxBlockEntries values).
+	var nev []entry
+	for _, n := range never {
+		if pe, ok := parseEntry(n.Value); ok {
+			nev = append(nev, pe)
+		}
+	}
 	rows, err := q.QueryContext(ctx, `SELECT value, source, reason, added_at, expires_at FROM resp_block_entries WHERE expires_at IS NULL OR expires_at > ? ORDER BY added_at DESC, rowid DESC`, store2(s.now()))
 	if err != nil {
 		return nil, fmt.Errorf("response: read the block list: %w", err)
@@ -159,7 +166,7 @@ func (s *Service) blockEntries(ctx context.Context, q dbq) ([]BlockEntry, error)
 		if a, err := netip.ParseAddr(e.Value); err != nil || !publishable(a) {
 			continue
 		}
-		if _, hit := firstTouched(never, []string{e.Value}); hit {
+		if v, ok := parseEntry(e.Value); ok && slices.ContainsFunc(nev, func(n entry) bool { return touchesParsed(n, v) }) {
 			continue
 		}
 		if out = append(out, e); len(out) >= maxBlockEntries {

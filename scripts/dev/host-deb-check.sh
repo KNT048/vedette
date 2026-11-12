@@ -11,14 +11,14 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 c=${CONTAINER:-podman}
-ver=9.8.7
+ver=9.8.7-test.1 # a -test. version: host-deb's release preflight (clean tree, no sequence floor needed) applies only to a real one
 case $(uname -m) in aarch64 | arm64) arch=arm64 ;; *) arch=amd64 ;; esac
 # shellcheck disable=SC1091
 set -a; . deploy/containers/pins.env; . deploy/deb/check-pins.env; set +a
 targets="debian13=$DEBIAN_IMAGE ubuntu2404=$UBUNTU_2404_IMAGE"
 work=$(mktemp -d)
 out=$work/out
-deb=$out/vedette-host_${ver}_${arch}.deb
+deb=$out/vedette-host_${ver/-/\~}_${arch}.deb # nfpm writes a prerelease with a tilde
 bin=$out/host-deb/$arch/vedette-host
 pulled=""
 name=setup

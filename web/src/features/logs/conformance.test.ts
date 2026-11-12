@@ -5,14 +5,14 @@
 // deliberately differs (D-73: limits that contract.ts states are refused by the generated validator as 400 `invalid`), what
 // it gives instead. Every 2xx body is checked against the zod schema of contract.ts. Run against the real backend:
 //   VITE_LOGS_REAL_URL=http://127.0.0.1:8080 VITE_LOGS_QA_PASSWORD=... pnpm --dir web exec vitest run src/features/logs/conformance.test.ts
-// Covers what L1 of the module builds (sources, events, retention, digest); the SIEM operations come with L5.
+// Covers sources, events, retention, the digest and the SIEM configuration (L1, L5, L4): the checks and their order are those of modules/logs/siem.go.
 import { describe, expect, it } from 'vitest'
 import { http, passthrough } from 'msw'
 import { server } from '@/test/server'
 import type { ZodType } from 'zod'
 import { sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
-import { Digest, EventsResponse, LogSource, SourcesResponse } from './contract'
+import { Digest, EventsResponse, LogSource, SiemConfig, SourcesResponse } from './contract'
 
 const REAL = import.meta.env.VITE_LOGS_REAL_URL as string | undefined
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -28,6 +28,8 @@ interface Step {
   body?: unknown | ((c: Ctx) => unknown)
   status: number
   code?: string
+  /** Only the mock is asked: the step depends on a state that a box that was used before does not have. */
+  only?: 'mock'
   /** What the real backend answers where it deliberately differs from the mock. */
   real?: { status?: number; code?: string }
   schema?: ZodType
@@ -74,6 +76,8 @@ async function call(target: 'mock' | 'real', s: Step, c: Ctx): Promise<Res> {
 }
 
 const SRC = (over: Record<string, unknown> = {}) => ({ kind: 'fortigate', name: 'conf-fw', sender_ip: '192.168.77.5', proto: 'udp', port: 514, ...over })
+const KEY = 'conformance-key-0123456789'
+const SIEM = (over: Record<string, unknown> = {}) => ({ enabled: false, format: 'syslog', host: '192.168.77.50', port: 514, proto: 'udp', url: '', events: ['findings', 'alerts'], ...over })
 const ID = (c: Ctx) => `/logs/sources/${c.id}`
 
 const steps: Step[] = [
@@ -101,7 +105,7 @@ const steps: Step[] = [
   { name: 'port 0', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 0, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
   { name: 'port 65536', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 65536, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
   { name: 'proto tls', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ proto: 'tls', port: 6514, sender_ip: '192.168.77.8' }), status: 201, schema: LogSource,
-    real: { status: 400, code: 'tls_unavailable' } }, // D-203: the real box refuses TLS until the TLS listener exists; the catalog and the mock still offer it, and the form shows the server's message
+    real: { status: 400, code: 'tls_unavailable' } }, // D-203, D-214: a real box accepts TLS only when it has a certificate (HTTPS); the e2e box serves plain HTTP, so it refuses with tls_unavailable; the catalog and the mock offer it, and the form shows the server's message
   { name: 'add a second source', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ name: 'conf-fw-b', sender_ip: '192.168.77.7' }), status: 201, schema: LogSource, keep: (b, c) => { c.id2 = b.id } },
   { name: 'edit takes the second source\'s IP', role: 'admin', method: 'PUT', path: ID, body: SRC({ sender_ip: '192.168.77.7' }), status: 409, code: 'duplicate' },
   { name: 'edit an unknown source', role: 'admin', method: 'PUT', path: '/logs/sources/ls-nope', body: SRC({ sender_ip: '192.168.77.9' }), status: 404, code: 'not_found' },
@@ -125,6 +129,38 @@ const steps: Step[] = [
   { name: 'it is read back', role: 'viewer', method: 'GET', path: '/logs/sources', status: 200, schema: SourcesResponse, check: (b) => expect(b.retention_days).toBe(90) },
   { name: 'retention 14 days', role: 'admin', method: 'PUT', path: '/logs/retention', body: { days: 14 }, status: 400, code: 'bad_days', real: { code: 'invalid' } },
   { name: 'retention back to 30 days', role: 'admin', method: 'PUT', path: '/logs/retention', body: { days: 30 }, status: 200, check: (b) => expect(b.retention_days).toBe(30) },
+  // ---- SIEM: the same refusals as the box, in the same order (format, destination, events, key; a webhook without a key last)
+  { name: 'siem: viewer cannot read it', role: 'viewer', method: 'GET', path: '/logs/siem', status: 403, code: 'forbidden' },
+  { name: 'siem: unknown format', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'xml' }), status: 400, code: 'bad_format', real: { code: 'invalid' } },
+  { name: 'siem: a webhook URL that is not http(s)', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'ftp://siem.example.com/x', secret: KEY }), status: 400, code: 'bad_url' },
+  { name: 'siem: a webhook URL with credentials', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://user:pw@siem.example.com/x', secret: KEY }), status: 400, code: 'bad_url' },
+  { name: 'siem: a webhook with port 0', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com:0/hook', secret: KEY }), status: 400, code: 'bad_url' },
+  { name: 'siem: a webhook at loopback', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'http://127.0.0.1:9000/hook', secret: KEY }), status: 400, code: 'blocked_host' },
+  { name: 'siem: a webhook at localhost', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://LocalHost/hook', secret: KEY }), status: 400, code: 'blocked_host' },
+  { name: 'siem: a webhook at a link-local address', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'http://169.254.169.254/latest', secret: KEY }), status: 400, code: 'blocked_host' },
+  { name: 'siem: syslog at loopback', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '127.0.0.1' }), status: 400, code: 'blocked_host' },
+  { name: 'siem: syslog at localhost', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: 'localhost' }), status: 400, code: 'blocked_host' },
+  { name: 'siem: syslog at the unspecified address', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '0.0.0.0' }), status: 400, code: 'blocked_host' },
+  { name: 'siem: syslog at a multicast address', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '224.0.0.5' }), status: 400, code: 'blocked_host' },
+  { name: 'siem: a host written as a number', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '2130706433' }), status: 400, code: 'bad_host' },
+  { name: 'siem: a host that is not a name', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: 'siem server' }), status: 400, code: 'bad_host' },
+  { name: 'siem: port 0', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ port: 0 }), status: 400, code: 'bad_port' },
+  { name: 'siem: unknown protocol', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ proto: 'quic' }), status: 400, code: 'bad_proto', real: { code: 'invalid' } },
+  { name: 'siem: the host is judged before the events', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '127.0.0.1', events: [] }), status: 400, code: 'blocked_host' },
+  { name: 'siem: no events', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: [] }), status: 400, code: 'bad_events', real: { code: 'invalid' } },
+  { name: 'siem: an event twice', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: ['findings', 'findings'] }), status: 400, code: 'bad_events' },
+  { name: 'siem: the events are judged before the key', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: ['findings', 'findings'], secret: 'short' }), status: 400, code: 'bad_events' },
+  { name: 'siem: a short key on syslog too', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ secret: 'short' }), status: 400, code: 'bad_secret', real: { code: 'invalid' } }, // D-73: contract.ts's min(16)
+  { name: 'siem: a key with a control character', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ secret: `${KEY}\n` }), status: 400, code: 'bad_secret' },
+  { name: 'siem: a webhook with no saved key and none sent', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com/hooks/vedette' }), status: 400, code: 'secret_required', only: 'mock' },
+  { name: 'siem: save syslog (disabled)', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: ' 192.168.77.50 ' }), status: 200, schema: SiemConfig,
+    check: (b) => expect([b.host, b.enabled, b.port, b.proto, b.url, b.events, b.last_test]).toEqual(['192.168.77.50', false, 514, 'udp', '', ['findings', 'alerts'], null]) },
+  { name: 'siem: save a webhook with a key', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com/hooks/vedette', secret: KEY }), status: 200, schema: SiemConfig,
+    check: (b) => expect([b.format, b.host, b.url, b.secret_last4]).toEqual(['json', '', 'https://siem.example.com/hooks/vedette', KEY.slice(-4)]) },
+  { name: 'siem: the key is kept when it is left blank', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com/hooks/vedette', events: ['bad_conn'] }), status: 200, schema: SiemConfig,
+    check: (b) => expect([b.secret_last4, b.events]).toEqual([KEY.slice(-4), ['bad_conn']]) },
+  { name: 'siem: read back, without the key', role: 'admin', method: 'GET', path: '/logs/siem', status: 200, schema: SiemConfig, check: (b) => expect(JSON.stringify(b)).not.toContain(KEY) },
+  { name: 'siem: back to syslog, disabled', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: '192.168.77.50' }), status: 200, schema: SiemConfig },
   { name: 'digest', role: 'viewer', method: 'GET', path: '/logs/digest', status: 200, schema: Digest, check: (b) => expect(b.baseline_days).toBe(7) },
 ]
 
@@ -132,6 +168,7 @@ async function run(target: 'mock' | 'real') {
   const c: Ctx = {}
   const problems: string[] = []
   for (const s of steps) {
+    if (s.only && s.only !== target) continue
     const want = { status: s.status, code: s.code, ...(target === 'real' ? s.real : {}) }
     let r: Res
     try { r = await call(target, s, c) } catch (e) { problems.push(`${s.name}: request failed: ${String(e)}`); continue }

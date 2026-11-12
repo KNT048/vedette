@@ -285,9 +285,20 @@ func TestContract_INV18_ExportSourceCarriesTheChain(t *testing.T) {
 	if res := ai.VerifyChain(entries, "", nil); !res.OK {
 		t.Fatalf("the exported chain does not verify: %+v", res)
 	}
-	for _, secret := range []string{keyA, "seq", "profile_id"} {
-		if bytes.Contains(buf.Bytes(), []byte(secret)) {
-			t.Fatalf("the export holds %q", secret)
+	if bytes.Contains(buf.Bytes(), []byte(keyA)) {
+		t.Fatal("the export holds the API key")
+	}
+	// seq and profile_id are columns, not fields: look for them as keys. A substring check of the bytes also hit the random row ids
+	// ("act-" + 26 base32 characters hold "seq" in about 1 run of 400).
+	for _, line := range bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n")) {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(line, &fields); err != nil {
+			t.Fatalf("line %q: %v", line, err)
+		}
+		for _, k := range []string{"seq", "profile_id"} {
+			if _, ok := fields[k]; ok {
+				t.Fatalf("the export holds the field %q", k)
+			}
 		}
 	}
 	// through the registry of core: the source is the category ai_activity, and the file says the chain is complete

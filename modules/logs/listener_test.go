@@ -2,10 +2,17 @@ package logs
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/big"
 	"net"
 	"strconv"
 	"strings"
@@ -323,13 +330,17 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	e.svc.cfg.Syslog.RetryEvery = 20 * time.Millisecond
 	e.sourceOn("FW", "udp")
 	var fail atomic.Bool
-	var reads atomic.Int32
+	var failed atomic.Int32
 	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
-		reads.Add(1)
+		rows, err := e.svc.loadSources(ctx)
+		// Failure is decided when the read returns, not when it starts: a read already in flight when the test sets fail (the wake-up
+		// that sourceOn left pending, say) may have loaded the source added below, and must not open its socket. A read that returned
+		// before fail was set finished before the source was added, so it cannot have seen it.
 		if fail.Load() {
+			failed.Add(1)
 			return nil, errors.New("database is locked")
 		}
-		return e.svc.loadSources(ctx)
+		return rows, err
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -337,11 +348,10 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	defer func() { cancel(); err := <-done; _ = err }()
 	waitUntil(t, "UDP", func() bool { return e.svc.ListenStatus().UDP })
 	fail.Store(true)
-	base := reads.Load()
 	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, "three failed reads", func() bool { return reads.Load() >= base+3 }) // the wake-up and two timed retries
+	waitUntil(t, "three failed reads", func() bool { return failed.Load() >= 3 }) // the wake-up and two timed retries
 	if st := e.svc.ListenStatus(); !st.Listening || !st.UDP || st.TCP {
 		t.Fatalf("a failing read touched the sockets: %+v", st)
 	}
@@ -416,14 +426,18 @@ func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
 	e.svc.cfg.Log = slog.New(logs)
 	e.svc.cfg.Syslog.RetryEvery = 5 * time.Millisecond
 	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '10.8.8.8', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
-	var reads atomic.Int32
+	var reads, oks atomic.Int32 // oks counts the reads that succeeded: nothing reads again after a success, so a counter that is reset can lose the one that matters
 	var fail atomic.Bool
 	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
 		reads.Add(1)
 		if fail.Load() {
 			return nil, errors.New("database is locked")
 		}
-		return e.svc.loadSources(ctx)
+		rows, err := e.svc.loadSources(ctx)
+		if err == nil {
+			oks.Add(1)
+		}
+		return rows, err
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -449,12 +463,206 @@ func TestTheSameWarningIsNotLoggedByEveryRetry(t *testing.T) {
 	if n := logs.count("could not read the sources"); n != 1 {
 		t.Errorf("the failed read was logged %d times for one error", n)
 	}
+	okBase := oks.Load()
 	fail.Store(false)
-	reads.Store(0)
-	waitUntil(t, "recovery", func() bool { return reads.Load() >= 1 })
+	waitUntil(t, "recovery", func() bool { return oks.Load() > okBase })
 	fail.Store(true) // a new failure after a recovery is news again
 	base = reads.Load()
 	e.svc.sourcesChanged()
 	waitUntil(t, "a failed read", func() bool { return reads.Load() > base })
 	waitUntil(t, "the second warning", func() bool { return logs.count("could not read the sources") == 2 })
+}
+
+// tlsEnv is a syslogEnv whose box has a TLS configuration with a self-made certificate (made at run time, never committed).
+func tlsEnv(t *testing.T) (*env, *x509.CertPool) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "box"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, BasicConstraintsValid: true, IsCA: true,
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}}
+	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	cert := &tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}
+	e := syslogEnv(t)
+	e.svc.cfg.Syslog.TLS = &tls.Config{MinVersion: tls.VersionTLS12, GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return cert, nil }}
+	return e, pool
+}
+
+func (e *env) tlsAddr() net.Addr {
+	srv := e.svc.listening.Load()
+	if srv == nil {
+		return nil
+	}
+	return srv.TLSAddr()
+}
+
+func dialTLS(addr string, pool *x509.CertPool) (*tls.Conn, error) {
+	d := tls.Dialer{Config: &tls.Config{RootCAs: pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}}
+	c, err := d.DialContext(context.Background(), "tcp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	return c.(*tls.Conn), nil
+}
+
+// POST-1 (D-214): on a box with a certificate a TLS source is accepted, adding it opens the TLS socket and a line sent over TLS from the
+// declared sender is stored; deleting the last TLS source closes the socket. Nothing plain opens for it.
+func TestTLSSyslogIsStoredAndTheSocketFollowsTheSources(t *testing.T) {
+	t.Parallel()
+	e, pool := tlsEnv(t)
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
+	if a := e.tlsAddr(); a != nil {
+		t.Fatalf("no sources, yet the TLS socket is open: %v", a)
+	}
+	src := e.sourceOn("FW-TLS", "tls")
+	var addr net.Addr
+	waitUntil(t, "the TLS socket", func() bool { addr = e.tlsAddr(); return addr != nil })
+	if u, tc := e.addrs(); u != nil || tc != nil {
+		t.Fatalf("a TLS source opened a plain socket: %v %v", u, tc)
+	}
+	if st := e.svc.ListenStatus(); !st.TLS || st.TLSErr != "" {
+		t.Fatalf("status %+v", st)
+	}
+	c, err := dialTLS(addr.String(), pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	if _, err := io.WriteString(c, "<34>one\n10 <34>two ab"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "two lines over TLS", func() bool { return len(e.searchLines()) == 2 })
+	if view, err := e.svc.Sources(t.Context()); err != nil || view.Sources[0].State != "receiving" {
+		t.Errorf("state %+v %v", view.Sources, err)
+	}
+	if err := e.svc.DeleteSource(t.Context(), "admin@acme.example", src.ID); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "the TLS socket to close with the last TLS source", func() bool { return e.tlsAddr() == nil })
+}
+
+// A TLS source is accepted on create and on edit when the box has a certificate, and a plain client from another address is dropped.
+func TestTLSSourceFromAnotherSenderStoresNothing(t *testing.T) {
+	t.Parallel()
+	e, pool := tlsEnv(t)
+	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "Other", SenderIP: "10.9.9.9", Proto: "tls", Port: 6514}); err != nil {
+		t.Fatal(err)
+	}
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	var addr net.Addr
+	waitUntil(t, "the TLS socket", func() bool { addr = e.tlsAddr(); return addr != nil })
+	if c, err := dialTLS(addr.String(), pool); err == nil { // 127.0.0.1 is not the declared sender
+		_ = c.Close()
+		t.Fatal("an undeclared sender completed a TLS handshake")
+	}
+	waitUntil(t, "the connection to be counted", func() bool { return e.svc.ListenStatus().Stats.Unknown == 1 })
+	if n := len(e.searchLines()); n != 0 {
+		t.Errorf("%d lines stored for an undeclared sender", n)
+	}
+}
+
+// With no TLS configuration the API refuses proto tls and, if a row was left over, the listener opens nothing for it.
+func TestWithoutATLSConfigTLSIsRefusedAndNothingListens(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t) // Syslog.TLS is nil
+	_, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "127.0.0.1", Proto: "tls", Port: 6514})
+	if code(err) != "tls_unavailable" {
+		t.Fatalf("create: %v", err)
+	}
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '127.0.0.1', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
+	if a := e.tlsAddr(); a != nil {
+		t.Fatalf("a TLS socket is open without a TLS config: %v", a)
+	}
+}
+
+// SYS-5: with the module off the TLS socket is not open either; turning it on opens it, turning it off closes it and cuts the connection.
+func TestNoTLSSocketWhileTheModuleIsOff(t *testing.T) {
+	t.Parallel()
+	e, pool := tlsEnv(t)
+	e.sourceOn("FW", "tls")
+	gate := &toggleGate{}
+	sched := jobs.New(slog.New(slog.DiscardHandler), gate, nil)
+	for _, j := range Jobs(e.svc) {
+		if j.Name == "syslog" {
+			if err := sched.Add(j); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	defer func() { cancel(); <-done }()
+	waitUntil(t, "the scheduler to have asked the gate", func() bool { return gate.calls.Load() > 0 })
+	if e.svc.listening.Load() != nil {
+		t.Fatal("the listener runs while the module is off")
+	}
+	gate.set(true)
+	sched.ModuleChanged(ModuleID, true)
+	var addr net.Addr
+	waitUntil(t, "the TLS socket after the module was turned on", func() bool { addr = e.tlsAddr(); return addr != nil })
+	c, err := dialTLS(addr.String(), pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	waitUntil(t, "the connection to be registered", func() bool { return e.svc.ListenStatus().Conns == 1 })
+	gate.set(false)
+	sched.ModuleChanged(ModuleID, false)
+	waitUntil(t, "the listener to stop", func() bool { return e.svc.listening.Load() == nil })
+	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if _, err := c.Read(make([]byte, 1)); err == nil || isNetTimeout(err) {
+		t.Errorf("the open TLS connection survived the module being turned off: %v", err)
+	}
+	if conn, err := dialCtx("tcp4", addr.String()); err == nil {
+		_ = conn.Close()
+		t.Error("the TLS port still accepts connections after the module was turned off")
+	}
+}
+
+// Editing a source to TLS is accepted on a box that has a TLS config, and opens the TLS socket in place of the plain one.
+func TestEditingASourceToTLSIsAcceptedOnABoxWithTLS(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	s := e.sourceOn("FW", "udp")
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the UDP socket", func() bool { u, _ := e.addrs(); return u != nil })
+	got, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tls", Port: 6514})
+	if err != nil || got.Proto != "tls" {
+		t.Fatalf("edit to tls: %+v %v", got, err)
+	}
+	waitUntil(t, "the TLS socket instead of the UDP one", func() bool { u, _ := e.addrs(); return u == nil && e.tlsAddr() != nil })
+}
+
+// A left-over tls row on a box that now has a TLS config is served, and the "not served" warning (for a box with none) is not logged.
+func TestALeftOverTLSRowIsServedAndNotWarnedAboutOnABoxWithTLS(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	logs := &logCapture{}
+	e.svc.cfg.Log = slog.New(logs)
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '127.0.0.1', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the TLS socket for the old row", func() bool { return e.tlsAddr() != nil })
+	if n := logs.count("are not served"); n != 0 {
+		t.Errorf("the not-served warning was logged %d times on a box that serves TLS", n)
+	}
 }

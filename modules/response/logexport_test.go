@@ -14,6 +14,7 @@ import (
 
 // ExportLog is the "response" source of GET /core/logs/export: resp_log as stored, so the file verifies offline.
 func TestExportLogKeepsTheChainAndTheRange(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -76,6 +77,7 @@ func TestExportLogKeepsTheChainAndTheRange(t *testing.T) {
 // The response chain goes out as stored (no scrubbing: it would break the hashes), so its lines must hold no secret when they
 // are written. This checks today's lines, and that the file says where the chain starts and ends.
 func TestExportLogRowsHoldNoSecretAndTheChainIsStated(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))

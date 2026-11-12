@@ -19,7 +19,7 @@ export default function LogsPanel() {
   const refresh = useRefreshDigest()
   if (gate.state === 'loading') return null
   if (gate.state === 'off') return <Section title={t('logs.title')}><ModuleOff module="ai" /></Section>
-  const d = refresh.data?.digest ?? digest.data?.digest
+  const d = refresh.data?.digest ?? digest.data?.digest ?? undefined // null = nothing generated yet (INV-6)
   return (
     <Section title={t('logs.title')} description={t('logs.description')} stories={['S-AI-4']}
       actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || refresh.isPending || d?.empty === true} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{refresh.isPending ? t('logs.working') : t('logs.refresh')}</Button>}>
@@ -27,6 +27,7 @@ export default function LogsPanel() {
       <ActionError error={refresh.error} />
       {gate.state === 'ready' && digest.isPending ? <Loading /> : null}
       {gate.state === 'ready' && digest.error && !d ? <ErrorState error={digest.error} onRetry={() => void digest.refetch()} /> : null}
+      {gate.state === 'ready' && digest.data && !d ? <p className="text-sm text-muted">{t('logs.none')}</p> : null}
       {d?.empty ? <p className="text-sm text-muted">{d.summary}</p> : null}
       {d && !d.empty ? (
         <div className="grid gap-2">

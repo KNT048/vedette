@@ -290,10 +290,13 @@ func TestDeviceHTTPExactRequestsAndTheTTLSweep(t *testing.T) {
 		t.Fatalf("request %+v item %+v", got, it)
 	}
 	sent := f.Requests()[base:]
-	if len(sent) != 2 {
-		t.Fatalf("%d requests, want the run and the read-back: %+v", len(sent), sent)
+	if len(sent) != 3 {
+		t.Fatalf("%d requests, want the read before, the run and the read-back: %+v", len(sent), sent)
 	}
-	run, back := sent[0], sent[1]
+	pre, run, back := sent[0], sent[1], sent[2]
+	if pre.Method != "GET" || pre.Path != "/api/v2/monitor/user/banned/select" || len(pre.Body) != 0 { // D-356: the read-back text is read before the run
+		t.Fatalf("the read before the run: %+v", pre)
+	}
 	if run.Method != "POST" || run.Path != "/api/v2/monitor/user/banned/add_users" || string(run.Body) != `{"ip_addresses":["198.51.100.7"],"expiry":3600}` ||
 		run.Header.Get("Authorization") != "Bearer tok-0123456789-abcdef" || run.Header.Get("Content-Type") != "application/json" || run.Header.Get("Accept") != "application/json" {
 		t.Fatalf("the run request: %+v", run)
@@ -310,7 +313,7 @@ func TestDeviceHTTPExactRequestsAndTheTTLSweep(t *testing.T) {
 	// The undo time ends: the sweep sends the rollback and reads back, and the read-back no longer holds the address.
 	e.clock.Advance(61 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
-	sent = f.Requests()[base+2:]
+	sent = f.Requests()[base+3:]
 	if len(sent) != 2 || sent[0].Method != "POST" || sent[0].Path != "/api/v2/monitor/user/banned/clear_users" || string(sent[0].Body) != `{"ip_addresses":["198.51.100.7"]}` || sent[1].Method != "GET" {
 		t.Fatalf("the undo requests: %+v", sent)
 	}
@@ -426,6 +429,7 @@ func TestDeviceSSHExactLinesRefusalAndStop(t *testing.T) {
 			t.Fatalf("item %+v", it)
 		}
 		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port +
+			"|terminal length 0|show interfaces " + port + " status" + // the read before the run (D-356)
 			"|terminal length 0|configure terminal|interface " + port + "|shutdown|end" +
 			"|terminal length 0|show interfaces " + port + " status"
 		if join(f.Lines()) != want {
@@ -465,12 +469,13 @@ func TestDeviceSSHExactLinesRefusalAndStop(t *testing.T) {
 		got := e.approve()
 		it := got.Items[0]
 		// The refused line is an unclear outcome (the wording of a device never decides "nothing changed"); the read-back that follows, in a
-		// new session, shows the port is not shut, so the item is settled: not in force.
+		// new session, shows the port is not shut, so the item is settled: not in force. After the refused line only end goes out (D-358).
 		if it.Status != response.ItemFailed || it.StateUnknown || !strings.Contains(*it.Result, "not in force") {
 			t.Fatalf("item %+v", it)
 		}
-		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port + "|terminal length 0|configure terminal|interface " + port +
-			"|terminal length 0|show interfaces " + port + " status"
+		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port + "|terminal length 0|show interfaces " + port + " status" +
+			"|terminal length 0|configure terminal|interface " + port +
+			"|end|terminal length 0|show interfaces " + port + " status"
 		if join(f.Lines()) != want {
 			t.Fatalf("lines\n got %s\nwant %s", join(f.Lines()), want)
 		}
@@ -613,7 +618,8 @@ func TestDeviceFingerprintRaceInsideTheExecutorSendsNothing(t *testing.T) {
 	}}
 	got := e.approve()
 	it := got.Items[0]
-	if !edited.Load() || it.Status != response.ItemFailed || !strings.Contains(*it.Result, "was changed after the request was made") || len(f.Requests()) != base {
+	// Only the read before the run (D-356) went out, before the edit: nothing that writes.
+	if !edited.Load() || it.Status != response.ItemFailed || !strings.Contains(*it.Result, "was changed after the request was made") || len(f.Requests()) != base+1 || f.Requests()[base].Method != "GET" {
 		t.Fatalf("edited %v, item %+v, %d new requests", edited.Load(), it, len(f.Requests())-base)
 	}
 }

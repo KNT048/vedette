@@ -22,6 +22,7 @@ func tokenOf(url string) string {
 // INV-17: the block list is plain text, one address per line, behind a token; a regenerated token kills the old address at once;
 // it never holds a never-touch entry; a reason built from attacker data cannot start a line.
 func TestContract_INV17_Blocklist(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	ev := e.iocEvent("e1", "198.51.100.7")
@@ -62,6 +63,20 @@ func TestContract_INV17_Blocklist(t *testing.T) {
 	if strings.Contains(string(b), "10.9.9.9") {
 		t.Fatal("the list holds a never-touch address")
 	}
+	// A public one too: 10.9.9.9 is not publishable anyway, so only a public address reaches the never-touch filter itself
+	// (a public DNS server on the never-touch list, D-325).
+	e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES ('198.51.100.200', 'x2', 'y2', 's', 'r', '2026-11-09T10:00:00.000Z')`)
+	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
+	if !strings.Contains(string(b), "198.51.100.200") {
+		t.Fatalf("a public address that is not on the never-touch list is not served:\n%s", b)
+	}
+	if _, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "10.9.9.0/24", Label: "Management"}, {Value: "198.51.100.192/26", Label: "Public DNS"}}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
+	if strings.Contains(string(b), "198.51.100.200") || !strings.Contains(string(b), "198.51.100.7") {
+		t.Fatalf("the never-touch filter on public addresses:\n%s", b)
+	}
 	// An entry past its time to live is not served, even before the sweep.
 	e.clock.Advance(2 * time.Hour)
 	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
@@ -90,6 +105,7 @@ func TestContract_INV17_Blocklist(t *testing.T) {
 }
 
 func TestBlocklistRateLimit(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	v, _ := e.svc.Blocklist(e.ctx())
 	tok := tokenOf(v.URL)
@@ -110,6 +126,7 @@ func TestBlocklistRateLimit(t *testing.T) {
 
 // webhook_call: the guard refuses loopback in production code paths; the test seam is the only way in and is off by default.
 func TestWebhookGuard(t *testing.T) {
+	t.Parallel()
 	var hits atomic.Int32
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
@@ -148,6 +165,7 @@ func TestWebhookGuard(t *testing.T) {
 }
 
 func TestWebhookSignedPostAndNoRedirect(t *testing.T) {
+	t.Parallel()
 	var got atomic.Value
 	var redirected atomic.Int32
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +214,7 @@ func (e *env) webhookRule() {
 
 // Events from the bus become triggers: a finding, a device that is not approved. Handlers only record; the evaluate step runs the rules.
 func TestEventIntakeFromTheBus(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-nas"] = response.DeviceInfo{ID: "a-nas", Name: "NAS-PHOTOS", IP: "192.168.10.21", Kind: "nas", Approved: true}
 	e.dir.devices["a-unk"] = response.DeviceInfo{ID: "a-unk", Name: "192.168.10.157", IP: "192.168.10.157", MAC: "3c:22:fb:10:aa:01", Kind: "iot", Approved: false, Seen: e.clock.Now()}
@@ -262,6 +281,7 @@ func TestEventIntakeFromTheBus(t *testing.T) {
 // S-RESP-3, #304: a real honeypot hit (honeypot.hit.created) is an event of the honeypot trigger with the trigger fields filled; the
 // data came from the network, so an event without a valid source address or with an unknown kind is dropped.
 func TestHoneypotHitEvent(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "192.168.10.107", Kind: "pc", Approved: true}
 	e.svc.Subscribe(e.bus)
@@ -303,6 +323,7 @@ func TestHoneypotHitEvent(t *testing.T) {
 // Review of #304 (D-286 (4)): the source of a port-scan hit can be forged, so a pre-approved rule asks a person for it; a service hit is
 // carried out. At most 60 scan hits an hour reach the rules (logins and tokens are not capped), and the first one over writes one line to the log.
 func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
 	e.rule("Trap", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}},
@@ -347,6 +368,7 @@ type gate struct{ on bool }
 func (g *gate) Enabled(string) bool { return g.on }
 
 func TestManualAndScheduledRules(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "192.168.10.107", MAC: "3c:22:fb:10:aa:01", Kind: "pc", Approved: true}
 	r := e.rule("Tell", "manual", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "Manual run on {{trigger.device}}"}}}, nil)
@@ -380,6 +402,7 @@ func TestManualAndScheduledRules(t *testing.T) {
 
 // INV-14c: custom actions follow the connection kind and need a write tool; built-ins take only enabled, ai_may_propose and connection_id.
 func TestContract_INV14c_Catalog(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.conns.list = []response.ConnectionInfo{
 		{Connection: response.Connection{ID: "cn-ro", Name: "Read only", Enabled: true, Kind: "http", WriteTools: []string{}}, Target: "https://a.lan"},
@@ -452,6 +475,7 @@ func TestContract_INV14c_Catalog(t *testing.T) {
 }
 
 func TestTemplatesAndClone(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	l, err := e.svc.Templates(e.ctx())
 	e.must(err)
@@ -469,6 +493,7 @@ func TestTemplatesAndClone(t *testing.T) {
 
 // Plans written by the AI job (part 13b) are read here, and one proposal becomes a request.
 func TestPlansAndProposalRequest(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a-nas", CVE: "CVE-2024-3400", Severity: "critical", Status: "confirmed"}
@@ -504,6 +529,7 @@ func TestPlansAndProposalRequest(t *testing.T) {
 }
 
 func TestJobsBelongToTheModule(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	js := e.svc.Jobs()
 	if len(js) != 3 { // evaluate, sweep, plan

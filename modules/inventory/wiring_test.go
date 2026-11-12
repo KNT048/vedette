@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -32,6 +33,7 @@ func (e *env) manual(d inventory.ManualDevice, fail bool) error {
 }
 
 func TestAddManualDeviceCommitsWithTheCallerAndAnnouncesAfterIt(t *testing.T) {
+	t.Parallel()
 	kev := fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}
 	e := newEnv(t, withKEV(kev))
 	d := inventory.ManualDevice{Kind: "firewall", Vendor: "Fortinet", Product: "FortiOS", Display: "FortiGate firewall (FortiOS)", Key: "fortinet|fortios"}
@@ -55,6 +57,7 @@ func TestAddManualDeviceCommitsWithTheCallerAndAnnouncesAfterIt(t *testing.T) {
 }
 
 func TestAddManualDeviceRollsBackWithTheCaller(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}))
 	d := inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"}
 	if err := e.manual(d, true); err == nil {
@@ -71,6 +74,7 @@ func TestAddManualDeviceRollsBackWithTheCaller(t *testing.T) {
 
 // The same checks as the normal add: a bad key, a bad kind hint, a name with markup, a long typed name.
 func TestAddManualDeviceChecksLikeTheNormalAdd(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if err := e.manual(inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|other"}, false); err == nil {
 		t.Error("a key that is not the product's was accepted")
@@ -103,6 +107,7 @@ func TestAddManualDeviceChecksLikeTheNormalAdd(t *testing.T) {
 }
 
 func TestDevicesRunningYesMaybeNo(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{}}))
 	fg := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1", Name: "fw1"})
 	e.addDevice(inventory.AddInput{CatalogID: "mikrotik-routeros", IP: "192.168.30.2"}) //nolint:misspell // RouterOS is the product name
@@ -135,6 +140,7 @@ func TestDevicesRunningYesMaybeNo(t *testing.T) {
 }
 
 func TestMatchInputAndDeviceRefs(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
@@ -154,6 +160,7 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 }
 
 func TestHasDevice(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if ok, err := e.svc.HasDevice(e.ctx(), []string{"firewall", "router"}, "fortinet"); ok || err != nil {
 		t.Fatalf("empty inventory: %v %v", ok, err)
@@ -168,6 +175,7 @@ func TestHasDevice(t *testing.T) {
 }
 
 func TestRematch(t *testing.T) {
+	t.Parallel()
 	kev := fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001", "CVE-2024-0002"}, "mikrotik|routeros": {"CVE-2024-0003"}}} //nolint:misspell // RouterOS is the product name
 	e := newEnv(t)                                                                                                                            // no KEV yet: the devices are added without matches
 	e.addDevice(inventory.AddInput{CatalogID: "fortigate"})
@@ -211,6 +219,7 @@ func TestRematch(t *testing.T) {
 // DevicesOfKind is the uncapped read the never-touch list needs: devices of the kinds asked, the id, the addresses and the host name,
 // beyond the MaxListed rows that Devices stops at; an empty kinds is an empty answer; a read that fails is an error, never a short list.
 func TestDevicesOfKindIsUncapped(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if l, err := e.svc.DevicesOfKind(e.ctx(), []string{"firewall", "router"}); len(l) != 0 || err != nil {
 		t.Fatalf("empty inventory: %v %v", l, err)
@@ -250,6 +259,7 @@ INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' |
 // nmap set. A kind only a passive frame claimed is never enough (even when the device is approved and a later LLDP frame relabels it
 // router), and an unapproved device's nmap kind is not either (nmap runs in the untrusted scan container and the target shapes its answer).
 func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	recKind := func(ip, mac, kind string, src observe.Source, conf float64) {
 		a := netip.MustParseAddr(ip)
@@ -325,6 +335,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 // D-178 (M6): AddressInUse and KnownMACs read the whole table: with more than MaxListed newer devices the oldest one still counts. The box
 // is not "in use" (it is the page's own address).
 func TestAddressInUseAndKnownMACsAreUncapped(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	old := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.1"})
 	e.exec(`UPDATE inv_asset SET mac = 'aa:bb:cc:dd:ee:ff', first_seen = '2020-01-01T00:00:00.000Z' WHERE id = ?`, old)
@@ -368,6 +379,7 @@ func (e *env) exec(query string, args ...any) {
 // L12: a software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
 // still refused.
 func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.10.21"})
 	err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{
@@ -392,5 +404,104 @@ func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 	}
 	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "agent"); err == nil {
 		t.Fatal("confidence 2 accepted")
+	}
+}
+
+// setupScope runs SetupScope in a caller transaction like core's first-run setup does, and settles it.
+func (e *env) setupScope(ranges []string, confirmed, fail bool) error {
+	e.t.Helper()
+	var txp *sql.Tx
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		txp = tx
+		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", ranges, confirmed); err != nil {
+			return err
+		}
+		if fail {
+			return errors.New("the caller's own write failed")
+		}
+		return nil
+	})
+	e.svc.Settle(e.ctx(), txp, err == nil)
+	return err
+}
+
+// #350: the ranges and the commitment of the setup wizard are the scope of Devices -> Scope and sensors, in the caller's commit; the
+// other settings keep their defaults, no audit row of its own, and inventory.settings.changed goes out only after the commit.
+func TestSetupScopeBecomesTheScanScope(t *testing.T) {
+	e := newEnv(t)
+	before, err := e.svc.Settings(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.setupScope([]string{"192.168.10.0/24", "10.1.0.0/16"}, true, false); err != nil {
+		t.Fatal(err)
+	}
+	st, err := e.svc.Settings(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(st.LANRanges, []string{"192.168.10.0/24", "10.1.0.0/16"}) || st.ScopeConfirmedAt == nil || *st.ScopeConfirmedAt == "" ||
+		st.ScopeConfirmedBy == nil || *st.ScopeConfirmedBy != "ann@acme.example" {
+		t.Fatalf("settings after setup: %+v", st)
+	}
+	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Enabled || st.Active.Rate != before.Active.Rate {
+		t.Errorf("the other settings changed: %+v, before %+v", st, before)
+	}
+	if ok, err := e.svc.InScope(e.ctx(), netip.MustParseAddr("192.168.10.7")); err != nil || !ok {
+		t.Errorf("an address of the setup range is not in scope: %v %v", ok, err)
+	}
+	if a := e.auditActions(); len(a) != 0 {
+		t.Errorf("SetupScope wrote audit rows of its own: %v", a)
+	}
+	if ev := e.ev.named(inventory.EventSettingsChanged); len(ev) != 1 || ev[0].Data.(inventory.SettingsEvent).Scope != "scan" {
+		t.Errorf("events: %v", e.ev.events)
+	}
+	// Without the commitment the scope is not confirmed (active scanning stays impossible until someone confirms it).
+	e2 := newEnv(t)
+	if err := e2.setupScope([]string{"192.168.10.0/24"}, false, false); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 {
+		t.Errorf("unconfirmed setup scope: %+v %v", st, err)
+	}
+}
+
+// The ranges obey INV-6 like PUT /inventory/settings (an overlap is refused with its code, so the caller's setup fails with it), and a
+// rolled-back caller leaves no ranges and no event.
+func TestSetupScopeRefusesWhatTheScopePageRefusesAndRollsBackWithTheCaller(t *testing.T) {
+	e := newEnv(t)
+	err := e.setupScope([]string{"192.168.0.0/16", "192.168.10.0/24"}, true, false)
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "overlap_range" {
+		t.Fatalf("overlapping ranges = %v", err)
+	}
+	if err := e.setupScope([]string{"192.168.10.0/24"}, true, true); err == nil {
+		t.Fatal("the caller failed and the transaction committed")
+	}
+	if st, err := e.svc.Settings(e.ctx()); err != nil || len(st.LANRanges) != 0 || st.ScopeConfirmedAt != nil {
+		t.Errorf("a refused or rolled-back setup left %+v %v", st, err)
+	}
+	if len(e.ev.events) != 0 {
+		t.Errorf("events of a rolled-back change: %v", e.ev.events)
+	}
+}
+
+// Two in-transaction calls of one caller transaction keep both sets of events for Settle (keep merges, it does not overwrite).
+func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
+	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}))
+	var txp *sql.Tx
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		txp = tx
+		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", []string{"192.168.10.0/24"}, true); err != nil {
+			return err
+		}
+		return e.svc.AddManualDevice(e.ctx(), tx, "ann@acme.example", inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"})
+	})
+	e.svc.Settle(e.ctx(), txp, err == nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 || len(e.ev.named(inventory.EventAssetUpdated)) != 1 {
+		t.Fatalf("events: %v", e.ev.events)
 	}
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PageHeader, Section } from '@/components/common/PageHeader'
@@ -22,6 +23,30 @@ export default function FeedsSettings() {
       <PageHeader title={t('settings.title')} meta={t('settings.direct')} stories={['S-FEED-4', 'S-FEED-5']} />
       <QueryState query={sources}>{(d) => <Tables items={d.items} />}</QueryState>
     </div>
+  )
+}
+
+/** The host of a feed address, for the list of where the box connects (INV-13, PRIVACY flow 1). Only the host: a path or query can hold a token. */
+function hostOf(url: string): string {
+  try { return new URL(url).hostname } catch { return url }
+}
+
+function Hosts({ items }: { items: Feed[] }) {
+  const { t } = useTranslation('feeds')
+  const rows = [...items].sort((a, b) => Number(b.builtin) - Number(a.builtin))
+  return (
+    <Section id="feeds-hosts" title={t('hosts.title')} description={t('hosts.description')} stories={['S-FEED-4']}>
+      <ul className="grid max-w-3xl gap-1 text-sm">
+        {rows.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-mono text-[13px]">{hostOf(f.url)}</span>
+            <span className="text-[13px] text-muted">{f.name}{f.builtin ? '' : `, ${t('hosts.yours')}`}{f.enabled ? '' : `, ${t('hosts.off')}`}</span>
+            {f.id === 'cisa-kev' && f.enabled && f.url === f.default_url ? <span className="text-[13px] text-muted">{t('hosts.cisaMirror')}</span> : null}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[13px] text-muted"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/privacy">{t('hosts.privacy')}</Link></p>
+    </Section>
   )
 }
 
@@ -108,14 +133,18 @@ function Tables({ items }: { items: Feed[] }) {
         {customs.length === 0 ? (
           <EmptyState title={t('custom.empty')} action={addBtn}>{t('custom.emptyBody')}</EmptyState>
         ) : (
+          <>
+          {customs.some((f) => f.kind === 'vulnerabilities') ? <p className="mb-2 max-w-3xl text-[13px] text-muted">{t('custom.vulnNote')}</p> : null}
           <DataTable<Feed> caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
             columns={[
               { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },
               common.on, common.schedule, common.last, common.records, common.status,
               { id: 'actions', header: t('col.actions'), enableSorting: false, cell: ({ row }: R) => <span className="flex flex-wrap gap-2">{customActions(row.original)}</span> },
             ]} />
+          </>
         )}
       </Section>
+      <Hosts items={items} />
       {builtin ? <BuiltinDialog key={builtin.id} feed={builtin} onClose={() => setBuiltin(null)} /> : null}
       {custom ? <CustomDialog key={typeof custom === 'string' ? 'new' : custom.id} feed={custom === 'new' ? null : custom} onClose={() => setCustom(null)} /> : null}
       {del ? <DeleteDialog feed={del} onClose={() => setDel(null)} /> : null}

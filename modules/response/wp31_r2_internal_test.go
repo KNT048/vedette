@@ -6,6 +6,7 @@ import "testing"
 // every hash from then on and silently block the undo of every change in force, so the hash of a fixed record is pinned. Change it only with a
 // plan for the requests already stored (a migration, or the fallback in undoStepsProblem).
 func TestWP31_ExecHashIsPinned(t *testing.T) {
+	t.Parallel()
 	ex := &execRec{
 		Precheck: &execStep{Method: "GET", URL: "https://fw.lan/api/v2/monitor/user/banned/select"},
 		Run:      &execStep{Method: "POST", URL: "https://fw.lan/api/v2/monitor/user/banned/add_users", Body: `{"ip_addresses":["198.51.100.7"],"expiry":1800}`, Headers: map[string]string{"X-Trace": "a"}},

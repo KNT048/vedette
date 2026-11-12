@@ -174,6 +174,56 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
   } finally { await c.dispose() }
 })
 
+// The two tests below were test.fixme in inventory.spec.ts and scope.global.spec.ts: a device waiting for approval needs a sensor, and the recording can be delivered once
+// per run (the 15 minute repeat filter), so they live in this file, with the devices the passive sensor made. The router is still waiting here (the test above approved the PC).
+test('the not-approved list: an operator marks a device unknown and removes the mark; it stays waiting (S-INV-3)', async ({ browser }) => {
+  const ctx = await browser.newContext({ storageState: authFile('operator') })
+  const page = await ctx.newPage()
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  try {
+    const { router } = await waitForReplay(c)
+    expect((await device(c, router.id)).asset.approved, 'the router still waits').toBe(false)
+    await page.goto('/devices')
+    const pending = page.getByRole('list', { name: /new devices? not approved/ })
+    const item = pending.getByRole('listitem').filter({ hasText: ROUTER.ip })
+    await item.getByRole('button', { name: 'Mark unknown' }).click()
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: 'as unknown.' }).first()).toBeVisible()
+    await expect(item.getByText('Marked unknown')).toBeVisible()
+    const r = await api<{ asset: { approved: boolean }; suspicious: boolean }>(c, 'GET', `/inventory/devices/${router.id}`)
+    expect(r.body, 'stored on the box, not approved by it').toMatchObject({ suspicious: true, asset: { approved: false } })
+    await item.getByRole('button', { name: 'Remove unknown mark' }).click()
+    await expect(item.getByText('Marked unknown')).toHaveCount(0)
+    await expect(item.getByRole('button', { name: 'Mark unknown' })).toBeVisible()
+    expect((await device(c, router.id)).asset.approved, 'still waiting for approval').toBe(false)
+    noErrors(errors)
+  } finally { await ctx.close(); await c.dispose() }
+})
+
+test('the "new devices not approved" panel shows the alert switch and the approve list; the switch saves from the page (S-INV-3)', async ({ page }) => {
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  const was = (await devices(c)).notify_new
+  try {
+    await waitForReplay(c)
+    await page.goto('/devices')
+    await expect(page.getByRole('heading', { name: /new devices? not approved/ })).toBeVisible()
+    const sw = page.getByRole('switch', { name: 'Notify me about new devices' })
+    await expect(sw).toBeEnabled()
+    await expect(sw).toBeChecked({ checked: was })
+    await sw.click()
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: was ? 'New device notifications are off.' : 'You will be notified about new devices.' }).first()).toBeVisible()
+    await expect.poll(async () => (await devices(c)).notify_new, { message: 'the switch was saved' }).toBe(!was)
+    await page.reload()
+    await expect(sw).toBeChecked({ checked: !was })
+    await expect(page.getByRole('list', { name: /new devices? not approved/ }).getByRole('listitem')).not.toHaveCount(0)
+    noErrors(errors)
+  } finally {
+    expect((await api(c, 'PUT', '/inventory/notify-new', { enabled: was })).status, 'the switch ends as it started').toBe(200)
+    await c.dispose()
+  }
+})
+
 test('every new device opened one "unknown device" alert (S-INV-3, notify on by default)', async () => {
   const c = await as('admin')
   try {
@@ -330,16 +380,21 @@ test('what the scan found is added beside the passive values, with its source an
   } finally { await c.dispose() }
 })
 
-// Backend not built (D-171 (2)): nothing writes inv_service, so the "Open services" table of a device stays empty after a scan (the ports of the fixture are in the
-// argv-driven answer: 22, 80, 8080). The flow is here for the day it is built. .ai/deferred/feat-e2e-real-sensors.md
-test.fixme('the open ports of the scan are listed under Open services (S-INV-1)', async ({ page }) => {
+// The open ports of the normal scan (device.xml, re-addressed to the router: 22, 80 and 8080 open, 23 closed) reach inv_service through
+// observe.ServiceSink (D-350) and the "Open services" table of the device.
+test('the open ports of the scan are listed under Open services (S-INV-1, D-350)', async ({ page }) => {
+  const errors = collectErrors(page)
   const c = await as('admin')
   try {
     const router = made(await devices(c)).find((d) => d.ip === ROUTER.ip)!
+    const d = await device(c, router.id)
+    expect(d.asset.services.map((s) => [s.port, s.proto, s.name, s.source])).toEqual([[22, 'tcp', 'ssh', 'nmap'], [80, 'tcp', 'http', 'nmap'], [8080, 'tcp', 'http-proxy', 'nmap']])
+    for (const s of d.asset.services) expect(s.confidence, `${s.port}: a scan is never certain`).toBeLessThan(1)
     await page.goto(`/devices/${router.id}`)
     const services = page.getByRole('table', { name: 'Services open on the device' })
     for (const name of ['OpenSSH 8.9p1', 'Apache httpd 2.4.52', 'Squid http proxy 5.7']) await expect(services).toContainText(name)
     await expect(services.getByRole('row')).toHaveCount(1 + 3)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 

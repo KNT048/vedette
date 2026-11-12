@@ -84,6 +84,7 @@ func (a *api) want(method, path, user, body string, status int, errCode string) 
 }
 
 func TestHandlersRolesAndShapes(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 
 	// who may do what comes from the route table
@@ -212,6 +213,15 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	if status != 200 || !strings.Contains(raw, "Branch firewall") {
 		t.Fatalf("template = %d %q", status, raw)
 	}
+	for path, file := range map[string]string{"/inventory/export.csv": `attachment; filename="vedette-devices-`, "/inventory/import-template.csv": `attachment; filename="vedette-devices-template.csv"`} {
+		r := httptest.NewRequestWithContext(t.Context(), "GET", server.Prefix+path, nil)
+		r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: "viewer", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		w := httptest.NewRecorder()
+		a.h.ServeHTTP(w, r)
+		if h := w.Header(); h.Get("Content-Type") != "text/csv; charset=utf-8" || !strings.HasPrefix(h.Get("Content-Disposition"), file) || h.Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s headers: %v", path, h)
+		}
+	}
 
 	// delete: the box is 409, a device goes
 	boxID := items[0].(map[string]any)["id"].(string)
@@ -234,6 +244,7 @@ func boolStr(b bool) string {
 }
 
 func TestHandlersModuleOffIsNotFound(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	a.gate.Set("inventory", false)
 	a.want("GET", "/inventory/devices", "viewer", "", 404, "not_found")

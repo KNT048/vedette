@@ -1,12 +1,14 @@
 package storetest_test
 
 import (
+	"database/sql"
 	"fmt"
 	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 )
 
@@ -90,5 +92,38 @@ func TestAssertMigrationsUsePrefixForTheBaseModuleItself(t *testing.T) {
 	}
 	if got := run(t, "core", "CREATE TABLE core_a (x);\nCREATE TABLE nope (x);", "core_"); !strings.Contains(got, "nope") {
 		t.Fatalf("expected a failure naming nope, got: %q", got)
+	}
+}
+
+// Migrated gives each test its own database in the migrated state, from a template built once per list; one module id with two
+// sets of files gets two templates.
+func TestMigratedCopiesATemplatePerList(t *testing.T) {
+	t.Parallel()
+	a := storetest.Migration{Module: "m", FS: fstest.MapFS{"0001_a.sql": {Data: []byte("-- +goose Up\nCREATE TABLE m_a (x INTEGER);\n")}}}
+	b := storetest.Migration{Module: "m", FS: fstest.MapFS{"0001_b.sql": {Data: []byte("-- +goose Up\nCREATE TABLE m_b (x INTEGER);\n")}}}
+	tables := func(db *store.DB) string {
+		t.Helper()
+		var names string
+		if err := db.Reader().QueryRowContext(t.Context(), `SELECT group_concat(name) FROM (SELECT name FROM sqlite_master WHERE name LIKE 'm\_%' ESCAPE '\' ORDER BY name)`).Scan(&names); err != nil {
+			t.Fatal(err)
+		}
+		return names
+	}
+	one, two := storetest.Migrated(t, a), storetest.Migrated(t, a)
+	if err := one.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO m_a (x) VALUES (1)`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := two.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM m_a`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("a row written in one test's database is in another's: %d %v", n, err)
+	}
+	if got := tables(storetest.Migrated(t, b)); got != "m_b" {
+		t.Fatalf("the other set of files of module m gave tables %q, want m_b", got)
+	}
+	if got := tables(two); got != "m_a" {
+		t.Fatalf("tables %q, want m_a", got)
 	}
 }

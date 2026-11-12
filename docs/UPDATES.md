@@ -23,7 +23,7 @@ Còn lại của tài liệu này mô tả kênh dữ liệu/nội dung/advisory
 | Kênh | Nội dung | Chu kỳ | Cơ chế | Rollback |
 |---|---|---|---|---|
 | **1. Dữ liệu** | `feeds/*` (vuln, hot, ioc, slug) | 30–60 phút | `index.json` ký; ETag; delta | giữ bản trước; `revoked[]` rút file xấu |
-| **2. Gói nội dung** | skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack, template câu tiếng Việt | ngày | `content-packs/<name>-<semver>.tar.zst` ký; manifest liệt kê file + sha256 | N-1 giữ; chuyển về 1 bấm |
+| **2. Gói nội dung** (gói giảm thiểu: đi trong image `core` ký, D-36, D-345) | skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack, template câu tiếng Việt | ngày | `content-packs/<name>-<semver>.tar.zst` ký; manifest liệt kê file + sha256 | N-1 giữ; chuyển về 1 bấm |
 | **3. Phần mềm** (D-55) | image OCI `core`/`sensor`/`honeypot`/`scan` (SPA nhúng trong `core`); ~~binary + A/B slot~~ | theo phát hành; kênh `stable`/`beta` | `release.json` ký minisign; kéo image theo digest, cosign bắt buộc; thay container, health gate; fail → về digest trước | tag/digest cũ (giữ 1 đời); nút Rollback; xem §0 |
 | **4. Advisory sản phẩm** | lỗ hổng của chính Vedette, dependency | khi có | `security.json` trong index; UI banner; mail/Telegram cho admin | — |
 
@@ -41,7 +41,7 @@ Hiện: phiên bản phần mềm/dữ liệu/gói nội dung, "cập nhật lú
 ## 4. Quy trình phát hành (CI, GitHub Actions)
 
 1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (không GPL/AGPL vào lõi).
-2. Build reproducible (`-trimpath`, `CGO_ENABLED=0`), đa kiến trúc (amd64/arm64: `make images`, một manifest list mỗi image, biên dịch chéo không qemu, D-158; `make host-deb MIN_SEQUENCE=<n>` đặt sàn `sequence` của chỉ mục trong `vedette-host`), **image OCI** cho từng container (D-55) và gói `.deb` cho `vedette-host` (`make host-deb`, nfpm, D-155; thông số gói ở `DEPLOYMENT.md` §3.1).
+2. Build reproducible (`-trimpath`, `CGO_ENABLED=0`), đa kiến trúc (amd64/arm64: `make images`, một manifest list mỗi image, biên dịch chéo không qemu, D-158; `make host-deb VERSION=<x.y.z> RELEASE_PREV_INDEX=<thư mục chỉ mục đã đăng>` đặt sàn `sequence` của chỉ mục trong `vedette-host` bằng sequence của chỉ mục đó; bản thật không có `RELEASE_PREV_INDEX` thì bị từ chối, trừ `MIN_SEQUENCE=0` cho bản phát hành đầu tiên; bản thật cũng bị từ chối khi cây git bẩn hoặc `GOFLAGS` có `-overlay`/`-tags`, và binary dựng xong phải mang đúng byte khoá công khai thật), **image OCI** cho từng container (D-55) và gói `.deb` cho `vedette-host` (`make host-deb`, nfpm, D-155; thông số gói ở `DEPLOYMENT.md` §3.1).
 3. SBOM CycloneDX và quét lỗ hổng bằng một công cụ duy nhất, **trivy** (D-159; không dùng syft/grype): `make sbom` ghi SBOM cho từng image và từng kiến trúc cùng cây mã nguồn vào `dist/sbom/`; `make vuln-scan` dừng khi có lỗ hổng HIGH/CRITICAL đã có bản vá, ngoại lệ chỉ qua `.trivyignore.yaml` có lý do và ngày hết hạn; `make notices-check` so `THIRD_PARTY_NOTICES.md` với module Go thật sự được liên kết và phụ thuộc web. Bước này chạy trên máy người duy trì, cùng lượt với bước 2, không cần khoá (gắn SBOM vào image bằng `cosign attest` là việc của bước 4, WP-08k).
 4. Ký: **cosign** cho từng image (hộp xác minh khi kéo, D-55); **minisign** cho `release.json` và gói `vedette-host` (xác minh offline). Cosign theo khoá hay keyless: câu hỏi mở A3 trong `ARCHITECTURE.md`.
 5. Changelog từ commit; GitHub Release; `index.json` cập nhật qua builder; `beta` trước.

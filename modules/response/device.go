@@ -97,8 +97,9 @@ func (s *Service) recheck(ctx context.Context, undo bool, actionID string) *apie
 	return nil
 }
 
-// carryOutDevice is the order of a step on a device: the check before, which only reads and may refuse (nothing is written); the run; the
-// read-back against the expected text. What the device printed is compared and dropped here: it is never stored, logged or returned.
+// carryOutDevice is the order of a step on a device: the check before, which only reads and may refuse (nothing is written); the read of the
+// read-back text before the run (D-356); the run; the read-back against the expected text. What the device printed is compared and dropped
+// here: it is never stored, logged or returned. Only whether the read-back text was there before the run is kept (presentBefore).
 func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat catRow, conn ConnectionInfo) itemOutcome {
 	ex := it.Exec
 	if ex == nil || ex.Run == nil {
@@ -110,6 +111,7 @@ func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat
 	send := func(phase string, st *execStep) (DeviceResult, error) {
 		return s.execute(ctx, deviceStep(r.ID, it, conn, phase, st, false))
 	}
+	var before *bool // whether the read-back text was there before the run; nil when the action has no read-back
 	if ex.Precheck != nil {
 		if why := readOnlyProblem(ex.Precheck); why != "" {
 			return itemOutcome{err: "The check before was not sent: " + why + ". Nothing was changed."}
@@ -123,7 +125,66 @@ func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat
 		if why := precheckVerdict(out, ex.Refuse, ex.PrecheckExpect); why != "" {
 			return itemOutcome{refusal: fail(http.StatusConflict, "precheck_refused", "Refused by the check before: "+oneLine(why, 120)+". Nothing was changed.")}
 		}
+		if ex.canRead() && sameStep(ex.Precheck, ex.Verify) { // the check before is the read-back's own read: no second read
+			before = new(readBackHolds(out, ex.Expect, false))
+		}
 	}
+	if ex.canRead() && before == nil {
+		// The check may have taken a minute: a stop, a switch-off or a disabled action sends not even the read below.
+		if e := s.recheck(ctx, false, it.ActionID); e != nil {
+			return itemOutcome{refusal: e}
+		}
+		// D-356: one read before the write, so a read-back that settles an unclear run can tell "applied by this step" from "already there".
+		// A device that does not answer a read right before the write gets no write (like the check before). An answer that printed
+		// nothing does not hold the text.
+		res, err := send("verify", ex.Verify)
+		out := res.Output
+		res.Output = ""
+		if o, failed := s.stepProblem(ctx, conn, "The read before", res, err, false); failed {
+			return o
+		}
+		before = new(readBackHolds(out, ex.Expect, false))
+	}
+	if before != nil {
+		// Stored before the write goes out, so a restart between the run and its result still finds it (the sweep settles by it).
+		if why := s.keepBefore(ctx, r.ID, it, *before); why != "" {
+			return itemOutcome{err: why}
+		}
+	}
+	return s.runAndRead(ctx, r, it, conn, send, before)
+}
+
+// keepBefore stores present_before on the item, as a compare-and-set on the running mark of this claim: an item the sweep failed or another
+// path took since gets no write. "" when stored, otherwise why the step was not sent.
+func (s *Service) keepBefore(ctx context.Context, reqID string, it itemRec, before bool) string {
+	stored := false
+	ctx = context.WithoutCancel(ctx) // a short write; the stop is read again right after it (recheck)
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		stored = false
+		cur, ok, err := loadReq(ctx, tx, reqID)
+		if err != nil || !ok {
+			return err
+		}
+		k := slices.IndexFunc(cur.recs, func(i itemRec) bool { return i.ID == it.ID })
+		if k < 0 || it.RunningAt == "" || cur.recs[k].RunningAt != it.RunningAt || cur.recs[k].Status != ItemPending {
+			return nil
+		}
+		cur.recs[k].PresentBefore = &before
+		stored = true
+		return updateReq(ctx, tx, cur)
+	})
+	switch {
+	case err != nil:
+		return "The read before the run could not be recorded, so the step was not sent. Nothing was changed."
+	case !stored:
+		return "The item is no longer marked as running (the sweep or another path took it), so the step was not sent. Nothing was changed."
+	}
+	return ""
+}
+
+// runAndRead sends the run of a device item after its checks passed and reads the device back.
+func (s *Service) runAndRead(ctx context.Context, r request, it itemRec, conn ConnectionInfo, send func(string, *execStep) (DeviceResult, error), before *bool) itemOutcome {
+	ex := it.Exec
 	if e := s.recheck(ctx, false, it.ActionID); e != nil { // the check may have taken a minute: the stop, the switch and the breaker are read again
 		return itemOutcome{refusal: e}
 	}
@@ -133,6 +194,9 @@ func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat
 			// An answer that is not clear: read the device now, once, and settle it when the read-back can (the sweep tries again when it cannot).
 			switch s.readBack(ctx, r.ID, it, conn) {
 			case readPresent:
+				if why := notThisStep(before); why != "" {
+					return itemOutcome{err: "The answer of the device was not clear. " + why}
+				}
 				return itemOutcome{result: "Applied: the answer of the device was not clear, and the read-back shows the change.", verified: &Verified{OK: true, Detail: "Read back from the device: the expected text is there."}}
 			case readAbsent:
 				return itemOutcome{err: "The answer of the device was not clear, and the read-back does not show the change: it is not in force."}
@@ -141,6 +205,10 @@ func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat
 		return o
 	}
 	out := itemOutcome{result: oneLine(res.Detail, 300)}
+	if isTrue(before) { // D-356: finishItem sets no undo time for it
+		out.result = strings.TrimRight(out.result, ". ") + ". The change was already there before this step, so it is not undone automatically; undo it here if it should go."
+		out.result = strings.TrimPrefix(out.result, ". ")
+	}
 	if ex.canRead() { // without a text to look for there is nothing to check: "not checked", never "ok" (D-95 (2))
 		vr, verr := send("verify", ex.Verify)
 		got := vr.Output
@@ -156,6 +224,23 @@ func (s *Service) carryOutDevice(ctx context.Context, r request, it itemRec, cat
 		out.verified = &Verified{OK: false, Detail: "The read-back was not sent: it may only read."}
 	}
 	return out
+}
+
+// sameStep reports whether two rendered steps send the same thing.
+func sameStep(a, b *execStep) bool {
+	x, err1 := json.Marshal(a)
+	y, err2 := json.Marshal(b)
+	return err1 == nil && err2 == nil && bytes.Equal(x, y)
+}
+
+// notThisStep is why a read-back that shows the change after an unclear run does not prove this step applied it (D-356): the text was
+// there before the run. "" otherwise. Such an item is not counted as in force: nothing undoes a change that may be another's. An item with
+// no record of the read before (its run predates D-356) is not disowned: see resolveItem.
+func notThisStep(before *bool) string {
+	if isTrue(before) {
+		return "The read-back shows the change, but it was already there before this step, so it is not known whether this step applied it. State unknown: Vedette does not count it as its change and will not undo it. Check the device."
+	}
+	return ""
 }
 
 // stepProblem is nil-and-false when the step completed; otherwise the outcome to record. writes says the step changes the device: a
@@ -276,8 +361,9 @@ func (s *Service) undoOnDevice(ctx context.Context, reqID string, it itemRec, co
 // ---- settling an outcome that was not clear ----
 
 // resolveUnknown reads the device back for every failed item whose outcome is "state unknown" and whose action has a read-back text, and settles
-// it: the text is there, so it is in force (executed, with its undo time); the device printed something else, so it is not (failed, not in force);
-// a read-back that is unclear leaves it as it is and the next sweep tries again.
+// it: the text is there and was read as absent before the run, so it is in force (executed, with its undo time); the text is there but was there
+// before the run, or was not read before it, so it is not shown to be this step's (failed, not counted, not undone, D-356); the device printed
+// something else, so it is not in force (failed); a read-back that is unclear leaves it as it is and the next sweep tries again.
 func (s *Service) resolveUnknown(ctx context.Context) error {
 	reqs, err := loadReqs(ctx, s.cfg.DB.Reader(), `WHERE status IN ('failed', 'approved', 'executed')`)
 	if err != nil {
@@ -339,6 +425,13 @@ func (s *Service) resolveItem(ctx context.Context, reqID, itemID string) error {
 		}
 		x := &cur.recs[j]
 		x.StateUnknown = false
+		if why := notThisStep(x.PresentBefore); state == readPresent && why != "" { // D-356: not shown to be this step's change
+			x.Result = strp(why)
+			if err := s.step(ctx, tx, "response.fail", cur.ID, LogFailed, x.Title+": the outcome was not known; "+why, "system"); err != nil {
+				return err
+			}
+			return updateReq(ctx, tx, cur)
+		}
 		if state == readAbsent {
 			x.Result = strp("Read back from the device: the change is not in force.")
 			if err := s.step(ctx, tx, "response.fail", cur.ID, LogFailed, x.Title+": the outcome was not known; the read-back of the device does not show the change, so it is not in force", "system"); err != nil {
@@ -348,7 +441,9 @@ func (s *Service) resolveItem(ctx context.Context, reqID, itemID string) error {
 		}
 		now := s.now()
 		x.Status, x.ExecutedAt, x.Result, x.Verified = ItemExecuted, strp(store2(now)), strp("Confirmed by a read-back: the step was applied."), &Verified{OK: true, Detail: "Read back from the device: the expected text is there."}
-		if x.Reversible && x.TTLMin != nil {
+		if x.PresentBefore == nil { // no record of the read before (a run from before D-356, or a crash between the claim and keepBefore): in force and undoable by hand, never disowned, never undone unattended
+			x.Result = strp("Read back from the device: the change is in force. There is no record of a read before its run, so the change may have been there before; it is not undone automatically. Undo it here if it is this request's change.")
+		} else if x.Reversible && x.TTLMin != nil {
 			x.RemoveAt = strp(store2(now.Add(time.Duration(*x.TTLMin) * time.Minute)))
 		}
 		if cur.Status == StatusFailed {

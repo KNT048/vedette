@@ -2,11 +2,13 @@
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
 // port in ready.json (`syslog_port`, a free port of the run, not 514). SIEM forwarding (L5) is its own test.
-// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types, spikes (a 24 h warm-up a box cannot skip) and bad connections (L4), the TLS listener (D-203).
+// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types and spikes (a 24 h warm-up a box cannot skip), the TLS listener on this plain-HTTP box (D-214: it needs a test certificate in the box and the TLS port in ready.json).
+// Bad connections (L4, INV-7) are real: a custom feed pulled from a loopback server lists a made-up domain, and one FortiGate DNS line from a LAN address is matched.
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
 import { readFileSync } from 'node:fs'
 import { createSocket } from 'node:dgram'
-import { connect } from 'node:net'
+import { createServer } from 'node:http'
+import { connect, type AddressInfo } from 'node:net'
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
 import { api, authFile, box, uniq } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -73,15 +75,13 @@ const sockets = (c: 'udp' | 'tcp', want: 'open' | 'closed') =>
   expect.poll(() => (c === 'udp' ? udpState() : tcpState()), { message: `the ${c} socket of the syslog listener is ${want}`, timeout: 40_000 }).toBe(want)
 
 
-/** The only answer of the real box that is 501 on this page while a source exists: the AI digest panel (module ai, S-AI-4; .ai/deferred of ai). KNOWN_501 only shrinks:
- *  test 4 fails when it answers 200, and any other 5xx fails the test that saw it. */
-const AI_DIGEST_501 = 'GET /api/v1/ai/logs/digest'
+/** Every 5xx the page saw: the AI digest panel (GET /ai/logs/digest) answers now, so nothing on this page is allowed to be 501. */
 function watch5xx(page: Page): string[] {
   const seen: string[] = []
   page.on('response', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.status() >= 500) seen.push(`${r.request().method()} ${u.pathname} ${r.status()}`) })
   return seen
 }
-const only501 = (seen: string[]) => expect(seen.filter((k) => k !== `${AI_DIGEST_501} 501`), 'a 5xx other than the known 501').toEqual([])
+const no5xx = (seen: string[]) => expect(seen, 'no 5xx').toEqual([])
 
 let original = 30
 /** Every source of this file goes, and the listener with it. */
@@ -125,10 +125,7 @@ const stored = (c: APIRequestContext, line: string, sourceId: string) =>
 test('an empty box says what to do first; the page and the API agree; no script error, no 5xx, English only', async ({ page }) => {
   const errors = collectErrors(page)
   const server: string[] = []
-  // GET /ai/logs/digest is not built yet and answers 501 (.ai/deferred/feat-ai-activity.md:18): the one answer the page may get
-  let digest501 = 0
   page.on('response', (r) => {
-    if (r.url().endsWith('/api/v1/ai/logs/digest')) { if (r.status() === 501) digest501++; return }
     if (r.url().includes('/api/') && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`)
   })
   const c = await as('admin')
@@ -145,9 +142,7 @@ test('an empty box says what to do first; the page and the API agree; no script 
     await expectAccessible(page, 'logs, empty')
     await noVietnamese(page, 'logs, empty')
     expect(server).toEqual([])
-    // the console line of a 501 has no URL: there must be exactly as many as GET /ai/logs/digest answered (the page asks for it even with no source)
-    expect(errors.filter((e) => /status of 501/.test(e)), 'every console 501 is the AI digest').toHaveLength(digest501)
-    noErrors(errors, /status of 501/)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -175,7 +170,7 @@ test('add a source in the page: the picker, the setup dialog, the row, a duplica
     await expect(guide).toContainText('It only accepts logs from 127.0.0.1.')
     await page.keyboard.press('Escape')
     await expect(guide).toHaveCount(0)
-    await page.reload() // a fresh page: the toast of the add has a colour-contrast violation of its own (.ai/deferred/feat-e2e-real-exposure-fakes.md:5)
+    await page.reload() // a fresh page: the toast of the add fades in (axe reads it mid-transition)
     await page.getByRole('button', { name: `Device setup for ${name}` }).click()
     await expect(page.getByRole('dialog', { name: `Set up ${name} to send logs to the box` })).toBeVisible()
     await expectAccessible(page, 'the setup dialog')
@@ -202,8 +197,8 @@ test('add a source in the page: the picker, the setup dialog, the row, a duplica
     await d2.getByRole('button', { name: 'Cancel' }).click()
     expect((await sources(c)).sources, 'the refusal saved nothing').toHaveLength(1)
     expect(await auditTotal(c, 'logs.'), 'the two refusals left no audit row').toBe(auditDup)
-    only501(five)
-    noErrors(errors, /status of (409|501)/)
+    no5xx(five)
+    noErrors(errors, /status of 409/)
   } finally { await c.dispose() }
 })
 
@@ -221,7 +216,7 @@ test('every refusal of a source carries its code and saves nothing (INV-3)', asy
       ['IPv6', { ...SRC, name: n, sender_ip: '::1' }, 400, 'invalid'],
       ['IP with a leading zero', { ...SRC, name: n, sender_ip: '010.1.1.1' }, 400, 'invalid'], // bad_ip is only reachable below the schema (service tests)
       ['a protocol the kind cannot send', { ...SRC, name: n, kind: 'mikrotik', proto: 'tcp' }, 400, 'bad_proto'],
-      ['TLS, not built (D-203)', { ...SRC, name: n, kind: 'fortigate', proto: 'tls', port: 6514 }, 400, 'tls_unavailable'],
+      ['TLS, the box has no certificate (plain HTTP, D-203, D-214)', { ...SRC, name: n, kind: 'fortigate', proto: 'tls', port: 6514 }, 400, 'tls_unavailable'],
       ['port 0', { ...SRC, name: n, port: 0 }, 400, 'invalid'],
       ['port 70000', { ...SRC, name: n, port: 70000 }, 400, 'invalid'],
     ]
@@ -298,9 +293,8 @@ test('lines sent over UDP and TCP are stored exactly, the source turns to Receiv
     await expect(page.getByText('4 of 4 matching lines.')).toBeVisible() // this source only: the lines of deleted sources are not in its filter
     await expectAccessible(page, 'logs with lines')
     await noVietnamese(page, 'logs with lines')
-    expect(five, 'the AI digest panel is 501 until slice S-AI-4 is built: remove AI_DIGEST_501 when this fails').toContain(`${AI_DIGEST_501} 501`)
-    only501(five)
-    noErrors(errors, /status of 501/)
+    no5xx(five)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -381,8 +375,8 @@ test('edit and delete a source in the page: Escape deletes nothing, the lines al
     await sendUdp(`<34>Nov 11 12:31:01 gw app[1]: ${tok} after delete`)
     await new Promise((ok) => setTimeout(ok, 3_000)) // longer than the batch time of the listener
     expect((await events(c, { q: tok })).total, 'nothing is stored for a sender that is no longer declared').toBe(1)
-    only501(five)
-    noErrors(errors, /status of 501/)
+    no5xx(five)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -409,8 +403,8 @@ test('retention: the page changes it, the API refuses anything but 7, 30, 90, 18
     expect(await auditTotal(c, 'logs.'), 'the refusals left no audit row').toBe(auditRet)
     const back = await api(c, 'PUT', '/logs/retention', { days: original })
     expect(back.status).toBe(200)
-    only501(five)
-    noErrors(errors, /status of (400|501)/)
+    no5xx(five)
+    noErrors(errors, /status of 400/)
   } finally { await c.dispose() }
 })
 
@@ -484,7 +478,7 @@ test('a module that is off has no route and no socket; its lines are kept; on ag
   } finally { await c.dispose() }
 })
 
-test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing is new or a spike, and an empty bad-connection list says why', async ({ page }) => {
+test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing is new or a spike, and an empty bad-connection list says plainly that nothing was found', async ({ page }) => {
   test.setTimeout(90_000)
   const errors = collectErrors(page)
   const c = await as('admin')
@@ -500,8 +494,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
     await page.goto('/logs')
     await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
     await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
-    await expect(page.getByText('No connection to bad addresses in the last 24 hours.')).toBeVisible()
-    await expect(page.getByText(/not switched on yet, so an empty list does not mean the network is clean/)).toBeVisible()
+    await expect(page.getByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeVisible()
     // Feeds off: the page says that instead (PRE-3); the digest itself keeps working
     const mods = await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')
     const feedsWas = mods.body.modules.find((m) => m.id === 'feeds')?.enabled === true
@@ -513,11 +506,11 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
       await expect(page.getByText(/The Feeds module is off, so no connection can be matched/)).toBeVisible()
     } finally { expect((await api(c, 'PATCH', '/modules/feeds', { enabled: feedsWas })).status).toBe(200) }
     await noVietnamese(page, 'logs digest')
-    noErrors(errors, /status of (501|404)/)
+    noErrors(errors, /status of 404/)
   } finally { await c.dispose() }
 })
 
-// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP and TCP) or refused as not built (TLS, D-203), the others are bad_proto
+// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP and TCP) or refused because this plain-HTTP box has no certificate to serve (TLS, D-203, D-214), the others are bad_proto
 const KINDS: { id: string; protos: string[] }[] = JSON.parse(readFileSync(new URL('../../content/logs/kinds.json', import.meta.url), 'utf8'))
 test('every device type with every protocol on the real backend: allowed UDP/TCP saved, TLS refused, any other combination bad_proto (INV-3, QA row 44)', async () => {
   test.setTimeout(120_000)
@@ -566,8 +559,57 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow, 'no horizontal page scroll at 390 px').toBeLessThanOrEqual(0)
     await expect(page.getByRole('button', { name: 'Add log source' }).first()).toBeVisible()
-    noErrors(errors, /status of 501/)
+    noErrors(errors)
   } finally { await ctx.close(); await c.dispose() }
+})
+
+// L4: the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2, D-213). No public
+// address is touched: the feed is a custom one pulled from a loopback server (like feeds.spec.ts) and lists a domain under a made-up TLD, so only this feed lists
+// it; the line is one FortiGate DNS-filter line sent over loopback UDP, from the LAN address 192.168.100.23, which is not in the inventory.
+test('bad connections: a LAN device that asks for a domain a feed lists is in the digest and on the page (S-LOG-2, S-LOG-4, INV-7, POST-2)', async ({ page }) => {
+  test.setTimeout(120_000)
+  const errors = collectErrors(page)
+  const c = await as('admin')
+  const ioc = `${uniq('ioc')}.zzqx`
+  const feed = uniq('L4 IOC')
+  const srv = createServer((_, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(`# a list\n${ioc}\n`) })
+  await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
+  let feedId = ''
+  try {
+    const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/list.txt`
+    const lines = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
+    const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', { name: feed, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: lines })
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    feedId = made.body.id
+    expect((await api(c, 'POST', `/feeds/sources/${feedId}/fetch`)).status).toBeLessThan(300)
+    await expect.poll(async () => (await api<{ items: { id: string; records: number }[] }>(c, 'GET', '/feeds/sources')).body.items.find((i) => i.id === feedId)?.records, { message: 'the feed holds the indicator', timeout: 30_000 }).toBe(1)
+
+    const src = await add(c, { kind: 'fortigate' })
+    const line = `<189>date=2026-11-09 time=10:22:00 devname="FW-E2E" logid="1501054802" type="utm" subtype="dns" level="notice" srcip=192.168.100.23 dstip=192.168.100.1 qname="${ioc}" qtype="A" action="pass"`
+    await sendUdp(line)
+    await stored(c, line, src.id)
+    type Hit = { id: string; src_ip: string; dest: string; dest_kind: string; seen_via: string; feeds: string[]; confidence: number; asset_id: string | null; asset_name: string | null }
+    const bad = async () => (await api<{ bad_connections: Hit[] }>(c, 'GET', '/logs/digest')).body.bad_connections
+    await expect.poll(async () => (await bad()).map((h) => h.dest), { message: 'the digest lists the connection', timeout: 15_000 }).toContain(ioc)
+    const hit = (await bad()).find((h) => h.dest === ioc)!
+    expect(hit).toMatchObject({ src_ip: '192.168.100.23', dest_kind: 'domain', seen_via: `syslog:${src.name}`, feeds: [feed], asset_id: null, asset_name: null })
+    expect(hit.confidence).toBeGreaterThan(0)
+    expect(hit.confidence).toBeLessThanOrEqual(1)
+    // the same line again is the same hit (once per device and destination in 24 hours)
+    await sendUdp(line)
+    await expect.poll(async () => (await events(c, { source: src.id })).total, { timeout: 15_000 }).toBe(2)
+    expect((await bad()).filter((h) => h.dest === ioc)).toHaveLength(1)
+    await page.goto('/logs')
+    const table = page.getByRole('table', { name: 'Connections to bad IPs or domains' })
+    await expect(table).toContainText(ioc)
+    await expect(table).toContainText('192.168.100.23')
+    await expect(page.getByText('None of your devices connected to a listed bad address')).toHaveCount(0)
+    noErrors(errors, /status of 501/)
+  } finally {
+    if (feedId) expect((await api(c, 'DELETE', `/feeds/custom/${feedId}`)).status, 'the feed of this test is deleted').toBe(204)
+    await new Promise((ok) => srv.close(ok))
+    await c.dispose()
+  }
 })
 
 // ---- not built yet: the whole flow is in the body (D-171 (2)) ----
@@ -664,14 +706,14 @@ test('SIEM forwarding on the real backend: validation, the three formats, the ke
     await c.dispose()
   }
 })
-test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it; L4: a connection to a feed address is a bad connection (INV-7)', async () => {
+test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it', async () => {
   const c = await as('admin')
   await add(c)
   await sendUdp(`<34>Nov 11 12:33:00 gw app[1]: ${uniq('tok')} a log type with a signature`)
   await expect.poll(async () => (await api<{ new: unknown[] }>(c, 'GET', '/logs/digest')).body.new.length).toBeGreaterThan(0)
   await c.dispose()
 })
-test.fixme('a TLS source is served on 6514 with the pinned client certificate (POST-1; D-203: tls is refused until the listener exists)', async () => {
+test.fixme('a TLS source is served on the TLS port with the box certificate (POST-1, D-214; this box has no TLS config, so tls is refused with tls_unavailable until the e2e box serves TLS and puts the port in ready.json)', async () => {
   const c = await as('admin')
   const r = await api(c, 'POST', '/logs/sources', { kind: 'fortigate', name: uniq('lg'), sender_ip: '127.0.0.1', proto: 'tls', port: 6514 })
   expect(r.status).toBe(201)

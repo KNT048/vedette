@@ -101,7 +101,7 @@ type Handler interface {
 	AiGetAiKnowledge(ctx context.Context) (*AiGetAiKnowledgeOK, error)
 	// AiGetAiLogsDigest implements ai_get_ai_logs_digest operation.
 	//
-	// AI log digest for the selected tier.
+	// AI log digest for the selected tier (null = none generated yet; no AI call, INV-6).
 	//
 	// GET /ai/logs/digest
 	AiGetAiLogsDigest(ctx context.Context) (*AiGetAiLogsDigestOK, error)
@@ -349,7 +349,7 @@ type Handler interface {
 	CoreGetCoreConnections(ctx context.Context) (*CoreGetCoreConnectionsOK, error)
 	// CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 	//
-	// Download a backup (no passwords or keys).
+	// Download a backup (password hashes, never passwords or keys).
 	//
 	// GET /core/data/backup
 	CoreGetCoreDataBackup(ctx context.Context) (CoreGetCoreDataBackupOK, error)

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -56,7 +57,7 @@ func status(code int) http.HandlerFunc {
 }
 
 // prober builds a PublicServiceProber over the three fake services, trusting their certificates.
-func prober(t *testing.T, timeout time.Duration, fs ...*fakeService) *PublicServiceProber {
+func prober(t *testing.T, fs ...*fakeService) *PublicServiceProber {
 	t.Helper()
 	pool := x509.NewCertPool()
 	var urls []string
@@ -74,7 +75,7 @@ func prober(t *testing.T, timeout time.Duration, fs ...*fakeService) *PublicServ
 		_, port, _ := net.SplitHostPort(addr)
 		return (&net.Dialer{}).DialContext(ctx, network, "127.0.0.1:"+port)
 	}
-	p, err := NewPublicServiceProber(urls, tr, timeout)
+	p, err := NewPublicServiceProber(urls, tr, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func round(t *testing.T, p *PublicServiceProber) (netip.Addr, error) {
 
 func TestProbe_AllAgree(t *testing.T) {
 	t.Parallel()
-	p := prober(t, 0, newFakeService(t, answer(ipA+"\n")), newFakeService(t, answer(ipA)), newFakeService(t, answer("  "+ipA+" \r\n")))
+	p := prober(t, newFakeService(t, answer(ipA+"\n")), newFakeService(t, answer(ipA)), newFakeService(t, answer("  "+ipA+" \r\n")))
 	if a, err := round(t, p); err != nil || a.String() != ipA {
 		t.Fatalf("round = %v %v", a, err)
 	}
@@ -105,7 +106,7 @@ func TestProbe_TwoAgreeOneDiffers(t *testing.T) {
 			}
 			fs = append(fs, newFakeService(t, answer(body)))
 		}
-		if a, err := round(t, prober(t, 0, fs...)); err != nil || a.String() != ipA {
+		if a, err := round(t, prober(t, fs...)); err != nil || a.String() != ipA {
 			t.Fatalf("wrong service %d: %v %v", i, a, err)
 		}
 	}
@@ -113,7 +114,7 @@ func TestProbe_TwoAgreeOneDiffers(t *testing.T) {
 
 func TestProbe_AllDiffer(t *testing.T) {
 	t.Parallel()
-	p := prober(t, 0, newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)), newFakeService(t, answer(ipC)))
+	p := prober(t, newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)), newFakeService(t, answer(ipC)))
 	if a, err := round(t, p); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
 		t.Fatalf("round = %v %v", a, err)
 	}
@@ -123,59 +124,128 @@ func TestProbe_OneDown(t *testing.T) {
 	t.Parallel()
 	redirect := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/elsewhere", http.StatusFound) }
 	for name, down := range map[string]http.HandlerFunc{"500": status(500), "404": status(404), "garbage": answer("<html>"), "empty": answer(""), "redirect": redirect} {
-		agree := prober(t, 0, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
+		agree := prober(t, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
 		if a, err := round(t, agree); err != nil || a.String() != ipA {
 			t.Fatalf("%s + two agree: %v %v", name, a, err)
 		}
-		disagree := prober(t, 0, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)))
+		disagree := prober(t, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)))
 		if a, err := round(t, disagree); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
 			t.Fatalf("%s + two disagree: %v %v", name, a, err)
 		}
 	}
 	// one answer alone is never enough
-	lone := prober(t, 0, newFakeService(t, status(500)), newFakeService(t, status(500)), newFakeService(t, answer(ipA)))
+	lone := prober(t, newFakeService(t, status(500)), newFakeService(t, status(500)), newFakeService(t, answer(ipA)))
 	if a, err := round(t, lone); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
 		t.Fatalf("a single answer: %v %v", a, err)
 	}
 	// none answers: the services are down, which is not the same as disagreeing
-	none := prober(t, 0, newFakeService(t, status(500)), newFakeService(t, status(503)), newFakeService(t, answer("nope")))
+	none := prober(t, newFakeService(t, status(500)), newFakeService(t, status(503)), newFakeService(t, answer("nope")))
 	if _, err := round(t, none); !errors.Is(err, ErrServicesDown) {
 		t.Fatalf("all down: %v", err)
 	}
 }
 
+// pipeListener hands the server the far end of in-memory connections (net.Pipe), so a synctest bubble holds the client, the
+// server and every timer of a round: the deadline is then the bubble's, whatever the load of the machine.
+type pipeListener struct {
+	conns  chan net.Conn
+	closed chan struct{}
+	once   sync.Once
+}
+
+type pipeAddr struct{}
+
+func (pipeAddr) Network() string { return "pipe" }
+func (pipeAddr) String() string  { return "pipe" }
+
+func (l *pipeListener) Accept() (net.Conn, error) {
+	select {
+	case c := <-l.conns:
+		return c, nil
+	case <-l.closed:
+		return nil, net.ErrClosed
+	}
+}
+
+func (l *pipeListener) Close() error { l.once.Do(func() { close(l.closed) }); return nil }
+
+func (l *pipeListener) Addr() net.Addr { return pipeAddr{} }
+
+func (l *pipeListener) dial(ctx context.Context) (net.Conn, error) {
+	c, srv := net.Pipe()
+	select {
+	case l.conns <- srv:
+		return c, nil
+	case <-l.closed:
+		return nil, net.ErrClosed
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// pipeProber builds a PublicServiceProber over three in-memory services, svc0.test .. svc2.test. The transport's TLS dial returns
+// the plain pipe (TLS itself is covered by the httptest tests above). Call it inside a bubble; the servers stop with the test.
+func pipeProber(t *testing.T, timeout time.Duration, hs ...http.HandlerFunc) *PublicServiceProber {
+	t.Helper()
+	lns := map[string]*pipeListener{}
+	var urls []string
+	for i, h := range hs {
+		host := "svc" + strconv.Itoa(i) + ".test:443"
+		l := &pipeListener{conns: make(chan net.Conn), closed: make(chan struct{})}
+		srv := &http.Server{Handler: h, ReadHeaderTimeout: time.Minute}
+		served := make(chan struct{})
+		go func() { _ = srv.Serve(l); close(served) }()
+		t.Cleanup(func() { _ = srv.Close(); <-served })
+		lns[host] = l
+		urls = append(urls, "https://"+host)
+	}
+	tr := &http.Transport{DialTLSContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+		l, ok := lns[addr]
+		if !ok {
+			return nil, errors.New("no such service: " + addr)
+		}
+		return l.dial(ctx)
+	}}
+	p, err := NewPublicServiceProber(urls, tr, timeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func TestProbe_DeadlineAndSize(t *testing.T) {
 	t.Parallel()
-	release := make(chan struct{})
-	t.Cleanup(func() { close(release) })
-	slow := func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-release:
-		case <-r.Context().Done():
+	synctest.Test(t, func(t *testing.T) {
+		// The slow service never answers before the end of the test: only the deadline ends its call. In the bubble the two fast ones
+		// answer at once, so the round takes exactly the deadline and still has their two votes.
+		release := make(chan struct{})
+		slow := func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+			}
+			_, _ = w.Write([]byte(ipA))
 		}
-		_, _ = w.Write([]byte(ipA))
-	}
-	// The per-call deadline must leave the two fast fakes time to answer on a loaded -race runner (150 ms flaked on CI);
-	// the slow fake never answers before release, so the round still proves the deadline cuts it off.
-	p := prober(t, time.Second, newFakeService(t, slow), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
-	start := time.Now()
-	if a, err := round(t, p); err != nil || a.String() != ipA {
-		t.Fatalf("slow service: %v %v", a, err)
-	}
-	if time.Since(start) > 5*time.Second {
-		t.Fatalf("the round waited %s for a slow service", time.Since(start))
-	}
-	// the answer cap is 64 bytes: a longer body is refused even when it starts with an address
-	long := ipA + strings.Repeat(" ", maxAnswerBody)
-	big := prober(t, 0, newFakeService(t, answer(long)), newFakeService(t, answer(long)), newFakeService(t, answer(long)))
-	if _, err := round(t, big); !errors.Is(err, ErrServicesDown) {
-		t.Fatalf("long answers: %v", err)
-	}
-	exact := ipA + strings.Repeat(" ", maxAnswerBody-len(ipA))
-	ok := prober(t, 0, newFakeService(t, answer(exact)), newFakeService(t, answer(exact)), newFakeService(t, answer(ipA)))
-	if a, err := round(t, ok); err != nil || a.String() != ipA {
-		t.Fatalf("64 bytes: %v %v", a, err)
-	}
+		const deadline = 3 * time.Second
+		p := pipeProber(t, deadline, slow, answer(ipA), answer(ipA))
+		t.Cleanup(func() { close(release) }) // runs before the servers' cleanup: the slow handler returns, then they stop
+		start := time.Now()
+		if a, err := p.Round(t.Context()); err != nil || a.String() != ipA {
+			t.Fatalf("slow service: %v %v", a, err)
+		}
+		if d := time.Since(start); d != deadline {
+			t.Fatalf("the round took %s with a %s deadline", d, deadline)
+		}
+		// the answer cap is 64 bytes: a longer body is refused even when it starts with an address
+		long := ipA + strings.Repeat(" ", maxAnswerBody)
+		if _, err := pipeProber(t, 0, answer(long), answer(long), answer(long)).Round(t.Context()); !errors.Is(err, ErrServicesDown) {
+			t.Fatalf("long answers: %v", err)
+		}
+		exact := ipA + strings.Repeat(" ", maxAnswerBody-len(ipA))
+		if a, err := pipeProber(t, 0, answer(exact), answer(exact), answer(ipA)).Round(t.Context()); err != nil || a.String() != ipA {
+			t.Fatalf("64 bytes: %v %v", a, err)
+		}
+	})
 }
 
 func TestProbe_NoRedirectsAndOwnConnections(t *testing.T) {
@@ -183,7 +253,7 @@ func TestProbe_NoRedirectsAndOwnConnections(t *testing.T) {
 	target := newFakeService(t, answer(ipB))
 	redirecting := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.srv.URL, http.StatusFound) }
 	a, b, c := newFakeService(t, redirecting), newFakeService(t, redirecting), newFakeService(t, redirecting)
-	if _, err := round(t, prober(t, 0, a, b, c)); !errors.Is(err, ErrServicesDown) {
+	if _, err := round(t, prober(t, a, b, c)); !errors.Is(err, ErrServicesDown) {
 		t.Fatalf("redirects: %v", err)
 	}
 	target.mu.Lock()
@@ -194,7 +264,7 @@ func TestProbe_NoRedirectsAndOwnConnections(t *testing.T) {
 	}
 	// two rounds, six requests, six connections: nothing is reused (a load balancer may answer differently each time)
 	x, y, z := newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA))
-	p := prober(t, 0, x, y, z)
+	p := prober(t, x, y, z)
 	for range 2 {
 		if _, err := round(t, p); err != nil {
 			t.Fatal(err)
@@ -214,18 +284,18 @@ func TestProbe_NonGlobalAnswersAreRefused(t *testing.T) {
 	t.Parallel()
 	// three services agreeing on something that is not an address of the Internet is no answer at all
 	for _, body := range []string{"127.0.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "fe80::1", "::1", "::", "fe80::1%eth0", "1.2.3", "8.8.8.8 8.8.4.4", "ip=8.8.8.8"} {
-		p := prober(t, 0, newFakeService(t, answer(body)), newFakeService(t, answer(body)), newFakeService(t, answer(body)))
+		p := prober(t, newFakeService(t, answer(body)), newFakeService(t, answer(body)), newFakeService(t, answer(body)))
 		if a, err := round(t, p); !errors.Is(err, ErrServicesDown) || a.IsValid() {
 			t.Errorf("%q: %v %v", body, a, err)
 		}
 	}
 	// private addresses pass the parser (they are global unicast to net/netip) and are refused later, by INV-3
-	p := prober(t, 0, newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")))
+	p := prober(t, newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")))
 	if a, err := round(t, p); err != nil || a.String() != "10.1.2.3" {
 		t.Fatalf("private: %v %v", a, err)
 	}
 	// an IPv4-mapped IPv6 address and the same IPv4 address vote together
-	p = prober(t, 0, newFakeService(t, answer("::ffff:8.8.8.8")), newFakeService(t, answer("8.8.8.8")), newFakeService(t, answer(ipB)))
+	p = prober(t, newFakeService(t, answer("::ffff:8.8.8.8")), newFakeService(t, answer("8.8.8.8")), newFakeService(t, answer(ipB)))
 	if a, err := round(t, p); err != nil || a.String() != ipA {
 		t.Fatalf("mapped: %v %v", a, err)
 	}

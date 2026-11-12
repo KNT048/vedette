@@ -306,13 +306,17 @@ func (r *Reader) fetch(ctx context.Context, c conn.Connection) map[string]liveTo
 
 // closeMCP ends a session within what is left of the call's budget, and at least closeFloor.
 func closeMCP(ctx context.Context, m *transport.MCP) {
-	left := closeFloor
-	if dl, ok := ctx.Deadline(); ok {
-		left = max(time.Until(dl), closeFloor)
-	}
-	c, cancel := context.WithTimeout(context.WithoutCancel(ctx), left)
+	c, cancel := context.WithTimeout(context.WithoutCancel(ctx), closeTime(ctx))
 	defer cancel()
 	m.Close(c)
+}
+
+// closeTime is how long closing a session may take: what is left of ctx's budget, and at least closeFloor.
+func closeTime(ctx context.Context) time.Duration {
+	if dl, ok := ctx.Deadline(); ok {
+		return max(time.Until(dl), closeFloor)
+	}
+	return closeFloor
 }
 
 // client is the HTTPS client of a connection: the pin of the first Test or the roots decide, never trust on first use.

@@ -231,7 +231,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
   const aria = (k: keyof Errs, hint?: boolean) => ({ 'aria-invalid': err(k) ? true : undefined, 'aria-describedby': err(k) ? `pf-${k}-error` : hint ? `pf-${k}-hint` : undefined })
   // "Connected" holds only for what was tested: a changed provider, address, model, key or location hides it until Test runs again.
-  const conn = (i: ProfileInput) => JSON.stringify([i.kind, i.api_style, i.base_url, i.model, i.api_key, i.location])
+  const conn = (i: Pick<ProfileInput, 'kind' | 'api_style' | 'base_url' | 'model' | 'api_key' | 'location'>) => JSON.stringify([i.kind, i.api_style, i.base_url, i.model, i.api_key, i.location])
   const tested = test.data && test.variables && conn(test.variables) === conn(input()) ? test.data : undefined
   // A Test failure holds for the connection it was run on, like a success (tested): change the address, location, model or key and it goes.
   const testErr = test.error && test.variables && conn(test.variables) === conn(input()) ? test.error : null

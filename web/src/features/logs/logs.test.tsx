@@ -407,14 +407,18 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('the digest shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
-    const row = (id: string, hours: number, ip: string, dest: string) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5 })
-    collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51'), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
+    const row = (id: string, hours: number, ip: string, dest: string, blocked = false) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5, blocked })
+    collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51', true), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
     renderApp('/logs')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     expect(within(table).queryByText('203.0.113.99')).not.toBeInTheDocument()
     expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
+    // D-384: a line the firewall blocked is an attempt, marked Blocked; the one that went through is not
+    const [newest, older] = within(table).getAllByRole('row').slice(1)
+    expect(within(older!).getByText('Blocked')).toBeInTheDocument()
+    expect(within(newest!).queryByText('Blocked')).not.toBeInTheDocument()
   })
 
   it('logs module off: says where to turn it on', async () => {

@@ -116,8 +116,12 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 		}
 		if c := r.Conn; c.Local.IsValid() && !never(c.Local) { // the box, its gateway and a decoy are not a device that made a connection
 			for _, d := range c.Dests {
-				if k := (connKey{c.Local, d.Kind, d.Value}); b.conns[k].source == "" {
-					b.conns[k] = connObs{l.SourceID, l.At}
+				k := connKey{c.Local, d.Kind, d.Value}
+				if o := b.conns[k]; o.source == "" {
+					b.conns[k] = connObs{l.SourceID, l.At, c.Blocked}
+				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection (D-384)
+					o.blocked = false
+					b.conns[k] = o
 				}
 			}
 		}

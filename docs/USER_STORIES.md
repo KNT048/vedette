@@ -109,6 +109,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 - Chấp nhận (D-224): Feeds tắt → danh sách rỗng có liên kết tới Settings → Modules, và tiêu đề trang không đếm "0 connections to bad destinations" khi không đối chiếu được (Feeds tắt hoặc `ioc_matching` = false, không có hit).
 **S-LOG-3** (P4) `[đạt]` — Chuyển tiếp sự kiện Vedette sang SIEM (syslog/CEF/JSON webhook).
 **S-LOG-4** (P2) `[đạt]` (D-43) — Có SPAN thì hộp đọc metadata DNS/SNI/luồng để thấy máy nào trong LAN liên lạc IP/domain độc hại, không cần cài IDS.
+- Chấp nhận (D-384): dòng log nói thiết bị ghi log **đã chặn** kết nối (FortiGate `action` = `deny`, `dropped`, `blocked`, `block`, `reset`; profile `conn_blocked`) là một **lần thử**: sự cố nói "<máy> tried to reach <đích> (blocked by <tên nguồn log>)" và hướng dẫn tìm thứ trên máy đã gửi yêu cầu; danh sách "Connections to bad IPs or domains" đánh dấu hàng đó **Blocked** (gợi ý: dòng ghi lại một lần thử). Dòng đi qua, hoặc dòng không nói rõ (MikroTik, máy không có `conn_blocked`), vẫn là "connected to" — không bao giờ đoán "blocked". Một lần thử bị chặn không che, trong 24 giờ, kết nối đi qua sau đó của cùng cặp (máy, đích): đó là hit mới.
 
 ## AI — Trợ lý BYOK
 

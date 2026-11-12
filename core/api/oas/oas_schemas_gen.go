@@ -70250,6 +70250,9 @@ type LogsGetLogsDigestOKBadConnectionsItem struct {
 	// Inventory device with this IP; null when it is not in the inventory.
 	AssetID   NilString `json:"asset_id"`
 	AssetName NilString `json:"asset_name"`
+	// The device that sent the log blocked the connection (the line records an attempt, for example a
+	// FortiGate deny or a blocked web-filter request); false when the line went through or does not say.
+	Blocked bool `json:"blocked"`
 	// 0 to 1; response rules only act automatically on high confidence.
 	Confidence float64                                       `json:"confidence"`
 	Dest       string                                        `json:"dest"`
@@ -70271,6 +70274,11 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) GetAssetID() NilString {
 // GetAssetName returns the value of AssetName.
 func (s *LogsGetLogsDigestOKBadConnectionsItem) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *LogsGetLogsDigestOKBadConnectionsItem) GetBlocked() bool {
+	return s.Blocked
 }
 
 // GetConfidence returns the value of Confidence.
@@ -70321,6 +70329,11 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) SetAssetID(val NilString) {
 // SetAssetName sets the value of AssetName.
 func (s *LogsGetLogsDigestOKBadConnectionsItem) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *LogsGetLogsDigestOKBadConnectionsItem) SetBlocked(val bool) {
+	s.Blocked = val
 }
 
 // SetConfidence sets the value of Confidence.

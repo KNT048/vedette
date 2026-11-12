@@ -77,6 +77,9 @@ type IocHit struct {
 	Feeds     []string  `json:"feeds"`
 	// Confidence is the highest confidence of the feeds that list the destination, between 0 and 1.
 	Confidence float64 `json:"confidence"`
+	// Blocked says that the device that logged the line stopped the connection (an attempt: a FortiGate deny, a blocked web-filter
+	// request; the profile's conn_blocked, D-384). False when the line does not say so.
+	Blocked bool `json:"blocked"`
 }
 
 // BadAddressEvent is the data of logs.bad_address.detected: the fields notify opens an incident from (Source, Target, Title, What, Action,
@@ -106,8 +109,9 @@ type connKey struct {
 }
 
 type connObs struct {
-	source string
-	at     time.Time
+	source  string
+	at      time.Time
+	blocked bool // every line of the batch that showed it says the device stopped it
 }
 
 // iocRow is a hit before it is stored.
@@ -116,6 +120,7 @@ type iocRow struct {
 	at                               time.Time
 	feeds                            []string
 	conf                             float64
+	blocked                          bool
 }
 
 type lookupResult struct {
@@ -161,20 +166,25 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		// A listed pair that already has a hit in the last 24 hours does not count toward the cap of the batch: a chatty device that keeps
 		// meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the
 		// transaction). Only listed pairs are checked, after the cached lookup: nearly every pair of real traffic is unlisted (review r2 N1).
-		if !res.found || len(res.l.Feeds) == 0 || s.hasRecentHit(ctx, k, cutoff) {
+		o := conns[k]
+		if !res.found || len(res.l.Feeds) == 0 || s.hasRecentHit(ctx, k.src.String(), k.dest, o.blocked, cutoff) {
 			continue
 		}
-		o := conns[k]
 		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: "syslog:" + names[o.source], source: o.source, at: o.at,
-			feeds: cleanFeeds(res.l.Feeds), conf: clamp01(res.l.Confidence)})
+			feeds: cleanFeeds(res.l.Feeds), conf: clamp01(res.l.Confidence), blocked: o.blocked})
 	}
 	return out
 }
 
-// hasRecentHit says whether the pair has a stored hit newer than cutoff (a read on the reader pool, the index logs_ioc_hits_pair); an error says no.
-func (s *Service) hasRecentHit(ctx context.Context, k connKey, cutoff string) bool {
+// recentHitSQL finds a stored hit of a pair newer than a cutoff that makes a new one a repeat: any hit for a blocked attempt, only a hit
+// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-384).
+const recentHitSQL = `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? AND (? OR blocked = 0) LIMIT 1`
+
+// hasRecentHit says whether the pair has a stored hit newer than cutoff that makes it a repeat (a read on the reader pool, the index
+// logs_ioc_hits_pair); an error says no.
+func (s *Service) hasRecentHit(ctx context.Context, src, dest string, blocked bool, cutoff string) bool {
 	var one int
-	return s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? LIMIT 1`, k.src.String(), k.dest, cutoff).Scan(&one) == nil
+	return s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, dest, cutoff, blocked).Scan(&one) == nil
 }
 
 // noteLookupFailure logs a failed lookup, once for a run of the same failure; the feeds being off is not a failure (PRE-3).
@@ -224,7 +234,7 @@ func plainText(s string) string {
 }
 
 // storeIOC writes the hits of a batch inside its transaction: a (device, destination) pair that has a hit less than IocDedupe old is not
-// a new hit; the table is cut to MaxIocRows. fresh gets the hits that are new, in order.
+// a new hit (a blocked attempt does not hide a connection that went through, recentHitSQL); the table is cut to MaxIocRows. fresh gets the hits that are new, in order.
 func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh *[]iocRow) error {
 	if len(rows) == 0 {
 		return nil
@@ -232,7 +242,7 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, r := range rows {
 		var one int
-		switch err := tx.QueryRowContext(ctx, `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? LIMIT 1`, r.src, r.dest, cutoff).Scan(&one); {
+		switch err := tx.QueryRowContext(ctx, recentHitSQL, r.src, r.dest, cutoff, r.blocked).Scan(&one); {
 		case err == nil:
 			continue
 		case !errors.Is(err, sql.ErrNoRows):
@@ -242,8 +252,8 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 		if err != nil {
 			return fmt.Errorf("logs: storing a hit: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.id, store.FormatTS(r.at), r.src, r.dest, r.kind, r.via, string(feeds), r.conf, r.source); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.id, store.FormatTS(r.at), r.src, r.dest, r.kind, r.via, string(feeds), r.conf, r.source, r.blocked); err != nil {
 			return fmt.Errorf("logs: storing a hit: %w", err)
 		}
 		*fresh = append(*fresh, r)
@@ -320,7 +330,7 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 
 // hit is the API form of a stored row, with the device that has the address (devices: by address; nil or missing = unknown).
 func (r iocRow) hit(devices map[string]Device) IocHit {
-	h := IocHit{ID: r.id, TS: r.at, SrcIP: r.src, Dest: r.dest, DestKind: r.kind, SeenVia: r.via, Feeds: r.feeds, Confidence: r.conf}
+	h := IocHit{ID: r.id, TS: r.at, SrcIP: r.src, Dest: r.dest, DestKind: r.kind, SeenVia: r.via, Feeds: r.feeds, Confidence: r.conf, Blocked: r.blocked}
 	if d, ok := devices[r.src]; ok && d.ID != "" {
 		id, name := d.ID, plainText(d.Name)
 		h.AssetID, h.AssetName = &id, &name
@@ -328,7 +338,8 @@ func (r iocRow) hit(devices map[string]Device) IocHit {
 	return h
 }
 
-// badAddressEvent is the event notify and the SIEM forwarder read.
+// badAddressEvent is the event notify and the SIEM forwarder read. A blocked attempt (h.Blocked) is said as one: "tried to reach … (blocked
+// by <the device that logged it>)", never "connected to" (D-384).
 func badAddressEvent(h IocHit) BadAddressEvent {
 	who := h.SrcIP
 	devices := []DeviceInfo{}
@@ -340,13 +351,24 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 	if h.Confidence >= 0.7 {
 		sev = "high"
 	}
-	what := fmt.Sprintf("%s connected to %s (%s), which %s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), h.Dest, destWord(h.DestKind),
-		listedBy(h.Feeds), int(h.Confidence*100+0.5), clipRunes(strings.TrimPrefix(h.SeenVia, "syslog:"), 120))
+	via := clipRunes(strings.TrimPrefix(h.SeenVia, "syslog:"), 120)
+	verb, by := "connected to", ""
+	action := "Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing."
+	if h.Blocked {
+		verb, by = "tried to reach", "blocked by "+clipRunes(cmp.Or(via, "the device that logged it"), 60)
+		action = "Open Logs and look at this attempt. It was blocked, but a device that tries to reach a listed address may be infected: find out what on it made the request, and take it off the network if nobody expected it."
+	}
+	kind, title := destWord(h.DestKind), clipRunes(who, 100)+" "+verb+" "+h.Dest
+	if by != "" {
+		kind, title = kind+"; "+by, title+" ("+by+")"
+	}
+	what := fmt.Sprintf("%s %s %s (%s), which %s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), int(h.Confidence*100+0.5), via)
+	title += ", which a threat feed lists"
 	return BadAddressEvent{
 		Source: "logs", Target: clipRunes("ioc:"+h.Dest, MaxEventKey),
-		Title:    clipRunes(fmt.Sprintf("%s connected to %s, which a threat feed lists", clipRunes(who, 100), h.Dest), MaxEventTitle),
+		Title:    clipRunes(title, MaxEventTitle),
 		What:     clipRunes(what, MaxEventText),
-		Action:   "Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing.",
+		Action:   action,
 		Severity: sev, Devices: devices,
 		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID,
 	}
@@ -379,7 +401,7 @@ func (s *Service) assetsFor(ctx context.Context, ips []string) map[string]Device
 	return found
 }
 
-const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence`
+const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, blocked`
 
 // iocHits reads the newest hits since a time with at least minConf, newest first, with the device of each resolved now (INV-7).
 func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...any) ([]IocHit, error) {
@@ -393,7 +415,7 @@ func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...
 	for rows.Next() {
 		var h IocHit
 		var ts, feeds string
-		if err := rows.Scan(&h.ID, &ts, &h.SrcIP, &h.Dest, &h.DestKind, &h.SeenVia, &feeds, &h.Confidence); err != nil {
+		if err := rows.Scan(&h.ID, &ts, &h.SrcIP, &h.Dest, &h.DestKind, &h.SeenVia, &feeds, &h.Confidence, &h.Blocked); err != nil {
 			return nil, fmt.Errorf("logs: reading the bad connections: %w", err)
 		}
 		if h.TS, err = time.Parse("2006-01-02T15:04:05.000Z", ts); err != nil {

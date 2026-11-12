@@ -16,7 +16,7 @@ func TestVerifyJobAlertsOncePerBreak(t *testing.T) {
 	rows := a.threeCalls()
 	var alerts []string
 	svc, err := ai.New(a.ctx(), ai.Config{DB: a.db, Secrets: a.sec, Audit: audit.New(a.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: a.clock.Now,
-		Alert: func(_ context.Context, id, title, text string) error {
+		Alert: func(_ context.Context, id, _, text string) error {
 			alerts = append(alerts, id+"|"+text)
 			return nil
 		}})

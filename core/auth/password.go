@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -134,7 +136,81 @@ func ValidatePassword(password, email string) *apierr.Error {
 	if email != "" && strings.EqualFold(strings.TrimSpace(password), strings.TrimSpace(email)) {
 		return weak("The password must not be your email address.")
 	}
+	if guessable(password, email) {
+		return weak("This password is too easy to guess: it is built on a common password, a run like 123456 or qwerty, or the name in your email. A sentence of a few unrelated words is stronger.")
+	}
 	return nil
+}
+
+// commonStems are the words the most used passwords are built on (the top of every leaked-password list, and the
+// name of the product), kept as stems: "password1234", "Qwerty123456!" and "iloveyou2024" all reduce to one (D-389,
+// NIST SP 800-63B 5.1.1.2: compare against commonly used values, repetitive or sequential characters, context words).
+// ponytail: a hand-kept list of stems, not a leaked-password corpus; upgrade path: an embedded list such as the
+// NCSC top 100k filtered to 12+ characters, with its notice.
+var commonStems = map[string]bool{
+	"password": true, "passwrd": true, "passwort": true, "qwerty": true, "qwertyuiop": true, "asdfgh": true, "asdfghjkl": true,
+	"zxcvbnm": true, "qazwsx": true, "iloveyou": true, "welcome": true, "letmein": true, "admin": true, "administrator": true,
+	"changeme": true, "default": true, "secret": true, "monkey": true, "dragon": true, "football": true, "baseball": true,
+	"sunshine": true, "princess": true, "superman": true, "master": true, "login": true, "abc": true, "abcdef": true,
+	"trustno": true, "vedette": true,
+}
+
+// keyRuns are the runs a person types without thinking: digits, the alphabet and the top keyboard rows (checked both ways).
+var keyRuns = []string{"01234567890123456789", "abcdefghijklmnopqrstuvwxyz", "qwertyuiopasdfghjklzxcvbnm"}
+
+// guessable reports a password that passes the length rule but is among the first a guesser tries: a common stem with
+// digits or symbols around or inside it (or repeated), the letters of the email's name, three or fewer distinct
+// characters ("aaaaaaaaaaaa", "121212121212"), or a straight run of the digits, alphabet or keyboard.
+func guessable(password, email string) bool {
+	compact := strings.ReplaceAll(strings.ToLower(password), " ", "")
+	var stem strings.Builder
+	distinct := map[rune]bool{}
+	for _, r := range compact {
+		distinct[r] = true
+		switch {
+		case r == '@':
+			stem.WriteRune('a')
+		case r == '$':
+			stem.WriteRune('s')
+		case unicode.IsLetter(r):
+			stem.WriteRune(r)
+		}
+	}
+	if len(distinct) <= 3 {
+		return true
+	}
+	for _, run := range keyRuns {
+		if strings.Contains(run, compact) || strings.Contains(reverse(run), compact) {
+			return true
+		}
+	}
+	st := stem.String()
+	if st == "" {
+		return false
+	}
+	for w := range commonStems {
+		if len(st)%len(w) == 0 && st == strings.Repeat(w, len(st)/len(w)) {
+			return true
+		}
+	}
+	if local, _, ok := strings.Cut(strings.ToLower(strings.TrimSpace(email)), "@"); ok {
+		letters := strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) {
+				return r
+			}
+			return -1
+		}, local)
+		if utf8.RuneCountInString(letters) >= 4 && st == letters {
+			return true
+		}
+	}
+	return false
+}
+
+func reverse(s string) string {
+	b := []byte(s)
+	slices.Reverse(b)
+	return string(b)
 }
 
 // tempAlphabet is 55 characters: it leaves out the look-alikes 0, 1, O, I, l, o and i (23 lowercase, 24

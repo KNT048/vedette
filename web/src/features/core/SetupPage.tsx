@@ -126,6 +126,8 @@ export default function SetupPage() {
         setFinished(false)
         // A wrong setup code belongs on the first step, next to its field.
         if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
+        // So does a password the box refuses (D-389: too easy to guess), next to the password field.
+        if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
         setFormError(errMsg(err, t)); return
       }
       setSetupDone(true)

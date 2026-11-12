@@ -12,7 +12,13 @@ import { checkCode, issueCode, sentBody } from '@/features/core/emailCode'
 // Cùng bảng với features/core/mocks.ts (khoá TOTP đã xác nhận của từng người dùng).
 const totpSecrets = collection<Record<string, string>>('core_totp', () => ({}))
 
-const EMAIL_UNAVAILABLE = 'Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.'
+// Sign-in throttle like the box (API_CONVENTIONS section 8, S-CORE-3): 10 wrong passwords for an email, then 429 rate_limited with
+// a wait; a blocked try is not judged and does not count. ponytail: one 30 s wait (the box doubles it per further failure, to 10 min).
+const LOGIN_MAX_FAILURES = 10
+const LOGIN_WAIT_MS = 30_000
+const loginFailures = collection<Record<string, { n: number; until: number }>>('core_login_failures', () => ({}))
+
+const EMAIL_UNAVAILABLE ='Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.'
 
 export const coreHandlers = [
   http.get(`${API}/me`, () => {
@@ -27,7 +33,17 @@ export const coreHandlers = [
     const b = await body<{ email: string; password: string; code: string }>(request)
     const email = String(b.email ?? '').trim().toLowerCase()
     const u = usersStore.get().find((x) => x.email === email && !x.disabled)
-    if (!u || u.sso || u.password !== b.password) return fail(400, 'invalid_credentials', 'Wrong email or password.')
+    const tries = loginFailures.get()[email] ?? { n: 0, until: 0 }
+    if (tries.until > Date.now()) {
+      const secs = Math.ceil((tries.until - Date.now()) / 1000)
+      return HttpResponse.json({ error: { code: 'rate_limited', message: `Too many failed sign-in attempts. Try again in ${secs} seconds.`, retry_after: secs } }, { status: 429, headers: { 'Retry-After': String(secs) } })
+    }
+    if (!u || u.sso || u.password !== b.password) {
+      const n = tries.n + 1
+      loginFailures.update((m) => ({ ...m, [email]: { n, until: n >= LOGIN_MAX_FAILURES ? Date.now() + LOGIN_WAIT_MS : 0 } }))
+      return fail(400, 'invalid_credentials', 'Wrong email or password.')
+    }
+    loginFailures.update((m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== email)))
     // D-180: a temporary password past its 72 hours is refused once it is proven right (before the two-step code, like the backend).
     if (u.temp_password_expires_at && Date.parse(u.temp_password_expires_at) <= Date.now()) {
       audit('auth.login_failed', u.email, 'temporary password expired')

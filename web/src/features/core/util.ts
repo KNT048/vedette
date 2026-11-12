@@ -16,6 +16,35 @@ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const MIN_PASSWORD = 12
 export const MAX_UPLOAD = 5 * 1024 * 1024
 
+/** A short "Browser on OS" for the sessions table, from the User-Agent the box stored; the raw text stays in a tooltip.
+ * Order matters: Edge and Opera also say Chrome, Chrome also says Safari, iOS also says Mac OS X. Unknown → the raw text. */
+export function deviceLabel(ua: string): string {
+  const browser = /Edg(e|A|iOS)?\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox\/|FxiOS\//.test(ua) ? 'Firefox'
+    : /HeadlessChrome\//.test(ua) ? 'Headless Chrome' : /Chrome\/|CriOS\/|Chromium\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : ''
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /CrOS/.test(ua) ? 'ChromeOS' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X|Macintosh/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : ''
+  if (browser && os) return `${browser} on ${os}`
+  return browser || os || ua
+}
+
+// The mock's copy of core/auth guessable (D-389): keep the stems and runs equal to password.go.
+const COMMON_STEMS = ['password', 'passwrd', 'passwort', 'qwerty', 'qwertyuiop', 'asdfgh', 'asdfghjkl', 'zxcvbnm', 'qazwsx', 'iloveyou', 'welcome', 'letmein', 'admin', 'administrator', 'changeme', 'default', 'secret', 'monkey', 'dragon', 'football', 'baseball', 'sunshine', 'princess', 'superman', 'master', 'login', 'abc', 'abcdef', 'trustno', 'vedette']
+const KEY_RUNS = ['01234567890123456789', 'abcdefghijklmnopqrstuvwxyz', 'qwertyuiopasdfghjklzxcvbnm']
+export const GUESSABLE_PASSWORD = 'This password is too easy to guess: it is built on a common password, a run like 123456 or qwerty, or the name in your email. A sentence of a few unrelated words is stronger.'
+/** A password long enough but among the first a guesser tries: a common stem, a run, ≤ 3 distinct characters, or the email's name. */
+export function guessablePassword(password: string, email: string): boolean {
+  const compact = password.toLowerCase().replaceAll(' ', '')
+  const chars = [...compact]
+  if (new Set(chars).size <= 3) return true
+  if (KEY_RUNS.some((r) => r.includes(compact) || [...r].reverse().join('').includes(compact))) return true
+  const stem = chars.map((c) => (c === '@' ? 'a' : c === '$' ? 's' : /\p{L}/u.test(c) ? c : '')).join('')
+  if (!stem) return false
+  if (COMMON_STEMS.some((w) => stem.length % w.length === 0 && stem === w.repeat(stem.length / w.length))) return true
+  const at = email.trim().toLowerCase().indexOf('@')
+  const letters = at < 0 ? '' : [...email.trim().toLowerCase().slice(0, at)].filter((c) => /\p{L}/u.test(c)).join('')
+  return letters.length >= 4 && stem === letters
+}
+
 const IPV4_BARE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 export interface NormalisedCidr { value: string; note: 'prefix' | 'network' | null }
 /** Địa chỉ trần, thiếu độ dài tiền tố: KHÔNG tự đoán /24 (dải có thể là /25, /23…) — kien 2026-11-06. */

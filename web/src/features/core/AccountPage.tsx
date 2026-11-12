@@ -19,7 +19,7 @@ import { useAccount, useAccountMutations } from './api'
 import { PreviewCode, errMsg } from './parts'
 import { useCountdown } from './useCountdown'
 import { QrCode } from './QrCode'
-import { MIN_PASSWORD } from './util'
+import { deviceLabel, MIN_PASSWORD } from './util'
 import type { Account, AccountSession, TotpStart } from './types'
 
 function Profile({ a }: { a: Account }) {
@@ -61,7 +61,11 @@ function Password() {
       await m.password.mutateAsync({ current: v.current, next: v.next })
       setV({ current: '', next: '', again: '' })
       toast.success(t('account.password.done'))
-    } catch (e2) { setErr({ current: errMsg(e2, t) }) }
+    } catch (e2) {
+      // A refused new password belongs under the new password, not under the current one.
+      if (e2 instanceof ApiError && (e2.code === 'weak_password' || e2.code === 'same_password')) setErr({ next: errMsg(e2, t) })
+      else setErr({ current: errMsg(e2, t) })
+    }
   }
   return (
     <Section title={t('account.password.title')} description={t('account.password.desc', { min: MIN_PASSWORD })}>
@@ -129,6 +133,13 @@ function TwoFactor({ a }: { a: Account }) {
       {method ? (
         <div className="grid max-w-xl gap-4">
           <p className="text-sm">{method === 'email' ? t('account.twofa.emailActive', { to: email.sent_to }) : t('account.twofa.appActive')}</p>
+          {/* D-389: the way back in without the phone or mailbox; for the sole administrator, the box console. */}
+          {isAdmin ? (
+            <div className="grid gap-2">
+              <p className="text-[13px] text-muted">{t('account.twofa.lostAdmin')}</p>
+              <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${a.user.email}`} wrapOnPhone />
+            </div>
+          ) : <p className="text-[13px] text-muted">{t('account.twofa.lostUser')}</p>}
           <div><Button variant="danger" onClick={() => { setPw(''); setPwErr(null); setAskOff(true) }}>{t('account.twofa.turnOff')}</Button></div>
         </div>
       ) : setup ? (
@@ -207,12 +218,15 @@ function Sessions({ a }: { a: Account }) {
   const { t } = useTranslation('core')
   const m = useAccountMutations()
   const columns: ColumnDef<AccountSession>[] = [
-    { id: 'device', header: t('account.sessions.device'), accessorFn: (s) => s.device, cell: ({ row }) => <span className="font-medium">{row.original.device}{row.original.current ? <span className="ml-2"><Chip tone="accent">{t('account.sessions.current')}</Chip></span> : null}</span> },
+    // The stored User-Agent is long and unreadable: a short "Browser on OS", the raw text in the tooltip, the badge apart from it.
+    { id: 'device', header: t('account.sessions.device'), accessorFn: (s) => deviceLabel(s.device), cell: ({ row }) => (
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="font-medium" title={row.original.device}>{deviceLabel(row.original.device) || '–'}</span>{row.original.current ? <Chip tone="accent">{t('account.sessions.current')}</Chip> : null}</span>
+    ) },
     { id: 'ip', header: t('account.sessions.ip'), accessorFn: (s) => s.ip },
     { id: 'started', header: t('account.sessions.started'), accessorFn: (s) => s.started_at, cell: ({ row }) => fmtDateTime(row.original.started_at) },
     { id: 'last', header: t('account.sessions.last'), accessorFn: (s) => s.last_seen, cell: ({ row }) => fmtRelative(row.original.last_seen) },
     { id: 'end', header: t('account.sessions.end'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.current ? <span className="text-muted">–</span> : (
-      <Button size="sm" aria-label={t('account.sessions.endOf', { device: row.original.device })} disabled={m.revoke.isPending} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
+      <Button size="sm" aria-label={t('account.sessions.endOf', { device: deviceLabel(row.original.device) })} disabled={m.revoke.isPending} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
     )) },
   ]
   const others = a.sessions.filter((s) => !s.current).length

@@ -51,6 +51,9 @@
     },
     "working": "Looking up data and writing the answer.",
     "empty": "No questions yet. Pick a suggested question or type your own.",
+    "failed": "No answer: the question did not get through.",
+    "tooLong": "A question has {{max}} characters at most; this one has {{n}}. Shorten it, then ask.",
+    "count": "{{n}} of {{max}} characters",
     "history": "Recent questions",
     "downgraded": "Daily token cap exceeded, level lowered from {{from}} to {{to}}.",
     "answerFor": "Answer to: {{q}}",
@@ -78,9 +81,10 @@
     "skillEmpty": "No AI calls yet.",
     "col": {
       "skill": "Task",
-      "runs": "Runs",
+      "runs": "Calls",
       "tokens": "Tokens"
     },
+    "callsNote": "Calls counts every call in the run log below, answered or not; a call that failed or was not sent uses no tokens. Connection test is the Test button on an AI profile.",
     "downgrades": "Automatic level downgrades",
     "noDowngrades": "No downgrade has happened.",
     "downgrade": "{{time}}: lowered from {{from}} to {{to}}. {{reason}}."
@@ -289,7 +293,9 @@
       "cloudOnly": "Anthropic, OpenAI and Gemini run in the cloud. Choose OpenAI-compatible or Custom for a server on your own network.",
       "cap": "Daily token cap for this profile",
       "capHint": "From 1,000 to 5,000,000. When the cap is reached, tasks move to their fallback profile.",
-      "ack": "I understand the data for tasks assigned to this profile will be sent to {{host}}."
+      "ack": "I understand the data for tasks assigned to this profile will be sent to {{host}}.",
+      "ackNoHost": "I understand the data for tasks assigned to this profile will be sent to the server address above.",
+      "ackNeeded": "{{button}} stays off until you tick the box above: it confirms you know where the data goes."
     },
     "err": {
       "name": "Enter a profile name.",

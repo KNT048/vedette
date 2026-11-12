@@ -38,3 +38,12 @@ export const FIELDS: Record<ChannelType, string[]> = {
 
 /** Kênh có thể nhận duyệt hành động (D-38, D-46). Zalo OA và webhook chỉ gửi tin kèm liên kết mở Vedette. */
 export const APPROVAL_CHANNELS: ChannelType[] = ['slack', 'telegram', 'email', 'zalo-personal']
+
+/**
+ * A webhook or SMTP host the box never connects to, judged on the literal host (modules/notify/channel forbiddenAddr): loopback and
+ * *.localhost, link-local (cloud metadata 169.254.169.254), multicast, unspecified. Names are judged by the box when it connects.
+ */
+export const forbiddenHost = (host: string) => {
+  const h = host.toLowerCase().replace(/\.$/, '')
+  return h === 'localhost' || h.endsWith('.localhost') || h === '[::1]' || h === '[::]' || /^\[(fe[89ab]|ff)/.test(h) || /^(127\.|169\.254\.|0\.0\.0\.0$|2(2[4-9]|3\d)\.)/.test(h)
+}

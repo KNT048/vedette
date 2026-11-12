@@ -12,6 +12,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/input'
+import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan, useMe } from '@/lib/session'
 import { useChannels } from '@/features/notify/api'
@@ -21,7 +22,9 @@ import { ActionError } from './parts'
 import type { HistoryEntry, Schedule, Weekday } from './types'
 
 const DAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7]
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// The box's rule for a recipient (modules/reports validate.go validEmail): a plain address of 120 characters at most.
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/
+const EMAIL_MAX = 120
 
 export default function WeeklyTab() {
   return (
@@ -104,16 +107,27 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
   const [rec, setRec] = useState(s.recipients)
   const [email, setEmail] = useState('')
   const [emailErr, setEmailErr] = useState('')
+  const [savedErr, setSavedErr] = useState('') // the box refused one address on the list: said at the field until the list changes
   const reason = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    setSavedErr('')
     if (email.trim() !== '') { setEmailErr(t('weekly.schedule.pending')); return }
     if (enabled && rec.length === 0) { setEmailErr(t('weekly.schedule.needRecipient')); return }
-    save.mutate({ enabled, day, hour, recipients: rec }, { onSuccess: () => toast.success(t('weekly.schedule.saved')) })
+    save.mutate({ enabled, day, hour, recipients: rec }, {
+      onSuccess: () => toast.success(t('weekly.schedule.saved')),
+      // A refusal of one address (the box's schema names it by position) is said at the field, with the address.
+      onError: (er) => {
+        const i = er instanceof ApiError ? /^recipients\[(\d+)\]$/.exec(String(er.details.field ?? ''))?.[1] : undefined
+        const bad = i === undefined ? undefined : rec[Number(i)]
+        if (bad !== undefined) setSavedErr(t('weekly.schedule.badSaved', { email: bad.length > 60 ? `${bad.slice(0, 59)}…` : bad }))
+      },
+    })
   }
   function add() {
     const e = email.trim().toLowerCase()
+    if (e.length > EMAIL_MAX) { setEmailErr(t('weekly.schedule.longEmail', { max: EMAIL_MAX, count: e.length })); return }
     if (!EMAIL_RE.test(e)) { setEmailErr(t('weekly.schedule.badEmail')); return }
     if (rec.includes(e)) { setEmailErr(t('weekly.schedule.dupEmail')); return }
     setRec([...rec, e]); setEmail(''); setEmailErr('')
@@ -133,15 +147,15 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
         </Field>
       </div>
       <div className="grid gap-2">
-        <Field label={t('weekly.schedule.recipients')} htmlFor="rep-email" hint={t('weekly.schedule.recipientsHint')} error={emailErr || undefined}>
+        <Field label={t('weekly.schedule.recipients')} htmlFor="rep-email" hint={t('weekly.schedule.recipientsHint')} error={emailErr || savedErr || undefined}>
           <div className="flex gap-2">
-            <Input id="rep-email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailErr('') }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} disabled={!admin} aria-invalid={emailErr ? true : undefined} aria-describedby={emailErr ? 'rep-email-error' : 'rep-email-hint'} placeholder="name@company.com" />
+            <Input id="rep-email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailErr('') }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} disabled={!admin} aria-invalid={emailErr || savedErr ? true : undefined} aria-describedby={emailErr || savedErr ? 'rep-email-error' : 'rep-email-hint'} placeholder="name@company.com" />
             <Button onClick={add} disabled={!admin || email.trim() === ''} title={reason}>{t('weekly.schedule.add')}</Button>
           </div>
         </Field>
         {rec.length ? (
           <ul className="flex flex-wrap gap-2" aria-label={t('weekly.schedule.list')}>
-            {rec.map((e) => <li key={e} className="inline-flex items-center gap-1 rounded-md border border-rule bg-surface py-0.5 pl-2 pr-1 text-sm">{e}<button type="button" className="rounded p-1 text-muted hover:bg-sunken hover:text-ink disabled:opacity-50" disabled={!admin} aria-label={t('weekly.schedule.remove', { email: e })} onClick={() => setRec(rec.filter((x) => x !== e))}><X className="size-3.5" aria-hidden /></button></li>)}
+            {rec.map((e) => <li key={e} className="inline-flex items-center gap-1 rounded-md border border-rule bg-surface py-0.5 pl-2 pr-1 text-sm">{e}<button type="button" className="rounded p-1 text-muted hover:bg-sunken hover:text-ink disabled:opacity-50" disabled={!admin} aria-label={t('weekly.schedule.remove', { email: e })} onClick={() => { setRec(rec.filter((x) => x !== e)); setSavedErr('') }}><X className="size-3.5" aria-hidden /></button></li>)}
           </ul>
         ) : <p className="text-sm text-muted">{t('weekly.schedule.noRecipients')}</p>}
       </div>
@@ -149,7 +163,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
         <p role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-[13px]">{t('weekly.schedule.noChannel')} <Link to="/settings/channels" className="text-accent underline-offset-4 hover:underline">{t('weekly.schedule.setupChannel')}</Link></p>
       ) : null}
       <p className="text-[13px] text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
-      <ActionError error={save.error} />
+      <ActionError error={savedErr ? null : save.error} />
       <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
     </form>
   )

@@ -450,6 +450,61 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).queryByRole('alert')).toBeNull()
   })
 
+  it('webhook (walk 3 G13): a link-local / cloud metadata URL over http gets the precise sentence, not the http rule, before anything is sent', async () => {
+    let puts = 0
+    server.use(http.put('*/api/v1/notify/channels/webhook', () => { puts++ }))
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    const url = within(dlg).getByLabelText('Webhook URL')
+    await userEvent.click(url)
+    await userEvent.paste('http://169.254.169.254/latest')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(url).toHaveAccessibleDescription('The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.')
+    expect(puts).toBe(0)
+  })
+
+  it('Send test (walk 3 G13): while the box waits for the far end, the row says the test is running', async () => {
+    let answer!: () => void
+    const held = new Promise<void>((r) => { answer = r })
+    server.use(http.post('*/api/v1/notify/channels/telegram/test', async () => {
+      await held
+      return HttpResponse.json({ at: new Date().toISOString(), ok: false, detail: 'The server did not answer in time.' })
+    }))
+    renderChannels()
+    await press('Send test Telegram')
+    expect(await within(screen.getByRole('table', { name: 'Alert channels' })).findByText('Sending test…')).toBeInTheDocument()
+    answer()
+    await waitFor(() => expect(screen.queryByText('Sending test…')).toBeNull())
+  })
+
+  it('Send test (walk 3 G13): a failed last test is shown as text with the reason and an "on but failed" hint', async () => {
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    await userEvent.type(within(dlg).getByLabelText('Webhook URL'), 'https://hooks.khong-co.invalid/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
+    const table = screen.getByRole('table', { name: 'Alert channels' })
+    expect(await within(table).findByText(/Could not connect to hooks\.khong-co\.invalid/)).toBeVisible()
+    expect(within(table).getByText(/The channel is on, but its last test failed/)).toBeInTheDocument()
+  })
+
+  it('narrow screen (walk 3 G13): each channel is a card with its Set up / Edit / Send test / Remove buttons in it', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      renderChannels()
+      const list = await screen.findByRole('list', { name: 'Alert channels' })
+      expect(screen.queryByRole('table', { name: 'Alert channels' })).toBeNull()
+      expect(within(list).getByRole('button', { name: 'Set up Webhook' })).toBeInTheDocument()
+      expect(within(list).getByRole('button', { name: 'Send test Telegram' })).toBeInTheDocument()
+      expect(within(list).getByRole('button', { name: 'Remove channel Telegram' })).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('webhook URL is a secret (SYS-4): only scheme://host/… and its last 4 characters come back, and an empty URL keeps it', async () => {
     const first = renderChannels()
     await screen.findByRole('table')

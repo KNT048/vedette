@@ -2766,15 +2766,18 @@ func (s *AiGetAiLogsDigestOK) SetDigest(val NilAiGetAiLogsDigestOKDigest) {
 type AiGetAiLogsDigestOKDigest struct {
 	Cadence string `json:"cadence"`
 	// True = no log events to summarize yet; AI not called, no tokens spent.
-	Empty       bool                                     `json:"empty"`
-	GeneratedAt time.Time                                `json:"generated_at"`
-	Items       []AiGetAiLogsDigestOKDigestItemsItem     `json:"items"`
-	Model       string                                   `json:"model"`
-	Profile     string                                   `json:"profile"`
-	Summary     string                                   `json:"summary"`
-	Tier        AiGetAiLogsDigestOKDigestTier            `json:"tier"`
-	Tokens      AiGetAiLogsDigestOKDigestTokens          `json:"tokens"`
-	ToolCalls   []AiGetAiLogsDigestOKDigestToolCallsItem `json:"tool_calls"`
+	Empty       bool                                 `json:"empty"`
+	GeneratedAt time.Time                            `json:"generated_at"`
+	Items       []AiGetAiLogsDigestOKDigestItemsItem `json:"items"`
+	// Memories the AI suggested while making this digest (0 when read back); they wait for an
+	// administrator (S-AI-7, D-223).
+	MemoriesSuggested int                                      `json:"memories_suggested"`
+	Model             string                                   `json:"model"`
+	Profile           string                                   `json:"profile"`
+	Summary           string                                   `json:"summary"`
+	Tier              AiGetAiLogsDigestOKDigestTier            `json:"tier"`
+	Tokens            AiGetAiLogsDigestOKDigestTokens          `json:"tokens"`
+	ToolCalls         []AiGetAiLogsDigestOKDigestToolCallsItem `json:"tool_calls"`
 }
 
 // GetCadence returns the value of Cadence.
@@ -2795,6 +2798,11 @@ func (s *AiGetAiLogsDigestOKDigest) GetGeneratedAt() time.Time {
 // GetItems returns the value of Items.
 func (s *AiGetAiLogsDigestOKDigest) GetItems() []AiGetAiLogsDigestOKDigestItemsItem {
 	return s.Items
+}
+
+// GetMemoriesSuggested returns the value of MemoriesSuggested.
+func (s *AiGetAiLogsDigestOKDigest) GetMemoriesSuggested() int {
+	return s.MemoriesSuggested
 }
 
 // GetModel returns the value of Model.
@@ -2845,6 +2853,11 @@ func (s *AiGetAiLogsDigestOKDigest) SetGeneratedAt(val time.Time) {
 // SetItems sets the value of Items.
 func (s *AiGetAiLogsDigestOKDigest) SetItems(val []AiGetAiLogsDigestOKDigestItemsItem) {
 	s.Items = val
+}
+
+// SetMemoriesSuggested sets the value of MemoriesSuggested.
+func (s *AiGetAiLogsDigestOKDigest) SetMemoriesSuggested(val int) {
+	s.MemoriesSuggested = val
 }
 
 // SetModel sets the value of Model.
@@ -7162,15 +7175,18 @@ func (s *AiPostAiLogsDigestOK) SetDigest(val AiPostAiLogsDigestOKDigest) {
 type AiPostAiLogsDigestOKDigest struct {
 	Cadence string `json:"cadence"`
 	// True = no log events to summarize yet; AI not called, no tokens spent.
-	Empty       bool                                      `json:"empty"`
-	GeneratedAt time.Time                                 `json:"generated_at"`
-	Items       []AiPostAiLogsDigestOKDigestItemsItem     `json:"items"`
-	Model       string                                    `json:"model"`
-	Profile     string                                    `json:"profile"`
-	Summary     string                                    `json:"summary"`
-	Tier        AiPostAiLogsDigestOKDigestTier            `json:"tier"`
-	Tokens      AiPostAiLogsDigestOKDigestTokens          `json:"tokens"`
-	ToolCalls   []AiPostAiLogsDigestOKDigestToolCallsItem `json:"tool_calls"`
+	Empty       bool                                  `json:"empty"`
+	GeneratedAt time.Time                             `json:"generated_at"`
+	Items       []AiPostAiLogsDigestOKDigestItemsItem `json:"items"`
+	// Memories the AI suggested while making this digest (0 when read back); they wait for an
+	// administrator (S-AI-7, D-223).
+	MemoriesSuggested int                                       `json:"memories_suggested"`
+	Model             string                                    `json:"model"`
+	Profile           string                                    `json:"profile"`
+	Summary           string                                    `json:"summary"`
+	Tier              AiPostAiLogsDigestOKDigestTier            `json:"tier"`
+	Tokens            AiPostAiLogsDigestOKDigestTokens          `json:"tokens"`
+	ToolCalls         []AiPostAiLogsDigestOKDigestToolCallsItem `json:"tool_calls"`
 }
 
 // GetCadence returns the value of Cadence.
@@ -7191,6 +7207,11 @@ func (s *AiPostAiLogsDigestOKDigest) GetGeneratedAt() time.Time {
 // GetItems returns the value of Items.
 func (s *AiPostAiLogsDigestOKDigest) GetItems() []AiPostAiLogsDigestOKDigestItemsItem {
 	return s.Items
+}
+
+// GetMemoriesSuggested returns the value of MemoriesSuggested.
+func (s *AiPostAiLogsDigestOKDigest) GetMemoriesSuggested() int {
+	return s.MemoriesSuggested
 }
 
 // GetModel returns the value of Model.
@@ -7241,6 +7262,11 @@ func (s *AiPostAiLogsDigestOKDigest) SetGeneratedAt(val time.Time) {
 // SetItems sets the value of Items.
 func (s *AiPostAiLogsDigestOKDigest) SetItems(val []AiPostAiLogsDigestOKDigestItemsItem) {
 	s.Items = val
+}
+
+// SetMemoriesSuggested sets the value of MemoriesSuggested.
+func (s *AiPostAiLogsDigestOKDigest) SetMemoriesSuggested(val int) {
+	s.MemoriesSuggested = val
 }
 
 // SetModel sets the value of Model.

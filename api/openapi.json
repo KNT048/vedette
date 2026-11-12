@@ -4864,6 +4864,37 @@
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
+                          },
+                          "last_test": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "ok": {
+                                    "type": "boolean"
+                                  },
+                                  "detail": {
+                                    "type": "string",
+                                    "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "ok",
+                                  "detail"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
                           }
                         },
                         "required": [
@@ -4877,7 +4908,8 @@
                           "location",
                           "daily_cap",
                           "usable",
-                          "used_today"
+                          "used_today",
+                          "last_test"
                         ],
                         "additionalProperties": false
                       }
@@ -5052,6 +5084,37 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "last_test": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "detail": {
+                              "type": "string",
+                              "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "ok",
+                            "detail"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
                     }
                   },
                   "required": [
@@ -5065,7 +5128,8 @@
                     "location",
                     "daily_cap",
                     "usable",
-                    "used_today"
+                    "used_today",
+                    "last_test"
                   ],
                   "additionalProperties": false
                 }
@@ -5312,6 +5376,37 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "last_test": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "detail": {
+                              "type": "string",
+                              "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "ok",
+                            "detail"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
                     }
                   },
                   "required": [
@@ -5325,7 +5420,8 @@
                     "location",
                     "daily_cap",
                     "usable",
-                    "used_today"
+                    "used_today",
+                    "last_test"
                   ],
                   "additionalProperties": false
                 }
@@ -35671,6 +35767,13 @@
                           "blocked": {
                             "type": "boolean",
                             "description": "The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say"
+                          },
+                          "listed_as": {
+                            "description": "The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF, D-228, D-425): look this name up in Feeds. null when a feed lists dest itself",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -35684,7 +35787,8 @@
                           "seen_via",
                           "feeds",
                           "confidence",
-                          "blocked"
+                          "blocked",
+                          "listed_as"
                         ],
                         "additionalProperties": false
                       }

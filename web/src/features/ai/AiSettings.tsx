@@ -13,7 +13,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtNumber } from '@/lib/format'
+import { fmtDateTime, fmtNumber } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useSaveProfile, useTestProfile } from './api'
@@ -61,12 +61,15 @@ export default function AiSettings() {
   const raw = params.get('tab')
   const tab: Tab = (TABS as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'profiles'
   const Harness = tab === 'profiles' ? null : HARNESS[tab]
+  const profiles = useProfiles()
+  // "set up" is not the whole truth when no saved profile passed its last test (S-AI-1)
+  const allFailed = (c: AiConfigView) => c.configured && !!profiles.data?.items.length && profiles.data.items.every((p) => p.last_test && !p.last_test.ok)
   return (
     <div className="grid max-w-4xl grid-cols-[minmax(0,1fr)] gap-2">
       <QueryState query={cfg}>
         {(c) => (
           <>
-            <PageHeader title={t('settings.title')} meta={c.configured ? t('settings.statusOn') : t('settings.statusOff')} />
+            <PageHeader title={t('settings.title')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} />
             <div className="mb-6">
               <Segmented label={t('harness.tabs.label')} value={tab} options={TABS.map((v) => ({ value: v, label: t(`harness.tabs.${v}`) }))}
                 onChange={(v) => setParams((p) => { const n = new URLSearchParams(p); if (v === 'profiles') n.delete('tab'); else n.set('tab', v); return n }, { replace: true })} />
@@ -133,6 +136,9 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
   )
   const keyText = (p: AiProfile) => p.key_last4 ? t('profiles.keyEnds', { last4: p.key_last4 }) : p.location === 'internal' ? t('profiles.noKeyNeeded') : t('profiles.keyMissing')
   const loc = (p: AiProfile) => <Chip tone={p.location === 'internal' ? 'ok' : 'off'}>{t(`profiles.location.${p.location}`)}</Chip>
+  const lastTest = (p: AiProfile) => !p.last_test ? <span className="text-muted">{t('profiles.lastNever')}</span>
+    : p.last_test.ok ? <span className="text-ok">{t('profiles.lastOk', { time: fmtDateTime(p.last_test.at) })}</span>
+      : <span className="font-medium text-danger">{t('profiles.lastFail', { time: fmtDateTime(p.last_test.at), reason: p.last_test.detail })}</span>
   return (
     <Section id="ai-profiles" title={t('profiles.title')} description={t('profiles.description')} stories={['S-AI-1']}
       actions={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>
@@ -145,6 +151,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
               <p className="flex flex-wrap items-center gap-2 font-medium">{p.name} {loc(p)}</p>
               <p className="text-muted">{t(`profiles.kind.${p.kind}`)}, {p.model}</p>
               <p className="text-muted">{keyText(p)}. {t('profiles.usage', { used: fmtNumber(p.used_today), cap: fmtNumber(p.daily_cap) })}</p>
+              <p>{lastTest(p)}</p>
               {Actions(p)}
             </div>
           )}
@@ -153,6 +160,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             { id: 'location', header: t('profiles.col.location'), accessorKey: 'location', cell: ({ row }: { row: { original: AiProfile } }) => loc(row.original) },
             { id: 'model', header: t('profiles.col.model'), accessorKey: 'model', cell: ({ row }: { row: { original: AiProfile } }) => <span className="whitespace-nowrap">{row.original.model}</span> },
             { id: 'key', header: t('profiles.col.key'), accessorFn: keyText },
+            { id: 'lastTest', header: t('profiles.col.lastTest'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => lastTest(row.original) },
             { id: 'cap', header: t('profiles.col.usage'), accessorKey: 'used_today', cell: ({ row }: { row: { original: AiProfile } }) => t('profiles.usage', { used: fmtNumber(row.original.used_today), cap: fmtNumber(row.original.daily_cap) }) },
             { id: 'actions', header: t('profiles.col.actions'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => Actions(row.original) },
           ]} />

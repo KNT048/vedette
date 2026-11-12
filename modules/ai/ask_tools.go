@@ -74,7 +74,6 @@ var (
 	cveArgRE   = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4,}$`)
 	idArgRE    = regexp.MustCompile(`^[A-Za-z0-9_-]{1,96}$`)
 	kindArgRE  = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
-	domainRE   = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,62}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,62}[A-Za-z0-9])?)+$`)
 	statusEnum = []string{"open", "any", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
 	sevEnum    = []string{"critical", "high", "medium", "low", "info"}
 )
@@ -473,7 +472,7 @@ func toolLookupIOC(ctx context.Context, d Data, raw map[string]any) (toolOut, er
 		}
 		value = a.Unmap().String()
 	default:
-		if len(value) > 253 || !domainRE.MatchString(value) {
+		if !validDomain(value) {
 			return toolOut{}, errBadArgs{"value is not a domain name"}
 		}
 	}
@@ -488,6 +487,43 @@ func toolLookupIOC(ctx context.Context, d Data, raw map[string]any) (toolOut, er
 	b, _ := json.Marshal(m)
 	return toolOut{Text: string(b), Summary: "listed by " + plural(len(r.Sources), "feed", "feeds"), Cite: "Threat feeds"}, nil
 }
+
+// validDomain is a copy of the rule of modules/feeds (normalize.go validDomain; modules do not import each other), so the tool takes
+// every name a feed can list, an IDN top-level domain in its ASCII form (`discord.xn--q9jyb4c`) among them: at most 253 bytes, two or
+// more labels; every label but the last is 1 to 63 of a-z, A-Z, 0-9 and "-" with no "-" at either end, the last is 2 to 63 letters or
+// "xn--" and letters, digits and "-" not ending in "-".
+func validDomain(v string) bool {
+	if len(v) > 253 {
+		return false
+	}
+	labels := 0
+	for len(v) > 0 {
+		i := strings.IndexByte(v, '.')
+		if i < 0 {
+			if labels == 0 || len(v) < 2 || len(v) > 63 {
+				return false
+			}
+			if len(v) > 4 && strings.EqualFold(v[:4], "xn--") {
+				return v[len(v)-1] != '-' && strings.IndexFunc(v[4:], func(r rune) bool { return r != '-' && !isLetter(r) && (r < '0' || r > '9') }) < 0
+			}
+			return strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
+		}
+		l := v[:i]
+		if l == "" || len(l) > 63 || l[0] == '-' || l[len(l)-1] == '-' {
+			return false
+		}
+		for j := 0; j < len(l); j++ {
+			if c := l[j]; c != '-' && !isLetter(rune(c)) && (c < '0' || c > '9') {
+				return false
+			}
+		}
+		labels++
+		v = v[i+1:]
+	}
+	return false // empty, or a trailing dot
+}
+
+func isLetter(r rune) bool { return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' }
 
 // ---------- the read tools of the connections (core/conn/read, D-127)
 

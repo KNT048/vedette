@@ -426,8 +426,9 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.notifier = n
 	o.loopCtx, o.loopStop = lctx, stop
 	o.mu.Unlock()
-	o.sweepTmp("releases", "containers") // temp files of a write cut short (container.pull state)
-	hpReady := o.startHP(ctx)            // before recoverNet: a revert at start re-applies the decoys into it
+	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
+	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
+	hpReady := o.startHP(ctx)                   // before recoverNet: a revert at start re-applies the decoys into it
 	o.recoverNet(ctx)
 	o.reconcileAtStart(ctx, hpReady)
 	o.sweepBackups()

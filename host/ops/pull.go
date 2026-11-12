@@ -99,7 +99,10 @@ func validatePullArgs(a *api.ContainerPullArgs) error {
 		if !hexIDRE.MatchString(a.BundleID) {
 			return server.Invalid("bundle_id", "must be 32 lowercase hex characters")
 		}
-		return nil // refused by Check: bundle_unsupported
+		if a.Index != "" || a.IndexSig != "" || a.Manifest != "" || a.ManifestSig != "" {
+			return server.Invalid("index", "a bundle source takes its signed documents from the bundle; send none")
+		}
+		return nil // the documents are read from <core_data>/bundles/<bundle_id>.tar by Check and Run (D-452)
 	case api.PullSourceRegistry:
 	default:
 		return server.Invalid("source", "must be registry or bundle")
@@ -134,6 +137,8 @@ type pullPlan struct {
 	idx         *release.Index
 	manifest    []byte
 	manifestSig []byte
+	// bundle is set for source=bundle: the image is loaded from the bundle core wrote, never pulled from the registry (D-452).
+	bundle *bundleSource
 }
 
 // unitDigest is the "digest" the unit pins for the plan's image: the verified digest, or for scan the ID of the image built from it.
@@ -352,15 +357,15 @@ func (o *Ops) checkContainerPull(ctx context.Context, a api.ContainerPullArgs) e
 	if _, err := o.platform(); err != nil {
 		return err
 	}
-	if a.Source == api.PullSourceBundle {
-		return refuse412(api.CodeBundleUnsupported, "Pulling from a bundle is not available yet; use the registry source.")
-	}
-	plan, err := o.verifyPull(a)
+	plan, err := o.planPull(a)
 	if err != nil {
 		return err
 	}
 	if o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
 		return nil // already here: it needs no space (the run finds it again and pulls nothing)
+	}
+	if plan.bundle != nil {
+		return o.bundleRoom(plan.bundle.imageSize)
 	}
 	free, err := o.freeForImages()
 	if err != nil {
@@ -472,7 +477,7 @@ func parseBuiltInspect(out []byte, digest, arch string) error {
 // ---- the run --------------------------------------------------------------------------------------
 
 func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api.ContainerPullArgs) (any, error) {
-	plan, err := o.verifyPull(a)
+	plan, err := o.planPull(a)
 	if err != nil {
 		var ref *server.Refusal
 		if errors.As(err, &ref) {
@@ -502,13 +507,27 @@ func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPl
 		logf("the image is already on this machine; nothing to pull")
 	} else {
 		argv, err := pullArgv(plan.service, plan.digest)
+		cleanup := func() {}
+		if plan.bundle != nil {
+			// D-452: the image comes out of the bundle into a layout of the host's own, checked blob by blob, and Podman loads that.
+			var dir string
+			var serr error
+			dir, cleanup, serr = o.stageBundleImage(ctx, logf, plan)
+			if serr != nil {
+				cleanup()
+				return serr
+			}
+			argv, err = ociPullArgv(dir, plan.service, plan.version)
+		}
 		if err != nil {
+			cleanup()
 			return fail(api.CodePullFailed, "The host could not build the pull command.")
 		}
 		logf("pulling " + plan.ref)
 		pctx, cancel := context.WithTimeout(ctx, pullCallLimit)
 		pres, code, perr := o.exec(pctx, binPodman, argv...)
 		cancel()
+		cleanup() // Podman holds its own copy now: the staged layout is not kept (it can be GiBs)
 		if perr != nil || code != 0 || pres.Truncated {
 			logf("podman pull failed; no tag and no record were made")
 			return fail(api.CodePullFailed, "Podman could not pull the image.")

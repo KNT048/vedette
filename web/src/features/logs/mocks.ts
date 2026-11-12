@@ -24,9 +24,9 @@ const sources = collection<Stored[]>('logs_sources', () => [
 type StoredIoc = Omit<IocHit, 'asset_id' | 'asset_name'>
 const iocHits = collection<StoredIoc[]>('logs_ioc_hits', () => {
   return [
-    { id: 'b-1', ts: daysAgo(0, 0.2), src_ip: '192.168.10.105', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'span_flow', feeds: ['Tor exit list', 'IPsum'], confidence: 0.9, blocked: false },
-    { id: 'b-2', ts: daysAgo(0, 1.6), src_ip: '192.168.10.20', dest: 'update-dsm-synology.com', dest_kind: 'domain', seen_via: 'span_dns', feeds: ['hagezi TIF', 'Phishing.Database'], confidence: 0.95, blocked: false },
-    { id: 'b-3', ts: daysAgo(0, 3), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6, blocked: true },
+    { id: 'b-1', ts: daysAgo(0, 0.2), src_ip: '192.168.10.105', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'span_flow', feeds: ['Tor exit list', 'IPsum'], confidence: 0.9, blocked: false, listed_as: null },
+    { id: 'b-2', ts: daysAgo(0, 1.6), src_ip: '192.168.10.20', dest: 'a7k2q.update-dsm-synology.com', dest_kind: 'domain', seen_via: 'span_dns', feeds: ['hagezi TIF'], confidence: 0.95, blocked: false, listed_as: 'update-dsm-synology.com' },
+    { id: 'b-3', ts: daysAgo(0, 3), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6, blocked: true, listed_as: null },
   ]
 }, () => [])
 // Senders whose syslog the box dropped because no source declares them (S-LOG-1, FORBID-5): kept in memory on the box, so a clean install has none.

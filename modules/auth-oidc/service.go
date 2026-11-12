@@ -38,7 +38,7 @@ type Service struct {
 	audit   *audit.Log
 	log     *slog.Logger
 	now     func() time.Time
-	client  *http.Client     // every call to the identity provider; clientFor adds the saved CA (D-378)
+	client  *http.Client      // every call to the identity provider; clientFor adds the saved CA (D-378)
 	base    http.RoundTripper // the transport client wraps
 	limit   *limiter
 

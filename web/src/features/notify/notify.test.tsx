@@ -162,6 +162,16 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     await waitFor(() => expect(screen.queryByRole('link', { name: 'Set up alert channels' })).toBeNull())
   })
 
+  it('container-only: the empty state does not promise trap touches (the honeypot cannot run there)', async () => {
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })))
+    installStore.set({ kind: 'container' })
+    try {
+      renderApp('/incidents')
+      expect(await screen.findByText(/^When a machine connects to a known-bad address/)).toBeInTheDocument()
+      expect(screen.queryByText(/When a trap is touched/)).toBeNull()
+    } finally { installStore.set({ kind: 'appliance' }) }
+  })
+
   it('an API error shows the message and a retry button', async () => {
     server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ error: { code: 'x', message: 'The incident list could not be read.' } }, { status: 500 })))
     renderApp('/incidents')
@@ -436,7 +446,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
   })
 
   it('webhook: a URL the box refuses (bad_url) shows under the URL field, not at the top', async () => {
-    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
     server.use(http.put('*/api/v1/notify/channels/webhook', () => HttpResponse.json({ error: { code: 'bad_url', message: BLOCKED } }, { status: 400 })))
     renderChannels()
     await press('Set up Webhook')
@@ -462,7 +472,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.paste('http://169.254.169.254/latest')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    expect(url).toHaveAccessibleDescription('The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.')
+    expect(url).toHaveAccessibleDescription('The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.')
     expect(puts).toBe(0)
   })
 
@@ -617,9 +627,10 @@ async function getJsonAfterLogin(path: string) {
 describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unmap; G13 review L1, L5)', () => {
   it('only IP literals and localhost names are judged; an IPv4-mapped IPv6 loopback is forbidden too', () => {
     const host = (u: string) => new URL(u).hostname
-    for (const u of ['https://127.0.0.1/x', 'http://169.254.169.254/latest', 'https://0.0.0.0/', 'https://224.0.0.251/', 'https://[::1]/', 'https://[::]/', 'https://[fe80::1]/', 'https://[ff02::1]/', 'http://[::ffff:127.0.0.1]/', 'https://[::ffff:169.254.1.1]/', 'https://localhost/', 'https://app.localhost./'])
+    for (const u of ['https://127.0.0.1/x', 'http://169.254.169.254/latest', 'https://0.0.0.0/', 'https://224.0.0.251/', 'https://[::1]/', 'https://[::]/', 'https://[fe80::1]/', 'https://[ff02::1]/', 'http://[::ffff:127.0.0.1]/', 'https://[::ffff:169.254.1.1]/', 'https://localhost/', 'https://app.localhost./',
+      'https://100.100.100.200/latest', 'https://192.0.0.192/', 'https://[fd00:ec2::254]/', 'https://[fd20:ce::254]/', 'http://metadata.google.internal/x', 'https://METADATA.goog/', 'https://[::ffff:100.100.100.200]/'])
       expect(forbiddenHost(host(u)), u).toBe(true)
-    for (const u of ['https://224.alerts.example.com/hook', 'https://127.corp.example/x', 'https://169.254.example.net/', 'https://8.8.8.8/', 'https://10.0.0.5/', 'https://[2001:db8::1]/', 'https://[::ffff:10.0.0.1]/', 'https://hooks.company.com/'])
+    for (const u of ['https://224.alerts.example.com/hook', 'https://127.corp.example/x', 'https://169.254.example.net/', 'https://8.8.8.8/', 'https://10.0.0.5/', 'https://[2001:db8::1]/', 'https://[::ffff:10.0.0.1]/', 'https://hooks.company.com/', 'https://100.100.100.201/', 'https://[fd00:ec2::253]/', 'https://metadata.company.com/'])
       expect(forbiddenHost(host(u)), u).toBe(false)
   })
 })

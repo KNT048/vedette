@@ -40,7 +40,8 @@ func newFakeData() *fakeData {
 			{ID: "f-2", AssetID: "a-srvad", Asset: "SRV-AD", AssetIP: "192.168.10.5", CVE: "CVE-2024-1111", Status: "suspected", Severity: "high", Basis: "version", Confidence: 0.6},
 			{ID: "f-3", AssetID: "a-ws07", Asset: "WS-07", AssetIP: "192.168.10.77", CVE: "CVE-2020-0001", Status: "patched", Severity: "medium", Basis: "version", Confidence: 0.5},
 		},
-		iocs: map[string]ai.IOCFact{"ip|203.0.113.9": {Kind: "ip", Value: "203.0.113.9", FirstSeen: "2026-10-01T00:00:00Z", LastSeen: "2026-11-09T00:00:00Z", Sources: []string{"Feodo Tracker"}}},
+		iocs: map[string]ai.IOCFact{"ip|203.0.113.9": {Kind: "ip", Value: "203.0.113.9", FirstSeen: "2026-10-01T00:00:00Z", LastSeen: "2026-11-09T00:00:00Z", Sources: []string{"Feodo Tracker"}},
+			"domain|discord.xn--q9jyb4c": {Kind: "domain", Value: "discord.xn--q9jyb4c", FirstSeen: "2026-11-01T00:00:00Z", LastSeen: "2026-11-12T00:00:00Z", Sources: []string{"hagezi TIF"}}},
 	}
 }
 
@@ -496,6 +497,12 @@ func TestAskToolArgumentsAreCheckedAtTheEdge(t *testing.T) {
 		{"ioc ip zone", "lookup_ioc", `{"kind":"ip","value":"fe80::1%eth0"}`, "not an IP address"},
 		{"ioc domain", "lookup_ioc", `{"kind":"domain","value":"not a domain"}`, "not a domain name"},
 		{"ioc domain no dot", "lookup_ioc", `{"kind":"domain","value":"localhost"}`, "not a domain name"},
+		// the rule of feeds (validDomain): no digit or one-letter top-level domain, labels of at most 63, no "-" at the end of an IDN one
+		{"ioc domain digit tld", "lookup_ioc", `{"kind":"domain","value":"evil.b1"}`, "not a domain name"},
+		{"ioc domain one-letter tld", "lookup_ioc", `{"kind":"domain","value":"evil.b"}`, "not a domain name"},
+		{"ioc domain long label", "lookup_ioc", `{"kind":"domain","value":"` + strings.Repeat("a", 64) + `.com"}`, "not a domain name"},
+		{"ioc domain idn dash", "lookup_ioc", `{"kind":"domain","value":"evil.xn--p1ai-"}`, "not a domain name"},
+		{"ioc domain trailing dot", "lookup_ioc", `{"kind":"domain","value":"evil.com."}`, "not a domain name"},
 	}
 	a := newAskAPI(t)
 	for _, c := range cases {
@@ -517,7 +524,7 @@ func TestAskToolArgumentsAreCheckedAtTheEdge(t *testing.T) {
 	// what is well formed runs, and the bounds are inclusive
 	for _, ok := range []struct{ tool, args string }{{"search_assets", `{"port":65535,"limit":50,"kind":"nas","approved":true,"os_contains":"QTS","text":"photo"}`},
 		{"list_findings", `{"status":"any","severity":"critical","cve":"CVE-2022-27593","asset_id":"a-nas","limit":1}`}, {"get_finding", `{"id":"f-999"}`},
-		{"lookup_cve", `{"cve":"CVE-2099-0001"}`}, {"lookup_ioc", `{"kind":"domain","value":"evil.example.com"}`}, {"lookup_ioc", `{"kind":"ip","value":"::ffff:203.0.113.9"}`}} {
+		{"lookup_cve", `{"cve":"CVE-2099-0001"}`}, {"lookup_ioc", `{"kind":"domain","value":"evil.example.com"}`}, {"lookup_ioc", `{"kind":"domain","value":"discord.xn--q9jyb4c"}`}, {"lookup_ioc", `{"kind":"ip","value":"::ffff:203.0.113.9"}`}} {
 		a.fake.play(turn{calls: []provider.ToolCall{call(ok.tool, ok.args)}}, turn{text: "Done."})
 		a.ask("Check "+ok.tool+" please", 200, "")
 		reqs := a.fake.askRequests()
@@ -527,6 +534,17 @@ func TestAskToolArgumentsAreCheckedAtTheEdge(t *testing.T) {
 		a.fake.mu.Lock()
 		a.fake.reqs = nil
 		a.fake.mu.Unlock()
+	}
+}
+
+// An IDN top-level domain in its ASCII form is a domain name to lookup_ioc, as it is to feeds, and its listing comes back.
+func TestAskLookupIOCTakesAnIDNTopLevelDomain(t *testing.T) {
+	a := newAskAPI(t)
+	a.fake.play(turn{calls: []provider.ToolCall{call("lookup_ioc", `{"kind":"domain","value":"discord.xn--q9jyb4c"}`)}}, turn{text: "It is listed."})
+	a.ask("Is discord.xn--q9jyb4c listed?", 200, "")
+	reqs := a.fake.askRequests()
+	if res := toolResults(reqs[len(reqs)-1]); len(res) != 1 || res[0].IsError || !strings.Contains(res[0].Content, `"listed":true`) || !strings.Contains(res[0].Content, "hagezi TIF") {
+		t.Fatalf("result = %+v", res)
 	}
 }
 

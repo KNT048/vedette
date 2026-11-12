@@ -58,7 +58,14 @@ function usage(): Usage {
   return { tier: cfg.tier, daily_cap: cfg.daily_cap, today: sum(month.filter((r) => new Date(r.ts).getTime() >= s)), month: sum(month), by_skill: [...by.entries()].map(([skill, v]) => ({ skill, ...v })).sort((a, b) => b.tokens - a.tokens), downgrades: downgrades.get() }
 }
 
-const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_today: profileUsed(p) })
+// Lần thử kết nối gần nhất của hồ sơ như đã lưu (S-AI-1), theo id; hồ sơ đổi địa chỉ/model/khoá thì mất. Mẫu: hai hồ sơ đám mây đã thử được.
+type LastTest = NonNullable<AiProfile['last_test']>
+const lastTests = collection<Record<string, LastTest>>('ai_last_tests', () => ({
+  'p-haiku': { at: new Date(Date.now() - 2 * DAY).toISOString(), ok: true, detail: '' }, 'p-sonnet': { at: new Date(Date.now() - 2 * DAY).toISOString(), ok: true, detail: '' },
+}), () => ({}))
+const setLastTest = (id: string, t: LastTest | null) => lastTests.update((m) => { const n = { ...m }; if (t) n[id] = t; else delete n[id]; return n })
+const sameConnection = (a: StoredProfile, b: StoredProfile) => a.kind === b.kind && a.api_style === b.api_style && a.base_url === b.base_url && a.model === b.model && a.key_last4 === b.key_last4
+const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_today: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
 const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, daily_cap: c.daily_cap, redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
 
@@ -307,6 +314,7 @@ export const handlers = [
     const dropped = AI_JOBS.filter((j) => (a.jobs[j.id].primary === p.id || a.jobs[j.id].fallback === p.id) && !allowed(p, j.id, a.internal_only))
     if (dropped.length) return fail(400, 'privacy_rule', `This profile is assigned to ${dropped.map((j) => JOB_NAME[j.id]).join(', ')}, which send internal data, and the privacy rule only allows internal profiles. Unassign it there first or switch the rule off.`)
     aiProfilesStore.update((l) => l.map((x) => (x.id === p.id ? p : x)))
+    if (!sameConnection(cur, p)) setLastTest(p.id, null) // another address, model or key (the mock keeps only its last 4) : the old test does not hold
     syncConfig()
     audit('ai.profile.edit', p.name, `${p.kind}, ${p.location}, model=${p.model}${ok.key ? ', key changed' : ''}`)
     return HttpResponse.json(profileView(p))
@@ -324,6 +332,7 @@ export const handlers = [
       return [j.id, s.primary === cur.id ? { primary: s.fallback, fallback: null } : { primary: s.primary, fallback: null }]
     })) as AiAssign }))
     aiProfilesStore.update((l) => l.filter((p) => p.id !== cur.id))
+    setLastTest(cur.id, null)
     syncConfig()
     audit('ai.profile.remove', cur.name)
     return HttpResponse.json({ cleared_jobs: cleared })
@@ -333,8 +342,12 @@ export const handlers = [
     const b = await body<ProfileInput>(request)
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
-    if (ok.url.hostname.includes('unreachable')) return fail(502, 'unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
-    if (ok.key?.startsWith('bad')) return fail(502, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
+    // only a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a draft or another key is not
+    const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), daily_cap: cur.daily_cap }, ok, cur.id, cur)) ? cur : undefined
+    const failed = (code: string, msg: string) => { if (asSaved) setLastTest(asSaved.id, { at: nowIso(), ok: false, detail: msg }); return fail(502, code, msg) }
+    if (ok.url.hostname.includes('unreachable')) return failed('unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
+    if (ok.key?.startsWith('bad')) return failed('key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
+    if (asSaved) setLastTest(asSaved.id, { at: nowIso(), ok: true, detail: '' })
     recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
     recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 42, tokens_out: 9, result: 'ok' }) // three requests: plain, tools, JSON format
     audit('ai.test', ok.name, `model=${b.model}`)

@@ -20,7 +20,7 @@ func init() {
 func TestForbiddenAddresses(t *testing.T) {
 	t.Parallel()
 	for s, want := range map[string]bool{
-		"169.254.169.254": true, "169.254.170.2": true, "169.254.1.1": true, "fe80::1": true, "fd00:ec2::254": true, "[::ffff:169.254.169.254]": true,
+		"169.254.169.254": true, "169.254.170.2": true, "169.254.1.1": true, "fe80::1": true, "fd00:ec2::254": true, "fd20:ce::254": true, "100.100.100.200": true, "192.0.0.192": true, "100.100.100.201": false, "[::ffff:169.254.169.254]": true,
 		"224.0.0.251": true, "239.255.255.250": true, "ff02::1": true, "0.0.0.0": true, "::": true, "255.255.255.255": true,
 		"127.0.0.1": false, "::1": false, "10.0.0.1": false, "192.168.1.1": false, "100.64.0.1": false, "fd12:3456::1": false, "8.8.8.8": false, "2606:4700::1111": false,
 	} {

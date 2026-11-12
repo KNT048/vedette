@@ -159,7 +159,7 @@ func globalOnly(ip netip.Addr) bool {
 // metadataAddrs are cloud instance-metadata endpoints (link-local ones are
 // already covered by the link-local rule; the others are listed here).
 var metadataAddrs = []netip.Addr{
-	netip.MustParseAddr("169.254.169.254"), netip.MustParseAddr("fd00:ec2::254"),
+	netip.MustParseAddr("169.254.169.254"), netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("fd20:ce::254"),
 	netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192"),
 }
 

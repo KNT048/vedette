@@ -22,7 +22,7 @@ func TestRegress_DialRules(t *testing.T) {
 		want   bool
 	}{
 		{"169.254.169.254", "https", false}, {"169.254.169.254", "http", false}, {"169.254.1.1", "https", false},
-		{"fe80::1", "https", false}, {"fd00:ec2::254", "https", false}, {"100.100.100.200", "https", false}, {"192.0.0.192", "https", false},
+		{"fe80::1", "https", false}, {"fd00:ec2::254", "https", false}, {"fd20:ce::254", "https", false}, {"100.100.100.200", "https", false}, {"192.0.0.192", "https", false},
 		{"::ffff:169.254.169.254", "https", false}, {"0.0.0.0", "https", false}, {"224.0.0.1", "https", false},
 		{"127.0.0.1", "http", true}, {"10.1.2.3", "http", true}, {"172.20.0.1", "http", true}, {"192.168.1.1", "http", true},
 		{"fd12:3456::1", "http", true}, {"::1", "http", true},

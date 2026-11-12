@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"path/filepath"
 	"slices"
 	"time"
@@ -36,7 +35,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 			return nil
 		}
 		return d.Honeypot.DecoyIPs(ctx)
-	}}, Host: newHoneypotHost(d),
+	}, box: d.BoxName}, Host: newHoneypotHost(d),
 		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
 	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
@@ -107,6 +106,7 @@ type honeypotInventory struct {
 	hostNet *hostNetCache
 	// decoys are the addresses the traps answer on: the host reports them among the box's addresses, but a decoy is never the box's own address.
 	decoys func(context.Context) []netip.Addr
+	box    *boxHostName // deps.BoxName: the box's name while the inventory has no box row (nil: "vedette")
 }
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
@@ -153,10 +153,7 @@ func (a honeypotInventory) Box(ctx context.Context) (honeypot.Box, error) {
 	if err != nil {
 		return honeypot.Box{}, err
 	}
-	b := honeypot.Box{Name: "vedette"}
-	if h, err := os.Hostname(); err == nil && h != "" {
-		b.Name = h
-	}
+	b := honeypot.Box{Name: a.box.Name(ctx)} // no box row yet: the name the row will get (#471), never the container's
 	if found {
 		if host != "" {
 			b.Name = host

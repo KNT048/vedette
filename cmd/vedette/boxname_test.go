@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // fakeInfo is GET /v1/info of a fake vedette-host: the next answer and how often it was asked.
@@ -134,6 +135,40 @@ func TestBoxRowAndLogsPageUseTheHostName(t *testing.T) {
 	runBoxJob(t, restarted)
 	if name, _, _, err := s.d.Inventory.BoxName(ctx); err != nil || name != "office-box" || down.calls != 1 {
 		t.Fatalf("box row after a restart with the host down: %q %v (%d calls)", name, err, down.calls)
+	}
+	// r2 LOW 2: the Logs page and SIEM records agree with the row meanwhile (buildServices wires useRow).
+	restarted.BoxName.useRow(boxRowName(s.d.Inventory))
+	if info, err := (logsBox{restarted}).Info(ctx); err != nil || info.Hostname != "office-box" {
+		t.Fatalf("logs page after a restart with the host down: %+v %v", info, err)
+	}
+	if got := restarted.BoxName.Name(ctx); got != "office-box" {
+		t.Fatalf("SIEM HOSTNAME after a restart with the host down: %q", got)
+	}
+}
+
+// buildServices gives the box's name the row to fall back on.
+func TestBuildServicesWiresTheRowName(t *testing.T) {
+	down := &fakeInfo{err: errors.New("host restarting")}
+	s := newStackWith(t, func(d *deps) { d.BoxName = newBoxHostNameFrom(down.Info, time.Now) })
+	if _, err := s.d.Inventory.EnsureBox(t.Context(), inventory.BoxInfo{Hostname: "office-box"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := s.d.BoxName.Get(t.Context()); got != "office-box" || ok {
+		t.Fatalf("%q %v", got, ok)
+	}
+}
+
+// The honeypot's box before the inventory has a box row is named like the row will be (#471), not after the container.
+func TestHoneypotBoxNameBeforeTheRow(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	if _, _, found, err := s.d.Inventory.BoxName(t.Context()); err != nil || found {
+		t.Fatalf("a box row already: %v %v", found, err)
+	}
+	for box, want := range map[*boxHostName]string{nil: fallbackBoxName, newBoxHostNameFrom((&fakeInfo{name: "office-box"}).Info, time.Now): "office-box"} {
+		if b, err := (honeypotInventory{inv: s.d.Inventory, box: box}).Box(t.Context()); err != nil || b.Name != want {
+			t.Errorf("box %q: %+v %v", want, b, err)
+		}
 	}
 }
 

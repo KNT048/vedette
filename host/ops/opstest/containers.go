@@ -274,6 +274,8 @@ func (m *Machine) ctr() string {
 //
 //	pull -q <ref@digest>                 records the digest as present, prints an image id; exit 125 and nothing
 //	                                     recorded when the marker "pull-fails" exists
+//	pull -q oci:<dir>:<image ref>        the same for a bundle's layout: the digest is the one <dir>/index.json names
+//	                                     (its blob must be in the layout); see OCIPulls
 //	image inspect --format json <ref>    prints a one-image JSON array when the digest (for ref@digest) or the
 //	                                     tag's digest (for a local tag) is present, else exit 125; the digest it
 //	                                     shows is the one the marker file ctr/img.lie holds when that exists
@@ -294,6 +296,17 @@ case "$1" in
     [ -e "$REC/mark.pull-fails" ] && { echo "Error: pulling failed" >&2; exit 125; }
     ref="$3"; d="${ref#*@}"
     svc="${ref#ghcr.io/knt048/vedette-}"; svc="${svc%%@*}"
+    case "$ref" in
+      oci:*)
+        # a bundle's layout (D-452): "oci:<dir>:ghcr.io/knt048/vedette-<svc>:<version>"; the image is the one the host's own
+        # index.json names, and its blob must be in the layout (Podman would fail without it)
+        rest="${ref#oci:}"; dir="${rest%%:*}"; name="${rest#*:}"
+        svc="${name#ghcr.io/knt048/vedette-}"; svc="${svc%%:*}"
+        d=$(sed -n 's/.*"digest":"\(sha256:[0-9a-f]*\)".*/\1/p' "$dir/index.json")
+        [ -n "$d" ] && [ -f "$dir/blobs/sha256/${d#sha256:}" ] || { echo "Error: no image in $dir" >&2; exit 125; }
+        echo "$ref" >> "$S/ocipulls"
+        ;;
+    esac
     echo "$svc" > "$S/have.$d"
     echo "$id"
     ;;

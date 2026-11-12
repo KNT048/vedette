@@ -118,6 +118,7 @@
     "title": "AI assistant",
     "saved": "Token level saved",
     "statusOn": "AI profiles are set up. Each task uses the profile you assign to it below.",
+    "statusAllFailed": "AI profiles are set up, but the last connection test of each one failed. Check the reason on each profile below and test again.",
     "statusOff": "No usable AI profile yet. The Ask AI buttons stay off until you add one.",
     "flow": {
       "title": "What data leaves this box",
@@ -223,6 +224,7 @@
       "location": "Where it runs",
       "model": "Model",
       "key": "Key",
+      "lastTest": "Last test",
       "usage": "Used today",
       "actions": "Actions"
     },
@@ -254,6 +256,9 @@
     "edit": "Edit",
     "remove": "Remove",
     "testOk": "Connected",
+    "lastNever": "Not tested yet",
+    "lastOk": "Tested {{time}}: success",
+    "lastFail": "Tested {{time}}: failed: {{reason}}",
     "testDetail": "{{name}} replied in {{ms}} ms. The test sent 3 small requests, which used {{input}} tokens in and {{output}} tokens out in all.",
     "thisProfile": "This profile",
     "capTools": "The model can call tools.",

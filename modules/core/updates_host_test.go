@@ -95,6 +95,28 @@ func TestUpdateHostStepGoesFirstThenTheImages(t *testing.T) {
 	}
 }
 
+// Criterion (f): an image step that fails after the helper moved leaves the helper on the new version.
+func TestUpdateHostStaysNewWhenAnImageFailsLater(t *testing.T) {
+	t.Parallel()
+	e, fh := newHostRunEnv(t, "1.3.0", nil)
+	fh.ends["start sensor"] = api.RunError{Code: api.CodeUnitFailed}
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	if run := endedRun(t, e); run["status"] != "reverted" {
+		t.Fatalf("run = %v", run)
+	}
+	calls := fh.callList()
+	if countOf(calls, "self_update host 1.4.0 pkg-ok") != 1 || slices.ContainsFunc(calls, func(c string) bool { return strings.HasSuffix(c, " host") }) {
+		t.Errorf("calls = %q", calls)
+	}
+	r := e.admin.get("/core/updates")
+	if hist := getArr(r, "history"); len(hist) != 1 || hist[0].(map[string]any)["component"] != "host" || hist[0].(map[string]any)["to"] != "1.4.0" {
+		t.Errorf("history = %v", hist)
+	}
+	if h := componentOf(r, "host"); h["version"] != "1.4.0" {
+		t.Errorf("host component = %v", h)
+	}
+}
+
 // Criterion (c): the new helper did not start, the host went back by itself; the run stops before any image.
 func TestUpdateHostRevertedStopsBeforeAnyImage(t *testing.T) {
 	t.Parallel()
@@ -214,6 +236,8 @@ func TestUpdateHostSentences(t *testing.T) {
 		"self_update_rollback_failed":   half,
 		api.CodeSelfUpdateInterrupted:   half,
 		"host_too_old":                  "This box's system helper (1.4.0) is too old to update itself. Run install.sh of release 1.5.1 on the box (it upgrades the helper and keeps your data), then apply again.",
+		api.CodeCurrentPackageMissing:   "Updating the system helper to 1.5.0 failed: the box has no copy of the running helper to go back to, so it was not updated. Run install.sh of release 1.5.1 on the box (it keeps your data), then apply again.",
+		"host_download_failed":          "Updating the system helper to 1.5.0 failed: its package could not be downloaded. Check that the box can reach github.com over HTTPS, then apply again.",
 	} {
 		if got := core.HostWhyForTest(code, "1.5.0", "1.4.0", "1.5.1"); got != want {
 			t.Errorf("%s:\n got %q\nwant %q", code, got, want)

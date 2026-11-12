@@ -724,7 +724,7 @@ const codeNotOffered = "not_offered"
 
 func (f *updFollower) wait(ctx context.Context, c *updateCall, run api.Run) (api.Run, error) {
 	limit := startWait
-	var end time.Time // host.self_update: the run's deadline + 5 minutes, across the host's restart
+	var end time.Time // host.self_update: the run's deadline + 20 minutes, across the host's restart
 	switch c.Command {
 	case api.CmdContainerPull:
 		limit = pullWait

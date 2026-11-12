@@ -95,6 +95,7 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **Câu chữ**: `hostWhy` phải trùng `hostError` của `web/src/features/core/mocks.ts` (story S-CORE-2 tiêu chí D-316); đổi một bên = đổi bên kia và `TestUpdateHostSentences`. `mapHostCode(transition_pending)` nay nêu thêm mục RUNBOOK "vedette-host self-update stopped half way" (API_CONVENTIONS cùng câu).
 - **Phía kiểm tra**: `refreshHost` đọc `state/containers` và `/v1/info` cùng một bản sao 10 s; `availableOf` nhận `helper` (`host_version`, cỡ gói).
 - **`updRun.retry`**: chỉ test đặt (thời gian giữa hai lần thử của follower).
+- **Giới hạn đã biết (review Opus r1 L5)**: host không bao giờ trở lại sau lần tự khởi động lại (bản mới chết và hộp không chạy lại bộ áp, giới hạn chấp nhận của D-316) mà `run_id` đã biết → `GetRun` lỗi mãi, mốc `deadline` + 20 phút không được xét (chỉ xét khi có câu trả lời), run kết thúc ở luật 6 giờ với câu chung "lost contact with its operating system helper", không phải câu "stopped half way"; RUNBOOK §5.6 vẫn là đường ra.
 
 ## Modifying: kết nối tới thiết bị (D-93, lát 13b-1: `web/src/features/core/{contract.ts,connectionsMock.ts,ConnectionsSection.tsx}`, `api/openapi.json`, `core/api`)
 - **Năm route mới, 501 tới lát 13b-4** (`/core/connections*`, INV-23): ogen sinh handler từ `api/openapi.json`; `server.Fallback` trả 501 cho tới khi `core/conn` có backend. **`core/server/modules_test.go` (`contractRoutes`) và `api/route-modules.json`** đã đổi: năm route rời `ai`, vào `core`.

@@ -40,10 +40,11 @@ const (
 	maxHostPackage    = 256 << 20        // the host's limit on host.files[].size
 
 	// The host's clocks (host-api 6.14 "Thời hạn"): Run parks within 10 minutes, the run's deadline is 130 minutes after
-	// the journal starts, and core waits 5 minutes past that deadline before it calls the run stopped half way.
+	// the journal starts, and the host settles a parked run at the latest 15 minutes past it (its safety net); core
+	// waits 20 minutes past the deadline (host/ops coreWaitPastDeadline) before it calls the run stopped half way.
 	selfUpdatePrePark = 10 * time.Minute
 	selfUpdateWindow  = 130 * time.Minute
-	selfUpdateGrace   = 5 * time.Minute
+	selfUpdateGrace   = 20 * time.Minute
 
 	// End codes of the host step that core decides itself.
 	codeHostTooOld   = "host_too_old"         // the helper has no host.self_update (criterion (h))
@@ -138,12 +139,15 @@ func (f *updFollower) sendHost(ctx context.Context, rec *updateRunRec, i int) (a
 	if rec.Host.File == nil { // the release has no package for this machine: nothing to send
 		return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: api.CodePlatformMismatch}}, nil
 	}
-	if c.Package == "" {
+	if c.Package == "" { // stored before the file exists, so a file a cut run leaves is always one the run names
 		id, err := newPackageID()
 		if err != nil {
 			return api.Run{}, err
 		}
 		c.Package = id
+		if err := h.saveUpdateRun(ctx, rec); err != nil {
+			return api.Run{}, err
+		}
 	}
 	if !f.fetched[c.Package] {
 		code, err := h.downloadHostPackage(ctx, rec.To, *rec.Host.File, c.Package)
@@ -276,7 +280,7 @@ func (h *OSHandlers) removeHostPackages(rec *updateRunRec) {
 }
 
 // selfUpdateEnd is when core stops waiting for a host.self_update run: its deadline (known once it parked, else the
-// latest it can be) plus 5 minutes. The host never lets a run outlive its deadline by more than its safety net.
+// latest it can be) plus 20 minutes. The host never lets a run outlive its deadline by more than its 15-minute safety net.
 func selfUpdateEnd(run api.Run) time.Time {
 	if run.ParkedDeadline != nil {
 		return run.ParkedDeadline.Add(selfUpdateGrace)

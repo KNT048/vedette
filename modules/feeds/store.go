@@ -857,6 +857,17 @@ type IOCRecord struct {
 	Sightings   []IOCSighting
 }
 
+// IOCListed says whether a switched-on feed lists at least one indicator now: false while every IOC feed is off or none has loaded yet, so
+// logs' digest can say that no connection can be matched instead of "none of your devices connected to a listed address".
+func (s *Store) IOCListed(ctx context.Context) (bool, error) {
+	var ok bool
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_ioc_source s JOIN feeds_source f ON f.id = s.source_id WHERE f.enabled = 1)`).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("feeds: read listings: %w", err)
+	}
+	return ok, nil
+}
+
 // IOCLookup returns an indicator by type ("ip", "domain", "url", "hash") and canonical value (see IOCKey).
 // An indicator no feed lists any more is reported with no sightings.
 func (s *Store) IOCLookup(ctx context.Context, kind, value string) (IOCRecord, bool, error) {

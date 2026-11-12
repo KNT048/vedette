@@ -69137,9 +69137,12 @@ type LogsGetLogsDigestOK struct {
 	BadConnections []LogsGetLogsDigestOKBadConnectionsItem `json:"bad_connections"`
 	BaselineDays   int                                     `json:"baseline_days"`
 	GeneratedAt    time.Time                               `json:"generated_at"`
-	Lines24h       int                                     `json:"lines_24h"`
-	New            []LogsGetLogsDigestOKNewItem            `json:"new"`
-	Spikes         []LogsGetLogsDigestOKSpikesItem         `json:"spikes"`
+	// False when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every
+	// IOC feed off, or none loaded yet).
+	IocMatching bool                            `json:"ioc_matching"`
+	Lines24h    int                             `json:"lines_24h"`
+	New         []LogsGetLogsDigestOKNewItem    `json:"new"`
+	Spikes      []LogsGetLogsDigestOKSpikesItem `json:"spikes"`
 }
 
 // GetBadConnections returns the value of BadConnections.
@@ -69155,6 +69158,11 @@ func (s *LogsGetLogsDigestOK) GetBaselineDays() int {
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *LogsGetLogsDigestOK) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetIocMatching returns the value of IocMatching.
+func (s *LogsGetLogsDigestOK) GetIocMatching() bool {
+	return s.IocMatching
 }
 
 // GetLines24h returns the value of Lines24h.
@@ -69185,6 +69193,11 @@ func (s *LogsGetLogsDigestOK) SetBaselineDays(val int) {
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *LogsGetLogsDigestOK) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetIocMatching sets the value of IocMatching.
+func (s *LogsGetLogsDigestOK) SetIocMatching(val bool) {
+	s.IocMatching = val
 }
 
 // SetLines24h sets the value of Lines24h.

@@ -96,6 +96,7 @@
       "lookup": "Look up {{dst}}",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
+      "emptyNoIoc": "No switched-on threat feed lists any IP address or domain yet, so no connection can be matched. Switch on an IOC feed under Feeds, or wait for its first download.",
       "via": {
         "span_dns": "SPAN: DNS query",
         "span_sni": "SPAN: TLS server name",

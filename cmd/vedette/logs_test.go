@@ -237,8 +237,8 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	d, err := svc.Digest(ctx)
-	if err != nil || len(d.BadConnections) != 1 {
-		t.Fatalf("%+v %v", d.BadConnections, err)
+	if err != nil || len(d.BadConnections) != 1 || !d.IOCMatching {
+		t.Fatalf("%+v %v matching=%v", d.BadConnections, err, d.IOCMatching)
 	}
 	h := d.BadConnections[0]
 	if h.Dest != "185.220.101.47" || h.DestKind != "ip" || h.Confidence != 0.4 || len(h.Feeds) != 1 || h.Feeds[0] != feedName || h.AssetID == nil || *h.AssetID != dev.ID || h.SeenVia != "syslog:FW-HQ" {
@@ -315,8 +315,8 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if f.On() {
 		t.Fatal("On with the feeds module off")
 	}
-	if d, err := svc.Digest(ctx); err != nil || len(d.BadConnections) != 0 {
-		t.Fatalf("the digest shows hits with the feeds module off: %v %+v", err, d.BadConnections)
+	if d, err := svc.Digest(ctx); err != nil || len(d.BadConnections) != 0 || d.IOCMatching {
+		t.Fatalf("the digest shows hits, or says it can match, with the feeds module off: %v %+v %v", err, d.BadConnections, d.IOCMatching)
 	}
 	if _, _, err := f.Lookup(ctx, "ip", "185.220.101.47"); !errors.Is(err, logs.ErrFeedsOff) {
 		t.Fatalf("feeds off: %v", err)

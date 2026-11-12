@@ -46,6 +46,12 @@ func (f *fakeFeeds) On() bool {
 	return !errors.Is(f.err, ErrFeedsOff)
 }
 
+func (f *fakeFeeds) Listed(context.Context) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.listed) > 0, nil
+}
+
 func (f *fakeFeeds) lookups() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -287,6 +293,34 @@ func TestIOCDedupe(t *testing.T) {
 }
 
 // PRE-3: with the feeds off the lines are stored, nothing is announced, the digest has no bad connections, and nothing is warned about.
+// QA walk a: the digest says when no connection can be matched (no switched-on feed lists an indicator, the feeds module off, no port),
+// so an empty list is not read as "none of your devices connected to a listed address".
+func TestDigestSaysWhetherConnectionsCanBeMatched(t *testing.T) {
+	t.Parallel()
+	e, _, ff, _ := iocEnv(t)
+	if !e.digest().IOCMatching {
+		t.Fatal("indicators listed, digest says nothing can be matched")
+	}
+	ff.mu.Lock()
+	listed := ff.listed
+	ff.listed = nil
+	ff.mu.Unlock()
+	if e.digest().IOCMatching {
+		t.Fatal("nothing listed, digest says it can match")
+	}
+	ff.mu.Lock()
+	ff.listed = listed
+	ff.mu.Unlock()
+	ff.setErr(ErrFeedsOff)
+	if e.digest().IOCMatching {
+		t.Fatal("feeds off, digest says it can match")
+	}
+	e.svc.cfg.Feeds = nil
+	if e.digest().IOCMatching {
+		t.Fatal("no feeds port, digest says it can match")
+	}
+}
+
 func TestContract_PRE3_FeedsOffMakeNoHits(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)

@@ -1077,9 +1077,16 @@ func TestContract_Reboot_CompletionIsAuditedAfterANewBoot(t *testing.T) {
 			t.Fatal("reboot_completed on the same boot")
 		}
 	}
-	// The pending reboot was dropped by that restart, so give the next boot a fresh one.
-	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
+	// The pending reboot was dropped by that restart (audited reboot_failed host_restarted, D-453), so give the
+	// next boot a fresh one, through the restarted host: it now owns the audit chain.
+	if _, err := h2.Client.Run(context.Background(), "os.reboot", api.OSRebootArgs{When: "now"}, e.id(), "x"); err != nil {
+		t.Fatal(err)
+	}
 	eventually(t, "second reboot", func() bool { return rebootCalls(e) == 2 })
+	eventually(t, "the second reboot recorded as issued", func() bool {
+		raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json"))
+		return bytes.Contains(raw, []byte(`"issued":true`))
+	})
 	e.m.SetBootID("99999999-8888-4777-8666-555555555555") // the kernel booted again
 	next := e.m.Ops(e.clock.Now)
 	h3 := servertest.Start(t, next.Commands(), func(o *server.Options) {

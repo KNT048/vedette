@@ -55,6 +55,8 @@ var prodPaths = map[string]string{
 	binSystemdRun: "/usr/bin/systemd-run",
 	binDpkgDeb:    "/usr/bin/dpkg-deb",
 	binDpkgQuery:  "/usr/bin/dpkg-query",
+	// os.reboot (D-453): logind's list of inhibitors; busctl is in the systemd package, in /usr/bin on Debian and Ubuntu.
+	binBusctl: "/usr/bin/busctl",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -228,6 +230,8 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binSystemdRun, Path: p(binSystemdRun), Validate: validateSystemdRun(stateDir), MaxOutput: 1 << 16},
 		{Name: binDpkgDeb, Path: p(binDpkgDeb), Validate: validateDpkgDeb(stateDir), MaxOutput: 1 << 12},
 		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateDpkgQuery, MaxOutput: 1 << 12},
+		// os.reboot (D-453): the one read of logind's inhibitors.
+		{Name: binBusctl, Path: p(binBusctl), Validate: exactly(argsListInhibitors...), MaxOutput: maxInhibitOutput},
 	}
 }
 

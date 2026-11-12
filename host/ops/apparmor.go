@@ -28,9 +28,11 @@ const (
 	// appArmorDisableRel is the link `aa-disable` makes (and apparmor.service honours at boot).
 	appArmorDisableRel  = "etc/apparmor.d/disable/" + AppArmorProfile
 	appArmorEnabledRel  = "sys/module/apparmor/parameters/enabled"
-	appArmorProfilesRel = "sys/kernel/security/apparmor/profiles"
-	// appArmorLoadLimit bounds one compile and load (a second or two on the target machines).
-	appArmorLoadLimit = 60 * time.Second
+	appArmorFSRel       = "sys/kernel/security/apparmor"
+	appArmorProfilesRel = appArmorFSRel + "/profiles"
+	// appArmorLoadLimit bounds one compile and load (a second or two on the target machines). The step runs beside startHP and is
+	// joined before READY, so it adds nothing to the start budget of vedette-host.service (D-121) while it stays under startHP's 120 s.
+	appArmorLoadLimit = 20 * time.Second
 	// maxProfilesList bounds the read of the kernel's list (a few hundred profiles on a desktop, a few dozen on a server).
 	maxProfilesList = 4 << 20
 )
@@ -42,10 +44,23 @@ var argsAppArmorLoad = []string{"--replace", "--skip-read-cache", "--write-cache
 // validateAppArmorParser accepts exactly argsAppArmorLoad.
 var validateAppArmorParser = exactly(argsAppArmorLoad...)
 
-// appArmorOn says whether the kernel has AppArmor enabled (the module parameter Podman's check reads too).
+// appArmorOn is Podman's own test of whether it applies an AppArmor profile (containers/common pkg/apparmor IsEnabled: runc's
+// check of the module parameter and of the mounted securityfs, then apparmor_parser in /sbin or on PATH): where it is false
+// Podman ignores the profile name, so nothing here is needed and nothing is said.
 func (o *Ops) appArmorOn() bool {
 	b, err := readBounded(o.path(appArmorEnabledRel), 16)
-	return err == nil && bytes.HasPrefix(b, []byte("Y"))
+	if err != nil || !bytes.HasPrefix(b, []byte("Y")) {
+		return false
+	}
+	if st, err := os.Stat(o.path(appArmorFSRel)); err != nil || !st.IsDir() {
+		return false
+	}
+	for _, p := range []string{"usr/sbin/" + binAppArmorParser, "sbin/" + binAppArmorParser} {
+		if st, err := os.Stat(o.path(p)); err == nil && st.Mode().IsRegular() {
+			return true
+		}
+	}
+	return false
 }
 
 // appArmorLoaded says whether the kernel lists the profile, in any mode ("vedette-container (enforce)", "(complain)"). A list
@@ -86,7 +101,8 @@ func (o *Ops) ensureAppArmor(ctx context.Context) {
 		missing("disabled")
 		return
 	}
-	if st, err := os.Lstat(o.path(appArmorFileRel)); err != nil || !st.Mode().IsRegular() {
+	// Stat, not Lstat: a profile an administrator keeps elsewhere and links here is loaded like apparmor.service loads it
+	if st, err := os.Stat(o.path(appArmorFileRel)); err != nil || !st.Mode().IsRegular() {
 		missing("file_missing")
 		return
 	}

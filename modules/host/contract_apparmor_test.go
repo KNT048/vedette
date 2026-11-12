@@ -43,20 +43,65 @@ func TestContract_AppArmor_ALoadedProfileInAnyModeIsLeftAlone(t *testing.T) {
 	}
 }
 
+// Off is Podman's own test failing (containers/common IsEnabled): module parameter not Y, no securityfs, or no apparmor_parser in
+// /usr/sbin or /sbin. Podman then ignores the profile name, so the host neither loads nor audits nor logs an error.
 func TestContract_AppArmor_OffMeansNothing(t *testing.T) {
 	t.Parallel()
+	for name, off := range map[string]func(e *ctrEnv){
+		"parameter N":        func(e *ctrEnv) { e.m.WriteRoot("sys/module/apparmor/parameters/enabled", "N\n") },
+		"no parameter":       func(e *ctrEnv) { e.m.RemoveRoot("sys/module/apparmor/parameters/enabled") },
+		"no securityfs":      func(e *ctrEnv) { _ = os.RemoveAll(filepath.Join(e.m.Root, "sys/kernel/security/apparmor")) },
+		"no apparmor_parser": func(e *ctrEnv) { e.m.RemoveRoot("usr/sbin/apparmor_parser") },
+	} {
+		e := startCtr(t)
+		e.m.AppArmor()
+		off(e)
+		rec := e.startHost(t)
+		if c := e.m.Calls(ops.BinAppArmorParser); len(c) != 0 || strings.Contains(rec.text(), "apparmor_profile") {
+			t.Errorf("%s: calls %q, audit %s", name, c, rec.text())
+		}
+	}
+	// /sbin is where Podman looks first: a parser there alone counts as on
 	e := startCtr(t)
 	e.m.AppArmor()
-	e.m.WriteRoot("sys/module/apparmor/parameters/enabled", "N\n")
-	rec := e.startHost(t)
-	if c := e.m.Calls(ops.BinAppArmorParser); len(c) != 0 || strings.Contains(rec.text(), "apparmor_profile") {
-		t.Errorf("AppArmor off: calls %q, audit %s", c, rec.text())
+	e.m.RemoveRoot("usr/sbin/apparmor_parser")
+	e.m.WriteRoot("sbin/apparmor_parser", "")
+	e.startHost(t)
+	if c := e.m.Calls(ops.BinAppArmorParser); len(c) != 1 {
+		t.Errorf("parser in /sbin: %d loads, want 1", len(c))
 	}
-	// a machine without the module parameter at all (no AppArmor in the kernel) is the same
+	// a machine without AppArmor at all
 	e2 := startCtr(t)
 	rec2 := e2.startHost(t)
 	if c := e2.m.Calls(ops.BinAppArmorParser); len(c) != 0 || strings.Contains(rec2.text(), "apparmor_profile") {
 		t.Errorf("no AppArmor: calls %q, audit %s", c, rec2.text())
+	}
+}
+
+// A profile file that is a symbolic link to a regular file loads, as apparmor.service would load it.
+func TestContract_AppArmor_ASymlinkedProfileLoads(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	e.m.AppArmor()
+	e.m.WriteRoot("srv/profiles/vedette-container", "profile vedette-container {}\n")
+	e.m.RemoveRoot("etc/apparmor.d/vedette-container")
+	if err := os.Symlink(filepath.Join(e.m.Root, "srv/profiles/vedette-container"), filepath.Join(e.m.Root, "etc/apparmor.d/vedette-container")); err != nil {
+		t.Fatal(err)
+	}
+	rec := e.startHost(t)
+	if c := e.m.Calls(ops.BinAppArmorParser); len(c) != 1 || !strings.Contains(rec.text(), "apparmor_profile_loaded") {
+		t.Errorf("symlinked profile: calls %q, audit %s", c, rec.text())
+	}
+	// a link to nothing is a missing file
+	e2 := startCtr(t)
+	e2.m.AppArmor()
+	e2.m.RemoveRoot("etc/apparmor.d/vedette-container")
+	if err := os.Symlink(filepath.Join(e2.m.Root, "gone"), filepath.Join(e2.m.Root, "etc/apparmor.d/vedette-container")); err != nil {
+		t.Fatal(err)
+	}
+	rec2 := e2.startHost(t)
+	if c := e2.m.Calls(ops.BinAppArmorParser); len(c) != 0 || !strings.Contains(rec2.text(), `"reason":"file_missing"`) {
+		t.Errorf("dangling profile link: calls %q, audit %s", c, rec2.text())
 	}
 }
 
@@ -71,7 +116,6 @@ func TestContract_AppArmor_MissingReasonsAreAuditedAndNeverBlockTheStart(t *test
 		{"disabled", func(e *ctrEnv) { e.m.WriteRoot("etc/apparmor.d/disable/vedette-container", "") }, false},
 		{"file_missing", func(e *ctrEnv) { e.m.RemoveRoot("etc/apparmor.d/vedette-container") }, false},
 		{"profiles_unreadable", func(e *ctrEnv) { e.m.RemoveRoot("sys/kernel/security/apparmor/profiles") }, false},
-		{"parser_missing", func(e *ctrEnv) { _ = os.Remove(filepath.Join(e.m.Bin, ops.BinAppArmorParser)) }, false},
 		{"load_failed", func(e *ctrEnv) {
 			e.m.RuleText(ops.BinAppArmorParser, "--replace", "AppArmor parser error\n", 1, "", "")
 		}, true},

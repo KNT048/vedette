@@ -194,7 +194,7 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 	}
 	want := "aa-enabled --quiet\napparmor_parser --skip-kernel-load --skip-cache <profile>\n" +
 		"aa-enabled --quiet\napparmor_parser --replace --skip-read-cache --write-cache <profile>\n" +
-		"grep -Eq ^vedette-container \\((enforce|complain)\\)$ /sys/kernel/security/apparmor/profiles\n"
+		"grep -Eq ^vedette-container \\([a-z]+\\)$ /sys/kernel/security/apparmor/profiles\n"
 	if r := run(t, "0", "0", "0", "ok"); !r.ok || r.calls != want {
 		t.Errorf("AppArmor on: compile, load, read the kernel's list: %+v\nwant\n%q", r, want)
 	}
@@ -218,14 +218,14 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 			t.Errorf("%s: %+v", f, r)
 		}
 	}
-	// the kernel-list pattern accepts the profile in enforce and complain mode and nothing else
+	// the kernel-list pattern accepts the profile in any mode (like the host's check and Podman's) and no other name
 	m := regexp.MustCompile(`grep -Eq '([^']+)' /sys/kernel/security/apparmor/profiles`).FindStringSubmatch(text)
 	if m == nil {
 		t.Fatal("the postinst has no grep of the kernel's profile list")
 	}
 	re := regexp.MustCompile(m[1])
 	for line, want := range map[string]bool{
-		"vedette-container (enforce)": true, "vedette-container (complain)": true, "vedette-container (kill)": false,
+		"vedette-container (enforce)": true, "vedette-container (complain)": true, "vedette-container (kill)": true, "vedette-container ()": false,
 		"vedette-container-x (enforce)": false, "crun//&vedette-container (enforce)": false,
 	} {
 		if re.MatchString(line) != want {

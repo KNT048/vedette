@@ -135,8 +135,8 @@ load_profile() {
 	aa_on || return 0
 	# compiled afresh, cache refreshed for the boot-time load (as dh_apparmor's -r -T -W; the postrm removes the cache file on purge)
 	apparmor_parser --replace --skip-read-cache --write-cache "$AA_PROFILE" || fail "could not load $AA_PROFILE into the kernel (apparmor_parser)"
-	# the effect, not the exit code: the kernel lists the profile (complain mode is an administrator's aa-complain: kept)
-	grep -Eq '^vedette-container \((enforce|complain)\)$' /sys/kernel/security/apparmor/profiles ||
+	# the effect, not the exit code: the kernel lists the profile, in any mode (an administrator's aa-complain is kept), like Podman's check
+	grep -Eq '^vedette-container \([a-z]+\)$' /sys/kernel/security/apparmor/profiles ||
 		fail "the kernel does not list the AppArmor profile vedette-container after loading $AA_PROFILE"
 }
 

@@ -499,27 +499,37 @@
       "uninstall": "Remove osquery from the server again",
       "security": "The token can only enroll osquery on a machine and reads nothing from Vedette. It is shown once, expires (7 days by default) and can be revoked. It is sent as an argument and in a header, never in a web address. Every install and enrollment is recorded in the audit log.",
       "advanced": "Advanced: manual setup",
-      "advancedBody": "The same result step by step, for locked-down servers or your own packaging.",
+      "advancedBody": "The same result step by step, for locked-down servers or your own packaging. The package comes from this box; a file you copied over (USB stick) skips the download: compare its SHA-256 with the table above, then install it with the last line.",
       "queries": "What Vedette asks osquery for",
       "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device."
     },
+    "download": {
+      "title": "Or download the package",
+      "body": "For a server without network access, or to install it your own way: download the official osquery package from this box, copy it to the server (a USB stick works), check its SHA-256 and install it. Then follow the enrollment steps under Advanced: manual setup.",
+      "caption": "osquery packages this box serves",
+      "col": { "file": "File", "for": "For", "size": "Size", "sha": "SHA-256" },
+      "link": "Download {{file}}",
+      "size": "{{mb}} MB",
+      "format": { "deb": "Debian, Ubuntu", "rpm": "RHEL, Rocky, AlmaLinux", "msi": "Windows Server" },
+      "none": "This box has no copy of the osquery packages (a development build), so the command below stops at the package download. Update Vedette to the release."
+    },
     "steps": {
       "linux": {
-        "installDeb": "Install osquery (Debian, Ubuntu)",
-        "installRpm": "Install osquery (RHEL, Rocky, AlmaLinux)",
+        "installDeb": "Download osquery from the box, check it and install it (Debian, Ubuntu)",
+        "installRpm": "Download osquery from the box, check it and install it (RHEL, Rocky, AlmaLinux)",
         "secret": "Save the token and the box certificate, then check the fingerprint",
         "flags": "Create the osquery flags file",
         "start": "Start osquery"
       },
       "windows": {
-        "install": "Install osquery",
+        "install": "Download osquery from the box, check it and install it",
         "secret": "Save the token and the box certificate, then check it",
         "flags": "Create the osquery flags file",
         "service": "Install and start the osqueryd service"
       }
     },
-    "fingerprint": "The certificate download in the manual steps uses -k once, because the box certificate is not trusted yet. Compare the fingerprint it prints with the one from your Vedette administrator; every later request verifies the certificate.",
-    "ownPaths": "The /api/v1/install/… and /api/v1/intake/… paths are Vedette's own (placeholder names in this preview, to be matched with the software on the box). Everything else follows the osquery and Wazuh documentation.",
+    "fingerprint": "The downloads in the manual steps use -k, because the box certificate is not trusted yet: the package is installed only when its SHA-256 matches the value on this page, and the certificate step prints its fingerprint for you to compare with the one from your Vedette administrator. osquery verifies the certificate on every later request.",
+    "ownPaths": "The /api/v1/install/… and /api/v1/intake/… paths are Vedette's own. Everything else follows the osquery and Wazuh documentation.",
     "wazuh": {
       "title": "Wazuh",
       "intro": "Already run Wazuh? Vedette reads the agent list, operating systems, installed packages and Windows hotfixes from the Wazuh server API. Nothing is installed on your agent machines, and the Wazuh user can only read.",

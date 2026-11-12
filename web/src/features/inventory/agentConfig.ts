@@ -6,15 +6,16 @@
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
 // - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses. https://osquery.io/schema/
 //   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
-// - osquery cài Linux: kho pkg.osquery.io (deb/pubkey.gpg, rpm/GPG, osquery-s3-rpm.repo) — https://osquery.io/downloads/official (trang cứng không tải được lúc kiểm; lệnh khớp hướng dẫn Wazuh dùng cùng kho:
-//   https://documentation.wazuh.com/current/user-manual/capabilities/system-inventory/osquery.html) và https://osquery.readthedocs.io/en/stable/installation/install-linux/
-// - osquery cài Windows: C:\Program Files\osquery, manage-osqueryd.ps1 -install -startupArgs, Start-Service osqueryd. https://osquery.readthedocs.io/en/stable/installation/install-windows/
+// - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (D-404: hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
+//   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
+//   C:\Program Files\osquery, manage-osqueryd.ps1 -install -startupArgs, Start-Service osqueryd (https://osquery.readthedocs.io/en/stable/installation/install-windows/).
 // - Wazuh API: cổng 55000, POST /security/user/authenticate (-u user:pass, ?raw=true), policy/role/user qua POST /security/policies|roles|users, nối bằng
 //   POST /security/roles/{id}/policies?policy_ids= và POST /security/users/{id}/roles?role_ids=; hành động agent:read và syscollector:read trên agent:id:*;
 //   syscollector: GET /syscollector/{agent_id}/os|packages|hotfixes, GET /agents.
 //   https://documentation.wazuh.com/current/user-manual/api/getting-started.html , .../api/rbac/configuration.html , .../api/rbac/reference.html
-// ĐƯỜNG DẪN CỦA RIÊNG VEDETTE (tên mock, căn lại với backend): /api/v1/install/*, /api/v1/intake/osquery/{enroll,config,log,status}, /api/v1/intake/ca.pem.
-import { linuxOneLiner, windowsOneLiner } from './installScripts'
+// ĐƯỜNG DẪN CỦA RIÊNG VEDETTE: /api/v1/install/*, /api/v1/intake/osquery/{enroll,config,log,status}, /api/v1/intake/ca.pem.
+import { linuxOneLiner, OSQUERY_VERSION, windowsOneLiner } from './installScripts'
+import type { OsqueryPackage } from './types'
 
 export type Platform = 'linux' | 'windows'
 export interface ConfigStep { key: string; file: string; code: string }
@@ -33,14 +34,25 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
   },
 }, null, 2)
 
-/** Các bước cài thủ công ("Advanced: manual setup"). `token` là secret thật (chỉ lúc vừa tạo) hoặc "<TOKEN>". */
-export function osquerySteps(platform: Platform, serverUrl: string, token: string): ConfigStep[] {
+/** Các bước cài thủ công ("Advanced: manual setup"). `token` là secret thật (chỉ lúc vừa tạo) hoặc "<TOKEN>". Gói tải từ chính hộp (D-404) và kiểm
+ *  bằng SHA-256 của `packages` (trang đã đăng nhập) trước khi cài, sai thì không cài; hộp không có gói nào → không có bước cài (giao diện nói lý do).
+ *  Một lệnh cho cả x86_64 và arm64: tên gói theo `dpkg --print-architecture` (amd64, arm64) hay `uname -m` (x86_64, aarch64), đúng tên tệp của hộp. */
+export function osquerySteps(platform: Platform, serverUrl: string, token: string, packages: OsqueryPackage[]): ConfigStep[] {
   const host = hostOf(serverUrl)
+  const mirror = `${serverUrl}/api/v1/install/osquery`
+  const linuxGet = (format: 'deb' | 'rpm', file: string, install: string): ConfigStep[] => {
+    const sums = packages.filter((p) => p.format === format).map((p) => `'${p.sha256}  ${p.file}'`)
+    if (!sums.length) return []
+    return [{
+      key: format === 'deb' ? 'installDeb' : 'installRpm', file: format === 'deb' ? 'Debian, Ubuntu (shell)' : 'RHEL, Rocky, AlmaLinux (shell)',
+      code: `cd "$(mktemp -d)" && f=${file} && \\\ncurl -fSLk ${mirror}/$f -o $f && \\\nprintf '%s\\n' ${sums.join(' ')} | grep " $f\\$" | sha256sum -c - && \\\n${install} $f`,
+    }]
+  }
   if (platform === 'linux') {
     const ca = '/etc/osquery/vedette-ca.pem'
     return [
-      { key: 'installDeb', file: 'Debian, Ubuntu (shell)', code: 'sudo mkdir -p /etc/apt/keyrings\ncurl -L https://pkg.osquery.io/deb/pubkey.gpg | sudo tee /etc/apt/keyrings/osquery.asc\necho "deb [arch=amd64 signed-by=/etc/apt/keyrings/osquery.asc] https://pkg.osquery.io/deb deb main" | sudo tee /etc/apt/sources.list.d/osquery.list\nsudo apt-get update\nsudo apt-get install osquery' },
-      { key: 'installRpm', file: 'RHEL, Rocky, AlmaLinux (shell)', code: 'curl -L https://pkg.osquery.io/rpm/GPG | sudo tee /etc/pki/rpm-gpg/RPM-GPG-KEY-osquery\nsudo yum-config-manager --add-repo https://pkg.osquery.io/rpm/osquery-s3-rpm.repo\nsudo yum-config-manager --enable osquery-s3-rpm-repo\nsudo yum install osquery' },
+      ...linuxGet('deb', `osquery_${OSQUERY_VERSION}-1.linux_$(dpkg --print-architecture).deb`, 'sudo dpkg -i'),
+      ...linuxGet('rpm', `osquery-${OSQUERY_VERSION}-1.linux.$(uname -m).rpm`, 'sudo rpm -Uvh'),
       { key: 'secret', file: 'Shell', code: `sudo mkdir -p /etc/osquery\n(umask 077; echo '${token}' | sudo tee /etc/osquery/enroll.secret >/dev/null)\nsudo curl -fsSk ${serverUrl}/api/v1/intake/ca.pem -o ${ca}\nopenssl x509 -in ${ca} -noout -fingerprint -sha256` },
       { key: 'flags', file: '/etc/osquery/osquery.flags', code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=/etc/osquery/enroll.secret\n--tls_server_certs=${ca}\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
       { key: 'start', file: 'Shell', code: 'sudo systemctl enable --now osqueryd' },
@@ -48,7 +60,10 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
   }
   const dir = 'C:\\Program Files\\osquery'
   return [
-    { key: 'install', file: 'PowerShell (Administrator)', code: '# Either Chocolatey (installs the service too) ...\nchoco install osquery --params=\'/InstallService\'\n# ... or the MSI from https://osquery.io/downloads/official (then the service step below)\nmsiexec /i osquery-<version>.msi /qn /norestart' },
+    ...packages.filter((p) => p.format === 'msi').slice(0, 1).map((p) => ({
+      key: 'install', file: 'PowerShell (Administrator)',
+      code: `$f = "$env:TEMP\\${p.file}"\ncurl.exe -fSLk ${mirror}/${p.file} -o $f\nif ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${p.sha256}') { Start-Process msiexec.exe -Wait -ArgumentList "/i \`"$f\`" /qn /norestart" } else { throw 'Checksum mismatch: do not install this file' }`,
+    })),
     { key: 'secret', file: 'PowerShell (Administrator)', code: `Set-Content -Path "${dir}\\enroll.secret" -Value '${token}' -NoNewline -Encoding ascii\ncurl.exe -fsSk ${serverUrl}/api/v1/intake/ca.pem -o "${dir}\\vedette-ca.pem"\ncertutil -dump "${dir}\\vedette-ca.pem"` },
     { key: 'flags', file: `${dir}\\osquery.flags`, code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=${dir}\\enroll.secret\n--tls_server_certs=${dir}\\vedette-ca.pem\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
     { key: 'service', file: 'PowerShell (Administrator)', code: `cd "${dir}"\n.\\manage-osqueryd.ps1 -install -startupArgs "--flagfile=\`"${dir}\\osquery.flags\`""\nSet-Service osqueryd -StartupType Automatic\nStart-Service osqueryd` },

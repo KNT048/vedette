@@ -11,7 +11,9 @@ import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, window
 import { catalogPath, CATALOG_Q_MAX } from './api'
 import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
+import { OSQUERY_VERSION } from './installScripts'
 import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, type StoredObs } from './mocks'
+import type { OsqueryPackage } from './types'
 import { normalizeRange, rangeProblem } from './validate'
 
 vi.setConfig({ testTimeout: 30_000 })
@@ -1122,7 +1124,20 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
     expect(within(dialog).getByText('Remove osquery from the server again')).toBeInTheDocument()
+    // D-404: direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
+    const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
+    const downloads = () => within(within(dialog).getByRole('table', { name: 'osquery packages this box serves' })).getAllByRole('link')
+    expect(downloads().map((a) => [a.getAttribute('href'), a.getAttribute('download')])).toEqual(
+      pkgs.filter((p) => p.platform === 'linux').map((p) => [`/api/v1/install/osquery/${p.file}`, p.file]))
+    const amd = within(dialog).getByRole('link', { name: `Download osquery_${OSQUERY_VERSION}-1.linux_amd64.deb` }).closest('tr')!
+    expect(amd).toHaveTextContent('Debian, Ubuntu · x86_64')
+    expect(amd).toHaveTextContent('30.6 MB')
+    expect(amd).toHaveTextContent(pkgs[0]!.sha256)
+    expect(within(dialog).queryByText(/osquery\.io|choco/)).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/has no copy of the osquery packages/)).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Windows Server' }))
+    expect(downloads().map((a) => a.getAttribute('download'))).toEqual([`osquery-${OSQUERY_VERSION}.msi`])
+    expect(within(dialog).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows Server · x64')
     expect(within(dialog).getByText(new RegExp(`-Token '${secret}'`))).toBeInTheDocument()
     expect(within(dialog).getAllByText(/Get-FileHash \$f -Algorithm SHA256/).length).toBeGreaterThan(0)
     expect(within(dialog).getByText(/curl\.exe -k for that one download only/)).toBeInTheDocument()
@@ -1150,6 +1165,24 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(text, platform).not.toMatch(/localhost|127\.0\.0\.1/)
       expect(text.replace(/https:\/\//g, ''), `${platform}: only https`).not.toMatch(/http:\/\//)
       expect(text).toMatch(/--cacert|--tls_server_certs/)
+    }
+  })
+
+  it('a box without the osquery packages says so, offers no download and points nowhere else (D-404)', async () => {
+    enableModule('agent-intake', true)
+    asAdmin()
+    const real = (await call('GET', '/agents')).json!
+    server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    for (const platform of ['Linux', 'Windows Server']) {
+      await user.click(within(dialog).getByRole('button', { name: platform }))
+      expect(within(dialog).getByText(/This box has no copy of the osquery packages/)).toBeInTheDocument()
+      expect(within(dialog).queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
+      expect(dialog.textContent).not.toMatch(/osquery\.io|choco/)
     }
   })
 
@@ -1461,7 +1494,8 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await call('POST', '/agents/wazuh/test', good)).status).toBe(403)
   })
 
-  it('setup text: key lines of the one-liners, the manual steps, the schedule and the Wazuh reader steps', () => {
+  it('setup text: key lines of the one-liners, the manual steps, the schedule and the Wazuh reader steps', async () => {
+    enableModule('agent-intake', true)
     const sha = 'a'.repeat(64)
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
@@ -1478,8 +1512,10 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(windowsOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toContain('-Uninstall')
     for (const s of [lin, win]) expect(s).not.toMatch(/http:\/\/|localhost/)
 
+    asAdmin()
+    const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
     for (const platform of ['linux', 'windows'] as const) {
-      const steps = osquerySteps(platform, BOX, '<TOKEN>')
+      const steps = osquerySteps(platform, BOX, '<TOKEN>', pkgs)
       const flags = steps.find((s) => s.key === 'flags')!.code
       for (const f of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', `--tls_hostname=192.168.10.250:8443`, '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(flags, `${platform}: ${f}`).toContain(f)
       expect(flags).not.toContain('https://') // tls_hostname has the port and no scheme
@@ -1487,8 +1523,23 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(steps.filter((s) => /-fsSk|-fsSLk/.test(s.code))).toHaveLength(1) // the certificate is fetched with -k once, to be checked by fingerprint
       expect(steps.find((s) => s.key === 'secret')!.code).toContain(platform === 'linux' ? 'openssl x509' : 'certutil -dump') // print the certificate so its fingerprint can be compared
     }
-    expect(osquerySteps('linux', BOX, 't').map((s) => s.key)).toEqual(['installDeb', 'installRpm', 'secret', 'flags', 'start'])
-    expect(osquerySteps('windows', BOX, 't').map((s) => s.key)).toEqual(['install', 'secret', 'flags', 'service'])
+    expect(osquerySteps('linux', BOX, 't', pkgs).map((s) => s.key)).toEqual(['installDeb', 'installRpm', 'secret', 'flags', 'start'])
+    expect(osquerySteps('windows', BOX, 't', pkgs).map((s) => s.key)).toEqual(['install', 'secret', 'flags', 'service'])
+    // D-404: the box is the only source; each package is checked against the SHA-256 of this page before it is installed
+    const all = [...osquerySteps('linux', BOX, 't', pkgs), ...osquerySteps('windows', BOX, 't', pkgs)].map((s) => s.code).join('\n')
+    expect(all).not.toMatch(/osquery\.io|choco|yum-config-manager|apt-get/)
+    for (const p of pkgs) expect(all).toContain(p.sha256)
+    const deb = osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installDeb')!.code
+    expect(deb).toContain(`curl -fSLk ${BOX}/api/v1/install/osquery/$f -o $f && \\`)
+    expect(deb).toContain(`grep " $f\\$" | sha256sum -c - && \\\nsudo dpkg -i $f`)
+    expect(deb).toContain('linux_$(dpkg --print-architecture).deb')
+    expect(osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installRpm')!.code).toMatch(/linux\.\$\(uname -m\)\.rpm[\s\S]*sudo rpm -Uvh \$f$/)
+    const msi = osquerySteps('windows', BOX, 't', pkgs).find((s) => s.key === 'install')!.code
+    expect(msi).toContain(`curl.exe -fSLk ${BOX}/api/v1/install/osquery/osquery-${OSQUERY_VERSION}.msi`)
+    expect(msi).toMatch(/-ieq '[0-9a-f]{64}'\) \{ Start-Process msiexec\.exe .*\} else \{ throw 'Checksum mismatch: do not install this file' \}$/)
+    // no package on the box: no install step at all, never an outside source
+    expect(osquerySteps('linux', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'start'])
+    expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
     expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out

@@ -22469,8 +22469,9 @@ func (s *Server) handleHoneypotPostHoneypotTokensIDTestRequest(args [1]string, a
 
 // handleHoneypotPutHoneypotConfigRequest handles honeypot_put_honeypot_config operation.
 //
-// Set the secondary IP and decoy hostname (rejects an IP that matches a device, the IP of the box
-// itself, or an IP outside the network of the box).
+// Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while
+// every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or
+// an IP outside the network of the box.
 //
 // PUT /honeypot/config
 func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22554,7 +22555,7 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPutHoneypotConfigOperation,
-			OperationSummary: "Set the secondary IP and decoy hostname (rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box)",
+			OperationSummary: "Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box",
 			OperationID:      "honeypot_put_honeypot_config",
 			Body:             request,
 			RawBody:          rawBody,

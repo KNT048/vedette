@@ -67,6 +67,12 @@ const (
 	StateOff       = "off"
 	StateListening = "listening"
 	StateConflict  = "conflict"
+	// StateStarting: switched on, the box is bringing it up (container start and health wait take minutes).
+	StateStarting = "starting"
+	// StateStopping: switched off, the host has not confirmed yet that it stopped listening.
+	StateStopping = "stopping"
+	// StateFailed: switched on, but the box could not set it up (the host failed, no appliance); the reason is in Overview.Problem / Decoy.Reason.
+	StateFailed = "failed"
 )
 
 // Trap is one service trap (contract.ts Trap).
@@ -103,6 +109,8 @@ type Summary struct {
 // Overview is GET /honeypot (contract.ts HpOverview).
 type Overview struct {
 	SecondaryIP   *string   `json:"secondary_ip"`
+	SecondaryMAC  *string   `json:"secondary_mac"` // the MAC the host gave the secondary IP, nil while unknown
+	Problem       *string   `json:"problem"`       // why a switched-on trap is not listening (state failed), nil when none is
 	Hostname      string    `json:"hostname"`
 	LAN           *string   `json:"lan"`
 	Box           BoxRef    `json:"box"`
@@ -186,6 +194,9 @@ type Decoy struct {
 	Name        string         `json:"name"`
 	IP          string         `json:"ip"`
 	Enabled     bool           `json:"enabled"`
+	State       string         `json:"state"`  // what the host reports (Trap states), not the switch
+	Reason      *string        `json:"reason"` // why state is failed, conflict, or off while enabled
+	MAC         *string        `json:"mac"`    // the MAC the host gave the address, nil while unknown
 	CreatedAt   string         `json:"created_at"`
 	Services    []DecoyService `json:"services"`
 }
@@ -202,6 +213,9 @@ type DecoysResponse struct {
 	Items       []Decoy           `json:"items"`
 	Suggestions []DecoySuggestion `json:"suggestions"`
 	SpareIPs    []string          `json:"spare_ips"`
+	// SpareChecked is false while the inventory has no device in the box's network: nothing was compared, so SpareIPs
+	// are only "not seen yet", not "unused".
+	SpareChecked bool `json:"spare_checked"`
 }
 
 // DecoyInput is POST /honeypot/decoys.

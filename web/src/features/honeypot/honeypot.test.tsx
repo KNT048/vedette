@@ -42,7 +42,6 @@ describe('honeypot: main page (S-HP-1)', () => {
     expect(sw).not.toBeDisabled()
     await userEvent.click(sw)
     expect(await screen.findByText('MSSQL (SQL Server) trap is on')).toBeInTheDocument()
-    await waitFor(() => expect(within(trapRow(/MSSQL/)).getByText('Listening')).toBeInTheDocument())
     expect(auditStore.get().some((a) => a.action === 'honeypot.trap_enable')).toBe(true)
   })
 
@@ -110,6 +109,60 @@ describe('honeypot: main page (S-HP-1)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Secondary IP 192\.168\.10\.240 clashes with a real device/)
     expect(within(trapRow(/SMB/)).getByText('Error: IP clashes with a device')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open device' })).toHaveAttribute('href', '/devices/a-clash')
+  })
+})
+
+describe('honeypot: what the box reports (S-HP-1)', () => {
+  const trap = (service: string, port: number, state: string) => ({ service, port, enabled: true, state, since: null, hits_7d: 0, last_hit_at: null })
+  const overview = (state: string, problem: string | null) => ({
+    secondary_ip: '192.168.10.240', secondary_mac: '06:b7:36:4f:54:67', problem, hostname: 'FILESRV-OLD', lan: '192.168.10.0/24', box: { ip: '192.168.10.250', name: 'vedette-hq' }, ignored_7d: 0, conflict_asset: null,
+    traps: [trap('smb', 445, state), trap('rdp', 3389, state), trap('ssh', 22, state), trap('mssql', 1433, state), trap('http', 80, state)],
+    summary: { today: 0, week: 0, last_hit_at: null, last_src: null }, updated_at: new Date().toISOString(),
+  })
+
+  it('a trap that is on but could not be set up shows an error with the host reason, not "Off" and not "No trap was hit"', async () => {
+    server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('failed', 'the honeypot container did not start'))))
+    renderApp('/honeypot')
+    expect(await screen.findByRole('heading', { level: 1, name: /A trap is on, but the box could not set up the decoy/ })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Reason from the box: the honeypot container did not start.')
+    expect(within(trapRow(/SSH/)).getByText('Error: not set up')).toBeInTheDocument()
+    expect(screen.getByText(/The box gave this address the MAC address 06:b7:36:4f:54:67/)).toBeInTheDocument()
+  })
+
+  it('a trap that is coming up shows Starting', async () => {
+    server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('starting', null))))
+    renderApp('/honeypot')
+    await screen.findByRole('table', { name: 'Traps and their status' })
+    expect(within(trapRow(/SSH/)).getByText('Starting')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Traps are starting. Nothing is listening yet.' })).toBeInTheDocument()
+  })
+
+  it('an extra decoy shows the state the host reports, with its reason and MAC, not its switch', async () => {
+    const base = { personality: 'nas', services: [{ name: 'SMB', port: 445 }], created_at: new Date().toISOString(), enabled: true }
+    server.use(http.get('*/api/v1/honeypot/decoys', () => HttpResponse.json({
+      items: [
+        { ...base, id: 'd1', name: 'NAS-A', ip: '192.168.10.241', state: 'failed', reason: 'the host could not do it (decoy_failed)', mac: null },
+        { ...base, id: 'd2', name: 'NAS-B', ip: '192.168.10.242', state: 'starting', reason: null, mac: null },
+        { ...base, id: 'd3', name: 'NAS-C', ip: '192.168.10.243', state: 'listening', reason: null, mac: '06:b7:36:0a:0b:0c' },
+      ],
+      suggestions: [], spare_ips: ['192.168.10.230'], spare_checked: false,
+    })))
+    renderApp('/honeypot')
+    const list = await screen.findByRole('list', { name: 'Decoys' })
+    expect(within(list).getByText('Error: not set up')).toBeInTheDocument()
+    expect(within(list).getByText('the host could not do it (decoy_failed)')).toBeInTheDocument()
+    expect(within(list).getByText('Starting')).toBeInTheDocument()
+    expect(within(list).getByText('Listening')).toBeInTheDocument()
+    expect(within(list).getByText('06:b7:36:0a:0b:0c')).toBeInTheDocument()
+    expect(screen.getByText(/Not checked: no devices discovered yet/)).toBeInTheDocument()
+  })
+
+  it('the decoy IP can be removed only while every trap is off', async () => {
+    renderApp('/honeypot')
+    const ip = await screen.findByLabelText('Trap secondary IP')
+    await userEvent.clear(ip)
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Turn all traps off before removing the decoy IP.')).toBeInTheDocument()
   })
 })
 

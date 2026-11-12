@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { FlaskConical, Trash2 } from 'lucide-react'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -12,6 +11,7 @@ import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddDecoy, useDecoys, useDeleteDecoy, useTestScan, useToggleDecoy } from './api'
 import { PERSONALITIES, personalityDef } from './personalities'
+import { TrapStateChip } from './TrapStateChip'
 import type { DecoysResponse, Hit, Personality } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -80,7 +80,7 @@ function Inner({ data, hits }: { data: DecoysResponse; hits: Hit[] }) {
           <Field label={t('personality.form.name')} htmlFor="dc-name" hint={t('personality.form.nameHint', { example: def.namePlaceholder })}>
             <Input id="dc-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!admin} maxLength={15} autoComplete="off" spellCheck={false} placeholder={def.namePlaceholder} />
           </Field>
-          <Field label={t('personality.form.ip')} htmlFor="dc-ip" hint={data.spare_ips.length ? t('personality.form.ipHint', { ips: data.spare_ips.join(', ') }) : t('personality.form.ipHintNone')} error={error ?? undefined}>
+          <Field label={t('personality.form.ip')} htmlFor="dc-ip" hint={data.spare_ips.length ? t(data.spare_checked ? 'personality.form.ipHint' : 'personality.form.ipHintUnchecked', { ips: data.spare_ips.join(', ') }) : t('personality.form.ipHintNone')} error={error ?? undefined}>
             <Input id="dc-ip" value={ip} onChange={(e) => setIp(e.target.value)} disabled={!admin} inputMode="decimal" autoComplete="off" placeholder={data.spare_ips[0] ?? ''} aria-invalid={error ? true : undefined} />
           </Field>
           <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('personality.form.add')}</Button>
@@ -93,10 +93,11 @@ function Inner({ data, hits }: { data: DecoysResponse; hits: Hit[] }) {
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
               <span className="grid">
                 <span className="font-medium">{d.name} <span className="text-[13px] font-normal text-muted tabular-nums">{d.ip}</span></span>
-                <span className="text-[12px] text-muted">{t(`personality.type.${d.personality}`)}: {d.services.map((s) => `${s.name} ${s.port}`).join(', ')}</span>
+                <span className="text-[12px] text-muted">{t(`personality.type.${d.personality}`)}: {d.services.map((s) => `${s.name} ${s.port}`).join(', ')}{d.mac ? <> · <span className="tabular-nums">{d.mac}</span></> : null}</span>
+                {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-[12px] text-danger' : 'text-[12px] text-muted'}>{d.reason}</span> : null}
               </span>
               <span className="flex items-center gap-3">
-                {d.enabled ? <Chip tone="ok">{t('state.listening')}</Chip> : <Chip tone="off">{t('state.off')}</Chip>}
+                <TrapStateChip state={d.state} />
                 <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('personality.switchLabel', { name: d.name })}
                   onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
                 <Button size="sm" variant="ghost" disabled={!admin || del.isPending} aria-label={t('personality.deleteLabel', { name: d.name })} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}

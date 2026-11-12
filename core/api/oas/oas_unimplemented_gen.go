@@ -1576,8 +1576,9 @@ func (UnimplementedHandler) HoneypotPostHoneypotTokensIDTest(ctx context.Context
 
 // HoneypotPutHoneypotConfig implements honeypot_put_honeypot_config operation.
 //
-// Set the secondary IP and decoy hostname (rejects an IP that matches a device, the IP of the box
-// itself, or an IP outside the network of the box).
+// Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while
+// every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or
+// an IP outside the network of the box.
 //
 // PUT /honeypot/config
 func (UnimplementedHandler) HoneypotPutHoneypotConfig(ctx context.Context, req *HoneypotPutHoneypotConfigReq) (r *HoneypotPutHoneypotConfigOK, _ error) {

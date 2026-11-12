@@ -5,9 +5,9 @@ import type * as C from './contract'
 export type HpService = z.infer<typeof C.HpService>
 export const HP_SERVICES: HpService[] = ['smb', 'rdp', 'ssh', 'mssql', 'http']
 
-/** off; listening; conflict = on but the secondary IP clashes with a device in the inventory. */
+/** off; listening; conflict; starting; stopping; failed: what the box reports (contract.ts TrapState). */
 export type Trap = z.infer<typeof C.Trap>
-export type TrapState = Trap['state']
+export type TrapState = z.infer<typeof C.TrapState>
 export type HpOverview = z.infer<typeof C.HpOverview>
 export type Hit = z.infer<typeof C.Hit>
 export type HitEvent = z.infer<typeof C.HitEvent>

@@ -121232,6 +121232,10 @@ func (s *HoneypotGetHoneypotDecoysOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("spare_checked")
+		e.Bool(s.SpareChecked)
+	}
+	{
 		e.FieldStart("spare_ips")
 		e.ArrStart()
 		for _, elem := range s.SpareIps {
@@ -121249,10 +121253,11 @@ func (s *HoneypotGetHoneypotDecoysOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotGetHoneypotDecoysOK = [3]string{
+var jsonFieldsNameOfHoneypotGetHoneypotDecoysOK = [4]string{
 	0: "items",
-	1: "spare_ips",
-	2: "suggestions",
+	1: "spare_checked",
+	2: "spare_ips",
+	3: "suggestions",
 }
 
 // Decode decodes HoneypotGetHoneypotDecoysOK from json.
@@ -121282,8 +121287,20 @@ func (s *HoneypotGetHoneypotDecoysOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
-		case "spare_ips":
+		case "spare_checked":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.SpareChecked = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"spare_checked\"")
+			}
+		case "spare_ips":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.SpareIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -121303,7 +121320,7 @@ func (s *HoneypotGetHoneypotDecoysOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"spare_ips\"")
 			}
 		case "suggestions":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Suggestions = make([]HoneypotGetHoneypotDecoysOKSuggestionsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -121330,7 +121347,7 @@ func (s *HoneypotGetHoneypotDecoysOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -121402,12 +121419,20 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.IP)
 	}
 	{
+		e.FieldStart("mac")
+		s.MAC.Encode(e)
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
 	{
 		e.FieldStart("personality")
 		s.Personality.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
 	}
 	{
 		e.FieldStart("services")
@@ -121417,16 +121442,23 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfHoneypotGetHoneypotDecoysOKItemsItem = [7]string{
+var jsonFieldsNameOfHoneypotGetHoneypotDecoysOKItemsItem = [10]string{
 	0: "created_at",
 	1: "enabled",
 	2: "id",
 	3: "ip",
-	4: "name",
-	5: "personality",
-	6: "services",
+	4: "mac",
+	5: "name",
+	6: "personality",
+	7: "reason",
+	8: "services",
+	9: "state",
 }
 
 // Decode decodes HoneypotGetHoneypotDecoysOKItemsItem from json.
@@ -121434,7 +121466,7 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode HoneypotGetHoneypotDecoysOKItemsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -121486,8 +121518,18 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
-		case "name":
+		case "mac":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.MAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mac\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -121499,7 +121541,7 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "personality":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Personality.Decode(d); err != nil {
 					return err
@@ -121508,8 +121550,18 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"personality\"")
 			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
 		case "services":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Services = make([]HoneypotGetHoneypotDecoysOKItemsItemServicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -121526,6 +121578,16 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"services\"")
 			}
+		case "state":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -121535,8 +121597,9 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -121737,6 +121800,54 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItemServicesItem) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotGetHoneypotDecoysOKItemsItemServicesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotGetHoneypotDecoysOKItemsItemState as json.
+func (s HoneypotGetHoneypotDecoysOKItemsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes HoneypotGetHoneypotDecoysOKItemsItemState from json.
+func (s *HoneypotGetHoneypotDecoysOKItemsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotGetHoneypotDecoysOKItemsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch HoneypotGetHoneypotDecoysOKItemsItemState(v) {
+	case HoneypotGetHoneypotDecoysOKItemsItemStateOff:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateOff
+	case HoneypotGetHoneypotDecoysOKItemsItemStateListening:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateListening
+	case HoneypotGetHoneypotDecoysOKItemsItemStateConflict:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateConflict
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStarting:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateStarting
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStopping:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateStopping
+	case HoneypotGetHoneypotDecoysOKItemsItemStateFailed:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateFailed
+	default:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s HoneypotGetHoneypotDecoysOKItemsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotGetHoneypotDecoysOKItemsItemState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -123184,8 +123295,16 @@ func (s *HoneypotGetHoneypotOK) encodeFields(e *jx.Encoder) {
 		s.Lan.Encode(e)
 	}
 	{
+		e.FieldStart("problem")
+		s.Problem.Encode(e)
+	}
+	{
 		e.FieldStart("secondary_ip")
 		s.SecondaryIP.Encode(e)
+	}
+	{
+		e.FieldStart("secondary_mac")
+		s.SecondaryMAC.Encode(e)
 	}
 	{
 		e.FieldStart("summary")
@@ -123205,16 +123324,18 @@ func (s *HoneypotGetHoneypotOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotGetHoneypotOK = [9]string{
-	0: "box",
-	1: "conflict_asset",
-	2: "hostname",
-	3: "ignored_7d",
-	4: "lan",
-	5: "secondary_ip",
-	6: "summary",
-	7: "traps",
-	8: "updated_at",
+var jsonFieldsNameOfHoneypotGetHoneypotOK = [11]string{
+	0:  "box",
+	1:  "conflict_asset",
+	2:  "hostname",
+	3:  "ignored_7d",
+	4:  "lan",
+	5:  "problem",
+	6:  "secondary_ip",
+	7:  "secondary_mac",
+	8:  "summary",
+	9:  "traps",
+	10: "updated_at",
 }
 
 // Decode decodes HoneypotGetHoneypotOK from json.
@@ -123280,8 +123401,18 @@ func (s *HoneypotGetHoneypotOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lan\"")
 			}
-		case "secondary_ip":
+		case "problem":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Problem.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"problem\"")
+			}
+		case "secondary_ip":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.SecondaryIP.Decode(d); err != nil {
 					return err
@@ -123290,8 +123421,18 @@ func (s *HoneypotGetHoneypotOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secondary_ip\"")
 			}
+		case "secondary_mac":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.SecondaryMAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secondary_mac\"")
+			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Summary.Decode(d); err != nil {
 					return err
@@ -123301,7 +123442,7 @@ func (s *HoneypotGetHoneypotOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "traps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Traps = make([]HoneypotGetHoneypotOKTrapsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -123319,7 +123460,7 @@ func (s *HoneypotGetHoneypotOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"traps\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -123341,7 +123482,7 @@ func (s *HoneypotGetHoneypotOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124012,6 +124153,12 @@ func (s *HoneypotGetHoneypotOKTrapsItemState) Decode(d *jx.Decoder) error {
 		*s = HoneypotGetHoneypotOKTrapsItemStateListening
 	case HoneypotGetHoneypotOKTrapsItemStateConflict:
 		*s = HoneypotGetHoneypotOKTrapsItemStateConflict
+	case HoneypotGetHoneypotOKTrapsItemStateStarting:
+		*s = HoneypotGetHoneypotOKTrapsItemStateStarting
+	case HoneypotGetHoneypotOKTrapsItemStateStopping:
+		*s = HoneypotGetHoneypotOKTrapsItemStateStopping
+	case HoneypotGetHoneypotOKTrapsItemStateFailed:
+		*s = HoneypotGetHoneypotOKTrapsItemStateFailed
 	default:
 		*s = HoneypotGetHoneypotOKTrapsItemState(v)
 	}
@@ -124435,12 +124582,20 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.IP)
 	}
 	{
+		e.FieldStart("mac")
+		s.MAC.Encode(e)
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
 	{
 		e.FieldStart("personality")
 		s.Personality.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
 	}
 	{
 		e.FieldStart("services")
@@ -124450,16 +124605,23 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfHoneypotPatchHoneypotDecoysIDOK = [7]string{
+var jsonFieldsNameOfHoneypotPatchHoneypotDecoysIDOK = [10]string{
 	0: "created_at",
 	1: "enabled",
 	2: "id",
 	3: "ip",
-	4: "name",
-	5: "personality",
-	6: "services",
+	4: "mac",
+	5: "name",
+	6: "personality",
+	7: "reason",
+	8: "services",
+	9: "state",
 }
 
 // Decode decodes HoneypotPatchHoneypotDecoysIDOK from json.
@@ -124467,7 +124629,7 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode HoneypotPatchHoneypotDecoysIDOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -124519,8 +124681,18 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
-		case "name":
+		case "mac":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.MAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mac\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -124532,7 +124704,7 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "personality":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Personality.Decode(d); err != nil {
 					return err
@@ -124541,8 +124713,18 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"personality\"")
 			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
 		case "services":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Services = make([]HoneypotPatchHoneypotDecoysIDOKServicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -124559,6 +124741,16 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"services\"")
 			}
+		case "state":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -124568,8 +124760,9 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124774,6 +124967,54 @@ func (s *HoneypotPatchHoneypotDecoysIDOKServicesItem) UnmarshalJSON(data []byte)
 	return s.Decode(d)
 }
 
+// Encode encodes HoneypotPatchHoneypotDecoysIDOKState as json.
+func (s HoneypotPatchHoneypotDecoysIDOKState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes HoneypotPatchHoneypotDecoysIDOKState from json.
+func (s *HoneypotPatchHoneypotDecoysIDOKState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPatchHoneypotDecoysIDOKState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch HoneypotPatchHoneypotDecoysIDOKState(v) {
+	case HoneypotPatchHoneypotDecoysIDOKStateOff:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateOff
+	case HoneypotPatchHoneypotDecoysIDOKStateListening:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateListening
+	case HoneypotPatchHoneypotDecoysIDOKStateConflict:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateConflict
+	case HoneypotPatchHoneypotDecoysIDOKStateStarting:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateStarting
+	case HoneypotPatchHoneypotDecoysIDOKStateStopping:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateStopping
+	case HoneypotPatchHoneypotDecoysIDOKStateFailed:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateFailed
+	default:
+		*s = HoneypotPatchHoneypotDecoysIDOKState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s HoneypotPatchHoneypotDecoysIDOKState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPatchHoneypotDecoysIDOKState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *HoneypotPatchHoneypotDecoysIDReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -124900,8 +125141,16 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) encodeFields(e *jx.Encoder) {
 		s.Lan.Encode(e)
 	}
 	{
+		e.FieldStart("problem")
+		s.Problem.Encode(e)
+	}
+	{
 		e.FieldStart("secondary_ip")
 		s.SecondaryIP.Encode(e)
+	}
+	{
+		e.FieldStart("secondary_mac")
+		s.SecondaryMAC.Encode(e)
 	}
 	{
 		e.FieldStart("summary")
@@ -124921,16 +125170,18 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotPatchHoneypotTrapsServiceOK = [9]string{
-	0: "box",
-	1: "conflict_asset",
-	2: "hostname",
-	3: "ignored_7d",
-	4: "lan",
-	5: "secondary_ip",
-	6: "summary",
-	7: "traps",
-	8: "updated_at",
+var jsonFieldsNameOfHoneypotPatchHoneypotTrapsServiceOK = [11]string{
+	0:  "box",
+	1:  "conflict_asset",
+	2:  "hostname",
+	3:  "ignored_7d",
+	4:  "lan",
+	5:  "problem",
+	6:  "secondary_ip",
+	7:  "secondary_mac",
+	8:  "summary",
+	9:  "traps",
+	10: "updated_at",
 }
 
 // Decode decodes HoneypotPatchHoneypotTrapsServiceOK from json.
@@ -124996,8 +125247,18 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lan\"")
 			}
-		case "secondary_ip":
+		case "problem":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Problem.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"problem\"")
+			}
+		case "secondary_ip":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.SecondaryIP.Decode(d); err != nil {
 					return err
@@ -125006,8 +125267,18 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secondary_ip\"")
 			}
+		case "secondary_mac":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.SecondaryMAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secondary_mac\"")
+			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Summary.Decode(d); err != nil {
 					return err
@@ -125017,7 +125288,7 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "traps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Traps = make([]HoneypotPatchHoneypotTrapsServiceOKTrapsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -125035,7 +125306,7 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"traps\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -125057,7 +125328,7 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -125728,6 +125999,12 @@ func (s *HoneypotPatchHoneypotTrapsServiceOKTrapsItemState) Decode(d *jx.Decoder
 		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateListening
 	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict:
 		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed
 	default:
 		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemState(v)
 	}
@@ -125870,12 +126147,20 @@ func (s *HoneypotPostHoneypotDecoysCreated) encodeFields(e *jx.Encoder) {
 		e.Str(s.IP)
 	}
 	{
+		e.FieldStart("mac")
+		s.MAC.Encode(e)
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
 	{
 		e.FieldStart("personality")
 		s.Personality.Encode(e)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
 	}
 	{
 		e.FieldStart("services")
@@ -125885,16 +126170,23 @@ func (s *HoneypotPostHoneypotDecoysCreated) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfHoneypotPostHoneypotDecoysCreated = [7]string{
+var jsonFieldsNameOfHoneypotPostHoneypotDecoysCreated = [10]string{
 	0: "created_at",
 	1: "enabled",
 	2: "id",
 	3: "ip",
-	4: "name",
-	5: "personality",
-	6: "services",
+	4: "mac",
+	5: "name",
+	6: "personality",
+	7: "reason",
+	8: "services",
+	9: "state",
 }
 
 // Decode decodes HoneypotPostHoneypotDecoysCreated from json.
@@ -125902,7 +126194,7 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode HoneypotPostHoneypotDecoysCreated to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -125954,8 +126246,18 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
-		case "name":
+		case "mac":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.MAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mac\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -125967,7 +126269,7 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "personality":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Personality.Decode(d); err != nil {
 					return err
@@ -125976,8 +126278,18 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"personality\"")
 			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
 		case "services":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Services = make([]HoneypotPostHoneypotDecoysCreatedServicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -125994,6 +126306,16 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"services\"")
 			}
+		case "state":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -126003,8 +126325,9 @@ func (s *HoneypotPostHoneypotDecoysCreated) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -126205,6 +126528,54 @@ func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotPostHoneypotDecoysCreatedState as json.
+func (s HoneypotPostHoneypotDecoysCreatedState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes HoneypotPostHoneypotDecoysCreatedState from json.
+func (s *HoneypotPostHoneypotDecoysCreatedState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotDecoysCreatedState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch HoneypotPostHoneypotDecoysCreatedState(v) {
+	case HoneypotPostHoneypotDecoysCreatedStateOff:
+		*s = HoneypotPostHoneypotDecoysCreatedStateOff
+	case HoneypotPostHoneypotDecoysCreatedStateListening:
+		*s = HoneypotPostHoneypotDecoysCreatedStateListening
+	case HoneypotPostHoneypotDecoysCreatedStateConflict:
+		*s = HoneypotPostHoneypotDecoysCreatedStateConflict
+	case HoneypotPostHoneypotDecoysCreatedStateStarting:
+		*s = HoneypotPostHoneypotDecoysCreatedStateStarting
+	case HoneypotPostHoneypotDecoysCreatedStateStopping:
+		*s = HoneypotPostHoneypotDecoysCreatedStateStopping
+	case HoneypotPostHoneypotDecoysCreatedStateFailed:
+		*s = HoneypotPostHoneypotDecoysCreatedStateFailed
+	default:
+		*s = HoneypotPostHoneypotDecoysCreatedState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s HoneypotPostHoneypotDecoysCreatedState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotDecoysCreatedState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -128088,8 +128459,16 @@ func (s *HoneypotPutHoneypotConfigOK) encodeFields(e *jx.Encoder) {
 		s.Lan.Encode(e)
 	}
 	{
+		e.FieldStart("problem")
+		s.Problem.Encode(e)
+	}
+	{
 		e.FieldStart("secondary_ip")
 		s.SecondaryIP.Encode(e)
+	}
+	{
+		e.FieldStart("secondary_mac")
+		s.SecondaryMAC.Encode(e)
 	}
 	{
 		e.FieldStart("summary")
@@ -128109,16 +128488,18 @@ func (s *HoneypotPutHoneypotConfigOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotPutHoneypotConfigOK = [9]string{
-	0: "box",
-	1: "conflict_asset",
-	2: "hostname",
-	3: "ignored_7d",
-	4: "lan",
-	5: "secondary_ip",
-	6: "summary",
-	7: "traps",
-	8: "updated_at",
+var jsonFieldsNameOfHoneypotPutHoneypotConfigOK = [11]string{
+	0:  "box",
+	1:  "conflict_asset",
+	2:  "hostname",
+	3:  "ignored_7d",
+	4:  "lan",
+	5:  "problem",
+	6:  "secondary_ip",
+	7:  "secondary_mac",
+	8:  "summary",
+	9:  "traps",
+	10: "updated_at",
 }
 
 // Decode decodes HoneypotPutHoneypotConfigOK from json.
@@ -128184,8 +128565,18 @@ func (s *HoneypotPutHoneypotConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lan\"")
 			}
-		case "secondary_ip":
+		case "problem":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Problem.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"problem\"")
+			}
+		case "secondary_ip":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.SecondaryIP.Decode(d); err != nil {
 					return err
@@ -128194,8 +128585,18 @@ func (s *HoneypotPutHoneypotConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secondary_ip\"")
 			}
+		case "secondary_mac":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.SecondaryMAC.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secondary_mac\"")
+			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Summary.Decode(d); err != nil {
 					return err
@@ -128205,7 +128606,7 @@ func (s *HoneypotPutHoneypotConfigOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "traps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Traps = make([]HoneypotPutHoneypotConfigOKTrapsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -128223,7 +128624,7 @@ func (s *HoneypotPutHoneypotConfigOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"traps\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -128245,7 +128646,7 @@ func (s *HoneypotPutHoneypotConfigOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128916,6 +129317,12 @@ func (s *HoneypotPutHoneypotConfigOKTrapsItemState) Decode(d *jx.Decoder) error 
 		*s = HoneypotPutHoneypotConfigOKTrapsItemStateListening
 	case HoneypotPutHoneypotConfigOKTrapsItemStateConflict:
 		*s = HoneypotPutHoneypotConfigOKTrapsItemStateConflict
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStarting:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateStarting
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStopping:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateStopping
+	case HoneypotPutHoneypotConfigOKTrapsItemStateFailed:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateFailed
 	default:
 		*s = HoneypotPutHoneypotConfigOKTrapsItemState(v)
 	}

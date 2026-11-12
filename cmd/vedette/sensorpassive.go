@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
 	"net/netip"
 
 	"github.com/knt048/vedette/core/modreg"
@@ -37,23 +36,20 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 
 // netHost is the host module's answer to sensor-passive (Box network, D-56). The cards come from vedette-host
 // (core runs in a container and cannot see them); the extraction switches and exclusion filters are the admin's
-// settings of Settings, Box network. An install without a host reads the interfaces of the operating system it runs on.
-// Interfaces only validates the card an admin picks (SetInterface, D-118): addresses are not shown from here.
+// settings of Settings, Box network. Without a host core never reads its own interfaces for the box's cards: the core
+// container sees only its bridge link, and the box's real cards come from the sensor's heartbeat (D-263, D-385).
 type netHost struct{ box *core.NetworkHandlers }
 
+// Interfaces is only for Service.Run, the in-process capture of the module's tests; cmd/vedette never starts it (D-141).
+// It is HostCards without the "no host" flag: no cards without a host.
 func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
-	cards, ok, err := n.box.Cards(ctx) // not HostCards: this one never fails for a host that does not answer
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return capInterfaces(cards), nil
-	}
-	return osInterfaces()
+	cards, _, err := n.HostCards(ctx)
+	return cards, err
 }
 
 // HostCards is the list vedette-host reports. ok is false only when core runs without a host socket (container-only
-// install, D-168, D-263): SetInterface then uses the cards of the sensor's heartbeat. A host that is configured but gives
+// install, D-168, D-263, D-385): SetInterface and the refusal of items about the box then use the cards of the sensor's
+// heartbeat of the last 90 s. A host that is configured but gives
 // no list (down, socket absent, nothing cached yet) is an error: fail closed, the heartbeat never decides on an appliance (D-118).
 func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, error) {
 	cards, ok, err := n.box.Cards(ctx)
@@ -84,29 +80,6 @@ func capInterfaces(cards []core.Card) []capture.Interface {
 		out = append(out, h)
 	}
 	return out
-}
-
-func osInterfaces() ([]capture.Interface, error) {
-	all, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	var out []capture.Interface
-	for _, i := range all {
-		if i.Flags&net.FlagLoopback != 0 || len(i.HardwareAddr) != 6 {
-			continue
-		}
-		h := capture.Interface{Name: i.Name, MAC: i.HardwareAddr.String(), Link: i.Flags&net.FlagUp != 0 && i.Flags&net.FlagRunning != 0}
-		if addrs, err := i.Addrs(); err == nil {
-			for _, a := range addrs {
-				if p, err := netip.ParsePrefix(a.String()); err == nil && p.Addr().Is4() {
-					h.Addresses = append(h.Addresses, p)
-				}
-			}
-		}
-		out = append(out, h)
-	}
-	return out, nil
 }
 
 func (n netHost) SpanOptions(ctx context.Context) (sensorlink.Extract, []sensorlink.Filter, error) {

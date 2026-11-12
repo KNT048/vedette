@@ -53,8 +53,8 @@ var (
 func TestHoneypotPipLockIsHashed(t *testing.T) {
 	t.Parallel()
 	p := pins(t)
-	if got := strings.TrimSpace(read(t, "honeypot/requirements.in")); got != "opencanary=="+p["OPENCANARY_VERSION"] {
-		t.Errorf("requirements.in is %q, want opencanary==%s (pins.env OPENCANARY_VERSION)", got, p["OPENCANARY_VERSION"])
+	if got := strings.SplitN(strings.TrimSpace(read(t, "honeypot/requirements.in")), "\n", 2)[0]; got != "opencanary=="+p["OPENCANARY_VERSION"] {
+		t.Errorf("requirements.in starts with %q, want opencanary==%s (pins.env OPENCANARY_VERSION)", got, p["OPENCANARY_VERSION"])
 	}
 	seen := map[string]bool{}
 	for _, f := range []string{"honeypot/requirements.txt", "honeypot/requirements-sdist.txt"} {

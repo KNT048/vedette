@@ -22,6 +22,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import urllib.request
 
 ARCHS = ("x86_64", "aarch64")
@@ -32,11 +33,26 @@ HERE = __file__.rsplit("/", 1)[0] if "/" in __file__ else "."
 
 
 def pip_report(requirements_in):
-    out = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--break-system-packages", "--dry-run", "--ignore-installed", "--quiet",
-         "--report", "-", "-r", requirements_in],
-        check=True, capture_output=True, text=True, timeout=600).stdout
-    return [(i["metadata"]["name"], i["metadata"]["version"]) for i in json.loads(out)["install"]]
+    """The resolved set of requirements_in. Lines ending in "# override" (name==version) are kept out of pip's input, which would refuse
+    them against the exact pins of OpenCanary, and replace the version of that name in the result (requirements.in says why)."""
+    lines = open(requirements_in).read().splitlines()
+    overrides = {}
+    for line in lines:
+        m = re.fullmatch(r"([A-Za-z0-9_.-]+)==([A-Za-z0-9_.]+)\s+#\s*override", line)
+        if m:
+            overrides[re.sub(r"[-_.]+", "-", m.group(1)).lower()] = m.group(2)
+    with tempfile.NamedTemporaryFile("w", suffix=".in") as tmp:
+        tmp.write("\n".join(l for l in lines if not l.endswith("# override")) + "\n")
+        tmp.flush()
+        out = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--break-system-packages", "--dry-run", "--ignore-installed", "--quiet",
+             "--report", "-", "-r", tmp.name],
+            check=True, capture_output=True, text=True, timeout=600).stdout
+    resolved = [(i["metadata"]["name"], i["metadata"]["version"]) for i in json.loads(out)["install"]]
+    names = {re.sub(r"[-_.]+", "-", n).lower() for n, _ in resolved}
+    if not set(overrides) <= names:
+        sys.exit("override of a package that is not in the resolved set: %s" % sorted(set(overrides) - names))
+    return [(n, overrides.get(re.sub(r"[-_.]+", "-", n).lower(), v)) for n, v in resolved]
 
 
 def release_files(name, version):

@@ -141,7 +141,7 @@ test.describe('operator, day to day', () => {
     const csv = `﻿Device name;IP address;Product;Version;Type\r\n\r\n${a};${ipA};FortiGate;7.2.5;Firewall\r\n\r\n${b};${ipB};;;Printer\r\n;;;;\r\nBad one;999.1.1.1;;;\r\n${c};;;;Server\r\n`
     await page.getByLabel('Choose a CSV file').setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
     const dlg = page.getByRole('dialog')
-    await expect(dlg.getByText('Added 3 devices, skipped 1 rows.')).toBeVisible()
+    await expect(dlg.getByText('Added 3 devices, skipped 1 row.')).toBeVisible()
     await expect(dlg.getByText('Line 7:')).toBeVisible()
     await shot(page, 'real-inventory', 'import-result')
     await dlg.getByRole('button', { name: 'Close', exact: true }).first().click()

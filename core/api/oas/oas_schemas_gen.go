@@ -69772,7 +69772,9 @@ func (s *InventoryPostInventoryDevicesReq) SetVersion(val OptString) {
 type InventoryPostInventoryImportOK struct {
 	Created int                                        `json:"created"`
 	Errors  []InventoryPostInventoryImportOKErrorsItem `json:"errors"`
-	Skipped int                                        `json:"skipped"`
+	// Rows that were added but need a word: a public IP, or an IP outside the saved network ranges.
+	Notes   []InventoryPostInventoryImportOKNotesItem `json:"notes"`
+	Skipped int                                       `json:"skipped"`
 }
 
 // GetCreated returns the value of Created.
@@ -69783,6 +69785,11 @@ func (s *InventoryPostInventoryImportOK) GetCreated() int {
 // GetErrors returns the value of Errors.
 func (s *InventoryPostInventoryImportOK) GetErrors() []InventoryPostInventoryImportOKErrorsItem {
 	return s.Errors
+}
+
+// GetNotes returns the value of Notes.
+func (s *InventoryPostInventoryImportOK) GetNotes() []InventoryPostInventoryImportOKNotesItem {
+	return s.Notes
 }
 
 // GetSkipped returns the value of Skipped.
@@ -69798,6 +69805,11 @@ func (s *InventoryPostInventoryImportOK) SetCreated(val int) {
 // SetErrors sets the value of Errors.
 func (s *InventoryPostInventoryImportOK) SetErrors(val []InventoryPostInventoryImportOKErrorsItem) {
 	s.Errors = val
+}
+
+// SetNotes sets the value of Notes.
+func (s *InventoryPostInventoryImportOK) SetNotes(val []InventoryPostInventoryImportOKNotesItem) {
+	s.Notes = val
 }
 
 // SetSkipped sets the value of Skipped.
@@ -69827,6 +69839,31 @@ func (s *InventoryPostInventoryImportOKErrorsItem) SetLine(val int) {
 
 // SetMessage sets the value of Message.
 func (s *InventoryPostInventoryImportOKErrorsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+type InventoryPostInventoryImportOKNotesItem struct {
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+}
+
+// GetLine returns the value of Line.
+func (s *InventoryPostInventoryImportOKNotesItem) GetLine() int {
+	return s.Line
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventoryImportOKNotesItem) GetMessage() string {
+	return s.Message
+}
+
+// SetLine sets the value of Line.
+func (s *InventoryPostInventoryImportOKNotesItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventoryImportOKNotesItem) SetMessage(val string) {
 	s.Message = val
 }
 

@@ -1,0 +1,521 @@
+[
+     {
+          "Id": "3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457",
+          "Created": "2026-11-12T05:39:34.246158203Z",
+          "Path": "/vedette",
+          "Args": [
+               "-listen",
+               ":8443",
+               "-sensor-listen",
+               ":8444",
+               "-sensor-creds",
+               "/var/lib/vedette-creds",
+               "-syslog-port",
+               "5514"
+          ],
+          "State": {
+               "OciVersion": "1.1.0",
+               "Status": "running",
+               "Running": true,
+               "Paused": false,
+               "Restarting": false,
+               "OOMKilled": false,
+               "Dead": false,
+               "Pid": 3831,
+               "ConmonPid": 3829,
+               "ExitCode": 0,
+               "Error": "",
+               "StartedAt": "2026-11-12T05:39:34.670294354Z",
+               "FinishedAt": "0001-01-01T00:00:00Z",
+               "Health": {
+                    "Status": "healthy",
+                    "FailingStreak": 0,
+                    "Log": [
+                         {
+                              "Start": "2026-11-12T05:39:34.74189943Z",
+                              "End": "2026-11-12T05:39:34.888753351Z",
+                              "ExitCode": 1,
+                              "Output": "vedette: core does not answer on 127.0.0.1:8443: dial tcp 127.0.0.1:8443: connect: connection refused"
+                         },
+                         {
+                              "Start": "2026-11-12T05:40:05.533685187Z",
+                              "End": "2026-11-12T05:40:05.806116143Z",
+                              "ExitCode": 0,
+                              "Output": ""
+                         }
+                    ]
+               },
+               "CgroupPath": "/system.slice/vedette-core.service/libpod-payload-3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457",
+               "CheckpointedAt": "0001-01-01T00:00:00Z",
+               "RestoredAt": "0001-01-01T00:00:00Z"
+          },
+          "Image": "19982429c04ab281451f051d0d792d56066f4685e2d60f0b9a96d1e9b73d6b75",
+          "ImageDigest": "sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+          "ImageName": "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+          "Rootfs": "",
+          "Pod": "",
+          "ResolvConfPath": "/run/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/resolv.conf",
+          "HostnamePath": "/run/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/hostname",
+          "HostsPath": "/run/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/hosts",
+          "StaticDir": "/var/lib/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata",
+          "OCIConfigPath": "/var/lib/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/config.json",
+          "OCIRuntime": "crun",
+          "ConmonPidFile": "/run/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/conmon.pid",
+          "PidFile": "/run/containers/storage/overlay-containers/3bf7735f38f8c5e15646b360ba6de0818d886ded703481320b54dc32809cc457/userdata/pidfile",
+          "Name": "vedette-core",
+          "RestartCount": 0,
+          "Driver": "overlay",
+          "MountLabel": "",
+          "ProcessLabel": "",
+          "AppArmorProfile": "containers-default-0.57.4-apparmor1",
+          "EffectiveCaps": null,
+          "BoundingCaps": null,
+          "ExecIDs": [],
+          "GraphDriver": {
+               "Name": "overlay",
+               "Data": {
+                    "LowerDir": "/var/lib/containers/storage/overlay/0e794a877812704d7f558c48d7eff0d4a1fcd9e9e9447d771cfa55999513ba99/diff:/var/lib/containers/storage/overlay/94c5632015852b5a1744087147368f2404ab6bc0c2c99fb9d7bd453b95657abf/diff:/var/lib/containers/storage/overlay/a177f81a05cde59374ad39dc804e2ee79f2ec7133c28f3004d57e792beaa4774/diff:/var/lib/containers/storage/overlay/6c14ea3b716f2eb78f98a8dd6c9692c6feb4d012f62641aca0b142a4fc997177/diff:/var/lib/containers/storage/overlay/a3b0efce869cc1895fcabdf49e428dbe523c39ff5c27316a80584bbeacff2f0f/diff:/var/lib/containers/storage/overlay/b9ae9d2cddffe0a3aa6e46620d9cc3f925014c4d64325ad4943716122d54e2e7/diff:/var/lib/containers/storage/overlay/550fcf73b742d6f9005f9ab18587028e0e0fe0f52f768228d38dcf3da22a8170/diff:/var/lib/containers/storage/overlay/48bf31582f5063e768851207c1d8be07dda2561105d494b855acaf3c1e14a528/diff:/var/lib/containers/storage/overlay/c2eb118b0a99ea5502a57deb35f47371a639c986ea3ae42b39772a97b9b0af37/diff:/var/lib/containers/storage/overlay/6958c2216b6d3fb41a12b5c359acf8cf221c51ca02ba230545861e43b6139757/diff:/var/lib/containers/storage/overlay/0be7479d15ab5eaf441f5dadf9ed038fdfc29cdcbcfd893cae3f73707f29be01/diff:/var/lib/containers/storage/overlay/af226568c2bb2405f41932d0d4fda095537ca85c9a6dc3771c1b0b570c9bc3a4/diff:/var/lib/containers/storage/overlay/bc83d9299b6df7c8f4ae928657a551918e2963c2b14b69227ba013209f4b8578/diff:/var/lib/containers/storage/overlay/88e8049b3371de268e9bbebe919a6ee34e8334e25ddaae62743e3981becd2ab1/diff:/var/lib/containers/storage/overlay/744d6479e3bd9e84cc4bc8c4d3c157a1c927c0aa15bc7e7f5d22ab05c3dcd0ab/diff:/var/lib/containers/storage/overlay/c04fee03b0cedd5832b2c0d201d789cac52bb2d6da2587766846190e8f29795e/diff:/var/lib/containers/storage/overlay/117068fd3d9b139a9d441f8a1ae27ec5b734ac50440bc4945ae9ce89026de330/diff:/var/lib/containers/storage/overlay/9486261b5a13f63ca6904b36721527ac8f19df53d300560138d69ae9b4c203de/diff",
+                    "MergedDir": "/var/lib/containers/storage/overlay/be69d9ea5a4e79b2f19d51191d71414eb90e99edb050d94bc8fc73cba2a87720/merged",
+                    "UpperDir": "/var/lib/containers/storage/overlay/be69d9ea5a4e79b2f19d51191d71414eb90e99edb050d94bc8fc73cba2a87720/diff",
+                    "WorkDir": "/var/lib/containers/storage/overlay/be69d9ea5a4e79b2f19d51191d71414eb90e99edb050d94bc8fc73cba2a87720/work"
+               }
+          },
+          "Mounts": [
+               {
+                    "Type": "volume",
+                    "Name": "vedette-hp-log",
+                    "Source": "/var/lib/containers/storage/volumes/vedette-hp-log/_data",
+                    "Destination": "/var/lib/vedette/honeypot/log",
+                    "Driver": "local",
+                    "Mode": "",
+                    "Options": [
+                         "noexec",
+                         "nosuid",
+                         "nodev",
+                         "rbind"
+                    ],
+                    "RW": false,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "volume",
+                    "Name": "vedette-creds-passive",
+                    "Source": "/var/lib/containers/storage/volumes/vedette-creds-passive/_data",
+                    "Destination": "/var/lib/vedette-creds/passive",
+                    "Driver": "local",
+                    "Mode": "",
+                    "Options": [
+                         "nosuid",
+                         "nodev",
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "volume",
+                    "Name": "vedette-creds-active",
+                    "Source": "/var/lib/containers/storage/volumes/vedette-creds-active/_data",
+                    "Destination": "/var/lib/vedette-creds/active",
+                    "Driver": "local",
+                    "Mode": "",
+                    "Options": [
+                         "nosuid",
+                         "nodev",
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "bind",
+                    "Source": "/var/lib/vedette",
+                    "Destination": "/var/lib/vedette",
+                    "Driver": "",
+                    "Mode": "",
+                    "Options": [
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "bind",
+                    "Source": "/var/lib/vedette-honeypot/config",
+                    "Destination": "/var/lib/vedette/honeypot/config",
+                    "Driver": "",
+                    "Mode": "",
+                    "Options": [
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "bind",
+                    "Source": "/run/vedette",
+                    "Destination": "/run/vedette",
+                    "Driver": "",
+                    "Mode": "",
+                    "Options": [
+                         "noexec",
+                         "nosuid",
+                         "nodev",
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               }
+          ],
+          "Dependencies": [],
+          "NetworkSettings": {
+               "EndpointID": "",
+               "Gateway": "",
+               "IPAddress": "",
+               "IPPrefixLen": 0,
+               "IPv6Gateway": "",
+               "GlobalIPv6Address": "",
+               "GlobalIPv6PrefixLen": 0,
+               "MacAddress": "",
+               "Bridge": "",
+               "SandboxID": "",
+               "HairpinMode": false,
+               "LinkLocalIPv6Address": "",
+               "LinkLocalIPv6PrefixLen": 0,
+               "Ports": {
+                    "5514/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "514"
+                         }
+                    ],
+                    "5514/udp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "514"
+                         }
+                    ],
+                    "5515/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "6514"
+                         }
+                    ],
+                    "8443/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "8443"
+                         }
+                    ],
+                    "8444/tcp": [
+                         {
+                              "HostIp": "127.0.0.1",
+                              "HostPort": "8444"
+                         }
+                    ]
+               },
+               "SandboxKey": "/run/netns/netns-a6b5f699-d17e-9a8a-f765-48718e56a2c6",
+               "Networks": {
+                    "vedette-int": {
+                         "EndpointID": "",
+                         "Gateway": "172.30.77.1",
+                         "IPAddress": "172.30.77.2",
+                         "IPPrefixLen": 24,
+                         "IPv6Gateway": "",
+                         "GlobalIPv6Address": "",
+                         "GlobalIPv6PrefixLen": 0,
+                         "MacAddress": "be:d1:13:f3:64:0a",
+                         "NetworkID": "vedette-int",
+                         "DriverOpts": null,
+                         "IPAMConfig": null,
+                         "Links": null,
+                         "Aliases": [
+                              "3bf7735f38f8"
+                         ]
+                    }
+               }
+          },
+          "Namespace": "",
+          "IsInfra": false,
+          "IsService": false,
+          "KubeExitCodePropagation": "invalid",
+          "lockNumber": 3,
+          "Config": {
+               "Hostname": "3bf7735f38f8",
+               "Domainname": "",
+               "User": "999:988",
+               "AttachStdin": false,
+               "AttachStdout": false,
+               "AttachStderr": false,
+               "Tty": false,
+               "OpenStdin": false,
+               "StdinOnce": false,
+               "Env": [
+                    "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
+                    "GOMEMLIMIT=1800MiB",
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "container=podman",
+                    "HOME=/home/nonroot",
+                    "HOSTNAME=3bf7735f38f8"
+               ],
+               "Cmd": [
+                    "-listen",
+                    ":8443",
+                    "-sensor-listen",
+                    ":8444",
+                    "-sensor-creds",
+                    "/var/lib/vedette-creds",
+                    "-syslog-port",
+                    "5514"
+               ],
+               "Image": "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+               "Volumes": null,
+               "WorkingDir": "/home/nonroot",
+               "Entrypoint": "/vedette",
+               "OnBuild": null,
+               "Labels": {
+                    "PODMAN_SYSTEMD_UNIT": "vedette-core.service",
+                    "io.buildah.version": "1.42.1",
+                    "org.opencontainers.image.licenses": "Apache-2.0",
+                    "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+                    "org.opencontainers.image.title": "vedette-core",
+                    "org.opencontainers.image.version": "0.0.1-test.1"
+               },
+               "Annotations": {
+                    "io.container.manager": "libpod",
+                    "io.podman.annotations.autoremove": "TRUE",
+                    "io.podman.annotations.cid-file": "/run/vedette-core.cid",
+                    "org.opencontainers.image.stopSignal": "15"
+               },
+               "StopSignal": 15,
+               "Healthcheck": {
+                    "Test": [
+                         "CMD",
+                         "/vedette",
+                         "healthcheck"
+                    ],
+                    "StartPeriod": 60000000000,
+                    "Interval": 30000000000,
+                    "Timeout": 30000000000,
+                    "Retries": 3
+               },
+               "HealthcheckOnFailureAction": "none",
+               "CreateCommand": [
+                    "/usr/bin/podman",
+                    "run",
+                    "--name=vedette-core",
+                    "--cidfile=/run/vedette-core.cid",
+                    "--replace",
+                    "--rm",
+                    "--log-driver",
+                    "journald",
+                    "--cgroups=split",
+                    "--network=vedette-int",
+                    "--sdnotify=conmon",
+                    "-d",
+                    "--security-opt=no-new-privileges",
+                    "--cap-drop=all",
+                    "--read-only",
+                    "--user",
+                    "999:988",
+                    "--tmpfs",
+                    "/tmp:size=64m",
+                    "-v",
+                    "/var/lib/vedette:/var/lib/vedette",
+                    "-v",
+                    "/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
+                    "-v",
+                    "vedette-hp-log:/var/lib/vedette/honeypot/log:ro,noexec",
+                    "-v",
+                    "/run/vedette:/run/vedette",
+                    "-v",
+                    "vedette-creds-passive:/var/lib/vedette-creds/passive",
+                    "-v",
+                    "vedette-creds-active:/var/lib/vedette-creds/active",
+                    "--publish",
+                    "8443:8443",
+                    "--publish",
+                    "127.0.0.1:8444:8444",
+                    "--publish",
+                    "514:5514/udp",
+                    "--publish",
+                    "514:5514/tcp",
+                    "--publish",
+                    "6514:5515/tcp",
+                    "--env",
+                    "GOMEMLIMIT=1800MiB",
+                    "--health-cmd",
+                    "[\"/vedette\",\"healthcheck\"]",
+                    "--health-interval",
+                    "30s",
+                    "--health-retries",
+                    "3",
+                    "--health-start-period",
+                    "60s",
+                    "--pull",
+                    "never",
+                    "--memory=2g",
+                    "--memory-swap=2g",
+                    "--cpus=2",
+                    "--pids-limit=512",
+                    "--group-add=987",
+                    "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+                    "-listen",
+                    ":8443",
+                    "-sensor-listen",
+                    ":8444",
+                    "-sensor-creds",
+                    "/var/lib/vedette-creds",
+                    "-syslog-port",
+                    "5514"
+               ],
+               "Umask": "0022",
+               "Timeout": 0,
+               "StopTimeout": 10,
+               "Passwd": true,
+               "sdNotifyMode": "conmon",
+               "sdNotifySocket": "/run/systemd/notify"
+          },
+          "HostConfig": {
+               "Binds": [
+                    "vedette-hp-log:/var/lib/vedette/honeypot/log:ro,noexec,rprivate,nosuid,nodev,rbind",
+                    "vedette-creds-passive:/var/lib/vedette-creds/passive:rw,rprivate,nosuid,nodev,rbind",
+                    "vedette-creds-active:/var/lib/vedette-creds/active:rw,rprivate,nosuid,nodev,rbind",
+                    "/var/lib/vedette:/var/lib/vedette:rw,rprivate,rbind",
+                    "/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:rw,rprivate,rbind",
+                    "/run/vedette:/run/vedette:rw,rprivate,noexec,nosuid,nodev,rbind"
+               ],
+               "CgroupManager": "systemd",
+               "CgroupMode": "private",
+               "ContainerIDFile": "/run/vedette-core.cid",
+               "LogConfig": {
+                    "Type": "journald",
+                    "Config": null,
+                    "Path": "",
+                    "Tag": "",
+                    "Size": "0B"
+               },
+               "NetworkMode": "bridge",
+               "PortBindings": {
+                    "5514/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "514"
+                         }
+                    ],
+                    "5514/udp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "514"
+                         }
+                    ],
+                    "5515/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "6514"
+                         }
+                    ],
+                    "8443/tcp": [
+                         {
+                              "HostIp": "",
+                              "HostPort": "8443"
+                         }
+                    ],
+                    "8444/tcp": [
+                         {
+                              "HostIp": "127.0.0.1",
+                              "HostPort": "8444"
+                         }
+                    ]
+               },
+               "RestartPolicy": {
+                    "Name": "",
+                    "MaximumRetryCount": 0
+               },
+               "AutoRemove": true,
+               "VolumeDriver": "",
+               "VolumesFrom": null,
+               "CapAdd": [],
+               "CapDrop": [
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FOWNER",
+                    "CAP_FSETID",
+                    "CAP_KILL",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_SETFCAP",
+                    "CAP_SETGID",
+                    "CAP_SETPCAP",
+                    "CAP_SETUID",
+                    "CAP_SYS_CHROOT"
+               ],
+               "Dns": [],
+               "DnsOptions": [],
+               "DnsSearch": [],
+               "ExtraHosts": [],
+               "GroupAdd": [
+                    "987"
+               ],
+               "IpcMode": "shareable",
+               "Cgroup": "",
+               "Cgroups": "default",
+               "Links": null,
+               "OomScoreAdj": 0,
+               "PidMode": "private",
+               "Privileged": false,
+               "PublishAllPorts": false,
+               "ReadonlyRootfs": true,
+               "SecurityOpt": [
+                    "no-new-privileges"
+               ],
+               "Tmpfs": {
+                    "/tmp": "size=64m,rw,rprivate,nosuid,nodev,tmpcopyup"
+               },
+               "UTSMode": "private",
+               "UsernsMode": "",
+               "ShmSize": 65536000,
+               "Runtime": "oci",
+               "ConsoleSize": [
+                    0,
+                    0
+               ],
+               "Isolation": "",
+               "CpuShares": 0,
+               "Memory": 2147483648,
+               "NanoCpus": 2000000000,
+               "CgroupParent": "",
+               "BlkioWeight": 0,
+               "BlkioWeightDevice": null,
+               "BlkioDeviceReadBps": null,
+               "BlkioDeviceWriteBps": null,
+               "BlkioDeviceReadIOps": null,
+               "BlkioDeviceWriteIOps": null,
+               "CpuPeriod": 100000,
+               "CpuQuota": 200000,
+               "CpuRealtimePeriod": 0,
+               "CpuRealtimeRuntime": 0,
+               "CpusetCpus": "",
+               "CpusetMems": "",
+               "Devices": [],
+               "DiskQuota": 0,
+               "KernelMemory": 0,
+               "MemoryReservation": 0,
+               "MemorySwap": 2147483648,
+               "MemorySwappiness": -1,
+               "OomKillDisable": false,
+               "PidsLimit": 512,
+               "Ulimits": [
+                    {
+                         "Name": "RLIMIT_NPROC",
+                         "Soft": 4194304,
+                         "Hard": 4194304
+                    }
+               ],
+               "CpuCount": 0,
+               "CpuPercent": 0,
+               "IOMaximumIOps": 0,
+               "IOMaximumBandwidth": 0,
+               "CgroupConf": null
+          }
+     }
+]

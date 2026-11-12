@@ -1060,6 +1060,23 @@ func TestContract_Update_RetentionRemovesOnlyWhatNothingKeepsByDigestAndFailureI
 			t.Fatalf("a prune or a force: %v", c)
 		}
 	}
+	// Podman refuses rmi by ID of an image with two names (lab, Podman 4.9.3): d0's local tag went first, and only its;
+	// d3 had one name, and nothing kept, used or another service's was untagged.
+	var untags [][]string
+	for _, c := range e.podman() {
+		if c[0] == "untag" {
+			untags = append(untags, c)
+		}
+	}
+	if want := [][]string{{"untag", idOf(d0), "localhost/vedette-sensor:0.8.0"}}; !slices.EqualFunc(untags, want, slices.Equal) {
+		t.Fatalf("untag %v, want %v", untags, want)
+	}
+	if !slices.ContainsFunc(e.notes(t, "image_removal_failed"), func(n map[string]any) bool {
+		u, _ := n["untagged"].([]any)
+		return n["image_id"] == idOf(d0) && len(u) == 1 && u[0] == "localhost/vedette-sensor:0.8.0"
+	}) {
+		t.Fatalf("the audit of d0 does not say its tag went: %v", e.notes(t, "image_removal_failed"))
+	}
 	// Without the failure marker the two go.
 	e.m.Mark("rmi-fails", false)
 	e.rollback(t, "sensor")
@@ -1072,6 +1089,34 @@ func TestContract_Update_RetentionRemovesOnlyWhatNothingKeepsByDigestAndFailureI
 		if !e.m.ImagePresent(d) {
 			t.Errorf("%s was removed", d)
 		}
+	}
+	if got := e.m.ImageUntagged(); !slices.Equal(got, []string{"localhost/vedette-sensor:0.8.0"}) {
+		t.Fatalf("untagged %v", got)
+	}
+}
+
+// An untag that fails: no rmi of that image, one image_removal_failed line, and the image stays with its tag.
+func TestContract_Update_RetentionUntagFailureLeavesTheImageNamed(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.adopt(t, "sensor", rel1(d1, d1))
+	e.pullRel(t, "sensor", rel2(d2, d2))
+	e.m.PresentImage("sensor", d0, "0.8.0")
+	e.m.Mark("untag-fails", true)
+	r := e.ok(t, api.CmdContainerStart, e.startArgs("sensor", v2))
+	if res := result[api.ContainerStartResult](t, r); !res.Healthy {
+		t.Fatalf("%+v", res)
+	}
+	for _, c := range e.podman() {
+		if c[0] == "rmi" {
+			t.Fatalf("rmi after a failed untag: %v", c)
+		}
+	}
+	if n := e.notes(t, "image_removal_failed"); len(n) != 1 || n[0]["image_id"] != idOf(d0) || n[0]["untagged"] != nil {
+		t.Fatalf("notes %v", n)
+	}
+	if !e.m.ImagePresent(d0) || e.m.ImageTag("localhost/vedette-sensor:0.8.0") != d0 || len(e.m.ImageRemoved()) != 0 {
+		t.Fatal("the image or its tag went")
 	}
 }
 

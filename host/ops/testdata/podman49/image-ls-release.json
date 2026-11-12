@@ -1,0 +1,97 @@
+[
+    {
+        "Id": "19982429c04ab281451f051d0d792d56066f4685e2d60f0b9a96d1e9b73d6b75",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+            "localhost/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12"
+        ],
+        "Size": 125063645,
+        "SharedSize": 0,
+        "VirtualSize": 125063645,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-core",
+            "org.opencontainers.image.version": "0.0.1-test.1"
+        },
+        "Containers": 1,
+        "Names": [
+            "localhost/vedette-core:0.0.1-test.1",
+            "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12"
+        ],
+        "Digest": "sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+        "History": [
+            "ghcr.io/knt048/vedette-core@sha256:cf8437b22c7a261e19dbae726c72f00acd3e712ac305808f2be782a546d94d12",
+            "localhost/vedette-core:0.0.1-test.1"
+        ],
+        "Created": 1794461759,
+        "CreatedAt": "2026-11-12T05:35:59Z"
+    },
+    {
+        "Id": "5b4e883d20998ae9ff6ce26801c02640dcdfa922be93af929a67f7935eb48f9e",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-sensor@sha256:26893d16fb5a557c9afbd1df40107b28deaf981a4a5b5054d014bc163bc6b9f4",
+            "localhost/vedette-sensor@sha256:26893d16fb5a557c9afbd1df40107b28deaf981a4a5b5054d014bc163bc6b9f4"
+        ],
+        "Size": 11436806,
+        "SharedSize": 0,
+        "VirtualSize": 11436806,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-sensor",
+            "org.opencontainers.image.version": "0.0.1-test.1"
+        },
+        "Containers": 1,
+        "Names": [
+            "localhost/vedette-sensor:0.0.1-test.1",
+            "ghcr.io/knt048/vedette-sensor@sha256:26893d16fb5a557c9afbd1df40107b28deaf981a4a5b5054d014bc163bc6b9f4"
+        ],
+        "Digest": "sha256:26893d16fb5a557c9afbd1df40107b28deaf981a4a5b5054d014bc163bc6b9f4",
+        "History": [
+            "ghcr.io/knt048/vedette-sensor@sha256:26893d16fb5a557c9afbd1df40107b28deaf981a4a5b5054d014bc163bc6b9f4",
+            "localhost/vedette-sensor:0.0.1-test.1"
+        ],
+        "Created": 1794461582,
+        "CreatedAt": "2026-11-12T05:33:02Z"
+    },
+    {
+        "Id": "be8091e98050327f62d5ac53c0995d2576de88dfa0a2ac616ab7b92857f6c96b",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-honeypot@sha256:0a4344ee77dc1b25b376044887275915abd09ea01491ca5a5c5dd14ac031b055",
+            "ghcr.io/knt048/vedette-honeypot@sha256:f4db3ada666af63eaef80255240a59c9be4da4d255e96dfa095fd828824f7a9e",
+            "localhost/vedette-honeypot@sha256:0a4344ee77dc1b25b376044887275915abd09ea01491ca5a5c5dd14ac031b055",
+            "localhost/vedette-honeypot@sha256:f4db3ada666af63eaef80255240a59c9be4da4d255e96dfa095fd828824f7a9e"
+        ],
+        "Size": 334492068,
+        "SharedSize": 0,
+        "VirtualSize": 334492068,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0 AND BSD-3-Clause AND GPL-3.0-or-later",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-honeypot",
+            "org.opencontainers.image.version": "0.0.1-test.1"
+        },
+        "Containers": 0,
+        "Names": [
+            "localhost/vedette-honeypot:0.0.1-test.1",
+            "ghcr.io/knt048/vedette-honeypot@sha256:f4db3ada666af63eaef80255240a59c9be4da4d255e96dfa095fd828824f7a9e"
+        ],
+        "Digest": "sha256:f4db3ada666af63eaef80255240a59c9be4da4d255e96dfa095fd828824f7a9e",
+        "History": [
+            "ghcr.io/knt048/vedette-honeypot@sha256:f4db3ada666af63eaef80255240a59c9be4da4d255e96dfa095fd828824f7a9e",
+            "localhost/vedette-honeypot:0.0.1-test.1"
+        ],
+        "Created": 1794425059,
+        "CreatedAt": "2026-11-11T19:24:19Z"
+    }
+]

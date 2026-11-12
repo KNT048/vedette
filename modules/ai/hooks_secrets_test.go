@@ -213,7 +213,7 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 	r := runner(t, nil)
 	d := "$"
 	h7 := strings.ToUpper(hex.EncodeToString([]byte("ntpKey7")))
-	clear := fake("Zq", "7Lm", "p4Xv")
+	plainPW := fake("Zq", "7Lm", "p4Xv")
 	two := fake("Wr", "9Kd", "2Hs")
 	ye := fake(d, "y", d, "j9T", d, "abcdefSALT", d, "HASHhashHASHhash")
 	gy := fake(d, "gy", d, "j9T", d, "abcdefSALT", d, "HASHhashHASHhash")
@@ -233,8 +233,8 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		secrets        []string
 	}{
 		{"ntp type 7 after md5", "ntp authentication-key 1 md5 " + h7 + " 7", "ntp authentication-key 1 md5 ", []string{h7}},
-		{"ntp cleartext", "ntp authentication-key 42 md5 " + clear, "ntp authentication-key 42 md5 ", []string{clear}},
-		{"ntp hmac-sha", "ntp authentication-key 2 hmac-sha256 " + clear, "hmac-sha256 ", []string{clear}},
+		{"ntp cleartext", "ntp authentication-key 42 md5 " + plainPW, "ntp authentication-key 42 md5 ", []string{plainPW}},
+		{"ntp hmac-sha", "ntp authentication-key 2 hmac-sha256 " + plainPW, "hmac-sha256 ", []string{plainPW}},
 		{"yescrypt", "root:" + ye + ":19000:0:99999:7:::", "root:", []string{ye}},
 		{"gost yescrypt", "root:" + gy + ":19000", "root:", []string{gy}},
 		{"scrypt $7$", "u:" + sc7, "u:", []string{sc7}},
@@ -249,25 +249,25 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		{"asa nt-encrypted", "username bob password " + asa + " nt-encrypted", "username bob password ", []string{asa}},
 		{"wireguard", "[Interface]\nPrivateKey = " + wg + "\n[Peer]\nPresharedKey = " + wg, "PrivateKey = ", []string{wg}},
 		{"mikrotik wireguard", "/interface wireguard add listen-port=13231 name=wg1 private-key=\"" + wg + "\"", "private-key=", []string{wg}},
-		{"hostapd passphrase", "ssid=lab\nwpa_passphrase=" + clear, "wpa_passphrase=", []string{clear}},
+		{"hostapd passphrase", "ssid=lab\nwpa_passphrase=" + plainPW, "wpa_passphrase=", []string{plainPW}},
 		{"hostapd psk", "wpa_psk=" + psk64, "wpa_psk=", []string{psk64}},
-		{"juniper snmp block", "snmp {\n    community " + clear + " {\n        authorization read-only;\n    }\n}", "community ", []string{clear}},
-		{"asa snmp host", "snmp-server host inside 10.1.1.1 community " + clear + " version 2c", "community ", []string{clear}},
-		{"tacacs host key", "tacacs-server host 1.1.1.1 key " + clear, "tacacs-server host 1.1.1.1 key ", []string{clear}},
-		{"radius host key", "radius-server host 1.1.1.1 auth-port 1812 key 0 " + clear, "key 0 ", []string{clear}},
+		{"juniper snmp block", "snmp {\n    community " + plainPW + " {\n        authorization read-only;\n    }\n}", "community ", []string{plainPW}},
+		{"asa snmp host", "snmp-server host inside 10.1.1.1 community " + plainPW + " version 2c", "community ", []string{plainPW}},
+		{"tacacs host key", "tacacs-server host 1.1.1.1 key " + plainPW, "tacacs-server host 1.1.1.1 key ", []string{plainPW}},
+		{"radius host key", "radius-server host 1.1.1.1 auth-port 1812 key 0 " + plainPW, "key 0 ", []string{plainPW}},
 		{"snmpv3 hex", "snmp-server user admin network-admin auth md5 0x" + psk64 + " priv 0x" + strings.ToUpper(psk64) + " localizedkey", "auth md5 ", []string{psk64, strings.ToUpper(psk64)}},
-		{"snmpv3 aes", "snmp-server user u g v3 auth sha " + clear + " priv aes 128 " + two, "priv aes 128 ", []string{clear, two}},
-		{"json password", `{"name":"admin","password":"` + clear + `","wifi_passphrase":"` + two + `"}`, `"password":`, []string{clear, two}},
-		{"json community", `{"community": "` + clear + `"}`, `"community": `, []string{clear}},
-		{"escaped quote", `set password "ab\"` + clear + `"`, "set password ", []string{clear}},
-		{"enable cleartext", "enable password " + clear, "enable password ", []string{clear}},
-		{"username cleartext", "username admin privilege 15 password " + clear, "username admin privilege 15 password ", []string{clear}},
-		{"bgp neighbor", "router bgp 65000\n neighbor 10.0.0.1 password " + clear, " neighbor 10.0.0.1 password ", []string{clear}},
-		{"ospf auth key", "interface Gi0/1\n ip ospf authentication-key " + clear, " ip ospf authentication-key ", []string{clear}},
-		{"ios keyring psk", "crypto keyring K\n pre-shared-key address 10.0.0.1 key " + clear, "pre-shared-key address 10.0.0.1 key ", []string{clear}},
-		{"asa tunnel-group psk", "tunnel-group 1.2.3.4 ipsec-attributes\n ikev1 pre-shared-key " + clear, "ikev1 pre-shared-key ", []string{clear}},
-		{"psk colon", "PSK: " + clear, "PSK: ", []string{clear}},
-		{"username type 6", "username bob password 6 " + clear, "username bob password 6 ", []string{clear}},
+		{"snmpv3 aes", "snmp-server user u g v3 auth sha " + plainPW + " priv aes 128 " + two, "priv aes 128 ", []string{plainPW, two}},
+		{"json password", `{"name":"admin","password":"` + plainPW + `","wifi_passphrase":"` + two + `"}`, `"password":`, []string{plainPW, two}},
+		{"json community", `{"community": "` + plainPW + `"}`, `"community": `, []string{plainPW}},
+		{"escaped quote", `set password "ab\"` + plainPW + `"`, "set password ", []string{plainPW}},
+		{"enable cleartext", "enable password " + plainPW, "enable password ", []string{plainPW}},
+		{"username cleartext", "username admin privilege 15 password " + plainPW, "username admin privilege 15 password ", []string{plainPW}},
+		{"bgp neighbor", "router bgp 65000\n neighbor 10.0.0.1 password " + plainPW, " neighbor 10.0.0.1 password ", []string{plainPW}},
+		{"ospf auth key", "interface Gi0/1\n ip ospf authentication-key " + plainPW, " ip ospf authentication-key ", []string{plainPW}},
+		{"ios keyring psk", "crypto keyring K\n pre-shared-key address 10.0.0.1 key " + plainPW, "pre-shared-key address 10.0.0.1 key ", []string{plainPW}},
+		{"asa tunnel-group psk", "tunnel-group 1.2.3.4 ipsec-attributes\n ikev1 pre-shared-key " + plainPW, "ikev1 pre-shared-key ", []string{plainPW}},
+		{"psk colon", "PSK: " + plainPW, "PSK: ", []string{plainPW}},
+		{"username type 6", "username bob password 6 " + plainPW, "username bob password 6 ", []string{plainPW}},
 	}
 	for _, c := range cases {
 		res := run(t, r, BeforeAI, c.in)

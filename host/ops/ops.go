@@ -403,7 +403,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
 	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
-	o.adoptHostPackage()      // the .deb install.sh kept for the running version becomes current (D-316)
+	o.adoptHostPackage(ctx)   // the .deb install.sh kept for the running version becomes current (D-316)
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

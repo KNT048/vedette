@@ -247,6 +247,9 @@ func parseSUStarted(b []byte) (suStarted, error) {
 }
 
 // decodeSUStrict decodes exactly one JSON object of at most maxSUFile bytes: no unknown field, no trailing data.
+// encoding/json matches keys case-insensitively and the last of two equal keys wins; that is accepted here
+// because only root writes these files (a root-only 0700 folder), unlike the request bodies, which the server
+// checks for such keys (jsonstrict).
 func decodeSUStrict(b []byte, v any) error {
 	if len(b) > maxSUFile {
 		return errors.New("too large")
@@ -327,8 +330,29 @@ func (o *Ops) loadSUJournal() (suJournal, jstate) {
 	return j, jOK
 }
 
+// saveSU writes one file of <state>/selfupdate atomically (0600). It encodes without HTML escaping, so a log
+// line full of "<" or ">=" (dpkg's dependency output) keeps its size, and it refuses what readSU would refuse:
+// more than maxSUFile bytes. One limit for the writer and the reader, so a written journal always reads.
 func (o *Ops) saveSU(name string, v any) error {
-	return writeJSONAtomic(filepath.Join(suDir(o.cfg.StateDir), name), v)
+	b, err := encodeSU(v)
+	if err != nil {
+		return fmt.Errorf("ops: %s: %w", name, err)
+	}
+	return writeFileAtomic(filepath.Join(suDir(o.cfg.StateDir), name), b, 0o600)
+}
+
+// encodeSU is the JSON of a self-update file: no HTML escaping, at most maxSUFile bytes.
+func encodeSU(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	if buf.Len() > maxSUFile {
+		return nil, errors.New("larger than the readers accept")
+	}
+	return buf.Bytes(), nil
 }
 
 // keptFile hashes packages/<name>: a regular file (not a link) owned by the host's owner, mode 0600, at
@@ -392,9 +416,10 @@ func (o *Ops) retainKept(v suVersions) {
 // adoptHostPackage records the running version's .deb as current when versions.json does not name it
 // (spec 6.14 "Nhận bản đầu"): install.sh puts the file in packages/ after it checked its SHA-256 and
 // installed it, and the folder is root's, so trust on first use is enough. The current it replaces becomes
-// previous when its file is still there with the recorded hash. A dev build adopts nothing, and neither does
+// previous when its file is still there with the recorded hash. dpkg-deb confirms the package, version and
+// architecture of the file before it is recorded. A dev build adopts nothing, and neither does
 // a host that finds a journal (the end of that self-update writes versions.json). It runs at Start.
-func (o *Ops) adoptHostPackage() {
+func (o *Ops) adoptHostPackage(ctx context.Context) {
 	if !validHostVersion(o.cfg.Version) {
 		return
 	}
@@ -409,8 +434,16 @@ func (o *Ops) adoptHostPackage() {
 	sha, size, err := o.keptFile(name)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			o.log.Warn("the kept package of the running version is not usable; not adopted", "error", err.Error())
+			o.log.WarnContext(ctx, "the kept package of the running version is not usable; not adopted", "error", err.Error())
 		}
+		return
+	}
+	// The name is not proof: dpkg-deb must say it is vedette-host of this version and architecture (review L2).
+	dctx, cancel := context.WithTimeout(ctx, 30*time.Second) // a part of Start's own time: dpkg-deb reads one header
+	err = o.checkDebFields(dctx, filepath.Join(keptDir(o.cfg.StateDir), name), o.cfg.Version)
+	cancel()
+	if err != nil {
+		o.log.WarnContext(ctx, "the kept package of the running version is not that package; not adopted", "error", err.Error())
 		return
 	}
 	nv := suVersions{Current: suPkg{Version: o.cfg.Version, SHA256: sha, Size: size}}
@@ -421,7 +454,7 @@ func (o *Ops) adoptHostPackage() {
 		}
 	}
 	if err := o.saveSU(suVersionsName, nv); err != nil {
-		o.log.Error("could not record the adopted host package", "error", err.Error())
+		o.log.ErrorContext(ctx, "could not record the adopted host package", "error", err.Error())
 		return
 	}
 	o.note(api.CmdHostSelfUpdate, "host_package_adopted", map[string]any{"version": nv.Current.Version, "sha256": sha})

@@ -61,7 +61,13 @@ func (m *Machine) HostInstalled(version, status string) {
 
 // DebFields makes dpkg-deb --field print the three fields of the staged file.
 func (m *Machine) DebFields(pkg, debVersion, arch string) {
-	m.RuleText("dpkg-deb", "--field", "Package: "+pkg+"\nVersion: "+debVersion+"\nArchitecture: "+arch+"\n", 0, "", "")
+	m.RuleText("dpkg-deb", "/selfupdate/staged/", "Package: "+pkg+"\nVersion: "+debVersion+"\nArchitecture: "+arch+"\n", 0, "", "")
+}
+
+// KeptDebFields makes dpkg-deb --field of the kept package of version (SemVer) print its true fields.
+func (m *Machine) KeptDebFields(version string) {
+	m.RuleText("dpkg-deb", "/packages/vedette-host_"+version+"_amd64.deb",
+		"Package: vedette-host\nVersion: "+strings.Replace(version, "-", "~", 1)+"\nArchitecture: amd64\n", 0, "", "")
 }
 
 // ApplierUnit makes systemctl is-active vedette-host-upgrade.service print state (exit 0 for active, 3 otherwise).

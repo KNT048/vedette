@@ -59,6 +59,7 @@ func startSU(t *testing.T, version string, muts ...func(*ops.Config, *ops.Deps))
 		t.Fatal(err)
 	}
 	m.KeepPackage(suFrom, opstest.HostPackage(suFrom))
+	m.KeptDebFields(suFrom)
 	m.HostInstalled(suFrom, "installed")
 	m.ApplierUnit("inactive")
 	m.DebFields("vedette-host", suTo, "amd64")
@@ -133,10 +134,21 @@ func (e *suEnv) stagedFiles() []string {
 	return out
 }
 
-// assertUntouched: no dpkg-deb, no simulated install, no systemd-run, nothing staged, no applier, no journal.
+// stagedDebCalls are the dpkg-deb calls on a staged file (Start also asks it about the kept package it adopts).
+func (e *suEnv) stagedDebCalls() [][]string {
+	var out [][]string
+	for _, c := range e.m.Calls("dpkg-deb") {
+		if len(c) > 1 && strings.Contains(c[1], "/selfupdate/staged/") {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// assertUntouched: no dpkg-deb on a staged file, no simulated install, no systemd-run, nothing staged, no applier, no journal.
 func (e *suEnv) assertUntouched(t *testing.T, what string) {
 	t.Helper()
-	if c := e.m.Calls("dpkg-deb"); len(c) != 0 {
+	if c := e.stagedDebCalls(); len(c) != 0 {
 		t.Errorf("%s: dpkg-deb ran %v", what, c)
 	}
 	if c := e.m.Calls("systemd-run"); len(c) != 0 {
@@ -352,7 +364,7 @@ func TestSelfUpdate_TheStagedCopyIsWhatDpkgGetsAndTheRunParksBeforeAnyDispatch(t
 	if b, err := os.ReadFile(staged); err != nil || string(b) != string(e.pkg) { //nolint:gosec // test path
 		t.Fatalf("staged copy %q %v", b, err)
 	}
-	if got := e.m.Calls("dpkg-deb"); len(got) != 1 || !slices.Equal(got[0], []string{"--field", staged, "Package", "Version", "Architecture"}) {
+	if got := e.stagedDebCalls(); len(got) != 1 || !slices.Equal(got[0], []string{"--field", staged, "Package", "Version", "Architecture"}) {
 		t.Fatalf("dpkg-deb %v", got)
 	}
 	sim := []string{"-s", "-q", "-o", "Debug::NoLocking=1", "--no-remove", "--no-install-recommends", "install", staged}
@@ -420,6 +432,7 @@ func TestSelfUpdate_StartAdoptsTheKeptPackageAndKeepsTwo(t *testing.T) {
 	e := startSU(t, suFrom) // adopts 1.3.0 (no versions.json yet)
 	e.m.KeepPackage("1.4.0", opstest.HostPackage("1.4.0"))
 	e.m.KeepPackage("1.1.0", opstest.HostPackage("1.1.0"))
+	e.m.KeptDebFields("1.4.0")
 	// A newer host starts on the same state (install.sh upgraded it): 1.4.0 becomes current, 1.3.0 previous, 1.1.0 goes.
 	o2 := e.m.Ops(nil, func(c *ops.Config, d *ops.Deps) { c.Version = "1.4.0"; d.Keys = e.rel.Keys })
 	h2 := servertest.Start(t, o2.Commands(), func(o *server.Options) { o.StateDir, o.Readers = e.m.State, o2.Readers() })
@@ -441,7 +454,11 @@ func TestSelfUpdate_StartAdoptsTheKeptPackageAndKeepsTwo(t *testing.T) {
 	if !strings.Contains(string(audit), "host_package_adopted") || !strings.Contains(string(audit), "host_package_removed") {
 		t.Fatalf("audit %s", audit)
 	}
-	// A dev build adopts nothing; neither does a host that finds a journal.
+	// A kept file whose fields dpkg-deb does not confirm is not adopted (review L2); a dev build adopts nothing.
+	e.m.KeepPackage("1.5.0", opstest.HostPackage("1.5.0"))
+	o4 := e.m.Ops(nil, func(c *ops.Config, _ *ops.Deps) { c.Version = "1.5.0" })
+	o4.Start(context.Background(), h2.Server)
+	o4.Close()
 	o3 := e.m.Ops(nil, func(c *ops.Config, _ *ops.Deps) { c.Version = "dev" })
 	o3.Start(context.Background(), h2.Server)
 	o3.Close()

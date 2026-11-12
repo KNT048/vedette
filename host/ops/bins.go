@@ -94,10 +94,19 @@ func validateApt(args []string) error {
 			if !pkgNameRE.MatchString(n) {
 				return fmt.Errorf("package name %q is not valid", clipText(n, 40))
 			}
+			if isHostPkg(n) { // only the applier of host.self_update installs it (FORBID-7, D-316)
+				return errors.New("vedette-host is never upgraded by os.install")
+			}
 		}
 		return nil
 	}
 	return errors.New("not one of the fixed apt command lines")
+}
+
+// isHostPkg says whether an apt package name (with or without ":<arch>") is vedette-host.
+func isHostPkg(name string) bool {
+	base, _, _ := strings.Cut(name, ":")
+	return base == hostPkg
 }
 
 func exactly(want ...string) func([]string) error {

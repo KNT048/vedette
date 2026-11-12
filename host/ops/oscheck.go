@@ -238,7 +238,7 @@ func (o *Ops) installOS(ctx context.Context, rc *server.RunContext, scope, snaps
 	for _, u := range sim.Upgrades {
 		// vedette-host is never upgraded from the host's own cgroup (FORBID-7, D-316): only host.self_update's
 		// applier installs it. No apt repository carries it (D-81); this is the second layer.
-		if u.Name == hostPkg {
+		if isHostPkg(u.Name) {
 			continue
 		}
 		if scope == "all" || u.Security {

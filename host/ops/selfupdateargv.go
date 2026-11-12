@@ -76,7 +76,7 @@ func dpkgDebFieldArgv(staged string) []string {
 
 func validateDpkgDeb(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if len(args) != 5 || args[0] != "--field" || !isStagedPath(stateDir, args[1]) || !slices.Equal(args[2:], argsDebFields) {
+		if len(args) != 5 || args[0] != "--field" || (!isStagedPath(stateDir, args[1]) && !isKeptPath(stateDir, args[1])) || !slices.Equal(args[2:], argsDebFields) {
 			return errors.New("not the fixed dpkg-deb command line")
 		}
 		return nil

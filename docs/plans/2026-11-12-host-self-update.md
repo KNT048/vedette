@@ -148,8 +148,9 @@ Settled while building 2a:
   refuses `transition_pending` while any unit journal or `restore.json` exists, so `AfterReady` has nothing to
   restore whenever a self-update is parked (test: the case "an open unit change" of
   `TestSelfUpdate_RefusalsAreAllDecidedInCheckWithNoWrite`).
-- The run window is exactly 10 + 2 × 60 = 130 min (spec 6.14 said "+ 10 slack", which is 140): no slack is needed,
-  because a second applier starts only when now + 60 min ≤ deadline; core's 5 min past the deadline stay.
+- The run window is exactly 10 + 2 × 60 = 130 min (spec 6.14 said "+ 10 slack", which is 140): a retry after a
+  full-length first run is not guaranteed (a second applier starts only when now + 60 min ≤ deadline, so none
+  outlives it); core's 5 min past the deadline stay.
 
 ### Slice 3: ship the first kept package (`install.sh`, release builder)
 

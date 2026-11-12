@@ -346,8 +346,8 @@ func (o *Ops) runSelfUpdate(ctx context.Context, rc *server.RunContext, a api.Ho
 	}
 	o.note(api.CmdHostSelfUpdate, "self_update_staged", map[string]any{"from": j.From.Version, "to": j.To.Version, "sha256": j.To.SHA256})
 	// A run that does not park after all (an invalid Parked, or SIGTERM in the window before parking) ends
-	// failed: nothing was dispatched, so the staged journal of this very run is cleaned at once (the next
-	// Start does the same for one a crash left).
+	// failed: nothing was dispatched, so the staged journal of this very run is cleaned at once. A journal a
+	// crash left (AfterFinish does not survive a restart) is for the orphan-journal step at Start (slice 2b).
 	runID := rc.RunID
 	rc.AfterFinish(func(context.Context, api.Status) { o.dropStagedJournal(runID) })
 	parked = true
@@ -420,7 +420,7 @@ func (o *Ops) writeStaged(ctx context.Context, src io.Reader, f release.HostFile
 	return dst, nil
 }
 
-// checkDebFields is Run 3: dpkg-deb --field of the staged copy names vedette-host, the Debian form of the
+// checkDebFields is Run 3 (and the check of adoption): dpkg-deb --field of the staged copy (or of a kept file) names vedette-host, the Debian form of the
 // version and this architecture.
 func (o *Ops) checkDebFields(ctx context.Context, staged, version string) error {
 	res, code, err := o.exec(ctx, binDpkgDeb, dpkgDebFieldArgv(staged)...)
@@ -476,7 +476,7 @@ func SelfUpdateSimOK(out []byte) bool {
 			continue
 		}
 		name, after, _ := strings.Cut(rest, " ")
-		if base, _, _ := strings.Cut(name, ":"); base == hostPkg {
+		if isHostPkg(name) {
 			sawHost = true
 			continue
 		}

@@ -86,6 +86,12 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 			}
 		}
 	}
+	// os.install's upgrade form never takes vedette-host, with or without an architecture (FORBID-7, review L1).
+	for _, n := range []string{hostPkg, hostPkg + ":amd64", hostPkg + ":arm64"} {
+		if ValidateHostArgv(suState, "vedette-core.service", binAptGet, append(slices.Clone(argsInstallPre), "libc6", n)) == nil {
+			t.Errorf("os.install's apt accepts %s", n)
+		}
+	}
 	// A host.conf that names vedette-host as core's unit does not open a way to stop or restart it.
 	for _, a := range [][]string{{"stop", hostUnit}, {"start", hostUnit}, {"restart", hostUnit}} {
 		if ValidateHostArgv(suState, hostUnit, binSystemctl, a) == nil {
@@ -260,6 +266,29 @@ func TestJournalReaderIsStrict(t *testing.T) {
 	}
 }
 
+// Review M1: a journal at its limits (50 lines of 512 bytes of "<", or of the characters JSON doubles) is
+// written within the reader's cap and reads back; the writer refuses what the reader would.
+func TestAFullJournalIsWrittenWithinTheReadersLimit(t *testing.T) {
+	t.Parallel()
+	for _, c := range []string{"<", `"`, "\u2028"} {
+		j := goodJournal()
+		line := strings.Repeat(c, maxSULogLine/len(c))
+		for range maxSULogLines {
+			j.Log = append(j.Log, line)
+		}
+		b, err := encodeSU(j)
+		if err != nil {
+			t.Fatalf("%q: %v", c, err)
+		}
+		if _, err := parseSUJournal(b); err != nil {
+			t.Fatalf("%q: written %d bytes that do not read: %v", c, len(b), err)
+		}
+	}
+	if _, err := encodeSU(map[string]string{"x": strings.Repeat("a", maxSUFile)}); err == nil {
+		t.Fatal("the writer accepted more than the reader does")
+	}
+}
+
 func FuzzParseSUJournal(f *testing.F) {
 	f.Add(suJSON(f, goodJournal()))
 	f.Add([]byte(`{"phase":"staged"}`))
@@ -370,8 +399,8 @@ func checkSelfUpdateLimits(t *testing.T) {
 	if suAptUpdateLimit >= suPreParkTimeout {
 		t.Errorf("apt-get update (%v) does not fit the pre-park timeout (%v)", suAptUpdateLimit, suPreParkTimeout)
 	}
-	// The run: before parking and two applier runs. No slack is needed for the applier itself: a second one
-	// starts only when now + one run <= deadline, so none outlives it (core waits coreWaitPastDeadline more).
+	// The run: before parking and two applier runs. A retry after a full-length first run is not guaranteed: a
+	// second one starts only when now + one run <= deadline, so none outlives it (core waits coreWaitPastDeadline more).
 	if need := suPreParkTimeout + 2*applierRuntimeMax; need > suRunWindow {
 		t.Errorf("the run window %v does not cover %v", suRunWindow, need)
 	}

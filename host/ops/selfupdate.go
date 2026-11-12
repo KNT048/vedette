@@ -142,8 +142,8 @@ func (o *Ops) checkSelfUpdate(ctx context.Context, a api.HostSelfUpdateArgs) (*s
 	if p.file.Size < 1 || p.file.Size > maxHostPackage {
 		return nil, refuse412(api.CodeNoHostPackage, "The release names a package of the system helper of a size the host does not accept.")
 	}
-	// 4. upgrade only; a test build only with the test keys; the same version is a no-op.
-	if isTestVersion(h.Version) && !docs.trust.TestOnly {
+	// 4. upgrade only; a test build only on a test host; the same version is a no-op.
+	if refuseTestBuild(h.Version, o.cfg.Version, docs.trust.TestOnly) {
 		return nil, refuse412(api.CodeTestVersionRefused, "The release's system helper is a test build, and this host does not trust the test keys.")
 	}
 	c, err := release.CompareVersions(h.Version, o.cfg.Version)

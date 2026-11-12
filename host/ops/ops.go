@@ -119,6 +119,10 @@ type Deps struct {
 	Arch string
 	// SelfExe is the running binary host.self_update copies for its applier (default /proc/self/exe).
 	SelfExe string
+	// StartUnit, when set (tests only), is called instead of running systemd-run, after the same argv validator:
+	// the fake world starts the applier in a goroutine. PID is this process's pid for started.json (default os.Getpid).
+	StartUnit func(argv []string) error
+	PID       func() int
 }
 
 // Ops holds the state of the system commands.
@@ -177,6 +181,16 @@ type Ops struct {
 	fwdLast string      // the state of the last look: a log line is written only when it changes
 	fwdOff  func() bool // stops the timer of the next look
 	closed  bool        // Close ran: no more looks are armed
+
+	// host.self_update (selfupdatesettle.go): suResumed is the run Resume kept (guarded by suMu), suFollow what
+	// Start decided AfterReady follows (Start and AfterReady run one after the other), suGate the write gate of a
+	// self-update that did not end cleanly, loopCtx the process's context the settle loop runs on (guarded by mu).
+	suMu      sync.Mutex
+	suResumed string
+	suFollow  *suFollow
+	suGate    atomic.Bool
+	loopCtx   context.Context //nolint:containedctx // the process's own context, for the settle loop
+	loopStop  context.CancelFunc
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
@@ -279,6 +293,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.SelfExe == "" {
 		d.SelfExe = "/proc/self/exe"
 	}
+	if d.PID == nil {
+		d.PID = os.Getpid
+	}
 	runner, err := newRunner(cfg.Logger, cfg.StateDir, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
@@ -307,6 +324,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
+		o.cmdHostSelfUpdate(),
 	}
 }
 
@@ -392,8 +410,10 @@ func refuse409(code, msg string) *server.Refusal {
 // scheduled reboot, recovers a restore that was cut short, and sweeps expired exports. It runs once,
 // before the server listens. n receives the audit lines of things the host does on its own.
 func (o *Ops) Start(ctx context.Context, n Notifier) {
+	lctx, stop := context.WithCancel(ctx)
 	o.mu.Lock()
 	o.notifier = n
+	o.loopCtx, o.loopStop = lctx, stop
 	o.mu.Unlock()
 	o.sweepTmp("releases", "containers") // temp files of a write cut short (container.pull state)
 	hpReady := o.startHP(ctx)            // before recoverNet: a revert at start re-applies the decoys into it
@@ -404,6 +424,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.recoverRestore(ctx)
 	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
 	o.adoptHostPackage(ctx)   // the .deb install.sh kept for the running version becomes current (D-316)
+	o.startSelfUpdate()       // a self-update under way: follow it after READY, or clean or gate an orphan journal
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()
@@ -434,6 +455,10 @@ func (o *Ops) Close() {
 	if o.watchOff != nil {
 		o.watchOff()
 		o.watchOff = nil
+	}
+	if o.loopStop != nil {
+		o.loopStop() // the settle loop stops; a parked run stays parked on disk for the next host
+		o.loopStop = nil
 	}
 	if o.sweepOff != nil {
 		o.sweepOff()

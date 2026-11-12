@@ -77,7 +77,3 @@ func (o *Ops) DockerFwdTick(ctx context.Context) { o.dockerFwdTick(ctx) }
 // HangBound is how long a test waits for something that must happen before it calls the code hung (D-373): long enough
 // that a loaded machine never trips it, so a red run means a real hang.
 const HangBound = 30 * time.Second
-
-// SelfUpdateCommand is host.self_update for the tests of slice 2a: the registry gets it with slice 2b, once
-// the settle goroutine ends its parked runs (deferred: .ai/deferred/feat-host-self-update-cmd.md).
-func (o *Ops) SelfUpdateCommand() server.Command { return o.cmdHostSelfUpdate() }

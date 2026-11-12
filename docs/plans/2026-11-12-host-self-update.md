@@ -134,6 +134,15 @@ Split of slice 2 (2026-11-12, two PRs, each with its Opus review):
   flag, the fake world of the applier and of the host restart, the registry entry, INV-28, INV-30, POST-5, the
   `testdata` state folder (M6), RUNBOOK.
 
+Built in 2b (branch `feat/host-self-update-apply`): everything listed above for 2b. The fake world is
+`opstest.SUWorld` (hosts restart on the postinst marker, the applier runs through `Deps.StartUnit` after the real
+systemd-run validator, markers per scenario); the "/usr/lib/vedette/vedette-host seam at unpack" was not needed:
+the tests check that every dispatch runs `<state>/selfupdate/applier` holding the old binary's bytes. The safety
+net of the merge gate is 15 min past the journal's deadline, in the loop and in `Resume`. Settled in 2b: the
+applier's state directory comes from its own path; no `log` event at dispatch (the framework cannot add events to
+a parked run; the audit line stays); `rollback_failed`, interrupted and a panic raise the write gate, and every later start
+raises it again from the kept journal until a person removes it (RUNBOOK 5.6).
+
 Settled while building 2a:
 - The verification shared by `container.pull`, `-bootstrap` and `host.self_update` is `verifyRelease(command,
   version, index, index_sig, manifest, manifest_sig)` in `host/ops/pull.go` (index, manifest, version, channel hash,

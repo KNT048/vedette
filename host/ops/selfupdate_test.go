@@ -47,12 +47,22 @@ type suEnv struct {
 	locked  atomic.Bool
 	applier []byte
 	n       atomic.Int64
+	// dispatched receives what the settle goroutine's first round saw when it started the applier (Deps.StartUnit):
+	// the argv and the run as the server had it then. The fake unit never ends (released at cleanup).
+	dispatched chan suDispatch
+}
+
+type suDispatch struct {
+	argv []string
+	run  api.Run
 }
 
 func startSU(t *testing.T, version string, muts ...func(*ops.Config, *ops.Deps)) *suEnv {
 	t.Helper()
 	m := opstest.NewMachine(t)
-	e := &suEnv{m: m, rel: opstest.NewRelease(t), pkg: opstest.HostPackage(suTo), applier: []byte("the running vedette-host binary")}
+	e := &suEnv{m: m, rel: opstest.NewRelease(t), pkg: opstest.HostPackage(suTo), applier: []byte("the running vedette-host binary"), dispatched: make(chan suDispatch, 1)}
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
 	e.free.Store(100 << 30)
 	exe := filepath.Join(m.Rec, "self-exe")
 	if err := os.WriteFile(exe, e.applier, 0o700); err != nil { //nolint:gosec // test: a fake binary
@@ -64,7 +74,7 @@ func startSU(t *testing.T, version string, muts ...func(*ops.Config, *ops.Deps))
 	m.ApplierUnit("inactive")
 	m.DebFields("vedette-host", suTo, "amd64")
 	m.SimInstall(opstest.SimInstallOK(suFrom, suTo), 0)
-	m.Rule("apt-get", "update", "apt_update.txt", 0, "", "")
+	m.Rule("apt-get", "-q update", "apt_update.txt", 0, "", "") // not "update": the staged path holds "selfupdate"
 	e.id = m.CorePackage(e.pkg)
 	all := append([]func(*ops.Config, *ops.Deps){func(c *ops.Config, d *ops.Deps) {
 		c.Version = version
@@ -72,10 +82,16 @@ func startSU(t *testing.T, version string, muts ...func(*ops.Config, *ops.Deps))
 		d.SelfExe = exe
 		d.FreeBytes = func(string) (uint64, error) { return e.free.Load(), nil }
 		d.LockHeld = func(string) (bool, error) { return e.locked.Load(), nil }
+		d.StartUnit = func(argv []string) error {
+			run, _ := e.h.Client.GetRun(context.Background(), argv[len(argv)-1])
+			e.dispatched <- suDispatch{argv: argv, run: run}
+			<-release
+			return nil
+		}
 	}}, muts...)
 	clock := servertest.NewClock(time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)) // one clock for the host and its commands
 	e.o = m.Ops(clock.Now, all...)
-	e.h = servertest.Prepare(t, append(e.o.Commands(), e.o.SelfUpdateCommand()), func(o *server.Options) {
+	e.h = servertest.Prepare(t, e.o.Commands(), func(o *server.Options) {
 		o.StateDir, o.Readers, o.Resume, o.Now = m.State, e.o.Readers(), e.o.Resume, clock.Now
 	})
 	e.o.Start(context.Background(), e.h.Server) // adopts the kept package of the running version
@@ -343,7 +359,7 @@ func TestSelfUpdate_ABitFlipInThePackageIsChecksumMismatchAndDpkgNeverRuns(t *te
 
 // INV-26 and INV-28 (park first, dispatch after): the run copies core's file into staged/ while it hashes it,
 // gives dpkg-deb and apt only that copy, copies the running binary to the applier, writes a staged journal
-// (attempt 0, deadline 130 min from the start) and parks with the write lock; nothing is dispatched yet.
+// (deadline 130 min from the start) and parks with the write lock; the settle goroutine then dispatches (attempt 1).
 // Core's file changed after the copy does not change what was staged.
 func TestSelfUpdate_TheStagedCopyIsWhatDpkgGetsAndTheRunParksBeforeAnyDispatch(t *testing.T) {
 	t.Parallel()
@@ -378,8 +394,11 @@ func TestSelfUpdate_TheStagedCopyIsWhatDpkgGetsAndTheRunParksBeforeAnyDispatch(t
 			}
 		}
 	}
-	if c := e.m.Calls("systemd-run"); len(c) != 0 {
-		t.Fatalf("dispatched before the settle goroutine: %v", c)
+	// Park first, dispatch after (INV-28): the settle goroutine's first round starts the applier copy, on a run
+	// the server already has parked.
+	d := <-e.dispatched
+	if d.run.RunID != run.RunID || d.run.ParkedDeadline == nil || d.run.Status != api.StatusRunning || d.argv[len(d.argv)-3] != e.suFile("applier") {
+		t.Fatalf("dispatched %q while the run was %+v", d.argv, d.run)
 	}
 	st, err := os.Stat(e.suFile("applier"))
 	if err != nil || st.Mode().Perm() != 0o700 {
@@ -392,7 +411,7 @@ func TestSelfUpdate_TheStagedCopyIsWhatDpkgGetsAndTheRunParksBeforeAnyDispatch(t
 	}
 	started, _ := time.Parse(time.RFC3339Nano, j["started_at"].(string))
 	deadline, _ := time.Parse(time.RFC3339Nano, j["deadline"].(string))
-	if j["phase"] != "staged" || j["attempt"] != 0.0 || j["run_id"] != run.RunID || j["applier_sha256"] != opstest.SHA(e.applier) ||
+	if j["phase"] != "dispatched" || j["attempt"] != 1.0 || j["run_id"] != run.RunID || j["applier_sha256"] != opstest.SHA(e.applier) ||
 		deadline.Sub(started) != 130*time.Minute || !r.ParkedDeadline.Equal(deadline) || j["from"].(map[string]any)["version"] != suFrom {
 		t.Fatalf("journal %s, parked until %v", b, r.ParkedDeadline)
 	}

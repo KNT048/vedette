@@ -411,3 +411,33 @@ func checkSelfUpdateLimits(t *testing.T) {
 		t.Error("core must wait past the deadline")
 	}
 }
+
+// State formats (spec 6.14, review M6): the files of the self-update as this release writes them (taken at the
+// phase checking, testdata/selfupdate-state-v1) read with this release's strict readers. A release that changes
+// a format adds its own folder, and the folder of the release before must still read: the previous host may be
+// put back on the state the new one wrote before the run succeeded.
+func TestTheStateFormatsOfEachReleaseRead(t *testing.T) {
+	t.Parallel()
+	dirs, _ := filepath.Glob(filepath.Join("testdata", "selfupdate-state-*"))
+	if len(dirs) == 0 {
+		t.Fatal("no state folder")
+	}
+	for _, d := range dirs {
+		read := func(name string) []byte {
+			b, err := os.ReadFile(filepath.Join(d, name)) //nolint:gosec // test: fixed names
+			if err != nil {
+				t.Fatal(err)
+			}
+			return b
+		}
+		if _, err := parseSUVersions(read(suVersionsName)); err != nil {
+			t.Errorf("%s versions: %v", d, err)
+		}
+		if j, err := parseSUJournal(read(suJournalName)); err != nil || j.Phase != phChecking {
+			t.Errorf("%s journal: %v", d, err)
+		}
+		if _, err := parseSUStarted(read(suStartedName)); err != nil {
+			t.Errorf("%s started: %v", d, err)
+		}
+	}
+}

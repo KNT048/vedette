@@ -107,6 +107,13 @@
 - `Ops.Start` nhận `.deb` giữ của bản đang chạy (`adoptHostPackage`), ghi `versions.json`, tỉa `packages/` về hai tệp; không làm gì khi có `journal.json` hay bản dựng dev. Thư mục `selfupdate/`, `selfupdate/staged/`, `selfupdate/packages/` tạo 0700 ở `NewWithDeps`.
 - Định dạng `versions.json`, `journal.json`, `started.json` là hợp đồng giữa bản N và N±1 (spec §6.14 "Định dạng trạng thái không đổi khi chưa commit"): thêm trường = bản trước từ chối tệp (đọc chặt); mọi đổi định dạng chạy sau `SettleParked(succeeded)` và giữ thư mục mẫu `testdata` (lát 2b).
 
+## Modifying: goroutine kết thúc và bộ áp của `host.self_update` (`host/ops/selfupdate{settle,apply}.go`, `cmd/vedette-host/apply.go`, D-316, lát 2b)
+- `host.self_update` vào `Commands()`: `core` thấy nó trong `GET /v1/info.commands` (lát 5 dựa vào đó cho `host_too_old`).
+- `Ops.Resume` giữ run đỗ của `host.self_update` khi `journal.json` hợp lệ nêu run đó và chưa quá `deadline` + 15 phút; `Ops.Start` theo nhật ký (`startSelfUpdate`: dọn nhật ký `attempt: 0`, cổng ghi cho nhật ký mồ côi đã giao); `Ops.AfterReady` ghi `started.json` **trước** mọi thứ khác rồi chạy goroutine kết thúc; `Ops.WriteGate` trả `409 transition_pending` khi cổng của tự nâng bật (nhật ký mồ côi, `rollback_failed`, `self_update_interrupted`, panic) — trước cổng reboot. `Ops.Close` dừng goroutine (run đỗ ở lại trên đĩa).
+- Goroutine kết thúc cần `SettleParked` của notifier (`*server.Server`); notifier giả không có nó thì không kết thúc được run (log). Đổi `server.SettleParked` hay `Options.Resume` → chạy `TestContract_SelfUpdate_*` và `host/server` `TestParked_*`.
+- Bộ áp (`ops.Apply`, `ApplyWithDeps` cho test) có runner riêng (`applierBinaries`); `cmd/vedette-host -self-update-apply rn_<16 hex>` là đường vào duy nhất, từ chối khi không root, có cờ khác, hay không chạy từ `<state>/selfupdate/applier`. Đổi pha, cách chọn cài, phép kiểm khoẻ → `TestContract_SelfUpdate_*` và RUNBOOK §5.6.
+- Seam test mới: `Deps.StartUnit` (thay `systemd-run`, sau cùng bộ kiểm), `Deps.PID`; `ApplyDeps.Stop` (bộ áp "chết" sau một pha). Production không đặt chúng.
+
 ## Absence of this component
 - Kiểu "Chỉ container": Settings → Updates (OS) và Box network hiện "không hỗ trợ ở kiểu cài này"; honeypot không dựng được IP phụ (macvlan), SPAN không cấu hình được; cập nhật phần mềm Vedette làm tay. `client.ErrUnreachable` là tín hiệu.
 - Appliance mất liên lạc với `host`: các module khác vẫn chạy; không cài bản vá, không đổi mạng, không đổi/hoàn tác image cho tới khi khôi phục.

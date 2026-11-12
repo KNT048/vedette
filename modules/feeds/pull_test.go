@@ -566,3 +566,20 @@ func TestJobsRunOnlyThroughTheScheduler(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Walk 2026-11-12: the rejected-rows note writes numbers as the GUI does and says why a few rows were dropped.
+func TestNote_GroupedCountsAndReason(t *testing.T) {
+	got := note(Stats{Accepted: 185937, Rejected: 50, Reasons: []Reason{{`"…" is not a domain`, 48}, {"other", 2}}})
+	want := `50 of 185,987 rows were rejected. Most often: "…" is not a domain. A few bad lines in a public list are normal; they are skipped.`
+	if got != want {
+		t.Fatalf("note = %q, want %q", got, want)
+	}
+	for n, w := range map[int]string{0: "0", 999: "999", 1000: "1,000", 1234567: "1,234,567"} {
+		if g := grouped(n); g != w {
+			t.Errorf("grouped(%d) = %q, want %q", n, g, w)
+		}
+	}
+	if note(Stats{Accepted: 3}) != "" {
+		t.Error("no rejected row: no note")
+	}
+}

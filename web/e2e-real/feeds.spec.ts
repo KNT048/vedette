@@ -147,7 +147,7 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     await edit.getByLabel('Fetch schedule').selectOption('72')
     await edit.getByRole('button', { name: 'Save' }).click()
     await toast(page, new RegExp(`${name} saved`))
-    await expect(feedRow(page, name)).toContainText('Every 72 hours')
+    await expect(feedRow(page, name)).toContainText('Every 3 days')
     await page.getByRole('button', { name: `Delete ${name}` }).click()
     await page.getByRole('dialog', { name: `Delete ${name}?` }).getByRole('button', { name: 'Delete' }).click()
     await toast(page, new RegExp(`${name} deleted`))

@@ -6,7 +6,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
-import { checkFeedUrl, defaultParser, FORMATS } from './defaults'
+import { checkFeedUrl, defaultParser, everyLabel, FORMATS } from './defaults'
 import { useDeleteCustomFeed, usePatchFeed, useSaveCustomFeed } from './api'
 import { ParserEditor } from './ParserEditor'
 import type { Feed, FeedAuthType, FeedFormat, FeedKind, Parser } from './types'
@@ -20,7 +20,7 @@ function Interval({ id, value, onChange }: { id: string; value: number; onChange
   const { t } = useTranslation('feeds')
   return (
     <Field label={t('dialog.schedule')} htmlFor={id}>
-      <Select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>{intervalOptions(value).map((n) => <option key={n} value={n}>{t('dialog.everyHours', { count: n })}</option>)}</Select>
+      <Select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>{intervalOptions(value).map((n) => <option key={n} value={n}>{everyLabel(t, n)}</option>)}</Select>
     </Field>
   )
 }
@@ -71,8 +71,10 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
   const [url, setUrl] = useState(feed?.url ?? '')
   const [hours, setHours] = useState(feed?.interval_hours ?? 6)
   const [auth, setAuth] = useState<FeedAuthType>(feed?.auth.type ?? 'none')
-  const [header, setHeader] = useState(feed?.auth.header_name ?? 'X-Api-Key')
-  const [user, setUser] = useState(feed?.auth.username ?? '')
+  // Switching the sign-in type drops what was typed for the other type: back on the saved type, the saved values return.
+  const saved = (a: FeedAuthType) => (feed?.auth.type === a ? { header: feed.auth.header_name ?? 'X-Api-Key', user: feed.auth.username ?? '' } : { header: 'X-Api-Key', user: '' })
+  const [header, setHeader] = useState(saved(feed?.auth.type ?? 'none').header)
+  const [user, setUser] = useState(saved(feed?.auth.type ?? 'none').user)
   const [secret, setSecret] = useState('')
   const [parser, setParser] = useState<Parser>(feed?.parser ?? defaultParser('ioc', 'json'))
   const [errs, setErrs] = useState<Partial<Record<'name' | 'url' | 'auth' | 'parser', string>>>({})
@@ -136,7 +138,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             </Field>
             <Interval id="cf-hours" value={hours} onChange={setHours} />
             <Field label={t('dialog.auth')} htmlFor="cf-auth">
-              <Select id="cf-auth" value={auth} onChange={(e) => { setAuth(e.target.value as FeedAuthType); setSecret(''); clear('auth') }}>{(['none', 'header', 'bearer', 'basic'] as const).map((a) => <option key={a} value={a}>{t(`dialog.authType.${a}`)}</option>)}</Select>
+              <Select id="cf-auth" value={auth} onChange={(e) => { const a = e.target.value as FeedAuthType; setAuth(a); setSecret(''); setHeader(saved(a).header); setUser(saved(a).user); clear('auth') }}>{(['none', 'header', 'bearer', 'basic'] as const).map((a) => <option key={a} value={a}>{t(`dialog.authType.${a}`)}</option>)}</Select>
             </Field>
             {auth === 'header' ? <Field label={t('dialog.headerName')} htmlFor="cf-header" error={badHeader ? authErr : undefined}><Input id="cf-header" aria-invalid={badHeader ? true : undefined} value={header} onChange={(e) => { setHeader(e.target.value); clear('auth') }} autoComplete="off" spellCheck={false} /></Field> : null}
             {auth === 'basic' ? <Field label={t('dialog.username')} htmlFor="cf-user" error={badUser ? authErr : undefined}><Input id="cf-user" aria-invalid={badUser ? true : undefined} value={user} onChange={(e) => { setUser(e.target.value); clear('auth') }} autoComplete="off" /></Field> : null}

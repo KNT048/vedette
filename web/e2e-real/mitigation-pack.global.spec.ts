@@ -17,7 +17,6 @@ const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toas
 
 test.describe('a finding with a confirmed pack (S-MIT-1, S-MIT-3, mitigation INV-1)', () => {
   test.use({ storageState: authFile('operator') }) // an operator marks "Applied"; the viewer test makes its own context
-  test.use({ storageState: authFile('operator') }) // an operator marks "Applied"; the viewer test makes its own context
   test('the pack says who confirmed it, shows the device address, switches vendor, logs "Applied" once and keeps it after a reload', async ({ page }) => {
     test.setTimeout(120_000)
     const errors = collectErrors(page)

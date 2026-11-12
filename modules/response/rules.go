@@ -19,6 +19,7 @@ const maxRules = 30
 
 var (
 	condValueRE = regexp.MustCompile(`^[\w .,:/@#-]{0,200}$`)
+	decimalRE   = regexp.MustCompile(`^[-+]?(\d+\.?\d*|\.\d+)$`) // a plain decimal number: no hex, exponent, Inf or NaN (D-390)
 	triggerRef  = regexp.MustCompile(`\{\{\s*trigger\.([a-z_]+)\s*\}\}`)
 	oneRef      = regexp.MustCompile(`^\{\{\s*trigger\.[a-z_]+\s*\}\}$`)
 )
@@ -55,6 +56,78 @@ func invalid(msg string) error { return fail(http.StatusBadRequest, "invalid", m
 func compatible(p ParamType, fieldType string) bool { return fieldType == string(p) || p == PText }
 
 // checkRule validates a rule a client sent. cats are the catalog actions by id, st the settings (the limit of the pre-approval).
+// fmtNum writes a bound the way the GUI does (0, 1, 65535, 1000000): the messages of the box and the mock are the same text.
+func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
+
+// condValueProblem is "" when the value of a condition fits its field (D-390): "at least" and "at most" only on a field with a
+// range (number, port) and inside it; "equals" and "is one of" on such a field take numbers inside it, and on a field with
+// choices one of them (compared without case, like evalCondition). A value outside would match every event (-3) or none (7).
+func condValueProblem(f TriggerField, op, value string) string {
+	ranged := f.Min != nil && f.Max != nil
+	inRange := func(v string) bool {
+		v = strings.TrimSpace(v)
+		x, err := strconv.ParseFloat(v, 64)
+		return decimalRE.MatchString(v) && err == nil && x >= *f.Min && x <= *f.Max
+	}
+	bounds := func() string { return fmtNum(*f.Min) + " to " + fmtNum(*f.Max) }
+	switch op {
+	case "gte", "lte":
+		if !ranged {
+			return "At least / at most: only for a number field."
+		}
+		if !inRange(value) {
+			return f.Label + ": give a number from " + bounds() + "."
+		}
+	case "eq", "in":
+		items := []string{value}
+		if op == "in" {
+			items = csvList(value)
+		}
+		switch {
+		case ranged:
+			if len(items) == 0 || !all(items, inRange) {
+				if op == "in" {
+					return f.Label + ": give numbers from " + bounds() + ", separated by commas."
+				}
+				return f.Label + ": give a number from " + bounds() + "."
+			}
+		case len(f.Choices) > 0:
+			if len(items) == 0 || !all(items, func(v string) bool { return slices.Contains(f.Choices, lc(v)) }) {
+				return f.Label + ": use one of " + strings.Join(f.Choices, ", ") + "."
+			}
+		}
+	}
+	return ""
+}
+
+// storedCondsOK is false when a stored rule has a condition the save check now refuses (a rule saved before D-390, such as
+// "confidence at most -3", which would match every event): such a rule matches nothing until it is saved again (fail closed).
+func (s *Service) storedCondsOK(r RuleInput) bool {
+	trig := s.trigger(r.Trigger)
+	if trig == nil {
+		return false
+	}
+	for _, c := range r.Conditions {
+		if c.Op == "device_type" {
+			continue
+		}
+		i := slices.IndexFunc(trig.Fields, func(f TriggerField) bool { return f.Key == c.Field })
+		if i < 0 || condValueProblem(trig.Fields[i], c.Op, c.Value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func all(l []string, ok func(string) bool) bool {
+	for _, v := range l {
+		if !ok(v) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (RuleInput, error) {
 	if !catTextRE.MatchString(b.Name) {
 		return b, invalid("Name: 1 to 80 letters, numbers, spaces and . , : ' ( ) / -")
@@ -109,7 +182,7 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				return b, invalid("In range: give a CIDR range such as 192.168.10.0/24.")
 			}
 		case "gte", "lte":
-			if _, err := strconv.ParseFloat(c.Value, 64); err != nil || c.Value == "" {
+			if !decimalRE.MatchString(c.Value) { // the same pattern as the GUI: no spaces, hex, exponent, Inf or NaN (D-390)
 				return b, invalid("At least / at most: give a number.")
 			}
 		case "count_window":
@@ -119,6 +192,11 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 		case "first_time":
 			if c.N == nil || *c.N < 1 || *c.N > 720 {
 				return b, invalid("First time: give the hours (1 to 720).")
+			}
+		}
+		if c.Op != "device_type" {
+			if why := condValueProblem(trig.Fields[slices.IndexFunc(trig.Fields, func(f TriggerField) bool { return f.Key == c.Field })], c.Op, c.Value); why != "" {
+				return b, invalid(why)
 			}
 		}
 		x := Condition{Field: c.Field, Op: c.Op, Value: c.Value}

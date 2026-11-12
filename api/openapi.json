@@ -56391,6 +56391,18 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "min": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "max": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
                                 }
                               },
                               "required": [
@@ -56398,7 +56410,9 @@
                                 "label",
                                 "type",
                                 "example",
-                                "choices"
+                                "choices",
+                                "min",
+                                "max"
                               ],
                               "additionalProperties": false
                             }

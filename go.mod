@@ -9,6 +9,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-faster/errors v0.8.0
 	github.com/go-faster/jx v1.2.0
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
 	github.com/ogen-go/ogen v1.24.0
 	github.com/pressly/goose/v3 v3.29.0
@@ -27,7 +28,6 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-faster/yaml v0.4.6 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect

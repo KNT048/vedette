@@ -533,3 +533,19 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 		t.Error("core/Containerfile: the image's user is 65532:65532, the owner of the directories and the uid of the compose file")
 	}
 }
+
+// The dev compose builds the images too (make dev-sensors): every build argument without a default in the Containerfiles must be
+// passed by its x-build-args, or the build fails there and nowhere else.
+func TestDevComposePassesEveryBuildArg(t *testing.T) {
+	compose := read(t, "../compose/compose.yaml")
+	for _, f := range []string{"scan-base/Containerfile", "sensor/Containerfile", "core/Containerfile"} {
+		for _, m := range regexp.MustCompile(`(?m)^ARG ([A-Z0-9_]+)$`).FindAllStringSubmatch(read(t, f), -1) {
+			if strings.HasPrefix(m[1], "TARGET") { // set by the builder
+				continue
+			}
+			if !strings.Contains(compose, "  "+m[1]+": ") {
+				t.Errorf("%s: ARG %s is not in deploy/compose/compose.yaml x-build-args", f, m[1])
+			}
+		}
+	}
+}

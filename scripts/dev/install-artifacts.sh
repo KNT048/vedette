@@ -36,11 +36,26 @@ case $out in /*) ;; *) out=$root/$out ;; esac
 mkdir -p dist
 work=$(mktemp -d "$root/dist/.install-work.XXXXXX")
 built=()
+# drop removes a local tag: a plain image, or a manifest list (make images) with its per-platform images; `rmi` of a list only says
+# "tag not known" and leaves it behind.
+drop() {
+	if "$c" manifest exists "$1" 2>/dev/null; then
+		local ds d id
+		ds=$("$c" manifest inspect "$1" | sed -n 's/.*"digest": *"\(sha256:[0-9a-f]\{64\}\)".*/\1/p')
+		"$c" manifest rm "$1" >/dev/null 2>&1 || true
+		for d in $ds; do
+			id=$("$c" images -a --digests --format '{{.Digest}} {{.ID}}' | awk -v d="$d" '$1 == d { print $2; exit }')
+			[ -z "$id" ] || "$c" rmi -f "$id" >/dev/null 2>&1 || true
+		done
+	else
+		"$c" rmi -f "$1" >/dev/null 2>&1 || true
+	fi
+}
 cleanup() {
 	rc=$?
 	if [ -z "$keep" ]; then
 		rm -rf "$work"
-		for t in "${built[@]}"; do "$c" rmi -f "$t" >/dev/null 2>&1 || true; done
+		for t in "${built[@]}"; do drop "$t"; done
 		if [ -n "$fast" ]; then rm -rf "$root/internal/webui/dist" "$root/web/dist"; fi
 	fi
 	exit "$rc"

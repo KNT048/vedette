@@ -1,3 +1,4 @@
 # Deferred: fix/feeds-before-v1
 
 - [ ] 2026-11-11 — `feeds.vuln.updated` is published but nobody listens: a CVE whose vendor/product changed in the KEV list, or whose `has_template` changed, does not re-match devices (inventory CONTRACT, "Nhận"). KevInfo is read at display time so findings stay right; only the product-key change would be missed. Wire `RematchCVE` from `VulnUpdatedEvent` if a story needs it — why later: rare, no story — where: cmd/vedette/wiring.go `subscribe`.
+- [ ] 2026-11-12 — Settings → Privacy flow 1 still shows static text for the built-in hosts and says "any custom feed you add"; the hosts of custom feeds are listed only in Settings → Feeds → "Where this box connects" (read from `/feeds/sources`). To list them on Privacy itself, `PrivacySection.tsx` (core, Kiên's) must read `/feeds/sources` under flow 1 — why later: core file is Kiên's (TEAM_PLAN) — where: web/src/features/core/PrivacySection.tsx.

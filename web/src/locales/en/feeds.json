@@ -129,6 +129,14 @@
     "empty": "No feeds of your own yet",
     "emptyBody": "Add a vulnerability feed or an IOC list, tell Vedette how to read it, and preview the result before saving."
   },
+  "hosts": {
+    "title": "Where this box connects",
+    "description": "Every address the box pulls feeds from, built-in and your own, read from the list above. Only your IP address reaches them; none of your data is sent.",
+    "yours": "your feed",
+    "off": "off, not pulled",
+    "cisaMirror": "(and raw.githubusercontent.com if www.cisa.gov does not answer)",
+    "privacy": "See Privacy, flow 1"
+  },
   "kind": {
     "vulnerabilities": "Vulnerabilities",
     "ioc": "IOC"

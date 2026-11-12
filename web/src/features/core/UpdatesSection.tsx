@@ -15,7 +15,7 @@ import { ApiError, download } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
-import { ContainerUpdates, InstallPending } from './ContainerOnly'
+import { CheckFailed, ContainerUpdates, InstallPending } from './ContainerOnly'
 import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
@@ -203,6 +203,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           </div>
         </fieldset>
         <p className="mt-3 text-[13px] text-muted">{(isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) }))} {s.check_enabled ? '' : t('updates.checkOff')}</p>
+        {s.last_check_error ? <CheckFailed e={s.last_check_error} /> : null}
       </Section>
 
       <Section title={t('updates.sources.title')}>

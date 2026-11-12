@@ -17022,7 +17022,8 @@ type CoreGetCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -17030,8 +17031,9 @@ type CoreGetCoreUpdatesOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CoreGetCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -17201,7 +17203,8 @@ func (s *CoreGetCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CoreGetCoreUpdatesOKRunStatus string
 
 const (
@@ -20514,7 +20517,8 @@ type CorePatchCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -20522,8 +20526,9 @@ type CorePatchCoreUpdatesOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePatchCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -20693,7 +20698,8 @@ func (s *CorePatchCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePatchCoreUpdatesOKRunStatus string
 
 const (
@@ -27925,7 +27931,8 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -27933,8 +27940,9 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesApplyOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -28104,7 +28112,8 @@ func (s *CorePostCoreUpdatesApplyOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesApplyOKRunStatus string
 
 const (
@@ -29480,7 +29489,8 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -29488,8 +29498,9 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesBundleOKStateRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -29659,7 +29670,8 @@ func (s *CorePostCoreUpdatesBundleOKStateRunAction) UnmarshalText(data []byte) e
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesBundleOKStateRunStatus string
 
 const (
@@ -31056,7 +31068,8 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -31064,8 +31077,9 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesCheckOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -31235,7 +31249,8 @@ func (s *CorePostCoreUpdatesCheckOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesCheckOKRunStatus string
 
 const (
@@ -33837,7 +33852,8 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -33845,8 +33861,9 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesRollbackOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -34016,7 +34033,8 @@ func (s *CorePostCoreUpdatesRollbackOKRunAction) UnmarshalText(data []byte) erro
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesRollbackOKRunStatus string
 
 const (

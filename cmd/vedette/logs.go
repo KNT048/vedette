@@ -22,6 +22,11 @@ var (
 // syslogHost is the address the syslog listener binds; empty (production) = every IPv4 address. Only the end-to-end box sets it (e2ebox_test.go), to loopback.
 var syslogHost string
 
+// syslogTestTLS stands in for deps.SyslogTLS when the box serves no TLS. Only the end-to-end box sets it (TestE2EBox, e2ebox_test.go), to a
+// certificate of its own: that box serves plain HTTP on loopback, and the TLS listener (D-214) is otherwise unreachable from a browser spec
+// (D-427). nil in production and in every other test.
+var syslogTestTLS *tls.Config
+
 // logsService builds the logs service once per database, so the handlers, the purge job and the log export share it
 // (nil without a logs.db: a test that builds deps by hand; serve always opens it).
 // The volume (lines and counters) is deps.LogsDB, a file of its own next to the main database, so that a flood of syslog
@@ -46,6 +51,9 @@ func logsService(d deps) *logs.Service {
 	cfg.Syslog.Host = syslogHost
 	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS (D-214)
 	cfg.Syslog.TLS = d.SyslogTLS
+	if cfg.Syslog.TLS == nil {
+		cfg.Syslog.TLS = syslogTestTLS
+	}
 	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
 	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	cfg.Hostname = d.BoxName.Name       // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)

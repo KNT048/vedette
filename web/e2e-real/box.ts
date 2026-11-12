@@ -14,6 +14,8 @@ export interface Box {
   devices?: Record<'http' | 'ssh' | 'mcp', { target: string; username?: string; secret?: string }>
   /** The port of the syslog listener of the logs module (UDP and TCP on loopback): a source declared with sender 127.0.0.1 receives what a spec sends there. */
   syslog_port?: string
+  /** Syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1) and the PEM of the test certificate it presents. */
+  syslog_tls_port?: string; syslog_tls_cert?: string
 }
 
 /** The sensors of the run (slice 7): the REAL vedette-sensor binary, started as a child of the box through its control endpoint. `passive` replays a
@@ -31,6 +33,22 @@ export async function nmapRuns(): Promise<string[]> {
   const b = box()
   const r = await fetch(`${b.control}/sensors/active/argv`, { headers: { Authorization: `Bearer ${b.control_token}` } })
   if (!r.ok) throw new Error(`nmap runs: ${r.status}`)
+  return ((await r.json()) as { lines: string[] }).lines
+}
+
+/** The scan worker (D-427): the REAL worker of sensor-active, in the box process, in the slot of the active sensor (stop it with
+ *  `sensorCtl({ stop: 'active' })`), running a FAKE nuclei that sends nothing. `match`: the first target of each template matches; `nomatch`: no
+ *  line matches; `hang`: never answers; `dead`: every line is an error (the device stopped responding). The mode applies from the next run. */
+export async function scanWorker(nuclei: 'match' | 'nomatch' | 'hang' | 'dead'): Promise<void> {
+  const b = box()
+  const r = await fetch(`${b.control}/sensors/scan`, { method: 'POST', headers: { Authorization: `Bearer ${b.control_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ nuclei }) })
+  if (!r.ok) throw new Error(`scan worker ${nuclei}: ${r.status} ${await r.text()}`)
+}
+/** Every nuclei run the fake saw, as its argv, oldest first. */
+export async function nucleiRuns(): Promise<string[]> {
+  const b = box()
+  const r = await fetch(`${b.control}/sensors/scan/argv`, { headers: { Authorization: `Bearer ${b.control_token}` } })
+  if (!r.ok) throw new Error(`nuclei runs: ${r.status}`)
   return ((await r.json()) as { lines: string[] }).lines
 }
 

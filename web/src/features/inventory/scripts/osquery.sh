@@ -6,7 +6,7 @@
 #   2. downloads osquery @@VERSION@@ and SHA256SUMS from the box (the box mirrors the official osquery release; servers need no Internet),
 #      checks the SHA-256 of the package, installs it with dpkg or rpm
 #   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags
-#   4. enables and starts the osqueryd service, then waits for the first check-in and prints the result
+#   4. enables and starts the osqueryd service, then waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
 set -eu
 BOX='@@BOX@@'
 OSQ_VERSION='@@VERSION@@'
@@ -71,16 +71,22 @@ cat > "$DIR/osquery.flags" <<FLAGS
 --config_tls_endpoint=/api/v1/intake/osquery/config
 --logger_tls_endpoint=/api/v1/intake/osquery/log
 FLAGS
+# status answers {"enrolled":..,"hosts":N}: hosts counts the machines that enrolled with this token. Success = this machine enrolled (hosts
+# grew past what it was before the restart, or the first report is already in); the first report itself comes later and is not waited for.
+vstatus() { curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
+BASE=$(vstatus | sed -n 's/.*"hosts":\([0-9][0-9]*\).*/\1/p'); BASE=${BASE:-0}
 systemctl enable osqueryd
 systemctl restart osqueryd
 
-echo "Waiting for the first check-in (up to 2 minutes)..."
+echo "Waiting for this machine to enrol with Vedette (up to 2 minutes)..."
 i=0
 while [ $i -lt 24 ]; do
-  if curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" "$BOX/api/v1/intake/osquery/status" | grep -q '"enrolled":true'; then
-    echo "Done: this machine checked in with Vedette."; exit 0
+  ST=$(vstatus)
+  NOW=$(printf '%s' "$ST" | sed -n 's/.*"hosts":\([0-9][0-9]*\).*/\1/p'); NOW=${NOW:-0}
+  if systemctl is-active --quiet osqueryd && { [ "$NOW" -gt "$BASE" ] || printf '%s' "$ST" | grep -q '"enrolled":true'; }; then
+    echo "Installed and enrolled; the first report arrives within about an hour."; exit 0
   fi
   i=$((i+1)); sleep 5
 done
-echo "osquery is installed and running, but Vedette has not received its first report yet. This is normal: osquery sends its first report within about an hour. If it is still missing after two hours, check: systemctl status osqueryd" >&2
+echo "osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: systemctl status osqueryd" >&2
 exit 3

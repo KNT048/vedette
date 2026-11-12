@@ -9,14 +9,21 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/subtle"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -57,8 +64,12 @@ type e2eReady struct {
 	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
 	// the port of the syslog listener of the logs module (UDP and TCP, loopback): a spec declares a source with sender 127.0.0.1 and feeds it lines
-	SyslogPort string      `json:"syslog_port,omitempty"`
-	devs       *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
+	SyslogPort string `json:"syslog_port,omitempty"`
+	// syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1, as the listener maps it) and the PEM of the test
+	// certificate it presents (syslogTestTLS); the listener opens once a source with proto tls exists
+	SyslogTLSPort string      `json:"syslog_tls_port,omitempty"`
+	SyslogTLSCert string      `json:"syslog_tls_cert,omitempty"`
+	devs          *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
 // e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
@@ -156,11 +167,14 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer func() { _ = f.Close() }()
 	defer e2eOffline()()
-	syslogPort, err := e2eFreePort(ctx)
+	syslogPort, err := e2eSyslogPort(ctx)
 	if err != nil {
 		return err
 	}
 	seed.SyslogPort = strconv.Itoa(syslogPort)
+	if syslogTestTLS != nil {
+		seed.SyslogTLSPort = strconv.Itoa(syslogPort + 1) // listen.tlsPorts: any port p but 514 gives p+1
+	}
 	mcpPort, err := e2eFreePort(ctx) // not 8765: two runs at once; the spec reads the address from GET /core/mcp
 	if err != nil {
 		return err
@@ -248,6 +262,49 @@ func e2eFreePort(ctx context.Context) (int, error) {
 		return port, nil
 	}
 	return 0, errors.New("no port free for TCP and UDP on loopback")
+}
+
+// e2eSyslogPort is e2eFreePort with the next port free for TCP too: the TLS listener of the logs module takes the syslog port + 1.
+func e2eSyslogPort(ctx context.Context) (int, error) {
+	for range 20 {
+		p, err := e2eFreePort(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if p >= 65535 {
+			continue
+		}
+		tl, err := new(net.ListenConfig).Listen(ctx, "tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(p+1)))
+		if err != nil {
+			continue
+		}
+		_ = tl.Close()
+		return p, nil
+	}
+	return 0, errors.New("no syslog port with a free TLS port after it on loopback")
+}
+
+// e2eSyslogCert is the certificate the TLS syslog listener of the end-to-end box presents (D-427): a loopback box has no HTTPS certificate
+// to share (syslogTLS), so the box of the run makes a self-signed one for 127.0.0.1, valid for a day. It returns the server side and the
+// PEM a spec trusts.
+func e2eSyslogCert() (*tls.Config, string, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, "", err
+	}
+	serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	if err != nil {
+		return nil, "", err
+	}
+	now := time.Now()
+	tpl := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "vedette-e2e"}, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(24 * time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)}}
+	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	if err != nil {
+		return nil, "", err
+	}
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
+	return cfg, string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})), nil
 }
 
 // e2eKEV is the CISA catalog the box of the run "downloads": one entry, so the Home title is the loaded one ("Today: N ..."), the same
@@ -401,6 +458,12 @@ func TestE2EBox(t *testing.T) {
 		t.Skip("VEDETTE_E2E_DIR is not set: this is the box of `make e2e-real`")
 	}
 	ctx := e2eStop(t)
+	// D-427: the TLS syslog listener with a test certificate, set before any box starts (both read it when their logs service is built)
+	tlsCfg, tlsPEM, err := e2eSyslogCert()
+	if err != nil {
+		t.Fatal(err)
+	}
+	syslogTestTLS = tlsCfg
 	var host *e2eHost
 	var seed e2eReady
 	devs, logins := startE2EDevices(t)        // slice 5: the loopback devices of the Connections specs
@@ -411,6 +474,7 @@ func TestE2EBox(t *testing.T) {
 	}
 	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
 	seed.Devices, seed.devs = logins, devs
+	seed.SyslogTLSCert = tlsPEM
 	data, sock := "", ""
 	if host != nil {
 		data, sock = host.dataDir, host.socket

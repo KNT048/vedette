@@ -79,15 +79,16 @@ export async function sweep() {
 }
 
 let seq = 0
-/** A finding on a device of its own: entry served, CISA feed pulled, device declared, finding waited for (the bus is asynchronous). */
-export async function seed(): Promise<Seed> {
+/** A finding on a device of its own: entry served, CISA feed pulled, device declared, finding waited for (the bus is asynchronous).
+ *  `cve` and `ip` are for the scan spec (a CVE of the template pack, an address in the scan scope); by default both are made up. */
+export async function seed(over: { cve?: string; ip?: string } = {}): Promise<Seed> {
   const admin = await as('admin')
   try {
     const tag = uniq('qa')
     const n = seq++
     const vendor = `Vend-${tag}`, product = `Widget-${tag}`, host = `host-${tag}`
-    const cve = `CVE-2099-${String(100000 + (Date.now() % 800000) + n)}`
-    const ip = `10.231.${Math.floor(n / 250) % 250}.${(n % 250) + 1}` // a counter: this file's addresses never repeat in a run
+    const cve = over.cve ?? `CVE-2099-${String(100000 + (Date.now() % 800000) + n)}`
+    const ip = over.ip ?? `10.231.${Math.floor(n / 250) % 250}.${(n % 250) + 1}` // a counter: this file's addresses never repeat in a run
     entries.push({ cveID: cve, vendorProject: vendor, product, vulnerabilityName: `QA ${tag} remote code execution`, dateAdded: '2026-11-01', shortDescription: `QA entry ${tag}`, requiredAction: `Apply the QA update for ${tag}.`, dueDate: '2099-12-01', knownRansomwareCampaignUse: 'Unknown', notes: 'https://advisory.example/qa' })
     render()
     const pulled = await api(admin, 'POST', '/feeds/sources/cisa-kev/fetch')

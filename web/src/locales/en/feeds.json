@@ -244,7 +244,10 @@
       "lines": "Plain list (one per line)"
     },
     "recordsPath": "Records path",
-    "recordsHint": "JSONPath to the list of records, for example $.vulnerabilities[*]. Supported: .key, ['key'], [n], [*].",
+    "recordsHint": {
+      "vulnerabilities": "JSONPath to the list of records, for example $.vulnerabilities[*]. Supported: .key, ['key'], [n], [*].",
+      "ioc": "JSONPath to the list of records, for example $.data[*] or $.indicators[*]. Supported: .key, ['key'], [n], [*]."
+    },
     "delimiter": "Delimiter",
     "delims": {
       "comma": "Comma (,)",

@@ -60,9 +60,14 @@ func checkURL(raw string, maxLen int) error {
 // blockedText is the sentence for an address a feed may never be pulled from (D-208), at save (CheckDest) and at pull (userError).
 const blockedText = "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses."
 
+// ownText is the sentence for an address of the box that is not loopback (ErrOwnAddress, D-229 (7)): on a container-only
+// install the container's gateway is the machine Docker runs on, a private address the http rule would otherwise allow.
+const ownText = "This address is the machine Vedette runs on (its own address, or the computer that runs its container). Vedette does not pull feeds from itself: serve the feed from another machine."
+
 // CheckDest is the save-time half of INV-17 (D-229 (1)): an address whose host is a literal IP the pull would refuse
 // (loopback, link-local, cloud metadata, unspecified, multicast, in any transition form, or one of box: the box's own
-// addresses) or a loopback name (localhost, *.localhost) is refused when the feed is saved, with the pull's sentence.
+// addresses and gateway) or a loopback name (localhost, *.localhost) is refused when the feed is saved, with the pull's
+// sentence (ownText for an address of the box that is not loopback, D-229 (7)).
 // Other names are not resolved here (no DNS lookup in a request; the answer could change before the pull anyway): a name
 // that resolves to a refused address is still refused by the dialer at every pull (guardedDial, destControl).
 func CheckDest(raw string, box []netip.Addr) error {
@@ -72,7 +77,11 @@ func CheckDest(raw string, box []netip.Addr) error {
 	}
 	h := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	if ip, err := netip.ParseAddr(h); err == nil {
-		if refusedAlways(ip) || (&destGuard{}).refused(ip, box) {
+		g := &destGuard{}
+		if g.own(ip, box) && !refusedAlways(ip) {
+			return fail(ErrBlockedHost, ownText)
+		}
+		if refusedAlways(ip) || g.refused(ip, box) {
 			return fail(ErrBlockedHost, blockedText)
 		}
 		return nil

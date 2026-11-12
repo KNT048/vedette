@@ -394,7 +394,7 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	e.loadKEV()
 	applyI(t, e.db, e.clock(), "abusech-feodo", []iocInput{{Kind: "ip", Value: "185.220.101.47", FirstSeen: "2026-09-12"}})
 	applyI(t, e.db, e.clock(), "tor-exit", []iocInput{{Kind: "ip", Value: "185.220.101.47"}, {Kind: "ip", Value: "45.148.10.95"}})
-	applyI(t, e.db, e.clock(), "ipsum", []iocInput{{Kind: "ip", Value: "103.75.190.12"}, {Kind: "domain", Value: "bad.example.net"}})
+	applyI(t, e.db, e.clock(), "ipsum", []iocInput{{Kind: "ip", Value: "103.75.190.12"}, {Kind: "domain", Value: "bad.evil-site.top"}})
 
 	if c, b := e.get("/feeds/search?q=%20%20"); c != 400 || code(b) != "empty_query" {
 		t.Errorf("blank: %d %v", c, b)
@@ -423,7 +423,7 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	if _, b = e.get("/feeds/search?q=103.75.190.12"); at(b, "hit", "verdict") != "alert" {
 		t.Errorf("ipsum alone: %v", b)
 	}
-	if _, b = e.get("/feeds/search?q=BAD.example.net"); at(b, "type") != "domain" || at(b, "value") != "bad.example.net" || at(b, "hit", "verdict") != "alert" {
+	if _, b = e.get("/feeds/search?q=BAD.evil-site.top"); at(b, "type") != "domain" || at(b, "value") != "bad.evil-site.top" || at(b, "hit", "verdict") != "alert" {
 		t.Errorf("domain: %v", b)
 	}
 	// unknown, private and 1-label values are not hits and never an error
@@ -864,18 +864,26 @@ func TestD229_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	t.Parallel()
 	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}, BoxAddrs: func() ([]netip.Addr, bool) {
 		return []netip.Addr{netip.MustParseAddr("192.168.77.10")}, true
-	}})
+	}, Gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.18.0.1"), true }})
 	withURL := func(name, u string) string {
 		return strings.Replace(strings.Replace(customBody, "https://threat-share.example.net/c2.csv", u, 1), "Partner C2 list", name, 1)
 	}
 	for _, u := range []string{
 		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
 		"https://[::1]:8443/x", "https://169.254.169.254/latest/meta-data", "https://[fe80::1]/x", "https://0.0.0.0/x",
-		"https://[::ffff:127.0.0.1]/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x", "https://192.168.77.10:8443/x",
+		"https://[::ffff:127.0.0.1]/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x",
 	} {
 		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Blocked", u))
 		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "Vedette does not pull feeds from itself") {
 			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
+		}
+	}
+	// D-229 (7): an address of the box that is not loopback (what vedette-host reports, or the container's gateway: on a
+	// container-only install the machine Docker runs on, walk 3) says so in plain words
+	for _, u := range []string{"https://192.168.77.10:8443/x", "http://172.18.0.1:18070/ioc.json"} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Own", u))
+		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "This address is the machine Vedette runs on") {
+			t.Errorf("POST %s: %d %v, want 400 blocked_host naming the machine", u, got, b)
 		}
 	}
 	if got, b, _ := e.do("PUT", "/feeds/sources/ipsum", "admin", `{"url":"https://169.254.169.254/ipsum.txt"}`); got != 400 || code(b) != "blocked_host" {

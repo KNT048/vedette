@@ -451,6 +451,9 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
   it('a new feed that has not been fetched says when it will be; the name field says its limit', async () => {
     const dlg = await openAdd()
     expect(within(dlg).getByText('Up to 60 characters.')).toBeInTheDocument()
+    // walk 3: an IOC feed in JSON gets an IOC example for the records path, not the vulnerability one (D-229 (8))
+    expect(within(dlg).getByText(/for example \$\.data\[\*\] or \$\.indicators\[\*\]/)).toBeInTheDocument()
+    expect(within(dlg).queryByText(/\$\.vulnerabilities\[\*\]/)).toBeNull()
     await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
     await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
     await add(dlg)

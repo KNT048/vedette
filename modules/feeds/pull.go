@@ -156,6 +156,8 @@ func userError(err error, rawURL string) string {
 		return fmt.Sprintf("The source answered HTTP %d.", se.Code)
 	case errors.Is(err, ErrBoxAddrsUnknown):
 		return "Vedette does not know its own addresses yet, so it did not connect. It will try again at the next pull."
+	case errors.Is(err, ErrOwnAddress):
+		return ownText
 	case errors.Is(err, ErrBlockedAddress):
 		return blockedText
 	case errors.Is(err, context.DeadlineExceeded):

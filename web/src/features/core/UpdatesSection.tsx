@@ -28,7 +28,7 @@ function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; r
     if (run.status === 'running') { seen.current = `${run.id}:running`; setSawEnd(false); return }
     if (seen.current === `${run.id}:running`) {
       setSawEnd(true)
-      const reload = { action: { label: t('updates.run.reload'), onClick: () => window.location.reload() }, duration: Infinity }
+      const reload = { action: { label: t('updates.run.reload'), onClick: () => window.location.reload() } }
       if (run.status === 'done') toast.success(t(run.action === 'update' ? 'updates.appliedSoftware' : 'updates.rolledBack', { name }), reload)
       else if (run.status === 'reverted') toast.error(run.error ?? t(`updates.run.revertedToast.${run.action}`, { from: run.from ?? '' }))
       else toast.error(run.error ?? t(`updates.run.failedToast.${run.action}`))

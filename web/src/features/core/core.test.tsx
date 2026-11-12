@@ -871,6 +871,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
   })
 
   it('while Vedette restarts a read fails: the page stays and says it reconnects, then one toast at the end (D-340)', async () => {
+    toast.dismiss() // toasts of the tests before still show for a few seconds
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
@@ -878,9 +879,9 @@ describe('core: cập nhật (S-CORE-2)', () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.error(), { once: true }))
     expect(await screen.findByText('Reconnecting to Vedette…', undefined, { timeout: 4000 })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Versions in use' })).toBeInTheDocument()
-    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
-    expect(screen.getAllByText(/switched to the new build/)).toHaveLength(1)
-    expect(screen.getByRole('heading', { name: 'Vedette software updated to 0.9.4' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findAllByText(/switched to the new build/)).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Reload' })).toHaveLength(2) // in the toast and in the panel
   })
 
   it('a second software run, or a bundle with the software, is refused with 409 busy while one runs; packs still update', async () => {

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,9 +40,12 @@ type OSHandlers struct {
 	audit *audit.Log
 	host  Host // nil: not an appliance
 	snaps *snapshotter
-	zone  func(context.Context) (string, error)
-	log   *slog.Logger
-	now   func() time.Time
+	// pkgDir is <core_data>/host-packages: the system helper package a software run downloads for the host
+	// (host.self_update, D-316); empty without a host.
+	pkgDir string
+	zone   func(context.Context) (string, error)
+	log    *slog.Logger
+	now    func() time.Time
 	// loadTimeout bounds one shared read of the host (loadTimeout, shorter in tests).
 	loadTimeout time.Duration
 
@@ -140,6 +144,8 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		} else if n > 0 {
 			c.Log.Info("core: removed old snapshots", "count", n)
 		}
+		h.pkgDir = filepath.Join(c.DataDir, hostPackagesDir)
+		h.sweepHostPackages()
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	if c.Host != nil {

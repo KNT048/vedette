@@ -30,8 +30,7 @@ function Body({ d }: { d: PrivacyState }) {
   const save = useSavePrivacy()
   async function set(v: { update_check?: boolean }) {
     try { await save.mutateAsync(v); toast.success(t('common:saved')) } catch (e) { toast.error(errMsg(e, t)) }
-  }
-  // Flow 2 is never sent (D-82, D-153): ignore the state the API reports for it.
+  }  // Flow 2 is never sent (D-82, D-153): ignore the state the API reports for it.
   const stateChip = (f: PrivacyFlow) => (f.id === 2 ? <Chip tone="off">{t('privacy.state.notSent')}</Chip> : f.state === 'on' ? <Chip tone="ok">{t('privacy.state.on')}</Chip> : f.state === 'off' ? <Chip tone="off">{t('privacy.state.off')}</Chip> : <Chip tone="off">{t('privacy.state.conditional')}</Chip>)
   const control = (f: PrivacyFlow) => {
       if (f.id === 6) return (

@@ -481,7 +481,7 @@ var (
 )
 
 // shellChars may never be in a command (response INV-14b, SYS-1), the same as the writer's.
-const shellChars = ";|&$`<>()\\!~^"
+const shellChars = cliban.ShellChars
 
 // plainText refuses a string that holds a control character, a bidi override or a zero-width one, a placeholder that was not filled
 // in, or more than maxString characters.

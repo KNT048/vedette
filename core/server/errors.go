@@ -55,6 +55,9 @@ func mapError(err error) (*apierr.Error, bool) {
 		return apierr.Invalid("Send the request body as application/json."), false
 	case errors.As(err, &valErr):
 		if path := fieldPath(valErr); safeField.MatchString(path) {
+			if msg, ok := fieldRule[path]; ok {
+				return apierr.Invalid(msg).With("field", path), false
+			}
 			return apierr.Invalid(fmt.Sprintf("The field %q is missing or has a value that is not allowed. Fix it and try again.", path)).With("field", path), false
 		}
 		return apierr.Invalid("The request has a value that is not allowed. Fix it and try again."), false
@@ -76,6 +79,12 @@ func mapError(err error) (*apierr.Error, bool) {
 		return apierr.Invalid("The request body is not valid JSON of the expected shape."), false
 	}
 	return apierr.Internal(), true
+}
+
+// fieldRule names the rule of a field whose contract pattern refuses a value before any handler runs, so the user is told what is
+// allowed (the same sentence the handler's own check and the mock use).
+var fieldRule = map[string]string{
+	"username": "The user name is 1 to 64 characters, with no spaces, colons or control characters.",
 }
 
 // serverBusy is the 503 of a request refused because the database writer stayed busy past store.RequestWriteWait (D-246).

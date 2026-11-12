@@ -36,11 +36,12 @@ const (
 	notReadyRetry  = 5 * time.Second  // Retry-After of 503 not_ready: the box's own cards are not known yet (D-385)
 )
 
-// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9).
+// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9); ErrUseBoxNetwork "set_in_box_network" (D-387).
 var (
-	ErrNotFound     = errors.New("sensorpassive: sensor not found")
-	ErrBadInterface = errors.New("sensorpassive: bad interface")
-	ErrInvalid      = errors.New("sensorpassive: invalid input")
+	ErrNotFound      = errors.New("sensorpassive: sensor not found")
+	ErrBadInterface  = errors.New("sensorpassive: bad interface")
+	ErrInvalid       = errors.New("sensorpassive: invalid input")
+	ErrUseBoxNetwork = errors.New("sensorpassive: this box has vedette-host; the card is chosen in Settings, Box network")
 )
 
 // Config is what New needs. DB, Audit, Sink and Host are required; Meta defaults to dropping metadata.
@@ -185,7 +186,7 @@ type Sensor struct {
 	Interfaces  []string   `json:"interfaces"`
 	Span        bool       `json:"span"`
 	SpanStatus  SpanStatus `json:"span_status"`
-	Status      string     `json:"status"` // online | offline
+	Status      string     `json:"status"` // online | offline | never_connected
 	LastSeen    *string    `json:"last_seen"`
 	Version     *string    `json:"version"`
 	DevicesSeen int        `json:"devices_seen"`
@@ -283,8 +284,11 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span,
 		SpanStatus: SpanStatus{st.Verdict, st.PPS, st.OtherMACs}, Status: "offline", LastSeen: nullable(r.lastSeen),
 		Version: nullable(r.version), DevicesSeen: r.devices}
-	if s.online(r) {
+	switch {
+	case s.online(r):
 		out.Status = "online"
+	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact" (D-387)
+		out.Status = "never_connected"
 	}
 	return []Sensor{out}, nil
 }
@@ -397,6 +401,17 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	}
 	s.ConfigChanged()
 	return nil
+}
+
+// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387): only when core
+// runs without vedette-host, where the sensor's fresh heartbeat is the list of cards (D-263, D-385). With a host, or a configured
+// host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
+// through Settings, Box network, which calls SetInterface itself.
+func (s *Service) ChooseCard(ctx context.Context, actor, id, iface string, span bool) error {
+	if _, fromHost, err := s.host.HostCards(ctx); fromHost || err != nil {
+		return ErrUseBoxNetwork
+	}
+	return s.SetInterface(ctx, actor, id, iface, span)
 }
 
 // listenOn is the card the sensor listens on: the one chosen (the SPAN port of Settings, Box network, or any card set by

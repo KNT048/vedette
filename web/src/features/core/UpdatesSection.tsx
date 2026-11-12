@@ -6,7 +6,7 @@ import { Link } from 'react-router'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
-import { Loading, QueryState } from '@/components/common/States'
+import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -15,7 +15,7 @@ import { ApiError, download } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
-import { ContainerUpdates } from './ContainerOnly'
+import { ContainerUpdates, InstallPending } from './ContainerOnly'
 import { useInstallKind } from '@/lib/modules'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
@@ -276,7 +276,7 @@ export default function UpdatesSection() {
       <ContainerUpdates />
     </>
   )
-  return install ? <ApplianceUpdates /> : <Loading />
+  return install ? <ApplianceUpdates /> : <><PageHeader title={t('settings.updates')} stories={['S-CORE-2', 'S-CORE-9']} /><InstallPending /></>
 }
 
 function ApplianceUpdates() {

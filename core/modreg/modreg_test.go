@@ -196,7 +196,8 @@ func errOf(_ modreg.Change, err error) error { return err }
 // D-381: on a container-only install a needs_host module is listed as not available and cannot be turned on; the appliance runs it.
 func TestNeedsHostOnContainerOnly(t *testing.T) {
 	t.Parallel()
-	fx := map[string]string{"core": coreYAML, "hp": "id: hp\ntier: optional\ndefault: off\nneeds_host: true\ndepends: [core]\n"}
+	fx := map[string]string{"core": coreYAML, "hp": "id: hp\ntier: optional\ndefault: off\nneeds_host: true\ndepends: [core]\n",
+		"uses": "id: uses\ntier: optional\ndefault: off\ndepends: [core, hp]\n"}
 	for _, container := range []bool{true, false} {
 		db := storetest.New(t)
 		if err := store.Migrate(t.Context(), db, "core", os.DirFS("../../modules/core/migrations/sqlite")); err != nil {
@@ -210,6 +211,9 @@ func TestNeedsHostOnContainerOnly(t *testing.T) {
 		if reg.ContainerOnly() != container || r.state("hp").Available == container || !r.state("core").Available {
 			t.Fatalf("container=%v: ContainerOnly=%v, hp available=%v", container, reg.ContainerOnly(), r.state("hp").Available)
 		}
+		if container { // nor through a module that depends on it
+			_ = apiErr(t, errOf(r.enable("uses", true)), http.StatusConflict, "not_appliance")
+		}
 		_, err = r.enable("hp", true)
 		if container {
 			_ = apiErr(t, err, http.StatusConflict, "not_appliance")
@@ -219,6 +223,14 @@ func TestNeedsHostOnContainerOnly(t *testing.T) {
 		} else if err != nil || !reg.Enabled("hp") {
 			t.Fatalf("appliance: %v", err)
 		}
+	}
+}
+
+func TestNeedsHostCannotDefaultOn(t *testing.T) {
+	t.Parallel()
+	_, err := modreg.Load(fsOf(map[string]string{"core": coreYAML, "hp": "id: hp\ntier: optional\ndefault: on\nneeds_host: true\ndepends: [core]\n"}))
+	if !errors.Is(err, modreg.ErrManifest) {
+		t.Fatalf("Load = %v, want ErrManifest", err)
 	}
 }
 

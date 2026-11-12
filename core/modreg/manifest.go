@@ -117,6 +117,9 @@ func parse(dir string, b []byte) (Manifest, error) {
 		return Manifest{}, errors.New("a core module cannot default to off")
 	}
 	m.Default = def
+	if m.NeedsHost && def { // D-381: a container-only install could not run it, yet would start with it on
+		return Manifest{}, errors.New("a module that needs vedette-host (needs_host) cannot default to on")
+	}
 	seen := map[string]bool{}
 	for _, d := range m.Depends {
 		if !idRE.MatchString(d) {

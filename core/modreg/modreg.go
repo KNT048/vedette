@@ -300,6 +300,11 @@ func (r *Registry) Enable(ctx context.Context, tx *sql.Tx, actor, id string, wit
 	}
 	var missing []string
 	r.collectMissing(id, on, map[string]bool{id: true}, &missing)
+	for _, m := range missing { // a dependency switched on with it must be runnable here too (D-381)
+		if err := r.notHere(m); err != nil {
+			return Change{}, err
+		}
+	}
 	if len(missing) > 0 && !withDeps {
 		return Change{}, apierr.New(http.StatusConflict, apierr.CodeMissingDeps,
 			fmt.Sprintf("Module %s also needs: %s. Turn them on first, or turn them on together.", id, strings.Join(missing, ", "))).

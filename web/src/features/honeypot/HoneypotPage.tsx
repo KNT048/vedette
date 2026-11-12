@@ -26,16 +26,17 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export default function HoneypotPage() {
   const { t } = useTranslation('honeypot')
-  // D-381: on a container-only install the module cannot run; one turned on before shows why, and no control that would do nothing.
-  const notHere = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
-  if (notHere) return (
-    <RequireModule module="honeypot">
+  // D-381: on a container-only install the module cannot run. Checked before RequireModule, whose "turn it on" would lead to a locked switch;
+  // one turned on before shows why and how to turn it off, and no control that would do nothing.
+  const hp = useModules().data?.modules.find((m) => m.id === 'honeypot')
+  if (hp?.available === false) return (
+    <>
       <PageHeader title={t('notHere.title')} stories={['S-HP-1', 'S-CORE-9']} />
       <EmptyState title={t('notHere.title')}>
         <p>{t('notHere.body')}</p>
-        <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p>
+        {hp.enabled ? <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p> : null}
       </EmptyState>
-    </RequireModule>
+    </>
   )
   return <HoneypotBody />
 }

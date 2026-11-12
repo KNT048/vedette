@@ -3,8 +3,10 @@
 // the honeypot cannot be turned on and its page claims no coverage, the setup code hint names vedette-core.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { installStore } from '@/mocks/stores'
+import { MOCK_SETUP_CODE } from './mocks'
 
 const HOST_PATHS = ['/core/updates/os', '/core/data/backups', '/core/data/restore/run', '/core/network']
 let calls: string[] = []
@@ -27,6 +29,8 @@ describe('container-only install (D-381)', () => {
     expect(await screen.findAllByText(/vedette_data/)).not.toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'Download backup' })).toBeNull()
     expect(screen.queryByText('Backups on this box')).toBeNull()
+    renderApp('/settings/network')
+    expect(await screen.findByText(/Prepare the SPAN card on this machine yourself/)).toBeInTheDocument()
     expect(hostCalls()).toEqual([])
   })
 
@@ -41,10 +45,22 @@ describe('container-only install (D-381)', () => {
   })
 
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {
+    const u = userEvent.setup()
     renderApp('/setup', { role: null, setupComplete: false })
     expect(await screen.findByText(/docker logs vedette-core/)).toBeInTheDocument()
-    const r = await (await fetch(`${location.origin}/api/v1/core/setup/modules`)).json() as { install: string; modules: { id: string; available: boolean }[] }
-    expect(r.install).toBe('container')
-    expect(r.modules.find((m) => m.id === 'honeypot')?.available).toBe(false)
+    await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Lan')
+    await u.type(screen.getByLabelText('Sign-in email'), 'lan@abc.example')
+    await u.type(screen.getByLabelText('Password'), 'a long enough sentence')
+    await u.type(screen.getByLabelText('Repeat password'), 'a long enough sentence')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.type(await screen.findByLabelText('Range 1'), '192.168.10.0/24')
+    await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    const small = (await screen.findByRole('radio', { name: /Small business/ })).closest('div')!
+    expect(within(small).getByText(/Reports/)).toBeInTheDocument()
+    expect(within(small).queryByText(/Internal traps/)).toBeNull()
+    expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
   })
 })

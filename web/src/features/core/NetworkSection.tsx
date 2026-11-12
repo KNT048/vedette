@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { Loading, QueryState } from '@/components/common/States'
+import { QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useNetwork, useNetworkActions } from './api'
-import { ContainerNetwork } from './ContainerOnly'
+import { ContainerNetwork, InstallPending } from './ContainerOnly'
 import { useInstallKind } from '@/lib/modules'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
@@ -246,7 +246,7 @@ export default function NetworkSection() {
   return (
     <>
       <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t('network.meta')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
-      {install === 'container' ? <ContainerNetwork /> : install ? <QueryState query={q}>{(d) => <Body d={d} />}</QueryState> : <Loading />}
+      {install === 'container' ? <ContainerNetwork /> : install ? <QueryState query={q}>{(d) => <Body d={d} />}</QueryState> : <InstallPending />}
     </>
   )
 }

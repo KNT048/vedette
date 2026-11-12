@@ -4,6 +4,13 @@
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { QueryState } from '@/components/common/States'
+import { useModules } from '@/lib/modules'
+
+/** Where a page waits for the install kind (GET /modules): loading, or the error with Try again when it fails; never an endless spinner. */
+export function InstallPending() {
+  return <QueryState query={useModules()}>{() => null}</QueryState>
+}
 
 // docs/INSTALL-CONTAINER.md section 5 and 6, word for word (the image is deploy/containers/pins.env DEBIAN_IMAGE).
 const DEBIAN = 'docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2'

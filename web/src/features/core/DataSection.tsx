@@ -15,7 +15,7 @@ const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBoxBackups, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind } from '@/lib/modules'
-import { ContainerBackup } from './ContainerOnly'
+import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
 import { fmtDateTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
@@ -79,7 +79,7 @@ export default function DataSection() {
             <BoxBackups disabled={gate.disabled} title={gate.title} />
           </Section>
         </>
-      ) : null}
+      ) : <InstallPending />}
       <Section title={t('data.export.title')} description={t('data.export.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
       </Section>

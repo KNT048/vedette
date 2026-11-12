@@ -71,7 +71,7 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **GUI**: `web/src/features/core/{contract.ts,mocks.ts,DataSection.tsx}` (Backups on this box, Restore dialog); audit labels `data.restore`, `data.restore_failed`, `data.restore_done` in `web/src/locales/en/core.json`.
 
 ## Modifying: test-channel release source (#469, D-382, INV-34a: `modules/core/updates_check.go`, `updates_host.go`, `deploy/containers/core/Containerfile`, `scripts/testchannel`, `scripts/dev/install-artifacts.sh`)
-- Every use of `upd.base` (index, manifest URL, host package URL) now goes through `OSHandlers.releaseBase()`; with a release version, or a configured `ReleaseBase`, it returns exactly what it returned before. `updCheck` gains `dataDir`. No API, DB, route or contract.ts change; nothing for customers.
+- The manifest URL the signed index must name stays on the fixed `upd.base`. A check reads the source once (`upd.src`, under `checkMu`) and `fetchPair` downloads the index and the manifests from it; the host package download at apply time calls `OSHandlers.releaseBase()` again (its bytes are checked against the signed size and SHA-256). With a release version, or a configured `ReleaseBase`, the source is exactly `upd.base`, as before. `updCheck` gains `dataDir`. No API, DB, route or contract.ts change; nothing for customers.
 - Build side: `TEST_KEYS_B64` (Makefile `core-image`/`images`, Containerfile) replaces `internal/release/keys_prod.go` inside the core image build for `-test.` versions only; `vedette-testchannel serve -releases DIR` serves the signed documents and host package under `/release/`.
 
 ## Modifying: kiểm tra cập nhật phần mềm (D-340, D-341, INV-34: `modules/core/{updates,updates_check}.go`, `cmd/vedette/wiring.go`)

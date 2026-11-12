@@ -45,14 +45,22 @@ type Image = { service: string; digest: string }
 const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
 /** The image lines of the downloaded vedette.env must name those same digests: it prints how many lines do (one per image). */
 const matchCmd = (images: readonly Image[]) => `grep -cF ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
-/** The kept copy is named after the release it runs, so a second update never overwrites the way back (mv -n refuses). */
-const keptName = (running: string) => `vedette.env.${/^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/.test(running) ? running : 'old'}`
+const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/
+/** The four files every release publishes for this install, each with a .minisig (D-451): an update replaces all of them. */
+const RELEASE_FILES = ['vedette.env', 'compose.yaml', 'compose.sensors.yaml', 'compose.syslog.yaml']
+/** The kept folder is named after the release it runs, so a second update never overwrites the way back (mv -n refuses). */
+const keptName = (running: string) => `vedette-${SAFE_VERSION.test(running) ? running : 'old'}`
+const keepCmd = (kept: string) => `mkdir -p ${kept} && mv -n ${RELEASE_FILES.join(' ')} ${kept}/`
+/** The release assets on GitHub Releases (D-150, D-451), the same place install.sh and the box download from. */
+const fetchCmd = (version: string) => `u=https://github.com/KNT048/vedette/releases/download/v${SAFE_VERSION.test(version) ? version : '<version>'}
+for f in ${RELEASE_FILES.join(' ')}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig"; done`
+const minisignCmd = RELEASE_FILES.map((f) => `minisign -Vm ${f} -p vedette.pub`).join('\n')
 
 /**
  * Settings → Updates on a container-only install (S-CORE-9 G4, D-381): core's own update check says whether a newer
  * release exists (it runs without a host); the customer updates with two blocks of commands on their machine, for Docker
- * or Podman. No Apply: nothing here installs anything. The release files come from the release page; the page never
- * makes up a download address (the release assets are slice 7 of WP-08m).
+ * or Podman. No Apply: nothing here installs anything. The four release files are the assets of the offered version on
+ * GitHub Releases (D-451); the customer checks each with the vedette.pub kept from the install, never a key from that page.
  */
 export function ContainerUpdates() {
   const { t } = useTranslation('core')
@@ -98,9 +106,10 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
 }
 
 /**
- * The steps of S-CORE-9 G4 for the offered release, in the order they are safe to run: keep the old file, check the
- * new one's minisign signature, check each image with cosign and that vedette.env names those same digests (block 2),
- * and only then copy the two local lines, pull and start (block 1).
+ * The steps of S-CORE-9 G4 for the offered release, in the order they are safe to run: move the four files of the running
+ * release into a kept folder, download the new release's four files and check their minisign signatures (D-451: a release
+ * that changes a compose file reaches the customer), check each image with cosign and that vedette.env names those same
+ * digests (block 2), and only then copy the two local lines, pull and start (block 1).
  */
 function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; running: string; engine: Engine }) {
   const { t } = useTranslation('core')
@@ -110,8 +119,11 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
     <>
       <h3 className="mt-2 text-sm font-semibold">{t('container.updates.block1', { version: offer.version })}</h3>
       <ol className="grid list-decimal gap-3 pl-5 text-sm">
-        <li className="grid gap-1.5">{t('container.updates.stepKeep')}<CodeBlock code={`mv -n vedette.env ${kept}`} /></li>
-        <li className="grid gap-1.5">{t('container.updates.stepFetch', { version: offer.version })}<CodeBlock code="minisign -Vm vedette.env -p vedette.pub" /></li>
+        <li className="grid gap-1.5">{t('container.updates.stepKeep', { kept })}<CodeBlock code={keepCmd(kept)} /></li>
+        <li className="grid gap-1.5">
+          {t('container.updates.stepFetch', { version: offer.version })}<CodeBlock code={fetchCmd(offer.version)} />
+          {t('container.updates.stepVerify', { version: offer.version })}<CodeBlock code={minisignCmd} />
+        </li>
         {images.length ? (
           <li className="grid gap-1.5">
             {t('container.updates.verifyWhy', { version: offer.version })}

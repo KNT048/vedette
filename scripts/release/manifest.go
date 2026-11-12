@@ -114,6 +114,9 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	if in.Channel != "stable" && in.Channel != "beta" {
 		return res, fmt.Errorf("channel must be stable or beta, got %q", in.Channel)
 	}
+	if err := checkInstallModes(in.InstallModes); err != nil { // D-451
+		return res, err
+	}
 	if env.PrevIndex != nil {
 		if ch, ok := env.PrevIndex.Channels[in.Channel]; ok {
 			c, err := release.CompareVersions(in.Version, ch.Latest)

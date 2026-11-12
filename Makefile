@@ -63,6 +63,7 @@ help:
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
 	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (D-345; MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
@@ -409,8 +410,8 @@ install-check:
 # Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
 # build and push the images (08k); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
 # index's sequence becomes the host's floor; MIN_SEQUENCE=0 only for the very first release) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
-# from the clock is refused) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
-# (release-manifest.json + index.json, unsigned) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only; RELEASE_SLOT=rescue after a leak of the active key, docs/RELEASE_KEYS.md) ->
+# from the clock is refused; "install_modes": ["appliance", "container"], D-451) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
+# (release-manifest.json + index.json, unsigned) -> release-container-assets (the four container-only files, D-451) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only; RELEASE_SLOT=rescue after a leak of the active key, docs/RELEASE_KEYS.md) ->
 # release-verify (the box's verifier over the output, with the keys of RELEASE_KEYS or, when unset, the ones compiled into the build).
 #   RELEASE_IN     release description (default release.in.json)
 #   RELEASE_PREV_INDEX  directory of the published index.json and .minisig (omit for the first release); the sequence, revocations and
@@ -424,7 +425,7 @@ install-check:
 #   COSIGN_KEY / MINISIGN_KEY  paths of the private key files (outside the repo, mode 600); passphrases are never arguments:
 #                  cosign reads COSIGN_PASSWORD from your shell, minisign asks on the terminal (PASSPHRASE_STDIN=1 reads one line of stdin)
 #   MINISIGN_BIN   a minisign you trust (default: the pinned one, fetched by scripts/release/minisign.sh)
-.PHONY: release-cosign-plan release-manifest release-refresh release-sign release-verify release-interop release-packs
+.PHONY: release-cosign-plan release-manifest release-container-assets release-refresh release-sign release-verify release-interop release-packs
 RELEASE_OUT := dist/release
 RELEASE_IN ?= release.in.json
 RELEASE_PREV_INDEX ?=
@@ -442,6 +443,10 @@ release-cosign-plan:
 release-manifest: check-min-sequence
 	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
 	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_KEYS_ARG)
+
+# D-451: read from git at the release tag (RELEASE_REF, default v<version>), like the migrations of release-manifest.
+release-container-assets:
+	$(RELEASE_GO) container-assets -in $(RELEASE_IN) -out $(RELEASE_OUT) $(if $(RELEASE_REF),-ref $(RELEASE_REF))
 
 release-refresh:
 	$(RELEASE_GO) index -out $(RELEASE_OUT) -prev-index "$(RELEASE_PREV_INDEX)" $(RELEASE_KEYS_ARG)

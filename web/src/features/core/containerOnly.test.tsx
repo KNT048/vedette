@@ -42,20 +42,30 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Vedette 0.9.4 is available. This machine runs 0.9.3.')).toBeInTheDocument()
     expect(screen.getByText(/oversized syslog packets/)).toBeInTheDocument()
-    // in the order that is safe: keep, minisign, cosign + the digests of vedette.env, and only then pull and up -d
-    const steps = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.querySelector('code')!.textContent!)
-    expect(steps.map((c) => c.split(' ')[0])).toEqual(['mv', 'minisign', 'cosign', 'docker'])
-    expect(steps[0]).toBe('mv -n vedette.env vedette.env.0.9.3') // named after the running release: a later update keeps its own way back
-    expect(steps[1]).toBe('minisign -Vm vedette.env -p vedette.pub')
-    // one line per image this install runs (not the honeypot), by the digest of the release information; no made-up URL
+    // in the order that is safe: keep, download + minisign, cosign + the digests of vedette.env, and only then pull and up -d
+    const items = within(screen.getByRole('list')).getAllByRole('listitem')
+    const steps = items.map((li) => li.querySelector('code')!.textContent!)
+    expect(steps.map((c) => c.split(/[ =]/)[0])).toEqual(['mkdir', 'u', 'cosign', 'docker'])
+    // all four files of the running release go to a folder named after it: a later update keeps its own way back (D-451)
+    const four = 'vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml'
+    expect(steps[0]).toBe(`mkdir -p vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
+    // the four files and their signatures of the offered version, from the release assets; each checked with the kept key
+    expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig"; done`)
+    const fetch = items[1]!
+    const codes = [...fetch.querySelectorAll('code')].map((c) => c.textContent)
+    expect(codes[1]).toBe(four.split(' ').map((f) => `minisign -Vm ${f} -p vedette.pub`).join('\n'))
+    expect(within(fetch).getByText(/trusted comment ending in version:0\.9\.4, or do not go on/)).toBeInTheDocument()
+    // one line per image this install runs (not the honeypot), by the digest of the release information
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
     for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
     const grep = screen.getByText(/^grep -cF/).textContent!
     for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
     expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()
-    expect(screen.getByText(/put vedette\.env\.0\.9\.3 back as vedette\.env/)).toBeInTheDocument()
-    expect(screen.queryByText(/https?:\/\//)).toBeNull()
+    expect(screen.getByText(/copy the four files of vedette-0\.9\.3 back into this folder \(cp vedette-0\.9\.3\/\* \.\)/)).toBeInTheDocument()
+    expect(screen.getByText(/from vedette-0\.9\.3\/vedette\.env into the new vedette\.env/)).toBeInTheDocument()
+    // the only address is the release assets of the offered version
+    expect(screen.getAllByText(/https?:\/\//).map((e) => e.textContent!.match(/https?:\/\/\S+/g)).flat()).toEqual(['https://github.com/KNT048/vedette/releases/download/v0.9.4'])
     expect(screen.queryByRole('button', { name: /Apply|Roll back|Check for releases/ })).toBeNull()
     expect(screen.queryByText(/System helper/)).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Podman' }))

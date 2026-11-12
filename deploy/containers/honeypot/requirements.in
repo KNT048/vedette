@@ -1,1 +1,9 @@
 opencanary==0.9.10
+# OpenCanary 0.9.10 (the newest release) pins twisted, pyasn1, urllib3 and zope.interface to exact versions that have HIGH advisories
+# with a fix (twisted CVE-2026-115775/6/8 and GHSA-vpp8-g58w-m8mp, pyasn1 CVE-2026-119194..7, urllib3 CVE-2026-97687/97689). The image
+# installs with --no-deps, so the pins do not bind at runtime. Lines marked "# override" are not given to pip (it would refuse them); lock.py
+# replaces the version of that name in the resolved set. zope.interface follows twisted (26.10 needs >=8). make honeypot-check proves OpenCanary runs.
+twisted==26.10.0  # override
+zope.interface==8.7  # override
+pyasn1==0.6.5  # override
+urllib3==2.8.0  # override

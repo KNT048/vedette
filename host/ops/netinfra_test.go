@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/host/api"
 )
 
 // --- /proc/net/ipv6_route (D-384) ----------------------------------------------------------------------
@@ -27,65 +30,84 @@ func route6Line(nexthop, metric, flags, dev string) string {
 	return zero128 + " 00 " + zero128 + " 00 " + nexthop + " " + metric + " 00000001 00000000 " + flags + " " + dev + "\n"
 }
 
-func TestParseDefaultRoute6(t *testing.T) {
+func routesText(rs []api.NetRoute) string {
+	var s []string
+	for _, r := range rs {
+		s = append(s, r.Iface+" "+r.Gateway+" "+r.MAC)
+	}
+	return strings.Join(s, ",")
+}
+
+func TestParseDefaultRoutes6(t *testing.T) {
 	t.Parallel()
-	ll1, gl := "fe800000000000000000000000000001", "20010db8000000000000000000000001"
-	cases := []struct {
-		name, text, iface, gw string
-	}{
-		{"router advertisement", route6Text, "eth0", "fe80::1"},
-		{"lowest metric wins", route6Line(ll1, "00000400", "00000003", "eth0") + route6Line(gl, "00000064", "00000003", "eth1"), "eth1", "2001:db8::1"},
-		{"first on a tie", route6Line(ll1, "00000064", "00000003", "eth0") + route6Line(gl, "00000064", "00000003", "eth1"), "eth0", "fe80::1"},
-		{"down route skipped", route6Line(ll1, "00000001", "00000002", "eth0"), "", ""},
-		{"reject skipped", route6Line(ll1, "00000001", "00000203", "eth0"), "", ""},
-		{"no gateway flag", route6Line(ll1, "00000001", "00000001", "eth0"), "", ""},
-		{"zero next hop", route6Line(zero128, "00000001", "00000003", "eth0"), "", ""},
-		{"loopback next hop", route6Line("00000000000000000000000000000001", "00000001", "00000003", "eth0"), "", ""},
-		{"multicast next hop", route6Line("ff020000000000000000000000000001", "00000001", "00000003", "eth0"), "", ""},
-		{"IPv4-mapped next hop", route6Line("00000000000000000000ffffc0a80a01", "00000001", "00000003", "eth0"), "", ""},
-		{"not a default destination", strings.Replace(route6Line(ll1, "00000001", "00000003", "eth0"), zero128+" 00", "20010db8000000000000000000000000 00", 1), "", ""},
-		{"a prefix length", strings.Replace(route6Line(ll1, "00000001", "00000003", "eth0"), zero128+" 00", zero128+" 40", 1), "", ""},
-		{"bad iface name", route6Line(ll1, "00000001", "00000003", "-x"), "", ""},
-		{"short hex", route6Line("fe8000000000000000000000000001", "00000001", "00000003", "eth0"), "", ""},
-		{"bad metric", route6Line(ll1, "zz", "00000003", "eth0"), "", ""},
-		{"extra field", strings.TrimSuffix(route6Line(ll1, "00000001", "00000003", "eth0"), "\n") + " x\n", "", ""},
-		{"valid after garbage", "garbage\n\x00\x01\n\t\t\n" + route6Text, "eth0", "fe80::1"},
-		{"empty", "", "", ""},
-		{"a very long line", strings.Repeat("x", 100000) + "\n" + route6Text, "", ""}, // the scanner stops at an over-long line
+	ll1, ll2, gl := "fe800000000000000000000000000001", "fe800000000000000000000000000002", "20010db8000000000000000000000001"
+	cases := []struct{ name, text, want string }{
+		{"router advertisement", route6Text, "eth0 fe80::1 "},
+		{"lowest metric first", route6Line(ll1, "00000400", "00000003", "eth0") + route6Line(gl, "00000064", "00000003", "eth1"), "eth1 2001:db8::1 ,eth0 fe80::1 "},
+		{"file order on a tie", route6Line(ll1, "00000064", "00000003", "eth0") + route6Line(gl, "00000064", "00000003", "eth1"), "eth0 fe80::1 ,eth1 2001:db8::1 "},
+		// every table and every equal-cost next hop is a gateway the box may use (review LOW 1); one next hop on one card is listed once
+		{"equal-cost next hops and another table", route6Line(ll1, "00000400", "00000003", "eth0") + route6Line(ll2, "00000400", "00000003", "eth0") + route6Line(gl, "00000001", "00000003", "wg0") + route6Line(ll1, "00000064", "00000003", "eth0"),
+			"wg0 2001:db8::1 ,eth0 fe80::1 ,eth0 fe80::2 "},
+		{"same next hop on two cards", route6Line(ll1, "00000400", "00000003", "eth0") + route6Line(ll1, "00000400", "00000003", "eth1"), "eth0 fe80::1 ,eth1 fe80::1 "},
+		{"down route skipped", route6Line(ll1, "00000001", "00000002", "eth0"), ""},
+		{"reject skipped", route6Line(ll1, "00000001", "00000203", "eth0"), ""},
+		{"no gateway flag", route6Line(ll1, "00000001", "00000001", "eth0"), ""},
+		{"zero next hop", route6Line(zero128, "00000001", "00000003", "eth0"), ""},
+		{"loopback next hop", route6Line("00000000000000000000000000000001", "00000001", "00000003", "eth0"), ""},
+		{"multicast next hop", route6Line("ff020000000000000000000000000001", "00000001", "00000003", "eth0"), ""},
+		{"IPv4-mapped next hop", route6Line("00000000000000000000ffffc0a80a01", "00000001", "00000003", "eth0"), ""},
+		{"not a default destination", strings.Replace(route6Line(ll1, "00000001", "00000003", "eth0"), zero128+" 00", "20010db8000000000000000000000000 00", 1), ""},
+		{"a prefix length", strings.Replace(route6Line(ll1, "00000001", "00000003", "eth0"), zero128+" 00", zero128+" 40", 1), ""},
+		{"bad iface name", route6Line(ll1, "00000001", "00000003", "-x"), ""},
+		{"short hex", route6Line("fe8000000000000000000000000001", "00000001", "00000003", "eth0"), ""},
+		{"bad metric", route6Line(ll1, "zz", "00000003", "eth0"), ""},
+		{"extra field", strings.TrimSuffix(route6Line(ll1, "00000001", "00000003", "eth0"), "\n") + " x\n", ""},
+		{"valid after garbage", "garbage\n\x00\x01\n\t\t\n" + route6Text, "eth0 fe80::1 "},
+		{"empty", "", ""},
+		{"a very long line", strings.Repeat("x", 100000) + "\n" + route6Text, ""}, // the scanner stops at an over-long line
 	}
 	for _, c := range cases {
-		r, ok := parseDefaultRoute6(strings.NewReader(c.text))
-		switch {
-		case c.iface == "" && ok:
-			t.Errorf("%s: got %+v", c.name, r)
-		case c.iface != "" && (!ok || r.Iface != c.iface || r.Gateway != c.gw || r.MAC != ""):
-			t.Errorf("%s: got %+v, want %s via %s", c.name, r, c.iface, c.gw)
+		rs := parseDefaultRoutes6(strings.NewReader(c.text))
+		if rs == nil || routesText(rs) != c.want {
+			t.Errorf("%s: %q, want %q", c.name, routesText(rs), c.want)
 		}
 	}
 }
 
-func TestParseDefaultRoute6IsBounded(t *testing.T) {
+func TestParseDefaultRoutes6IsBounded(t *testing.T) {
 	t.Parallel()
 	junk := strings.Repeat(route6Line("fe800000000000000000000000000001", "00000001", "00000001", "eth0"), maxRoute6Lines+10)
-	if r, ok := parseDefaultRoute6(strings.NewReader(junk + route6Text)); ok {
-		t.Fatalf("read past the line limit: %+v", r)
+	if rs := parseDefaultRoutes6(strings.NewReader(junk + route6Text)); len(rs) != 0 {
+		t.Fatalf("read past the line limit: %+v", rs)
+	}
+	var many strings.Builder
+	for i := range 40 {
+		many.WriteString(route6Line(fmt.Sprintf("fe80000000000000000000000000%04x", i+1), "00000001", "00000003", "eth0"))
+	}
+	if n := len(parseDefaultRoutes6(strings.NewReader(many.String()))); n != maxRoutes6 {
+		t.Fatalf("%d routes, cap is %d", n, maxRoutes6)
 	}
 }
 
-func FuzzParseDefaultRoute6(f *testing.F) {
+func FuzzParseDefaultRoutes6(f *testing.F) {
 	f.Add(route6Text)
 	f.Add("")
 	f.Add(route6Line("ffffffffffffffffffffffffffffffff", "ffffffff", "ffffffff", "eth0"))
 	f.Fuzz(func(t *testing.T, s string) {
-		r, ok := parseDefaultRoute6(strings.NewReader(s))
-		if !ok {
-			return
+		rs := parseDefaultRoutes6(strings.NewReader(s))
+		if rs == nil || len(rs) > maxRoutes6 {
+			t.Fatalf("%d routes", len(rs))
 		}
-		if !validIfaceName(r.Iface) {
-			t.Fatalf("interface %q", r.Iface)
-		}
-		if a, err := netip.ParseAddr(r.Gateway); err != nil || !unicast6(a) {
-			t.Fatalf("gateway %q", r.Gateway)
+		for i, r := range rs {
+			if !validIfaceName(r.Iface) {
+				t.Fatalf("interface %q", r.Iface)
+			}
+			if a, err := netip.ParseAddr(r.Gateway); err != nil || !unicast6(a) {
+				t.Fatalf("gateway %q", r.Gateway)
+			}
+			if slices.Contains(rs[:i], r) {
+				t.Fatalf("%+v listed twice", r)
+			}
 		}
 	})
 }
@@ -219,6 +241,7 @@ func TestNeighbourMAC(t *testing.T) {
 		{"incomplete", nlNeigh(2, nudIncomplete, "192.168.10.1", ""), gw4, ""},
 		{"failed with an old address", nlNeigh(2, nudFailed, "192.168.10.1", "00:11:22:33:44:55"), gw4, ""},
 		{"state none", nlNeigh(2, 0, "192.168.10.1", "00:11:22:33:44:55"), gw4, ""},
+		{"NOARP is not an answer from a neighbour", nlNeigh(2, 0x40, "192.168.10.1", "00:11:22:33:44:55"), gw4, ""},
 		{"zero MAC", nlNeigh(2, nudReachable, "192.168.10.1", "00:00:00:00:00:00"), gw4, ""},
 		{"broadcast MAC", nlNeigh(2, nudPermanent, "192.168.10.1", "ff:ff:ff:ff:ff:ff"), gw4, ""},
 		{"multicast MAC", nlNeigh(2, nudPermanent, "192.168.10.1", "01:00:5e:00:00:01"), gw4, ""},
@@ -271,6 +294,34 @@ func FuzzNeighbourMAC(f *testing.F) {
 	})
 }
 
+// FuzzNeighbourEntry builds a well-formed neighbour message from the fuzz input and checks neighbourMAC against the rule it implements
+// (review LOW 3): the MAC comes back exactly when the entry is on the asked card, in a usable state, for the asked address, with a 6-byte
+// unicast non-zero MAC.
+func FuzzNeighbourEntry(f *testing.F) {
+	f.Add(uint32(2), uint16(nudStale), []byte{192, 168, 10, 1}, []byte{0, 0x11, 0x22, 0x33, 0x44, 0x55}, []byte{192, 168, 10, 1})
+	f.Add(uint32(3), uint16(nudReachable), []byte{192, 168, 10, 1}, []byte{0, 0x11, 0x22, 0x33, 0x44, 0x55}, []byte{192, 168, 10, 1})
+	f.Add(uint32(2), uint16(0x40), netip.MustParseAddr("fe80::1").AsSlice(), []byte{1, 0, 0x5e, 0, 0, 1}, netip.MustParseAddr("fe80::1").AsSlice())
+	f.Fuzz(func(t *testing.T, ifindex uint32, state uint16, dst, ll, query []byte) {
+		addr, ok := netip.AddrFromSlice(query)
+		if !ok || len(dst) > 64 || len(ll) > 64 {
+			return
+		}
+		body := make([]byte, ndmsgLen)
+		binary.NativeEndian.PutUint32(body[4:8], ifindex)
+		binary.NativeEndian.PutUint16(body[8:10], state)
+		body = slices.Concat(body, nlAttr(ndaDst, dst), nlAttr(ndaLLAddr, ll))
+		got := neighbourMAC(slices.Concat(nlMsg(rtmNewNeigh, body), nlDone), 2, addr)
+		want := ""
+		if d, ok := netip.AddrFromSlice(dst); ok && d == addr && ifindex == 2 && state&nudValid != 0 &&
+			len(ll) == 6 && ll[0]&1 == 0 && !slices.Equal(ll, make([]byte, 6)) {
+			want = net.HardwareAddr(ll).String()
+		}
+		if got != want {
+			t.Fatalf("index %d state %#x dst %x ll %x asked %v: %q, want %q", ifindex, state, dst, ll, addr, got, want)
+		}
+	})
+}
+
 // --- state/net (D-384) ----------------------------------------------------------------------------------
 
 // D-384: state/net reports the IPv6 default route, the MAC of each default gateway from the neighbour table (the entry on the route's
@@ -290,16 +341,22 @@ func TestNetStateReportsTheIPv6RouteTheGatewayMACsAndTheResolvers(t *testing.T) 
 	card(t, root, "eth0", stats("1", "1"), true)
 	card(t, root, "eth1", stats("1", "1"), true)
 	put(t, root, "proc/net/route", routeText)
-	put(t, root, "proc/net/ipv6_route", route6Text)
+	// a router advertisement's route on eth0, and a VPN table's default through wg0 (no neighbour entry: a tunnel has none)
+	put(t, root, "proc/net/ipv6_route", route6Text+route6Line("20010db8000000000000000000000001", "00000800", "00000003", "wg0"))
+	// Ubuntu's layout: /etc/resolv.conf is a relative link to resolved's stub
 	put(t, root, "run/systemd/resolve/resolv.conf", resolvedText)
-	put(t, root, "etc/resolv.conf", stubText+"nameserver 192.168.10.53\nnameserver 1.1.1.1\n")
+	put(t, root, "run/systemd/resolve/stub-resolv.conf", stubText+"nameserver 192.168.10.53\nnameserver 1.1.1.1\n")
+	put(t, root, "etc/placeholder", "")
+	if err := os.Symlink("../run/systemd/resolve/stub-resolv.conf", filepath.Join(root, "etc/resolv.conf")); err != nil {
+		t.Fatal(err)
+	}
 
 	st := readState(t, o)
 	if r := st.DefaultRoute; r == nil || r.Iface != "eth0" || r.Gateway != "192.168.10.1" || r.MAC != "00:11:22:33:44:55" {
 		t.Fatalf("IPv4 route %+v", r)
 	}
-	if r := st.DefaultRoute6; r == nil || r.Iface != "eth0" || r.Gateway != "fe80::1" || r.MAC != "00:11:22:33:44:66" {
-		t.Fatalf("IPv6 route %+v", r)
+	if got, want := routesText(st.DefaultRoutes6), "eth0 fe80::1 00:11:22:33:44:66,wg0 2001:db8::1 "; got != want {
+		t.Fatalf("IPv6 routes %q, want %q", got, want)
 	}
 	if got, want := strings.Join(st.Resolvers, ","), "192.168.10.53,2001:db8::53,fe80::53,1.1.1.1"; got != want {
 		t.Fatalf("resolvers %s, want %s", got, want)
@@ -307,20 +364,20 @@ func TestNetStateReportsTheIPv6RouteTheGatewayMACsAndTheResolvers(t *testing.T) 
 
 	o.d.NeighDump = func() ([]byte, error) { return nil, errors.New("netlink refused") }
 	st = readState(t, o)
-	if st.DefaultRoute == nil || st.DefaultRoute.MAC != "" || st.DefaultRoute6 == nil || st.DefaultRoute6.MAC != "" || len(st.Resolvers) != 4 {
-		t.Fatalf("with no neighbour table: %+v %+v %v", st.DefaultRoute, st.DefaultRoute6, st.Resolvers)
+	if st.DefaultRoute == nil || st.DefaultRoute.MAC != "" || routesText(st.DefaultRoutes6) != "eth0 fe80::1 ,wg0 2001:db8::1 " || len(st.Resolvers) != 4 {
+		t.Fatalf("with no neighbour table: %+v %+v %v", st.DefaultRoute, st.DefaultRoutes6, st.Resolvers)
 	}
 }
 
-// No IPv6 route file, no resolv.conf: no IPv6 route and an empty (never null) resolver list. A FIFO at a resolv.conf name never blocks
+// No IPv6 route file, no resolv.conf: no IPv6 route and an empty (never null) list of each. A FIFO at a resolv.conf name never blocks
 // the host.
 func TestNetStateWithoutIPv6OrResolvConf(t *testing.T) {
 	t.Parallel()
 	o, root := netOps(t, withIfaces(HostIface{Name: "eth0", Index: 2}))
 	card(t, root, "eth0", stats("1", "1"), true)
 	st := readState(t, o)
-	if st.DefaultRoute6 != nil || st.Resolvers == nil || len(st.Resolvers) != 0 {
-		t.Fatalf("route6 %+v resolvers %#v", st.DefaultRoute6, st.Resolvers)
+	if st.DefaultRoutes6 == nil || len(st.DefaultRoutes6) != 0 || st.Resolvers == nil || len(st.Resolvers) != 0 {
+		t.Fatalf("routes6 %#v resolvers %#v", st.DefaultRoutes6, st.Resolvers)
 	}
 	put(t, root, "etc/placeholder", "")
 	if err := syscall.Mkfifo(filepath.Join(root, "etc/resolv.conf"), 0o600); err != nil {
@@ -333,4 +390,68 @@ func TestNetStateWithoutIPv6OrResolvConf(t *testing.T) {
 	case <-time.After(HangBound):
 		t.Fatal("state/net blocked on a FIFO at /etc/resolv.conf")
 	}
+}
+
+// D-384 review (M2): the root host reads a file that systemd-resolved's user can replace. Only a regular file of 1 byte to 64 KiB is read,
+// never through a link in /run/systemd/resolve (a link to /dev/watchdog would arm it, one to /proc/kmsg would block), and /etc/resolv.conf
+// is followed one level only.
+func TestResolversReadOnlySmallRegularFilesNotDevices(t *testing.T) {
+	t.Parallel()
+	o, root := netOps(t)
+	put(t, root, "run/systemd/resolve/placeholder", "")
+	put(t, root, "etc/placeholder", "")
+	resolved := filepath.Join(root, "run/systemd/resolve/resolv.conf")
+	etc := filepath.Join(root, "etc/resolv.conf")
+	reset := func() {
+		for _, p := range []string{resolved, etc, filepath.Join(root, "run/systemd/resolve/stub-resolv.conf")} {
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+		}
+	}
+	symlink := func(target, at string) {
+		t.Helper()
+		if err := os.Symlink(target, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(name, want string) {
+		t.Helper()
+		done := make(chan []string, 1)
+		go func() { done <- o.resolvers() }()
+		select {
+		case got := <-done:
+			if strings.Join(got, ",") != want {
+				t.Errorf("%s: %v, want %q", name, got, want)
+			}
+		case <-time.After(HangBound):
+			t.Fatalf("%s: the read blocked", name)
+		}
+		reset()
+	}
+
+	symlink("/dev/null", resolved) // a device behind a link in resolved's directory: never opened
+	check("link to /dev/null", "")
+	symlink(filepath.Join(root, "real.conf"), resolved) // a link to a good file is refused as well: resolved writes a regular file
+	put(t, root, "real.conf", "nameserver 10.0.0.1\n")
+	check("link in /run/systemd/resolve", "")
+	put(t, root, "run/systemd/resolve/resolv.conf", "")
+	check("empty file (procfs files report size 0)", "")
+	put(t, root, "run/systemd/resolve/resolv.conf", "nameserver 10.0.0.1\n"+strings.Repeat("#", maxResolvBytes))
+	check("over 64 KiB", "")
+	if err := syscall.Mkfifo(resolved, 0o600); err == nil {
+		check("FIFO", "")
+	}
+	// /etc/resolv.conf: one level of link (Ubuntu's), not two, and not to a device.
+	put(t, root, "run/systemd/resolve/stub-resolv.conf", "nameserver 10.0.0.2\n")
+	symlink("../run/systemd/resolve/stub-resolv.conf", etc)
+	check("one level", "10.0.0.2")
+	symlink("/run/systemd/resolve/stub-resolv.conf", etc) // an absolute target is read under the root
+	put(t, root, "run/systemd/resolve/stub-resolv.conf", "nameserver 10.0.0.3\n")
+	check("absolute target", "10.0.0.3")
+	symlink("/dev/null", filepath.Join(root, "run/systemd/resolve/stub-resolv.conf"))
+	symlink("../run/systemd/resolve/stub-resolv.conf", etc)
+	check("two levels, the second to a device", "")
+	symlink("/dev/null", etc)
+	check("/etc/resolv.conf linked to /dev/null under the root", "")
 }

@@ -332,9 +332,13 @@ func (o *Ops) readNet(context.Context) (any, error) {
 		return nil, errors.New("ops: list the interfaces: " + err.Error())
 	}
 	cfg, managed := o.readNetplanConfig()
-	route, route6 := o.defaultRoute(), o.defaultRoute6()
-	o.gatewayMACs(ifaces, route, route6)
-	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, DefaultRoute6: route6, Decoys: o.readDecoyState(), Resolvers: o.resolvers()}
+	route, routes6 := o.defaultRoute(), o.defaultRoutes6()
+	withGateway := []*api.NetRoute{route}
+	for i := range routes6 {
+		withGateway = append(withGateway, &routes6[i])
+	}
+	o.gatewayMACs(ifaces, withGateway...)
+	st := api.NetState{Interfaces: []api.NetInterface{}, DefaultRoute: route, DefaultRoutes6: routes6, Decoys: o.readDecoyState(), Resolvers: o.resolvers()}
 	st.Config.NTP = o.readNTP()
 	if p, ps := o.loadPending(); ps == pendOK && (o.netPending() || p.RebootAt != nil) {
 		st.Pending = &api.NetPending{RunID: p.RunID, RevertAt: p.RevertAt, RebootAt: p.RebootAt}

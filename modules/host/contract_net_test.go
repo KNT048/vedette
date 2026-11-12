@@ -73,8 +73,8 @@ func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.DefaultRoute6 == nil || st.DefaultRoute6.Iface != "eth0" || st.DefaultRoute6.Gateway != "fe80::1" || len(st.Resolvers) != 1 || st.Resolvers[0] != "192.168.10.53" {
-		t.Fatalf("IPv6 route %+v, resolvers %v", st.DefaultRoute6, st.Resolvers)
+	if len(st.DefaultRoutes6) != 1 || st.DefaultRoutes6[0].Iface != "eth0" || st.DefaultRoutes6[0].Gateway != "fe80::1" || len(st.Resolvers) != 1 || st.Resolvers[0] != "192.168.10.53" {
+		t.Fatalf("IPv6 routes %+v, resolvers %v", st.DefaultRoutes6, st.Resolvers)
 	}
 	if len(st.Interfaces) != 2 || st.Interfaces[0].Name != "eth0" || st.Interfaces[0].Counters.RxBytes != 1234 || st.Interfaces[0].Role != api.NetRoleManagement ||
 		st.Interfaces[1].Counters.RxBytes != 5678 || st.Interfaces[0].Addresses[0] != "192.168.10.250/24" {
@@ -91,7 +91,7 @@ func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 	if err := json.Unmarshal(body, &m); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"interfaces", "config", "default_route", "default_route6", "pending", "decoys", "resolvers"} {
+	for _, k := range []string{"interfaces", "config", "default_route", "default_routes6", "pending", "decoys", "resolvers"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("the body has no %q: %s", k, body)
 		}

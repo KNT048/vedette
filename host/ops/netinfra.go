@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,12 +20,13 @@ import (
 )
 
 // The parts of GET /v1/state/net that tell core what the box itself depends on, so that response never acts on it (D-325, D-384): the
-// IPv6 default route, the default gateways' MACs and the resolvers in use. Each is a bounded read of a kernel file or of the kernel's
+// IPv6 default routes, the default gateways' MACs and the resolvers in use. Each is a bounded read of a kernel file or of the kernel's
 // neighbour table; what does not parse is skipped. No program runs.
 
 const (
 	maxRoute6Bytes = 1 << 20
 	maxRoute6Lines = 4096
+	maxRoutes6     = 16
 	rtfReject      = 0x200
 	maxResolvBytes = 64 << 10
 	maxResolvLines = 1024
@@ -36,21 +39,28 @@ const (
 	ndmsgLen       = 12
 	ndaDst         = 1
 	ndaLLAddr      = 2
-	nlaTypeMask    = 0x3fff                                  // drops the NESTED and NET_BYTEORDER flags of an attribute type
-	nudValid       = 0x02 | 0x04 | 0x08 | 0x10 | 0x40 | 0x80 // REACHABLE, STALE, DELAY, PROBE, NOARP, PERMANENT: the kernel's NUD_VALID
+	nlaTypeMask    = 0x3fff // drops the NESTED and NET_BYTEORDER flags of an attribute type
+	// REACHABLE, STALE, DELAY, PROBE, PERMANENT: the kernel's NUD_VALID without NOARP (a NOARP entry's address is not one a
+	// neighbour answered with; D-384 review, LOW 2)
+	nudValid = 0x02 | 0x04 | 0x08 | 0x10 | 0x80
 )
 
 const zero128 = "00000000000000000000000000000000"
 
-// parseDefaultRoute6 reads /proc/net/ipv6_route text and returns the IPv6 default route with the lowest metric (the first on a tie):
+// parseDefaultRoutes6 reads /proc/net/ipv6_route text and returns every IPv6 default route, lowest metric first (file order on a tie):
 // destination ::/0, flags UP and GATEWAY and not REJECT, a unicast next hop (link-local is the usual one: a router advertisement's) on a
-// valid interface name. Lines that do not parse are skipped; input and line count are bounded, and the scanner stops at an over-long line
-// (as parseDefaultRoute).
-func parseDefaultRoute6(r io.Reader) (*api.NetRoute, bool) {
+// valid interface name. The file lists every routing table (a VPN's, a VRF's, a policy table's) and each next hop of an equal-cost
+// route on a line of its own, and any of them may carry the box's traffic, so all are reported (D-384 review, LOW 1); the same next hop
+// on the same card once. Lines that do not parse are skipped; input and line count are bounded, at most maxRoutes6 routes, and the
+// scanner stops at an over-long line (as parseDefaultRoute). Never nil.
+func parseDefaultRoutes6(r io.Reader) []api.NetRoute {
 	sc := bufio.NewScanner(io.LimitReader(r, maxRoute6Bytes))
 	sc.Buffer(make([]byte, 0, 512), 4096)
-	var best *api.NetRoute
-	var bestMetric uint64
+	type route struct {
+		api.NetRoute
+		metric uint64
+	}
+	var all []route
 	for n := 0; sc.Scan() && n < maxRoute6Lines; n++ {
 		// destination, its prefix length, source, its prefix length, next hop, metric, refcount, use, flags, device
 		f := strings.Fields(sc.Text())
@@ -63,11 +73,19 @@ func parseDefaultRoute6(r io.Reader) (*api.NetRoute, bool) {
 		if err1 != nil || err2 != nil || err3 != nil || flags&(rtfUp|rtfGate) != rtfUp|rtfGate || flags&rtfReject != 0 || !unicast6(g) {
 			continue
 		}
-		if best == nil || metric < bestMetric {
-			best, bestMetric = &api.NetRoute{Iface: f[9], Gateway: g.String()}, metric
+		nr := api.NetRoute{Iface: f[9], Gateway: g.String()}
+		if i := slices.IndexFunc(all, func(x route) bool { return x.NetRoute == nr }); i >= 0 {
+			all[i].metric = min(all[i].metric, metric)
+		} else if len(all) < maxRoutes6 {
+			all = append(all, route{nr, metric})
 		}
 	}
-	return best, best != nil
+	slices.SortStableFunc(all, func(a, b route) int { return cmp.Compare(a.metric, b.metric) })
+	out := make([]api.NetRoute, 0, len(all))
+	for _, x := range all {
+		out = append(out, x.NetRoute)
+	}
+	return out
 }
 
 // route6Addr reads an address of /proc/net/ipv6_route: 32 hexadecimal digits in network order.
@@ -84,14 +102,13 @@ func unicast6(a netip.Addr) bool {
 	return a.IsValid() && a.Is6() && !a.Is4In6() && a.Zone() == "" && (a.IsGlobalUnicast() || a.IsLinkLocalUnicast())
 }
 
-func (o *Ops) defaultRoute6() *api.NetRoute {
+func (o *Ops) defaultRoutes6() []api.NetRoute {
 	f, err := os.Open(o.path("proc/net/ipv6_route"))
 	if err != nil {
-		return nil // no IPv6 in this kernel, or not readable: no route
+		return []api.NetRoute{} // no IPv6 in this kernel, or not readable: no route
 	}
 	defer func() { _ = f.Close() }()
-	r, _ := parseDefaultRoute6(f)
-	return r
+	return parseDefaultRoutes6(f)
 }
 
 // parseResolvConf returns the nameserver addresses of resolv.conf text in file order: IPv4 or IPv6 (a "%zone" is dropped), not loopback
@@ -120,7 +137,7 @@ func parseResolvConf(r io.Reader) []netip.Addr {
 }
 
 // resolvConfs are the files resolvers reads: the servers systemd-resolved sends queries to (a DHCP lease's as well as configured ones),
-// then /etc/resolv.conf (followed when it is a link; on Ubuntu it is resolved's stub, 127.0.0.53, which is skipped).
+// then /etc/resolv.conf (on Ubuntu a link to resolved's stub, 127.0.0.53, which is skipped).
 var resolvConfs = []string{"run/systemd/resolve/resolv.conf", "etc/resolv.conf"}
 
 // resolvers are the DNS servers the box uses now. Both files are read, because either may be what a program on the box uses; a stale
@@ -128,7 +145,7 @@ var resolvConfs = []string{"run/systemd/resolve/resolv.conf", "etc/resolv.conf"}
 func (o *Ops) resolvers() []string {
 	out := []string{}
 	for _, rel := range resolvConfs {
-		for _, a := range readResolvConf(o.path(rel)) {
+		for _, a := range o.readResolvConf(rel) {
 			if s := a.String(); len(out) < maxResolvers && !slices.Contains(out, s) {
 				out = append(out, s)
 			}
@@ -137,14 +154,41 @@ func (o *Ops) resolvers() []string {
 	return out
 }
 
-// readResolvConf parses one resolv.conf; a file that is absent, not regular or unreadable has no servers. The open never blocks on a FIFO.
-func readResolvConf(path string) []netip.Addr {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) //nolint:gosec // one of the fixed resolvConfs under the root
+// readResolvConf parses one resolv.conf. The host is root and /run/systemd/resolve belongs to systemd-resolve (D-384 review, M2): a
+// link there to /dev/watchdog would arm it when opened, one to /proc/kmsg would block the read. So a link is followed one level only,
+// as Ubuntu's /etc/resolv.conf needs (an absolute target is read under the root), and the file is then opened by readResolvFile, which
+// never follows a link in the last component.
+func (o *Ops) readResolvConf(rel string) []netip.Addr {
+	p := o.path(rel)
+	if fi, err := os.Lstat(p); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		t, err := os.Readlink(p)
+		if err != nil {
+			return nil
+		}
+		if filepath.IsAbs(t) {
+			p = o.path(t)
+		} else {
+			p = filepath.Join(filepath.Dir(p), t)
+		}
+	}
+	return readResolvFile(p)
+}
+
+// readResolvFile reads a resolv.conf that is a regular file of 1 byte to maxResolvBytes (procfs files report size 0) at path itself, not
+// through a link: lstat first, then an open with O_NOFOLLOW, O_NONBLOCK (a FIFO swapped in never blocks) and O_NOCTTY, then fstat must be
+// the same regular file. Anything else has no servers. (A device cannot be swapped in between the lstat and the open: a link is refused
+// by O_NOFOLLOW, a hard link cannot cross from /dev into /run or /etc, and making a device node needs CAP_MKNOD.)
+func readResolvFile(path string) []netip.Addr {
+	st, err := os.Lstat(path)
+	if err != nil || !st.Mode().IsRegular() || st.Size() < 1 || st.Size() > maxResolvBytes {
+		return nil
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_NOCTTY, 0) //nolint:gosec // a fixed resolv.conf path under the root
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = f.Close() }()
-	if st, err := f.Stat(); err != nil || !st.Mode().IsRegular() {
+	if fst, err := f.Stat(); err != nil || !fst.Mode().IsRegular() || !os.SameFile(st, fst) {
 		return nil
 	}
 	return parseResolvConf(f)

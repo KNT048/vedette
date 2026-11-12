@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/response"
 )
@@ -25,7 +28,31 @@ type hostMACs struct {
 	failedAt time.Time // the last failed ask: no new ask for hostNetBackoff, so a hung host costs one timeout, not one per caller
 	forcedAt time.Time // the last ask that skipped the TTL (Fresh)
 	last     []string
-	infra    []response.HostInfra // the gateways (with their MACs) and DNS servers of the same answer (D-325, D-384)
+	infra    []response.HostInfra // the gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-384)
+	pins     map[netip.Addr]*gwPin
+	// macChanged is told when the host reports a MAC for a gateway that is not one of its pinned MACs (possible ARP/ND spoofing), at
+	// most once per gatewayMACSettle per gateway. It runs under mu and must not block. nil = nobody is told.
+	macChanged func(gw netip.Addr, pinned []string, seen string)
+}
+
+// D-384 review (M1): the gateway's MAC comes from the box's own neighbour table, which a host on the LAN can poison. A MAC adopted at
+// once would make a spoofer never-touch during exactly the attack. So the first MAC seen for a gateway address is pinned; a different
+// one is reported (macChanged) and stays off the never-touch list until it has been the only MAC seen for gatewayMACSettle, over at
+// least gatewayMACAnswers answers in a row; the pinned MACs stay never-touch throughout and after.
+const (
+	gatewayMACSettle  = 10 * time.Minute
+	gatewayMACAnswers = 3
+	gatewayMACKeep    = 4  // pinned MACs per gateway address; the oldest is dropped past it
+	gatewayPins       = 16 // gateway addresses remembered; past it, those not in the current answer are forgotten
+)
+
+// gwPin is what core knows of one gateway address's MAC.
+type gwPin struct {
+	pinned    []string  // adopted MACs, oldest first; all are never-touch
+	cand      string    // a different MAC the host reports, not adopted yet
+	candSince time.Time // when cand was first seen
+	candSeen  int       // answers in a row that reported cand
+	warnedAt  time.Time // the last macChanged call for this gateway
 }
 
 var errHostMACsUnknown = errors.New("vedette-host has not reported the MAC addresses of the box yet")
@@ -78,7 +105,8 @@ func (h *hostMACs) get(ctx context.Context, fresh bool) ([]string, error) {
 	for _, d := range st.Decoys {
 		out = append(out, strings.ToLower(d.MAC))
 	}
-	h.at, h.failedAt, h.last, h.infra = h.now(), time.Time{}, out, keepGateways(hostInfraOf(st), h.infra)
+	t := h.now()
+	h.at, h.failedAt, h.last, h.infra = t, time.Time{}, out, keepGateways(h.pinMACs(hostInfraOf(st), t), h.infra)
 	return out, nil
 }
 
@@ -97,30 +125,113 @@ func (h *hostMACs) Infra(ctx context.Context) ([]response.HostInfra, error) {
 }
 
 // keepGateways carries the last answer's gateways over the gaps of a new one: a family (IPv4, IPv6) with no gateway now (a lease being
-// renewed, a pending net.apply, a router advertisement not seen yet) keeps its last gateways, and a gateway whose neighbour entry is
-// missing now keeps the MAC it had. Keeping a stale one only protects more.
+// renewed, a pending net.apply, a router advertisement not seen yet) keeps its last gateways, with their pinned MACs. Keeping a stale
+// one only protects more. (A gateway whose neighbour entry is missing for a moment keeps its MACs through pinMACs.)
 func keepGateways(now, last []response.HostInfra) []response.HostInfra {
 	answered := len(now) // the families are judged on the new answer, not on what is carried over
 	for _, p := range last {
-		if p.Kind != "gateway" {
-			continue
-		}
-		family := false
-		for i := range now[:answered] {
-			n := &now[i]
-			if n.Kind != "gateway" || n.Addr.Is4() != p.Addr.Is4() {
-				continue
-			}
-			family = true
-			if n.Addr == p.Addr && n.MAC == "" {
-				n.MAC = p.MAC
-			}
-		}
-		if !family {
+		if p.Kind == "gateway" && !slices.ContainsFunc(now[:answered], func(n response.HostInfra) bool { return n.Kind == "gateway" && n.Addr.Is4() == p.Addr.Is4() }) {
 			now = append(now, p)
 		}
 	}
 	return now
+}
+
+// pinMACs replaces the MAC the host reported for each gateway by the gateway's pinned MACs (one entry per MAC; a second entry for the
+// same address, as the saved configuration's gateway, carries none) and records what the host reported (observe). Called under mu.
+func (h *hostMACs) pinMACs(infra []response.HostInfra, now time.Time) []response.HostInfra {
+	if h.pins == nil {
+		h.pins = map[netip.Addr]*gwPin{}
+	}
+	if len(h.pins) >= gatewayPins {
+		for a := range h.pins {
+			if !slices.ContainsFunc(infra, func(x response.HostInfra) bool { return x.Addr == a }) {
+				delete(h.pins, a)
+			}
+		}
+	}
+	var out []response.HostInfra
+	done := map[netip.Addr]bool{}
+	for _, x := range infra {
+		if x.Kind != "gateway" {
+			out = append(out, x)
+			continue
+		}
+		p := h.pins[x.Addr]
+		switch {
+		case p == nil && x.MAC != "" && len(h.pins) < gatewayPins:
+			p = &gwPin{pinned: []string{x.MAC}}
+			h.pins[x.Addr] = p
+		case p != nil && x.MAC != "":
+			h.observe(x.Addr, p, x.MAC, now)
+		}
+		x.MAC = ""
+		if p == nil || done[x.Addr] {
+			out = append(out, x)
+			continue
+		}
+		done[x.Addr] = true
+		for _, m := range p.pinned {
+			y := x
+			y.MAC = m
+			out = append(out, y)
+		}
+	}
+	return out
+}
+
+// observe records one answer's MAC for a pinned gateway: a pinned MAC ends any candidate; another MAC becomes (or stays) the candidate,
+// is reported, and is adopted once it has been seen in gatewayMACAnswers answers in a row over at least gatewayMACSettle.
+func (h *hostMACs) observe(gw netip.Addr, p *gwPin, mac string, now time.Time) {
+	if slices.Contains(p.pinned, mac) {
+		p.cand, p.candSeen = "", 0
+		return
+	}
+	if mac != p.cand {
+		p.cand, p.candSince, p.candSeen = mac, now, 0
+		if h.macChanged != nil && (p.warnedAt.IsZero() || now.Sub(p.warnedAt) >= gatewayMACSettle) {
+			p.warnedAt = now
+			h.macChanged(gw, slices.Clone(p.pinned), mac)
+		}
+	}
+	p.candSeen++
+	if p.candSeen >= gatewayMACAnswers && now.Sub(p.candSince) >= gatewayMACSettle {
+		p.pinned = append(p.pinned, mac)
+		if len(p.pinned) > gatewayMACKeep {
+			p.pinned = p.pinned[1:]
+		}
+		p.cand, p.candSeen = "", 0
+	}
+}
+
+// gatewayMACChanged is hostMACs.macChanged in production: a WARN line and a core_audit row "network.gateway_mac_changed" (user system),
+// the way arpwatch reports a flip-flop. The row is written by its own goroutine: the call runs under hostMACs.mu, often while response
+// holds the write transaction that asked for the never-touch list, and a second write there would wait on the first.
+func gatewayMACChanged(d *deps) func(gw netip.Addr, pinned []string, seen string) {
+	return func(gw netip.Addr, pinned []string, seen string) {
+		if d.Log != nil {
+			d.Log.Warn("the MAC address of this box's default gateway changed (a router replaced, or ARP/ND spoofing); the new MAC is not never-touch until it has stayed",
+				"gateway", gw.String(), "never_touch_macs", strings.Join(pinned, ","), "new_mac", seen, "settle", gatewayMACSettle.String())
+		}
+		if d.DB == nil || d.Audit == nil {
+			return
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := auditGatewayMAC(ctx, d, gw, pinned, seen); err != nil && d.Log != nil {
+				d.Log.Warn("the gateway MAC change could not be written to the audit log", "err", err)
+			}
+		}()
+	}
+}
+
+// auditGatewayMAC writes the core_audit row of a gateway MAC change.
+func auditGatewayMAC(ctx context.Context, d *deps, gw netip.Addr, pinned []string, seen string) error {
+	detail := "now " + seen + "; never-touch stays " + strings.Join(pinned, ", ") + "; " + seen + " is not never-touch until it has been the only MAC for " + gatewayMACSettle.String()
+	return d.DB.Write(ctx, func(tx *sql.Tx) error {
+		return d.Audit.Append(ctx, tx, audit.Entry{User: "system", Action: "network.gateway_mac_changed", Target: "default gateway " + gw.String(), Detail: detail})
+	})
 }
 
 // hostInfraOf reads the kernel's IPv4 and IPv6 default gateways with their MACs, the DNS servers the box uses (whoever set them: a DHCP
@@ -139,10 +250,14 @@ func hostInfraOf(st api.NetState) []response.HostInfra {
 		}
 		out = append(out, x)
 	}
-	for _, r := range []*api.NetRoute{st.DefaultRoute, st.DefaultRoute6} {
-		if r != nil {
-			add(r.Gateway, "gateway", r.MAC)
+	if r := st.DefaultRoute; r != nil {
+		add(r.Gateway, "gateway", r.MAC)
+	}
+	for i, r := range st.DefaultRoutes6 {
+		if i >= 16 { // the host sends at most 16
+			break
 		}
+		add(r.Gateway, "gateway", r.MAC)
 	}
 	dns := func(l []string, limit int) {
 		for i, d := range l {

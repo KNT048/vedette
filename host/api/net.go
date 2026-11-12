@@ -98,10 +98,11 @@ type NetState struct {
 	Interfaces   []NetInterface `json:"interfaces"`
 	Config       NetConfig      `json:"config"`
 	DefaultRoute *NetRoute      `json:"default_route"`
-	// DefaultRoute6 is the IPv6 default route (lowest metric), null when there is none (D-384; absent from an older host).
-	DefaultRoute6 *NetRoute   `json:"default_route6"`
-	Pending       *NetPending `json:"pending"`
-	Decoys        []NetDecoy  `json:"decoys"`
+	// DefaultRoutes6 are the IPv6 default routes of every routing table, each next hop of an equal-cost route on its own, lowest metric
+	// first; [] when there is none (D-384; absent from an older host).
+	DefaultRoutes6 []NetRoute  `json:"default_routes6"`
+	Pending        *NetPending `json:"pending"`
+	Decoys         []NetDecoy  `json:"decoys"`
 	// Resolvers are the DNS servers the box's resolver uses now, whoever set them (a DHCP lease, netplan, an administrator): the
 	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs (D-384). An older host does not
 	// send the field.

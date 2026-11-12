@@ -418,7 +418,7 @@ func responseConfig(d *deps) (response.Config, error) {
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)
 	}
-	hm := &hostMACs{r: hostState, now: d.Clock}
+	hm := &hostMACs{r: hostState, now: d.Clock, macChanged: gatewayMACChanged(d)} // D-384 review (M1): a gateway MAC flip is reported
 	cfg.BoxMACs = responseBoxMACs(hm)
 	cfg.HostInfra = func() ([]response.HostInfra, error) { // D-325: the box's gateway and DNS servers are never-touch too
 		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)

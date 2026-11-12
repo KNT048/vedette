@@ -20,11 +20,11 @@ func testIPs(n int) string {
 // A long indicator list must not hold the single writer connection for the whole apply: another write that
 // arrives during the pull gets it between chunks. The real list is 186k domains (~15 s on the e2e box, ~70 us a
 // row). The bound is relative (the longest wait must be under half of the pull) because an absolute one
-// is not stable: under -race a 2000-row chunk takes seconds. 20k rows are 10 chunks, so the wait is about a
-// tenth of the pull; in one transaction it was the whole pull. Not parallel: other tests would load the writer
+// is not stable: under -race a chunk takes up to seconds. Ten chunks (iocChunkRows is smaller in the tests, TestMain), so the
+// wait is about a tenth of the pull; in one transaction it was the whole pull. Not parallel: other tests would load the writer
 // and the box. The deterministic check is TestIOCWriteGetsInBetweenChunks.
 func TestIOCPullDoesNotHoldTheWriterForTheWholeList(t *testing.T) {
-	const rows = 20_000
+	rows := 10 * iocChunkRows
 	e, o := pullEnv(t)
 	e.only("et-open")
 	o.body("/et.txt", `"e1"`, testIPs(rows))

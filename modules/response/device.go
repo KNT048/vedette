@@ -441,8 +441,8 @@ func (s *Service) resolveItem(ctx context.Context, reqID, itemID string) error {
 		}
 		now := s.now()
 		x.Status, x.ExecutedAt, x.Result, x.Verified = ItemExecuted, strp(store2(now)), strp("Confirmed by a read-back: the step was applied."), &Verified{OK: true, Detail: "Read back from the device: the expected text is there."}
-		if x.PresentBefore == nil { // a run from before D-356: in force and undoable by hand, never disowned, never undone unattended
-			x.Result = strp("Read back from the device: the change is in force. This item has no record of a read before its run (it ran on an older version of Vedette), so the change may have been there before; it is not undone automatically. Undo it here if it is this request's change.")
+		if x.PresentBefore == nil { // no record of the read before (a run from before D-356, or a crash between the claim and keepBefore): in force and undoable by hand, never disowned, never undone unattended
+			x.Result = strp("Read back from the device: the change is in force. There is no record of a read before its run, so the change may have been there before; it is not undone automatically. Undo it here if it is this request's change.")
 		} else if x.Reversible && x.TTLMin != nil {
 			x.RemoveAt = strp(store2(now.Add(time.Duration(*x.TTLMin) * time.Minute)))
 		}

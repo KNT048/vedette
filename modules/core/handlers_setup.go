@@ -34,6 +34,7 @@ const (
 	CodeInvalidOrg        = "invalid_org"
 	CodeInvalidLan        = "invalid_lan"
 	CodePublicRange       = "public_range"
+	CodeOverlapRange      = "overlap_range"
 	CodeInvalidBundle     = "invalid_bundle"
 	CodeInvalidModule     = "invalid_module"
 	CodeSampleUnavailable = "sample_unavailable"
@@ -101,7 +102,18 @@ func parseLan(in []string) ([]string, *apierr.Error) {
 		if !slices.ContainsFunc(privateNets, func(n netip.Prefix) bool { return n.Bits() <= p.Bits() && n.Contains(p.Addr()) }) {
 			return nil, apierr.New(400, CodePublicRange, fmt.Sprintf("%s is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.", clip(s)))
 		}
-		out = append(out, p.Masked().String())
+		if m := p.Masked().String(); !slices.Contains(out, m) {
+			out = append(out, m)
+		}
+	}
+	// The ranges become the inventory's scope (INV-15), so they obey its rule here too, before anything is written: no two overlap
+	// (inventory INV-6; same code and words as Devices -> Scope and sensors, D-298).
+	for i, a := range out {
+		for j, b := range out {
+			if i != j && netip.MustParsePrefix(a).Overlaps(netip.MustParsePrefix(b)) {
+				return nil, apierr.New(400, CodeOverlapRange, "Range "+a+" overlaps "+b+". Keep the larger range and drop the smaller one.")
+			}
+		}
 	}
 	return out, nil
 }
@@ -236,6 +248,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	var (
 		sess    auth.Issued
 		changes []modreg.Change
+		scopeTx *sql.Tx // the transaction the inventory wrote the scope in, settled once it is over
 	)
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		q := coredb.New(tx)
@@ -274,6 +287,13 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		if err := q.UpsertSetting(ctx, coredb.UpsertSettingParams{Key: "setup.scope", Value: string(scope), UpdatedAt: now, UpdatedBy: email}); err != nil {
 			return fmt.Errorf("core: store setup scope: %w", err)
 		}
+		// The ranges and the commitment are the inventory's scope (Devices -> Scope and sensors) from now on, in this same commit (#350).
+		if h.scope != nil {
+			scopeTx = tx
+			if err := h.scope.SetupScope(ctx, tx, email, lan, req.Commitment.Or(false)); err != nil {
+				return err
+			}
+		}
 		if err := q.UpdateUserLastLogin(ctx, coredb.UpdateUserLastLoginParams{LastLogin: &now, ID: u.ID}); err != nil {
 			return fmt.Errorf("core: set last_login: %w", err)
 		}
@@ -295,10 +315,17 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		return h.dropSetupCode(ctx, tx)
 	})
 	if err != nil {
+		if scopeTx != nil {
+			h.scope.Settle(context.WithoutCancel(ctx), scopeTx, false)
+		}
 		return nil, err
 	}
 	for _, ch := range changes {
 		h.reg.Publish(ch)
+	}
+	// After the modules of the bundle are on, so that their listeners of inventory.settings.changed take it.
+	if scopeTx != nil {
+		h.scope.Settle(context.WithoutCancel(ctx), scopeTx, true)
 	}
 	setSession(x, sess, "")
 	return &oas.CorePostCoreSetupOK{Ok: true}, nil

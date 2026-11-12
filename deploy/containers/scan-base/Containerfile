@@ -24,7 +24,8 @@ RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor; \
-    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette-sensor -name vedette-sensor -out /out/licenses/third-party-licenses
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette-sensor -name vedette-sensor -out /out/licenses/third-party-licenses; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -o /tools/hostlicenses ./scripts/hostlicenses
 
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS nuclei
 ARG TARGETOS
@@ -34,6 +35,9 @@ ARG NUCLEI_SRC_SHA256
 WORKDIR /nuclei
 # Our patched go.mod/go.sum (README.md there): nothing else of the repository is needed here.
 COPY deploy/containers/scan-base/nuclei/go.mod deploy/containers/scan-base/nuclei/go.sum /patched/
+# The licence-file generator of the other images (scripts/hostlicenses, built for this machine in the build stage), run here over
+# ./cmd/nuclei: the licence of every module linked into nuclei, offline (GOPROXY=off) from the modules the build has just fetched (D-454).
+COPY --from=build /tools/hostlicenses /usr/local/bin/hostlicenses
 RUN set -eu; \
     [ -n "${NUCLEI_VERSION}" ] || exit 1; \
     [ -n "${NUCLEI_SRC_SHA256}" ] || exit 1; \
@@ -46,6 +50,8 @@ RUN set -eu; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -trimpath -ldflags "-s -w" -o /out/nuclei ./cmd/nuclei; \
     cp LICENSE.md /out/LICENSE.md; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly GOPROXY=off \
+    hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/nuclei -name nuclei -out /out/third-party-licenses; \
     chmod 0755 /out/nuclei
 
 # The files of the image that are not binaries, with their modes set and the pack checked, on the build machine.
@@ -53,8 +59,10 @@ RUN set -eu; \
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS pack
 ARG SCAN_PACK_VERSION
 COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICENSE.md
-# The same two texts at the standard place of the other images (/usr/share/doc/vedette/, D-155 (10)).
+COPY --from=nuclei /out/third-party-licenses /usr/local/share/vedette/licenses/nuclei-third-party-licenses
+# The same texts at the standard place of the other images (/usr/share/doc/vedette/, D-155 (10)).
 COPY --from=nuclei /out/LICENSE.md /usr/share/doc/vedette/nuclei-LICENSE.md
+COPY --from=nuclei /out/third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses
 COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
 COPY deploy/containers/scan-base/pack/index.json /usr/local/share/vedette/nuclei-pack/index.json
 COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/local/share/vedette/licenses/nuclei-templates-LICENSE.md
@@ -71,7 +79,7 @@ COPY --from=build /out/vedette-sensor /vedette-sensor
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=pack /usr/share/vedette/ /usr/share/vedette/
 COPY --from=pack /usr/local/share/vedette/ /usr/local/share/vedette/
-# Third-party licenses: the Go modules linked into vedette-sensor (scripts/hostlicenses) and the nuclei and template-pack texts.
+# Third-party licenses: the Go modules linked into vedette-sensor and into nuclei (scripts/hostlicenses) and the nuclei and template-pack texts.
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --from=pack /usr/share/doc/vedette/ /usr/share/doc/vedette/
 USER 65532:65532

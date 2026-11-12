@@ -106,12 +106,17 @@ type buildOpts struct {
 	mutateIndex      func(*release.Index)
 	revoke           []string // key ids the index revokes
 	rescue           bool     // SignRescue with the backup key (D-259), instead of the active and backup slots
+	installModes     []string // default appliance only: "container" needs the container assets (D-451), which beforeSign writes
+	beforeSign       func(dir string, in Inputs)
 }
 
 func (r *rig) build(o buildOpts) (dir string, err error) {
 	r.t.Helper()
 	if o.channel == "" {
 		o.channel = "beta"
+	}
+	if o.installModes == nil {
+		o.installModes = []string{"appliance"}
 	}
 	if o.services == nil {
 		o.services = []string{"core", "sensor"}
@@ -120,7 +125,7 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	sbom := filepath.Join(r.t.TempDir(), "sbom.json")
 	must(r.t, os.WriteFile(sbom, []byte(`{"bomFormat":"CycloneDX"}`), 0o600))
 	in := Inputs{
-		Version: o.version, Channel: o.channel, Notes: "Test release & <notes>", InstallModes: []string{"appliance", "container"},
+		Version: o.version, Channel: o.channel, Notes: "Test release & <notes>", InstallModes: o.installModes,
 		Rollback: release.Rollback{Safe: o.safe, MinVersion: o.minVersion}, MinUpgradeFrom: o.minUpgrade, Images: imgs,
 		Host:    hostIn(r.t, o.version),
 		Content: []release.Content{{Name: "packs", Version: "1", InImage: "core", Path: "/opt/packs", SHA256: strings.Repeat("0", 64)}},
@@ -157,6 +162,9 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 			must(r.t, err)
 		}
 		must(r.t, os.WriteFile(filepath.Join(dir, f.Name), data, 0o600))
+	}
+	if o.beforeSign != nil {
+		o.beforeSign(dir, in)
 	}
 	ctx := context.Background()
 	if o.rescue {

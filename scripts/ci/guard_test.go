@@ -234,7 +234,7 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		}
 		return strings.TrimSpace(m[1])
 	}
-	// D-365, D-372: every cache is a restore step and a save step, and only main saves (a pull request or a merge_group ref
+	// D-365, D-372: every actions/cache cache is a restore step and a save step, and only main saves (a pull request or a merge_group ref
 	// would fill the repository's 10 GB with copies nobody else may read, pushing out main's).
 	var restore, save []string
 	for _, s := range steps {
@@ -260,11 +260,12 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	}
 	var prefixes []string
 	for k := range saved {
-		prefixes = append(prefixes, k[:strings.Index(k, "-${{")])
+		prefix, _, _ := strings.Cut(k, "-${{")
+		prefixes = append(prefixes, prefix)
 	}
 	slices.Sort(prefixes)
-	if want := []string{"go-static", "go-test", "golangci"}; !slices.Equal(prefixes, want) || len(restore) != 4 {
-		t.Fatalf("want the caches %v (4 restore steps: go-test, go-static, and go-lint's two), got %v and %d restore steps", want, prefixes, len(restore))
+	if want := []string{"go-lint", "go-static", "go-test"}; !slices.Equal(prefixes, want) || len(restore) != 3 {
+		t.Fatalf("want the caches %v, one restore step each, got %v and %d restore steps", want, prefixes, len(restore))
 	}
 	for _, r := range restore {
 		k := field(r, "key")
@@ -292,9 +293,22 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	if len(goJobs) < 4 || needs == nil {
 		t.Fatalf("guard is blind: go-* jobs %v, aggregator needs %v", goJobs, needs)
 	}
+	env := map[string]string{} // the aggregator's env: NAME -> value
+	for _, m := range regexp.MustCompile(`(?m)^ {10}([A-Z_]+): (.*)$`).FindAllStringSubmatch(agg, -1) {
+		env[m[1]] = strings.TrimSpace(m[2])
+	}
 	for _, j := range goJobs {
-		if !slices.Contains(strings.Split(strings.ReplaceAll(needs[1], " ", ""), ","), j) || !regexp.MustCompile(`(?m)^ +check `+j+` "\$`).MatchString(agg) {
+		jb := code[strings.Index(code, "\n  "+j+":\n")+1:]
+		jb = jb[:regexp.MustCompile(`\n  [a-z]`).FindStringIndex(jb)[0]]
+		cond := regexp.MustCompile(`(?m)^    if: (.*)$`).FindStringSubmatch(jb)
+		c := regexp.MustCompile(`(?m)^ +check `+j+` "\$([A-Z_]+)" "\$([A-Z_]+)"$`).FindStringSubmatch(agg)
+		switch {
+		case !slices.Contains(strings.Split(strings.ReplaceAll(needs[1], " ", ""), ","), j) || c == nil:
 			t.Errorf("the go aggregator does not need and check job %s", j)
+		case env[c[2]] != "${{ needs."+j+".result }}":
+			t.Errorf("the go aggregator checks %s against %s = %q, not its own result", j, c[2], env[c[2]])
+		case cond == nil || env[c[1]] != "${{ "+cond[1]+" }}":
+			t.Errorf("the go aggregator wants %s when %s = %q, but the job runs if %v", j, c[1], env[c[1]], cond)
 		}
 	}
 	for _, name := range []string{"go-static", "go-lint"} {

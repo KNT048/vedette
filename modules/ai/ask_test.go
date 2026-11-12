@@ -349,7 +349,7 @@ func TestAskTablesAndCitationsComeFromTheToolsOnly(t *testing.T) {
 	for _, c := range list(got["citations"]) {
 		cites = append(cites, c.(map[string]any)["title"].(string))
 	}
-	if fmt.Sprint(cites) != "[Findings: 3 records Findings Exploited list: CVE-2022-27593 Threat feeds]" {
+	if fmt.Sprint(cites) != "[Findings: 3 records searched Findings Exploited list: CVE-2022-27593 Threat feeds]" {
 		t.Fatalf("citations = %v", cites)
 	}
 	res := toolResults(a.fake.askRequests()[1])

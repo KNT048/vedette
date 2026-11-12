@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
@@ -298,5 +299,23 @@ describe('findings: slot device.panels', () => {
     sessionStore.set({ userId: 'u-admin' })
     render(<Panel assetId="a-pc01" />)
     expect(await screen.findByText('No findings for this device yet.')).toBeInTheDocument()
+  })
+})
+
+describe('findings: Mark as handled form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+  it('Cancel drops the draft: the next opening starts at Patched with an empty note', async () => {
+    renderApp('/findings/f-1')
+    const open = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' })); return screen.findByRole('dialog', { name: 'Mark as handled' }) }
+    let dlg = await open()
+    await eachOption([
+      { option: 'False positive', shown: ['Note: why (required)'], hidden: ['Note (optional)'] },
+      { option: 'Cancel, open again', shown: ['Note (optional)'], hidden: ['Note: why (required)'] },
+    ], async (o) => {
+      if (o === 'False positive') { await userEvent.click(within(dlg).getByRole('radio', { name: /False positive/ })); fireEvent.change(within(dlg).getByRole('textbox'), { target: { value: 'not ours' } }); return }
+      await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+      dlg = await open()
+    })
+    expect(within(dlg).getByRole('radio', { name: /Patched/ })).toBeChecked()
+    expect(within(dlg).getByRole('textbox')).toHaveValue('')
   })
 })

@@ -77,17 +77,20 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
   const test = useTestHook()
   const [text, setText] = useState('')
   const [when, setWhen] = useState<HookWhen>('before_ai')
-  const [res, setRes] = useState<HookTestResult | null>(null)
+  // A result holds for the draft it was run on: editing the hook (name, words, stage, action, message) hides it until Test runs again.
+  const draft = JSON.stringify(hook ? [hook.name, hook.when, hook.match, hook.action, hook.message] : null)
+  const [ran, setRan] = useState<{ r: HookTestResult; draft: string } | null>(null)
+  const res = ran && ran.draft === draft ? ran.r : null
   const stage = hook ? hook.when : when
   function run() {
-    setRes(null)
-    test.mutate({ text: text.trim(), when: stage, hook }, { onSuccess: setRes })
+    setRan(null)
+    test.mutate({ text: text.trim(), when: stage, hook }, { onSuccess: (r) => setRan({ r, draft }) })
   }
   return (
     <Panel className="grid gap-3 p-4">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-        <Field label={t('harness.hooks.sample')} htmlFor={`${idPrefix}-text`} hint={t('harness.hooks.sampleHint')}><Textarea id={`${idPrefix}-text`} className="min-h-16" value={text} maxLength={1000} onChange={(e) => { setText(e.target.value); setRes(null) }} /></Field>
-        {!hook ? <Field label={t('harness.hooks.stage')} htmlFor={`${idPrefix}-when`}><Select id={`${idPrefix}-when`} value={when} onChange={(e) => { setWhen(e.target.value as HookWhen); setRes(null) }}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field> : null}
+        <Field label={t('harness.hooks.sample')} htmlFor={`${idPrefix}-text`} hint={t('harness.hooks.sampleHint')}><Textarea id={`${idPrefix}-text`} className="min-h-16" value={text} maxLength={1000} onChange={(e) => { setText(e.target.value); setRan(null) }} /></Field>
+        {!hook ? <Field label={t('harness.hooks.stage')} htmlFor={`${idPrefix}-when`}><Select id={`${idPrefix}-when`} value={when} onChange={(e) => { setWhen(e.target.value as HookWhen); setRan(null) }}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field> : null}
       </div>
       <div><Button onClick={run} disabled={!text.trim() || test.isPending || (!!hook && !hook.match.pattern)} title={hook && !hook.match.pattern ? t('harness.hooks.errPattern') : undefined}>{test.isPending ? t('harness.hooks.testing') : t('harness.hooks.test')}</Button></div>
       <ActionError error={test.error} />

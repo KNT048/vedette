@@ -193,7 +193,7 @@ test('add a source in the page: the picker, the setup dialog, the row, a duplica
     await d2.getByLabel('Name').fill(uniq('lg'))
     await d2.getByLabel('IP of the sending device').fill('127.0.0.1')
     await d2.getByRole('button', { name: 'Add and show setup' }).click()
-    await expect(d2.getByRole('alert')).toHaveText(dup.body.error.message)
+    await expect(d2.getByLabel('IP of the sending device')).toHaveAccessibleDescription(dup.body.error.message)
     await d2.getByRole('button', { name: 'Cancel' }).click()
     expect((await sources(c)).sources, 'the refusal saved nothing').toHaveLength(1)
     expect(await auditTotal(c, 'logs.'), 'the two refusals left no audit row').toBe(auditDup)

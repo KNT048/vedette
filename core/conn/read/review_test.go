@@ -2,6 +2,7 @@ package read_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -519,6 +520,28 @@ func TestListReadTools_SSHOffersTheRunnableCommands(t *testing.T) {
 	r := newRig(t)
 	ssh := conntest.NewSSH(t, conntest.SSHOpts{})
 	r.sw(ssh, "show version", "reload", "show interfaces") // an entry with a shell character is refused at save since D-391 (the reader still drops one saved before that)
+	l := r.list()
+	if len(l) != 1 {
+		t.Fatalf("tools %v", toolNames(l))
+	}
+	if got := enumOf(t, l[0], "command"); fmt.Sprint(got) != "[show version show interfaces]" {
+		t.Errorf("enum %v", got)
+	}
+}
+
+// D-391: save refuses a shell character in an SSH entry, but a connection saved before that may hold one: the reader still drops it.
+func TestListReadTools_SSHDropsALegacyEntryWithAShellCharacter(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	ssh := conntest.NewSSH(t, conntest.SSHOpts{})
+	c := r.sw(ssh, "show version", "show interfaces")
+	err := r.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE core_connection SET allow = ? WHERE id = ?`, `["show version","show a; reload","show interfaces"]`, c.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	l := r.list()
 	if len(l) != 1 {
 		t.Fatalf("tools %v", toolNames(l))

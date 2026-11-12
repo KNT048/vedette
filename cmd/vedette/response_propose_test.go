@@ -2,7 +2,9 @@ package main
 
 import (
 	"testing"
+	"time"
 
+	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/response"
 )
 
@@ -55,5 +57,42 @@ func TestWiringProposeThroughTheGoPort(t *testing.T) {
 		if code != 404 || at(v, "error", "code") != "not_found" {
 			t.Errorf("POST /response/ai/proposals as %s: %d %v", role, code, v)
 		}
+	}
+}
+
+// ai 7 (D-311): config_read evidence is a read the ai module recorded, at most 24 hours old, looked up through the real wiring. A
+// read it found does not prove the ioc_connection trigger, so the answer moves from evidence_invalid to evidence_mismatch; an old
+// row, an unknown id and the ai module off are evidence_invalid.
+func TestWiringConfigReadIsTheAIRecordOfAReadThroughTheConnection(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	for _, m := range []string{"notify", "inventory", "response", "ai"} {
+		s.setModule(m, true)
+	}
+	ctx := t.Context()
+	now := time.Now().UTC()
+	s.exec(`INSERT INTO ai_read (id, ts, connection_id, connection_name, tool, job) VALUES ('rd-fresh', ?, 'cn-fw', 'Office firewall', 'show_addr', 'ask-my-data'), ('rd-old', ?, 'cn-fw', 'Office firewall', 'show_addr', 'ask-my-data')`,
+		ai.FormatTS(now.Add(-time.Hour)), ai.FormatTS(now.Add(-25*time.Hour)))
+	body := response.ProposeBody{Trigger: "ioc_connection", ActionID: "blocklist_add", Params: map[string]string{"ip": "198.51.100.7"}, Confidence: 0.9,
+		Evidence: []response.ProposedEvidence{{Kind: "config_read", ID: "rd-fresh"}}, Why: "A read of the firewall."}
+	_, err := s.d.Response.Propose(ctx, body)
+	apiErr(t, err, 422, "evidence_mismatch")
+	for _, id := range []string{"rd-old", "rd-nope"} {
+		body.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: id}}
+		_, err = s.d.Response.Propose(ctx, body)
+		apiErr(t, err, 422, "evidence_invalid")
+	}
+	s.setModule("ai", false)
+	body.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: "rd-fresh"}}
+	_, err = s.d.Response.Propose(ctx, body)
+	apiErr(t, err, 422, "evidence_invalid")
+	ref, ok, err := aiConfigRead(s.d.AI)(ctx, "rd-fresh")
+	if ok || err != nil || ref.Connection != "" || ref.Summary != "" {
+		t.Fatalf("lookup with the ai module off: %+v %v %v", ref, ok, err)
+	}
+	s.setModule("ai", true)
+	ref, ok, err = aiConfigRead(s.d.AI)(ctx, "rd-fresh")
+	if !ok || err != nil || ref.Connection != "cn-fw" || ref.ID != "rd-fresh" || len(ref.Relates) != 0 || ref.Summary == "" {
+		t.Fatalf("lookup: %+v %v %v", ref, ok, err)
 	}
 }

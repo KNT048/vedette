@@ -73,11 +73,12 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 
 ## Modifying: chạy cập nhật phần mềm (D-342, INV-31: `modules/core/updates_run.go`, `updates.go` là đường nối với phía kiểm tra)
 - **Thao tác mới trên `OSHandlers`**: `CorePostCoreUpdatesApply`, `CorePostCoreUpdatesRollback`; hàm của đường nối `runView`, `historyView` (phía kiểm tra gọi trong `updatesView`). Phía chạy gọi `offered`, `runningRestoresData`, `updatesView`, `setManual` của phía kiểm tra (`updates_check.go`).
-- **`core_setting`**: `core_update_run` (run + kế hoạch: mỗi lời gọi host có `request_id`, `sent`, `run_id`, `status`), `core_update_history` (≤ 100). Đổi hình dạng = run đang chạy lúc nâng cấp không đọc được (đọc lỗi = coi là bận).
+- **`core_setting`**: `core_update_run` (run + kế hoạch: mỗi lời gọi host có `request_id`, `sent`, `run_id`, `status`; byte index/manifest đã ký của lần Apply tới khi run kết thúc; `progress` cho luật 6 giờ), `core_update_history` (≤ 100). Đổi hình dạng = run đang chạy lúc nâng cấp không đọc được (đọc lỗi = coi là bận).
 - **`busy()` của OS** nay gồm run phần mềm: `GET /core/updates/os` báo `busy`, check/install/reboot/tải backup trả 409 `busy`, `Busy` (purge, INV-14) đúng trong suốt run. **`mapHostCode`** thêm `no_previous`, `previous_revoked`, `rollback_not_allowed`, `rollback_backup_missing`, `rollback_is_upgrade`, `current_version_unknown`, `transition_pending` → 409 (trước đây 502 `host_error`), API_CONVENTIONS §3.3.
 - **`Host`** dùng `StateContainers`, `ContainerPull`, `ContainerStart`, `ContainerRollback`, `GetRun`, `ListRuns(500)`, `Events`. Đổi mã lỗi của `host/api/containers.go` = sửa `updateReason`.
 - **Audit** mới: `update.apply_done`, `update.rollback_done` (nhãn ở `web/src/locales/en/core.json`).
-- **Test**: `updates_run_test.go` (host giả `updHost`), `export_updates_test.go` (`SetUpdateOfferForTest` thay phía kiểm tra qua `updRun.seam`).
+- **Phía kiểm tra** (`updates_check.go`): `runningFrom` nhận cả `offer` khi phiên bản của nó là bản đang chạy (sau Apply, trước lần kiểm tiếp; lần kiểm đó chuyển nó thành `running`); `restoresData` là một luật cho cả `rollback_restores_data` của trang lẫn `confirm_required`: không biết manifest trên appliance = có khôi phục DB.
+- **Test**: `updates_run_test.go` (host giả `updHost`, phía kiểm tra thật với `releaseServer` của `updates_check_test.go`); `export_updates_test.go` (`HoldFollowerForTest`, `EndFollowerForTest`).
 
 ## Modifying: kết nối tới thiết bị (D-93, lát 13b-1: `web/src/features/core/{contract.ts,connectionsMock.ts,ConnectionsSection.tsx}`, `api/openapi.json`, `core/api`)
 - **Năm route mới, 501 tới lát 13b-4** (`/core/connections*`, INV-23): ogen sinh handler từ `api/openapi.json`; `server.Fallback` trả 501 cho tới khi `core/conn` có backend. **`core/server/modules_test.go` (`contractRoutes`) và `api/route-modules.json`** đã đổi: năm route rời `ai`, vào `core`.

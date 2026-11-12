@@ -148,8 +148,6 @@ func updSettingsTx(ctx context.Context, tx *sql.Tx) (updateSettings, error) {
 }
 
 // setManual turns the automatic mode off (a rollback does, D-340 (4)); the caller's transaction writes it.
-//
-//nolint:unused // called by the run side (updates_run.go)
 func (h *OSHandlers) setManual(ctx context.Context, tx *sql.Tx, by string) error {
 	s, err := updSettingsTx(ctx, tx)
 	if err != nil {
@@ -305,14 +303,19 @@ func (h *OSHandlers) offerFrom(ctx context.Context, trust release.Trust, st rele
 	return &verifiedRelease{Index: st.Index, IndexSig: st.IndexSig, Manifest: st.Offer.Manifest, ManifestSig: st.Offer.Sig, M: m}, nil
 }
 
-// runningFrom is the verified manifest of the running release, nil when unknown. A running release revoked since
-// still says what its rollback does: it is verified again with only the key revocations of idx (a revoked signing
-// key still makes it unknown).
+// runningFrom is the verified manifest of the running release, nil when unknown. After an Apply the running release
+// is the one that was offered (st.Offer) until the next check stores it as st.Running. A running release revoked
+// since still says what its rollback does: it is verified again with only the key revocations of idx (a revoked
+// signing key still makes it unknown).
 func runningFrom(trust release.Trust, st releaseState, idx *release.Index, version string) *release.Manifest {
-	if st.Running == nil || st.Running.Version != version {
+	sm := st.Running
+	if sm == nil || sm.Version != version {
+		sm = st.Offer
+	}
+	if sm == nil || sm.Version != version {
 		return nil
 	}
-	m, err := release.VerifyManifest(st.Running.Manifest, st.Running.Sig, trust, idx)
+	m, err := release.VerifyManifest(sm.Manifest, sm.Sig, trust, idx)
 	if errors.Is(err, release.ErrReleaseRevoked) {
 		keys := *idx
 		keys.Revoked = nil
@@ -321,7 +324,7 @@ func runningFrom(trust release.Trust, st releaseState, idx *release.Index, versi
 				keys.Revoked = append(keys.Revoked, r)
 			}
 		}
-		m, err = release.VerifyManifest(st.Running.Manifest, st.Running.Sig, trust, &keys)
+		m, err = release.VerifyManifest(sm.Manifest, sm.Sig, trust, &keys)
 	}
 	if err != nil || m.Version != version {
 		return nil
@@ -343,16 +346,26 @@ func (h *OSHandlers) offered(ctx context.Context) (*verifiedRelease, error) {
 }
 
 // runningRestoresData: the running release's manifest says rollback.safe=false, so a rollback also puts back the
-// database. false when the manifest is unknown (never fetched, a dev build, or it does not verify).
+// database. When the manifest is unknown (never fetched, a dev build, or it does not verify) an appliance assumes it
+// does: the host decides from its own record, and a database put back without the confirmation is the worse mistake
+// (D-342 (8)); without a host there is no rollback at all.
 func (h *OSHandlers) runningRestoresData(ctx context.Context) (bool, error) {
 	r, err := h.releaseNow(ctx)
 	if err != nil {
 		if h.upd.firstWarn("release-state") {
 			h.log.WarnContext(ctx, "core: the stored update information could not be read", "error", err)
 		}
-		return false, nil
+		r = releaseNow{}
 	}
-	return r.running != nil && !r.running.Rollback.Safe, nil
+	return h.restoresData(r), nil
+}
+
+// restoresData is rollback_restores_data of the page and the confirmation rule of the rollback: one rule for both.
+func (h *OSHandlers) restoresData(r releaseNow) bool {
+	if r.running == nil {
+		return h.host != nil
+	}
+	return !r.running.Rollback.Safe
 }
 
 // ---- fetching ----
@@ -512,6 +525,9 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	}
 	st.Index, st.IndexSig, st.Carried = raw, sig, nonNil(idx.Revoked)
 	offer, why, oerr := h.fetchOffer(ctx, trust, idx, s.Channel)
+	if st.Offer != nil && st.Offer.Version == h.upd.version {
+		st.Running = st.Offer // the release installed since the last check: its manifest is already here
+	}
 	st.Offer = offer
 	if oerr == nil && runningFrom(trust, st, idx, h.upd.version) == nil {
 		st.Running = h.fetchRunning(ctx, trust, idx)
@@ -698,8 +714,6 @@ func (h *OSHandlers) CoreGetCoreUpdates(ctx context.Context) (*oas.CoreGetCoreUp
 }
 
 // updatesView is the whole UpdatesState for the run side's answers (asOAS into the operation's type).
-//
-//nolint:unused // called by the run side (updates_run.go)
 func (h *OSHandlers) updatesView(ctx context.Context) (any, error) {
 	return h.updatesState(ctx)
 }
@@ -734,7 +748,7 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 	}
 	comp := updateComponentView{
 		ID: softwareComponent, Kind: "software", Version: h.upd.version, InstalledAt: h.upd.started, Signature: "unsigned",
-		RollbackRestoresData: r.running != nil && !r.running.Rollback.Safe,
+		RollbackRestoresData: h.restoresData(r),
 	}
 	if cs, ok := h.coreContainer(ctx); ok {
 		if cs.Previous != nil {

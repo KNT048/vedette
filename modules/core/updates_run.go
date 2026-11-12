@@ -60,31 +60,15 @@ const (
 type updRun struct {
 	mu        sync.Mutex  // one start at a time: from the busy check to the stored run
 	following atomic.Bool // a follower of the stored run is going in this process
-	// rel is the release the latest Apply of this process verified: the follower sends the same bytes to every
-	// container.pull. After a restart it is asked of the check side again.
-	rel  atomic.Pointer[verifiedRelease]
-	seam atomic.Pointer[updateSeam]
 }
 
-// updateSeam stands in for the check side in the run side's tests (export_updates_test.go); nil in production.
-// ponytail: two function fields for the tests, upgrade path: the check side's own fixtures once both halves are merged.
-type updateSeam struct {
-	offered      func(context.Context) (*verifiedRelease, error)
-	restoresData func(context.Context) (bool, error)
-}
-
-func (h *OSHandlers) offer(ctx context.Context) (*verifiedRelease, error) {
-	if s := h.urun.seam.Load(); s != nil && s.offered != nil {
-		return s.offered(ctx)
-	}
-	return h.offered(ctx)
-}
-
-func (h *OSHandlers) restoresData(ctx context.Context) (bool, error) {
-	if s := h.urun.seam.Load(); s != nil && s.restoresData != nil {
-		return s.restoresData(ctx)
-	}
-	return h.runningRestoresData(ctx)
+// runRelease is the signed release an update run installs, kept in the stored run: every container.pull (a resend
+// after a restart too) carries the same bytes, so the same request id always goes with the same arguments.
+type runRelease struct {
+	Index       []byte `json:"index"`
+	IndexSig    []byte `json:"index_sig"`
+	Manifest    []byte `json:"manifest"`
+	ManifestSig []byte `json:"manifest_sig"`
 }
 
 // updateCall is one host call of a run.
@@ -119,6 +103,9 @@ type updateRunRec struct {
 	Error      *string      `json:"error"`
 	Calls      []updateCall `json:"calls"`
 	Snapshot   string       `json:"snapshot,omitempty"` // backs core's container.start; removed when the run ends
+	Release    *runRelease  `json:"release,omitempty"`  // update only, until the run ends
+	// Progress is when the run was last written down; the 6-hour rule counts from it (or from this process's start).
+	Progress time.Time `json:"progress"`
 	// Outcome and Why are the end decided by a failure while the undo calls still run.
 	Outcome string `json:"outcome,omitempty"`
 	Why     string `json:"why,omitempty"`
@@ -141,6 +128,7 @@ func (h *OSHandlers) loadUpdateRun(ctx context.Context) (*updateRunRec, error) {
 func (h *OSHandlers) saveUpdateRun(parent context.Context, rec *updateRunRec) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 	defer cancel()
+	rec.Progress = h.now()
 	return h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyUpdateRun, rec, rec.User) })
 }
 
@@ -201,7 +189,7 @@ func (h *OSHandlers) CorePostCoreUpdatesApply(ctx context.Context, req *oas.Core
 		return nil, err
 	}
 	err = h.beginUpdate(ctx, c, func(ctx context.Context) (*updateRunRec, string, func(*sql.Tx) error, error) {
-		rel, err := h.offer(ctx)
+		rel, err := h.offered(ctx)
 		if errors.Is(err, errNoUpdate) {
 			return nil, "", nil, errNoUpdateAPI()
 		}
@@ -209,9 +197,6 @@ func (h *OSHandlers) CorePostCoreUpdatesApply(ctx context.Context, req *oas.Core
 			return nil, "", nil, err
 		}
 		rec, detail, err := h.planApply(ctx, c, rel)
-		if err == nil {
-			h.urun.rel.Store(rel)
-		}
 		return rec, detail, nil, err
 	})
 	if err != nil {
@@ -352,12 +337,16 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 	if err != nil {
 		return nil, "", err
 	}
+	if core.Version == nil { // the host could not judge the switch (host-api 6.8): refused before anything is pulled
+		return nil, "", mapHostCode(ctx, h.log, api.CodeCurrentVersionUnknown, "", 0)
+	}
 	to := rel.M.Version
 	rec, err := newUpdateRec(c, actionUpdate, core.Version, to, []string{stepDownload, stepStart, stepRestart})
 	if err != nil {
 		return nil, "", err
 	}
-	rec.StartedAt = h.now()
+	rec.StartedAt, rec.Progress = h.now(), h.now()
+	rec.Release = &runRelease{Index: rel.Index, IndexSig: rel.IndexSig, Manifest: rel.Manifest, ManifestSig: rel.ManifestSig}
 	inRelease := map[string]bool{}
 	for _, im := range rel.M.Images {
 		inRelease[im.Service] = true
@@ -413,7 +402,7 @@ func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool)
 	if n, err := release.CompareVersions(prev, cur); err == nil && n > 0 {
 		return nil, "", mapHostCode(ctx, h.log, api.CodeRollbackIsUpgrade, "", 0)
 	}
-	restores, err := h.restoresData(ctx)
+	restores, err := h.runningRestoresData(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -430,7 +419,7 @@ func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool)
 	if err != nil {
 		return nil, "", err
 	}
-	rec.StartedAt = h.now()
+	rec.StartedAt, rec.Progress = h.now(), h.now()
 	for _, s := range st.Services {
 		if s.Service == api.ServiceCore || !s.Installed || !s.Enabled || s.Version == nil || *s.Version != cur ||
 			s.Previous == nil || s.Previous.Version == nil || *s.Previous.Version != prev {
@@ -454,35 +443,57 @@ func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool)
 
 // followUpdate starts the follower of the stored run unless one is going in this process.
 func (h *OSHandlers) followUpdate() {
-	if !h.urun.following.CompareAndSwap(false, true) {
-		return
+	if h.urun.following.CompareAndSwap(false, true) {
+		h.goFollow()
 	}
+}
+
+// goFollow runs the follower; the caller holds urun.following.
+func (h *OSHandlers) goFollow() {
 	h.wg.Add(1)
 	go func() {
 		defer h.wg.Done()
-		defer h.urun.following.Store(false)
-		f := &updFollower{h: h, sent: map[string]bool{}}
-		for h.ctx.Err() == nil {
-			done, err := f.advance(h.ctx)
-			if done {
+		for {
+			h.followOne()
+			if !h.handOff() {
 				return
-			}
-			if err != nil && h.ctx.Err() == nil {
-				h.log.WarnContext(h.ctx, "core: the software update run waits for vedette-host", "error", err)
-			}
-			select {
-			case <-h.ctx.Done():
-			case <-time.After(followRetry):
 			}
 		}
 	}()
 }
 
+// handOff lets go of urun.following when a follower ends. An Apply that stored its run after the follower's last
+// look and before the flag went down found a follower going and started none: look again, and keep the flag (true)
+// when a run is still running.
+func (h *OSHandlers) handOff() bool {
+	h.urun.following.Store(false)
+	return h.ctx.Err() == nil && h.updateRunning(h.ctx) && h.urun.following.CompareAndSwap(false, true)
+}
+
+// followOne carries the stored run until it is settled or core stops.
+func (h *OSHandlers) followOne() {
+	f := &updFollower{h: h, sent: map[string]bool{}, started: h.now()}
+	for h.ctx.Err() == nil {
+		done, err := f.advance(h.ctx)
+		if done {
+			return
+		}
+		if err != nil && h.ctx.Err() == nil {
+			h.log.WarnContext(h.ctx, "core: the software update run waits for vedette-host", "error", err)
+		}
+		select {
+		case <-h.ctx.Done():
+		case <-time.After(followRetry):
+		}
+	}
+}
+
 // updFollower carries the stored run forward. sent holds the request ids THIS process sent: only those may be
 // sent again when the host does not know them (core's own switch is never sent again after a restart).
 type updFollower struct {
-	h    *OSHandlers
-	sent map[string]bool
+	h       *OSHandlers
+	sent    map[string]bool
+	started time.Time // the 6-hour rule never counts time before this process followed the run
 }
 
 // errTransient is a call whose outcome is not known yet: the follower tries again later with the same key.
@@ -498,8 +509,11 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 	if rec == nil || rec.Status != runRunning {
 		return true, nil
 	}
-	if h.now().Sub(rec.StartedAt) > updateRunMax {
-		return true, h.settleUpdate(ctx, rec, runFailed, "The update stopped because Vedette lost contact with its operating system helper for too long. Check the versions below and try again.", nil)
+	// No progress for 6 hours (counted from the last step written down, or from this process's start: a database put
+	// back by a rollback holds an old run that must still be settled from the host's record).
+	if last := rec.Progress; h.now().Sub(later(last, f.started)) > updateRunMax {
+		err := h.settleUpdate(ctx, rec, runFailed, "The update stopped because Vedette lost contact with its operating system helper for too long. Check the versions below and try again.", nil)
+		return err == nil, err
 	}
 	leave, ok := h.gate.Enter()
 	if !ok {
@@ -536,9 +550,18 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 		}
 	}
 	if rec.Outcome != "" {
-		return true, h.settleUpdate(ctx, rec, rec.Outcome, rec.Why, nil)
+		err = h.settleUpdate(ctx, rec, rec.Outcome, rec.Why, nil)
+	} else {
+		err = h.settleUpdate(ctx, rec, runDone, "", f.rolledBackSince(ctx, rec))
 	}
-	return true, h.settleUpdate(ctx, rec, runDone, "", f.rolledBackSince(ctx, rec))
+	return err == nil, err // not stored: the next try settles it again
+}
+
+func later(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }
 
 // call makes sure call i has a host run and returns it ended. A call that has a run is followed; one that may
@@ -582,16 +605,9 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 	c := &rec.Calls[i]
 	var pull api.ContainerPullArgs
 	if c.Command == api.CmdContainerPull {
-		rel := h.urun.rel.Load()
-		if rel == nil || rel.M.Version != rec.To {
-			var err error
-			if rel, err = h.offer(ctx); err != nil && !errors.Is(err, errNoUpdate) {
-				return api.Run{}, err
-			}
-			if rel == nil || rel.M.Version != rec.To {
-				return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: codeNotOffered}}, nil
-			}
-			h.urun.rel.Store(rel)
+		rel := rec.Release
+		if rel == nil { // a run stored before the release went into it: nothing to send the same bytes from
+			return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: codeNotOffered}}, nil
 		}
 		enc := base64.StdEncoding.EncodeToString
 		pull = api.ContainerPullArgs{Service: c.Service, Version: rec.To, Source: api.PullSourceRegistry,
@@ -643,7 +659,10 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 			if coreSwitch { // too old after a wait: a new snapshot, the same key (a refusal frees it)
 				h.removeSnapshot(rec.Snapshot)
 				rec.Snapshot = ""
-				return api.Run{}, h.saveUpdateRun(ctx, rec)
+				if err := h.saveUpdateRun(ctx, rec); err != nil {
+					return api.Run{}, err
+				}
+				return api.Run{}, errTransient
 			}
 		}
 		return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: he.Code, Message: he.Message}}, nil
@@ -753,11 +772,11 @@ func (f *updFollower) why(ctx context.Context, rec *updateRunRec, c updateCall, 
 	from := orDash(rec.From)
 	switch {
 	case code == codeInterrupted && rec.Action == actionRollback:
-		return "Vedette restarted before it could roll itself back to " + rec.To + ", so the rollback was stopped. Nothing changed on Vedette itself; click Roll back to try again."
+		return "Vedette restarted during the rollback and the box has no record that Vedette itself went back to " + rec.To + ", so the rollback was stopped. Check the version on this page, then roll back again if needed."
 	case code == codeInterrupted:
-		return "Vedette restarted before it could switch itself to " + rec.To + ", so the update was stopped. Nothing changed on Vedette itself; click Apply to try again."
+		return "Vedette restarted during the update and the box has no record that Vedette itself switched to " + rec.To + ", so the update was stopped. Check the version on this page, then apply again if needed."
 	case code == codeNotOffered:
-		return "Vedette restarted during the update and " + rec.To + " is no longer the version on offer, so the update was stopped. Click Check now, then Apply."
+		return "The update record does not hold the release " + rec.To + " any more, so the update was stopped. Click Check now, then Apply."
 	case c.Command == api.CmdContainerPull:
 		return "Downloading " + rec.To + " of " + name + " failed: " + reason
 	case c.Service == api.ServiceCore && run.Status == api.StatusReverted && rec.Action == actionUpdate:
@@ -887,7 +906,7 @@ func (h *OSHandlers) settleUpdate(parent context.Context, rec *updateRunRec, sta
 		rec.Error = &why
 	}
 	snap := rec.Snapshot
-	rec.Snapshot = ""
+	rec.Snapshot, rec.Release = "", nil
 	var hist []updateHistoryView
 	if err := h.loadJSON(ctx, keyUpdateHistory, &hist); err != nil {
 		return err

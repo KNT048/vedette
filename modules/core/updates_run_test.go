@@ -15,15 +15,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/modules/core"
 )
 
 // The run side of the software update (S-CORE-2, D-340, D-342) through the real HTTP stack, against updHost: a
 // fake vedette-host that records the container calls, keeps their runs (idempotent by request id like the real
-// one) and changes the versions it reports as the calls succeed. The check side is stood in for by
-// core.SetUpdateOfferForTest.
+// one) and changes the versions it reports as the calls succeed. The check side is the real one, checking against a
+// releaseServer (updates_check_test.go) that offers 1.4.0 with an image of every service.
 
 var allServices = []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan, api.ServiceGreenbone}
 
@@ -43,6 +45,9 @@ type updHost struct {
 	calls  []string
 	hold   map[string]bool         // "start core": the run stays running until release
 	refuse map[string]string       // "pull scan": the 412 code of the refusal
+	once   map[string]string       // "start core": refused once with this code, then taken
+	args   map[string]string       // request id -> the arguments it was taken with (another set: 422, as the host)
+	pulled map[string][]string     // service -> the index of every container.pull sent for it
 	ends   map[string]api.RunError // "start core": the run ends reverted (unit_failed) or failed with this code
 	now    func() time.Time
 	seq    int
@@ -68,7 +73,8 @@ func newUpdHost(t *testing.T, st api.ContainersState) *updHost {
 	})}
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
-	return &updHost{cl: hostclient.New(sock), st: st, hold: map[string]bool{}, refuse: map[string]string{}, ends: map[string]api.RunError{}, now: time.Now}
+	return &updHost{cl: hostclient.New(sock), st: st, hold: map[string]bool{}, refuse: map[string]string{},
+		once: map[string]string{}, args: map[string]string{}, pulled: map[string][]string{}, ends: map[string]api.RunError{}, now: time.Now}
 }
 
 // lockstep is a box whose core and installed services run cur (previous prev, "" = none); honeypot is installed but off.
@@ -122,11 +128,14 @@ func (f *updHost) end(r *updRun, key string) {
 	f.effect(r)
 }
 
-func (f *updHost) take(cmd, short, svc, version, extra, rid, actor string) (api.Run, error) {
+func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string) (api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := short + " " + svc
 	f.calls = append(f.calls, strings.TrimSpace(key+" "+version+" "+extra))
+	if a, ok := f.args[rid]; ok && a != args {
+		return api.Run{}, &hostclient.Error{Status: 422, Code: "request_id_reuse", Message: "other arguments"}
+	}
 	for _, r := range f.runs {
 		if r.run.RequestID == rid {
 			return r.run, nil
@@ -135,6 +144,11 @@ func (f *updHost) take(cmd, short, svc, version, extra, rid, actor string) (api.
 	if code := f.refuse[key]; code != "" {
 		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused by the fake"}
 	}
+	if code := f.once[key]; code != "" {
+		delete(f.once, key)
+		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused once by the fake"}
+	}
+	f.args[rid] = args // a refusal frees the id (host-api 4); a run binds it
 	f.seq++
 	r := &updRun{run: api.Run{RunID: fmt.Sprintf("rn_%016x", f.seq), Command: cmd, Status: api.StatusRunning, StartedAt: f.now(), Actor: actor, RequestID: rid}, svc: svc, ver: version}
 	if !f.hold[key] {
@@ -189,7 +203,10 @@ func (f *updHost) ContainerPull(_ context.Context, a api.ContainerPullArgs, rid,
 			return api.Run{}, &hostclient.Error{Status: 400, Code: "invalid_args", Message: "documents"}
 		}
 	}
-	return f.take(api.CmdContainerPull, "pull", a.Service, a.Version, "", rid, actor)
+	f.mu.Lock()
+	f.pulled[a.Service] = append(f.pulled[a.Service], a.Index)
+	f.mu.Unlock()
+	return f.take(api.CmdContainerPull, "pull", a.Service, a.Version, "", a.Version+a.Index+a.Manifest, rid, actor)
 }
 
 func (f *updHost) ContainerStart(_ context.Context, a api.ContainerStartArgs, rid, actor string) (api.Run, error) {
@@ -197,11 +214,11 @@ func (f *updHost) ContainerStart(_ context.Context, a api.ContainerStartArgs, ri
 	if a.Snapshot != "" {
 		extra = "snap"
 	}
-	return f.take(api.CmdContainerStart, "start", a.Service, a.Version, extra, rid, actor)
+	return f.take(api.CmdContainerStart, "start", a.Service, a.Version, extra, a.Version+a.Snapshot, rid, actor)
 }
 
 func (f *updHost) ContainerRollback(_ context.Context, a api.ContainerRollbackArgs, rid, actor string) (api.Run, error) {
-	return f.take(api.CmdContainerRollback, "rollback", a.Service, "", "", rid, actor)
+	return f.take(api.CmdContainerRollback, "rollback", a.Service, "", "", "", rid, actor)
 }
 
 func (f *updHost) GetRun(_ context.Context, id string) (api.Run, error) {
@@ -231,12 +248,62 @@ func (f *updHost) Events(ctx context.Context, runID string, after uint64) *hostc
 	return f.cl.Events(ctx, runID, after)
 }
 
-func newRunEnv(t *testing.T, st api.ContainersState, offer string, restores bool) (*osEnv, *updHost) {
+// runEnv is a box whose core talks to an updHost and checks for releases against srv.
+type runEnv struct {
+	*osEnv
+	srv *releaseServer
+	fh  *updHost
+}
+
+// newRunEnv: the host reports st, core runs running, srv publishes the manifests of running and 1.4.0 (images of
+// every service, both with rollback.safe = safe) and an index offering 1.4.0, and the operator has checked once (so
+// 1.4.0 is offered when running is older, and the running release's manifest is known).
+func newRunEnv(t *testing.T, st api.ContainersState, running string, safe bool) (*runEnv, *updHost) {
 	t.Helper()
 	fh := newUpdHost(t, st)
-	e := newOSEnv(t, osOpts{host: fh})
-	core.SetUpdateOfferForTest(e.handler, offer, allServices, restores)
+	e := &runEnv{osEnv: newOSEnv(t, osOpts{host: fh}), srv: newReleaseServer(t), fh: fh}
+	e.setZone("UTC")
+	edit := func(v string) func(opstest.Doc) {
+		return func(d opstest.Doc) {
+			d["rollback"] = opstest.Doc{"safe": safe, "min_version": ""}
+			var images []any
+			for i, svc := range allServices {
+				images = append(images, e.srv.rel.ImageDoc(v, opstest.Img{Service: svc, Digest: "sha256:" + strings.Repeat(string(rune('a'+i)), 64), Size: 1 << 20}))
+			}
+			d["images"] = images
+		}
+	}
+	if running != "1.4.0" {
+		e.srv.manifest(t, running, edit(running))
+	}
+	e.srv.index(t, 5, e.srv.manifest(t, "1.4.0", edit("1.4.0")), 100, nil)
+	e.handler = e.start(t, running)
+	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
 	return e, fh
+}
+
+// start builds core's handlers as release version (a second call is core restarting on the same database).
+func (e *runEnv) start(t *testing.T, version string) *core.OSHandlers {
+	t.Helper()
+	h, err := core.NewOSHandlers(core.OSConfig{
+		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: e.fh,
+		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
+		Zone: e.h.OrgTimeZone, Clock: e.clock.Now, Gate: e.purgeGate,
+		Version: version, ReleaseBase: e.srv.URL, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(h.Close)
+	api, err := server.New(server.Config{
+		API:  fullOSAPI{Fallback: server.Fallback{Log: e.logger()}, ModuleHandlers: core.NewModuleHandlers(e.env.DB, e.reg), APIHandlers: e.h, OSHandlers: h},
+		Auth: e.env.Svc.Sessions, Modules: e.reg, Log: e.logger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.api = api
+	return h
 }
 
 func runOf(t *testing.T, r reply) map[string]any {
@@ -249,7 +316,7 @@ func runOf(t *testing.T, r reply) map[string]any {
 }
 
 // endedRun waits for the run to end and returns it.
-func endedRun(t *testing.T, e *osEnv) map[string]any {
+func endedRun(t *testing.T, e *runEnv) map[string]any {
 	t.Helper()
 	var run map[string]any
 	eventuallyOS(t, "the run to end", func() bool {
@@ -276,10 +343,10 @@ func steps(run map[string]any) string {
 
 func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	r := e.admin.post("/core/updates/apply", map[string]any{"component": "software"})
 	wantOK(t, r, 200)
-	if run := runOf(t, r); run["status"] != "running" || run["action"] != "update" || run["from"] != "1.4.0" || run["to"] != "1.5.0" || steps(run) != "download,start,restart" {
+	if run := runOf(t, r); run["status"] != "running" || run["action"] != "update" || run["from"] != "1.3.0" || run["to"] != "1.4.0" || steps(run) != "download,start,restart" {
 		t.Fatalf("run at the start = %v", run)
 	}
 	run := endedRun(t, e)
@@ -288,12 +355,12 @@ func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
 	}
 	// Every installed service is pulled (honeypot too, though off); the running ones start; honeypot, which is
 	// off, does not (SYS-5); greenbone is not installed; core is last, with a snapshot.
-	want := []string{"pull core 1.5.0", "pull sensor 1.5.0", "pull honeypot 1.5.0", "pull scan 1.5.0", "start sensor 1.5.0", "start scan 1.5.0", "start core 1.5.0 snap"}
+	want := []string{"pull core 1.4.0", "pull sensor 1.4.0", "pull honeypot 1.4.0", "pull scan 1.4.0", "start sensor 1.4.0", "start scan 1.4.0", "start core 1.4.0 snap"}
 	if got := fh.callList(); !slices.Equal(got, want) {
 		t.Errorf("calls = %q, want %q", got, want)
 	}
 	hist := e.admin.get("/core/updates").JSON["history"].([]any)
-	if h0 := hist[0].(map[string]any); len(hist) != 1 || h0["action"] != "update" || h0["from"] != "1.4.0" || h0["to"] != "1.5.0" || h0["user"] != "admin@acme.example" {
+	if h0 := hist[0].(map[string]any); len(hist) != 1 || h0["action"] != "update" || h0["from"] != "1.3.0" || h0["to"] != "1.4.0" || h0["user"] != "admin@acme.example" {
 		t.Errorf("history = %v", hist)
 	}
 	if a := e.actions(); countOf(a, "update.apply") != 1 || countOf(a, "update.apply_done") != 1 {
@@ -308,7 +375,7 @@ func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
 // and settles it once, with the user who started it.
 func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", ""), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", ""), "1.3.0", true)
 	fh.hold["start core"] = true
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	waitCall(t, fh, "start core")
@@ -321,19 +388,19 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	}
 	e.handler.Close() // the host stops core
 	fh.release("start core")
-	e.handler = e.newHandlers(t, fh, 0) // the new version starts on the same database
+	e.handler = e.start(t, "1.4.0") // the new version starts on the same database
 	run := endedRun(t, e)
 	if run["status"] != "done" || run["user"] != "admin@acme.example" {
 		t.Fatalf("run after the restart = %v", run)
 	}
-	if n := countOf(fh.callList(), "start core 1.5.0 snap"); n != 1 {
+	if n := countOf(fh.callList(), "start core 1.4.0 snap"); n != 1 {
 		t.Errorf("core's switch was sent %d times, want once (calls %q)", n, fh.callList())
 	}
 	if a := e.actions(); countOf(a, "update.apply_done") != 1 {
 		t.Errorf("audit = %v", a)
 	}
 	hist := e.admin.get("/core/updates").JSON["history"].([]any)
-	if len(hist) != 1 || hist[0].(map[string]any)["to"] != "1.5.0" {
+	if len(hist) != 1 || hist[0].(map[string]any)["to"] != "1.4.0" {
 		t.Errorf("history = %v", hist)
 	}
 	if d := e.snapshotDirs(); len(d) != 0 {
@@ -345,26 +412,26 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 // switched go back.
 func TestUpdateCoreSwitchIsNotSentAgainAfterARestart(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	fh.refuse["start core"] = api.CodeBusy // the host does not take it: the follower keeps trying
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	waitCall(t, fh, "start core")
 	e.handler.Close()
 	delete(fh.refuse, "start core")
-	e.handler = e.newHandlers(t, fh, 0)
+	e.handler = e.start(t, "1.3.0")
 	run := endedRun(t, e)
-	if run["status"] != "failed" || !strings.Contains(run["error"].(string), "restarted before it could switch itself") {
+	if run["status"] != "failed" || !strings.Contains(run["error"].(string), "has no record that Vedette itself switched to 1.4.0") {
 		t.Fatalf("run = %v", run)
 	}
 	calls := fh.callList()
-	if !slices.Contains(calls, "rollback sensor") || !slices.Contains(calls, "rollback scan") || slices.Contains(calls[len(calls)-2:], "start core 1.5.0 snap") {
+	if !slices.Contains(calls, "rollback sensor") || !slices.Contains(calls, "rollback scan") || slices.Contains(calls[len(calls)-2:], "start core 1.4.0 snap") {
 		t.Errorf("calls = %q", calls)
 	}
 }
 
 func TestUpdateApplyRefusals(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	wantStatus(t, e.admin.post("/core/updates/apply", map[string]any{"component": "data"}), 404, "no_update")
 	wantStatus(t, e.oper.post("/core/updates/apply", map[string]any{"component": "software"}), 403, "forbidden")
 	fh.hold["start core"] = true
@@ -378,8 +445,8 @@ func TestUpdateApplyRefusals(t *testing.T) {
 	fh.release("start core")
 	endedRun(t, e)
 
-	core.SetUpdateOfferForTest(e.handler, "", allServices, false)
-	wantStatus(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 404, "no_update")
+	u, _ := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.4.0", false) // the channel's latest is not newer: nothing offered
+	wantStatus(t, u.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 404, "no_update")
 
 	n := newOSEnv(t, osOpts{noHost: true})
 	wantStatus(t, n.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 409, "not_appliance")
@@ -388,11 +455,11 @@ func TestUpdateApplyRefusals(t *testing.T) {
 
 func TestUpdatePullRefusedEndsTheRunBeforeAnythingSwitches(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	fh.refuse["pull scan"] = api.CodeSignatureInvalid
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	run := endedRun(t, e)
-	if run["status"] != "failed" || !strings.Contains(run["error"].(string), "Downloading 1.5.0 of the scanner failed: the release did not pass the signature check") {
+	if run["status"] != "failed" || !strings.Contains(run["error"].(string), "Downloading 1.4.0 of the scanner failed: the release did not pass the signature check") {
 		t.Fatalf("run = %v", run)
 	}
 	if slices.ContainsFunc(fh.callList(), func(c string) bool { return strings.HasPrefix(c, "start") || strings.HasPrefix(c, "rollback") }) {
@@ -406,20 +473,20 @@ func TestUpdatePullRefusedEndsTheRunBeforeAnythingSwitches(t *testing.T) {
 // core did not become healthy: the host put it back; the run puts the services it switched back too.
 func TestUpdateCoreRevertedPutsTheOthersBack(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	fh.ends["start core"] = api.RunError{Code: api.CodeUnitFailed}
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	run := endedRun(t, e)
-	if run["status"] != "reverted" || run["error"] != "Vedette 1.5.0 did not start correctly, so the box went back to 1.4.0. The other services were put back on 1.4.0." {
+	if run["status"] != "reverted" || run["error"] != "Vedette 1.4.0 did not start correctly, so the box went back to 1.3.0. The other services were put back on 1.3.0." {
 		t.Fatalf("run = %v", run)
 	}
 	calls := fh.callList()
-	if got := calls[len(calls)-3:]; !slices.Equal(got, []string{"start core 1.5.0 snap", "rollback sensor", "rollback scan"}) {
+	if got := calls[len(calls)-3:]; !slices.Equal(got, []string{"start core 1.4.0 snap", "rollback sensor", "rollback scan"}) {
 		t.Errorf("last calls = %q", got)
 	}
 	st, _ := fh.StateContainers(t.Context())
 	for _, s := range st.Services {
-		if s.Installed && *s.Version != "1.4.0" {
+		if s.Installed && *s.Version != "1.3.0" {
 			t.Errorf("%s runs %s after the revert", s.Service, *s.Version)
 		}
 	}
@@ -427,7 +494,7 @@ func TestUpdateCoreRevertedPutsTheOthersBack(t *testing.T) {
 
 func TestUpdateRollbackNeedsConfirmWhenItRestoresTheDatabase(t *testing.T) {
 	t.Parallel()
-	e, _ := newRunEnv(t, lockstep("1.5.0", "1.4.0"), "", true)
+	e, _ := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.4.0", false)
 	r := e.admin.post("/core/updates/rollback", map[string]any{"component": "software"})
 	wantStatus(t, r, 409, "confirm_required")
 	if !strings.Contains(r.Raw, "data written since then is lost") {
@@ -436,16 +503,16 @@ func TestUpdateRollbackNeedsConfirmWhenItRestoresTheDatabase(t *testing.T) {
 	wantStatus(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software", "confirm_data_loss": false}), 409, "confirm_required")
 	r = e.admin.post("/core/updates/rollback", map[string]any{"component": "software", "confirm_data_loss": true})
 	wantOK(t, r, 200)
-	if run := runOf(t, r); run["action"] != "rollback" || steps(run) != "start,restore,restart" || run["from"] != "1.5.0" || run["to"] != "1.4.0" {
+	if run := runOf(t, r); run["action"] != "rollback" || steps(run) != "start,restore,restart" || run["from"] != "1.4.0" || run["to"] != "1.3.0" {
 		t.Fatalf("run = %v", run)
 	}
 }
 
 func TestUpdateRollbackOrderCoreLast(t *testing.T) {
 	t.Parallel()
-	st := lockstep("1.5.0", "1.4.0")
-	*st.Services[2].Version = "1.3.0" // honeypot (off) never moved with core
-	e, fh := newRunEnv(t, st, "", false)
+	st := lockstep("1.4.0", "1.3.0")
+	*st.Services[2].Version = "1.2.0" // honeypot (off) never moved with core
+	e, fh := newRunEnv(t, st, "1.3.0", true)
 	wantStatus(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "other"}), 404, "not_found")
 	fh.hold["rollback core"] = true
 	r := e.admin.post("/core/updates/rollback", map[string]any{"component": "software"})
@@ -456,7 +523,7 @@ func TestUpdateRollbackOrderCoreLast(t *testing.T) {
 	waitCall(t, fh, "rollback core")
 	e.handler.Close()
 	fh.release("rollback core")
-	e.handler = e.newHandlers(t, fh, 0)
+	e.handler = e.start(t, "1.3.0")
 	run := endedRun(t, e)
 	if run["status"] != "done" || run["action"] != "rollback" {
 		t.Fatalf("run = %v", run)
@@ -465,27 +532,27 @@ func TestUpdateRollbackOrderCoreLast(t *testing.T) {
 		t.Errorf("calls = %q, want %q", got, want)
 	}
 	hist := e.admin.get("/core/updates").JSON["history"].([]any)
-	if h0 := hist[0].(map[string]any); h0["action"] != "rollback" || h0["from"] != "1.5.0" || h0["to"] != "1.4.0" {
+	if h0 := hist[0].(map[string]any); h0["action"] != "rollback" || h0["from"] != "1.4.0" || h0["to"] != "1.3.0" {
 		t.Errorf("history = %v", hist)
 	}
 	if a := e.actions(); countOf(a, "update.rollback") != 1 || countOf(a, "update.rollback_done") != 1 {
 		t.Errorf("audit = %v", a)
 	}
 
-	// Now core runs 1.4.0 with 1.5.0 as previous: going "back" up is refused before any call.
+	// Now core runs 1.3.0 with 1.4.0 as previous: going "back" up is refused before any call.
 	wantStatus(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 409, "rollback_is_upgrade")
-	fh.setState(lockstep("1.5.0", ""))
+	fh.setState(lockstep("1.4.0", ""))
 	wantStatus(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 409, "no_previous")
 }
 
 // The host refuses core's rollback after the others went back: they go forward again, the words are plain.
 func TestUpdateRollbackRefusedByTheHostRollsTheOthersForward(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.5.0", "1.4.0"), "", false)
+	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.4.0", true)
 	fh.refuse["rollback core"] = api.CodeRollbackBackupMissing
 	wantOK(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 200)
 	run := endedRun(t, e)
-	want := "Rolling back Vedette failed: The copy of the database from before the update is no longer on the box, so the rollback cannot put it back. The other services were put back on 1.5.0."
+	want := "Rolling back Vedette failed: The copy of the database from before the update is no longer on the box, so the rollback cannot put it back. The other services were put back on 1.4.0."
 	if run["status"] != "failed" || run["error"] != want {
 		t.Fatalf("run = %v", run)
 	}
@@ -504,7 +571,7 @@ func TestUpdateRollbackRefusedByTheHostRollsTheOthersForward(t *testing.T) {
 // host's record.
 func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T) {
 	t.Parallel()
-	e, fh := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", true)
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", false)
 	fh.hold["start core"] = true
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	waitCall(t, fh, "start core")
@@ -519,10 +586,11 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 	fin := time.Now()
 	fh.addRun(api.Run{RunID: "rn_00000000000000ff", Command: api.CmdContainerRollback, Status: api.StatusSucceeded, StartedAt: fin.Add(-time.Minute), FinishedAt: &fin,
 		Actor: "other@acme.example", RequestID: "11111111-1111-4111-8111-111111111111", Result: json.RawMessage(`{"digest":"d","from_digest":"f","restored_backup_id":"b1"}`)})
-	fh.setState(lockstep("1.4.0", "1.5.0"))
-	e.handler = e.newHandlers(t, fh, 0)
+	fh.setState(lockstep("1.3.0", "1.4.0"))
+	e.clock.Advance(7 * time.Hour) // the restored run is older than the 6-hour rule: it is still settled from the host
+	e.handler = e.start(t, "1.3.0")
 	run := endedRun(t, e)
-	if run["action"] != "rollback" || run["status"] != "done" || run["from"] != "1.5.0" || run["to"] != "1.4.0" || run["user"] != "other@acme.example" {
+	if run["action"] != "rollback" || run["status"] != "done" || run["from"] != "1.4.0" || run["to"] != "1.3.0" || run["user"] != "other@acme.example" {
 		t.Fatalf("run = %v", run)
 	}
 	hist := e.admin.get("/core/updates").JSON["history"].([]any)
@@ -533,7 +601,7 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 
 func TestUpdateRunIsHiddenADayAfterItEnded(t *testing.T) {
 	t.Parallel()
-	e, _ := newRunEnv(t, lockstep("1.4.0", "1.3.0"), "1.5.0", false)
+	e, _ := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	endedRun(t, e)
 	e.clock.Advance(23 * time.Hour)
@@ -546,5 +614,131 @@ func TestUpdateRunIsHiddenADayAfterItEnded(t *testing.T) {
 	}
 	if hist := e.admin.get("/core/updates").JSON["history"].([]any); len(hist) != 1 {
 		t.Errorf("history = %v", hist)
+	}
+}
+
+// The rollback after an Apply asks for the confirmation when the release now running (the one that was offered, not
+// yet stored as running by a check) says rollback.safe=false, and does not when it says true; a running release whose
+// manifest is unknown asks too (D-342 (8)). The real check side, no stand-in.
+func TestUpdateRollbackAfterAnApplyReadsTheReleaseItInstalled(t *testing.T) {
+	t.Parallel()
+	for _, safe := range []bool{false, true} {
+		e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", safe)
+		fh.hold["start core"] = true
+		wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+		waitCall(t, fh, "start core")
+		e.handler.Close()
+		fh.release("start core")
+		e.handler = e.start(t, "1.4.0") // the new release starts
+		if run := endedRun(t, e); run["status"] != "done" {
+			t.Fatalf("run = %v", run)
+		}
+		comp, _ := getArr(e.admin.get("/core/updates"), "components")[0].(map[string]any)
+		if comp["version"] != "1.4.0" || comp["rollback_restores_data"] != !safe {
+			t.Errorf("safe=%t: component = %v", safe, comp)
+		}
+		r := e.admin.post("/core/updates/rollback", map[string]any{"component": "software"})
+		if safe {
+			wantOK(t, r, 200)
+			continue
+		}
+		wantStatus(t, r, 409, "confirm_required")
+		e.handler.Close()
+		e.handler = e.start(t, "1.4.1") // a build whose manifest the box never saw
+		wantStatus(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 409, "confirm_required")
+	}
+}
+
+// A snapshot the host finds too old or invalid at core's switch is taken again with the same key; the run goes on.
+func TestUpdateCoreSwitchRetriesWithANewSnapshot(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.once["start core"] = api.CodeSnapshotRequired
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+	if n := countOf(fh.callList(), "start core 1.4.0 snap"); n != 2 {
+		t.Errorf("core's switch sent %d times, want 2 (calls %q)", n, fh.callList())
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshots left: %v", d)
+	}
+}
+
+// A run whose end could not be stored is settled again later, not dropped as settled.
+func TestUpdateRunEndThatCouldNotBeStoredIsSettledLater(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.hold["start core"] = true
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	e.setting("core_update_history", `{"not":"a list"}`) // the end cannot be written while this is there
+	fh.release("start core")
+	pause(t, 300*time.Millisecond)
+	var status string
+	_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT json_extract(value, '$.status') FROM core_setting WHERE key = 'core_update_run'").Scan(&status)
+	if status != "running" {
+		t.Fatalf("stored status with an unreadable history = %q", status)
+	}
+	e.setting("core_update_history", "[]")
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+}
+
+// An Apply that lands while the previous follower is ending is followed by that follower.
+func TestUpdateApplyWhileTheFollowerEndsIsFollowed(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	core.HoldFollowerForTest(e.handler)
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	pause(t, 200*time.Millisecond)
+	if c := fh.callList(); len(c) != 0 {
+		t.Fatalf("calls with the follower held = %q", c)
+	}
+	core.EndFollowerForTest(e.handler)
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+}
+
+// Apply is refused before any call when the host has no record of the running version.
+func TestUpdateApplyNeedsTheRunningVersion(t *testing.T) {
+	t.Parallel()
+	st := lockstep("1.3.0", "1.2.0")
+	st.Services[0].Version = nil
+	e, fh := newRunEnv(t, st, "1.3.0", true)
+	wantStatus(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 409, "current_version_unknown")
+	if c := fh.callList(); len(c) != 0 {
+		t.Errorf("calls = %q", c)
+	}
+}
+
+// After a restart a pull is sent again with the bytes the run started with, even when a newer check changed the offer.
+func TestUpdatePullIsResentWithTheStoredRelease(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.refuse["pull sensor"] = api.CodeBusy // not taken: the follower keeps trying with the same key
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "pull sensor")
+	e.handler.Close()
+	e.srv.mu.Lock()
+	m := e.srv.files["/v1.4.0/release-manifest.json"]
+	e.srv.mu.Unlock()
+	e.srv.index(t, 6, m, 100, nil) // a newer index offering the same release
+	e.handler = e.start(t, "1.3.0")
+	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
+	fh.mu.Lock()
+	delete(fh.refuse, "pull sensor")
+	fh.mu.Unlock()
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
+	sent := fh.pulled[api.ServiceSensor]
+	if len(sent) < 2 || slices.ContainsFunc(sent, func(x string) bool { return x != sent[0] }) || sent[0] != fh.pulled[api.ServiceCore][0] {
+		t.Errorf("indexes sent with the sensor's pulls differ: %d sends", len(sent))
 	}
 }

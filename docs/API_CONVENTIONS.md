@@ -451,7 +451,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rollback_not_allowed` | 409 | The running version cannot go back that far: its database is not readable by the previous version. Check the release notes. Chỉ backend (D-342): host `rollback_not_allowed`. | `POST /core/updates/rollback` (`run.error`) |
 | `rollback_backup_missing` | 409 | The copy of the database from before the update is no longer on the box, so the rollback cannot put it back. Chỉ backend (D-342): host `rollback_backup_missing`. | `POST /core/updates/rollback` (`run.error`) |
 | `rollback_is_upgrade` | 409 | The previous version is newer than the running one. Install it as an update instead. Chỉ backend (D-342): `core.previous` cao hơn bản đang chạy (sau một lần rollback), kiểm trước mọi lời gọi host. | `POST /core/updates/rollback` |
-| `current_version_unknown` | 409 | The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record). Chỉ backend (D-342): host chưa ghi bản đang chạy (bootstrap 3-8b). | `POST /core/updates/rollback` |
+| `current_version_unknown` | 409 | The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record). Chỉ backend (D-342): host chưa ghi bản đang chạy (bootstrap 3-8b). | `POST /core/updates/apply`, `POST /core/updates/rollback` |
 
 #### HTTP 412 (1 mã)
 

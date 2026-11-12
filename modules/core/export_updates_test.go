@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-
-	"github.com/knt048/vedette/internal/release"
 )
 
 // OfferedVersionForTest is the version offered() hands the run side ("" with the error when nothing is offered).
@@ -23,21 +21,12 @@ func (h *OSHandlers) RunningRestoresDataForTest(ctx context.Context) (bool, erro
 // ErrNoUpdate is errNoUpdate for the external tests.
 var ErrNoUpdate = errNoUpdate
 
-// SetUpdateOfferForTest stands in for the check side of the software update (updates.go seam) in the run
-// side's tests: version is offered with an image for each of services (an empty version: nothing is offered),
-// and restores says whether the running release puts the database back on rollback (rollback.safe=false).
-func SetUpdateOfferForTest(h *OSHandlers, version string, services []string, restores bool) {
-	h.urun.seam.Store(&updateSeam{
-		offered: func(context.Context) (*verifiedRelease, error) {
-			if version == "" {
-				return nil, errNoUpdate
-			}
-			m := &release.Manifest{Version: version}
-			for _, s := range services {
-				m.Images = append(m.Images, release.Image{Service: s})
-			}
-			return &verifiedRelease{Index: []byte("index"), IndexSig: []byte("index sig"), Manifest: []byte("manifest"), ManifestSig: []byte("manifest sig"), M: m}, nil
-		},
-		restoresData: func(context.Context) (bool, error) { return restores, nil },
-	})
+// HoldFollowerForTest makes the run side believe a follower is going (one that is about to end).
+func HoldFollowerForTest(h *OSHandlers) { h.urun.following.Store(true) }
+
+// EndFollowerForTest is the end of that follower: it hands off, and follows a run still running.
+func EndFollowerForTest(h *OSHandlers) {
+	if h.handOff() {
+		h.goFollow()
+	}
 }

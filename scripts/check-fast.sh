@@ -83,5 +83,5 @@ if [ "$ran" = 0 ]; then
 	if has '^(Makefile|scripts/|\.github/)'; then echo "check-fast: build/CI files only; CI runs the full suite"
 	else echo "check-fast: docs only, no code to check"; fi
 fi
-echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: -race, every package)"
+echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: every package; -race on main and daily)"
 make clean

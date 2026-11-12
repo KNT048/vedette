@@ -262,7 +262,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.SensorPassive = sp
 	sensor.svc = sp
-	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log})
+	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log, ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()})
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)

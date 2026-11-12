@@ -54,6 +54,9 @@ type DispatcherOptions struct {
 	// Tick is how often a waiting probe looks at those timeouts. 0 means one second.
 	Tick time.Duration
 	Log  *slog.Logger
+	// ContainerOnly is the install kind (modreg.Registry.ContainerOnly, D-381): the health texts then give the advice that fits a
+	// customer who runs the compose files, not the appliance's "rebuilt" (D-168 (4)).
+	ContainerOnly bool
 }
 
 // Dispatcher is the Prober that hands a job to the worker, and the sensorlink.Backend of the active role: the
@@ -61,10 +64,11 @@ type DispatcherOptions struct {
 // slots, one for nmap and one for nuclei (D-125 (3)): one job of each kind may run at once, so a "Scan now" does not wait for
 // a two-hour sweep. The rules of a slot (lease, pickup, grace, cancel) are those of SP-3 for both.
 type Dispatcher struct {
-	now      func() time.Time
-	tick     time.Duration
-	log      *slog.Logger
-	instance string
+	now       func() time.Time
+	tick      time.Duration
+	log       *slog.Logger
+	instance  string
+	container bool // DispatcherOptions.ContainerOnly
 
 	mu       sync.Mutex
 	wake     chan struct{} // closed and replaced whenever something a long poll looks at changes
@@ -112,7 +116,7 @@ type djob struct {
 
 // NewDispatcher returns a Dispatcher with a fresh instance nonce, the one the worker's lease is tied to.
 func NewDispatcher(o DispatcherOptions) *Dispatcher {
-	d := &Dispatcher{now: o.Now, tick: o.Tick, log: o.Log, wake: make(chan struct{}), orphans: map[string]bool{},
+	d := &Dispatcher{now: o.Now, tick: o.Tick, log: o.Log, container: o.ContainerOnly, wake: make(chan struct{}), orphans: map[string]bool{},
 		nmapSlot: &slot{kind: sensorlink.KindNmap, maxSeconds: maxJobSeconds}, nucSlot: &slot{kind: sensorlink.KindNuclei, maxSeconds: maxNucleiSeconds}}
 	if d.now == nil {
 		d.now = time.Now
@@ -182,9 +186,27 @@ func (d *Dispatcher) NmapHealth() string {
 	case len(d.orphans) > 0:
 		return orphanMessage("active discovery")
 	case !d.nmap.Present:
-		return "nmap is not installed in the scan container; active discovery cannot run until the scan image is rebuilt"
+		return d.nmapMissing()
 	}
 	return ""
+}
+
+// nmapMissing is the health text for a scan worker without nmap. The appliance builds its scan image from the OS packages;
+// the project's image for a container-only install has no nmap by design (it is not shipped, D-168 (4)), so "rebuild" would
+// be wrong advice there.
+func (d *Dispatcher) nmapMissing() string {
+	if d.container {
+		return "nmap is not installed in the scan container; the Vedette scan image does not include nmap, so active discovery is off on a container-only install"
+	}
+	return "nmap is not installed in the scan container; active discovery cannot run until the scan image is rebuilt"
+}
+
+// imageFix is the end of a "cannot run until ..." text for a damaged or incomplete scan image.
+func (d *Dispatcher) imageFix() string {
+	if d.container {
+		return "you pull the scan image of this release again (docker compose --env-file vedette.env pull, then up -d)"
+	}
+	return "the scan image is rebuilt"
 }
 
 // orphanMessage is what both health messages say while the worker names a job core does not know (one it gave up, or one of a
@@ -218,9 +240,9 @@ func (d *Dispatcher) nucleiProblem(forHealth bool) (msg string, base error) {
 	case d.packInvalid && d.nuclei.Pack.SHA256 == d.packInvalidSHA:
 		return "ERROR: the template pack in the scan image failed its integrity check (a changed file, or a link or special file in it); vulnerability scanning is off until the scan image is replaced", ErrPackInvalid
 	case !d.nuclei.Present:
-		return "nuclei is not installed in the scan container; vulnerability scanning cannot run until the scan image is rebuilt", ErrNucleiMissing
+		return "nuclei is not installed in the scan container; vulnerability scanning cannot run until " + d.imageFix(), ErrNucleiMissing
 	case d.nuclei.Pack.SHA256 == "":
-		return "the scan image has no usable template pack; vulnerability scanning cannot run until the scan image is rebuilt", ErrScannerUnavailable
+		return "the scan image has no usable template pack; vulnerability scanning cannot run until " + d.imageFix(), ErrScannerUnavailable
 	}
 	return "", nil
 }

@@ -7,7 +7,7 @@ import { collection, dataMode, newId, nowIso } from '@/mocks/db'
 import { AI_JOBS, aiAssignStore, aiAvailable, aiCandidates, aiConfigStore, aiProfilesStore, aiProfileUsable, aiRunsStore, assetsStore, findingsStore, isOn, recordAiRun } from '@/mocks/stores'
 import type { AiAssign, AiJob, AiProfile as StoredProfile } from '@/mocks/stores'
 import { answerQuestion } from './ask'
-import { activeDefs, memorySettings, memoryStore, runHooks, skillsView, suggestionsStore } from './harness'
+import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skillsView, suggestionsStore } from './harness'
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
 import type { ActivityInput } from './activity'
@@ -465,7 +465,7 @@ export const handlers = [
     digests.update((m) => ({ ...m, [t]: d }))
     // memory suggestions (S-AI-7, D-223): only while allowed, never the same text twice; the stored digest reads back 0
     const fact = 'SRV-AD receives RDP only through the VPN.'
-    const fresh = memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact)
+    const fresh = memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
     if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `log summary of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` }])
     return HttpResponse.json({ digest: { ...d, memories_suggested: fresh ? 1 : 0 } })
   }),

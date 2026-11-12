@@ -292,6 +292,10 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await userEvent.type(within(dlg).getByLabelText('Profile name'), 'claude haiku')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
     expect(await within(dlg).findByText('Another profile already has this name.')).toBeInTheDocument()
+    // moved to the cloud, the new profile drops the local default address; a name the person typed stays
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Cloud/ }))
+    expect(within(dlg).getByLabelText('Server address')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('claude haiku')
     const bad = await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ name: 'X', kind: 'anthropic', api_style: 'anthropic', base_url: 'http://localhost:1/v1', model: 'm', location: 'internal', daily_cap: 5000 }) })
     expect(bad.status).toBe(400)
     expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('invalid_location')

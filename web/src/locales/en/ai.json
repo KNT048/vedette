@@ -124,7 +124,7 @@
     },
     "tier": {
       "title": "Token level",
-      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Every AI task runs only when someone clicks; nothing runs on a schedule. Past the daily cap Vedette lowers the level itself and records it.",
+      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 20 calls a day); the level does not change them. Past the daily cap Vedette lowers the level itself and records it.",
       "min": {
         "name": "Minimum",
         "sends": "Short log digests: at most 5 new kinds of line, 5 spikes and 5 bad connections."

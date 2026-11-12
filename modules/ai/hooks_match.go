@@ -122,13 +122,21 @@ func digitValue(r rune) rune {
 
 // plain adapts a finder that works on the normalised text: its spans are mapped back to the original.
 func plain(find func(norm string) []span) func(context.Context, *scanText) ([]span, error) {
+	return plainCtx(func(_ context.Context, norm string) ([]span, error) { return find(norm), nil })
+}
+
+// plainCtx is plain for a finder that checks the context itself between its steps, so a deadline holds inside it.
+func plainCtx(find func(ctx context.Context, norm string) ([]span, error)) func(context.Context, *scanText) ([]span, error) {
 	return func(ctx context.Context, t *scanText) ([]span, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		norm := t.normalized()
+		found, err := find(ctx, t.normalized())
+		if err != nil {
+			return nil, err
+		}
 		var out []span
-		for _, sp := range find(norm) {
+		for _, sp := range found {
 			out = append(out, t.mapSpan(sp.start, sp.end))
 		}
 		return out, nil

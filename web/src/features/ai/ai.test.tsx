@@ -201,7 +201,9 @@ describe('ai: token meter, caps, fallback (S-AI-4)', () => {
     sessionStore.set({ userId: 'u-admin' })
     aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'cve-news': { primary: 'p-haiku', fallback: null } } }))
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
-    await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
+    const none = await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
+    expect(none.status).toBe(409) // as on the box: no profile answered is ai_unavailable, not the daily cap
+    expect(((await none.json()) as { error: { code: string } }).error.code).toBe('ai_unavailable')
     expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'cve-news', status: 'failed' })
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://api.anthropic.com', daily_cap: 1000 } : p)))
     await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })

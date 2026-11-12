@@ -412,7 +412,7 @@ func piiDef(action HookAction, message string, find func(context.Context, *scanT
 // Blocking first, then masking: an ID number stops the text at once instead of being masked piecemeal.
 var piiDefs = []hookDef{
 	piiDef(ActionBlock, "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", plain(findIDNumbers)),
-	piiDef(ActionMask, "A device secret (a password, hash, SNMP community or key) was masked before the text went to the AI.", plain(findDeviceSecrets)),
+	piiDef(ActionMask, "A device secret (a password, hash, SNMP community or key) was masked before the text went to the AI.", plainCtx(scanDeviceSecrets)),
 	piiDef(ActionMask, "An email address was masked before the text went to the AI.", plain(findEmails)),
 	piiDef(ActionMask, "A phone number was masked before the text went to the AI.", plain(findPhones)),
 	piiDef(ActionMask, "A person name next to an account was masked before the text went to the AI.", plain(findAccountNames)),

@@ -15,7 +15,11 @@
 ## Modifying: nhật ký `scan_probe` / danh mục `scan_probes`
 - **core** (`/core/logs/export`), **SPA** Probes. Giảm thời gian giữ dưới 90 ngày phá S-SCAN-4.
 
+## Modifying: máy quét bề mặt ngoài (`modules/scan/surface`, `cmd/vedette` `scanRunner`; INV-12, D-229)
+- **exposure** (`POST …/scan`, ảnh chụp, `Content`), **response** (trigger `new_port` nghe `exposure.snapshot.created`), **reports**. Đổi danh sách cổng, dấu hiệu trang quản trị hay luật chọn tên làm đổi ảnh chụp và so sánh ngày (cổng/trang "mới" hay "mất" giả). Đổi nơi gửi (CT, proxy, User-Agent) là đổi luồng dữ liệu ra: PRIVACY luồng 9 + Settings → Privacy cùng commit. Nới luật địa chỉ (`exposure.IsPublicIPv4`) phá SYS-7.
+
 ## Disabling this module
+- "Scan now" của External exposure trả 409 `module_off`; ảnh chụp cũ giữ nguyên.
 - Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
 - `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.

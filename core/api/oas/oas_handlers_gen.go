@@ -17513,7 +17513,9 @@ func (s *Server) handleExposurePostExposureTargetsIDCommitmentRequest(args [1]st
 // Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 // right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 // (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-// when the commitment is missing.
+// when the commitment is missing. After those checks the Vulnerability scans module does the scan
+// (D-229): 409 module_off while it is off; 502 unreachable when the certificate-transparency search
+// (crt.sh) does not answer or the scan does not finish within 5 minutes; nothing is saved then.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17592,7 +17594,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing",
+			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing. After those checks the Vulnerability scans module does the scan (D-229): 409 module_off while it is off; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; nothing is saved then",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             nil,
 			RawBody:          rawBody,

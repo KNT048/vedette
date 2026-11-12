@@ -154,8 +154,9 @@ Release builder (WP-08f, D-164, maintainer's machine only, never shipped): `scri
 
 | Component | License |
 |---|---|
-| httpx, naabu, subfinder, dnsx | MIT |
 | recog / recog-go | BSD-2 |
+
+httpx, naabu, subfinder and dnsx (MIT), planned here before, are not used: the external-surface scan (`modules/scan/surface`, D-229) is written with the Go standard library.
 
 ## Data redistributed by the project's feed builder
 
@@ -188,6 +189,12 @@ Read on the box, never stored or redistributed as they are: the box keeps only t
 | GitHub REST API, repository search (`api.github.com`) | GitHub Terms of Service (API) | data: names, descriptions, stars and dates of public repositories that name the CVE; no token, no code downloaded |
 | Vendor advisory pages (the 16 hosts in PRIVACY.md flow 8) | each vendor's site terms | data: the visible text of one advisory page the CVE links to, cut to 6000 bytes |
 | Feeds of watchTowr Labs, GreyNoise, SANS Internet Storm Center, Rapid7, Unit 42, Google Project Zero | each site's terms; public RSS/Atom | data: the posts that name the CVE (title, date, link, text around the mention) |
+
+## Public service each box asks for external exposure (only when a person scans a verified domain; S-EXP-1, D-229)
+
+| Source | Terms | How it is used |
+|---|---|---|
+| crt.sh (`crt.sh`, certificate-transparency search run by Sectigo) | public service, no key; the certificates it lists are public CT log entries | data: the host names in the certificates of the verified domain (`?q=%.<domain>&output=json`), at most 200, used to find the subdomains to scan; never stored apart from the snapshot's host list |
 
 ## Data each box fetches with the user's own key (never through the project)
 

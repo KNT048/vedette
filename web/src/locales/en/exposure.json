@@ -143,7 +143,7 @@
     "emptyTitle": "No scan results yet",
     "emptyBody": "Finish the two steps above, then select Scan now. The first result shows up here.",
     "pick": "Snapshot of",
-    "sourceNote": "The Vedette box scans from outside into your public addresses."
+    "sourceNote": "The box scans from inside your network. Names hosted elsewhere are reached over the Internet, but the box's own public IP is reached through your router (NAT loopback), so what it shows can differ from what the Internet sees: a router may show its own login page only to the inside, and a router without NAT loopback shows nothing."
   },
   "count": {
     "subdomains": "Subdomains",
@@ -172,7 +172,7 @@
   },
   "ports": {
     "title": "Open ports",
-    "description": "Which services answer from the Internet. Close unneeded ports at the firewall.",
+    "description": "Which services answer on your public addresses. Close unneeded ports at the firewall.",
     "caption": "Ports open to the Internet",
     "empty": "No open ports.",
     "filter": "Filter by IP, port or service"

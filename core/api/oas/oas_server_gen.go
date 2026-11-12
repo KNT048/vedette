@@ -860,7 +860,9 @@ type Handler interface {
 	// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 	// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 	// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-	// when the commitment is missing.
+	// when the commitment is missing. After those checks the Vulnerability scans module does the scan
+	// (D-229): 409 module_off while it is off; 502 unreachable when the certificate-transparency search
+	// (crt.sh) does not answer or the scan does not finish within 5 minutes; nothing is saved then.
 	//
 	// POST /exposure/targets/{id}/scan
 	ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanOK, error)

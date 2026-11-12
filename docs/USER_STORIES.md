@@ -69,6 +69,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 - Chấp nhận (D-79, kien 2026-11-09): chế độ tự dò (mặc định, dò lần đầu lúc cài) và thủ công ("Detect now"); chu kỳ 1 phút–24 giờ, mặc định 60 phút, admin sửa được; IP hiệu lực 30 ngày từ lần thấy cuối, gia hạn mỗi lần thấy lại, `expiring` ≤ 5 ngày; admin gỡ được IP; không có ô nhập IP.
 - Chấp nhận (D-79): trước khi quét một IP, lượt dò gần nhất hoặc một lượt dò kỹ phải còn thấy nó; không thấy → quét IP đó tạm dừng với lý do rõ, IP vẫn trong danh sách.
 - Chấp nhận (D-79): gỡ IP hỏi "Don't add it again if detected" (mặc định bật); IP bị bỏ qua nằm trong mục Ignored, có Restore; không bao giờ được quét hay tự thêm lại; mọi thay đổi ghi kiểm toán.
+- Chấp nhận (D-229): "Scan now" chạy thật trên hộp (máy quét của module Vulnerability scans): domain → tên dưới domain từ log CT (crt.sh), tên phân giải được thành subdomain kèm IP; chỉ địa chỉ công khai bị dò; cổng mở trong danh sách cố định ~100 cổng; trang quản trị nhận ra theo tiêu đề/dấu hiệu, mức "Close now" hoặc "Restrict by IP"; cert của cổng TLS với hạn. Module Vulnerability scans tắt → "Scan now" báo đúng thế và không lưu gì; crt.sh không trả lời hoặc quá 5 phút → báo lỗi, không lưu ảnh chụp nào (để so sánh ngày không báo subdomain "mất" giả). Dưới "Scan results" nói rõ hộp quét từ bên trong mạng: IP của chính hộp đi qua NAT loopback của router nên có thể khác cái Internet thấy.
 
 ## SCAN — Quét lỗ hổng
 

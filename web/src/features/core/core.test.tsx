@@ -858,12 +858,46 @@ describe('core: cập nhật (S-CORE-2)', () => {
   })
 
   it('a run that went back shows why and no success toast (D-340)', async () => {
-    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'The new build did not pass its health check, so the box went back to 0.9.3.' }
+    const success = vi.spyOn(toast, 'success')
+    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', steps: ['download', 'start', 'restart'], step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'core did not pass its health check, so the box went back to 0.9.3.' }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T08:00:00Z', components: [], available: [], history: [], advisories: [], managed: [], run })))
     renderApp('/settings/updates')
-    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Update to 0.9.4 did not start; back on 0.9.3' })).toBeInTheDocument()
     expect(screen.getByText('Went back')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('did not pass its health check')
+    expect(screen.getByText(/did not pass its health check/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull() // an old end is not announced on every visit
+    expect(success).not.toHaveBeenCalled()
+    success.mockRestore()
+  })
+
+  it('while Vedette restarts a read fails: the page stays and says it reconnects, then one toast at the end (D-340)', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.error(), { once: true }))
+    expect(await screen.findByText('Reconnecting to Vedette…', undefined, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Versions in use' })).toBeInTheDocument()
+    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(screen.getAllByText(/switched to the new build/)).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Vedette software updated to 0.9.4' })).toBeInTheDocument()
+  })
+
+  it('a second software run, or a bundle with the software, is refused with 409 busy while one runs; packs still update', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1/core/updates/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    const again = await post('apply', { component: 'software' })
+    expect(again.status).toBe(409)
+    expect(((await again.json()) as { error: { code: string } }).error.code).toBe('busy')
+    const items = [{ component: 'software', version: '0.9.4', channel: 'stable' }]
+    const created_at = '2026-11-06T00:00:00Z'
+    const content = toBase64(JSON.stringify({ format: 'vedette-bundle/1', created_at, items, signature: mockSign(JSON.stringify(items) + created_at) }))
+    expect((await post('bundle', { name: 'b.json', size: 10, sha256: '0'.repeat(64), content })).status).toBe(409)
+    expect(screen.getByRole('button', { name: 'Import bundle' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Update Log parser pack' })).toBeEnabled()
   })
 
   it('rollback hỏi xác nhận và chuyển sang cập nhật tay', async () => {

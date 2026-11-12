@@ -106,8 +106,10 @@ export const useUpdates = () => useQuery({
 })
 export function useUpdateMutations() {
   const qc = useQueryClient()
-  const set = (d: UpdatesState) => { qc.setQueryData(['core', 'updates'], d); void qc.invalidateQueries({ queryKey: ['core', 'privacy'] }) }
+  // Cancel a poll already on its way first: an older answer arriving after this one would hide a run that just started.
+  const set = async (d: UpdatesState) => { await qc.cancelQueries({ queryKey: ['core', 'updates'] }); qc.setQueryData(['core', 'updates'], d); void qc.invalidateQueries({ queryKey: ['core', 'privacy'] }) }
   return {
+    refresh: () => qc.fetchQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 0 }),
     settings: useMutation({ mutationFn: (v: { channel?: UpdateChannel; mode?: 'auto' | 'manual' }) => api.patch<UpdatesState>('/core/updates', v), onSuccess: set }),
     check: useMutation({ mutationFn: () => api.post<UpdatesState & { applied: number }>('/core/updates/check'), onSuccess: set }),
     apply: useMutation({ mutationFn: (component: string) => api.post<UpdatesState>('/core/updates/apply', { component }), onSuccess: set }),

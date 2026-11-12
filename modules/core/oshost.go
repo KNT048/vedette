@@ -31,6 +31,11 @@ type Host interface {
 	GetRun(ctx context.Context, runID string) (api.Run, error)
 	ListRuns(ctx context.Context, limit int) ([]api.Run, error)
 	Events(ctx context.Context, runID string, after uint64) *client.Stream
+	// Software updates (S-CORE-2, host-api 6.7, 6.8, 6.10).
+	StateContainers(ctx context.Context) (api.ContainersState, error)
+	ContainerPull(ctx context.Context, args api.ContainerPullArgs, requestID, actor string) (api.Run, error)
+	ContainerStart(ctx context.Context, args api.ContainerStartArgs, requestID, actor string) (api.Run, error)
+	ContainerRollback(ctx context.Context, args api.ContainerRollbackArgs, requestID, actor string) (api.Run, error)
 }
 
 var _ Host = (*client.Client)(nil)

@@ -88,17 +88,21 @@ export const UpdateAvailable = z.object({ component: z.string(), version: z.stri
 export const UpdateHistory = z.object({ id: z.string(), ts, component: z.string(), from: z.string().nullable(), to: z.string(), action: z.enum(['update', 'rollback', 'bundle']), user: z.string() })
 export const Advisory = z.object({ id: z.string(), title: z.string(), severity: z.enum(['critical', 'high', 'medium']), published: z.string(), fixed_in: z.string(), summary: z.string(), status: z.enum(['affected', 'fixed']) })
 export const ManagedPackage = z.object({ id: z.string(), name: z.string(), version: z.string(), status: z.enum(['ok', 'update_pending']) })
+const UpdateStep = z.enum(['download', 'start', 'restore', 'restart'])
 export const UpdateRun = z.object({
-  id: z.string(), action: z.enum(['update', 'rollback']), component: z.string(), from: z.string().nullable(), to: z.string(),
-  status: z.enum(['running', 'done', 'failed', 'reverted']).describe('reverted: the new build was not healthy and the box went back to the old one'),
-  step: z.enum(['download', 'start', 'restart']).nullable().describe('download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)'),
-  started_at: ts, finished_at: ts.nullable(), user: z.string(),
-  error: z.string().nullable().describe('Only when failed or reverted: why, in words'),
+  id: z.string().describe('Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it'),
+  action: z.enum(['update', 'rollback']), component: z.string().describe('"software": the whole release, every service in lockstep'),
+  from: z.string().nullable().describe('Release running when the run started'), to: z.string().describe('Release the run installs (update) or goes back to (rollback)'),
+  status: z.enum(['running', 'done', 'failed', 'reverted']).describe('reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped before or without that'),
+  steps: z.array(UpdateStep).describe('The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart'),
+  step: UpdateStep.nullable().describe('One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)'),
+  started_at: ts, finished_at: ts.nullable(), user: z.string().describe('"system" for the automatic updater'),
+  error: z.string().nullable().describe('Only when failed or reverted: why, in words, naming the service that failed'),
 })
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts,
   components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
-  run: UpdateRun.nullable().describe('The software install or rollback running now, or the latest one; null when there was none'),
+  run: UpdateRun.nullable().describe('The software install or rollback running now, or one that ended in the last 24 hours; null otherwise'),
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
 })
 

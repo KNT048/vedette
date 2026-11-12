@@ -299,6 +299,11 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		s.touchSent(ctx, mem.ids, res)
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
 	}
+	if spec.tools != nil && spec.Schema != nil {
+		// the tool loop asks for the JSON without structured output (D-223): out of a code block before the hooks walk its strings, so a
+		// \u escape cannot hide a word from an after_ai pattern
+		res.Response.Text = unfence(res.Response.Text)
+	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
 	entry.OutputHash = HashContent(res.Response.Text)
 	entry.Result = ResultOK
@@ -450,7 +455,10 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		// the question ran out of time, or the model kept asking for tools and never answered: the calls that were made keep their row
 		s.nameLastProfile(&entry, res)
 		entry.Summary = "Stopped: the question used up its time."
-		msg := "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+		msg := "The AI did not finish in time. Try again, or use a faster profile for this job."
+		if spec.Job == JobAskMyData {
+			msg = "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+		}
 		if !errors.Is(err, errAskDeadline) {
 			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
 			msg = "The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job."
@@ -464,7 +472,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
-		return apiUnavailable("The AI profile did not accept tool calls, which asking your data needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
+		return apiUnavailable("The AI profile did not accept tool calls, which " + spec.Job.Name() + " needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
 	case errors.Is(err, ErrCapped):
 		entry.Summary, entry.Outcome = capSummary, OutcomeCapped
 		if rerr := s.record(ctx, entry); rerr != nil {

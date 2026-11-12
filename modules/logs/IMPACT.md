@@ -27,7 +27,7 @@
 ## Modifying: `IocHit(ctx, id) (IocHit, bool, error)` và `IocHits(ctx, since time.Time, minConf float64) ([]IocHit, error)` — người gọi
 - **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1; trigger field `confidence` của response cũng là 0..1, D-57 (13)) → ngưỡng của quy tắc (vd. `gte 0.8`) sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.
 - **notify** (cảnh báo kết nối xấu): đổi trường → nội dung tin sai.
-- **ai** (`ask-my-data`, `log-investigate` qua công cụ chỉ-đọc).
+- **ai** (`ask-my-data`, `log-investigate` qua công cụ chỉ-đọc; `EventsAround` là cổng của `events_around`, D-223: đổi `Around`/`AroundKind` → sửa `aiLogAround` trong `cmd/vedette/ailogdigest.go`; thêm trường mang chữ của dòng = vi phạm INV-11).
 
 ## Modifying: `Digest(ctx) (Digest, error)` — 2 người gọi
 - **GUI logs** và **ai** (`log-digest` tóm tắt digest). Đổi cấu trúc `new/spikes/bad_connections` → sinh lại OpenAPI, sửa mock, sửa prompt skill. `new` và `spikes` có thật từ L3 (`NewItem`, `SpikeItem` khớp `contract.ts`; `TestDigestWithItemsOverHTTP` đi qua kiểu sinh của API); `bad_connections` có thật từ L4 (`IocHit` khớp `contract.ts`, đọc từ `logs_ioc_hits` mỗi lần gọi, không qua ảnh chụp). Đổi hằng số (`WarmUp`, `SpikeFloor`, `SpikeFactor`, `BaselineDays`) là đổi cái người dùng thấy là "bất thường": ghi quyết định.

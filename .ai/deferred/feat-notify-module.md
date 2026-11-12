@@ -4,5 +4,4 @@
 - [x] Unwired in cmd/vedette: `Config.BoxAddrs` (host LAN IP, WP-08, see the packaging line below) — Moved → #62
 - [ ] notify GUI follow-up PR: seal webhook URL (SYS-4). `fields.url` of the webhook channel is a bearer secret (path/query tokens) but is stored and returned in plain; needs a contract.ts + GUI change (seal the URL in core/secrets, show `scheme://host/…` plus last4). Supervisor does it with the GUI work.
 - [x] Producers of events notify subscribes to: honeypot publishes `honeypot.hit.created` — Done (#72)
-- [ ] Producers of events notify subscribes to, by exact name: logs must publish `logs.anomaly.detected` and `logs.bad_address.detected` with `{source, target, title, what, action, severity, devices[{id,name}]}` (logs CONTRACT updated in the review-fix docs commit).
 - [x] Packaging (owner:kien, podman): when the box runs in a podman network that is not the host network, the box's own addresses (webhook guard, Config.BoxAddrs) read from the interfaces are the container's; they must also include the host LAN IP, or a webhook could point at the host. Pass the host addresses through Config.BoxAddrs from the packaging config. — Moved → #62

@@ -54,10 +54,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 	var err error
-	// Ctrl-C or SIGTERM cancels ctx, so a step returns and its deferred cleanup runs (gates' vedette-gates-* rebuild directory);
+	// Ctrl-C, SIGTERM or SIGHUP (terminal or SSH closed) cancels ctx, so a step returns and its deferred cleanup runs (gates' vedette-gates-* rebuild directory);
 	// execRun kills the command's process group. After the first signal the default comes back: a second Ctrl-C ends a step that
 	// is not waiting on ctx.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 	context.AfterFunc(ctx, stop)
 	switch args[0] {

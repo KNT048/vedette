@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -123,7 +125,16 @@ func gatesRig(t *testing.T, bin []byte) (gatesOpts, *gatesFake) {
 	for _, arch := range debArchs {
 		fakeDeb(t, filepath.Join(dir, "vedette-host_0.2.0_"+arch+".deb"), bin)
 	}
-	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir()},
+	// what make vuln-scan and make sbom (RELEASE=1) leave: a trivy report and an SBOM of each platform image
+	vuln, sbom := t.TempDir(), t.TempDir()
+	for _, local := range localNames {
+		for _, arch := range []string{"amd64", "arm64"} {
+			writeJSON(t, filepath.Join(vuln, local+"-"+arch+".json"), map[string]any{"SchemaVersion": 2, "ArtifactType": "container_image",
+				"Metadata": map[string]any{"ImageID": "sha256:" + cfgID(local, arch), "DiffIDs": []string{digestOf("layer")}}, "Results": []any{}})
+			writeSBOM(t, filepath.Join(sbom, local+"-"+arch+".cdx.json"), "sha256:"+cfgID(local, arch))
+		}
+	}
+	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir(), VulnDir: vuln, SBOMDir: sbom},
 		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc"}
 }
 
@@ -204,15 +215,41 @@ func TestGatesPassInOrder(t *testing.T) {
 }
 
 // A timeout or Ctrl-C kills the whole process group of a command (make host-deb's go build and nfpm), not only its first process:
-// here the grandchild sleep holds the output pipe, so without the group kill execRun would wait for it (or for WaitDelay, 10 s).
+// the grandchild sleep must be gone afterwards (state, not elapsed time; D-373: a 30 s bound on a hang).
 func TestExecRunKillsTheGroup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	start := time.Now()
-	_, err := execRun(ctx, "sh", "-c", "sleep 30 & wait")
-	if err == nil || time.Since(start) > 5*time.Second {
-		t.Fatalf("returned %v after %v", err, time.Since(start))
+	ctx, cancel := context.WithCancel(context.Background())
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	// poll calls done every 50 ms for at most 30 s and says whether it returned true
+	poll := func(done func() bool) bool {
+		tick := time.NewTicker(50 * time.Millisecond)
+		defer tick.Stop()
+		for range 600 {
+			if done() {
+				return true
+			}
+			<-tick.C
+		}
+		return false
 	}
+	go func() { // cancel once the grandchild exists
+		defer cancel()
+		poll(func() bool { b, _ := os.ReadFile(pidFile); return len(b) > 0 && b[len(b)-1] == '\n' }) //nolint:gosec // the test's own temporary file
+	}()
+	if _, err := execRun(ctx, "sh", "-c", `sleep 60 & echo $! > "$1"; wait`, "sh", pidFile); err == nil {
+		t.Fatal("a cancelled command reported success")
+	}
+	b, err := os.ReadFile(pidFile) //nolint:gosec // the test's own temporary file
+	must(t, err)
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	must(t, err)
+	if poll(func() bool { // init reaps the killed sleep; a zombie is dead too
+		st, _ := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+		return errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) || strings.Contains(string(st), ") Z ")
+	}) {
+		return
+	}
+	_ = syscall.Kill(pid, syscall.SIGKILL)
+	t.Fatalf("the grandchild %d outlived the cancel", pid)
 }
 
 func mustJSON(t *testing.T, v any) []byte {
@@ -316,6 +353,15 @@ func TestGatesRefuse(t *testing.T) {
 				delete(m, minSequenceLabel)
 				return m
 			}
+		}, false},
+		{"vuln-scan read another image", `localhost/vedette-sensor:0.2.0 linux/arm64: vulnerability report`, func(o *gatesOpts, _ *gatesFake) {
+			writeJSON(t, filepath.Join(o.VulnDir, "sensor-arm64.json"), map[string]any{"Metadata": map[string]any{"ImageID": digestOf("before the rebuild")}})
+		}, false},
+		{"no vulnerability report", "make vuln-scan RELEASE=1", func(o *gatesOpts, _ *gatesFake) {
+			must(t, os.Remove(filepath.Join(o.VulnDir, "core-amd64.json")))
+		}, false},
+		{"sbom of another image", `localhost/vedette-scan-base:0.2.0 linux/amd64: SBOM scan-base-amd64.cdx.json is of image`, func(o *gatesOpts, _ *gatesFake) {
+			writeSBOM(t, filepath.Join(o.SBOMDir, "scan-base-amd64.cdx.json"), digestOf("before the rebuild"))
 		}, false},
 		{"deb built with another floor", "is not what this commit builds with MIN_SEQUENCE=1", func(_ *gatesOpts, g *gatesFake) { g.rebuilt = other }, true},
 	} {

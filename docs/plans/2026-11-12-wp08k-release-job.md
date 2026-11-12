@@ -52,8 +52,12 @@ Only when every check passed does the final run write **`dist/release/gates.json
 floor, per `.deb` arch its file name, SHA-256 and size (of the bytes compared with the rebuild), and per image and platform the
 **config digest** (podman's image ID) of the platform image it read. The config digest is the identity the rest of the chain already
 uses (push compares it with a list already in the registry, `images.json` records it, part C requires each SBOM's trivy `ImageID` to
-equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image). A
-final run removes an earlier `gates.json` first, so a failed run never leaves a previous pass; `-preflight` writes and removes nothing.
+equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image).
+Before writing it, the run also requires the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`) and the SBOM
+`dist/sbom/<local>-<arch>.cdx.json` (`aquasecurity:trivy:ImageID`) of every platform to be of that same config digest, so a
+`make images` during the scans is refused rather than recorded. The first line of `make release-gates` removes an earlier
+`gates.json` (and the Go step does too), so a run that fails at any step, the scans included, never leaves a previous pass;
+`-preflight` itself writes and removes nothing. Decision: D-460.
 Steps 4, 5 and 8 read it strictly (known fields only, both packages and the four images once each) and refuse when it is missing, of
 another version, or names other bytes: "run make release-gates again". A `make images` or `make host-deb` between step 3 and steps
 4–8 is therefore caught, not shipped (step 8 checks the hashes the manifest names, so bake-install and publish, which compare with
@@ -66,7 +70,8 @@ the manifest, the cosign identity and `vedette.env` all call it `scan`, and the 
    (default linux/amd64 + linux/arm64); `podman images --all --format json` gives each platform image's ID (its config digest), size
    and labels, and every platform must carry `org.opencontainers.image.version=<v>` and have the config digest `gates.json` records
    (`-gates`, default `<out>/gates.json`; a missing record or one of another version is refused). All four lists are read and compared
-   before anything is pushed.
+   before anything is pushed, and each list is read again (local storage only) right after its own push: podman pushes whatever the
+   name holds at that moment, so a `make images` during the push is refused and nothing is written to `images.json`.
 2. Refuses when a **local** image is named `ghcr.io/knt048/vedette-<service>:<v>`: podman resolves a name in local storage first and
    has no `docker://` form for `manifest inspect` (measured, podman 5.7), so the read-back below would read the local copy.
 3. Is `…:<v>` already in the registry (`podman manifest inspect`, with podman's login)? "manifest unknown" → push. Present → read it
@@ -240,4 +245,4 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
 - **Rehearsing** steps 1–5 is as strict as a release (no bypass, no rehearsal record): in a scratch full clone, tag a real SemVer
   version locally (`git tag v9.9.0`, never pushed), run steps 1–3 with `MIN_SEQUENCE=0` (a first release), then
   `make release-push VERSION=9.9.0 REGISTRY=127.0.0.1:<port>` against a local `registry:2`. `release-in` refuses the rehearsal's
-  `images.json` by design.
+  `images.json` by design (D-460, which replaces the rehearsal part of D-457).

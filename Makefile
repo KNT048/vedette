@@ -386,10 +386,12 @@ notices-check:
 # verified sequence of that index, checked again by `release gates` since make lets a MIN_SEQUENCE from the environment win; MIN_SEQUENCE=0
 # for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset).
 # Only when all of it passed does `release gates` write $(RELEASE_OUT)/gates.json (each .deb's sha256 and size, each image platform's
-# config digest); it removes an earlier one first. release-push, release-in and release-manifest refuse anything that differs from it.
+# config digest, which the trivy report in dist/vuln and the SBOM in dist/sbom must name too); the first line removes an earlier one, so
+# a failing step leaves none (D-460). release-push, release-in and release-manifest refuse anything that differs from it.
 .PHONY: release-gates
 RELEASE_GATES_ARGS = -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' $(if $(RELEASE_PREV_INDEX),-prev-index '$(RELEASE_PREV_INDEX)') $(RELEASE_KEYS_ARG)
 release-gates: check-min-sequence
+	rm -f '$(RELEASE_OUT)/gates.json'
 	@test "$(CONTAINER)" = podman || { echo "release-gates: reads the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
 	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "release-gates: the release floor is the sequence of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "release-gates: VERSION must be SemVer without v (VERSION=1.0.0), got '$(VERSION)'" >&2; exit 1; }
@@ -397,7 +399,7 @@ release-gates: check-min-sequence
 	$(MAKE) --no-print-directory vuln-scan IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
 	$(MAKE) --no-print-directory sbom IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
 	$(MAKE) --no-print-directory notices-check MIN_SEQUENCE='$(MIN_SEQUENCE)'
-	GOFLAGS= $(RELEASE_GO) gates $(RELEASE_GATES_ARGS) -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)' -out $(RELEASE_OUT)
+	GOFLAGS= $(RELEASE_GO) gates $(RELEASE_GATES_ARGS) -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)' -out '$(RELEASE_OUT)'
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:

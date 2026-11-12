@@ -383,6 +383,11 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 			if digest, err = pushList(ctx, run, tls, local, repo+":"+o.Version, o.Out); err != nil {
 				return nil, err
 			}
+			// podman pushed the list it found under the name at push time (up to 30 min after the check above): it must still be
+			// the gated images, or the registry now holds others than images.json would record. Local storage only, no registry read.
+			if err := samePlatforms(ctx, run, local, lp, gates, im.service, o.Platforms); err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("does %s:%s exist? %w", repo, o.Version, err)
 		}
@@ -418,6 +423,30 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		say(stdout, "in the registry and read back: %s@%s (%s)", repo, digest, strings.Join(o.Platforms, ", "))
 	}
 	return doc, nil
+}
+
+// samePlatforms reads a local list again after its push and refuses when a platform image is not the one checked before the push
+// (lp, which the gates record names): a make images ran during the push.
+func samePlatforms(ctx context.Context, run runFunc, local string, lp []localPlatform, gates *GatesDoc, service string, want []string) error {
+	again, err := localPlatforms(ctx, run, local, want)
+	if err != nil {
+		return err
+	}
+	now := map[string]string{}
+	for _, p := range again {
+		now[p.Platform] = p.Config
+	}
+	err = gates.checkImage(service, local, now)
+	same := func(a, b localPlatform) bool {
+		return a.Platform == b.Platform && a.Digest == b.Digest && a.Config == b.Config
+	}
+	if err == nil && !slices.EqualFunc(again, lp, same) {
+		err = errors.New("its platform manifests are not the ones read before the push")
+	}
+	if err != nil {
+		return fmt.Errorf("%s: the local list changed during the push (%w); nothing is written to images.json; run make release-gates VERSION=%s again, then release-push (the same images are reused, others are refused)", local, err, gates.Version)
+	}
+	return nil
 }
 
 // pushList pushes a local list to dest (repo:tag) with every image (--all) and gzip layers (what every podman and Docker on a box

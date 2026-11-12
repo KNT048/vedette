@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"debug/buildinfo"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +51,41 @@ type gatesOpts struct {
 	Rules       BinaryRules
 	Preflight   bool   // only the version, floor and tree checks (make runs them before the long scans); writes nothing
 	Out         string // where the final run writes gates.json, the record push and in compare with (dist/release)
+	VulnDir     string // where make vuln-scan RELEASE=1 wrote the trivy reports <local>-<arch>.json (dist/vuln)
+	SBOMDir     string // where make sbom RELEASE=1 wrote <local>-<arch>.cdx.json (dist/sbom)
+}
+
+// checkVulnReport refuses a trivy JSON report (rel, inside dir) that is missing, not a regular file reached without a symlink, or not
+// of the image whose config digest is config: trivy's Metadata.ImageID, the value it also writes as the SBOM's
+// aquasecurity:trivy:ImageID (checkSBOM; measured there on an OCI layout as podman's image ID).
+func checkVulnReport(dir, rel, config string) error {
+	if err := noSymlinks(dir, rel); err != nil {
+		return fmt.Errorf("vulnerability report %s: %w", rel, err)
+	}
+	p := filepath.Join(dir, rel)
+	fi, err := os.Lstat(p)
+	if err != nil {
+		return fmt.Errorf("vulnerability report: %w (make vuln-scan RELEASE=1 IMAGE_TAG=<version> writes it)", err)
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("vulnerability report %s is not a regular file", p)
+	}
+	raw, err := readSmall(p, maxSBOM)
+	if err != nil {
+		return err
+	}
+	var rep struct {
+		Metadata struct {
+			ImageID string `json:"ImageID"`
+		} `json:"Metadata"`
+	}
+	if err := json.Unmarshal(raw, &rep); err != nil {
+		return fmt.Errorf("vulnerability report %s is not trivy JSON: %w", p, err)
+	}
+	if rep.Metadata.ImageID != config {
+		return fmt.Errorf("vulnerability report %s is of image %q, not %s", p, rep.Metadata.ImageID, config)
+	}
+	return nil
 }
 
 // gatesFile is the record of a passed `release gates` run, next to images.json: what push and in ship must be what it names.
@@ -175,6 +211,14 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 			}
 			if im.local == "core" && p.MinSequence != o.MinSequence {
 				return fmt.Errorf("%s %s was built with MIN_SEQUENCE %q (label %s), the release floor is %s: build the images again with make images IMAGE_TAG=%s IMAGE_VERSION=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only)", name, p.Platform, p.MinSequence, minSequenceLabel, o.MinSequence, o.Version, o.Version)
+			}
+			// vuln-scan and sbom read the lists minutes before this: the record names only images they scanned
+			base := im.local + "-" + strings.TrimPrefix(p.Platform, "linux/")
+			if err := checkVulnReport(o.VulnDir, base+".json", p.Config); err != nil {
+				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
+			}
+			if err := checkSBOM(o.SBOMDir, base+".cdx.json", p.Config); err != nil {
+				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
 			}
 		}
 		rec.Images = append(rec.Images, gi)
@@ -514,11 +558,13 @@ func cmdGates(ctx context.Context, args []string, stdout io.Writer) error {
 	prev := fs.String("prev-index", "", "directory of the published index (RELEASE_PREV_INDEX); omit for the very first release only (then -min-sequence 0)")
 	keys := fs.String("keys-dir", "", "directory with the public keys -prev-index is verified with (default: the keys compiled in)")
 	pre := fs.Bool("preflight", false, "only the version, floor and tree checks (before the long scans); writes nothing")
-	out := fs.String("out", "dist/release", "directory gates.json is written to when every check passed (release push and in read it)")
+	out := fs.String("out", "dist/release", "directory gates.json is written to when every check passed (release push, in and manifest read it)")
+	vulnDir := fs.String("vuln-dir", "dist/vuln", "the trivy reports of make vuln-scan RELEASE=1: each must be of the image recorded")
+	sbomDir := fs.String("sbom-dir", "dist/sbom", "the SBOMs of make sbom RELEASE=1: each must be of the image recorded")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), PrevIndex: *prev, DebDir: *debDir, Repo: *repo, Preflight: *pre, Out: *out}
+	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), PrevIndex: *prev, DebDir: *debDir, Repo: *repo, Preflight: *pre, Out: *out, VulnDir: *vulnDir, SBOMDir: *sbomDir}
 	if *prev != "" {
 		var err error
 		if o.Trust, err = LoadTrust(*keys); err != nil {

@@ -367,6 +367,14 @@ func TestPushRefusals(t *testing.T) {
 		"registry returns other bytes": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-core@", nil, errors.New("Manifest does not match provided manifest digest"))}, want: "read back"},
 		"pushed list has another platform": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-scan@",
 			listJSON(map[string]string{"linux/amd64": digestOf("1"), "linux/arm64": digestOf("2"), "linux/arm64/v8": digestOf("3")}), nil)}, want: "platforms"},
+		// make images rebuilt honeypot while the earlier lists were pushed: podman pushes the new images under the name
+		"a list rebuilt during the push": {rf: registryFake{tweak: func(rf *registryFake, argv []string) ([]byte, error, bool) {
+			if strings.Join(argv, " ") == "podman images --all --format json" && rf.remote["ghcr.io/knt048/vedette-honeypot"] != nil {
+				out, err := localStore("0.2.0")(argv)
+				return []byte(strings.Replace(string(out), cfgID("honeypot", "arm64"), strings.Repeat("9", 64), 1)), err, true
+			}
+			return nil, nil, false
+		}}, want: "localhost/vedette-honeypot:0.2.0: the local list changed during the push (localhost/vedette-honeypot:0.2.0 linux/arm64 is sha256:" + strings.Repeat("9", 64) + " now"},
 		"tag names another list": {rf: registryFake{tweak: func(rf *registryFake, argv []string) ([]byte, error, bool) {
 			if strings.Join(argv, " ") == "podman manifest inspect ghcr.io/knt048/vedette-honeypot:0.2.0" && rf.remote["ghcr.io/knt048/vedette-honeypot"] != nil {
 				return listJSON(both("other")), nil, true

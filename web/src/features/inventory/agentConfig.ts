@@ -46,7 +46,7 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
     return [{
       key: format === 'deb' ? 'installDeb' : 'installRpm', file: format === 'deb' ? 'Debian, Ubuntu (shell)' : 'RHEL, Rocky, AlmaLinux (shell)',
       // Three lines that each stand alone: a copied file (USB) skips the second, the third checks and installs in one command.
-      code: `f=${file}\ncd "$(mktemp -d)" && curl -fSLk ${mirror}/$f -o $f\nprintf '%s\\n' ${sums.join(' ')} | grep " $f\\$" | sha256sum -c - && ${install} $f`,
+      code: `f=${file}\ncd "$(mktemp -d)" && curl -fSLk ${mirror}/$f -o $f\ns=$(printf '%s\\n' ${sums.join(' ')} | grep " $f\\$") && printf '%s\\n' "$s" | sha256sum -c - && ${install} $f`,
     }]
   }
   if (platform === 'linux') {

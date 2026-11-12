@@ -308,7 +308,7 @@ func (s *Service) packages(ctx context.Context) []oas.InventoryGetInventoryAgent
 		h, ok := sums[f.name]
 		size, err := statIn(s.cfg.MirrorDir, f.name)
 		if !ok || err != nil {
-			if s.warnDue(time.Minute, "mirror:package") {
+			if s.warnDue(time.Minute, "mirror:package:"+f.name) {
 				s.cfg.Log.WarnContext(ctx, "agent-intake: an osquery package or its SHA256SUMS line is missing; the agent dialog leaves it out", "file", f.name, "in_sums", ok, "error", err)
 			}
 			continue

@@ -1535,7 +1535,8 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(lines).toHaveLength(3)
     expect(lines[0]).toBe(`f=osquery_${OSQUERY_VERSION}-1.linux_$(dpkg --print-architecture).deb`)
     expect(lines[1]).toBe(`cd "$(mktemp -d)" && curl -fSLk ${BOX}/api/v1/install/osquery/$f -o $f`)
-    expect(lines[2]).toMatch(/^printf '%s\\n' ('[0-9a-f]{64} {2}osquery_\S+\.deb' ){2}\| grep " \$f\\\$" \| sha256sum -c - && sudo dpkg -i \$f$/)
+    // an architecture the box does not serve has no line: grep fails and nothing runs, whatever sha256sum does with empty input
+    expect(lines[2]).toMatch(/^s=\$\(printf '%s\\n' ('[0-9a-f]{64} {2}osquery_\S+\.deb' ?){2}\| grep " \$f\\\$"\) && printf '%s\\n' "\$s" \| sha256sum -c - && sudo dpkg -i \$f$/)
     expect(osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installRpm')!.code).toMatch(/^f=osquery-[\d.]+-1\.linux\.\$\(uname -m\)\.rpm\n[\s\S]*sha256sum -c - && sudo rpm -Uvh \$f$/)
     const msi = osquerySteps('windows', BOX, 't', pkgs).find((s) => s.key === 'install')!.code
     expect(msi).toContain(`curl.exe -fSLk ${BOX}/api/v1/install/osquery/osquery-${OSQUERY_VERSION}.msi`)

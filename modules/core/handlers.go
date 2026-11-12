@@ -67,6 +67,8 @@ type APIHandlers struct {
 	alsoKept   []oas.CorePostCoreDataPurgeOKKeptItem
 	keepRows   []KeepRow
 	freezes    []*store.DB // other databases of the box (logs.db): frozen for the purge, thawed when it fails
+
+	scope SetupScope // the inventory for first-run setup; nil = the ranges stay only in setup.scope
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -113,6 +115,17 @@ type HandlersConfig struct {
 	// DataFiles): each is frozen under its own write lock (so a write in flight finishes first, and nothing is written after) before the
 	// files move, and thawed if the purge fails. After a success they stay frozen until the process stops.
 	AlsoFreeze []*store.DB
+	// Scope is the inventory as far as first-run setup needs it (INV-15): the LAN ranges and the scan commitment of the wizard become
+	// the scope of Devices -> Scope and sensors in the setup's own transaction. nil = a build without the inventory: the ranges stay only
+	// in core_setting setup.scope.
+	Scope SetupScope
+}
+
+// SetupScope is the inventory port of POST /core/setup (INV-15). SetupScope writes inside the setup's transaction tx and may refuse the
+// ranges with an *apierr.Error (the whole setup is then refused); Settle is called once that transaction is over, with whether it committed.
+type SetupScope interface {
+	SetupScope(ctx context.Context, tx *sql.Tx, actor string, lan []string, confirmed bool) error
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
 }
 
 // NewAPIHandlers returns the handlers.
@@ -147,7 +160,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 		}
 		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
 	}
-	h := &APIHandlers{freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	h := &APIHandlers{scope: c.Scope, freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

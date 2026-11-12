@@ -17,18 +17,21 @@ type rule struct {
 // step reads: guard_test.go fails when Go or web code starts reading one (D-140).
 var rules = []rule{
 	// Read by a test, so they come before the broad "none" prefixes below.
-	{"docs/API_CONVENTIONS.md", Result{Go: true}},                     // core/apierr, modules/core codes and connections tests
-	{"docs/specs/host-api.md", Result{Go: true}},                      // modules/host contract tests
-	{"docs/DEPLOYMENT.md", Result{Go: true}},                          // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
-	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                   // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
-	{"modules/core/testdata/", Result{true, true}},                    // chain_vectors.json is a vector for Go and web
-	{"web/src/features/response/templates/", Result{true, true}},      // Go reads the *.sample.json files
-	{"web/src/features/core/testdata/", Result{true, true}},           // Go reads connections_matrix.json and keys/
-	{"web/src/features/core/bundles.ts", Result{true, true}},          // modules/core/handlers_setup_test.go
-	{"web/src/features/inventory/agentConfig.ts", Result{true, true}}, // modules/agent-intake/schedule_test.go: the Go schedule equals the GUI list
-	{"web/src/locales/en/core.json", Result{true, true}},              // modules/core/auditlabels_test.go: every audit action has a label
-	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                      // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
-	{"web/package.json", Result{true, true}},                          // the same check reads the web production dependencies
+	{"docs/API_CONVENTIONS.md", Result{Go: true}},                          // core/apierr, modules/core codes and connections tests
+	{"docs/specs/host-api.md", Result{Go: true}},                           // modules/host contract tests
+	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
+	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
+	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
+	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files
+	{"web/src/features/core/testdata/", Result{true, true}},                // Go reads connections_matrix.json and keys/
+	{"web/src/features/core/bundles.ts", Result{true, true}},               // modules/core/handlers_setup_test.go
+	{"web/src/features/inventory/agentConfig.ts", Result{true, true}},      // modules/agent-intake/schedule_test.go: the Go schedule equals the GUI list
+	{"web/src/features/inventory/installScripts.ts", Result{true, true}},   // modules/agent-intake/install_test.go: the served scripts and OSQUERY_VERSION equal the GUI's
+	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template
+	{"web/src/features/inventory/scripts/osquery.ps1", Result{true, true}}, // the same
+	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
+	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
+	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 
 	// No test reads these.
 	{".ai/", Result{}},
@@ -94,20 +97,24 @@ func ClassifyAll(paths []string) Result {
 	return out
 }
 
-// Outputs are the job switches CI reads.
-type Outputs struct{ Go, Web, Vuln, Audit bool }
+// Outputs are the job switches CI reads: Go is go-static and go-release, Tests is go-test.
+type Outputs struct{ Go, Tests, Web, Vuln, Audit bool }
 
 // Decide maps the event and the changed paths to job switches. diffOK is false when the diff could not be
-// computed; then everything runs. Only pull requests are narrowed: push, workflow_dispatch and any unknown
-// event run everything; the daily schedule runs only the two vulnerability scans.
+// computed; then everything runs. A pull request is narrowed by its paths. A push to main runs only go-test (D-365):
+// the merge queue already ran every job on that exact tree, and the push run is what saves main's Go test cache, the
+// only cache pull requests and the queue can restore. The daily schedule runs everything, uncached and shuffled
+// (ci.yml passes -count=2 -shuffle=on), plus both vulnerability scans. workflow_dispatch, merge_group and any unknown event run everything.
 func Decide(event string, changed []string, diffOK bool) Outputs {
 	switch {
 	case event == "schedule":
-		return Outputs{Vuln: true, Audit: true}
+		return Outputs{Go: true, Tests: true, Web: true, Vuln: true, Audit: true}
+	case event == "push":
+		return Outputs{Tests: true}
 	case event == "pull_request" && diffOK:
 		c := ClassifyAll(changed)
-		return Outputs{Go: c.Go, Web: c.Web, Vuln: c.Go}
+		return Outputs{Go: c.Go, Tests: c.Go, Web: c.Web, Vuln: c.Go}
 	default:
-		return Outputs{Go: true, Web: true, Vuln: true}
+		return Outputs{Go: true, Tests: true, Web: true, Vuln: true}
 	}
 }

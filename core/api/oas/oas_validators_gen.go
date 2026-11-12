@@ -1761,8 +1761,15 @@ func (s *AiGetAiLogsDigestOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Digest.Validate(); err != nil {
-			return err
+		if value, ok := s.Digest.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -2427,6 +2434,8 @@ func (s AiGetAiRunsOKItemsItemStatus) Validate() error {
 	case "schema_error":
 		return nil
 	case "capped":
+		return nil
+	case "failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

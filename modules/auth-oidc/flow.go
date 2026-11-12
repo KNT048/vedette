@@ -56,6 +56,12 @@ func rateLimited(wait time.Duration) *apierr.Error {
 	return apierr.New(429, "rate_limited", fmt.Sprintf("Too many SSO sign-in attempts from this address. Try again in %d minutes.", max(1, (secs+59)/60))).With("retry_after", secs)
 }
 
+// busy is the refusal of a start when the box's budget is used up: not this address's fault, so it says what still works.
+func busy(wait time.Duration) *apierr.Error {
+	secs := max(1, int(math.Ceil(wait.Seconds())))
+	return apierr.New(429, "rate_limited", fmt.Sprintf("Too many SSO sign-ins are starting on this box right now. Try again in %d minutes, or sign in with your email and password.", max(1, (secs+59)/60))).With("retry_after", secs)
+}
+
 // token is 32 random bytes, base64url without padding (256 bits: state, binding, nonce).
 func token() (string, error) {
 	b := make([]byte, 32)
@@ -73,7 +79,13 @@ type Started struct{ AuthorizeURL, Binding string }
 // Start begins a sign-in (D-194, INV-5, INV-6): origin is scheme://host of the request; it must be the origin of the pinned
 // redirect URI (409 sso_wrong_address). The flow is stored with SHA-256 of state and binding; the page keeps the binding.
 func (s *Service) Start(ctx context.Context, origin string, ip netip.Addr) (Started, error) {
-	if ok, wait := s.limit.allow(limitKey("start", ip)); !ok {
+	if ok, wait, site := s.limit.allowStart(ip); !ok {
+		if site {
+			if s.limit.warnBudget() {
+				s.log.WarnContext(ctx, "SSO sign-in starts refused: the box's budget of starts is used up (a flood of starts from many addresses?)", "budget", startBudget)
+			}
+			return Started{}, busy(wait)
+		}
 		return Started{}, rateLimited(wait)
 	}
 	c, err := s.load(ctx)
@@ -165,7 +177,7 @@ type CallbackRequest struct {
 // is verified (signature with the issuer's keys, alg, iss, aud, azp, exp, nonce); the groups give the role; core/auth signs the
 // person in. An unknown state answers sso_expired and writes nothing (anyone can send one, INV-5); every other refusal is audited.
 func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued, error) {
-	if ok, wait := s.limit.allow(limitKey("callback", in.IP)); !ok {
+	if ok, wait := s.limit.allow(limitKey("callback", in.IP), limitN, limitWindow); !ok {
 		return auth.Issued{}, rateLimited(wait)
 	}
 	c, err := s.load(ctx)

@@ -42,6 +42,7 @@ type host struct {
 	hostname string
 	ports    []portInfo // open ports only
 	matches  []osMatch
+	timedOut bool // nmap gave up on the host (--host-timeout): it printed no port table, so ports says nothing
 }
 
 type portInfo struct {
@@ -174,7 +175,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 				if len(hosts) >= maxXMLHosts {
 					return nil, fmt.Errorf("%w: too many hosts", errXMLInvalid)
 				}
-				cur, up = &host{}, false
+				cur, up = &host{timedOut: a["timedout"] == "true"}, false
 			case "nmaprun/host/status":
 				up = cur != nil && a["state"] == "up"
 			case "nmaprun/host/address":

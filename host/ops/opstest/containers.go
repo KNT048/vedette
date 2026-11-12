@@ -81,9 +81,8 @@ func (m *Machine) Deadlocked() []string {
 func (m *Machine) StatefulContainers() {
 	m.t.Helper()
 	root := "ROOT='" + m.Root + "'; STATE='" + m.State + "'; CORE='" + m.CoreData + "'\n"
-	m.writeFakeWith("systemctl", root+`S="$REC/ctr"; mkdir -p "$S"
-svc="${2#vedette-}"; svc="${svc%.service}"
-ls "$STATE"/containers/transition-*.json >/dev/null 2>&1 && echo "$1 $2" >> "$S/withjournal"
+	m.writeFakeWith("systemctl", root+ctrHelpers+`svc="${2#vedette-}"; svc="${svc%.service}"
+for f in "$STATE"/containers/transition-*.json; do [ -e "$f" ] && { echo "$1 $2" >> "$S/withjournal"; break; }; done
 case "$1" in
   daemon-reload)
     [ -e "$REC/mark.reload-fails" ] && exit 1
@@ -95,13 +94,12 @@ case "$1" in
     if [ -e "$REC/mark.host-starting" ] && grep -q '^After=.*vedette-host.service' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null; then
       echo "$svc" >> "$S/deadlocked"; exit 1
     fi
-    ud=$(sed -n 's/^Image=.*@\(sha256:[0-9a-f]*\)$/\1/p' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null)
-    [ -n "$ud" ] || ud=$(sed -n 's/^Image=\([0-9a-f]\{64\}\)$/sha256:\1/p' "$ROOT/etc/containers/systemd/vedette-$svc.container" 2>/dev/null)
+    unitdigest "$ROOT/etc/containers/systemd/vedette-$svc.container"; ud=$digest
     echo "$svc backups=$(ls "$STATE"/backups/*.tar.gz 2>/dev/null | wc -l | tr -d ' ') db=$(head -n 1 "$CORE/vedette.db" 2>/dev/null) digest=$ud" >> "$S/at-restart"
     [ "$svc" = core ] && [ -e "$REC/mark.migrate-db" ] && [ "$(cat "$REC/mark.migrate-db")" = "$ud" ] && printf 'db: migrated' > "$CORE/vedette.db"
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
-    echo $(( $(cat "$S/$svc.gen" 2>/dev/null || echo 0) + 1 )) > "$S/$svc.gen"
+    readone "$S/$svc.gen" 0; echo $((one + 1)) > "$S/$svc.gen"
     [ -e "$REC/mark.lock-containers" ] && chmod 500 "$STATE/containers"
     [ -e "$REC/mark.plant-aside-dir" ] && { rm -f "$CORE/vedette.db.rollback"; mkdir -p "$CORE/vedette.db.rollback"; }
     ;;
@@ -113,7 +111,7 @@ case "$1" in
     [ -e "$REC/mark.start-fails" ] && exit 1
     cp "$ROOT/etc/containers/systemd/vedette-$svc.container" "$S/$svc.unit" 2>/dev/null
     : > "$S/$svc.running"; : > "$S/$svc.active"
-    echo $(( $(cat "$S/$svc.gen" 2>/dev/null || echo 0) + 1 )) > "$S/$svc.gen"
+    readone "$S/$svc.gen" 0; echo $((one + 1)) > "$S/$svc.gen"
     ;;
   is-active)
     if [ -e "$S/$svc.active" ]; then echo active; exit 0; fi
@@ -124,20 +122,37 @@ esac
 	m.writeFakeWith("podman", containerPodman)
 }
 
+// ctrHelpers starts the container fakes with shell builtins only: every fork of these fakes runs under a -race test
+// binary's waitid, and the fakes are called on every health look. unitdigest sets digest from the Image= line of a
+// unit as the old sed pair did (Image=...@sha256:<hex>, else Image=<64 hex> as sha256:<hex>, else empty); readone
+// sets one to the first line of a file, or to the default when the file is missing.
+const ctrHelpers = `S="$REC/ctr"; [ -d "$S" ] || mkdir -p "$S"
+unitdigest() {
+  digest=""; d2=""
+  [ -r "$1" ] || return 0
+  while IFS= read -r l || [ -n "$l" ]; do
+    case $l in
+      Image=*@sha256:*) h=${l##*@sha256:}; case $h in *[!0-9a-f]*) ;; *) [ -n "$digest" ] || digest="sha256:$h" ;; esac ;;
+      Image=*) h=${l#Image=}; case $h in *[!0-9a-f]*) ;; *) [ ${#h} -eq 64 ] && [ -z "$d2" ] && d2="sha256:$h" ;; esac ;;
+    esac
+  done < "$1"
+  [ -n "$digest" ] || digest=$d2
+}
+readone() { one=$2; [ -r "$1" ] || return 0; IFS= read -r one < "$1" || [ -n "$one" ]; }
+`
+
 // containerPodman is the part of the fake podman that answers "container inspect".
-const containerPodman = `S="$REC/ctr"; mkdir -p "$S"
-svc="${3#vedette-}"
+const containerPodman = ctrHelpers + `svc="${3#vedette-}"
 [ -e "$S/$svc.raw" ] && { cat "$S/$svc.raw"; exit 0; }
 [ -e "$S/$svc.running" ] || { echo "Error: no such container $3" >&2; exit 125; }
-digest=$(sed -n 's/^Image=.*@\(sha256:[0-9a-f]*\)$/\1/p' "$S/$svc.unit")
-[ -n "$digest" ] || digest=$(sed -n 's/^Image=\([0-9a-f]\{64\}\)$/sha256:\1/p' "$S/$svc.unit")
+unitdigest "$S/$svc.unit"
 health=healthy
-[ -e "$S/$svc.health" ] && health=$(cat "$S/$svc.health")
+[ -e "$S/$svc.health" ] && readone "$S/$svc.health" "" && health=$one
 if [ -s "$S/$svc.seq" ]; then
-  health=$(head -n 1 "$S/$svc.seq"); tail -n +2 "$S/$svc.seq" > "$S/$svc.seq.tmp"; mv "$S/$svc.seq.tmp" "$S/$svc.seq"
+  { IFS= read -r health; while IFS= read -r l || [ -n "$l" ]; do printf '%s\n' "$l"; done; } < "$S/$svc.seq" > "$S/$svc.seq.tmp"; mv "$S/$svc.seq.tmp" "$S/$svc.seq"
 fi
 [ -e "$S/bad.$digest" ] && health=unhealthy
-gen=$(cat "$S/$svc.gen" 2>/dev/null || echo 0)
+readone "$S/$svc.gen" 0; gen=$one
 cid=$(printf '%064x' "$gen"); started=$(printf '2026-11-11T00:00:00.%09dZ' "$gen")
 printf '[{"Name":"%s","Id":"%s","ImageDigest":"%s","Image":"%s","State":{"Status":"running","Running":true,"StartedAt":"%s","Health":{"Status":"%s"}}}]\n' "$3" "$cid" "$digest" "${digest#sha256:}" "$started" "$health"
 `
@@ -271,7 +286,7 @@ func (m *Machine) StatefulImages() {
 }
 
 // imagePodman is the part of the fake podman that answers pull, image inspect, image ls, tag and rmi.
-const imagePodman = `S="$REC/img"; mkdir -p "$S"
+const imagePodman = `S="$REC/img"; [ -d "$S" ] || mkdir -p "$S"
 id=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 key() { echo "$1" | tr '/:@' '___'; }
 case "$1" in

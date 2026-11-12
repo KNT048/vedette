@@ -46,11 +46,17 @@ var (
 	inv14PathFns = []string{"openCore", "checkChain", "checkParents"}
 )
 
-// inv14Violations type-checks one package and returns what breaks the three rules.
-func inv14Violations(t *testing.T, fset *token.FileSet, files []*ast.File) []string {
+// inv14Importer type-checks imports from source. One per test, shared by its calls: it caches what it has loaded, and loading
+// os, syscall and x/sys/unix again for each call was most of the test's time (under -race). Not safe for concurrent use.
+func inv14Importer(fset *token.FileSet) types.Importer {
+	return importer.ForCompiler(fset, "source", nil)
+}
+
+// inv14Violations type-checks one package and returns what breaks the three rules. fset is the one imp was made with.
+func inv14Violations(t *testing.T, fset *token.FileSet, imp types.Importer, files []*ast.File) []string {
 	t.Helper()
 	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
-	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil), Error: func(error) {}} // an import that cannot load still yields a package path
+	conf := types.Config{Importer: imp, Error: func(error) {}} // an import that cannot load still yields a package path
 	_, _ = conf.Check("ops", fset, files, info)
 
 	isHandle := func(typ types.Type) bool {
@@ -132,7 +138,7 @@ func TestContract_INV14_NoPathBasedOperationsOnCoresTreeInHostOps(t *testing.T) 
 	if len(files) < 10 {
 		t.Fatalf("only %d host/ops files checked", len(files))
 	}
-	for _, v := range inv14Violations(t, fset, files) {
+	for _, v := range inv14Violations(t, fset, inv14Importer(fset), files) {
 		t.Error(v)
 	}
 }
@@ -183,24 +189,24 @@ var (
 
 func (o *Ops) f(t *coreTree) {
 `
+	fset := token.NewFileSet()
+	imp := inv14Importer(fset)
 	for what, stmt := range forms {
-		fset := token.NewFileSet()
 		f, err := parser.ParseFile(fset, "coredata.go", prelude+"\t"+stmt+"\n}\n", parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
 		}
-		if len(inv14Violations(t, fset, []*ast.File{f})) == 0 {
+		if len(inv14Violations(t, fset, imp, []*ast.File{f})) == 0 {
 			t.Errorf("INV-14 scanner reports nothing for: %s", what)
 		}
 	}
 	// And the allowed shapes stay allowed: descriptor and handle calls report nothing.
 	ok := prelude + "\t_, _ = t.root.Open(\"vedette.db\")\n\t_ = t.root.Rename(\"a\", \"b\")\n\t_ = syscall.Close(fd)\n}\n"
-	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "coredata.go", ok, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v := inv14Violations(t, fset, []*ast.File{f}); len(v) != 0 {
+	if v := inv14Violations(t, fset, imp, []*ast.File{f}); len(v) != 0 {
 		t.Errorf("handle and descriptor calls were reported: %v", v)
 	}
 }

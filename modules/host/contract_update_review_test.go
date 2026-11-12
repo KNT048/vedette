@@ -325,7 +325,7 @@ func TestContract_Update_AFailedRevertIsRetriedByItselfOnceTheRunHasReleasedTheL
 		r, err := e.call(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "manual", Snapshot: e.snap()})
 		var ce *client.Error
 		if errors.As(err, &ce) && ce.Code == api.CodeBusy && time.Now().Before(deadline) {
-			time.Sleep(5 * time.Millisecond)
+			<-time.After(5 * time.Millisecond)
 			continue
 		}
 		if err != nil || r.Status != api.StatusSucceeded {

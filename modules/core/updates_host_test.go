@@ -49,13 +49,7 @@ func (e *runEnv) hostPackagesLeft(t *testing.T) []string {
 // waitNoPackages waits for the run's cleanup: the run reads "done" a moment before the package is removed.
 func (e *runEnv) waitNoPackages(t *testing.T) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
-	for len(e.hostPackagesLeft(t)) != 0 {
-		if time.Now().After(deadline) {
-			t.Fatalf("packages left = %v", e.hostPackagesLeft(t))
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	eventuallyOS(t, "the host package to be removed", func() bool { return len(e.hostPackagesLeft(t)) == 0 })
 }
 
 func componentOf(r reply, id string) map[string]any {

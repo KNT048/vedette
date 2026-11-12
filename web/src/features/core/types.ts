@@ -33,6 +33,7 @@ export type UpdateChannel = z.infer<typeof C.UpdateChannel>
 export type UpdateComponent = z.infer<typeof C.UpdateComponent>
 export type UpdateAvailable = z.infer<typeof C.UpdateAvailable>
 export type UpdateHistory = z.infer<typeof C.UpdateHistory>
+export type UpdateRun = z.infer<typeof C.UpdateRun>
 export type Advisory = z.infer<typeof C.Advisory>
 export type ManagedPackage = z.infer<typeof C.ManagedPackage>
 export type MaintenanceWindow = z.infer<typeof C.MaintenanceWindow>

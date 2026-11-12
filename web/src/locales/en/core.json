@@ -283,7 +283,9 @@
         "settings": "Change update settings",
         "check": "Check for updates",
         "apply": "Install update",
+        "apply_done": "Software update finished",
         "rollback": "Roll back",
+        "rollback_done": "Roll back finished",
         "bundle_export": "Export bundle",
         "bundle_import": "Import bundle"
       },
@@ -555,7 +557,10 @@
       "title": "Roll {{name}} back?",
       "body": "Change from {{from}} back to {{to}}.",
       "manual": "The box switches to manual updates so it does not climb back to the old build. Turn automatic on again on this page when you want.",
-      "confirm": "Roll back"
+      "confirm": "Roll back",
+      "dataLoss": "Data written since the update is lost.",
+      "dataLossWhy": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update. Findings, logs and settings changed since then are gone.",
+      "dataLossOk": "I understand that data written since the update is lost."
     },
     "advisories": "Vedette security advisories",
     "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix. The box tells administrators when a new one appears.",
@@ -741,6 +746,48 @@
         "warn": "Vedette does not do this for you. A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
       },
       "checkNow": "Check now"
+    },
+    "run": {
+      "title": {
+        "update": {
+          "running": "Updating {{name}} to {{version}}",
+          "done": "{{name}} updated to {{version}}",
+          "failed": "Update of {{name}} to {{version}} failed",
+          "reverted": "Update to {{version}} did not start; back on {{from}}"
+        },
+        "rollback": {
+          "running": "Rolling {{name}} back to {{version}}",
+          "done": "{{name}} rolled back to {{version}}",
+          "failed": "Rollback of {{name}} to {{version}} failed",
+          "reverted": "Rollback to {{version}} did not start; back on {{from}}"
+        }
+      },
+      "status": {
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed",
+        "reverted": "Went back"
+      },
+      "stepOf": "Step {{n}} of {{total}}:",
+      "step": {
+        "download": "download and check the signed images",
+        "start": "start the sensor, scan and decoy parts",
+        "restart": "restart Vedette and check it is healthy",
+        "restore": "put back the database saved before the update"
+      },
+      "stepDone": "(done)",
+      "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
+      "reconnecting": "Reconnecting to Vedette…",
+      "failedToast": {
+        "update": "The update did not finish. The audit log says where it stopped.",
+        "rollback": "The rollback did not finish. The audit log says where it stopped."
+      },
+      "revertedToast": {
+        "update": "The new build did not start correctly, so the box went back to {{from}}.",
+        "rollback": "The older build did not start correctly, so the box went back to {{from}}."
+      },
+      "reload": "Reload",
+      "reloadWhy": "This page still runs the code of the build before. Reload it to use the new one."
     }
   },
   "privacy": {

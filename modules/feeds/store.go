@@ -701,8 +701,8 @@ type iocInput struct {
 
 // iocChunkRows is how many listings one write transaction stores. The writer is one connection shared by the
 // whole box, so a 250 000-row list in one transaction stalled every other write for ~20 s; between chunks a
-// waiting write gets the connection.
-const iocChunkRows = 2000
+// waiting write gets the connection. A var only so that the package's tests run with smaller chunks (TestMain).
+var iocChunkRows = 2000
 
 // applyIOCs stores the full listing of one feed: every indicator it lists now, with the other feeds' listings
 // of the same value merged in, and drops the feed's listings that vanished. It returns how many listings were
@@ -780,7 +780,7 @@ SELECT ioc_id FROM feeds_ioc_source WHERE source_id = ?1 AND last_seen <> ?2 LIM
 			}
 			n, _ := res.RowsAffected()
 			removed += int(n)
-			if last = n < iocChunkRows; !last {
+			if last = n < int64(iocChunkRows); !last {
 				return nil
 			}
 			after, err := count(tx)

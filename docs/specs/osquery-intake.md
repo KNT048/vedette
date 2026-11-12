@@ -169,7 +169,7 @@ sequenceDiagram
 | Dòng/kiểu `result` lạ | bỏ, đếm, hiện ở trang Agents |
 | Thân quá lớn | `413` |
 
-Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **ba tệp** liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
+Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **năm tệp gói + `SHA256SUMS`** (sáu tên cố định, agent-intake INV-17 (d), D-399) liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
 
 ## 10. Cân nhắc bảo mật (ánh xạ SYS)
 

@@ -1,0 +1,42 @@
+[Unit]
+Description=Vedette core
+After=network-online.target vedette-host.service
+Wants=network-online.target
+
+[Container]
+ContainerName=vedette-core
+HostName=vedette
+Image=ghcr.io/knt048/vedette-core@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Pull=never
+Network=vedette-int.network
+PublishPort=8443:8443
+PublishPort=127.0.0.1:8444:8444
+PublishPort=514:5514/udp
+PublishPort=514:5514/tcp
+PublishPort=6514:5515/tcp
+Volume=/var/lib/vedette:/var/lib/vedette
+Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
+Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec
+Volume=/run/vedette:/run/vedette
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
+ReadOnly=true
+Tmpfs=/tmp:size=64m
+NoNewPrivileges=true
+DropCapability=ALL
+User=10001:10002
+LogDriver=journald
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add=10004
+Environment=GOMEMLIMIT=1800MiB
+HealthCmd=["/vedette","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=60s
+HealthRetries=3
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

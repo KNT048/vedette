@@ -36,8 +36,13 @@ type Config struct {
 	Source  Source
 	Modules Enabler
 	// Listen is the address of the MCP endpoint. It must be a loopback address (INV-5, FORBID-4); the zero value is DefaultListen.
-	// Port 0 picks a free port (tests).
+	// Port 0 picks a free port (tests). In a container (InContainer) it may also be the unspecified address, 0.0.0.0 or [::].
 	Listen netip.AddrPort
+	// InContainer says the process runs in its own container network namespace, whose unit publishes the port on the host's
+	// 127.0.0.1 only (D-395): the core Quadlet unit and the container-only compose.yaml. The runtime forwards that publish to the
+	// container's own address, never to its loopback, so there the listener takes the unspecified address of the container's
+	// namespace, which is not the LAN; the endpoint shown stays http://127.0.0.1:<port>/mcp, the host's side of the publish.
+	InContainer bool
 	// Version is the build's version, sent as serverInfo.
 	Version string
 }
@@ -69,7 +74,7 @@ func New(cfg Config) (*Service, error) {
 	if !cfg.Listen.IsValid() {
 		cfg.Listen = DefaultListen
 	}
-	if !cfg.Listen.Addr().IsLoopback() {
+	if !cfg.Listen.Addr().IsLoopback() && (!cfg.InContainer || !cfg.Listen.Addr().IsUnspecified()) {
 		return nil, fmt.Errorf("mcpserver: listen address %s is not a loopback address: the MCP server only listens on this machine (INV-5)", cfg.Listen)
 	}
 	if cfg.Clock == nil {
@@ -90,13 +95,18 @@ func (s *Service) Listening() (bool, error) {
 	return s.srv != nil, s.srvErr
 }
 
-// Endpoint is the address agents use, and bind its listen address: the running listener's when there is one.
+// Endpoint is the address agents use, and bind its listen address: the running listener's when there is one. A listener on the
+// unspecified address of a container is reached through the host's 127.0.0.1 publish of the same port (D-395), so that is what it
+// reports.
 func (s *Service) Endpoint() (bind netip.AddrPort, url string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	bind = s.listen
 	if s.bound.IsValid() {
 		bind = s.bound
+	}
+	if bind.Addr().IsUnspecified() {
+		bind = netip.AddrPortFrom(DefaultListen.Addr(), bind.Port())
 	}
 	return bind, "http://" + bind.String() + "/mcp"
 }

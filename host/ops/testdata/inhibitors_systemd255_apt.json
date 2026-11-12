@@ -1,0 +1,1 @@
+{"type":"a(ssssuu)","data":[[["sleep","ModemManager","ModemManager needs to reset devices","delay",0,870],["shutdown","APT","APT is installing or removing packages","block",0,5068],["shutdown","Unattended Upgrades Shutdown","Stop ongoing upgrades or perform upgrades before shutdown","delay",0,838]]]}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -32,7 +33,7 @@ func mcpService(d deps) (*mcpserver.Service, error) {
 	if s := mcpServices[d.Reg]; s != nil {
 		return s, nil
 	}
-	s, err := mcpserver.New(mcpserver.Config{DB: d.DB, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Modules: d.Reg, Listen: d.MCPListen, Version: version,
+	s, err := mcpserver.New(mcpserver.Config{DB: d.DB, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Modules: d.Reg, Listen: d.MCPListen, InContainer: d.MCPInContainer, Version: version,
 		Source: mcpSource{reg: d.Reg, inv: d.Inventory, findings: d.Findings, feeds: feedsHandlers(d)}})
 	if err != nil {
 		return nil, err
@@ -49,13 +50,35 @@ func mcpHandlers(d deps) *mcpserver.McpHandlers {
 	return mcpserver.NewMcpHandlers(s)
 }
 
-// parseMCPListen reads -mcp-listen: an IP literal and a port on loopback (INV-5).
-func parseMCPListen(s string) (netip.AddrPort, error) {
+// parseMCPListen reads -mcp-listen: an IP literal and a port on loopback (INV-5). In a container (inContainer) the unspecified
+// address 0.0.0.0 or [::] is taken too: the runtime forwards the unit's 127.0.0.1 publish to the container's own address, never to
+// its loopback (D-395). Empty is the default: 0.0.0.0:8765 in a container, else 127.0.0.1:8765. The units rely on that default
+// instead of passing the flag, so a unit of this release still starts an older core image, which refuses 0.0.0.0 (review of D-395).
+func parseMCPListen(s string, inContainer bool) (netip.AddrPort, error) {
+	if s == "" {
+		if inContainer {
+			return netip.AddrPortFrom(netip.IPv4Unspecified(), mcpserver.DefaultListen.Port()), nil
+		}
+		return mcpserver.DefaultListen, nil
+	}
 	a, err := netip.ParseAddrPort(s)
-	if err != nil || !a.Addr().IsLoopback() || a.Port() == 0 {
-		return netip.AddrPort{}, fmt.Errorf("-mcp-listen %q must be a loopback address and port, such as 127.0.0.1:8765", s)
+	if err != nil || a.Port() == 0 || !a.Addr().IsLoopback() && (!inContainer || !a.Addr().IsUnspecified()) {
+		return netip.AddrPort{}, fmt.Errorf("-mcp-listen %q must be a loopback address and port, such as 127.0.0.1:8765 (0.0.0.0:8765 only inside a container)", s)
 	}
 	return a, nil
+}
+
+// containerMarkers are the files container runtimes put into every container: Podman's /run/.containerenv, Docker's /.dockerenv.
+var containerMarkers = []string{"/run/.containerenv", "/.dockerenv"}
+
+// inContainer says whether this process runs in a container (D-395): one of containerMarkers exists.
+func inContainer() bool {
+	for _, f := range containerMarkers {
+		if _, err := os.Stat(f); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // mcpSource implements mcpserver.Source. Each scope answers only while the module that owns its data is on.

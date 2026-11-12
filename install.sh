@@ -5,7 +5,7 @@
 #   sh install.sh [--network-handover] [--uninstall --yes [--keep-data]] [--test-artifacts DIR]
 #
 # What it does, in this order, and stops at the first thing it cannot do (a refusal in step 1 changes nothing):
-#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444 and the syslog ports 514 and 6514, no other Vedette, a sane clock
+#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444/8765 and the syslog ports 514 and 6514, no other Vedette, a sane clock
 #   2. installs the packages Vedette needs that are MISSING (podman, chrony, netplan.io, nftables, ...) with apt, never upgrading
 #      a package that is already there
 #   3. downloads the vedette-host .deb of THIS release, checks its sha256 against the value written into this script by the
@@ -271,8 +271,9 @@ preflight() {
 		have_channel=$(kv channel "$STATE/owner")
 		[ "$have_channel" = "$WANT" ] || die "this box has a $have_channel install of Vedette, and this is the $WANT channel. Run sh install.sh --uninstall --yes (from the $have_channel channel) first. Nothing was changed."
 	else
-		for p in 8443 8444; do
-			! port_listening "$p" || die "port $p is already in use by another program (ss -ltnp). Vedette needs 8443 (interface) and 8444 (sensor link)."
+		# podman reserves the published ports for core (8444 and 8765 on 127.0.0.1): one held by another program stops core starting
+		for p in 8443 8444 8765; do
+			! port_listening "$p" || die "port $p is already in use by another program (ss -ltnp). Vedette needs 8443 (interface), 8444 (sensor link) and 8765 (MCP server, this machine only)."
 		done
 		# syslog: podman reserves 514 (udp+tcp) and 6514 (tcp, TLS) for core; rsyslog's imudp/imtcp usually holds them, and core
 		# (and 8443 with it) would not start
@@ -311,9 +312,9 @@ preflight() {
 	[ -s "$STATE/owner" ] || printf 'channel=%s\n' "$WANT" >"$STATE/owner"
 	if [ -n "$rerun" ]; then
 		# a re-run does not check the ports: Vedette itself may hold them (the check above is for a fresh box only)
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443, 8444, 514 and 6514 not checked)"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443, 8444, 8765, 514 and 6514 not checked)"
 	else
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443, 8444, 514 and 6514 free"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443, 8444, 8765, 514 and 6514 free"
 	fi
 }
 
@@ -1083,7 +1084,7 @@ do_uninstall() {
 		TMP=
 		rm -rf "$STATE"
 	fi
-	for p in 8443 8444; do
+	for p in 8443 8444 8765; do
 		if port_listening "$p"; then warn "port $p still listens (another program?)"; fi
 	done
 	say "Vedette is removed."

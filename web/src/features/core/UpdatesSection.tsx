@@ -23,11 +23,13 @@ import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, U
 function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; reconnecting: boolean }) {
   const { t } = useTranslation('core')
   const seen = useRef<string | null>(null)
-  const [sawEnd, setSawEnd] = useState(false)
+  // The run this page watched while it ran: only its end is announced and offers Reload (an old end is not news).
+  const [watched, setWatched] = useState<string | null>(null)
+  if (run.status === 'running' && watched !== run.id) setWatched(run.id)
+  const sawEnd = watched === run.id && run.status !== 'running'
   useEffect(() => {
-    if (run.status === 'running') { seen.current = `${run.id}:running`; setSawEnd(false); return }
+    if (run.status === 'running') { seen.current = `${run.id}:running`; return }
     if (seen.current === `${run.id}:running`) {
-      setSawEnd(true)
       const reload = { action: { label: t('updates.run.reload'), onClick: () => window.location.reload() } }
       if (run.status === 'done') toast.success(t(run.action === 'update' ? 'updates.appliedSoftware' : 'updates.rolledBack', { name }), reload)
       else if (run.status === 'reverted') toast.error(run.error ?? t(`updates.run.revertedToast.${run.action}`, { from: run.from ?? '' }))

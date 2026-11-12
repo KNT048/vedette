@@ -64,10 +64,12 @@ type updCheck struct {
 
 	checkMu sync.Mutex // one check at a time: two checks could otherwise store an older index over a newer one
 
-	contMu sync.Mutex // the cached state/containers (the page polls every second during a run; the host allows 60 a minute)
+	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
 	contAt time.Time
 	cont   api.ContainersState
 	contEr error
+	info   api.Info // the system helper's version and commands (the host component, D-316)
+	infoEr error
 
 	warned sync.Map // log lines already written once (key -> struct{})
 }
@@ -108,6 +110,15 @@ func newReleaseClient() *http.Client {
 			return nil
 		},
 	}
+}
+
+// userAgent is the User-Agent of every release download: PRIVACY.md flow 6 says the request carries the running
+// version, nothing else.
+func (u *updCheck) userAgent() string {
+	if versionTokenRE.MatchString(u.version) {
+		return "Vedette/" + u.version
+	}
+	return "Vedette/dev"
 }
 
 // firstWarn reports whether the warning of kind was not logged yet (since the last clear), and marks it logged.
@@ -383,11 +394,7 @@ func (h *OSHandlers) fetchDoc(ctx context.Context, rawURL string, limit int64) (
 	if err != nil {
 		return nil, err
 	}
-	ua := "Vedette/dev"
-	if versionTokenRE.MatchString(h.upd.version) {
-		ua = "Vedette/" + h.upd.version // PRIVACY.md flow 6: the request carries the running version, nothing else
-	}
-	req.Header.Set("User-Agent", ua)
+	req.Header.Set("User-Agent", h.upd.userAgent())
 	resp, err := h.upd.client.Do(req)
 	if err != nil {
 		return nil, errSource{err}
@@ -666,11 +673,12 @@ type updateComponentView struct {
 }
 
 type updateAvailableView struct {
-	Component string `json:"component"`
-	Version   string `json:"version"`
-	Channel   string `json:"channel"`
-	SizeKB    int64  `json:"size_kb"`
-	Note      string `json:"note"`
+	Component   string `json:"component"`
+	Version     string `json:"version"`
+	Channel     string `json:"channel"`
+	SizeKB      int64  `json:"size_kb"`
+	Note        string `json:"note"`
+	HostVersion string `json:"host_version,omitempty"` // the release's system helper when it is above the running one (D-316)
 }
 
 type advisoryView struct {
@@ -758,12 +766,64 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 			comp.Signature = "valid" // the host runs only what it verified (host-api 6.7)
 		}
 	}
+	comps := []updateComponentView{comp}
+	var helper *api.Info
+	if info, ok := h.hostInfo(ctx); ok {
+		helper = &info
+		comps = append(comps, hostComponentOf(info, hist, h.upd.started))
+	}
 	return updatesStateView{
 		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: s.LastCheck,
-		Components: []updateComponentView{comp}, Available: availableOf(r.offer, s.Channel),
+		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
 		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
 		Managed: managedOf(r.running, r.offer),
 	}, nil
+}
+
+// refreshHost reads state/containers and /v1/info again when the copies are stateTTL old; the caller holds contMu.
+func (h *OSHandlers) refreshHost(ctx context.Context) {
+	u := &h.upd
+	if age := h.now().Sub(u.contAt); !u.contAt.IsZero() && age >= 0 && age < stateTTL {
+		return
+	}
+	lctx, cancel := context.WithTimeout(ctx, h.loadTimeout)
+	defer cancel()
+	u.cont, u.contEr = h.host.StateContainers(lctx)
+	u.info, u.infoEr = h.host.Info(lctx)
+	u.contAt = h.now()
+	if u.contEr != nil {
+		if u.firstWarn("containers") {
+			h.log.WarnContext(ctx, "core: vedette-host did not give the state of the containers; the page shows no previous version", "error", u.contEr)
+		}
+	} else {
+		u.warned.Delete("containers")
+	}
+	if u.infoEr != nil {
+		if u.firstWarn("info") {
+			h.log.WarnContext(ctx, "core: vedette-host did not give its version; the page shows no system helper row", "error", u.infoEr)
+		}
+	} else {
+		u.warned.Delete("info")
+	}
+}
+
+// dropHostCopy makes the next read ask the host again (the helper's version changed).
+func (u *updCheck) dropHostCopy() {
+	u.contMu.Lock()
+	u.contAt = time.Time{}
+	u.contMu.Unlock()
+}
+
+// hostInfo is the host's /v1/info from a copy younger than stateTTL; ok is false without a host or when it does not answer.
+func (h *OSHandlers) hostInfo(ctx context.Context) (api.Info, bool) {
+	if h.host == nil {
+		return api.Info{}, false
+	}
+	u := &h.upd
+	u.contMu.Lock()
+	defer u.contMu.Unlock()
+	h.refreshHost(ctx)
+	return u.info, u.infoEr == nil
 }
 
 // coreContainer is the host's record of the core service, from a copy younger than stateTTL. ok is false without a
@@ -775,19 +835,7 @@ func (h *OSHandlers) coreContainer(ctx context.Context) (api.ContainerState, boo
 	u := &h.upd
 	u.contMu.Lock()
 	defer u.contMu.Unlock()
-	if age := h.now().Sub(u.contAt); u.contAt.IsZero() || age < 0 || age >= stateTTL {
-		lctx, cancel := context.WithTimeout(ctx, h.loadTimeout)
-		u.cont, u.contEr = h.host.StateContainers(lctx)
-		cancel()
-		u.contAt = h.now()
-		if u.contEr != nil {
-			if u.firstWarn("containers") {
-				h.log.WarnContext(ctx, "core: vedette-host did not give the state of the containers; the page shows no previous version", "error", u.contEr)
-			}
-		} else {
-			u.warned.Delete("containers")
-		}
-	}
+	h.refreshHost(ctx)
 	if u.contEr != nil {
 		return api.ContainerState{}, false
 	}
@@ -799,7 +847,9 @@ func (h *OSHandlers) coreContainer(ctx context.Context) (api.ContainerState, boo
 	return api.ContainerState{}, false
 }
 
-func availableOf(v *verifiedRelease, channel string) []updateAvailableView {
+// availableOf is the offered release; with the running helper known (helper), host_version names the release's system
+// helper when it is above the running one, and its package counts in the size (the run downloads it, D-316).
+func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateAvailableView {
 	if v == nil {
 		return []updateAvailableView{}
 	}
@@ -811,7 +861,15 @@ func availableOf(v *verifiedRelease, channel string) []updateAvailableView {
 	if len(note) > maxNoteRunes {
 		note = note[:maxNoteRunes]
 	}
-	return []updateAvailableView{{Component: softwareComponent, Version: v.M.Version, Channel: channel, SizeKB: size / 1024, Note: string(note)}}
+	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note)}
+	if helper != nil && hostNewer(v.M, helper.HostVersion) {
+		a.HostVersion = v.M.Host.Version
+		if f := hostFileOf(v.M, helper.Arch); f != nil {
+			size += f.Size
+		}
+	}
+	a.SizeKB = size / 1024
+	return []updateAvailableView{a}
 }
 
 // advisoriesOf maps index advisories (§4.1) to the page: low shows as medium (the page has three levels), published is

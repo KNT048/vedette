@@ -38,6 +38,9 @@ type Host interface {
 	ContainerPull(ctx context.Context, args api.ContainerPullArgs, requestID, actor string) (api.Run, error)
 	ContainerStart(ctx context.Context, args api.ContainerStartArgs, requestID, actor string) (api.Run, error)
 	ContainerRollback(ctx context.Context, args api.ContainerRollbackArgs, requestID, actor string) (api.Run, error)
+	// The system helper's own update, the first step of a software run (S-CORE-2 criterion D-316, host-api 6.14).
+	Info(ctx context.Context) (api.Info, error)
+	SelfUpdate(ctx context.Context, args api.HostSelfUpdateArgs, requestID, actor string) (api.Run, error)
 }
 
 var _ Host = (*client.Client)(nil)
@@ -160,7 +163,9 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 	case api.CodeCurrentVersionUnknown:
 		return apierr.New(409, CodeCurrentVersionUnknown, "The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record).")
 	case api.CodeTransitionPending:
-		return apierr.New(409, CodeTransitionPending, "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal).")
+		// Also every write after a system helper update that stopped half way (D-316 (e)): the host keeps its journal
+		// and refuses until the operator follows the RUNBOOK.
+		return apierr.New(409, CodeTransitionPending, "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal, or \"vedette-host self-update stopped half way\").")
 	case api.CodeBackupUnknown: // restore (S-CORE-1, D-377)
 		return apierr.New(404, api.CodeBackupUnknown, "This backup is no longer on the box. Reload the list.")
 	case api.CodeChecksumMismatch:

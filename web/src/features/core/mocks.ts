@@ -592,7 +592,7 @@ const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['ste
  * e2e set it (no button: on a real box the host decides). `version` stands in for the helper version of the release; without it
  * downgrade_not_allowed uses 0.9.2 and test_version_refused `<release>-test.1`.
  */
-export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old'
+export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old' | 'current_package_missing' | 'host_download_failed'
 export const hostScenario = collection<{ code: HostOutcome | null; version: string | null }>('core_updates_host_scenario', () => ({ code: null, version: null }))
 /** The words core sends for each code (the story's sentences; slice 5 maps the host codes to these, core CONTRACT INV-21). */
 export function hostError(code: HostOutcome, v: string, running: string, release: string): string {
@@ -606,6 +606,8 @@ export function hostError(code: HostOutcome, v: string, running: string, release
     case 'dpkg_locked': return 'The box is installing operating system packages. Try again in a few minutes.'
     case 'rollback_failed': case 'self_update_interrupted': return 'The system helper update stopped half way and could not be undone. Vedette keeps running; follow the runbook section "vedette-host self-update stopped half way".'
     case 'host_too_old': return `This box's system helper (${running}) is too old to update itself. Run install.sh of release ${release} on the box (it upgrades the helper and keeps your data), then apply again.`
+    case 'current_package_missing': return `Updating the system helper to ${v} failed: the box has no copy of the running helper to go back to, so it was not updated. Run install.sh of release ${release} on the box (it keeps your data), then apply again.`
+    case 'host_download_failed': return `Updating the system helper to ${v} failed: its package could not be downloaded. Check that the box can reach github.com over HTTPS, then apply again.`
   }
 }
 const hostRow = () => updStore.get().components.find((c) => c.id === 'host')

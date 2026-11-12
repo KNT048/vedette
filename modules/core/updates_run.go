@@ -58,8 +58,9 @@ const (
 
 // updRun is the run side's part of OSHandlers.
 type updRun struct {
-	mu        sync.Mutex  // one start at a time: from the busy check to the stored run
-	following atomic.Bool // a follower of the stored run is going in this process
+	mu        sync.Mutex    // one start at a time: from the busy check to the stored run
+	following atomic.Bool   // a follower of the stored run is going in this process
+	retry     time.Duration // between two tries of the follower: followRetry (shorter in tests)
 }
 
 // runRelease is the signed release an update run installs, kept in the stored run: every container.pull (a resend
@@ -74,7 +75,7 @@ type runRelease struct {
 // updateCall is one host call of a run.
 type updateCall struct {
 	Step      string `json:"step"`
-	Command   string `json:"command"` // container.pull | container.start | container.rollback
+	Command   string `json:"command"` // host.self_update | container.pull | container.start | container.rollback
 	Service   string `json:"service"`
 	RequestID string `json:"request_id"`
 	// Undo marks a call added after a failure to put a service the run had switched back where it was.
@@ -84,6 +85,8 @@ type updateCall struct {
 	RunID  string `json:"run_id,omitempty"`
 	Status string `json:"status,omitempty"` // the host's end status, or skipped
 	Code   string `json:"code,omitempty"`   // the host's error code when it did not succeed
+	// Package is the id of the downloaded system helper package of host.self_update (<core_data>/host-packages/<id>.deb).
+	Package string `json:"package,omitempty"`
 }
 
 // updateRunRec is what core_setting core_update_run holds: the view and the plan.
@@ -104,6 +107,7 @@ type updateRunRec struct {
 	Calls      []updateCall `json:"calls"`
 	Snapshot   string       `json:"snapshot,omitempty"` // backs core's container.start; removed when the run ends
 	Release    *runRelease  `json:"release,omitempty"`  // update only, until the run ends
+	Host       *runHost     `json:"host,omitempty"`     // update only, when the release brings a newer system helper (D-316)
 	// Progress is when the run last moved (a step began, the host took a call or a call ended); a resend or a wait
 	// does not count, so a host that refuses for ever still meets the 6-hour rule. The rule counts from it (or from
 	// this process's start).
@@ -295,7 +299,10 @@ func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(contex
 		return err
 	}
 	h.invalidateState()
-	h.followUpdate()
+	// A run decided before any host call (host_too_old) ends here; if its end cannot be stored, the follower does it.
+	if rec.Outcome == "" || len(rec.Calls) > 0 || h.settleUpdate(ctx, rec, rec.Outcome, rec.Why, nil) != nil {
+		h.followUpdate()
+	}
 	return nil
 }
 
@@ -332,9 +339,10 @@ func (r *updateRunRec) add(step, command, service string, undo bool) error {
 	return nil
 }
 
-// planApply: download = container.pull of every installed service the release has an image for (core
-// included); start = container.start with the version for the other services that run (enabled); restart =
-// core's container.start with a snapshot. A service that is installed but off (its module is off, its unit
+// planApply: host = host.self_update when the release brings a newer system helper (planHost, D-316); download =
+// container.pull of every installed service the release has an image for (core included); start =
+// container.start with the version for the other services that run (enabled); restart = core's container.start
+// with a snapshot. A service that is installed but off (its module is off, its unit
 // has no [Install], D-260) is pulled but not started: a start would turn it on (SYS-5) (D-342 (2)).
 func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelease) (*updateRunRec, string, error) {
 	st, core, err := h.containers(ctx)
@@ -351,6 +359,15 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 	}
 	rec.StartedAt, rec.Progress = h.now(), h.now()
 	rec.Release = &runRelease{Index: rel.Index, IndexSig: rel.IndexSig, Manifest: rel.Manifest, ManifestSig: rel.ManifestSig}
+	detail := fmt.Sprintf("%s to %s", orDash(core.Version), to)
+	hostDetail, err := h.planHost(ctx, rec, rel.M) // first: the new images may need the new helper (D-316 (8))
+	if err != nil {
+		return nil, "", err
+	}
+	detail += hostDetail
+	if rec.Outcome != "" { // the helper is too old to update itself: no call at all
+		return rec, detail, nil
+	}
 	inRelease := map[string]bool{}
 	for _, im := range rel.M.Images {
 		inRelease[im.Service] = true
@@ -381,7 +398,6 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 	if err := rec.add(stepRestart, api.CmdContainerStart, api.ServiceCore, false); err != nil {
 		return nil, "", err
 	}
-	detail := fmt.Sprintf("%s to %s", orDash(core.Version), to)
 	if len(off) > 0 {
 		detail += "; pulled but not started (off): " + strings.Join(off, ", ")
 	}
@@ -476,7 +492,11 @@ func (h *OSHandlers) handOff() bool {
 
 // followOne carries the stored run until it is settled or core stops.
 func (h *OSHandlers) followOne() {
-	f := &updFollower{h: h, sent: map[string]bool{}, started: h.now()}
+	f := &updFollower{h: h, sent: map[string]bool{}, fetched: map[string]bool{}, started: h.now()}
+	retry := h.urun.retry
+	if retry <= 0 {
+		retry = followRetry
+	}
 	for h.ctx.Err() == nil {
 		done, err := f.advance(h.ctx)
 		if done {
@@ -487,7 +507,7 @@ func (h *OSHandlers) followOne() {
 		}
 		select {
 		case <-h.ctx.Done():
-		case <-time.After(followRetry):
+		case <-time.After(retry):
 		}
 	}
 }
@@ -497,7 +517,8 @@ func (h *OSHandlers) followOne() {
 type updFollower struct {
 	h       *OSHandlers
 	sent    map[string]bool
-	started time.Time // the 6-hour rule never counts time before this process followed the run
+	fetched map[string]bool // system helper packages this process downloaded and checked (by id)
+	started time.Time       // the 6-hour rule never counts time before this process followed the run
 }
 
 // errTransient is a call whose outcome is not known yet: the follower tries again later with the same key.
@@ -548,6 +569,11 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 			if err := f.failed(ctx, rec, i, run); err != nil {
 				return false, err
 			}
+		} else if c.Command == api.CmdHostSelfUpdate {
+			if err := h.hostUpdated(ctx, rec, run); err != nil { // the step and its history entry together
+				return false, err
+			}
+			continue
 		}
 		if err := h.saveUpdateRun(ctx, rec); err != nil {
 			return false, err
@@ -610,6 +636,9 @@ const codeInterrupted = "interrupted"
 func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.Run, error) {
 	h := f.h
 	c := &rec.Calls[i]
+	if c.Command == api.CmdHostSelfUpdate {
+		return f.sendHost(ctx, rec, i)
+	}
 	var pull api.ContainerPullArgs
 	if c.Command == api.CmdContainerPull {
 		rel := rec.Release
@@ -656,24 +685,17 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 	}
 	if err != nil {
 		var he *client.Error
-		if !errors.As(err, &he) {
-			return api.Run{}, err // no answer: the host may have taken it; the next try looks it up by its key
-		}
-		switch he.Code {
-		case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
-			return api.Run{}, err // the host did not take it and says try later; a refusal frees the key (host-api 4)
-		case api.CodeSnapshotRequired, api.CodeSnapshotInvalid:
-			if coreSwitch && rec.SnapRefused < maxSnapRefused { // too old after a wait: a new snapshot, the same key (a refusal frees it)
-				h.removeSnapshot(rec.Snapshot)
-				rec.Snapshot = ""
-				rec.SnapRefused++
-				if err := h.saveUpdateRun(ctx, rec); err != nil {
-					return api.Run{}, err
-				}
-				return api.Run{}, errTransient
+		if coreSwitch && errors.As(err, &he) && (he.Code == api.CodeSnapshotRequired || he.Code == api.CodeSnapshotInvalid) &&
+			rec.SnapRefused < maxSnapRefused { // too old after a wait: a new snapshot, the same key (a refusal frees it)
+			h.removeSnapshot(rec.Snapshot)
+			rec.Snapshot = ""
+			rec.SnapRefused++
+			if err := h.saveUpdateRun(ctx, rec); err != nil {
+				return api.Run{}, err
 			}
+			return api.Run{}, errTransient
 		}
-		return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: he.Code, Message: he.Message}}, nil
+		return refusalOf(err)
 	}
 	c.RunID, rec.Progress = run.RunID, h.now()
 	if err := h.saveUpdateRun(ctx, rec); err != nil {
@@ -682,20 +704,47 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 	return f.wait(ctx, c, run)
 }
 
+// refusalOf is a host call that returned no run: no answer or a "try later" is an error (the next try looks the
+// call up by its key, or sends it again with it: a refusal frees the key, host-api 4); any other refusal is the
+// call's final outcome.
+func refusalOf(err error) (api.Run, error) {
+	var he *client.Error
+	if !errors.As(err, &he) {
+		return api.Run{}, err
+	}
+	switch he.Code {
+	case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
+		return api.Run{}, err
+	}
+	return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: he.Code, Message: he.Message}}, nil
+}
+
 // codeNotOffered: the release the run installs is no longer offered (a newer check replaced it) after a restart.
 const codeNotOffered = "not_offered"
 
 func (f *updFollower) wait(ctx context.Context, c *updateCall, run api.Run) (api.Run, error) {
 	limit := startWait
+	var end time.Time // host.self_update: the run's deadline + 20 minutes, across the host's restart
 	switch c.Command {
 	case api.CmdContainerPull:
 		limit = pullWait
 	case api.CmdContainerRollback:
 		limit = rollbackWait
+	case api.CmdHostSelfUpdate:
+		end = selfUpdateEnd(run)
+		limit = end.Sub(f.h.now())
+	}
+	pastEnd := func() bool { return !end.IsZero() && !f.h.now().Before(end) }
+	stopped := api.Run{Status: api.StatusFailed, Error: &api.RunError{Code: api.CodeSelfUpdateInterrupted}}
+	if !run.Status.Terminal() && pastEnd() {
+		return stopped, nil
 	}
 	run, err := waitRun(ctx, f.h.log, f.h.host, run, limit)
 	if run.Status.Terminal() {
 		return run, nil // a run that did not succeed is an outcome, not an error of the wait
+	}
+	if pastEnd() {
+		return stopped, nil
 	}
 	if err == nil {
 		err = errTransient
@@ -743,7 +792,8 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 	}
 	switched := map[string]bool{}
 	for _, x := range rec.Calls[:i] {
-		if !x.Undo && x.Service != api.ServiceCore && x.Command != api.CmdContainerPull && x.Status == string(api.StatusSucceeded) {
+		// the system helper is never taken back (D-316 (f))
+		if !x.Undo && x.Service != api.ServiceCore && x.Command != api.CmdContainerPull && x.Command != api.CmdHostSelfUpdate && x.Status == string(api.StatusSucceeded) {
 			switched[x.Service] = true
 		}
 	}
@@ -785,6 +835,8 @@ func (f *updFollower) why(ctx context.Context, rec *updateRunRec, c updateCall, 
 		return "Vedette restarted during the update and the box has no record that Vedette itself switched to " + rec.To + ", so the update was stopped. Check the version on this page, then apply again if needed."
 	case code == codeNotOffered:
 		return "The update record does not hold the release " + rec.To + " any more, so the update was stopped. Click Check now, then Apply."
+	case c.Command == api.CmdHostSelfUpdate:
+		return hostWhy(ctx, rec, code)
 	case c.Command == api.CmdContainerPull:
 		return "Downloading " + rec.To + " of " + name + " failed: " + reason
 	case c.Service == api.ServiceCore && run.Status == api.StatusReverted && rec.Action == actionUpdate:
@@ -968,6 +1020,7 @@ func (h *OSHandlers) settleUpdate(parent context.Context, rec *updateRunRec, sta
 		return err
 	}
 	h.removeSnapshot(snap)
+	h.removeHostPackages(rec)
 	h.invalidateState()
 	return nil
 }

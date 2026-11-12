@@ -654,3 +654,7 @@ func (b *hostBase) StateBackups(ctx context.Context) (api.BackupList, error) {
 func (b *hostBase) BackupRestore(ctx context.Context, id, snap, rid, actor string) (api.Run, error) {
 	return b.h().BackupRestore(ctx, id, snap, rid, actor)
 }
+func (b *hostBase) Info(ctx context.Context) (api.Info, error) { return b.h().Info(ctx) }
+func (b *hostBase) SelfUpdate(ctx context.Context, a api.HostSelfUpdateArgs, rid, actor string) (api.Run, error) {
+	return b.h().SelfUpdate(ctx, a, rid, actor)
+}

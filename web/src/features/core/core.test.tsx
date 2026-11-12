@@ -319,6 +319,14 @@ describe('core: module (S-CORE-1)', () => {
 })
 
 describe('core: quyền riêng tư (S-CORE-4)', () => {
+  it('flow 1 lists the host of a custom feed that is on, host only, read from /feeds/sources', async () => {
+    const f = { id: 'cf-1', builtin: false, name: 'Partner list', kind: 'ioc', format: 'json', url: 'https://intel.partner.example:8443/feed.json?token=s3cret', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null }
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [f] })))
+    renderApp('/settings/privacy')
+    await screen.findByRole('table', { name: 'Data flows that leave the box' })
+    expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toContain('s3cret')
+  })
   it('hiện đủ 14 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })

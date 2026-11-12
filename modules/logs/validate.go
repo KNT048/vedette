@@ -41,6 +41,8 @@ func KindIDs() []string {
 	return ids
 }
 
+var certPinRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
 var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 // normalize checks a source input in the order the mock does (kind, name, IP, protocol, port) and returns it with the name
@@ -68,6 +70,14 @@ func (in Input) normalize(tlsOK bool) (Input, error) {
 	}
 	if in.Port < 1 || in.Port > 65535 {
 		return in, apierr.New(400, "bad_port", "The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS).")
+	}
+	if in.ClientCertSHA256 != "" {
+		if in.Proto != "tls" {
+			return in, apierr.New(400, "bad_client_cert", "A client certificate can only be required of a TLS source.")
+		}
+		if !certPinRE.MatchString(in.ClientCertSHA256) {
+			return in, apierr.New(400, "bad_client_cert", "The client certificate fingerprint is its SHA-256: 64 hexadecimal characters.")
+		}
 	}
 	return in, nil
 }

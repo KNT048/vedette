@@ -36694,6 +36694,47 @@
                         },
                         "iface": {
                           "type": "string"
+                        },
+                        "tls": {
+                          "description": "The certificate of the syslog TLS port; null or absent when this box serves no TLS (plain HTTP)",
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "fingerprint_sha256": {
+                                  "type": "string",
+                                  "description": "SHA-256 of the certificate the box presents on the syslog TLS port, 64 lowercase hex characters"
+                                },
+                                "subject": {
+                                  "type": "string"
+                                },
+                                "not_after": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "self_signed": {
+                                  "type": "boolean",
+                                  "description": "The certificate is its own issuer: a device must be given this certificate to trust it"
+                                },
+                                "pem": {
+                                  "type": "string",
+                                  "description": "The certificate as PEM (public data), for the download"
+                                }
+                              },
+                              "required": [
+                                "fingerprint_sha256",
+                                "subject",
+                                "not_after",
+                                "self_signed",
+                                "pem"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -36827,6 +36868,13 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "client_cert_sha256": {
+                            "description": "TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex characters); null = the sender is known by its IP address alone",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -36841,7 +36889,8 @@
                           "last_received",
                           "lines_per_hour",
                           "state",
-                          "created_at"
+                          "created_at",
+                          "client_cert_sha256"
                         ],
                         "additionalProperties": false
                       }
@@ -36964,6 +37013,18 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535
+                  },
+                  "client_cert_sha256": {
+                    "description": "TLS sources only: pin the device's client certificate by its SHA-256; absent or null = no pin",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -37104,6 +37165,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "client_cert_sha256": {
+                      "description": "TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex characters); null = the sender is known by its IP address alone",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -37118,7 +37186,8 @@
                     "last_received",
                     "lines_per_hour",
                     "state",
-                    "created_at"
+                    "created_at",
+                    "client_cert_sha256"
                   ],
                   "additionalProperties": false
                 }
@@ -37275,6 +37344,18 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535
+                  },
+                  "client_cert_sha256": {
+                    "description": "TLS sources only: pin the device's client certificate by its SHA-256; absent or null = no pin",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -37415,6 +37496,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "client_cert_sha256": {
+                      "description": "TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex characters); null = the sender is known by its IP address alone",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -37429,7 +37517,8 @@
                     "last_received",
                     "lines_per_hour",
                     "state",
-                    "created_at"
+                    "created_at",
+                    "client_cert_sha256"
                   ],
                   "additionalProperties": false
                 }

@@ -254,6 +254,33 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)
   })
 
+  it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1, D-434)', async () => {
+    renderApp('/logs')
+    const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('div')!
+    expect(within(card).getByText(/add it to the device as a trusted certificate/)).toBeInTheDocument()
+    expect(within(card).getByText(/^[0-9a-f]{64}$/)).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'Download certificate (.pem)' })).toBeEnabled()
+  })
+
+  it('a TLS source can pin the device client certificate: pasted as AB:CD..., stored as lowercase hex; a bad one is refused under the field (D-435)', async () => {
+    renderApp('/logs')
+    const form = await openAdd(/^FortiGate/)
+    expect(within(form).queryByLabelText('Client certificate fingerprint (optional)')).not.toBeInTheDocument() // UDP: no pin
+    await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
+    const field = within(form).getByLabelText('Client certificate fingerprint (optional)')
+    await userEvent.type(within(form).getByLabelText('Name'), 'FW-PIN')
+    await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.10.77')
+    await userEvent.type(field, 'not a fingerprint')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    await waitFor(() => expect(field).toHaveAccessibleDescription(/64 hexadecimal characters/))
+    await userEvent.clear(field)
+    await userEvent.type(field, 'AB:'.repeat(31) + 'AB')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    await screen.findByRole('dialog', { name: /Set up FW-PIN to send logs to the box/ })
+    const list = (await getJson('/logs/sources')).sources as { name: string; client_cert_sha256: string | null }[]
+    expect(list.find((x) => x.name === 'FW-PIN')?.client_cert_sha256).toBe('ab'.repeat(32))
+  })
+
   it('deleting a log source needs confirmation', async () => {
     renderApp('/logs')
     await userEvent.click(await screen.findByRole('button', { name: 'Delete SRV-FILE' }))

@@ -62,7 +62,7 @@ func (s *Service) listenSources(ctx context.Context) (m map[netip.Addr]listen.So
 			m[ip] = listen.Source{ID: r.ID, Proto: r.Proto}
 		default:
 			tlsRows++
-			m[ip] = listen.Source{ID: r.ID, Proto: r.Proto} // the server serves it only when it has a TLS configuration
+			m[ip] = listen.Source{ID: r.ID, Proto: r.Proto, ClientCertSHA256: r.ClientCert} // the server serves it only when it has a TLS configuration
 		}
 	}
 	return m, tlsRows, nil

@@ -820,30 +820,30 @@ func foldString(e ast.Expr) (string, bool) {
 }
 
 type declUnit struct {
-	name string // the function, or the first name of one const/var spec ("" for others)
-	node ast.Node
+	names []string // the function, or every name of one const/var/type spec (none for others)
+	node  ast.Node
 }
 
-// declUnits splits a file into functions and, for const/var/type groups, one unit per spec, so an exception for one
-// name never covers its neighbours in the same group.
+// declUnits splits a file into functions and, for const/var/type groups, one unit per spec (all the names of a spec
+// `a, b = ...` belong to it), so an exception for one name never covers its neighbours in the same group.
 func declUnits(f *ast.File) []declUnit {
 	var out []declUnit
 	for _, d := range f.Decls {
 		switch x := d.(type) {
 		case *ast.FuncDecl:
-			out = append(out, declUnit{x.Name.Name, x})
+			out = append(out, declUnit{[]string{x.Name.Name}, x})
 		case *ast.GenDecl:
 			for _, s := range x.Specs {
-				name := ""
+				var names []string
 				switch sp := s.(type) {
 				case *ast.ValueSpec:
-					if len(sp.Names) > 0 {
-						name = sp.Names[0].Name
+					for _, n := range sp.Names {
+						names = append(names, n.Name)
 					}
 				case *ast.TypeSpec:
-					name = sp.Name.Name
+					names = []string{sp.Name.Name}
 				}
-				out = append(out, declUnit{name, s})
+				out = append(out, declUnit{names, s})
 			}
 		}
 	}
@@ -852,14 +852,25 @@ func declUnits(f *ast.File) []declUnit {
 
 // networkProblems lists what is wrong in one host source file: a banned network word (after folding concatenations)
 // outside the reviewed exceptions, and any listen that is not the unix-only one. file is the path below the repo root.
-func networkProblems(file string, f *ast.File) []string {
+// used (may be nil) collects the exceptions that suppressed a banned word: one that suppressed nothing is stale.
+func networkProblems(file string, f *ast.File, used map[string]bool) []string {
 	var out []string
 	for _, u := range declUnits(f) {
-		d, name := u.node, u.name
-		_, excepted := networkLiteralExceptions[file+":"+name]
+		d, name := u.node, strings.Join(u.names, ",")
+		excKey := ""
+		for _, n := range u.names {
+			if _, ok := networkLiteralExceptions[file+":"+n]; ok {
+				excKey = file + ":" + n
+			}
+		}
 		check := func(s string) {
-			if slices.Contains(bannedNetworks, s) && !excepted {
+			if !slices.Contains(bannedNetworks, s) {
+				return
+			}
+			if excKey == "" {
 				out = append(out, fmt.Sprintf("%s (%s) mentions network %q", file, name, s))
+			} else if used != nil {
+				used[excKey] = true
 			}
 		}
 		ast.Inspect(d, func(n ast.Node) bool {
@@ -894,19 +905,16 @@ func networkProblems(file string, f *ast.File) []string {
 
 func TestContract_FORBID2_NoNetworkListener(t *testing.T) {
 	t.Parallel()
-	seen := map[string]bool{}
+	used := map[string]bool{}
 	for path, f := range hostSources(t) {
 		file := strings.TrimPrefix(filepath.ToSlash(path), "../../")
-		for _, p := range networkProblems(file, f) {
+		for _, p := range networkProblems(file, f, used) {
 			t.Error(p)
-		}
-		for _, u := range declUnits(f) {
-			seen[file+":"+u.name] = true
 		}
 	}
 	for k := range networkLiteralExceptions {
-		if !seen[k] {
-			t.Errorf("the reviewed exception %s no longer exists: remove it", k)
+		if !used[k] {
+			t.Errorf("the reviewed exception %s suppressed no banned word (its declaration is gone, or no longer holds one): remove it", k)
 		}
 	}
 }
@@ -932,7 +940,7 @@ func TestContract_FORBID2_TheGuardCatchesDialsSplitsAndMisplacedExceptions(t *te
 		"the exception's declaration name in another file": {"host/ops/other.go", `var argsConntrackSyslog = []string{"udp"}`},
 		"listen on tcp": {"host/ops/other.go", `func f() { net.Listen("tcp", ":1") }`},
 	} {
-		if got := networkProblems(tc.file, parse(tc.src)); len(got) == 0 {
+		if got := networkProblems(tc.file, parse(tc.src), nil); len(got) == 0 {
 			t.Errorf("%s: not reported", name)
 		}
 	}
@@ -941,9 +949,29 @@ func TestContract_FORBID2_TheGuardCatchesDialsSplitsAndMisplacedExceptions(t *te
 		"the reviewed binary name":    {"host/ops/bins.go", `const binIP = "ip"`},
 		"an ordinary word":            {"host/ops/other.go", `func f() { net.Dial("unix", "/run/x") ; _ = "up" + "date" }`},
 	} {
-		if got := networkProblems(tc.file, parse(tc.src)); len(got) != 0 {
+		if got := networkProblems(tc.file, parse(tc.src), nil); len(got) != 0 {
 			t.Errorf("%s: %v", name, got)
 		}
+	}
+}
+
+// An exception is keyed by any name of a multi-name declaration, and it is "used" only when it hid a banned word.
+func TestContract_FORBID2_ExceptionsAreKeyedByAnyNameAndReportedWhenUnused(t *testing.T) {
+	t.Parallel()
+	parse := func(src string) *ast.File {
+		f, err := parser.ParseFile(token.NewFileSet(), "x.go", "package x\n"+src, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	used := map[string]bool{}
+	if got := networkProblems("host/ops/bins.go", parse(`const a, binIP = "x", "ip"`), used); len(got) != 0 || !used["host/ops/bins.go:binIP"] {
+		t.Errorf("the second name of a spec did not carry the exception: %v %v", got, used)
+	}
+	used = map[string]bool{}
+	if got := networkProblems("host/ops/bins.go", parse(`const binIP = "ipx"`), used); len(got) != 0 || len(used) != 0 {
+		t.Errorf("an exception that hid nothing was counted as used: %v %v", got, used)
 	}
 }
 

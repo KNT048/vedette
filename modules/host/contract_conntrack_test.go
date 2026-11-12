@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
@@ -151,6 +152,54 @@ func TestContract_Conntrack_AnotherExitCodeIsLoggedAndTheStartStillSucceeds(t *t
 	}
 	if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "exit_code=2") {
 		t.Fatalf("the failure was not logged:\n%s", logs.String())
+	}
+}
+
+// A conntrack killed by a signal reports exit -1 (core/exec): not "deleted=0", a failure.
+func TestContract_Conntrack_AKilledConntrackIsAFailureNotZeroDeleted(t *testing.T) {
+	t.Parallel()
+	e, logs := startConntrack(t)
+	fake := filepath.Join(e.m.Bin, ops.BinConntrack)
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nkill -9 $$\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.start(t, api.ServiceCore, false); r.Status != api.StatusSucceeded {
+		t.Fatalf("%+v", r)
+	}
+	if !strings.Contains(logs.String(), "level=ERROR") || strings.Contains(logs.String(), "deleted=") {
+		t.Fatalf("a killed conntrack was logged as a success:\n%s", logs.String())
+	}
+}
+
+// The watch loop itself: Start arms it, a restart of core makes one conntrack call, Close ends it.
+func TestContract_Conntrack_TheWatchLoopClearsOnceAfterARestartAndStopsOnClose(t *testing.T) {
+	t.Parallel()
+	logs := &lockedBuf{}
+	e := startCtr(t, func(c *ops.Config, d *ops.Deps) {
+		c.Logger = slog.New(slog.NewTextHandler(logs, nil))
+		d.CoreWatch = time.Millisecond
+	})
+	e.m.InstallUnit(api.ServiceCore, digA, true)
+	e.m.SetRunning(api.ServiceCore, true)
+	e.o.Start(context.Background(), e.h.Server)
+	waitCalls := func(n int) {
+		t.Helper()
+		for i := 0; len(conntrackCalls(e)) < n; i++ {
+			if i > 30000 {
+				t.Fatalf("no conntrack call number %d from the watch loop", n)
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	waitCalls(1) // the first look after the host starts
+	e.m.ContainerRestarted(api.ServiceCore)
+	waitCalls(2)
+	e.o.Close()
+	n := len(conntrackCalls(e))
+	e.m.ContainerRestarted(api.ServiceCore)
+	time.Sleep(50 * time.Millisecond) // a negative check: it can only miss a late call, never fail without one
+	if got := len(conntrackCalls(e)); got != n {
+		t.Fatalf("the watch loop kept running after Close: %d calls, %d at Close", got, n)
 	}
 }
 

@@ -1,19 +1,24 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -664,5 +669,63 @@ func TestALeftOverTLSRowIsServedAndNotWarnedAboutOnABoxWithTLS(t *testing.T) {
 	waitUntil(t, "the TLS socket for the old row", func() bool { return e.tlsAddr() != nil })
 	if n := logs.count("are not served"); n != 0 {
 		t.Errorf("the not-served warning was logged %d times on a box that serves TLS", n)
+	}
+}
+
+// D-434: the Sources answer carries the certificate of the TLS port (fingerprint, subject, self-signed, PEM), and nothing on a box without TLS.
+func TestSourcesShowTheBoxCertificateOfTheTLSPort(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	view, err := e.svc.Sources(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tc := view.Box.TLS
+	if tc == nil {
+		t.Fatal("no certificate in the box block of a box with TLS")
+	}
+	cert, _ := e.svc.cfg.Syslog.TLS.GetCertificate(nil)
+	sum := sha256.Sum256(cert.Certificate[0])
+	block, _ := pem.Decode([]byte(tc.PEM))
+	if tc.Fingerprint != hex.EncodeToString(sum[:]) || !tc.SelfSigned || tc.Subject != "CN=box" || block == nil || !bytes.Equal(block.Bytes, cert.Certificate[0]) || tc.NotAfter.IsZero() {
+		t.Errorf("certificate info %+v", tc)
+	}
+	plain := syslogEnv(t)
+	if view, err := plain.svc.Sources(t.Context()); err != nil || view.Box.TLS != nil {
+		t.Errorf("a box without TLS showed a certificate: %+v %v", view.Box.TLS, err)
+	}
+}
+
+// D-435: a TLS source may pin a client certificate; the pin is validated, stored, shown, and handed to the listener; other protocols refuse it.
+func TestTLSSourceClientCertificatePin(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	pin := strings.Repeat("ab", 32)
+	in := Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "10.9.9.9", Proto: "tls", Port: 6514, ClientCertSHA256: pin}
+	for name, bad := range map[string]func(*Input){
+		"on udp":      func(i *Input) { i.Proto, i.Port = "udp", 514 },
+		"upper case":  func(i *Input) { i.ClientCertSHA256 = strings.ToUpper(pin) },
+		"short":       func(i *Input) { i.ClientCertSHA256 = pin[:63] },
+		"not hex":     func(i *Input) { i.ClientCertSHA256 = strings.Repeat("zz", 32) },
+		"with colons": func(i *Input) { i.ClientCertSHA256 = "ab:" + pin[3:] },
+	} {
+		b := in
+		bad(&b)
+		if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", b); code(err) != "bad_client_cert" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	s, err := e.svc.AddSource(t.Context(), "admin@acme.example", in)
+	if err != nil || s.ClientCert == nil || *s.ClientCert != pin {
+		t.Fatalf("%+v %v", s, err)
+	}
+	m, _, err := e.svc.listenSources(t.Context())
+	if err != nil || m[netip.MustParseAddr("10.9.9.9")].ClientCertSHA256 != pin {
+		t.Fatalf("the listener was not given the pin: %+v %v", m, err)
+	}
+	in.ClientCertSHA256 = ""
+	s, err = e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, in)
+	if err != nil || s.ClientCert != nil {
+		t.Fatalf("the pin was not removed: %+v %v", s, err)
 	}
 }

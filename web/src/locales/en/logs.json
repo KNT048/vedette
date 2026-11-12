@@ -95,7 +95,10 @@
     "noMatch": "Nothing matches \"{{q}}\". Try another word, or choose Other device (standard syslog).",
     "change": "Change device type",
     "chosen": "Device type: {{name}}",
-    "reads": "What Vedette reads"
+    "reads": "What Vedette reads",
+    "cert": "Client certificate fingerprint (optional)",
+    "certHint": "Leave empty to accept the device by its IP address alone. To also require the device to present its own certificate, paste that certificate's SHA-256 fingerprint (64 hexadecimal characters; colons and spaces are fine).",
+    "certBad": "A SHA-256 fingerprint is 64 hexadecimal characters, like AB:CD:... or abcd..."
   },
   "config": {
     "title": "Set up {{name}} to send logs to the box",
@@ -107,7 +110,9 @@
     "parsed": "Read and analysed",
     "stored": "Stored only",
     "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes.",
-    "noIpLan": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes."
+    "noIpLan": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes.",
+    "tlsTrust": "Over TLS the device must trust the box certificate shown under the log sources (export it there and add it to the device as a trusted certificate). The box accepts logs from this device by its IP address.",
+    "tlsTrustPinned": "Over TLS the device must trust the box certificate shown under the log sources (export it there and add it to the device as a trusted certificate), and must present the client certificate whose fingerprint you entered for this source: the box closes any other connection."
   },
   "digest": {
     "bad": {
@@ -249,5 +254,14 @@
     "adminOnly": "Only administrators can change this setting.",
     "cefHint": "CEF: 7 header fields separated by |, then key=value pairs."
   },
-  "titleNoLogs": "No log line received yet."
+  "titleNoLogs": "No log line received yet.",
+  "boxCert": {
+    "title": "Box certificate for syslog over TLS",
+    "selfSigned": "The box made this certificate itself, so a device does not trust it yet: download it and add it to the device as a trusted certificate (or pin its fingerprint), then send to port 6514.",
+    "issued": "Another authority issued this certificate: the device must trust that authority. Check the fingerprint below on the device if it asks.",
+    "fingerprint": "SHA-256 fingerprint",
+    "subject": "Subject",
+    "expires": "Expires",
+    "download": "Download certificate (.pem)"
+  }
 }

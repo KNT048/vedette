@@ -55,6 +55,8 @@ type Input struct {
 	SenderIP string
 	Proto    string
 	Port     int
+	// ClientCertSHA256 pins the client certificate of a tls source (64 lowercase hex characters); "" = no pin (D-435).
+	ClientCertSHA256 string
 }
 
 // Source is a log source as the API shows it (LogSource of contract.ts).
@@ -71,6 +73,7 @@ type Source struct {
 	LinesPerHour int        `json:"lines_per_hour"`
 	State        string     `json:"state"` // receiving | silent | never
 	CreatedAt    time.Time  `json:"created_at"`
+	ClientCert   *string    `json:"client_cert_sha256"` // nil: no pin
 }
 
 // BoxInfo says where the box listens (SourcesResponse.box).
@@ -79,6 +82,16 @@ type BoxInfo struct {
 	Hostname string  `json:"hostname"`
 	LAN      *string `json:"lan"`
 	Iface    string  `json:"iface"`
+	TLS      *BoxTLS `json:"tls,omitempty"` // the certificate of the syslog TLS port; nil when the box serves no TLS
+}
+
+// BoxTLS is the certificate a device must trust to send syslog over TLS (BoxTls of contract.ts). Public data.
+type BoxTLS struct {
+	Fingerprint string    `json:"fingerprint_sha256"`
+	Subject     string    `json:"subject"`
+	NotAfter    time.Time `json:"not_after"`
+	SelfSigned  bool      `json:"self_signed"`
+	PEM         string    `json:"pem"`
 }
 
 // SourcesView is the answer of GET /logs/sources.

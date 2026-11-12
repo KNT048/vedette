@@ -298,17 +298,8 @@ func elapsedFrom(base time.Time) func() time.Time {
 
 func newEnv(t *testing.T, files map[string][]pktgen.Frame, hold bool, opts ...option) *env {
 	t.Helper()
-	db := storetest.New(t)
-	ctx := t.Context()
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "inventory", inventory.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "sensor-passive", sp.Migrations); err != nil {
-		t.Fatal(err)
-	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: inventory.Migrations},
+		storetest.Migration{Module: "sensor-passive", FS: sp.Migrations})
 	e := &env{t: t, db: db, host: newHost(), meta: &metaRecorder{}, src: &openSource{files: files, hold: hold}, now: elapsedFrom(pktgen.T0.Add(time.Minute))}
 	aud := audit.New(nil)
 	inv, err := inventory.New(inventory.Config{DB: db, Audit: aud, Clock: func() time.Time { return pktgen.T0.Add(time.Minute) }})

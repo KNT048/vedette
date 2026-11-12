@@ -1,0 +1,34 @@
+# Tests the merge gate skips (D-376). One test per line, fields separated by spaces or tabs:
+#   kind  TestName  package  reason  added(YYYY-MM-DD)
+# kind slow:  runs only in the daily schedule (make test-go-shard SKIPTESTS=); reason says why (wall time, whole-suite re-run).
+# kind flaky: quarantine; reason is the issue https://github.com/KNT048/vedette/issues/N; at most 7 days, then fix or delete it
+#             (an expired flaky line is no longer skipped, and scripts/ci's guard test fails).
+# `go run ./scripts/ci skip` prints the -skip pattern. go test -skip matches names in every package: a name here must be unique.
+slow	TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap	cmd/vedette	slow: 83 s wall time (2000 devices through the observation path); daily run	2026-11-12
+slow	TestSuiteThroughTheDispatcher modules/sensor-active	slow: 20 s wall time; daily run	2026-11-12
+slow	TestSuiteThroughTheLink	modules/sensor-passive	slow: 19 s wall time; daily run	2026-11-12
+slow	TestE2EBoxHarnessHost	cmd/vedette	slow: 17 s wall time; daily run	2026-11-12
+slow	TestContract_Container_AnInvalidJournalIsMovedAsideAtStartKeepingTheLastThree	modules/host	slow: 14 s wall time; daily run	2026-11-12
+slow	TestSwitchingTheSensorModulesMovesTheirContainers	cmd/vedette	slow: 13 s wall time; daily run	2026-11-12
+slow	TestUpdateCoreSwitchStopsAfterRepeatedSnapshotRefusals	modules/core	slow: 10 s wall time; daily run	2026-11-12
+slow	TestQueueDeviceCutByTheDeadlineGoesToTheBack	modules/sensor-active	slow: 9 s wall time; daily run	2026-11-12
+slow	TestContract_Container_StateParsesHostileOutputStrictlyAndBounded	modules/host	slow: 9 s wall time; daily run	2026-11-12
+slow	TestContract_Container_StopIsJudgedByTheOutputOfIsActive	modules/host	slow: 7 s wall time; daily run	2026-11-12
+slow	TestHoneypotHostStaysInsideTheHostLimits	cmd/vedette	slow: 6.5 s wall time; daily run	2026-11-12
+slow	TestKickIsRateLimited	cmd/vedette	slow: 6 s wall time; daily run	2026-11-12
+slow	TestDeviceSecretFindersAreLinear	modules/ai	slow: 6 s wall time; daily run	2026-11-12
+slow	TestSweepCutByTheWindowResumesWhereItStopped	modules/sensor-active	slow: 6 s wall time; daily run	2026-11-12
+slow	TestContract_Bootstrap_OneHolderOfTheStateLockAtATime	modules/host	slow: 5 s wall time; daily run	2026-11-12
+slow	TestContract_Container_TheHealthWaitIs120SecondsOfLooks	modules/host	slow: 5 s wall time; daily run	2026-11-12
+slow	TestUpdateRunEndThatCouldNotBeStoredIsSettledLater	modules/core	slow: 5 s wall time; daily run	2026-11-12
+slow	TestUpdateCoreSwitchRetriesWithANewSnapshot	modules/core	slow: 5 s wall time; daily run	2026-11-12
+slow	TestUpdatePullIsResentWithTheStoredRelease	modules/core	slow: 5 s wall time; daily run	2026-11-12
+slow	TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule	modules/core	slow: 5 s wall time; daily run	2026-11-12
+slow	TestWazuh_AuthForbiddenUnreachable	modules/agent-intake	slow: 5 s wall time; daily run	2026-11-12
+slow	TestContract_INV2_OnlyTheServiceWritesInvTables	modules/inventory	slow: 5 s wall time; daily run	2026-11-12
+slow	TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstalls	modules/host	slow: 5 s wall time; daily run	2026-11-12
+slow	TestContract_Update_ARunWhosePutBackIsUnrecoverableMarksItAtOnceAndAuditsOnce	modules/host	slow: 4.4 s wall time; daily run	2026-11-12
+slow	TestReview_M2_RunsViewSaysEngineBusyAfterStop	modules/scan	slow: 4 s wall time; daily run	2026-11-12
+slow	TestReview_M2_NoNewRunWhileTheEngineIsBusy	modules/scan	slow: 4 s wall time; daily run	2026-11-12
+slow	TestReview4_L4_ARefusedStartKeepsTheSlot	modules/scan	slow: 4 s wall time; daily run	2026-11-12
+slow	TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether	modules/host	slow: 4 s wall time; daily run	2026-11-12

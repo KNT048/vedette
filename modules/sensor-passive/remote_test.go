@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec" //nolint:depguard // the test starts its own binary again with an env var; no external program (SYS-1 is about the product)
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,8 +29,27 @@ type remote struct {
 	runner *capture.Runner
 }
 
+// backendOnly marks a test that never starts the capture job: it calls the Service as the backend of the link (Observations,
+// the heartbeats, Config) or reads it, so its run in the remote child would repeat the parent's in-process run step for step. The
+// child skips it (TestSuiteThroughTheLink accepts that skip and no other); in the parent, a marked test that starts the capture job
+// fails in env.job, so no test can lose its remote run by mistake.
+func backendOnly(t *testing.T) {
+	t.Helper()
+	if remoteMode() {
+		t.Skip(backendOnlySkip)
+	}
+	backendOnlyTests.Store(t.Name(), true)
+}
+
+const backendOnlySkip = "backend only: the in-process run of the parent is the same run"
+
+var backendOnlyTests sync.Map // top-level test name -> true, in the parent
+
 // job is what the env runs as "the capture job": Service.Run inside the process, or the Runner at the end of the link.
 func (e *env) job() func(context.Context) error {
+	if _, marked := backendOnlyTests.Load(strings.SplitN(e.t.Name(), "/", 2)[0]); marked {
+		e.t.Fatal("this test is marked backendOnly but starts the capture job: drop the mark, so the remote run covers it")
+	}
 	if !remoteMode() && !e.forceRemote {
 		return e.svc.Run
 	}
@@ -64,9 +84,11 @@ func startRemote(e *env) *remote {
 	return &remote{link: link, client: client, runner: r}
 }
 
-// TestSuiteThroughTheLink runs the whole package twice more, as this test binary started again: once with the in-process capture
-// and once with the remote one. The two runs must pass the same tests, and the contract tests (INV-1 to INV-9, POST-1 to POST-4, the
-// module switch, the refused item, the long name) must be among them.
+// TestSuiteThroughTheLink runs the whole package once more, as this test binary started again with the remote capture. The run with
+// the in-process capture is this one: remoteMode is off here, every other test of the package runs in process, and the package fails if
+// one of them does. The remote run must pass every one of them (the binary lists them with -test.list), and the contract tests (INV-1 to
+// INV-9, POST-1 to POST-4, the module switch, the refused item, the long name) must be among them. A second child in process, which
+// this test also started until now, only repeated this run: a third of the package's time under -race.
 func TestSuiteThroughTheLink(t *testing.T) {
 	if os.Getenv(remoteEnvVar) != "" {
 		t.Skip("this is a child run")
@@ -76,45 +98,52 @@ func TestSuiteThroughTheLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := func(mode string) (string, error) {
-		ctx, cancel := context.WithTimeout(t.Context(), 6*time.Minute)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, exe, "-test.skip", "^TestSuiteThroughTheLink$", "-test.count=1", "-test.timeout=5m", "-test.v")
-		cmd.Env = append(os.Environ(), remoteEnvVar+"="+mode)
-		out, err := cmd.CombinedOutput()
-		return string(out), err
+	ctx, cancel := context.WithTimeout(t.Context(), 6*time.Minute)
+	defer cancel()
+	list, err := exec.CommandContext(ctx, exe, "-test.list", ".").Output() //nolint:gosec // exe is this test binary (os.Executable), with fixed arguments
+	if err != nil {
+		t.Fatalf("list the tests: %v", err)
 	}
-	type result struct {
-		out string
-		err error
+	var want []string
+	for _, name := range strings.Fields(string(list)) {
+		if !strings.HasPrefix(name, "Benchmark") && name != "TestSuiteThroughTheLink" {
+			want = append(want, name)
+		}
 	}
-	// One after the other: each child already runs its tests in parallel on every core, so two at once only doubled the load
-	// (about 35 s of CPU each under -race) and starved the waits of both.
-	var local, rem result
-	local.out, local.err = run("local")
-	rem.out, rem.err = run("remote")
-	if local.err != nil {
-		t.Fatalf("the suite fails with the in-process capture: %v\n%s", local.err, tail([]byte(local.out), 4000))
+	cmd := exec.CommandContext(ctx, exe, "-test.skip", "^TestSuiteThroughTheLink$", "-test.count=1", "-test.timeout=5m", "-test.v") //nolint:gosec // exe is this test binary, with fixed arguments
+	cmd.Env = append(os.Environ(), remoteEnvVar+"=remote")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("the suite fails with the remote capture: %v\n%s", err, tail(b, 6000))
 	}
-	if rem.err != nil {
-		t.Fatalf("the suite fails with the remote capture: %v\n%s", rem.err, tail([]byte(rem.out), 6000))
-	}
-	pass := func(out string) map[string]bool {
-		m := map[string]bool{}
-		for _, l := range strings.Split(out, "\n") {
-			if rest, ok := strings.CutPrefix(strings.TrimSpace(l), "--- PASS: "); ok {
-				m[strings.Fields(rest)[0]] = true
+	// A test passes, or skips with the reason of backendOnly; nothing else counts. -test.v names the test before its output (=== RUN,
+	// === CONT, === NAME), so a reason line belongs to the test named last.
+	rp, said, skipped := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	current := ""
+	for _, l := range strings.Split(string(b), "\n") {
+		l = strings.TrimSpace(l)
+		for _, p := range []string{"=== RUN ", "=== CONT ", "=== NAME ", "=== PAUSE "} {
+			if rest, ok := strings.CutPrefix(l, p); ok {
+				current = strings.TrimSpace(rest)
 			}
 		}
-		return m
+		if strings.Contains(l, backendOnlySkip) {
+			said[current] = true
+		}
+		if rest, ok := strings.CutPrefix(l, "--- PASS: "); ok {
+			rp[strings.Fields(rest)[0]] = true
+		}
+		if rest, ok := strings.CutPrefix(l, "--- SKIP: "); ok {
+			skipped[strings.Fields(rest)[0]] = true
+		}
 	}
-	lp, rp := pass(local.out), pass(rem.out)
-	if len(lp) < 25 || len(lp) != len(rp) {
-		t.Errorf("the in-process run passed %d tests, the remote run %d", len(lp), len(rp))
+	backend := func(name string) bool { return skipped[name] && said[name] }
+	if len(want) < 25 || len(rp) < 15 {
+		t.Errorf("the package lists %d tests, the remote run passed %d", len(want), len(rp))
 	}
-	for name := range lp {
-		if !rp[name] {
-			t.Errorf("%s passed in process and did not in the remote run", name)
+	for _, name := range want {
+		if !rp[name] && !backend(name) {
+			t.Errorf("%s runs in process and did not pass in the remote run", name)
 		}
 	}
 	for _, name := range []string{

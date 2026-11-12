@@ -15,12 +15,14 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/inventory"
@@ -49,14 +51,7 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	logsDB, err := store.Open(ctx, filepath.Join(t.TempDir(), "logs.db"), log) // the volume of the logs module (modules/logs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = logsDB.Close() })
-	if err := store.Migrate(ctx, logsDB, logs.ModuleID, logs.VolumeMigrations); err != nil {
-		t.Fatal(err)
-	}
+	logsDB := storetest.Migrated(t, storetest.Migration{Module: logs.ModuleID, FS: logs.VolumeMigrations}) // the volume of the logs module
 	aud := audit.New(nil)
 	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: "test", Log: log})
 	if err != nil {
@@ -66,7 +61,7 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := &deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log)}
+	d := &deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Argon2: authtest.Cheap}
 	if tune != nil {
 		tune(d)
 	}

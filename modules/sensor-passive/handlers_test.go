@@ -10,6 +10,7 @@ import (
 // before the sensor has said anything, an empty interface list (the cards come from its heartbeat), SPAN verdict off.
 func TestSensorsHandler(t *testing.T) {
 	t.Parallel()
+	backendOnly(t)
 	e := newEnv(t, nil, false)
 	out, err := sp.NewSensorHandlers(e.svc).InventoryGetInventorySensors(t.Context())
 	if err != nil {

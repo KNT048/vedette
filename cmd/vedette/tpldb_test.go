@@ -54,18 +54,37 @@ func templatePath() (string, error) {
 
 // openMigrated is store.Open on path followed by migrateAll(wiredModules()), from the template.
 func openMigrated(ctx context.Context, path string, log *slog.Logger) (*store.DB, error) {
-	tpl, err := templatePath()
-	if err != nil {
-		return nil, err
-	}
-	b, err := os.ReadFile(tpl) //nolint:gosec // tpl is the template this process made in its own temp directory
-	if err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(path, b, 0o600); err != nil { //nolint:gosec // path is a test's own t.TempDir() file
+	if err := writeMigrated(path); err != nil {
 		return nil, err
 	}
 	return store.Open(ctx, path, log)
+}
+
+// writeMigrated writes the template to path (0600): a database file that every wired module's migrations were applied to.
+func writeMigrated(path string) error {
+	tpl, err := templatePath()
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(tpl) //nolint:gosec // tpl is the template this process made in its own temp directory
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, b, 0o600) //nolint:gosec // path is a test's own t.TempDir() file
+}
+
+// seedMigrated puts a migrated database at path before a test runs the real process on it, so the process starts on a box whose
+// schema is already there (its migrations are then a check of the versions) instead of migrating ~30 modules under -race (several
+// seconds of SQLite work per start). Only for tests that are not about the first migration: TestRunServesAndStops and
+// TestRunTwiceOnTheSameFiles still start on an empty file.
+func seedMigrated(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeMigrated(path); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestMain(m *testing.M) {

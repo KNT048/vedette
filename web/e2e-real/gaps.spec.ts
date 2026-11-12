@@ -11,12 +11,8 @@ import { collectErrors } from '../e2e/helpers'
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 
 /** route -> "METHOD /api/v1/path" -> owner and the deferred line. */
-const KNOWN_404: Record<string, Record<string, string>> = {
-  '/devices/setup': { 'GET /api/v1/inventory/agents': 'Kiên (inventory) · .ai/deferred/feat-e2e-real-harness.md:21 (agent-intake is wired but off by default, so the route answers 404 while the GUI still calls it)' },
-}
-const KNOWN_501: Record<string, Record<string, string>> = {
-  '/settings/updates': { 'GET /api/v1/core/updates': 'Kiên (core) · .ai/deferred/feat-core-os-updates.md:3 (software updates /core/updates*)' },
-}
+const KNOWN_404: Record<string, Record<string, string>> = {}
+const KNOWN_501: Record<string, Record<string, string>> = {}
 
 /** A 501 the page may or may not trigger (it depends on which module switches the other specs left): allowed, never required. */
 const MAYBE_501: Record<string, Record<string, string>> = {

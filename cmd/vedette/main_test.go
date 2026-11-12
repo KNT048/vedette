@@ -60,10 +60,18 @@ type instance struct {
 }
 
 // start runs the process on a free port with a temp database and returns once it logs "listening".
-func start(t *testing.T) *instance {
+func start(t *testing.T) *instance { return startOn(t, false) }
+
+// startMigrated is start on a database that already holds the schema (seedMigrated), for the tests that are not about a first start.
+func startMigrated(t *testing.T) *instance { return startOn(t, true) }
+
+func startOn(t *testing.T, migrated bool) *instance {
 	t.Helper()
 	dir := t.TempDir()
 	in := &instance{db: filepath.Join(dir, "v.db"), key: filepath.Join(dir, "v.key"), done: make(chan error, 1)}
+	if migrated {
+		seedMigrated(t, in.db)
+	}
 	var ctx context.Context
 	ctx, in.cancel = context.WithCancel(t.Context())
 	pr, pw := io.Pipe()
@@ -135,7 +143,7 @@ func TestRunServesAndStops(t *testing.T) {
 		t.Fatalf("GET /setup (public, before first-run setup) = %d %s", code, body)
 	}
 	if code, body := in.get(t, "/api/v1/core/updates"); code != 401 || !strings.Contains(body, `"code":"unauthenticated"`) {
-		t.Fatalf("GET /core/updates (not built, needs a session) = %d %s", code, body)
+		t.Fatalf("GET /core/updates (needs a session) = %d %s", code, body)
 	}
 	if code, body := in.get(t, "/api/v1/nowhere"); code != 404 || !strings.Contains(body, `"code":"not_found"`) {
 		t.Fatalf("unknown route = %d %s", code, body)
@@ -357,7 +365,7 @@ func (in *instance) rawGet(t *testing.T, target string) (int, http.Header) {
 // Responses the ServeMux makes itself (redirects, 404 for other paths) carry the API's headers and a request id.
 func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 	t.Parallel()
-	in := start(t)
+	in := startMigrated(t)
 	for target, status := range map[string]int{
 		"/api/v1":                http.StatusTemporaryRedirect, // ServeMux adds the trailing slash
 		"//":                     http.StatusTemporaryRedirect, // cleaned path

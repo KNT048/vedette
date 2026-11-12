@@ -230,9 +230,9 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
 /** S-INV-4: osquery (token + một dòng lệnh cài cho Linux và Windows Server) và Wazuh (Vedette kéo qua API). Cần module agent-intake. */
 export function AgentsSection() {
   const { t } = useTranslation('inventory')
-  const q = useAgents()
   const { revoke, sampleToken } = useAgentActions()
   const on = useModuleEnabled('agent-intake') !== false
+  const q = useAgents(on)
   const [creating, setCreating] = useState(false)
   const [showing, setShowing] = useState<AgentToken | null>(null)
   const [revoking, setRevoking] = useState<AgentToken | null>(null)

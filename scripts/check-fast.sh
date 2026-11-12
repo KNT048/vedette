@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # make check-fast — the pre-push gate (D-370): only what changed against origin/main, no -race, no reverse dependencies, no
-# Playwright, so it needs no heavy-job slot and takes minutes. CI runs the strict superset (-race, every package, the merge queue
-# on the merged tree; D-245, D-365) and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
+# Playwright, no test of scripts/ci/skip-tests.txt, so it needs no heavy-job slot and takes minutes. CI runs every package, the
+# merge queue on the merged tree (D-245, D-365), -race and the skip list in the daily run only (D-376), and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
 # Assumes macOS or Linux (the Makefile refuses native Windows; use WSL2).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -22,6 +22,9 @@ go_paths='\.go$|^(go\.mod|go\.sum|tools/|\.golangci\.yml|sqlc\.yaml)|^modules/[^
 if has "$go_paths"; then
 	ran=1
 	echo "check-fast: Go"
+	# The tests of scripts/ci/skip-tests.txt (slow, quarantined flaky) never run here; CI's daily run has them (D-376).
+	skip=$(go run ./scripts/ci skip)
+	skip=${skip:-^$} # an empty list: -skip '^$' skips nothing
 	go build ./...
 	go vet ./... # every package: build skips _test.go files, and another package's tests may use what changed (cached, cheap)
 	# The packages with a changed file (migrations, testdata, queries and the API spec count for their package tree).
@@ -46,14 +49,15 @@ if has "$go_paths"; then
 		go tool -modfile=tools/go.mod golangci-lint run --new-from-rev="$base" $pdirs
 		# The changed packages' own tests, contract tests included (TestContract…), without -race: CI runs -race on every package.
 		# shellcheck disable=SC2086
-		go test $pkgs
+		go test -skip "$skip" $pkgs
 	fi
 	if has '^(internal/release|modules/host|scripts/release)/'; then
 		go test -tags releasetestkeys ./internal/release/... # the throwaway release keys (keys_testonly.go)
 		go test -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/ # the host's real-vector test needs them too
 	fi
 	if has '^(modules|core)/'; then
-		make contract # every module's TestContract…: a core change can break another module's invariant
+		# every module's TestContract…: a core change can break another module's invariant (`make contract` minus the skip list)
+		go test ./modules/... -run Contract -skip "$skip"
 	fi
 fi
 
@@ -79,5 +83,5 @@ if [ "$ran" = 0 ]; then
 	if has '^(Makefile|scripts/|\.github/)'; then echo "check-fast: build/CI files only; CI runs the full suite"
 	else echo "check-fast: docs only, no code to check"; fi
 fi
-echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: -race, every package)"
+echo "check-fast: done in $((SECONDS - start)) s (CI is the merge gate: every package; -race in the daily run)"
 make clean

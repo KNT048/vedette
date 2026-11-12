@@ -7,6 +7,7 @@ import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/compone
 import { SeverityChip } from '@/components/common/StatusChip'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime } from '@/lib/format'
+import { useCan } from '@/lib/session'
 import { useChannels, useIncidents } from './api'
 import { DeliveryBadges, IncidentStatusChip } from './shared'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
@@ -31,7 +32,8 @@ function Content() {
   const navigate = useNavigate()
   const q = useIncidents()
   // the link to set up channels only while none is on; the list is the admin's, so others (403) see no link to a page they cannot open
-  const channels = useChannels({ retry: false })
+  const admin = useCan('admin')
+  const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
   const [filter, setFilter] = useState<'open' | 'all'>('open')
   const [kind, setKind] = useState<IncidentKind | 'all'>('all')

@@ -301,7 +301,7 @@ describe('core: module (S-CORE-1)', () => {
   it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
     const u = user()
     renderApp('/settings/modules')
-    await u.click(await screen.findByRole('switch', { name: 'Turn on module Inventory' }))
+    await u.click(await screen.findByRole('switch', { name: 'Turn off module Inventory' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Inventory?' })
     expect(within(dlg).getByText(/The module's data is kept/)).toBeInTheDocument()
     expect(within(dlg).getByText('Passive sensor')).toBeInTheDocument()
@@ -312,8 +312,8 @@ describe('core: module (S-CORE-1)', () => {
 
   it('vai chỉ xem không bật tắt được, module lõi bị khoá', async () => {
     renderApp('/settings/modules', { role: 'viewer' })
-    expect(await screen.findByRole('switch', { name: 'Turn on module Inventory' })).toBeDisabled()
-    expect(screen.getByRole('switch', { name: 'Turn on module Core' })).toBeDisabled()
+    expect(await screen.findByRole('switch', { name: 'Turn off module Inventory' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'Turn off module Core' })).toBeDisabled()
     await expectNoA11yViolations()
   })
 })
@@ -1090,8 +1090,14 @@ describe('core: MCP (S-MCP-1)', () => {
     setModule('mcp-server', true)
     renderApp('/settings/mcp')
     expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })).toBeInTheDocument()
-    await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
+    const real = globalThis.fetch
+    const asked: string[] = []
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
+    await u.click(screen.getByRole('switch', { name: 'Turn off MCP server' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: 'Turn on MCP server' })).toBeInTheDocument()
+    expect(asked.filter((x) => x.endsWith('/api/v1/core/mcp'))).toEqual([]) // no 404 call once it is off
+    spy.mockRestore()
     expect(modulesStore.get().find((m) => m.id === 'mcp-server')?.enabled).toBe(false)
     expect(screen.queryByText('127.0.0.1:8765')).not.toBeInTheDocument()
     expect((await call('/core/mcp', 'GET')).status).toBe(404)
@@ -1515,13 +1521,13 @@ describe('core: turning off Notifications warns about email-code users (D-35)', 
   it('the module dialog says how many users will be locked out; no warning when there are none', async () => {
     const u = user()
     renderApp('/settings/modules')
-    await u.click(await screen.findByRole('switch', { name: 'Turn on module Notifications' }))
+    await u.click(await screen.findByRole('switch', { name: 'Turn off module Notifications' }))
     const none = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
     expect(within(none).queryByText(/sign in with email codes/)).not.toBeInTheDocument()
     await u.click(within(none).getByRole('button', { name: 'Cancel' }))
     setUser('u-op', { twofa: true, twofa_method: 'email' })
     setUser('u-view', { twofa: true, twofa_method: 'email' })
-    await u.click(screen.getByRole('switch', { name: 'Turn on module Notifications' }))
+    await u.click(screen.getByRole('switch', { name: 'Turn off module Notifications' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
     expect(await within(dlg).findByText(/2 users sign in with email codes\. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in\./)).toBeInTheDocument()
   })

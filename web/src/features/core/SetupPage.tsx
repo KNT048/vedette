@@ -271,7 +271,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
             <RadioItem id={`bundle-${b}`} value={b} className="mt-0.5" />
             <label htmlFor={`bundle-${b}`} className="grid gap-0.5 text-sm">
               <span className="font-medium">{t(`setup.modules.${b}.name`)}</span>
-              <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
+              <span className="text-[13px] text-muted">{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTraps' : `setup.modules.${b}.desc`)}</span>
               {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
           </div>

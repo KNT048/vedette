@@ -148,35 +148,24 @@ func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	}
 }
 
-// M1: a container-only install (no socket file) reads the interfaces of the operating system, and never fails.
-func TestWiringSensorCardsWithoutAHostFallBackToTheOperatingSystem(t *testing.T) {
+// M1 (D-385): a container-only install (no socket configured) never takes the core container's own interfaces for the
+// box's cards: Interfaces gives none and no error (the cards come from the sensor's heartbeat), and SpanOptions has its
+// defaults before the first save.
+func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {
 	t.Parallel()
-	for name, tune := range map[string]func(*deps){
-		"no socket configured": func(*deps) {},
-		"socket file absent": func(d *deps) {
-			d.HostSocket, d.DataDir, d.KeyPath = filepath.Join(t.TempDir(), "absent.sock"), t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			s := newStackWith(t, tune)
-			got, err := netHost{box: s.d.Network}.Interfaces(t.Context())
-			want, werr := osInterfaces()
-			if err != nil || werr != nil || len(got) != len(want) {
-				t.Fatalf("got %d (%v), the system has %d (%v)", len(got), err, len(want), werr)
-			}
-			// SpanOptions has defaults before the first save.
-			x, filters, err := netHost{box: s.d.Network}.SpanOptions(t.Context())
-			if err != nil || !x.DNS || !x.Flows || len(filters) != 0 {
-				t.Errorf("options = %+v %v %v", x, filters, err)
-			}
-		})
+	s := newStackWith(t, func(*deps) {})
+	if got, err := (netHost{box: s.d.Network}).Interfaces(t.Context()); err != nil || len(got) != 0 {
+		t.Fatalf("Interfaces = %v %v, want no cards and no error", got, err)
+	}
+	x, filters, err := netHost{box: s.d.Network}.SpanOptions(t.Context())
+	if err != nil || !x.DNS || !x.Flows || len(filters) != 0 {
+		t.Errorf("options = %+v %v %v", x, filters, err)
 	}
 }
 
-// M1 (D-263): HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured host
-// that gives no list (socket absent, or failing with nothing cached) is an error, so the sensor's heartbeat never decides
-// on an appliance; Interfaces keeps its operating-system fallback and never fails for it.
+// M1 (D-263, D-385): HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured
+// host that gives no list (socket absent, or failing with nothing cached) is an error, so the sensor's heartbeat never
+// decides on an appliance; Interfaces fails the same way (no fallback to the core container's own cards).
 func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {
 	t.Parallel()
 	t.Run("no socket configured", func(t *testing.T) {
@@ -196,8 +185,8 @@ func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {
 		if _, ok, err := nh.HostCards(t.Context()); ok || err == nil {
 			t.Fatalf("HostCards ok=%v err=%v, want an error", ok, err)
 		}
-		if _, err := nh.Interfaces(t.Context()); err != nil {
-			t.Fatalf("Interfaces must keep the operating-system fallback: %v", err)
+		if _, err := nh.Interfaces(t.Context()); err == nil {
+			t.Fatal("Interfaces fell back to the core container's own cards")
 		}
 	})
 	t.Run("host failing with nothing cached", func(t *testing.T) {
@@ -211,8 +200,8 @@ func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {
 		if _, ok, err := nh.HostCards(t.Context()); ok || err == nil {
 			t.Fatalf("HostCards ok=%v err=%v, want an error", ok, err)
 		}
-		if _, err := nh.Interfaces(t.Context()); err != nil {
-			t.Fatalf("Interfaces must keep the operating-system fallback: %v", err)
+		if _, err := nh.Interfaces(t.Context()); err == nil {
+			t.Fatal("Interfaces fell back to the core container's own cards")
 		}
 	})
 }

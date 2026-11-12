@@ -40,7 +40,7 @@ func CheckBinary(path string, rules BinaryRules) error {
 	return checkBinaryData(path, data, rules)
 }
 
-// checkBinaryData is CheckBinary of a binary already read (the vedette-host inside a .deb, release gates); name is for messages.
+// checkBinaryData is CheckBinary of a binary already read (the vedette-host inside a .deb, release gates); path names it in messages.
 func checkBinaryData(path string, data []byte, rules BinaryRules) error {
 	bi, err := buildinfo.Read(bytes.NewReader(data))
 	if err != nil {
@@ -65,15 +65,7 @@ func checkBinaryData(path string, data []byte, rules BinaryRules) error {
 	return keysIn(path, data, rules.Keys)
 }
 
-// checkKeys refuses a binary that does not contain every key line verbatim (Go keeps string constants as they are).
-func checkKeys(path string, keys []string) error {
-	data, err := readSmall(path, maxBinary)
-	if err != nil {
-		return err
-	}
-	return keysIn(path, data, keys)
-}
-
+// keysIn refuses a binary that does not contain every key line verbatim (Go keeps string constants as they are).
 func keysIn(path string, data []byte, keys []string) error {
 	if len(keys) == 0 {
 		return errors.New("no production keys to look for")

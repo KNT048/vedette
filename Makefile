@@ -382,17 +382,19 @@ notices-check:
 # vuln-scan (the .trivyignore.yaml dates first) and sbom of the lists tagged <v>, kept in dist/vuln and dist/sbom (RELEASE=1, part C attests
 # the SBOMs); notices-check; then `release gates`: check-binaries -release on the vedette-host inside both .deb, the version label of every
 # platform of the four lists (and core's floor label), and each .deb built again with the floor of RELEASE_PREV_INDEX (MIN_SEQUENCE, the
-# verified sequence of that index; MIN_SEQUENCE=0 for the very first release only) and compared byte for byte (the .deb is reproducible).
+# verified sequence of that index, checked again by `release gates` since make lets a MIN_SEQUENCE from the environment win; MIN_SEQUENCE=0
+# for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset).
 .PHONY: release-gates
+RELEASE_GATES_ARGS = -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' $(if $(RELEASE_PREV_INDEX),-prev-index '$(RELEASE_PREV_INDEX)') $(RELEASE_KEYS_ARG)
 release-gates: check-min-sequence
 	@test "$(CONTAINER)" = podman || { echo "release-gates: reads the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
 	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "release-gates: the release floor is the sequence of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "release-gates: VERSION must be SemVer without v (VERSION=1.0.0), got '$(VERSION)'" >&2; exit 1; }
-	$(RELEASE_GO) gates -preflight -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)'
-	$(MAKE) --no-print-directory vuln-scan IMAGE_TAG='$(VERSION)' RELEASE=1
-	$(MAKE) --no-print-directory sbom IMAGE_TAG='$(VERSION)' RELEASE=1
-	$(MAKE) --no-print-directory notices-check
-	GOFLAGS= $(RELEASE_GO) gates -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)'
+	$(RELEASE_GO) gates -preflight $(RELEASE_GATES_ARGS)
+	$(MAKE) --no-print-directory vuln-scan IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
+	$(MAKE) --no-print-directory sbom IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
+	$(MAKE) --no-print-directory notices-check MIN_SEQUENCE='$(MIN_SEQUENCE)'
+	GOFLAGS= $(RELEASE_GO) gates $(RELEASE_GATES_ARGS) -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)'
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:

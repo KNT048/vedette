@@ -38,14 +38,16 @@ type gatesOpts struct {
 	Version     string
 	MinSequence string // the floor the release is built with: the sequence of RELEASE_PREV_INDEX, 0 only for the very first release
 	Platforms   []string
-	DebDir      string // where make host-deb wrote the two packages
-	Repo        string // git repository root
+	PrevIndex   string        // RELEASE_PREV_INDEX: the published index; its verified sequence must be MinSequence ("" only for the very first release: 0)
+	Trust       release.Trust // the keys PrevIndex is verified with
+	DebDir      string        // where make host-deb wrote the two packages
+	Repo        string        // git repository root
 	Rules       BinaryRules
-	Preflight   bool // only the version and tree checks (make runs them before the long scans)
+	Preflight   bool // only the version, floor and tree checks (make runs them before the long scans)
 }
 
-// gatesPreflight refuses a version that is not a release and a tree that is not the clean tag v<version>: the packages are
-// rebuilt from this tree below, so it must be the release commit.
+// gatesPreflight refuses a version that is not a release, a floor that is not the sequence of the published index (0 only without
+// one: the very first release), and a tree that is not the clean tag v<version>: the packages are rebuilt from this tree below.
 func gatesPreflight(ctx context.Context, run runFunc, o gatesOpts) error {
 	if _, err := release.CompareVersions(o.Version, o.Version); err != nil {
 		return fmt.Errorf("version %q is not SemVer (no v, no build metadata)", o.Version)
@@ -55,6 +57,18 @@ func gatesPreflight(ctx context.Context, run runFunc, o gatesOpts) error {
 	}
 	if n, err := strconv.ParseUint(o.MinSequence, 10, 64); err != nil || strconv.FormatUint(n, 10) != o.MinSequence {
 		return fmt.Errorf("min-sequence %q is not a plain decimal number", o.MinSequence)
+	}
+	// make lets a MIN_SEQUENCE from the command line or the environment win over RELEASE_PREV_INDEX: the floor is checked here
+	if o.PrevIndex != "" {
+		idx, err := LoadPrevIndex(o.PrevIndex, o.Trust)
+		if err != nil {
+			return err
+		}
+		if seq := strconv.FormatUint(idx.Sequence, 10); seq != o.MinSequence {
+			return fmt.Errorf("MIN_SEQUENCE is %s but the published index %s has sequence %s: unset MIN_SEQUENCE (make takes the floor from RELEASE_PREV_INDEX) and build the images and packages with that index", o.MinSequence, o.PrevIndex, seq)
+		}
+	} else if o.MinSequence != "0" {
+		return fmt.Errorf("MIN_SEQUENCE=%s without RELEASE_PREV_INDEX: the floor is the sequence of the published index (pass RELEASE_PREV_INDEX), 0 only for the very first release", o.MinSequence)
 	}
 	if len(o.Platforms) == 0 {
 		return errors.New("no platforms")
@@ -75,7 +89,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		return err
 	}
 	if o.Preflight {
-		say(stdout, "ok: %s is a release version and the tree is the clean tag v%s", o.Version, o.Version)
+		say(stdout, "ok: %s is a release version, the floor is %s and the tree is the clean tag v%s", o.Version, o.MinSequence, o.Version)
 		return nil
 	}
 	debs := make([]string, len(debArchs))
@@ -102,7 +116,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		}
 		for _, p := range lp {
 			if p.Version != o.Version {
-				return fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_TAG=%s IMAGE_VERSION=%s", name, p.Platform, versionLabel, p.Version, o.Version, o.Version, o.Version)
+				return fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_TAG=%s IMAGE_VERSION=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only)", name, p.Platform, versionLabel, p.Version, o.Version, o.Version, o.Version)
 			}
 			if im.local == "core" && p.MinSequence != o.MinSequence {
 				return fmt.Errorf("%s %s was built with MIN_SEQUENCE %q (label %s), the release floor is %s: build the images again with make images IMAGE_TAG=%s IMAGE_VERSION=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only)", name, p.Platform, p.MinSequence, minSequenceLabel, o.MinSequence, o.Version, o.Version)
@@ -163,11 +177,11 @@ func sameAsRebuilt(ctx context.Context, run runFunc, o gatesOpts, arch, deb stri
 	if bytes.Equal(a, b) {
 		return nil
 	}
-	why := "the floor (MIN_SEQUENCE) or the version differs"
+	why := "built differently: another floor (MIN_SEQUENCE) or version, or GOFLAGS, GOAMD64/GOARM64, SOURCE_DATE_EPOCH or the Go toolchain set by hand for one of the two builds"
 	if ra, rb := debRevision(a), debRevision(b); ra != rb {
 		why = fmt.Sprintf("its vedette-host is from commit %q, this tree is %q", ra, rb)
 	}
-	return fmt.Errorf("%s is not what this commit builds with MIN_SEQUENCE=%s (%s): build it again with make host-deb VERSION=%s ARCH=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only) from the clean tag", deb, o.MinSequence, why, o.Version, arch)
+	return fmt.Errorf("%s is not what this commit builds with MIN_SEQUENCE=%s (%s): build it again with make host-deb VERSION=%s ARCH=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only) from the clean tag, with GOFLAGS unset", deb, o.MinSequence, why, o.Version, arch)
 }
 
 // debRevision is the vcs.revision of the vedette-host inside a package, or "" when it cannot be read (only for the message).
@@ -260,11 +274,19 @@ func cmdGates(ctx context.Context, args []string, stdout io.Writer) error {
 	plats := fs.String("platforms", "linux/amd64,linux/arm64", "platforms every list must hold, comma separated (PLATFORMS of make images)")
 	debDir := fs.String("deb-dir", "dist", "directory of vedette-host_<version>_<arch>.deb (DEB_OUT of make host-deb)")
 	repo := fs.String("repo", ".", "repository root")
-	pre := fs.Bool("preflight", false, "only the version and tree checks (before the long scans)")
+	prev := fs.String("prev-index", "", "directory of the published index (RELEASE_PREV_INDEX); omit for the very first release only (then -min-sequence 0)")
+	keys := fs.String("keys-dir", "", "directory with the public keys -prev-index is verified with (default: the keys compiled in)")
+	pre := fs.Bool("preflight", false, "only the version, floor and tree checks (before the long scans)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), DebDir: *debDir, Repo: *repo, Preflight: *pre}
+	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), PrevIndex: *prev, DebDir: *debDir, Repo: *repo, Preflight: *pre}
+	if *prev != "" {
+		var err error
+		if o.Trust, err = LoadTrust(*keys); err != nil {
+			return err
+		}
+	}
 	if !*pre {
 		active, backup, testOnly := release.EmbeddedMinisignKeys()
 		if testOnly || active == "" || backup == "" {

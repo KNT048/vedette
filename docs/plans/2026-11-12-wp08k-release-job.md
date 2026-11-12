@@ -43,7 +43,8 @@ tree clean and HEAD = tag `v<v>`; `make vuln-scan` and `make sbom` of the lists 
 part C); `make notices-check`; `check-binaries -release` on the `vedette-host` read out of each `.deb`; the version label of every platform
 of the four lists, and core's `io.github.knt048.vedette.min-sequence` label = the floor; each `.deb` built again with
 `make host-deb … MIN_SEQUENCE=<floor>` into a temporary directory and compared byte for byte (the package is reproducible; a stripped
-binary does not show its floor). The floor is the verified sequence of `RELEASE_PREV_INDEX`, so images and packages must have been
+binary does not show its floor). The floor is the verified sequence of `RELEASE_PREV_INDEX` (checked by the Go step too, since an
+environment `MIN_SEQUENCE` would win in make), so images and packages must have been
 built with that same `<prev>`.
 
 **`release-push`** (`scripts/release` `push`, podman only). For each of `core`, `sensor`, `scan-base` (published as **`vedette-scan`**:

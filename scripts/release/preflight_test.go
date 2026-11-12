@@ -168,6 +168,11 @@ func TestCheckKeysCatchesAnOverlayBuild(t *testing.T) {
 	if err := CheckBinary(swapped, BinaryRules{}); err != nil {
 		t.Fatalf("premise: the overlay build must look clean to the tag check, got %v", err)
 	}
+	checkKeys := func(p string, keys []string) error {
+		data, err := os.ReadFile(p) //nolint:gosec // the probe built above
+		must(t, err)
+		return keysIn(p, data, keys)
+	}
 	if err := checkKeys(good, []string{active, backup}); err != nil {
 		t.Errorf("the normal build refused: %v", err)
 	}

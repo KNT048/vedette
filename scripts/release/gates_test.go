@@ -106,19 +106,23 @@ func (g *gatesFake) fn(argv []string) ([]byte, error) {
 func goodLabels(local, _ string) map[string]string {
 	m := map[string]string{versionLabel: "0.2.0"}
 	if local == "core" {
-		m[minSequenceLabel] = "7"
+		m[minSequenceLabel] = "1"
 	}
 	return m
 }
 
-// gatesRig is a release directory with the two packages, both holding bin, and a fake that rebuilds the same bytes.
+// gatesRig is a release directory with the two packages, both holding bin, a published index of sequence 1 (the floor), and a
+// fake that rebuilds the same bytes.
 func gatesRig(t *testing.T, bin []byte) (gatesOpts, *gatesFake) {
 	t.Helper()
+	r := newRig(t)
+	prev, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
+	must(t, err)
 	dir := t.TempDir()
 	for _, arch := range debArchs {
 		fakeDeb(t, filepath.Join(dir, "vedette-host_0.2.0_"+arch+".deb"), bin)
 	}
-	return gatesOpts{Version: "0.2.0", MinSequence: "7", Platforms: allPlatforms, DebDir: dir, Repo: "repo"},
+	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo"},
 		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc"}
 }
 
@@ -132,7 +136,7 @@ func TestGatesPassInOrder(t *testing.T) {
 		t.Fatal(err, fr.joined())
 	}
 	got := out.String()
-	for _, want := range []string{"check-binaries -release " + filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), "localhost/vedette-core:0.2.0: org.opencontainers.image.version=0.2.0 on linux/amd64, linux/arm64, floor 7", "localhost/vedette-honeypot:0.2.0", "is what this commit builds with MIN_SEQUENCE=7"} {
+	for _, want := range []string{"check-binaries -release " + filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), "localhost/vedette-core:0.2.0: org.opencontainers.image.version=0.2.0 on linux/amd64, linux/arm64, floor 1", "localhost/vedette-honeypot:0.2.0", "is what this commit builds with MIN_SEQUENCE=1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}
@@ -154,7 +158,7 @@ func TestGatesPassInOrder(t *testing.T) {
 		t.Fatalf("want two rebuilds, got %v", makes)
 	}
 	for i, arch := range debArchs {
-		want := []string{"make", "-C", "repo", "--no-print-directory", "host-deb", "VERSION=0.2.0", "ARCH=" + arch, "MIN_SEQUENCE=7"}
+		want := []string{"make", "-C", "repo", "--no-print-directory", "host-deb", "VERSION=0.2.0", "ARCH=" + arch, "MIN_SEQUENCE=1"}
 		if !slices.Equal(makes[i][:8], want) || !strings.HasPrefix(makes[i][8], "DEB_OUT=") || len(makes[i]) != 9 {
 			t.Errorf("rebuild argv %v, want %v DEB_OUT=<tmp>", makes[i], want)
 		}
@@ -162,7 +166,13 @@ func TestGatesPassInOrder(t *testing.T) {
 			t.Errorf("the rebuild directory is left behind: %v", err)
 		}
 	}
-	// -preflight stops after the version and tree checks
+	// the very first release: no published index, floor 0
+	fr = &fakeRun{fn: g.fn}
+	o.PrevIndex, o.MinSequence, o.Preflight = "", "0", true
+	if err := Gates(context.Background(), fr.run, o, &out); err != nil {
+		t.Errorf("first release (floor 0, no index): %v", err)
+	}
+	// -preflight stops after the version, floor and tree checks
 	fr = &fakeRun{fn: g.fn}
 	o.Preflight = true
 	if err := Gates(context.Background(), fr.run, o, &out); err != nil || slices.ContainsFunc(fr.calls, func(c []string) bool { return c[0] != "git" }) {
@@ -185,6 +195,11 @@ func TestGatesRefuse(t *testing.T) {
 		{"test version", "-test. prerelease", func(o *gatesOpts, _ *gatesFake) { o.Version = "0.2.0-test.1" }, false},
 		{"not semver", "not SemVer", func(o *gatesOpts, _ *gatesFake) { o.Version = "v0.2.0" }, false},
 		{"floor not decimal", "plain decimal", func(o *gatesOpts, _ *gatesFake) { o.MinSequence = "07" }, false},
+		{"floor without the published index", "without RELEASE_PREV_INDEX", func(o *gatesOpts, _ *gatesFake) { o.PrevIndex = "" }, false},
+		{"floor not the index's", "has sequence 1", func(o *gatesOpts, _ *gatesFake) { o.MinSequence = "0" }, false},
+		{"index does not verify", "index", func(o *gatesOpts, _ *gatesFake) {
+			must(t, os.WriteFile(filepath.Join(o.PrevIndex, indexFile), []byte(`{"sequence":1}`), 0o600))
+		}, false},
 		{"dirty tree", "uncommitted", func(_ *gatesOpts, g *gatesFake) { g.status = " M Makefile" }, false},
 		{"not the tag", "is not v0.2.0", func(_ *gatesOpts, g *gatesFake) { g.tag = "def" }, false},
 		{"no deb", "no vedette-host_0.2.0_arm64.deb", func(o *gatesOpts, _ *gatesFake) {
@@ -218,7 +233,7 @@ func TestGatesRefuse(t *testing.T) {
 				return m
 			}
 		}, false},
-		{"deb built with another floor", "is not what this commit builds with MIN_SEQUENCE=7", func(_ *gatesOpts, g *gatesFake) { g.rebuilt = other }, true},
+		{"deb built with another floor", "is not what this commit builds with MIN_SEQUENCE=1", func(_ *gatesOpts, g *gatesFake) { g.rebuilt = other }, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			o, g := gatesRig(t, bin)
@@ -265,7 +280,7 @@ func TestDebMember(t *testing.T) {
 		must(t, os.WriteFile(p, b.Bytes(), 0o600))
 		return p
 	}
-	good := write("good.deb", [2]string{"debian-binary", "2.0\n"}, [2]string{"data.tar.gz", string(tgz(t, [][2]string{{"usr/lib/vedette/vedette-host", "BIN"}}))})
+	good := write("good.deb", [2]string{"debian-binary", "2.0\n"}, [2]string{"control.tar.gz", "odd"}, [2]string{"data.tar.gz", string(tgz(t, [][2]string{{"usr/lib/vedette/vedette-host", "BIN"}}))})
 	if b, err := debMember(good, hostBinaryInDeb); err != nil || string(b) != "BIN" {
 		t.Errorf("member without ./: %q %v", b, err)
 	}

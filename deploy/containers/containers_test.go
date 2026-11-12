@@ -411,6 +411,53 @@ func TestHostDebPreflightWiring(t *testing.T) {
 }
 
 // The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
+// make release-gates (D-401): the floor rule of host-deb before anything runs, then the gates in order, the floor and its index
+// handed to the Go checks (which compare them, since make lets an environment MIN_SEQUENCE win), sbom and vuln kept (RELEASE=1).
+func TestReleaseGatesWiring(t *testing.T) {
+	t.Parallel()
+	run := func(env []string, args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory"}, args...)...) //nolint:gosec // test: fixed argv
+		cmd.Dir = "../.."
+		cmd.Env = append(os.Environ(), env...)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	out, err := run(nil, "-n", "release-gates", "VERSION=1.0.0", "RELEASE_PREV_INDEX=/nonexistent", "MIN_SEQUENCE=4")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	last := -1
+	for _, want := range []string{
+		"gates -preflight -version '1.0.0' -min-sequence '4' -prev-index '/nonexistent'",
+		"vuln-scan IMAGE_TAG='1.0.0' RELEASE=1", "RELEASE=1 scripts/dev/supply-chain.sh scan",
+		"sbom IMAGE_TAG='1.0.0' RELEASE=1", "RELEASE=1 scripts/dev/supply-chain.sh sbom",
+		"go run ./scripts/noticescheck",
+		"GOFLAGS= go run ./scripts/release gates -version '1.0.0' -min-sequence '4' -prev-index '/nonexistent'",
+	} {
+		i := strings.Index(out, want)
+		if i <= last {
+			t.Errorf("release-gates: %q missing or out of order:\n%s", want, out)
+		}
+		last = i
+	}
+	// refusals run for real and stop before any scan
+	for _, c := range []struct {
+		why  string
+		env  []string
+		args []string
+	}{
+		{"the release floor", []string{"MIN_SEQUENCE="}, []string{"VERSION=1.0.0"}},
+		{"VERSION must be SemVer", nil, []string{"VERSION=v1.0.0", "MIN_SEQUENCE=0"}},
+		{"CONTAINER=docker is not supported", nil, []string{"VERSION=1.0.0", "MIN_SEQUENCE=0", "CONTAINER=docker"}},
+	} {
+		if out, err := run(c.env, append([]string{"release-gates"}, c.args...)...); err == nil || !strings.Contains(out, c.why) || strings.Contains(out, "trivy") || strings.Contains(out, "go run") {
+			t.Errorf("%v %v: want a refusal with %q before anything runs: %v\n%s", c.env, c.args, c.why, err, out)
+		}
+	}
+}
+
 func TestToolPinsAreExact(t *testing.T) {
 	t.Parallel()
 	got := map[string]string{}

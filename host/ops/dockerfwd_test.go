@@ -3,6 +3,7 @@ package ops_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -22,15 +23,144 @@ func networkText(subnet string) string {
 	return "[Network]\nNetworkName=vedette-int\nSubnet=" + subnet + "\nGateway=172.30.77.1\nPodmanArgs=--interface-name=vedette0\n"
 }
 
-// The four rules, in the order the host keeps them.
+// The five fixed rules, in the order the host keeps them; the ACCEPT of each bridge of the box named br-… goes above them.
 const (
 	ret1  = "-i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN"
 	ret2  = "-i vedette0 -o br-+ -m comment --comment vedette-int -j RETURN"
 	rule1 = "-o vedette0 -d 172.30.77.0/24 -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT"
 	rule2 = "-i vedette0 -s 172.30.77.0/24 -m comment --comment vedette-int -j ACCEPT"
+	drop  = "! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP"
 )
 
-var fourRules = []string{ret1, ret2, rule1, rule2}
+var fixedRules = []string{ret1, ret2, rule1, rule2, drop}
+
+// accTo is the ACCEPT for a bridge of the box, in the words iptables -S prints.
+func accTo(br string) string {
+	return "-s 172.30.77.0/24 -i vedette0 -o " + br + " -m comment --comment vedette-int -j ACCEPT"
+}
+
+// iface makes the interface name under <root>/sys/class/net.
+func iface(t *testing.T, m *opstest.Machine, names ...string) {
+	t.Helper()
+	for _, n := range names {
+		if err := os.MkdirAll(filepath.Join(m.Root, "sys/class/net", n), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func rulesAre(t *testing.T, m *opstest.Machine, want ...string) {
+	t.Helper()
+	if got := m.DockerRules(); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("rules:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func changes(m *opstest.Machine, from int) []string {
+	var out []string
+	for _, c := range calls(m)[from:] {
+		if !strings.Contains(c, " -C ") && !strings.Contains(c, " -S ") {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// D-396 (a): the br-+ RETURN also matches a bridge of the box itself (an uplink br-lan): such a bridge gets an ACCEPT
+// above the RETURNs, so the containers keep the internet through it; Docker's own bridges (br-<12 hex>) get none.
+func TestDockerFwd_OnlyTheBoxsOwnBridgesGetAnAccept(t *testing.T) {
+	m, o, _ := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	iface(t, m, "br-lan", "br-ex", "eth0", "docker0", "vedette0", "br-0123456789ab", "br-abcdefabcdef", "br-l+n", "xbr-lan")
+	o.DockerFwdTick(context.Background())
+	rulesAre(t, m, accTo("br-ex"), accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
+}
+
+// A bridge of the box made later gets its ACCEPT above the RETURNs, below an administrator's rule; one that is gone keeps
+// it (it matches nothing); the host never deletes.
+func TestDockerFwd_ANewBridgeOfTheBoxGoesAboveTheReturns(t *testing.T) {
+	m, o, _ := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	o.DockerFwdTick(context.Background())
+	m.DockerAdminRuleFirst("-s 192.0.2.0/24 -j DROP")
+	iface(t, m, "br-lan")
+	o.DockerFwdTick(context.Background())
+	rulesAre(t, m, "-s 192.0.2.0/24 -j DROP", accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
+	if err := os.Remove(filepath.Join(m.Root, "sys/class/net/br-lan")); err != nil {
+		t.Fatal(err)
+	}
+	iface(t, m, "br-wan")
+	o.DockerFwdTick(context.Background())
+	rulesAre(t, m, "-s 192.0.2.0/24 -j DROP", accTo("br-wan"), accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
+	before := len(calls(m))
+	o.DockerFwdTick(context.Background())
+	if c := changes(m, before); len(c) != 0 {
+		t.Fatalf("a quiet tick changed %q", c)
+	}
+}
+
+// A box with the four rules of D-267 (and Docker's own trailing RETURN) gets the DROP (D-396 (b)) at the end of our block
+// and the ACCEPT of its uplink bridge at the top; nothing is moved.
+func TestDockerFwd_TheFourRulesOfD267GetTheDropAndTheUplinkAccept(t *testing.T) {
+	m, o, _ := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	for _, r := range []string{ret1, ret2, rule1, rule2, "-j RETURN"} {
+		m.DockerAdminRule(r)
+	}
+	iface(t, m, "br-lan", "br-0123456789ab")
+	o.DockerFwdTick(context.Background())
+	rulesAre(t, m, accTo("br-lan"), ret1, ret2, rule1, rule2, drop, "-j RETURN")
+}
+
+// Review M2: positions are counted inside our block; with someone else's rule inside it the DROP would land above the
+// ACCEPT of replies, so nothing is inserted and the log says so once.
+func TestDockerFwd_AForeignRuleInsideOurBlockStopsTheInserts(t *testing.T) {
+	m, o, buf := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	for _, r := range []string{ret1, ret2, "-s 192.0.2.0/24 -j DROP", rule1, rule2} {
+		m.DockerAdminRule(r)
+	}
+	for range 3 {
+		o.DockerFwdTick(context.Background())
+	}
+	if c := changes(m, 0); len(c) != 0 {
+		t.Fatalf("inserted %q", c)
+	}
+	if n := strings.Count(buf.String(), "with another rule between them"); n != 1 {
+		t.Fatalf("logged %d times:\n%s", n, buf)
+	}
+}
+
+// A duplicate ACCEPT of a bridge is a form the host did not write: nothing is added.
+func TestDockerFwd_ADuplicateBridgeAcceptStopsTheInserts(t *testing.T) {
+	m, o, _ := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	for _, r := range []string{accTo("br-lan"), accTo("br-lan"), ret1, ret2, rule1, rule2} {
+		m.DockerAdminRule(r)
+	}
+	iface(t, m, "br-lan")
+	o.DockerFwdTick(context.Background())
+	if c := changes(m, 0); len(c) != 0 {
+		t.Fatalf("inserted %q", c)
+	}
+}
+
+func TestDockerFwd_TooManyBridgesOfTheBoxChangesNothingAndSaysSoOnce(t *testing.T) {
+	m, o, buf := fwdBox(t, "172.30.77.0/24")
+	m.DockerChain(true)
+	for i := range 33 {
+		iface(t, m, fmt.Sprintf("br-%02d", i))
+	}
+	for range 3 {
+		o.DockerFwdTick(context.Background())
+	}
+	if got := calls(m); len(got) != 0 {
+		t.Fatalf("ran %q", got)
+	}
+	if n := strings.Count(buf.String(), "more than 32 bridges"); n != 1 {
+		t.Fatalf("logged %d times:\n%s", n, buf)
+	}
+}
 
 // safeBuf is a log sink two goroutines may write.
 type safeBuf struct {
@@ -88,21 +218,21 @@ func TestDockerFwd_ChainAbsentChangesNothing(t *testing.T) {
 	}
 }
 
-func TestDockerFwd_ChainPresentRulesAbsentInsertsFourInOrderWithExactArgv(t *testing.T) {
+func TestDockerFwd_ChainPresentRulesAbsentInsertsFiveInOrderWithExactArgv(t *testing.T) {
 	m, o, _ := fwdBox(t, "172.30.77.0/24")
 	m.DockerChain(true)
 	o.DockerFwdTick(context.Background())
 	want := []string{"-w 5 -S DOCKER-USER"}
-	for _, r := range fourRules {
+	for _, r := range fixedRules {
 		want = append(want, "-w 5 -C DOCKER-USER "+r)
 	}
-	for i, r := range fourRules {
+	for i, r := range fixedRules {
 		want = append(want, "-w 5 -I DOCKER-USER "+strconv.Itoa(i+1)+" "+r)
 	}
 	if got := calls(m); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if got := m.DockerRules(); strings.Join(got, "\n") != strings.Join(fourRules, "\n") {
+	if got := m.DockerRules(); strings.Join(got, "\n") != strings.Join(fixedRules, "\n") {
 		t.Fatalf("rules: %q", got)
 	}
 }
@@ -115,7 +245,7 @@ func TestDockerFwd_AMissingRuleGoesBackInPlaceBelowTheAdminsRule(t *testing.T) {
 	o.DockerFwdTick(context.Background())
 	// the admin's rule was there first and ours went in at the top: the host does not know what an unrelated rule means
 	got := m.DockerRules()
-	if len(got) != 5 || got[4] != "-s 192.0.2.0/24 -j DROP" {
+	if len(got) != 6 || got[5] != "-s 192.0.2.0/24 -j DROP" {
 		t.Fatalf("rules: %q", got)
 	}
 	// the admin puts a rule above ours, and the host deletes nothing and moves nothing
@@ -124,19 +254,19 @@ func TestDockerFwd_AMissingRuleGoesBackInPlaceBelowTheAdminsRule(t *testing.T) {
 	o2.DockerFwdTick(context.Background())
 	m2.DockerAdminRuleFirst("-s 192.0.2.0/24 -j DROP")
 	o2.DockerFwdTick(context.Background())
-	if got := m2.DockerRules(); len(got) != 5 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fourRules, "\n") {
+	if got := m2.DockerRules(); len(got) != 6 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fixedRules, "\n") {
 		t.Fatalf("rules after the admin's rule on top: %q", got)
 	}
 	// one of ours is deleted (the third): it returns between the second and the fourth, below the admin's rule
 	m2.DockerDelete(rule1)
 	o2.DockerFwdTick(context.Background())
-	if got := m2.DockerRules(); len(got) != 5 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fourRules, "\n") {
+	if got := m2.DockerRules(); len(got) != 6 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fixedRules, "\n") {
 		t.Fatalf("rules after a deleted rule: %q", got)
 	}
 	// the first of ours is deleted: it returns above the second
 	m2.DockerDelete(ret1)
 	o2.DockerFwdTick(context.Background())
-	if got := m2.DockerRules(); len(got) != 5 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fourRules, "\n") {
+	if got := m2.DockerRules(); len(got) != 6 || got[0] != "-s 192.0.2.0/24 -j DROP" || strings.Join(got[1:], "\n") != strings.Join(fixedRules, "\n") {
 		t.Fatalf("rules after the first was deleted: %q", got)
 	}
 }
@@ -197,7 +327,7 @@ func TestDockerFwd_RulesPresentOnlyChecks(t *testing.T) {
 			t.Fatalf("an insert on a repeated tick: %q", c)
 		}
 	}
-	if got := m.DockerRules(); len(got) != 4 {
+	if got := m.DockerRules(); len(got) != 5 {
 		t.Fatalf("rules are not idempotent: %q", got)
 	}
 }
@@ -208,7 +338,7 @@ func TestDockerFwd_DockerRestartPutsTheRulesBack(t *testing.T) {
 	o.DockerFwdTick(context.Background())
 	m.DockerFlush()
 	o.DockerFwdTick(context.Background())
-	if got := m.DockerRules(); len(got) != 4 {
+	if got := m.DockerRules(); len(got) != 5 {
 		t.Fatalf("rules after a flush: %q", got)
 	}
 }
@@ -314,7 +444,7 @@ func TestDockerFwd_StartLooksOnceAndArmsTheTimerUntilClose(t *testing.T) {
 		}
 	})
 	o.Start(context.Background(), nil)
-	if len(m.DockerRules()) != 4 {
+	if len(m.DockerRules()) != 5 {
 		t.Fatalf("Start did not put the rules: %q", m.DockerRules())
 	}
 	if fire == nil {
@@ -322,7 +452,7 @@ func TestDockerFwd_StartLooksOnceAndArmsTheTimerUntilClose(t *testing.T) {
 	}
 	m.DockerFlush()
 	fire()
-	if len(m.DockerRules()) != 4 {
+	if len(m.DockerRules()) != 5 {
 		t.Fatalf("the timer did not put the rules back: %q", m.DockerRules())
 	}
 	if armed != 2 {
@@ -338,7 +468,7 @@ func TestDockerFwd_StartLooksOnceAndArmsTheTimerUntilClose(t *testing.T) {
 func TestValidateIptables(t *testing.T) {
 	t.Parallel()
 	good := [][]string{{"-w", "5", "-S", "DOCKER-USER"}}
-	for i, r := range fourRules {
+	for i, r := range fixedRules {
 		good = append(good, append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(r)...),
 			append([]string{"-w", "5", "-I", "DOCKER-USER", strconv.Itoa(i + 1)}, strings.Fields(r)...))
 	}
@@ -347,8 +477,29 @@ func TestValidateIptables(t *testing.T) {
 			t.Errorf("%q refused: %v", a, err)
 		}
 	}
+	for _, br := range []string{"br-lan", "br-ex", "br-0123456789AB", "br-a.b_c-d"} {
+		good = append(good, append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo(br))...),
+			append([]string{"-w", "5", "-I", "DOCKER-USER", "1"}, strings.Fields(accTo(br))...))
+	}
 	bad := [][]string{
 		nil,
+		append([]string{"-w", "5", "-I", "DOCKER-USER", "1"}, strings.Fields(accTo("br-0123456789ab"))...), // Docker's own bridge
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("br-+"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("br-l+n"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("br-"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("br-1234567890123"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("eth0"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(accTo("docker0"))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(accTo("br-lan"), "172.30.77.0/24", "0.0.0.0/0", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(accTo("br-lan"), "-i vedette0", "-i eth0", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(accTo("br-lan"), "ACCEPT", "RETURN", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(accTo("br-lan"), "-s 172.30.77.0/24 ", "", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(ret2, "br-+", "br-lan", 1))...),
+		append([]string{"-w", "5", "-D", "DOCKER-USER"}, strings.Fields(ret2)...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(drop, "! ", "", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(drop, "-o vedette0", "-o eth0", 1))...),
+		append([]string{"-w", "5", "-C", "DOCKER-USER"}, strings.Fields(strings.Replace(drop, "DROP", "ACCEPT", 1))...),
+		{"-w", "5", "-C", "DOCKER-USER", "-s"},
 		{"-S", "DOCKER-USER"},
 		{"-w", "5", "-S", "FORWARD"},
 		{"-w", "5", "-S", "DOCKER-USER", "-v"},

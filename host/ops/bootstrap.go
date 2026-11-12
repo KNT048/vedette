@@ -283,7 +283,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		switch state, added := o.dockerFwdSync(fctx); {
 		case added > 0:
 			logf(fmt.Sprintf("added %d DOCKER-USER rules for the vedette-int bridge so the scan build can reach the Debian package mirror (D-267)", added))
-		case state == "failed" || state == "iptables_unavailable" || state == "unexpected" || state == "no_bridge":
+		case state == "failed" || state == "iptables_unavailable" || state == "unexpected" || state == "no_bridge" || state == "too_many_bridges":
 			logf("the DOCKER-USER rules for the vedette-int bridge are not in place (" + state + "); on a box with Docker the scan build may not reach the Debian package mirror")
 		}
 		cancel()

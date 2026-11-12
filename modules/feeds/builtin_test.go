@@ -149,6 +149,33 @@ func TestParseNucleiCVEs(t *testing.T) {
 	}
 }
 
+// A few lines of the live files of 2026-11-12 (CONTRACT INV-2): hagezi's header of "# " lines, then one bare name per line
+// (the wildcard list: a name stands for its subdomains, no "*." in the file), IDN top-level domains in ASCII form among them;
+// IPsum levels/3.txt is one bare address per line, no header and no count column.
+func TestBuiltinParsersOnLiveLines(t *testing.T) {
+	t.Parallel()
+	hagezi := "# Title: HaGeZi's Threat Intelligence Feeds - mini version (best for browser/mobile ad blockers)\n# Expires: 8 hours\n" +
+		"# Syntax: Domains (without subdomains)\n# Number of entries: 185987\n#\nkhizar-waheed.000a.de\nmusclecar.000a.de\n" +
+		"discord.xn--q9jyb4c\nxn-----6kcacs9ajdmhcwdcbwwcnbgd13a.xn--p1ai\n"
+	ipsum := "45.148.10.141\n45.148.10.157\n138.226.239.234\n"
+	for id, c := range map[string]struct {
+		in   string
+		want []string
+	}{"hagezi-tif": {hagezi, []string{"khizar-waheed.000a.de", "musclecar.000a.de", "discord.xn--q9jyb4c", "xn-----6kcacs9ajdmhcwdcbwwcnbgd13a.xn--p1ai"}},
+		"ipsum": {ipsum, []string{"45.148.10.141", "45.148.10.157", "138.226.239.234"}}} {
+		s, _ := BuiltinByID(id)
+		r, err := ParseSource(context.Background(), s, []byte(c.in))
+		if err != nil || r.Rejected != 0 || len(r.Records) != len(c.want) {
+			t.Fatalf("%s: %v %+v", id, err, r.Stats)
+		}
+		for i, w := range c.want {
+			if r.Records[i]["indicator"] != w {
+				t.Errorf("%s row %d: %v, want %s", id, i, r.Records[i]["indicator"], w)
+			}
+		}
+	}
+}
+
 func TestBuiltinGenericParsersOnRealisticFixtures(t *testing.T) {
 	t.Parallel()
 	feodo := "# Feodo\n#\n185.220.101.47\n# c\n45.148.10.95\n"

@@ -31,6 +31,12 @@ import (
 // that a third party's package archive supplies, which is why it is a constant text, a fixed argv, a context made for this run and
 // nothing else, and a check by effect afterwards.
 //
+// On vedette-int the build container is a peer of core: it can reach core's 8443, 5514 and 5515 (already open to the LAN through the
+// published ports) and core's in-namespace 8444 (mutual TLS; the build has no client certificate), never the host's loopback; it runs
+// without NET_RAW (--cap-drop NET_RAW), so it cannot spoof on that bridge. A separate build network was rejected (a second subnet picker,
+// a second bridge name, four more DOCKER-USER rules, more uninstall cleanup) for a RUN step that runs only our signed base image and
+// Debian-signed packages.
+//
 // A failed build, or a built image whose "nmap --version" does not print a version at or above the floor, leaves the previous
 // localhost/vedette-scan-nmap image as it was (the tag is put back on it) and ends the pull as scan_build_failed. The pull of the base
 // still counts: it stays on the machine, tagged, and a retry pulls nothing.

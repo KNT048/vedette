@@ -173,6 +173,16 @@ func TestContract_Bootstrap_PutsTheDockerForwardRulesInPlaceBeforeTheScanBuild(t
 	if added < 0 || build < 0 || added > build {
 		t.Errorf("the rules (line %d) must come before the build (line %d):\n%s", added, build, strings.Join(lines, "\n"))
 	}
+	// Without scan in the run there is no build, so the bootstrap does not touch iptables at all.
+	e2 := startUpd(t)
+	e2.m.WriteRoot("etc/containers/systemd/vedette-int.network", "[Network]\nNetworkName=vedette-int\nSubnet=172.30.77.0/24\nGateway=172.30.77.1\nPodmanArgs=--interface-name=vedette0\n")
+	e2.m.DockerChain(true)
+	a := e2.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceSensor}
+	e2.bootstrapOK(t, a)
+	if c := e2.m.Calls(ops.BinIptables); len(c) != 0 {
+		t.Errorf("a bootstrap without scan called iptables: %q", c)
+	}
 }
 
 func TestContract_Bootstrap_SecondRunIsANoOp(t *testing.T) {

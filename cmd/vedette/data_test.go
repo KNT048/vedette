@@ -298,7 +298,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	if err := hp.Close(); err != nil {
 		t.Fatal(err)
 	}
-	addr, lines, done, stop = boot()
+	addr, _, done, stop = boot()
 	logsDB := filepath.Join(dir, "logs.db") // the real volume of the logs module, open in the process (not a planted file)
 	snap := filepath.Join(dir, "snapshots", "0123456789abcdef0123456789abcdef")
 	for _, p := range []string{filepath.Join(snap, "vedette.db")} {

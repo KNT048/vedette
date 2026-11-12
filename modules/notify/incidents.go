@@ -520,7 +520,7 @@ func (s *Service) resendApproverProblem(ctx context.Context, ch channel.Type, ad
 	}
 	why, err := s.approverCheck(ctx, ch, Approver{UserID: userID, Address: address})
 	if err != nil { // the directory or the link store did not answer: retry later, not "this approver does not qualify"
-		return "", apierr.New(http.StatusServiceUnavailable, "approver_check_unavailable", "Vedette could not check the approver just now. Try again in a moment.")
+		return "", apierr.New(http.StatusServiceUnavailable, "approver_check_unavailable", "Vedette could not check the approver just now. Try again in a moment.").With("retry_after", 5)
 	}
 	return why, nil
 }

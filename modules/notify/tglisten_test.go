@@ -133,6 +133,9 @@ func (f *fakeTelegram) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_, _ = io.WriteString(w, `{"ok":true,"result":[`+strings.Join(out, ",")+`]}`)
 				return
 			}
+			if r.Context().Err() != nil { // the listener that made this call is gone: its poll must not signal the next one's
+				return
+			}
 			select {
 			case f.waiting <- struct{}{}:
 			default:

@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-// A local-use NAT64 prefix (64:ff9b:1::/48, RFC 8215) is judged by the IPv4 address in every RFC 6052 layout, not only /48.
+// A local-use NAT64 prefix (64:ff9b:1::/48, RFC 8215) is judged by the IPv4 address in every RFC 6052 layout a sub-prefix of it can have (/48 /56 /64 /96).
 func TestAddrFormsNAT64LocalEveryLayout(t *testing.T) {
 	t.Parallel()
 	// the byte offsets of the four IPv4 octets for each prefix length (byte 8 is the reserved u octet)
 	layouts := map[string][4]int{
-		"/32": {4, 5, 6, 7}, "/40": {5, 6, 7, 9}, "/48": {6, 7, 9, 10}, "/56": {7, 9, 10, 11}, "/64": {9, 10, 11, 12}, "/96": {12, 13, 14, 15},
+		"/48": {6, 7, 9, 10}, "/56": {7, 9, 10, 11}, "/64": {9, 10, 11, 12}, "/96": {12, 13, 14, 15},
 	}
 	b := [16]byte{0x00, 0x64, 0xff, 0x9b, 0x00, 0x01}
 	for i := 6; i < 16; i++ {

@@ -113,8 +113,8 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	// A name that resolves to such an address is refused when connecting (dialControl).
 	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
 	boxAddrs, _ := box()
-	if a, err := netip.ParseAddr(host); (err == nil && forbiddenAddr(a, cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && strings.HasSuffix(host, ".localhost")) {
-		return nil, cfgErr("bad_host", "The SMTP server cannot be this machine, a link-local or multicast address, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
+	if a, err := netip.ParseAddr(host); (err == nil && forbiddenAddr(a, cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && strings.HasSuffix(host, ".localhost")) || metadataName(host) {
+		return nil, cfgErr("bad_host", "The SMTP server cannot be this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
 	}
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, cfgErr("bad_port", "The SMTP port is a number from 1 to 65535 (usually 587 or 465).")

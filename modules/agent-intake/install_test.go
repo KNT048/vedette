@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -157,13 +158,40 @@ func TestInstall_VersionsAgree(t *testing.T) {
 		t.Errorf("PINS has %d keys, want the version, three package hashes and three licence hashes", len(pins))
 	}
 	sh := readFile(t, "scripts/osquery.sh")
-	for _, want := range []string{`FILE="osquery_${VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${VERSION}-1.linux.x86_64.rpm"`} {
+	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.x86_64.rpm"`} {
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script does not ask for %s", want)
 		}
 	}
 	if !strings.Contains(readFile(t, "scripts/osquery.ps1"), `$File = "osquery-$Version.msi"`) {
 		t.Error("the Windows script does not ask for osquery-<version>.msi")
+	}
+}
+
+// A real Debian/Ubuntu/RHEL /etc/os-release defines VERSION (and ID, NAME...). The script sources it in its own shell, so none of its own
+// variables may share a name with it: osquery_13 (trixie)-1.linux_amd64.deb was asked for on a real Debian 13 (2026-11-12 real run).
+func TestInstall_LinuxScriptSurvivesOsRelease(t *testing.T) {
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("no sh")
+	}
+	osr := filepath.Join(t.TempDir(), "os-release")
+	for id, want := range map[string]string{"debian": "osquery_5.12.1-1.linux_amd64.deb", "rocky": "osquery-5.12.1-1.linux.x86_64.rpm"} {
+		if err := os.WriteFile(osr, []byte("PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nID="+id+"\nHOME_URL=\"https://www.debian.org/\"\nDIR=/nonexistent\nCA=/nonexistent\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		src := strings.ReplaceAll(readFile(t, "scripts/osquery.sh"), "@@VERSION@@", "5.12.1")
+		src = strings.NewReplacer("OSF=/etc/os-release;", "OSF="+osr+";", `[ "$(id -u)" -eq 0 ]`, "true", "$(uname -m)", "x86_64").Replace(src)
+		i := strings.Index(src, `mkdir -p "$DIR"`)
+		if i < 0 {
+			t.Fatal("the script has no mkdir step")
+		}
+		cmd := exec.Command(sh, "-c", src[:i]+`echo "$FILE"`, "sh", "--token", "t")
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH")} // an ID exported by the machine running the test must not leak in
+		out, err := cmd.CombinedOutput()
+		if err != nil || strings.TrimSpace(string(out)) != want {
+			t.Errorf("os-release ID=%s: FILE = %q (%v), want %q", id, out, err, want)
+		}
 	}
 }
 

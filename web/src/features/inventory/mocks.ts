@@ -3,7 +3,7 @@
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
-import { assetsStore, boxInfo, isOn, findingsStore } from '@/mocks/stores'
+import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
 import { networkStore, spanStatusOf } from '@/mocks/network'
@@ -52,6 +52,27 @@ const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
+/** Container-only install (D-263, D-387): the cards the sensor container reported in its heartbeat and the SPAN card the admin
+ *  chose. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
+type ReportedCard = { name: string; ipv4: string | null; link: boolean }
+export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
+  connected: true, chosen: null, span: false,
+  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }],
+}), () => ({ connected: false, cards: [], chosen: null, span: false }))
+/** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
+function containerSensors() {
+  const c = containerSensorStore.get()
+  // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
+  // The backend counts only a global IPv4 (globalIPv4); the fixtures hold no link-local address.
+  const withAddress = c.cards.filter((x) => x.link && x.ipv4)
+  const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
+  const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null
+  return sensorsStore.get().map((s) => ({
+    ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
+    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span,
+    span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
+  }))
+}
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
   { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
 ], () => [])
@@ -250,23 +271,29 @@ function detectDelimiter(text: string): string {
   const count = (d: string) => first.split(d).length - 1
   return [';', '\t'].reduce((best, d) => (count(d) > count(best) ? d : best), ',')
 }
-function parseCsv(text: string): string[][] {
+/** Như bản Go: dấu nháy lạc / không đóng không dừng việc đọc, chỉ đánh dấu dòng (chỉ số dòng → lý do) để báo lỗi theo số dòng. */
+function parseCsv(text: string): { rows: string[][]; problems: Map<number, string> } {
   const delim = detectDelimiter(text)
   const rows: string[][] = []
+  const problems = new Map<number, string>()
   let row: string[] = []
   let cell = ''
-  let q = false
+  let q = false, atStart = true, closed = false, openRow = 0
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!
     if (q) {
-      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else q = false } else cell += c
-    } else if (c === '"') q = true
-    else if (c === delim) { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = '' }
-    else cell += c
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else { q = false; closed = true } } else cell += c
+    } else if (c === '"' && atStart) { q = true; atStart = false; openRow = rows.length }
+    else if (c === delim) { row.push(cell); cell = ''; atStart = true; closed = false }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; atStart = true; closed = false }
+    else {
+      if (c === '"' || closed) problems.set(rows.length, 'A double quote is in the wrong place in this row. Put a whole cell in quotes, or remove the stray quote.')
+      atStart = false; cell += c
+    }
   }
+  if (q) problems.set(openRow, 'A double quote was opened and never closed, so this row runs into the rows below it. Close the quote or remove it.')
   if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
-  return rows
+  return { rows, problems }
 }
 /** Hạ chữ thường, mọi ký tự lạ thành "_": "IP Address" → ip_address. */
 const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
@@ -279,6 +306,25 @@ const KIND_LABEL: Record<string, AssetKind> = {
   wi_fi_ap: 'ap', wifi: 'ap', access_point: 'ap', camera_recorder: 'nvr', iot_device: 'iot', website: 'web', laptop: 'pc', computer: 'pc', desktop: 'pc', other: 'unknown',
 }
 const parseKind = (text: string): AssetKind | undefined => { const k = fold(text); return KINDS.find((x) => x === k) ?? KIND_LABEL[k] }
+/** Như rowShapeProblem của Go: nhiều ô có chữ hơn số cột, hoặc một ô duy nhất chứa cả dòng ngăn cách bằng ký tự khác tiêu đề; dòng ngắn thì chấp nhận. */
+function rowShapeProblem(cells: string[], columns: number, delim: string): string {
+  let n = cells.length
+  while (n > 0 && !cells[n - 1]!.trim()) n--
+  if (n > columns) return `This row has ${n} columns but the header has ${columns}. Check that every row uses the same separator (comma, semicolon or tab) as the header row.`
+  if (cells.length === 1 && columns > 1 && [',', ';', '\t'].some((d) => d !== delim && cells[0]!.split(d).length - 1 >= columns - 1)) {
+    return `This row is one cell but the header has ${columns} columns, and the row looks separated by a different character than the header. Use the same separator (comma, semicolon or tab) in every row.`
+  }
+  return ''
+}
+/** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
+function ipNote(ip: string, ranges: string[]): string {
+  const [a, b] = ip.split('.').map(Number) as [number, number]
+  const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 127
+  if (ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return ''
+  if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
+  if (ranges.length) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
+  return ''
+}
 const MAX_IMPORT_BYTES = 200_000
 const MAX_IMPORT_ROWS = 500
 
@@ -497,25 +543,33 @@ export const handlers = [
     const b = await body<{ filename: string; size: number; text: string }>(request)
     if (typeof b.text !== 'string' || !b.text.trim()) return fail(400, 'empty_file', 'The file is empty. Download the template, fill in your devices and choose it again.')
     if (b.text.length > MAX_IMPORT_BYTES) return fail(400, 'too_large', `The file is too large (max ${MAX_IMPORT_BYTES / 1000} KB). Split it into smaller files.`)
-    const table = parseCsv(b.text.replace(/^\uFEFF/, ''))
+    const csvText = b.text.replace(/^\uFEFF/, '')
+    const delim = detectDelimiter(csvText)
+    const { rows: table, problems } = parseCsv(csvText)
     const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
+    if (problems.has(hi)) return fail(400, 'bad_header', problems.get(hi)!)
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
     if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
+    if (!problems.size && !data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
     if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
-    const res: ImportResult = { created: 0, skipped: 0, errors: [] }
+    const res: ImportResult = { created: 0, skipped: 0, errors: [], notes: [] }
+    const ranges = loadSettings().lan_ranges
     const seenIps = new Set<string>()
     const seenNames = new Set<string>()
     const noIpNames = new Set(allAssets().filter((a) => !hasIp(a) && a.hostname).map((a) => a.hostname!.toLowerCase()))
     data.forEach((cells, i) => {
       const line = hi + i + 2
-      if (cells.every((c) => !c.trim())) return
+      if (!problems.has(hi + 1 + i) && cells.every((c) => !c.trim())) return
       // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
-      const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
+      if (problems.has(hi + 1 + i)) return err(problems.get(hi + 1 + i)!)
+      const shape = rowShapeProblem(cells, header.length, delim)
+      if (shape) return err(shape)
+      const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
-      if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use names as in the suggestion box when declaring by hand, for example FortiGate, Synology, WordPress.`)
+      if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
       if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
       const kindText = get('kind')
       const kind = kindText ? parseKind(kindText) : undefined
@@ -531,6 +585,8 @@ export const handlers = [
       }
       createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind })
       res.created++
+      const note = v.ip ? ipNote(v.ip, ranges) : ''
+      if (note) res.notes.push({ line, message: note })
     })
     audit('inventory.import', b.filename ? String(b.filename).slice(0, 80) : 'csv', `${res.created} devices, ${res.errors.length} errors`)
     return HttpResponse.json(res)
@@ -589,12 +645,33 @@ export const handlers = [
 
   http.get(`${API}/inventory/sensors`, () => {
     const denied = guard('admin'); if (denied) return denied
+    if (installStore.get().kind === 'container') return HttpResponse.json({ sensors: containerSensors() })
     // SPAN and the listening port are owned by Settings → Box network (D-56); the sensor row only reflects them.
     const net = networkStore.get()
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
     const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
     return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
+  }),
+
+  // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
+  http.patch(`${API}/inventory/sensors/:id`, async ({ request, params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!sensorsStore.get().some((s) => s.id === params.id)) return fail(404, 'not_found', 'No such sensor. This box has one sensor, sn-local.')
+    if (installStore.get().kind !== 'container') return fail(409, 'set_in_box_network', 'On this box the card the sensor listens on is chosen in Settings → Box network.')
+    const b = await body<{ interface?: unknown; span?: unknown }>(request)
+    if (typeof b.span !== 'boolean' || (b.interface !== null && (typeof b.interface !== 'string' || b.interface.length > 15))) return fail(400, 'invalid', 'Give interface (a card name or null) and span (true or false).')
+    const c = containerSensorStore.get()
+    const name = b.interface === '' ? null : b.interface as string | null
+    if (name && !c.connected) return fail(400, 'bad_interface', 'The sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again.')
+    if (name && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$/.test(name)) return fail(400, 'bad_interface', `"${name}" is not an interface name.`)
+    const card = name ? c.cards.find((x) => x.name === name) : undefined
+    if (b.span && !name) return fail(400, 'bad_interface', 'A SPAN port needs an interface.')
+    if (name && !card) return fail(400, 'bad_interface', `"${name}" is not an interface of this box.`)
+    if (b.span && card?.ipv4) return fail(400, 'bad_interface', `"${name}" has an IP address; a SPAN port has none.`)
+    containerSensorStore.set({ ...c, chosen: name, span: b.span })
+    audit('sensor.interface_set', String(params.id), `interface="${name ?? ''}" span=${b.span}`)
+    return HttpResponse.json(containerSensors().find((s) => s.id === params.id))
   }),
 
 

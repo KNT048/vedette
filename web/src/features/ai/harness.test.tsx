@@ -10,7 +10,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { sessionStore } from '@/mocks/stores'
 import AiSettings from './AiSettings'
-import { activeDefs, builtinHookState, customHooksStore, knowledgeStore, runHooks } from './harness'
+import { activeDefs, builtinHookState, customHooksStore, knowledgeSettings, knowledgeStore, runHooks } from './harness'
 import type { AskResult } from './types'
 
 void server
@@ -125,6 +125,24 @@ describe('Settings, AI assistant tabs', () => {
     expect(screen.queryByText(/cannot be added/)).toBeNull()
     await userEvent.upload(input, new File(['x'], 'photo.png', { type: 'image/png' }), { applyAccept: false })
     expect(await screen.findByText(/photo\.png cannot be added/)).toBeInTheDocument()
+  })
+  it('knowledge tab (walk 3): the index error goes once a profile is saved; a fake PDF is named in a sentence; "1 chunk"', async () => {
+    knowledgeSettings.set({ index_profile: null })
+    knowledgeStore.update((l) => [{ id: 'kd-small', name: 'vlan-notes.md', size: 900, jobs: ['ask-my-data'], uploaded_at: new Date(Date.now() - 86_400_000).toISOString() }, ...l])
+    renderAt('/settings/ai?tab=knowledge')
+    expect(await screen.findByText(/1 KB · 1 chunk ·/)).toBeInTheDocument()
+    const input = screen.getByTestId('kb-file')
+    await userEvent.upload(input, new File(['%PDF-1.4\n'], 'runbook.pdf', { type: 'application/pdf' }), { applyAccept: false })
+    expect(await screen.findByText('Choose an AI profile for the index before adding documents.')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('AI profile for the index'), 'p-haiku')
+    await waitFor(() => expect(screen.queryByText('Choose an AI profile for the index before adding documents.')).toBeNull())
+    await userEvent.upload(input, new File([new Uint8Array([0x13, 0x99, 0x00, 0xfe, 0x42])], 'broken.pdf', { type: 'application/pdf' }), { applyAccept: false })
+    expect(await screen.findByText('broken.pdf is not a PDF file. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
+    // a text file the box would refuse is refused by the mock in the same words (decodeText): Latin-1 bytes, and a NUL
+    await userEvent.upload(input, new File([new Uint8Array([0x63, 0x61, 0x66, 0xe9])], 'menu.txt', { type: 'text/plain' }), { applyAccept: false })
+    expect(await screen.findByText('menu.txt is not UTF-8 text. Save it as UTF-8 and add it again. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
+    await userEvent.upload(input, new File([new Uint8Array([0x61, 0x00, 0x62])], 'nul.md', { type: 'text/markdown' }), { applyAccept: false })
+    expect(await screen.findByText('nul.md is not a text file. Only PDF, MD, TXT and DOCX files can be added.')).toBeInTheDocument()
   })
 })
 

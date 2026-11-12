@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (231 mã)
+#### HTTP 400 (235 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -150,7 +150,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_span` | 400 | span must be true or false. | `PATCH /inventory/sensors/{id}` |
 | `bad_status` | 400 | Status must be new, acknowledged or resolved. | `PATCH /notify/incidents/{id}` |
 | `bad_time` | 400 | Time must look like 23:00. | `PUT /inventory/settings`; `PUT /notify/rules` |
-| `bad_to` | 400 | A recipient email is not valid. Separate several recipients with commas. | module notify (validator dùng chung) |
+| `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |
 | `bad_type` | 400 | Choose a token type: decoy file, fake credentials, URL or DNS name. | `POST /honeypot/tokens` |
 | `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  | module inventory, logs, notify (validator dùng chung) |
@@ -256,12 +256,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_code` | 400 | No code is waiting. Ask for a new code. | module core (validator dùng chung) |
 | `commitment_required` | 400 | You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` |
 | `no_days` | 400 | Pick at least one day for the maintenance window. | `PATCH /core/updates/os/settings`; `PUT /inventory/settings` |
-| `no_index_profile` | 400 | Choose which AI profile builds the index before adding documents. | `POST /ai/knowledge` |
+| `no_index_profile` | 400 | Choose an AI profile for the index before adding documents. | `POST /ai/knowledge` |
 | `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `no_pack` | 400 | This CVE has no confirmed recommendation yet, so there is nothing to mark as applied. | `POST /findings/{id}/applied` |
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
 | `no_ranges` | 400 | Active scanning needs at least one network range. | `PUT /inventory/settings` |
 | `no_recipients` | 400 | Automatic sending needs at least one recipient. Add an email, then save. | `POST /reports/weekly/send` |
+| `no_rows` | 400 | No device rows were found below the column headers. Add at least one row and choose the file again. | `POST /inventory/import` |
 | `no_such_user` | 400 | One of the approvers does not exist or is disabled. | module notify (validator dùng chung) |
 | `no_targets` | 400 | Choose at least one device to scan. | `POST /scans/runs` |
 | `no_window` | 400 | There is no maintenance window yet. Set the days and hours first, or pick a time yourself. | `POST /core/updates/os/reboot` |
@@ -297,7 +298,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `telemetry_unavailable` | 400 | This version of Vedette does not send an anonymous signal, so it cannot be turned on. | `PATCH /core/privacy` với `telemetry: true` (backend; D-154. Không có trong mock; GUI không gửi từ D-153) |
 | `tls_unavailable` | 400 | Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP. | module logs (D-203, D-214): chỉ trên hộp không có cấu hình TLS (loopback/dev) |
 | `too_large` | 400/413 | The file is larger than 10 MB. Split it or remove pictures, then upload again. | 4 endpoint (/ai, /core, /feeds, /inventory) |
-| `too_many` | 400 | A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections`; `POST /core/mcp/tokens`: "A box holds up to 10 MCP tokens. Revoke one you no longer use." (D-231) |
+| `too_many` | 400 | The certificate-transparency logs list more than 300 names under ${domain}, more than one scan reads, so nothing was scanned. … (`POST /exposure/targets/{id}/scan`, D-229) / A box holds up to 30 custom rules. Delete one you no longer need. Also: A box holds up to 20 connections. Delete one you no longer use. | 10 endpoint (/ai, /core, /exposure, /scans); `POST /core/connections`; `POST /core/mcp/tokens`: "A box holds up to 10 MCP tokens. Revoke one you no longer use." (D-231) |
 | `too_many_ranges` | 400 | At most 16 network ranges. | `PUT /inventory/settings` |
 | `too_many_rows` | 400 | At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows. | `POST /inventory/import` |
 | `too_many_tries` | 400 | Too many wrong codes. Ask for a new code. | module core (validator dùng chung) |
@@ -306,6 +307,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown_product` | 400 | That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself. | module inventory (validator dùng chung) |
 | `unknown_profile` | 400 | This AI profile no longer exists. Pick another. | `PUT /ai/knowledge/settings` |
 | `unknown_target` | 400 | There is no target "${id.slice(0, 40)}" in the scan list. | `POST /scans/runs` |
+| `url_unreadable` | 400 | The saved webhook URL cannot be read. Enter it again and save. | `PUT /notify/channels/webhook` (chỉ backend: URL đã niêm phong không mở được, ví dụ khoá đổi; mock không có trạng thái niêm phong nên không trả mã này). Mã riêng vì `secret_required` của webhook là khoá ký; GUI hiện dưới trường URL |
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
@@ -324,6 +326,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
 | `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
+| `blocked_host` | 400 | Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses. Also: The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box. | `POST /feeds/custom`; `PUT /feeds/custom/{id}`; `PUT /feeds/sources/{id}`; `PUT /logs/siem` |
+| `duplicate_url` | 400 | The feed "Tor exit list" already uses this address. | `POST /feeds/custom`; `PUT /feeds/custom/{id}` |
 
 #### HTTP 401 (3 mã)
 
@@ -363,7 +367,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (89 mã)
+#### HTTP 409 (90 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -378,7 +382,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
-| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared); `POST /ai/knowledge` (documents still being read); `POST /core/updates/apply`, `POST /core/updates/rollback` ("An update or rollback of the software is already running. Wait for it to finish."; while an OS install runs: "An operating system update is running. Wait for it to finish, then try again."). Backend (D-342): a software run counts as busy for the OS endpoints too |
+| `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. / Another external scan is running on this box. Wait for it to finish, then try again. (`POST /exposure/targets/{id}/scan`, D-229) | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared); `POST /ai/knowledge` (documents still being read); `POST /core/updates/apply`, `POST /core/updates/rollback` ("An update or rollback of the software is already running. Wait for it to finish."; while an OS install runs: "An operating system update is running. Wait for it to finish, then try again."). Backend (D-342): a software run counts as busy for the OS endpoints too |
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on or import an offline bundle. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
@@ -398,7 +402,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_not_current` | 409 | This box no longer reaches the Internet through ${ip}; it was last seen ${time}. Scans of it are paused until the box uses it again. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` (kiểm lúc quét của IP, `exposure` INV-13, D-79 (2)) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
 | `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
-| `module_off` | 409 | The module for this role is off. | Sensor link 8444 (`core/sensorlink`, D-141). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
+| `module_off` | 409 | The module for this role is off. / The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. | `POST /exposure/targets/{id}/scan` while the `scan` module, which does the scan, is off (D-229); sensor link 8444 (`core/sensorlink`, D-141). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
 | `need_decoys` | 409 | Scan detection needs at least two decoy IPs. Add a decoy first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
@@ -421,6 +425,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rule_rate_limited` | 409 | Limit of N runs per hour reached. | rule runs (resp_log only: an event is not an API call) |
 | `same_approver` | 409 | You already approved this request. A second, different person must approve it. | module response (validator dùng chung) |
 | `selection_differs` | 409 | The second approver must approve the same actions as the first. | module response (validator dùng chung) |
+| `set_in_box_network` | 409 | On this box the card the sensor listens on is chosen in Settings → Box network. Backend [ĐX] (D-387): có `vedette-host` (appliance, hay host đã cấu hình mà không đưa được danh sách card), nơi host áp card SPAN (D-56, D-118); không gì đổi. | `PATCH /inventory/sensors/{id}` |
 | `skill_off` | 409 | The "Ask your data" skill is turned off. Turn it on in Settings, AI assistant, Skills. | `POST /ai/ask` |
 | `sso_user` | 409 | This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider. | `PATCH /core/users/{id}` (role), `POST /core/users/{id}/reset-password`, `POST /core/account/password`, `POST /core/account/2fa/start`, `POST /core/account/2fa/email/start` (D-195 (2), (5)) |
 | `sso_wrong_address` | 409 | SSO sign-in works at ${address}. Open Vedette there to sign in with SSO. | `POST /auth/oidc/start` from an address other than the redirect URI saved in Settings, Users (D-194 (5)); `address` in the body |
@@ -487,7 +492,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute); agent-intake (kèm `retry_after` và `Retry-After`): `POST /intake/osquery/{enroll,config,log,status}` khi một nguồn sai thông tin xác thực quá 10 lần/phút hoặc một máy quá 6 `config` / 12 `log` mỗi phút, hoặc đăng ký lại cùng (token, `host_identifier`) trong 60 giây (D-265 (2)); `GET /install/osquery/{file}` khi đã có 4 lượt tải gói chạy cùng lúc (`Retry-After: 5`, WP-26 lát 3) |
+| `rate_limited` | 429 | ${value} was scanned at ${time}. Scan it again after ${time}: at most one scan of a target every 10 minutes. (`POST /exposure/targets/{id}/scan`, backend only, D-229) / Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute); agent-intake (kèm `retry_after` và `Retry-After`): `POST /intake/osquery/{enroll,config,log,status}` khi một nguồn sai thông tin xác thực quá 10 lần/phút hoặc một máy quá 6 `config` / 12 `log` mỗi phút, hoặc đăng ký lại cùng (token, `host_identifier`) trong 60 giây (D-265 (2)); `GET /install/osquery/{file}` khi đã có 4 lượt tải gói chạy cùng lúc (`Retry-After: 5`, WP-26 lát 3) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 | `too_many_nodes` | 429 | This enrollment token already has the most machines it can have. Revoke it and make a new one. | `POST /intake/osquery/enroll` khi token đã có 500 máy hoặc hộp đã có 5.000 máy (agent-intake INV-14, D-265 (2); kèm `retry_after` 3600 và `Retry-After`); máy-với-máy, osquery chỉ ghi log và thử lại |
@@ -502,7 +507,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `device_error` | 502 | ${cur.target} was reached, but the device refused the sign-in (HTTP 401). (the device answered and said no: refused sign-in, an HTTP status, an answer over the cap, a CLI error line, an MCP error; one cleaned line, never a secret) | `POST /core/connections/{id}/test` |
 | `discovery_failed` | 502 | Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP. | `POST /core/oidc/test` |
 | `pin_mismatch` | 502 | The certificate of ${cur.target} is not the one pinned at the first test. Nothing was sent. If you changed the device, edit this connection, turn on "Forget pinned key", save, then test again. | `POST /core/connections/{id}/test` (D-94) |
-| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. | `POST /core/connections/{id}/test` (trước là `POST /ai/connections/{id}/test`, D-93); `POST /ai/profiles/test` |
+| `unreachable` | 502 | Could not connect to ${cur.target}. Check the address, the box's network and the firewall. / The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes. / The scan did not finish within 5 minutes, so nothing was saved. Try again later. | `POST /exposure/targets/{id}/scan` (D-229); `POST /exposure/box-ip/verify` (the public IP services); `POST /core/connections/{id}/test` (trước là `POST /ai/connections/{id}/test`, D-93); `POST /ai/profiles/test` |
 | `wazuh_tls` | 502 | The Wazuh certificate changed since it was saved, so the saved password was not sent. Open Edit and press Save to trust the new one, or check what answers at that address. | `POST /inventory/agents/wazuh/test` with the saved password (agent-intake, D-308); the pull shows the same as the card's error |
 | `wazuh_bad_reply` | 502 | The Wazuh server answered in a way Vedette does not understand (${what}). Check that the address is the Wazuh server API, port 55000 by default. | `POST /inventory/agents/wazuh/test`, `PUT /inventory/agents/wazuh` (agent-intake, D-309; never the server's own text) |
 | `wazuh_unreachable` | 502 | Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh se | module inventory (validator dùng chung) |

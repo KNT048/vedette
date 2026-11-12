@@ -11,15 +11,28 @@
 # the box-only endpoints answer 409 not_appliance; the data volume holds vedette.key owned 65532:65532 mode 0600; the published ports are
 # the address given for 8443 and 127.0.0.1 for 8444 (and ss agrees); core runs as 65532:65532 with no capability and no new privileges,
 # read-only root; syslog compose publishes 514 -> 5514 on the address (where the engine may publish 514); sensor compose (rootful engine
-# only): sensor uid 0 / gid 65532 with only NET_RAW, scan 65532 with none, both healthy.
+# only): sensor uid 0 / gid 65532 with only NET_RAW, scan 65532 with none, both healthy; and the sensor reads its credentials and its
+# heartbeat reaches core over 8444: GET /inventory/sensors reports the passive sensor `online` with the cards it saw (waited on that state,
+# not on the clock).
+# macOS (Podman machine, a Linux VM): only podman, and only the checks that do not need the host's kernel (no ss, no 514, bind
+# 127.0.0.1); Docker Desktop has no host network, so it is skipped with that reason. The machine must be rootful for the sensor part
+# (`podman machine set --rootful`, needs a stop and start); a rootless machine runs everything but the sensor and says so. The sensor part
+# is also skipped, with the reason, when the machine cannot start a container with `network_mode: host` + NET_RAW.
 # Safety: everything is in the compose project vedette-smoke-<pid> and images tagged smoke-<pid>; nothing else is touched (no prune, no
-# netplan, no firewall, no scan: the sensor is passive and no module that reaches out is switched on). Linux. Needs curl, ss, make, go.
+# netplan, no firewall, no scan: the sensor is passive and no module that reaches out is switched on). Linux or macOS. Needs curl, jq, ss (Linux) or lsof (macOS), make, go.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 umask 022
 
+mac=0
+[ "$(uname -s)" = Darwin ] && mac=1
 runtimes=${SMOKE_RUNTIMES:-docker podman}
-bind=${SMOKE_BIND_IP:-127.0.0.77} # a loopback address of its own, so a running Vedette on 127.0.0.1 is never in the way
+if [ "$mac" = 1 ]; then
+	runtimes=${SMOKE_RUNTIMES:-podman}
+	bind=${SMOKE_BIND_IP:-127.0.0.1} # macOS has no 127.0.0.77; the busy-port check keeps a running Vedette safe
+else
+	bind=${SMOKE_BIND_IP:-127.0.0.77} # a loopback address of its own, so a running Vedette on 127.0.0.1 is never in the way
+fi
 work=${SMOKE_WORK:-$HOME/.cache/vedette-smoke}/run-$$ # on disk, /tmp is RAM
 p=vedette-smoke-$$
 tag=smoke-$$
@@ -141,6 +154,15 @@ want_proc() { # container pid uid gid capeff label
 	fi
 }
 
+# is something listening on this TCP port on the host? (ss on Linux, lsof on macOS, where any address counts)
+port_busy() { # port [address]
+	if [ "$mac" = 1 ]; then
+		[ -n "$(lsof -nP -iTCP:"$1" -sTCP:LISTEN 2>/dev/null || true)" ]
+	else
+		[ -n "$(ss -H -ltn "sport = :$1" | grep -F "${2:-}:" || true)" ]
+	fi
+}
+
 listening() { # port expected-address: every listener of the port is on that address
 	local out
 	out=$(ss -H -ltn "sport = :$1" | awk '{print $4}')
@@ -164,7 +186,7 @@ run_runtime() {
 		return 0
 	fi
 	# `podman compose` hands over to the docker-compose provider, which talks to podman's API socket: rootless needs podman.socket active
-	if [ "$cur_rt" = podman ] && [ "$(id -u)" != 0 ] && ! systemctl --user is-active --quiet podman.socket; then
+	if [ "$cur_rt" = podman ] && [ "$mac" = 0 ] && [ "$(id -u)" != 0 ] && ! systemctl --user is-active --quiet podman.socket; then
 		if timeout 30 systemctl --user start podman.socket; then
 			started_socket=1
 			say "started podman.socket (user) for this run; it is stopped again at the end"
@@ -178,7 +200,9 @@ run_runtime() {
 		return 0
 	}
 	# rootless engines cannot read a real card from a container nor publish 514 below the machine's unprivileged-port limit
-	if [ "$cur_rt" = podman ]; then
+	if [ "$cur_rt" = podman ] && [ "$mac" = 1 ]; then
+		[ "$(timeout 20 podman info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = false ] || rootful=0
+	elif [ "$cur_rt" = podman ]; then
 		[ "$(id -u)" = 0 ] || rootful=0
 	else
 		timeout 20 docker info --format '{{.SecurityOptions}}' 2>/dev/null | grep -q rootless && rootful=0
@@ -188,7 +212,7 @@ run_runtime() {
 		skip "$cur_rt: a container named vedette-core/sensor/scan already exists on this box; not touching it"
 		return 0
 	fi
-	if [ -n "$(ss -H -ltn "sport = :8444" | grep -F '127.0.0.1:' || true)" ] || [ -n "$(ss -H -ltn "sport = :8443" | grep -F "$bind:" || true)" ]; then
+	if port_busy 8444 127.0.0.1 || port_busy 8443 "$bind"; then
 		skip "$cur_rt: port 8444 on 127.0.0.1 or 8443 on $bind is already in use"
 		return 0
 	fi
@@ -208,7 +232,9 @@ run_runtime() {
 		echo "VEDETTE_SCAN_IMAGE=localhost/vedette-scan-base:$tag"
 	} >"$work/vedette.env"
 	files=(-f "$work/compose.yaml")
-	if [ "$cur_rt" = docker ] || [ "$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start)" -le 514 ] || [ "$rootful" = 1 ]; then
+	if [ "$mac" = 1 ]; then
+		skip "syslog part: 514 is a privileged port on the Mac host"
+	elif [ "$cur_rt" = docker ] || [ "$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start)" -le 514 ] || [ "$rootful" = 1 ]; then
 		syslog=1
 		files+=(-f "$work/compose.syslog.yaml")
 	else
@@ -247,7 +273,9 @@ run_runtime() {
 	else
 		bad "published ports are not what the compose file says: $out"
 	fi
-	if listening 8443 "$bind" && listening 8444 127.0.0.1; then
+	if [ "$mac" = 1 ]; then
+		skip "ss check: the listeners on macOS are the machine's port forwarder, not the container engine"
+	elif listening 8443 "$bind" && listening 8444 127.0.0.1; then
 		ok "ss: 8443 listens only on $bind, 8444 only on 127.0.0.1"
 	else
 		bad "ss: unexpected listeners on 8443/8444: $(ss -H -ltn 'sport = :8443 or sport = :8444' | awk '{print $4}' | tr '\n' ' ')"
@@ -316,13 +344,36 @@ run_runtime() {
 	sensors=$with_sensors
 	if [ "$sensors" = 1 ]; then
 		files+=(-f "$work/compose.sensors.yaml")
-		retry dc up -d --wait --wait-timeout 150 sensor scan || {
+		if ! retry dc up -d --wait --wait-timeout 150 sensor scan; then
 			dc logs --no-log-prefix sensor scan 2>&1 | tail -20
-			die "sensor/scan did not become healthy" || return 0
-		}
+			if [ "$mac" = 1 ]; then # a VM may not give a container the host network or NET_RAW: say so, do not fail the smoke for it
+				skip "sensor part: this Podman machine could not run the sensor/scan with network_mode: host + NET_RAW (log above)"
+				sensors=0
+			else
+				die "sensor/scan did not become healthy" || return 0
+			fi
+		fi
+	fi
+	if [ "$sensors" = 1 ]; then
 		ok "sensor and scan are healthy"
 		want_proc vedette-sensor 1 0 65532 0000000000002000 "sensor process (NET_RAW only)"
 		want_all vedette-scan 65532 0000000000000000 "scan (init and worker)"
+		# the heartbeat by effect: the sensor (uid 0, group 65532, NET_RAW only) must have read its credentials through the group and
+		# reached core over 8444, or core keeps it never_connected. Wait on that state (a heartbeat is every 30 s), not on a fixed sleep.
+		local st=
+		for _ in $(seq 1 24); do
+			st=$(api "$base/inventory/sensors" 2>/dev/null | jq -r '.sensors[0] | "\(.status) cards=\(.interfaces | length) last_seen=\(.last_seen)"' 2>/dev/null || true)
+			[[ $st == online* ]] && break
+			sleep 5
+		done
+		if [[ $st == online* ]] && [[ $st != *' cards=0 '* ]]; then
+			ok "core reports the passive sensor online over 8444 ($st)"
+		else
+			dc logs --no-log-prefix sensor 2>&1 | tail -15
+			bad "core never saw the sensor's heartbeat (GET /inventory/sensors: ${st:-no answer}): it could not read its credentials or reach 8444"
+		fi
+	elif [ "$with_sensors" = 1 ]; then
+		:
 	else
 		skip "sensor part skipped: needs root (rootless $cur_rt cannot give the sensor a real card or NET_RAW)"
 	fi
@@ -334,9 +385,17 @@ run_runtime() {
 	if [ -z "$out" ]; then ok "teardown: no container, volume, network or image of this run is left"; else bad "left behind: $out"; fi
 }
 
-if [ "$(uname -s)" != Linux ]; then
-	echo "smoke: Linux only (the sensor part needs a host network)" >&2
+if [ "$(uname -s)" != Linux ] && [ "$mac" = 0 ]; then
+	echo "smoke: Linux, or macOS with a Podman machine (the sensor part needs a host network)" >&2
 	exit 2
+fi
+command -v jq >/dev/null || {
+	echo "smoke: needs jq" >&2
+	exit 2
+}
+if [ "$mac" = 1 ] && [[ " $runtimes " == *" docker "* ]]; then
+	echo "smoke[docker]: skip Docker Desktop has no host network (the sensor needs one); use a Linux box or the Podman machine" >&2
+	runtimes=${runtimes/docker/}
 fi
 for rt in $runtimes; do
 	case $rt in docker | podman) ;; *)

@@ -14,6 +14,7 @@ import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtNumber } from '@/lib/format'
+import { useInstallKind } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useSaveProfile, useTestProfile } from './api'
 import { ActionError } from './parts'
@@ -34,7 +35,8 @@ const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => 
 //  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna là model gọn nhẹ), API https://api.openai.com/v1
 //  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com/v1beta
 //  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
-//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226)
+//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226). Bản cài chỉ-container
+//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy (walk 3, D-422)
 const KINDS: ProfileKind[] = ['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom']
 const DEFAULTS: Record<ProfileKind, { base_url: string; model: string; api_style: ApiStyle; location: 'internal' | 'cloud'; name: string }> = {
   anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', api_style: 'anthropic', location: 'cloud', name: 'Claude' },
@@ -195,10 +197,14 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
   // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
   const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
+  // D-422: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
+  // resolve it, so the address of a local model starts empty there and the hint says to use the machine's LAN IP.
+  const container = useInstallKind() === 'container'
+  const defaultsOf = (k: ProfileKind) => (container && k === 'openai-compatible' ? { ...DEFAULTS[k], base_url: '' } : DEFAULTS[k])
 
   function pickKind(k: ProfileKind) {
     save.reset(); test.reset(); setErrs({})
-    const d = DEFAULTS[k]
+    const d = defaultsOf(k)
     // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
     // A key belongs to one provider: never carry it to another one.
@@ -207,7 +213,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   // A new profile moved off the network keeps no trace of the local defaults: not the name "Local model", not the http://localhost address.
   function clearLocalDefaults(loc: 'internal' | 'cloud') {
     if (profile || loc !== 'cloud') return
-    const d = DEFAULTS[kind]
+    const d = defaultsOf(kind)
     if (d.location === 'internal' && name === d.name) setName('')
     if (d.location === 'internal' && baseUrl === d.base_url) setBaseUrl('')
   }
@@ -260,8 +266,8 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
                 <Select id="pf-style" value={style} onChange={(e) => setStyle(e.target.value as ApiStyle)}>{(['openai', 'anthropic', 'gemini'] as const).map((s) => <option key={s} value={s}>{t(`profiles.style.${s}`)}</option>)}</Select>
               </Field>
             ) : null}
-            <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t('profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} error={err('base_url')} className="sm:col-span-2">
-              <Input id="pf-base_url" value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); upd('base_url') }} autoComplete="off" inputMode="url" {...aria('base_url', true)} />
+            <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainer' : 'profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} error={err('base_url')} className="sm:col-span-2">
+              <Input id="pf-base_url" value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); upd('base_url') }} autoComplete="off" inputMode="url" placeholder={container && kind === 'openai-compatible' && location === 'internal' ? t('profiles.f.baseUrlLanPlaceholder') : undefined} {...aria('base_url', true)} />
             </Field>
             <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={t('profiles.f.modelHint')} error={err('model')} className="sm:col-span-2">
               <Input id="pf-model" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" {...aria('model', true)} />

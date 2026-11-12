@@ -204,7 +204,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	}
 	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-t1', 'ip', '185.220.101.47', ?1, ?1), ('ioc-t2', 'domain', 'bad.example.net', ?1, ?1)`, stamp); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-t1', 'ip', '185.220.101.47', ?1, ?1), ('ioc-t2', 'domain', 'bad-site.net', ?1, ?1)`, stamp); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('ioc-t1', ?1, ?2, 0.4), ('ioc-t2', ?1, ?2, 0.8)`, feedID, stamp)
@@ -283,14 +283,41 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	}
 	// the port: a listed domain, a name no feed lists, and the module off
 	f := logsFeeds{s.d}
-	if l, ok, err := f.Lookup(ctx, "domain", "Bad.Example.NET"); err != nil || !ok || l.Confidence != 0.8 {
+	if l, ok, err := f.Lookup(ctx, "domain", "Bad-Site.NET"); err != nil || !ok || l.Confidence != 0.8 {
 		t.Fatalf("%+v %v %v", l, ok, err)
 	}
-	if _, ok, err := f.Lookup(ctx, "domain", "fine.example.org"); ok || err != nil {
+	if _, ok, err := f.Lookup(ctx, "domain", "fine-site.org"); ok || err != nil {
 		t.Fatalf("%v %v", ok, err)
 	}
 	if _, ok, err := f.Lookup(ctx, "ip", "10.0.0.1"); ok || err != nil {
 		t.Fatalf("a private address is listed: %v %v", ok, err)
+	}
+	// D-228: hagezi TIF lists a name with all of its subdomains, so a subdomain the device asked for is a hit named after it; the
+	// other feed lists names exactly (bad-site.net covers no subdomain)
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-t3', 'domain', 'tif-listed.net', ?1, ?1)`, stamp); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('ioc-t3', 'hagezi-tif', ?1, 0.7)`, stamp)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if l, ok, err := f.Lookup(ctx, "domain", "tif-listed.net"); err != nil || !ok || len(l.SubFeeds) != 1 || l.SubFeeds[0] != "hagezi TIF" || l.SubConfidence != 0.7 {
+		t.Fatalf("%+v %v %v", l, ok, err)
+	}
+	if l, _, _ := f.Lookup(ctx, "domain", "bad-site.net"); len(l.SubFeeds) != 0 {
+		t.Fatalf("a feed that lists names exactly covers subdomains: %+v", l)
+	}
+	dns := func(name string) logs.Line {
+		return logs.Line{SourceID: src.ID, At: time.Now(), Text: `date=2026-11-09 time=10:22:00 logid="1501054802" type="utm" subtype="dns" level="notice" srcip=192.168.30.1 dstip=192.168.30.1 qname="` + name + `" qtype="A" action="pass"`}
+	}
+	n := len(got)
+	if _, err := svc.Ingest(ctx, []logs.Line{dns("A.b.TIF-listed.net."), dns("www.bad-site.net")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != n+1 || got[n].Dest != "a.b.tif-listed.net" || got[n].Target != "ioc:tif-listed.net" || !strings.Contains(got[n].What, "listed as tif-listed.net") {
+		t.Fatalf("subdomain hits %+v", got[n:])
 	}
 	// M3: a feed that was switched off is not pulled and not pruned, so its listings are stale: they are no hit
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {

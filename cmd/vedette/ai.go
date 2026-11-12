@@ -55,6 +55,7 @@ type aiFacts struct {
 	feeds    *feeds.Store
 	findings *findings.Service
 	inv      findings.Inventory
+	boxID    func(context.Context) (string, error) // the id of the box's own device row, "" when there is none
 }
 
 func (f aiFacts) CVE(ctx context.Context, id string) (ai.CVEFacts, bool, error) {
@@ -86,6 +87,12 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 	if err != nil {
 		return nil, err
 	}
+	box := ""
+	if f.boxID != nil {
+		if box, err = f.boxID(ctx); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]ai.AssetFact, 0, len(open))
 	for _, r := range open {
 		a, ok := assets[r.AssetID]
@@ -96,9 +103,29 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 		if a.Hostname != nil && *a.Hostname != "" {
 			name = *a.Hostname
 		}
-		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status)})
+		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
 	}
 	return out, nil
+}
+
+// aiBoxID finds the box's own device row for the explanation's citation (D-422). ponytail: reads every device (AllDevices) once per
+// explanation that has an open finding, about 100-300 ms at 10k devices; upgrade path: a narrow inventory read of the is_box row.
+func aiBoxID(inv *inventory.Service) func(context.Context) (string, error) {
+	return func(ctx context.Context) (string, error) {
+		if inv == nil {
+			return "", nil
+		}
+		devs, err := inv.AllDevices(ctx)
+		if err != nil {
+			return "", err
+		}
+		for _, d := range devs {
+			if d.IsBox {
+				return d.ID, nil
+			}
+		}
+		return "", nil
+	}
 }
 
 // aiMitigation is mitigation's door to the AI (mitigation.AI): it turns a finding into data blocks for ai.Service.Brief and the
@@ -206,7 +233,7 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 	}
 	out := make([]ai.AssetRow, 0, len(devs))
 	for _, d := range devs {
-		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen}
+		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen, IsBox: d.IsBox}
 		for _, sv := range d.Services {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}
@@ -287,7 +314,9 @@ func (a aiAsk) IOC(ctx context.Context, kind, value string) (ai.IOCFact, bool, e
 	}
 	out := ai.IOCFact{Kind: rec.Type, Value: rec.Value, FirstSeen: rec.FirstSeen.UTC().Format(time.RFC3339), LastSeen: rec.LastSeen.UTC().Format(time.RFC3339)}
 	for _, g := range rec.Sightings {
-		out.Sources = append(out.Sources, g.SourceName)
+		if g.Enabled { // a switched-off feed is not pulled: its listings are stale (as in logsFeeds.Lookup); no source left is "not listed"
+			out.Sources = append(out.Sources, g.SourceName)
+		}
 	}
 	return out, true, nil
 }

@@ -22,6 +22,7 @@ export type SettingsInput = z.infer<typeof C.SettingsInput>
 export type SensorStatus = z.infer<typeof C.SensorStatus>
 export type Sensor = z.infer<typeof C.Sensor>
 export type SensorsResponse = z.infer<typeof C.SensorsResponse>
+export type SensorPatch = z.infer<typeof C.SensorPatch>
 export type AgentKind = z.infer<typeof C.AgentKind>
 export type AgentToken = z.infer<typeof C.AgentToken>
 export type AgentsResponse = z.infer<typeof C.AgentsResponse>

@@ -246,13 +246,14 @@ func FuzzEPSSBatchURLs(f *testing.F) {
 }
 
 // domainOracle is the regular expression validDomain replaced; the loop must answer exactly as it did.
-var domainOracle = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$`)
+var domainOracle = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,63}|[xX][nN]--[a-zA-Z0-9-]{0,58}[a-zA-Z0-9])$`)
 
 func domainAsBefore(v string) bool { return len(v) <= 253 && domainOracle.MatchString(v) }
 
 var domainSeeds = []string{"", ".", "a", "com", "a.b", "a.bc", "a.b1", "a.com.", ".a.com", "a..com", "-a.com", "a-.com", "a-b.com", "1.com", "1.2.3.4",
 	"xn--bcher-kva.example", "a_b.com", "A.COM", "é.com", "a.cé", "a.c\xff", "a\x00.com", strings.Repeat("a", 63) + ".com", strings.Repeat("a", 64) + ".com",
-	"a." + strings.Repeat("c", 63), "a." + strings.Repeat("c", 64), strings.Repeat("a.", 125) + "com", strings.Repeat("a.", 126) + "com", "a.c-m", "a.-cm"}
+	"a." + strings.Repeat("c", 63), "a." + strings.Repeat("c", 64), "a.xn--p1ai", "a.XN--P1AI", "a.xn--", "a.xn--p1ai-", "a.xn--p-1", "a.xn--1",
+	"a.xn--" + strings.Repeat("c", 59), "a.xn--" + strings.Repeat("c", 60), "a.xn-p1ai", "a.xn--p_1", strings.Repeat("a.", 125) + "com", strings.Repeat("a.", 126) + "com", "a.c-m", "a.-cm"}
 
 func TestValidDomainIsTheRegexp(t *testing.T) {
 	t.Parallel()
@@ -262,7 +263,7 @@ func TestValidDomainIsTheRegexp(t *testing.T) {
 		}
 	}
 	rng := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a seeded generator for a test
-	const alphabet = "aZ09-._é"
+	const alphabet = "aZxn09-._é"
 	for range 5000 {
 		b := make([]byte, rng.IntN(80))
 		for i := range b {

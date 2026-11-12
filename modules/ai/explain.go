@@ -40,6 +40,8 @@ type AssetFact struct {
 	Kind   string
 	Basis  string // version or product
 	Status string // open, confirmed, ...
+	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do (D-422). Not sent to the model.
+	IsBox bool
 }
 
 // Facts is the door to the data of other modules: ai reads it, never their tables.
@@ -221,7 +223,7 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 }
 
 // citationsFor builds the sources of an explanation: the feed's links that are plain http(s) addresses, and the count of matching
-// devices. Only the box makes citations, so a model cannot slip in a link.
+// devices, the Vedette box named apart. Only the box makes citations, so a model cannot slip in a link.
 func citationsFor(f CVEFacts, assets []AssetFact) []Citation {
 	out := []Citation{}
 	for _, l := range f.Links {
@@ -231,12 +233,15 @@ func citationsFor(f CVEFacts, assets []AssetFact) []Citation {
 		}
 		out = append(out, Citation{Title: strings.TrimPrefix(u.Hostname(), "www."), URL: l})
 	}
-	n := len(assets)
-	title := fmt.Sprintf("Inventory: %d devices matching", n)
-	if n == 1 {
-		title = "Inventory: 1 device matching"
+	others, box := 0, false
+	for _, a := range assets {
+		if a.IsBox {
+			box = true
+		} else {
+			others++
+		}
 	}
-	return append(out, Citation{Title: title})
+	return append(out, Citation{Title: "Inventory: " + boxApart(others, box) + " matching"})
 }
 
 func (s *Service) explainView(row explainBody, cve string, at time.Time, cached bool, model, profile string, tin, tout int) ExplainResult {

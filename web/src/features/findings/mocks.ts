@@ -7,6 +7,7 @@ import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, typ
 import type { Asset, Finding } from '@/lib/types'
 import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
+import { fmtDate } from '@/lib/format'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
@@ -120,7 +121,7 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
   const k = r.kev
   const dev = r.asset?.hostname ?? r.asset?.ip ?? f.asset_id
   const key = k ? `${k.vendor}|${k.product}`.toLowerCase() : ''
-  const date = k ? new Date(k.date_added).toLocaleDateString('en-GB') : ''
+  const date = k ? fmtDate(k.date_added) : ''
   const paragraphs = skill === 'explain'
     ? [
         `${dev} matches ${f.cve}${k ? ` (${k.name})` : ''}. ${BASIS[f.basis]}`,

@@ -121,3 +121,33 @@ func TestContract_INV3_AskTurnNeverReachesCloudWhenTheRuleComesOnWithAFallbackAs
 		t.Fatal("the cloud profile got the tool result")
 	}
 }
+
+// The citation of search_assets counts what Devices and Reports count: the box itself is named apart, never as "1 device" (walk 3).
+func TestInventoryCiteNamesTheBoxApart(t *testing.T) {
+	t.Parallel()
+	box, pc := AssetRow{ID: "a-box", IsBox: true}, AssetRow{ID: "a-1"}
+	for _, c := range []struct {
+		in   []AssetRow
+		want string
+	}{
+		{nil, "Inventory: 0 devices searched"},
+		{[]AssetRow{pc}, "Inventory: 1 device searched"},
+		{[]AssetRow{box}, "Inventory: only the Vedette box searched"},
+		{[]AssetRow{box, pc, pc}, "Inventory: 2 devices and the Vedette box searched"},
+	} {
+		if got := inventoryCite(c.in); got != c.want {
+			t.Errorf("%d rows: %q, want %q", len(c.in), got, c.want)
+		}
+	}
+	// the tool's result line (what matched) and the explanation's citation count the same way
+	if got := boxApart(countAssets([]AssetRow{box})); got != "only the Vedette box" {
+		t.Errorf("summary = %q", got)
+	}
+	cites := citationsFor(CVEFacts{}, []AssetFact{{Name: "vedette", IsBox: true}, {Name: "NAS"}})
+	if got := cites[len(cites)-1].Title; got != "Inventory: 1 device and the Vedette box matching" {
+		t.Errorf("explain citation = %q", got)
+	}
+	if cites := citationsFor(CVEFacts{}, []AssetFact{{Name: "vedette", IsBox: true}}); cites[0].Title != "Inventory: only the Vedette box matching" {
+		t.Errorf("explain citation = %q", cites[0].Title)
+	}
+}

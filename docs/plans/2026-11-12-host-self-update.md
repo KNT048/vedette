@@ -149,7 +149,14 @@ Settled while building 2a:
   appliance install mode); `verifyPull` adds the platform, the image and cosign (review r1 LOW).
 - The simulation refuses (`dependencies_unavailable`) when apt would **upgrade** another installed package, not only
   remove or purge one: a new `Depends` may add packages, never move one that `os.install` owns ("Install the
-  pending OS updates first"). `SelfUpdateSimOK`, fuzzed (review r1 LOW).
+  pending OS updates first"). `SelfUpdateSimOK`, fuzzed (review r1 LOW). Renamed `SelfUpdateSim` on 2026-11-12
+  (D-316 (9)): it also returns the new packages, a new name outside the Debian name rule or with a `:<arch>`
+  qualifier is a refusal (`dependencies_unavailable`), and Run 3c
+  (`recordAddedPackages`) merges them into `selfupdate/installed-by-us` before the journal is written, so
+  `install.sh --uninstall` (`by_us_packages`) hands them back to apt with its own list (purged when not manual and
+  either autoremove finds them unneeded or a purge removes nothing outside Vedette's lists). Decided against: uninstall
+  guessing from `apt-get -s autoremove` (cannot tell the administrator's orphans from ours) and the host writing
+  into `/var/lib/vedette-install` (the host writes only its own state).
 - The one file-name validator refuses a prerelease with a `-` inside and build metadata, so the Debian version is
   always the SemVer one with its first `-` turned into `~` (review r1 LOW, host side; the builder side is slice 3).
 - Adoption trims `packages/` to the two versions of `versions.json` at once (review r1 LOW).
@@ -232,8 +239,9 @@ On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using te
    that the honeypot (`Requires=` the host) came back.
 2. N+1 built to exit 1 at start (a test build flag): the run is `reverted self_update_unhealthy`, N runs again, and the
    journal is gone.
-3. N+1 that adds a `Depends` the mirror has: the dependency is installed. A `Depends` the mirror lacks gives
-   `dependencies_unavailable` with nothing changed.
+3. N+1 that adds a `Depends` the mirror has: the dependency is installed and listed in
+   `selfupdate/installed-by-us`, and `install.sh --uninstall --yes` then purges it (D-316 (9)). A `Depends` the mirror
+   lacks gives `dependencies_unavailable` with nothing changed.
 4. Reboot the VM while the applier is in `installing`, once during apt's dependency step and once during the unpack of
    `vedette-host` (`/var/lib/dpkg/updates/` not empty after the boot). The next boot finishes or rolls back with the
    applier copy (not the new `/usr/lib/vedette/vedette-host`), using `dpkg -i` for the half-done package. `attempt` is
@@ -279,7 +287,13 @@ driven through the API):**
 - Check 8: postinst `try-restart` of the Type=notify host did not hang (every update above).
 - Software rollback test.2 → test.1 (core image rollback #432, `confirm_data_loss`): core and sensor run test.1 again,
   the host's `container.rollback` runs succeeded with `restored_backup_id`, core healthy; but history and the run
-  shown do not list the rollback (INV-35 rebuild; findings inbox).
+  shown do not list the rollback (INV-35 rebuild; findings inbox). Fixed by #521; re-run below.
+- Re-run after #521 (`ubuntu2404`, fresh VM, builds `0.0.1-test.5`/`test.6` from main 681a3c4e): install test.5, update
+  to test.6 `done` (host step included: `dpkg-query` 0.0.1~test.6, new host MainPID, both packages kept), then software
+  rollback test.6 → test.5 with `confirm_data_loss`: run `rollback` `done` (steps start, restore, restart), history lists
+  the rollback first, then the update and the host update; core is back on the test.5 digest; `software` shows
+  test.5 with `previous` test.6. The host stays on test.6 (as designed). One oddity: after the restore the update's history
+  `ts` is the time core rebuilt it (14:52:37), not when it ended (14:50:58) (findings inbox, L).
 - Not done yet: check 2 with a build that exits 1, check 3 (`Depends`), check 4 during dpkg's unpack, Ubuntu 26.04.
 
 ## 2. Risks
@@ -301,8 +315,8 @@ driven through the API):**
 | Two writers corrupt the audit chain | The applier never opens it; phases go through the journal (INV-30) |
 | The old host's run files read by the new host | The run and journal formats are a contract: a new host reads the previous release's files (N−1 test with stored fixtures) |
 | apt state: a stale list, or the dependency mirror is offline | `apt-get update` when the snapshot is older than 24 h, and a simulation before any change (`dependencies_unavailable`) |
-| Dependencies installed by a self-update are not removed by `install.sh --uninstall` | Deferred line (`.ai/deferred/feat-host-self-update.md`) |
-| The host's write lock is held up to 130 min in the worst case (two applier runs) | Normal runs take minutes; the bound is fixed in the journal and does not restart with the host; the GUI says the helper is busy (story (a) wording: deferred line) |
+| Dependencies installed by a self-update are not removed by `install.sh --uninstall` | D-316 (9): the host lists the new packages of its simulation in `selfupdate/installed-by-us` before it dispatches (Run 3c, `recordAddedPackages`); `install.sh` `by_us_packages` reads that list with its own and purges through the same gate (not manual, and autoremove finds it unneeded or a purge removes nothing outside Vedette's lists) (`TestInstallShUninstallReadsTheListTheHostWrites`, install-check case D-316 (9)) |
+| The host's write lock is held up to 130 min in the worst case (two applier runs) | Normal runs take minutes; the bound is fixed in the journal and does not restart with the host; the GUI says settings that need the helper cannot be changed until the step ends (story (a), no time promised) |
 | `systemd-run` unit name collision | `--collect`; a leftover active unit gives `409 busy` at Check; lab check 7 |
 | arm64 is untested | Same path; `feat-multiarch-images.md` lab on real arm64 |
 

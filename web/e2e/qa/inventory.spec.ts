@@ -189,7 +189,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     const csv = '﻿Device name;IP address;Product;Version;Type\r\n\r\nBranch firewall;192.168.77.1;FortiGate;7.2.5;Firewall\r\n\r\nAccounting printer;192.168.77.20;;;Printer\r\n;;;;\r\nBad one;999.1.1.1;;;\r\nWarehouse server;;;;Server\r\n'
     await page.getByLabel('Choose a CSV file').setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
     const dlg = page.getByRole('dialog')
-    await expect(dlg.getByText('Added 3 devices, skipped 1 rows.')).toBeVisible()
+    await expect(dlg.getByText('Added 3 devices, skipped 1 row.')).toBeVisible()
     await expect(dlg.getByText('Line 7:')).toBeVisible()
     await shot(page, 'inventory', 'import-result')
     await dlg.getByRole('button', { name: 'Close', exact: true }).first().click()

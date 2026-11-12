@@ -83,7 +83,16 @@
     "dest_host_fields": [
       "hostname",
       "qname"
-    ]
+    ],
+    "conn_blocked": {
+      "action": [
+        "deny",
+        "dropped",
+        "blocked",
+        "block",
+        "reset"
+      ]
+    }
   },
   "samples": [
     {
@@ -114,7 +123,8 @@
       "dests": [
         "ip:104.21.5.5",
         "domain:bad.example.net"
-      ]
+      ],
+      "blocked": true
     },
     {
       "line": "date=2026-11-09 time=10:22:00 logid=\"1501054802\" type=\"utm\" subtype=\"dns\" level=\"notice\" srcip=192.168.10.113 dstip=192.168.10.1 qname=\"bad.example.net\" qtype=\"A\" action=\"pass\"",

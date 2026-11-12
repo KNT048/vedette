@@ -40,6 +40,24 @@ var (
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")
 )
 
+// The answers of a scan that the runner did not do (INV-12, D-229). Nothing is stored for them.
+var (
+	// ErrScanOff: the scan module, which owns the runner, is off.
+	ErrScanOff = apiErr(409, "module_off", "The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
+	// ErrCTDown: the certificate-transparency search gave no answer; a snapshot without the subdomains would say they are gone.
+	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
+	// ErrScanTooLong: the scan hit its time cap.
+	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
+	// ErrScanBusy: another scan runs on the box (one at a time).
+	ErrScanBusy = apiErr(409, "busy", "Another external scan is running on this box. Wait for it to finish, then try again.")
+)
+
+// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads (D-229):
+// nothing is scanned rather than a part that would change from day to day.
+func TooManyNames(domain string) *APIError {
+	return apiErr(400, "too_many", "The certificate-transparency logs list more than 300 names under %s, more than one scan reads, so nothing was scanned. Add a narrower subdomain (for example shop.%s) as its own domain and scan that.", domain, domain)
+}
+
 // Messages that are shared by a response and the stored result of a check.
 const (
 	msgOffline  = "The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip). Check that this box can make outgoing HTTPS connections, then try again."

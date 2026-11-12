@@ -62,6 +62,12 @@ describe('feed parsers (S-FEED-5)', () => {
     expect(r.rejected).toBe(3)
   })
 
+  it('IDN top-level domains in ASCII form are domains, like the Go parser (hagezi TIF, 2026-11-12)', () => {
+    const r = parseFeed('# Syntax: Domains (without subdomains)\ndiscord.xn--q9jyb4c\nxn-----6kcacs9ajdmhcwdcbwwcnbgd13a.xn--p1ai\na.xn--p1ai-\n', 'ioc', defaultParser('ioc', 'lines'))
+    expect(r.records.map((x) => `${x.kind}:${String(x.indicator)}`)).toEqual(['domain:discord.xn--q9jyb4c', 'domain:xn-----6kcacs9ajdmhcwdcbwwcnbgd13a.xn--p1ai'])
+    expect(r.rejected).toBe(1)
+  })
+
   it('fails closed: size limit, bad JSON and invalid regex are errors, not crashes', () => {
     const p = defaultParser('ioc', 'lines')
     expect(() => parseFeed('x'.repeat(5_000_001), 'ioc', p)).toThrow(/larger than 5 MB/)

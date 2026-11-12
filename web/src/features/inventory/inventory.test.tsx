@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import kevProducts from '../../../../content/catalog/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
 import { catalogPath, CATALOG_Q_MAX } from './api'
@@ -376,7 +376,7 @@ describe('inventory: CSV (S-INV-2)', () => {
   it('understands English header aliases and quoted cells', async () => {
     const user = userEvent.setup()
     await importFile(user, 'device,ip address,software,version,type\n"Storage, floor 2",192.168.40.5,Hikvision,V5.7,Camera\n')
-    expect(await screen.findByText('Added 1 devices, skipped 0 rows.', undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText('Added 1 device, skipped 0 rows.', undefined, T)).toBeInTheDocument()
     const a = assetsStore.get().find((x) => x.ip === '192.168.40.5')!
     expect(a.hostname).toBe('Storage, floor 2')
     expect(a.kind).toBe('camera')
@@ -398,10 +398,46 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('The first row must be column headers')
   })
 
+  it('a mixed-delimiter file, a stray quote and an unknown product are line errors, never a garbage device', async () => {
+    asAdmin()
+    const before = assetsStore.get().length
+    const text = [
+      'name;ip;product;version;kind', 'semi,192.168.53.1,Prod,1,server', // line 2: header uses ; but the row uses ,
+      'quote"bad;192.168.53.2;;;', // line 3: stray quote
+      'dns;192.168.53.3;Dns;;', // line 4: no fuzzy match to D-Link
+      'ok;192.168.53.4;FortiGate;;',
+    ].join('\n')
+    const r = (await call('POST', '/import', { text })).json!
+    expect(r).toMatchObject({ created: 1, skipped: 3 })
+    expect(r.errors.map((e: { line: number }) => e.line)).toEqual([2, 3, 4])
+    expect(r.errors[0].message).toContain('one cell but the header has 5')
+    expect(r.errors[1].message).toContain('double quote')
+    expect(r.errors[2].message).toContain('Product "Dns" not recognised')
+    expect(r.errors[2].message).not.toContain('suggestion box')
+    expect(assetsStore.get()).toHaveLength(before + 1)
+    expect(findCatalog('Dns')).toBeUndefined()
+    // short rows and a trailing separator are fine
+    expect((await call('POST', '/import', { text: 'name,ip,product,version,kind\nshort,192.168.54.1\ntrailing,192.168.54.2,FortiGate,,,\n' })).json).toMatchObject({ created: 2, skipped: 0 })
+    // a quote that never closes flags its row, not the whole file
+    expect((await call('POST', '/import', { text: 'name,ip\n"open,192.168.53.9\n' })).json!.errors[0].message).toContain('never closed')
+    expect((await call('POST', '/import', { text: 'name,ip\r\nok,192.168.55.1\r\n\"\r' })).json).toMatchObject({ created: 1, errors: [{ line: 3 }] })
+    // header only
+    expect((await call('POST', '/import', { text: 'name,ip,product\n' })).json?.error.code).toBe('no_rows')
+  })
+
+  it('a public IP or an IP outside the saved ranges is added with a note', async () => {
+    asAdmin()
+    const r = (await call('POST', '/import', { text: 'name,ip\npub,8.8.8.8\nfar,10.99.99.9\n' })).json!
+    expect(r.created).toBe(2)
+    expect(r.notes).toHaveLength(2)
+    expect(r.notes[0].message).toContain('public address')
+    expect(r.notes[1].message).toContain('outside your saved network ranges')
+  })
+
   it('an oversized file is blocked in the browser and never sent', async () => {
     const user = userEvent.setup()
     const called = vi.fn()
-    server.use(http.post('*/api/v1/inventory/import', () => { called(); return HttpResponse.json({ created: 0, skipped: 0, errors: [] }) }))
+    server.use(http.post('*/api/v1/inventory/import', () => { called(); return HttpResponse.json({ created: 0, skipped: 0, errors: [], notes: [] }) }))
     await importFile(user, 'x'.repeat(200_001))
     expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('The file is larger than 200 KB')
     expect(called).not.toHaveBeenCalled()
@@ -727,6 +763,14 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const s = (await call('GET', '/settings')).json!
     expect(s.lan_ranges).toContain('10.0.5.0/24')
     expect(s.scope_confirmed_by).toBe('admin@acme.example')
+  })
+
+  it('Add range with the box empty says so under the box', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByLabelText('Add a network range', undefined, T)
+    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    expect(await screen.findByText(/Type a range first/, undefined, T)).toBeInTheDocument()
   })
 
   it('a bare address is rejected with a clear message, never turned into /24; with the prefix it is added and saved as typed', async () => {
@@ -1502,6 +1546,20 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources
     await expectNoA11yViolations()
+  })
+
+  it('S-CORE-9 G3: on the appliance the box page says its packages are read with dpkg', async () => {
+    renderApp(`/devices/${BOX_ID}`)
+    expect(await screen.findByText(/Its packages are read from the box \(dpkg\)/, undefined, T)).toBeInTheDocument()
+  })
+
+  it('S-CORE-9 G3: on a container-only install the box page says there is no package list and never mentions dpkg', async () => {
+    installStore.set({ kind: 'container' })
+    try {
+      renderApp(`/devices/${BOX_ID}`)
+      expect(await screen.findByText(/The package list of this machine is not available in a container-only install\./, undefined, T)).toBeInTheDocument()
+      expect(screen.queryByText(/dpkg/)).not.toBeInTheDocument()
+    } finally { installStore.set({ kind: 'appliance' }) }
   })
 
   it('it cannot be deleted: the button is disabled with the reason and the server refuses', async () => {

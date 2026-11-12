@@ -158,7 +158,12 @@
     "working": "Importing",
     "done_one": "Added {{count}} device from the file.",
     "done_other": "Added {{count}} devices from the file.",
-    "summary": "Added {{created}} devices, skipped {{skipped}} rows.",
+    "summary": "{{added}}, {{skipped}}.",
+    "added_one": "Added {{count}} device",
+    "added_other": "Added {{count}} devices",
+    "skipped_one": "skipped {{count}} row",
+    "skipped_other": "skipped {{count}} rows",
+    "notesHint": "These rows were added. Check them:",
     "errorsHint": "Fix the rows below in your file and import again. Import only the fixed rows to avoid duplicates.",
     "line": "Line {{line}}:",
     "close": "Close"
@@ -278,6 +283,7 @@
     "noRanges": "No ranges yet. Add at least one range to let Vedette scan.",
     "duplicate": "{{value}} is already in the list.",
     "problem": {
+      "empty": "Type a range first. Write it like 192.168.10.0/24.",
       "noPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25.",
       "format": "\"{{value}}\" is not a valid range. Write it like 192.168.10.0/24.",
       "hostBits": "{{value}} is not written correctly: the address part must be the first address of the range. Use {{net}}.",
@@ -351,6 +357,7 @@
   "sensors": {
     "title": "Sensor on this box",
     "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. The port it listens on and SPAN are set in Settings → Box network.",
+    "descriptionContainer": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose its SPAN card here, with Configure.",
     "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
     "caption": "Sensors on this box",
     "col": {
@@ -363,7 +370,19 @@
     },
     "status": {
       "online": "Reporting",
-      "offline": "Lost contact"
+      "offline": "Lost contact",
+      "never_connected": "Not connected yet"
+    },
+    "startHint": "Start it with compose.sensors.yaml on this machine.",
+    "card": {
+      "body": "Choose the card that receives the mirrored traffic among the cards the sensor reported. This machine's network is yours: Vedette does not change the card.",
+      "label": "SPAN card",
+      "hint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
+      "noSpan": "None (listen on the card with this machine's address)",
+      "notListening": "The sensor is not listening on any card: by itself it only takes the one card of this machine that has an address.",
+      "notReported": "{{name}} (not reported now)",
+      "none": "No card reported yet: start the sensor with compose.sensors.yaml.",
+      "saved": "Sensor card saved."
     },
     "lastSeen": "Contact {{when}}",
     "spanOn": "SPAN",
@@ -535,7 +554,10 @@
   "box": {
     "badge": "This box",
     "title": "This is the Vedette box itself",
-    "body": "It is always the first device. Its packages are read from the box (dpkg), so the version list is exact. It is matched against exploited vulnerabilities like any other device.",
+    "lead": "It is always the first device.",
+    "packagesAppliance": "Its packages are read from the box (dpkg), so the version list is exact.",
+    "packagesContainer": "The package list of this machine is not available in a container-only install.",
+    "matched": "It is matched against exploited vulnerabilities like any other device.",
     "fix": "Fix by updating the operating system",
     "noDelete": "The box cannot be removed from the list: Vedette runs on it.",
     "findings_one": "{{count}} finding on this box",

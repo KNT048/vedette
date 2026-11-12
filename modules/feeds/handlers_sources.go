@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -72,6 +73,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if err := CheckURL(v); err != nil {
 				return apiError(err)
 			}
+			if err := CheckDest(v, h.s.boxAddrs()); err != nil {
+				return apiError(err)
+			}
 			if cur.ID == "first-epss" && strings.ContainsAny(v, "?#") { // EPSSBatchURLs adds the query itself
 				return apierr.New(http.StatusBadRequest, "invalid_url", "The EPSS address must not carry a query string.")
 			}
@@ -95,10 +99,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 
 // ---------- S-FEED-4/5: custom feeds
 
-// checkCustom applies the boundary rules of INV-2, 5 and 6 to a custom feed body, in the order of the GUI
-// mock (name, address, format, authentication, parsing rules). prev is the feed being edited, nil on create.
-// It trims the text fields and treats an empty secret as "not sent" (keep the stored one, INV-6).
-func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow) error {
+// checkCustom applies the boundary rules of INV-2, 5, 6 and 17 to a custom feed body, in the order of the GUI
+// mock (name, address, format, authentication, parsing rules, then an address another feed already uses). prev is the feed being edited, nil on create; box is
+// the box's own addresses (CheckDest). It trims the text fields and treats an empty secret as "not sent" (keep the
+// stored one, INV-6).
+func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow, box []netip.Addr) error {
 	in.Name, in.URL = strings.TrimSpace(in.Name), strings.TrimSpace(in.URL)
 	if in.Auth.Secret != nil && *in.Auth.Secret == "" {
 		in.Auth.Secret = nil
@@ -115,6 +120,9 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 		return apiError(err)
 	}
 	if err := CheckURL(in.URL); err != nil {
+		return apiError(err)
+	}
+	if err := CheckDest(in.URL, box); err != nil {
 		return apiError(err)
 	}
 	if err := CheckInterval(in.IntervalHours); err != nil {
@@ -137,7 +145,34 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 	if err := CheckParser(in.Kind, in.Parser); err != nil {
 		return apiError(err)
 	}
-	return nil
+	return checkDuplicateURL(ctx, tx, in.URL, skip) // last, like duplicate_name of a valid body: it depends on the other feeds
+}
+
+// checkDuplicateURL refuses a custom feed address that another feed, built-in or custom, already pulls (D-420 (2)):
+// the second feed would fetch the same list again and list every indicator twice. The message names that feed.
+func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT name, url FROM feeds_source WHERE id != ?`, skip)
+	if err != nil {
+		return fmt.Errorf("feeds: read addresses: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var name, u string
+		if err := rows.Scan(&name, &u); err != nil {
+			return fmt.Errorf("feeds: read addresses: %w", err)
+		}
+		if sameAddress(addr, u) {
+			return apiError(fail(ErrDuplicateURL, "The feed %q already uses this address.", name))
+		}
+	}
+	return rows.Err()
+}
+
+// boxAddrs is every address that is the box itself, as the pull sees it now (INV-17): unknown host addresses leave
+// the container's own interfaces and gateway, which are always checked.
+func (s *Service) boxAddrs() []netip.Addr {
+	box, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway}).boxAddrs()
+	return box
 }
 
 // customRow builds the stored row of a custom feed body (the GUI mock's toCustom). The secret columns are set by saveSecret.
@@ -192,7 +227,7 @@ func (h *FeedHandlers) FeedsPostFeedsCustom(ctx context.Context, req *oas.FeedsP
 	}
 	var row sourceRow
 	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := checkCustom(ctx, tx, &in, nil); err != nil {
+		if err := checkCustom(ctx, tx, &in, nil, h.s.boxAddrs()); err != nil {
 			return err
 		}
 		row = customRow(store.NewID("cf"), in, h.s.now())
@@ -229,7 +264,7 @@ func (h *FeedHandlers) FeedsPutFeedsCustomID(ctx context.Context, req *oas.Feeds
 		if err != nil {
 			return err
 		}
-		if err := checkCustom(ctx, tx, &in, &prev); err != nil {
+		if err := checkCustom(ctx, tx, &in, &prev, h.s.boxAddrs()); err != nil {
 			return err
 		}
 		row := customRow(prev.ID, in, prev.CreatedAt)

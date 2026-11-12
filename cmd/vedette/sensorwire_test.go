@@ -25,6 +25,7 @@ import (
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -337,15 +338,19 @@ func TestRenewJobIsScheduledAndRenews(t *testing.T) {
 	now := time.Now()
 	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	s := newStackWith(t, func(d *deps) { d.Clock = clock })
-	prune := false
+	prune, update := false, false
 	for _, j := range coreJobs(*s.d) {
 		if j.Name == "sensor-cert-renew" {
 			t.Fatal("no sensor link, yet core registers sensor-cert-renew")
 		}
 		prune = prune || j.Name == "auth-prune" && j.Module == "core" && j.Run(t.Context()) == nil // INV-30
+		update = update || j.Name == "software-update" && j.Every == core.UpdateTickEvery          // not run: it would reach GitHub
 	}
 	if !prune {
 		t.Fatal("core does not schedule auth-prune, or it failed")
+	}
+	if !update {
+		t.Fatal("core does not schedule the software update check (software-update)")
 	}
 	_, creds := s.testLink(t)
 	var job func(context.Context) error

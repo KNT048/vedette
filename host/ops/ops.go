@@ -86,7 +86,10 @@ type Deps struct {
 	// Interfaces lists the network interfaces and their addresses (default: the net package). Probe is
 	// the ARP side of the network commands (default: the real packet socket, Linux only).
 	Interfaces func() ([]HostIface, error)
-	Probe      Prober
+	// NeighDump is the kernel's neighbour table as the reply of a netlink RTM_GETNEIGH dump (default: syscall.NetlinkRIB on Linux, an
+	// error elsewhere); state/net reads the default gateways' MACs from it (D-450).
+	NeighDump func() ([]byte, error)
+	Probe     Prober
 	// NetPoll and NetWait are how often and how long the effect checks of the network commands look
 	// (address on the card, chrony sources): default 1 s and 15 s (D-100, D-106).
 	NetPoll time.Duration
@@ -263,6 +266,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.Interfaces == nil {
 		d.Interfaces = systemInterfaces
 	}
+	if d.NeighDump == nil {
+		d.NeighDump = systemNeighDump
+	}
 	if d.Probe == nil {
 		d.Probe = newARPProber()
 	}
@@ -422,9 +428,9 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
-	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
-	o.adoptHostPackage(ctx)   // the .deb install.sh kept for the running version becomes current (D-316)
-	o.startSelfUpdate()       // a self-update under way: follow it after READY, or clean or gate an orphan journal
+	o.recoverTransitions(ctx, true) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123); units of an earlier release (D-316 (10))
+	o.adoptHostPackage(ctx)         // the .deb install.sh kept for the running version becomes current (D-316)
+	o.startSelfUpdate()             // a self-update under way: follow it after READY, or clean or gate an orphan journal
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

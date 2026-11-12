@@ -49,8 +49,14 @@ type drig struct {
 
 func newDRig(t *testing.T, mut ...func(*sensorlink.Options)) *drig {
 	t.Helper()
+	return newDRigOpts(t, sa.DispatcherOptions{}, mut...)
+}
+
+func newDRigOpts(t *testing.T, o sa.DispatcherOptions, mut ...func(*sensorlink.Options)) *drig {
+	t.Helper()
 	clk := &fclock{t: time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC)}
-	d := sa.NewDispatcher(sa.DispatcherOptions{Now: clk.Now, Tick: 10 * time.Millisecond})
+	o.Now, o.Tick = clk.Now, 10*time.Millisecond
+	d := sa.NewDispatcher(o)
 	link := linktest.New(t, activeBackend{d}, mut...)
 	return &drig{d: d, clk: clk, link: link, worker: link.Client(t, sensorlink.Active), passive: link.Client(t, sensorlink.Passive)}
 }
@@ -794,5 +800,25 @@ wait:
 	seen := stop()
 	if len(seen) == 0 || seen[0][0] != netip.MustParseAddr(last).Next().String() {
 		t.Fatalf("the retry did not continue from the cursor: first targets %v, cursor was %s", seen, last)
+	}
+}
+
+// D-168 (4), D-381: on a container-only install the project's scan image has no nmap by design, so the health text must not
+// tell the customer to rebuild the image; the appliance text keeps saying it.
+func TestHealthAdviceFollowsTheInstallKind(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		container bool
+		nmap, nuc string
+	}{{false, "rebuilt", "rebuilt"}, {true, "does not include nmap", "docker compose --env-file vedette.env pull"}} {
+		r := newDRigOpts(t, sa.DispatcherOptions{ContainerOnly: c.container})
+		r.beat(t, false)
+		nmap, nuc := r.d.NmapHealth(), r.d.NucleiHealth()
+		if !strings.Contains(nmap, c.nmap) || !strings.Contains(nuc, c.nuc) {
+			t.Fatalf("container=%v: nmap %q, nuclei %q", c.container, nmap, nuc)
+		}
+		if c.container && (strings.Contains(nmap, "rebuilt") || strings.Contains(nuc, "rebuilt")) {
+			t.Fatalf("container-only text still says rebuilt: %q / %q", nmap, nuc)
+		}
 	}
 }

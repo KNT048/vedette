@@ -143,13 +143,22 @@ func cefHeader(v string) string { return strings.NewReplacer(`\`, `\\`, `|`, `\|
 func cefValue(v string) string { return strings.NewReplacer(`\`, `\\`, `=`, `\=`).Replace(v) }
 
 // formatCEF is CEF:0|Vedette|Vedette|1.0|<event>|<title>|<severity 0-10>|<extension>. The extension has rt (receipt time, ms since
-// the epoch), the standard keys the fields map to, and up to six custom strings with their labels.
-func formatCEF(r siemRecord) []byte {
+// the epoch), dvchost (the box's host name, #471: a CEF line goes out with no syslog header, so this is where a SIEM finds the box),
+// the standard keys the fields map to, and up to six custom strings with their labels.
+func formatCEF(r siemRecord, host string) []byte {
 	var ext []string
-	ext = append(ext, "rt="+strconv.FormatInt(r.At.UnixMilli(), 10))
+	ext = append(ext, "rt="+strconv.FormatInt(r.At.UnixMilli(), 10), "dvchost="+cefValue(asciiToken(host, maxSiemHost2)))
 	n := 0
 	for _, f := range r.Fields {
 		std := f.CEF
+		// A flag (blocked, D-227): the CEF deviceAction says "blocked" when it is true and nothing when it is not (never "allowed": a
+		// line that does not say the device stopped the connection is not known to have gone through).
+		if std == "act" {
+			if f.Val == "true" {
+				ext = append(ext, "act=blocked")
+			}
+			continue
+		}
 		if std == "src" || std == "dst" { // these two keys hold an address; a name goes to a custom string
 			if _, err := netip.ParseAddr(f.Val); err != nil {
 				std = ""

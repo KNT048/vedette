@@ -194,7 +194,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     expect(defaultUrl.length).toBeGreaterThan(0)
 
     // switch off: Fetch now is locked and says why; on again
-    const sw = page.getByRole('switch', { name: 'Enable ET Open compromised IPs' })
+    const sw = page.getByRole('switch', { name: /(Enable|Disable) ET Open compromised IPs/ })
     const was = await sw.isChecked() // leave the feed as it was: a box pulls whatever is left on
     const fetchBtn = page.getByRole('button', { name: 'Fetch now: ET Open compromised IPs' })
     await sw.click()
@@ -209,7 +209,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
   test('D-92: with the CISA list turned off, Home does not say 0 newly exploited; its link leads back to the switch', async ({ page }) => {
     test.skip(EMPTY, 'needs data')
     await start(page, 'admin', SETTINGS)
-    const sw = page.getByRole('switch', { name: 'Enable CISA KEV' })
+    const sw = page.getByRole('switch', { name: /(Enable|Disable) CISA KEV/ })
     const was = await sw.isChecked()
     if (was) { await sw.click(); await toast(page, /CISA KEV is off/) }
     await page.goto('/')
@@ -231,7 +231,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     for (const role of ['viewer', 'operator'] as const) {
       await start(page, role, SETTINGS)
       await expect(feedRow(page, 'CISA KEV')).toBeVisible()
-      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: 'Enable CISA KEV' })]) {
+      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: /(Enable|Disable) CISA KEV/ })]) {
         await expect(b).toBeDisabled()
         await expect(b).toHaveAttribute('title', /Requires .+ role/)
       }
@@ -341,7 +341,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await page.getByRole('button', { name: 'Add a feed' }).first().click()
     const dlg = page.getByRole('dialog', { name: 'Add a feed' })
     await dlg.locator('#cf-name').fill('Unreachable partner')
-    await dlg.getByLabel('Address').fill('http://127.0.0.1:1/list.txt')
+    await dlg.getByLabel('Address').fill('http://unreachable.lan:1/list.txt') // a loopback address is refused at save (D-420)
     await dlg.locator('#pe-format').selectOption('lines')
     await dlg.getByRole('button', { name: 'Add feed' }).click()
     await toast(page, /Unreachable partner added/)

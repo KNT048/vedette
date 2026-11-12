@@ -6,18 +6,19 @@ import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, dataMode, newId, nowIso } from '@/mocks/db'
 import { AI_JOBS, aiAssignStore, aiAvailable, aiCandidates, aiConfigStore, aiProfilesStore, aiProfileUsable, aiRunsStore, assetsStore, findingsStore, isOn, recordAiRun } from '@/mocks/stores'
 import type { AiAssign, AiJob, AiProfile as StoredProfile } from '@/mocks/stores'
-import { answerQuestion } from './ask'
+import { answerQuestion, boxApart } from './ask'
 import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skillsView, suggestionsStore } from './harness'
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
 import type { ActivityInput } from './activity'
 import type { AiConfigView, AiProfile, HookHit, AiRun, AiTier, AskResult, Assignments, ConfigInput, DigestItem, ExplainResult, FetchedSource, LogDigest, NewsResult, ProfileInput, ToolCall, Usage } from './types'
+import { fmtDate } from '@/lib/format'
 
 interface Kev { cve: string; vendor: string; product: string; name: string; description: string; required_action: string; links: string[]; date_added: string; ransomware: boolean; has_template: boolean }
 const vulns = (kev as { vulns: Kev[] }).vulns
 const CVE_RE = /^CVE-\d{4}-\d{4,}$/i
 const DAY = 864e5
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB')
+const fmtDay = (iso: string) => fmtDate(iso) // one date format (D-389)
 const num = (n: number) => n.toLocaleString('en-US')
 const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`
 
@@ -214,7 +215,7 @@ function buildExplain(v: Kev): Omit<ExplainResult, 'cached' | 'generated_at' | '
     patch_steps: none ? [] : [`Open the vendor advisory (${v.links[0] ?? 'vendor page'}) and update to the patched build for the version you run.`, 'Back up the configuration or take a snapshot before updating.', 'After updating, rescan the device on the Vulnerability scans page to confirm the finding is gone.'],
     temp_mitigations: none ? [] : temp,
     detection_hints: none ? [] : [v.ransomware ? 'This vulnerability has been used for ransomware: look for files with odd new extensions and ransom notes in shared folders.' : 'Review the service access log for the last 7 days: odd requests from foreign IPs and new files in the web or system folders.', 'If you see signs, isolate the device from the network before anything else.'],
-    citations: [...v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url })), { title: `Inventory: ${plural(matched.length, 'device')} matching` }],
+    citations: [...v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url })), { title: `Inventory: ${boxApart(matched)} matching` }],
   }
 }
 
@@ -248,8 +249,10 @@ function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | '
   const rdp: DigestItem = { severity: 'high', title: `${nm('a-srvad', 'SRV-AD')} is under RDP password guessing from 103.75.190.12`, asset_id: 'a-srvad', evidence: [`EventID 4625 ${nm('a-srvad', 'SRV-AD')} user=administrator src=103.75.190.12 (1,240 times in the last hour)`], recommendation: 'Close port 3389 to the Internet, allow RDP only through the VPN and lock accounts after 5 failures.' }
   const tor: DigestItem = { severity: 'high', title: `${nm('a-pc03', 'PC-ACCOUNTS-03')} connects to an IP on the bad list`, asset_id: 'a-pc03', evidence: [`FW-HQ allow ${ipOf('a-pc03', '192.168.10.103')} -> 185.220.101.47:443 (Tor exit node), 14 times`], recommendation: 'Isolate the device from the network, scan for malware and change the passwords used on it.' }
   const cam: DigestItem = { severity: 'medium', title: `${nm('a-cam01', 'CAM-GATE')} outbound traffic spiked`, asset_id: 'a-cam01', evidence: [`${ipOf('a-cam01', '192.168.20.11')} -> 45.148.10.95:80, 4.2 GB in 6 hours (normally about 120 MB)`], recommendation: 'Change the camera default password and block it from the Internet; the destination 45.148.10.95 is on the bad IP list.' }
+  // the blocked hit of the logs mock (b-3): the box tells the AI it was a blocked attempt (D-227), so the AI does not call it a connection
+  const tried: DigestItem = { severity: 'medium', title: '192.168.10.157 tried to reach 45.148.10.95; FW-HQ blocked it', evidence: ['FW-HQ deny 192.168.10.157 -> 45.148.10.95 (ET Open compromised, IPsum), a blocked attempt'], recommendation: 'Nothing got through, but a device that tries to reach a listed address may be infected: find out what on 192.168.10.157 made the request.' }
   const fresh: DigestItem = { severity: 'info', title: `${plural(unapproved.length, 'new unapproved device')} in 7 days`, evidence: unapproved.map((a) => `DHCP ${a.ip} mac=${a.mac ?? 'unknown'} (${a.hostname ?? 'no name'})`), recommendation: 'Open Devices to approve or mark as unknown.' }
-  const items = tier === 'min' ? [rdp, tor] : tier === 'med' ? [rdp, tor, cam, ...(unapproved.length ? [fresh] : [])] : [{ ...rdp, recommendation: `${rdp.recommendation} Checked: no successful logon (4624) from this IP within ±1 hour.` }, tor, cam, ...(unapproved.length ? [fresh] : [])]
+  const items = tier === 'min' ? [rdp, tor] : tier === 'med' ? [rdp, tor, cam, tried, ...(unapproved.length ? [fresh] : [])] : [{ ...rdp, recommendation: `${rdp.recommendation} Checked: no successful logon (4624) from this IP within ±1 hour.` }, tor, cam, tried, ...(unapproved.length ? [fresh] : [])]
   const tool_calls: ToolCall[] = tier === 'max' ? [
     { tool: 'events_around', args: '{"ip": "103.75.190.12", "window": "±1h"}', result: '1,240 events 4625, 0 events 4624' },
     { tool: 'lookup_ioc', args: '{"value": "185.220.101.47"}', result: 'Tor exit node, score 0.92, should be blocked' },
@@ -332,10 +335,10 @@ export const handlers = [
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
     if (ok.url.hostname.includes('unreachable')) return fail(502, 'unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
     if (ok.key?.startsWith('bad')) return fail(502, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
-    recordAiRun('connection-test', 14, 3, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
-    recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 14, tokens_out: 3, result: 'ok' })
+    recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
+    recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 42, tokens_out: 9, result: 'ok' }) // three requests: plain, tools, JSON format
     audit('ai.test', ok.name, `model=${b.model}`)
-    return HttpResponse.json({ ok: true, latency_ms: b.location === 'internal' ? 180 : 420, tokens_in: 14, tokens_out: 3, capabilities: { tools: true, structured: true } })
+    return HttpResponse.json({ ok: true, latency_ms: b.location === 'internal' ? 180 : 420, tokens_in: 42, tokens_out: 9, capabilities: { tools: true, structured: true } })
   }),
 
   http.get(`${API}/ai/assignments`, () => guard('viewer') ?? HttpResponse.json(aiAssignStore.get())),
@@ -399,7 +402,7 @@ export const handlers = [
     // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
     const fact = 'FW-HQ is the only firewall and the gateway of the office network.'
     const fresh = !stop && ans.tool_calls.length > 0 && memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
-    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `asked "${sent.slice(0, 150)}" and read ${[...new Set(ans.tool_calls.map((tc) => tc.tool))].join(', ')}` }])
+    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `From the question "${sent.slice(0, 150)}"; tools read: ${[...new Set(ans.tool_calls.map((tc) => tc.tool))].join(', ')}` }])
     return HttpResponse.json({ ...res, memories_suggested: fresh ? 1 : 0 })
   }),
 
@@ -470,7 +473,7 @@ export const handlers = [
     // memory suggestions (S-AI-7, D-223): only while allowed, never the same text twice; the stored digest reads back 0
     const fact = 'SRV-AD receives RDP only through the VPN.'
     const fresh = memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
-    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `log summary of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` }])
+    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `From the log summary of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` }])
     return HttpResponse.json({ digest: { ...d, memories_suggested: fresh ? 1 : 0 } })
   }),
 ]

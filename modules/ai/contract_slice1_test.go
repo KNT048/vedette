@@ -272,12 +272,13 @@ func TestContract_PRE3_ProfileTest(t *testing.T) {
 	a := newAPI(t)
 	got := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
 	caps := got["capabilities"].(map[string]any)
-	if got["ok"] != true || got["tokens_in"] != float64(14) || got["tokens_out"] != float64(3) || caps["tools"] != true || caps["structured"] != true || got["latency_ms"] == nil {
+	// three requests (plain, with a tool, with a JSON format) of 14 in and 3 out each: the test reports all three, as the meter counts them
+	if got["ok"] != true || got["tokens_in"] != float64(42) || got["tokens_out"] != float64(9) || caps["tools"] != true || caps["structured"] != true || got["latency_ms"] == nil {
 		t.Fatalf("test result = %v", got)
 	}
 	a.fake.setCaps(false, false)
 	got = a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
-	if caps := got["capabilities"].(map[string]any); caps["tools"] != false || caps["structured"] != false {
+	if caps := got["capabilities"].(map[string]any); caps["tools"] != false || caps["structured"] != false || got["tokens_in"] != float64(14) {
 		t.Fatalf("capabilities = %v", got)
 	}
 	// a saved profile is tested with its stored key when the body has none

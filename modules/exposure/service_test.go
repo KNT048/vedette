@@ -1,7 +1,10 @@
 package exposure
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
@@ -124,13 +127,17 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := e.committedDomain()
-	// no runner yet: the gate passes and the answer is 501 (the scan module has not registered one)
+	// no runner: the gate passes and the answer is 501 (no scan module registered one)
 	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 501, "not_implemented")
 	run := &fakeRunner{content: sampleContent()}
 	e.svc.SetRunner(run)
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err != nil {
 		t.Fatal(err)
+	}
+	evs := e.pub.names() // POST-1: the snapshot is announced (response's new_port trigger listens)
+	if len(evs) == 0 || evs[len(evs)-1] != EventSnapshotCreated {
+		t.Fatalf("events %v", evs)
 	}
 	// a failing runner is a failure of the box, and leaves no snapshot
 	e.advance(day)
@@ -141,11 +148,113 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 {
 		t.Fatalf("%d snapshots", n)
 	}
-	// the runner is told what to scan and nothing else
+	// the runner's own refusals reach the person as they are, and leave no snapshot either: the scan module is off (D-229), the
+	// certificate-transparency search did not answer
+	e.advance(ScanEvery)
+	run.err = ErrScanOff
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 409, "module_off")
+	run.err = fmt.Errorf("%w (crt.sh answered 502)", ErrCTDown)
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 502, "unreachable")
+	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 || len(e.pub.names()) != len(evs) {
+		t.Fatalf("%d snapshots, events %v", n, e.pub.names())
+	}
+	// no runner at all (a build without the scan module): 501 after the gate
 	run.err = nil
 	e.svc.SetRunner(nil)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 501, "not_implemented")
+}
+
+// INV-12 (D-229): one scan at a time on the box (409 busy), one scan of a target every ScanEvery (429 rate_limited; an attempt
+// with the scan module off does not count), and every attempt that ends without a snapshot is audited with its outcome.
+func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	v := e.committedDomain()
+	run := &blockingRunner{fakeRunner: fakeRunner{content: sampleContent()}}
+	e.svc.SetRunner(run)
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 429, "rate_limited")
+	if !strings.Contains(err.Error(), "at most one scan of a target every 10 minutes") {
+		t.Fatalf("message: %v", err)
+	}
+	e.advance(ScanEvery)
+	run.err = ErrScanOff // does not count: nothing was asked
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 409, "module_off")
+	// a second scan while one runs is refused at once
+	run.err, run.hold, run.in = nil, make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	other := e.detect(ipA)[0]
+	go func() { _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); done <- err }()
+	<-run.in
+	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", other.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", other.ID)
+	wantAPI(t, err, 409, "busy")
+	close(run.hold)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	// the audit trail has every attempt: the two snapshots, and the three that ended without one
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan' AND detail LIKE 'not done: %'`); n != 3 {
+		t.Fatalf("%d audited refusals, want 3 (rate_limited, module_off, busy)", n)
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan'`); n != 5 {
+		t.Fatalf("%d exposure.scan rows, want 5", n)
+	}
+}
+
+// blockingRunner waits for hold (when set) after telling in that it started.
+type blockingRunner struct {
+	fakeRunner
+	hold, in chan struct{}
+}
+
+func (r *blockingRunner) Scan(ctx context.Context, t ScanTarget) (Content, error) {
+	if r.in != nil {
+		close(r.in)
+		<-r.hold
+	}
+	return r.fakeRunner.Scan(ctx, t)
+}
+
+// D-57 (7), LEGAL §3: the scan of a domain port-scans an address only when ScannableIP says it is a verified, committed IP target
+// that may be scanned now (the same gate as a scan of it).
+func TestContract_INV12_ScannableIP(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := e.detect(ipA)[0]
+	may := func(a string) bool {
+		t.Helper()
+		ok, err := e.svc.ScannableIP(e.ctx(), "operator@acme.example", netip.MustParseAddr(a))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if may(ipA) {
+		t.Fatal("an IP without the commitment may be port-scanned")
+	}
+	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if !may(ipA) || !may("::ffff:"+ipA) {
+		t.Fatal("the box's verified, committed IP may not be port-scanned")
+	}
+	if may(ipB) || may("10.0.0.1") || may("100.64.0.1") {
+		t.Fatal("an address that is not a verified IP target may be port-scanned")
+	}
+	e.advance(31 * day)
+	if may(ipA) {
+		t.Fatal("an expired IP may be port-scanned")
+	}
 }
 
 func TestContract_INV2_OnlyObservedIPs(t *testing.T) {

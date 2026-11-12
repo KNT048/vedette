@@ -174,6 +174,35 @@ type ListenStatus struct {
 	Stats listen.Stats
 }
 
+// UnknownShown is how many dropped senders GET /logs/unknown-senders returns, the most recent first.
+const UnknownShown = 10
+
+// UnknownSenders is the senders whose syslog the listener dropped because no source declares them, or declares them with another protocol
+// (FORBID-5): the S-LOG-1 hint "lines arrive from an address that is not a source". The addresses come from the socket (listen.UnknownSender),
+// never from the text of a line. A sender that a source now declares with the protocol it last used is left out, so adding the source clears
+// the hint at once. In memory only: empty while the listener is not running, and counted again from zero when it restarts.
+func (s *Service) UnknownSenders(ctx context.Context) (UnknownSendersView, error) {
+	out := UnknownSendersView{Items: []UnknownSender{}}
+	srv := s.listening.Load()
+	if srv == nil {
+		return out, nil
+	}
+	declared, _, err := s.listenSources(ctx)
+	if err != nil {
+		return UnknownSendersView{}, err
+	}
+	for _, u := range srv.Stats().UnknownSender {
+		if src, ok := declared[u.IP]; ok && src.Proto == u.Proto {
+			continue
+		}
+		out.Items = append(out.Items, UnknownSender{IP: u.IP.String(), Proto: u.Proto, Count: u.Count, LastSeen: u.Last})
+		if len(out.Items) == UnknownShown {
+			break
+		}
+	}
+	return out, nil
+}
+
 // ListenStatus reports the listener, for the box block of the sources page (not shown yet, see the deferred line of L2).
 func (s *Service) ListenStatus() ListenStatus {
 	srv := s.listening.Load()

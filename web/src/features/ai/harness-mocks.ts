@@ -46,6 +46,24 @@ function checkHook(b: Partial<HookInput>, existing?: CustomHook): Response | Hoo
   return { name, when: b.when, match: { type: b.match.type, pattern: b.match.pattern.trim() }, action: b.action, message: TIDY(b.message!), enabled: b.enabled !== false }
 }
 
+// The quick look of the box (modules/ai/knowledge_parse.go sniffDoc, decodeText): the bytes must look like the type the name claims; a
+// text file is UTF-8 (a BOM is dropped) or UTF-16 with a byte order mark, with no NUL. The reason follows the file name in one sentence.
+function sniffDoc(name: string, b64: string): string | null {
+  let bin = ''
+  try { bin = atob(b64) } catch { return null } // the length test before has already refused what is not base64
+  if (/\.pdf$/i.test(name)) return bin.slice(0, 1024).includes('%PDF-') ? null : 'is not a PDF file'
+  if (/\.docx$/i.test(name)) return bin.startsWith('PK\x03\x04') ? null : 'is not a Word (DOCX) file'
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+  let text: string
+  if ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff)) {
+    if ((bytes.length - 2) % 2 !== 0) return 'is not valid UTF-16 text'
+    try { text = new TextDecoder(bytes[0] === 0xff ? 'utf-16le' : 'utf-16be', { fatal: true, ignoreBOM: true }).decode(bytes.subarray(2)) } catch { return 'is not valid UTF-16 text' }
+  } else {
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { return 'is not UTF-8 text. Save it as UTF-8 and add it again' }
+  }
+  return text.includes('\0') ? 'is not a text file' : null
+}
+
 export const harnessHandlers = [
   // Rules
   http.get(`${API}/ai/rules`, () => guard('admin') ?? HttpResponse.json({ builtin: BUILTIN_RULES, custom: rulesStore.get() })),
@@ -160,8 +178,10 @@ export const harnessHandlers = [
     if (size > MAX_DOC) return fail(400, 'too_large', 'The file is larger than 10 MB. Split it or remove pictures, then upload again.')
     if (typeof b.content !== 'string') return fail(400, 'invalid', 'The field "content" is missing or has a value that is not allowed. Fix it and try again.')
     if (base64Len(b.content) !== size) return fail(400, 'invalid_size', 'The file arrived damaged or cut short. Pick it again.')
+    const bad = sniffDoc(name, b.content)
+    if (bad) return fail(400, 'invalid_content', `${name} ${bad}. Only PDF, MD, TXT and DOCX files can be added.`)
     if (b.jobs !== undefined && !jobsOk(b.jobs)) return fail(400, 'invalid_jobs', 'One of the chosen jobs is not an AI job. Pick from the list.')
-    if (!indexProfile()) return fail(400, 'no_index_profile', 'Choose which AI profile builds the index before adding documents.')
+    if (!indexProfile()) return fail(400, 'no_index_profile', 'Choose an AI profile for the index before adding documents.')
     if (knowledgeStore.get().length >= 50) return fail(400, 'too_many', 'A box holds up to 50 documents. Delete the ones you no longer use.')
     const d = { id: newId('kd'), name, size, jobs: (b.jobs ?? ['explain-finding', 'ask-my-data']) as KnowledgeInput['jobs'] & string[], uploaded_at: nowIso() }
     knowledgeStore.update((l) => [d, ...l]); audit('ai.knowledge.add', name, `${size} bytes, ~${chunksOf(size)} chunks`)

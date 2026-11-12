@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -393,7 +394,7 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	e.loadKEV()
 	applyI(t, e.db, e.clock(), "abusech-feodo", []iocInput{{Kind: "ip", Value: "185.220.101.47", FirstSeen: "2026-09-12"}})
 	applyI(t, e.db, e.clock(), "tor-exit", []iocInput{{Kind: "ip", Value: "185.220.101.47"}, {Kind: "ip", Value: "45.148.10.95"}})
-	applyI(t, e.db, e.clock(), "ipsum", []iocInput{{Kind: "ip", Value: "103.75.190.12"}, {Kind: "domain", Value: "bad.example.net"}})
+	applyI(t, e.db, e.clock(), "ipsum", []iocInput{{Kind: "ip", Value: "103.75.190.12"}, {Kind: "domain", Value: "bad.evil-site.top"}})
 
 	if c, b := e.get("/feeds/search?q=%20%20"); c != 400 || code(b) != "empty_query" {
 		t.Errorf("blank: %d %v", c, b)
@@ -422,7 +423,7 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	if _, b = e.get("/feeds/search?q=103.75.190.12"); at(b, "hit", "verdict") != "alert" {
 		t.Errorf("ipsum alone: %v", b)
 	}
-	if _, b = e.get("/feeds/search?q=BAD.example.net"); at(b, "type") != "domain" || at(b, "value") != "bad.example.net" || at(b, "hit", "verdict") != "alert" {
+	if _, b = e.get("/feeds/search?q=BAD.evil-site.top"); at(b, "type") != "domain" || at(b, "value") != "bad.evil-site.top" || at(b, "hit", "verdict") != "alert" {
 		t.Errorf("domain: %v", b)
 	}
 	// unknown, private and 1-label values are not hits and never an error
@@ -438,6 +439,27 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	}
 	if _, b = e.get("/feeds/search?q=zzzz"); len(at(b, "vulns").([]any)) != 0 {
 		t.Errorf("text miss: %v", b)
+	}
+}
+
+// POST-4: a switched-off feed keeps its stale listings in feeds_ioc_source but is never named as listing an indicator.
+func TestContract_POST4_SearchNamesOnlySwitchedOnFeeds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	applyI(t, e.db, e.clock(), "abusech-feodo", []iocInput{{Kind: "ip", Value: "185.220.101.47"}})
+	applyI(t, e.db, e.clock(), "et-open", []iocInput{{Kind: "ip", Value: "185.220.101.47"}, {Kind: "ip", Value: "45.148.10.95"}})
+	if c, b := e.put("abusech-feodo", `{"enabled":false}`); c != 200 {
+		t.Fatalf("switch off: %d %v", c, b)
+	}
+	_, b := e.get("/feeds/search?q=185.220.101.47")
+	if at(b, "hit", "sources", 0) != "ET Open compromised IPs" || at(b, "hit", "sources", 1) != nil || at(b, "hit", "verdict") != "alert" {
+		t.Errorf("one feed on, one off: %v", b)
+	}
+	if c, b := e.put("et-open", `{"enabled":false}`); c != 200 {
+		t.Fatalf("switch off: %d %v", c, b)
+	}
+	if _, b = e.get("/feeds/search?q=45.148.10.95"); at(b, "kind") != "ioc" || b["hit"] != nil {
+		t.Errorf("every listing feed off: %v", b)
 	}
 }
 
@@ -832,5 +854,73 @@ func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
 	rows, err := svc.sources(t.Context())
 	if err != nil || len(rows) != len(BuiltinSources()) {
 		t.Fatalf("%d feeds, %v", len(rows), err)
+	}
+}
+
+// D-420 (1), (2): an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
+// with the pull's sentence; a name is not resolved (a public-looking name passes, the dialer judges it at pull); an
+// address another feed already pulls is refused and the message names that feed.
+func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
+	t.Parallel()
+	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}, BoxAddrs: func() ([]netip.Addr, bool) {
+		return []netip.Addr{netip.MustParseAddr("192.168.77.10")}, true
+	}, Gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.18.0.1"), true }})
+	withURL := func(name, u string) string {
+		return strings.Replace(strings.Replace(customBody, "https://threat-share.example.net/c2.csv", u, 1), "Partner C2 list", name, 1)
+	}
+	for _, u := range []string{
+		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
+		"https://[::1]:8443/x", "https://169.254.169.254/latest/meta-data", "https://[fe80::1]/x", "https://0.0.0.0/x",
+		"https://[::ffff:127.0.0.1]/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x",
+	} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Blocked", u))
+		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "Vedette does not pull feeds from itself") {
+			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
+		}
+	}
+	// D-420 (7): an address of the box that is not loopback (what vedette-host reports, or the container's gateway: on a
+	// container-only install the machine Docker runs on, walk 3) says so in plain words
+	for _, u := range []string{"https://192.168.77.10:8443/x", "http://172.18.0.1:18070/ioc.json"} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Own", u))
+		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "This address is the machine Vedette runs on") {
+			t.Errorf("POST %s: %d %v, want 400 blocked_host naming the machine", u, got, b)
+		}
+	}
+	if got, b, _ := e.do("PUT", "/feeds/sources/ipsum", "admin", `{"url":"https://169.254.169.254/ipsum.txt"}`); got != 400 || code(b) != "blocked_host" {
+		t.Errorf("mirror at metadata: %d %v", got, b)
+	}
+	// a public https address, a LAN feed that is not the box, and a name (not resolved) are accepted
+	for i, u := range []string{"https://203.0.114.9/c2.csv", "http://192.168.77.20/misp.txt", "https://misp.corp.example.org/x"} {
+		if got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL(fmt.Sprintf("Fine %d", i), u)); got != 201 {
+			t.Errorf("POST %s: %d %v, want 201", u, got, b)
+		}
+	}
+	// the same address as a built-in feed (IPsum) or another custom feed, case and default port aside
+	ipsum, _ := BuiltinByID("ipsum")
+	for _, c := range []struct{ u, other string }{
+		{strings.Replace(ipsum.URL, "https://raw.githubusercontent.com", "HTTPS://Raw.GitHubUserContent.com:443", 1), ipsum.Name},
+		{"https://203.0.114.9/c2.csv#top", "Fine 0"},
+	} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Copy", c.u))
+		if got != 400 || code(b) != "duplicate_url" || !strings.Contains(fmt.Sprint(b["error"].(map[string]any)["message"]), `"`+c.other+`"`) {
+			t.Errorf("POST %s: %d %v, want duplicate_url naming %q", c.u, got, b, c.other)
+		}
+	}
+	// editing a feed keeps its own address; moving it onto another feed's address or the box is refused
+	_, list, _ := e.do("GET", "/feeds/sources", "admin", "")
+	id := ""
+	for _, it := range list["items"].([]any) {
+		if m := it.(map[string]any); m["name"] == "Fine 1" {
+			id = m["id"].(string)
+		}
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.20/misp.txt")); got != 200 {
+		t.Errorf("edit, same address: %d %v", got, b)
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "https://203.0.114.9/c2.csv")); got != 400 || code(b) != "duplicate_url" {
+		t.Errorf("edit onto Fine 0: %d %v", got, b)
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10/x")); got != 400 || code(b) != "blocked_host" {
+		t.Errorf("edit onto the box: %d %v", got, b)
 	}
 }

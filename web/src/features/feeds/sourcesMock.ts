@@ -6,7 +6,7 @@ import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { fmtNumber } from '@/lib/format'
 import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput } from './contract'
-import { checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS } from './defaults'
+import { BLOCKED_TEXT, blockedFeedHost, checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS, sameFeedAddress } from './defaults'
 import { checkParser, ParserConfigError, parseFeed } from './parsers'
 import { sampleFor } from './samples'
 import type { Feed, FeedFormat, FeedStatus, FeedKind, ParseResult } from './types'
@@ -58,6 +58,8 @@ export function kevStatus(): FeedStatus['kev'] {
 export const iocListed = () => allFeeds(config.get()).some((f) => f.kind === 'ioc' && f.enabled && (f.records ?? 0) > 0)
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]
 const hostOf = (u: string) => { try { return new URL(u).hostname } catch { return '' } }
+// Like modules/feeds mostOften (D-420 (3)): the most common reason with one of its rows' value shown, not the masked "…".
+const mostOften = (out: ReturnType<typeof parseFeed>) => { const top = out.reasons[0]!.reason; return out.rejects.find((r) => r.reason.replace(/"[^"]*"/g, '"…"') === top)?.reason ?? top }
 const parseErr = (e: unknown) => e instanceof ParserConfigError ? fail(e.code === 'too_large' ? 413 : 400, e.code, e.message) : null
 
 function runSample(f: { kind: FeedKind; parser: NonNullable<Feed['parser']> }, text?: string) {
@@ -71,6 +73,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (DEFS.some((d) => d.name.toLowerCase() === name.toLowerCase()) || c.custom.some((x) => x.id !== selfId && x.name.toLowerCase() === name.toLowerCase())) return fail(400, 'duplicate_name', 'A feed with this name already exists.')
   const u = checkFeedUrl(i.url)
   if (u !== 'ok') return fail(400, 'invalid_url', u === 'https' ? 'Use an https:// address (http:// is only allowed for internal addresses).' : 'Enter a full address such as https://example.com/feed.json.')
+  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', BLOCKED_TEXT) // D-420 (1): refused at save, as the pull would
   if (!FORMATS[i.kind].includes(i.parser.format)) return fail(400, 'invalid_format', `This format does not fit a ${i.kind === 'ioc' ? 'IOC' : 'vulnerability'} feed.`)
   const a = i.auth
   if (a.type === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(a.header_name ?? '')) return fail(400, 'invalid_auth', 'Enter a valid header name, for example X-Api-Key.')
@@ -78,7 +81,9 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (a.type !== 'none' && !a.secret && !hadLast4) return fail(400, 'invalid_auth', 'Enter the secret.')
   if (a.secret !== undefined && (a.secret.length < 8 || /\s/.test(a.secret))) return fail(400, 'invalid_auth', 'The secret must be at least 8 characters with no spaces.')
   try { checkParser(i.kind, i.parser) } catch (e) { const r = parseErr(e); if (r) return r; throw e }
-  return null
+  // D-420 (2), last as on the server: another feed, built-in or custom, already pulls this address
+  const same = allFeeds(c).find((f) => f.id !== selfId && sameFeedAddress(f.url, i.url))
+  return same ? fail(400, 'duplicate_url', `The feed "${same.name}" already uses this address.`) : null
 }
 
 function toCustom(i: ReturnType<typeof FeedInputSchema.parse>, prev: Feed | null): Feed {
@@ -109,6 +114,7 @@ export const sourceHandlers = [
     if (p.data.url !== undefined) {
       url = p.data.url.trim() === '' && def ? def.url : p.data.url.trim()
       if (checkFeedUrl(url) !== 'ok') return fail(400, 'invalid_url', 'Use an https:// address (http:// is only allowed for internal addresses).')
+      if (blockedFeedHost(url)) return fail(400, 'blocked_host', BLOCKED_TEXT)
     }
     const name = def?.name ?? cust!.name
     if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
@@ -133,8 +139,8 @@ export const sourceHandlers = [
         const { out } = runSample({ kind: f.kind, parser: f.parser })
         records = out.accepted
         // Same text as the server (modules/feeds/pull.go accepted, note).
-        if (out.accepted === 0) { status = 'error'; error = out.rejected ? `All ${fmtNumber(out.rejected)} rows were rejected: ${out.reasons[0]?.reason ?? 'unknown reason'}.` : 'The feed returned no records.' }
-        else if (out.rejected) error = `${fmtNumber(out.rejected)} of ${fmtNumber(out.accepted + out.rejected)} rows were rejected.${out.reasons[0] ? ` Most often: ${out.reasons[0].reason}.` : ''} A few bad lines in a public list are normal; they are skipped.`
+        if (out.accepted === 0) { status = 'error'; error = out.rejected ? `All ${fmtNumber(out.rejected)} rows were rejected: ${out.reasons[0] ? mostOften(out) : 'unknown reason'}.` : 'The feed returned no records.' }
+        else if (out.rejected) error = `${fmtNumber(out.rejected)} of ${fmtNumber(out.accepted + out.rejected)} rows were rejected.${out.reasons[0] ? ` Most often: ${mostOften(out)}.` : ''} A few bad lines in a public list are normal; they are skipped.`
       } catch (e) { status = 'error'; error = e instanceof Error ? e.message : String(e) }
     } else records = f.records
     const patch = { last_fetch: nowIso(), records, status, error }

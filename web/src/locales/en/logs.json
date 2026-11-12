@@ -2,10 +2,22 @@
   "nav": {
     "logs": "Logs"
   },
-  "title": "Today: {{bad}} connections to bad destinations, {{fresh}} new log types, {{spikes}} spikes.",
+  "title": "Today: {{bad}}, {{fresh}}, {{spikes}}.",
+  "headline": {
+    "bad": "{{what}} to bad destinations",
+    "badBoth": "{{connections}} and {{attempts}} to bad destinations",
+    "connections_one": "{{count}} connection",
+    "connections_other": "{{count}} connections",
+    "attempts_one": "{{count}} blocked attempt",
+    "attempts_other": "{{count}} blocked attempts",
+    "fresh_one": "{{count}} new log type",
+    "fresh_other": "{{count}} new log types",
+    "spikes_one": "{{count}} spike",
+    "spikes_other": "{{count}} spikes"
+  },
   "titleQuiet": "Today: logs look normal, nothing new compared with the last 7 days.",
   "titleLearning": "Learning what is normal: {{n}} of {{days}} days of logs so far.",
-  "titleNoIoc": "Today: {{fresh}} new log types, {{spikes}} spikes.",
+  "titleNoIoc": "Today: {{fresh}}, {{spikes}}.",
   "titleLoading": "Logs",
   "titleNoSources": "No device is sending logs to the box yet.",
   "meta": "From {{lines}} log lines in the last 24 hours, compared with the previous {{days}} days. Updated {{time}}.",
@@ -45,6 +57,18 @@
     "emptyBody": "Add the first device or program that sends logs, such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",
     "descriptionNoIp": "Devices that send syslog to the box. The box address is not known yet: add your LAN range first (Devices, Scope and sensors).",
     "descriptionNoIpLan": "Devices that send syslog to the box. The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container: point devices at the address of the machine that runs Vedette, the one you open this page on."
+  },
+  "unknown": {
+    "title": "Syslog from an address that is not a source",
+    "notSource": "{{ip}} sends syslog over {{proto}}, but no source has this IP, so the box drops its lines ({{times}}, last {{when}}). Add it as a source, or change the sender IP of the source you meant.",
+    "otherProto": "{{ip}} sends syslog over {{proto}}, but {{name}} is declared with {{declared}}, so the box drops its lines ({{times}}, last {{when}}). Make the protocol of {{name}} and of the device the same.",
+    "times_one": "once",
+    "times_other": "{{count}} times",
+    "add": "Add as source",
+    "addFor": "Add {{ip}} as a log source",
+    "edit": "Edit {{name}}",
+    "container": "On a container install, syslog sent from the machine that runs Vedette arrives from the containers' network gateway (often 172.17.0.1 or 172.18.0.1), not from the machine's own address: declare that address for such a source.",
+    "memory": "Counted since the syslog listener last started; the 10 most recent addresses are shown."
   },
   "form": {
     "addTitle": "Add log source",
@@ -88,7 +112,7 @@
   "digest": {
     "bad": {
       "title": "Connections to bad IPs or domains",
-      "description": "A device on your network connected to an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
+      "description": "A device on your network connected to, or tried to reach, an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
       "caption": "Connections to bad IPs or domains",
       "col": {
         "last": "When",
@@ -99,6 +123,8 @@
         "confidence": "Confidence"
       },
       "lookup": "Look up {{dst}}",
+      "blocked": "Blocked",
+      "blockedHint": "The device that sent this log blocked the connection: the line records an attempt. A device that tries to reach a listed address may still be infected.",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
       "openModules": "Open Settings, Modules",
@@ -208,6 +234,7 @@
       "honeypot": "Honeypot touches",
       "bad_conn": "Connections to bad IPs or domains"
     },
+    "noHoneypot": "Not on this install: the honeypot needs the appliance install.",
     "sample": "Sample of one record that will be sent",
     "save": "Save",
     "saved": "SIEM settings saved.",

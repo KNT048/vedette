@@ -322,7 +322,8 @@ func newNetOps(t *testing.T) (*Ops, string) {
 			t.Fatal(err)
 		}
 	}
-	o, err := NewWithDeps(Config{StateDir: state, OwnerUID: os.Getuid()}, Deps{Root: root})
+	// The neighbour table of the machine running the test is never read: a test that needs one gives it.
+	o, err := NewWithDeps(Config{StateDir: state, OwnerUID: os.Getuid()}, Deps{Root: root, NeighDump: func() ([]byte, error) { return nil, nil }})
 	if err != nil {
 		t.Fatal(err)
 	}

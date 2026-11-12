@@ -58,23 +58,23 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
   const p = (iso: string, h: number) => new Date(new Date(iso).getTime() + h * 36e5).toISOString()
   const t4 = daysAgo(1, 1), t5 = daysAgo(4), t6 = daysAgo(0, 0.2), t7 = daysAgo(0, 1), t8 = daysAgo(2)
   return [
-    { id: 'al-4', kind: 'trap', link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
+    { id: 'al-4', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
       what: 'PC-HR-01 (192.168.10.107) opened an SMB connection to the trap machine FILESRV-OLD (192.168.10.240) 3 times. Nobody uses this trap, so it usually means the machine is infected or someone is probing the network.',
       action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.',
       sends: [s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
-    { id: 'al-5', kind: 'trap', link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
+    { id: 'al-5', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
       what: 'Unknown device 192.168.10.157 (not in the inventory) tried to sign in over Remote Desktop to the trap machine FILESRV-OLD (192.168.10.240).',
       action: 'Take the device off the network, then find out who brought it into the company.',
       sends: [s('sd-8', 'telegram', 'chat -1002145678901', plus(t5, 5)), s('sd-9', 'email', 'it@acme.example, director@acme.example', plus(t5, 9))], handled_by: 'it@acme.example', handled_at: daysAgo(3), note: "A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed." },
-    { id: 'al-6', kind: 'bad_address', link: '/logs', title: 'PC-SALES-02 connected to 185.220.101.47, a known-bad address', asset_ids: ['a-pc05'], severity: 'high', status: 'new', first_seen: p(t6, -23), last_seen: t6, count: 14,
+    { id: 'al-6', kind: 'bad_address', attempt: false, link: '/logs', title: 'PC-SALES-02 connected to 185.220.101.47, a known-bad address', asset_ids: ['a-pc05'], severity: 'high', status: 'new', first_seen: p(t6, -23), last_seen: t6, count: 14,
       what: 'PC-SALES-02 (192.168.10.105) connected 14 times in 24 hours to 185.220.101.47, a Tor exit node on the malicious address list (Tor exit list, IPsum). This is usually unknown software on that machine calling out.',
       action: 'Open the logs to see whether that machine is still connecting, then run an antivirus scan on it. If you cannot explain it, take the machine off the network.',
       sends: [s('sd-10', 'telegram', 'chat -1002145678901', plus(t6, 20)), s('sd-11', 'email', 'it@acme.example, director@acme.example', plus(t6, 24), false, 'The SMTP server rejected the login (code 535). Check the SMTP username and password in Settings, Alert channels.')], handled_by: null, handled_at: null, note: null },
-    { id: 'in-7', kind: 'log_anomaly', link: '/logs', title: 'WEB01 logged far more failed sign-ins than usual', asset_ids: ['a-web01'], severity: 'medium', status: 'new', first_seen: t7, last_seen: p(t7, 0.8), count: 1,
+    { id: 'in-7', kind: 'log_anomaly', attempt: false, link: '/logs', title: 'WEB01 logged far more failed sign-ins than usual', asset_ids: ['a-web01'], severity: 'medium', status: 'new', first_seen: t7, last_seen: p(t7, 0.8), count: 1,
       what: 'WEB01 wrote 1,240 failed sign-in lines in 10 minutes. On a normal day it writes fewer than 20. Someone may be guessing passwords.',
       action: 'Open the logs for WEB01 and check the source addresses. If they are not yours, block them and change the passwords of the accounts that were tried.',
       sends: [s('sd-13', 'slack', '#it-alerts', plus(t7, 12))], handled_by: null, handled_at: null, note: null },
-    { id: 'in-8', kind: 'unknown_device', link: '/devices/a-unk01', title: 'A new unknown device appeared: 192.168.10.157', asset_ids: ['a-unk01'], severity: 'medium', status: 'acknowledged', first_seen: t8, last_seen: t8, count: 1,
+    { id: 'in-8', kind: 'unknown_device', attempt: false, link: '/devices/a-unk01', title: 'A new unknown device appeared: 192.168.10.157', asset_ids: ['a-unk01'], severity: 'medium', status: 'acknowledged', first_seen: t8, last_seen: t8, count: 1,
       what: 'A device that is not in your inventory joined the network at 192.168.10.157.',
       action: 'Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.',
       sends: [s('sd-14', 'telegram', 'chat -1002145678901', plus(t8, 6))], handled_by: 'it@acme.example', handled_at: daysAgo(1, 5), note: 'Asking the office manager.' },
@@ -137,6 +137,8 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   if (!rule) return fail(400, 'approvals_unsupported', 'This channel cannot take approvals. It sends a link that opens Vedette instead.')
   const list = b.approvers ?? []
   if (!list.length) return fail(400, 'approvers_required', 'Add at least one approver, or turn off "Approve actions from this channel".')
+  // S-NOT-1 (review of #172, L1): approvals need the numeric chat; a public @name is fine for alerts only.
+  if (type === 'telegram' && !/^-?\d{5,20}$/.test((b.fields?.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
   const seen = new Set<string>()
   const addrs = new Map<string, string>() // address → email of the user it belongs to (D-242: one address is one approver)
   for (const a of list) {
@@ -155,10 +157,23 @@ function checkApprovers(type: ChannelType, b: Partial<ChannelInput>) {
   return null
 }
 
-/** The URL a save means: an empty one, or the masked one the API showed, keeps the saved URL. */
+/** The URL a save means: an empty one, or the masked one the API showed, keeps the saved URL. The mock keeps the URL in clear, so it
+ * never answers the box's 400 `url_unreadable` (a sealed URL that cannot be opened, channels.go SaveChannel). */
 const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
   const given = (f.url ?? '').trim()
   return given && given !== shownUrl(cur.url) ? given : cur.url ?? ''
+}
+
+/** The box's rule for a webhook or an SMTP server (channel/webhook.go forbiddenAddr): never this machine (loopback: in a container that is core
+ * itself), link-local (cloud metadata), multicast or unspecified. The mock knows none of the box's own LAN addresses. */
+const forbiddenHost = (host: string) => {
+  const h = host.toLowerCase().replace(/\.$/, '')
+  return h === 'localhost' || h.endsWith('.localhost') || h === '[::1]' || /^(127\.|169\.254\.|0\.0\.0\.0$|2(2[4-9]|3\d)\.)/.test(h)
+}
+/** The recipient named in `bad_to` (smtp.go badRecipient): one line, control and format characters dropped, cut to 60 characters. */
+const shownRecipient = (x: string) => {
+  const r = [...x.replace(/[\t\n\u0085\u2028\u2029]/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim()]
+  return r.length > 60 ? `${r.slice(0, 59).join('')}…` : r.join('')
 }
 
 function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChannel) {
@@ -167,24 +182,24 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   const need = (label: string) => (!cur.secret && !secret ? fail(400, 'secret_required', `Enter the ${label}. This channel has no saved key yet.`) : null)
   if (!ROUTE_SEVERITIES.includes(b.min_severity as never)) return fail(400, 'bad_severity', 'Choose a minimum severity: Critical, High, Medium or Low.')
   const badApprovers = checkApprovers(type, b); if (badApprovers) return badApprovers
+  // Each type checks in the order of its adapter (modules/notify/channel/*.go, then SaveChannel), so one input gets the same code from both.
   if (type === 'telegram') {
-    if (!/^(-?\d{5,20}|@[A-Za-z0-9_]{5,32})$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUpdates to see the number.')
-    // S-NOT-1 (review of #172, L1): approvals need the numeric chat; a public @name is fine for alerts only.
-    if (b.approvals === true && !/^-?\d{5,20}$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.')
+    const bad = need('bot token'); if (bad) return bad
     if (secret && !/^\d{6,12}:[A-Za-z0-9_-]{30,}$/.test(secret)) return fail(400, 'bad_token', 'A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.')
-    return need('bot token')
+    if (!/^(-?\d{5,20}|@[A-Za-z0-9_]{5,32})$/.test((f.chat_id ?? '').trim())) return fail(400, 'bad_chat_id', 'Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUpdates to see the number.')
+    return null
   }
   if (type === 'slack') {
     let u: URL | null = null
     try { u = new URL(secret) } catch { /* không phải URL */ }
+    if (!cur.secret && !secret) return fail(400, 'secret_required', 'Enter the Incoming Webhook URL.')
     if (secret && (!u || u.protocol !== 'https:' || u.hostname !== 'hooks.slack.com' || !u.pathname.startsWith('/services/'))) return fail(400, 'bad_webhook', 'A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app.')
     if ((f.label ?? '').trim().length > 80) return fail(400, 'bad_label', 'The channel label can be at most 80 characters.')
-    const bad = need('Incoming Webhook URL'); if (bad) return bad
+    const app = (b.app_token ?? '').trim(), bot = (b.bot_token ?? '').trim()
+    if (app && !/^xapp-[\w-]{10,}$/.test(app)) return fail(400, 'bad_app_token', 'The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information.')
+    if (bot && !/^xoxb-[\w-]{10,}$/.test(bot)) return fail(400, 'bad_bot_token', 'The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app.')
     if (b.approvals === true) {
       if (!/^[CGD][A-Z0-9]{8,12}$/.test((f.channel_id ?? '').trim())) return fail(400, 'bad_channel_id', 'A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom.')
-      const app = (b.app_token ?? '').trim(), bot = (b.bot_token ?? '').trim()
-      if (app && !/^xapp-[\w-]{10,}$/.test(app)) return fail(400, 'bad_app_token', 'The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information.')
-      if (bot && !/^xoxb-[\w-]{10,}$/.test(bot)) return fail(400, 'bad_bot_token', 'The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app.')
       if (!app && !cur.app_token) return fail(400, 'secret_required', 'Enter the app-level token (xapp-…). Approving in Slack needs Socket Mode.')
       if (!bot && !cur.bot_token) return fail(400, 'secret_required', 'Enter the bot token (xoxb-…). Approving in Slack needs it to read button presses and reply.')
     }
@@ -193,31 +208,46 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   if (type === 'zalo') {
     if (!/^\d{6,20}$/.test((f.oa_id ?? '').trim())) return fail(400, 'bad_oa_id', 'OA ID is a string of digits, shown in the Official Account management page.')
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA.')
+    const bad = need('access token'); if (bad) return bad
     if (secret && secret.length < 20) return fail(400, 'bad_token', 'The Zalo access token is too short. Copy the whole string from Zalo Developers.')
-    return need('access token')
+    return null
   }
   if (type === 'zalo-personal') {
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
     return !cur.secret && !secret ? fail(400, 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.') : null
   }
   if (type === 'email') {
+    // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
+    const portText = (f.port ?? '').trim()
+    if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+    if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
+    const badTo = to.find((x) => !EMAIL_RE.test(x))
+    const named = badTo === undefined ? '' : shownRecipient(badTo)
+    if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
     const host = (f.host ?? '').trim()
     if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    const port = Number(f.port)
-    if (!Number.isInteger(port) || port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+    if (forbiddenHost(host)) return fail(400, 'bad_host', "The SMTP server cannot be this machine, a link-local or multicast address, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
+    const port = Number(portText)
+    if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
     if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
     if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
     if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
-    if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+    if (f.security === 'none') {
+      // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
+      if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
+    } else {
+      if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+      const bad = need('SMTP password'); if (bad) return bad
+    }
     if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
-    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
-    if (!to.length || to.some((x) => !EMAIL_RE.test(x))) return fail(400, 'bad_to', 'A recipient email is not valid. Separate several recipients with commas.')
-    return need('SMTP password')
+    return null
   }
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.') // blocked_host
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')
 }

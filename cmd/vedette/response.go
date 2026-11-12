@@ -22,7 +22,8 @@ import (
 )
 
 // Adapters between the response module's ports and the modules that provide them. They live here because only the binary
-// knows both sides (modules/response imports no other module, rules/modules.md).
+// knows both sides (modules/response imports no other module's service, rules/modules.md; only the stdlib-only address check
+// modules/logs/signature, D-384).
 
 // ---- core/auth -> response.Users ----
 
@@ -418,7 +419,7 @@ func responseConfig(d *deps) (response.Config, error) {
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)
 	}
-	hm := &hostMACs{r: hostState, now: d.Clock}
+	hm := &hostMACs{r: hostState, now: d.Clock, report: infraReport(d)} // D-450 review: new gateways, resolvers and gateway MACs are reported
 	cfg.BoxMACs = responseBoxMACs(hm)
 	cfg.HostInfra = func() ([]response.HostInfra, error) { // D-325: the box's gateway and DNS servers are never-touch too
 		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)

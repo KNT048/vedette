@@ -276,3 +276,57 @@ func TestConfirmTOTPGuessesShareTheAccountsTwoStepLimiter(t *testing.T) {
 		t.Fatalf("after the wait: %v", err)
 	}
 }
+
+// D-389: the sole administrator lost the phone; `vedette reset-admin` on the box console gives a temporary password,
+// turns two-step sign-in off and ends every session, in one transaction with its audit row.
+func TestConsoleReset(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	ctx := t.Context()
+	admin := env.User(t, "root@acme.example", routes.Admin)
+	setup, err := env.Svc.StartTOTP(ctx, admin.ID, "", authtest.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(setup.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := only(env.Svc.ConfirmTOTP(ctx, admin.ID, "", auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now())))); err != nil {
+		t.Fatal(err)
+	}
+	env.Clock.Advance(time.Minute) // a new step: the confirming code cannot be used again
+	if _, err := env.Login(t, admin.Email, auth.TOTPCode(secret, auth.TOTPStep(env.Clock.Now()))); err != nil {
+		t.Fatal(err)
+	}
+	viewer := env.User(t, "ann@acme.example", routes.Viewer)
+
+	for _, email := range []string{"nobody@acme.example", viewer.Email} {
+		if _, _, err := env.Svc.ConsoleReset(ctx, email); err == nil {
+			t.Fatalf("reset of %s: want refused", email)
+		}
+	}
+	temp, ended, err := env.Svc.ConsoleReset(ctx, " Root@Acme.Example ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ended != 1 || len(temp) != 20 || env.Count(t, "SELECT count(*) FROM core_session WHERE user_id = ? AND revoked_at IS NULL", admin.ID) != 0 {
+		t.Fatalf("temp %d characters, %d sessions ended", len(temp), ended)
+	}
+	if env.Count(t, "SELECT count(*) FROM core_user_totp") != 0 || env.Count(t, "SELECT count(*) FROM core_secret WHERE purpose = 'core_user_totp'") != 0 {
+		t.Fatal("the TOTP key survived the reset")
+	}
+	if env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'user.console_reset' AND user = 'console' AND target = ? AND detail = 'temporary password set; two-step sign-in turned off; 1 sessions ended'", admin.Email) != 1 {
+		t.Fatal("no audit row for the console reset")
+	}
+	res, err := env.Svc.Login(ctx, auth.LoginRequest{Email: admin.Email, Password: temp, IP: ip("192.0.2.1"), UserAgent: "test"})
+	if err != nil {
+		t.Fatalf("sign-in with the temporary password: %v", err)
+	}
+	if !res.User.PasswordChangeRequired {
+		t.Fatal("the console password must be replaced at sign-in (D-180)")
+	}
+	if _, err := env.Login(t, admin.Email, ""); err == nil {
+		t.Fatal("the old password still signs in")
+	}
+}

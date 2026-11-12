@@ -84,7 +84,7 @@ func TestContract_INV12_SpecialAddressesNeverBecomeIOC(t *testing.T) {
 	if r.Accepted != 0 {
 		t.Errorf("accepted special addresses or local names: %v", indicators(r))
 	}
-	good := []string{"8.8.8.8", "45.148.10.95", "185.220.101.47", "2606:4700:4700::1111", "::ffff:8.8.4.4", "evil.example.com", "evil.co.uk", "a.b.example.org"}
+	good := []string{"8.8.8.8", "45.148.10.95", "185.220.101.47", "2606:4700:4700::1111", "::ffff:8.8.4.4", "evil-site.top", "evil.co.uk", "a.b.evil-site.top"}
 	g := parseLines(t, strings.Join(good, "\n"))
 	if g.Accepted != len(good) {
 		t.Errorf("public values wrongly rejected: accepted %v rejects %+v", indicators(g), g.Rejects)
@@ -94,9 +94,9 @@ func TestContract_INV12_SpecialAddressesNeverBecomeIOC(t *testing.T) {
 	p.RecordsPath = "$[*]"
 	p.Fields["indicator"] = fm("$.i")
 	p.Fields["kind"] = fm("$.k")
-	in := `[{"i":"10.0.0.1","k":"ip"},{"i":"http://192.168.1.1/x","k":"url"},{"i":"http://printer.local/x","k":"url"},{"i":"https://evil.example.com/x","k":"url"},{"i":"corp.internal","k":"domain"},{"i":"::ffff:10.0.0.1","k":"ipv4"}]`
+	in := `[{"i":"10.0.0.1","k":"ip"},{"i":"http://192.168.1.1/x","k":"url"},{"i":"http://printer.local/x","k":"url"},{"i":"https://evil-site.top/x","k":"url"},{"i":"corp.internal","k":"domain"},{"i":"::ffff:10.0.0.1","k":"ipv4"}]`
 	jr, err := ParseFeed(context.Background(), []byte(in), KindIOC, p)
-	if err != nil || jr.Accepted != 1 || jr.Records[0]["indicator"] != "https://evil.example.com/x" {
+	if err != nil || jr.Accepted != 1 || jr.Records[0]["indicator"] != "https://evil-site.top/x" {
 		t.Errorf("explicit kinds: %v %+v %v", err, jr.Stats, jr.Records)
 	}
 }
@@ -124,9 +124,9 @@ func TestContract_INV12_JudgeRepeatsTheAddressCheck(t *testing.T) {
 
 func TestRegress_HostsFileLinesYieldTheDomain(t *testing.T) {
 	t.Parallel()
-	in := "# hosts\n0.0.0.0 evil.example.com\n127.0.0.1\tbad.example.net # trailing\n::1 localhost\n0.0.0.0 a.example.com b.example.com\n45.148.10.95\t8\n127.0.0.1\n"
+	in := "# hosts\n0.0.0.0 evil-site.top\n127.0.0.1\tbad.evil-site.xyz # trailing\n::1 localhost\n0.0.0.0 a.evil-site.top b.evil-site.top\n45.148.10.95\t8\n127.0.0.1\n"
 	r := parseLines(t, in)
-	want := []string{"evil.example.com", "bad.example.net", "a.example.com", "b.example.com", "45.148.10.95"}
+	want := []string{"evil-site.top", "bad.evil-site.xyz", "a.evil-site.top", "b.evil-site.top", "45.148.10.95"}
 	if got := indicators(r); !reflect.DeepEqual(got, want) {
 		t.Errorf("indicators = %v, want %v", got, want)
 	}
@@ -484,7 +484,7 @@ func TestRegress_UnsafeURLAndWellKnownHashIOCs(t *testing.T) {
 	if r := parseLines(t, strings.Join(bad, "\n")); r.Accepted != 0 {
 		t.Errorf("accepted %v", indicators(r))
 	}
-	good := []string{"https://evil.example.com/a?b=c#frag", "44d88612fea8a8f36de82e1278abb02f"}
+	good := []string{"https://evil-site.top/a?b=c#frag", "44d88612fea8a8f36de82e1278abb02f"}
 	if r := parseLines(t, strings.Join(good, "\n")); r.Accepted != 2 {
 		t.Errorf("rejected good values: %+v", r.Rejects)
 	}

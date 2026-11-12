@@ -12,6 +12,13 @@
 - **SPA** `ExposurePage` (công tắc tự phát hiện, chu kỳ, "Detect now", danh sách IP, hộp thoại gỡ IP với ô "Don't add it again if detected", mục Ignored với Restore), `VerifyPanel`; `contract.ts` là nguồn OpenAPI cho `PUT /exposure/box-ip/settings`, `box_ip` và `ignored` trong `GET /exposure/targets`, `?ignore` của `DELETE /exposure/targets/{id}` và `DELETE /exposure/box-ip/ignored/{ip}`.
 - **`core/server`**: `ModuleOf` đưa mọi `/exposure/*` về module `exposure` theo tag; route mới cần một dòng trong `contractRoutes` của `core/server/modules_test.go` và `api/route-modules.json`.
 
+## Modifying: `ScannableIP(ctx, actor, ip)` (D-57 (7), LEGAL §3)
+- **scan** (runner) hỏi nó trước khi quét cổng một địa chỉ mà tên của domain trỏ tới. Nới nó (ví dụ trả `true` cho IP chưa cam kết hay không phải mục tiêu) là quét ngoài phạm vi: sửa CONTRACT INV-12 + `TestContract_INV12_ScannableIP` + `cmd/vedette` `TestExposureRunnerResult`.
+
+## Modifying: `Runner` (`Config.Runner`, `SetRunner`, `ScanTarget.User`), `ScanEvery`, khoá một lượt mỗi lúc, và `ErrScanOff`, `ErrScanBusy`, `ErrCTDown`, `ErrScanTooLong`, `TooManyNames`
+- **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
+- **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
+
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 

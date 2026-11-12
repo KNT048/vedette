@@ -235,6 +235,7 @@ var contractRoutes = map[string][]string{
 		"GET /logs/events",
 		"GET /logs/siem",
 		"GET /logs/sources",
+		"GET /logs/unknown-senders",
 		"POST /logs/siem/test",
 		"POST /logs/sources",
 		"PUT /logs/retention",
@@ -341,6 +342,7 @@ var contractRoutes = map[string][]string{
 	},
 	"sensor-passive": {
 		"GET /inventory/sensors",
+		"PATCH /inventory/sensors/{id}",
 	},
 }
 

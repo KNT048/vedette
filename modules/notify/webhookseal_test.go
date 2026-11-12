@@ -284,3 +284,19 @@ func TestChannelsInsideAWriteTransactionReturnsPromptlyEvenWithALegacyURL(t *tes
 		t.Fatalf("still in clear in %s after the Flush", where)
 	}
 }
+
+// A sealed URL that cannot be opened (the key changed) is 400 url_unreadable, not secret_required: the GUI puts that one under the
+// signing key. Entering the URL again saves.
+func TestWebhookSavedURLUnreadableIsItsOwnCode(t *testing.T) {
+	e, _ := webhookEnv(t)
+	saveWebhook(e, whURL)
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE core_secret SET key_version = key_version + 100 WHERE purpose = 'notify_channel.url'`)
+		return err
+	})
+	_, err := e.svc.SaveChannel(e.ctx(), "admin@x", channel.Webhook, notify.ChannelInput{Enabled: true, Fields: map[string]string{"url": ""}, Secret: "0123456789abcdef0123", MinSeverity: notify.Low})
+	wantCode(t, err, 400, "url_unreadable")
+	if got := saveWebhook(e, whURL2); got.Fields["url"] != whMasked {
+		t.Fatalf("entered again: shows %q", got.Fields["url"])
+	}
+}

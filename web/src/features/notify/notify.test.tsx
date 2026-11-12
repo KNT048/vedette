@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -9,7 +9,7 @@ import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
 
@@ -62,6 +62,30 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
   })
 
+  it('a blocked connection (D-227) is said as an attempt in the list and the detail (walk 3)', async () => {
+    const one = { id: 'in-a', kind: 'bad_address', attempt: true, link: '/logs', title: '192.168.1.50 tried to reach 185.220.101.47 (blocked by FW-HQ), which a threat feed lists', devices: [], severity: 'high', what: 'w', action: 'a',
+      first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [] }
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [one] })),
+      http.get('*/api/v1/notify/incidents/in-a', () => HttpResponse.json({ incident: one, previews: [] })))
+    renderApp('/incidents')
+    const table = await screen.findByRole('table', { name: 'Incidents' })
+    expect(within(table).getByText('Attempt to reach a known-bad address')).toBeInTheDocument()
+    expect(within(table).queryByText('Connection to a known-bad address')).toBeNull()
+    await userEvent.click(within(table).getByRole('link', { name: one.title }))
+    expect(await screen.findByRole('heading', { level: 1, name: one.title })).toBeInTheDocument()
+    expect(screen.getByText('Attempt to reach a known-bad address')).toBeInTheDocument()
+  })
+
+  it('container-only: no "Trap touches" filter, since the honeypot cannot run on this install (D-381, walk 3)', async () => {
+    installStore.set({ kind: 'container' })
+    try {
+      renderApp('/incidents')
+      await screen.findByRole('table', { name: 'Incidents' })
+      expect(await screen.findByRole('button', { name: 'Bad addresses' })).toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Trap touches' })).toBeNull())
+    } finally { installStore.set({ kind: 'appliance' }) }
+  })
+
   it('detail: what happened, first and last seen, count, who responded; message text per channel; Respond link', async () => {
     renderApp('/incidents/al-4')
     expect(await screen.findByRole('heading', { level: 1, name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toBeInTheDocument()
@@ -107,6 +131,16 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(screen.getByRole('button', { name: 'Resolve' })).toBeDisabled()
     const res = await fetch(`${location.origin}/api/v1/notify/incidents/al-4`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved' }) })
     expect(res.status).toBe(403)
+  })
+
+  it('a viewer does not ask for the alert channels (403 in the console)', async () => {
+    const real = globalThis.fetch
+    const asked: string[] = []
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
+    renderApp('/incidents', { role: 'viewer' })
+    await screen.findByRole('heading', { level: 1 })
+    expect(asked.filter((x) => x.includes('/notify/channels'))).toEqual([])
+    spy.mockRestore()
   })
 
   it('an unknown incident says so', async () => {
@@ -194,10 +228,10 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
   })
 
-  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves', async () => {
+  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves, and that the first download is not counted (walk 3)', async () => {
     server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], suppressed: { count: 0, days: 7 } })))
     renderChannels()
-    expect(await screen.findByText('Vedette only alerts for products you own. In the last 7 days no new vulnerability was skipped for matching none of your devices.')).toBeInTheDocument()
+    expect(await screen.findByText('Vedette only alerts for products you own. In the last 7 days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.')).toBeInTheDocument()
     expect(screen.queryByText(/already has a notice/)).toBeNull()
   })
 })
@@ -242,7 +276,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).getByText('Saved, ending in 0000. Leave empty to keep it.')).toBeInTheDocument()
     await userEvent.type(secret, 'not-a-token')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent('A bot token looks like 123456789:AAH')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/A bot token looks like 123456789:AAH/))
     await userEvent.clear(secret)
     await userEvent.type(secret, TOKEN)
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
@@ -261,14 +295,15 @@ describe('notify: alert channels (S-NOT-1)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
     await userEvent.type(within(dlg).getByLabelText('OA ID'), '12345')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent('OA ID is a string of digits')
+    await waitFor(() => expect(within(dlg).getByLabelText('OA ID')).toHaveAccessibleDescription(/OA ID is a string of digits/))
     await userEvent.clear(within(dlg).getByLabelText('OA ID'))
     await userEvent.type(within(dlg).getByLabelText('OA ID'), '1234567890')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent('Zalo recipient ID (user_id)')
+    await waitFor(() => expect(within(dlg).getByLabelText('Recipient ID (user_id)')).toHaveAccessibleDescription(/Zalo recipient ID \(user_id\)/))
     await userEvent.type(within(dlg).getByLabelText('Recipient ID (user_id)'), '2468013579')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent('Enter the access token')
+    await waitFor(() => expect(within(dlg).getByLabelText('Access token')).toHaveAccessibleDescription(/Enter the access token/))
+    expect(within(dlg).queryByRole('alert')).toBeNull()
     await userEvent.type(within(dlg).getByLabelText('Access token'), 'zalo-access-token-0123456789-abcdef')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
     expect((await screen.findAllByText(/Zalo OA 1234567890 sent the test message to recipient 2468013579/)).length).toBeGreaterThan(0)
@@ -284,7 +319,60 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.clear(to)
     await userEvent.type(to, 'it@acme.example, not-an-email')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent('A recipient email is not valid')
+    await waitFor(() => expect(to).toHaveAccessibleDescription('not-an-email is not a valid email address. Separate several recipients with commas.'))
+    expect(to).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('SMTP email: the server cannot be this machine (in a container 127.0.0.1 is Vedette itself), as for a webhook (walk 3)', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.clear(host)
+    await userEvent.type(host, '127.0.0.1')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(host).toHaveAccessibleDescription(/^The SMTP server cannot be this machine, a link-local or multicast address/))
+  })
+
+  it('server refusals of the other types show under the field the code names; a code that fits several fields stays at the top (deferred walk 2)', async () => {
+    renderChannels()
+    await press('Edit Telegram')
+    const tg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
+    const chat = within(tg).getByLabelText('Chat ID')
+    await userEvent.clear(chat)
+    await userEvent.type(chat, 'abc')
+    await userEvent.click(within(tg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(chat).toHaveAccessibleDescription(/Chat ID is a number/)) // bad_chat_id
+    expect(chat).toHaveAttribute('aria-invalid', 'true')
+    expect(within(tg).queryByRole('alert')).toBeNull()
+    await userEvent.type(chat, '1')
+    expect(chat).not.toHaveAttribute('aria-invalid')
+    await userEvent.click(within(tg).getByRole('button', { name: 'Cancel' }))
+    // Slack secret_required can be the webhook URL or either app token: the message says which, at the top
+    const APP = 'Enter the app-level token (xapp-…). Approving in Slack needs Socket Mode.'
+    server.use(http.put('*/api/v1/notify/channels/slack', () => HttpResponse.json({ error: { code: 'secret_required', message: APP } }, { status: 400 })))
+    await press('Edit Slack')
+    const sl = await screen.findByRole('dialog', { name: 'Channel Slack' })
+    await userEvent.click(within(sl).getByRole('button', { name: /^Save$/ }))
+    expect(await within(sl).findByRole('alert')).toHaveTextContent(APP)
+    expect(within(sl).getByLabelText('Incoming Webhook URL')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('webhook: a saved URL the box cannot read (400 url_unreadable) shows under the URL, not the signing key', async () => {
+    // only the box answers it (a sealed URL that cannot be opened): the mock keeps the URL in clear
+    const MSG = 'The saved webhook URL cannot be read. Enter it again and save.'
+    server.use(http.put('*/api/v1/notify/channels/webhook', () => HttpResponse.json({ error: { code: 'url_unreadable', message: MSG } }, { status: 400 })))
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    const url = within(dlg).getByLabelText('Webhook URL')
+    await userEvent.type(url, 'https://hooks.company.example/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(url).toHaveAccessibleDescription(MSG))
+    expect(url).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dlg).getByLabelText('Signing key')).not.toHaveAttribute('aria-invalid')
+    expect(within(dlg).queryByRole('alert')).toBeNull()
   })
 
   it('SMTP email: the port follows the encryption; leaving SSL/TLS drops 465 for 587 (QA walk b)', async () => {

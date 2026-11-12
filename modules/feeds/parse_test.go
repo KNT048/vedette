@@ -214,7 +214,7 @@ func TestCross_Lines(t *testing.T) {
 // reserved test name is not called a local host; the grouped reasons stay masked.
 func TestWalk2_LinesRejectsNameTheLineAndValue(t *testing.T) {
 	t.Parallel()
-	text := "# partner list\n203.0.113.9\nbad.example.com extra words\nhttp://evil.example/x\nnot an ip!!\n10.0.0.1\n44d88612fea8a8f36de82e1278abb02f\n"
+	text := "# partner list\n203.0.113.9\nbad.evil-site.top extra words\nhttp://evil.example/x\nnot an ip!!\n10.0.0.1\n44d88612fea8a8f36de82e1278abb02f\n"
 	r, err := ParseFeed(context.Background(), []byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +245,10 @@ func TestWalk2_URLHostReasons(t *testing.T) {
 		"http://intranet/":           "%s points at a local or private host",
 		"http://10.1.2.3/":           "%s points at a private, reserved or special-purpose address",
 		"http://[::1]/":              "%s points at a private, reserved or special-purpose address",
-		"https://evil.example.com/x": "",
+		"https://evil.example.com/x": "%s points at a reserved example or test name", // RFC 2606 §3 (D-420 (6))
+		"https://x.example.org/":     "%s points at a reserved example or test name",
+		"http://x.localhost/":        "%s points at a reserved example or test name",
+		"https://evil-site.top/x":    "",
 	} {
 		if _, why := normaliseIOC("url", in); why.tmpl != want {
 			t.Errorf("%s: %q, want %q", in, why.tmpl, want)
@@ -519,7 +522,7 @@ func TestParseEmptyRecordsPathDefaultsToRootArray(t *testing.T) {
 	p := DefaultParser(KindIOC, FormatJSON)
 	p.RecordsPath = ""
 	p.Fields["indicator"] = fm("$.ioc")
-	r, err := ParseFeed(context.Background(), []byte(`[{"ioc":"1.2.3.4"},{"ioc":"example.com"},{"nope":1}]`), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte(`[{"ioc":"1.2.3.4"},{"ioc":"evil-site.top"},{"nope":1}]`), KindIOC, p)
 	if err != nil || r.Accepted != 2 || r.Rejected != 1 || r.Reasons[0].Reason != "indicator: missing" {
 		t.Fatalf("%v %+v", err, r.Stats)
 	}
@@ -622,7 +625,7 @@ func TestJSONRejectsMalformedAndDeep(t *testing.T) {
 func TestEncodingAndControlCharacters(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatLines)
-	r, err := ParseFeed(context.Background(), []byte("\xef\xbb\xbf1.2.3.4\n\xff\xfe9.9.9.9\nbad\x00.example.com\nexample\xc3.com\nok.example.com\n"), KindIOC, p)
+	r, err := ParseFeed(context.Background(), []byte("\xef\xbb\xbf1.2.3.4\n\xff\xfe9.9.9.9\nbad\x00.evil-site.top\nexample\xc3.com\nok.evil-site.top\n"), KindIOC, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -630,7 +633,7 @@ func TestEncodingAndControlCharacters(t *testing.T) {
 	for _, rec := range r.Records {
 		got = append(got, rec["indicator"])
 	}
-	if !reflect.DeepEqual(got, []any{"1.2.3.4", "ok.example.com"}) || r.Rejected != 3 {
+	if !reflect.DeepEqual(got, []any{"1.2.3.4", "ok.evil-site.top"}) || r.Rejected != 3 {
 		t.Errorf("records %v, stats %+v", got, r.Stats)
 	}
 	for _, rec := range r.Records {
@@ -664,13 +667,15 @@ func TestIndicatorNormalisation(t *testing.T) {
 		{"256.1.1.1", "", ""},
 		{"dead:beef", "", ""},
 		{"::::", "", ""},
-		{"Example.COM", "", "domain:example.com"},
+		{"Evil-Site.TOP", "", "domain:evil-site.top"},
+		{"Example.COM", "", ""}, // RFC 2606 §3 (D-420 (6))
+		{"bad.test", "", ""},    // a test name, not a local host
 		{"-bad.example.com", "", ""},
 		{"example.com.", "", ""},
 		{"examKple.com", "", ""}, // Kelvin sign must not fold into ASCII k
 		{"a.b", "", ""},
 		{strings.Repeat("a", 64) + ".com", "", ""},
-		{"HTTPS://Evil.example.com/Path?x=1", "", "url:HTTPS://Evil.example.com/Path?x=1"},
+		{"HTTPS://Evil-Site.top/Path?x=1", "", "url:HTTPS://Evil-Site.top/Path?x=1"},
 		{"http://", "url", ""},
 		{"http:///x", "url", ""},
 		{"http://a b.example/", "url", ""},
@@ -729,11 +734,11 @@ func TestFieldRulesTrimLowercaseRegex(t *testing.T) {
 	t.Parallel()
 	p := DefaultParser(KindIOC, FormatLines)
 	f := fm("")
-	f.Regex = `host=([A-Za-z.]+)`
+	f.Regex = `host=([A-Za-z.-]+)`
 	f.Lowercase = true
 	p.Fields["indicator"] = f
-	r, _ := ParseFeed(context.Background(), []byte("host=Example.com extra\nhost=\nnothing\n"), KindIOC, p)
-	if r.Accepted != 1 || r.Rejected != 2 || r.Records[0]["indicator"] != "example.com" {
+	r, _ := ParseFeed(context.Background(), []byte("host=Evil-Site.top extra\nhost=\nnothing\n"), KindIOC, p)
+	if r.Accepted != 1 || r.Rejected != 2 || r.Records[0]["indicator"] != "evil-site.top" {
 		t.Errorf("regex+lowercase: %+v %v", r.Stats, r.Records)
 	}
 	p2 := DefaultParser(KindIOC, FormatLines)

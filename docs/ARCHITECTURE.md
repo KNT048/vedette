@@ -48,7 +48,7 @@ Hộp **không** nằm trên đường mạng: nó là một host trong LAN, tu�
 | `core` | Go + SPA nhúng + SQLite: auth, module registry, job, audit, secrets, feeds, inventory, matching, mitigation, notify, ai, response, reports, mcp-server | Container, mạng bridge nội bộ, publish 8443 | không root, cap_drop ALL, rootfs chỉ đọc | D-8, D-55 |
 | `sensor` | bắt gói thụ động: nửa `capture` của `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, bộ phân tích SPAN metadata viết bằng Go), `vedette-sensor passive`, gửi quan sát và heartbeat cho `core` qua giao thức sensor (D-112, D-114); nhận syslog (`logs`) **để sau**, chưa xây | Container, **mạng host** | `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `CAP_NET_RAW` (ambient; không `NET_BIND_SERVICE` tới khi có syslog, không `NET_ADMIN`) | D-43, D-55, D-114 |
 | `honeypot` | Một tiến trình OpenCanary + honey token; cấu hình đọc từ tệp `core` ghi, hit ghi ra tệp `core` đọc (D-89) | Container trong namespace `vedette-hp` do host giữ: mỗi IP phụ/decoy một link **macvlan** và MAC riêng, nft chặn kết nối mới đi ra | không capability (`ip_unprivileged_port_start=0` trong namespace) | D-50, D-55, D-89, D-102 |
-| `scan` | worker nmap của `sensor-active` (`vedette-sensor active`): nhận job nmap bằng long-poll, trả XML; chính sách và sự đồng ý ở `core` (D-113). Sau: job nuclei của `scan`/`exposure` trên cùng kênh | Container, mạng host; image **dựng trên hộp** từ image nền đã ký + nmap từ kho gói OS (D-57 (2), D-113 (7)) | như `sensor`: `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `CAP_NET_RAW` | D-4, D-55, D-113, D-114 |
+| `scan` | worker nmap của `sensor-active` (`vedette-sensor active`): nhận job nmap bằng long-poll, trả XML; chính sách và sự đồng ý ở `core` (D-113). Sau: job nuclei của `scan` trên cùng kênh (máy quét bề mặt ngoài của `exposure` chạy trong `core`, D-229) | Container, mạng host; image **dựng trên hộp** từ image nền đã ký + nmap từ kho gói OS (D-57 (2), D-113 (7)) | như `sensor`: `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `CAP_NET_RAW` | D-4, D-55, D-113, D-114 |
 | `greenbone` | Greenbone CE, quét có đăng nhập (S-SCAN-5) | Nhóm container upstream, tuỳ chọn, mạng nội bộ | GPL/AGPL, không sửa | D-55, S-SCAN-5 |
 | SPA (`web/`) | React, một locale `en` qua i18next | Nhúng trong `core` | — | D-22, D-28 |
 
@@ -58,7 +58,7 @@ Một codebase Go, đóng gói thành nhiều image (D-8, D-55): `core` (`cmd/ve
 
 | Lớp | Chọn | Lý do |
 |---|---|---|
-| Backend | Go (ghim trong `go.mod`), `net/http` + router nhẹ, `embed` SPA, cross-compile amd64/arm64 | D-8: httpx/naabu/subfinder là thư viện Go (nuclei: binary trong container `scan`, D-125); sensor I/O nhẹ; một codebase |
+| Backend | Go (ghim trong `go.mod`), `net/http` + router nhẹ, `embed` SPA, cross-compile amd64/arm64 | D-8: máy quét bề mặt ngoài viết bằng thư viện chuẩn Go, không dùng httpx/naabu/subfinder (D-229; nuclei: binary trong container `scan`, D-125); sensor I/O nhẹ; một codebase |
 | DB | SQLite (`modernc.org/sqlite`, không cgo, WAL) mặc định; PostgreSQL tuỳ chọn qua cùng lớp `store` (sqlc); FTS5 cho RAG | Backup = chép file; Postgres để sau (M7, ngoài danh sách container D-55) |
 | Frontend | React + TypeScript + Vite + Tailwind + Radix + TanStack Query/Table + React Router; chỉ tiếng Anh | D-28; chi tiết `FRONTEND.md` |
 | Job | Trong process (`core/jobs`), có khoá + lịch sử, không message queue. `ponytail: 1 process; nâng cấp: queue trên Postgres nếu cần` | Đủ cho ≤1.000 thiết bị một site |
@@ -229,7 +229,7 @@ Tham số do kẻ tấn công kiểm soát (IP, domain trong log) được kiể
 |---|---|---|
 | Mã Vedette | Apache-2.0 | |
 | nuclei, nuclei-templates | MIT | tiến trình riêng trong container `scan` (binary ghim + gói mẫu ký kèm image, D-125) |
-| httpx, naabu, subfinder, dnsx | MIT | thư viện Go nhúng (`core`, `scan`) |
+| httpx, naabu, subfinder, dnsx | MIT | không dùng: máy quét bề mặt ngoài (`modules/scan/surface`) là thư viện chuẩn Go (D-229) |
 | recog / recog-go | BSD-2 | nhúng |
 | nmap | NPSL 0.95 | **tiến trình riêng** trong `scan`; cài từ kho gói OS vào image `scan` do `vedette-host` dựng trên hộp, dự án không phân phối (D-4, D-57 (2), D-113 (7)) |
 | OpenCanary | BSD-3 | tiến trình riêng trong image `honeypot` |

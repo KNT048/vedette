@@ -95,7 +95,7 @@ type Handler interface {
 	AiGetAiHooks(ctx context.Context) (*AiGetAiHooksOK, error)
 	// AiGetAiKnowledge implements ai_get_ai_knowledge operation.
 	//
-	// Knowledge base documents with indexing status, and the profile that builds the index.
+	// Knowledge base documents with indexing status, and the AI profile chosen for the index.
 	//
 	// GET /ai/knowledge
 	AiGetAiKnowledge(ctx context.Context) (*AiGetAiKnowledgeOK, error)
@@ -258,7 +258,7 @@ type Handler interface {
 	AiPutAiKnowledgeID(ctx context.Context, req *AiPutAiKnowledgeIDReq, params AiPutAiKnowledgeIDParams) (*AiPutAiKnowledgeIDOK, error)
 	// AiPutAiKnowledgeSettings implements ai_put_ai_knowledge_settings operation.
 	//
-	// Choose the AI profile that builds the index.
+	// Choose the AI profile for the index (required; the index is built on the box).
 	//
 	// PUT /ai/knowledge/settings
 	AiPutAiKnowledgeSettings(ctx context.Context, req *AiPutAiKnowledgeSettingsReq) (*AiPutAiKnowledgeSettingsOK, error)
@@ -860,7 +860,13 @@ type Handler interface {
 	// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 	// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 	// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-	// when the commitment is missing.
+	// when the commitment is missing. After those checks the Vulnerability scans module does the scan
+	// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
+	// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
+	// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
+	// within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in
+	// the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the
+	// scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited.
 	//
 	// POST /exposure/targets/{id}/scan
 	ExposurePostExposureTargetsIDScan(ctx context.Context, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanOK, error)
@@ -1190,6 +1196,15 @@ type Handler interface {
 	//
 	// PATCH /inventory/devices/{id}
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)
+	// InventoryPatchInventorySensorsID implements inventory_patch_inventory_sensors_id operation.
+	//
+	// Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the
+	// cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s,
+	// or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box
+	// network sets it.
+	//
+	// PATCH /inventory/sensors/{id}
+	InventoryPatchInventorySensorsID(ctx context.Context, req *InventoryPatchInventorySensorsIDReq, params InventoryPatchInventorySensorsIDParams) (*InventoryPatchInventorySensorsIDOK, error)
 	// InventoryPostIntakeOsqueryConfig implements inventory_post_intake_osquery_config operation.
 	//
 	// Osquery config (machine to machine): the read-only snapshot schedule for an enrolled node;
@@ -1320,6 +1335,13 @@ type Handler interface {
 	//
 	// GET /logs/sources
 	LogsGetLogsSources(ctx context.Context) (*LogsGetLogsSourcesOK, error)
+	// LogsGetLogsUnknownSenders implements logs_get_logs_unknown_senders operation.
+	//
+	// Senders whose syslog was dropped because no source declares them (the 10 seen most recently since
+	// the listener started).
+	//
+	// GET /logs/unknown-senders
+	LogsGetLogsUnknownSenders(ctx context.Context) (*LogsGetLogsUnknownSendersOK, error)
 	// LogsPostLogsSiemTest implements logs_post_logs_siem_test operation.
 	//
 	// Send a test record to the saved SIEM.

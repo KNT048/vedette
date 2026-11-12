@@ -184,7 +184,7 @@ func (s *Service) KnowledgeView(ctx context.Context) (KnowledgeView, error) {
 	return v, nil
 }
 
-// SetIndexProfile chooses the profile that builds the index, or none (`PUT /ai/knowledge/settings`, admin). The index is built
+// SetIndexProfile chooses the AI profile for the index, or none (`PUT /ai/knowledge/settings`, admin). The index is built
 // on the box, so the choice changes nothing yet; it is checked as if it did (INV-3), so no state that would later send documents to a
 // profile the privacy rule forbids can be saved.
 func (s *Service) SetIndexProfile(ctx context.Context, who string, id *string) (KnowledgeView, error) {
@@ -255,7 +255,7 @@ func (s *Service) AddDoc(ctx context.Context, who string, in KnowledgeUpload) (K
 		return KnowledgeDoc{}, badInput("invalid_size", "The file arrived damaged or cut short. Pick it again.")
 	}
 	if err := sniffDoc(kind, data); err != nil {
-		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only PDF, MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
+		return KnowledgeDoc{}, badInput("invalid_content", "%s %s. Only PDF, MD, TXT and DOCX files can be added.", name, strings.TrimSuffix(err.Error(), "."))
 	}
 	jobs := []string{"explain-finding", "ask-my-data"}
 	if in.Jobs != nil {
@@ -266,7 +266,7 @@ func (s *Service) AddDoc(ctx context.Context, who string, in KnowledgeUpload) (K
 	if id, err := s.indexProfileID(ctx); err != nil {
 		return KnowledgeDoc{}, err
 	} else if id == "" {
-		return KnowledgeDoc{}, badInput("no_index_profile", "Choose which AI profile builds the index before adding documents.")
+		return KnowledgeDoc{}, badInput("no_index_profile", "Choose an AI profile for the index before adding documents.")
 	}
 	if s.queued.Add(1) > maxQueued {
 		s.queued.Add(-1)

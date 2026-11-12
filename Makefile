@@ -284,11 +284,11 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 # Multi-arch (WP-08d, D-158): one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's, WP-08k).
 # The Go and download stages run on this machine ($BUILDPLATFORM) and the target stages only COPY, so arm64 needs no qemu/binfmt.
 # podman: `podman build --platform a,b --manifest`; docker: buildx writes an OCI archive to dist/images/ (the classic image store holds no
-# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile, $(3) = extra build arguments.
+# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile, $(3) = extra build arguments. An old list of the same tag is removed first (`manifest rm`; `rmi` of a list says "tag not known"), else the build is appended to it.
 ifeq ($(CONTAINER),docker)
 MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) $(3) .; }
 else
-MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
+MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
 endif
 comma := ,
 images: webui-dist scan-pack check-min-sequence

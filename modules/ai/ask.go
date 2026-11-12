@@ -128,8 +128,8 @@ func takeRemember(text string) (string, []string) {
 	return rest, []string{m[1]}
 }
 
-// askEvidence names the question and the tools the fact came from, at most evidenceMax characters, without the invisible
-// characters that SuggestMemory refuses (pasted questions often carry them).
+// askEvidence names the question and the tools the fact came from (`From the question "…"; tools read: a, b`), at most evidenceMax
+// characters, without the invisible characters that SuggestMemory refuses (pasted questions often carry them).
 func askEvidence(question string, calls []AskToolCall) string {
 	var tools []string
 	for _, c := range calls {
@@ -137,14 +137,14 @@ func askEvidence(question string, calls []AskToolCall) string {
 			tools = append(tools, c.Tool)
 		}
 	}
-	tail := clipRunes(`" and read `+strings.Join(tools, ", "), 80)
+	tail := clipRunes(`"; tools read: `+strings.Join(tools, ", "), 80)
 	q := strings.Map(func(r rune) rune {
 		if auth.HasInvisible(string(r)) {
 			return -1
 		}
 		return r
 	}, question)
-	return clipRunes(`asked "`+q, evidenceMax-utf8.RuneCountInString(tail)) + tail
+	return clipRunes(`From the question "`+q, evidenceMax-utf8.RuneCountInString(tail)) + tail
 }
 
 // parseAsk turns the model's plain text into paragraphs: control characters out, paragraphs split on a blank line, each cut, at most askParas.

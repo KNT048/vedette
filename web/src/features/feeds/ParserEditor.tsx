@@ -44,7 +44,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
           <Select id="pe-format" value={fmt} onChange={(e) => onFormat(e.target.value as FeedFormat)}>{FORMATS[kind].map((f) => <option key={f} value={f}>{t(`parser.formats.${f}`)}</option>)}</Select>
         </Field>
         {fmt === 'json' ? (
-          <Field label={t('parser.recordsPath')} htmlFor="pe-records" hint={t('parser.recordsHint')}>
+          <Field label={t('parser.recordsPath')} htmlFor="pe-records" hint={t(`parser.recordsHint.${kind}`)}>
             <Input id="pe-records" value={parser.records_path} onChange={(e) => set({ records_path: e.target.value })} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" />
           </Field>
         ) : null}

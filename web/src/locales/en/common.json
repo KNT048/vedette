@@ -88,7 +88,9 @@
   "moduleOff": {
     "title": "{{name}} module is off",
     "body": "Existing data is kept. Turn the module on to get new data here.",
-    "enable": "Open module settings"
+    "enable": "Open module settings",
+    "notHereTitle": "{{name}} is not on this install",
+    "notHereBody": "It needs the appliance install: this container-only install has no vedette-host to run it. Existing data is kept."
   },
   "modules": {
     "core": {
@@ -113,7 +115,8 @@
     },
     "sensor-active": {
       "name": "Active sensor",
-      "summary": "Light nmap scans inside the allowed time window."
+      "summary": "Light nmap scans inside the allowed time window.",
+      "summaryContainer": "Light scans of your network inside the allowed time window."
     },
     "findings": {
       "name": "Findings",

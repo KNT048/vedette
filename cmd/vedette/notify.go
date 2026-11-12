@@ -159,6 +159,10 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 // BoxAddrs is the box-address provider (d.HostNet): the appliance's own addresses, which core's container cannot see, so no webhook can
 // point at the box (issue #62). The token recorder is the response module (notifyTokens, read lazily
 // because response is built after notify).
+// notifySMTPLoopback is set by the tests of this package only (notify_wiring_test.go): their fake SMTP servers, and the e2e box's,
+// listen on 127.0.0.1, which notify refuses as an SMTP server (in a container loopback is core itself).
+var notifySMTPLoopback bool
+
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()
 	defer notifyMu.Unlock()
@@ -167,7 +171,7 @@ func newNotify(d *deps) *notify.Service {
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
 		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: notifyBoxAddrs(d.HostNet),
-		ApproverLinks: notifyApproverLinks{d}} // unknown only while a configured vedette-host has never answered (#157)
+		ApproverLinks: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}
@@ -191,8 +195,9 @@ func newNotify(d *deps) *notify.Service {
 
 // notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. It reads the last known set and never
 // waits for the host (notify asks at every webhook connection and save); a stale set is refreshed in the background, and a host that does
-// not answer leaves the previous set in place. Before the first answer, and without a host (nil cache), the set is empty and notify reads
-// the container's own interfaces only: fail-open, noted in .ai/deferred/feat-sensor-protocol.md (notify has no "unknown" signal).
+// not answer leaves the previous set in place. Before a configured host's first answer the set is unknown (known=false) and notify refuses
+// every webhook save and connection until it is known (fail closed, #157). Without a host (nil cache) the set is empty and known: the
+// container's own interfaces, which notify reads itself, are all the box has.
 func notifyBoxAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
 	return func() ([]netip.Addr, bool) {
 		ps, known := c.SnapshotKnown()

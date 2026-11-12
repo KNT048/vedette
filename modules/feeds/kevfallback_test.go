@@ -190,7 +190,7 @@ func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	if c != 200 || at(b, "status") != "error" || !strings.Contains(msg, "403") || !strings.Contains(msg, "mirror") || !strings.Contains(msg, "502") {
 		t.Fatalf("both down: %d %v %q", c, at(b, "status"), msg)
 	}
-	if strings.Contains(msg, "127.0.0.1") || strings.Contains(msg, "http") {
+	if strings.Contains(msg, originHost) || strings.Contains(msg, "127.0.0.1") || strings.Contains(msg, "http") {
 		t.Errorf("the message carries an address: %q", msg)
 	}
 	if e.feed("cisa-kev").Failures == 0 {

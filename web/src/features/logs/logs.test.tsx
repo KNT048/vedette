@@ -150,7 +150,7 @@ async function openAdd(pick: RegExp | string) {
 describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the heading answers the question, sources and digest tables show, no a11y violations', async () => {
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 3 connections to bad destinations, 3 new log types, 2 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 2 connections and 1 blocked attempt to bad destinations, 3 new log types, 2 spikes.' })).toBeInTheDocument()
     const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
     expect(within(sources).getAllByRole('row')).toHaveLength(5)
     expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
@@ -194,7 +194,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     await userEvent.type(within(form).getByLabelText('Find your device or software'), 'forti')
     expect(within(form).getByText('1 match')).toBeInTheDocument()
-    await userEvent.click(within(form).getByRole('button', { name: /FortiGate/ }))
+    await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     await userEvent.type(within(form).getByLabelText('Name'), 'FW-CN1')
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '300.1.1.1')
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
@@ -240,7 +240,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
     await waitFor(() => expect(within(form).getByLabelText('IP of the sending device')).toHaveAccessibleDescription(/There is already a log source with this IP address/))
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
-    await userEvent.click(within(form).getByRole('button', { name: /FortiGate/ }))
+    await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(3)
     await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
     expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)
@@ -372,8 +372,47 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [item], spikes: [], bad_connections: [], ioc_matching: false })))
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 new log types, 0 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 new log type, 0 spikes.' })).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
+  })
+
+  it('the headline says one connection, and counts a blocked attempt apart (D-227, QA walk 3)', async () => {
+    const hit = (id: string, blocked: boolean) => ({ id, ts: '2026-11-12T00:00:00Z', asset_id: null, asset_name: null, src_ip: '192.168.1.50', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['IPsum'], confidence: 0.6, blocked })
+    let hits = [hit('h-1', true)]
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: hits, ioc_matching: true })))
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
+    hits = [hit('h-1', true), hit('h-2', false)]
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 connection and 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
+  })
+
+  it('syslog from an address that is not a source is named, with a way to add it; a viewer does not see addresses (S-LOG-1, QA walk 3)', async () => {
+    server.use(
+      http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+        box: { ip: null, hostname: 'vedette', lan: '192.168.1.0/24', iface: 'eth0' }, retention_days: 30,
+        sources: [{ id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.1.1', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' },
+          { id: 'ls-2', kind: 'mikrotik', name: 'RT-1', sender_ip: '192.168.1.2', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
+      })),
+      http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
+        { ip: '172.18.0.1', proto: 'udp', count: 5, last_seen: new Date().toISOString() },
+        { ip: '192.168.1.2', proto: 'tcp', count: 1, last_seen: new Date().toISOString() },
+      ] })),
+    )
+    const view = renderApp('/logs')
+    const hint = await screen.findByRole('region', { name: 'Syslog from an address that is not a source' })
+    expect(hint).toHaveTextContent('172.18.0.1 sends syslog over UDP, but no source has this IP, so the box drops its lines (5 times, last')
+    expect(hint).toHaveTextContent('192.168.1.2 sends syslog over TCP, but RT-1 is declared with UDP, so the box drops its lines (once, last')
+    expect(hint).toHaveTextContent("arrives from the containers' network gateway")
+    expect(within(hint).getByRole('button', { name: 'Edit RT-1' })).toBeEnabled()
+    await userEvent.click(within(hint).getByRole('button', { name: 'Add 172.18.0.1 as a log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
+    expect(within(form).getByLabelText(/IP of the sending device/)).toHaveValue('172.18.0.1')
+    view.unmount()
+    renderApp('/logs', { role: 'viewer' })
+    expect(await screen.findByRole('table', { name: 'Log sources currently received' })).toBeInTheDocument()
+    expect(screen.queryByText(/172\.18\.0\.1/)).not.toBeInTheDocument()
   })
 
   it('an API error shows the message and a retry button', async () => {
@@ -407,14 +446,18 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('the digest shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
-    const row = (id: string, hours: number, ip: string, dest: string) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5 })
-    collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51'), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
+    const row = (id: string, hours: number, ip: string, dest: string, blocked = false) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5, blocked })
+    collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51', true), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
     renderApp('/logs')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     expect(within(table).queryByText('203.0.113.99')).not.toBeInTheDocument()
     expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
+    // D-227: a line the firewall blocked is an attempt, marked Blocked; the one that went through is not
+    const [newest, older] = within(table).getAllByRole('row').slice(1)
+    expect(within(older!).getByText('Blocked')).toBeInTheDocument()
+    expect(within(newest!).queryByText('Blocked')).not.toBeInTheDocument()
   })
 
   it('logs module off: says where to turn it on', async () => {

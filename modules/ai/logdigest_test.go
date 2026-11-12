@@ -140,6 +140,31 @@ func TestLogDigestSendsKindsAndCountsNeverLines(t *testing.T) {
 	}
 }
 
+// A connection the firewall blocked reaches the AI as a blocked attempt, not as a connection (D-227): the answer of logs carries the mark.
+// An unmarked hit is not claimed to have gone through (the line may not say), and a SPAN DNS answer is a lookup.
+func TestLogDigestSaysABlockedAttempt(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	a.fake.setAnswer(goodDigest)
+	raw := `{"lines_24h":2,"baseline_days":7,"new":[],"spikes":[],"bad_connections":[` +
+		`{"ts":"2026-11-10T02:00:00Z","src_ip":"192.168.1.50","dest":"185.220.101.47","dest_kind":"ip","seen_via":"syslog:FW-HQ","feeds":["tor-exit"],"confidence":0.9,"blocked":true},` +
+		`{"ts":"2026-11-10T02:05:00Z","src_ip":"192.168.1.51","dest":"91.92.240.11","dest_kind":"ip","seen_via":"syslog:FW-HQ","feeds":["ipsum"],"confidence":0.6,"blocked":false},` +
+		`{"ts":"2026-11-10T02:06:00Z","src_ip":"192.168.1.52","dest":"bad.example.net","dest_kind":"domain","seen_via":"span_dns","feeds":["hagezi"],"confidence":0.8,"blocked":false}]}`
+	var in ai.LogDigestData
+	if err := json.Unmarshal([]byte(raw), &in); err != nil {
+		t.Fatal(err)
+	}
+	a.logs.set(in)
+	a.digest("POST", "operator", 200, "")
+	sent := fmt.Sprintf("%+v", a.fake.lastRequest(t))
+	for _, want := range []string{"blocked attempt (stopped by the device that logged it): a device that is not in the inventory, IP 192.168.1.50, to 185.220.101.47", "not marked blocked (it went through, or the log does not say): a device that is not in the inventory, IP 192.168.1.51, to 91.92.240.11",
+		"DNS lookup (the name was looked up; no connection is known): a device that is not in the inventory, IP 192.168.1.52, to bad.example.net"} {
+		if !strings.Contains(sent, want) {
+			t.Errorf("the request lacks %q", want)
+		}
+	}
+}
+
 func TestLogDigestTextIsBoundedAndCheckedByTheHooks(t *testing.T) {
 	a := newAPI(t)
 	a.addProfile(cloudBody("Claude", keyA))
@@ -396,7 +421,7 @@ func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
 		t.Fatalf("schema = %s", sch)
 	}
 	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
-	if len(sg) != 2 || sg[0].(map[string]any)["evidence"] != "log summary of 10 Nov 2026" {
+	if len(sg) != 2 || sg[0].(map[string]any)["evidence"] != "From the log summary of 10 Nov 2026" {
 		t.Fatalf("suggestions = %v", sg)
 	}
 	if items := a.want("GET", "/ai/memory", "admin", "", 200, "")["items"].([]any); len(items) != 0 {

@@ -115,9 +115,10 @@ var (
 )
 
 // validDomain: at most 253 bytes, two or more labels; every label but the last is 1 to 63 of a-z, A-Z, 0-9 and "-" with no "-" at
-// either end, the last is 2 to 63 letters. A loop rather than the regular expression it replaces (`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}
-// [a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$`, still the oracle of TestValidDomainIsTheRegexp): that one backtracked on every row and was a
-// third of the time of parsing a 186,000-domain list.
+// either end, the last is 2 to 63 letters or an IDN top-level domain in its ASCII form (`xn--p1ai` is .рф; hagezi TIF lists 50 such
+// names on 2026-11-12). A loop rather than the regular expression it replaces (`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+
+// ([a-zA-Z]{2,63}|[xX][nN]--[a-zA-Z0-9-]{0,58}[a-zA-Z0-9])$`, still the oracle of TestValidDomainIsTheRegexp): that one backtracked
+// on every row and was a third of the time of parsing a 186,000-domain list.
 func validDomain(v string) bool {
 	if len(v) > 253 {
 		return false
@@ -126,7 +127,13 @@ func validDomain(v string) bool {
 	for len(v) > 0 {
 		i := strings.IndexByte(v, '.')
 		if i < 0 {
-			return labels > 0 && len(v) >= 2 && len(v) <= 63 && strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
+			if labels == 0 || len(v) < 2 || len(v) > 63 {
+				return false
+			}
+			if len(v) > 4 && strings.EqualFold(v[:4], "xn--") {
+				return v[len(v)-1] != '-' && strings.IndexFunc(v[4:], func(r rune) bool { return r != '-' && !isLetter(r) && (r < '0' || r > '9') }) < 0
+			}
+			return strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
 		}
 		l := v[:i]
 		if l == "" || len(l) > 63 || l[0] == '-' || l[len(l)-1] == '-' {
@@ -253,7 +260,7 @@ func reservedName(name string) bool {
 // reserved or local top-level label, or a name that is itself a public suffix
 // ("com.vn", "co.uk", "github.io"). domain must be a valid lower-case name.
 func localName(domain string) bool {
-	if reservedName(domain) {
+	if reservedName(domain) || testName(domain) {
 		return true
 	}
 	suffix, _ := publicsuffix.PublicSuffix(domain)
@@ -267,9 +274,26 @@ var emptyFileHashes = map[string]bool{
 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": true,
 }
 
-// testTLDs are the reserved top-level labels for documentation and tests (RFC 2606,
-// RFC 6761), a subset of reservedTLDs: refused, but they are not local hosts.
-var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true}
+// testTLDs are the reserved top-level labels for documentation and tests (RFC 2606 §2, RFC 6761 §6.2-6.4; .localhost
+// §6.3), a subset of reservedTLDs: refused, but named as test names rather than local hosts (D-420 (6)).
+var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true, "localhost": true}
+
+// testDomains are the second-level names reserved for documentation (RFC 2606 §3): they and every name under them.
+var testDomains = []string{"example.com", "example.net", "example.org"}
+
+// testName reports a name under a test top-level label (bad.test, x.localhost) or under a documentation domain
+// (example.com, bad.example.org). A single label (localhost itself) is not one: it is a local host.
+func testName(name string) bool {
+	if i := strings.LastIndexByte(name, '.'); i > 0 && testTLDs[name[i+1:]] {
+		return true
+	}
+	for _, d := range testDomains {
+		if name == d || strings.HasSuffix(name, "."+d) {
+			return true
+		}
+	}
+	return false
+}
 
 // hostRejection says why a URL host is refused (an IP literal must be public, a
 // name must not be local or reserved); none() when the host is public. The
@@ -285,7 +309,7 @@ func hostRejection(host string) rej {
 	if !validDomain(h) {
 		return rj("%s points at a local or private host")
 	}
-	if i := strings.LastIndexByte(h, '.'); i > 0 && testTLDs[h[i+1:]] {
+	if testName(h) {
 		return rj("%s points at a reserved example or test name")
 	}
 	if reservedName(h) {
@@ -312,6 +336,9 @@ func normaliseIOC(kind, value string) (string, rej) {
 			return "", rj("%s is not a valid domain")
 		}
 		d := strings.ToLower(value)
+		if testName(d) {
+			return "", rj("%s is a reserved example or test name")
+		}
 		if localName(d) {
 			return "", rj("%s is a local, reserved or public-suffix name")
 		}

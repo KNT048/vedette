@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useIncident, useSetStatus } from './api'
-import { IncidentStatusChip, MessagePreview } from './shared'
+import { IncidentStatusChip, MessagePreview, kindKey } from './shared'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -75,7 +75,7 @@ function Content() {
               actions={<Link to={`/response?incident=${encodeURIComponent(a.id)}`} className="inline-flex h-9 items-center rounded-md border border-rule px-3 text-sm font-medium text-accent hover:bg-sunken">{t('detail.respond')}</Link>} />
             <Section id="summary" title={t('detail.summary')}>
               <KeyValue items={[
-                { label: t('detail.kind'), value: t(`incidents.kind.${a.kind}`) },
+                { label: t('detail.kind'), value: t(kindKey(a)) },
                 { label: t('detail.severity'), value: <SeverityChip severity={a.severity} /> },
                 { label: t('detail.status'), value: <IncidentStatusChip status={a.status} /> },
                 { label: t('detail.devices'), value: <span className="flex flex-wrap gap-x-3">{a.devices.map((x) => <Link key={x.id} to={`/devices/${x.id}`} className={link}>{x.name}</Link>)}</span> },

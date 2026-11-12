@@ -155,7 +155,7 @@ func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error
 	if err != nil {
 		return fmt.Errorf("feeds: read addresses: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var name, u string
 		if err := rows.Scan(&name, &u); err != nil {

@@ -150,6 +150,41 @@ func TestContract_Bootstrap_HappyPathWritesUnitsPulledAndVersions(t *testing.T) 
 	}
 }
 
+// #467: on a box with Docker the scan build on vedette-int passes only by the DOCKER-USER rules (D-267); the daemon that keeps them is not
+// running at a first install, so the bootstrap puts them in place before it builds.
+func TestContract_Bootstrap_PutsTheDockerForwardRulesInPlaceBeforeTheScanBuild(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.WriteRoot("etc/containers/systemd/vedette-int.network", "[Network]\nNetworkName=vedette-int\nSubnet=172.30.77.0/24\nGateway=172.30.77.1\nPodmanArgs=--interface-name=vedette0\n")
+	e.m.DockerChain(true)
+	lines := e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest))
+	if r := e.m.DockerRules(); len(r) != 4 {
+		t.Fatalf("DOCKER-USER after the bootstrap: %q", r)
+	}
+	added, build := -1, -1
+	for i, l := range lines {
+		if added < 0 && strings.Contains(l, "DOCKER-USER rules") {
+			added = i
+		}
+		if build < 0 && strings.HasPrefix(l, "building localhost/vedette-scan-nmap:") {
+			build = i
+		}
+	}
+	if added < 0 || build < 0 || added > build {
+		t.Errorf("the rules (line %d) must come before the build (line %d):\n%s", added, build, strings.Join(lines, "\n"))
+	}
+	// Without scan in the run there is no build, so the bootstrap does not touch iptables at all.
+	e2 := startUpd(t)
+	e2.m.WriteRoot("etc/containers/systemd/vedette-int.network", "[Network]\nNetworkName=vedette-int\nSubnet=172.30.77.0/24\nGateway=172.30.77.1\nPodmanArgs=--interface-name=vedette0\n")
+	e2.m.DockerChain(true)
+	a := e2.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceSensor}
+	e2.bootstrapOK(t, a)
+	if c := e2.m.Calls(ops.BinIptables); len(c) != 0 {
+		t.Errorf("a bootstrap without scan called iptables: %q", c)
+	}
+}
+
 func TestContract_Bootstrap_SecondRunIsANoOp(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)

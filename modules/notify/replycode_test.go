@@ -333,6 +333,24 @@ func TestContract_INV11_ZaloApprovalResendChecksTheApproverAgain(t *testing.T) {
 	}
 }
 
+// A user directory that does not answer is a transient failure of the resend (503, try again), not a verdict on the approver.
+func TestZaloApprovalResendWithAnUnreadableDirectoryIsATransientError(t *testing.T) {
+	e := newZaloEnv(t)
+	z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
+	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z11", channel.ZaloPersonal))
+	if err != nil || len(sv) != 1 || len(z.sent) != 1 {
+		t.Fatalf("sends %+v, %v", sv, err)
+	}
+	e.users.mu.Lock()
+	e.users.lookupErr = errors.New("directory down")
+	e.users.mu.Unlock()
+	_, err = e.svc.Resend(e.ctx(), "it@acme.example", sv[0].ID)
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Status != http.StatusServiceUnavailable || len(z.sent) != 1 {
+		t.Fatalf("resend answered %v (sent %d), want 503", err, len(z.sent))
+	}
+}
+
 // An approver who still qualifies gets the copy again (the test above's counterpart), also on an address the user linked (D-191).
 func TestZaloApprovalResendStillWorksForAQualifyingApprover(t *testing.T) {
 	links := &fakeLinks{linked: true}

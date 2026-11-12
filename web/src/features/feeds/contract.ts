@@ -136,7 +136,7 @@ export const ParseResult = z.object({
   accepted: z.number().int(),
   rejected: z.number().int(),
   reasons: z.array(z.object({ reason: z.string(), count: z.number().int() })),
-  rejects: z.array(z.object({ row: z.number().int(), reason: z.string() })).describe('The first rejected rows: row is the line of the sample for a plain list, otherwise the record number; reason shows the value, cut and quoted'),
+  rejects: z.array(z.object({ row: z.number().int(), reason: z.string() })).describe('The first rejected rows: row is the line of the sample for a plain list or CSV, otherwise the record number; reason shows the value, cut and quoted'),
   truncated: z.boolean().describe('True when the row limit stopped parsing'),
 })
 

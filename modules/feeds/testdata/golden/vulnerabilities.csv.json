@@ -39,11 +39,11 @@
   ],
   "rejects": [
     {
-      "row": 4,
+      "row": 5,
       "reason": "cve: \"N/A\" is not a CVE ID"
     },
     {
-      "row": 5,
+      "row": 6,
       "reason": "date: unrecognised date \"not a date\""
     }
   ],

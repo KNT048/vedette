@@ -186,14 +186,20 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	boot := func() (addr string, lines <-chan string, done <-chan error, stop func()) {
 		ctx, cancel := context.WithCancel(t.Context())
 		pr, pw := io.Pipe()
-		d := make(chan error, 1)
-		go func() { d <- run(ctx, args, io.Discard, pw); _ = pw.Close() }()
+		d, stopped := make(chan error, 1), make(chan struct{})
+		go func() { defer close(stopped); d <- run(ctx, args, io.Discard, pw); _ = pw.Close() }()
+		// The process may still be shutting down (closing its databases) when the test ends: the temp dir is removed only after it
+		// returned, or RemoveAll meets files it is still writing ("directory not empty": 1 run in 104 under load, after #430).
+		waitStopped(t, cancel, stopped)
 		ch := make(chan string, 1024)
 		ready := make(chan string, 1)
 		go func() {
 			sc := bufio.NewScanner(pr)
 			for sc.Scan() {
-				ch <- sc.Text()
+				select { // the log is read only up to the setup code: a full buffer drops a line instead of blocking the process's logger
+				case ch <- sc.Text():
+				default:
+				}
 				var l struct{ Msg, Addr string }
 				if json.Unmarshal(sc.Bytes(), &l) == nil && l.Msg == "listening" {
 					ready <- l.Addr

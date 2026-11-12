@@ -199,9 +199,9 @@ func TestRetention(t *testing.T) {
 	if pre != 3 || manual != 10 {
 		t.Fatalf("pre %d manual %d", pre, manual)
 	}
-	// pre_* kinds share one pool.
-	k2 := []string{"pre_update", "pre_os_update", "pre_restore", "pre_restore"}
-	if kept := ops.Retain(k2, []int{1, 2, 3, 4}); len(kept) != 3 {
-		t.Errorf("pre kinds share the pool of 3: %v", kept)
+	// pre_update and pre_os_update share one pool of 3; pre_restore has a pool of 3 of its own.
+	k2 := []string{"pre_update", "pre_os_update", "pre_update", "pre_os_update", "pre_restore", "pre_restore", "pre_restore", "pre_restore"}
+	if kept := ops.Retain(k2, []int{1, 2, 3, 4, 5, 6, 7, 8}); !slices.Equal(kept, []int{7, 6, 5, 3, 2, 1}) {
+		t.Errorf("want the newest 3 of each pool: %v", kept)
 	}
 }

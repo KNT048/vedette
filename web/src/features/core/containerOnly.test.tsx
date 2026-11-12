@@ -51,6 +51,11 @@ describe('container-only install (D-381)', () => {
     // all four files of the running release go to a NEW folder named after it: mkdir without -p refuses an existing one (D-451)
     const four = 'vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml'
     expect(steps[0]).toBe(`mkdir vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
+    // a kept folder already there holds the good files: put them back before moving it aside (QA r2), never rename it alone
+    const keep = [...items[0]!.querySelectorAll('code')].map((c) => c.textContent)
+    expect(keep[1]).toBe('cp vedette-0.9.3/* .\nmv vedette-0.9.3 vedette-0.9.3-before')
+    expect(within(items[0]!).getByText(/If vedette-0\.9\.3 is already there .*first put its files back, then rename it, and run this step again/)).toBeInTheDocument()
+    expect(within(items[0]!).getByText('Only if vedette-0.9.3 is already there')).toBeInTheDocument()
     // the four files and their signatures of the offered version, from the release assets; the loop stops at the first failure
     expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`)
     // each file's signed comment must be exactly "file:<that file> version:<offered>" (minisign -VQm prints only that comment)
@@ -74,7 +79,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()
     // if a check fails, or later: the way back is a block of its own, copied as it is
     expect(screen.getByText('If any check fails, stop and put your files back.')).toBeInTheDocument()
-    expect(screen.getByText(/^cp vedette-0\.9\.3/).textContent).toBe('cp vedette-0.9.3/* .\ndocker compose --env-file vedette.env pull\ndocker compose --env-file vedette.env up -d')
+    expect(screen.getByText(/^cp vedette-0\.9\.3\/\* \. docker compose/).textContent).toBe('cp vedette-0.9.3/* .\ndocker compose --env-file vedette.env pull\ndocker compose --env-file vedette.env up -d')
     expect(screen.getByText(/from vedette-0\.9\.3\/vedette\.env into the new vedette\.env/)).toBeInTheDocument()
     // the only address is the release assets of the offered version
     expect(screen.getAllByText(/https?:\/\//).map((e) => e.textContent!.match(/https?:\/\/\S+/g)).flat()).toEqual(['https://github.com/KNT048/vedette/releases/download/v0.9.4'])
@@ -83,7 +88,7 @@ describe('container-only install (D-381)', () => {
     await u.click(screen.getByRole('button', { name: 'Podman' }))
     expect(screen.getByText(/^podman compose --env-file vedette.env pull/).textContent).toBe('podman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
     expect(screen.queryByText(/docker compose/)).toBeNull()
-    expect(screen.getByText(/^cp vedette-0\.9\.3/).textContent).toBe('cp vedette-0.9.3/* .\npodman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
+    expect(screen.getByText(/^cp vedette-0\.9\.3\/\* \. podman compose/).textContent).toBe('cp vedette-0.9.3/* .\npodman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
   })
 
   const offerState = (version: string, running: string, images: { service: string; digest: string }[]) => ({
@@ -95,12 +100,19 @@ describe('container-only install (D-381)', () => {
   const good = (s: string) => ({ service: s, digest: `sha256:${(s === 'core' ? 'c' : 'd').repeat(64)}` })
 
   it.each([
-    ['an offered version with a shell character', '0.9.4;rm', '0.9.3'],
-    ['a running version that cannot name a folder', '0.9.4', ''],
-  ])('Updates shows no command at all for %s, only where the steps are (D-451)', async (_, version, running) => {
+    ['an offered version with a shell character', '0.9.4;rm', '0.9.3', /The version offered \(0\.9\.4;rm\) or the version this machine runs \(0\.9\.3\) cannot be put into a command as it is/],
+    ['a running version that cannot name a folder', '0.9.4', '0.9.3 beta', /or the version this machine runs \(0\.9\.3 beta\) cannot be put into a command/],
+    ['an unknown running version', '0.9.4', '', /^This machine's version is not known, so no commands are shown here/],
+  ])('Updates shows no command at all for %s, only where the steps are (D-451)', async (_, version, running, said) => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState(version, running, [good('core')]))))
     renderApp('/settings/updates')
-    expect(await screen.findByText(/cannot be put into a command as it is, so no commands are shown here/)).toBeInTheDocument()
+    expect(await screen.findByText(said)).toBeInTheDocument()
+    // an unknown version is said in words, never as "runs ." or "()" (QA r2)
+    if (!running) {
+      expect(screen.getByText('Vedette 0.9.4 is available. This machine\'s version is not known.')).toBeInTheDocument()
+      expect(screen.getByText(/^This machine's version is not known\. Update information last read/)).toBeInTheDocument()
+      expect(screen.queryByText(/runs \.|\(\)/)).toBeNull()
+    }
     expect(screen.queryByRole('list')).toBeNull()
     expect(screen.queryByText(/mkdir|curl|minisign|cosign verify|grep -cF/)).toBeNull()
   })

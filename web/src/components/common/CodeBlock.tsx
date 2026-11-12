@@ -19,7 +19,7 @@ export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: 
   return (
     <div className="overflow-hidden rounded-md border border-rule bg-sunken">
       <div className="flex items-center justify-between gap-2 border-b border-rule px-3 py-1.5">
-        <span className="text-[12px] text-muted">{label ?? ''}</span>
+        <span className="min-w-0 text-[12px] text-muted [overflow-wrap:anywhere]">{label ?? ''}</span>
         <Button size="sm" variant="ghost" onClick={() => void copy()} aria-label={t('copy')}>
           {copied ? <Check /> : <Copy />}
           {copied ? t('copied') : t('copy')}

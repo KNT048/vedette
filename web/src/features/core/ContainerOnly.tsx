@@ -77,7 +77,7 @@ export function ContainerUpdates() {
   return (
     <>
       <Section title={t('container.updates.title')} description={t('container.updates.desc')}>
-        <div className="grid max-w-3xl gap-3">
+        <div className="grid min-w-0 max-w-3xl gap-3">
           <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
             options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
           <QueryState query={q}>{(s) => <ReleaseStatus s={s} />}</QueryState>
@@ -101,7 +101,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   const running = s.components.find((c) => c.id === 'software')?.version ?? ''
   const main = offer ? (
     <div className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
-      <p className="font-medium [overflow-wrap:anywhere]">{t('container.updates.offer', { version: offer.version, running })}</p>
+      <p className="font-medium [overflow-wrap:anywhere]">{running ? t('container.updates.offer', { version: offer.version, running }) : t('container.updates.offerUnknown', { version: offer.version })}</p>
       {offer.note ? <p className="whitespace-pre-line text-muted [overflow-wrap:anywhere]">{offer.note}</p> : null}
     </div>
   ) : !s.check_enabled ? (
@@ -112,7 +112,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   return (
     <>
       {main}
-      <p className="text-[13px] text-muted">{t('container.updates.running', { version: running })} {s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : t('container.updates.neverChecked')}</p>
+      <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{running ? t('container.updates.running', { version: running }) : t('container.updates.runningUnknown')} {s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : t('container.updates.neverChecked')}</p>
     </>
   )
 }
@@ -131,7 +131,7 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
   if (!SAFE_VERSION.test(version) || !SAFE_VERSION.test(running)) return (
     <>
       {heading}
-      <p className="text-sm [overflow-wrap:anywhere]">{t('container.updates.unsafe', { version, running })}</p>
+      <p className="text-sm [overflow-wrap:anywhere]">{running ? t('container.updates.unsafe', { version, running }) : t('container.updates.unsafeUnknown')}</p>
     </>
   )
   const kept = `vedette-${running}`
@@ -143,6 +143,10 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
         <li><div className="grid gap-1.5">
           {t('container.updates.stepKeep', { kept })}
           <CodeBlock label={t('container.updates.keepLabel')} code={keepCmd(kept)} />
+          {/* QA r2: a kept folder left by a stopped update holds the good files and the folder holds unchecked ones: put the good
+              ones back before moving the folder aside, so step 1 never keeps unchecked files as the way back. */}
+          <span className="text-[13px] text-muted">{t('container.updates.keptThere', { kept })}</span>
+          <CodeBlock label={t('container.updates.keptThereLabel', { kept })} code={`cp ${kept}/* .\nmv ${kept} ${kept}-before`} />
         </div></li>
         <li><div className="grid gap-1.5">
           {t('container.updates.stepFetch', { version })}

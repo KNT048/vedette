@@ -102,9 +102,13 @@ Vedette looks for a new release every 6 hours (while the update check is on unde
 An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you (D-451). Run it in the folder of section 1, where `vedette.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
 
 ```sh
-# 1. the way back: the four files you run now, in a NEW folder named after the release they run. mkdir refuses an existing
-#    folder, so nothing kept is overwritten: if vedette-0.9.3 is already there (an update you did not finish, a way back you took), rename it first
+# 1. the way back: the four files you run now, in a NEW folder named after the release they run (mkdir refuses an existing folder,
+#    so nothing kept is overwritten)
 mkdir vedette-0.9.3 && mv -n vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml vedette-0.9.3/
+#    only if vedette-0.9.3 is already there (an update you stopped, or a way back you took): it holds the good files, so first put them
+#    back, then rename it, and run step 1 again (renaming it alone would keep the unchecked files of a stopped update as the way back)
+cp vedette-0.9.3/* .
+mv vedette-0.9.3 vedette-0.9.3-before
 # 2. the four files of the new release and their signatures; each signed comment must be exactly "file:<that file> version:0.9.4"
 u=https://github.com/KNT048/vedette/releases/download/v0.9.4
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done

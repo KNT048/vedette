@@ -183,7 +183,7 @@ func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, 
 		}
 		stepArgs = append(stepArgs, matchArgs...)
 		room := EventsPage - len(out.Events)
-		got, _, err := s.readMatches(ctx, vol, stepWhere+" AND ("+cond+")", stepArgs, room+1, names) // one more than fits: tells whether lines remain
+		got, err := s.readMatches(ctx, vol, stepWhere+" AND ("+cond+")", stepArgs, room+1, names) // one more than fits: tells whether lines remain
 		if err != nil {
 			return s.stepFailed(ctx, out, hi, step, err)
 		}
@@ -240,12 +240,11 @@ func (s *Service) withNext(out EventsView, c cursor) EventsView {
 	return out
 }
 
-// readMatches reads up to limit matching lines (newest first) and the cursor of the last one read.
-func (s *Service) readMatches(ctx context.Context, vol *sql.DB, where string, args []any, limit int, names map[string]string) ([]Event, cursor, error) {
-	var last cursor
+// readMatches reads up to limit matching lines, newest first.
+func (s *Service) readMatches(ctx context.Context, vol *sql.DB, where string, args []any, limit int, names map[string]string) ([]Event, error) {
 	list, err := vol.QueryContext(ctx, `SELECT id, ts, source_id, line FROM logs_events WHERE `+where+` ORDER BY ts DESC, id DESC LIMIT `+strconv.Itoa(limit), args...) //nolint:gosec // where is built from constants and ? placeholders only; every value is a bound argument
 	if err != nil {
-		return nil, last, err
+		return nil, err
 	}
 	defer func() { _ = list.Close() }()
 	var evs []Event
@@ -254,10 +253,10 @@ func (s *Service) readMatches(ctx context.Context, vol *sql.DB, where string, ar
 		var ts string
 		var e Event
 		if err := list.Scan(&id, &ts, &e.SourceID, &e.Line); err != nil {
-			return nil, last, err
+			return nil, err
 		}
 		if e.TS, err = time.Parse("2006-01-02T15:04:05.000Z", ts); err != nil {
-			return nil, last, err
+			return nil, err
 		}
 		e.ID = "le-" + strconv.FormatInt(id, 10)
 		e.SourceName = names[e.SourceID]
@@ -265,9 +264,8 @@ func (s *Service) readMatches(ctx context.Context, vol *sql.DB, where string, ar
 			e.SourceName = e.SourceID // the source was deleted: its lines stay (INV-4), named by id as in the mock
 		}
 		evs = append(evs, e)
-		last = cursor{ts: ts, id: id}
 	}
-	return evs, last, list.Err()
+	return evs, list.Err()
 }
 
 // listNewest is the search with no keyword: the newest lines of the window, an index walk (5-7 ms at 5 million lines).
@@ -275,7 +273,7 @@ func (s *Service) listNewest(ctx context.Context, vol *sql.DB, out EventsView, w
 	if err := vol.QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM logs_events WHERE `+where+` LIMIT `+strconv.Itoa(CountCap)+`)`, args...).Scan(&out.Total); err != nil {
 		return EventsView{}, fmt.Errorf("logs: counting lines: %w", err)
 	}
-	evs, _, err := s.readMatches(ctx, vol, where, args, EventsPage, names)
+	evs, err := s.readMatches(ctx, vol, where, args, EventsPage, names)
 	if err != nil {
 		return EventsView{}, fmt.Errorf("logs: searching lines: %w", err)
 	}

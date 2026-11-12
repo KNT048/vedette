@@ -27309,6 +27309,10 @@ func (s *Server) handleLogsGetLogsEventsRequest(args [0]string, argsEscaped bool
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
 			},
 			Raw: r,
 		}

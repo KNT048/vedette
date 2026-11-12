@@ -95,6 +95,9 @@ type Service struct {
 	searchSem     chan struct{}
 	searchTimeout time.Duration
 	afterChunk    func()
+	// scanRows is scanChunk; timeUp, when set by a test, says the keyword search's time is up after n chunks (no real clock).
+	scanRows int
+	timeUp   func(chunks int) bool
 	// afterStart, when set by a test, runs right after the "logs.purge_started" row is written.
 	afterStart func()
 	// afterSum, when set by a test, runs in resync after the sum is read, while the read transaction is still open.
@@ -149,7 +152,7 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
 		return nil, fmt.Errorf("logs: creating service: %w", err)
 	}
-	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, iocTimeout: iocLookupTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, scanRows: scanChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, iocTimeout: iocLookupTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

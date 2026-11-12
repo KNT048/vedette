@@ -22,8 +22,18 @@ import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
-// The box names the wrong webhook field by its code: the message goes under that field, as in the log source form.
-const WEBHOOK_FIELD_OF: Record<string, 'url' | 'secret'> = { bad_url: 'url', secret_required: 'secret', bad_secret: 'secret' }
+// The box names the wrong field by its code: the message goes under that field, as in the log source form. Per type, because a code
+// can mean another field elsewhere (modules/notify/channel/*.go, mocks.ts validate). A code left out stays at the top of the dialog:
+// Slack `secret_required` is the webhook URL, the app token or the bot token; Zalo personal's session is a QR sign-in, not a field.
+// Approver errors (`bad_approver_address`, …) stay at the top too: they name the approver in the message.
+const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
+  telegram: { bad_chat_id: 'chat_id', secret_required: 'secret', bad_token: 'secret' },
+  slack: { bad_label: 'label', bad_webhook: 'secret', bad_channel_id: 'channel_id', bad_app_token: 'app_token', bad_bot_token: 'bot_token' },
+  zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', secret_required: 'secret', bad_token: 'secret' },
+  'zalo-personal': { bad_user_id: 'user_id' }, // at save an approver's ID is `bad_approver_address`; `bad_user_id` is the recipient
+  email: { bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', secret_required: 'secret', bad_from: 'from', bad_to: 'to' },
+  webhook: { bad_url: 'url', secret_required: 'secret', bad_secret: 'secret' },
+}
 
 function randomKey() {
   const b = new Uint8Array(24)
@@ -68,7 +78,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
         onSaved(thenTest)
       },
       onError: (er) => {
-        const f = type === 'webhook' && er instanceof ApiError ? WEBHOOK_FIELD_OF[er.code] : undefined
+        const f = er instanceof ApiError ? FIELD_OF[type][er.code] : undefined
         if (f) showErrors({ [f]: errMsg(er) })
         else setError(errMsg(er))
       },
@@ -85,7 +95,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   // Focus after React has drawn the error, so a screen reader reads the field with its message (as the log source form does).
   function showErrors(errs: Record<string, string>) {
     setFieldErr(errs)
-    const first = ['url', 'secret'].find((k) => errs[k])
+    const first = [...FIELDS[type], 'secret', 'channel_id', 'app_token', 'bot_token'].find((k) => errs[k])
     if (first) setTimeout(() => document.getElementById(`ch-${type}-${first}`)?.focus(), 0)
     return first !== undefined
   }
@@ -109,9 +119,10 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
             const label = t(`channels.f.${type}.${k}.label`)
             if (k === 'security') {
               return (
-                <Field key={k} label={label} htmlFor={id}>
-                  <Select id={id} value={fields[k] ?? 'starttls'} onChange={(e) => {
+                <Field key={k} label={label} htmlFor={id} error={fieldErr[k]}>
+                  <Select id={id} value={fields[k] ?? 'starttls'} aria-invalid={fieldErr[k] ? true : undefined} aria-describedby={fieldErr[k] ? `${id}-error` : undefined} onChange={(e) => {
                     const v = e.target.value
+                    fixed('security'); fixed('port') // a port/encryption mismatch is shown under the port
                     // Cổng mặc định đi theo kiểu mã hoá: 465 = SSL/TLS ngầm, 587 = STARTTLS hoặc không mã hoá (không đổi nếu người dùng đã tự đặt cổng khác).
                     setFields((f) => ({ ...f, security: v, port: v === 'ssl' && f.port === '587' ? '465' : v !== 'ssl' && f.port === '465' ? '587' : f.port ?? '' }))
                   }}>
@@ -191,14 +202,14 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 ) : null}
                 {type === 'slack' && approvals ? (
                   <>
-                    <Field label={t('channels.f.slack.channel_id.label')} hint={t('channels.f.slack.channel_id.hint')} htmlFor="ch-slack-channel_id">
-                      <Input id="ch-slack-channel_id" value={fields.channel_id ?? ''} onChange={(e) => set('channel_id', e.target.value)} autoComplete="off" aria-describedby="ch-slack-channel_id-hint" />
+                    <Field label={t('channels.f.slack.channel_id.label')} hint={t('channels.f.slack.channel_id.hint')} htmlFor="ch-slack-channel_id" error={fieldErr.channel_id}>
+                      <Input id="ch-slack-channel_id" value={fields.channel_id ?? ''} onChange={(e) => set('channel_id', e.target.value)} autoComplete="off" {...aria('ch-slack-channel_id', 'channel_id')} />
                     </Field>
-                    <Field label={t('channels.f.slack.app_token.label')} hint={channel.approval_last4.app_token ? t('channels.secretSaved', { last4: channel.approval_last4.app_token }) : t('channels.f.slack.app_token.hint')} htmlFor="ch-slack-app_token">
-                      <Input id="ch-slack-app_token" type="password" value={appToken} onChange={(e) => setAppToken(e.target.value)} autoComplete="new-password" aria-describedby="ch-slack-app_token-hint" />
+                    <Field label={t('channels.f.slack.app_token.label')} hint={channel.approval_last4.app_token ? t('channels.secretSaved', { last4: channel.approval_last4.app_token }) : t('channels.f.slack.app_token.hint')} htmlFor="ch-slack-app_token" error={fieldErr.app_token}>
+                      <Input id="ch-slack-app_token" type="password" value={appToken} onChange={(e) => { setAppToken(e.target.value); fixed('app_token') }} autoComplete="new-password" {...aria('ch-slack-app_token', 'app_token')} />
                     </Field>
-                    <Field label={t('channels.f.slack.bot_token.label')} hint={channel.approval_last4.bot_token ? t('channels.secretSaved', { last4: channel.approval_last4.bot_token }) : t('channels.f.slack.bot_token.hint')} htmlFor="ch-slack-bot_token">
-                      <Input id="ch-slack-bot_token" type="password" value={botToken} onChange={(e) => setBotToken(e.target.value)} autoComplete="new-password" aria-describedby="ch-slack-bot_token-hint" />
+                    <Field label={t('channels.f.slack.bot_token.label')} hint={channel.approval_last4.bot_token ? t('channels.secretSaved', { last4: channel.approval_last4.bot_token }) : t('channels.f.slack.bot_token.hint')} htmlFor="ch-slack-bot_token" error={fieldErr.bot_token}>
+                      <Input id="ch-slack-bot_token" type="password" value={botToken} onChange={(e) => { setBotToken(e.target.value); fixed('bot_token') }} autoComplete="new-password" {...aria('ch-slack-bot_token', 'bot_token')} />
                     </Field>
                   </>
                 ) : null}

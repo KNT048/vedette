@@ -194,7 +194,7 @@ Read on the box, never stored or redistributed as they are: the box keeps only t
 
 | Source | Terms | How it is used |
 |---|---|---|
-| crt.sh (`crt.sh`, certificate-transparency search run by Sectigo) | public service, no key; the certificates it lists are public CT log entries | data: the host names in the certificates of the verified domain (`?q=%.<domain>&output=json`), at most 200, used to find the subdomains to scan; never stored apart from the snapshot's host list |
+| crt.sh (`crt.sh`, certificate-transparency search run by Sectigo) | public service, no key; the certificates it lists are public CT log entries | data: the host names in the unexpired certificates of the verified domain (`?q=%.<domain>&output=json&exclude=expired`), at most 300 (more: nothing is scanned), listed as subdomains and checked by name on ports 80 and 443; never stored apart from the snapshot's host list |
 
 ## Data each box fetches with the user's own key (never through the project)
 

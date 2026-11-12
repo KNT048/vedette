@@ -564,7 +564,7 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 			}
 			read = true
 		}
-		if ok, _ := conditionsOK(rule.RuleInput, ev, all); !ok {
+		if ok, _ := conditionsOK(rule.RuleInput, ev, all); !ok || !s.storedCondsOK(rule.RuleInput) {
 			continue
 		}
 		var pre string
@@ -603,7 +603,7 @@ func (s *Service) handleInTx(ctx context.Context, tx *sql.Tx, ruleID string, ev 
 	if err != nil || !ok || !cur.Enabled || cur.Trigger != ev.Trigger {
 		return "", false, err
 	}
-	if match, _ := conditionsOK(cur.RuleInput, ev, all); !match {
+	if match, _ := conditionsOK(cur.RuleInput, ev, all); !match || !s.storedCondsOK(cur.RuleInput) {
 		return "", false, nil
 	}
 	res, err := tx.ExecContext(ctx, `INSERT INTO resp_done (rule_id, event_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, ruleID, ev.ID, s.ts())

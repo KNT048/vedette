@@ -272,7 +272,11 @@
     "manualPick": "Device",
     "manualChoose": "Choose a device",
     "manualRun": "Run on this device",
-    "manualOff": "Switch the rule on first"
+    "manualOff": "Switch the rule on first",
+    "deleteTitle": "Delete rule {{name}}?",
+    "deleteBody": "The rule stops at once and cannot be brought back. Its log entries and past requests are kept.",
+    "nowOn": "Rule {{name}} is on",
+    "nowOff": "Rule {{name}} is off"
   },
   "det": {
     "title": "Recent events",
@@ -284,7 +288,8 @@
     "handled": "Handled by",
     "notYet": "No rule yet",
     "previewNote": "Preview build: events are sample data and you press Check now. On a real box the rules run continuously.",
-    "empty": "Nothing matched yet."
+    "empty": "Nothing matched yet.",
+    "descriptionNoTraps": "What the triggers watch for: known-bad connections, findings, unknown devices, log thresholds and new ports."
   },
   "allow": {
     "title": "Never-touch list",
@@ -398,6 +403,7 @@
     "chooseMethod": "Choose a method",
     "tool": "Write tool",
     "pickTool": "Pick a write tool",
+    "pickToolFirst": "Pick the write tool of this connection that does this step.",
     "args": "Tool arguments",
     "argName": "Argument name",
     "argValue": "Argument value",
@@ -582,7 +588,14 @@
       "device_type": "device type",
       "count_window": "count within a window",
       "first_time": "first time seen"
-    }
+    },
+    "nameBad": "Give a name of 1 to 80 letters, numbers, spaces and . , : ' ( ) / -",
+    "scheduleBad": "Run every 15 minutes to 7 days (10080 minutes).",
+    "fillIn": "Fill in this value.",
+    "badValue": "This is not a valid {{type}}.",
+    "ttlBad": "Give 5 minutes to 30 days (43200 minutes), or leave it empty.",
+    "hourBad": "Give a whole number from 1 to 100.",
+    "notHere": "not on this install"
   },
   "sim": {
     "title": "Simulation",

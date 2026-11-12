@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { useModuleAvailable } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { errText, useCatalog, useSaveRule, useSimulate, useTriggers } from './api'
 import { ActionDialog } from './CatalogEditor'
 import { ChangeView, RiskChip } from './parts'
-import { logSignature, refsIn, type ParamType } from './logic'
+import { condProblem, logSignature, PARAM_CHECK, refsIn, TEXT_RE, type ParamType } from './logic'
 import type { Catalog, CatalogAction, Condition, Op, Rule, RuleAction, RuleInput, Simulation, TriggerInfo } from './types'
 
 const OPS: Op[] = ['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time']
@@ -59,15 +60,15 @@ function defaultParams(c: CatalogAction, trig: TriggerInfo | undefined): Record<
   return out
 }
 
-function ActionRow({ a, i, n, cat, trig, onChange, onMove, onRemove }: { a: RuleAction; i: number; n: number; cat: Catalog; trig: TriggerInfo | undefined; onChange: (a: RuleAction) => void; onMove: (d: -1 | 1) => void; onRemove: () => void }) {
+function ActionRow({ a, i, n, cat, trig, errs, onChange, onMove, onRemove }: { a: RuleAction; i: number; n: number; cat: Catalog; trig: TriggerInfo | undefined; errs: Errs; onChange: (a: RuleAction) => void; onMove: (d: -1 | 1) => void; onRemove: () => void }) {
   const { t } = useTranslation('response')
   const c = cat.items.find((x) => x.id === a.action_id)
   const readOnly = (x: CatalogAction) => !!x.connection_id && !!cat.connections.find((k) => k.id === x.connection_id)?.read_only
   return (
     <li className="grid gap-3 rounded-md border border-rule bg-paper p-3">
       <div className="flex flex-wrap items-end gap-2">
-        <Field htmlFor={`ra-${i}`} label={t('editor.actionN', { n: i + 1 })} className="min-w-64 flex-1">
-          <Select id={`ra-${i}`} value={a.action_id} onChange={(e) => { const x = cat.items.find((k) => k.id === e.target.value)!; onChange({ action_id: x.id, params: defaultParams(x, trig), ttl_min: x.reversible ? 1440 : null }) }}>
+        <Field htmlFor={`ra-${i}`} label={t('editor.actionN', { n: i + 1 })} error={errs[`ra-${i}`]} className="min-w-64 flex-1">
+          <Select id={`ra-${i}`} {...inv(errs, `ra-${i}`)} value={a.action_id} onChange={(e) => { const x = cat.items.find((k) => k.id === e.target.value)!; onChange({ action_id: x.id, params: defaultParams(x, trig), ttl_min: x.reversible ? 1440 : null }) }}>
             {cat.items.map((x) => <option key={x.id} value={x.id} disabled={readOnly(x)}>{x.name}{readOnly(x) ? ` (${t('catalog.readOnly')})` : x.enabled ? '' : ` (${t('rules.disabled')})`}</option>)}
           </Select>
         </Field>
@@ -81,9 +82,9 @@ function ActionRow({ a, i, n, cat, trig, onChange, onMove, onRemove }: { a: Rule
           {!c.available ? <p className="text-[13px] text-warn">{c.unavailable_reason}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {c.params.map((p) => (
-              <Field key={p} htmlFor={`rp-${i}-${p}`} label={t('editor.param', { p: t(`editor.types.${p}`) })} hint={t('editor.paramHint')}>
+              <Field key={p} htmlFor={`rp-${i}-${p}`} label={t('editor.param', { p: t(`editor.types.${p}`) })} hint={t('editor.paramHint')} error={errs[`rp-${i}-${p}`]}>
                 <div className="grid gap-1.5">
-                  <Input id={`rp-${i}-${p}`} spellCheck={false} value={a.params[p] ?? ''} onChange={(e) => onChange({ ...a, params: { ...a.params, [p]: e.target.value } })} placeholder={`{{trigger.${trig?.fields.find((f) => compatible(p, f.type))?.key ?? 'field'}}}`} />
+                  <Input id={`rp-${i}-${p}`} {...inv(errs, `rp-${i}-${p}`)} spellCheck={false} value={a.params[p] ?? ''} onChange={(e) => onChange({ ...a, params: { ...a.params, [p]: e.target.value } })} placeholder={`{{trigger.${trig?.fields.find((f) => compatible(p, f.type))?.key ?? 'field'}}}`} />
                   <Select aria-label={t('editor.useField', { p })} value="" onChange={(e) => e.target.value && onChange({ ...a, params: { ...a.params, [p]: `{{trigger.${e.target.value}}}` } })}>
                     <option value="">{t('editor.insertField')}</option>
                     {(trig?.fields ?? []).filter((f) => compatible(p, f.type)).map((f) => <option key={f.key} value={f.key}>{f.label} ({f.key})</option>)}
@@ -91,8 +92,8 @@ function ActionRow({ a, i, n, cat, trig, onChange, onMove, onRemove }: { a: Rule
                 </div>
               </Field>
             ))}
-            <Field htmlFor={`rt-${i}`} label={t('editor.undoAfter')} hint={c.reversible ? t('editor.undoHint') : t('editor.noUndoHint')}>
-              <Input id={`rt-${i}`} type="number" min={5} max={43200} disabled={!c.reversible} value={a.ttl_min ?? ''} placeholder={t('editor.never')} onChange={(e) => onChange({ ...a, ttl_min: e.target.value === '' ? null : Number(e.target.value) })} />
+            <Field htmlFor={`rt-${i}`} label={t('editor.undoAfter')} hint={c.reversible ? t('editor.undoHint') : t('editor.noUndoHint')} error={errs[`rt-${i}`]}>
+              <Input id={`rt-${i}`} {...inv(errs, `rt-${i}`)} type="number" min={5} max={43200} disabled={!c.reversible} value={a.ttl_min ?? ''} placeholder={t('editor.never')} onChange={(e) => onChange({ ...a, ttl_min: e.target.value === '' ? null : Number(e.target.value) })} />
             </Field>
           </div>
           {c.verify.cli || c.verify.path ? <p className="text-[12px] text-muted">{t('editor.verifies')}</p> : null}
@@ -101,6 +102,10 @@ function ActionRow({ a, i, n, cat, trig, onChange, onMove, onRemove }: { a: Rule
     </li>
   )
 }
+
+/** Errors of the form by the id of the input they belong to (D-390): shown under that input, which is marked invalid. */
+type Errs = Record<string, string>
+const inv = (errs: Errs, id: string) => (errs[id] ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {})
 
 export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () => void }) {
   const { t } = useTranslation('response')
@@ -111,9 +116,14 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   const sim = useSimulate()
   const [r, setR] = useState<RuleInput>(rule ? { name: rule.name, enabled: rule.enabled, live: rule.live, trigger: rule.trigger, match: rule.match, conditions: rule.conditions, actions: rule.actions, pre_approved: rule.pre_approved, max_per_hour: rule.max_per_hour, schedule_min: rule.schedule_min } : BLANK)
   const [error, setError] = useState<string | undefined>()
+  const [srv, setSrv] = useState<Errs>({}) // a box refusal that names a field, until the form changes
+  const [tried, setTried] = useState(false) // after the first Save or Simulate the form is checked as it changes
   const [result, setResult] = useState<Simulation | null>(null)
   const [custom, setCustom] = useState(false)
-  const triggers = trigQ.data?.items ?? [], cat = catQ.data
+  const alertRef = useRef<HTMLParagraphElement>(null)
+  // S-CORE-9 G5, D-390: a trigger that needs a module this install cannot run is not offered; a rule that already uses it keeps it, marked
+  const noHoneypot = useModuleAvailable('honeypot') === false
+  const triggers = (trigQ.data?.items ?? []).filter((x) => !(noHoneypot && x.id === 'honeypot' && rule?.trigger !== 'honeypot')), cat = catQ.data
   const seeded = useRef(false)
   // A new rule starts with one sensible action: the first enabled one that can run.
   useEffect(() => {
@@ -124,7 +134,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
     if (c) setR((p) => ({ ...p, actions: [{ action_id: c.id, params: defaultParams(c, tr), ttl_min: c.reversible ? 1440 : null }] }))
   }, [rule, cat, trigQ.data])
   const trig = triggers.find((x) => x.id === r.trigger)
-  const set = (p: Partial<RuleInput>) => { setR({ ...r, ...p }); setError(undefined); setResult(null) }
+  const set = (p: Partial<RuleInput>) => { setR({ ...r, ...p }); setError(undefined); setSrv({}); setResult(null) }
   if (!cat || !trigQ.data) return <Dialog open onOpenChange={(v) => { if (!v) onClose() }}><DialogContent title={t('rules.addTitle')}><p className="text-sm text-muted">{t('common:loading')}</p></DialogContent></Dialog>
   const addAction = (c: CatalogAction) => set({ actions: [...r.actions, { action_id: c.id, params: defaultParams(c, trig), ttl_min: c.reversible ? 1440 : null }] })
   const first = cat.items.find((c) => c.enabled && c.available) ?? cat.items[0]!
@@ -138,21 +148,53 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
     set({ trigger: id, match: id === 'log_threshold' ? 'all' : r.match, conditions: [], actions: r.actions.map(keep), schedule_min: id === 'schedule' ? 10080 : null })
   }
   const cond = (i: number, p: Partial<Condition>) => set({ conditions: r.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) })
+  // The checks of the box, field by field, so each error shows under its input (the box still decides).
+  const problems = (): Errs => {
+    const e: Errs = {}
+    if (!TEXT_RE.test(r.name)) e['rule-name'] = t('editor.nameBad')
+    if (r.trigger === 'schedule' && !((r.schedule_min ?? 0) >= 15 && (r.schedule_min ?? 0) <= 10080)) e['rule-sched'] = t('editor.scheduleBad')
+    r.conditions.forEach((c, i) => { const why = trig ? condProblem(trig, c, KINDS) : null; if (why) e[`rc-${i}`] = why })
+    r.actions.forEach((a, i) => {
+      const c = cat.items.find((x) => x.id === a.action_id)
+      for (const p of c?.params ?? []) { const v = (a.params[p] ?? '').trim(); if (!v) e[`rp-${i}-${p}`] = t('editor.fillIn'); else if (!refsIn(v).length && !PARAM_CHECK[p](v)) e[`rp-${i}-${p}`] = t('editor.badValue', { type: t(`editor.types.${p}`) }) }
+      if (a.ttl_min !== null && !(Number.isInteger(a.ttl_min) && a.ttl_min >= 5 && a.ttl_min <= 43200)) e[`rt-${i}`] = t('editor.ttlBad')
+    })
+    if (!(Number.isInteger(r.max_per_hour) && r.max_per_hour >= 1 && r.max_per_hour <= 100)) e['rule-hour'] = t('editor.hourBad')
+    return e
+  }
+  const errs: Errs = { ...(tried ? problems() : {}), ...srv }
+  const focusLater = (id: string) => setTimeout(() => { const el = document.getElementById(id); el?.focus(); el?.scrollIntoView?.({ block: 'center' }) })
+  /** A refusal of the box goes under the field it names, otherwise in the box above the buttons; either way it is scrolled to. */
+  const refused = (er: unknown) => {
+    const msg = errText(er)
+    const named = /^Action "(.+?)":/.exec(msg)?.[1]
+    const idx = named ? r.actions.findIndex((a) => cat.items.find((x) => x.id === a.action_id)?.name === named) : -1
+    const id = msg.startsWith('Name:') ? 'rule-name' : msg.startsWith('Maximum actions per hour') ? 'rule-hour' : msg.startsWith('Schedule:') ? 'rule-sched' : idx >= 0 ? `ra-${idx}` : null
+    if (id) { setSrv({ [id]: msg }); focusLater(id) } else { setError(msg); setTimeout(() => alertRef.current?.scrollIntoView?.({ block: 'nearest' })) }
+  }
+  /** false (and the first wrong input focused) when the form has an error the box would refuse. */
+  const checked = () => {
+    setTried(true)
+    const first = Object.keys(problems())[0]
+    if (first) { focusLater(first); return false }
+    return true
+  }
   return (
     <>
       <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
         <DialogContent title={rule ? t('rules.editTitle') : t('rules.addTitle')} description={t('editor.hint')} wide>
-          <form className="grid gap-5" onSubmit={(e) => { e.preventDefault()
+          <form className="grid gap-5" noValidate onSubmit={(e) => { e.preventDefault()
             if (!r.actions.length) { setError(t('editor.needAction')); return }
-            save.mutate({ id: rule?.id, rule: input() }, { onSuccess: () => { toast.success(rule ? t('common:saved') : t('editor.savedDry')); onClose() }, onError: (er) => setError(errText(er)) }) }}>
-            <Field htmlFor="rule-name" label={t('rules.name')}><Input id="rule-name" value={r.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} /></Field>
+            if (!checked()) return
+            save.mutate({ id: rule?.id, rule: input() }, { onSuccess: () => { toast.success(rule ? t('common:saved') : t('editor.savedDry')); onClose() }, onError: refused }) }}>
+            <Field htmlFor="rule-name" label={t('rules.name')} error={errs['rule-name']}><Input id="rule-name" {...inv(errs, 'rule-name')} value={r.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} /></Field>
 
             <section className="grid gap-3" aria-label={t('editor.when')}>
               <h3 className="text-sm font-semibold">{t('editor.when')}</h3>
               <Field htmlFor="rule-trigger" label={t('rules.trigger')} hint={trig?.description}>
-                <Select id="rule-trigger" value={r.trigger} onChange={(e) => changeTrigger(e.target.value as RuleInput['trigger'])}>{triggers.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select>
+                <Select id="rule-trigger" value={r.trigger} onChange={(e) => changeTrigger(e.target.value as RuleInput['trigger'])}>{triggers.map((x) => <option key={x.id} value={x.id}>{x.name}{noHoneypot && x.id === 'honeypot' ? ` (${t('editor.notHere')})` : ''}</option>)}</Select>
               </Field>
-              {r.trigger === 'schedule' ? <Field htmlFor="rule-sched" label={t('editor.scheduleMin')} hint={t('editor.scheduleHint')}><Input id="rule-sched" type="number" min={15} max={10080} value={r.schedule_min ?? 10080} onChange={(e) => set({ schedule_min: Number(e.target.value) })} /></Field> : null}
+              {r.trigger === 'schedule' ? <Field htmlFor="rule-sched" label={t('editor.scheduleMin')} hint={t('editor.scheduleHint')} error={errs['rule-sched']}><Input id="rule-sched" {...inv(errs, 'rule-sched')} type="number" min={15} max={10080} value={r.schedule_min ?? 10080} onChange={(e) => set({ schedule_min: Number(e.target.value) })} /></Field> : null}
               <details className="text-[13px]"><summary className="cursor-pointer text-accent">{t('editor.fields')}</summary>
                 <ul className="mt-2 grid gap-1">{trig?.fields.map((f) => <li key={f.key}><code className="rounded bg-sunken px-1">{`{{trigger.${f.key}}}`}</code> {f.label}, <span className="text-muted">{t('editor.fieldType', { type: f.type, example: f.example })}</span></li>)}</ul>
               </details>
@@ -172,13 +214,14 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                   )}
                   <Select aria-label={t('editor.test')} value={c.op} onChange={(e) => { const op = e.target.value as Op; cond(i, { op, value: '', n: op === 'count_window' ? 3 : op === 'first_time' ? 24 : null, window_min: op === 'count_window' ? 10 : null, field: op === 'device_type' ? '' : c.field || (trig?.fields[0]?.key ?? '') }) }}>{OPS.map((o) => <option key={o} value={o}>{t(`editor.ops.${o}`)}</option>)}</Select>
                   {c.op === 'count_window' ? (
-                    <div className="flex flex-wrap items-center gap-1.5 text-sm">{logSignature(r.trigger, c) ? <Input aria-label={t('editor.signature')} className="w-full" value={c.value} spellCheck={false} placeholder="Failed password for <name> from <ip> port <n> ssh<n>" onChange={(e) => cond(i, { value: e.target.value })} /> : null}<Input aria-label={t('editor.atLeast')} type="number" min={1} value={c.n ?? 3} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span className="whitespace-nowrap">{t('editor.within')}</span><Input aria-label={t('editor.minutes')} type="number" min={1} value={c.window_min ?? 10} onChange={(e) => cond(i, { window_min: Number(e.target.value) })} /><span>min</span></div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-sm">{logSignature(r.trigger, c) ? <Input id={`rc-${i}`} {...inv(errs, `rc-${i}`)} aria-label={t('editor.signature')} className="w-full" value={c.value} spellCheck={false} placeholder="Failed password for <name> from <ip> port <n> ssh<n>" onChange={(e) => cond(i, { value: e.target.value })} /> : null}<Input {...(logSignature(r.trigger, c) ? {} : { id: `rc-${i}`, ...inv(errs, `rc-${i}`) })} aria-label={t('editor.atLeast')} type="number" min={1} value={c.n ?? 3} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span className="whitespace-nowrap">{t('editor.within')}</span><Input aria-label={t('editor.minutes')} type="number" min={1} value={c.window_min ?? 10} onChange={(e) => cond(i, { window_min: Number(e.target.value) })} /><span>min</span></div>
                   ) : c.op === 'first_time' ? (
-                    <div className="flex items-center gap-1.5 text-sm"><span className="whitespace-nowrap">{t('editor.inLast')}</span><Input aria-label={t('editor.hours')} type="number" min={1} value={c.n ?? 24} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span>h</span></div>
+                    <div className="flex items-center gap-1.5 text-sm"><span className="whitespace-nowrap">{t('editor.inLast')}</span><Input id={`rc-${i}`} {...inv(errs, `rc-${i}`)} aria-label={t('editor.hours')} type="number" min={1} value={c.n ?? 24} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span>h</span></div>
                   ) : (
-                    <Input aria-label={t('editor.value')} value={c.value} spellCheck={false} placeholder={c.op === 'device_type' ? KINDS.slice(7, 11).join(',') : c.op === 'in_cidr' ? '192.168.10.0/24' : c.op === 'in' ? 'a,b,c' : ''} onChange={(e) => cond(i, { value: e.target.value })} />
+                    <Input id={`rc-${i}`} {...inv(errs, `rc-${i}`)} aria-label={t('editor.value')} value={c.value} spellCheck={false} placeholder={c.op === 'device_type' ? KINDS.slice(7, 11).join(',') : c.op === 'in_cidr' ? '192.168.10.0/24' : c.op === 'in' ? 'a,b,c' : ''} onChange={(e) => cond(i, { value: e.target.value })} />
                   )}
                   <Button size="icon" variant="ghost" aria-label={t('editor.removeCondition')} onClick={() => set({ conditions: r.conditions.filter((_, j) => j !== i) })}><Trash2 className="size-4" aria-hidden /></Button>
+                  {errs[`rc-${i}`] ? <p id={`rc-${i}-error`} className="text-[13px] text-danger [overflow-wrap:anywhere] sm:col-span-4">{errs[`rc-${i}`]}</p> : null}
                 </div>
               ))}
               <div><Button size="sm" onClick={() => set({ conditions: [...r.conditions, { field: trig?.fields[0]?.key ?? '', op: 'eq', value: '', n: null, window_min: null }] })}><Plus className="size-4" aria-hidden />{t('editor.addCondition')}</Button></div>
@@ -188,7 +231,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
               <h3 className="text-sm font-semibold">{t('editor.then')}</h3>
               <p role="note" className="rounded-md border border-warn/60 bg-warn-soft/60 px-3 py-2 text-[13px]">{t('editor.attacker')}</p>
               <ol className="grid gap-3">
-                {actions.map((a, i) => <ActionRow key={`${a.action_id}-${i}`} a={a} i={i} n={actions.length} cat={cat} trig={trig}
+                {actions.map((a, i) => <ActionRow key={`${a.action_id}-${i}`} a={a} i={i} n={actions.length} cat={cat} trig={trig} errs={errs}
                   onChange={(x) => set({ actions: r.actions.map((y, j) => (j === i ? x : y)) })} onMove={(d) => { const l = [...r.actions]; const [m] = l.splice(i, 1); l.splice(i + d, 0, m!); set({ actions: l }) }} onRemove={() => set({ actions: r.actions.filter((_, j) => j !== i) })} />)}
               </ol>
               <div className="flex flex-wrap gap-2">
@@ -200,7 +243,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
 
             <section className="grid gap-3" aria-label={t('editor.limits')}>
               <h3 className="text-sm font-semibold">{t('editor.limits')}</h3>
-              <Field htmlFor="rule-hour" label={t('rules.perHour')} hint={t('rules.perHourHint')} className="max-w-xs"><Input id="rule-hour" type="number" min={1} max={100} value={r.max_per_hour} onChange={(e) => set({ max_per_hour: Number(e.target.value) })} /></Field>
+              <Field htmlFor="rule-hour" label={t('rules.perHour')} hint={t('rules.perHourHint')} error={errs['rule-hour']} className="max-w-xs"><Input id="rule-hour" {...inv(errs, 'rule-hour')} type="number" min={1} max={100} value={r.max_per_hour} onChange={(e) => set({ max_per_hour: Number(e.target.value) })} /></Field>
               <Panel className="grid gap-2 p-3">
                 <div className="flex items-center gap-2.5">
                   <Switch id="rule-pre" checked={r.pre_approved} disabled={!admin || (!r.pre_approved && !eligible)} onCheckedChange={(v) => set({ pre_approved: v })} />
@@ -213,9 +256,9 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
             </section>
 
             {result ? <SimResult s={result} /> : null}
-            {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+            {error ? <p ref={alertRef} role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
             <DialogFooter>
-              <Button type="button" disabled={sim.isPending || !r.actions.length} onClick={() => sim.mutate(input(), { onSuccess: setResult, onError: (er) => setError(errText(er)) })}><FlaskConical className="size-4" aria-hidden />{t('editor.simulate')}</Button>
+              <Button type="button" disabled={sim.isPending || !r.actions.length} onClick={() => { if (checked()) sim.mutate(input(), { onSuccess: setResult, onError: refused }) }}><FlaskConical className="size-4" aria-hidden />{t('editor.simulate')}</Button>
               <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
               <Button type="submit" variant="primary" disabled={save.isPending}>{t('common:save')}</Button>
             </DialogFooter>

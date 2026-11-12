@@ -6,7 +6,7 @@ import type { Finding } from '@/lib/types'
 import { KINDS, TRIGGERS } from './data'
 import { SEED_RULES, TEMPLATES } from './templates'
 import { exposingVip } from './templates/sample-firewall'
-import { checkValues, condText, evalCondition, isCidr, isIpv4, logSignature, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
+import { checkValues, condProblem, condText, evalCondition, goTrim, isIpv4, logSignature, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
 import {
   actionsStore, allowStore, approve, breakerOpen, BREAKER_MSG, buildChange, catById, checkBreaker, connById, doneStore, HOUR, isObj, maintenanceNow, newRequest, paramsOf, refuse, requiredApprovals,
   reversible, str, step, targetCount, TEXT_RE, unavailable, isOpen,
@@ -102,9 +102,6 @@ const fieldsOf = (t: Trigger) => TRIGGERS.find((x) => x.id === t)!.fields
 const sampleEvent = (t: Trigger): Det => ({ id: `example-${t}`, trigger: t, ts: nowIso(), summary: 'Example values from the trigger catalog', device_kind: null, asset_id: null, fields: Object.fromEntries(fieldsOf(t).map((f) => [f.key, f.example])) })
 
 // ---- Checking a rule from the client ----
-const TEXT_VAL = /^[\w .,:/@#-]{0,200}$/
-/** The spaces Go's strings.TrimSpace removes (unicode.IsSpace), so the mock trims a pasted signature like the box: not U+FEFF, which JS trim() would. */
-const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g
 const compatible = (p: ParamType, ft: string) => ft === p || p === 'text'
 
 export function checkRule(b: Partial<RuleInput>): string | RuleInput {
@@ -122,16 +119,9 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   for (const c of b.conditions) {
     if (!isObj(c) || typeof c.op !== 'string') return 'Each condition needs a field, a test and a value.'
     const field = typeof c.field === 'string' ? c.field : '', raw = typeof c.value === 'string' ? c.value : ''
-    const value = logSignature(trig.id, { op: c.op, field }) ? raw.replace(GO_SPACE, '') : raw // logs.Counts hashes the exact text: a pasted trailing space would never count
-    const f = trig.fields.find((x) => x.key === field)
     const n = Number.isInteger(c.n) ? (c.n as number) : null, win = Number.isInteger(c.window_min) ? (c.window_min as number) : null
-    if (c.op === 'device_type') { if (!value.split(',').every((k) => KINDS.includes(k.trim()))) return 'Device type: use device types such as camera, nvr, iot.' } else if (!f) return `The field "${oneLine(field, 30)}" does not exist for this trigger.`
-    if (logSignature(trig.id, { op: c.op, field })) { if (!value || /[\u0000-\u001f\u007f\u0085\u2028\u2029]/.test(value) || [...value].length > 200) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
-    if (c.op === 'in_cidr' && !isCidr(value)) return 'In range: give a CIDR range such as 192.168.10.0/24.'
-    if ((c.op === 'gte' || c.op === 'lte') && !(value !== '' && Number.isFinite(Number(value)))) return 'At least / at most: give a number.'
-    if (c.op === 'count_window' && (n === null || n < 1 || n > 1000 || win === null || win < 1 || win > 1440)) return 'Count in window: give how many (1 to 1000) and the minutes (1 to 1440).'
-    if (c.op === 'first_time' && (n === null || n < 1 || n > 720)) return 'First time: give the hours (1 to 720).'
-    if (!['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time'].includes(c.op)) return 'Unknown condition test.'
+    const bad = condProblem(trig, { field, op: c.op, value: raw, n, window_min: win }, KINDS); if (bad) return bad
+    const value = logSignature(trig.id, { op: c.op, field }) ? goTrim(raw) : raw // logs.Counts hashes the exact text: a pasted trailing space would never count
     conds.push({ field, op: c.op as Condition['op'], value, n: c.op === 'count_window' || c.op === 'first_time' ? n : null, window_min: c.op === 'count_window' ? win : null })
   }
   if (trig.id === 'log_threshold' && b.match !== 'all') return 'A log rule matches all of its conditions: the counted signature always applies.'

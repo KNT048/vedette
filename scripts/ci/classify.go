@@ -21,6 +21,7 @@ var rules = []rule{
 	{"docs/specs/host-api.md", Result{Go: true}},                           // modules/host contract tests
 	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
 	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
+	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it (D-390)
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files
 	{"web/src/features/core/testdata/", Result{true, true}},                // Go reads connections_matrix.json and keys/

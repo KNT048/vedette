@@ -526,6 +526,7 @@
     "pickField": "Pick a field",
     "test": "Test",
     "value": "Value",
+    "signature": "Signature (paste from the Logs digest)",
     "atLeast": "At least",
     "within": "times within",
     "minutes": "Minutes",

@@ -220,12 +220,13 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 
 // Jobs returns the scheduler jobs of the module: "deliver" sends what is due (held notices when quiet
 // hours end, grouped batches at their DueAt, the rest at once); "telegram-listen" and "slack-listen" take approval button presses
-// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). They run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping (D-160).
+// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). The four above run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping (D-160). "retention" is Housekeeping (retention.go).
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush},
 		{Module: ModuleID, Name: telegramListenJob, Every: telegramListenEvery, Run: s.listenTelegram},
 		{Module: ModuleID, Name: slackListenJob, Every: slackListenEvery, Run: s.listenSlack},
 		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
+		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // D-160: deletes history past 1 year, also while the module is off
 	}
 }

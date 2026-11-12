@@ -18,5 +18,9 @@ func (s *Service) WebhookTarget(ctx context.Context) (url, signingKey string, ok
 	if err != nil {
 		return "", "", false, err
 	}
-	return c.Fields["url"], key, true, nil
+	raw, err := s.webhookURL(ctx, s.cfg.DB.Reader(), c)
+	if err != nil {
+		return "", "", false, err
+	}
+	return raw, key, true, nil
 }

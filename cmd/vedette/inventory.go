@@ -52,10 +52,16 @@ func newInventory(d *deps) *inventory.Service {
 }
 
 // inventoryJobs keeps the box in the inventory as its first device (INV-3, D-53): the job runs as soon as the
-// module is on (start-up, or when it is switched on), creates the device once and refreshes it after.
+// module is on (start-up, or when it is switched on), creates the device once and refreshes it after. service-prune removes
+// the open services not seen for 90 days (INV-23); it only deletes past a retention the product states, so it is
+// housekeeping (D-160, D-202) and runs while the module is off too.
 func inventoryJobs(d deps) []jobs.Job {
 	svc := d.Inventory
-	return []jobs.Job{{Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
+	prune := jobs.Job{Module: "inventory", Name: "service-prune", Every: 6 * time.Hour, Housekeeping: true, Run: func(ctx context.Context) error {
+		_, err := svc.PruneServices(ctx)
+		return err
+	}}
+	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
 		host, err := os.Hostname()
 		if err != nil || host == "" {
 			host = "vedette"

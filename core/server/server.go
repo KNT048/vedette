@@ -40,12 +40,20 @@ type Config struct {
 	// BodyLimits raises (or lowers) the cap for single operations, by operationId, e.g. a 5 MiB
 	// sample upload (issue #39). Every other operation keeps MaxBody.
 	BodyLimits map[string]int64
+	// PublicPerMinute is the limit of public requests without a session per client address and minute (publimit.go, D-320): 429
+	// rate_limited past it. 0 = no limit (tests that are not about it, and a container-only install, where the port proxy may show
+	// every client as one address); cmd/vedette sets PublicPerMinuteDefault on an appliance.
+	PublicPerMinute int
 }
+
+// PublicPerMinuteDefault is the box's limit of requests without a session per client address (API_CONVENTIONS §8).
+const PublicPerMinuteDefault = 60
 
 const csp = "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
 
 type api struct {
 	cfg     Config
+	pub     *pubLimiter // nil = no limit
 	oas     *oas.Server
 	max     int64 // cap for operations without an entry in cfg.BodyLimits
 	ceiling int64 // largest cap of all: enforced before routing, the operation's own cap after
@@ -63,7 +71,10 @@ func New(cfg Config) (http.Handler, error) {
 	if err := validateRoutes(routes.Operations); err != nil {
 		return nil, err
 	}
-	a := &api{cfg: cfg, max: cfg.MaxBody}
+	if cfg.PublicPerMinute < 0 {
+		return nil, errors.New("server: negative PublicPerMinute")
+	}
+	a := &api{cfg: cfg, max: cfg.MaxBody, pub: newPubLimiter(cfg.PublicPerMinute, nil)}
 	if a.max == 0 {
 		a.max = DefaultMaxBody
 	}
@@ -264,6 +275,14 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 	}
 	mod := ModuleOf(op)
 	if op.MinRole == routes.Public {
+		if a.pub != nil && pubCounted(route.OperationID()) {
+			if _, err := a.cfg.Auth.Authenticate(r); err != nil { // a signed-in page (it polls GET /setup) is never counted
+				if ok, wait := a.pub.allow(r); !ok {
+					apierr.Write(w, pubLimited(wait))
+					return
+				}
+			}
+		}
 		if !a.cfg.Modules.Enabled(mod) {
 			apierr.Write(w, apierr.NotFound())
 			return

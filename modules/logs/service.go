@@ -53,6 +53,9 @@ type Config struct {
 	// BoxAddrs is the box's own addresses, which no SIEM may be at (SYS-7); known=false means the box does not know them yet, and then
 	// no connection is made (fail closed). Nil: no address is excluded (tests).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// Feeds is where destinations are looked up (iochits.go). Nil: no lookup, no bad connections. The adapter answers ErrFeedsOff while the
+	// feeds module is off (PRE-3). The hits are announced on Events: logs.ioc_hit.detected and logs.bad_address.detected.
+	Feeds Feeds
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every
@@ -107,7 +110,13 @@ type Service struct {
 	siemReload    chan struct{}
 	siemMu        sync.Mutex // makes "bump the generation and forget the cache" and "check the generation and store the cache" one step
 	allowLoopback bool
-	siemSendFn    func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
+	// IOC matching (iochits.go): the failure last logged (so that a run of the same one is said once), and how many hits were announced in the clock hour iocHour.
+	iocWarned    atomic.Pointer[string]
+	iocMu        sync.Mutex
+	iocHour      int64
+	iocSent      int
+	iocCapLogged int64
+	siemSendFn   func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.
@@ -442,7 +451,8 @@ func (s *Service) SetRetention(ctx context.Context, user string, days int) (int,
 	return days, nil
 }
 
-// Digest is the answer of GET /logs/digest: the lines of the last 24 hours, the new kinds of line and the spikes (INV-6). The bad connections come with L4.
+// Digest is the answer of GET /logs/digest: the lines of the last 24 hours, the new kinds of line, the spikes (INV-6) and the connections to
+// addresses and names that a threat feed lists (INV-7, read from logs_ioc_hits on every call, so a new hit shows at once).
 func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	lines, err := s.linesSince(ctx, s.now().Add(-24*time.Hour))
 	if err != nil {
@@ -452,7 +462,12 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	for _, n := range lines {
 		total += n
 	}
-	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []struct{}{}}
+	d := Digest{GeneratedAt: s.ts(), Lines24h: total, BaselineDays: BaselineDays, New: []NewItem{}, Spikes: []SpikeItem{}, BadConnections: []IocHit{}}
+	if s.cfg.Feeds == nil || s.cfg.Feeds.On() { // PRE-3: with the feeds module off the list is empty (the page says why); the stored hits are kept
+		if d.BadConnections, err = s.iocHits(ctx, `ts >= ?`, DigestMax, store.FormatTS(s.now().Add(-24*time.Hour))); err != nil {
+			return Digest{}, err
+		}
+	}
 	found, names, err := s.snapshotted(ctx)
 	if err != nil {
 		return Digest{}, err

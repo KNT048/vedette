@@ -46,19 +46,23 @@ type intakeOnly struct {
 	server.Fallback
 	*agentintake.IntakeHandlers
 	*agentintake.WazuhHandlers
+	*agentintake.AdminHandlers
+	*agentintake.InstallHandlers
 }
 
 type world struct {
-	t     *testing.T
-	db    *store.DB
-	inv   *inventory.Service
-	svc   *agentintake.Service
-	h     http.Handler
-	gate  *servertest.Gate
-	clock *clock
-	logs  *bytes.Buffer
-	aud   *audit.Log
-	conn  *conn.Service
+	mirror string // the folder of the package mirror
+	cfg    agentintake.Config
+	t      *testing.T
+	db     *store.DB
+	inv    *inventory.Service
+	svc    *agentintake.Service
+	h      http.Handler
+	gate   *servertest.Gate
+	clock  *clock
+	logs   *bytes.Buffer
+	aud    *audit.Log
+	conn   *conn.Service
 }
 
 // boxAddr is the box's own address in the tests: the address policy refuses it as a Wazuh server.
@@ -69,7 +73,15 @@ const (
 	macA  = "52:54:00:aa:bb:01"
 )
 
-func newWorld(t *testing.T) *world {
+// testCA stands for the certificate the box pins: any PEM text does, the module only copies it.
+const testCA = "-----BEGIN CERTIFICATE-----\nMIIBtestVedetteBoxCA0000000000000000000000000000000000000000000000\n-----END CERTIFICATE-----\n"
+
+// boxHosts is the Host allow-list of the test box, and boxURL the address configured for it.
+var boxHosts = []string{"box.corp.example", boxAddr, "*.lab.example"}
+
+const boxURL = "https://" + boxAddr + ":8443"
+
+func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	t.Helper()
 	db := storetest.New(t)
 	ctx := t.Context()
@@ -99,13 +111,20 @@ func newWorld(t *testing.T) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc, err := agentintake.New(agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg})
+	mirror := t.TempDir()
+	cfg := agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
+		TrustAnchor: func() ([]byte, error) { return []byte(testCA), nil }, HostAllowed: server.HostMatcher(boxHosts, nil), BoxURL: boxURL, MirrorDir: mirror}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	svc, err := agentintake.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	gate := servertest.NewGate()
 	h, err := server.New(server.Config{
-		API:        intakeOnly{Fallback: server.Fallback{Log: lg}, IntakeHandlers: agentintake.NewIntakeHandlers(svc), WazuhHandlers: agentintake.NewWazuhHandlers(svc)},
+		API: intakeOnly{Fallback: server.Fallback{Log: lg}, IntakeHandlers: agentintake.NewIntakeHandlers(svc), WazuhHandlers: agentintake.NewWazuhHandlers(svc),
+			AdminHandlers: agentintake.NewAdminHandlers(svc), InstallHandlers: agentintake.NewInstallHandlers(svc)},
 		Auth:       &servertest.Auth{Users: servertest.StandardUsers()},
 		Modules:    gate,
 		Log:        lg,
@@ -114,7 +133,18 @@ func newWorld(t *testing.T) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud, conn: cs}
+	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud, conn: cs, mirror: mirror, cfg: cfg}
+}
+
+// restart builds the service again on the same database, as a restart of the process does (the handler keeps the old one, which the
+// tests that call restart do not use).
+func (w *world) restart() {
+	w.t.Helper()
+	svc, err := agentintake.New(w.cfg)
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	w.svc = svc
 }
 
 // reply is one HTTP answer.
@@ -257,10 +287,10 @@ func (w *world) count(q string, args ...any) int {
 	return n
 }
 
-func (w *world) exec(q string, args ...any) {
+func (w *world) exec(q string) {
 	w.t.Helper()
 	err := w.db.Write(w.t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(w.t.Context(), q, args...)
+		_, err := tx.ExecContext(w.t.Context(), q)
 		return err
 	})
 	if err != nil {

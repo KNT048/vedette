@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -191,6 +192,13 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	}
 	if d.Asset.OS == nil || d.Asset.OS.Value != "Linux 5.4 - 5.15" || d.Asset.OS.Source != "nmap" {
 		t.Fatalf("os = %+v", d.Asset.OS)
+	}
+	var ports []string // the open ports reach inv_service through observe.ServiceSink (D-350); the closed one does not
+	for _, sv := range d.Asset.Services {
+		ports = append(ports, strconv.Itoa(sv.Port)+"/"+sv.Proto+" "+sv.Name+" "+sv.Source)
+	}
+	if want := []string{"22/tcp ssh nmap", "80/tcp http nmap", "8080/tcp http-proxy nmap"}; !slices.Equal(ports, want) {
+		t.Fatalf("services = %q, want %q", ports, want)
 	}
 	if d.Asset.Approved {
 		t.Fatal("scanning must not approve the device")

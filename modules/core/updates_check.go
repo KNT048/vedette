@@ -97,7 +97,7 @@ func (u *updCheck) init(c OSConfig, now time.Time) error {
 	return nil
 }
 
-// testBaseFile is the one-line file in core_data that points a TEST-CHANNEL box at a local release source (#469, D-TBD),
+// testBaseFile is the one-line file in core_data that points a TEST-CHANNEL box at a local release source (#469, D-382),
 // so that an install of 0.0.1-test.1 can be updated to test.2 from the GUI. It is read only by a build whose own version has
 // a -test. prerelease (the version of `make install-artifacts`; release-manifest and the release preflight refuse that version,
 // so no published release ever has it) and only when it names an http(s) address of this machine or its LAN. Nothing else

@@ -67,7 +67,7 @@ Known noise that is not an installer fault: the apt lists and the apt/dpkg/journ
 7. **Uninstall**: `sh /root/vedette-test/art/install.sh --uninstall` (only says what it would do), then `sh /root/vedette-test/art/install.sh --uninstall --yes`. This deletes the test box's Vedette database and key.
 8. **After**: snapshot and the `diff` above must say IDENTICAL (apart from the noise listed); `ss -ltn` has no 8443/8444; `ip -o link` has no leftover macvlan or decoy link; `ls /run/netns` has no `vedette-hp`; `cat /proc/sys/net/ipv4/ip_forward` is the value of the snapshot; `nft list tables` is as in the snapshot.
 
-## Upgrade test: install test.1, update to test.2 from the GUI, roll back (#469, D-TBD)
+## Upgrade test: install test.1, update to test.2 from the GUI, roll back (#469, D-382)
 
 Tests the real software update of the test channel: the host package (`host.self_update`, host-self-update plan slice 6) and the core image (#432), signed with the same throwaway keys. Nothing here exists on a customer box: the release source below is read only by a build whose version has a `-test.` prerelease, and the documents are still verified with the keys compiled into that build. Not a customer data flow (a test machine on the tester's own LAN), so PRIVACY.md is unchanged.
 

@@ -70,7 +70,7 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **`core_setting` `data.restore`** is read and written only by `restore.go`; a restored database may hold an older copy, so the first read of a process asks the host (`restoreSynced`).
 - **GUI**: `web/src/features/core/{contract.ts,mocks.ts,DataSection.tsx}` (Backups on this box, Restore dialog); audit labels `data.restore`, `data.restore_failed`, `data.restore_done` in `web/src/locales/en/core.json`.
 
-## Modifying: test-channel release source (#469, D-TBD, INV-34a: `modules/core/updates_check.go`, `updates_host.go`, `deploy/containers/core/Containerfile`, `scripts/testchannel`, `scripts/dev/install-artifacts.sh`)
+## Modifying: test-channel release source (#469, D-382, INV-34a: `modules/core/updates_check.go`, `updates_host.go`, `deploy/containers/core/Containerfile`, `scripts/testchannel`, `scripts/dev/install-artifacts.sh`)
 - Every use of `upd.base` (index, manifest URL, host package URL) now goes through `OSHandlers.releaseBase()`; with a release version, or a configured `ReleaseBase`, it returns exactly what it returned before. `updCheck` gains `dataDir`. No API, DB, route or contract.ts change; nothing for customers.
 - Build side: `TEST_KEYS_B64` (Makefile `core-image`/`images`, Containerfile) replaces `internal/release/keys_prod.go` inside the core image build for `-test.` versions only; `vedette-testchannel serve -releases DIR` serves the signed documents and host package under `/release/`.
 

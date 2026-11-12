@@ -19,7 +19,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
-import { ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
+import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
 import type { IocHit, EventWindow, LogEvent, LogSource, NewItem, SourcesResponse, SpikeItem, UnknownSender } from './types'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
@@ -131,6 +131,7 @@ function SourcesSection() {
                   {hints.map((s) => <li key={s.id}><span className="font-medium text-ink">{s.name}:</span> {s.state === 'silent' ? t('sources.silentHint', { port: s.port }) : t('sources.neverHint')}</li>)}
                 </ul>
               ) : null}
+              {d.box.tls ? <BoxCertificate tls={d.box.tls} /> : null}
               <UnknownSenders data={d} isAdmin={isAdmin} onAdd={(u) => { setAddFrom(u); setAdding(true) }} onEdit={setEditing} />
               {adding ? <SourceFormDialog open sender={addFrom ?? undefined} onOpenChange={(o) => { if (!o) { setAdding(false); setAddFrom(null) } }} onAdded={setGuide} /> : null}
               {editing ? <SourceFormDialog key={editing.id} open source={editing} onOpenChange={(o) => { if (!o) setEditing(null) }} /> : null}

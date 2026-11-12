@@ -17,18 +17,54 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
-import { useDigest, useEvents, useSetRetention, useSources } from './api'
+import { useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
 import { ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
-import type { IocHit, EventWindow, LogEvent, LogSource, NewItem, SpikeItem } from './types'
+import type { IocHit, EventWindow, LogEvent, LogSource, NewItem, SourcesResponse, SpikeItem, UnknownSender } from './types'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
+
+// S-LOG-1: syslog the box dropped because its sender is not a source (or is one, declared with another protocol). Operators and admins see the
+// addresses; a viewer does not get them from the API. The usual trap: on a container install, syslog from the machine that runs the
+// containers arrives from the container network's gateway, not from the address the source was declared with (QA walk 3).
+function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesResponse; isAdmin: boolean; onAdd: (u: UnknownSender) => void; onEdit: (s: LogSource) => void }) {
+  const { t } = useTranslation('logs')
+  const q = useUnknownSenders(useCan('operator'))
+  const list = q.data?.items ?? []
+  if (!list.length) return null
+  const need = isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })
+  const container = !data.box.ip && !!data.box.lan
+  return (
+    <section aria-labelledby="unknown-senders-title" className="mt-3 rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-[13px]">
+      <h3 id="unknown-senders-title" className="font-medium">{t('unknown.title')}</h3>
+      <ul className="mt-1 grid gap-2">
+        {list.map((u) => {
+          const declared = data.sources.find((s) => s.sender_ip === u.ip)
+          const facts = { ip: u.ip, proto: u.proto.toUpperCase(), times: t('unknown.times', { count: u.count }), when: fmtRelative(u.last_seen) }
+          return (
+            <li key={u.ip} className="flex flex-wrap items-start justify-between gap-2">
+              <span className="min-w-0 flex-1">
+                {declared ? t('unknown.otherProto', { ...facts, name: declared.name, declared: declared.proto.toUpperCase() }) : t('unknown.notSource', facts)}
+              </span>
+              {declared
+                ? <Button size="sm" disabled={!isAdmin} title={need} onClick={() => onEdit(declared)}>{t('unknown.edit', { name: declared.name })}</Button>
+                : <Button size="sm" disabled={!isAdmin} title={need} onClick={() => onAdd(u)} aria-label={t('unknown.addFor', { ip: u.ip })}>{t('unknown.add')}</Button>}
+            </li>
+          )
+        })}
+      </ul>
+      {container ? <p className="mt-2 text-muted">{t('unknown.container')}</p> : null}
+      <p className="mt-1 text-muted">{t('unknown.memory')}</p>
+    </section>
+  )
+}
 
 function SourcesSection() {
   const { t } = useTranslation('logs')
   const q = useSources()
   const isAdmin = useCan('admin')
   const [adding, setAdding] = useState(false)
+  const [addFrom, setAddFrom] = useState<UnknownSender | null>(null)
   const [editing, setEditing] = useState<LogSource | null>(null)
   const [deleting, setDeleting] = useState<LogSource | null>(null)
   const [guide, setGuide] = useState<LogSource | null>(null)
@@ -95,7 +131,8 @@ function SourcesSection() {
                   {hints.map((s) => <li key={s.id}><span className="font-medium text-ink">{s.name}:</span> {s.state === 'silent' ? t('sources.silentHint', { port: s.port }) : t('sources.neverHint')}</li>)}
                 </ul>
               ) : null}
-              {adding ? <SourceFormDialog open onOpenChange={(o) => { if (!o) setAdding(false) }} onAdded={setGuide} /> : null}
+              <UnknownSenders data={d} isAdmin={isAdmin} onAdd={(u) => { setAddFrom(u); setAdding(true) }} onEdit={setEditing} />
+              {adding ? <SourceFormDialog open sender={addFrom ?? undefined} onOpenChange={(o) => { if (!o) { setAdding(false); setAddFrom(null) } }} onAdded={setGuide} /> : null}
               {editing ? <SourceFormDialog key={editing.id} open source={editing} onOpenChange={(o) => { if (!o) setEditing(null) }} /> : null}
               <DeleteDialog source={deleting} onClose={() => setDeleting(null)} />
               <ConfigDialog source={guide} boxIp={d.box.ip} lan={d.box.lan} onClose={() => setGuide(null)} />
@@ -242,7 +279,16 @@ function Content() {
     // No count of bad connections when none can be matched (Feeds off, or no IOC feed lists anything): "0" would read as "none happened".
     const unmatched = b.length === 0 && (feedsOn === false || !digest.data.ioc_matching)
     if (b.length + n.length + s.length === 0) title = learning ? t('titleLearning', { n: digest.data.history_days, days: digest.data.baseline_days }) : t('titleQuiet')
-    else title = unmatched ? t('titleNoIoc', { fresh: n.length, spikes: s.length }) : t('title', { bad: b.length, fresh: n.length, spikes: s.length })
+    else {
+      // D-227: a hit the logging device blocked is an attempt, counted apart from the connections that went through (QA walk 3).
+      const attempts = b.filter((h) => h.blocked).length
+      const connections = b.length - attempts
+      const bad = connections && attempts
+        ? t('headline.badBoth', { connections: t('headline.connections', { count: connections }), attempts: t('headline.attempts', { count: attempts }) })
+        : t('headline.bad', { what: attempts ? t('headline.attempts', { count: attempts }) : t('headline.connections', { count: connections }) })
+      const rest = { fresh: t('headline.fresh', { count: n.length }), spikes: t('headline.spikes', { count: s.length }) }
+      title = unmatched ? t('titleNoIoc', rest) : t('title', { bad, ...rest })
+    }
   }
   const sourceList = sources.data?.sources ?? []
   return (

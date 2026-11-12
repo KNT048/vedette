@@ -96,6 +96,7 @@
   "GET /logs/events": "logs",
   "GET /logs/siem": "logs",
   "GET /logs/sources": "logs",
+  "GET /logs/unknown-senders": "logs",
   "GET /me": "core",
   "GET /modules": "core",
   "GET /notify/alerts/{id}/target": "notify",

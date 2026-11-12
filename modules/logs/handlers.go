@@ -54,6 +54,15 @@ func (h *LogsHandlers) LogsGetLogsSources(ctx context.Context) (*oas.LogsGetLogs
 	return into[oas.LogsGetLogsSourcesOK](v)
 }
 
+// LogsGetLogsUnknownSenders implements logs_get_logs_unknown_senders (operator).
+func (h *LogsHandlers) LogsGetLogsUnknownSenders(ctx context.Context) (*oas.LogsGetLogsUnknownSendersOK, error) {
+	v, err := h.svc.UnknownSenders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.LogsGetLogsUnknownSendersOK](v)
+}
+
 // LogsPostLogsSources implements logs_post_logs_sources (admin).
 func (h *LogsHandlers) LogsPostLogsSources(ctx context.Context, req *oas.LogsPostLogsSourcesReq) (*oas.LogsPostLogsSourcesCreated, error) {
 	user, err := actor(ctx)

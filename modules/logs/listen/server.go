@@ -441,7 +441,8 @@ func (s *Server) Status() Status {
 
 // UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
 type UnknownSender struct {
-	IP    netip.Addr
+	IP    netip.Addr // from the socket, never from the text
+	Proto string     // how its last datagram or connection arrived: udp, tcp or tls
 	Count int64
 	Last  time.Time
 }
@@ -534,7 +535,7 @@ func (s *Server) udpLoop(c *net.UDPConn) {
 		ip := ap.Addr().Unmap()
 		src, ok := s.lookup(ip, "udp")
 		if !ok {
-			s.noteUnknown(ip)
+			s.noteUnknown(ip, "udp")
 			continue
 		}
 		msg := buf[:n]
@@ -576,7 +577,7 @@ func (s *Server) acceptLoop(l net.Listener, proto string) {
 		}
 		ip := ap.AddrPort().Addr().Unmap()
 		if _, ok := s.lookup(ip, proto); !ok {
-			s.noteUnknown(ip)
+			s.noteUnknown(ip, proto)
 			_ = conn.Close()
 			continue
 		}
@@ -586,7 +587,7 @@ func (s *Server) acceptLoop(l net.Listener, proto string) {
 			_ = conn.Close()
 			continue
 		case regStale: // the sources changed while it was being accepted: not over a limit
-			s.noteUnknown(ip)
+			s.noteUnknown(ip, proto)
 			_ = conn.Close()
 			continue
 		case regGone:
@@ -727,10 +728,10 @@ func (s *Server) allow(id string) bool {
 	return true
 }
 
-func (s *Server) noteUnknown(ip netip.Addr) {
+func (s *Server) noteUnknown(ip netip.Addr, proto string) {
 	s.st.unknown.Add(1)
 	s.unkMu.Lock()
-	s.unknown.touch(ip, s.now())
+	s.unknown.touch(ip, proto, s.now())
 	s.unkMu.Unlock()
 }
 
@@ -848,6 +849,7 @@ type lru struct {
 
 type lruEntry struct {
 	ip    netip.Addr
+	proto string
 	count int64
 	last  time.Time
 }
@@ -856,15 +858,15 @@ func newLRU(limit int) *lru {
 	return &lru{max: limit, ll: list.New(), idx: map[netip.Addr]*list.Element{}}
 }
 
-func (l *lru) touch(ip netip.Addr, at time.Time) {
+func (l *lru) touch(ip netip.Addr, proto string, at time.Time) {
 	if e, ok := l.idx[ip]; ok {
 		en := e.Value.(*lruEntry)
 		en.count++
-		en.last = at
+		en.proto, en.last = proto, at
 		l.ll.MoveToFront(e)
 		return
 	}
-	l.idx[ip] = l.ll.PushFront(&lruEntry{ip: ip, count: 1, last: at})
+	l.idx[ip] = l.ll.PushFront(&lruEntry{ip: ip, proto: proto, count: 1, last: at})
 	if l.ll.Len() > l.max {
 		old := l.ll.Back()
 		delete(l.idx, old.Value.(*lruEntry).ip)
@@ -876,7 +878,7 @@ func (l *lru) list() []UnknownSender {
 	out := make([]UnknownSender, 0, l.ll.Len())
 	for e := l.ll.Front(); e != nil; e = e.Next() {
 		en := e.Value.(*lruEntry)
-		out = append(out, UnknownSender{IP: en.ip, Count: en.count, Last: en.last})
+		out = append(out, UnknownSender{IP: en.ip, Proto: en.proto, Count: en.count, Last: en.last})
 	}
 	return out
 }

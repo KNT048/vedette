@@ -8,7 +8,7 @@ import { iocListed } from '@/features/feeds/sourcesMock'
 import { CATALOG } from './catalog'
 import { KIND_IDS } from './kinds'
 import { SIEM_EVENTS } from './types'
-import type { Digest, IocHit, EventWindow, LogEvent, LogSource, NewItem, Proto, SiemConfig, SiemInput, SourceInput, SourceKind, SpikeItem } from './types'
+import type { Digest, IocHit, EventWindow, LogEvent, LogSource, NewItem, Proto, SiemConfig, SiemInput, SourceInput, SourceKind, SpikeItem, UnknownSender } from './types'
 
 type Stored = Omit<LogSource, 'asset_id' | 'asset_name' | 'state'>
 
@@ -29,6 +29,10 @@ const iocHits = collection<StoredIoc[]>('logs_ioc_hits', () => {
     { id: 'b-3', ts: daysAgo(0, 3), src_ip: '192.168.10.157', dest: '45.148.10.95', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['ET Open compromised', 'IPsum'], confidence: 0.6, blocked: true },
   ]
 }, () => [])
+// Senders whose syslog the box dropped because no source declares them (S-LOG-1, FORBID-5): kept in memory on the box, so a clean install has none.
+const unknownSenders = collection<UnknownSender[]>('logs_unknown_senders', () => [
+  { ip: '192.168.10.3', proto: 'udp', count: 418, last_seen: new Date(Date.now() - 45e3).toISOString() },
+], () => [])
 const retention = collection<{ days: number }>('logs_retention', () => ({ days: 30 }))
 const siem = collection<Omit<SiemConfig, 'secret_last4'> & { secret: string }>('logs_siem', () => ({
   enabled: false, format: 'syslog', host: '', port: 514, proto: 'udp', url: '', secret: '', events: ['findings', 'alerts'], last_test: null,
@@ -197,6 +201,14 @@ export const handlers = [
     sources.update((l) => l.filter((x) => x.id !== s.id))
     audit('logs.source_delete', s.name, 'logs already received are kept for the retention period')
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(`${API}/logs/unknown-senders`, () => {
+    const denied = guard('operator'); if (denied) return denied
+    // Like the box: a sender a source now declares with the protocol it used is left out; the 10 seen most recently.
+    const declared = sources.get()
+    const items = unknownSenders.get().filter((u) => !declared.some((s) => s.sender_ip === u.ip && s.proto === u.proto)).sort((a, b) => b.last_seen.localeCompare(a.last_seen)).slice(0, 10)
+    return HttpResponse.json({ items })
   }),
 
   http.get(`${API}/logs/digest`, () => {

@@ -1955,6 +1955,16 @@ func (UnimplementedHandler) LogsGetLogsSources(ctx context.Context) (r *LogsGetL
 	return r, ht.ErrNotImplemented
 }
 
+// LogsGetLogsUnknownSenders implements logs_get_logs_unknown_senders operation.
+//
+// Senders whose syslog was dropped because no source declares them (the 10 seen most recently since
+// the listener started).
+//
+// GET /logs/unknown-senders
+func (UnimplementedHandler) LogsGetLogsUnknownSenders(ctx context.Context) (r *LogsGetLogsUnknownSendersOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // LogsPostLogsSiemTest implements logs_post_logs_siem_test operation.
 //
 // Send a test record to the saved SIEM.

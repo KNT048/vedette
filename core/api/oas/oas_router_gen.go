@@ -10921,7 +10921,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreUpdatesApplyOperation
-										r.summary = "Install the new version of one component"
+										r.summary = "Install the new version of one component; for the software it starts a run (UpdatesState.run, 409 busy while one runs)"
 										r.operationID = "core_post_core_updates_apply"
 										r.operationGroup = ""
 										r.pathPattern = "/core/updates/apply"
@@ -11193,7 +11193,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreUpdatesRollbackOperation
-										r.summary = "Go back to the previous version of one component"
+										r.summary = "Go back to the previous version of one component; 409 confirm_required when it restores the database and confirm_data_loss is not true"
 										r.operationID = "core_post_core_updates_rollback"
 										r.operationGroup = ""
 										r.pathPattern = "/core/updates/rollback"

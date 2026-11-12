@@ -61,6 +61,14 @@ const (
 	codeBusy              = "busy"
 	codePendingConfirm    = "pending_confirm"
 	codeRateLimited       = "rate_limited"
+
+	// Refusals of a software switch (host-api 6.8, 6.10).
+	CodeNoPrevious            = "no_previous"
+	CodePreviousRevoked       = "previous_revoked"
+	CodeRollbackNotAllowed    = "rollback_not_allowed"
+	CodeRollbackBackupMissing = "rollback_backup_missing"
+	CodeRollbackIsUpgrade     = "rollback_is_upgrade"
+	CodeCurrentVersionUnknown = "current_version_unknown"
 )
 
 func notAppliance() *apierr.Error {
@@ -137,6 +145,20 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 			e = e.With("retry_after", retryAfter)
 		}
 		return e
+	case api.CodeNoPrevious:
+		return apierr.New(409, CodeNoPrevious, "No previous version to go back to.")
+	case api.CodePreviousRevoked:
+		return apierr.New(409, CodePreviousRevoked, "The previous version has been withdrawn by the project, so the box will not go back to it.")
+	case api.CodeRollbackNotAllowed:
+		return apierr.New(409, CodeRollbackNotAllowed, "The running version cannot go back that far: its database is not readable by the previous version. Check the release notes.")
+	case api.CodeRollbackBackupMissing:
+		return apierr.New(409, CodeRollbackBackupMissing, "The copy of the database from before the update is no longer on the box, so the rollback cannot put it back.")
+	case api.CodeRollbackIsUpgrade:
+		return apierr.New(409, CodeRollbackIsUpgrade, "The previous version is newer than the running one. Install it as an update instead.")
+	case api.CodeCurrentVersionUnknown:
+		return apierr.New(409, CodeCurrentVersionUnknown, "The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record).")
+	case api.CodeTransitionPending:
+		return apierr.New(409, CodeTransitionPending, "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal).")
 	case api.CodeShuttingDown:
 		return apierr.New(503, CodeHostUnreachable, "The operating system helper is restarting. Try again in a minute.")
 	}

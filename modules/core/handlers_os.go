@@ -56,6 +56,8 @@ type OSHandlers struct {
 
 	state stateCache
 
+	urun updRun // the run side of the software update (updates_run.go)
+
 	dlMu   sync.Mutex // one backup download at a time: held from the busy check until backup.create ends
 	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu
 
@@ -137,6 +139,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			h.wg.Add(1)
 			go h.resume()
 		}
+		h.resumeUpdate()
 	}
 	return h, nil
 }

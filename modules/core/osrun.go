@@ -348,9 +348,12 @@ func (h *OSHandlers) removeSnapshot(id string) {
 	}
 }
 
-// busy reports whether an install run is in progress. A host that cannot be asked counts as not busy: the host
-// itself answers busy to a second write.
+// busy reports whether an install run or a software update run (updates_run.go) is in progress. A host that
+// cannot be asked counts as not busy: the host itself answers busy to a second write.
 func (h *OSHandlers) busy(ctx context.Context) bool {
+	if h.updateRunning(ctx) {
+		return true
+	}
 	rs, err := h.current(ctx)
 	if err != nil || rs == nil {
 		return false
@@ -360,7 +363,8 @@ func (h *OSHandlers) busy(ctx context.Context) bool {
 	return rs.running()
 }
 
-// Busy reports whether an operating system install run of this core is in progress (the factory reset refuses to start then).
+// Busy reports whether an operating system install run or a software update run of this core is in progress (the factory
+// reset refuses to start then).
 func (h *OSHandlers) Busy(ctx context.Context) bool {
 	if h.host == nil { // a box without a helper has no install run
 		return false

@@ -315,7 +315,7 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		}
 		t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(a.ID, 96), Cells: []string{clip(a.Name, 80), clip(a.IP, 45), clip(a.Kind, 32), os}})
 	}
-	out := toolOut{Text: text, Summary: plural(total, "device", "devices"), Cite: "Inventory: " + plural(len(all), "device", "devices")}
+	out := toolOut{Text: text, Summary: plural(total, "device", "devices"), Cite: "Inventory: " + plural(len(all), "device", "devices") + " searched"}
 	if len(t.Rows) > 0 {
 		out.Table = t
 	}

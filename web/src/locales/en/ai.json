@@ -274,7 +274,7 @@
       "styleHint": "Which API the server speaks. Most self-hosted servers use OpenAI Chat Completions.",
       "baseUrl": "Server address",
       "baseUrlCloud": "Must be https://. Keep the default if you use the provider directly.",
-      "baseUrlInternal": "A server on your own network may use http://. Ollama defaults to http://localhost:11434/v1 (same machine as Vedette) or http://server-IP:11434/v1; vLLM defaults to port 8000.",
+      "baseUrlInternal": "A server on your own network may use http://. Ollama answers on http://server-IP:11434/v1 (vLLM on port 8000); start Ollama with OLLAMA_HOST=0.0.0.0 so the box can reach it. Ollama on the machine that runs Vedette: http://localhost:11434/v1 with a package install; with a container install localhost is the container itself, so use http://host.containers.internal:11434/v1 (Podman), http://host.docker.internal:11434/v1 (Docker) or the machine's LAN IP.",
       "model": "Model",
       "modelHint": "A small model suits batch jobs such as log digests; a stronger one suits explanations. Model names change over time: if the connection test says the model does not exist, copy the name from the provider's model page.",
       "key": "API key",

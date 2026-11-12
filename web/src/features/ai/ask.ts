@@ -23,7 +23,7 @@ export function answerQuestion(question: string): Answer {
   const q = norm(question)
   const assets = assetsStore.get()
   const findings = findingsStore.get()
-  const inv = { title: `Inventory: ${plural(assets.length, 'device')}` }
+  const inv = { title: `Inventory: ${plural(assets.length, 'device')} searched` }
   const tc = (tool: string, args: string, n: number): ToolCall => ({ tool, args, result: DEV(n) })
 
   function assetTable(rows: Asset[], extra?: { col: string; of: (a: Asset) => string }): AskTable {

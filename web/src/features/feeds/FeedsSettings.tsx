@@ -108,12 +108,15 @@ function Tables({ items }: { items: Feed[] }) {
         {customs.length === 0 ? (
           <EmptyState title={t('custom.empty')} action={addBtn}>{t('custom.emptyBody')}</EmptyState>
         ) : (
+          <>
+          {customs.some((f) => f.kind === 'vulnerabilities') ? <p className="mb-2 max-w-3xl text-[13px] text-muted">{t('custom.vulnNote')}</p> : null}
           <DataTable<Feed> caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
             columns={[
               { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },
               common.on, common.schedule, common.last, common.records, common.status,
               { id: 'actions', header: t('col.actions'), enableSorting: false, cell: ({ row }: R) => <span className="flex flex-wrap gap-2">{customActions(row.original)}</span> },
             ]} />
+          </>
         )}
       </Section>
       {builtin ? <BuiltinDialog key={builtin.id} feed={builtin} onClose={() => setBuiltin(null)} /> : null}

@@ -17,6 +17,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-FEED-3** (P2, P4) `[đạt]` — Tra một CVE/sản phẩm/IP/domain và biết ngay: bị khai thác chưa, PoC chưa, IOC nào liên quan.
 
 **S-FEED-4** (P2, P4) `[đạt]` (D-36, D-37) — Trong Cài đặt → Feed, tôi thấy các feed có sẵn (bật/tắt, sửa lịch và địa chỉ) và thêm feed riêng của công ty (lỗ hổng hoặc IOC), bật/tắt/sửa/xoá; mỗi feed hiện lần kéo gần nhất, số bản ghi, lỗi.
+- Tiêu chí bổ sung (D-218): feed lỗ hổng **của riêng tôi** chỉ để tra cứu: hiện ở trang CVE và Look up, **không tạo finding hay cảnh báo** (chỉ danh sách CISA được khớp với thiết bị). Giao diện nói thẳng điều đó ở Cài đặt → Feed (dưới "Your own feeds" khi có feed lỗ hổng riêng, và trong hộp thoại thêm feed khi chọn Vulnerabilities).
 **S-FEED-5** (P4) `[đạt]` (D-37) — Tôi chỉnh cách Vedette đọc feed của tôi (định dạng, ánh xạ trường, biểu thức chính quy), bấm Thử để xem trước bản ghi đã chuẩn hoá trước khi lưu.
 - Chấp nhận: kết quả <1 giây từ DB cục bộ; nêu nguồn và thời điểm.
 

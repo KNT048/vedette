@@ -308,3 +308,28 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
     expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
   })
 })
+
+describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4, D-218)', () => {
+  const feed = (kind: 'ioc' | 'vulnerabilities') => ({ id: 'cf-x', builtin: false, name: 'Partner list', kind, format: 'json', url: 'https://feeds.partner.example/x.json', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null })
+  const note = /does not create findings or alerts: only the CISA list is matched/
+
+  it('says so under Your own feeds when a custom vulnerability feed exists, and not for an IOC list alone', async () => {
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed('vulnerabilities')] })))
+    renderApp('/settings/feeds')
+    expect(await screen.findByText(note)).toBeInTheDocument()
+    cleanup()
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed('ioc')] })))
+    renderApp('/settings/feeds')
+    await screen.findByText('Partner list')
+    expect(screen.queryByText(note)).toBeNull()
+  })
+
+  it('the add dialog says it when the type is Vulnerabilities', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add a feed' })
+    expect(within(dlg).queryByText(/never creates findings or alerts/)).toBeNull()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Vulnerabilities' }))
+    expect(within(dlg).getByText(/never creates findings or alerts/)).toBeInTheDocument()
+  })
+})

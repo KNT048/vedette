@@ -57,7 +57,7 @@ func TestPinsAreExact(t *testing.T) {
 			t.Errorf("%s=%q must be repo[:tag]@sha256:<64 hex>", k, p[k])
 		}
 	}
-	for _, k := range []string{"NUCLEI_ZIP_SHA256_AMD64", "NUCLEI_ZIP_SHA256_ARM64", "NUCLEI_BIN_SHA256_AMD64", "NUCLEI_BIN_SHA256_ARM64", "NUCLEI_TEMPLATES_SHA256"} {
+	for _, k := range []string{"NUCLEI_SRC_SHA256", "NUCLEI_TEMPLATES_SHA256"} {
 		if !sha256RE.MatchString(p[k]) {
 			t.Errorf("%s=%q must be a lower-case SHA-256", k, p[k])
 		}
@@ -187,12 +187,12 @@ func TestNmapIsOnlyInTheOnBoxContainerfile(t *testing.T) {
 	}
 }
 
-// nuclei is downloaded once, checked against the pinned SHA-256 before it is unpacked and again after, and lands where the worker
-// looks for it; the pack lands where the worker (index) and nucleiargv (templates) expect it.
+// nuclei is built from the source archive of the pinned tag (D-319), checked against the pinned SHA-256 before it is unpacked, with our
+// patched go.mod/go.sum, and lands where the worker looks for it; the pack lands where the worker (index) and nucleiargv (templates) expect it.
 func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 	t.Parallel()
 	text := read(t, "scan-base/Containerfile")
-	for _, want := range []string{"sha256sum -c", "NUCLEI_ZIP_SHA256_", "NUCLEI_BIN_SHA256_", "/usr/local/bin/nuclei",
+	for _, want := range []string{"sha256sum -c", "NUCLEI_SRC_SHA256", "scan-base/nuclei/go.mod", "scan-base/nuclei/go.sum", "GOFLAGS=-mod=readonly", "./cmd/nuclei", "/usr/local/bin/nuclei",
 		"/usr/share/vedette/nuclei-templates", "/usr/local/share/vedette/nuclei-pack/index.json"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("scan-base/Containerfile: missing %q", want)
@@ -265,10 +265,10 @@ func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 			}
 		}
 	}
-	// the nuclei asset follows the target architecture, with its own pinned hashes
+	// nuclei is one source archive for every architecture, compiled for the target (checked above with the other Go stages)
 	scan := read(t, "scan-base/Containerfile")
-	if !strings.Contains(scan, "nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip") || !strings.Contains(scan, "arm64) zip_sha=") {
-		t.Error("scan-base: the nuclei asset and its hashes must be picked by TARGETARCH (amd64 and arm64)")
+	if strings.Contains(scan, "nuclei_${NUCLEI_VERSION}_linux_") || !strings.Contains(scan, "archive/refs/tags/v${NUCLEI_VERSION}.tar.gz") {
+		t.Error("scan-base: nuclei must be built from the tag archive, not taken from the release binaries")
 	}
 }
 

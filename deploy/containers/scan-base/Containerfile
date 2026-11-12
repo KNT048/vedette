@@ -2,8 +2,10 @@
 # project signs and publishes. It holds NO nmap (D-4, docs/LEGAL.md): vedette-host adds it on the box (scan/Containerfile.onbox).
 # Build from the repository root: `make scan-base-image` (builds the pack first, `make scan-pack`, and passes pins.env as build arguments).
 #
-# nuclei is downloaded from the release page at the pinned version, its zip is checked against the pinned SHA-256 BEFORE it is unpacked and
-# the binary inside is checked again AFTER; a mismatch fails the build. Nothing is updated at run time (nuclei runs with -duc, -ni).
+# nuclei is NOT the upstream release binary: it is built here from the source archive of the pinned tag (SHA-256 checked before it is
+# unpacked) with the pinned Go (GOLANG_IMAGE) and our patched go.mod/go.sum (scan-base/nuclei/, D-319), so the standard library and the
+# modules in it carry the security fixes upstream has not shipped yet; go.sum verifies every module. Nothing is updated at run time (nuclei
+# runs with -duc, -ni).
 # The pack is the output of scripts/scanpack: templates/ -> /usr/share/vedette/nuclei-templates (nucleiargv.TemplatesDir), index.json ->
 # /usr/local/share/vedette/nuclei-pack/index.json (the default of `vedette-sensor active --nuclei-index`). Plain files and folders only.
 # Init: the unit runs this image under podman's init (RunInit=true), so vedette-sensor is not a subreaper.
@@ -24,27 +26,26 @@ RUN set -eu; \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette-sensor -name vedette-sensor -out /out/licenses/third-party-licenses
 
-FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS nuclei
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS nuclei
+ARG TARGETOS
 ARG TARGETARCH
 ARG NUCLEI_VERSION
-ARG NUCLEI_ZIP_SHA256_AMD64
-ARG NUCLEI_ZIP_SHA256_ARM64
-ARG NUCLEI_BIN_SHA256_AMD64
-ARG NUCLEI_BIN_SHA256_ARM64
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
+ARG NUCLEI_SRC_SHA256
+WORKDIR /nuclei
+# Our patched go.mod/go.sum (README.md there): nothing else of the repository is needed here.
+COPY deploy/containers/scan-base/nuclei/go.mod deploy/containers/scan-base/nuclei/go.sum /patched/
 RUN set -eu; \
-    case "${TARGETARCH}" in \
-      amd64) zip_sha="${NUCLEI_ZIP_SHA256_AMD64}"; bin_sha="${NUCLEI_BIN_SHA256_AMD64}" ;; \
-      arm64) zip_sha="${NUCLEI_ZIP_SHA256_ARM64}"; bin_sha="${NUCLEI_BIN_SHA256_ARM64}" ;; \
-      *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
-    esac; \
     [ -n "${NUCLEI_VERSION}" ] || exit 1; \
-    [ -n "${zip_sha}" ] || exit 1; \
-    [ -n "${bin_sha}" ] || exit 1; \
-    curl -fsSL --max-time 300 -o /tmp/nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip"; \
-    echo "${zip_sha}  /tmp/nuclei.zip" | sha256sum -c -; \
-    mkdir /out; unzip -q /tmp/nuclei.zip nuclei LICENSE.md -d /out; \
-    echo "${bin_sha}  /out/nuclei" | sha256sum -c -; \
+    [ -n "${NUCLEI_SRC_SHA256}" ] || exit 1; \
+    curl -fsSL --max-time 300 -o /tmp/nuclei.tar.gz "https://github.com/projectdiscovery/nuclei/archive/refs/tags/v${NUCLEI_VERSION}.tar.gz"; \
+    echo "${NUCLEI_SRC_SHA256}  /tmp/nuclei.tar.gz" | sha256sum -c -; \
+    mkdir -p /out /nuclei/src; tar -xzf /tmp/nuclei.tar.gz --strip-components=1 -C /nuclei/src; \
+    cp /patched/go.mod /patched/go.sum /nuclei/src/; \
+    grep -Fq "Version = \`v${NUCLEI_VERSION}\`" /nuclei/src/pkg/catalog/config/constants.go || { echo "the source is not nuclei v${NUCLEI_VERSION}" >&2; exit 1; }; \
+    cd /nuclei/src; \
+    GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
+    go build -trimpath -ldflags "-s -w" -o /out/nuclei ./cmd/nuclei; \
+    cp LICENSE.md /out/LICENSE.md; \
     chmod 0755 /out/nuclei
 
 # The files of the image that are not binaries, with their modes set and the pack checked, on the build machine.

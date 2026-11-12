@@ -310,7 +310,13 @@ driven through the API):**
   packages"). A plain `sudo systemctl reboot` over SSH is refused ("Access denied"), and `--check-inhibitors=no` asks for
   interactive authentication; the lab used `systemctl reboot --force` (PID 1, not logind) to cut dpkg. So a reboot asked
   while apt runs may not happen: the host's own `systemctl reboot` (`host/ops/reboot.go`) is in the findings inbox to check.
-- Not done yet: Ubuntu 26.04; a power cut (not a reboot) during dpkg's unpack.
+- `ubuntu2604` (Ubuntu 26.04.1, kernel 7.0, fresh VM, the same test.7…10 builds): check 2 (test.8 exits 1) → `rolled_back`, run
+  `reverted`, dpkg back on test.7; checks 1+3 test.7 → test.9 → run `done` (applier in its own cgroup; jq 1.8.1 ships in the
+  26.04 cloud image, so `installed-by-us` stays empty, as it must); check 4 test.9 → test.10 with the reboot while
+  `half-configured` → `attempt` 2 "dpkg is half done … dpkg -i", `installed`, `ii` test.10, `dpkg --audit` clean. APT's
+  inhibitor is `shutdown:sleep` here and a plain reboot says "Operation denied due to active block inhibitor"; from a system
+  service (as vedette-host runs) `systemctl reboot` is refused the same way (D-453 handles it).
+- Not done yet: a power cut (not a reboot) during dpkg's unpack.
 
 ## 2. Risks
 

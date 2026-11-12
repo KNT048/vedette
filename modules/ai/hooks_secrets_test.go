@@ -232,6 +232,15 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		name, in, keep string
 		secrets        []string
 	}{
+		{"pre_shared_key", "pre_shared_key=" + plainPW, "pre_shared_key=", []string{plainPW}},
+		{"private_key", "private_key=" + plainPW, "private_key=", []string{plainPW}},
+		{"json private_key", `{"private_key":"` + plainPW + `"}`, `{"private_key":`, []string{plainPW}},
+		{"json pre_shared_key", `{"pre_shared_key":"` + plainPW + `"}`, `{"pre_shared_key":`, []string{plainPW}},
+		{"json camelCase password", `{"adminPassword":"` + plainPW + `"}`, `{"adminPassword":`, []string{plainPW}},
+		{"json camelCase secret", `{"clientSecret":"` + plainPW + `"}`, `{"clientSecret":`, []string{plainPW}},
+		{"json camelCase community", `{"snmpCommunity":"` + plainPW + `"}`, `{"snmpCommunity":`, []string{plainPW}},
+		{"camelCase key=value", "adminPassword=" + plainPW, "adminPassword=", []string{plainPW}},
+		{"long s folded by (?i)", "pa\u017fsword=" + plainPW, "=", []string{plainPW}},
 		{"ntp type 7 after md5", "ntp authentication-key 1 md5 " + h7 + " 7", "ntp authentication-key 1 md5 ", []string{h7}},
 		{"ntp cleartext", "ntp authentication-key 42 md5 " + plainPW, "ntp authentication-key 42 md5 ", []string{plainPW}},
 		{"ntp hmac-sha", "ntp authentication-key 2 hmac-sha256 " + plainPW, "hmac-sha256 ", []string{plainPW}},

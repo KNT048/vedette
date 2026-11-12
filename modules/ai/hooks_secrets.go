@@ -94,13 +94,13 @@ var deviceSecretPatterns = []secretPattern{
 	// <x>, isakmp key <x>. Pre-shared keys need = or : (wpa-psk: <x>) or a configuration line (wpa-psk ascii <x>, ikev1 pre-shared-key <x>,
 	// pre-shared-key address <ip> key <x>).
 	secretRE(secretKeyStart+`(?:psk-?secret|key-string|isakmp[ \t]+key)(?:[ \t]*[=:][ \t]*|[ \t]+)(?:(?:enc|ascii-text|ascii|hex|text|[0-9])[ \t]+)*`+secretValue, "psk", "key-string", "isakmp"),
-	secretRE(secretKeyStart+`(?:[a-z0-9]+[-_])*(?:pre-?shared-key|psk)[ \t]*:[ \t]*(?:(?:enc|ascii-text|ascii|hex|text|[0-9])[ \t]+)*`+secretValue, "psk", "shared"),
+	secretRE(secretKeyStart+`[a-z0-9_-]*(?:pre[-_]?shared[-_]?key|psk)[ \t]*:[ \t]*(?:(?:enc|ascii-text|ascii|hex|text|[0-9])[ \t]+)*`+secretValue, "psk", "shared"),
 	secretRE(cfgLine+`(?:(?:set|ikev1|ikev2|ikev2[ \t]+(?:local|remote)-authentication)[ \t]+)?(?:pre-?shared-key|psk|wpa-psk|wpa2-psk)[ \t]+(?:(?:address|hostname|remote|local)[ \t]+\S+[ \t]+key[ \t]+)?(?:(?:ENC|enc|ascii-text|ascii|hex|text|[0-9])[ \t]+)*`+secretValue, "psk", "shared"),
 	// key=value: password=<x>, authentication-password=<x>, wpa_passphrase=<x>, wpa_psk=<x>, client_secret=<x>, PrivateKey = <x>
 	// (WireGuard), PresharedKey = <x>, private-key="<x>" (MikroTik).
-	secretRE(secretKeyStart+`(?:[a-z0-9]+[-_])*(?:password|passwd|passphrase|secret|psk|pre-?shared-?key|private-?key)[ \t]*=[ \t]*`+secretValue, needNamed...),
+	secretRE(secretKeyStart+`[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|pre[-_]?shared[-_]?key|private[-_]?key)[ \t]*=[ \t]*`+secretValue, needNamed...),
 	// JSON: "password": "<x>", "wifi_passphrase": "<x>", "community": "<x>".
-	secretRE(`(?i)"(?:[a-z0-9]+[-_])*(?:password|passwd|passphrase|secret|psk|pre-?shared-?key|private-?key|community)"[ \t]*:[ \t]*`+secretValue, needJSON...),
+	secretRE(`(?i)"[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|pre[-_]?shared[-_]?key|private[-_]?key|community)"[ \t]*:[ \t]*`+secretValue, needJSON...),
 	// set <...->password <x> (FortiGate, Juniper set lines), with or without ENC.
 	secretRE(cfgLine+`set[ \t]+(?:[a-z0-9]+-)*(?:password|passwd|passphrase|secret|psksecret|private-key|pre-shared-key)[ \t]+(?:ENC[ \t]+)?`+secretValue, needNamed...),
 	// FortiGate: an encrypted secret is ENC followed by base64 (set password ENC SH2..., set psksecret ENC ...).
@@ -113,7 +113,7 @@ var deviceSecretPatterns = []secretPattern{
 // overlapping ones merged (maskSpans wants them in order and writes one mask per span).
 func findDeviceSecrets(norm string) []span {
 	var out []span
-	lower := strings.ToLower(norm)
+	lower := strings.ReplaceAll(strings.ToLower(norm), "ſ", "s") // (?i) folds U+017F to s; ToLower does not
 	for _, p := range deviceSecretPatterns {
 		if !slices.ContainsFunc(p.needs, func(w string) bool { return strings.Contains(lower, w) }) {
 			continue

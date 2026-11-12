@@ -144,6 +144,8 @@ func TestForbiddenAddrClasses(t *testing.T) {
 	for in, want := range map[string]bool{
 		"127.0.0.1": true, "::1": true, "169.254.0.1": true, "fe80::1": true, "0.0.0.0": true, "::": true,
 		"224.0.0.1": true, "ff02::1": true, "::ffff:169.254.1.1": true,
+		"100.100.100.200": true, "192.0.0.192": true, "fd00:ec2::254": true, "64:ff9b::6464:64c8": true, "2002:a9fe:a9fe::1": true,
+		"::ffff:100.100.100.200": true, "fd00:ec2::1": false,
 		"10.1.1.1": false, "192.168.0.9": false, "172.16.5.5": false, "8.8.8.8": false, "2001:db8::1": false,
 	} {
 		if got := forbiddenAddr(netip.MustParseAddr(in), false, nil); got != want {
@@ -155,12 +157,24 @@ func TestForbiddenAddrClasses(t *testing.T) {
 	}
 }
 
+func TestWebhookRefusesCloudMetadata(t *testing.T) {
+	t.Parallel()
+	for _, u := range []string{"https://100.100.100.200/latest", "https://[fd00:ec2::254]/x", "https://192.0.0.192/x", "https://metadata.google.internal/computeMetadata/v1/",
+		"http://metadata.google.internal/x", "https://metadata.goog/x", "https://METADATA.google.internal./x", "https://[64:ff9b::6464:64c8]/x"} {
+		_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey)})
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "blocked_host" {
+			t.Errorf("%s: %v, want blocked_host", u, err)
+		}
+	}
+}
+
 func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 	t.Parallel()
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for addr, wantErr := range map[string]bool{
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
-		"192.168.10.2:443": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
+		"192.168.10.2:443": true, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
 		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)

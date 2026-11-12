@@ -61,26 +61,79 @@ var numericLabelRE = regexp.MustCompile(`^(0x[0-9a-f]+|[0-9]+)$`)
 
 // forbiddenAddr reports whether a webhook may never connect to a: loopback (on http and https alike, unless
 // allowLoopback, which only package tests set:
-// the box's own services listen there), link-local, unspecified, multicast and the box's own
-// addresses. Private RFC 1918 addresses are allowed on both
+// the box's own services listen there), link-local, unspecified, multicast, a cloud metadata endpoint and the box's own
+// addresses, in any transition form (NAT64, 6to4, IPv4-compatible, IPv4-mapped). Private RFC 1918 addresses are allowed on both
 // schemes: an internal SIEM is a normal target.
 func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
-	a = a.Unmap()
-	switch {
-	case a.IsUnspecified(), a.IsMulticast(), a.IsLinkLocalUnicast(), a.IsLinkLocalMulticast():
-		return true
-	case a.IsLoopback() && !allowLoopback:
-		return true
+	for _, f := range addrForms(a) {
+		switch {
+		case f.IsUnspecified(), f.IsMulticast(), f.IsLinkLocalUnicast(), f.IsLinkLocalMulticast(), metadataAddr(f):
+			return true
+		case f.IsLoopback() && !allowLoopback:
+			return true
+		}
+		for _, b := range box {
+			if b.Unmap() == f {
+				return true
+			}
+		}
 	}
-	for _, b := range box {
-		if b.Unmap() == a {
+	return false
+}
+
+// metadataAddrs are cloud instance-metadata endpoints that are not link-local (169.254.169.254 is): AWS over IPv6, Alibaba,
+// Oracle. Same list as feeds and logs.
+var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
+
+func metadataAddr(a netip.Addr) bool {
+	for _, m := range metadataAddrs {
+		if a == m {
 			return true
 		}
 	}
 	return false
 }
 
-var errForbiddenDial = errors.New("notify: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
+// metadataName is a name of the cloud metadata service (Google Cloud): refused at save, before any lookup. Other names that
+// resolve to a metadata address are refused when connecting (dialControl).
+func metadataName(host string) bool {
+	return host == "metadata" || host == "metadata.google.internal" || host == "metadata.goog"
+}
+
+// addrForms is a plus the IPv4 address that a transition form carries (NAT64, 6to4, IPv4-compatible): a connection to one of
+// them reaches that IPv4 address through a translator, so both are judged (as feeds and logs do).
+func addrForms(a netip.Addr) []netip.Addr {
+	a = a.Unmap().WithZone("")
+	out := []netip.Addr{a}
+	if !a.Is6() {
+		return out
+	}
+	b := a.As16()
+	var v4 [4]byte
+	zeros := func(from, to int) bool {
+		for _, x := range b[from:to] {
+			if x != 0 {
+				return false
+			}
+		}
+		return true
+	}
+	switch {
+	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && zeros(4, 12):
+		copy(v4[:], b[12:16])
+	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 1:
+		v4 = [4]byte{b[6], b[7], b[9], b[10]} // RFC 6052, a /48 prefix
+	case b[0] == 0x20 && b[1] == 0x02:
+		copy(v4[:], b[2:6])
+	case zeros(0, 12) && !a.IsUnspecified() && a != netip.IPv6Loopback():
+		copy(v4[:], b[12:16])
+	default:
+		return out
+	}
+	return append(out, netip.AddrFrom4(v4))
+}
+
+var errForbiddenDial = errors.New("notify: refusing to connect to a loopback, link-local, multicast, unspecified, cloud metadata or box address")
 
 // ErrBoxAddrsUnknown means the box does not know its own addresses yet (vedette-host has not answered since the start), so a
 // webhook target cannot be checked against them: the webhook is not saved or built, and no connection is made (#157).
@@ -145,7 +198,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		more, known := cfg.BoxAddrsFunc()
 		return append(out, more...), known
 	}
-	blocked := cfgErr("blocked_host", "The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
+	blocked := cfgErr("blocked_host", "The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.")
 
 	switch u.Scheme {
 	case "https":
@@ -166,7 +219,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		if numericLabelRE.MatchString(labels[len(labels)-1]) {
 			return nil, bad // a number-like host is an IP in disguise
 		}
-		if !cfg.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
+		if !cfg.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) || metadataName(host) {
 			return nil, blocked
 		}
 	}

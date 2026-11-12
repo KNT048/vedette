@@ -152,7 +152,7 @@ function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
   }
   const ev = Array.isArray(b.events) ? b.events : []
   if (ev.length === 0 || ev.length > SIEM_EVENTS.length || ev.some((e) => !SIEM_EVENTS.includes(e)) || new Set(ev).size !== ev.length) return fail(400, 'bad_events', 'Choose at least one event type to forward.')
-  if (b.secret && [...b.secret].length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
+  if (b.secret && [...b.secret].length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   // eslint-disable-next-line no-control-regex
   if (b.secret && (new TextEncoder().encode(b.secret).length > 512 || b.secret !== b.secret.trim() || /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/.test(b.secret))) {
     return fail(400, 'bad_secret', 'The signing key can be at most 512 bytes, with no control characters and no space at either end.')

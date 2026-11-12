@@ -141,7 +141,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_rate` | 400 | Scan rate is 1 to 1000 packets per second. | `PUT /inventory/settings` |
 | `bad_regular_scan` | 400 | Regular scans must be: follow type setting, allow or never. | `PATCH /inventory/devices/{id}` |
 | `bad_sample` | 400 | The sample text could not be read with this parser. | `POST /feeds/parse-test` |
-| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate if you want a random one. | module logs, notify (validator dùng chung) |
+| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. | module logs, notify (validator dùng chung) |
 | `bad_security` | 400 | Choose an encryption type: STARTTLS, SSL/TLS or none. | module notify (validator dùng chung) |
 | `bad_service` | 400 | Choose a service: SMB, RDP, SSH, MSSQL or HTTP. | `POST /honeypot/test-hit` |
 | `bad_severity` | 400 | Choose a minimum severity: Critical, High, Medium or Low. | module notify (validator dùng chung) |

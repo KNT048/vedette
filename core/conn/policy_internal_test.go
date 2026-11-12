@@ -146,6 +146,11 @@ func TestCheckAllowSSHRefusesShellCharacters(t *testing.T) {
 			t.Errorf("%q: got %v, want the shell-character refusal", bad, e)
 		}
 	}
+	for _, bad := range []string{"show version\u2028reload", "show version\u2029reload", "show\tversion"} {
+		if _, e := checkAllow([]string{bad}, "192.168.10.30:22", true); e == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
 	if _, e := checkAllow([]string{"show version", "uname -a", "ss -tlnp"}, "192.168.10.30:22", true); e != nil {
 		t.Errorf("plain commands refused: %v", e)
 	}

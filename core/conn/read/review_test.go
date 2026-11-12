@@ -518,7 +518,7 @@ func TestListReadTools_SSHOffersTheRunnableCommands(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	ssh := conntest.NewSSH(t, conntest.SSHOpts{})
-	r.sw(ssh, "show version", "reload", "show a; reload", "show interfaces")
+	r.sw(ssh, "show version", "reload", "show interfaces") // an entry with a shell character is refused at save since D-391 (the reader still drops one saved before that)
 	l := r.list()
 	if len(l) != 1 {
 		t.Fatalf("tools %v", toolNames(l))

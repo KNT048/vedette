@@ -407,6 +407,11 @@ func HostPort(kind, target string) string {
 	return strings.TrimSuffix(u.Host, ":443")
 }
 
+// lineBreakOrControl is a control character or a Unicode line or paragraph separator (U+2028, U+2029): a device may read either as the end of a line.
+func lineBreakOrControl(r rune) bool {
+	return unicode.IsControl(r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
+}
+
 // checkAllow normalises the allow-list and applies its rules.
 func checkAllow(in []string, target string, ssh bool) ([]string, *apierr.Error) {
 	seen := map[string]bool{}
@@ -422,7 +427,7 @@ func checkAllow(in []string, target string, ssh bool) ([]string, *apierr.Error) 
 		return nil, bad("allow_required", "Add at least one entry to the allow-list. Only hosts, addresses or commands on this list may be used.", "allow")
 	}
 	for _, a := range allow {
-		if utf8.RuneCountInString(a) > 200 || strings.ContainsFunc(a, unicode.IsControl) {
+		if utf8.RuneCountInString(a) > 200 || strings.ContainsFunc(a, lineBreakOrControl) {
 			return nil, bad("invalid_allow", "The allow-list holds up to 30 entries of 200 characters each, one per line.", "allow")
 		}
 	}

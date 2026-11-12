@@ -105,6 +105,20 @@ func TestDeviceSecretPatternsLeaveOrdinaryTextAlone(t *testing.T) {
 		"Price is $5 or $6 a month, $1$ is not a hash",
 		"-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----",
 		"ENC Technologies and ENC\nshort",
+		// review round 1: a number after the keyword is not a type unless the value has the shape of one (hex for 7, $ for 5/8/9)
+		// or the line is a configuration line; a BGP community is not an SNMP one; psk in prose has no = or : after it
+		"Change your password 3 times before you give up.",
+		"The secret 5 steps to security",
+		"we have key 2 doors",
+		"Rotate the key 7 days after a leak.",
+		"the psk is weak",
+		"Use pre-shared-key authentication on the tunnel.",
+		"Community: OpenWrt forums say this",
+		"route-map X permit 10\n set community 65000:100 additive",
+		"route-map Y permit 20\n set community no-export",
+		"route-map Z permit 30\n set community 4200000000:1:2",
+		"The password is encrypted at rest.",
+		"auth md5 is weak, use sha",
 	} {
 		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomePass || res.Text != in {
 			t.Errorf("%q -> %+v", in, res)
@@ -136,6 +150,20 @@ func TestDeviceSecretFindersAreLinear(t *testing.T) {
 		"psk modifiers":     strings.Repeat("psk enc hex 7 ", top/14),
 		"enc":               strings.Repeat("ENC ", top/4),
 		"one long value":    "password=" + strings.Repeat("a", top-9),
+		// review round 1: patterns that read to the end of a line, escaped quotes, configuration lines
+		"snmp host no comm":  "snmp-server host " + strings.Repeat("x ", top/2-10),
+		"snmp user no auth":  "snmp-server user " + strings.Repeat("auth md5 x ", top/11-2),
+		"server host no key": "tacacs-server host " + strings.Repeat("host x ", top/7-3),
+		"username lines":     strings.Repeat("username a privilege 15 password\n", top/33),
+		"cfg no type":        strings.Repeat("username a password secret key ", top/31),
+		"escaped quotes":     strings.Repeat(`password="\\\"`, top/14),
+		"json keys":          strings.Repeat(`"password":`, top/11),
+		"community braces":   strings.Repeat("community x y {", top/15),
+		"set community bgp":  strings.Repeat("set community 65000:100\n", top/24),
+		"key=value prefixes": "x" + strings.Repeat("a_", top/2-2) + "password",
+		"every pattern runs": "password secret key md5 community psk shared private enc $ -key -server snmp-server encrypted pbkdf2 enable " +
+			"username neighbor ospf isakmp key-string private key\n" + strings.Repeat("The firewall log shows a blocked probe. ", top/40-4),
+		"asa no suffix": strings.Repeat("password 8Ry2Yj ", top/16),
 	} {
 		d := timeOf(in)
 		t.Logf("%-18s %8d bytes %v (plain text %v)", name, len(in), d, base)
@@ -146,7 +174,9 @@ func TestDeviceSecretFindersAreLinear(t *testing.T) {
 }
 
 func FuzzDeviceSecrets(f *testing.F) {
-	for _, s := range []string{"", "password 7 0822455D0A16", "enable secret 5 $1$ab$cdefghijkl", "snmp-server community x RO", "set psksecret ENC QUJDREVGR0hJSktMTU5PUA==",
+	for _, s := range []string{"", "password 7 " + fake("0822", "455D0A16"), "enable secret 5 " + fake("$1", "$ab$", "cdefghijkl"), "snmp-server community x RO",
+		"set psksecret ENC " + base64.StdEncoding.EncodeToString([]byte("fake-fuzz-seed-16")), "ntp authentication-key 1 md5 " + fake("104D", "000A0618") + " 7",
+		"snmp-server user u g v3 auth sha x priv aes 128 y", `{"password":"x\"y"}`, "set community 65000:100",
 		"-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----", "-----BEGIN PRIVATE KEY-----", "community[x] name=", "\xff$2y$10$\x00", "ｐａｓｓｗｏｒｄ ７ x"} {
 		f.Add(s)
 	}
@@ -156,9 +186,12 @@ func FuzzDeviceSecrets(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, text string) {
 		spans := findDeviceSecrets(text)
-		for _, sp := range spans {
+		for i, sp := range spans {
 			if sp.start < 0 || sp.end <= sp.start || sp.end > len(text) {
 				t.Fatalf("span %+v out of range for %q", sp, text)
+			}
+			if i > 0 && sp.start <= spans[i-1].end {
+				t.Fatalf("spans %+v and %+v overlap or touch for %q", spans[i-1], sp, text)
 			}
 		}
 		res, err := r.Run(bg, BeforeAI, text) // never panics, never fails on text under the cap
@@ -169,4 +202,86 @@ func FuzzDeviceSecrets(f *testing.F) {
 			t.Fatalf("pass changed the text: %q -> %q", text, res.Text)
 		}
 	})
+}
+
+// More vendor shapes (review round 1): an algorithm word before the value (NTP), crypt prefixes of yescrypt, Apache, Solaris and
+// the ASA, ASA hashes named by a word after them, WireGuard and hostapd keys, SNMP communities and server keys written after a host,
+// SNMPv3 user keys, JSON fields, escaped quotes and the cleartext forms of a few Cisco commands. Every value must go and every
+// keyword must stay.
+func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
+	t.Parallel()
+	r := runner(t, nil)
+	d := "$"
+	h7 := strings.ToUpper(hex.EncodeToString([]byte("ntpKey7")))
+	clear := fake("Zq", "7Lm", "p4Xv")
+	two := fake("Wr", "9Kd", "2Hs")
+	ye := fake(d, "y", d, "j9T", d, "abcdefSALT", d, "HASHhashHASHhash")
+	gy := fake(d, "gy", d, "j9T", d, "abcdefSALT", d, "HASHhashHASHhash")
+	sc7 := fake(d, "7", d, "CU..../....", "abcdefSALT", d, "HASHhashHASHhash")
+	apr := fake(d, "apr1", d, "abcdSALT", d, "HASHhashHASHhash")
+	smd := fake(d, "md5", ",rounds=5000", d, "abcSALT", d, "HASHhashHASH")
+	sh1 := fake(d, "sha1", d, "40000", d, "abcSALT", d, "HASHhashHASH")
+	s256 := fake(d, "sha256", d, "5000", d, "abcSALT", d, "HASHhashHASH")
+	s512 := fake(d, "sha512", d, "5000", d, "abcSALT", d, "HASHhashHASH")
+	asa := fake("8Ry2Yj", "Iyt7RRXU24")
+	asaLetters := fake("abcdefgh", "ijklmnop")
+	asaDot := fake("2KFQnb", "NIdI.2KYOU")
+	wg := base64.StdEncoding.EncodeToString([]byte("not-a-real-wireguard-key-32byte"))
+	psk64 := strings.Repeat(hex.EncodeToString([]byte("fake")), 8)
+	cases := []struct {
+		name, in, keep string
+		secrets        []string
+	}{
+		{"ntp type 7 after md5", "ntp authentication-key 1 md5 " + h7 + " 7", "ntp authentication-key 1 md5 ", []string{h7}},
+		{"ntp cleartext", "ntp authentication-key 42 md5 " + clear, "ntp authentication-key 42 md5 ", []string{clear}},
+		{"ntp hmac-sha", "ntp authentication-key 2 hmac-sha256 " + clear, "hmac-sha256 ", []string{clear}},
+		{"yescrypt", "root:" + ye + ":19000:0:99999:7:::", "root:", []string{ye}},
+		{"gost yescrypt", "root:" + gy + ":19000", "root:", []string{gy}},
+		{"scrypt $7$", "u:" + sc7, "u:", []string{sc7}},
+		{"apache apr1", "admin:" + apr, "admin:", []string{apr}},
+		{"solaris md5", "u:" + smd + ":::", "u:", []string{smd}},
+		{"netbsd sha1", "u:" + sh1, "u:", []string{sh1}},
+		{"sha256 crypt word", "hash " + s256, "hash ", []string{s256}},
+		{"asa pbkdf2", "username admin password " + s512 + " pbkdf2 privilege 15", "username admin password ", []string{s512}},
+		{"asa enable encrypted", "enable password " + asa + " encrypted", "enable password ", []string{asa}},
+		{"asa passwd encrypted", "passwd " + asaDot + " encrypted", "passwd ", []string{asaDot}},
+		{"asa all letters", "username bob password " + asaLetters + " encrypted privilege 15", "username bob password ", []string{asaLetters}},
+		{"asa nt-encrypted", "username bob password " + asa + " nt-encrypted", "username bob password ", []string{asa}},
+		{"wireguard", "[Interface]\nPrivateKey = " + wg + "\n[Peer]\nPresharedKey = " + wg, "PrivateKey = ", []string{wg}},
+		{"mikrotik wireguard", "/interface wireguard add listen-port=13231 name=wg1 private-key=\"" + wg + "\"", "private-key=", []string{wg}},
+		{"hostapd passphrase", "ssid=lab\nwpa_passphrase=" + clear, "wpa_passphrase=", []string{clear}},
+		{"hostapd psk", "wpa_psk=" + psk64, "wpa_psk=", []string{psk64}},
+		{"juniper snmp block", "snmp {\n    community " + clear + " {\n        authorization read-only;\n    }\n}", "community ", []string{clear}},
+		{"asa snmp host", "snmp-server host inside 10.1.1.1 community " + clear + " version 2c", "community ", []string{clear}},
+		{"tacacs host key", "tacacs-server host 1.1.1.1 key " + clear, "tacacs-server host 1.1.1.1 key ", []string{clear}},
+		{"radius host key", "radius-server host 1.1.1.1 auth-port 1812 key 0 " + clear, "key 0 ", []string{clear}},
+		{"snmpv3 hex", "snmp-server user admin network-admin auth md5 0x" + psk64 + " priv 0x" + strings.ToUpper(psk64) + " localizedkey", "auth md5 ", []string{psk64, strings.ToUpper(psk64)}},
+		{"snmpv3 aes", "snmp-server user u g v3 auth sha " + clear + " priv aes 128 " + two, "priv aes 128 ", []string{clear, two}},
+		{"json password", `{"name":"admin","password":"` + clear + `","wifi_passphrase":"` + two + `"}`, `"password":`, []string{clear, two}},
+		{"json community", `{"community": "` + clear + `"}`, `"community": `, []string{clear}},
+		{"escaped quote", `set password "ab\"` + clear + `"`, "set password ", []string{clear}},
+		{"enable cleartext", "enable password " + clear, "enable password ", []string{clear}},
+		{"username cleartext", "username admin privilege 15 password " + clear, "username admin privilege 15 password ", []string{clear}},
+		{"bgp neighbor", "router bgp 65000\n neighbor 10.0.0.1 password " + clear, " neighbor 10.0.0.1 password ", []string{clear}},
+		{"ospf auth key", "interface Gi0/1\n ip ospf authentication-key " + clear, " ip ospf authentication-key ", []string{clear}},
+		{"ios keyring psk", "crypto keyring K\n pre-shared-key address 10.0.0.1 key " + clear, "pre-shared-key address 10.0.0.1 key ", []string{clear}},
+		{"asa tunnel-group psk", "tunnel-group 1.2.3.4 ipsec-attributes\n ikev1 pre-shared-key " + clear, "ikev1 pre-shared-key ", []string{clear}},
+		{"psk colon", "PSK: " + clear, "PSK: ", []string{clear}},
+		{"username type 6", "username bob password 6 " + clear, "username bob password 6 ", []string{clear}},
+	}
+	for _, c := range cases {
+		res := run(t, r, BeforeAI, c.in)
+		if res.Outcome != OutcomeMasked {
+			t.Errorf("%s: outcome %v for %q", c.name, res.Outcome, c.in)
+			continue
+		}
+		for _, secret := range c.secrets {
+			if strings.Contains(res.Text, secret) {
+				t.Errorf("%s: %q survives in %q", c.name, secret, res.Text)
+			}
+		}
+		if !strings.Contains(res.Text, c.keep) || !strings.Contains(res.Text, "[masked]") {
+			t.Errorf("%s: want %q kept and a mask, got %q", c.name, c.keep, res.Text)
+		}
+	}
 }

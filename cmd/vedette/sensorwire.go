@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/core"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
@@ -103,7 +104,8 @@ func (l *sensorLink) close() error { return l.srv.Close() }
 // renewEvery is how often the certificates are looked at: Renew replaces only what has a third of its life or less left (D-110 (3)).
 const renewEvery = 24 * time.Hour
 
-// coreJobs is the Jobs func of the core entry in wiredModules: the daily renewal of the sensor certificates, when the link exists.
+// coreJobs is the Jobs func of the core entry in wiredModules: the sign-in tables' retention, the software update check and
+// automatic mode, and the daily renewal of the sensor certificates, when the link exists.
 func coreJobs(d deps) []jobs.Job {
 	var js []jobs.Job
 	if d.Auth != nil { // the sign-in tables' retention (core CONTRACT INV-30)
@@ -111,6 +113,9 @@ func coreJobs(d deps) []jobs.Job {
 			_, err := d.Auth.Prune(ctx)
 			return err
 		}})
+	}
+	if d.OS != nil { // the periodic software update check and the automatic mode (core INV-34, INV-35, D-388)
+		js = append(js, jobs.Job{Module: "core", Name: "software-update", Every: core.UpdateTickEvery, Run: d.OS.UpdateTick})
 	}
 	if d.Authority != nil {
 		js = append(js, jobs.Job{Module: "core", Name: "sensor-cert-renew", Every: renewEvery, Run: func(ctx context.Context) error {

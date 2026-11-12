@@ -117,9 +117,9 @@ type Sample struct {
 	Signature string   `json:"signature"`
 	Src       string   `json:"src,omitempty"`
 	Dest      string   `json:"dest,omitempty"`
-	Remote    string   `json:"remote,omitempty"` // the remote peer's address the rule must find (empty: none)
-	Local     string   `json:"local,omitempty"`  // the LAN device of the connection the rule must find (empty: none)
-	Dests     []string `json:"dests,omitempty"`  // its destinations as "ip:<address>" or "domain:<name>"
+	Remote    string   `json:"remote,omitempty"`  // the remote peer's address the rule must find (empty: none)
+	Local     string   `json:"local,omitempty"`   // the LAN device of the connection the rule must find (empty: none)
+	Dests     []string `json:"dests,omitempty"`   // its destinations as "ip:<address>" or "domain:<name>"
 	Blocked   bool     `json:"blocked,omitempty"` // the connection was stopped by the device (conn_blocked)
 }
 

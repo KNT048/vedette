@@ -12,6 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
+import { forbiddenHost } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 function renderChannels(role: Role = 'admin') {
@@ -612,6 +613,16 @@ async function getJsonAfterLogin(path: string) {
   sessionStore.set({ userId: 'u-admin' })
   return getJson(path)
 }
+
+describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unmap; G13 review L1, L5)', () => {
+  it('only IP literals and localhost names are judged; an IPv4-mapped IPv6 loopback is forbidden too', () => {
+    const host = (u: string) => new URL(u).hostname
+    for (const u of ['https://127.0.0.1/x', 'http://169.254.169.254/latest', 'https://0.0.0.0/', 'https://224.0.0.251/', 'https://[::1]/', 'https://[::]/', 'https://[fe80::1]/', 'https://[ff02::1]/', 'http://[::ffff:127.0.0.1]/', 'https://[::ffff:169.254.1.1]/', 'https://localhost/', 'https://app.localhost./'])
+      expect(forbiddenHost(host(u)), u).toBe(true)
+    for (const u of ['https://224.alerts.example.com/hook', 'https://127.corp.example/x', 'https://169.254.example.net/', 'https://8.8.8.8/', 'https://10.0.0.5/', 'https://[2001:db8::1]/', 'https://[::ffff:10.0.0.1]/', 'https://hooks.company.com/'])
+      expect(forbiddenHost(host(u)), u).toBe(false)
+  })
+})
 
 describe('notify: channel form matrix (docs/QA.md §2)', () => {
   const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']

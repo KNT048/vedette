@@ -22,7 +22,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(fresh).getByText('NAS-PHOTOS')).toBeInTheDocument()
     expect(within(fresh).getByText('CVE-2022-27593')).toBeInTheDocument()
     expect(within(doc).getAllByText('CVE-2022-27593')).toHaveLength(1)
-    expect(within(doc).getByText(/^(Plus the (\d+ )?new findings? listed above|All \d+ new findings listed above|The new finding listed above)/)).toBeInTheDocument()
+    expect(within(doc).getByText(/^(Plus the new findings? listed above|Every unresolved finding is new this week|The new finding listed above)/)).toBeInTheDocument()
     expect(within(doc).getByText(/Patch or apply a temporary fix for CVE-2022-27593 on NAS-PHOTOS \(confirmed\)/)).toBeInTheDocument()
     expect(within(doc).queryByText(/Honeypot touches$/)).toBeNull() // không bịa số bẫy/log
     expect(within(doc).getByText(/are not part of this report yet/)).toBeInTheDocument()

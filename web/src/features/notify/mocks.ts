@@ -242,7 +242,8 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
-  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.') // blocked_host, before the http rule (webhook.go)
+  // The API answers the adapter's blocked_host and insecure_url as bad_url (channels.go apiConfigCode); blocked_host comes first (webhook.go).
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')

@@ -34,10 +34,12 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
   const { t } = useTranslation('reports')
   const c = r.counts
   const open = c.open_confirmed + c.open_suspected
-  // A finding new this week and still open is listed once, under What is new; Remaining lists the older ones and counts the rest (walk 3 G13).
-  const isNew = new Set(r.new_findings.map((f) => f.id))
-  const older = r.open.filter((f) => !isNew.has(f.id))
+  // A finding new this week and still open is listed once, under What is new; Remaining lists the older ones (walk 3 G13). New is
+  // judged by first seen within the period, as the box does (weekly.go), not by being in the new list: each list is cut at 100.
+  const isNew = (f: FindingRow) => f.since > r.period.from && f.since <= r.period.to
+  const older = r.open.filter((f) => !isNew(f))
   const newOpen = r.open.length - older.length
+  const notListed = Math.max(0, open - r.open.length)
   const stat = (label: string, value: string) => <div className="grid"><dt className="text-[12px] text-muted">{label}</dt><dd className="text-base font-semibold">{value}</dd></div>
   return (
     <article className="grid grid-cols-[minmax(0,1fr)] gap-5 text-sm" aria-label={t('doc.weekly.title')}>
@@ -58,7 +60,8 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
       <section aria-labelledby="wk-done"><h3 id="wk-done" className="mb-1 font-semibold">{t('doc.weekly.done')}</h3>{r.resolved.length ? <Rows rows={r.resolved} caption={t('doc.weekly.done')} /> : <p className="text-muted">{t('doc.weekly.noneDone')}</p>}</section>
       <section aria-labelledby="wk-open"><h3 id="wk-open" className="mb-1 font-semibold">{t('doc.weekly.remaining')}</h3>
         {older.length ? <Rows rows={older} caption={t('doc.weekly.remaining')} /> : null}
-        {newOpen ? <p className={older.length ? 'mt-1 text-[13px] text-muted' : undefined}>{t(older.length ? 'doc.weekly.plusNew' : 'doc.weekly.allNewRemain', { count: newOpen })}</p> : null}
+        {newOpen ? <p className={older.length ? 'mt-1 text-[13px] text-muted' : undefined}>{t(older.length || notListed ? 'doc.weekly.plusNew' : 'doc.weekly.allNewRemain', { count: newOpen })}</p> : null}
+        {notListed ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.notListed', { count: notListed })}</p> : null}
         {r.open.length ? null : <p className="text-muted">{t('doc.weekly.noneOpen')}</p>}
       </section>
       <section aria-labelledby="wk-act"><h3 id="wk-act" className="mb-1 font-semibold">{t('doc.weekly.next')}</h3>{r.actions.length ? <ol className="ml-5 list-decimal">{r.actions.map((a, i) => <li key={i}>{actionText(a, t)}</li>)}</ol> : <p className="text-muted">{t('doc.weekly.noneNext')}</p>}</section>

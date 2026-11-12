@@ -124,9 +124,18 @@
     "title": "Your own feeds",
     "description": "Add a feed from your company or a partner: vulnerabilities, or indicators of compromise (IOC). You decide how Vedette reads it.",
     "caption": "Your own feeds",
+    "vulnNote": "A vulnerability feed of your own is shown on CVE pages and in lookups. It does not create findings or alerts: only the CISA list is matched against your devices.",
     "add": "Add a feed",
     "empty": "No feeds of your own yet",
     "emptyBody": "Add a vulnerability feed or an IOC list, tell Vedette how to read it, and preview the result before saving."
+  },
+  "hosts": {
+    "title": "Where this box connects",
+    "description": "Every address the box pulls feeds from, built-in and your own, read from the list above. Only your IP address reaches them; none of your data is sent.",
+    "yours": "your feed",
+    "off": "off, not pulled",
+    "cisaMirror": "(and raw.githubusercontent.com if www.cisa.gov does not answer)",
+    "privacy": "See Privacy, flow 1"
   },
   "kind": {
     "vulnerabilities": "Vulnerabilities",
@@ -188,7 +197,7 @@
     "type": "Feed type",
     "typeHint": {
       "ioc": "Indicators: IP address, domain, URL or file hash, with confidence and first seen.",
-      "vulnerabilities": "CVE, vendor, product, date, description and link."
+      "vulnerabilities": "CVE, vendor, product, date, description and link. Shown on CVE pages and in lookups, but it never creates findings or alerts: only the CISA list is matched against your devices."
     },
     "urlHint": "https only, except addresses on your network (private ranges, .local). Vedette never pulls a feed from itself.",
     "auth": "Authentication",

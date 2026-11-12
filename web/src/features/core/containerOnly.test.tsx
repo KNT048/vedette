@@ -240,7 +240,7 @@ describe('container-only install (D-381)', () => {
     expect(await screen.findByText(/publishes the port on 127\.0\.0\.1 of the machine that runs Docker or Podman, never on the LAN/)).toBeInTheDocument()
     expect(screen.getByText(/with an older compose\.yaml no tool can connect until you update it/)).toBeInTheDocument()
     expect(screen.getByText(/must go through an SSH tunnel to that machine/)).toBeInTheDocument()
-    expect(screen.getByText('Listening on the localhost of the machine that runs the vedette-core container only.')).toBeInTheDocument()
+    expect(screen.getByText('Listening inside the vedette-core container. The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.')).toBeInTheDocument()
     expect(screen.queryByText(/not published/)).toBeNull()
   })
 

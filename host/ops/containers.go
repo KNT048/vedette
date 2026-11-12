@@ -234,18 +234,32 @@ func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs)
 	if _, _, err := o.unitDirChain(); err != nil {
 		return refuse412(api.CodeUnitUnsafe, "The Quadlet directory is not safe to write as root.")
 	}
-	if _, _, err := o.currentUnit(a.Service); err != nil {
+	old, digest, err := o.currentUnit(a.Service)
+	if err != nil {
 		return err
 	}
 	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged(ctx) != "" { // the start writes the credential volume units (D-316 (10))
 		return refuse412(api.CodeUnitUnsafe, volumeOwnerText)
 	}
+	// The ports a restart would add (D-455) are judged here only when the run restarts for sure (restart asked, or another digest);
+	// a start without restart of a running, healthy service keeps the unit's template, so Run decides that once it has looked.
 	if a.Version == "" {
-		return nil
+		if !a.Restart {
+			return nil
+		}
+		return o.portsFreeFor(ctx, a.Service, old, digest)
 	}
 	plan, err := o.planStartVersion(ctx, a)
 	if err != nil {
 		return err
+	}
+	if plan.change || a.Restart {
+		if plan.change {
+			digest = plan.rec.Digest
+		}
+		if err := o.portsFreeFor(ctx, a.Service, old, digest); err != nil { // before the backup: a refusal here changes nothing
+			return err
+		}
 	}
 	if plan.change && a.Service == api.ServiceCore {
 		return o.backupPreflight(a.Snapshot, true, true) // snapshot_required, snapshot_invalid, low_disk, db_unreadable: as backup.create
@@ -758,11 +772,26 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		return nil, err
 	}
 	res := api.ContainerStartResult{Service: svc, Digest: digest, Healthy: true}
-	wasActive := o.unitActive(ctx, svc) == api.UnitActive
+	state := o.unitActive(ctx, svc)
+	wasActive := state == api.UnitActive
 	// Already running this image and healthy, and no restart asked: nothing to restart. If only the
 	// [Install] section was missing (the service was stopped with persist), put it back and reload; the
 	// running container is not touched. The change of bytes is journaled like any other.
 	if !a.Restart && o.runningHealthy(ctx, svc, digest) {
+		if added := addedPorts(old, want); len(added) > 0 {
+			// The current template adds host ports, which would only take effect at a later restart with no check and no revert
+			// behind it (D-455): the unit keeps its own template (only [Install] may come back), and the next start that
+			// restarts the service checks the ports and moves it.
+			_, install, err := o.ourUnit(svc, old)
+			if err == nil {
+				want, err = o.ownTemplate(svc, old, digest, install, true)
+			}
+			if err != nil {
+				return nil, fail(api.CodeUnitUnsafe, "The unit of that service is not exactly what this host writes.")
+			}
+			o.noteUnitDeferred(ctx, svc, digest, rcID(rc), added)
+			rcLog(rc, "the unit stays on its earlier template until the service restarts: the current one publishes new host ports")
+		}
 		if bytes.Equal(old, want) {
 			return res, nil
 		}
@@ -783,6 +812,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		o.finishJournal(tr)
 		rcLog(rc, "unit written with [Install]; the running container was left alone")
 		return res, nil
+	}
+	if err := o.portsFreeToStart(ctx, svc, old, want, state); err != nil { // before the journal: nothing changes (D-455)
+		return nil, err
 	}
 	tr := o.newJournal(rc, opStart, svc, digest, old, want, wasActive)
 	if err := o.saveJournal(tr); err != nil {
@@ -897,7 +929,7 @@ func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string
 	if !install {
 		return false, nil, nil
 	}
-	want, err := renderUnit(svc, o.fillFor(digest, false))
+	want, err := o.ownTemplate(svc, text, digest, true, false) // the same template without [Install]: a stop never adds a port (D-455)
 	if err != nil {
 		return false, nil, fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid this unit needs.")
 	}

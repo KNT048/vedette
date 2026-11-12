@@ -963,7 +963,7 @@ func updateReason(ctx context.Context, code string) string {
 // rolledBackSince finds the rollback that a restored database forgot: core's container.rollback that put the
 // pre-update copy back replaced this database with the one from before the update, so the stored run is the update
 // (still running at its last step) and the rollback's own row is gone. The host still has its run: newer than
-// core's switch, succeeded, with restored_backup_id. nil when there is none (or it cannot be told). errTransient
+// core's switch, succeeded, with restored_backup_id. nil when there is none; a failed read is returned, so the follower tries again. errTransient
 // while such a rollback is still running: core is back up on the restored database before the host has ended the
 // rollback's run (it waits for core's health first), and settling now would lose the rollback for good (lab).
 func (f *updFollower) rolledBackSince(ctx context.Context, rec *updateRunRec) (*api.Run, error) {

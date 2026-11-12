@@ -64,7 +64,7 @@ type updHost struct {
 	down        int
 	lists       int
 	stateDown   int             // StateContainers answers unreachable that many times
-	dropped     map[string]bool // "start core": the next call never reaches the host (no run, no answer)
+	dropped     map[string]bool // "start core": every call never reaches the host (no run, no answer)
 }
 
 func ver(s string) *string { return &s }
@@ -152,7 +152,6 @@ func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string)
 	key := short + " " + svc
 	f.calls = append(f.calls, strings.TrimSpace(key+" "+version+" "+extra))
 	if f.dropped[key] {
-		delete(f.dropped, key)
 		return api.Run{}, fmt.Errorf("%w: connection reset by peer", hostclient.ErrUnreachable)
 	}
 	if a, ok := f.args[rid]; ok && a != args {
@@ -819,6 +818,8 @@ func TestUpdateRollbackLostToARestoredDatabaseSurvivesFailedHostReads(t *testing
 	fh.mu.Unlock()
 	e.retry = time.Millisecond
 	e.handler = e.start(t, "1.3.0")
+	// the follower meets the failed reads, not the page's GET below
+	eventuallyOS(t, "the failed state reads to be used up", func() bool { fh.mu.Lock(); defer fh.mu.Unlock(); return fh.stateDown == 0 })
 	if run := endedRun(t, e); run["action"] != "rollback" || run["status"] != "done" {
 		t.Fatalf("run = %v", run)
 	}

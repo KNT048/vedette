@@ -93,9 +93,10 @@ type Config struct {
 type Reader struct {
 	c               *conn.Service
 	log             *slog.Logger
-	budget          time.Duration // CallBudget; tests shorten it
-	listBudget      time.Duration // ListBudget; tests shorten it
-	afterCredential func()        // tests edit the connection here
+	budget          time.Duration                       // CallBudget; tests shorten it
+	listBudget      time.Duration                       // ListBudget; tests shorten it
+	afterCredential func()                              // tests edit the connection here
+	onClose         func(call, closing context.Context) // tests see the context a session's close runs under
 
 	mu    sync.Mutex
 	cache map[string]cacheEntry // the tools an MCP server listed, by connection
@@ -286,7 +287,7 @@ func (r *Reader) fetch(ctx context.Context, c conn.Connection) map[string]liveTo
 	}
 	cl, auth := r.client(c, secret)
 	m := transport.NewMCP(cl, c.Target, auth)
-	defer closeMCP(ctx, m)
+	defer r.closeMCP(ctx, m)
 	if m.Initialize(ctx) != nil {
 		return nil
 	}
@@ -304,19 +305,23 @@ func (r *Reader) fetch(ctx context.Context, c conn.Connection) map[string]liveTo
 	return out
 }
 
-// closeMCP ends a session within what is left of the call's budget, and at least closeFloor.
-func closeMCP(ctx context.Context, m *transport.MCP) {
-	c, cancel := context.WithTimeout(context.WithoutCancel(ctx), closeTime(ctx))
+// closeMCP ends a session within what is left of the call's budget, and at least closeFloor (closeDeadline).
+func (r *Reader) closeMCP(ctx context.Context, m *transport.MCP) {
+	c, cancel := context.WithDeadline(context.WithoutCancel(ctx), closeDeadline(ctx))
 	defer cancel()
+	if r.onClose != nil {
+		r.onClose(ctx, c)
+	}
 	m.Close(c)
 }
 
-// closeTime is how long closing a session may take: what is left of ctx's budget, and at least closeFloor.
-func closeTime(ctx context.Context) time.Duration {
-	if dl, ok := ctx.Deadline(); ok {
-		return max(time.Until(dl), closeFloor)
+// closeDeadline is when closing a session must end: the deadline of ctx (the end of the call's budget), and at least closeFloor from now.
+func closeDeadline(ctx context.Context) time.Time {
+	floor := time.Now().Add(closeFloor)
+	if dl, ok := ctx.Deadline(); ok && dl.After(floor) {
+		return dl
 	}
-	return closeFloor
+	return floor
 }
 
 // client is the HTTPS client of a connection: the pin of the first Test or the roots decide, never trust on first use.
@@ -721,7 +726,7 @@ func readCapped(r io.Reader) (string, bool, error) {
 func (r *Reader) mcp(ctx context.Context, c conn.Connection, secret secrets.Value, tool string, req request, redact []string) (string, bool, error) {
 	cl, auth := r.client(c, secret)
 	m := transport.NewMCP(cl, c.Target, auth)
-	defer closeMCP(ctx, m)
+	defer r.closeMCP(ctx, m)
 	if err := m.Initialize(ctx); err != nil {
 		return "", false, err
 	}

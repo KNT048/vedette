@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
@@ -93,7 +94,7 @@ func (l *sensorLink) Addr() string { return l.ln.Addr().String() }
 // serve serves until Close. The server takes its certificate from the Authority at every handshake (GetCertificate), so the daily
 // renewal needs no restart.
 func (l *sensorLink) serve() error {
-	return l.srv.ServeTLS(sensorlink.LimitListener(l.ln, sensorlink.MaxConns), "", "")
+	return l.srv.ServeTLS(sensorlink.PendingListener(l.ln), "", "")
 }
 
 // close cuts the connections at once: a long poll would otherwise hold the shutdown for its whole wait, and a sensor retries by design.
@@ -104,10 +105,17 @@ const renewEvery = 24 * time.Hour
 
 // coreJobs is the Jobs func of the core entry in wiredModules: the daily renewal of the sensor certificates, when the link exists.
 func coreJobs(d deps) []jobs.Job {
-	if d.Authority == nil {
-		return nil
+	var js []jobs.Job
+	if d.Auth != nil { // the sign-in tables' retention (core CONTRACT INV-30)
+		js = append(js, jobs.Job{Module: "core", Name: "auth-prune", Every: auth.PruneEvery, Run: func(ctx context.Context) error {
+			_, err := d.Auth.Prune(ctx)
+			return err
+		}})
 	}
-	return []jobs.Job{{Module: "core", Name: "sensor-cert-renew", Every: renewEvery, Run: func(ctx context.Context) error {
-		return d.Authority.Renew(ctx, d.SensorCreds)
-	}}}
+	if d.Authority != nil {
+		js = append(js, jobs.Job{Module: "core", Name: "sensor-cert-renew", Every: renewEvery, Run: func(ctx context.Context) error {
+			return d.Authority.Renew(ctx, d.SensorCreds)
+		}})
+	}
+	return js
 }

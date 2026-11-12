@@ -20,7 +20,12 @@ var limitCPUText = "60"
 
 // setLimits lowers the child's own limits (soft = hard, so they cannot be raised again): address space, CPU time, no core file
 // (a core dump would write the untrusted file's memory to disk). RLIMIT_FSIZE is left alone: it would kill the child with SIGXFSZ
-// when stdout is a file, and the child opens no file anyway.
+// when stdout is a file, and the child opens no file anyway. A limit the unit already set lower (LimitCPU=, LimitAS=) is kept: the
+// child takes the lower of the two, as an unprivileged process cannot raise a hard limit.
+//
+// It also makes the child the first pick of the OOM killer (oom_score_adj 1000): if the box or the container's cgroup runs out of
+// memory while a PDF is read, the kernel kills the child, not core. Raising one's own score needs no privilege. ponytail: no nice;
+// on Linux setpriority acts on one thread and the Go runtime runs several, the CPU limit bounds the child anyway.
 //
 // The address-space limit is the size at start plus growthAS, not a bare 512 MiB: a Go process has about 1.2 GB of address space
 // reserved before it runs a line (arena index, spans, stacks; measured with a hello world), so 512 MiB in absolute terms would make the first
@@ -38,11 +43,16 @@ func setLimits() error {
 		res int
 		n   uint64
 	}{{syscall.RLIMIT_AS, base + growthAS}, {syscall.RLIMIT_CPU, cpu}, {syscall.RLIMIT_CORE, 0}} {
-		if err := syscall.Setrlimit(l.res, &syscall.Rlimit{Cur: l.n, Max: l.n}); err != nil {
+		var cur syscall.Rlimit
+		if err := syscall.Getrlimit(l.res, &cur); err != nil {
+			return err
+		}
+		n := min(l.n, cur.Max)
+		if err := syscall.Setrlimit(l.res, &syscall.Rlimit{Cur: n, Max: n}); err != nil {
 			return err
 		}
 	}
-	return nil
+	return os.WriteFile("/proc/self/oom_score_adj", []byte("1000"), 0)
 }
 
 // addressSpace is the current virtual size in bytes: the first field of /proc/self/statm is in pages.

@@ -1,6 +1,7 @@
 package honeypot
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -417,7 +418,8 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		if l := per[svc].last; l != "" {
 			t.LastHitAt = ptr(l)
 		}
-		switch {
+		reason := hv.reason
+		switch up := hv.available && hv.running && hv.services[svc]; {
 		case !tr.enabled:
 			t.State = StateOff
 			if hv.pending && hv.services[svc] {
@@ -425,20 +427,23 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 			}
 		case secConflict:
 			t.State = StateConflict
+			if conflict == nil && out.Problem == nil { // no inventory device to point at (the box's IP, outside the LAN, refused by the host): say why
+				out.Problem = ptr(reasonOrDefault(cmp.Or(w.ipProblem(w.secIP), why)))
+			}
 		case secFailed:
-			t.State = StateFailed
-		case hv.available && hv.running && hv.services[svc]:
+			t.State, reason = StateFailed, why
+		case up && hv.placed[w.secIP]: // the host confirmed it holds the decoy IP, not only that the container runs (#475)
 			t.State = StateListening
 		case hv.pending:
 			t.State = StateStarting
+		case up:
+			// The container runs for the extra decoys the host holds, but the host did not confirm the decoy IP (its
+			// answer was lost, it was busy): asked again at the next Apply.
+			t.State, reason = StateFailed, notConfirmed
 		default:
 			t.State = StateFailed
 		}
 		if t.State == StateFailed && out.Problem == nil {
-			reason := why
-			if !secFailed {
-				reason = hv.reason
-			}
 			if !w.secIP.IsValid() {
 				reason = "no decoy IP is set"
 			}
@@ -469,6 +474,10 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	}
 	return out, nil
 }
+
+// notConfirmed is the reason shown for an address the host has not confirmed it holds (an unknown outcome: no answer,
+// busy); the next Apply asks again.
+const notConfirmed = "the host has not confirmed it holds the address yet; the box asks again"
 
 // reasonOrDefault is the reason shown for a trap that is on but cannot listen when the host gave none.
 func reasonOrDefault(r string) string {

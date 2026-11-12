@@ -118,7 +118,7 @@ PublishPort=514:5514/udp
 PublishPort=514:5514/tcp
 Volume={{.DataDir}}:/var/lib/vedette
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
-Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
 Volume=/run/vedette:/run/vedette
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
@@ -186,7 +186,7 @@ ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
-Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:U
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]
@@ -263,8 +263,9 @@ func RenderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 
 // hpLogVolumeText is the .volume unit of the honeypot's log/ (D-318): constant text, no host.conf id (:U in the honeypot's unit gives
 // the volume to the container's user at start; core reads it through the "other" bits that init.py sets, D-162). Podman's local
-// driver mounts it as a tmpfs with these options when the first container that uses it starts. nosuid, nodev and noexec: nothing
-// in log/ is ever run.
+// driver mounts it as a tmpfs with these options when the first container that uses it starts. Podman's bind of the volume into a
+// container has its own flags and does not carry noexec over (honeypot-check showed it), so both units also say noexec on the
+// Volume= line: nothing in log/ is ever run.
 var hpLogVolumeText = []byte(`[Unit]
 Description=Vedette honeypot log (tmpfs, size-capped)
 

@@ -262,7 +262,7 @@ PublishPort=514:5514/tcp
 Volume=<core_data>:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 # log/ của honeypot là volume tmpfs có trần (D-318), xem vedette-hp-log.volume bên dưới
-Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro
+Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec
 # cả thư mục, không phải tệp socket: bind-mount một tệp giữ inode cũ và mất kết nối khi host tạo lại socket (D-123)
 Volume=/run/vedette:/run/vedette
 # bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
@@ -357,7 +357,7 @@ ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro
-Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U
+Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec
 LogDriver=journald
 PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
 HealthCmd=["/vedette","honeypot","healthcheck"]
@@ -387,7 +387,7 @@ Device=tmpfs
 Options=size=64m,nr_inodes=1024,nosuid,nodev,noexec
 ```
 
-`log/` của honeypot **không còn là thư mục trên đĩa của hộp**: là volume tmpfs tối đa 64 MiB và 1024 tệp (OpenCanary xoay 10 MiB × 3 bản, khoảng 40 MiB, nên đủ chỗ), nên kẻ chiếm container không làm đầy hệ tệp của `vedette.db` bằng cách ghi tệp khác vào `log/` (chạm trần thì `ENOSPC` trong container; không ảnh hưởng gì ngoài nó). `vedette-host` ghi tệp `.volume` từ văn bản hằng, bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core` hoặc `honeypot` (như hai volume khoá, §6.1); không khoá nào khác, không `User=`/`Group=` (`:U` của honeypot đặt chủ). Podman gắn tmpfs khi container đầu tiên dùng volume khởi động; `core` luôn chạy nên volume sống qua việc khởi động lại honeypot. **Log mất khi hộp khởi động lại** (tmpfs): chấp nhận được vì `core` đọc từng dòng vào CSDL và bộ đọc tự bắt đầu lại khi tệp bị thay hay cắt (INV-16). Chỉ dòng chưa kịp đọc (một chu kỳ poll) mất. Đổi trần cần `podman volume rm vedette-hp-log` sau khi dừng `core` và `honeypot`: `podman volume create --ignore` của Quadlet không đổi tuỳ chọn của volume đã có. Thư mục cũ `/var/lib/vedette-honeypot/log` (bản cài trước D-318) không còn được dùng và không bị xoá.
+`log/` của honeypot **không còn là thư mục trên đĩa của hộp**: là volume tmpfs tối đa 64 MiB và 1024 tệp (OpenCanary xoay 10 MiB × 3 bản, khoảng 40 MiB, nên đủ chỗ), nên kẻ chiếm container không làm đầy hệ tệp của `vedette.db` bằng cách ghi tệp khác vào `log/` (chạm trần thì `ENOSPC` trong container; không ảnh hưởng gì ngoài nó). `vedette-host` ghi tệp `.volume` từ văn bản hằng, bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core` hoặc `honeypot` (như hai volume khoá, §6.1); không khoá nào khác, không `User=`/`Group=` (`:U` của honeypot đặt chủ). `noexec` nằm cả trong `Options=` lẫn trên dòng `Volume=` của hai unit: phép bind của Podman vào container có cờ riêng và không mang `noexec` của tmpfs sang (`make honeypot-check` bắt được), nên chỉ dòng `Volume=` mới có hiệu lực trong container. Podman gắn tmpfs khi container đầu tiên dùng volume khởi động; `core` luôn chạy nên volume sống qua việc khởi động lại honeypot. **Log mất khi hộp khởi động lại** (tmpfs): chấp nhận được vì `core` đọc từng dòng vào CSDL và bộ đọc tự bắt đầu lại khi tệp bị thay hay cắt (INV-16). Dòng `core` chưa đọc mất khi `core` và `honeypot` cùng dừng (reboot, hoặc honeypot khởi động lại lúc `core` đang dừng); khi `core` chạy bình thường chỉ mất dòng chưa kịp đọc (một chu kỳ poll). **Hai unit `core` và `honeypot` dùng chung volume này nên phải đổi cùng một lượt**: một unit còn bind thư mục cũ thì `core` đọc tmpfs rỗng trong khi honeypot ghi ra đĩa, và mọi hit mất mà không có lỗi. Bản cài trước D-318 không tự chuyển (unit cũ "không phải của host", INV-17): chạy `vedette-host -bootstrap -force-units` cho **core và honeypot cùng nhau**; bootstrap từ chối (`invalid_args`, trước khi ghi gì) khi chỉ một trong hai được ghi mà unit kia còn bind cũ. Đường ra đĩa còn lại của container bị chiếm là stdout/stderr vào journald (`LogDriver=journald`): bị chặn bởi `SystemMaxUse` của journald (mặc định 10% hệ tệp, tối đa 4 GiB), không phải bởi 64 MiB này. Cả 64 MiB là RAM tính vào cgroup 256 MiB của honeypot (`--memory-swap` bằng `--memory`, không đẩy ra swap được). Đổi trần cần `podman volume rm vedette-hp-log` sau khi dừng `core` và `honeypot`: `podman volume create --ignore` của Quadlet không đổi tuỳ chọn của volume đã có. Thư mục cũ `/var/lib/vedette-honeypot/log` (bản cài trước D-318) không còn được dùng và không bị xoá.
 
 `/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `RunInit=true` và `Image=<ID 64 hex>` của image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); ghim theo ID, D-147), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
 

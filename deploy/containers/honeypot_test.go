@@ -138,8 +138,8 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 			conf = parts[1]
 		case parts[0] == "vedette-hp-log.volume": // the size-capped tmpfs volume of log/ (D-318)
 			log = parts[1]
-			if len(parts) != 3 || parts[2] != "U" {
-				t.Errorf("the log volume %q needs :U so the container's user owns it under UserNS=auto", v)
+			if len(parts) != 3 || parts[2] != "U,noexec" {
+				t.Errorf("the log volume %q needs :U,noexec so the container's user owns it under UserNS=auto", v)
 			}
 		}
 	}

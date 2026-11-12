@@ -145,8 +145,8 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 	return writeAtomicIn(r, name, text, 0o644)
 }
 
-// writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): for
-// core, sensor and scan the two credential .volume units are put in place first (idempotent). Rollback and the recovery of an
+// writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): the
+// .volume units the service mounts (see ensureVolumeUnits) are put in place first (idempotent). Rollback and the recovery of an
 // interrupted change use plain writeUnit: they put back what was there, and a volume unit is not part of what they undo (L5).
 func (o *Ops) writeUnitForStart(service string, text []byte) error {
 	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan || service == api.ServiceHoneypot {

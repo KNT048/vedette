@@ -1307,7 +1307,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			volumes: []string{
 				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
-				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro", // the size-capped tmpfs volume (D-318)
+				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec", // the size-capped tmpfs volume (D-318)
 				"/run/vedette:/run/vedette",
 				keys + "passive.volume:/var/lib/vedette-creds/passive",
 				keys + "active.volume:/var/lib/vedette-creds/active",
@@ -1323,7 +1323,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
 			volumes: []string{
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config:ro",
-				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U",
+				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec",
 			}},
 	}
 	for svc, w := range table {
@@ -1392,8 +1392,9 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			for _, v := range u["Volume"] {
 				parts := strings.Split(v, ":")
 				// "U" (podman gives the volume to the container's user) is for the honeypot's log volume alone (D-162)
-				honeypotLog := svc == api.ServiceHoneypot && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U"
-				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
+				honeypotLog := svc == api.ServiceHoneypot && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec"
+				coreLog := svc == api.ServiceCore && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec"
+				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog && !coreLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
 					t.Errorf("%s: odd Volume line %q", svc, v)
 				}
 				if strings.Contains(v, ".sock") && v != "/run/vedette:/run/vedette" {
@@ -1604,11 +1605,11 @@ func TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs(t *testing.T) {
 		}
 		switch svc {
 		case api.ServiceCore:
-			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro"}) {
+			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec"}) {
 				t.Errorf("core mounts %v, want the log volume read-only", vols)
 			}
 		case api.ServiceHoneypot:
-			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U"}) {
+			if !slices.Equal(vols, []string{"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec"}) {
 				t.Errorf("the honeypot mounts %v, want the log volume", vols)
 			}
 		default:
@@ -1648,7 +1649,11 @@ func TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs(t *testing.T) {
 		t.Fatal(err)
 	}
 	e2.m.InstallUnit(api.ServiceHoneypot, digA, false)
-	_, _ = e2.call(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot})
+	before, _ := e2.m.Unit(api.ServiceHoneypot)
+	e2.final(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceHoneypot, Restart: true}, api.StatusFailed, api.CodeUnitUnsafe)
+	if after, _ := e2.m.Unit(api.ServiceHoneypot); after != before {
+		t.Errorf("the honeypot unit changed after the refusal:\n%s", after)
+	}
 	if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
 		t.Errorf("the host wrote through a link: %q", b)
 	}

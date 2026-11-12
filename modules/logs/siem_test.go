@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +32,22 @@ func goldenRecord() siemRecord {
 	return newSiemRecord("finding.created", "high", t0,
 		siemField{Key: "id", CEF: "externalId", Val: "f-1"}, siemField{Key: "asset_id", Val: "a-1"},
 		siemField{Key: "cve", Val: "CVE-2022-27593"}, siemField{Key: "basis", Val: "kev"})
+}
+
+// The sample of the Logs page says it shows what is sent: it is the bytes of these formatters for the same record (S-LOG-3).
+func TestSiemSampleOfTheGuiIsWhatTheFormattersWrite(t *testing.T) {
+	r := newSiemRecord("finding.created", "high", t0,
+		siemField{Key: "id", CEF: "externalId", Val: "f-1"}, siemField{Key: "asset_id", Val: "a-nas02"},
+		siemField{Key: "cve", Val: "CVE-2022-27593"}, siemField{Key: "basis", Val: "kev"})
+	src, err := os.ReadFile("../../web/src/features/logs/snippets.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"syslog": string(formatSyslog(r, "vedette")), "cef": string(formatCEF(r, "vedette")), "json": string(formatJSON(r, "vedette"))} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("web/src/features/logs/snippets.ts has no %s sample equal to %s", name, want)
+		}
+	}
 }
 
 // Golden bytes: what a SIEM receives, byte for byte, in each format.
@@ -627,9 +644,10 @@ func TestSiemBadConnCarriesBlocked(t *testing.T) {
 	e.svc.siemRunning.Store(true)
 	row, _ := e.svc.loadSiem(t.Context(), e.cfg.Reader(), false)
 	e.svc.siemCache.Store(&row)
-	hit := map[string]any{"id": "b-1", "src_ip": "192.168.10.9", "dest": "a.bad.example.net", "dest_kind": "domain", "seen_via": "syslog:FW", "blocked": true}
+	hit := map[string]any{"id": "b-1", "src_ip": "192.168.10.9", "dest": "a.bad.example.net", "dest_kind": "domain", "seen_via": "syslog:FW", "blocked": true, "listed_as": "bad.example.net"}
 	publish(t, bus, siemEventBadAddress, hit)
 	hit["blocked"] = false
+	hit["listed_as"] = nil // a hit of a name that a feed lists itself: the field is empty
 	publish(t, bus, siemEventBadAddress, hit)
 	delete(hit, "blocked")
 	publish(t, bus, siemEventBadAddress, hit)
@@ -639,6 +657,11 @@ func TestSiemBadConnCarriesBlocked(t *testing.T) {
 	}
 	for i, want := range []string{"true", "false", "false"} {
 		cef, sl, js := string(formatCEF(recs[i], "box")), string(formatSyslog(recs[i], "box")), string(formatJSON(recs[i], "box"))
+		// D-433: listed_as goes out in every format when a parent name is the one listed; an empty field is left out (as asset_id is)
+		has := strings.Contains(sl, ` listed_as="bad.example.net"`) && strings.Contains(js, `"listed_as":"bad.example.net"`) && strings.Contains(cef, "Label=listed_as cs4=bad.example.net")
+		if has != (i == 0) || (i != 0 && (strings.Contains(sl, "listed_as") || strings.Contains(js, "listed_as") || strings.Contains(cef, "listed_as"))) {
+			t.Errorf("record %d listed_as: cef %s syslog %s json %s", i, cef, sl, js)
+		}
 		if strings.Contains(cef, "act=blocked") != (want == "true") || strings.Contains(cef, "act=") != (want == "true") {
 			t.Errorf("record %d cef %s", i, cef)
 		}

@@ -19,6 +19,12 @@ A line that does not have exactly that shape is dropped and counted.
 
 If any child exits, the container exits (the unit restarts it): a half-running honeypot must not look healthy.
 
+On SIGTERM (`systemctl stop`, podman's stop) init asks each child to stop, waits at most STOP_WAIT seconds, kills what is left and exits 0, so a
+normal stop leaves the unit inactive, not failed. A child that cannot be signalled does not stop the others from getting theirs: on Ubuntu 24.04
+(Podman 4.9.3, NoNewPrivileges) init's SIGTERM to a child failed with EACCES, which kill(2) returns only when a security module (AppArmor
+there) refuses the signal, and the traceback ended init with exit 1. Whatever init could not stop ends with the container:
+when process 1 of a PID namespace exits, the kernel kills every process left in it.
+
 4. OpenCanary runs from TWISTD below, which repairs one method of its SSH trap before twistd starts (the files under /opt/opencanary stay as
    PyPI ships them; THIRD_PARTY_NOTICES.md says so).
 """
@@ -45,6 +51,7 @@ MAX_JSON = 1 << 20
 AUDIT_MAX = 1 << 20  # the audit file is a pipe to OpenCanary in memory (tmpfs): replaced when it grows past this
 MAX_LINE = 8192  # a longer line of smbd's output is dropped
 PATH_MAX = 200  # modules/honeypot keeps 200 characters of a file name
+STOP_WAIT = 5  # seconds the children get after SIGTERM; podman's stop timeout (10 s) is the outer bound
 
 TOKEN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$")  # tokenNameRE of modules/honeypot/personality.go
 TOKEN_BODY = b"CONFIDENTIAL - internal use only\r\n"
@@ -164,16 +171,29 @@ def spawn(argv, stdout=None):
                             stderr=subprocess.STDOUT if stdout else None, close_fds=True)  # noqa: S603 - fixed argv, no shell
 
 
+def signal_child(c, sig):
+    """Sends sig to a child that still runs; False when it has ended or the kernel refuses the signal (logged, never raised)."""
+    if c.poll() is not None:
+        return False
+    try:
+        c.send_signal(sig)
+    except ProcessLookupError:
+        return False
+    except OSError as e:
+        say("stop: cannot signal %s (pid %d): %s; it ends with the container" % (c.args[0], c.pid, e))
+        return False
+    return True
+
+
 def stop(children):
-    for c in children:
-        if c.poll() is None:
-            c.terminate()
-    deadline = time.monotonic() + 5
-    for c in children:
+    """Every child gets SIGTERM (one refusal does not skip the rest), then at most STOP_WAIT seconds, then SIGKILL."""
+    sent = [c for c in children if signal_child(c, signal.SIGTERM)]
+    deadline = time.monotonic() + STOP_WAIT
+    for c in sent:
         try:
             c.wait(max(0.1, deadline - time.monotonic()))
         except subprocess.TimeoutExpired:
-            c.kill()
+            signal_child(c, signal.SIGKILL)
 
 
 def main():
@@ -203,6 +223,21 @@ def main():
     open(AUDIT, "ab").close()  # must exist before OpenCanary starts watching it
     plant_tokens(tokens)
 
+    # The handler only notes the signal: the loop below stops the children, outside the handler, so a wait never runs while the
+    # interrupted code holds a child's lock (Popen.poll), and the child check cannot mistake a child that ends on its SIGTERM for a crash.
+    # It is in place before the children start: a stop that comes during the start still ends in the same clean way. The wake-up pipe
+    # ends the loop's select at once instead of at its next timeout.
+    stopping = []
+
+    def on_term(sig, _frm):
+        stopping.append(sig)
+
+    wake, wake_w = os.pipe()
+    os.set_blocking(wake_w, False)
+    signal.set_wakeup_fd(wake_w, warn_on_full_buffer=False)
+    signal.signal(signal.SIGTERM, on_term)
+    signal.signal(signal.SIGINT, on_term)
+
     children = []
     smbd = None
     if smb_on:
@@ -211,22 +246,18 @@ def main():
         children.append(smbd)
     children.append(spawn(["/usr/bin/python3", "-c", TWISTD, "--nodaemon", "--pidfile=",
                            "--python=/opt/opencanary/lib/bin/opencanary.tac"]))
-
-    def on_term(_sig, _frm):
-        stop(children)
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, on_term)
-    signal.signal(signal.SIGINT, on_term)
     say("up: smb=%s, config %s" % (smb_on, CONF))
 
     sel = selectors.DefaultSelector()
     buf = b""
     skipping = False  # inside a line longer than MAX_LINE: dropped up to its newline
+    sel.register(wake, selectors.EVENT_READ)
     if smbd:
         sel.register(smbd.stdout, selectors.EVENT_READ)
-    while True:
-        for _key, _ in sel.select(timeout=1.0):
+    while not stopping:
+        for key, _ in sel.select(timeout=1.0):
+            if key.fileobj == wake:
+                continue  # a signal: on_term has noted it, the loop ends below
             try:
                 data = os.read(smbd.stdout.fileno(), 65536)
             except BlockingIOError:
@@ -255,10 +286,15 @@ def main():
                     dropped += 1  # begins with our token but is not the fixed shape
                     if dropped in (1, 10, 100) or dropped % 1000 == 0:
                         say("%d audit lines dropped (not the fixed shape)" % dropped)
+        if stopping:
+            break
         for c in children:
             if c.poll() is not None:
                 stop(children)
                 die("child %s exited with %s" % (c.args[0], c.returncode))
+    stop(children)
+    say("stopped on signal %d" % stopping[0])
+    sys.exit(0)
 
 
 if __name__ == "__main__":

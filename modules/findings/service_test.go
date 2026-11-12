@@ -628,3 +628,55 @@ func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetV
 	}
 	return f.fakeInv.Assets(ctx, ids)
 }
+
+// D-439: when CISA changes the product of an entry, the finding of the old product stays open and says so once in its
+// history; a list without the CVE judges nothing.
+func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	const q = `SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`
+	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{{CVE: "CVE-2021-44228", Vendor: "Apache", Product: "Log4j"}}); err != nil || e.count(q) != 0 {
+		t.Fatalf("a list without the CVE noted something: %v", err)
+	}
+	for range 2 {
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{moved}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.count(q); n != 1 {
+		t.Fatalf("history rows: %d, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`); n != 1 {
+		t.Fatalf("the finding was closed: %d suspected", n)
+	}
+}
+
+// D-439: match, no longer match, match again: one history row each way, none added by repeated runs.
+func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
+	run := func(v Vuln) {
+		t.Helper()
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{v}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func(a string) int {
+		return e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = '` + a + `'`)
+	}
+	run(moved)
+	run(moved)
+	run(qnapVuln())
+	run(qnapVuln())
+	if count("no_longer_matches") != 1 || count("matches_again") != 1 {
+		t.Fatalf("rows: %d and %d, want 1 and 1", count("no_longer_matches"), count("matches_again"))
+	}
+	run(moved) // flaps again: the newest row is matches_again, so a new note is written
+	if count("no_longer_matches") != 2 {
+		t.Fatalf("second no_longer_matches: %d", count("no_longer_matches"))
+	}
+}

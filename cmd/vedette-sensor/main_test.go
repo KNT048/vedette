@@ -6,10 +6,13 @@ import (
 	"errors"
 	"go/build"
 	"log/slog"
+	"os"
+	"os/exec" //nolint:depguard // the test re-runs its own binary to send main() a real signal; SYS-1 is about the product
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -85,6 +88,52 @@ func TestActiveSubcommandTalksToCore(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("the worker did not stop")
+	}
+}
+
+// The scan unit's stop (podman sends SIGTERM to the container's process 1, podman-init, which passes it on) must end the worker at once
+// with exit 0, so podman never reaches its 10 s SIGKILL and the unit ends inactive. main() runs in a child copy of this test binary,
+// connected and polling, and gets a real SIGTERM.
+func TestActiveExitsZeroAtOnceOnSIGTERM(t *testing.T) {
+	if os.Getenv("VEDETTE_SENSOR_MAIN") == "1" { // the child: main() with the arguments the parent passed
+		heartbeatPath = os.Getenv("VEDETTE_SENSOR_HB")
+		os.Args = append([]string{"vedette-sensor"}, strings.Split(os.Getenv("VEDETTE_SENSOR_ARGS"), "\n")...)
+		main()
+		return
+	}
+	t.Parallel()
+	core := heartbeatCore{beats: make(chan sensorlink.ActiveHeartbeat, 4)}
+	link := linktest.New(t, core)
+	dir := t.TempDir()
+	nmap := filepath.Join(dir, "nmap")
+	exectest.WriteScript(t, nmap, "#!/bin/sh\necho 'Nmap version 7.94SVN ( https://nmap.org )'\n")
+	args := []string{"active", "--core", link.URL, "--creds", link.CredsPath(sensorlink.Active), "--nmap", nmap, "--nuclei-home", filepath.Join(dir, "nuclei")}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestActiveExitsZeroAtOnceOnSIGTERM$") //nolint:gosec // test: re-runs its own binary
+	cmd.Env = append(os.Environ(), "VEDETTE_SENSOR_MAIN=1", "VEDETTE_SENSOR_HB="+filepath.Join(dir, "hb"), "VEDETTE_SENSOR_ARGS="+strings.Join(args, "\n"))
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-core.beats: // running and connected: the signal handler is in place since main's first line
+	case <-time.After(15 * time.Second):
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		t.Fatalf("no heartbeat\n%s", out.String())
+	}
+	start := time.Now()
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	err := cmd.Wait()
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("SIGTERM took %s to end the worker", took)
+	}
+	if err != nil {
+		t.Errorf("exit on SIGTERM: %v, want 0\n%s", err, out.String())
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -75,7 +76,7 @@ func prober(t *testing.T, fs ...*fakeService) *PublicServiceProber {
 		_, port, _ := net.SplitHostPort(addr)
 		return (&net.Dialer{}).DialContext(ctx, network, "127.0.0.1:"+port)
 	}
-	p, err := NewPublicServiceProber(urls, tr, 0)
+	p, err := NewPublicServiceProber(urls, tr, 30*time.Second) // wall clock: a generous ceiling, not a speed check
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,62 +88,92 @@ func round(t *testing.T, p *PublicServiceProber) (netip.Addr, error) {
 	return p.Round(t.Context())
 }
 
+// pipeRound is one round over three in-memory services answering with hs (see pipeProber). Call it inside a bubble.
+func pipeRound(t *testing.T, hs ...http.HandlerFunc) (netip.Addr, error) {
+	t.Helper()
+	return round(t, pipeProber(t, 0, hs...))
+}
+
+// A round over the real loopback TLS: the certificate of every service is verified and each request has a connection of
+// its own. Everything else runs over pipes inside a bubble, so no wall-clock deadline of the machine can fail a test.
+func TestProbe_TLSAndOwnConnections(t *testing.T) {
+	t.Parallel()
+	x, y, z := newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA))
+	p := prober(t, x, y, z)
+	// two rounds, six requests, six connections: nothing is reused (a load balancer may answer differently each time)
+	for range 2 {
+		if a, err := round(t, p); err != nil || a.String() != ipA {
+			t.Fatalf("round = %v %v", a, err)
+		}
+	}
+	for i, f := range []*fakeService{x, y, z} {
+		f.mu.Lock()
+		reqs, conns := len(f.hit), f.conns
+		f.mu.Unlock()
+		if reqs != 2 || conns != 2 {
+			t.Fatalf("service %d: %d connections for %d requests, want 2 for 2", i, conns, reqs)
+		}
+	}
+}
+
 func TestProbe_AllAgree(t *testing.T) {
 	t.Parallel()
-	p := prober(t, newFakeService(t, answer(ipA+"\n")), newFakeService(t, answer(ipA)), newFakeService(t, answer("  "+ipA+" \r\n")))
-	if a, err := round(t, p); err != nil || a.String() != ipA {
-		t.Fatalf("round = %v %v", a, err)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		if a, err := pipeRound(t, answer(ipA+"\n"), answer(ipA), answer("  "+ipA+" \r\n")); err != nil || a.String() != ipA {
+			t.Fatalf("round = %v %v", a, err)
+		}
+	})
 }
 
 func TestProbe_TwoAgreeOneDiffers(t *testing.T) {
 	t.Parallel()
-	for i := range 3 { // whichever one is wrong
-		var fs []*fakeService
-		for j := range 3 {
-			body := ipA
-			if j == i {
-				body = ipB
+	synctest.Test(t, func(t *testing.T) {
+		for i := range 3 { // whichever one is wrong
+			var hs []http.HandlerFunc
+			for j := range 3 {
+				body := ipA
+				if j == i {
+					body = ipB
+				}
+				hs = append(hs, answer(body))
 			}
-			fs = append(fs, newFakeService(t, answer(body)))
+			if a, err := pipeRound(t, hs...); err != nil || a.String() != ipA {
+				t.Fatalf("wrong service %d: %v %v", i, a, err)
+			}
 		}
-		if a, err := round(t, prober(t, fs...)); err != nil || a.String() != ipA {
-			t.Fatalf("wrong service %d: %v %v", i, a, err)
-		}
-	}
+	})
 }
 
 func TestProbe_AllDiffer(t *testing.T) {
 	t.Parallel()
-	p := prober(t, newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)), newFakeService(t, answer(ipC)))
-	if a, err := round(t, p); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
-		t.Fatalf("round = %v %v", a, err)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		if a, err := pipeRound(t, answer(ipA), answer(ipB), answer(ipC)); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
+			t.Fatalf("round = %v %v", a, err)
+		}
+	})
 }
 
 func TestProbe_OneDown(t *testing.T) {
 	t.Parallel()
-	redirect := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/elsewhere", http.StatusFound) }
-	for name, down := range map[string]http.HandlerFunc{"500": status(500), "404": status(404), "garbage": answer("<html>"), "empty": answer(""), "redirect": redirect} {
-		agree := prober(t, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)))
-		if a, err := round(t, agree); err != nil || a.String() != ipA {
-			t.Fatalf("%s + two agree: %v %v", name, a, err)
+	synctest.Test(t, func(t *testing.T) {
+		redirect := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/elsewhere", http.StatusFound) }
+		for name, down := range map[string]http.HandlerFunc{"500": status(500), "404": status(404), "garbage": answer("<html>"), "empty": answer(""), "redirect": redirect} {
+			if a, err := pipeRound(t, down, answer(ipA), answer(ipA)); err != nil || a.String() != ipA {
+				t.Fatalf("%s + two agree: %v %v", name, a, err)
+			}
+			if a, err := pipeRound(t, down, answer(ipA), answer(ipB)); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
+				t.Fatalf("%s + two disagree: %v %v", name, a, err)
+			}
 		}
-		disagree := prober(t, newFakeService(t, down), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipB)))
-		if a, err := round(t, disagree); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
-			t.Fatalf("%s + two disagree: %v %v", name, a, err)
+		// one answer alone is never enough
+		if a, err := pipeRound(t, status(500), status(500), answer(ipA)); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
+			t.Fatalf("a single answer: %v %v", a, err)
 		}
-	}
-	// one answer alone is never enough
-	lone := prober(t, newFakeService(t, status(500)), newFakeService(t, status(500)), newFakeService(t, answer(ipA)))
-	if a, err := round(t, lone); !errors.Is(err, ErrNoAgreement) || a.IsValid() {
-		t.Fatalf("a single answer: %v %v", a, err)
-	}
-	// none answers: the services are down, which is not the same as disagreeing
-	none := prober(t, newFakeService(t, status(500)), newFakeService(t, status(503)), newFakeService(t, answer("nope")))
-	if _, err := round(t, none); !errors.Is(err, ErrServicesDown) {
-		t.Fatalf("all down: %v", err)
-	}
+		// none answers: the services are down, which is not the same as disagreeing
+		if _, err := pipeRound(t, status(500), status(503), answer("nope")); !errors.Is(err, ErrServicesDown) {
+			t.Fatalf("all down: %v", err)
+		}
+	})
 }
 
 // pipeListener hands the server the far end of in-memory connections (net.Pipe), so a synctest bubble holds the client, the
@@ -248,57 +279,46 @@ func TestProbe_DeadlineAndSize(t *testing.T) {
 	})
 }
 
-func TestProbe_NoRedirectsAndOwnConnections(t *testing.T) {
+func TestProbe_NoRedirects(t *testing.T) {
 	t.Parallel()
-	target := newFakeService(t, answer(ipB))
-	redirecting := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.srv.URL, http.StatusFound) }
-	a, b, c := newFakeService(t, redirecting), newFakeService(t, redirecting), newFakeService(t, redirecting)
-	if _, err := round(t, prober(t, a, b, c)); !errors.Is(err, ErrServicesDown) {
-		t.Fatalf("redirects: %v", err)
-	}
-	target.mu.Lock()
-	followed := len(target.hit)
-	target.mu.Unlock()
-	if followed != 0 {
-		t.Fatal("a redirect was followed")
-	}
-	// two rounds, six requests, six connections: nothing is reused (a load balancer may answer differently each time)
-	x, y, z := newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA)), newFakeService(t, answer(ipA))
-	p := prober(t, x, y, z)
-	for range 2 {
-		if _, err := round(t, p); err != nil {
-			t.Fatal(err)
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		var asked []string // every path any service was asked for: a followed redirect shows as /elsewhere
+		redirecting := func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			asked = append(asked, r.URL.Path)
+			mu.Unlock()
+			http.Redirect(w, r, "/elsewhere", http.StatusFound)
 		}
-	}
-	for i, f := range []*fakeService{x, y, z} {
-		f.mu.Lock()
-		reqs, conns := len(f.hit), f.conns
-		f.mu.Unlock()
-		if reqs != 2 || conns != 2 {
-			t.Fatalf("service %d: %d connections for %d requests, want 2 for 2", i, conns, reqs)
+		if _, err := pipeRound(t, redirecting, redirecting, redirecting); !errors.Is(err, ErrServicesDown) {
+			t.Fatalf("redirects: %v", err)
 		}
-	}
+		mu.Lock()
+		defer mu.Unlock()
+		if slices.Contains(asked, "/elsewhere") || len(asked) != 3 {
+			t.Fatalf("a redirect was followed: %v", asked)
+		}
+	})
 }
 
 func TestProbe_NonGlobalAnswersAreRefused(t *testing.T) {
 	t.Parallel()
-	// three services agreeing on something that is not an address of the Internet is no answer at all
-	for _, body := range []string{"127.0.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "fe80::1", "::1", "::", "fe80::1%eth0", "1.2.3", "8.8.8.8 8.8.4.4", "ip=8.8.8.8"} {
-		p := prober(t, newFakeService(t, answer(body)), newFakeService(t, answer(body)), newFakeService(t, answer(body)))
-		if a, err := round(t, p); !errors.Is(err, ErrServicesDown) || a.IsValid() {
-			t.Errorf("%q: %v %v", body, a, err)
+	synctest.Test(t, func(t *testing.T) {
+		// three services agreeing on something that is not an address of the Internet is no answer at all
+		for _, body := range []string{"127.0.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "fe80::1", "::1", "::", "fe80::1%eth0", "1.2.3", "8.8.8.8 8.8.4.4", "ip=8.8.8.8"} {
+			if a, err := pipeRound(t, answer(body), answer(body), answer(body)); !errors.Is(err, ErrServicesDown) || a.IsValid() {
+				t.Errorf("%q: %v %v", body, a, err)
+			}
 		}
-	}
-	// private addresses pass the parser (they are global unicast to net/netip) and are refused later, by INV-3
-	p := prober(t, newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")), newFakeService(t, answer("10.1.2.3")))
-	if a, err := round(t, p); err != nil || a.String() != "10.1.2.3" {
-		t.Fatalf("private: %v %v", a, err)
-	}
-	// an IPv4-mapped IPv6 address and the same IPv4 address vote together
-	p = prober(t, newFakeService(t, answer("::ffff:8.8.8.8")), newFakeService(t, answer("8.8.8.8")), newFakeService(t, answer(ipB)))
-	if a, err := round(t, p); err != nil || a.String() != ipA {
-		t.Fatalf("mapped: %v %v", a, err)
-	}
+		// private addresses pass the parser (they are global unicast to net/netip) and are refused later, by INV-3
+		if a, err := pipeRound(t, answer("10.1.2.3"), answer("10.1.2.3"), answer("10.1.2.3")); err != nil || a.String() != "10.1.2.3" {
+			t.Fatalf("private: %v %v", a, err)
+		}
+		// an IPv4-mapped IPv6 address and the same IPv4 address vote together
+		if a, err := pipeRound(t, answer("::ffff:8.8.8.8"), answer("8.8.8.8"), answer(ipB)); err != nil || a.String() != ipA {
+			t.Fatalf("mapped: %v %v", a, err)
+		}
+	})
 }
 
 func TestProbe_Constructor(t *testing.T) {

@@ -219,7 +219,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	var err error
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
 	notifySvc := newNotify(d)
-	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log}); err != nil {
+	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log, Argon2: d.Argon2}); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
 	if d.Conn, err = newConn(d); err != nil {

@@ -1,19 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
 	"net/netip"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
 // DevicesOfKind reads inventory without the 2000 row cap of the device list (newest first): with 2000 newer devices the oldest one, the
 // gateway, must still be a never-touch device. A cap here dropped it silently, with no error to make the fail-closed path trigger.
-// The inventory is filled through the real observation path, so this test is slow on purpose (about 2000 rows).
+// The 2000 newer devices are planted in one statement, as the discovered rows the observation path leaves (a MAC and an address);
+// recording them through that path took 80 s under -race, the longest test of the package. The premise is checked below either way:
+// the capped device list must no longer hold the gateway.
 func TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -35,23 +38,15 @@ func TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap(t *testing.T) {
 	if !has() {
 		t.Fatal("the FortiGate is not a router/firewall to begin with")
 	}
-	wait := time.NewTimer(10 * time.Millisecond) // every device below is strictly newer than the gateway: the list cap cuts the oldest first
-	select {
-	case <-wait.C:
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	}
-	var batch []observe.Observation
-	for i := range 2000 {
-		ip := netip.AddrFrom4([4]byte{10, 20, byte(i / 250), byte(i%250 + 1)})
-		mac := fmt.Sprintf("02:00:00:00:%02x:%02x", i/256, i%256)
-		batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{IP: ip, MAC: mac}, Field: observe.MAC, Value: mac, Source: observe.Passive, Confidence: 0.9})
-		if len(batch) == 200 {
-			if err := s.d.Inventory.Record(ctx, batch); err != nil {
-				t.Fatal(err)
-			}
-			batch = nil
-		}
+	newer := store.FormatTS(time.Now().Add(time.Minute)) // every planted device is strictly newer than the gateway: the cap cuts the oldest first
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 1999)
+			INSERT INTO inv_asset (id, ip, mac, origin, first_seen, last_seen)
+			SELECT printf('a-planted-%04d', i), printf('10.20.%d.%d', i / 250, i % 250 + 1), printf('02:00:00:00:%02x:%02x', i / 256, i % 256),
+				'discovered', ?, ? FROM n`, newer, newer)
+		return err
+	}); err != nil {
+		t.Fatal(err)
 	}
 	capped, err := s.d.Inventory.Devices(ctx) // the premise: the capped list no longer holds the gateway
 	if err != nil {

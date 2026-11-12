@@ -187,6 +187,7 @@ func TestHoneypotHostCallsAreIdempotent(t *testing.T) {
 // Enable a trap: the decoy address is on the fake machine and the container runs; switching off stops the container and
 // removes the address, and EnsureOff says done only when both happened (a stop that fails keeps the module "turning off").
 func TestHoneypotOverTheRealHostEnableAndSwitchOff(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, false)
 	s := newStackWith(t, func(d *deps) {
 		d.HoneypotDir, d.HostSocket = t.TempDir(), e.h.Socket
@@ -326,6 +327,7 @@ func shortTemp(t *testing.T) string {
 }
 
 func TestHoneypotHostContainerNotInstalled(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, true)
 	st, err := e.adapter().Status(t.Context())
 	if err != nil || st.Available || st.Running || !strings.Contains(st.Reason, "not installed") {
@@ -338,6 +340,7 @@ func TestHoneypotHostContainerNotInstalled(t *testing.T) {
 
 // What the host refuses comes back as a plain sentence with the code, not the host's text.
 func TestHoneypotHostRefusalsArePlain(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, false)
 	err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("10.9.9.9"))
 	if err == nil || !strings.Contains(err.Error(), "outside the network") || !strings.Contains(err.Error(), api.CodeIPNotInMgmtSubnet) {
@@ -387,6 +390,7 @@ func (b *busyAPI) Run(ctx context.Context, command string, args any, requestID, 
 // A busy or rate-limiting host is not waited for and not spun on: one Run call, errHostBusy at once, no refusal, no
 // change; the next call (the next Apply) goes through.
 func TestHoneypotHostBusyIsNotSpunOn(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, false)
 	ip := netip.MustParseAddr("192.168.10.240")
 	for name, mk := range map[string]func() *busyAPI{
@@ -413,6 +417,7 @@ func TestHoneypotHostBusyIsNotSpunOn(t *testing.T) {
 // ARP probe, adding several addresses, starting the container and the steady state of many Applies stay inside them:
 // a run is followed over its event stream, not polled, and addresses and container state are read once.
 func TestHoneypotHostStaysInsideTheHostLimits(t *testing.T) {
+	t.Parallel()
 	e := startHPHostWith(t, false, true, time.Second)
 	a := e.adapter()
 	ctx := t.Context()
@@ -450,6 +455,7 @@ func TestHoneypotHostStaysInsideTheHostLimits(t *testing.T) {
 
 // A run that does not end within runFor is an unknown outcome, not a refusal; a cancelled context is the caller's error.
 func TestHoneypotHostSlowRunAndCancel(t *testing.T) {
+	t.Parallel()
 	e := startHPHostWith(t, false, false, 300*time.Millisecond) // the add is still running when the answer comes
 	a := &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Millisecond, runFor: time.Nanosecond}
 	err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240"))
@@ -498,6 +504,7 @@ func breakingProxy(t *testing.T, target string, broken *atomic.Bool) string {
 // H2 (SYS-5): the host accepted the add, then the follow-up reads failed: the outcome is unknown, not a refusal. The module
 // keeps the address on record and shows no conflict, so switching off still removes it and no decoy is left on the host.
 func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, false)
 	var broken atomic.Bool
 	s := newStackWith(t, func(d *deps) {
@@ -558,6 +565,7 @@ func (c cutOffAPI) GetRun(ctx context.Context, runID string) (api.Run, error) {
 // A run cut off by a host restart (or a timeout, a failure of the host itself) may have done its work: it is an unknown
 // outcome, never a refusal, so the module keeps the address on record and the teardown removes the decoy the host made.
 func TestHoneypotHostCutOffRunIsUnknown(t *testing.T) {
+	t.Parallel()
 	e := startHPHost(t, false)
 	ip := netip.MustParseAddr("192.168.10.241")
 	a := &honeypotHost{api: cutOffAPI{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
@@ -576,6 +584,7 @@ func TestHoneypotHostCutOffRunIsUnknown(t *testing.T) {
 // A module on with no trap (or every address refused) asks for the stop at every Apply: after the first persisted stop,
 // with the container seen not running, the next stops cost no write; a start in between makes the next stop real again.
 func TestHoneypotHostStopIsNotRepeated(t *testing.T) {
+	t.Parallel()
 	e := startHPHostWith(t, false, true, 0)
 	a := e.adapter()
 	ctx := t.Context()

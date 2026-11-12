@@ -178,6 +178,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	dir := t.TempDir()
 	db, key := filepath.Join(dir, "vedette.db"), filepath.Join(dir, "vedette.key")
 	args := []string{"-db", db, "-key", key, "-listen", "127.0.0.1:0", "-honeypot-dir", filepath.Join(dir, "hp"), "-host-socket", ""}
+	seedMigrated(t, db) // the first start finds the schema (a box restarted before its setup); the restart after the purge is the real one
 
 	boot := func() (addr string, lines <-chan string, done <-chan error, stop func()) {
 		ctx, cancel := context.WithCancel(t.Context())
@@ -661,16 +662,15 @@ func rowValue(t *testing.T, path, query string) string {
 func rowCounts(t *testing.T, path string, migrate bool) map[string]int {
 	t.Helper()
 	ctx := t.Context()
-	db, err := store.Open(ctx, path, slog.New(slog.DiscardHandler))
+	open := store.Open
+	if migrate {
+		open = openMigrated
+	}
+	db, err := open(ctx, path, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
-	if migrate {
-		if err := migrateAll(ctx, db, wiredModules()); err != nil {
-			t.Fatal(err)
-		}
-	}
 	rows, err := db.Reader().QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'core_migration_*'`)
 	if err != nil {
 		t.Fatal(err)

@@ -40,9 +40,10 @@ func TestIOCChunksDropVanishedRowsOnlyAfterTheLastChunk(t *testing.T) {
 	}
 	o.body("/et.txt", `"e2"`, testIPs(n)+more)
 	e.setNow(e.clock().Add(7 * time.Hour))
+	last := (n+100+iocChunkRows-1)/iocChunkRows - 1 // the index of the last chunk of the new list
 	var seen []int
 	e.svc.afterChunk = func(chunk int) {
-		if chunk < 2 { // before the final transaction: nothing is gone yet, the new rows are arriving
+		if chunk < last { // before the final transaction: nothing is gone yet, the new rows are arriving
 			seen = append(seen, listings(t, e))
 		}
 	}
@@ -55,8 +56,8 @@ func TestIOCChunksDropVanishedRowsOnlyAfterTheLastChunk(t *testing.T) {
 			t.Errorf("a reader saw %d listings during the pull, fewer than the %d before it", got, n+300)
 		}
 	}
-	if len(seen) != 2 {
-		t.Errorf("hook ran %d times before chunk 2", len(seen))
+	if len(seen) != last || last < 2 {
+		t.Errorf("hook ran %d times before chunk %d", len(seen), last)
 	}
 	if got := listings(t, e); got != n+100 {
 		t.Errorf("after the pull: %d listings, want %d", got, n+100)

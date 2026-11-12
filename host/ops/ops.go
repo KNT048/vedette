@@ -64,18 +64,21 @@ type Config struct {
 // Deps are the seams of tests. The binary calls New, which fills the production values; a request
 // can never reach any of this.
 type Deps struct {
-	Root         string            // prefix of every fixed system path ("/" in production)
-	BinPaths     map[string]string // replaces the constant path of a binary by name; the validators stay
-	Now          func() time.Time
-	LockHeld     func(path string) (bool, error)                    // is a dpkg/apt lock file held by another process
-	NetPending   func() bool                                        // a network change waits for confirmation (default: the server has a run in awaiting_confirm)
-	AfterFunc    func(d time.Duration, f func()) (stop func() bool) // arms the scheduled-reboot and export-sweep timers
-	Installing   *atomic.Bool                                       // set while os.install runs; a test may pass its own to raise it
-	FreeBytes    func(path string) (uint64, error)                  // free space of the filesystem holding path
-	ExportLimit  int64                                              // bytes of journal text one export may hold (default 256 MiB)
-	CoreWait     time.Duration                                      // how long core may take to stop or start (default 2 min)
-	CorePoll     time.Duration                                      // how often to look (default 1 s)
-	HealthSettle time.Duration                                      // core must stay active this long after a start (default 5 s)
+	Root       string            // prefix of every fixed system path ("/" in production)
+	BinPaths   map[string]string // replaces the constant path of a binary by name; the validators stay
+	Now        func() time.Time
+	LockHeld   func(path string) (bool, error)                    // is a dpkg/apt lock file held by another process
+	NetPending func() bool                                        // a network change waits for confirmation (default: the server has a run in awaiting_confirm)
+	AfterFunc  func(d time.Duration, f func()) (stop func() bool) // arms the scheduled-reboot and export-sweep timers
+	// FwdAfter arms the look at the Docker forward rules (D-267); its own seam so that the tests that count
+	// the timers of AfterFunc do not see it. Default: a real timer.
+	FwdAfter     func(d time.Duration, f func()) (stop func() bool)
+	Installing   *atomic.Bool                      // set while os.install runs; a test may pass its own to raise it
+	FreeBytes    func(path string) (uint64, error) // free space of the filesystem holding path
+	ExportLimit  int64                             // bytes of journal text one export may hold (default 256 MiB)
+	CoreWait     time.Duration                     // how long core may take to stop or start (default 2 min)
+	CorePoll     time.Duration                     // how often to look (default 1 s)
+	HealthSettle time.Duration                     // core must stay active this long after a start (default 5 s)
 	// ChainTop ends the walk over the parents of core_data after this directory (tests: the test's temp dir,
 	// whose own parent may be a sticky, world-writable /tmp on Linux). Unset in production: the walk goes up
 	// to "/" and every parent must be root-owned and closed to group and others.
@@ -168,6 +171,11 @@ type Ops struct {
 	// Container commands run one at a time under the server's write lock; Start runs before the
 	// server listens. Nothing else touches containers/ (no mutex of its own).
 
+	// The Docker forward rules (dockerfwd.go, D-267); all three are guarded by mu.
+	fwdLast string      // the state of the last look: a log line is written only when it changes
+	fwdOff  func() bool // stops the timer of the next look
+	closed  bool        // Close ran: no more looks are armed
+
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
 }
@@ -214,6 +222,9 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	}
 	if d.AfterFunc == nil {
 		d.AfterFunc = func(dur time.Duration, f func()) func() bool { return time.AfterFunc(dur, f).Stop }
+	}
+	if d.FwdAfter == nil {
+		d.FwdAfter = func(dur time.Duration, f func()) func() bool { return time.AfterFunc(dur, f).Stop }
 	}
 	if d.Installing == nil {
 		d.Installing = new(atomic.Bool)
@@ -388,6 +399,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()
+	o.armDockerFwd(ctx)
 	wctx, cancel := context.WithCancel(ctx)
 	o.mu.Lock()
 	o.watchOff = cancel
@@ -406,6 +418,11 @@ func (o *Ops) Close() {
 	o.rbMu.Unlock()
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	o.closed = true
+	if o.fwdOff != nil {
+		o.fwdOff()
+		o.fwdOff = nil
+	}
 	if o.watchOff != nil {
 		o.watchOff()
 		o.watchOff = nil

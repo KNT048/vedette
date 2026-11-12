@@ -93,7 +93,7 @@ func (l *sensorLink) Addr() string { return l.ln.Addr().String() }
 // serve serves until Close. The server takes its certificate from the Authority at every handshake (GetCertificate), so the daily
 // renewal needs no restart.
 func (l *sensorLink) serve() error {
-	return l.srv.ServeTLS(sensorlink.LimitListener(l.ln, sensorlink.MaxConns), "", "")
+	return l.srv.ServeTLS(sensorlink.PendingListener(l.ln), "", "")
 }
 
 // close cuts the connections at once: a long poll would otherwise hold the shutdown for its whole wait, and a sensor retries by design.

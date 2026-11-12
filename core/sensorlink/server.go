@@ -187,10 +187,10 @@ func (s *Server) HTTPServer(addr string) *http.Server {
 	}
 }
 
-// Serve serves the protocol on l until it is closed: at most MaxConns connections at once (a connection that is refused its
-// slot waits in the kernel's accept queue; nothing is read from it), then the TLS and HTTP of HTTPServer.
+// Serve serves the protocol on l until it is closed: PendingListener (at most MaxPending connections in their handshake, then
+// each in its role's share; MaxConns in all), then the TLS and HTTP of HTTPServer.
 func (s *Server) Serve(l net.Listener) error {
-	return s.HTTPServer("").ServeTLS(LimitListener(l, MaxConns), "", "")
+	return s.HTTPServer("").ServeTLS(PendingListener(l), "", "")
 }
 
 // takeBody takes the slot a request needs before its body is read: one of MaxBodiesPerRole for the role, and for a result also

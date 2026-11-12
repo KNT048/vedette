@@ -33,6 +33,7 @@ const (
 	seenAhead      = 5 * time.Minute  // and one further in the future
 	keptEpochs     = 2                // epochs remembered per sensor
 	defaultRecheck = 5 * time.Second  // how often an open config long poll looks again at what the admin chose
+	notReadyRetry  = 5 * time.Second  // Retry-After of 503 not_ready: the box's own cards are not known yet (D-385)
 )
 
 // Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9).

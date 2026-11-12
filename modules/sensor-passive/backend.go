@@ -202,8 +202,11 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 		return sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: []sensorlink.Rejected{}}, nil
 	}
 	box, err := s.boxAddresses(ctx)
-	if err != nil {
-		return busy(err)
+	if err != nil { // not the items' fault: 503 not_ready, which the sensor retries whole and never splits (D-385)
+		s.log.WarnContext(ctx, "sensor-passive: batch not applied until the box's own cards are known; the sensor will send it again", "error", err)
+		e := sensorlink.NewError(sensorlink.CodeNotReady)
+		e.RetryAfter = notReadyRetry
+		return sensorlink.ObservationsReply{}, e
 	}
 	now := s.clock()
 	if now.Sub(s.winStart) >= time.Minute {

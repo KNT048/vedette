@@ -875,7 +875,7 @@ func TestItemsAboutTheBoxAreRefused(t *testing.T) {
 }
 
 // Container-only (D-385): without a host the box's own cards are those of the sensor's heartbeat of the last 90 s, never the
-// core container's. No such heartbeat → the batch is not applied (503 store_busy, the sensor sends it again), and an old
+// core container's. No such heartbeat → the batch is not applied (503 not_ready: the sensor sends it again whole), and an old
 // heartbeat lets no card be chosen either. With a host, the host's cards decide and the heartbeat's do not (D-118).
 func TestNoHostTheBoxIsWhatTheFreshHeartbeatReports(t *testing.T) {
 	t.Parallel()
@@ -897,8 +897,8 @@ func TestNoHostTheBoxIsWhatTheFreshHeartbeatReports(t *testing.T) {
 	busy := func(what string, err error) {
 		t.Helper()
 		var se *sensorlink.Error
-		if !errors.As(err, &se) || se.Code != sensorlink.CodeStoreBusy {
-			t.Fatalf("%s: %v, want store_busy", what, err)
+		if !errors.As(err, &se) || se.Code != sensorlink.CodeNotReady || se.Status != 503 || se.RetryAfter <= 0 {
+			t.Fatalf("%s: %v, want 503 not_ready with a Retry-After", what, err)
 		}
 	}
 	_, err := batch(1)

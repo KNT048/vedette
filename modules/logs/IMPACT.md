@@ -18,14 +18,14 @@
 
 ## Modifying: bảng `logs_ioc_hits` (L4, `logs.db`, migration `volume/0005`), sự kiện `logs.ioc_hit.detected` và `logs.bad_address.detected`
 - **logs** (`iochits.go`: `storeIOC`, `iocHits`; `purge.go` `dropStale` xoá hit quá `retention_days`; `anomaly.go`/digest không đọc bảng này qua ảnh chụp). Migration chỉ thêm (D-151). Bảng không có `asset_id` (INV-7): thêm cột thiết bị là lưu dữ liệu cũ khi thiết bị đổi tên. Trần `MaxIocRows`, `MaxIocHitsPerBatch`, `IocEventsPerHour`, `IocDedupe` là cái người dùng thấy (nhiều hay ít hit) và là việc của đường nóng.
-- **notify** (`logs.bad_address.detected` → `logEvent`, loại `bad_address`; khoá gộp (loại, `source` = "logs", `target` = `ioc:<đích>`)): đổi tên trường hay `target` đổi cách gộp incident; `title` > 200 ký tự bị từ chối cả incident. **response** (`logs.ioc_hit.detected` → trigger `ioc_connection`; **chưa nối**: việc của Kiên ở `cmd/vedette/response.go`, xem `.ai/deferred/feat-logs-l4-ioc.md`). **SIEM của logs** (`siem_run.go`): `bad_conn` đọc `id, src_ip, dest, dest_kind, seen_via, asset_id`; lớp `alerts` bỏ incident `bad_address` khi `bad_conn` bật (đổi tên loại incident ở notify → bản ghi gửi hai lần trở lại).
+- **notify** (`logs.bad_address.detected` → `logEvent`, loại `bad_address`; khoá gộp (loại, `source` = "logs", `target` = `ioc:<đích>`)): đổi tên trường hay `target` đổi cách gộp incident; `title` > 200 ký tự bị từ chối cả incident. **response** (`logs.ioc_hit.detected` → trigger `ioc_connection` ở `modules/response/events.go` `iocEvent`, #376, D-335; và bằng chứng `ioc_hit` của đề xuất AI qua `logsIocEvidence` nối ở `cmd/vedette/response.go`, D-337: đổi tên trường của sự kiện hay của `IocHit` là đổi trigger và bằng chứng). **SIEM của logs** (`siem_run.go`): `bad_conn` đọc `id, src_ip, dest, dest_kind, seen_via, asset_id`; lớp `alerts` bỏ incident `bad_address` khi `bad_conn` bật (đổi tên loại incident ở notify → bản ghi gửi hai lần trở lại).
 - **core/export_policy**: không có dòng mới (bảng ở `logs.db`, không ở cơ sở chính, như `logs_events`).
 
 ## Modifying: nguồn xuất `known_bad` (`ExportKnownBad`, L4) — đăng ký ở `registerLogSources` (`cmd/vedette/logexport.go`)
 - **core/logexport**: danh mục `known_bad` hết "missing" (`TestLogSourcesRegisteredByTheBinary`); đổi tên cột của `logs_ioc_hits` là đổi tệp xuất; không có trần byte riêng vì bảng bị chặn ở `MaxIocRows`.
 
 ## Modifying: `IocHit(ctx, id) (IocHit, bool, error)` và `IocHits(ctx, since time.Time, minConf float64) ([]IocHit, error)` — người gọi
-- **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1 ↔ 0..100; trigger field `confidence` của response là 0..100) → ngưỡng `gte 80` sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.
+- **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1; trigger field `confidence` của response cũng là 0..1, D-57 (13)) → ngưỡng của quy tắc (vd. `gte 0.8`) sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.
 - **notify** (cảnh báo kết nối xấu): đổi trường → nội dung tin sai.
 - **ai** (`ask-my-data`, `log-investigate` qua công cụ chỉ-đọc).
 
@@ -68,12 +68,14 @@
 ## Disabling this module
 - Trang Logs, mục Cài đặt → SIEM, panel AI digest trong `logs.panels` trống/"đang tắt".
 - `response`: trigger `ioc_connection`, `log_threshold`; mẫu `tpl-ioc-*`, `tpl-vpn-ban`, `tpl-ssh-acl`, `tpl-iot-shut` không có sự kiện. `notify`: mất cảnh báo kết nối xấu. `ai`: mất `log-digest`/`log-investigate`.
-- Cổng 514/6514 đóng; thiết bị đang gửi syslog bị từ chối kết nối. `logs_*` giữ nguyên.
+- Cổng 514/6514 (trong container 5514/5515) đóng; thiết bị đang gửi syslog bị từ chối kết nối. `logs_*` giữ nguyên.
 
 ## Modifying: `modules/logs/listen` (L2) — gói không có cơ sở dữ liệu, sẽ chạy trong `vedette-sensor` ở L6
 - **logs** (`listener.go`): `listen.Server`, `Config`, `Limits`, `Source`, `Line`, `Status`, `Stats`. Gói **không được import `database/sql` hay `core/store`** (nó phải chuyển sang sensor không đổi mã, như `sensor-passive/capture`); mọi thứ lưu trữ đi qua `Sink` → `Service.Ingest`. Đổi `Line` là đổi `Service.sink`. Một lô tối đa 500 dòng khớp `MaxBatch` của `Ingest`: nâng một bên mà không nâng bên kia làm `ErrBatchTooLarge` và mất lô.
 - **Giới hạn** (`Limits`): đổi là đổi bộ nhớ và độ chịu lũ của hộp: 1.000 kết nối × bộ đệm 4 KiB, hàng đợi 4.096 dòng × tối đa 8 KiB. Dòng cắt ở 8 KiB rồi `Ingest` cắt ở 2 KiB: giảm `MaxLine` xuống dưới 2 KiB làm mất chữ đã lưu được.
 - **Job `syslog`** (`Jobs`): không `Housekeeping`. Đổi thành housekeeping là mở cổng khi module tắt (SYS-5); `TestNoSocketWhileTheModuleIsOff` chặn. Thêm/sửa/xoá nguồn gọi `sourcesChanged`: một đường sửa nguồn mới (import hàng loạt) phải gọi nó, nếu không socket chỉ theo sau khi có một lần đánh thức khác hoặc khi job khởi động lại (job không tự đọc lại nguồn; nó chỉ thử lại socket lỗi và lần đọc nguồn lỗi mỗi 30 giây).
 - **cmd/vedette**: cờ `-syslog-port` và `deps.SyslogPort` (Kiên sở hữu Quadlet của `core`: cổng 514 cần quyền bind hoặc publish cổng; không có thì dùng 5514 và phải publish `5514/udp`, `5514/tcp`). `logsJobs` giờ trả hai job.
+- **TLS (D-214)**: `listen.Config.TLS` (từ `logs.SyslogConfig.TLS`, `deps.SyslogTLS` ở `cmd/vedette`); cổng TLS suy ra từ cổng thường (514 -> 6514, p -> p+1: core chạy 5514 nên 5515; đổi `-syslog-port` là đổi cổng TLS và `PublishPort=6514:5515/tcp` của unit `core` phải theo). `Server.Addrs()` không đổi, socket TLS qua `TLSAddr()`. `Status`/`Stats` có thêm `TLS`, `TLSPort`, `TLSErr`, `HandshakeFailed`; `normalize` nhận `tlsOK`. Gỡ `tls_unavailable` cho hộp có cấu hình TLS làm đổi mọi nơi giả định "real từ chối tls" (e2e hộp HTTP thường vẫn từ chối).
+- **Đóng kết nối TLS**: `closeNow` (đóng socket thô), không `tls.Conn.Close`, ở `applyLocked`/`closeLocked`/watcher tắt máy: người gửi TLS không đọc làm `Close` treo dưới `s.mu` (D-214 (3b)); `TestAStuckTLS*` chặn. Hạn idle/frame đặt bằng `SetDeadline` (cả hai chiều).
 - **Hộp**: một cổng cho UDP và TCP, mọi địa chỉ IPv4. Tường lửa/NAT của hộp phải cho thiết bị tới cổng đó; listener không tự mở gì ngoài socket.
 - **web/features/logs**: trang Nguồn nói thiết bị gửi tới cổng của nguồn (mặc định 514) trong khi hộp có thể nghe ở 5514: GUI chưa biết cổng thật (dòng hoãn của L2, cần tiêu chí story).

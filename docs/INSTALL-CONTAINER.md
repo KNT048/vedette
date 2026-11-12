@@ -50,7 +50,7 @@ VEDETTE_BIND_IP=192.168.10.5        # the address of THIS machine the web page i
 VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browser; comma separated for several
 ```
 
-Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443 or 514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
+Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate; any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
 Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
@@ -71,7 +71,7 @@ Check from another machine that only what you meant is open (`nmap` is yours to 
 ```sh
 # Passive sensor and scan worker (Linux, Docker or Podman as root; not rootless, not Docker Desktop)
 docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up -d
-# Syslog from your devices (UDP and TCP 514 on VEDETTE_BIND_IP)
+# Syslog from your devices (UDP and TCP 514, TLS 6514/tcp, on VEDETTE_BIND_IP)
 docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
 ```
 

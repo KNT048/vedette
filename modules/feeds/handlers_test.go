@@ -134,7 +134,7 @@ func newEnv(t *testing.T) *env {
 // newEnvFetcher is newEnv with the given fetcher (pull tests point it at an httptest server).
 func newEnvFetcher(t *testing.T, f Fetcher) *env {
 	t.Helper()
-	_, db := newStore(t)
+	db := migratedDB(t) // e.svc.Seed below seeds the built-in feeds, as the box does
 	key := make([]byte, secrets.KeySize)
 	sec, err := secrets.New(key)
 	if err != nil {

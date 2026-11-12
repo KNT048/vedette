@@ -491,6 +491,7 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 	return core.NewOSHandlers(core.OSConfig{
 		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, DataDir: d.DataDir, KeyPath: d.KeyPath,
 		Zone: d.Core.OrgTimeZone, Clock: d.Clock, Gate: d.PurgeGate,
+		Version: version, // the software update check: release documents from core.DefaultReleaseBase with core's own client and the embedded keys (D-341)
 	})
 }
 

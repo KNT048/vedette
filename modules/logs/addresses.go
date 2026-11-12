@@ -234,7 +234,7 @@ func (s *Service) pendingOf(k pendKey) int {
 // gets its row at its second line, with the count it really sent; and a row is never above the lines its address sent (nothing is invented
 // to fill a row), so a one-line spoof can never look like an attacker. Groups are handled in key order, so that the same input gives the
 // same table. commit gets the new in-memory counts: the caller applies them when the batch is stored.
-func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketKey]addrGroup, commit *pendingUpdate) error {
+func (s *Service) storeAddrs(ctx context.Context, ps *prepared, groups map[bucketKey]addrGroup, commit *pendingUpdate) error {
 	commit.set = map[pendKey]int{}
 	keys := make([]bucketKey, 0, len(groups))
 	for k := range groups {
@@ -245,7 +245,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 	})
 	loaded := map[[2]string]*addrBucket{}
 	for _, k := range keys {
-		sb, err := s.loadAddrBucket(ctx, tx, loaded, k.source, k.bucket)
+		sb, err := s.loadAddrBucket(ctx, ps.tx, loaded, k.source, k.bucket)
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 		pk := func(a netip.Addr) pendKey { return pendKey{k.source, k.bucket, h, a} }
 		for a, n := range groups[k] {
 			if i := slices.IndexFunc(have, func(r addrRow) bool { return r.addr == a }); i >= 0 {
-				if _, err := tx.ExecContext(ctx, bumpAddr, k.bucket, k.source, h, a.AsSlice(), n); err != nil {
+				if _, err := ps.exec(ctx, bumpAddr, k.bucket, k.source, h, a.AsSlice(), n); err != nil {
 					return fmt.Errorf("logs: counting an address: %w", err)
 				}
 				have[i].count += n
@@ -273,7 +273,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 					commit.set[pk(c.addr)] = c.count
 					continue
 				}
-				if _, err := tx.ExecContext(ctx, deleteAddr, k.bucket, k.source, h, have[i].addr.AsSlice()); err != nil {
+				if _, err := ps.exec(ctx, deleteAddr, k.bucket, k.source, h, have[i].addr.AsSlice()); err != nil {
 					return fmt.Errorf("logs: replacing an address: %w", err)
 				}
 				have = slices.Delete(have, i, i+1)
@@ -287,7 +287,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 					commit.set[pk(c.addr)] = c.count
 					continue
 				}
-				if _, err := tx.ExecContext(ctx, deleteAddr, k.bucket, k.source, vh, v.addr.AsSlice()); err != nil {
+				if _, err := ps.exec(ctx, deleteAddr, k.bucket, k.source, vh, v.addr.AsSlice()); err != nil {
 					return fmt.Errorf("logs: replacing an address: %w", err)
 				}
 				sb.bySig[vh] = slices.DeleteFunc(sb.bySig[vh], func(r addrRow) bool { return r.addr == v.addr })
@@ -296,7 +296,7 @@ func (s *Service) storeAddrs(ctx context.Context, tx *sql.Tx, groups map[bucketK
 				}
 				sb.total--
 			}
-			if _, err := tx.ExecContext(ctx, insertAddr, k.bucket, k.source, h, c.addr.AsSlice(), c.count); err != nil {
+			if _, err := ps.exec(ctx, insertAddr, k.bucket, k.source, h, c.addr.AsSlice(), c.count); err != nil {
 				return fmt.Errorf("logs: counting an address: %w", err)
 			}
 			commit.set[pk(c.addr)] = 0 // it has a row now

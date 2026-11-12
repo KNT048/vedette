@@ -109,7 +109,7 @@ test.describe('operator, day to day', () => {
     await picker.fill(many)
     await expect(dialog.getByRole('option').first()).toBeVisible()
     expect(await dialog.getByRole('option').count()).toBeLessThanOrEqual(30)
-    await expect(dialog.getByText(/\d+ more match\. Keep typing to narrow the list\./)).toBeVisible()
+    await expect(dialog.getByText(/\d+ more matche?s?\. Keep typing to narrow the list\./)).toBeVisible()
     await shot(page, 'real-inventory', 'picker-many')
     await expectAccessible(page, 'picker open')
     await picker.fill('zzzzqqq')

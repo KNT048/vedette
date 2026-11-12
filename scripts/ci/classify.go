@@ -97,20 +97,20 @@ func ClassifyAll(paths []string) Result {
 	return out
 }
 
-// Outputs are the job switches CI reads: Go is go-static and go-release, Tests is go-test.
+// Outputs are the job switches CI reads: Go is go-static, go-lint and go-release, Tests is go-test.
 type Outputs struct{ Go, Tests, Web, Vuln, Audit bool }
 
 // Decide maps the event and the changed paths to job switches. diffOK is false when the diff could not be
-// computed; then everything runs. A pull request is narrowed by its paths. A push to main runs only go-test (D-365):
-// the merge queue already ran every job on that exact tree, and the push run is what saves main's Go test cache, the
-// only cache pull requests and the queue can restore. The daily schedule runs everything, uncached and shuffled
+// computed; then everything runs. A pull request is narrowed by its paths. A push to main runs the Go jobs but no
+// vulnerability scan and no web (D-365, D-372): the merge queue already ran every job on that exact tree, and the push run
+// is what saves main's Go caches (go-test's, go-static's, golangci-lint's), the only caches pull requests and the queue can restore. The daily schedule runs everything, uncached and shuffled
 // (ci.yml passes -count=2 -shuffle=on), plus both vulnerability scans. workflow_dispatch, merge_group and any unknown event run everything.
 func Decide(event string, changed []string, diffOK bool) Outputs {
 	switch {
 	case event == "schedule":
 		return Outputs{Go: true, Tests: true, Web: true, Vuln: true, Audit: true}
 	case event == "push":
-		return Outputs{Tests: true}
+		return Outputs{Go: true, Tests: true}
 	case event == "pull_request" && diffOK:
 		c := ClassifyAll(changed)
 		return Outputs{Go: c.Go, Tests: c.Go, Web: c.Web, Vuln: c.Go}

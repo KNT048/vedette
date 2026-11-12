@@ -40,7 +40,7 @@ help:
 	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
-	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
+	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race (gồm contract), golangci-lint, govulncheck"
 	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   các phần của verify-go mà CI chạy song song (D-140)"
 	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
 	@echo "make contract      go test ./modules/... -run Contract"
@@ -97,16 +97,18 @@ verify-web: node-version-check
 	$(MAKE) clean
 
 verify-go: verify-go-static
-	$(MAKE) test-go vuln
+	$(MAKE) lint-go test-go vuln
 	$(MAKE) clean
 
-# CI job "go-static" (D-140): everything in verify-go except the tests and govulncheck, which run in their own jobs.
+# CI job "go-static" (D-140): everything in verify-go except golangci-lint (job go-lint), the tests and govulncheck. No
+# `make contract` (D-372): go-test runs every TestContract… already, with -race on the merge queue; `make contract` stays for check.
 verify-go-static:
 	go build ./...
 	go vet ./...
-	$(MAKE) generate-check contract lint-go test-go-shards-check
+	$(MAKE) generate-check test-go-shards-check
 	$(MAKE) notices-check NOTICES_WEB_LICENSES=0
 	bash scripts/dev/orphan-reaper-test.sh
+	bash scripts/dev/lab-vm-test.sh
 
 # Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen (D-60). Không sửa tay.
 generate: generate-sql generate-api
@@ -145,6 +147,7 @@ test-go-release:
 	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
+# RACE= drops the race detector: a pull request's go-test does (D-371); the merge queue, main and the daily run keep -race.
 # scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
 # exactly one shard. The shard's packages may come from go test's cache, except those whose tests read files through a child
 # process (go build, go list), which the cache cannot see: they always run (`ci shard I N uncached`, D-365). GOTESTFLAGS adds go
@@ -152,11 +155,12 @@ test-go-release:
 # -timeout 18m (the job allows 20 m) is a stopgap: modules/response alone passes go test's default 10 m under -race on CI and turned
 # main red (2026-11-12). The real fix is fast response tests (branch fix/storetest-sync-off, target < 120 s); then lower it.
 SHARDS ?= 4
+RACE ?= -race
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
 	@c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
-	s=0; if [ -n "$$c" ]; then go test -race -timeout 18m $(GOTESTFLAGS) $$c || s=1; fi; \
-	if [ -n "$$u" ]; then go test -race -count=1 -timeout 18m $(GOTESTFLAGS) $$u || s=1; fi; exit $$s
+	s=0; if [ -n "$$c" ]; then go test $(RACE) -timeout 18m $(GOTESTFLAGS) $$c || s=1; fi; \
+	if [ -n "$$u" ]; then go test $(RACE) -count=1 -timeout 18m $(GOTESTFLAGS) $$u || s=1; fi; exit $$s
 
 # The shards together must be exactly `go list ./...` (no package lost, none twice).
 test-go-shards-check:

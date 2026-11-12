@@ -234,8 +234,9 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		}
 		return strings.TrimSpace(m[1])
 	}
+	// D-365, D-372: every actions/cache cache is a restore step and a save step, and only main saves (a pull request or a merge_group ref
+	// would fill the repository's 10 GB with copies nobody else may read, pushing out main's).
 	var restore, save []string
-	sawLint := false
 	for _, s := range steps {
 		switch {
 		case strings.Contains(s, "actions/cache/restore@"):
@@ -243,24 +244,37 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		case strings.Contains(s, "actions/cache/save@"):
 			save = append(save, s)
 		case strings.Contains(s, "actions/cache@"):
-			sawLint = sawLint || strings.Contains(s, "golangci-lint")
-			if strings.Contains(s, "go-build") {
-				t.Errorf("a restore-and-save actions/cache step holds the Go build cache, so pull requests would save copies:\n%s", s)
-			}
+			t.Errorf("a restore-and-save actions/cache step saves on every run, pull requests included:\n%s", s)
 		}
 	}
-	if !sawLint {
-		t.Error("guard is blind: the golangci-lint actions/cache step was not found")
+	saved := map[string]string{} // key -> path
+	for _, s := range save {
+		if got := field(s, "if"); got != "github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')" {
+			t.Errorf("a cache must be saved on main only (push or schedule), not when %q:\n%s", got, s)
+		}
+		k := field(s, "key")
+		if _, twice := saved[k]; twice || k == "" {
+			t.Errorf("cache key %q is saved twice or is empty", k)
+		}
+		saved[k] = field(s, "path")
 	}
-	if len(restore) != 1 || len(save) != 1 {
-		t.Fatalf("want one restore and one save step of the Go test cache, got %d and %d", len(restore), len(save))
+	var prefixes []string
+	for k := range saved {
+		prefix, _, _ := strings.Cut(k, "-${{")
+		prefixes = append(prefixes, prefix)
 	}
-	if got := field(save[0], "if"); got != "github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')" {
-		t.Errorf("the Go test cache must be saved on main only (push or schedule), not when %q", got)
+	slices.Sort(prefixes)
+	if want := []string{"go-lint", "go-static", "go-test"}; !slices.Equal(prefixes, want) || len(restore) != 3 {
+		t.Fatalf("want the caches %v, one restore step each, got %v and %d restore steps", want, prefixes, len(restore))
 	}
-	for _, f := range []string{"path", "key"} {
-		if r, s := field(restore[0], f), field(save[0], f); r == "" || r != s {
-			t.Errorf("restore and save of the Go test cache differ in %s: %q and %q", f, r, s)
+	for _, r := range restore {
+		k := field(r, "key")
+		p, ok := saved[k]
+		if !ok || p != field(r, "path") {
+			t.Errorf("restore step of key %q has no save step of the same key and path:\n%s", k, r)
+		}
+		if rk := field(r, "restore-keys"); !strings.HasSuffix(rk, "-") || !strings.HasPrefix(k, rk) {
+			t.Errorf("restore-keys %q of key %q is not a prefix of it", rk, k)
 		}
 	}
 	job := code[strings.Index(code, "\n  go-test:")+1:]
@@ -268,12 +282,58 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	if !regexp.MustCompile(`setup-go@[0-9a-f]{40}[^\n]*\n(?: {8}.*\n)*? {10}cache: false`).MatchString(job) {
 		t.Error("go-test's setup-go must not keep a cache of its own (cache: false): a pull request would save it")
 	}
+	// The required check `go` (D-245) passes only if every Go job it needs passed: it must need and check each go-* job.
+	var goJobs []string
+	for _, m := range regexp.MustCompile(`(?m)^  (go-[a-z-]+):$`).FindAllStringSubmatch(code, -1) {
+		goJobs = append(goJobs, m[1])
+	}
+	agg := code[strings.Index(code, "\n  go:\n")+1:]
+	agg = agg[:regexp.MustCompile(`\n  [a-z]`).FindStringIndex(agg)[0]]
+	needs := regexp.MustCompile(`needs: \[([^\]]*)\]`).FindStringSubmatch(agg)
+	if len(goJobs) < 4 || needs == nil {
+		t.Fatalf("guard is blind: go-* jobs %v, aggregator needs %v", goJobs, needs)
+	}
+	env := map[string]string{} // the aggregator's env: NAME -> value
+	for _, m := range regexp.MustCompile(`(?m)^ {10}([A-Z_]+): (.*)$`).FindAllStringSubmatch(agg, -1) {
+		env[m[1]] = strings.TrimSpace(m[2])
+	}
+	for _, j := range goJobs {
+		jb := code[strings.Index(code, "\n  "+j+":\n")+1:]
+		jb = jb[:regexp.MustCompile(`\n  [a-z]`).FindStringIndex(jb)[0]]
+		cond := regexp.MustCompile(`(?m)^    if: (.*)$`).FindStringSubmatch(jb)
+		c := regexp.MustCompile(`(?m)^ +check ` + j + ` "\$([A-Z_]+)" "\$([A-Z_]+)"$`).FindStringSubmatch(agg)
+		switch {
+		case !slices.Contains(strings.Split(strings.ReplaceAll(needs[1], " ", ""), ","), j) || c == nil:
+			t.Errorf("the go aggregator does not need and check job %s", j)
+		case env[c[2]] != "${{ needs."+j+".result }}":
+			t.Errorf("the go aggregator checks %s against %s = %q, not its own result", j, c[2], env[c[2]])
+		case cond == nil || env[c[1]] != "${{ "+cond[1]+" }}":
+			t.Errorf("the go aggregator wants %s when %s = %q, but the job runs if %v", j, c[1], env[c[1]], cond)
+		}
+	}
+	for _, name := range []string{"go-static", "go-lint"} {
+		j := code[strings.Index(code, "\n  "+name+":")+1:]
+		j = j[:regexp.MustCompile(`\n  [a-z]`).FindStringIndex(j)[0]]
+		if !regexp.MustCompile(`setup-go@[0-9a-f]{40}[^\n]*\n(?: {8}.*\n)*? {10}cache: false`).MatchString(j) {
+			t.Errorf("%s's setup-go must not keep a cache of its own (cache: false): it shares go-static's (D-372)", name)
+		}
+	}
 	if strings.Contains(code, "GOFLAGS") {
 		t.Error("ci.yml sets GOFLAGS: flags there reach go test unseen by this guard")
 	}
 	if got := len(regexp.MustCompile(`-count=|-shuffle`).FindAllString(code, -1)); got != 2 ||
 		!strings.Contains(code, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}") {
 		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
+	}
+	// D-371: only a pull request drops -race; the merge queue (the merge gate), main and the daily run keep it.
+	if got := len(regexp.MustCompile(`\bRACE\b`).FindAllString(code, -1)); got != 3 ||
+		!strings.Contains(code, "RACE: ${{ github.event_name != 'pull_request' && '-race' || '' }}") ||
+		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE"`) {
+		t.Errorf("go-test must drop -race on a pull request only (%d RACE settings)", got)
+	}
+	if !regexp.MustCompile(`(?m)^RACE \?= -race$`).MatchString(mk) || len(regexp.MustCompile(`(?m)^\s*(override\s+|export\s+)?RACE\s*[:+?!]?=`).FindAllString(mk, -1)) != 1 ||
+		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) `).FindAllString(mk, -1)) != 2 {
+		t.Error("make test-go-shard must run both go test calls with $(RACE), set once in the Makefile to -race unless given")
 	}
 	cached := regexp.MustCompile(`(?m)^\t.*go test .*\$\$c\b.*$`).FindAllString(mk, -1)
 	if len(cached) != 1 || strings.Contains(cached[0], "-count") {

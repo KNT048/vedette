@@ -8,5 +8,4 @@
 
 ## From the verifier round (2026-11-09)
 
-- [ ] D-76: enabling two-step sign-in (`ConfirmTOTP`, `ConfirmEmail2FA`, i.e. `POST /core/account/2fa/confirm` and `/email/confirm`) must require the current password; with the M4 rule (enabling ends the other sessions) a stolen session could otherwise lock the owner out. Done in WP-04b part 2 (it changes the API contract, so not in this branch).
 - [x] 2026-11-10 DONE in WP-08c (D-150: `Environment=GOMEMLIMIT=1800MiB`, gate test in core/auth) — WP-08: set `GOMEMLIMIT` in the core Quadlet unit (DEPLOYMENT 2.5: 2 CPU, 2 GiB). The argon2 gate default is `min(GOMAXPROCS/2, GOMEMLIMIT/4/64 MiB)`, so without the memory limit only the CPU count (cgroup-aware in Go 1.26) bounds it.

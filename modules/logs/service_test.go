@@ -150,21 +150,21 @@ func TestContract_INV3_SourceValidationFollowsTheMock(t *testing.T) {
 		mut  func(*Input)
 		want string
 	}{
-		"unknown kind":              {func(i *Input) { i.Kind = "cisco-9000" }, "bad_kind"},
-		"empty name":                {func(i *Input) { i.Name = "  " }, "bad_name"},
-		"name with a space":         {func(i *Input) { i.Name = "FW HQ" }, "bad_name"},
-		"name with an accent":       {func(i *Input) { i.Name = "Tường" }, "bad_name"},
-		"name of 65 characters":     {func(i *Input) { i.Name = strings.Repeat("a", 65) }, "bad_name"},
-		"ip with a leading zero":    {func(i *Input) { i.SenderIP = "192.168.010.1" }, "bad_ip"},
-		"ip out of range":           {func(i *Input) { i.SenderIP = "192.168.10.256" }, "bad_ip"},
-		"ipv6":                      {func(i *Input) { i.SenderIP = "::1" }, "bad_ip"},
-		"ipv4 in ipv6":              {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
-		"tcp for a udp-only kind":   {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
-		"unknown protocol":          {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
-		"tls is not served yet":     {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
-		"port 0":                    {func(i *Input) { i.Port = 0 }, "bad_port"},
-		"port 65536":                {func(i *Input) { i.Port = 65536 }, "bad_port"},
-		"another source has the ip": {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
+		"unknown kind":                       {func(i *Input) { i.Kind = "cisco-9000" }, "bad_kind"},
+		"empty name":                         {func(i *Input) { i.Name = "  " }, "bad_name"},
+		"name with a space":                  {func(i *Input) { i.Name = "FW HQ" }, "bad_name"},
+		"name with an accent":                {func(i *Input) { i.Name = "Tường" }, "bad_name"},
+		"name of 65 characters":              {func(i *Input) { i.Name = strings.Repeat("a", 65) }, "bad_name"},
+		"ip with a leading zero":             {func(i *Input) { i.SenderIP = "192.168.010.1" }, "bad_ip"},
+		"ip out of range":                    {func(i *Input) { i.SenderIP = "192.168.10.256" }, "bad_ip"},
+		"ipv6":                               {func(i *Input) { i.SenderIP = "::1" }, "bad_ip"},
+		"ipv4 in ipv6":                       {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
+		"tcp for a udp-only kind":            {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
+		"unknown protocol":                   {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
+		"tls on a box without a certificate": {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
+		"port 0":                             {func(i *Input) { i.Port = 0 }, "bad_port"},
+		"port 65536":                         {func(i *Input) { i.Port = 65536 }, "bad_port"},
+		"another source has the ip":          {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
 	} {
 		in := ok
 		tc.mut(&in)
@@ -591,7 +591,9 @@ func TestPurgeRunsInChunksAndStopsWhenCancelled(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
-	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	const chunk = 1000 // purgeChunk is 10 000: the chunking does not depend on the size, and under -race every row costs time
+	e.svc.chunk = chunk
+	e.bulk(s.ID, 2*chunk+chunk/2, e.clock.Add(-60*24*time.Hour))
 	calls := 0
 	e.svc.afterChunk = func() {
 		calls++
@@ -601,19 +603,19 @@ func TestPurgeRunsInChunksAndStopsWhenCancelled(t *testing.T) {
 		}
 	}
 	res, err := e.svc.Purge(t.Context())
-	if err != nil || res.Expired != 25_000 || calls != 3 {
-		t.Fatalf("%+v %v after %d chunks, want 25000 in 3", res, err, calls)
+	if err != nil || res.Expired != 2*chunk+chunk/2 || calls != 3 {
+		t.Fatalf("%+v %v after %d chunks, want %d in 3", res, err, calls, 2*chunk+chunk/2)
 	}
 	// cancelled after the first chunk: only that chunk is gone
-	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	e.bulk(s.ID, 2*chunk+chunk/2, e.clock.Add(-60*24*time.Hour))
 	ctx, cancel := context.WithCancel(t.Context())
 	e.svc.afterChunk = cancel
 	res, err = e.svc.Purge(ctx)
-	if err != context.Canceled || res.Expired != 10_000 { //nolint:errorlint // the context error itself, not a wrapped one: the check between chunks answered
-		t.Fatalf("%+v %v, want 10000 removed and context.Canceled", res, err)
+	if err != context.Canceled || res.Expired != chunk { //nolint:errorlint // the context error itself, not a wrapped one: the check between chunks answered
+		t.Fatalf("%+v %v, want %d removed and context.Canceled", res, err, chunk)
 	}
-	if got := count(t, e.vol, `SELECT count(*) FROM logs_events WHERE ts < ?`, store.FormatTS(e.clock.Add(-30*24*time.Hour))); got != 15_000 {
-		t.Fatalf("%d old lines left, want 15000", got)
+	if got := count(t, e.vol, `SELECT count(*) FROM logs_events WHERE ts < ?`, store.FormatTS(e.clock.Add(-30*24*time.Hour))); got != chunk+chunk/2 {
+		t.Fatalf("%d old lines left, want %d", got, chunk+chunk/2)
 	}
 }
 
@@ -1487,14 +1489,14 @@ func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// D-203: a source over TLS is refused on create and on edit (the TLS listener is not built), with a message that names the way out.
+// D-203, D-214: on a box with no TLS configuration (loopback, dev) a source over TLS is refused on create and on edit, with a message that says why and names the way out.
 func TestASourceOverTLSIsRefusedOnCreateAndEdit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	src := e.add("FW", "192.168.10.1")
 	_, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "192.168.10.2", Proto: "tls", Port: 6514})
 	var ae *apierr.Error
-	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "tls_unavailable" || ae.Message != "Syslog over TLS (port 6514) is not available yet. Choose UDP or TCP." {
+	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "tls_unavailable" || ae.Message != "Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP." {
 		t.Fatalf("create: %v", err)
 	}
 	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", src.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "192.168.10.1", Proto: "tls", Port: 6514}); code(err) != "tls_unavailable" {

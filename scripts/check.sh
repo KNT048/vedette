@@ -79,6 +79,7 @@ fi
 if has '^scripts/dev/'; then
 	ran=1
 	bash scripts/dev/orphan-reaper-test.sh
+	bash scripts/dev/lab-vm-test.sh
 fi
 
 if [ "$ran" = 0 ]; then

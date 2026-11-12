@@ -197,8 +197,9 @@ func TestCoreServiceIsTheOneThingTheCustomerMustSet(t *testing.T) {
 		t.Errorf("core container_name %q and hostname %q must be vedette-core and vedette", core.ContainerName, core.Hostname)
 	}
 	sys := load(t, "compose.syslog.yaml").Services["core"]
-	if len(sys.Ports) != 2 || !strings.HasSuffix(sys.Ports[0], ":514:5514/udp") || !strings.HasSuffix(sys.Ports[1], ":514:5514/tcp") {
-		t.Errorf("compose.syslog.yaml publishes 514 udp and tcp to core's 5514, got %v", sys.Ports)
+	if len(sys.Ports) != 3 || !strings.HasSuffix(sys.Ports[0], ":514:5514/udp") || !strings.HasSuffix(sys.Ports[1], ":514:5514/tcp") ||
+		!strings.HasSuffix(sys.Ports[2], ":6514:5515/tcp") {
+		t.Errorf("compose.syslog.yaml publishes 514 udp and tcp to core's 5514 and TLS 6514 tcp to 5515 (D-214), got %v", sys.Ports)
 	}
 }
 

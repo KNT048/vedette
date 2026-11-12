@@ -247,6 +247,7 @@ func TestContract_INV15_GatesRunInOrder(t *testing.T) {
 	all := inv15Gates()
 	for i, g := range all {
 		t.Run(fmt.Sprintf("%02d %s", i+1, g.name), func(t *testing.T) {
+			t.Parallel() // each gate has its own box; all is only read
 			e, _, _ := propEnv(t, true)
 			e.allowHigh()
 			b := highBody()

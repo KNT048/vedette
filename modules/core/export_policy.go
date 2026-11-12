@@ -98,7 +98,7 @@ var exportPolicy = map[string]tablePolicy{
 	"mit_pack":               {export: "cve confirmed_by confirmed_at drafted_with pack_version", json: "body compromise"},
 	"mit_pack_state":         {export: "id version installed_at"},
 	"notify_approver":        {export: "channel_type user_id address"},
-	"notify_channel":         {export: "type configured enabled secret_last4 app_token_last4 bot_token_last4 min_severity approvals rev updated_at", jsonURL: "fields", json: "last_test", skip: "secret_id app_token_secret_id bot_token_secret_id"},
+	"notify_channel":         {export: "type configured enabled secret_last4 app_token_last4 bot_token_last4 url_last4 min_severity approvals rev updated_at", jsonURL: "fields", json: "last_test", skip: "secret_id app_token_secret_id bot_token_secret_id url_secret_id"},
 	"notify_incident":        {export: "id kind title link severity what action first_seen last_seen count status handled_by handled_at note dedupe_key"},
 	"notify_incident_device": {export: "incident_id asset_id name"},
 	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},

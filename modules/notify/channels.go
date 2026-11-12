@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,6 +32,7 @@ const (
 	purposeSecret   = "notify_channel.secret"
 	purposeAppToken = "notify_channel.app_token"
 	purposeBotToken = "notify_channel.bot_token"
+	purposeURL      = "notify_channel.url" // the webhook URL: a bearer secret (SYS-4)
 )
 
 // savedFields lists the non-secret fields kept per channel type; anything else the client sends is dropped.
@@ -73,6 +76,7 @@ type channelRow struct {
 	SecretID, SecretLast4 string
 	AppID, AppLast4       string
 	BotID, BotLast4       string
+	URLID, URLLast4       string // the sealed webhook URL; Fields["url"] then holds only scheme://host/…
 	MinSeverity           Severity
 	Approvals             bool
 	LastTest              *TestResult
@@ -80,19 +84,20 @@ type channelRow struct {
 }
 
 const channelCols = `type, configured, enabled, fields, secret_id, secret_last4, app_token_secret_id, app_token_last4,
-	bot_token_secret_id, bot_token_last4, min_severity, approvals, last_test, rev`
+	bot_token_secret_id, bot_token_last4, min_severity, approvals, last_test, rev, url_secret_id, url_last4`
 
 type scanner interface{ Scan(dest ...any) error }
 
 func scanChannel(r scanner) (channelRow, error) {
 	var c channelRow
 	var fields string
-	var sid, sl4, aid, al4, bid, bl4, lt sql.NullString
+	var sid, sl4, aid, al4, bid, bl4, lt, uid, ul4 sql.NullString
 	var sev string
-	if err := r.Scan(&c.Type, &c.Configured, &c.Enabled, &fields, &sid, &sl4, &aid, &al4, &bid, &bl4, &sev, &c.Approvals, &lt, &c.Rev); err != nil {
+	if err := r.Scan(&c.Type, &c.Configured, &c.Enabled, &fields, &sid, &sl4, &aid, &al4, &bid, &bl4, &sev, &c.Approvals, &lt, &c.Rev, &uid, &ul4); err != nil {
 		return c, err
 	}
 	c.SecretID, c.SecretLast4, c.AppID, c.AppLast4, c.BotID, c.BotLast4 = sid.String, sl4.String, aid.String, al4.String, bid.String, bl4.String
+	c.URLID, c.URLLast4 = uid.String, ul4.String
 	c.MinSeverity = Severity(sev)
 	if err := json.Unmarshal([]byte(fields), &c.Fields); err != nil {
 		return c, fmt.Errorf("notify: channel %s: stored fields: %w", c.Type, err)
@@ -149,12 +154,43 @@ func ptr(s string) *string {
 	return &s
 }
 
+// maskURL is what may be shown of a webhook URL: scheme://host/… ("" when raw is not an http(s) URL). The path, the query and any
+// credentials are the secret. It is idempotent: the mask of a mask is the mask.
+func maskURL(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host + "/…"
+}
+
+// shownURL is the webhook URL as the API shows it: scheme://host/… and the last 4 characters of the saved URL. It reads the plain URL only
+// of a row saved before the URL was sealed (url_secret_id empty), and never returns it.
+func (c channelRow) shownURL() string {
+	raw := c.Fields["url"]
+	if raw == "" {
+		return ""
+	}
+	l4 := c.URLLast4
+	if c.URLID == "" {
+		l4 = lastFour(raw)
+	}
+	return maskURL(raw) + l4
+}
+
 func (c channelRow) view(approvers []Approver) Channel {
 	if approvers == nil {
 		approvers = []Approver{}
 	}
+	fields := c.Fields
+	if c.Type == channel.Webhook {
+		fields = maps.Clone(c.Fields)
+		if _, ok := fields["url"]; ok {
+			fields["url"] = c.shownURL()
+		}
+	}
 	return Channel{
-		Type: c.Type, Configured: c.Configured, Enabled: c.Enabled, Fields: c.Fields, SecretLast4: ptr(c.SecretLast4),
+		Type: c.Type, Configured: c.Configured, Enabled: c.Enabled, Fields: fields, SecretLast4: ptr(c.SecretLast4),
 		MinSeverity: c.MinSeverity, LastTest: c.LastTest, Approvals: c.Approvals, Approvers: approvers,
 		ApprovalLast4: ApprovalLast4{AppToken: ptr(c.AppLast4), BotToken: ptr(c.BotLast4)},
 	}
@@ -162,6 +198,7 @@ func (c channelRow) view(approvers []Approver) Channel {
 
 // Channels returns the six channels, the rules and the number of two-step email users (GET /notify/channels).
 func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
+	s.sealLegacyURL(ctx)
 	db := s.cfg.DB.Reader()
 	out := ChannelsView{Channels: make([]Channel, 0, len(channelTypes))}
 	for _, t := range channelTypes {
@@ -257,6 +294,65 @@ func (s *Service) openSecret(ctx context.Context, q dbtx, id string) (string, er
 	return string(pt), nil
 }
 
+// webhookURL is the plain URL of the webhook channel c: the sealed one, or (a row saved before sealing, sealLegacyURL) the stored one.
+func (s *Service) webhookURL(ctx context.Context, q dbtx, c channelRow) (string, error) {
+	if c.URLID == "" {
+		return c.Fields["url"], nil
+	}
+	pt, err := s.cfg.Secrets.Open(ctx, q, c.URLID, purposeURL)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "notify: the saved webhook URL cannot be opened", "purpose", purposeURL, "error", err.Error())
+		return "", errSecretUnreadable
+	}
+	return string(pt), nil
+}
+
+// sendFields is c.Fields with what the adapter needs: for the webhook, the plain URL. Never store or show the result.
+func (s *Service) sendFields(ctx context.Context, q dbtx, c channelRow) (map[string]string, error) {
+	if c.Type != channel.Webhook {
+		return c.Fields, nil
+	}
+	raw, err := s.webhookURL(ctx, q, c)
+	if err != nil {
+		return nil, err
+	}
+	f := maps.Clone(c.Fields)
+	f["url"] = raw
+	return f, nil
+}
+
+// sealLegacyURL seals the plain webhook URL of a row saved before the URL was sealed (migration 0007 adds the columns; SQL cannot open
+// the key). Cheap when there is nothing to do: it runs at every Flush and every read of the channels, and stops looking once it found nothing.
+func (s *Service) sealLegacyURL(ctx context.Context) {
+	if s.urlSealed.Load() {
+		return
+	}
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		c, err := loadChannel(ctx, tx, channel.Webhook)
+		if err != nil || c.URLID != "" || c.Fields["url"] == "" {
+			return err
+		}
+		raw := c.Fields["url"]
+		id, l4, err := s.putSecret(ctx, tx, purposeURL, "", raw)
+		if err != nil {
+			return err
+		}
+		c.Fields["url"] = maskURL(raw)
+		fj, err := json.Marshal(c.Fields)
+		if err != nil {
+			return fmt.Errorf("notify: encode fields: %w", err)
+		}
+		// rev stays: the adapter built from the plain URL is the same one
+		_, err = tx.ExecContext(ctx, `UPDATE notify_channel SET fields = ?, url_secret_id = ?, url_last4 = ? WHERE type = 'webhook' AND url_secret_id IS NULL`, string(fj), id, nullable(l4))
+		return err
+	})
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "notify: the saved webhook URL could not be sealed yet", "error", err.Error())
+		return
+	}
+	s.urlSealed.Store(true)
+}
+
 // savedSender returns the sender of a configured channel, cached until the channel changes. The cache
 // matters for Zalo personal, whose adapter keeps the signed-in session and the sign-in pause.
 func (s *Service) savedSender(ctx context.Context, c channelRow, toOverride []string) (channel.Sender, error) {
@@ -272,7 +368,11 @@ func (s *Service) savedSender(ctx context.Context, c channelRow, toOverride []st
 	if err != nil {
 		return nil, err
 	}
-	snd, err := s.newSender(c.Type, c.Fields, secret, toOverride)
+	fields, err := s.sendFields(ctx, s.cfg.DB.Reader(), c)
+	if err != nil {
+		return nil, err
+	}
+	snd, err := s.newSender(c.Type, fields, secret, toOverride)
 	if err != nil {
 		return nil, err
 	}
@@ -382,8 +482,24 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 				return badRequest("secret_required", "The saved key cannot be read. Enter it again and save.")
 			}
 		}
+		// The webhook URL is a secret: an empty URL, or the masked one the API showed, keeps the saved one; a new one replaces it.
+		newURL, plainURL := "", ""
+		if t == channel.Webhook {
+			if given := strings.TrimSpace(in.Fields["url"]); given != "" && given != cur.shownURL() {
+				newURL = given
+			}
+			if plainURL = newURL; plainURL == "" {
+				if plainURL, err = s.webhookURL(ctx, tx, cur); err != nil {
+					return badRequest("secret_required", "The saved webhook URL cannot be read. Enter it again and save.")
+				}
+			}
+			fields["url"] = plainURL
+		}
 		if _, err := s.newSender(t, fields, effective, nil); err != nil {
 			return configAPIError(err)
+		}
+		if t == channel.Webhook {
+			fields["url"] = maskURL(plainURL) // what is stored beside the sealed URL: never the URL itself
 		}
 		if t == channel.Email {
 			list, _ := channel.ParseRecipients(fields["to"]) // validated by newSender
@@ -416,6 +532,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 				return err
 			}
 		}
+		if t == channel.Webhook && (newURL != "" || cur.URLID == "") { // a row from before sealing is sealed by this save
+			if next.URLID, next.URLLast4, err = s.putSecret(ctx, tx, purposeURL, cur.URLID, plainURL); err != nil {
+				return err
+			}
+		}
 		if t == channel.Slack {
 			if app != "" {
 				if next.AppID, next.AppLast4, err = s.putSecret(ctx, tx, purposeAppToken, cur.AppID, app); err != nil {
@@ -432,13 +553,14 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if err != nil {
 			return fmt.Errorf("notify: encode fields: %w", err)
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO notify_channel (`+channelCols+`, updated_at) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		_, err = tx.ExecContext(ctx, `INSERT INTO notify_channel (`+channelCols+`, updated_at) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
 			ON CONFLICT (type) DO UPDATE SET configured = 1, enabled = excluded.enabled, fields = excluded.fields, secret_id = excluded.secret_id,
 			secret_last4 = excluded.secret_last4, app_token_secret_id = excluded.app_token_secret_id, app_token_last4 = excluded.app_token_last4,
 			bot_token_secret_id = excluded.bot_token_secret_id, bot_token_last4 = excluded.bot_token_last4, min_severity = excluded.min_severity,
-			approvals = excluded.approvals, last_test = NULL, rev = notify_channel.rev + 1, updated_at = excluded.updated_at`,
+			approvals = excluded.approvals, last_test = NULL, rev = notify_channel.rev + 1, url_secret_id = excluded.url_secret_id,
+			url_last4 = excluded.url_last4, updated_at = excluded.updated_at`,
 			string(t), boolInt(next.Enabled), string(fj), nullable(next.SecretID), nullable(next.SecretLast4), nullable(next.AppID), nullable(next.AppLast4),
-			nullable(next.BotID), nullable(next.BotLast4), string(next.MinSeverity), boolInt(next.Approvals), cur.Rev+1, store.FormatTS(s.now()))
+			nullable(next.BotID), nullable(next.BotLast4), string(next.MinSeverity), boolInt(next.Approvals), cur.Rev+1, nullable(next.URLID), nullable(next.URLLast4), store.FormatTS(s.now()))
 		if err != nil {
 			return fmt.Errorf("notify: save channel %s: %w", t, err)
 		}
@@ -510,11 +632,11 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_channel (type, updated_at) VALUES (?, ?)
 			ON CONFLICT (type) DO UPDATE SET configured = 0, enabled = 0, fields = '{}', secret_id = NULL, secret_last4 = NULL, app_token_secret_id = NULL,
-			app_token_last4 = NULL, bot_token_secret_id = NULL, bot_token_last4 = NULL, min_severity = 'medium', approvals = 0, last_test = NULL,
+			app_token_last4 = NULL, bot_token_secret_id = NULL, bot_token_last4 = NULL, url_secret_id = NULL, url_last4 = NULL, min_severity = 'medium', approvals = 0, last_test = NULL,
 			rev = notify_channel.rev + 1, updated_at = excluded.updated_at`, string(t), store.FormatTS(s.now())); err != nil {
 			return fmt.Errorf("notify: reset channel %s: %w", t, err)
 		}
-		for _, id := range []string{cur.SecretID, cur.AppID, cur.BotID} {
+		for _, id := range []string{cur.SecretID, cur.AppID, cur.BotID, cur.URLID} {
 			if id == "" {
 				continue
 			}

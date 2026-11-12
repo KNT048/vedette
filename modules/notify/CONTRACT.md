@@ -5,7 +5,7 @@
 Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ liệu: `PRIVACY.md` luồng 5.
 
 ## Invariants
-- **INV-1**: Bí mật kênh (token bot, mật khẩu SMTP, webhook Slack, khoá ký, phiên Zalo cá nhân, `xapp-`/`xoxb-`) qua `core/secrets`; API chỉ trả `secret_last4` và `approval_last4` (SYS-4).
+- **INV-1**: Bí mật kênh (token bot, mật khẩu SMTP, webhook Slack, khoá ký, phiên Zalo cá nhân, `xapp-`/`xoxb-`) qua `core/secrets`; API chỉ trả `secret_last4` và `approval_last4` (SYS-4). **URL của webhook chung cũng là bí mật** (đường dẫn/query chứa token): mã hoá bằng `core/secrets`, API chỉ trả `scheme://host/…` + 4 ký tự cuối trong `fields.url`; `PUT` để `url` rỗng (hoặc đúng chuỗi đã che) giữ URL cũ; URL không bao giờ nằm trong phản hồi, log, `core_audit`, lịch sử gửi hay bản xuất. `TestContract_SYS4_WebhookURLIsSealedAndOnlyItsMaskIsReturned`, `TestWebhookURLEmptyOrMaskedOnEditKeepsTheSavedURL`, `TestWebhookURLSavedBeforeSealingIsMaskedThenSealed`
 - **INV-2**: Tin lỗ hổng chỉ gửi cho finding khớp một thiết bị; KEV không khớp không gửi, chỉ đếm vào `HistoryResponse.suppressed {count, days}`: số **CVE** KEV hộp biết (`feeds.vuln.new_kev`, hoặc một tin không khớp) trong 7 ngày mà chưa có finding nào khớp (`findings.finding.created` đánh dấu đã khớp); đếm theo CVE, không đếm hai lần cùng một CVE (bảng `notify_kev`; notify không đọc bảng của `feeds`/`findings`). `TestContract_INV2_NoUnmatchedCVE`, `TestSuppressedCountFollowsKEVAndFindingEvents`
 - **INV-3**: Gộp tin: khi `grouping.enabled`, nhiều CVE cùng sản phẩm trong `window_min ∈ {15,60,240}` thành một tin.
 - **INV-4**: Mỗi kênh chỉ nhận tin có mức ≥ `min_severity` của kênh (`critical|high|medium|low`).

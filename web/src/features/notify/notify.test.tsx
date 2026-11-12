@@ -277,6 +277,30 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(await screen.findByText(/Tested .*: failed/)).toBeInTheDocument()
   })
 
+  it('webhook URL is a secret (SYS-4): only scheme://host/… and its last 4 characters come back, and an empty URL keeps it', async () => {
+    const first = renderChannels()
+    await screen.findByRole('table')
+    const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/webhook`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    const token = ['tok', 'path', '7f3a9c'].join('-')
+    const base = { enabled: true, min_severity: 'low', secret: 'abcdefgh-1234567890' }
+    const saved = await (await put({ ...base, fields: { url: `https://hooks.acme.example/vedette/${token}?key=9f8e` } })).json() as { fields: Record<string, string> }
+    expect(saved.fields.url).toBe('https://hooks.acme.example/…9f8e')
+    const webhook = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'webhook')!
+    expect(JSON.stringify(await webhook())).not.toContain(token)
+    // an empty URL, or the masked one the API showed, keeps the saved one; nothing else is saved
+    expect((await put({ ...base, secret: undefined, fields: { url: '' } })).status).toBe(200)
+    expect((await put({ ...base, secret: undefined, fields: { url: saved.fields.url } })).status).toBe(200)
+    expect((await webhook()).fields.url).toBe('https://hooks.acme.example/…9f8e')
+    // the dialog starts with an empty URL field and says what is saved
+    first.unmount()
+    renderChannels()
+    await press('Edit Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    expect(within(dlg).getByLabelText('Webhook URL')).toHaveValue('')
+    expect(within(dlg).getByText(/Saved: https:\/\/hooks\.acme\.example\/…9f8e\./)).toBeInTheDocument()
+    expect(dlg.textContent).not.toContain(token)
+  })
+
   it('removing a channel also deletes its saved key', async () => {
     renderChannels()
     await press('Remove channel Email')

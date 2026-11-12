@@ -80579,7 +80579,9 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Enabled    bool                                                 `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url · slack label (optional), channel_id (approvals only).
+	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+	// (optional), channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -80743,7 +80745,9 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url · slack label (optional), channel_id (approvals only).
+// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+// (optional), channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -83643,7 +83647,9 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Enabled    bool                                         `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url · slack label (optional), channel_id (approvals only).
+	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+	// (optional), channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -83807,7 +83813,9 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url · slack label (optional), channel_id (approvals only).
+// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
+// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
+// (optional), channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {

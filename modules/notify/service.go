@@ -92,6 +92,8 @@ type Service struct {
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
+	// urlSealed is set once no webhook row is left with a plain URL (sealLegacyURL).
+	urlSealed atomic.Bool
 	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
 	tgOffset telegramOffset
 }

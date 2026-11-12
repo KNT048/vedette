@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
-import { useSaveSiem, useSiem, useSources, useTestSiem } from './api'
+import { useSaveSiem, useSiem, useTestSiem } from './api'
 import { siemSample } from './snippets'
 import { SIEM_EVENTS } from './types'
 import type { Proto, SiemConfig, SiemEvent, SiemFormat } from './types'
@@ -32,7 +32,6 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   const isAdmin = useCan('admin')
   const save = useSaveSiem()
   const test = useTestSiem()
-  const boxIp = useSources().data?.box.ip ?? null
   const [enabled, setEnabled] = useState(cfg.enabled)
   const [format, setFormat] = useState<SiemFormat>(cfg.format)
   const [host, setHost] = useState(cfg.host)
@@ -100,7 +99,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
           ))}
         </div>
       </fieldset>
-      <CodeBlock label={t('siem.sample')} code={siemSample(format, boxIp)} />
+      <CodeBlock label={t('siem.sample')} code={siemSample(format)} />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" variant="primary" disabled={!isAdmin || busy} title={isAdmin ? undefined : t('siem.adminOnly')}>{t('siem.save')}</Button>
         <Button disabled={!isAdmin || busy} title={isAdmin ? undefined : t('siem.adminOnly')} onClick={(e) => onSave(e, true)}><Send />{test.isPending ? t('siem.testing') : t('siem.saveTest')}</Button>

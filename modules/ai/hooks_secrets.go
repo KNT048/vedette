@@ -60,6 +60,8 @@ var (
 	needJSON   = []string{"pass", "secret", "psk", "shared", "private", "community"}
 )
 
+const yamlKey = `(?:(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*|(?:[a-z0-9_-]*[_-])?pass)|(?:[a-z0-9_-]*[_-])?community)`
+
 var deviceSecretPatterns = []secretPattern{
 	// Cisco type 7 anywhere, when the value has its shape: two decimal digits (the offset) and hex (password 7 <hex>, key 7 <hex>,
 	// md5 7 <hex>, key-string 7 <hex>).
@@ -132,9 +134,16 @@ var deviceSecretPatterns = []secretPattern{
 	// not values.
 	{
 		needs: append([]string{"community", "pass"}, needNamed...),
-		re:    regexp.MustCompile(`(?m:^)[ \t]*(?:-[ \t]+)?(?:(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*)|(?:[a-z0-9_-]*[_-])?(?:pass|community))[ \t]*:[ \t]+(?:&\S+[ \t]+)?` + secretValue),
+		re:    regexp.MustCompile(`(?m:^)[ \t]*(?:-[ \t]+)?(?:(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*|(?:[a-z0-9_-]*[_-])?pass)|(?:[a-z0-9_-]*[_-])?community)[ \t]*:[ \t]+(?:(?:&|!!?)\S+[ \t]+)*` + secretValue),
 		leave: regexp.MustCompile(`(?i)^(?:null|~|true|false|yes|no|none|required|[|>][-+0-9]*|\[\]|\{\}|""|''|!vault|\$\{.*)$`),
 	},
+	// YAML flow mapping ({user: a, password: x}) and the environment form (DB_PASS=x, SMTP_PASS=x): the value ends at a comma or a bracket.
+	{
+		needs: append([]string{"community", "pass"}, needNamed...),
+		re:    regexp.MustCompile(`[{,][ \t]*` + yamlKey + `[ \t]*:[ \t]+(?:(?:&|!!?)\S+[ \t]+)*("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|[^\s,}\]]+)`),
+		leave: regexp.MustCompile(`(?i)^(?:null|~|true|false|yes|no|none|required|\$\{.*)$`),
+	},
+	secretRE(secretKeyStart+`(?:[a-z0-9_-]*[_-])?pass[ \t]*=[ \t]*`+secretValue, "pass"),
 	// PuTTY key file (.ppk): the lines of the Private-Lines section (indented or with trailing spaces too), up to the Private-MAC line.
 	secretRE(`(?m:^)[ \t]*Private-Lines:[ \t]*[0-9]+[ \t]*\r?\n((?:[ \t]*[A-Za-z0-9+/=]+[ \t]*\r?\n)*[ \t]*[A-Za-z0-9+/=]+)[ \t]*(?:\r?\n|\z)`, "private-lines"),
 	// A private key block, whole; without an end line (the text was cut) to the end of the text. The first group is the match itself.
@@ -175,7 +184,7 @@ func scanDeviceSecrets(ctx context.Context, norm string) ([]span, error) {
 		return nil, err
 	}
 	for _, b := range secretBlocks {
-		if slices.ContainsFunc(b.needs, func(w string) bool { return !strings.Contains(lower, w) }) {
+		if !slices.ContainsFunc(b.needs, func(w string) bool { return strings.Contains(lower, w) }) {
 			continue
 		}
 		out = append(out, b.spans(norm)...)
@@ -196,23 +205,22 @@ func scanDeviceSecrets(ctx context.Context, norm string) ([]span, error) {
 }
 
 // secretBlock is a secret that sits in an indented block under a header line: the lines after the header that are blank or indented
-// deeper than it (the next line at the header's indent, such as `end`, closes it), at most blockLines of them. Each line is matched
-// with line, whose first group is the value. needs are words of the lower-cased text that must all be there.
+// deeper than it (the next line at the header's indent, such as `end`, closes it). No line count stops it: every line is read by one header
+// at most, so the work is linear and nothing after a cap would reach the provider. Each line is matched
+// with line, whose first group is the value. needs are words of the lower-cased text, any one of which must be there.
 type secretBlock struct {
 	needs  []string
 	header *regexp.Regexp // group 1: the indent of the header (with a list dash, for YAML)
 	line   *regexp.Regexp
 }
 
-const blockLines = 200
-
 var secretBlocks = []secretBlock{
 	// Cleartext password in a console or terminal line block (line vty 0 4 / ` password x` / ` login`): every password line of the block.
-	{[]string{"line", "password"}, regexp.MustCompile(`(?m:^)([ \t]*)line[ \t]+(?:con|console|aux|vty|tty)\b[^\n]*\n`), regexp.MustCompile(`^[ \t]*password[ \t]+(?:[0-9][ \t]+)?` + secretValue)},
+	{[]string{"password"}, regexp.MustCompile(`(?m:^)([ \t]*)line[ \t]+(?:con|console|aux|vty|tty|[0-9]+)\b[^\n]*\n`), regexp.MustCompile(`^[ \t]*password[ \t]+(?:[0-9][ \t]+)?` + secretValue)},
 	// FortiGate: `set name "<community>"` in `config system snmp community`: the community is a name, with no keyword of its own.
-	{[]string{"snmp", "community"}, regexp.MustCompile(`(?m:^)([ \t]*)config[ \t]+system[ \t]+snmp[ \t]+community[ \t]*\r?\n`), regexp.MustCompile(`^[ \t]*set[ \t]+name[ \t]+` + secretValue)},
+	{[]string{"community"}, regexp.MustCompile(`(?m:^)([ \t]*)config[ \t]+system[ \t]+snmp[ \t]+community[ \t]*\r?\n`), regexp.MustCompile(`^[ \t]*set[ \t]+name[ \t]+` + secretValue)},
 	// YAML block scalar of a secret key (`password: |`): the lines under it are the value.
-	{[]string{"pass"}, regexp.MustCompile(`(?m:^)([ \t]*(?:-[ \t]+)?)(?i:[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key)[a-z0-9_-]*|(?:[a-z0-9_-]*[_-])?(?:pass|community))[ \t]*:[ \t]*(?:&\S+[ \t]+)?[|>][-+0-9]*[ \t]*\r?\n`), regexp.MustCompile(`^[ \t]*(\S(?:[^\r]*\S)?)`)},
+	{[]string{"pass", "secret", "psk", "private", "community"}, regexp.MustCompile(`(?m:^)([ \t]*(?:-[ \t]+)?)` + yamlKey + `[ \t]*:[ \t]*(?:(?:&|!!?)\S+[ \t]+)*[|>][-+0-9]*[ \t]*(?:#[^\n]*)?\r?\n`), regexp.MustCompile(`^[ \t]*(\S(?:[^\r]*\S)?)`)},
 }
 
 func (b secretBlock) spans(norm string) []span {
@@ -224,7 +232,7 @@ func (b secretBlock) spans(norm string) []span {
 		}
 		indent := h[3] - h[2]
 		pos := h[1]
-		for n := 0; pos < len(norm) && n < blockLines; n++ {
+		for pos < len(norm) {
 			end := len(norm)
 			if i := strings.IndexByte(norm[pos:], '\n'); i >= 0 {
 				end = pos + i + 1

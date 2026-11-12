@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -331,6 +332,17 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		{"yaml bare community", "community: " + plainPW, "community: ", []string{plainPW}},
 		{"capital Password", "Password: " + plainPW, "Password: ", []string{plainPW}},
 		{"forti blank line in block", "config system snmp community\n    edit 1\n\n        set name \"" + plainPW + "\"\n    next\nend\n", "set name ", []string{plainPW}},
+		// review r2: no line cap, any-of words, tags, comments, upper-case and env keys, flow mappings, numeric line blocks
+		{"yaml secret scalar", "secret: |\n  " + plainPW + "\n", "secret: |", []string{plainPW}},
+		{"yaml client_secret scalar", "client_secret: >-\n  " + plainPW + "\n", "client_secret: >-", []string{plainPW}},
+		{"yaml scalar comment", "password: | # note\n  " + plainPW + "\n", "password: | # note", []string{plainPW}},
+		{"yaml tag", "password: !!str " + plainPW + "\n", "password: !!str ", []string{plainPW}},
+		{"yaml upper pass", "SMTP_PASS: " + plainPW + "\n", "SMTP_PASS: ", []string{plainPW}},
+		{"env pass", "DB_PASS=" + plainPW + "\nPASSWORD=" + two + "\n", "DB_PASS=", []string{plainPW, two}},
+		{"yaml flow mapping", "auth: {user: bob, password: " + plainPW + "}", "{user: bob, password: ", []string{plainPW}},
+		{"yaml flow quoted", "auth: {password: \"" + plainPW + "\", user: bob}", "user: bob}", []string{plainPW}},
+		{"line numeric", "line 33 48\n password " + plainPW + "\n", " password ", []string{plainPW}},
+		{"snmp hex community", "snmp-server host h version 2c ab:cd", "version 2c ", []string{"ab:cd"}},
 		{"forti snmp name", "config system snmp community\n    edit 1\n        set name \"" + plainPW + "\"\n        set status enable\n    next\n    edit 2\n        set name " + two + "\n    next\nend\n", "set name ", []string{plainPW, two}},
 	}
 	for _, c := range cases {
@@ -346,6 +358,43 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		}
 		if !strings.Contains(res.Text, c.keep) || !strings.Contains(res.Text, "[masked]") {
 			t.Errorf("%s: want %q kept and a mask, got %q", c.name, c.keep, res.Text)
+		}
+	}
+}
+
+// A long block is masked to its end: no line count stops the walk (the work stays linear: one header reads each line at most once).
+func TestDeviceSecretBlocksHaveNoLineCap(t *testing.T) {
+	t.Parallel()
+	r := runner(t, nil)
+	var f strings.Builder
+	f.WriteString("config system snmp community\n")
+	for i := 1; i <= 10; i++ {
+		fmt.Fprintf(&f, "    edit %d\n        set name \"comm%dqz\"\n", i, i)
+		for range 25 {
+			f.WriteString("        set query-v1-port 161\n")
+		}
+		f.WriteString("    next\n")
+	}
+	f.WriteString("end\n")
+	var y strings.Builder
+	y.WriteString("password: |\n")
+	for i := range 300 {
+		fmt.Fprintf(&y, "  secretline%dqz\n", i)
+	}
+	var v strings.Builder
+	v.WriteString("line vty 0 4\n")
+	for range 300 {
+		v.WriteString(" exec-timeout 5 0\n")
+	}
+	v.WriteString(" password lastpwqz\n")
+	for name, c := range map[string]struct{ in, gone string }{
+		"forti": {f.String(), "qz\""},
+		"yaml":  {y.String(), "qz\n"},
+		"vty":   {v.String(), "lastpwqz"},
+	} {
+		res := run(t, r, BeforeAI, c.in)
+		if res.Outcome != OutcomeMasked || strings.Contains(res.Text, c.gone) {
+			t.Errorf("%s: a secret of the long block survives", name)
 		}
 	}
 }

@@ -1,0 +1,3 @@
+# Deferred: fix/logs-test-speed
+
+- [ ] 2026-11-12 — `go test -race ./modules/logs/` is still ~2x over the CI target (< 90 s): what is left is by design, every 5-minute pass of `detect` reads all counters of 10 days (`anomalies`: `logs_signature_daily`) and all of `logs_anomaly_sent` of a source (`readSent`), and the event tests simulate 24-40 hours of passes over the 540-signature vocabulary. Upgrade path: keep the closed days of the baseline in memory (they do not change but by purge or a change of kind/sender, which already restarts the source) and read only today and yesterday each pass; `readSent` only the rows still able to matter (the last 48 hours) — a product change with its own review, not a test change — ở đâu: modules/logs/anomaly.go `anomalies`, `readSent`.

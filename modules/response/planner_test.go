@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 	"sync"
 	"testing"
@@ -22,9 +23,19 @@ type fakePlanner struct {
 	steps func(t response.PlanTarget) []response.DraftStep
 	asked []string
 	acts  [][]response.AIAction
+	sent  map[string][]response.SentProposal // by finding: what the plan job sent through Propose
 }
 
 func (f *fakePlanner) Available(context.Context) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.on }
+
+func (f *fakePlanner) Proposed(_ context.Context, t response.PlanTarget, sent []response.SentProposal) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.sent == nil {
+		f.sent = map[string][]response.SentProposal{}
+	}
+	f.sent[t.FindingID] = append(f.sent[t.FindingID], sent...)
+}
 
 func (f *fakePlanner) Plan(_ context.Context, a response.PlanAsk) (response.PlanDraft, error) {
 	f.mu.Lock()
@@ -143,6 +154,13 @@ func TestPlanRefusedAndAudited(t *testing.T) {
 		"no steps":               {},
 		"bad kind":               {{Kind: "wipe", Title: "t", Detail: "d"}},
 		"never touch":            {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.1"}}}},
+		// D-313: the confidence and the reads a proposal cites are checked before anything is stored
+		"confidence above 1":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: 1.5}},
+		"confidence below 0":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: -0.1}},
+		"confidence NaN":         {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: math.NaN()}},
+		"four reads":             {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Evidence: []string{"rd-1", "rd-2", "rd-3", "rd-4"}}},
+		"read id not plain":      {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Evidence: []string{"rd-1 OR 1=1"}}},
+		"read without an action": {{Kind: "check", Title: "t", Detail: "d", Evidence: []string{"rd-1"}}},
 	}
 	for name, steps := range cases {
 		t.Run(name, func(t *testing.T) {

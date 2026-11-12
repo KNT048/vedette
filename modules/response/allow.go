@@ -113,6 +113,11 @@ func touches(entryValue, value string) bool {
 	if !ok {
 		return false
 	}
+	return touchesParsed(e, v)
+}
+
+// touchesParsed is touches on entries parseEntry already read, for a caller that tests many values against one list.
+func touchesParsed(e, v entry) bool {
 	switch {
 	case e.addr.IsValid() && v.addr.IsValid():
 		return e.addr == v.addr

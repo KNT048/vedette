@@ -207,7 +207,7 @@ ON CONFLICT (id) DO UPDATE SET pack = excluded.pack, kind = excluded.kind, name 
   precheck = excluded.precheck, precheck_refuse = excluded.precheck_refuse, precheck_expect = excluded.precheck_expect, risk = excluded.risk, position = excluded.position
 WHERE resp_catalog.builtin = 1`)
 	if err != nil {
-		return fmt.Errorf("response: seed the catalog: %w", err)
+		return fmt.Errorf("prepare: %w", err) // ensureSeeded adds "response: seed the catalog"
 	}
 	defer func() { _ = st.Close() }()
 	for i, a := range s.cat {

@@ -60,7 +60,7 @@ func TestAddrFormsNAT64LocalLearnedLength(t *testing.T) {
 	public := nat64At("64:ff9b:1:a00::", nat64Layouts[2].at, [4]byte{8, 8, 8, 8})
 	loop := nat64At("64:ff9b:1:a00::", nat64Layouts[2].at, [4]byte{127, 0, 0, 1})
 	ten := netip.MustParseAddr("10.0.8.8")
-	// a /64 whose first byte is 0x7f reads as 127.x in the /56 layout
+	// a /64 whose byte 6 is 0x7f reads as loopback (127.x) in the /48 layout
 	v7f := nat64At("64:ff9b:1:7f00::", nat64Layouts[2].at, [4]byte{8, 8, 8, 8})
 
 	nat64Prefixes = func() []netip.Prefix { return nil }

@@ -95,8 +95,9 @@ func nat64Always(a netip.Addr) bool {
 // layouts (all that cover it) are read for the checks that depend on the network (private ranges, the box's own addresses), and the
 // other layouts only for nat64Always: DNS can narrow the first group, never switch off the second. A learned reading inside 0.0.0.0/8
 // falls back to every layout. Otherwise a reading inside 0.0.0.0/8 is dropped: a translator never forwards to "this network", and it
-// is what the zero suffix of a shorter prefix looks like in a longer layout. An operator prefix whose first byte after the /32 is
-// 0x7f still reads as loopback in the /48 layout and stays refused (a known false positive).
+// is what the zero suffix of a shorter prefix looks like in a longer layout. An operator prefix whose own bytes read as an
+// always-refused address in a shorter layout (byte 6, or byte 7 for a /64 or /96, of 127 or 224-239, or the bytes a9fe) has every
+// NAT64 destination refused (a known false positive: it fails closed).
 func nat64Local(b [16]byte) [][4]byte {
 	addr := netip.AddrFrom16(b)
 	var out [][4]byte

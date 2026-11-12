@@ -39,7 +39,7 @@ func TestSiemFormatsGoldenBytes(t *testing.T) {
 	if got, want := string(formatSyslog(r, "box-1")), `<131>1 2026-11-09T10:00:00.000Z box-1 vedette - finding.created [vedette@32473 id="f-1" asset_id="a-1" cve="CVE-2022-27593" basis="kev"] finding.created severity=high`; got != want {
 		t.Errorf("syslog:\n got %s\nwant %s", got, want)
 	}
-	if got, want := string(formatCEF(r)), `CEF:0|Vedette|Vedette|1.0|finding.created|Exploited vulnerability matches a device|7|rt=1794218400000 externalId=f-1 cs1Label=asset_id cs1=a-1 cs2Label=cve cs2=CVE-2022-27593 cs3Label=basis cs3=kev`; got != want {
+	if got, want := string(formatCEF(r, "box-1")), `CEF:0|Vedette|Vedette|1.0|finding.created|Exploited vulnerability matches a device|7|rt=1794218400000 dvchost=box-1 externalId=f-1 cs1Label=asset_id cs1=a-1 cs2Label=cve cs2=CVE-2022-27593 cs3Label=basis cs3=kev`; got != want {
 		t.Errorf("cef:\n got %s\nwant %s", got, want)
 	}
 	body := formatJSON(r, "box-1")
@@ -65,7 +65,7 @@ func TestSiemFormatsGoldenBytes(t *testing.T) {
 func TestSiemFormatsEscapeHostileText(t *testing.T) {
 	evil := "a\"b]c\\d|e=f\r\ng\x00h\u202ei j k"
 	r := newSiemRecord("honeypot.hit", "high", t0, siemField{Key: "decoy", Val: evil}, siemField{Key: "src_ip", CEF: "src", Val: "10.0.0.1 evil=1"})
-	for name, out := range map[string]string{"syslog": string(formatSyslog(r, "bo x\n")), "cef": string(formatCEF(r)), "json": string(formatJSON(r, "bo\nx"))} {
+	for name, out := range map[string]string{"syslog": string(formatSyslog(r, "bo x\n")), "cef": string(formatCEF(r, "bo=x\n")), "json": string(formatJSON(r, "bo\nx"))} {
 		for _, c := range out {
 			if c < 0x20 || c == 0x7f || (c >= 0x2028 && c <= 0x202e) {
 				t.Errorf("%s carries the control character %U: %q", name, c, out)
@@ -82,7 +82,10 @@ func TestSiemFormatsEscapeHostileText(t *testing.T) {
 	if !strings.Contains(sys, "Z box vedette - ") {
 		t.Errorf("syslog host not a single token: %s", sys)
 	}
-	cef := string(formatCEF(r))
+	cef := string(formatCEF(r, "bo=x y\n"))
+	if !strings.Contains(cef, ` dvchost=bo\=xy `) {
+		t.Errorf("cef host not a single token: %s", cef)
+	}
 	if !strings.Contains(cef, `cs1Label=decoy cs1=a"b]c\\d|e\=f  g h i j k`) {
 		t.Errorf("cef extension not escaped: %s", cef)
 	}
@@ -329,7 +332,7 @@ func TestSiemSendsEachFormatAndSignsTheWebhook(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream := <-got
-	want0 := string(formatCEF(recs[0]))
+	want0 := string(formatCEF(recs[0], "vedette"))
 	if !strings.HasPrefix(stream, fmt.Sprintf("%d %s", len(want0), want0)) {
 		t.Fatalf("tcp stream %q", stream)
 	}
@@ -412,6 +415,16 @@ func TestSiemRecordsCarryTheBoxHostname(t *testing.T) {
 		n, _, err := pc.ReadFrom(buf)
 		if want := "<131>1 2026-11-09T10:00:00.000Z " + tc.want + " vedette - "; err != nil || !strings.HasPrefix(string(buf[:n]), want) {
 			t.Errorf("%s: syslog %q, want the prefix %q (%v)", tc.name, buf[:n], want, err)
+		}
+		cefRow := syslogRow
+		cefRow.Format = "cef"
+		if _, err := e.svc.siemSend(t.Context(), cefRow, []siemRecord{goldenRecord()}); err != nil {
+			t.Fatal(err)
+		}
+		_ = pc.SetReadDeadline(time.Now().Add(5 * time.Second))
+		n, _, err = pc.ReadFrom(buf)
+		if want := "|rt=1794218400000 dvchost=" + tc.want + " "; err != nil || !strings.Contains(string(buf[:n]), want) {
+			t.Errorf("%s: cef %q, want %q (%v)", tc.name, buf[:n], want, err)
 		}
 		if _, err := e.svc.siemSend(t.Context(), jsonRow, []siemRecord{goldenRecord()}); err != nil {
 			t.Fatal(err)
@@ -625,7 +638,7 @@ func TestSiemBadConnCarriesBlocked(t *testing.T) {
 		t.Fatalf("%d records", len(recs))
 	}
 	for i, want := range []string{"true", "false", "false"} {
-		cef, sl, js := string(formatCEF(recs[i])), string(formatSyslog(recs[i], "box")), string(formatJSON(recs[i], "box"))
+		cef, sl, js := string(formatCEF(recs[i], "box")), string(formatSyslog(recs[i], "box")), string(formatJSON(recs[i], "box"))
 		if strings.Contains(cef, "act=blocked") != (want == "true") || strings.Contains(cef, "act=") != (want == "true") {
 			t.Errorf("record %d cef %s", i, cef)
 		}

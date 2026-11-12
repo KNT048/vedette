@@ -31,9 +31,10 @@ type boxHostName struct {
 	local string                                      // the name without a host
 	now   func() time.Time
 
-	mu    sync.Mutex
-	name  string    // the last valid name the host gave; "" none
-	until time.Time // the host is asked again after this
+	mu       sync.Mutex
+	name     string    // the last valid name the host gave; "" none
+	until    time.Time // the host is asked again after this
+	answered bool      // the host has answered at least once (with or without a name)
 }
 
 // newBoxHostName asks the vedette-host of socket ("" = no host).
@@ -52,13 +53,22 @@ func newBoxHostNameFrom(info func(ctx context.Context) (api.Info, error), now fu
 	return b
 }
 
-// Get returns the name, asking the host when the one in memory is older than boxNameTTL.
-func (b *boxHostName) Get(ctx context.Context) string {
+// Name is Get without ok: the name to show or send now.
+func (b *boxHostName) Name(ctx context.Context) string {
+	name, _ := b.Get(ctx)
+	return name
+}
+
+// Get returns the name, asking the host when the one in memory is older than boxNameTTL. ok is false only while the host has not
+// answered once since core started (a host restarting during an upgrade): name is then "vedette" only for want of better, and the
+// box job keeps the name the device row already has instead of writing it (#471). A call whose own ctx ended is not held against
+// the host: the next caller asks again.
+func (b *boxHostName) Get(ctx context.Context) (name string, ok bool) {
 	if b == nil {
-		return fallbackBoxName
+		return fallbackBoxName, true
 	}
 	if b.info == nil {
-		return b.local
+		return b.local, true
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -67,16 +77,17 @@ func (b *boxHostName) Get(ctx context.Context) string {
 		inf, err := b.info(cctx)
 		cancel()
 		switch {
+		case err != nil && ctx.Err() != nil: // the caller gave up, not the host
 		case err != nil:
 			b.until = now.Add(boxNameRetry)
 		case api.ValidHostname(inf.Hostname):
-			b.name, b.until = inf.Hostname, now.Add(boxNameTTL)
+			b.name, b.until, b.answered = inf.Hostname, now.Add(boxNameTTL), true
 		default: // the host answered without a usable name: it will not have one until it is updated or renamed
-			b.name, b.until = "", now.Add(boxNameTTL)
+			b.name, b.until, b.answered = "", now.Add(boxNameTTL), true
 		}
 	}
 	if b.name == "" {
-		return fallbackBoxName
+		return fallbackBoxName, b.answered
 	}
-	return b.name
+	return b.name, true
 }

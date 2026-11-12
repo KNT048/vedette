@@ -170,7 +170,7 @@ func (s *Service) sendSyslog(ctx context.Context, cfg siemRow, recs []siemRecord
 	for _, r := range recs {
 		var line []byte
 		if cfg.Format == "cef" {
-			line = formatCEF(r)
+			line = formatCEF(r, host)
 		} else {
 			line = formatSyslog(r, host)
 		}

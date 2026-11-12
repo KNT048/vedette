@@ -66,7 +66,14 @@ func inventoryJobs(d deps) []jobs.Job {
 		hostc = hostclient.New(d.HostSocket)
 	}
 	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
-		host := d.BoxName.Get(ctx) // the machine's name, not the container's (#471)
+		// The machine's name, not the container's (#471). No answer from the host since core started: keep the row's name rather
+		// than write "vedette" over it.
+		host, ok := d.BoxName.Get(ctx)
+		if !ok {
+			if name, _, found, err := svc.BoxName(ctx); err == nil && found && name != "" {
+				host = name
+			}
+		}
 		var ip string
 		if hostc != nil {
 			// Best effort: a host that does not answer leaves the address unknown until the next run.

@@ -902,9 +902,9 @@ func (s *Server) storeResult(ctx context.Context, res any) json.RawMessage {
 func (s *Server) handleInfo(w http.ResponseWriter) {
 	now := s.now().UTC()
 	distro, release := readOSRelease(s.o.OSReleasePath)
-	kernel, booted := systemInfo(now)
+	kernel, hostname, booted := systemInfo(now)
 	writeJSON(w, http.StatusOK, api.Info{
-		HostVersion: s.o.Version, Proto: api.Proto, Commands: s.reg.Names(), Runner: "podman",
+		HostVersion: s.o.Version, Proto: api.Proto, Commands: s.reg.Names(), Runner: "podman", Hostname: hostname,
 		OS:   api.OSInfo{Distro: distro, Release: release, Kernel: kernel},
 		Arch: runtime.GOARCH, BootedAt: booted, Time: now, AuditOK: s.audit.ok(),
 	})

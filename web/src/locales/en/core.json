@@ -278,6 +278,7 @@
         "enable": "Enable user",
         "password_reset": "Reset password",
         "2fa_reset": "Reset two-step sign-in",
+        "console_reset": "Reset an administrator from the box console",
         "sso_relink": "Move an SSO account to a new identity provider"
       },
       "account": {
@@ -592,6 +593,20 @@
     "advisoryAffected": "Affects you",
     "advisoryFixed": "Fixed in your build",
     "fixedIn": "Fixed in {{version}}.",
+    "revoked": {
+      "title": "Vedette {{version}}, which this box runs, has been withdrawn",
+      "body": "Reason given by the Vedette project: {{reason}}. Replace it with another release as soon as you can.",
+      "open": "Open Updates",
+      "quietTitle": "Vedette {{version}} has been withdrawn",
+      "quietBody": "Reason given by the Vedette project: {{reason}}. No box installs it any more; this box keeps running it until the next update."
+    },
+    "stale": {
+      "title": "The update information on this box is out of date",
+      "body": "It ran out on {{date}}, so newer releases and withdrawn ones may be missing.",
+      "checkOn": "The box gets new information at its next update check; if it stays out of date, make sure the box can reach github.com over HTTPS.",
+      "checkOff": "Update checks are off in Privacy: turn them on or import an offline bundle.",
+      "checkOffNoBundle": "Update checks are off in Privacy: turn them on."
+    },
     "bundle": {
       "title": "Bundle for air-gapped networks",
       "desc": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",
@@ -804,7 +819,7 @@
       },
       "stepDone": "(done)",
       "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
-      "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.",
+      "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.",
       "reconnecting": "Reconnecting to Vedette…",
       "failedToast": {
         "update": "The update did not finish. The audit log says where it stopped.",
@@ -1198,6 +1213,9 @@
       "confirm": "Confirm and turn on",
       "enabled": "Two-step sign-in is on.",
       "disabled": "Two-step sign-in is off.",
+      "lostUser": "Lost your phone or mailbox? Ask an administrator to turn two-step sign-in off for you in Settings → Users.",
+      "lostAdmin": "Lost your phone or mailbox? Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run this on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
+      "lostAdminCommand": "Reset from the box console",
       "offAsk": {
         "title": "Turn off two-step sign-in?",
         "body": "The account will be protected by the password alone.",
@@ -1215,7 +1233,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
-      "endOf": "End session {{device}}",
+      "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
       "endedAll": "All other sessions ended."

@@ -341,6 +341,7 @@ var contractRoutes = map[string][]string{
 	},
 	"sensor-passive": {
 		"GET /inventory/sensors",
+		"PATCH /inventory/sensors/{id}",
 	},
 }
 

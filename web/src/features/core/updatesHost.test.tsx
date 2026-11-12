@@ -53,7 +53,7 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['host', 'download', 'start', 'restart'])
     renderApp('/settings/updates')
     expect(await screen.findAllByText('Step 1 of 4: update the system helper')).not.toHaveLength(0)
-    expect(screen.getAllByText('Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.')).not.toHaveLength(0)
+    expect(screen.getAllByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).not.toHaveLength(0)
     for (const b of screen.getAllByRole('button', { name: /^Back to .*Vedette software/ })) expect(b).toBeDisabled()
     expect(within(helperRow()).queryByRole('button')).toBeNull()
   })

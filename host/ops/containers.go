@@ -237,6 +237,9 @@ func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs)
 	if _, _, err := o.currentUnit(a.Service); err != nil {
 		return err
 	}
+	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged(ctx) != "" { // the start writes the credential volume units (D-316 (10))
+		return refuse412(api.CodeUnitUnsafe, volumeOwnerText)
+	}
 	if a.Version == "" {
 		return nil
 	}
@@ -767,7 +770,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		if err := o.saveJournal(tr); err != nil {
 			return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 		}
-		if err := o.writeUnitForStart(svc, want); err != nil {
+		if err := o.writeUnitForStart(ctx, svc, want); err != nil {
 			o.removeJournal(svc)
 			return nil, unitWriteFailure(err)
 		}
@@ -785,7 +788,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 	if err := o.saveJournal(tr); err != nil {
 		return nil, fail(api.CodeUnitUnwritable, "The host could not write its journal.")
 	}
-	if err := o.writeUnitForStart(svc, want); err != nil {
+	if err := o.writeUnitForStart(ctx, svc, want); err != nil {
 		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}
@@ -807,6 +810,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 }
 
 func unitWriteFailure(err error) error {
+	if errors.Is(err, errVolumeOwner) {
+		return fail(api.CodeUnitUnsafe, volumeOwnerText)
+	}
 	if errors.Is(err, errBadFill) {
 		return fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need.")
 	}
@@ -922,8 +928,10 @@ func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string
 // recorded back (from .prev, which must match its hash) and becomes "restored"; the service state
 // (restart if it was active, stop if not) is restored by AfterReady. A journal that does not parse is
 // moved aside; one that cannot be read is left alone and says so. Until a journal is gone, container
-// commands for that service are refused (transition_pending). Bounded by recoverLimit.
-func (o *Ops) recoverTransitions(ctx context.Context) {
+// commands for that service are refused (transition_pending). Bounded by recoverLimit. atStart is Start's
+// call (not the retries of the loops after READY): only then are the units of an earlier host release moved
+// to the current template (migrateUnits, once per start, D-316 (10)), inside the same one reload.
+func (o *Ops) recoverTransitions(ctx context.Context, atStart bool) {
 	rctx, cancel := context.WithTimeout(ctx, recoverLimit)
 	defer cancel()
 	o.restorePending = nil
@@ -984,8 +992,11 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 			o.note(t.command(), "transition_interrupted", detail)
 		}
 	}
+	if atStart && o.migrateUnits(rctx) { // units of an earlier host release, to the current template (D-316 (10)): the same one reload
+		changed = true
+	}
 	if changed && !o.sctl(rctx, reloadLimit, "daemon-reload") {
-		o.log.ErrorContext(ctx, "systemd would not reload after the unit bytes were put back; AfterReady tries again")
+		o.log.ErrorContext(ctx, "systemd would not reload after the unit bytes were put back or migrated; AfterReady or the next unit command reloads")
 	}
 }
 
@@ -1050,7 +1061,7 @@ func (o *Ops) anyJournal() bool {
 // recoverAndFinish is one try of the loops: put back the bytes of a journal that is still "pending", then
 // the state and the database of what waits. It runs under the write lock.
 func (o *Ops) recoverAndFinish(ctx context.Context) {
-	o.recoverTransitions(ctx)
+	o.recoverTransitions(ctx, false)
 	o.finishRestores(ctx)
 }
 

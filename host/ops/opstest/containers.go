@@ -337,7 +337,10 @@ case "$1" in
         printf '],"RepoDigests":['
         [ -n "$svc" ] && [ "$svc" != scan-nmap ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
         c=0; [ -e "$S/used.$d" ] && c=1
-        printf '],"Containers":%s}' "$c"
+        printf '],"Containers":%s' "$c"
+        # an image the host built carries the LABEL of its Containerfile (D-147), also once it lost its tag
+        [ "$svc" = scan-nmap ] && printf ',"Labels":{"io.buildah.version":"1.42.1","io.vedette.build":"scan"}'
+        printf '}'
       done
       printf ']\n'
       exit 0

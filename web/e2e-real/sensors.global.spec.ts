@@ -19,7 +19,7 @@ test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 test.describe.configure({ mode: 'serial' })
 
 type Client = Awaited<ReturnType<typeof as>>
-interface Sensor { id: string; status: 'online' | 'offline'; last_seen: string | null; version: string | null; interface: string | null }
+interface Sensor { id: string; status: 'online' | 'offline' | 'never_connected'; last_seen: string | null; version: string | null; interface: string | null }
 const sensor = async (c: Client) => (await api<{ sensors: Sensor[] }>(c, 'GET', '/inventory/sensors')).body.sensors
 const sensorRow = (page: Page) => page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)
 const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms))
@@ -60,7 +60,7 @@ test.beforeAll(async () => {
     base = (await devices(c)).items
     expect(base.filter((d) => !d.approved).map((d) => d.ip), 'this file needs a box with no device waiting for approval').toEqual([])
     const list = await sensor(c)
-    expect(list.map((s) => s.status), 'one sensor, the one on this box, and nothing started yet').toEqual(['offline'])
+    expect(list.map((s) => s.status), 'one sensor, the one on this box, and nothing started yet').toEqual(['never_connected'])
     expect(list[0]).toMatchObject({ last_seen: null, version: null })
     original = await settings(c)
     tz = (await api<{ timezone: string }>(c, 'GET', '/core/general')).body.timezone

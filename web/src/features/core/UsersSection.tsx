@@ -45,7 +45,7 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={t('users.add.title')} description={t('users.add.body')}>
         <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
-          <Field label={t('users.add.name')} htmlFor="u-name" error={err.name}><Input id="u-name" value={v.name} aria-invalid={!!err.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
+          <Field label={t('users.add.name')} htmlFor="u-name" error={err.name}><Input id="u-name" value={v.name} maxLength={80} aria-invalid={!!err.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
           <Field label={t('users.add.email')} htmlFor="u-email" error={err.email}><Input id="u-email" type="email" value={v.email} aria-invalid={!!err.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field>
           <Field label={t('users.add.role')} htmlFor="u-role" hint={t(`users.roleHint.${v.role}`)}>
             <Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>

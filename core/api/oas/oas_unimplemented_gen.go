@@ -1750,6 +1750,18 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPatchInventorySensorsID implements inventory_patch_inventory_sensors_id operation.
+//
+// Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the
+// cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s,
+// or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box
+// network sets it.
+//
+// PATCH /inventory/sensors/{id}
+func (UnimplementedHandler) InventoryPatchInventorySensorsID(ctx context.Context, req *InventoryPatchInventorySensorsIDReq, params InventoryPatchInventorySensorsIDParams) (r *InventoryPatchInventorySensorsIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPostIntakeOsqueryConfig implements inventory_post_intake_osquery_config operation.
 //
 // Osquery config (machine to machine): the read-only snapshot schedule for an enrolled node;

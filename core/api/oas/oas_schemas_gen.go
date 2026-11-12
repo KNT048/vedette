@@ -15345,7 +15345,7 @@ type CoreGetCoreUpdatesOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CoreGetCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCoreGetCoreUpdatesOKRun `json:"run"`
 }
 
@@ -16194,21 +16194,32 @@ func (s *CoreGetCoreUpdatesOKMode) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreUpdatesOKRun struct {
-	Action    CoreGetCoreUpdatesOKRunAction `json:"action"`
-	Component string                        `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CoreGetCoreUpdatesOKRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
-	To   string                         `json:"to"`
-	User string                         `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CoreGetCoreUpdatesOKRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -16254,6 +16265,11 @@ func (s *CoreGetCoreUpdatesOKRun) GetStatus() CoreGetCoreUpdatesOKRunStatus {
 // GetStep returns the value of Step.
 func (s *CoreGetCoreUpdatesOKRun) GetStep() NilCoreGetCoreUpdatesOKRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CoreGetCoreUpdatesOKRun) GetSteps() []CoreGetCoreUpdatesOKRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -16311,6 +16327,11 @@ func (s *CoreGetCoreUpdatesOKRun) SetStep(val NilCoreGetCoreUpdatesOKRunStep) {
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CoreGetCoreUpdatesOKRun) SetSteps(val []CoreGetCoreUpdatesOKRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CoreGetCoreUpdatesOKRun) SetTo(val string) {
 	s.To = val
@@ -16362,7 +16383,8 @@ func (s *CoreGetCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CoreGetCoreUpdatesOKRunStatus string
 
 const (
@@ -16423,6 +16445,7 @@ type CoreGetCoreUpdatesOKRunStep string
 const (
 	CoreGetCoreUpdatesOKRunStepDownload CoreGetCoreUpdatesOKRunStep = "download"
 	CoreGetCoreUpdatesOKRunStepStart    CoreGetCoreUpdatesOKRunStep = "start"
+	CoreGetCoreUpdatesOKRunStepRestore  CoreGetCoreUpdatesOKRunStep = "restore"
 	CoreGetCoreUpdatesOKRunStepRestart  CoreGetCoreUpdatesOKRunStep = "restart"
 )
 
@@ -16431,6 +16454,7 @@ func (CoreGetCoreUpdatesOKRunStep) AllValues() []CoreGetCoreUpdatesOKRunStep {
 	return []CoreGetCoreUpdatesOKRunStep{
 		CoreGetCoreUpdatesOKRunStepDownload,
 		CoreGetCoreUpdatesOKRunStepStart,
+		CoreGetCoreUpdatesOKRunStepRestore,
 		CoreGetCoreUpdatesOKRunStepRestart,
 	}
 }
@@ -16441,6 +16465,8 @@ func (s CoreGetCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 	case CoreGetCoreUpdatesOKRunStepDownload:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepStart:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepRestore:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOKRunStepRestart:
 		return []byte(s), nil
@@ -16458,8 +16484,66 @@ func (s *CoreGetCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 	case CoreGetCoreUpdatesOKRunStepStart:
 		*s = CoreGetCoreUpdatesOKRunStepStart
 		return nil
+	case CoreGetCoreUpdatesOKRunStepRestore:
+		*s = CoreGetCoreUpdatesOKRunStepRestore
+		return nil
 	case CoreGetCoreUpdatesOKRunStepRestart:
 		*s = CoreGetCoreUpdatesOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKRunStepsItem string
+
+const (
+	CoreGetCoreUpdatesOKRunStepsItemDownload CoreGetCoreUpdatesOKRunStepsItem = "download"
+	CoreGetCoreUpdatesOKRunStepsItemStart    CoreGetCoreUpdatesOKRunStepsItem = "start"
+	CoreGetCoreUpdatesOKRunStepsItemRestore  CoreGetCoreUpdatesOKRunStepsItem = "restore"
+	CoreGetCoreUpdatesOKRunStepsItemRestart  CoreGetCoreUpdatesOKRunStepsItem = "restart"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKRunStepsItem values.
+func (CoreGetCoreUpdatesOKRunStepsItem) AllValues() []CoreGetCoreUpdatesOKRunStepsItem {
+	return []CoreGetCoreUpdatesOKRunStepsItem{
+		CoreGetCoreUpdatesOKRunStepsItemDownload,
+		CoreGetCoreUpdatesOKRunStepsItemStart,
+		CoreGetCoreUpdatesOKRunStepsItemRestore,
+		CoreGetCoreUpdatesOKRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKRunStepsItemDownload:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepsItemStart:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepsItemRestore:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKRunStepsItem(data) {
+	case CoreGetCoreUpdatesOKRunStepsItemDownload:
+		*s = CoreGetCoreUpdatesOKRunStepsItemDownload
+		return nil
+	case CoreGetCoreUpdatesOKRunStepsItemStart:
+		*s = CoreGetCoreUpdatesOKRunStepsItemStart
+		return nil
+	case CoreGetCoreUpdatesOKRunStepsItemRestore:
+		*s = CoreGetCoreUpdatesOKRunStepsItemRestore
+		return nil
+	case CoreGetCoreUpdatesOKRunStepsItemRestart:
+		*s = CoreGetCoreUpdatesOKRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -18383,7 +18467,7 @@ type CorePatchCoreUpdatesOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePatchCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePatchCoreUpdatesOKRun `json:"run"`
 }
 
@@ -19232,21 +19316,32 @@ func (s *CorePatchCoreUpdatesOKMode) UnmarshalText(data []byte) error {
 }
 
 type CorePatchCoreUpdatesOKRun struct {
-	Action    CorePatchCoreUpdatesOKRunAction `json:"action"`
-	Component string                          `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CorePatchCoreUpdatesOKRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
-	To   string                           `json:"to"`
-	User string                           `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CorePatchCoreUpdatesOKRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -19292,6 +19387,11 @@ func (s *CorePatchCoreUpdatesOKRun) GetStatus() CorePatchCoreUpdatesOKRunStatus 
 // GetStep returns the value of Step.
 func (s *CorePatchCoreUpdatesOKRun) GetStep() NilCorePatchCoreUpdatesOKRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CorePatchCoreUpdatesOKRun) GetSteps() []CorePatchCoreUpdatesOKRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -19349,6 +19449,11 @@ func (s *CorePatchCoreUpdatesOKRun) SetStep(val NilCorePatchCoreUpdatesOKRunStep
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CorePatchCoreUpdatesOKRun) SetSteps(val []CorePatchCoreUpdatesOKRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CorePatchCoreUpdatesOKRun) SetTo(val string) {
 	s.To = val
@@ -19400,7 +19505,8 @@ func (s *CorePatchCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CorePatchCoreUpdatesOKRunStatus string
 
 const (
@@ -19461,6 +19567,7 @@ type CorePatchCoreUpdatesOKRunStep string
 const (
 	CorePatchCoreUpdatesOKRunStepDownload CorePatchCoreUpdatesOKRunStep = "download"
 	CorePatchCoreUpdatesOKRunStepStart    CorePatchCoreUpdatesOKRunStep = "start"
+	CorePatchCoreUpdatesOKRunStepRestore  CorePatchCoreUpdatesOKRunStep = "restore"
 	CorePatchCoreUpdatesOKRunStepRestart  CorePatchCoreUpdatesOKRunStep = "restart"
 )
 
@@ -19469,6 +19576,7 @@ func (CorePatchCoreUpdatesOKRunStep) AllValues() []CorePatchCoreUpdatesOKRunStep
 	return []CorePatchCoreUpdatesOKRunStep{
 		CorePatchCoreUpdatesOKRunStepDownload,
 		CorePatchCoreUpdatesOKRunStepStart,
+		CorePatchCoreUpdatesOKRunStepRestore,
 		CorePatchCoreUpdatesOKRunStepRestart,
 	}
 }
@@ -19479,6 +19587,8 @@ func (s CorePatchCoreUpdatesOKRunStep) MarshalText() ([]byte, error) {
 	case CorePatchCoreUpdatesOKRunStepDownload:
 		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepStart:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepRestore:
 		return []byte(s), nil
 	case CorePatchCoreUpdatesOKRunStepRestart:
 		return []byte(s), nil
@@ -19496,8 +19606,66 @@ func (s *CorePatchCoreUpdatesOKRunStep) UnmarshalText(data []byte) error {
 	case CorePatchCoreUpdatesOKRunStepStart:
 		*s = CorePatchCoreUpdatesOKRunStepStart
 		return nil
+	case CorePatchCoreUpdatesOKRunStepRestore:
+		*s = CorePatchCoreUpdatesOKRunStepRestore
+		return nil
 	case CorePatchCoreUpdatesOKRunStepRestart:
 		*s = CorePatchCoreUpdatesOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKRunStepsItem string
+
+const (
+	CorePatchCoreUpdatesOKRunStepsItemDownload CorePatchCoreUpdatesOKRunStepsItem = "download"
+	CorePatchCoreUpdatesOKRunStepsItemStart    CorePatchCoreUpdatesOKRunStepsItem = "start"
+	CorePatchCoreUpdatesOKRunStepsItemRestore  CorePatchCoreUpdatesOKRunStepsItem = "restore"
+	CorePatchCoreUpdatesOKRunStepsItemRestart  CorePatchCoreUpdatesOKRunStepsItem = "restart"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKRunStepsItem values.
+func (CorePatchCoreUpdatesOKRunStepsItem) AllValues() []CorePatchCoreUpdatesOKRunStepsItem {
+	return []CorePatchCoreUpdatesOKRunStepsItem{
+		CorePatchCoreUpdatesOKRunStepsItemDownload,
+		CorePatchCoreUpdatesOKRunStepsItemStart,
+		CorePatchCoreUpdatesOKRunStepsItemRestore,
+		CorePatchCoreUpdatesOKRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKRunStepsItemDownload:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepsItemStart:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepsItemRestore:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKRunStepsItem(data) {
+	case CorePatchCoreUpdatesOKRunStepsItemDownload:
+		*s = CorePatchCoreUpdatesOKRunStepsItemDownload
+		return nil
+	case CorePatchCoreUpdatesOKRunStepsItemStart:
+		*s = CorePatchCoreUpdatesOKRunStepsItemStart
+		return nil
+	case CorePatchCoreUpdatesOKRunStepsItemRestore:
+		*s = CorePatchCoreUpdatesOKRunStepsItemRestore
+		return nil
+	case CorePatchCoreUpdatesOKRunStepsItemRestart:
+		*s = CorePatchCoreUpdatesOKRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -25189,7 +25357,7 @@ type CorePostCoreUpdatesApplyOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesApplyOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesApplyOKRun `json:"run"`
 }
 
@@ -26038,21 +26206,32 @@ func (s *CorePostCoreUpdatesApplyOKMode) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesApplyOKRun struct {
-	Action    CorePostCoreUpdatesApplyOKRunAction `json:"action"`
-	Component string                              `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CorePostCoreUpdatesApplyOKRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
-	To   string                               `json:"to"`
-	User string                               `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CorePostCoreUpdatesApplyOKRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -26098,6 +26277,11 @@ func (s *CorePostCoreUpdatesApplyOKRun) GetStatus() CorePostCoreUpdatesApplyOKRu
 // GetStep returns the value of Step.
 func (s *CorePostCoreUpdatesApplyOKRun) GetStep() NilCorePostCoreUpdatesApplyOKRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CorePostCoreUpdatesApplyOKRun) GetSteps() []CorePostCoreUpdatesApplyOKRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -26155,6 +26339,11 @@ func (s *CorePostCoreUpdatesApplyOKRun) SetStep(val NilCorePostCoreUpdatesApplyO
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CorePostCoreUpdatesApplyOKRun) SetSteps(val []CorePostCoreUpdatesApplyOKRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CorePostCoreUpdatesApplyOKRun) SetTo(val string) {
 	s.To = val
@@ -26206,7 +26395,8 @@ func (s *CorePostCoreUpdatesApplyOKRunAction) UnmarshalText(data []byte) error {
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CorePostCoreUpdatesApplyOKRunStatus string
 
 const (
@@ -26267,6 +26457,7 @@ type CorePostCoreUpdatesApplyOKRunStep string
 const (
 	CorePostCoreUpdatesApplyOKRunStepDownload CorePostCoreUpdatesApplyOKRunStep = "download"
 	CorePostCoreUpdatesApplyOKRunStepStart    CorePostCoreUpdatesApplyOKRunStep = "start"
+	CorePostCoreUpdatesApplyOKRunStepRestore  CorePostCoreUpdatesApplyOKRunStep = "restore"
 	CorePostCoreUpdatesApplyOKRunStepRestart  CorePostCoreUpdatesApplyOKRunStep = "restart"
 )
 
@@ -26275,6 +26466,7 @@ func (CorePostCoreUpdatesApplyOKRunStep) AllValues() []CorePostCoreUpdatesApplyO
 	return []CorePostCoreUpdatesApplyOKRunStep{
 		CorePostCoreUpdatesApplyOKRunStepDownload,
 		CorePostCoreUpdatesApplyOKRunStepStart,
+		CorePostCoreUpdatesApplyOKRunStepRestore,
 		CorePostCoreUpdatesApplyOKRunStepRestart,
 	}
 }
@@ -26285,6 +26477,8 @@ func (s CorePostCoreUpdatesApplyOKRunStep) MarshalText() ([]byte, error) {
 	case CorePostCoreUpdatesApplyOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepRestore:
 		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKRunStepRestart:
 		return []byte(s), nil
@@ -26302,8 +26496,66 @@ func (s *CorePostCoreUpdatesApplyOKRunStep) UnmarshalText(data []byte) error {
 	case CorePostCoreUpdatesApplyOKRunStepStart:
 		*s = CorePostCoreUpdatesApplyOKRunStepStart
 		return nil
+	case CorePostCoreUpdatesApplyOKRunStepRestore:
+		*s = CorePostCoreUpdatesApplyOKRunStepRestore
+		return nil
 	case CorePostCoreUpdatesApplyOKRunStepRestart:
 		*s = CorePostCoreUpdatesApplyOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesApplyOKRunStepsItem string
+
+const (
+	CorePostCoreUpdatesApplyOKRunStepsItemDownload CorePostCoreUpdatesApplyOKRunStepsItem = "download"
+	CorePostCoreUpdatesApplyOKRunStepsItemStart    CorePostCoreUpdatesApplyOKRunStepsItem = "start"
+	CorePostCoreUpdatesApplyOKRunStepsItemRestore  CorePostCoreUpdatesApplyOKRunStepsItem = "restore"
+	CorePostCoreUpdatesApplyOKRunStepsItemRestart  CorePostCoreUpdatesApplyOKRunStepsItem = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKRunStepsItem values.
+func (CorePostCoreUpdatesApplyOKRunStepsItem) AllValues() []CorePostCoreUpdatesApplyOKRunStepsItem {
+	return []CorePostCoreUpdatesApplyOKRunStepsItem{
+		CorePostCoreUpdatesApplyOKRunStepsItemDownload,
+		CorePostCoreUpdatesApplyOKRunStepsItemStart,
+		CorePostCoreUpdatesApplyOKRunStepsItemRestore,
+		CorePostCoreUpdatesApplyOKRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKRunStepsItemDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemRestore:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunStepsItem) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKRunStepsItem(data) {
+	case CorePostCoreUpdatesApplyOKRunStepsItemDownload:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemDownload
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemStart:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemStart
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemRestore:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemRestore
+		return nil
+	case CorePostCoreUpdatesApplyOKRunStepsItemRestart:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -26361,7 +26613,7 @@ type CorePostCoreUpdatesBundleOKState struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesBundleOKStateManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesBundleOKStateRun `json:"run"`
 }
 
@@ -27210,21 +27462,32 @@ func (s *CorePostCoreUpdatesBundleOKStateMode) UnmarshalText(data []byte) error 
 }
 
 type CorePostCoreUpdatesBundleOKStateRun struct {
-	Action    CorePostCoreUpdatesBundleOKStateRunAction `json:"action"`
-	Component string                                    `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CorePostCoreUpdatesBundleOKStateRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
-	To   string                                     `json:"to"`
-	User string                                     `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CorePostCoreUpdatesBundleOKStateRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -27270,6 +27533,11 @@ func (s *CorePostCoreUpdatesBundleOKStateRun) GetStatus() CorePostCoreUpdatesBun
 // GetStep returns the value of Step.
 func (s *CorePostCoreUpdatesBundleOKStateRun) GetStep() NilCorePostCoreUpdatesBundleOKStateRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CorePostCoreUpdatesBundleOKStateRun) GetSteps() []CorePostCoreUpdatesBundleOKStateRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -27327,6 +27595,11 @@ func (s *CorePostCoreUpdatesBundleOKStateRun) SetStep(val NilCorePostCoreUpdates
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CorePostCoreUpdatesBundleOKStateRun) SetSteps(val []CorePostCoreUpdatesBundleOKStateRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CorePostCoreUpdatesBundleOKStateRun) SetTo(val string) {
 	s.To = val
@@ -27378,7 +27651,8 @@ func (s *CorePostCoreUpdatesBundleOKStateRunAction) UnmarshalText(data []byte) e
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CorePostCoreUpdatesBundleOKStateRunStatus string
 
 const (
@@ -27439,6 +27713,7 @@ type CorePostCoreUpdatesBundleOKStateRunStep string
 const (
 	CorePostCoreUpdatesBundleOKStateRunStepDownload CorePostCoreUpdatesBundleOKStateRunStep = "download"
 	CorePostCoreUpdatesBundleOKStateRunStepStart    CorePostCoreUpdatesBundleOKStateRunStep = "start"
+	CorePostCoreUpdatesBundleOKStateRunStepRestore  CorePostCoreUpdatesBundleOKStateRunStep = "restore"
 	CorePostCoreUpdatesBundleOKStateRunStepRestart  CorePostCoreUpdatesBundleOKStateRunStep = "restart"
 )
 
@@ -27447,6 +27722,7 @@ func (CorePostCoreUpdatesBundleOKStateRunStep) AllValues() []CorePostCoreUpdates
 	return []CorePostCoreUpdatesBundleOKStateRunStep{
 		CorePostCoreUpdatesBundleOKStateRunStepDownload,
 		CorePostCoreUpdatesBundleOKStateRunStepStart,
+		CorePostCoreUpdatesBundleOKStateRunStepRestore,
 		CorePostCoreUpdatesBundleOKStateRunStepRestart,
 	}
 }
@@ -27457,6 +27733,8 @@ func (s CorePostCoreUpdatesBundleOKStateRunStep) MarshalText() ([]byte, error) {
 	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepRestore:
 		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateRunStepRestart:
 		return []byte(s), nil
@@ -27474,8 +27752,66 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStep) UnmarshalText(data []byte) err
 	case CorePostCoreUpdatesBundleOKStateRunStepStart:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepStart
 		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepRestore:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepRestore
+		return nil
 	case CorePostCoreUpdatesBundleOKStateRunStepRestart:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesBundleOKStateRunStepsItem string
+
+const (
+	CorePostCoreUpdatesBundleOKStateRunStepsItemDownload CorePostCoreUpdatesBundleOKStateRunStepsItem = "download"
+	CorePostCoreUpdatesBundleOKStateRunStepsItemStart    CorePostCoreUpdatesBundleOKStateRunStepsItem = "start"
+	CorePostCoreUpdatesBundleOKStateRunStepsItemRestore  CorePostCoreUpdatesBundleOKStateRunStepsItem = "restore"
+	CorePostCoreUpdatesBundleOKStateRunStepsItemRestart  CorePostCoreUpdatesBundleOKStateRunStepsItem = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateRunStepsItem values.
+func (CorePostCoreUpdatesBundleOKStateRunStepsItem) AllValues() []CorePostCoreUpdatesBundleOKStateRunStepsItem {
+	return []CorePostCoreUpdatesBundleOKStateRunStepsItem{
+		CorePostCoreUpdatesBundleOKStateRunStepsItemDownload,
+		CorePostCoreUpdatesBundleOKStateRunStepsItemStart,
+		CorePostCoreUpdatesBundleOKStateRunStepsItemRestore,
+		CorePostCoreUpdatesBundleOKStateRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemRestore:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateRunStepsItem(data) {
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemDownload:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemDownload
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemStart:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemStart
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemRestore:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemRestore
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemRestart:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -27544,7 +27880,7 @@ type CorePostCoreUpdatesCheckOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesCheckOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesCheckOKRun `json:"run"`
 }
 
@@ -28403,21 +28739,32 @@ func (s *CorePostCoreUpdatesCheckOKMode) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesCheckOKRun struct {
-	Action    CorePostCoreUpdatesCheckOKRunAction `json:"action"`
-	Component string                              `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CorePostCoreUpdatesCheckOKRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
-	To   string                               `json:"to"`
-	User string                               `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CorePostCoreUpdatesCheckOKRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -28463,6 +28810,11 @@ func (s *CorePostCoreUpdatesCheckOKRun) GetStatus() CorePostCoreUpdatesCheckOKRu
 // GetStep returns the value of Step.
 func (s *CorePostCoreUpdatesCheckOKRun) GetStep() NilCorePostCoreUpdatesCheckOKRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CorePostCoreUpdatesCheckOKRun) GetSteps() []CorePostCoreUpdatesCheckOKRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -28520,6 +28872,11 @@ func (s *CorePostCoreUpdatesCheckOKRun) SetStep(val NilCorePostCoreUpdatesCheckO
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CorePostCoreUpdatesCheckOKRun) SetSteps(val []CorePostCoreUpdatesCheckOKRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CorePostCoreUpdatesCheckOKRun) SetTo(val string) {
 	s.To = val
@@ -28571,7 +28928,8 @@ func (s *CorePostCoreUpdatesCheckOKRunAction) UnmarshalText(data []byte) error {
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CorePostCoreUpdatesCheckOKRunStatus string
 
 const (
@@ -28632,6 +28990,7 @@ type CorePostCoreUpdatesCheckOKRunStep string
 const (
 	CorePostCoreUpdatesCheckOKRunStepDownload CorePostCoreUpdatesCheckOKRunStep = "download"
 	CorePostCoreUpdatesCheckOKRunStepStart    CorePostCoreUpdatesCheckOKRunStep = "start"
+	CorePostCoreUpdatesCheckOKRunStepRestore  CorePostCoreUpdatesCheckOKRunStep = "restore"
 	CorePostCoreUpdatesCheckOKRunStepRestart  CorePostCoreUpdatesCheckOKRunStep = "restart"
 )
 
@@ -28640,6 +28999,7 @@ func (CorePostCoreUpdatesCheckOKRunStep) AllValues() []CorePostCoreUpdatesCheckO
 	return []CorePostCoreUpdatesCheckOKRunStep{
 		CorePostCoreUpdatesCheckOKRunStepDownload,
 		CorePostCoreUpdatesCheckOKRunStepStart,
+		CorePostCoreUpdatesCheckOKRunStepRestore,
 		CorePostCoreUpdatesCheckOKRunStepRestart,
 	}
 }
@@ -28650,6 +29010,8 @@ func (s CorePostCoreUpdatesCheckOKRunStep) MarshalText() ([]byte, error) {
 	case CorePostCoreUpdatesCheckOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepRestore:
 		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKRunStepRestart:
 		return []byte(s), nil
@@ -28667,8 +29029,66 @@ func (s *CorePostCoreUpdatesCheckOKRunStep) UnmarshalText(data []byte) error {
 	case CorePostCoreUpdatesCheckOKRunStepStart:
 		*s = CorePostCoreUpdatesCheckOKRunStepStart
 		return nil
+	case CorePostCoreUpdatesCheckOKRunStepRestore:
+		*s = CorePostCoreUpdatesCheckOKRunStepRestore
+		return nil
 	case CorePostCoreUpdatesCheckOKRunStepRestart:
 		*s = CorePostCoreUpdatesCheckOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKRunStepsItem string
+
+const (
+	CorePostCoreUpdatesCheckOKRunStepsItemDownload CorePostCoreUpdatesCheckOKRunStepsItem = "download"
+	CorePostCoreUpdatesCheckOKRunStepsItemStart    CorePostCoreUpdatesCheckOKRunStepsItem = "start"
+	CorePostCoreUpdatesCheckOKRunStepsItemRestore  CorePostCoreUpdatesCheckOKRunStepsItem = "restore"
+	CorePostCoreUpdatesCheckOKRunStepsItemRestart  CorePostCoreUpdatesCheckOKRunStepsItem = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKRunStepsItem values.
+func (CorePostCoreUpdatesCheckOKRunStepsItem) AllValues() []CorePostCoreUpdatesCheckOKRunStepsItem {
+	return []CorePostCoreUpdatesCheckOKRunStepsItem{
+		CorePostCoreUpdatesCheckOKRunStepsItemDownload,
+		CorePostCoreUpdatesCheckOKRunStepsItemStart,
+		CorePostCoreUpdatesCheckOKRunStepsItemRestore,
+		CorePostCoreUpdatesCheckOKRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKRunStepsItemDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemRestore:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunStepsItem) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKRunStepsItem(data) {
+	case CorePostCoreUpdatesCheckOKRunStepsItemDownload:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemDownload
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemStart:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemStart
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemRestore:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemRestore
+		return nil
+	case CorePostCoreUpdatesCheckOKRunStepsItemRestart:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -29952,7 +30372,7 @@ type CorePostCoreUpdatesRollbackOK struct {
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesRollbackOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
-	// The software install or rollback running now, or the latest one; null when there was none.
+	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesRollbackOKRun `json:"run"`
 }
 
@@ -30801,21 +31221,32 @@ func (s *CorePostCoreUpdatesRollbackOKMode) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesRollbackOKRun struct {
-	Action    CorePostCoreUpdatesRollbackOKRunAction `json:"action"`
-	Component string                                 `json:"component"`
-	// Only when failed or reverted: why, in words.
+	Action CorePostCoreUpdatesRollbackOKRunAction `json:"action"`
+	// "software": the whole release, every service in lockstep.
+	Component string `json:"component"`
+	// Only when failed or reverted: why, in words, naming the service that failed.
 	Error      NilString   `json:"error"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	From       NilString   `json:"from"`
-	ID         string      `json:"id"`
-	StartedAt  time.Time   `json:"started_at"`
-	// Reverted: the new build was not healthy and the box went back to the old one.
+	// Release running when the run started.
+	From NilString `json:"from"`
+	// Stays the same across the restart of Vedette in the middle of the run: the run is kept where the
+	// restart cannot lose it.
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+	// before or without that.
 	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
-	// Download: fetch and verify the signed images; start: the other services; restart: Vedette itself
+	// One of steps while running; null when ended. download: fetch and verify the signed images; start:
+	// the other services; restore: put back the database from before the update; restart: Vedette itself
 	// restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
-	To   string                                  `json:"to"`
-	User string                                  `json:"user"`
+	// The steps of this run in order: update = download, start, restart; rollback = start, then restore
+	// (only when it puts back the database), restart.
+	Steps []CorePostCoreUpdatesRollbackOKRunStepsItem `json:"steps"`
+	// Release the run installs (update) or goes back to (rollback).
+	To string `json:"to"`
+	// "system" for the automatic updater.
+	User string `json:"user"`
 }
 
 // GetAction returns the value of Action.
@@ -30861,6 +31292,11 @@ func (s *CorePostCoreUpdatesRollbackOKRun) GetStatus() CorePostCoreUpdatesRollba
 // GetStep returns the value of Step.
 func (s *CorePostCoreUpdatesRollbackOKRun) GetStep() NilCorePostCoreUpdatesRollbackOKRunStep {
 	return s.Step
+}
+
+// GetSteps returns the value of Steps.
+func (s *CorePostCoreUpdatesRollbackOKRun) GetSteps() []CorePostCoreUpdatesRollbackOKRunStepsItem {
+	return s.Steps
 }
 
 // GetTo returns the value of To.
@@ -30918,6 +31354,11 @@ func (s *CorePostCoreUpdatesRollbackOKRun) SetStep(val NilCorePostCoreUpdatesRol
 	s.Step = val
 }
 
+// SetSteps sets the value of Steps.
+func (s *CorePostCoreUpdatesRollbackOKRun) SetSteps(val []CorePostCoreUpdatesRollbackOKRunStepsItem) {
+	s.Steps = val
+}
+
 // SetTo sets the value of To.
 func (s *CorePostCoreUpdatesRollbackOKRun) SetTo(val string) {
 	s.To = val
@@ -30969,7 +31410,8 @@ func (s *CorePostCoreUpdatesRollbackOKRunAction) UnmarshalText(data []byte) erro
 	}
 }
 
-// Reverted: the new build was not healthy and the box went back to the old one.
+// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
+// before or without that.
 type CorePostCoreUpdatesRollbackOKRunStatus string
 
 const (
@@ -31030,6 +31472,7 @@ type CorePostCoreUpdatesRollbackOKRunStep string
 const (
 	CorePostCoreUpdatesRollbackOKRunStepDownload CorePostCoreUpdatesRollbackOKRunStep = "download"
 	CorePostCoreUpdatesRollbackOKRunStepStart    CorePostCoreUpdatesRollbackOKRunStep = "start"
+	CorePostCoreUpdatesRollbackOKRunStepRestore  CorePostCoreUpdatesRollbackOKRunStep = "restore"
 	CorePostCoreUpdatesRollbackOKRunStepRestart  CorePostCoreUpdatesRollbackOKRunStep = "restart"
 )
 
@@ -31038,6 +31481,7 @@ func (CorePostCoreUpdatesRollbackOKRunStep) AllValues() []CorePostCoreUpdatesRol
 	return []CorePostCoreUpdatesRollbackOKRunStep{
 		CorePostCoreUpdatesRollbackOKRunStepDownload,
 		CorePostCoreUpdatesRollbackOKRunStepStart,
+		CorePostCoreUpdatesRollbackOKRunStepRestore,
 		CorePostCoreUpdatesRollbackOKRunStepRestart,
 	}
 }
@@ -31048,6 +31492,8 @@ func (s CorePostCoreUpdatesRollbackOKRunStep) MarshalText() ([]byte, error) {
 	case CorePostCoreUpdatesRollbackOKRunStepDownload:
 		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepRestore:
 		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKRunStepRestart:
 		return []byte(s), nil
@@ -31065,8 +31511,66 @@ func (s *CorePostCoreUpdatesRollbackOKRunStep) UnmarshalText(data []byte) error 
 	case CorePostCoreUpdatesRollbackOKRunStepStart:
 		*s = CorePostCoreUpdatesRollbackOKRunStepStart
 		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepRestore:
+		*s = CorePostCoreUpdatesRollbackOKRunStepRestore
+		return nil
 	case CorePostCoreUpdatesRollbackOKRunStepRestart:
 		*s = CorePostCoreUpdatesRollbackOKRunStepRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesRollbackOKRunStepsItem string
+
+const (
+	CorePostCoreUpdatesRollbackOKRunStepsItemDownload CorePostCoreUpdatesRollbackOKRunStepsItem = "download"
+	CorePostCoreUpdatesRollbackOKRunStepsItemStart    CorePostCoreUpdatesRollbackOKRunStepsItem = "start"
+	CorePostCoreUpdatesRollbackOKRunStepsItemRestore  CorePostCoreUpdatesRollbackOKRunStepsItem = "restore"
+	CorePostCoreUpdatesRollbackOKRunStepsItemRestart  CorePostCoreUpdatesRollbackOKRunStepsItem = "restart"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKRunStepsItem values.
+func (CorePostCoreUpdatesRollbackOKRunStepsItem) AllValues() []CorePostCoreUpdatesRollbackOKRunStepsItem {
+	return []CorePostCoreUpdatesRollbackOKRunStepsItem{
+		CorePostCoreUpdatesRollbackOKRunStepsItemDownload,
+		CorePostCoreUpdatesRollbackOKRunStepsItemStart,
+		CorePostCoreUpdatesRollbackOKRunStepsItemRestore,
+		CorePostCoreUpdatesRollbackOKRunStepsItemRestart,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKRunStepsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKRunStepsItemDownload:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemStart:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemRestore:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemRestart:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKRunStepsItem(data) {
+	case CorePostCoreUpdatesRollbackOKRunStepsItemDownload:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemDownload
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemStart:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemStart
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemRestore:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemRestore
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunStepsItemRestart:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemRestart
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

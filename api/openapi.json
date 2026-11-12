@@ -13443,7 +13443,8 @@
                           "type": "object",
                           "properties": {
                             "id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                             },
                             "action": {
                               "type": "string",
@@ -13453,16 +13454,19 @@
                               ]
                             },
                             "component": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"software\": the whole release, every service in lockstep"
                             },
                             "from": {
+                              "description": "Release running when the run started",
                               "type": [
                                 "string",
                                 "null"
                               ]
                             },
                             "to": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Release the run installs (update) or goes back to (rollback)"
                             },
                             "status": {
                               "type": "string",
@@ -13472,7 +13476,20 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                            },
+                            "steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "download",
+                                  "start",
+                                  "restore",
+                                  "restart"
+                                ]
+                              },
+                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                             },
                             "step": {
                               "anyOf": [
@@ -13481,6 +13498,7 @@
                                   "enum": [
                                     "download",
                                     "start",
+                                    "restore",
                                     "restart"
                                   ]
                                 },
@@ -13488,7 +13506,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -13508,10 +13526,11 @@
                               ]
                             },
                             "user": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
                               "type": [
                                 "string",
                                 "null"
@@ -13525,6 +13544,7 @@
                             "from",
                             "to",
                             "status",
+                            "steps",
                             "step",
                             "started_at",
                             "finished_at",
@@ -13537,7 +13557,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                      "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                     },
                     "managed": {
                       "type": "array",
@@ -13862,7 +13882,8 @@
                           "type": "object",
                           "properties": {
                             "id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                             },
                             "action": {
                               "type": "string",
@@ -13872,16 +13893,19 @@
                               ]
                             },
                             "component": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"software\": the whole release, every service in lockstep"
                             },
                             "from": {
+                              "description": "Release running when the run started",
                               "type": [
                                 "string",
                                 "null"
                               ]
                             },
                             "to": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Release the run installs (update) or goes back to (rollback)"
                             },
                             "status": {
                               "type": "string",
@@ -13891,7 +13915,20 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                            },
+                            "steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "download",
+                                  "start",
+                                  "restore",
+                                  "restart"
+                                ]
+                              },
+                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                             },
                             "step": {
                               "anyOf": [
@@ -13900,6 +13937,7 @@
                                   "enum": [
                                     "download",
                                     "start",
+                                    "restore",
                                     "restart"
                                   ]
                                 },
@@ -13907,7 +13945,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -13927,10 +13965,11 @@
                               ]
                             },
                             "user": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
                               "type": [
                                 "string",
                                 "null"
@@ -13944,6 +13983,7 @@
                             "from",
                             "to",
                             "status",
+                            "steps",
                             "step",
                             "started_at",
                             "finished_at",
@@ -13956,7 +13996,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                      "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                     },
                     "managed": {
                       "type": "array",
@@ -14275,7 +14315,8 @@
                           "type": "object",
                           "properties": {
                             "id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                             },
                             "action": {
                               "type": "string",
@@ -14285,16 +14326,19 @@
                               ]
                             },
                             "component": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"software\": the whole release, every service in lockstep"
                             },
                             "from": {
+                              "description": "Release running when the run started",
                               "type": [
                                 "string",
                                 "null"
                               ]
                             },
                             "to": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Release the run installs (update) or goes back to (rollback)"
                             },
                             "status": {
                               "type": "string",
@@ -14304,7 +14348,20 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                            },
+                            "steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "download",
+                                  "start",
+                                  "restore",
+                                  "restart"
+                                ]
+                              },
+                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                             },
                             "step": {
                               "anyOf": [
@@ -14313,6 +14370,7 @@
                                   "enum": [
                                     "download",
                                     "start",
+                                    "restore",
                                     "restart"
                                   ]
                                 },
@@ -14320,7 +14378,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -14340,10 +14398,11 @@
                               ]
                             },
                             "user": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
                               "type": [
                                 "string",
                                 "null"
@@ -14357,6 +14416,7 @@
                             "from",
                             "to",
                             "status",
+                            "steps",
                             "step",
                             "started_at",
                             "finished_at",
@@ -14369,7 +14429,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                      "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                     },
                     "managed": {
                       "type": "array",
@@ -14741,7 +14801,8 @@
                               "type": "object",
                               "properties": {
                                 "id": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                                 },
                                 "action": {
                                   "type": "string",
@@ -14751,16 +14812,19 @@
                                   ]
                                 },
                                 "component": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "description": "\"software\": the whole release, every service in lockstep"
                                 },
                                 "from": {
+                                  "description": "Release running when the run started",
                                   "type": [
                                     "string",
                                     "null"
                                   ]
                                 },
                                 "to": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "description": "Release the run installs (update) or goes back to (rollback)"
                                 },
                                 "status": {
                                   "type": "string",
@@ -14770,7 +14834,20 @@
                                     "failed",
                                     "reverted"
                                   ],
-                                  "description": "reverted: the new build was not healthy and the box went back to the old one"
+                                  "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                                },
+                                "steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "download",
+                                      "start",
+                                      "restore",
+                                      "restart"
+                                    ]
+                                  },
+                                  "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                                 },
                                 "step": {
                                   "anyOf": [
@@ -14779,6 +14856,7 @@
                                       "enum": [
                                         "download",
                                         "start",
+                                        "restore",
                                         "restart"
                                       ]
                                     },
@@ -14786,7 +14864,7 @@
                                       "type": "null"
                                     }
                                   ],
-                                  "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                                  "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                                 },
                                 "started_at": {
                                   "type": "string",
@@ -14806,10 +14884,11 @@
                                   ]
                                 },
                                 "user": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "description": "\"system\" for the automatic updater"
                                 },
                                 "error": {
-                                  "description": "Only when failed or reverted: why, in words",
+                                  "description": "Only when failed or reverted: why, in words, naming the service that failed",
                                   "type": [
                                     "string",
                                     "null"
@@ -14823,6 +14902,7 @@
                                 "from",
                                 "to",
                                 "status",
+                                "steps",
                                 "step",
                                 "started_at",
                                 "finished_at",
@@ -14835,7 +14915,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "The software install or rollback running now, or the latest one; null when there was none"
+                          "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                         },
                         "managed": {
                           "type": "array",
@@ -15142,7 +15222,8 @@
                           "type": "object",
                           "properties": {
                             "id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                             },
                             "action": {
                               "type": "string",
@@ -15152,16 +15233,19 @@
                               ]
                             },
                             "component": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"software\": the whole release, every service in lockstep"
                             },
                             "from": {
+                              "description": "Release running when the run started",
                               "type": [
                                 "string",
                                 "null"
                               ]
                             },
                             "to": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Release the run installs (update) or goes back to (rollback)"
                             },
                             "status": {
                               "type": "string",
@@ -15171,7 +15255,20 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                            },
+                            "steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "download",
+                                  "start",
+                                  "restore",
+                                  "restart"
+                                ]
+                              },
+                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                             },
                             "step": {
                               "anyOf": [
@@ -15180,6 +15277,7 @@
                                   "enum": [
                                     "download",
                                     "start",
+                                    "restore",
                                     "restart"
                                   ]
                                 },
@@ -15187,7 +15285,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -15207,10 +15305,11 @@
                               ]
                             },
                             "user": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
                               "type": [
                                 "string",
                                 "null"
@@ -15224,6 +15323,7 @@
                             "from",
                             "to",
                             "status",
+                            "steps",
                             "step",
                             "started_at",
                             "finished_at",
@@ -15236,7 +15336,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                      "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                     },
                     "managed": {
                       "type": "array",
@@ -17195,7 +17295,8 @@
                           "type": "object",
                           "properties": {
                             "id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Stays the same across the restart of Vedette in the middle of the run: the run is kept where the restart cannot lose it"
                             },
                             "action": {
                               "type": "string",
@@ -17205,16 +17306,19 @@
                               ]
                             },
                             "component": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"software\": the whole release, every service in lockstep"
                             },
                             "from": {
+                              "description": "Release running when the run started",
                               "type": [
                                 "string",
                                 "null"
                               ]
                             },
                             "to": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "Release the run installs (update) or goes back to (rollback)"
                             },
                             "status": {
                               "type": "string",
@@ -17224,7 +17328,20 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the new build was not healthy and the box went back to the old one"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                            },
+                            "steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "download",
+                                  "start",
+                                  "restore",
+                                  "restart"
+                                ]
+                              },
+                              "description": "The steps of this run in order: update = download, start, restart; rollback = start, then restore (only when it puts back the database), restart"
                             },
                             "step": {
                               "anyOf": [
@@ -17233,6 +17350,7 @@
                                   "enum": [
                                     "download",
                                     "start",
+                                    "restore",
                                     "restart"
                                   ]
                                 },
@@ -17240,7 +17358,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "download: fetch and verify the signed images; start: the other services; restart: Vedette itself restarts (the page loses its connection for a moment)"
+                              "description": "One of steps while running; null when ended. download: fetch and verify the signed images; start: the other services; restore: put back the database from before the update; restart: Vedette itself restarts (the page loses its connection for a moment)"
                             },
                             "started_at": {
                               "type": "string",
@@ -17260,10 +17378,11 @@
                               ]
                             },
                             "user": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"system\" for the automatic updater"
                             },
                             "error": {
-                              "description": "Only when failed or reverted: why, in words",
+                              "description": "Only when failed or reverted: why, in words, naming the service that failed",
                               "type": [
                                 "string",
                                 "null"
@@ -17277,6 +17396,7 @@
                             "from",
                             "to",
                             "status",
+                            "steps",
                             "step",
                             "started_at",
                             "finished_at",
@@ -17289,7 +17409,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The software install or rollback running now, or the latest one; null when there was none"
+                      "description": "The software install or rollback running now, or one that ended in the last 24 hours; null otherwise"
                     },
                     "managed": {
                       "type": "array",

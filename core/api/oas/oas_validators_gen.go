@@ -9431,6 +9431,34 @@ func (s *CoreGetCoreUpdatesOKRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -9468,6 +9496,23 @@ func (s CoreGetCoreUpdatesOKRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CoreGetCoreUpdatesOKRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil
@@ -10949,6 +10994,34 @@ func (s *CorePatchCoreUpdatesOKRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -10986,6 +11059,23 @@ func (s CorePatchCoreUpdatesOKRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CorePatchCoreUpdatesOKRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil
@@ -14542,6 +14632,34 @@ func (s *CorePostCoreUpdatesApplyOKRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -14579,6 +14697,23 @@ func (s CorePostCoreUpdatesApplyOKRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CorePostCoreUpdatesApplyOKRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil
@@ -15114,6 +15249,34 @@ func (s *CorePostCoreUpdatesBundleOKStateRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -15151,6 +15314,23 @@ func (s CorePostCoreUpdatesBundleOKStateRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil
@@ -15686,6 +15866,34 @@ func (s *CorePostCoreUpdatesCheckOKRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -15723,6 +15931,23 @@ func (s CorePostCoreUpdatesCheckOKRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CorePostCoreUpdatesCheckOKRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil
@@ -17046,6 +17271,34 @@ func (s *CorePostCoreUpdatesRollbackOKRun) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Steps {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -17083,6 +17336,23 @@ func (s CorePostCoreUpdatesRollbackOKRunStep) Validate() error {
 	case "download":
 		return nil
 	case "start":
+		return nil
+	case "restore":
+		return nil
+	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CorePostCoreUpdatesRollbackOKRunStepsItem) Validate() error {
+	switch s {
+	case "download":
+		return nil
+	case "start":
+		return nil
+	case "restore":
 		return nil
 	case "restart":
 		return nil

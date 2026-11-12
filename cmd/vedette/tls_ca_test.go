@@ -85,6 +85,16 @@ func testTransport(t *testing.T, o options) (*tls.Config, []string, bool, *selfS
 	return transport(t.Context(), o, testCA(t, filepath.Dir(o.db)))
 }
 
+// caPEM is the certificate of the store's current CA, PEM.
+func caPEM(t *testing.T, s *boxCAStore) []byte {
+	t.Helper()
+	ca, err := s.current(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.cert.Raw})
+}
+
 // sealedCert is the certificate of the CA sealed for dir (made when there is none).
 func sealedCert(t *testing.T, dir string) *x509.Certificate {
 	t.Helper()
@@ -411,10 +421,7 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	if _, _, _, _, err := transport(t.Context(), options{db: filepath.Join(oldDir, "vedette.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}, old); err != nil {
 		t.Fatal(err)
 	}
-	pinned, err := old.certPEM(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	pinned := caPEM(t, old)
 	// The backup: the database as a snapshot takes it (store.SnapshotTo, modules/core/snapshot.go) and the master key.
 	backup := filepath.Join(t.TempDir(), "vedette.db")
 	if err := old.db.SnapshotTo(t.Context(), backup); err != nil {
@@ -426,9 +433,8 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := restored.certPEM(t.Context())
-	if err != nil || !bytes.Equal(got, pinned) {
-		t.Fatalf("the restored box has another CA: %v", err)
+	if got := caPEM(t, restored); !bytes.Equal(got, pinned) {
+		t.Fatal("the restored box has another CA")
 	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(pinned) {
@@ -437,7 +443,8 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	if _, err := servedLeaf(t, renew).Verify(x509.VerifyOptions{Roots: roots, DNSName: "box.acme.example"}); err != nil {
 		t.Fatalf("the restored box's new leaf does not verify under the pinned CA: %v", err)
 	}
-	// Without the right master key the sealed CA cannot be opened: it is replaced (the agents must enrol again), never an error.
+	// Without the right master key the sealed CA cannot be opened: a new CA is sealed in a row of its own (the agents must enrol
+	// again), never an error, and the old row is left as it was (M1).
 	other := make([]byte, secrets.KeySize)
 	_, _ = rand.Read(other)
 	backup2 := filepath.Join(t.TempDir(), "vedette.db")
@@ -447,8 +454,33 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	keyless := newTestCAStore(t, backup2, other, t.TempDir())
 	var logBuf bytes.Buffer
 	ca, err := keyless.ensure(t.Context(), time.Now(), slog.New(slog.NewTextHandler(&logBuf, nil)), true)
-	if err != nil || bytes.Equal(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.cert.Raw}), pinned) || sealedRows(t, keyless) != 1 {
-		t.Fatalf("another master key: %v", err)
+	if err != nil || bytes.Equal(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.cert.Raw}), pinned) || sealedRows(t, keyless) != 2 {
+		t.Fatalf("another master key: %v, %d rows", err, sealedRows(t, keyless))
+	}
+	var oldCipher, keptCipher []byte
+	if err := old.db.Reader().QueryRowContext(t.Context(), `SELECT ciphertext FROM core_secret WHERE purpose = ? ORDER BY created_at LIMIT 1`, boxCAPurpose).Scan(&oldCipher); err != nil {
+		t.Fatal(err)
+	}
+	if err := keyless.db.Reader().QueryRowContext(t.Context(), `SELECT ciphertext FROM core_secret WHERE purpose = ? ORDER BY created_at LIMIT 1`, boxCAPurpose).Scan(&keptCipher); err != nil || !bytes.Equal(oldCipher, keptCipher) {
+		t.Fatalf("the old CA row was touched: %v", err)
+	}
+	// A restart with the same wrong key keeps the new CA (the newest row it can open).
+	sec2, _ := secrets.New(other)
+	again, err := newBoxCAStore(keyless.db, sec2, audit.New(nil), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c2, err := again.ensure(t.Context(), time.Now(), nil, true); err != nil || !c2.cert.Equal(ca.cert) || sealedRows(t, keyless) != 2 {
+		t.Fatalf("restart with the same key: %v", err)
+	}
+	// The right key put back: the old CA again (the newer row does not decrypt under it), nothing replaced.
+	secRight, _ := secrets.New(key)
+	right, err := newBoxCAStore(keyless.db, secRight, audit.New(nil), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := caPEM(t, right); !bytes.Equal(got, pinned) || sealedRows(t, keyless) != 2 {
+		t.Fatal("the right master key did not bring the old CA back")
 	}
 	if rows := auditRows(t, keyless); !strings.HasPrefix(rows[len(rows)-1], "box-ca.replace ") || !strings.HasSuffix(rows[len(rows)-1], "reason=cannot_decrypt") ||
 		!strings.Contains(logBuf.String(), "level=ERROR") || !strings.Contains(logBuf.String(), "enrol") {
@@ -703,11 +735,12 @@ func TestBoxCAKeyNeverInLogsOrInTheClear(t *testing.T) {
 func TestIntakeTrustAnchor(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	cfg, _, _, _, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443"})
+	cfg, _, _, renew, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := intakeTrustAnchor(cfg, "", testCA(t, dir))(t.Context())
+	anchor := intakeTrustAnchor(cfg, "", testCA(t, dir), renew)
+	got, err := anchor(t.Context())
 	if err != nil || bytes.Contains(got, []byte("PRIVATE")) {
 		t.Fatalf("self-made: %v\n%s", err, got)
 	}
@@ -715,16 +748,36 @@ func TestIntakeTrustAnchor(t *testing.T) {
 	if blk == nil || blk.Type != "CERTIFICATE" || len(bytes.TrimSpace(rest)) != 0 || !bytes.Equal(blk.Bytes, sealedCert(t, dir).Raw) {
 		t.Fatalf("self-made anchor is not the CA certificate alone:\n%s", got)
 	}
+	// L3: a CA that does not sign the leaf in use (replaced, the new leaf not written yet) is not handed out; the next check
+	// re-issues the leaf and the new CA is served.
+	if err := testCA(t, dir).db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `DELETE FROM core_secret WHERE purpose = ?`, boxCAPurpose)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testCA(t, dir).ensure(t.Context(), time.Now(), slog.New(slog.DiscardHandler), true); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := anchor(t.Context()); err == nil {
+		t.Fatalf("a CA that does not sign the leaf in use was served:\n%s", got)
+	}
+	if err := renew.Check(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := anchor(t.Context()); err != nil || !bytes.Equal(got, caPEM(t, testCA(t, dir))) {
+		t.Fatalf("after the re-issue: %v", err)
+	}
 	ownerDir := t.TempDir()
 	oc, ok, _ := writeTestPair(t, ownerDir, &x509.Certificate{Subject: pkix.Name{CommonName: "owner"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"owner.example"}})
 	ocfg, _, _, _, err := testTransport(t, options{db: filepath.Join(ownerDir, "v.db"), listen: "0.0.0.0:8443", tlsCert: oc, tlsKey: ok})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := intakeTrustAnchor(ocfg, oc, testCA(t, ownerDir))(t.Context()); err != nil || !bytes.Equal(got, mustRead(t, oc)) {
+	if got, err := intakeTrustAnchor(ocfg, oc, testCA(t, ownerDir), nil)(t.Context()); err != nil || !bytes.Equal(got, mustRead(t, oc)) {
 		t.Fatalf("owner: %v", err)
 	}
-	if intakeTrustAnchor(nil, "", testCA(t, ownerDir)) != nil {
+	if intakeTrustAnchor(nil, "", testCA(t, ownerDir), nil) != nil {
 		t.Fatal("plain HTTP has a trust anchor")
 	}
 }
@@ -772,11 +825,7 @@ func TestBoxCAOpenSSLVerify(t *testing.T) {
 	verify := func(label, dir, leaf string) {
 		t.Helper()
 		caFile := filepath.Join(t.TempDir(), "ca.pem")
-		b, err := testCA(t, dir).certPEM(t.Context())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(caFile, b, 0o600); err != nil {
+		if err := os.WriteFile(caFile, caPEM(t, testCA(t, dir)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		out, err := exec.CommandContext(t.Context(), bin, "verify", "-CAfile", caFile, "-purpose", "sslserver", leaf).CombinedOutput() //nolint:gosec // a path the test made
@@ -872,5 +921,32 @@ func TestBoxCAUpgradeKeepsTheOldLeafWhenOnlyTheLeafWriteFails(t *testing.T) {
 	replaced, err := renewSelfSigned(t.Context(), s, crt, key, nil, time.Now, slog.New(slog.DiscardHandler))
 	if err != nil || replaced || !bytes.Equal(before, mustRead(t, crt)) {
 		t.Fatalf("renewSelfSigned = %v, %v", replaced, err)
+	}
+}
+
+// L1: the legacy files are sealed and removed whatever the TLS mode: a box on -tls-cert or on loopback HTTP keeps no plaintext CA
+// key on disk; a box without files gets no CA.
+func TestBoxCALegacyFilesAreSealedWithoutSelfSignedTLS(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	legacy := writeLegacyCA(t, dir, time.Now())
+	s := testCA(t, dir)
+	if err := s.migrateLegacy(t.Context(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatal(err)
+	}
+	if c, k := legacyFiles(dir); fileExists(c) || fileExists(k) || !sealedCert(t, dir).Equal(legacy.cert) {
+		t.Fatal("the legacy CA was not sealed and removed")
+	}
+	// A key alone is removed; nothing at all makes nothing.
+	alone := t.TempDir()
+	writeLegacyCA(t, alone, time.Now())
+	crt, key := legacyFiles(alone)
+	_ = os.Remove(crt)
+	if err := testCA(t, alone).migrateLegacy(t.Context(), nil); err != nil || fileExists(key) || sealedRows(t, testCA(t, alone)) != 0 {
+		t.Fatalf("a key alone: %v", err)
+	}
+	empty := t.TempDir()
+	if err := testCA(t, empty).migrateLegacy(t.Context(), nil); err != nil || sealedRows(t, testCA(t, empty)) != 0 {
+		t.Fatalf("no files: %v", err)
 	}
 }

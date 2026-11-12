@@ -139,7 +139,8 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryStatus(ctx context.Context) (
 	return &oas.InventoryPostIntakeOsqueryStatusOK{Enrolled: enrolled, Hosts: hosts}, nil
 }
 
-// InventoryGetIntakeCaPem implements GET /intake/ca.pem (INV-11, public): the certificate osquery pins with --tls_server_certs. Only the
+// InventoryGetIntakeCaPem implements GET /intake/ca.pem (INV-11, public; application/x-pem-file, from the contract): the certificate
+// osquery pins with --tls_server_certs. Only the
 // CERTIFICATE blocks of the trust anchor are copied, so nothing else a PEM file may hold (a private key next to an owner's
 // certificate) can leave; 404 when the box serves no TLS.
 func (h *IntakeHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.InventoryGetIntakeCaPemOK, error) {
@@ -148,10 +149,6 @@ func (h *IntakeHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inven
 	}
 	if h.s.cfg.TrustAnchor == nil {
 		return oas.InventoryGetIntakeCaPemOK{}, apierr.NotFound()
-	}
-	x, err := exchange(ctx)
-	if err != nil {
-		return oas.InventoryGetIntakeCaPemOK{}, err
 	}
 	raw, err := h.s.cfg.TrustAnchor(ctx)
 	if err != nil {
@@ -170,6 +167,5 @@ func (h *IntakeHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inven
 	if len(out) == 0 {
 		return oas.InventoryGetIntakeCaPemOK{}, errors.New("agentintake: the trust anchor holds no certificate")
 	}
-	x.SetContentType("application/x-pem-file")
 	return oas.InventoryGetIntakeCaPemOK{Data: bytes.NewReader(out)}, nil
 }

@@ -479,7 +479,7 @@
       "notify.stale_dropped": "Old alerts dropped",
       "box-ca.create": "Create box certificate authority",
       "box-ca.migrate": "Move box certificate authority into the database",
-      "box-ca.replace": "Replace box certificate authority",
+      "box-ca.replace": "Replace box certificate authority (enrolled agents must run the install command again)",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",
       "sensor-cert.issue": "Issue sensor certificate",

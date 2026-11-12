@@ -219,6 +219,14 @@ type selfSignedRenewer struct {
 	cert *tls.Certificate
 }
 
+// leaf is the certificate served now, parsed.
+func (r *selfSignedRenewer) leaf() (*x509.Certificate, error) {
+	r.mu.RLock()
+	c := r.cert
+	r.mu.RUnlock()
+	return x509.ParseCertificate(c.Certificate[0]) //nolint:wrapcheck // the caller says what failed
+}
+
 // GetCertificate is tls.Config.GetCertificate.
 func (r *selfSignedRenewer) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	r.mu.RLock()

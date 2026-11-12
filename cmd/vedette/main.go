@@ -261,6 +261,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
+	if err := boxCAs.migrateLegacy(ctx, log); err != nil { // whatever the TLS mode: no plaintext CA key stays on disk (D-351)
+		log.WarnContext(ctx, "the old box CA files could not be moved into the database; tried again at the next start", "error", err)
+	}
 	tlsCfg, hosts, hsts, renew, err := transport(ctx, o, boxCAs)
 	if err != nil {
 		return err
@@ -286,7 +289,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
-	d.TrustAnchor = intakeTrustAnchor(tlsCfg, o.tlsCert, boxCAs)
+	d.TrustAnchor = intakeTrustAnchor(tlsCfg, o.tlsCert, boxCAs, renew)
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}

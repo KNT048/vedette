@@ -85,45 +85,64 @@ func notSignedBy(leaf *x509.Certificate, ca *boxCA) bool {
 
 // sealedCA is what core_secret holds for the purpose.
 type sealedCA struct {
-	id     string // "" when there is no row
+	id     string // the row read ("" when no row decrypts under this master key)
 	ca     *boxCA // set when the row can be used
-	reason string // why the row cannot be used: cannot_decrypt, damaged, expiring
+	reason string // why there is no usable CA: cannot_decrypt (rows exist, none decrypts), damaged, expiring
 }
 
-// read looks at the sealed CA. Only a database failure is an error: a row that does not decrypt (another master key), does not
-// parse or cannot cover a new leaf is a reason to replace it, like core/pki does for the sensor CA.
+// read looks at the sealed CA rows, newest first, and takes the first that decrypts under this master key. A row that does not
+// decrypt (a wrong or regenerated master key) is never overwritten (M1): a new CA is sealed in a row of its own, and putting the
+// right key back finds the old CA again, since the newer row does not decrypt under it. A row that decrypts but does not parse or
+// cannot cover a new leaf is replaced in place. Only a database failure is an error.
 func (s *boxCAStore) read(ctx context.Context, q coredb.DBTX, now time.Time) (sealedCA, error) {
-	id, err := coredb.New(q).GetSecretIDByPurpose(ctx, boxCAPurpose)
-	if errors.Is(err, sql.ErrNoRows) {
-		return sealedCA{}, nil
-	}
+	// ponytail: a hand-written query (sqlc's GetSecretIDByPurpose takes the oldest row); move it to core/store/queries if a second caller needs it.
+	rows, err := q.QueryContext(ctx, `SELECT id FROM core_secret WHERE purpose = ? ORDER BY created_at DESC, id DESC`, boxCAPurpose)
 	if err != nil {
 		return sealedCA{}, fmt.Errorf("tls: box CA: find: %w", err)
 	}
-	plain, err := s.op.Open(ctx, q, id)
-	switch {
-	case errors.Is(err, secrets.ErrDecrypt):
-		return sealedCA{id: id, reason: "cannot_decrypt"}, nil
-	case err != nil:
-		return sealedCA{}, fmt.Errorf("tls: box CA: %w", err)
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return sealedCA{}, fmt.Errorf("tls: box CA: find: %w", err)
+		}
+		ids = append(ids, id)
 	}
-	ca, err := parseBoxCA(plain, plain)
-	switch {
-	case err != nil:
-		return sealedCA{id: id, reason: "damaged"}, nil
-	case ca.cert.NotAfter.Sub(now) <= selfSignedLifetime:
-		return sealedCA{id: id, reason: "expiring"}, nil
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return sealedCA{}, fmt.Errorf("tls: box CA: find: %w", err)
 	}
-	return sealedCA{id: id, ca: ca}, nil
+	for _, id := range ids {
+		plain, err := s.op.Open(ctx, q, id)
+		switch {
+		case errors.Is(err, secrets.ErrDecrypt):
+			continue
+		case err != nil:
+			return sealedCA{}, fmt.Errorf("tls: box CA: %w", err)
+		}
+		ca, err := parseBoxCA(plain, plain)
+		switch {
+		case err != nil:
+			return sealedCA{id: id, reason: "damaged"}, nil
+		case ca.cert.NotAfter.Sub(now) <= selfSignedLifetime:
+			return sealedCA{id: id, reason: "expiring"}, nil
+		}
+		return sealedCA{id: id, ca: ca}, nil
+	}
+	if len(ids) > 0 {
+		return sealedCA{reason: "cannot_decrypt"}, nil
+	}
+	return sealedCA{}, nil
 }
 
-// ensure returns the box CA: the sealed one; else the legacy files, sealed once (migrate); else a new one, sealed. A sealed CA that
-// cannot be used (it does not decrypt under this master key, it is damaged, it expires within selfSignedLifetime) is replaced in
-// the transaction that finds it, with one ERROR on log: the leaf follows at its next check, and enrolled agents must enrol again.
-// Legacy files that cannot be used are moved aside as *.quarantine-<unix> (the purge sweeps those) and a new CA is made, with the
-// same ERROR. A read error on the legacy files that is not "does not exist" (EMFILE, EIO, EACCES) says nothing about them: with
-// mustHave false it is returned and nothing changes (callers keep serving a valid leaf); with mustHave true the files are replaced.
-// Every change is an audit row (box-ca.create, box-ca.migrate, box-ca.replace; actor system); no key or PEM is ever logged.
+// ensure returns the box CA: the sealed one; else the legacy files, sealed once (migrate); else a new one, sealed. When no sealed
+// CA can be used (none decrypts under this master key; or the newest that does is damaged or expires within selfSignedLifetime) a
+// new CA is made, with one ERROR on log and an audit row box-ca.replace that the audit list shows to administrators: the leaf
+// follows at its next check, and enrolled agents must enrol again. A damaged or expiring row is overwritten; rows that do not
+// decrypt are kept (read). Legacy files that cannot be used are moved aside as *.quarantine-<unix> (the purge sweeps those). A
+// read error on the legacy files that is not "does not exist" (EMFILE, EIO, EACCES) says nothing about them: with mustHave false
+// it is returned and nothing changes (callers keep serving a valid leaf); with mustHave true the files are replaced. Every change
+// is an audit row (box-ca.create, box-ca.migrate, box-ca.replace; actor system); no key or PEM is ever logged.
 func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger, mustHave bool) (*boxCA, error) {
 	if log == nil {
 		log = slog.Default()
@@ -153,7 +172,8 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 			return nil
 		}
 		var plain []byte
-		if st.id == "" {
+		why = st.reason
+		if st.id == "" { // no row this key can use: the legacy files, if any
 			if legacy, err = s.readLegacy(mustHave); err != nil {
 				return err
 			}
@@ -162,16 +182,16 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 			} else if legacy.ca != nil {
 				legacy.reason = "it is about to expire"
 			}
-			why = legacy.reason
-		} else {
-			why = st.reason
+			if legacy.reason != "" {
+				why = legacy.reason
+			}
 		}
 		if out == nil {
 			if out, plain, err = newBoxCA(now); err != nil {
 				return err
 			}
 			event = "box-ca.create"
-			if st.id != "" {
+			if st.reason != "" {
 				event = "box-ca.replace"
 			}
 		}
@@ -195,11 +215,11 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case event == "box-ca.migrate":
+	if event == "box-ca.migrate" {
 		log.InfoContext(ctx, "the box CA was moved into the database (core_secret, D-351); its files are removed")
-	case why != "": // a sealed or legacy CA that could not be kept
-		if legacy.found {
+	}
+	if why != "" { // a sealed or legacy CA that could not be kept
+		if legacy.found && event != "box-ca.migrate" {
 			s.quarantineLegacy(ctx, now, log)
 		}
 		log.ErrorContext(ctx, "the box CA could not be kept and was replaced; enrolled agents must run the install command again", "reason", why)
@@ -208,7 +228,7 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 	return out, nil
 }
 
-// keep remembers ca for certPEM and, once per process, removes the legacy files a sealed CA makes useless: the copy that was just
+// keep remembers ca for current and, once per process, removes the legacy files a sealed CA makes useless: the copy that was just
 // migrated, a key left alone by an interrupted first start before D-351, or a crash between the migration's commit and its removal.
 func (s *boxCAStore) keep(ctx context.Context, ca *boxCA, log *slog.Logger) {
 	s.mu.Lock()
@@ -226,18 +246,29 @@ func (s *boxCAStore) keep(ctx context.Context, ca *boxCA, log *slog.Logger) {
 	}
 }
 
-// certPEM is the box CA's certificate, PEM (what GET /intake/ca.pem serves for the box's own pair). Never the key.
-func (s *boxCAStore) certPEM(ctx context.Context) ([]byte, error) {
+// current is the CA the last ensure returned (ensure when there is none yet).
+func (s *boxCAStore) current(ctx context.Context) (*boxCA, error) {
 	s.mu.Lock()
 	ca := s.cur
 	s.mu.Unlock()
-	if ca == nil {
-		var err error
-		if ca, err = s.ensure(ctx, time.Now(), nil, false); err != nil {
-			return nil, err
-		}
+	if ca != nil {
+		return ca, nil
 	}
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.cert.Raw}), nil
+	return s.ensure(ctx, time.Now(), nil, false)
+}
+
+// migrateLegacy seals the legacy files of a box before D-351 and removes them, whatever the TLS mode (L1): a box on -tls-cert or on
+// loopback HTTP, which never asks for the CA, must not keep a plaintext CA key on disk either. A key alone (an interrupted first
+// start before D-351) is removed. Nothing is made when there are no files.
+func (s *boxCAStore) migrateLegacy(ctx context.Context, log *slog.Logger) error {
+	if _, err := os.Lstat(s.legacyCrt); err == nil {
+		_, err := s.ensure(ctx, time.Now(), log, false)
+		return err
+	}
+	if err := os.Remove(s.legacyKey); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("tls: box CA: %w", err)
+	}
+	return nil
 }
 
 // legacyCA is what the files of a box before D-351 hold.
@@ -365,10 +396,12 @@ func newBoxCA(now time.Time) (*boxCA, []byte, error) {
 	return &boxCA{cert: cert, key: key}, plain, nil
 }
 
-// intakeTrustAnchor is what GET /intake/ca.pem serves (agent-intake INV-11): the box CA's certificate for the box's own pair; for a
-// certificate the owner supplied (-tls-cert), the file as supplied, read at each request (agent-intake keeps only its CERTIFICATE
-// blocks: the chain, or the leaf alone; a key in the same file never leaves); nil when the box serves no TLS (loopback).
-func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore) func(context.Context) ([]byte, error) {
+// intakeTrustAnchor is what GET /intake/ca.pem serves (agent-intake INV-11): the box CA's certificate for the box's own pair, only
+// while the leaf in use is signed by it (L3: a CA replaced while the new leaf could not be written is not handed out, the request
+// fails until the next check writes the leaf); for a certificate the owner supplied (-tls-cert), the file as supplied, read at each
+// request (agent-intake keeps only its CERTIFICATE blocks: the chain, or the leaf alone; a key in the same file never leaves); nil
+// when the box serves no TLS (loopback).
+func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore, renew *selfSignedRenewer) func(context.Context) ([]byte, error) {
 	switch {
 	case cfg == nil:
 		return nil
@@ -381,5 +414,14 @@ func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore) func(c
 			return b, nil
 		}
 	}
-	return ca.certPEM
+	return func(ctx context.Context) ([]byte, error) {
+		c, err := ca.current(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if leaf, err := renew.leaf(); err != nil || notSignedBy(leaf, c) {
+			return nil, errors.New("tls: the certificate in use is not signed by the box CA yet; it is re-issued at the next check")
+		}
+		return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.cert.Raw}), nil
+	}
 }

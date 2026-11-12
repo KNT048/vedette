@@ -1615,6 +1615,25 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
     expect((within(dlg).getByLabelText('Field') as HTMLSelectElement).value).not.toBe('') // the field is picked again, not left empty
   })
 
+  it('a log-threshold rule can be built in the editor: signature + count + window save, "any" is locked, the {ip} refills', async () => {
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    const dlg = await screen.findByRole('dialog')
+    await screen.findByRole('heading', { name: 'IF' })
+    await pickIn('When this happens', /log rule matched/, dlg)
+    expect(within(dlg).getByLabelText('Conditions must match')).toBeDisabled()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'Ban log attackers')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add a condition' }))
+    await pickIn('Test', 'count within a window', dlg)
+    await pickIn('Field', 'Log signature', dlg)
+    await userEvent.type(within(dlg).getByLabelText(/^Signature/), 'Failed password for <name>')
+    await userEvent.clear(within(dlg).getByLabelText('Minutes'))
+    await userEvent.type(within(dlg).getByLabelText('Minutes'), '10')
+    expect(within(dlg).getByLabelText(/^Signature/)).toHaveValue('Failed password for <name>')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(async () => { const j = (await call<Rule[] | { items: Rule[] }>('admin', 'GET', '/response/rules')).json; const rules = Array.isArray(j) ? j : j.items; expect(rules.find((r) => r.name === 'Ban log attackers')?.conditions[0]).toMatchObject({ op: 'count_window', field: 'signature', value: 'Failed password for <name>', window_min: 10 }) })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('the server refuses what the form locks: pre-approved with a risky action, an action on a read-only connection', async () => {
     const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
     const risky = cat.items.find((c) => c.risk !== 'low')!

@@ -100,20 +100,28 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
   const m = useOidcMutations()
   const [v, setV] = useState<OidcSave>({ issuer: cfg.issuer, client_id: cfg.client_id, client_secret: '', scopes: cfg.scopes, groups_claim: cfg.groups_claim, default_role: cfg.default_role, role_map: cfg.role_map })
   // Each refusal of the server goes under the field it is about; the rest under the form.
-  const [error, setError] = useState<{ field: OidcField; text: string } | null>(null)
+  const [error, setError] = useState<Partial<Record<OidcField, string>>>({})
   const [endpoints, setEndpoints] = useState<Record<string, string> | null>(null)
-  const errOf = (f: OidcField) => (error?.field === f ? error.text : undefined)
+  const errOf = (f: OidcField) => error[f]
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
+    // Missing required fields are all shown at once; the server then judges the values.
+    const missing: Partial<Record<OidcField, string>> = {}
+    if (!v.issuer.trim()) missing.issuer = t('oidc.err.issuer')
+    if (!v.client_id.trim()) missing.client = t('oidc.err.client')
+    if (!v.client_secret && !cfg.secret_last4) missing.secret = t('oidc.err.secret')
+    setError(missing)
+    if (Object.keys(missing).length) return
     try {
       const r = await m.save.mutateAsync(v)
       setV({ issuer: r.issuer, client_id: r.client_id, client_secret: '', scopes: r.scopes, groups_claim: r.groups_claim, default_role: r.default_role, role_map: r.role_map })
       toast.success(t('common:saved'))
     } catch (err) {
-      setError({ field: (err instanceof ApiError && OIDC_FIELD[err.code]) || 'form', text: errMsg(err, t) })
+      setError({ [(err instanceof ApiError && OIDC_FIELD[err.code]) || 'form']: errMsg(err, t) })
     }
   }
+  // The test reads the saved configuration, so an edited issuer must be saved first.
+  const dirty = v.issuer !== cfg.issuer
   async function test() {
     setEndpoints(null)
     try { const r = await m.test.mutateAsync(); setEndpoints(r.endpoints); toast.success(t('oidc.testOk')) } catch (err) { toast.error(errMsg(err, t)) }
@@ -151,7 +159,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
       {errOf('form') ? <p role="alert" className="text-[13px] text-danger">{errOf('form')}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={m.save.isPending}>{t('common:save')}</Button>
-        <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer} title={cfg.issuer ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
+        <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer || dirty} title={cfg.issuer && !dirty ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
       {endpoints ? (

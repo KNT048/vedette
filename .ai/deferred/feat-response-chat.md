@@ -1,3 +1,0 @@
-# WP-13b-8 (response: decisions from chat) deferred, 2026-11-10
-- [ ] 2026-11-10 — Replies to a refused chat decision: map each `Status` code to the short private text the platform shows (the `Message` of response is already English and safe to show, it never contains a code or token) — vì sao để sau: part of the listeners — ở đâu: same — owner: Emily
-- [ ] 2026-11-10 — Slack/Telegram/Zalo listeners: acknowledge the platform first, then call `Config.Decisions.Decide` off the receive loop; `Decide` itself returns quickly (the decision is recorded, the approved items run in the background, D-135 (9)) and its `Message` says the action "is being run" — vì sao để sau: part of the listeners — ở đâu: `modules/notify/channel`; `modules/notify/CONTRACT.md` PRE-8 — owner: Emily

@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — đọc file này trước
 
-Cập nhật: 2026-11-12 (cuối ngày). Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
+Cập nhật: 2026-11-13 (đối chiếu `origin/main` 1c804d50 và bản rà v1 2026-11-12 của supervisor). Repo: `KNT048/vedette` (public, D-63; CI GitHub Actions miễn phí). Nhóm: Kiên (`@kiennt048`) và Emily / Mlee (`@kiennt049`).
 
 **Mục tiêu cuối:** app chạy đủ chức năng trên backend thật. Mọi WP đã merge, E2E xanh, bản phát hành ký được và cài được (định nghĩa "xong" ở cuối file).
 
@@ -30,9 +30,10 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - **M2 (backend) — mọi module đã có backend và đã merge:** core, auth, host, inventory, sensor-passive và sensor-active, giao thức sensor, response, honeypot, feeds, findings/mitigation, exposure, scan, notify, WP-27 `auth-oidc` / `reports` / `mcp-server`; `ai` còn lát 7 (#365) và `logs` còn L4 (nhánh `feat/logs-l4-ioc`); L6 để sau v1 (D-297).
 - **WP-30 xong** (lát 1–10, #335: `make e2e-real` xanh, trừ các bug đã biết #302, #304, #305, #308 đánh dấu `test.fail`; project `@mobile` là `web/e2e-real/mobile.spec.ts`). Lát 1–9b: #204, #210, #222, #228, #235, #253, #257, #262, #284, #287, #291, #293, #295, #307, #311.
 - **WP-31 xong, trừ danh sách LAB** (đóng 2026-11-12, bảng trạng thái ở `wp31-findings.md` của supervisor): R1, R2, S, I, H, M3, M4/L10, R3 (L7: #234, #259) đã merge; phần đóng: M7 (MAC lạ ở IP decoy là thiết bị) và L12 (D-296), L14 sửa chữ D-189 (D-295); M1 còn một LOW chấp nhận (`.ai/deferred/fix-wp31-closeout-inventory.md`); lỗi e2e-real #302 #304 #305 #306 #308 đã sửa (#333).
-- **Đang mở (PR, 2026-11-12):** #464 (logs: giới hạn listener syslog đo trên box lab, giữ mặc định, D-222; Mlee) · #463 (notify: cổng email rời 465 khi Encryption không còn SSL/TLS, QA walk b; Mlee).
+- **Đã xong, từng ghi là đang mở:** #464 (logs: giới hạn listener syslog đo trên box lab, D-222) · #463 (notify: cổng email rời 465 khi Encryption không còn SSL/TLS) · #298 (đóng sau lần chạy 3c trên .141) · ghi chú phát hành cho migration `notify` 0006 (#505).
+- **Đang mở (PR):** #564 (tên hộp do host báo) · #565 (TLD IDN cho `lookup_ioc`, dòng thử gần nhất của hồ sơ AI) · #566 (hagezi subdomain), cùng ba PR sửa QA walk 3.
 - **Đã merge gần đây (2026-11-12, mới nhất trước):** #462 (host: `host.self_update` áp dụng, chờ ổn định, quay lui; D-316 lát 2b; Trưởng) · #461, #455 (QA walk của Mlee: `docs/QA.md` §4; lỗi form nhóm a) · #460 (e2e-real: trang in `/reports/print/*`; Mac) · #458, #456, #450, #446 (host: pre_restore có nhóm lưu giữ riêng, self_update lát 2a và 1, lab Podman; Trưởng) · #454 (core: khôi phục sao lưu, luôn giữ bản dữ liệu hiện tại trước, D-377) · #448, #449 (cổng merge nhanh D-376; test cmd/vedette nhanh hơn) · #451, #452, #453, #457 (BEFORE-V1 Mac: build release ẩn dữ liệu mẫu D-369, dòng deferred đã xong, ghim lỗ hổng cũ) · #444 (notify: Zalo OA; Mlee).
-- **Issue mở:** #363 (L6 post-v1: syslog và metadata SPAN qua sensor; Kiên) · #298 (install test không dựng được artifact trên Mac) · #377…#395 (danh sách deferred post-v1 theo module). Đã đóng: #350, #338, #324, #266.
+- **Issue mở:** #363 (L6 post-v1: syslog và metadata SPAN qua sensor; Kiên) · #377…#395 (danh sách deferred post-v1 theo module; các dòng chuyển thêm ở lượt dọn 2026-11-13 ghi trong comment của từng issue). Đã đóng: #298, #350, #338, #324, #266.
 
 ## Đã xong (đến 2026-11-12)
 **Phía Kiên — AI-Trưởng**
@@ -52,7 +53,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 
 ## Còn lại tới "app chạy đủ chức năng"
 **AI-Trưởng (Ubuntu `byn`)**
-- [ ] `host.self_update` các lát còn lại (D-316, sau lát 2b) · chạy lần 3 kiểm `install.sh` trên .141 (#298 chặn dựng artifact trên Mac; xem `docs/INSTALL-TEST.md`).
+- [ ] `host.self_update` các lát còn lại (D-316, lát 5 và phần lab của lát 6; #562) · [x] chạy lần 3 kiểm `install.sh` trên .141 (3c, đạt; #298 đóng; xem `docs/INSTALL-TEST.md`).
 - [ ] Hết hạn 2026-12-11: ghim lại `DEBIAN_IMAGE` và nâng nuclei lên 3.11.1 (28 ngoại lệ trivy của scan-base) · các mục lab (`.ai/deferred/`).
 
 **Mac (subagent của Supervisor)**
@@ -60,7 +61,7 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
 - [ ] WP-27 `auth-oidc`: IdP sau CA riêng (cần story) — xem `.ai/deferred/feat-auth-oidc.md`.
 
 **AI-Mlee (Ubuntu `byn2`)**
-- [ ] QA nhóm b: sửa notify (#463) · hai mục lab.
+- [x] QA nhóm b: sửa notify (#463, đã merge) · còn hai mục lab.
 
 **Chờ kien (người)**
 - [ ] VM lab: Ubuntu 24.04 và Debian 13 (Ubuntu 26.04 thử trên box Mlee, D-198) cho `install.sh` (WP-08h), danh sách LAB của WP-31, kiểm scan trong lab.
@@ -74,16 +75,17 @@ Dải số quyết định: Trưởng D-157…D-169 · Mac D-170…D-199 (đã h
     - [ ] Root boundary: `SO_PEERPIDFD` và cgroup của core dưới Quadlet; NET_RAW ambient cho container sensor/scan không root; kill cả process group và `Pdeathsig` trên kernel thật.
     - [ ] SYS-7: egress của nuclei (`-duc -ni`) với tcpdump, vì `scan`/`sensor` dùng `Network=host` không có hàng rào egress.
 - [ ] Thử listener Zalo cá nhân trong lab (#316, thử nghiệm).
-- [ ] Ghi chú phát hành (release note) cho migration `notify` 0006.
+- [x] Ghi chú phát hành (release note) cho migration `notify` 0006 (#505).
 - [x] Khoá ký phát hành: đã nhúng khoá thật (#313; nghi thức khoá đã thành code).
 
 ## Định nghĩa "xong" (M2 → bản phát hành đầu tiên)
-1. Mọi WP trong `docs/TEAM_PLAN.md` §3 đã merge, CI xanh trên `main`.
-2. WP-30: `make e2e-real` xanh cho **mọi module**. Không còn `test.fixme` cho phần đã xây; `KNOWN_501` và `KNOWN_404` chỉ còn những endpoint ngoài phạm vi, có ghi lý do.
-3. WP-31: mọi phát hiện High/Medium đã đóng; danh sách LAB đã chạy trên VM.
-4. WP-08: bản phát hành ký được (cosign, minisign); `install.sh` cài sạch trên VM lab; nâng cấp và quay lui đã thử.
-5. WP-32: RUNBOOK đủ cho cài đặt, quản trị, sao lưu, khôi phục.
-6. `docs/QA.md`: các dòng đã kiểm; `docs/project-map/completion-log.md` đã ghi; `.ai/deferred/*` đã đóng hoặc chuyển có lý do.
+Trạng thái theo bản rà v1 2026-11-12 (`origin/main` 4ec006d6; chứng cứ là số PR):
+1. Mọi WP trong `docs/TEAM_PLAN.md` §3 đã merge, CI xanh trên `main`. **Xong phần mã** (ai 7 #365, ai 5b #488, logs L4 #375, exposure Runner #553, scan S5 #208; L6 sau v1, D-297). Còn hở: WP-08k, job phát hành chưa dựng.
+2. WP-30: `make e2e-real` xanh cho **mọi module**. Không còn `test.fixme` cho phần đã xây; `KNOWN_501` và `KNOWN_404` chỉ còn những endpoint ngoài phạm vi, có ghi lý do. **Một phần:** `KNOWN_*` đã rỗng (#335); còn 11 `test.fixme` (ai ×4, scan ×4, logs ×2, notify ×1) và chưa có lượt chạy đầy đủ sau các PR 11-12.
+3. WP-31: mọi phát hiện High/Medium đã đóng; danh sách LAB đã chạy trên VM. **Một phần:** phát hiện không cần lab đã đóng; danh sách LAB chưa chạy (decoy và nc hit đạt trên .141, lần 3c).
+4. WP-08: bản phát hành ký được (cosign, minisign); `install.sh` cài sạch trên VM lab; nâng cấp và quay lui đã thử. **Một phần:** khoá nhúng (#313), `.deb` và tự cập nhật thử trên ubuntu2404/debian13 (#518, #562), cài sạch Ubuntu 26.04 đạt; chưa có job phát hành (bake `install.sh`, đẩy ghcr, ký image), `make vuln-scan` còn đỏ.
+5. WP-32: RUNBOOK đủ cho cài đặt, quản trị, sao lưu, khôi phục. **Một phần:** viết xong (#303, #322); thiếu danh sách gói của `--uninstall`, cách xử lý `quick_check` hỏng, kiểm cổng, sao lưu volume khoá container-only.
+6. `docs/QA.md`: các dòng đã kiểm; `docs/project-map/completion-log.md` đã ghi; `.ai/deferred/*` đã đóng hoặc chuyển có lý do. **Mở:** QA walk 1 đến 3 xong (#455, #461, #558-#560); lượt dọn 2026-11-13 đã đóng 11 dòng đã xong và chuyển 174 dòng sang #377…#395, còn 79 file có dòng mở; completion-log chưa cập nhật cho 11-12.
 
 ## Lưu ý máy Kiên
 Nhánh local `archive/pre-squash` và `docs/m0-plan` chứa lịch sử cũ (có tên tổ chức cũ): **không push**. Kiến thức về máy và box (cài box mới, mạng, mirror, RAM/swap) nằm ở máy Mac của kien, ngoài git: `vedette-wt/box-setup/BOX-SETUP.md`.

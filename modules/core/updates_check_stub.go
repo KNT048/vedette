@@ -34,7 +34,7 @@ func (h *OSHandlers) updatesView(ctx context.Context) (any, error) {
 	}, nil
 }
 
-// CoreGetCoreUpdates: the check side owns it; here it only shows the run side's part.
+// CoreGetCoreUpdates implements GET /core/updates for now: the check side owns it; here it only shows the run side's part.
 func (h *OSHandlers) CoreGetCoreUpdates(ctx context.Context) (*oas.CoreGetCoreUpdatesOK, error) {
 	v, err := h.updatesView(ctx)
 	if err != nil {

@@ -702,7 +702,7 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 	}
 	if c.Undo {
 		rec.Outcome = runFailed
-		rec.Why += " Putting " + serviceName(c.Service) + " back failed as well (" + updateReason(code) + "). Check the services on the box before you try again."
+		rec.Why += " Putting " + serviceName(c.Service) + " back failed as well (" + updateReason(ctx, code) + "). Check the services on the box before you try again."
 		return nil
 	}
 	for j := i + 1; j < len(rec.Calls); j++ {
@@ -710,7 +710,7 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 			rec.Calls[j].Status = callSkipped
 		}
 	}
-	rec.Outcome, rec.Why = runFailed, f.why(rec, c, run)
+	rec.Outcome, rec.Why = runFailed, f.why(ctx, rec, c, run)
 	if run.Status == api.StatusReverted {
 		rec.Outcome = runReverted
 	}
@@ -743,13 +743,13 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 }
 
 // why says in words why call c ended the run, naming the service.
-func (f *updFollower) why(rec *updateRunRec, c updateCall, run api.Run) string {
+func (f *updFollower) why(ctx context.Context, rec *updateRunRec, c updateCall, run api.Run) string {
 	code := ""
 	if run.Error != nil {
 		code = run.Error.Code
 	}
 	name := serviceName(c.Service)
-	reason := updateReason(code)
+	reason := updateReason(ctx, code)
 	from := orDash(rec.From)
 	switch {
 	case code == codeInterrupted && rec.Action == actionRollback:
@@ -791,7 +791,7 @@ func serviceName(s string) string {
 
 // updateReason is one plain sentence for the end code of a container call; codes shared with the OS calls use
 // mapHostCode's sentence.
-func updateReason(code string) string {
+func updateReason(ctx context.Context, code string) string {
 	switch code {
 	case api.CodeSignatureInvalid, api.CodeKeyRevoked, api.CodeManifestMismatch, api.CodeRegistryNotAllowed, api.CodeDigestNotInManifest:
 		return "the release did not pass the signature check on the box, so nothing was installed."
@@ -822,7 +822,7 @@ func updateReason(code string) string {
 	case "":
 		return "the operating system helper did not say why. The details are in the box log."
 	}
-	if ae := mapHostCode(context.Background(), slog.New(slog.DiscardHandler), code, "", 0); ae != nil {
+	if ae := mapHostCode(ctx, slog.New(slog.DiscardHandler), code, "", 0); ae != nil {
 		return ae.Message
 	}
 	return "the operating system helper could not do this. The details are in the box log."

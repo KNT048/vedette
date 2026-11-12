@@ -901,7 +901,8 @@ func runningRevokedOf(idx *release.Index, running *release.Manifest, version str
 	var hit *release.Revocation
 	for i := range idx.Revoked {
 		r := &idx.Revoked[i]
-		if !(r.Kind == release.KindRelease && r.ID == version) && !(r.Kind == release.KindImageDigest && digests[r.ID]) {
+		hits := (r.Kind == release.KindRelease && r.ID == version) || (r.Kind == release.KindImageDigest && digests[r.ID])
+		if !hits {
 			continue
 		}
 		if hit == nil || (!warnsRunning(hit.Action) && warnsRunning(r.Action)) {

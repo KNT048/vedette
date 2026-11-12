@@ -1,9 +1,2 @@
 # Việc để sau — nhánh feat/core-codegen (WP-02)
 
-- [ ] PR hợp đồng (không làm trong WP-02): hoist schema dùng chung vào `components.schemas` (`web/src/lib/openapi.ts`, Zod `.meta({id})`) để tên kiểu Go gọn.
-- [ ] PR hợp đồng: thêm `status` (201 cho 16 POST tạo) vào `Endpoint` và `openapi.mjs`; hiện hợp đồng khai 200 nên backend lệch ngay (API_CONVENTIONS §13 câu 1).
-- [ ] PR hợp đồng: `discriminator` + schema đặt tên cho các `oneOf` có `kind` (reports actions; 3 chỗ); `z.enum`/`integer` thay `anyOf` của `const` số (logs retention, notify window_min); kiểu nhiều loại `[string,number,null]` (feeds parse test) thành `anyOf`; bỏ `pattern` của `format: date-time` (431 chỗ). Xong thì bỏ các phép chuẩn hoá tương ứng trong `core/api/apigen/normalise.go`.
-- [ ] Sửa INV-5 (`modules/core/CONTRACT.md`) và API_CONVENTIONS §7.4: thêm các thao tác `public` ngoài danh sách: `POST /core/sso/login`, `GET|POST /response/approve/{token}`, `GET /response/blocklist/{token}.txt` (test `core/api/routes_test.go` đang liệt kê tường minh); đếm vai thực tế là admin 133 · viewer 80 · operator 47 · public 14 (§7.4 ghi 128/78/47/14). Cân nhắc `POST /auth/logout` có phải `public` không (hợp đồng đang để public vì khớp `/auth/*`).
-- [ ] Router ogen: `/response/blocklist/{token}.txt` và `application/octet-stream` cho tải tệp — khi cài handler, đặt `Content-Type` đúng (`text/plain`, `text/csv`...) vì hợp đồng chỉ khai octet-stream.
-- [ ] Bật `server/response/validation` của ogen trong test handler (bắt backend trả lệch hợp đồng, API_CONVENTIONS §12.1 "Response khớp schema"); chưa bật vì tăng mã sinh.
-- [ ] Bước chuẩn hoá bỏ `pattern` của `format: date-time` nên ogen nhận cả thời điểm có offset (`+07:00`); API_CONVENTIONS §2 đòi từ chối (`bad_from`, `bad_to`). Kiểm "chỉ UTC đuôi Z" phải làm ở handler (helper chung trong `core/api`) → WP-04.

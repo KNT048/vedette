@@ -44,6 +44,8 @@ const (
 // scanContainerfile is deploy/containers/scan/Containerfile.onbox without its comment header (a test keeps the two equal).
 const scanContainerfile = `ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
+# first, so that every layer after it carries the label: --uninstall removes a dangling image of this build by it, and by nothing else
+LABEL io.vedette.build=scan
 ARG NMAP_MIN_VERSION
 USER 0
 RUN set -eu; \

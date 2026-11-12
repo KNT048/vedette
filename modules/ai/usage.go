@@ -96,7 +96,7 @@ func (s *Service) Usage(ctx context.Context) (UsageView, error) {
 	if v.Month, err = s.sumSince(ctx, month); err != nil {
 		return UsageView{}, fmt.Errorf("ai: usage: %w", err)
 	}
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT job, COUNT(*), SUM(tokens_in + tokens_out) AS t FROM ai_activity WHERE ts >= ? AND result <> 'blocked_by_hook' GROUP BY job ORDER BY t DESC, job`, month)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT job, COUNT(*), SUM(tokens_in + tokens_out) AS t FROM ai_activity WHERE ts >= ? AND result <> 'blocked_by_hook' AND trigger <> 'system:ai:response' GROUP BY job ORDER BY t DESC, job`, month)
 	if err != nil {
 		return UsageView{}, fmt.Errorf("ai: usage by job: %w", err)
 	}

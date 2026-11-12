@@ -172,16 +172,31 @@ func accepted(st Stats) error {
 		return nil
 	}
 	if st.Rejected > 0 && len(st.Reasons) > 0 {
-		return fail(ErrBadSample, "All %d rows were rejected: %s.", st.Rejected, st.Reasons[0].Reason)
+		return fail(ErrBadSample, "All %s rows were rejected: %s.", grouped(st.Rejected), st.Reasons[0].Reason)
 	}
 	return fail(ErrBadSample, "The feed returned no records.")
 }
 
+// note is the status line of an ok pull that dropped rows: the counts as the GUI writes numbers (fmtNumber,
+// en-GB), the most common reason (a message template, feed values left out: INV-3) and why that is fine.
 func note(st Stats) string {
 	if st.Rejected == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d of %d rows were rejected.", st.Rejected, st.Accepted+st.Rejected)
+	m := fmt.Sprintf("%s of %s rows were rejected.", grouped(st.Rejected), grouped(st.Accepted+st.Rejected))
+	if len(st.Reasons) > 0 {
+		m += fmt.Sprintf(" Most often: %s.", st.Reasons[0].Reason)
+	}
+	return m + " A few bad lines in a public list are normal; they are skipped."
+}
+
+// grouped writes n with a comma every three digits (185987 -> "185,987").
+func grouped(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }
 
 func str(v any) string {

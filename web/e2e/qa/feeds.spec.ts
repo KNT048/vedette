@@ -293,7 +293,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
       await edit.getByLabel('Fetch schedule').selectOption('72')
       await edit.getByRole('button', { name: 'Save' }).click()
       await toast(page, new RegExp(`${name} saved`))
-      await expect(feedRow(page, name)).toContainText('Every 72 hours')
+      await expect(feedRow(page, name)).toContainText('Every 3 days')
       if (c.auth.last4) {
         await page.getByRole('button', { name: `Edit ${name}` }).click()
         await expect(page.getByRole('dialog', { name: `Edit ${name}` }).getByText(`A secret ending in ${c.auth.last4} is saved`)).toBeVisible()

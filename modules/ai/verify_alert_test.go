@@ -48,6 +48,7 @@ func TestVerifyJobAlertsOncePerBreak(t *testing.T) {
 		if err := verify(a.ctx()); err != nil {
 			t.Fatal(err)
 		}
+		a.explain("CVE-2022-27593", 409, "ai_unavailable") // another call adds a row after the break: still the same break
 	}
 	if len(alerts) != 1 || !strings.Contains(alerts[0], rows[1].ID) {
 		t.Fatalf("alerts = %q, want one naming the first bad row", alerts)

@@ -100,7 +100,7 @@ func (s *Service) Jobs() []jobs.Job {
 }
 
 // verifyAndAlert checks the chain (INV-18) and, when it is broken, raises one incident notice (S-AI-8, D-430). The text names the
-// count and the first bad row, never the content of a row. The same break (first bad row and count) is raised once per process: the
+// count and the first bad row, never the content of a row. The same break (the first bad row, or "tail" when rows are missing at the end) is raised once per process: the
 // box does not repeat a notice every day, and a restart raises a break that is still there once more. A chain that verifies again
 // (the log was restored) clears the memory, so a new break is raised.
 func (s *Service) verifyAndAlert(ctx context.Context) error {
@@ -112,7 +112,10 @@ func (s *Service) verifyAndAlert(ctx context.Context) error {
 		s.alerted.Store(nil)
 		return nil
 	}
-	key := fmt.Sprintf("%s/%d", res.EntryID, res.Count)
+	key := res.EntryID // the first bad row; rows added after the break change Count, not this
+	if key == "" {
+		key = "tail" // rows missing at the end of the log
+	}
 	if last := s.alerted.Load(); last != nil && *last == key {
 		return nil
 	}

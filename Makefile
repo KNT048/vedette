@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -27,7 +27,8 @@ endif
 help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
 	@echo "make dev-api      backend Go thật + giao diện; REAL=core,inventory chọn module thật, còn lại là mock"
-	@echo "make check         kiểm nhanh phần đã đổi so với origin/main (cổng PR); đổi file dùng chung thì chạy verify"
+	@echo "make check-fast    cổng trước khi push: build, vet, lint dòng mới, test (không -race) của gói đã đổi, tsc/lint/vitest --changed (D-370)"
+	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
 	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
@@ -66,6 +67,10 @@ dev-api:
 # Cổng PR (D-62): chỉ phần đã đổi; file dùng chung đổi thì tự chuyển sang verify đầy đủ.
 check:
 	scripts/check.sh
+
+# Cổng trước khi push (D-370): gói đã đổi, không -race, không gói phụ thuộc, không Playwright; không cần khe việc nặng. CI là cổng merge.
+check-fast:
+	scripts/check-fast.sh
 
 verify: verify-web verify-go
 

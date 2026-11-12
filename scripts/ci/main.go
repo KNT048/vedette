@@ -54,7 +54,7 @@ func run(args []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("usage: ci times LOG")
 		}
-		f, err := os.Open(args[1])
+		f, err := os.Open(args[1]) //nolint:gosec // G703: the CI log a maintainer names on the command line
 		if err != nil {
 			return err
 		}

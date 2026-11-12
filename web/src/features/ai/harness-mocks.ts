@@ -160,6 +160,10 @@ export const harnessHandlers = [
     if (size > MAX_DOC) return fail(400, 'too_large', 'The file is larger than 10 MB. Split it or remove pictures, then upload again.')
     if (typeof b.content !== 'string') return fail(400, 'invalid', 'The field "content" is missing or has a value that is not allowed. Fix it and try again.')
     if (base64Len(b.content) !== size) return fail(400, 'invalid_size', 'The file arrived damaged or cut short. Pick it again.')
+    // the quick look of the box (sniffDoc): the bytes must look like the type the name claims, and the sentence names the file
+    const head = (() => { try { return atob(b.content.slice(0, 1368)) } catch { return '' } })()
+    const notIt = /\.pdf$/i.test(name) && !head.includes('%PDF-') ? 'a PDF file' : /\.docx$/i.test(name) && !head.startsWith('PK\x03\x04') ? 'a Word (DOCX) file' : null
+    if (notIt) return fail(400, 'invalid_content', `${name} is not ${notIt}. Only PDF, MD, TXT and DOCX files can be added.`)
     if (b.jobs !== undefined && !jobsOk(b.jobs)) return fail(400, 'invalid_jobs', 'One of the chosen jobs is not an AI job. Pick from the list.')
     if (!indexProfile()) return fail(400, 'no_index_profile', 'Choose an AI profile for the index before adding documents.')
     if (knowledgeStore.get().length >= 50) return fail(400, 'too_many', 'A box holds up to 50 documents. Delete the ones you no longer use.')

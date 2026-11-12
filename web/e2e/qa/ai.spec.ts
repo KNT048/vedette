@@ -90,7 +90,7 @@ test.describe('ai: clean install', () => {
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     // a clean install already lists the box itself as its first device (inventory mock, 830c3ad), so the answer comes from one device; the empty-inventory answer is covered by vitest
     await expect(page.getByText(/No device in the inventory has RDP/)).toBeVisible()
-    await expect(page.getByText('Sources: Inventory: 1 device searched')).toBeVisible()
+    await expect(page.getByText('Sources: Inventory: only the Vedette box searched')).toBeVisible()
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await shot(page, 'ai', `assistant-clean-asked-${device(page)}`)
     // trang Log chưa có nguồn log: không dựng khung AI (không có gì để tóm tắt)

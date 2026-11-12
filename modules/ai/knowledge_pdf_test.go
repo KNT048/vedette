@@ -57,7 +57,7 @@ func TestContract_INV10_ANonPDFWithAPDFNameIsRefusedAtUpload(t *testing.T) {
 	a.kbIndexProfile()
 	_, m, raw := a.do("POST", "/ai/knowledge", "admin", kbBody("notes.pdf", []byte("just some text"), ""))
 	msg, _ := m["error"].(map[string]any)["message"].(string)
-	if errCode(m) != "invalid_content" || !strings.Contains(msg, "not a PDF") || !strings.Contains(msg, "Only PDF, MD, TXT and DOCX") {
+	if errCode(m) != "invalid_content" || msg != "notes.pdf is not a PDF file. Only PDF, MD, TXT and DOCX files can be added." { // a sentence that names the file
 		t.Fatalf("fake pdf = %s", raw)
 	}
 	if n := a.count(`SELECT COUNT(*) FROM ai_knowledge_doc`); n != 0 {

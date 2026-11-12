@@ -61,7 +61,7 @@ func aiLogAround(d *deps) func(context.Context, netip.Addr, time.Time, time.Time
 		}
 		for _, h := range a.Connections {
 			out.Connections = append(out.Connections, ai.LogDigestBadConn{TS: store.FormatTS(h.TS), AssetName: h.AssetName, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind,
-				SeenVia: h.SeenVia, Feeds: h.Feeds, Confidence: h.Confidence})
+				SeenVia: h.SeenVia, Feeds: h.Feeds, Confidence: h.Confidence, Blocked: h.Blocked})
 		}
 		return out, true, nil
 	}

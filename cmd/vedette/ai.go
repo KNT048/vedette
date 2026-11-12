@@ -206,7 +206,7 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 	}
 	out := make([]ai.AssetRow, 0, len(devs))
 	for _, d := range devs {
-		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen}
+		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen, IsBox: d.IsBox}
 		for _, sv := range d.Services {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}

@@ -466,7 +466,7 @@ func TestUsageByJobAndConnectionTestIsLogged(t *testing.T) {
 		t.Fatalf("by_skill = %v", by)
 	}
 	rows := a.activity()
-	if rows[0].Job != "connection-test" || rows[0].Profile != "Draft" || rows[0].Trigger != "user:admin@acme.example" || rows[0].TokensIn != 14 {
+	if rows[0].Job != "connection-test" || rows[0].Profile != "Draft" || rows[0].Trigger != "user:admin@acme.example" || rows[0].TokensIn != 42 || rows[0].TokensOut != 9 { // all three requests of the test
 		t.Fatalf("test row = %+v", rows[0])
 	}
 }

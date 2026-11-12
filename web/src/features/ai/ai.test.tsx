@@ -9,7 +9,7 @@ import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
 import LogsPanel from './LogsPanel'
@@ -25,7 +25,7 @@ function renderUi(ui: React.ReactNode, role: Role = 'admin') {
   // Vai (useCan) đến sau khi /me trả lời; chờ để các nút không còn ở trạng thái "đang tải quyền".
   const ready = waitFor(() => expect(qc.getQueryData(['me'])).toBeTruthy())
   ready.catch(() => undefined) // tests that never await `ready` must not leave an unhandled rejection after unmount
-  return Object.assign(view, { ready })
+  return Object.assign(view, { ready, qc })
 }
 const clearProfiles = () => { aiProfilesStore.set([]); aiAssignStore.update((a) => ({ ...a, jobs: Object.fromEntries(Object.keys(a.jobs).map((k) => [k, { primary: null, fallback: null }])) as typeof a.jobs })); aiConfigStore.update((c) => ({ ...c, configured: false })) }
 
@@ -673,6 +673,24 @@ describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
     await userEvent.selectOptions(kind, 'openai')
     expect(within(dlg).getByLabelText('API key')).toHaveValue('')
     expect(within(dlg).getByRole('checkbox', { name: /I understand/ })).not.toBeChecked()
+  })
+
+  it('on a container-only install the local model address starts empty and the hint says to use the LAN IP (D-TBD-aiw3)', async () => {
+    installStore.set({ kind: 'container' })
+    try {
+      clearProfiles()
+      const v = renderUi(<AiSettings />)
+      await v.ready
+      await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+      const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+      await waitFor(() => expect(v.qc.getQueryData(['modules'])).toBeTruthy()) // the install kind is known
+      await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'openai-compatible')
+      const url = within(dlg).getByLabelText('Server address')
+      expect(url).toHaveValue('') // Docker does not resolve host.containers.internal
+      expect(url).toHaveAttribute('placeholder', 'http://LAN-IP-of-the-machine:11434/v1')
+      expect(within(dlg).getByText(/Ollama on the machine that runs the containers: use that machine's LAN IP/)).toBeInTheDocument()
+      expect(within(dlg).getByLabelText('Model')).toHaveValue('qwen3:8b')
+    } finally { installStore.set({ kind: 'appliance' }) }
   })
 
   it('a local Ollama profile saves without a key and can then be picked for the log jobs', async () => {

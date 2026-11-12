@@ -272,6 +272,26 @@ func (a AssetRow) matches(f map[string]any) bool {
 	return true
 }
 
+// inventoryCite says what search_assets looked through. The box itself is named apart: Devices says "Only the Vedette box so far" and
+// Reports counts no device then, so "1 device searched" would read as a device of the network that the rest of the app does not show.
+func inventoryCite(all []AssetRow) string {
+	others, box := 0, false
+	for _, a := range all {
+		if a.IsBox {
+			box = true
+		} else {
+			others++
+		}
+	}
+	switch {
+	case !box:
+		return "Inventory: " + plural(others, "device", "devices") + " searched"
+	case others == 0:
+		return "Inventory: only the Vedette box searched"
+	}
+	return "Inventory: " + plural(others, "device", "devices") + " and the Vedette box searched"
+}
+
 func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut, error) {
 	all, err := d.Assets(ctx)
 	if err != nil {
@@ -315,7 +335,7 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		}
 		t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(a.ID, 96), Cells: []string{clip(a.Name, 80), clip(a.IP, 45), clip(a.Kind, 32), os}})
 	}
-	out := toolOut{Text: text, Summary: plural(total, "device", "devices"), Cite: "Inventory: " + plural(len(all), "device", "devices") + " searched"}
+	out := toolOut{Text: text, Summary: plural(total, "device", "devices"), Cite: inventoryCite(all)}
 	if len(t.Rows) > 0 {
 		out.Table = t
 	}

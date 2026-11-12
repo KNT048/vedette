@@ -4229,7 +4229,7 @@
                           },
                           "evidence": {
                             "type": "string",
-                            "description": "Where the AI noticed this, for example \"log summary of 7 Nov\""
+                            "description": "Where the AI noticed this, for example \"From the log summary of 7 Nov\""
                           }
                         },
                         "required": [
@@ -4618,7 +4618,7 @@
                           },
                           "evidence": {
                             "type": "string",
-                            "description": "Where the AI noticed this, for example \"log summary of 7 Nov\""
+                            "description": "Where the AI noticed this, for example \"From the log summary of 7 Nov\""
                           }
                         },
                         "required": [

@@ -46,7 +46,7 @@ type LogDigestSpike struct {
 	BaselinePerDay float64 `json:"baseline_per_day"`
 }
 
-// LogDigestBadConn is a connection to an address a threat feed lists.
+// LogDigestBadConn is a connection to an address a threat feed lists, or an attempt at one that the device which logged it blocked.
 type LogDigestBadConn struct {
 	TS         string   `json:"ts"`
 	AssetName  *string  `json:"asset_name"`
@@ -56,6 +56,8 @@ type LogDigestBadConn struct {
 	SeenVia    string   `json:"seen_via"`
 	Feeds      []string `json:"feeds"`
 	Confidence float64  `json:"confidence"`
+	// Blocked is logs' IocHit.Blocked (D-227): the device that logged the line stopped it, so it was an attempt, not a connection.
+	Blocked bool `json:"blocked"`
 }
 
 func (d LogDigestData) empty() bool {
@@ -174,7 +176,7 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 		}
 		fmt.Fprintf(&b, "- source %q: %s (%s lines in 24 hours, usually about %s a day)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), number(x.Count), number(int(math.Round(x.BaselinePerDay))))
 	}
-	b.WriteString("Connections to addresses on threat feeds:\n")
+	b.WriteString("Connections to addresses on threat feeds (a blocked attempt never reached the address):\n")
 	for i, x := range d.BadConnections {
 		if i == n {
 			break
@@ -189,7 +191,11 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 				feeds = append(feeds, clip(f, digestNameChars))
 			}
 		}
-		fmt.Fprintf(&b, "- %s, IP %s, to %s (%s), seen via %s, listed by %s, confidence %.2f, at %s\n", who, clip(x.SrcIP, 45), clip(x.Dest, 253), clip(x.DestKind, 8), clip(x.SeenVia, 60), strings.Join(feeds, ", "), x.Confidence, clip(x.TS, 32))
+		what := "connected" // D-227: a blocked attempt is said as one, so the AI does not report it as a connection that went through
+		if x.Blocked {
+			what = "blocked attempt (stopped by the device that logged it)"
+		}
+		fmt.Fprintf(&b, "- %s: %s, IP %s, to %s (%s), seen via %s, listed by %s, confidence %.2f, at %s\n", what, who, clip(x.SrcIP, 45), clip(x.Dest, 253), clip(x.DestKind, 8), clip(x.SeenVia, 60), strings.Join(feeds, ", "), x.Confidence, clip(x.TS, 32))
 	}
 	return DataBlock{Kind: DataLog, Source: "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", Text: b.String()}
 }
@@ -442,7 +448,7 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestions are kept even if the person has gone
 	defer cancel()
 	v := s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now)
-	v.MemoriesSuggested = s.suggestFrom(sctx, remember, "log summary of "+now.UTC().Format("2 Jan 2006"), "the log digest")
+	v.MemoriesSuggested = s.suggestFrom(sctx, remember, "From the log summary of "+now.UTC().Format("2 Jan 2006"), "the log digest")
 	return v, nil
 }
 

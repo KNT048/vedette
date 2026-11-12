@@ -33,7 +33,7 @@ type LogAroundKind struct {
 const aroundKept = 24 * time.Hour
 
 const (
-	eventsAroundDesc   = "Count what the logs of the last 24 hours say about one IP address around a time: the kinds of log line (signatures) that named it as the remote side, how many lines of each kind and from which log source, and its connections to addresses on threat feeds. at is an ISO 8601 time (default: now) and minutes the half-width of the window around it (default 60). Log lines themselves are never given, only kinds and counts."
+	eventsAroundDesc   = "Count what the logs of the last 24 hours say about one IP address around a time: the kinds of log line (signatures) that named it as the remote side, how many lines of each kind and from which log source, and its connections to addresses on threat feeds (blocked: true means the device that logged it stopped it, an attempt that never reached the address). at is an ISO 8601 time (default: now) and minutes the half-width of the window around it (default 60). Log lines themselves are never given, only kinds and counts."
 	eventsAroundSchema = `{"type":"object","properties":{"ip":{"type":"string","maxLength":45},"at":{"type":"string","maxLength":32},"minutes":{"type":"integer","minimum":5,"maximum":720}},"required":["ip"],"additionalProperties":false}`
 )
 
@@ -88,7 +88,7 @@ func (s *Service) toolEventsAround(ctx context.Context, raw map[string]any) (too
 			who = clip(*c.AssetName, digestNameChars)
 		}
 		conns = append(conns, map[string]any{"ts": clip(c.TS, 32), "device": who, "src_ip": clip(c.SrcIP, 45), "dest": clip(c.Dest, 253), "seen_via": clip(c.SeenVia, 60),
-			"feeds": cleanAll(c.Feeds[:min(len(c.Feeds), digestFeedsMax)], digestNameChars), "confidence": c.Confidence})
+			"feeds": cleanAll(c.Feeds[:min(len(c.Feeds), digestFeedsMax)], digestNameChars), "confidence": c.Confidence, "blocked": c.Blocked})
 	}
 	m["lines"] = number(d.Lines)
 	// as many connections, then kinds, as fit one result: a cut in the middle would leave no JSON (signatures are full of < and >,

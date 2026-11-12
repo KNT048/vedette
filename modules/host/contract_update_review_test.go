@@ -8,8 +8,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops"
 )
 
@@ -317,7 +319,20 @@ func TestContract_Update_AFailedRevertIsRetriedByItselfOnceTheRunHasReleasedTheL
 	if st := e.state(t)["core"]; st.Digest == nil || *st.Digest != d2 {
 		t.Fatalf("%+v", st)
 	}
-	e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "manual", Snapshot: e.snap()})
+	// The run is terminal before it lets go of the write lock: send the write again while the host answers busy.
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		r, err := e.call(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "manual", Snapshot: e.snap()})
+		var ce *client.Error
+		if errors.As(err, &ce) && ce.Code == api.CodeBusy && time.Now().Before(deadline) {
+			<-time.After(5 * time.Millisecond)
+			continue
+		}
+		if err != nil || r.Status != api.StatusSucceeded {
+			t.Fatalf("%s: err %v run %+v", api.CmdBackupCreate, err, r)
+		}
+		break
+	}
 }
 
 // N3: when the verified journal cannot be written but can be removed, the switch that worked stands and settles.

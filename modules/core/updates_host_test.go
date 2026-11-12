@@ -46,6 +46,12 @@ func (e *runEnv) hostPackagesLeft(t *testing.T) []string {
 	return out
 }
 
+// waitNoPackages waits for the run's cleanup: the run reads "done" a moment before the package is removed.
+func (e *runEnv) waitNoPackages(t *testing.T) {
+	t.Helper()
+	eventuallyOS(t, "the host package to be removed", func() bool { return len(e.hostPackagesLeft(t)) == 0 })
+}
+
 func componentOf(r reply, id string) map[string]any {
 	for _, c := range getArr(r, "components") {
 		if m, _ := c.(map[string]any); m["id"] == id {
@@ -90,9 +96,7 @@ func TestUpdateHostStepGoesFirstThenTheImages(t *testing.T) {
 	if h := componentOf(after, "host"); h["version"] != "1.4.0" {
 		t.Errorf("host component after = %v", h)
 	}
-	if left := e.hostPackagesLeft(t); len(left) != 0 {
-		t.Errorf("packages left = %v", left)
-	}
+	e.waitNoPackages(t)
 }
 
 // Criterion (f): an image step that fails after the helper moved leaves the helper on the new version.

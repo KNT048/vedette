@@ -1434,8 +1434,10 @@ func TestRequestProposal_LogsThePersonNotTheAI(t *testing.T) {
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1")
 	e.must(err)
-	if actor, _ := e.newest("request"); actor != "it@acme.example (app)" {
-		t.Fatalf("the request line is by %q", actor)
+	// The line that creates the request is the person's. Not "the newest request line": the approval send, in the background,
+	// adds its own "request sent" line by system and can land first.
+	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'request' AND actor = 'it@acme.example (app)'`); n != 1 {
+		t.Fatalf("%d request lines by the person, want 1", n)
 	}
 	if e.count(`SELECT COUNT(*) FROM resp_log WHERE actor = 'ai:response'`) != 0 || e.count(`SELECT COUNT(*) FROM core_audit WHERE user = 'ai:response' AND target = ?`, a.ID) != 0 {
 		t.Fatal("a person's request was logged as the AI's")

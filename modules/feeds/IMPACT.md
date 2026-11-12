@@ -13,6 +13,7 @@
 - Đổi chữ ký có `ctx`: mọi chỗ gọi (job kéo, `parse-test`) phải truyền ctx có hạn; ctx huỷ giữa chừng trả `ctx.Err()` và không trả bản ghi nào (fail-closed). Ô dài hơn 4096 byte không chạy regex (bị loại); regex biên dịch > 1000 lệnh bị `ErrBadConfig`.
 - Lỗi: `ErrTooLarge` (→ 413 `too_large`), `ErrBadConfig`, `ErrBadSample` (→ 400); câu hiển thị nằm ở `(*feeds.Error).Detail`. `Result.Records` chứa mọi bản ghi nhận; `Result.Preview()` cắt 20 đầu. `CheckParser(kind, p)` kiểm cấu hình trước khi lưu.
 - `reasons[]` nhóm theo mẫu thông điệp, tối đa 50 nhóm + `other`; giá trị trích dẫn bằng `%q` và cắt 40 ký tự. Giá trị feed là văn bản thuần không tin cậy: người dùng (`notify`, `reports`, `ai`, SPA) phải escape theo môi trường của mình.
+- `rejects[]` (walk 2, S-FEED-5): `row` là số dòng của mẫu với `lines` (`rawRow.line`, đếm cả chú thích và dòng trống; dòng hosts-file nhiều tên cho cùng một số dòng), số bản ghi với định dạng khác; `ParserEditor` hiện từng dòng kèm `reason` có giá trị (văn bản thuần, React escape) vì chỉ `parse-test` trả nó. Không đưa `rejects[]` vào trạng thái lần kéo hay luồng nào khác: ở đó chỉ `reasons[]` đã che. Đổi câu lý do = đổi khoá nhóm của `reasons[]` (trạng thái "Most often") và `testdata/golden`.
 - Đổi cách chuẩn hoá (IP qua `netip`, domain/hash chữ thường, ngày UTC) hoặc danh sách địa chỉ/tên bị loại = đổi khoá khớp IOC của **honeypot/logs/response**. Dòng kiểu hosts-file (`0.0.0.0 tên`) cho ra tên, không bao giờ IP đích.
 
 ## Modifying: `ParseKEV`, `EPSSBatchURLs`/`ParseEPSS`, `ParseNucleiCVEs` (parser dựng sẵn)

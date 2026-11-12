@@ -394,3 +394,33 @@ describe('feeds: Settings -> Feeds walk 2026-11-12 (S-FEED-4)', () => {
     expect(opts.map((o) => [o.textContent, (o as HTMLOptionElement).value])).toEqual(expect.arrayContaining([['Every 3 days', '72'], ['Every week', '168'], ['Every 24 hours', '24']]))
   })
 })
+
+describe('feeds: Add a feed walk 2, 2026-11-12 (S-FEED-5)', () => {
+  it('the JSON Source hint gives an example that fits the field and the feed type', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add a feed' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Format'), 'json')
+    expect(within(dlg).getByText('JSONPath, for example $.type. Empty = not mapped.')).toBeInTheDocument()
+    expect(within(dlg).getByText('JSONPath, for example $.score. Empty = not mapped.')).toBeInTheDocument()
+    expect(dlg.textContent).not.toContain('$.cveID')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Vulnerabilities' }))
+    expect(within(dlg).getByText('JSONPath, for example $.cveID. Empty = not mapped.')).toBeInTheDocument()
+    expect(within(dlg).getByText('JSONPath, for example $.vendorProject. Empty = not mapped.')).toBeInTheDocument()
+  })
+
+  it('a pasted plain list names the rejected lines and shows each value as text', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add a feed' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Format'), 'lines')
+    await userEvent.click(within(dlg).getByText('Test with your own sample (optional)', { selector: 'summary' }))
+    await userEvent.click(within(dlg).getByLabelText('Test with your own sample (optional)'))
+    await userEvent.paste('# partner list\n203.0.113.9\n\nnot an ip!!\n<img src=x onerror=alert(1)>\n')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Test on a sample' }))
+    expect(await within(dlg).findByText('First rejected lines of the sample')).toBeInTheDocument()
+    const items = within(dlg).getAllByRole('listitem').filter((li) => /^Line \d+:/.test(li.textContent ?? ''))
+    expect(items.map((li) => li.textContent)).toEqual(['Line 4: indicator: "not" is not a valid indicator', 'Line 5: indicator: "<img" is not a valid indicator'])
+    expect(dlg.querySelector('img')).toBeNull()
+  })
+})

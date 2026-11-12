@@ -147,13 +147,20 @@ type fakeExecutor struct {
 	after   string                         // output of the read-back after an undo (a device that still shows the change holds the text here)
 	last    string                         // the last write phase seen
 	hold    chan struct{}                  // a "run" step waits for it to close (or for its context to end): a device that is slow to answer
+	inRun   chan struct{}                  // when set, gets one value as a held "run" step starts waiting (the write is in flight)
 }
 
 func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	f.mu.Lock()
-	hold := f.hold
+	hold, inRun := f.hold, f.inRun
 	f.mu.Unlock()
 	if hold != nil && s.Phase == "run" {
+		if inRun != nil {
+			select {
+			case inRun <- struct{}{}:
+			default:
+			}
+		}
 		select {
 		case <-hold:
 		case <-ctx.Done():

@@ -108,6 +108,7 @@ func TestWP31_L3_AnUndoRefusesARollbackThatDoesNotMatchItsHash(t *testing.T) {
 func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
 	e := banRequest(t)
 	e.exec.hold = make(chan struct{}) // the device is slow to answer the run step
+	e.exec.inRun = make(chan struct{}, 1)
 	e.svc.SetStepLimitForTest(20 * time.Second)
 	id := e.only().ID
 	type result struct {
@@ -119,15 +120,10 @@ func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
 		got, err := e.svc.Approve(e.ctx(), oper, id, nil, "")
 		done <- result{got, err}
 	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for e.count(`SELECT COUNT(*) FROM resp_actions WHERE items LIKE '%"running_at"%'`) == 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("the step never started")
-		}
-		select {
-		case <-time.After(5 * time.Millisecond):
-		case <-e.ctx().Done():
-		}
+	select { // the write itself is in flight, not only the read before it (D-356)
+	case <-e.exec.inRun:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the run step never started")
 	}
 	start := time.Now()
 	_, err := e.svc.EmergencyStop(e.ctx(), admin)

@@ -2,13 +2,18 @@
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
 // port in ready.json (`syslog_port`, a free port of the run, not 514). SIEM forwarding (L5) is its own test.
-// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types and spikes (a 24 h warm-up a box cannot skip), the TLS listener on this plain-HTTP box (D-214: it needs a test certificate in the box and the TLS port in ready.json).
+// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types and spikes (a 24 h warm-up a box cannot skip).
+// The box serves plain HTTP, so it has no HTTPS certificate for the TLS listener (D-214): the box of the run gives that listener a test certificate of its own and puts
+// the TLS port and the certificate in ready.json (`syslog_tls_port`, `syslog_tls_cert`, D-427), so `proto: tls` is accepted here; the refusal on a box with no
+// certificate (`tls_unavailable`) is carried by the Go tests TestASourceOverTLSIsRefusedOnCreateAndEdit and TestWithoutATLSConfigTLSIsRefusedAndNothingListens.
 // Bad connections (L4, INV-7) are real: a custom feed pulled from a loopback server lists a made-up domain, and one FortiGate DNS line from a LAN address is matched.
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
 import { readFileSync } from 'node:fs'
 import { createSocket } from 'node:dgram'
 import { createServer } from 'node:http'
+import { X509Certificate } from 'node:crypto'
 import { connect, type AddressInfo } from 'node:net'
+import { connect as tlsConnect } from 'node:tls'
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
 import { api, authFile, box, uniq } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -52,10 +57,21 @@ function sendTcp(bytes: string): Promise<void> {
     c.on('connect', () => { c.write(bytes, () => setTimeout(() => c.end(), 300)) })
   })
 }
-/** Is a TCP socket open on the syslog port? (a connection is accepted, or refused) */
-function tcpState(): Promise<'open' | 'closed'> {
+/** One TLS connection to the TLS port, trusting only the box's test certificate: writes the bytes, closes, and gives the SHA-256 fingerprint of
+ *  the certificate the box presented. */
+function sendTls(bytes: string): Promise<string> {
+  return new Promise((ok, bad) => {
+    const s = tlsConnect({ host: '127.0.0.1', port: Number(box().syslog_tls_port), ca: box().syslog_tls_cert, minVersion: 'TLSv1.2' }, () => {
+      const fp = s.getPeerX509Certificate()?.fingerprint256 ?? ''
+      s.write(bytes, () => setTimeout(() => { s.end(); ok(fp) }, 300))
+    })
+    s.on('error', bad)
+  })
+}
+/** Is a TCP socket open on the syslog port (or another one)? (a connection is accepted, or refused) */
+function tcpState(p = port()): Promise<'open' | 'closed'> {
   return new Promise((ok) => {
-    const c = connect(port(), '127.0.0.1')
+    const c = connect(p, '127.0.0.1')
     c.on('error', () => ok('closed'))
     c.on('connect', () => { c.destroy(); ok('open') })
   })
@@ -216,7 +232,6 @@ test('every refusal of a source carries its code and saves nothing (INV-3)', asy
       ['IPv6', { ...SRC, name: n, sender_ip: '::1' }, 400, 'invalid'],
       ['IP with a leading zero', { ...SRC, name: n, sender_ip: '010.1.1.1' }, 400, 'invalid'], // bad_ip is only reachable below the schema (service tests)
       ['a protocol the kind cannot send', { ...SRC, name: n, kind: 'mikrotik', proto: 'tcp' }, 400, 'bad_proto'],
-      ['TLS, the box has no certificate (plain HTTP, D-203, D-214)', { ...SRC, name: n, kind: 'fortigate', proto: 'tls', port: 6514 }, 400, 'tls_unavailable'],
       ['port 0', { ...SRC, name: n, port: 0 }, 400, 'invalid'],
       ['port 70000', { ...SRC, name: n, port: 70000 }, 400, 'invalid'],
     ]
@@ -228,8 +243,8 @@ test('every refusal of a source carries its code and saves nothing (INV-3)', asy
     expect(await auditTotal(c, 'logs.'), 'a refusal leaves no audit row').toBe(auditBefore)
     const kept = await add(c)
     const auditKept = await auditTotal(c, 'logs.')
-    const edit = await api<Err>(c, 'PUT', `/logs/sources/${kept.id}`, { ...SRC, name: kept.name, kind: 'fortigate', proto: 'tls', port: 6514 })
-    expect([edit.status, edit.body.error.code], 'an edit to TLS is refused too').toEqual([400, 'tls_unavailable'])
+    const edit = await api<Err>(c, 'PUT', `/logs/sources/${kept.id}`, { ...SRC, name: kept.name, kind: 'mikrotik', proto: 'tcp' })
+    expect([edit.status, edit.body.error.code], 'an edit is checked like a new source').toEqual([400, 'bad_proto'])
     expect((await sources(c)).sources[0]).toMatchObject({ proto: 'udp', kind: 'syslog-generic' })
     expect((await api<Err>(c, 'PUT', '/logs/sources/ls-does-not-exist', { ...SRC, name: n })).status).toBe(404)
     expect((await api<Err>(c, 'DELETE', '/logs/sources/ls-does-not-exist')).status).toBe(404)
@@ -525,9 +540,9 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
   } finally { await c.dispose() }
 })
 
-// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP and TCP) or refused because this plain-HTTP box has no certificate to serve (TLS, D-203, D-214), the others are bad_proto
+// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP, TCP, and TLS: the box of the run serves a test certificate, D-427), the others are bad_proto
 const KINDS: { id: string; protos: string[] }[] = JSON.parse(readFileSync(new URL('../../content/logs/kinds.json', import.meta.url), 'utf8'))
-test('every device type with every protocol on the real backend: allowed UDP/TCP saved, TLS refused, any other combination bad_proto (INV-3, QA row 44)', async () => {
+test('every device type with every protocol on the real backend: allowed UDP/TCP/TLS saved, any other combination bad_proto (INV-3, QA row 44)', async () => {
   test.setTimeout(120_000)
   expect(KINDS.length, 'the 48 device types').toBe(48)
   const c = await as('admin')
@@ -538,16 +553,16 @@ test('every device type with every protocol on the real backend: allowed UDP/TCP
       for (const proto of ['udp', 'tcp', 'tls']) {
         const body = { kind: k.id, name: `m-${k.id}-${proto}`, sender_ip: '10.77.7.7', proto, port: proto === 'tls' ? 6514 : 514 }
         const r = await api<Source & Err>(c, 'POST', '/logs/sources', body)
-        const want = !k.protos.includes(proto) ? [400, 'bad_proto'] : proto === 'tls' ? [400, 'tls_unavailable'] : [201, undefined]
+        const want = !k.protos.includes(proto) ? [400, 'bad_proto'] : [201, undefined]
         expect([r.status, r.body.error?.code], `${k.id} over ${proto}`).toEqual(want)
         if (r.status === 201) {
           saved++
-          expect(r.body).toMatchObject({ kind: k.id, proto, port: 514, sender_ip: '10.77.7.7', state: 'never' })
+          expect(r.body).toMatchObject({ kind: k.id, proto, port: proto === 'tls' ? 6514 : 514, sender_ip: '10.77.7.7', state: 'never' })
           expect((await api(c, 'DELETE', `/logs/sources/${r.body.id}`)).status).toBe(204)
         }
       }
     }
-    expect(saved, 'one saved source per kind and non-TLS protocol it can send').toBe(KINDS.reduce((n, k) => n + k.protos.filter((p) => p !== 'tls').length, 0))
+    expect(saved, 'one saved source per kind and protocol it can send').toBe(KINDS.reduce((n, k) => n + k.protos.length, 0))
     expect((await sources(c)).sources, 'the matrix left nothing behind').toEqual([])
     expect((await auditTotal(c, 'logs.source_add')) + (await auditTotal(c, 'logs.source_delete')), 'each save and delete is audited, a refusal is not').toBe(auditBefore + saved * 2)
   } finally { await c.dispose() }
@@ -721,16 +736,32 @@ test('SIEM forwarding on the real backend: validation, the three formats, the ke
     await c.dispose()
   }
 })
-test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it', async () => {
+test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it (accepted, D-427: TestContract_INV6_WarmUpIsSilent, TestContract_INV6_SpikeMaths, TestContract_INV6_BaselineOverTenFakeDays)', async () => {
   const c = await as('admin')
   await add(c)
   await sendUdp(`<34>Nov 11 12:33:00 gw app[1]: ${uniq('tok')} a log type with a signature`)
   await expect.poll(async () => (await api<{ new: unknown[] }>(c, 'GET', '/logs/digest')).body.new.length).toBeGreaterThan(0)
   await c.dispose()
 })
-test.fixme('a TLS source is served on the TLS port with the box certificate (POST-1, D-214; this box has no TLS config, so tls is refused with tls_unavailable until the e2e box serves TLS and puts the port in ready.json)', async () => {
+test('a TLS source is served on the TLS port with the box certificate: the line sent over TLS is stored and the source is Receiving; the socket opens with the first TLS source and closes with the last (POST-1, D-214, D-427)', async () => {
+  test.setTimeout(90_000)
+  const tlsPort = Number(box().syslog_tls_port)
+  expect(tlsPort, 'the box of the run serves syslog over TLS (ready.json)').toBeGreaterThan(0)
   const c = await as('admin')
-  const r = await api(c, 'POST', '/logs/sources', { kind: 'fortigate', name: uniq('lg'), sender_ip: '127.0.0.1', proto: 'tls', port: 6514 })
-  expect(r.status).toBe(201)
-  await c.dispose()
+  try {
+    await expect.poll(() => tcpState(tlsPort), { message: 'no TLS socket while no source uses TLS' }).toBe('closed')
+    const r = await api<Source>(c, 'POST', '/logs/sources', { kind: 'fortigate', name: uniq('lg'), sender_ip: '127.0.0.1', proto: 'tls', port: 6514 })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body).toMatchObject({ kind: 'fortigate', proto: 'tls', port: 6514, sender_ip: '127.0.0.1', state: 'never' })
+    await expect.poll(() => tcpState(tlsPort), { message: 'the TLS socket opens', timeout: 40_000 }).toBe('open')
+    const tok = uniq('tok')
+    const line = `<189>Nov 11 12:32:00 fg app[1]: ${tok} over tls`
+    const fp = await sendTls(`${line.length} ${line}`) // octet counting, the framing of RFC 5425
+    expect(fp, 'the certificate the box presents is the one in ready.json').toBe(new X509Certificate(box().syslog_tls_cert!).fingerprint256)
+    await stored(c, line, r.body.id)
+    expect((await events(c, { q: tok })).events.map((e) => [e.line, e.source_id])).toEqual([[line, r.body.id]])
+    expect((await sources(c)).sources[0]).toMatchObject({ id: r.body.id, state: 'receiving' })
+    expect((await api(c, 'DELETE', `/logs/sources/${r.body.id}`)).status).toBe(204)
+    await expect.poll(() => tcpState(tlsPort), { message: 'the TLS socket closes with the last TLS source', timeout: 40_000 }).toBe('closed')
+  } finally { await c.dispose() }
 })

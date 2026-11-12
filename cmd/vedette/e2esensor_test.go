@@ -9,6 +9,7 @@ package main
 //	                                                       from the fixtures of modules/sensor-active/testdata by the shape of its argv (below)
 //	DELETE /sensors/{role}                              -> 204; stops that child (a missing child is not an error)
 //	GET    /sensors/active/argv                         -> {"lines": ["<argv of one nmap run>", ...]}, every run the fake nmap saw, oldest first
+//	POST   /sensors/scan, GET /sensors/scan/argv        -> the scan worker in this process, in the slot of the active sensor (e2escan_test.go)
 //
 // The fake nmap: `--version` answers like nmap; "-sn" (the sweep) prints sweep.xml; "-T2" (the gentle first scan of a fragile or unknown
 // device, INV-5) prints fragile.xml; anything else prints device.xml. sweep.xml also holds 203.0.113.9, which is outside every private
@@ -59,11 +60,13 @@ type e2eSensors struct {
 	addr string // the sensor link's address, "" until the box logs it
 	kids map[string]*e2eKid
 	nmap string // the fake nmap, written once (a running sensor may be executing it)
+	scan *e2eScanFakes // the scan worker's pack, nuclei and nmap, written once (e2escan_test.go)
 }
 
 type e2eKid struct {
-	cmd  *exec.Cmd
-	done chan struct{}
+	cmd    *exec.Cmd          // a vedette-sensor child; nil for the scan worker that runs in this process (e2escan_test.go)
+	cancel context.CancelFunc // stops the in-process worker
+	done   chan struct{}
 }
 
 func newE2ESensors(ctx context.Context, bin, dir string) *e2eSensors {
@@ -86,6 +89,16 @@ func (s *e2eSensors) fakeNmap() (string, error) {
 	if s.nmap != "" {
 		return s.nmap, nil
 	}
+	path := filepath.Join(s.dir, "fake-nmap")
+	if err := writeFakeNmap(path, s.argvLog()); err != nil {
+		return "", err
+	}
+	s.nmap = path
+	return path, nil
+}
+
+// writeFakeNmap writes the fake nmap at path; every run appends its argv to argvLog.
+func writeFakeNmap(path, argvLog string) error {
 	root := filepath.Join(e2eRepoRoot(), "modules", "sensor-active", "testdata")
 	// A device scan (one target, the last argument) is answered with the fixture re-addressed to that target, so the result is about the
 	// device that was asked for (core keeps only the targets it asked for, INV-7): device.xml is a Linux server with ssh and two web
@@ -99,13 +112,8 @@ case " $* " in
 *" -T2 "*) sed "s/192\.168\.10\.30/$last/g" '%[2]s/fragile.xml';;
 *) sed "s/192\.168\.10\.20/$last/g" '%[2]s/device.xml';;
 esac
-`, s.argvLog(), root)
-	path := filepath.Join(s.dir, "fake-nmap")
-	if err := os.WriteFile(path, []byte(body), 0o700); err != nil { //nolint:gosec // a fake program must be executable
-		return "", err
-	}
-	s.nmap = path
-	return path, nil
+`, argvLog, root)
+	return os.WriteFile(path, []byte(body), 0o700) //nolint:gosec // a fake program must be executable
 }
 
 // start (re)starts the sensor of role with its own arguments.
@@ -151,6 +159,14 @@ func (s *e2eSensors) stopLocked(role string) {
 	delete(s.kids, role)
 	s.mu.Unlock()
 	if k == nil {
+		return
+	}
+	if k.cmd == nil { // the in-process scan worker: it stops its nuclei and returns
+		k.cancel()
+		select {
+		case <-k.done:
+		case <-time.After(15 * time.Second):
+		}
 		return
 	}
 	_ = k.cmd.Process.Signal(os.Interrupt)
@@ -225,4 +241,5 @@ func (s *e2eSensors) routes(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"lines": lines})
 	})
+	s.scanRoutes(mux)
 }

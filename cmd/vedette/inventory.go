@@ -15,7 +15,7 @@ import (
 // newInventory builds the inventory service from the shared deps; buildServices calls it once and stores it in
 // deps.Inventory. Its events go to deps.Bus; its KEV data comes from the feeds service (looked up lazily, see
 // feedsKEV, because feeds in turn takes the inventory).
-// ponytail: no box packages (WP-07: Config.Box) and no findings counter (needs a read method of findings); the service degrades without them.
+// ponytail: no box packages (WP-07: Config.Box); the service degrades without them. findings_count comes from findingCounts.
 func newInventory(d *deps) *inventory.Service {
 	var pub inventory.Publisher
 	if d.Bus != nil {
@@ -31,7 +31,8 @@ func newInventory(d *deps) *inventory.Service {
 		}
 		return d.Honeypot.DecoyIPs(ctx)
 	}
-	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned}
+	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
+		Findings: findingCounts{d}}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -70,4 +71,17 @@ func inventoryJobs(d deps) []jobs.Job {
 		}
 		return svc.RefreshBoxPackages(ctx)
 	}}}
+}
+
+// findingCounts is inventory's FindingCounter: findings is built after inventory, so its service is looked up when asked. The count
+// covers every status, which is what deleting the device deletes. With the findings module off, nothing deletes them (the
+// asset.deleted subscriber runs only while findings is on), so the count is 0 and the delete dialog promises nothing; before the
+// service exists it is 0 too (an empty map, never an error).
+type findingCounts struct{ d *deps }
+
+func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error) {
+	if f.d == nil || f.d.Findings == nil || (f.d.Reg != nil && !f.d.Reg.Enabled("findings")) {
+		return map[string]int{}, nil
+	}
+	return f.d.Findings.CountByAsset(ctx)
 }

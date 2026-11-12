@@ -37,6 +37,18 @@ describe('container-only install (D-381)', () => {
     expect(hostCalls()).toEqual([])
   })
 
+  it('Data backup and restore follow the Docker / Podman switch, with the SELinux note for Podman (S-CORE-9 G2)', async () => {
+    const u = userEvent.setup()
+    renderApp('/settings/data')
+    expect(await screen.findByText(/^docker compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.queryByText(/SELinux/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Podman' }))
+    expect(screen.getByText(/^podman compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.getByText(/^podman compose --env-file vedette.env create core/)).toBeInTheDocument()
+    expect(screen.queryByText(/docker (run|compose)/)).toBeNull()
+    expect(screen.getByText(/SELinux/)).toBeInTheDocument()
+  })
+
   it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
     const u = userEvent.setup()
     renderApp('/settings/updates')

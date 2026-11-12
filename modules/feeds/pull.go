@@ -44,16 +44,20 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	pulled := false
 	for _, r := range rows {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if cur, err := s.st.source(ctx, r.ID); err == nil { // an earlier pull of this tick may have filled it (EPSS after the CISA list)
-			r = cur
+		if pulled { // an earlier pull of this tick may have filled it (EPSS after the CISA list); a tick that pulled nothing reads no row twice
+			if cur, err := s.st.source(ctx, r.ID); err == nil {
+				r = cur
+			}
 		}
 		if !r.Enabled || !r.state().Due(now, r.IntervalHours) {
 			continue
 		}
+		pulled = true
 		_, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
 		if ctx.Err() != nil {
 			return ctx.Err()

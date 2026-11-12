@@ -22,7 +22,10 @@ func TestOnlyCredNamesTheCredentialPurpose(t *testing.T) {
 	credOrSecrets := func(rel string) bool {
 		return strings.HasPrefix(rel, "core/conn/internal/cred/") || strings.HasPrefix(rel, "core/secrets/")
 	}
-	pkiOwn := func(rel string) bool { return rel == "core/pki/ca.go" || rel == "core/pki/authority.go" }
+	// The two CAs hold an opener of their own purpose (D-110, D-351), never the credential purpose.
+	pkiOwn := func(rel string) bool {
+		return rel == "core/pki/ca.go" || rel == "core/pki/authority.go" || rel == "cmd/vedette/boxca.go"
+	}
 	scanned := 0
 	tops := map[string]bool{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {

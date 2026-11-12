@@ -1,7 +1,9 @@
 package main
 
 import (
-	"path/filepath"
+	"context"
+	"fmt"
+	"os"
 
 	"github.com/knt048/vedette/core/jobs"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -18,17 +20,21 @@ func agentIntakeJobs(d deps) []jobs.Job {
 // defaultOsqueryDir is where the core image keeps the pinned osquery packages (deploy/containers/core/Containerfile).
 const defaultOsqueryDir = "/usr/share/vedette/osquery"
 
-// trustAnchor is agentintake.Config.TrustAnchor: the certificates osquery pins to trust this box (INV-11), read once at start from the
-// certificate the listener serves, so ca.pem and the scripts always match what is served. Plain HTTP on loopback has no certificate
-// (agentintake.ErrNoTrustAnchor); an owner's certificate (-tls-cert) gives the chain they supplied.
-func trustAnchor(o options) func() ([]byte, error) {
-	certPath, owner := o.tlsCert, o.tlsCert != ""
-	if loop, err := isLoopback(o.listen); !owner && (err != nil || loop) {
+// trustAnchor is agentintake.Config.TrustAnchor: the certificates osquery pins to trust this box (INV-11). Plain HTTP on loopback has no
+// certificate (agentintake.ErrNoTrustAnchor). An owner's certificate (-tls-cert) gives the chain they supplied, read once at start. Otherwise
+// it is the box CA sealed in core_secret (D-351, core INV-33), asked each time through sealed (intakeTrustAnchor), which answers 503
+// server_busy while the 8443 leaf is being re-issued under a new CA. The bytes go over as read: agent-intake keeps only their CERTIFICATE
+// blocks (its INV-11), so the key of an owner's combined file never leaves.
+func trustAnchor(o options, sealed func(context.Context) ([]byte, error)) func() ([]byte, error) {
+	if o.tlsCert != "" {
+		raw, err := os.ReadFile(o.tlsCert)
+		if err != nil {
+			err = fmt.Errorf("tls: trust anchor: %w", err)
+		}
+		return func() ([]byte, error) { return raw, err }
+	}
+	if loop, err := isLoopback(o.listen); sealed == nil || err != nil || loop {
 		return func() ([]byte, error) { return nil, agentintake.ErrNoTrustAnchor }
 	}
-	if !owner {
-		certPath = filepath.Join(filepath.Dir(o.db), "vedette-selfsigned.crt")
-	}
-	pem, err := trustAnchorPEM(certPath, owner)
-	return func() ([]byte, error) { return pem, err }
+	return func() ([]byte, error) { return sealed(context.Background()) }
 }

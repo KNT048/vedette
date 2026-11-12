@@ -644,7 +644,8 @@ type Handler interface {
 	CorePostCoreSetup(ctx context.Context, req *CorePostCoreSetupReq) (*CorePostCoreSetupOK, error)
 	// CorePostCoreUpdatesApply implements core_post_core_updates_apply operation.
 	//
-	// Install the new version of one component.
+	// Install the new version of one component; for the software it starts a run (UpdatesState.run, 409
+	// busy while one runs).
 	//
 	// POST /core/updates/apply
 	CorePostCoreUpdatesApply(ctx context.Context, req *CorePostCoreUpdatesApplyReq) (*CorePostCoreUpdatesApplyOK, error)
@@ -682,7 +683,8 @@ type Handler interface {
 	CorePostCoreUpdatesOsReboot(ctx context.Context, req *CorePostCoreUpdatesOsRebootReq) (*CorePostCoreUpdatesOsRebootOK, error)
 	// CorePostCoreUpdatesRollback implements core_post_core_updates_rollback operation.
 	//
-	// Go back to the previous version of one component.
+	// Go back to the previous version of one component; 409 confirm_required when it restores the database
+	// and confirm_data_loss is not true.
 	//
 	// POST /core/updates/rollback
 	CorePostCoreUpdatesRollback(ctx context.Context, req *CorePostCoreUpdatesRollbackReq) (*CorePostCoreUpdatesRollbackOK, error)

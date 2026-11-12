@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand/v2"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -239,6 +241,46 @@ func FuzzEPSSBatchURLs(f *testing.F) {
 			if perr != nil || u.Host != "api.first.org" || u.Path != "/data/v1/epss" || len(u.Query()) > 2 || !cveRE.MatchString(u.Query().Get("cve")) {
 				t.Fatalf("bad batch URL %q", raw)
 			}
+		}
+	})
+}
+
+// domainOracle is the regular expression validDomain replaced; the loop must answer exactly as it did.
+var domainOracle = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$`)
+
+func domainAsBefore(v string) bool { return len(v) <= 253 && domainOracle.MatchString(v) }
+
+var domainSeeds = []string{"", ".", "a", "com", "a.b", "a.bc", "a.b1", "a.com.", ".a.com", "a..com", "-a.com", "a-.com", "a-b.com", "1.com", "1.2.3.4",
+	"xn--bcher-kva.example", "a_b.com", "A.COM", "é.com", "a.cé", "a.c\xff", "a\x00.com", strings.Repeat("a", 63) + ".com", strings.Repeat("a", 64) + ".com",
+	"a." + strings.Repeat("c", 63), "a." + strings.Repeat("c", 64), strings.Repeat("a.", 125) + "com", strings.Repeat("a.", 126) + "com", "a.c-m", "a.-cm"}
+
+func TestValidDomainIsTheRegexp(t *testing.T) {
+	t.Parallel()
+	for _, s := range domainSeeds {
+		if got, want := validDomain(s), domainAsBefore(s); got != want {
+			t.Errorf("validDomain(%q) = %v, the regexp says %v", s, got, want)
+		}
+	}
+	rng := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a seeded generator for a test
+	const alphabet = "aZ09-._é"
+	for range 5000 {
+		b := make([]byte, rng.IntN(80))
+		for i := range b {
+			b[i] = alphabet[rng.IntN(len(alphabet))]
+		}
+		if s := string(b); validDomain(s) != domainAsBefore(s) {
+			t.Fatalf("validDomain(%q) = %v, the regexp says %v", s, validDomain(s), domainAsBefore(s))
+		}
+	}
+}
+
+func FuzzValidDomainIsTheRegexp(f *testing.F) {
+	for _, s := range domainSeeds {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		if got, want := validDomain(s), domainAsBefore(s); got != want {
+			t.Fatalf("validDomain(%q) = %v, the regexp says %v", s, got, want)
 		}
 	})
 }

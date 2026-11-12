@@ -40,7 +40,7 @@ func TestDecide(t *testing.T) {
 		"deleted go file":    {"pull_request", []string{"modules/old/old.go"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"empty diff":         {"pull_request", nil, true, all},
 		"diff failed":        {"pull_request", nil, false, all},
-		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, Outputs{Tests: true}}, // the queue ran all; push saves the test cache
+		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, Outputs{Go: true, Tests: true}}, // the queue ran all; push saves the Go caches
 		"dispatch":           {"workflow_dispatch", nil, false, all},
 		"merge queue":        {"merge_group", []string{"docs/a.md"}, true, all},
 		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Go: true, Tests: true, Web: true, Vuln: true, Audit: true}},

@@ -39,7 +39,7 @@ func vedetteServer(t *testing.T, h http.Handler) (addr, certFile string) {
 	dir := t.TempDir()
 	certFile = filepath.Join(dir, "box.crt")
 	keyFile := filepath.Join(dir, "box.key")
-	if err := ensureCert(certFile, keyFile, nil); err != nil {
+	if err := ensureCert(t, certFile, keyFile, nil); err != nil {
 		t.Fatal(err)
 	}
 	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -91,7 +91,7 @@ func TestCoreHealthcheck(t *testing.T) {
 		a, _ := vedetteServer(t, healthHandler(200))
 		dir := t.TempDir()
 		other := filepath.Join(dir, "other.crt")
-		if err := ensureCert(other, filepath.Join(dir, "other.key"), nil); err != nil {
+		if err := ensureCert(t, other, filepath.Join(dir, "other.key"), nil); err != nil {
 			t.Fatal(err)
 		}
 		if err := coreHealthcheck(t.Context(), a, other, time.Second); err == nil {
@@ -104,7 +104,7 @@ func TestCoreHealthcheck(t *testing.T) {
 		// self-signed one, which this server does not serve: the check must still pass
 		dir := t.TempDir()
 		own := filepath.Join(dir, "own.crt")
-		if err := ensureCert(own, filepath.Join(dir, "own.key"), nil); err != nil {
+		if err := ensureCert(t, own, filepath.Join(dir, "own.key"), nil); err != nil {
 			t.Fatal(err)
 		}
 		if err := coreHealthcheck(t.Context(), addr, own, time.Second); err != nil {

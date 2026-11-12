@@ -3,6 +3,7 @@ package agentintake
 import (
 	"context"
 	_ "embed" // the two install script templates
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -103,11 +104,30 @@ func (s *Service) hostURL(host string) string {
 	return "https://" + h
 }
 
+// anchor is the certificate to pin: only the CERTIFICATE blocks of Config.TrustAnchor, re-encoded without PEM headers (INV-11), so a key
+// in the same file (an owner's -tls-cert) never reaches ca.pem or a script. This is the only filter; cmd/vedette hands over the bytes as read.
 func (s *Service) anchor() ([]byte, error) {
 	if s.cfg.TrustAnchor == nil {
 		return nil, ErrNoTrustAnchor
 	}
-	return s.cfg.TrustAnchor()
+	raw, err := s.cfg.TrustAnchor()
+	if err != nil {
+		return nil, err
+	}
+	var out []byte
+	for {
+		var blk *pem.Block
+		if blk, raw = pem.Decode(raw); blk == nil {
+			break
+		}
+		if blk.Type == "CERTIFICATE" {
+			out = append(out, pem.EncodeToMemory(&pem.Block{Type: blk.Type, Bytes: blk.Bytes})...)
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("agentintake: the trust anchor holds no certificate")
+	}
+	return out, nil
 }
 
 func noCertificate() *apierr.Error {

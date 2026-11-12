@@ -1,6 +1,15 @@
 package read
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+// CloseDeadlineForTest is when the close of a session under ctx must end.
+func CloseDeadlineForTest(ctx context.Context) time.Time { return closeDeadline(ctx) }
+
+// SetOnCloseForTest runs f with the context of the call and the one its session's close runs under, just before the close.
+func (r *Reader) SetOnCloseForTest(f func(call, closing context.Context)) { r.onClose = f }
 
 // SetBudgetForTest shortens the time of a call.
 func (r *Reader) SetBudgetForTest(d time.Duration) { r.budget = d }

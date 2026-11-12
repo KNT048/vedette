@@ -47,7 +47,7 @@ func FuzzNormalizeSource(f *testing.F) {
 	f.Add("sophos", "  x  ", "::ffff:1.2.3.4", "tcp", 70000)
 	f.Add("fortigate", "a\x00b", "1.2.3.4\n", "udp", -1)
 	f.Fuzz(func(t *testing.T, kindID, name, ip, proto string, port int) {
-		out, err := Input{Kind: kindID, Name: name, SenderIP: ip, Proto: proto, Port: port}.normalize()
+		out, err := Input{Kind: kindID, Name: name, SenderIP: ip, Proto: proto, Port: port}.normalize(true)
 		if err != nil {
 			return
 		}

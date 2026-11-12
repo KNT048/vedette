@@ -45,6 +45,8 @@ func logsService(d deps) *logs.Service {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}
 	cfg.Syslog.Host = syslogHost
+	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS (D-214)
+	cfg.Syslog.TLS = d.SyslogTLS
 	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
 	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	svc, err := logs.NewService(cfg)
@@ -178,8 +180,7 @@ func (b logsBox) Info(ctx context.Context) (logs.BoxInfo, error) {
 // syslogTLS is the TLS configuration of the syslog-over-TLS listener (port 6514, D-203 (3), #266 item 2): the HTTPS listener's own,
 // cloned, so it presents the same certificate; the clone keeps the GetCertificate of a box-made pair, so a renewal (D-139) is picked up with
 // no restart, and the HTTPS-only parts (the "http/1.1" ALPN) are left behind. nil when the box serves no TLS (loopback or dev): there is
-// no certificate to serve, so nothing may listen for TLS. Only deps carries it: modules/logs does not read it yet (logs.Config has no field
-// for it; that is the module's change, with the 6514 listener and the lifting of the `tls_unavailable` refusal, .ai/deferred/feat-logs-l2-syslog.md).
+// no certificate to serve, so nothing may listen for TLS. logsService hands it to logs.Config.Syslog.TLS: the listener on 5515 (published as 6514) and the lifting of `tls_unavailable` (D-214).
 func syslogTLS(https *tls.Config) *tls.Config {
 	if https == nil {
 		return nil

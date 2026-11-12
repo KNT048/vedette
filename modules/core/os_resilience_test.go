@@ -635,3 +635,16 @@ func TestOSLostAnswerOfBackupCreateThatTheHostTookStillDownloads(t *testing.T) {
 		t.Errorf("snapshot directories left: %v", d)
 	}
 }
+
+func (b *hostBase) StateContainers(ctx context.Context) (api.ContainersState, error) {
+	return b.h().StateContainers(ctx)
+}
+func (b *hostBase) ContainerPull(ctx context.Context, a api.ContainerPullArgs, rid, actor string) (api.Run, error) {
+	return b.h().ContainerPull(ctx, a, rid, actor)
+}
+func (b *hostBase) ContainerStart(ctx context.Context, a api.ContainerStartArgs, rid, actor string) (api.Run, error) {
+	return b.h().ContainerStart(ctx, a, rid, actor)
+}
+func (b *hostBase) ContainerRollback(ctx context.Context, a api.ContainerRollbackArgs, rid, actor string) (api.Run, error) {
+	return b.h().ContainerRollback(ctx, a, rid, actor)
+}

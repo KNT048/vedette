@@ -22,7 +22,7 @@ func TestWiringProposeThroughTheGoPort(t *testing.T) {
 	svc := s.d.Response
 	body := response.ProposeBody{Trigger: "ioc_connection", ActionID: "blocklist_add", Params: map[string]string{"ip": "198.51.100.7"}, Confidence: 0.9,
 		Evidence: []response.ProposedEvidence{{Kind: "ioc_hit", ID: "det-1"}}, Why: "A listed address."}
-	// No logs lookup and no lookup of the reads the AI made is wired yet: both kinds fail closed, and a read tool that merely exists proves nothing.
+	// A known-bad connection or a read the box has no record of is no evidence (both lookups are wired, #365 and #376): a read tool that merely exists proves nothing.
 	_, err := svc.Propose(ctx, body)
 	apiErr(t, err, 422, "evidence_invalid")
 	body.Evidence = []response.ProposedEvidence{{Kind: "config_read", ID: c.ID + "/fetch_url"}}

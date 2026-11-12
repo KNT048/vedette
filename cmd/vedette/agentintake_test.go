@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -26,38 +27,41 @@ func firstCert(t *testing.T, raw []byte) *x509.Certificate {
 	return c
 }
 
-// What agent-intake pins (INV-11): none on loopback, the box CA (never the leaf, so a renewal keeps every agent connected) for the box's own
-// pair, and exactly the chain the owner supplied for -tls-cert.
+// What agent-intake pins (INV-11): none on loopback, the sealed box CA (never the leaf, so a renewal keeps every agent connected) for
+// the box's own pair, and the file the owner supplied for -tls-cert as read (agent-intake keeps its CERTIFICATE blocks only).
 func TestTrustAnchorChoice(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	db := filepath.Join(dir, "vedette.db")
+	caCert := caPEM(t, testCA(t, dir))
+	sealed := func(context.Context) ([]byte, error) { return caCert, nil }
 
-	if _, err := trustAnchor(options{db: db, listen: "127.0.0.1:8080"})(); !errors.Is(err, agentintake.ErrNoTrustAnchor) {
-		t.Fatalf("loopback without a certificate: %v", err)
+	for _, s := range []func(context.Context) ([]byte, error){nil, sealed} {
+		if _, err := trustAnchor(options{db: db, listen: "127.0.0.1:8080"}, s)(); !errors.Is(err, agentintake.ErrNoTrustAnchor) {
+			t.Fatalf("loopback without a certificate: %v", err)
+		}
+	}
+	if _, err := trustAnchor(options{db: db, listen: "0.0.0.0:8443"}, nil)(); !errors.Is(err, agentintake.ErrNoTrustAnchor) {
+		t.Fatalf("no TLS: %v", err)
 	}
 
-	leaf, key := filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-	if err := ensureCert(leaf, key, []string{"box.acme.example"}); err != nil {
-		t.Fatal(err)
+	got, err := trustAnchor(options{db: db, listen: "0.0.0.0:8443"}, sealed)()
+	if err != nil || !bytes.Equal(got, caCert) || !firstCert(t, got).IsCA {
+		t.Fatalf("self-signed pair: %v, want the sealed box CA (IsCA)", err)
 	}
-	got, err := trustAnchor(options{db: db, listen: "0.0.0.0:8443"})()
-	caCrt, _ := boxCAPaths(leaf)
-	if err != nil || !bytes.Equal(got, mustRead(t, caCrt)) || !firstCert(t, got).IsCA || bytes.Contains(got, mustRead(t, leaf)) {
-		t.Fatalf("self-signed pair: %v, want the box CA (IsCA) and not the leaf", err)
+	busy := errors.New("busy")
+	if _, err := trustAnchor(options{db: db, listen: "0.0.0.0:8443"}, func(context.Context) ([]byte, error) { return nil, busy })(); !errors.Is(err, busy) {
+		t.Fatalf("a refused CA read: %v, want it passed through (503 server_busy)", err)
 	}
 
 	ownerDir := t.TempDir()
 	oLeaf, oKey := filepath.Join(ownerDir, "o.crt"), filepath.Join(ownerDir, "o.key")
-	if err := ensureCert(oLeaf, oKey, []string{"owner.example"}); err != nil {
+	if err := ensureCert(t, oLeaf, oKey, []string{"owner.example"}); err != nil {
 		t.Fatal(err)
 	}
-	got, err = trustAnchor(options{db: db, listen: "0.0.0.0:8443", tlsCert: oLeaf, tlsKey: oKey})()
+	got, err = trustAnchor(options{db: db, listen: "0.0.0.0:8443", tlsCert: oLeaf, tlsKey: oKey}, sealed)()
 	if err != nil || !bytes.Equal(got, mustRead(t, oLeaf)) || firstCert(t, got).IsCA {
 		t.Fatalf("owner certificate: %v, want the owner's file as supplied", err)
-	}
-	if bytes.Contains(got, []byte("PRIVATE KEY")) {
-		t.Fatal("a key in the trust anchor")
 	}
 }
 

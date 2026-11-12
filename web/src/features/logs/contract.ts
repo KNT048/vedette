@@ -53,7 +53,7 @@ export const IocHit = z.object({
   feeds: z.array(z.string()).describe('Threat feeds that list the destination'),
   confidence: z.number().min(0).max(1).describe('0 to 1; response rules only act automatically on high confidence'),
 })
-export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit) })
+export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 
 export const LogEvent = z.object({ id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string() })
 export const EventWindow = z.enum(['1h', '24h', '7d'])

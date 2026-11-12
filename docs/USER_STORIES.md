@@ -148,7 +148,9 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 ## REP — Báo cáo
 
 **S-REP-1** (P1, P3) `[đạt]` — Báo cáo tuần 1 trang tiếng Việt: có gì mới, đã xử lý gì, còn gì, gửi tự động.
+- Chấp nhận (walk 2026-11-12; đối chiếu cách GitHub/Grafana báo khi kênh gửi chưa có: cảnh báo ngay tại nơi bật, không chặn): bật gửi tự động khi không có kênh email nào bật → ngay dưới công tắc hiện cảnh báo "No email channel is on, so nothing will be sent until you set one up." kèm liên kết tới Settings → Alert channels (/settings/channels), và dòng "Next send" không hiện; lưu vẫn được (kênh có thể thêm sau). Nút **Send now** nằm ở khung xem trước báo cáo và chỉ hiện khi báo cáo có nội dung; văn bản lịch sử trống nói đúng như vậy.
 **S-REP-2** (P1, P2) `[đạt]` — Báo cáo tự đánh giá bảo vệ dữ liệu cá nhân theo Luật 91/2025/QH15 + Nghị định 356/2025/NĐ-CP (áp dụng theo quy mô tổ chức; cấp độ hệ thống thông tin là chế độ riêng, tuỳ chọn) từ kiểm kê + scan, xuất PDF để lưu; có câu miễn trừ và nguồn pháp lý. Biện pháp kỹ thuật thiếu dữ liệu vì module tắt (nhật ký, bẫy, quét) hiện "chưa có dữ liệu", không bao giờ "ổn" hay "cần cải thiện" (D-237).
+- Chấp nhận (walk 2026-11-12): báo cáo với 0 thiết bị không lộ khoá dịch thô (`doc.…`): mọi biện pháp, ở mọi trạng thái, có câu riêng (test vẽ báo cáo 0 thiết bị); chỉ một tiêu đề "3. Technical protection measures"; không in "By type:" trống, bảng Key systems trống thay bằng "No devices are recorded yet.". Form: email và điện thoại liên hệ bắt buộc, để trống hiện "required" (không phải "invalid"); mã số thuế dùng một từ "hyphen" ở cả gợi ý lẫn lỗi.
 
 ## NOTIFY / CORE / FLEET
 

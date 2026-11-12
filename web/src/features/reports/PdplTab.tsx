@@ -66,8 +66,10 @@ function OrgSection({ s }: { s: PdplState }) {
     if (f.employees.trim() === '' || !Number.isInteger(Number(f.employees)) || Number(f.employees) < 0) n.employees = t('pdpl.err.employees')
     if (!f.size) n.size = t('pdpl.err.size')
     if (!len(f.contact_name, 2, 80)) n.contact_name = t('pdpl.err.contactName')
-    if (!EMAIL_RE.test(f.contact_email.trim())) n.contact_email = t('pdpl.err.contactEmail')
-    if (!/^(0|\+84)\d{9,10}$/.test(f.contact_phone.replace(/[\s.]/g, ''))) n.contact_phone = t('pdpl.err.contactPhone')
+    if (f.contact_email.trim() === '') n.contact_email = t('pdpl.err.contactEmailRequired')
+    else if (!EMAIL_RE.test(f.contact_email.trim())) n.contact_email = t('pdpl.err.contactEmail')
+    if (f.contact_phone.trim() === '') n.contact_phone = t('pdpl.err.contactPhoneRequired')
+    else if (!/^(0|\+84)\d{9,10}$/.test(f.contact_phone.replace(/[\s.]/g, ''))) n.contact_phone = t('pdpl.err.contactPhone')
     setErrs(n)
     return Object.keys(n).length === 0
   }

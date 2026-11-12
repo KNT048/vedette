@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/input'
 import { fmtDateTime } from '@/lib/format'
 import { useCan, useMe } from '@/lib/session'
+import { useChannels } from '@/features/notify/api'
 import { useHistory, useSaveSchedule, useSchedule, useSendWeekly, useWeekly, useWeeklyAi } from './api'
 import { WeeklyDocument } from './WeeklyDocument'
 import { ActionError } from './parts'
@@ -78,14 +79,22 @@ function Preview() {
 function ScheduleSection() {
   const { t } = useTranslation('reports')
   const sched = useSchedule()
+  const admin = useCan('admin')
   return (
     <Section id="rep-schedule" title={t('weekly.schedule.title')} description={t('weekly.schedule.description')} stories={['S-REP-1']}>
-      <QueryState query={sched}>{(s) => <ScheduleForm s={s} />}</QueryState>
+      <QueryState query={sched}>{(s) => admin ? <ScheduleWithChannels s={s} /> : <ScheduleForm s={s} noChannel={false} />}</QueryState>
     </Section>
   )
 }
 
-function ScheduleForm({ s }: { s: Schedule }) {
+/** Only an admin can read the channels (S-REP-1: the weekly mail leaves through the email channel, so warn when none is on). */
+function ScheduleWithChannels({ s }: { s: Schedule }) {
+  const ch = useChannels({ retry: false })
+  const noChannel = !!ch.data && !ch.data.channels.some((c) => c.type === 'email' && c.configured && c.enabled)
+  return <ScheduleForm s={s} noChannel={noChannel} />
+}
+
+function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
   const { t } = useTranslation('reports')
   const admin = useCan('admin')
   const save = useSaveSchedule()
@@ -136,7 +145,10 @@ function ScheduleForm({ s }: { s: Schedule }) {
           </ul>
         ) : <p className="text-sm text-muted">{t('weekly.schedule.noRecipients')}</p>}
       </div>
-      <p className="text-[13px] text-muted">{s.next_run && s.enabled ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
+      {enabled && noChannel ? (
+        <p role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-[13px]">{t('weekly.schedule.noChannel')} <Link to="/settings/channels" className="text-accent underline-offset-4 hover:underline">{t('weekly.schedule.setupChannel')}</Link></p>
+      ) : null}
+      <p className="text-[13px] text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
       <ActionError error={save.error} />
       <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
     </form>

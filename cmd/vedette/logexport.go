@@ -13,10 +13,10 @@ import (
 // Each module owns its rows and writes them (JSON lines, chain fields unchanged); core reads no other module's
 // table. A module that is off keeps its rows, so its source stays registered and its log is still in the file.
 // "audit" is registered by core itself. Not registered, so they export as missing:
-//   - alerts: notify has no read of its delivery log by date yet (.ai/deferred/feat-logs-export.md).
 //   - known_bad: the logs module adds it with the IOC matching (WP-24 L4).
 func registerLogSources(d *deps) {
 	d.Logs.Register("response", d.Response.ExportLog)
+	d.Logs.Register("alerts", newNotify(d).ExportAlerts)
 	if svc := logsService(*d); svc != nil {
 		d.Logs.Register("device_logs", svc.ExportDeviceLogs)
 	}

@@ -1,7 +1,6 @@
 # Deferred — feat/logs-export (S-CORE-6, D-132)
 
 - [ ] `ai_activity`: the `ai` module registers its source with `d.Logs.Register("ai_activity", ai.ExportActivity)` in `registerLogSources` (`cmd/vedette/logexport.go`), JSON lines with `prev_hash`/`hash` unchanged and the range semantics of `logexport.Source` (zero time = open, both ends inclusive, timestamps as `store.FormatTS`); `logexport.Rows{SQL, Args, JSON}.Write(ctx, db.Reader(), w)` does the streaming. Then update `TestLogSourcesRegisteredByTheBinary` (it pins the missing list) and the sentence in core INV-13 — Emily (#114)
-- [ ] `alerts`: notify needs a read of its delivery log (`notify_send`) by date range, as a `logexport.Source`; never export `message` with a link that carries a token (the table says it holds none; check) — Emily (notify)
 - [ ] `device_logs` and `known_bad`: the `logs` module has no code yet (`modules/logs` is a manifest); register `logs_events` / `logs_ioc_hits` sources when it does — logs owner
 - [ ] Content type of the download: the generated response encoder (D-60) always sends `application/octet-stream`; API_CONVENTIONS §7 wants `text/csv; charset=utf-8` and `application/json`. Same for `/core/audit/export`. Needs a hook in `core/server` (an `Exchange` content-type override applied after the encoder) — lead
 - [ ] The host's platform logs (`logs.export`, `GET /v1/exports/{id}/content`, see `feat-core-os-updates.md`) are not one of the 8 INV-13 categories: decide whether they become a ninth category or part of `audit` — kien

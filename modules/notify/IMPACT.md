@@ -142,3 +142,4 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 - **`Config.ApproverLinks`** (tuỳ chọn, D-191): `Linked(ctx, userID, ch, address) (bool, error)`; `cmd/vedette` nối adapter (phiên Mac, sau khi merge). Chưa nối = không kiểm tra liên kết. Đã nối: địa chỉ chưa liên kết hoặc lỗi kiểm tra = người duyệt bị bỏ qua (INV-13).
 - D-191 text and the story criterion come from the Mac session (WP-31 R3).
 - Job `retention` (D-215, `retention.go`): Housekeeping, mỗi giờ; xoá `notify_send`, `notify_incident` đã resolved và `notify_notice` quá 1 năm (không bao giờ incident đang mở, hàng đợi, `notify_kev`); một mục kiểm toán `notify.retention` mỗi lượt có xoá, nhãn trong `web/src/locales/en/core.json`.
+- Nguồn nhật ký `alerts` (`exportalerts.go`): đăng ký trong `registerLogSources`; đọc `notify_send` theo khoảng ngày cho `core/logexport`, không `message`, không `recipient`, không token.

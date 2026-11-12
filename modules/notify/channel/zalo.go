@@ -25,6 +25,8 @@ var (
 	zaloUserRE = regexp.MustCompile(`^\d{6,25}$`)
 )
 
+// Checked against the OA API docs on 2026-11-12:
+// https://stc-developers.zdn.vn/docs/v2/official-account/tin-nhan/tin-tu-van/gui-tin-tu-van-dang-van-ban/index.html
 const (
 	zaloAPI      = "https://openapi.zalo.me"
 	zaloSendPath = "/v3.0/oa/message/cs"

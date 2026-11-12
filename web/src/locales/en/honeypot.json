@@ -37,7 +37,7 @@
     "rdp": "Counted when a client sends an RDP connection request",
     "ssh": "Counted on every connection, even one that only reads the banner",
     "mssql": "Counted when a client tries to log in",
-    "http": "Counted on every request to the fake page, including GET /"
+    "http": "Counted on GET /, the fake login page and refused methods"
   },
   "state": {
     "listening": "Listening",

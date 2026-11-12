@@ -77,9 +77,9 @@ func (s *Service) hostView() hostView {
 }
 
 // TrapConflicts lists the secondary or decoy addresses the last Apply left out of the host and why (a device or the box
-// has the address, it is outside the LAN now, the host refused it or is full, or could not set it up). The API has no
-// field for it: the trap shows state "conflict" when the secondary IP is among them ("failed" when the host could not set it
-// up), the reasons are here and in the log.
+// has the address, it is outside the LAN now, the host refused it or is full, or could not set it up). The API shows
+// one reason each: the traps show state "conflict" when the secondary IP is among them ("failed" when the host could not
+// set it up) with Overview.Problem, an extra decoy its own Decoy.Reason; the full list is here and in the log.
 func (s *Service) TrapConflicts() map[netip.Addr]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

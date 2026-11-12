@@ -5,6 +5,7 @@ package honeypot_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -447,5 +448,52 @@ func TestTrapsAreStartingAfterTheModuleWasOff(t *testing.T) {
 	}
 	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateStarting {
 		t.Fatalf("after Disable: %s", got.State)
+	}
+}
+
+// "listening" needs the host to hold the address (#475): an extra decoy the host holds listens even when the host
+// refused or could not set up the main decoy IP (the container runs for it), and the traps of a main decoy IP whose
+// outcome is unknown are "failed" with a plain reason, not "listening" because the container runs for the extra decoy.
+func TestListeningNeedsTheHostToHoldTheAddress(t *testing.T) {
+	t.Parallel()
+	sec, extra := addr("192.168.10.240"), addr("192.168.10.241")
+	for name, refusal := range map[string]error{
+		"refused as an address": fmt.Errorf("ip_in_use: %w", honeypot.ErrRefused),
+		"host failure":          fmt.Errorf("decoy_failed: %w %w", honeypot.ErrRefused, honeypot.ErrHostFailed),
+	} {
+		e := newEnv(t)
+		e.setup()
+		e.host.failAdd = map[netip.Addr]error{sec: refusal}
+		if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: extra.String()}); err != nil {
+			t.Fatal(err)
+		}
+		_ = e.svc.Apply(e.ctx())
+		if !e.host.isRunning() {
+			t.Fatalf("%s: the container does not run for the extra decoy", name)
+		}
+		r, _ := e.svc.Decoys(e.ctx())
+		if d := r.Items[0]; d.State != honeypot.StateListening || d.Reason != nil {
+			t.Fatalf("%s: the extra decoy the host holds: %+v", name, d)
+		}
+		if got := overviewTraps(t, e)[2]; got.State == honeypot.StateListening {
+			t.Fatalf("%s: a trap on a refused decoy IP listens", name)
+		}
+
+		// The next Apply: no answer for the main decoy IP; the extra decoy the host took before stays up.
+		e.host.mu.Lock()
+		e.host.failAdd = map[netip.Addr]error{sec: errors.New("the host is busy")}
+		e.host.mu.Unlock()
+		_ = e.svc.Apply(e.ctx())
+		o, err := e.svc.Overview(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := o.Traps[2]; got.State != honeypot.StateFailed || o.Problem == nil || !strings.Contains(*o.Problem, "not confirmed") {
+			t.Fatalf("%s: unconfirmed decoy IP: %s, problem %v", name, got.State, o.Problem)
+		}
+		r, _ = e.svc.Decoys(e.ctx())
+		if d := r.Items[0]; d.State != honeypot.StateListening {
+			t.Fatalf("%s: the extra decoy after an unknown outcome: %+v", name, d)
+		}
 	}
 }

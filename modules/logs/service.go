@@ -1,8 +1,14 @@
 package logs
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -36,8 +42,11 @@ type Config struct {
 	Audit     *audit.Log
 	Inventory Inventory
 	Box       Box
-	Log       *slog.Logger
-	Clock     func() time.Time // nil: time.Now
+	// TrustAnchor returns the PEM certificates a device must trust to trust the box certificate (the box CA, or the chain of an owner's
+	// certificate): cmd/vedette's agent-intake trust anchor. Nil, or an error (none on plain HTTP, or the leaf is being re-issued): the card falls back to the certificate itself.
+	TrustAnchor func() ([]byte, error)
+	Log         *slog.Logger
+	Clock       func() time.Time // nil: time.Now
 	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
@@ -153,13 +162,14 @@ func notFound() error { return apierr.New(404, "not_found", "No such log source.
 type sourceRow struct {
 	ID, Kind, Name, SenderIP, Proto string
 	Port                            int
+	ClientCert                      string // the pin of a tls source, "" = none
 	CreatedAt                       time.Time
 	Since                           time.Time // signatures_since: zero when the kind and the sender never changed
 	Started                         time.Time // when the counters first saw a line of it (after Since); set by anomalies, zero when none
 }
 
 func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
-	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, created_at, signatures_since FROM logs_sources ORDER BY created_at, id`)
+	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, name, sender_ip, proto, port, client_cert_sha256, created_at, signatures_since FROM logs_sources ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("logs: reading sources: %w", err)
 	}
@@ -169,7 +179,7 @@ func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
 		var r sourceRow
 		var created string
 		var since sql.NullString
-		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &created, &since); err != nil {
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Name, &r.SenderIP, &r.Proto, &r.Port, &r.ClientCert, &created, &since); err != nil {
 			return nil, fmt.Errorf("logs: reading sources: %w", err)
 		}
 		if r.CreatedAt, err = time.Parse("2006-01-02T15:04:05.000Z", created); err != nil {
@@ -243,6 +253,10 @@ func (s *Service) Sources(ctx context.Context) (SourcesView, error) {
 				src.State = "silent"
 			}
 		}
+		if r.ClientCert != "" {
+			pin := r.ClientCert
+			src.ClientCert = &pin
+		}
 		if d, ok := devices[r.SenderIP]; ok {
 			id, name := d.ID, d.Name
 			src.AssetID, src.AssetName = &id, &name
@@ -254,13 +268,122 @@ func (s *Service) Sources(ctx context.Context) (SourcesView, error) {
 
 func (s *Service) box(ctx context.Context) (BoxInfo, error) {
 	if s.cfg.Box == nil {
-		return BoxInfo{Hostname: "vedette"}, nil
+		return BoxInfo{Hostname: "vedette", TLS: s.boxTLS(ctx)}, nil
 	}
 	b, err := s.cfg.Box.Info(ctx)
 	if err != nil {
 		return BoxInfo{}, fmt.Errorf("logs: reading the box address: %w", err)
 	}
+	b.TLS = s.boxTLS(ctx)
 	return b, nil
+}
+
+// boxTLS describes the certificate the syslog TLS port presents (what a device must trust, D-434): nil when the box has no TLS
+// configuration or its certificate cannot be read (logged; the page then simply shows nothing). It asks GetCertificate as a handshake
+// would, so a renewed certificate shows at once.
+func (s *Service) boxTLS(ctx context.Context) *BoxTLS {
+	cfg := s.cfg.Syslog.TLS
+	if cfg == nil {
+		return nil
+	}
+	var cert *tls.Certificate
+	switch {
+	case cfg.GetCertificate != nil:
+		c, err := cfg.GetCertificate(&tls.ClientHelloInfo{Conn: nil, SupportedVersions: []uint16{tls.VersionTLS13, tls.VersionTLS12}})
+		if err != nil || c == nil {
+			s.cfg.Log.WarnContext(ctx, "logs: the box certificate for syslog over TLS could not be read", "err", err)
+			return nil
+		}
+		cert = c
+	case len(cfg.Certificates) > 0:
+		cert = &cfg.Certificates[0]
+	default:
+		return nil
+	}
+	if len(cert.Certificate) == 0 {
+		return nil
+	}
+	der := cert.Certificate[0]
+	leaf, err := x509.ParseCertificate(der)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "logs: the box certificate for syslog over TLS could not be parsed", "err", err)
+		return nil
+	}
+	out := &BoxTLS{Issuer: leaf.Issuer.String(), Port: tlsDevicePort(s.cfg.Syslog.Ports)}
+	pick := leaf // the certificate to import
+	switch {
+	case bytes.Equal(leaf.RawIssuer, leaf.RawSubject):
+		out.Kind = "self_signed"
+	default:
+		out.Kind = "issued"
+		if anchors := s.trustAnchors(); len(anchors) > 0 {
+			pick = anchors[0]
+			out.PEM = pemOf(anchors)
+			for _, c := range anchors {
+				if c.Subject.CommonName == boxCAName && leaf.CheckSignatureFrom(c) == nil {
+					out.Kind, pick, out.PEM = "box_ca", c, pemOf([]*x509.Certificate{c})
+					break
+				}
+			}
+		}
+	}
+	if out.PEM == "" {
+		if out.Kind == "issued" && leaf.Issuer.CommonName == boxCAName {
+			return nil // the box CA signed it but cannot be handed out now (the leaf is being re-issued): no card, not a wrong one
+		}
+		out.PEM = pemOf([]*x509.Certificate{pick})
+	}
+	sum := sha256.Sum256(pick.Raw)
+	out.Fingerprint, out.Subject, out.NotAfter = hex.EncodeToString(sum[:]), pick.Subject.String(), pick.NotAfter.UTC()
+	return out
+}
+
+// boxCAName is the common name of the box's own certificate authority (cmd/vedette boxca.go, D-262).
+const boxCAName = "Vedette box CA"
+
+// trustAnchors are the CERTIFICATE blocks of Config.TrustAnchor (a private key in an owner's combined file is never kept); none when it
+// is not set or fails.
+func (s *Service) trustAnchors() []*x509.Certificate {
+	if s.cfg.TrustAnchor == nil {
+		return nil
+	}
+	raw, err := s.cfg.TrustAnchor()
+	if err != nil {
+		s.cfg.Log.Warn("logs: the box certificate authority cannot be read; the Sources page hides the certificate card", "err", err)
+		return nil
+	}
+	var out []*x509.Certificate
+	for len(out) < 8 {
+		var blk *pem.Block
+		blk, raw = pem.Decode(raw)
+		if blk == nil {
+			break
+		}
+		if blk.Type != "CERTIFICATE" {
+			continue
+		}
+		if c, err := x509.ParseCertificate(blk.Bytes); err == nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func pemOf(cs []*x509.Certificate) string {
+	var b []byte
+	for _, c := range cs {
+		b = append(b, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})...)
+	}
+	return string(b)
+}
+
+// tlsDevicePort is the port a device sends syslog over TLS to: 6514 on a default box (514, or 5514 inside the core container, which
+// publishes 6514), p+1 for another configured port (listen.tlsPorts).
+func tlsDevicePort(ports []int) int {
+	if len(ports) == 0 || ports[0] <= 0 || ports[0] == 514 || ports[0] == 5514 {
+		return 6514
+	}
+	return min(ports[0]+1, 65535)
 }
 
 // hostname is Config.Hostname, "vedette" without one.
@@ -342,6 +465,14 @@ func (s *Service) view(ctx context.Context, id string) (Source, error) {
 	return Source{}, notFound()
 }
 
+// pinned is the audit words for a source that requires a client certificate (the fingerprint itself is public and short enough to say).
+func pinned(in Input) string {
+	if in.ClientCertSHA256 == "" {
+		return ""
+	}
+	return " client-cert " + in.ClientCertSHA256[:16]
+}
+
 func duplicate() error {
 	return apierr.New(409, "duplicate", "There is already a log source with this IP address. Edit that one instead of adding a new one.")
 }
@@ -357,14 +488,14 @@ func (s *Service) AddSource(ctx context.Context, user string, in Input) (Source,
 		if err := s.checkSender(ctx, tx, in.SenderIP, ""); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			id, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, store.FormatTS(s.now())); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, client_cert_sha256, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, in.ClientCertSHA256, store.FormatTS(s.now())); err != nil {
 			if store.IsUniqueViolation(err) {
 				return duplicate()
 			}
 			return fmt.Errorf("logs: adding a source: %w", err)
 		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.source_add", Target: in.Name, Detail: fmt.Sprintf("%s %s %s/%d", in.Kind, in.SenderIP, in.Proto, in.Port)})
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.source_add", Target: in.Name, Detail: fmt.Sprintf("%s %s %s/%d%s", in.Kind, in.SenderIP, in.Proto, in.Port, pinned(in))})
 	})
 	if err != nil {
 		return Source{}, err
@@ -403,7 +534,7 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 		if err := s.checkSender(ctx, tx, in.SenderIP, id); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET signatures_since = CASE WHEN kind <> ?1 OR sender_ip <> ?3 THEN ?7 ELSE signatures_since END, kind = ?1, name = ?2, sender_ip = ?3, proto = ?4, port = ?5 WHERE id = ?6`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id, store.FormatTS(s.now()))
+		res, err := tx.ExecContext(ctx, `UPDATE logs_sources SET signatures_since = CASE WHEN kind <> ?1 OR sender_ip <> ?3 THEN ?7 ELSE signatures_since END, kind = ?1, name = ?2, sender_ip = ?3, proto = ?4, port = ?5, client_cert_sha256 = ?8 WHERE id = ?6`, in.Kind, in.Name, in.SenderIP, in.Proto, in.Port, id, store.FormatTS(s.now()), in.ClientCertSHA256)
 		if err != nil {
 			if store.IsUniqueViolation(err) {
 				return duplicate()
@@ -413,7 +544,7 @@ func (s *Service) UpdateSource(ctx context.Context, user, id string, in Input) (
 		if n, _ := res.RowsAffected(); n == 0 {
 			return notFound() // deleted between the check and the write
 		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.source_edit", Target: in.Name, Detail: fmt.Sprintf("%s %s %s/%d", in.Kind, in.SenderIP, in.Proto, in.Port)})
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.source_edit", Target: in.Name, Detail: fmt.Sprintf("%s %s %s/%d%s", in.Kind, in.SenderIP, in.Proto, in.Port, pinned(in))})
 	})
 	if err != nil {
 		return Source{}, err

@@ -308,3 +308,19 @@ func TestHoneypotLogVolumeMatchesItsGoldenFile(t *testing.T) {
 		}
 	}
 }
+
+// The conntrack delete of D-268 clears the port core's unit publishes: if the unit's syslog PublishPort changes, the
+// constant must follow (the two are written apart on purpose, ponytail).
+func TestCoreUnitPublishesTheSyslogPortTheConntrackDeleteClears(t *testing.T) {
+	t.Parallel()
+	b, err := renderUnit(api.ServiceCore, goldFill(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, proto := range []string{"udp", "tcp"} {
+		want := "PublishPort=" + syslogPublishedPort + ":5514/" + proto
+		if !strings.Contains(string(b), "\n"+want+"\n") {
+			t.Errorf("core unit has no line %q:\n%s", want, b)
+		}
+	}
+}

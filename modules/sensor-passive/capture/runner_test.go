@@ -6,6 +6,7 @@ package capture
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -85,6 +87,7 @@ type recSource struct {
 	opened []string
 	closed int
 	fail   bool
+	err    error // what a failing open returns; nil: "no such card"
 	tries  int
 	frames []Packet
 }
@@ -95,6 +98,9 @@ func (o *recSource) open(iface string) (Source, error) {
 	o.opened = append(o.opened, iface)
 	o.tries++
 	if o.fail {
+		if o.err != nil {
+			return nil, o.err
+		}
 		return nil, errors.New("no such card")
 	}
 	return &idleAfter{owner: o, frames: o.frames}, nil
@@ -332,8 +338,39 @@ func TestUnreadableFiltersMeanNoCaptureAndAreReported(t *testing.T) {
 	if len(e.src.opens()) != 0 || e.link.calls() != 0 {
 		t.Errorf("opened %v, %d batches: capture ran with a filter that could not be read", e.src.opens(), e.link.calls())
 	}
+	eventually(t, "capture_error filters_invalid", func() bool { return e.link.lastCaptureError() == sensorlink.CaptureFiltersInvalid })
 	e.cfg.set(sensorlink.Config{Interface: "eth1", Span: true, Filters: []sensorlink.Filter{{Type: "port", Value: "443"}}})
 	eventually(t, "the capture once the filters are good", func() bool { return len(e.src.opens()) == 1 })
+	eventually(t, "no capture_error once it captures", func() bool { return e.link.lastCaptureError() == "" })
+}
+
+// D-399 (3), walk 4: a sensor without CAP_NET_RAW (rootless container) beats on as "online" while its capture socket cannot open; the
+// heartbeat says why (a closed set of reasons, never the error text), and says nothing once the card opens.
+func TestHeartbeatSaysWhyTheCaptureDoesNotRun(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		err  error
+		want string
+	}{
+		{fmt.Errorf("capture: open capture socket (needs CAP_NET_RAW): %w", syscall.EPERM), sensorlink.CaptureNoPermission},
+		{fmt.Errorf("capture: interface %q: %w: route ip+net: no such network interface", "eth9", ErrNoInterface), sensorlink.CaptureNoInterface},
+		{errors.New("capture: bind on \"eth0\": something else"), sensorlink.CaptureFailed},
+	} {
+		e := newRunEnv(t, sensorlink.Config{Interface: "eth0", Filters: []sensorlink.Filter{}})
+		e.src.mu.Lock()
+		e.src.fail, e.src.err = true, c.err
+		e.src.mu.Unlock()
+		e.start(t)
+		eventually(t, "capture_error "+c.want, func() bool { return e.link.lastCaptureError() == c.want })
+		e.cfg.set(sensorlink.Config{Interface: "", Filters: []sensorlink.Filter{}}) // no card wanted while the open still fails: nothing to report
+		eventually(t, "none while no card is wanted", func() bool { return e.link.lastCaptureError() == "" })
+		e.cfg.set(sensorlink.Config{Interface: "eth0", Filters: []sensorlink.Filter{}}) // the card again, still failing: the reason again
+		eventually(t, "capture_error "+c.want+" again", func() bool { return e.link.lastCaptureError() == c.want })
+		e.src.mu.Lock()
+		e.src.fail = false
+		e.src.mu.Unlock()
+		eventually(t, "no capture_error once the card opens", func() bool { return e.link.lastCaptureError() == "" })
+	}
 }
 
 // A card that cannot be opened is retried with a growing pause, and counted.
@@ -512,4 +549,14 @@ func TestEveryCounterIsInTheClosedSetOfTheProtocol(t *testing.T) {
 	if len(sensorlink.DropKeys) > sensorlink.MaxDropKeys {
 		t.Errorf("%d keys, the heartbeat takes %d", len(sensorlink.DropKeys), sensorlink.MaxDropKeys)
 	}
+}
+
+// lastCaptureError is the capture_error of the last heartbeat core was sent ("" before the first).
+func (l *fakeLink) lastCaptureError() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.lastHB == nil {
+		return ""
+	}
+	return l.lastHB.CaptureError
 }

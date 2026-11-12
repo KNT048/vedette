@@ -367,4 +367,6 @@ func TestContract_L2_DegradedConfigDoesNotPretend(t *testing.T) {
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be loaded") {
 		t.Fatalf("message = %q", msg)
 	}
+	// every settings write is refused while degraded, the retention of the activity log too
+	h.want("PUT", "/ai/activity/settings", "admin", `{"retention_days":90}`, 409, "ai_unavailable")
 }

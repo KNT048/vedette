@@ -1631,8 +1631,8 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesIDSoftwareSid(ctx con
 // InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
 //
 // The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
-// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
-// other name is 404.
+// osquery--1.linux.x86_64.rpm, osquery_-1.linux_arm64.deb, osquery--1.linux.aarch64.rpm,
+// osquery-.msi), so servers need no Internet; public, no secret, any other name is 404.
 //
 // GET /install/osquery/{file}
 func (UnimplementedHandler) InventoryGetInstallOsqueryFile(ctx context.Context, params InventoryGetInstallOsqueryFileParams) (r InventoryGetInstallOsqueryFileOK, _ error) {
@@ -1641,7 +1641,8 @@ func (UnimplementedHandler) InventoryGetInstallOsqueryFile(ctx context.Context, 
 
 // InventoryGetInstallOsqueryPs1 implements inventory_get_install_osquery_ps1 operation.
 //
-// Osquery install script for Windows Server, served by the box; public, contains no secrets.
+// Osquery install script for Windows Server, served by the box; public, contains no secrets; 404
+// no_box_address while the box knows no address other machines can reach.
 //
 // GET /install/osquery.ps1
 func (UnimplementedHandler) InventoryGetInstallOsqueryPs1(ctx context.Context) (r InventoryGetInstallOsqueryPs1OK, _ error) {
@@ -1650,8 +1651,9 @@ func (UnimplementedHandler) InventoryGetInstallOsqueryPs1(ctx context.Context) (
 
 // InventoryGetInstallOsquerySh implements inventory_get_install_osquery_sh operation.
 //
-// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the
-// box; public, contains no secrets (the token is passed as a parameter).
+// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64),
+// served by the box; public, contains no secrets (the token is passed as a parameter); 404
+// no_box_address while the box knows no address other machines can reach.
 //
 // GET /install/osquery.sh
 func (UnimplementedHandler) InventoryGetInstallOsquerySh(ctx context.Context) (r InventoryGetInstallOsqueryShOK, _ error) {

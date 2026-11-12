@@ -30,6 +30,7 @@
 
 ## Modifying: giao thức sensor vai `passive` (`core/sensorlink`, `docs/specs/sensor-protocol.md` §6.1–§6.3)
 - **core** (handler, `core_sensor_cert`), **sensor** (`capture` + client), **host** (unit, volume khoá `vedette-creds-passive`). Giải mã chặt hai phía: thêm hay đổi một trường dây = tăng `X-Vedette-Proto` (D-109 (4)); trong cửa sổ cập nhật sensor mới nhận `426` và giữ hàng đợi. Đổi trần thân, `items` ≤ 500, `value` ≤ 200 B, cửa sổ `seen_at` phải sửa spec §9 cùng test hợp đồng.
+- **`capture_error`** (proto 4, D-399 (3)): tập đóng `sensorlink.CaptureErrors` là hợp đồng giữa `captureReason` (nửa `capture`), `Service.Status` (nửa `core`), enum `capture_error` của `Sensor` trong `web/src/features/inventory/contract.ts` (→ `api/openapi.json`, `core/api/oas`) và chữ `sensors.capture.*` của GUI; thêm lý do = sửa cả bốn cùng commit (`core` cũ hiện lý do mới là `capture_failed`, GUI cũ không có chữ cho nó). Tăng proto làm cả worker `scan` (vai `active`) phải lên cùng bản.
 - Hạn mức chống ngập có **hai nơi**: `book.go` (lớp thứ nhất trong `capture`) và handler `observations` của `core` (`budget_exhausted`, D-111 (2)); đổi một nơi phải đổi nơi kia, nếu không hoặc `core` từ chối điều sensor cho qua (mất thiết bị thật), hoặc lớp `core` không còn chặn được sensor bị chiếm.
 - Gói `capture` không được nhập `core/store`, `database/sql`, SQLite (test `go list -deps` của `cmd/vedette-sensor`, SP-5).
 

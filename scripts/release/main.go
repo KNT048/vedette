@@ -14,9 +14,9 @@
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
-//	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release   (D-457: the lists of make images, by digest; writes images.json)
-//	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] -out release.in.json
-//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the .deb rebuilt with the floor)
+//	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release [-gates dist/release/gates.json]   (D-457: the lists of make images the gates checked, by digest; writes images.json)
+//	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] [-gates dist/release/gates.json] -out release.in.json
+//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the .deb rebuilt with the floor; writes gates.json when all passed)
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
 //	go run ./scripts/release deb-name    -version 1.0.0-beta.1 [-dir dist]   (part A: nfpm's vedette-host_1.0.0~beta.1_<arch>.deb to the SemVer name, before in)
 //	go run ./scripts/release bake-install -dir dist/release -in release.in.json -key ~/keys/minisign.key -minisign /abs/minisign [-ref v<version>] [-keys-dir DIR] [-passphrase-stdin]   (part A: install.sh at the tag with its three lines baked from the manifest, signed "file:install.sh version:<v>")
@@ -35,8 +35,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/internal/release"
@@ -52,7 +54,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 	var err error
-	ctx := context.Background()
+	// Ctrl-C or SIGTERM cancels ctx, so a step returns and its deferred cleanup runs (gates' vedette-gates-* rebuild directory);
+	// execRun kills the command's process group. After the first signal the default comes back: a second Ctrl-C ends a step that
+	// is not waiting on ctx.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	context.AfterFunc(ctx, stop)
 	switch args[0] {
 	case "cosign-plan":
 		err = cmdCosignPlan(args[1:], stdout)

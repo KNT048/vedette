@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // arMember is one member of an ar archive (a .deb), with the 60-byte header dpkg and nfpm write.
@@ -122,7 +123,7 @@ func gatesRig(t *testing.T, bin []byte) (gatesOpts, *gatesFake) {
 	for _, arch := range debArchs {
 		fakeDeb(t, filepath.Join(dir, "vedette-host_0.2.0_"+arch+".deb"), bin)
 	}
-	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo"},
+	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir()},
 		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc"}
 }
 
@@ -166,17 +167,100 @@ func TestGatesPassInOrder(t *testing.T) {
 			t.Errorf("the rebuild directory is left behind: %v", err)
 		}
 	}
+	// the record: exactly what was checked, read back by the strict reader push and in use
+	rp := filepath.Join(o.Out, gatesFile)
+	rec, err := readGates(rp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := gatesDoc(t, "0.2.0", o.DebDir)
+	if a, b := mustJSON(t, rec), mustJSON(t, want); string(a) != string(b) {
+		t.Errorf("gates.json:\n%s\nwant:\n%s", a, b)
+	}
+	if fi, err := os.Stat(rp); err != nil || fi.Mode().Perm() != 0o644 {
+		t.Errorf("gates.json mode: %v %v", fi, err)
+	}
+	if left, _ := filepath.Glob(filepath.Join(o.Out, ".gates-*")); len(left) > 0 {
+		t.Errorf("temporary file left: %v", left)
+	}
+	if !strings.Contains(got, "wrote "+rp) {
+		t.Errorf("output does not name the record:\n%s", got)
+	}
 	// the very first release: no published index, floor 0
 	fr = &fakeRun{fn: g.fn}
 	o.PrevIndex, o.MinSequence, o.Preflight = "", "0", true
 	if err := Gates(context.Background(), fr.run, o, &out); err != nil {
 		t.Errorf("first release (floor 0, no index): %v", err)
 	}
-	// -preflight stops after the version, floor and tree checks
+	// -preflight stops after the version, floor and tree checks, and neither writes nor removes the record
 	fr = &fakeRun{fn: g.fn}
 	o.Preflight = true
 	if err := Gates(context.Background(), fr.run, o, &out); err != nil || slices.ContainsFunc(fr.calls, func(c []string) bool { return c[0] != "git" }) {
 		t.Errorf("preflight: %v %v", err, fr.joined())
+	}
+	if again, err := readGates(rp); err != nil || again.MinSequence != "1" {
+		t.Errorf("preflight changed the record: %v %v", again, err)
+	}
+}
+
+// A timeout or Ctrl-C kills the whole process group of a command (make host-deb's go build and nfpm), not only its first process:
+// here the grandchild sleep holds the output pipe, so without the group kill execRun would wait for it (or for WaitDelay, 10 s).
+func TestExecRunKillsTheGroup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := execRun(ctx, "sh", "-c", "sleep 30 & wait")
+	if err == nil || time.Since(start) > 5*time.Second {
+		t.Fatalf("returned %v after %v", err, time.Since(start))
+	}
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := marshal(v)
+	must(t, err)
+	return b
+}
+
+func TestReadGatesRefusals(t *testing.T) {
+	good := mustJSON(t, gatesDoc(t, "0.2.0", ""))
+	cases := map[string]struct{ from, to, want string }{
+		"unknown field":      {`"version"`, `"skip": true, "version"`, "unknown field"},
+		"repeated key":       {`"version": "0.2.0"`, `"version": "0.2.0", "version": "0.2.1"`, "repeated key"},
+		"image twice":        {`"service": "honeypot",` + "\n      \"local\": \"honeypot\"", `"service": "core",` + "\n      \"local\": \"core\"", "image core is listed 2 times"},
+		"unknown image":      {`"service": "honeypot"`, `"service": "greenbone"`, "unknown image"},
+		"local mismatch":     {`"local": "scan-base"`, `"local": "scan"`, "unknown image"},
+		"package twice":      {`"arch": "arm64"`, `"arch": "amd64"`, "package amd64 is listed 2 times"},
+		"bad sha256":         {`"sha256": "aaaa`, `"sha256": "AAAA`, "malformed file name, sha256 or size"},
+		"path as file name":  {`"file": "vedette-host_0.2.0_amd64.deb"`, `"file": "../vedette-host_0.2.0_amd64.deb"`, "malformed file name"},
+		"bad config":         {`"config": "sha256:`, `"config": "sha512:`, "malformed platform"},
+		"platform twice":     {`"platform": "linux/arm64"`, `"platform": "linux/amd64"`, "lists platform linux/amd64 2 times"},
+		"version not SemVer": {`"version": "0.2.0"`, `"version": "v0.2.0"`, "not SemVer"},
+		"floor not decimal":  {`"min_sequence": "1"`, `"min_sequence": "01"`, "plain decimal"},
+		"trailing data":      {"  ]\n}\n", "  ]\n}\n{}\n", "after the value"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(string(good), c.from) {
+				t.Fatalf("%q not in the record", c.from)
+			}
+			p := filepath.Join(t.TempDir(), gatesFile)
+			must(t, os.WriteFile(p, []byte(strings.Replace(string(good), c.from, c.to, 1)), 0o600))
+			if _, err := readGates(p); err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("got %v, want %q", err, c.want)
+			}
+		})
+	}
+	p := filepath.Join(t.TempDir(), gatesFile)
+	must(t, os.WriteFile(p, good, 0o600))
+	if _, err := readGates(p); err != nil {
+		t.Fatal(err)
+	}
+	g := gatesDoc(t, "0.2.0", "")
+	g.Images = g.Images[:3]
+	must(t, os.WriteFile(p, mustJSON(t, g), 0o600))
+	if _, err := readGates(p); err == nil || !strings.Contains(err.Error(), "lists 3 images, a release has 4") {
+		t.Errorf("an image missing: %v", err)
 	}
 }
 
@@ -238,11 +322,16 @@ func TestGatesRefuse(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			o, g := gatesRig(t, bin)
 			c.change(&o, g)
+			stale := gatesPath(t, gatesDoc(t, "0.2.0", ""))
+			o.Out = filepath.Dir(stale) // an earlier pass, of other bytes
 			fr := &fakeRun{fn: g.fn}
 			var out bytes.Buffer
 			err := Gates(context.Background(), fr.run, o, &out)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("want an error with %q, got %v", c.want, err)
+			}
+			if left, _ := filepath.Glob(filepath.Join(o.Out, "*")); len(left) > 0 {
+				t.Errorf("a failed run leaves %v: push would ship on an earlier pass", left)
 			}
 			if ran := slices.ContainsFunc(fr.calls, func(a []string) bool { return a[0] == "make" }); ran != c.makes {
 				t.Errorf("rebuild ran = %v, want %v (fail fast, in order): %v", ran, c.makes, fr.joined())

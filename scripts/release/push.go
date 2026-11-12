@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
@@ -28,9 +29,19 @@ import (
 type runFunc func(ctx context.Context, argv ...string) ([]byte, error)
 
 // execRun is the real runFunc. The environment is inherited: podman reads its registry login and gh its token from there, and
-// neither ever appears in argv.
+// neither ever appears in argv. The command runs in its own process group, and a cancel or timeout of ctx kills the whole group: the
+// go build and nfpm under `make host-deb` (gates' rebuild) die with it (Linux and macOS; Windows is not a release machine).
 func execRun(ctx context.Context, argv ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // fixed argv built by this file; values validated before
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		if errors.Is(err, syscall.ESRCH) {
+			return os.ErrProcessDone // the group is already gone: like Process.Kill, Wait keeps the command's own status
+		}
+		return err
+	}
+	cmd.WaitDelay = 10 * time.Second // a grandchild holding the stderr pipe open cannot keep Output waiting
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -104,6 +115,7 @@ type pushOpts struct {
 	Platforms []string
 	Repo      string // git repository root
 	Out       string // directory images.json is written to
+	Gates     string // gates.json of `release gates` (step 3): only the platform images it checked are pushed
 	// HTTP reads an existing remote list anonymously (registryBase of Registry; a test points it at httptest).
 	HTTP registryHTTP
 }
@@ -297,6 +309,13 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 			return nil, fmt.Errorf("platform %q: a release is built for linux/amd64 and linux/arm64", p)
 		}
 	}
+	gates, err := readGates(o.Gates)
+	if err != nil {
+		return nil, err
+	}
+	if err := gates.checkVersion(o.Version); err != nil {
+		return nil, err
+	}
 	if rehearsal {
 		// Linux only: podman on macOS runs in a VM (podman machine), whose 127.0.0.1 is not the Mac's.
 		say(stdout, "rehearsal: %s is on this machine; TLS verification, the -test. refusal and the git checks are off", o.Registry)
@@ -312,6 +331,28 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 	if rehearsal {
 		tls = []string{"--tls-verify=false"}
 	}
+	// Every list is read and compared with the gates record before anything is pushed: a make images after the gates is refused
+	// whole, not after the first lists are in the registry.
+	lps := make([][]localPlatform, len(publishedImages))
+	for i, im := range publishedImages {
+		local := "localhost/vedette-" + im.local + ":" + o.Version
+		lp, err := localPlatforms(ctx, run, local, o.Platforms)
+		if err != nil {
+			return nil, err
+		}
+		now := map[string]string{}
+		for _, p := range lp {
+			// what B's gate checks too, here per platform of exactly the list being pushed
+			if p.Version != o.Version {
+				return nil, fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_VERSION=%s", local, p.Platform, versionLabel, p.Version, o.Version, o.Version)
+			}
+			now[p.Platform] = p.Config
+		}
+		if err := gates.checkImage(im.service, local, now); err != nil {
+			return nil, err
+		}
+		lps[i] = lp
+	}
 	if err := os.MkdirAll(o.Out, 0o755); err != nil { //nolint:gosec // build output, not secret
 		return nil, err
 	}
@@ -322,20 +363,11 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		defer cancel()
 		return run(ctx, argv...)
 	}
-	for _, im := range publishedImages {
+	for n, im := range publishedImages {
 		local := "localhost/vedette-" + im.local + ":" + o.Version
 		repo := o.Registry + "/vedette-" + im.service
 		repoPath := strings.TrimPrefix(ns+"/vedette-"+im.service, "/")
-		lp, err := localPlatforms(ctx, run, local, o.Platforms)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range lp {
-			// what B's gate checks too, here per platform of exactly the list being pushed
-			if p.Version != o.Version {
-				return nil, fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_VERSION=%s", local, p.Platform, versionLabel, p.Version, o.Version, o.Version)
-			}
-		}
+		lp := lps[n]
 		// podman resolves a name to local storage first: with a local image of the remote name the read-back below would read it,
 		// not the registry (podman manifest inspect has no docker:// form, measured with 5.7). Refuse instead.
 		if _, err := short(ctx, "podman", "image", "exists", repo+":"+o.Version); err == nil {
@@ -421,11 +453,15 @@ func cmdPush(ctx context.Context, args []string, stdout io.Writer) error {
 	plats := fs.String("platforms", "linux/amd64,linux/arm64", "platforms every list must hold, comma separated (PLATFORMS of make images)")
 	out := fs.String("out", "dist/release", "directory images.json is written to")
 	repo := fs.String("repo", ".", "repository root")
+	gates := fs.String("gates", "", "the record of release gates (default <out>/gates.json); refused when missing or when a local image is not the one it checked")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if *gates == "" {
+		*gates = filepath.Join(*out, gatesFile)
+	}
 	base, _ := registryBase(*reg)
-	doc, err := Push(ctx, execRun, pushOpts{Version: *version, Registry: *reg, Platforms: strings.Split(*plats, ","), Repo: *repo, Out: *out, HTTP: newRegistryHTTP(base)}, stdout)
+	doc, err := Push(ctx, execRun, pushOpts{Version: *version, Registry: *reg, Platforms: strings.Split(*plats, ","), Repo: *repo, Out: *out, Gates: *gates, HTTP: newRegistryHTTP(base)}, stdout)
 	if err != nil {
 		return err
 	}
@@ -481,15 +517,11 @@ func readImages(p string) (*ImagesDoc, error) {
 // images[].size of the manifest, used by the box only for its free-space check (low_disk below 2 x size, D-104) and never compared
 // with what it downloads. The registry digests differ from the local ones (layers are compressed on push), so the size comes from
 // the platforms of the local list, which must be the platforms that were pushed.
-func localImageSizes(ctx context.Context, run runFunc, doc *ImagesDoc) (map[string]int64, error) {
+// The local lists must still be the images the gates checked (and so the ones pushed), or the sizes would be of others.
+func localImageSizes(ctx context.Context, run runFunc, doc *ImagesDoc, gates *GatesDoc) (map[string]int64, error) {
 	sizes := map[string]int64{}
 	for _, im := range doc.Images {
-		local := ""
-		for _, pi := range publishedImages {
-			if pi.service == im.Service {
-				local = "localhost/vedette-" + pi.local + ":" + doc.Version
-			}
-		}
+		local := "localhost/vedette-" + localName(im.Service) + ":" + doc.Version
 		want := make([]string, len(im.Platforms))
 		for i, p := range im.Platforms {
 			want[i] = p.Platform
@@ -498,8 +530,13 @@ func localImageSizes(ctx context.Context, run runFunc, doc *ImagesDoc) (map[stri
 		if err != nil {
 			return nil, fmt.Errorf("the size of each image is read from the local lists of make images: %w", err)
 		}
+		now := map[string]string{}
 		for _, p := range lp {
 			sizes[im.Service] = max(sizes[im.Service], p.Size)
+			now[p.Platform] = p.Config
+		}
+		if err := gates.checkImage(im.Service, local, now); err != nil {
+			return nil, err
 		}
 	}
 	return sizes, nil
@@ -512,6 +549,7 @@ type inputsOpts struct {
 	RollbackMin    string
 	MinUpgradeFrom string
 	DebDir         string
+	Gates          string // gates.json of `release gates`: the .deb and the images must be the ones it checked
 }
 
 // BuildInputs writes the release description from what was pushed and built: the images of images.json with their index digests,
@@ -547,7 +585,24 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 			return in, fmt.Errorf("version %q is not SemVer", v)
 		}
 	}
-	sizes, err := localImageSizes(ctx, run, doc)
+	gates, err := readGates(o.Gates)
+	if err != nil {
+		return in, err
+	}
+	if err := gates.checkVersion(doc.Version); err != nil {
+		return in, err
+	}
+	// images.json records the config digest of each platform pushed: it must be what the gates checked
+	for _, im := range doc.Images {
+		pushed := map[string]string{}
+		for _, p := range im.Platforms {
+			pushed[p.Platform] = p.Config
+		}
+		if err := gates.checkImage(im.Service, "images.json "+im.Service, pushed); err != nil {
+			return in, err
+		}
+	}
+	sizes, err := localImageSizes(ctx, run, doc, gates)
 	if err != nil {
 		return in, err
 	}
@@ -568,8 +623,15 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 	for _, arch := range []string{"amd64", "arm64"} {
 		h.Files = append(h.Files, filepath.Join(o.DebDir, release.HostPackageName(doc.Version, arch)))
 	}
-	if _, err := buildHostPart(h, doc.Version, in.Images); err != nil {
+	hp, err := buildHostPart(h, doc.Version, in.Images)
+	if err != nil {
 		return in, fmt.Errorf("%w (host-deb writes them to %s; a version with a prerelease needs the SemVer spelling, not nfpm's ~: make release-deb-name)", err, o.DebDir)
+	}
+	for i, f := range hp.Files {
+		_, arch, _ := release.ParseHostPackageName(f.Name) // buildHostPart parsed it
+		if err := gates.checkDeb(arch, h.Files[i], f.SHA256, f.Size); err != nil {
+			return in, err
+		}
 	}
 	in.Host = &h
 	if err := checkInstallModes(in.InstallModes); err != nil {
@@ -588,8 +650,12 @@ func cmdInputs(ctx context.Context, args []string, stdout io.Writer) error {
 	fs.StringVar(&o.RollbackMin, "rollback-min-version", "", "rollback.min_version: the oldest release a box may roll back to (required with true)")
 	fs.StringVar(&o.MinUpgradeFrom, "min-upgrade-from", "", "min_upgrade_from (empty: none)")
 	fs.StringVar(&o.DebDir, "deb-dir", "dist", "directory with vedette-host_<version>_<amd64|arm64>.deb")
+	fs.StringVar(&o.Gates, "gates", "", "the record of release gates (default gates.json next to -images); refused when missing or when a .deb or image is not the one it checked")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if o.Gates == "" {
+		o.Gates = filepath.Join(filepath.Dir(*images), gatesFile)
 	}
 	if _, err := os.Stat(*out); err == nil {
 		return fmt.Errorf("%s exists: it may hold notes you wrote; remove or rename it first", *out)

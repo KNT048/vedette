@@ -290,7 +290,7 @@ export default function UpdatesSection() {
 /** D-386 on a container-only install: the same notices, from the same read; nothing while it fails. */
 function ContainerNotices() {
   const { data } = useUpdates()
-  return data ? <UpdateNotices s={data} /> : null
+  return data ? <UpdateNotices s={data} bundle={false} /> : null
 }
 
 function ApplianceUpdates() {

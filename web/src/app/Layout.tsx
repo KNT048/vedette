@@ -140,10 +140,12 @@ export function Layout() {
           <UserMenu />
         </DialogContent>
       </Dialog>
-      <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-8">
+      <div className="min-w-0">
         <RevokedBanner />
-        <Outlet />
-      </main>
+        <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-8">
+          <Outlet />
+        </main>
+      </div>
       <ScrollRestoration />
     </div>
   )

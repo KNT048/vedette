@@ -4,11 +4,12 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { collection } from '@/mocks/db'
+import { installStore } from '@/mocks/stores'
 import { updIndex } from './mocks'
 
 const SINCE = '2026-11-10T00:00:00Z'
 const revoke = (action: 'block_install' | 'block_install_and_warn' | 'rollback_if_possible', id = '0.9.3') =>
-  updIndex.update((x) => ({ ...x, revoked: [{ kind: 'release', id, reason: 'the log receiver can lose data', since: SINCE, action }] }))
+  updIndex.update((x) => ({ ...x, revoked: [{ kind: 'release', id, reason: 'the log receiver can lose data.', since: SINCE, action }] })) // its own period is not doubled
 const WARN_TITLE = 'Vedette 0.9.3, which this box runs, has been withdrawn'
 
 describe('core: withdrawn running release and stale update information (S-CORE-2 criterion D-386)', () => {
@@ -16,7 +17,7 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     revoke(action)
     renderApp('/', { role: 'viewer' })
     const alert = (await screen.findByText(WARN_TITLE)).closest('[role="alert"]') as HTMLElement
-    expect(alert).toHaveTextContent('Reason given by the Vedette project: the log receiver can lose data. Install the newer release, or roll back, as soon as you can.')
+    expect(alert).toHaveTextContent('Reason given by the Vedette project: the log receiver can lose data. Replace it with another release as soon as you can.')
     expect(within(alert).getByRole('link', { name: 'Open Updates' })).toHaveAttribute('href', '/settings/updates')
   })
 
@@ -50,5 +51,15 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     collection<{ update_check: boolean }>('core_privacy', () => ({ update_check: true })).update((p) => ({ ...p, update_check: false }))
     renderApp('/settings/updates')
     expect(await screen.findByText(/Update checks are off in Privacy: turn them on or import an offline bundle\./)).toBeInTheDocument()
+  })
+
+  it('container-only: the same notices, without the offline bundle', async () => {
+    installStore.set({ kind: 'container' })
+    revoke('block_install')
+    updIndex.update((x) => ({ ...x, expires_at: SINCE }))
+    collection<{ update_check: boolean }>('core_privacy', () => ({ update_check: true })).update((p) => ({ ...p, update_check: false }))
+    renderApp('/settings/updates')
+    expect(await screen.findByText('Vedette 0.9.3 has been withdrawn')).toBeInTheDocument()
+    expect(await screen.findByText(/Update checks are off in Privacy: turn them on\.$/)).toBeInTheDocument()
   })
 })

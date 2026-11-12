@@ -489,16 +489,20 @@ func TestUpdateStateRevokedRunningAndStale(t *testing.T) {
 			t.Fatalf("running_revoked = %v, want action %s", getVal(g, "running_revoked"), action)
 		}
 	}
-	revoke(6)
+	advisory := opstest.Revocation("advisory_only", runningVersion)
+	advisory["action"] = "block_install_and_warn"
+	revoke(6, advisory)
 	if g := e.viewer.get("/core/updates"); getVal(g, "running_revoked") != nil {
-		t.Fatalf("running_revoked = %v for a revocation of another release", getVal(g, "running_revoked"))
+		t.Fatalf("running_revoked = %v for another release and an advisory_only entry", getVal(g, "running_revoked"))
 	}
 	revoke(7, opstest.Revocation("release", runningVersion))
 	want("block_install")
-	// a digest of the running release's manifest, with a warning, wins; the earlier revocation is carried (sticky, §8)
+	// a digest of the running release's manifest, with a warning, wins over the release's block_install
 	warn := opstest.Revocation("image_digest", "sha256:"+strings.Repeat("a", 64))
 	warn["action"] = "block_install_and_warn"
 	revoke(8, warn)
+	want("block_install_and_warn")
+	revoke(9) // a newer index without them: both are carried (sticky, §8), the warning still wins
 	want("block_install_and_warn")
 
 	e.clock.Advance(40 * 24 * time.Hour) // past expires_at (generated 2026-12-02, plus 14 days)

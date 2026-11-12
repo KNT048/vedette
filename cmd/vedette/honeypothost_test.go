@@ -346,8 +346,13 @@ func TestHoneypotHostRefusalsArePlain(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "outside the network") || !strings.Contains(err.Error(), api.CodeIPNotInMgmtSubnet) {
 		t.Fatalf("outside the subnet: %v", err)
 	}
-	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.1")); err == nil || !strings.Contains(err.Error(), api.CodeIPIsGateway) {
+	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.1")); err == nil || !strings.Contains(err.Error(), api.CodeIPIsGateway) || errors.Is(err, honeypot.ErrHostFailed) {
 		t.Fatalf("the gateway: %v", err)
+	}
+	// The host failing to build the decoy is a refusal (it holds nothing) but not about the address (#475).
+	e.m.Rule(ops.BinIP, "link add link", "", 2, "", "")
+	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240")); !errors.Is(err, honeypot.ErrRefused) || !errors.Is(err, honeypot.ErrHostFailed) || !strings.Contains(err.Error(), api.CodeDecoyFailed) {
+		t.Fatalf("a failed build: %v", err)
 	}
 	if got := e.decoyLinks(); len(got) != 0 {
 		t.Fatalf("a refused address left links: %v", got)

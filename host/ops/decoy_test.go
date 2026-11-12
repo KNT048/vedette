@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"net/netip"
 )
@@ -553,5 +554,22 @@ func TestOnlyCorruptionIsSetAsideAndOnlyTheLastFewAreKept(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("the newest corrupt file was not kept")
+	}
+}
+
+// A failed ip call names the first line of ip's stderr (cut, quoted) for the host's log (#475).
+func TestIPErrCarriesTheFirstStderrLine(t *testing.T) {
+	t.Parallel()
+	args := argvRouteFlush(100)
+	err := ipErr(args, []byte("\nError: ipv4: FIB table does not exist.\nFlush terminated\n"), 2, nil)
+	if err == nil || err.Error() != `ops: ip -n vedette-hp route flush failed (exit 2): "Error: ipv4: FIB table does not exist."` {
+		t.Fatalf("%v", err)
+	}
+	long := "x" + strings.Repeat("é", maxStderrHead) // 2 bytes each after one: the cut falls inside a rune
+	if h := stderrHead([]byte(long + "\nnext")); len(h) > maxStderrHead || !utf8.ValidString(h) {
+		t.Fatalf("head %q", h)
+	}
+	if err := ipErr(args, nil, 1, nil); err == nil || err.Error() != "ops: ip -n vedette-hp route flush failed (exit 1)" {
+		t.Fatalf("%v", err)
 	}
 }

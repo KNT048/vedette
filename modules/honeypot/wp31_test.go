@@ -286,6 +286,29 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 	if conflicts == 0 {
 		t.Fatal("a refused address shows no conflict")
 	}
+
+	// #475: a refusal for the host's own failure (its decoy build failed) is dropped from the record too, but it is no
+	// clash: the traps are "off" (the secondary IP is not up), even with a decoy placed and the container running.
+	e3 := newEnv(t)
+	e3.setup()
+	if _, err := e3.svc.AddDecoy(e3.ctx(), "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "LNX-OLD", IP: "192.168.10.241"}); err != nil {
+		t.Fatal(err)
+	}
+	e3.host.mu.Lock()
+	e3.host.failAdd = map[netip.Addr]error{sec: fmt.Errorf("the host could not do it (decoy_failed): %w %w", honeypot.ErrRefused, honeypot.ErrHostFailed)}
+	e3.host.mu.Unlock()
+	_ = e3.svc.Apply(e3.ctx())
+	if got := e3.svc.DecoyIPs(e3.ctx()); len(got) != 1 || got[0] != addr("192.168.10.241") {
+		t.Fatalf("on record: %v", got)
+	}
+	if !e3.host.isRunning() || e3.svc.TrapConflicts()[sec] == "" {
+		t.Fatalf("running=%v conflicts=%v", e3.host.isRunning(), e3.svc.TrapConflicts())
+	}
+	for _, tr := range overviewTraps(t, e3) {
+		if tr.State != honeypot.StateOff {
+			t.Fatalf("a secondary IP the host could not set up shows %s as %s", tr.Service, tr.State)
+		}
+	}
 }
 
 // M1: after an unknown outcome the Apply asks the host for no further address.

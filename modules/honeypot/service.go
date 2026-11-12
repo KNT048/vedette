@@ -374,7 +374,9 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		return Overview{}, fmt.Errorf("honeypot: count hits: %w", err)
 	}
 	conflict := w.deviceAt(w.secIP)
-	secConflict := w.secIP.IsValid() && (w.ipProblem(w.secIP) != "" || s.refused(w.secIP) != "")
+	why, hostFault := s.refused(w.secIP)
+	secConflict := w.secIP.IsValid() && (w.ipProblem(w.secIP) != "" || (why != "" && !hostFault))
+	secFailed := w.secIP.IsValid() && hostFault // the host could not set the secondary IP up: not listening, no clash
 	out := Overview{Hostname: w.cfg.Hostname, UpdatedAt: store.FormatTS(now), Traps: make([]Trap, 0, len(Services))}
 	if w.secIP.IsValid() {
 		out.SecondaryIP = ptr(w.secIP.String())
@@ -400,6 +402,8 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 			t.State = StateOff
 		case secConflict:
 			t.State = StateConflict
+		case secFailed:
+			t.State = StateOff
 		case s.listening(svc):
 			t.State = StateListening
 		default:

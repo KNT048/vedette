@@ -26,6 +26,9 @@ type hostCache struct {
 	// conflicts are the trap addresses that were not handed to the host and why: the core found a problem (a device or
 	// the box has the address, it left the LAN, it is past the host's 32) or the host refused it.
 	conflicts map[netip.Addr]string
+	// hostFailed marks the entries of conflicts the host refused for its own failure (ErrHostFailed): no clash, the trap
+	// on that address shows "off".
+	hostFailed map[netip.Addr]bool
 }
 
 // listening reports that the container was started with a configuration that has this service on, on a host that is an
@@ -36,16 +39,18 @@ func (s *Service) listening(svc ServiceName) bool {
 	return s.host.available && s.host.running && s.host.services[svc]
 }
 
-// refused is the reason the last Apply did not hand ip to the host, "" when it did or never tried.
-func (s *Service) refused(ip netip.Addr) string {
+// refused is the reason the last Apply did not hand ip to the host, "" when it did or never tried; hostFault says the
+// host refused it for its own failure, not because of the address.
+func (s *Service) refused(ip netip.Addr) (why string, hostFault bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.host.conflicts[ip]
+	return s.host.conflicts[ip], s.host.hostFailed[ip]
 }
 
 // TrapConflicts lists the secondary or decoy addresses the last Apply left out of the host and why (a device or the box
-// has the address, it is outside the LAN now, the host refused it or is full). The API has no field for it: the trap
-// shows state "conflict" when the secondary IP is among them, the reasons are here and in the log.
+// has the address, it is outside the LAN now, the host refused it or is full, or could not set it up). The API has no
+// field for it: the trap shows state "conflict" when the secondary IP is among them ("off" when the host could not set it
+// up), the reasons are here and in the log.
 func (s *Service) TrapConflicts() map[netip.Addr]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -228,10 +233,14 @@ func (s *Service) Apply(ctx context.Context) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	for ip, why := range refused {
-		conflicts[ip] = why
+	hostFailed := map[netip.Addr]bool{}
+	for ip, rerr := range refused {
+		conflicts[ip] = rerr.Error()
+		if errors.Is(rerr, ErrHostFailed) {
+			hostFailed[ip] = true
+		}
 		if s.due("refused " + ip.String()) {
-			s.cfg.Log.WarnContext(ctx, "honeypot: the host did not take a decoy address; the other traps go on", "ip", ip.String(), "reason", why)
+			s.cfg.Log.WarnContext(ctx, "honeypot: the host did not take a decoy address; the other traps go on", "ip", ip.String(), "reason", rerr.Error())
 		}
 	}
 	switch {
@@ -239,18 +248,18 @@ func (s *Service) Apply(ctx context.Context) error {
 		if err := s.cfg.Host.StopContainer(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
-		s.setHost(hostCache{available: true, reason: "no trap is on", conflicts: conflicts})
+		s.setHost(hostCache{available: true, reason: "no trap is on", conflicts: conflicts, hostFailed: hostFailed})
 	case len(placed) == 0:
 		if err := s.cfg.Host.StopContainer(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
-		s.setHost(hostCache{available: true, reason: "the host did not take any decoy address", conflicts: conflicts})
+		s.setHost(hostCache{available: true, reason: "the host did not take any decoy address", conflicts: conflicts, hostFailed: hostFailed})
 		errs = append(errs, errors.New("honeypot: the host did not take any decoy address"))
 	case !filesOK:
-		s.setHost(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts})
+		s.setHost(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts, hostFailed: hostFailed})
 	default:
 		if err := s.cfg.Host.StartContainer(parent, s.restartDue); err != nil { // not the budget: a restart plus its health wait can take 4 minutes, and a cut-off start would restart again next Apply
-			s.setHost(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts})
+			s.setHost(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts, hostFailed: hostFailed})
 			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
 			break
 		}
@@ -259,7 +268,7 @@ func (s *Service) Apply(ctx context.Context) error {
 		for _, svc := range services {
 			m[svc] = true
 		}
-		s.setHost(hostCache{available: true, running: true, services: m, conflicts: conflicts})
+		s.setHost(hostCache{available: true, running: true, services: m, conflicts: conflicts, hostFailed: hostFailed})
 	}
 	return errors.Join(errs...)
 }
@@ -272,16 +281,16 @@ func (s *Service) setHost(h hostCache) {
 
 // syncIPs adds the wanted decoy IPs (when add is true), removes the ones handed over earlier that are no longer wanted,
 // and remembers the set (hp_config "applied") so a restart can still remove a stale one. An address the host refuses is
-// returned in refused with the reason, it does not stop the others; placed is what the host holds of the wanted ones.
+// returned in refused with the host's error, it does not stop the others; placed is what the host holds of the wanted ones.
 // err carries what went wrong besides refusals (a removal, the database).
-func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (placed []netip.Addr, refused map[netip.Addr]string, err error) {
+func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (placed []netip.Addr, refused map[netip.Addr]error, err error) {
 	var prev []string
 	if err := loadJSON(ctx, s.db.Reader(), "applied", &prev); err != nil {
 		return nil, nil, err
 	}
 	have := map[netip.Addr]bool{}
 	var errs []error
-	refused = map[netip.Addr]string{}
+	refused = map[netip.Addr]error{}
 	unknown := map[netip.Addr]bool{} // asked, outcome unknown: on record, not placed, not a conflict
 	for _, p := range prev {
 		if a, err := netip.ParseAddr(p); err == nil {
@@ -326,7 +335,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, add bool) (pla
 				errs = append(errs, fmt.Errorf("honeypot: decoy IP %s: %w", ip, err))
 				break
 			}
-			refused[ip] = err.Error()
+			refused[ip] = err
 			if !wasHeld { // the host said no: it does not hold it
 				delete(have, ip)
 				save()

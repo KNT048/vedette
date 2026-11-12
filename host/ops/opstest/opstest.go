@@ -522,7 +522,9 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 
 // StatefulIP makes (NewMachine does it) the fake ip one that remembers what the decoy commands do: links made in the
 // host namespace, links moved into vedette-hp with their MAC, address and up flag, the rules, the
-// sysctls and the nft ruleset. "ip netns add" creates /run/netns/vedette-hp under the root,
+// sysctls, the routing tables and the nft ruleset. "ip netns add" creates /run/netns/vedette-hp under the root (with no
+// table), a table exists once a route went into it, and "route flush table N" of a table that does not exist answers as
+// iproute2 6.19 does (exit 2, "Error: ipv4: FIB table does not exist." and "Flush terminated" on stderr; #475),
 // "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
 // egress ruleset once "nft -f -" loaded it, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
@@ -537,7 +539,7 @@ setfield() { # file key value
 }
 case "$mode:$args" in
   "host:netns add vedette-hp")
-    mkdir -p "$ROOT/run/netns"; : > "$ROOT/run/netns/vedette-hp"; exit 0 ;;
+    mkdir -p "$ROOT/run/netns"; : > "$ROOT/run/netns/vedette-hp"; rm -f "$S/tables"; exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/sysctl -n "*)
     set -- $args; shift 5
     for k in "$@"; do
@@ -588,7 +590,13 @@ case "$mode:$args" in
     d="rule add ${args#rule del }"
     grep -qxF "$d" "$S/rules" 2>/dev/null || exit 2
     grep -vxF "$d" "$S/rules" > "$S/rules.tmp"; mv "$S/rules.tmp" "$S/rules"; exit 0 ;;
+  "ns:route flush table "*)
+    set -- $args
+    grep -qxF "$4" "$S/tables" 2>/dev/null || { printf 'Error: ipv4: FIB table does not exist.\nFlush terminated\n' >&2; exit 2; }
+    echo "$args" >> "$S/routes"; exit 0 ;;
   "ns:route "*)
+    for t in $args; do :; done # the last word: the table
+    grep -qxF "$t" "$S/tables" 2>/dev/null || echo "$t" >> "$S/tables"
     echo "$args" >> "$S/routes"; exit 0 ;;
   "ns:-j addr show")
     printf '[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"link_type":"loopback","address":"00:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8}]}'

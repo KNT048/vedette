@@ -39,7 +39,12 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
       setV({ name: '', email: '', role: 'viewer' })
       onOpenChange(false)
       onCreated(r.user, r.temp_password)
-    } catch (e2) { setErr({ form: errMsg(e2, t) }) }
+    } catch (e2) { // the message goes under the field it is about, so it does not wait for the user to look at the footer
+      const code = e2 instanceof ApiError ? e2.code : ''
+      const at = code === 'duplicate' || code === 'invalid_email' ? 'email' : code === 'invalid_name' ? 'name' : 'form'
+      setErr({ [at]: errMsg(e2, t) })
+      if (at !== 'form') setTimeout(() => document.getElementById(at === 'email' ? 'u-email' : 'u-name')?.focus(), 0)
+    }
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

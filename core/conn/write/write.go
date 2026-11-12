@@ -129,7 +129,7 @@ var (
 )
 
 // shellChars may never be in a command (response INV-14b, SYS-1): the writer repeats the check response made when it rendered.
-const shellChars = ";|&$`<>()\\!~^"
+const shellChars = cliban.ShellChars
 
 // writeTool is the fixed write tool of a connection kind; an MCP server's tool is named by the step.
 func writeTool(kind string) string {

@@ -135,3 +135,23 @@ func TestUnderRefusesBackslashAndEncodedSeparators(t *testing.T) {
 		t.Error("a dot segment climbed out of the target")
 	}
 }
+
+// D-391: the reader and the writer refuse shell characters on every line, so an SSH allow-list entry holding one could never run;
+// it is refused at save, with a field error.
+func TestCheckAllowSSHRefusesShellCharacters(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"show version; reload", "show run | include x", "ls & id", "echo $HOME", "a`b`"} {
+		_, e := checkAllow([]string{bad}, "192.168.10.30:22", true)
+		if e == nil || e.Error() == "" || !strings.Contains(e.Error(), "cannot contain the characters") {
+			t.Errorf("%q: got %v, want the shell-character refusal", bad, e)
+		}
+	}
+	for _, bad := range []string{"show version\u2028reload", "show version\u2029reload", "show\tversion"} {
+		if _, e := checkAllow([]string{bad}, "192.168.10.30:22", true); e == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+	if _, e := checkAllow([]string{"show version", "uname -a", "ss -tlnp"}, "192.168.10.30:22", true); e != nil {
+		t.Errorf("plain commands refused: %v", e)
+	}
+}

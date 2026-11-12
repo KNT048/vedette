@@ -8,7 +8,7 @@ import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/st
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
-import { CHANNEL_TYPES, FIELDS, ROUTE_SEVERITIES } from './types'
+import { CHANNEL_TYPES, FIELDS, ROUTE_SEVERITIES, forbiddenHost } from './types'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
@@ -166,10 +166,6 @@ const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
 
 /** The box's rule for a webhook or an SMTP server (channel/webhook.go forbiddenAddr): never this machine (loopback: in a container that is core
  * itself), link-local (cloud metadata), multicast or unspecified. The mock knows none of the box's own LAN addresses. */
-const forbiddenHost = (host: string) => {
-  const h = host.toLowerCase().replace(/\.$/, '')
-  return h === 'localhost' || h.endsWith('.localhost') || h === '[::1]' || /^(127\.|169\.254\.|0\.0\.0\.0$|2(2[4-9]|3\d)\.)/.test(h)
-}
 /** The recipient named in `bad_to` (smtp.go badRecipient): one line, control and format characters dropped, cut to 60 characters. */
 const shownRecipient = (x: string) => {
   const r = [...x.replace(/[\t\n\u0085\u2028\u2029]/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim()]
@@ -246,8 +242,9 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
+  // The API answers the adapter's blocked_host and insecure_url as bad_url (channels.go apiConfigCode); blocked_host comes first (webhook.go).
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
-  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.') // blocked_host
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')
 }

@@ -200,15 +200,11 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	}
 	blocked := cfgErr("blocked_host", "The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.")
 
-	switch u.Scheme {
-	case "https":
-	case "http":
-		if !internalHost(host) {
-			return nil, cfgErr("insecure_url", "Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.")
-		}
-	default:
+	if u.Scheme != "https" && u.Scheme != "http" {
 		return nil, bad
 	}
+	// A forbidden target is named as such before the http rule, so http://169.254.169.254 (cloud metadata) gets the precise
+	// sentence, as loopback does, not "plain http:// is only for internal hosts" (walk 3 G13).
 	box, known := boxFn()
 	if a, err := netip.ParseAddr(host); err == nil {
 		if forbiddenAddr(a, cfg.allowLoopback, box) {
@@ -222,6 +218,9 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		if !cfg.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) || metadataName(host) {
 			return nil, blocked
 		}
+	}
+	if u.Scheme == "http" && !internalHost(host) {
+		return nil, cfgErr("insecure_url", "Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.")
 	}
 	if !isSet(cfg.SigningKey) {
 		return nil, cfgErr("secret_required", "Enter the webhook signing key.")

@@ -293,6 +293,10 @@ func TestContract_Reboot_TheGateSurvivesAHostRestartDuringTheShutdown(t *testing
 	e := startSys(t)
 	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
 	eventually(t, "systemctl reboot", func() bool { return rebootCalls(e) == 1 })
+	eventually(t, "the reboot recorded as issued (D-453)", func() bool {
+		raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json"))
+		return bytes.Contains(raw, []byte(`"issued":true`))
+	})
 	// The host process is replaced while the box is still shutting down: same boot id, minutes ago.
 	e.clock.Advance(2 * time.Minute)
 	o2 := e.m.Ops(e.clock.Now, func(_ *ops.Config, d *ops.Deps) { d.AfterFunc = (&fakeTimers{}).after })

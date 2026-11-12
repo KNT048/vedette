@@ -49,6 +49,9 @@ const (
 	CodeSnapshotRequired    = "snapshot_required"
 	CodeSnapshotInvalid     = "snapshot_invalid"
 	CodeRebooting           = "rebooting"
+	// CodeRebootInhibited is os.reboot now refused while a logind block inhibitor of shutdown is held (apt
+	// installing, D-453); the message names who holds it and why.
+	CodeRebootInhibited = "reboot_inhibited"
 )
 
 // OSInstallArgs are the args of os.install.

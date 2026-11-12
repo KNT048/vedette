@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ci changes | ci shard I N [cached|uncached] | ci times LOG | ci flaky RUN_URL < LOGS")
+		return fmt.Errorf("usage: ci changes | ci shard I N [cached|uncached] | ci times LOG | ci flaky RUN_URL < LOGS | ci skip")
 	}
 	switch args[0] {
 	case "changes":
@@ -50,6 +51,8 @@ func run(args []string) error {
 			return fmt.Errorf("usage: ci flaky RUN_URL < LOGS")
 		}
 		return printFailures(os.Stdin, os.Stdout, args[1])
+	case "skip":
+		return printSkip(skipTestsTXT, time.Now().UTC(), os.Stdout, os.Stderr)
 	case "times":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: ci times LOG")

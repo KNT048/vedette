@@ -40,6 +40,9 @@ type Service struct {
 
 	mu     sync.RWMutex
 	runner Runner
+
+	scanMu   sync.Mutex           // one scan at a time on the box (D-229): a second one is 409 busy
+	lastScan map[string]time.Time // when each target's last scan started, under scanMu (ScanEvery; kept in memory, a restart forgets it)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -54,7 +57,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.

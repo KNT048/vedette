@@ -48,7 +48,15 @@ var (
 	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
 	// ErrScanTooLong: the scan hit its time cap.
 	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
+	// ErrScanBusy: another scan runs on the box (one at a time).
+	ErrScanBusy = apiErr(409, "busy", "Another external scan is running on this box. Wait for it to finish, then try again.")
 )
+
+// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads (D-229):
+// nothing is scanned rather than a part that would change from day to day.
+func TooManyNames(domain string) *APIError {
+	return apiErr(400, "too_many", "The certificate-transparency logs list more than 300 names under %s, more than one scan reads, so nothing was scanned. Add a narrower subdomain (for example shop.%s) as its own domain and scan that.", domain, domain)
+}
 
 // Messages that are shared by a response and the stored result of a check.
 const (

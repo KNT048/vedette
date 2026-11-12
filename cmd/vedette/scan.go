@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"sync"
 	"time"
@@ -229,38 +230,101 @@ func (e scanEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, err
 	return res, err
 }
 
-// scanRunner is the scan module's exposure.Runner (D-229, exposure INV-12): the surface scan of modules/scan/surface (certificate
-// transparency, DNS, a TCP connect to a fixed list of ports, the first page of the web ports, the certificates), on the addresses
-// exposure's own rule calls public. It runs only while the scan module is on; off, every scan answers 409 module_off and nothing
-// is probed.
+// scanRunner is the scan module's exposure.Runner (D-229, exposure INV-12, scan INV-12): the surface scan of modules/scan/surface,
+// within D-57 (7) and LEGAL §3. A domain's names (certificate transparency) are resolved and listed and get HTTP checks by name on
+// 80 and 443; an address is port-scanned only when exposure says it is a verified IP target that may be scanned now
+// (ScannableIP). Every probe goes to the scan module's probe log first. It runs only while the scan module is on: off, a scan
+// answers 409 module_off and nothing is probed, and switching it off stops a scan that runs (SYS-5).
 func scanRunner(d deps) exposure.Runner {
-	s, err := surface.New(surface.Config{Public: exposure.IsPublicIPv4, Log: d.Log})
+	r := &exposureRunner{
+		on:      func() bool { return d.Reg == nil || d.Reg.Enabled("scan") }, // a nil Reg: tests that build by hand
+		running: map[*int]context.CancelCauseFunc{},
+		log:     d.Log,
+		// Both services are asked when a scan runs, not here: exposureService builds this runner, and scanService builds exposure's.
+		scope: func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+			return exposureService(d).ScannableIP(ctx, actor, ip)
+		},
+	}
+	s, err := surface.New(surface.Config{Public: exposure.IsPublicIPv4, Probes: scanProbeLog{d: d}, Log: d.Log})
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}
-	return exposureRunner{on: func() bool { return d.Reg == nil || d.Reg.Enabled("scan") }, scan: s} // a nil Reg: tests that build by hand
+	r.scan = s
+	if d.Reg != nil {
+		d.Reg.OnChange(func(id string, enabled bool) {
+			if id == "scan" && !enabled {
+				r.stopAll()
+			}
+		})
+	}
+	return r
+}
+
+// scanProbeLog is the scan module's probe log as the surface scan writes it (scan INV-7, INV-12).
+type scanProbeLog struct{ d deps }
+
+func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
+	rows := make([]scan.ExternalProbe, len(ps))
+	for i, p := range ps {
+		rows[i] = scan.ExternalProbe{ID: p.ID, IP: p.Addr.String(), Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
+	}
+	return scanService(l.d).RecordExternalProbes(ctx, rows)
 }
 
 // surfaceScan is the part of *surface.Scanner the runner calls (a test hands it a fake that probes nothing).
 type surfaceScan interface {
-	Domain(ctx context.Context, domain string) (surface.Result, error)
+	Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (surface.Result, error)
 	IP(ctx context.Context, ip netip.Addr) (surface.Result, error)
 }
 
+// errScanSwitchedOff is the cause of a scan's context when the scan module is switched off while it runs.
+var errScanSwitchedOff = errors.New("vedette: the scan module was switched off")
+
 type exposureRunner struct {
-	on   func() bool
-	scan surfaceScan
+	on    func() bool
+	scan  surfaceScan
+	scope func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
+	log   *slog.Logger
+
+	mu      sync.Mutex
+	running map[*int]context.CancelCauseFunc // the scans that run now, stopped when the module is switched off
 }
 
-func (r exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (exposure.Content, error) {
-	if !r.on() {
+// stopAll cancels every scan that runs (the module was switched off). It does not block: it runs on the registry's goroutine.
+func (r *exposureRunner) stopAll() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, cancel := range r.running {
+		cancel(errScanSwitchedOff)
+	}
+}
+
+func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (exposure.Content, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	key := new(int)
+	r.mu.Lock()
+	r.running[key] = cancel
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.running, key)
+		r.mu.Unlock()
+	}()
+	if !r.on() { // checked after the scan is registered, so a switch-off cannot fall between the check and the stop
 		return exposure.Content{}, exposure.ErrScanOff
 	}
 	var res surface.Result
 	var err error
 	switch t.Kind {
 	case exposure.KindDomain:
-		res, err = r.scan.Domain(ctx, t.Value)
+		res, err = r.scan.Domain(ctx, t.Value, func(ctx context.Context, ip netip.Addr) bool {
+			ok, err := r.scope(ctx, t.User, ip)
+			if err != nil { // fail closed: no port scan of an address exposure could not vouch for
+				r.log.ErrorContext(ctx, "exposure_scan_scope_failed", "ip", ip.String(), "error", err)
+			}
+			return ok && err == nil
+		})
 	case exposure.KindIP:
 		ip, perr := netip.ParseAddr(t.Value)
 		if perr != nil {
@@ -271,11 +335,15 @@ func (r exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (exposu
 		return exposure.Content{}, fmt.Errorf("vedette: scanning %q: unknown kind %q", t.Value, t.Kind)
 	}
 	switch {
+	case errors.Is(context.Cause(ctx), errScanSwitchedOff): // even a scan that finished: the module is off now, nothing is kept
+		return exposure.Content{}, exposure.ErrScanOff
 	case err == nil:
 	case ctx.Err() != nil: // the person hung up: not a fault of the targets
 		return exposure.Content{}, err
 	case errors.Is(err, surface.ErrCT):
 		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrCTDown, err)
+	case errors.Is(err, surface.ErrTooManyNames):
+		return exposure.Content{}, exposure.TooManyNames(t.Value)
 	case errors.Is(err, surface.ErrTooLong):
 		return exposure.Content{}, exposure.ErrScanTooLong
 	default:

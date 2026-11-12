@@ -1,8 +1,15 @@
 // Package surface is the external-surface scan of the scan module (D-229), the exposure.Runner behind "Scan now" of External
-// exposure (S-EXP-1). For a verified domain it lists the names under it in certificate-transparency logs (crt.sh) and resolves
-// them; for the box's public IP it starts from that address. Then, on public addresses only, it connects to a fixed list of
-// TCP ports (commonPorts), reads the first page of the open web ports once (admin pages, the Server header) and the
-// certificate of the TLS ports. Nothing else is sent: no exploit, no login, no path but "/", no UDP.
+// exposure (S-EXP-1). It follows D-57 (7) and LEGAL §3: active probes only on verified assets.
+//
+//   - The box's own public IP (a verified IP target): a TCP connect to a fixed list of ports (commonPorts), then one GET of "/" on
+//     the open web ports and a TLS handshake on the TLS ports (admin pages, the Server header, certificates).
+//   - A verified domain: its names from certificate-transparency logs (crt.sh), resolved and listed. A name that points at a
+//     public address gets HTTP checks by name only: one GET of "/" on port 80 and on 443 (with the certificate of 443). The
+//     addresses are never port-scanned, unless one is itself a verified IP target that may be scanned now (the caller decides,
+//     through exposure).
+//
+// Nothing else is sent: no exploit, no login, no path but "/", no redirect followed, no UDP. Every probe is written to the probe
+// log (ProbeLog) before it goes out, and again with its answer.
 //
 // It is the Go standard library only: a TCP connect does what a port scan needs from the box's own network without raw sockets,
 // pcap or cgo, so the ProjectDiscovery libraries planned in D-8 are not needed. It runs in core (the box's outgoing HTTPS is
@@ -15,8 +22,10 @@ package surface
 import (
 	"cmp"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -31,21 +40,20 @@ import (
 	"time"
 )
 
-// Bounds of one scan (D-229). The time cap is the sum of the phases at their worst, so it stops a scan only when something hangs.
+// Bounds of one scan (D-229). Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
+// 2 × maxNames HTTP checks, and the port scan covers only verified IP targets (exposure holds at most 20). The time cap is the
+// sum of the phases at their worst, so it stops a scan only when something hangs.
 const (
-	maxIPs          = 32       // public addresses whose ports are scanned
-	maxPages        = 64       // pages read and TLS handshakes made
 	maxPageBody     = 64 << 10 // bytes read of a page
 	dialTimeout     = 1500 * time.Millisecond
 	dialRate        = 300 // new connections a second, at most
 	dialParallel    = 100
-	pageTimeout     = 8 * time.Second
-	pageParallel    = 8
+	pageTimeout     = 6 * time.Second
+	pageParallel    = 32
 	resolveTimeout  = 5 * time.Second
-	resolveParallel = 16
+	resolveParallel = 32
 	ctTimeout       = 45 * time.Second
 	scanTimeout     = 5 * time.Minute
-	maxRedirects    = 3
 )
 
 // ErrTooLong means the scan did not finish within scanTimeout; nothing of it is kept.
@@ -59,22 +67,40 @@ type Resolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
-// Config is what New needs. Public and Log are required.
+// Probe is one line of the probe log (LEGAL §3: target, time, what was sent), kept 90 days by the scan module (scan INV-7).
+type Probe struct {
+	ID       string     // unique, set by the scanner
+	Addr     netip.Addr // where it went
+	Label    string     // the name asked for, or the IP
+	Kind     string     // "tcp", "http", "https" or "tls"
+	Request  string     // what was sent: "TCP connect to 98 ports", "GET https://www.acme.example/"; after, the open ports too
+	Answered bool       // false until something answered
+}
+
+// ProbeLog keeps the probe log. Record is called with the probes before they go out (Answered false) and again with the same
+// IDs after; an error before stops the scan, so nothing is probed that is not logged.
+type ProbeLog interface {
+	Record(ctx context.Context, ps []Probe) error
+}
+
+// Config is what New needs. Public, Probes and Log are required.
 type Config struct {
 	// Public says whether an address may be probed (exposure.IsPublicIPv4: no private, loopback, link-local, CGNAT, multicast,
 	// documentation or reserved address). A name that resolves to anything else is listed, never probed.
 	Public func(netip.Addr) bool
+	Probes ProbeLog
 	// Dial opens every connection to a target (the port scan, the pages, the TLS handshakes); nil: a net.Dialer. Tests pass an
 	// in-memory one.
 	Dial     func(ctx context.Context, network, address string) (net.Conn, error)
 	Resolver Resolver     // nil: net.DefaultResolver
-	CT       *http.Client // the certificate-transparency search; nil: a client that verifies TLS
+	CT       *http.Client // the certificate-transparency search; nil: a client that verifies TLS and follows no redirect
 	Log      *slog.Logger
 }
 
 // Scanner runs scans. It holds no state between them.
 type Scanner struct {
 	public  func(netip.Addr) bool
+	probes  ProbeLog
 	dial    func(ctx context.Context, network, address string) (net.Conn, error)
 	resolve Resolver
 	ct      *http.Client
@@ -83,10 +109,10 @@ type Scanner struct {
 
 // New returns a Scanner.
 func New(cfg Config) (*Scanner, error) {
-	if cfg.Public == nil || cfg.Log == nil {
-		return nil, errors.New("surface: Public and Log are required")
+	if cfg.Public == nil || cfg.Probes == nil || cfg.Log == nil {
+		return nil, errors.New("surface: Public, Probes and Log are required")
 	}
-	s := &Scanner{public: cfg.Public, dial: cfg.Dial, resolve: cfg.Resolver, ct: cfg.CT, log: cfg.Log}
+	s := &Scanner{public: cfg.Public, probes: cfg.Probes, dial: cfg.Dial, resolve: cfg.Resolver, ct: cfg.CT, log: cfg.Log}
 	if s.dial == nil {
 		s.dial = (&net.Dialer{}).DialContext
 	}
@@ -94,7 +120,11 @@ func New(cfg Config) (*Scanner, error) {
 		s.resolve = net.DefaultResolver
 	}
 	if s.ct == nil {
-		s.ct = &http.Client{Timeout: ctTimeout, Transport: http.DefaultTransport.(*http.Transport).Clone()} //nolint:forcetypeassert // the standard library's own type
+		s.ct = &http.Client{
+			Timeout:       ctTimeout,
+			Transport:     http.DefaultTransport.(*http.Transport).Clone(), //nolint:forcetypeassert // the standard library's own type
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		}
 	}
 	return s, nil
 }
@@ -136,9 +166,11 @@ type (
 	}
 )
 
-// Domain scans a verified domain: its names from certificate transparency, their addresses, then the public ones (ErrCT when the
-// search gives no answer, ErrTooLong past the time cap).
-func (s *Scanner) Domain(ctx context.Context, domain string) (Result, error) {
+// Domain scans a verified domain (D-57 (7)): its names from certificate transparency and their addresses, listed; HTTP checks by
+// name on 80 and 443 for the names on a public address; a port scan only of the addresses that mayScanPorts accepts (exposure:
+// a verified IP target that may be scanned now). ErrCT when the search gives no answer, ErrTooManyNames when the domain has
+// more names than one scan reads, ErrTooLong past the time cap.
+func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
 		return Result{}, fmt.Errorf("surface: %q is not a domain name", domain)
@@ -152,34 +184,50 @@ func (s *Scanner) Domain(ctx context.Context, domain string) (Result, error) {
 	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(names))
 	addrs := s.resolveAll(ctx, names)
 	var res Result
-	var targets []hostAddr // the names on the public addresses, in order, for the pages
-	ips := []netip.Addr{}
+	var jobs []fetchJob
+	var public []netip.Addr
 	for _, n := range names {
 		a := addrs[n]
 		if len(a) == 0 {
 			continue
 		}
 		res.Hosts = append(res.Hosts, Host{Name: n, IP: a[0]})
+		if i := slices.IndexFunc(a, s.public); i >= 0 { // the checks by name go to its first public address, the same every day
+			at := hostAddr{host: n, ip: a[i]}
+			jobs = append(jobs, fetchJob{hostAddr: at, port: portByNumber[80]}, fetchJob{hostAddr: at, port: portByNumber[443]})
+		}
 		for _, ip := range a {
-			if !s.public(ip) {
-				continue
+			if s.public(ip) && !slices.Contains(public, ip) {
+				public = append(public, ip)
 			}
-			if !slices.Contains(ips, ip) {
-				if len(ips) >= maxIPs {
-					continue
-				}
-				ips = append(ips, ip)
-			}
-			targets = append(targets, hostAddr{host: n, ip: ip})
 		}
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
-	return s.probe(ctx, res, ips, targets)
+	slices.SortFunc(public, netip.Addr.Compare)
+	var ips []netip.Addr
+	for _, ip := range public {
+		if mayScanPorts(ctx, ip) {
+			ips = append(ips, ip)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	open, err := s.scanPorts(ctx, ips)
+	if err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	answers, err := s.fetchAll(ctx, jobs)
+	if err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	return assemble(res, ips, open, jobs, answers), nil
 }
 
-// IP scans the box's own public address.
+// IP scans the box's own public address (a verified IP target): every port of commonPorts, then the pages and certificates of
+// the open ones, with the IP as the host.
 func (s *Scanner) IP(ctx context.Context, ip netip.Addr) (Result, error) {
 	ip = ip.Unmap()
 	if !s.public(ip) {
@@ -187,7 +235,21 @@ func (s *Scanner) IP(ctx context.Context, ip netip.Addr) (Result, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	return s.probe(ctx, Result{}, []netip.Addr{ip}, []hostAddr{{host: ip.String(), ip: ip}})
+	open, err := s.scanPorts(ctx, []netip.Addr{ip})
+	if err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	var jobs []fetchJob
+	for _, p := range open[ip] {
+		if spec := portByNumber[p]; spec.kind != plain {
+			jobs = append(jobs, fetchJob{hostAddr: hostAddr{host: ip.String(), ip: ip}, port: spec})
+		}
+	}
+	answers, err := s.fetchAll(ctx, jobs)
+	if err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	return assemble(Result{}, []netip.Addr{ip}, open, jobs, answers), nil
 }
 
 type hostAddr struct {
@@ -199,6 +261,9 @@ type hostAddr struct {
 func (s *Scanner) stopped(ctx context.Context, err error) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return ErrTooLong
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	return err
 }
@@ -233,34 +298,13 @@ func (s *Scanner) resolveAll(ctx context.Context, names []string) map[string][]n
 	return out
 }
 
-// probe scans the ports of ips, then reads the pages and certificates of the open ones, and fills res.
-func (s *Scanner) probe(ctx context.Context, res Result, ips []netip.Addr, targets []hostAddr) (Result, error) {
-	open := s.scanPorts(ctx, ips)
-	if err := ctx.Err(); err != nil {
-		return Result{}, s.stopped(ctx, err)
-	}
+// assemble builds the result from the open ports and the answers of the pages. Ports are listed only for ips (the port scan).
+func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fetchJob, answers []answer) Result {
 	type key struct {
 		ip   netip.Addr
 		port int
 	}
 	product := map[key]string{}
-	var jobs []fetchJob
-	seen := map[string]bool{}
-	for _, t := range targets {
-		for _, p := range open[t.ip] {
-			spec := portByNumber[p]
-			id := t.host + ":" + strconv.Itoa(p)
-			if spec.kind == plain || seen[id] || len(jobs) >= maxPages {
-				continue
-			}
-			seen[id] = true
-			jobs = append(jobs, fetchJob{hostAddr: t, port: spec})
-		}
-	}
-	answers := s.fetchAll(ctx, jobs)
-	if err := ctx.Err(); err != nil {
-		return Result{}, s.stopped(ctx, err)
-	}
 	admins := map[string]bool{}
 	for i, a := range answers {
 		j := jobs[i]
@@ -288,12 +332,40 @@ func (s *Scanner) probe(ctx context.Context, res Result, ips []netip.Addr, targe
 			res.Ports = append(res.Ports, Port{IP: ip, Port: p, Service: portByNumber[p].service, Product: product[key{ip, p}]})
 		}
 	}
-	return res, nil
+	return res
+}
+
+func probeID() string {
+	b := make([]byte, 12)
+	_, _ = rand.Read(b) // crypto/rand.Read never returns an error (Go 1.24+)
+	return "xp-" + hex.EncodeToString(b)
+}
+
+// record writes probes to the probe log. After the probes (done), the write must happen even if the scan was cancelled.
+func (s *Scanner) record(ctx context.Context, ps []Probe, done bool) error {
+	if len(ps) == 0 {
+		return nil
+	}
+	if done {
+		ctx = context.WithoutCancel(ctx)
+	}
+	if err := s.probes.Record(ctx, ps); err != nil {
+		return fmt.Errorf("surface: writing the probe log: %w", err)
+	}
+	return nil
 }
 
 // scanPorts connects to every port of commonPorts on every address, at most dialRate new connections a second and dialParallel at
-// once, and returns the ports that accepted, in order. A connection is closed as soon as it opens: nothing is sent.
-func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) map[netip.Addr][]int {
+// once, and returns the ports that accepted, in order. A connection is closed as soon as it opens: nothing is sent. One probe-log
+// line an address, written before and completed with the open ports after.
+func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) (map[netip.Addr][]int, error) {
+	probes := make([]Probe, len(ips))
+	for i, ip := range ips {
+		probes[i] = Probe{ID: probeID(), Addr: ip, Label: ip.String(), Kind: "tcp", Request: "TCP connect to " + strconv.Itoa(len(commonPorts)) + " ports"}
+	}
+	if err := s.record(ctx, probes, false); err != nil {
+		return nil, err
+	}
 	open := map[netip.Addr][]int{}
 	var mu sync.Mutex
 	sem := make(chan struct{}, dialParallel)
@@ -325,11 +397,17 @@ loop:
 		}
 	}
 	wg.Wait()
-	for _, ip := range ips {
+	for i, ip := range ips {
 		slices.Sort(open[ip])
+		list := make([]string, len(open[ip]))
+		for k, p := range open[ip] {
+			list[k] = strconv.Itoa(p)
+		}
+		probes[i].Answered = len(list) > 0
+		probes[i].Request += "; open: " + cmp.Or(strings.Join(list, ", "), "none")
 		s.log.InfoContext(ctx, "exposure_scan_ports", "ip", ip.String(), "tried", len(commonPorts), "open", open[ip])
 	}
-	return open
+	return open, s.record(ctx, probes, true)
 }
 
 // dialTarget is the one way to a target: the address must be public (checked again here, whatever planned it).
@@ -365,8 +443,20 @@ type answer struct {
 	cert      *x509.Certificate
 }
 
-// fetchAll runs the jobs a few at a time; answers[i] is the answer of jobs[i].
-func (s *Scanner) fetchAll(ctx context.Context, jobs []fetchJob) []answer {
+// fetchAll runs the jobs a few at a time; answers[i] is the answer of jobs[i]. One probe-log line a job, written before and
+// completed after.
+func (s *Scanner) fetchAll(ctx context.Context, jobs []fetchJob) ([]answer, error) {
+	probes := make([]Probe, len(jobs))
+	for i, j := range jobs {
+		kind, req := "tls", "TLS handshake with "+net.JoinHostPort(j.host, strconv.Itoa(j.port.port))
+		if j.port.kind != tlsOnly {
+			kind, req = strings.SplitN(j.url(), ":", 2)[0], "GET "+j.url()+"/"
+		}
+		probes[i] = Probe{ID: probeID(), Addr: j.ip, Label: j.host, Kind: kind, Request: req}
+	}
+	if err := s.record(ctx, probes, false); err != nil {
+		return nil, err
+	}
 	answers := make([]answer, len(jobs))
 	sem := make(chan struct{}, pageParallel)
 	var wg sync.WaitGroup
@@ -384,7 +474,10 @@ func (s *Scanner) fetchAll(ctx context.Context, jobs []fetchJob) []answer {
 		})
 	}
 	wg.Wait()
-	return answers
+	for i, a := range answers {
+		probes[i].Answered = a.ok || a.cert != nil
+	}
+	return answers, s.record(ctx, probes, true)
 }
 
 // tlsConfig reads whatever certificate the target shows: it is reported, never trusted, so it is not verified.
@@ -414,7 +507,7 @@ func (s *Scanner) handshake(ctx context.Context, j fetchJob) *x509.Certificate {
 }
 
 // fetch reads "/" of a web port once, with the name in the Host header (and SNI), over a connection to the planned address only.
-// Redirects are followed only on the same scheme, host and port, at most maxRedirects; another is reported as its Location.
+// A redirect is never followed: its Location is matched as a hint (an admin page often answers "/" with a redirect to its login).
 func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	target := netip.AddrPortFrom(j.ip, uint16(j.port.port)) //nolint:gosec // a port of commonPorts
 	tr := &http.Transport{
@@ -426,12 +519,7 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	defer tr.CloseIdleConnections()
 	start := j.url()
-	client := &http.Client{Transport: tr, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) > maxRedirects || req.URL.Scheme+"://"+req.URL.Host != start {
-			return http.ErrUseLastResponse
-		}
-		return nil
-	}}
+	client := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, start+"/", nil)
 	if err != nil {
 		return answer{}

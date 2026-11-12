@@ -159,22 +159,79 @@ func addrs(s ...string) []netip.Addr {
 	return out
 }
 
-func newScanner(t *testing.T, n *fakeNet, r Resolver, ct *http.Client) *Scanner {
+// probeLog records what the scanner writes to the probe log, and refuses to when told to.
+type probeLog struct {
+	mu     sync.Mutex
+	rows   map[string]Probe
+	writes int
+	fail   error
+}
+
+func (l *probeLog) Record(_ context.Context, ps []Probe) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fail != nil {
+		return l.fail
+	}
+	if l.rows == nil {
+		l.rows = map[string]Probe{}
+	}
+	l.writes++
+	for _, p := range ps {
+		l.rows[p.ID] = p
+	}
+	return nil
+}
+
+// logged says whether a probe to addr was logged.
+func (l *probeLog) logged(addr string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, p := range l.rows {
+		if p.Addr.String() == addr {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *probeLog) requests() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []string
+	for _, p := range l.rows {
+		out = append(out, fmt.Sprintf("%s %s %s %v", p.Kind, p.Label, p.Request, p.Answered))
+	}
+	slices.Sort(out)
+	return out
+}
+
+func newScanner(t *testing.T, n *fakeNet, r Resolver, ct *http.Client, log *probeLog) *Scanner {
 	t.Helper()
-	s, err := New(Config{Public: testPublic, Dial: n.dial, Resolver: r, CT: ct, Log: slog.New(slog.DiscardHandler)})
+	s, err := New(Config{Public: testPublic, Probes: log, Dial: n.dial, Resolver: r, CT: ct, Log: slog.New(slog.DiscardHandler)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return s
 }
 
-// A domain: the names come from CT (only valid names under the domain), the public addresses are probed, a private one is listed
-// and never dialed; pages, admin pages and certificates come from the open ports, with the name in Host and SNI.
+// every dial went to an address the probe log names
+func allLogged(t *testing.T, n *fakeNet, log *probeLog) {
+	t.Helper()
+	for _, d := range n.dialed {
+		if host, _, _ := net.SplitHostPort(d); !log.logged(host) {
+			t.Fatalf("dial to %s is not in the probe log", d)
+		}
+	}
+}
+
+// A domain (D-57 (7)): the names come from CT (only valid names under the domain, sorted), resolved and listed. A name on a public
+// address gets HTTP checks by name on 80 and 443 only; a private one is never dialed; an address is port-scanned only when
+// mayScanPorts accepts it (a verified IP target). Every probe is in the probe log before and after.
 func TestDomainScan(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		fortigate := selfSigned(t, "acme.example", "Example CA R1")
-		mail := selfSigned(t, "mail.acme.example", "")
 		var hosts []string
 		var mu sync.Mutex
 		login := func(r *http.Request) string {
@@ -187,10 +244,12 @@ func TestDomainScan(t *testing.T) {
 			"203.0.113.10:22":  silent,
 			"203.0.113.10:80":  serve(htmlPage("Welcome to Acme")),
 			"203.0.113.10:443": overTLS(fortigate, serve(login)),
-			"203.0.113.11:993": overTLS(mail, silent),
+			"203.0.113.11:22":  silent,
+			"203.0.113.11:443": overTLS(selfSigned(t, "mail.acme.example", ""), serve(htmlPage("Mail"))),
+			"203.0.113.11:993": overTLS(selfSigned(t, "mail.acme.example", ""), silent),
 			"10.0.0.5:80":      serve(htmlPage("internal")),
 		}}
-		ct := `[{"common_name":"acme.example","name_value":"acme.example\nwww.acme.example\n*.acme.example"},
+		ct := `[{"common_name":"acme.example","name_value":"www.acme.example\nacme.example\n*.acme.example"},
 			{"common_name":"mail.acme.example","name_value":"MAIL.acme.example.\nfoo@acme.example\nevil.other.example\nxacme.example"},
 			{"common_name":"internal.acme.example","name_value":"internal.acme.example\ngone.acme.example"}]`
 		var asked []string
@@ -198,31 +257,45 @@ func TestDomainScan(t *testing.T) {
 			"acme.example": addrs("203.0.113.10"), "www.acme.example": addrs("203.0.113.10"), "mail.acme.example": addrs("203.0.113.11"),
 			"internal.acme.example": addrs("10.0.0.5"),
 		}
-		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked)).Domain(t.Context(), "acme.example")
+		log := &probeLog{}
+		var offered []string
+		verified := func(_ context.Context, a netip.Addr) bool {
+			offered = append(offered, a.String())
+			return a.String() == "203.0.113.10"
+		}
+		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked), log).Domain(t.Context(), "acme.example", verified)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(asked) != 1 || asked[0] != "https://crt.sh/?q=%25.acme.example&output=json" {
+		if len(asked) != 1 || asked[0] != "https://crt.sh/?q=%25.acme.example&output=json&exclude=expired" {
 			t.Fatalf("CT asked %v", asked)
 		}
 		var names []string
 		for _, h := range got.Hosts {
 			names = append(names, h.Name+"="+h.IP.String())
 		}
-		if want := []string{"acme.example=203.0.113.10", "www.acme.example=203.0.113.10", "mail.acme.example=203.0.113.11", "internal.acme.example=10.0.0.5"}; !slices.Equal(names, want) {
+		if want := []string{"acme.example=203.0.113.10", "internal.acme.example=10.0.0.5", "mail.acme.example=203.0.113.11", "www.acme.example=203.0.113.10"}; !slices.Equal(names, want) {
 			t.Fatalf("hosts %v, want %v", names, want)
+		}
+		if !slices.Equal(offered, []string{"203.0.113.10", "203.0.113.11"}) {
+			t.Fatalf("addresses offered for a port scan: %v (only public ones)", offered)
 		}
 		if d := n.dials("10.0.0.5"); d != 0 {
 			t.Fatalf("a private address was dialed %d times", d)
 		}
 		if d := n.dials("203.0.113.10:"); d < len(commonPorts) {
-			t.Fatalf("%d dials to the public address, want every port of the list", d)
+			t.Fatalf("%d dials to the verified address, want every port of the list", d)
+		}
+		for _, d := range n.dialed { // the address that is not a verified IP: by name, on 80 and 443 only
+			if strings.HasPrefix(d, "203.0.113.11:") && d != "203.0.113.11:80" && d != "203.0.113.11:443" {
+				t.Fatalf("an unverified address was port-scanned: %s", d)
+			}
 		}
 		var ports []string
 		for _, p := range got.Ports {
 			ports = append(ports, fmt.Sprintf("%s:%d/%s/%s", p.IP, p.Port, p.Service, p.Product))
 		}
-		if want := []string{"203.0.113.10:22/ssh/", "203.0.113.10:80/http/nginx/1.22", "203.0.113.10:443/https/FortiGate", "203.0.113.11:993/imaps/"}; !slices.Equal(ports, want) {
+		if want := []string{"203.0.113.10:22/ssh/", "203.0.113.10:80/http/nginx/1.22", "203.0.113.10:443/https/FortiGate"}; !slices.Equal(ports, want) {
 			t.Fatalf("ports %v, want %v", ports, want)
 		}
 		if len(got.Admin) != 2 || got.Admin[0] != (Admin{URL: "https://acme.example", Product: "FortiGate", IP: netip.MustParseAddr("203.0.113.10"), Port: 443, Danger: true}) ||
@@ -237,8 +310,16 @@ func TestDomainScan(t *testing.T) {
 		for _, c := range got.Certs {
 			certs = append(certs, c.Host+"|"+c.Issuer+"|"+c.NotAfter.Format(time.RFC3339))
 		}
-		if want := []string{"acme.example|Example CA R1|2031-03-04T05:06:07Z", "www.acme.example|Example CA R1|2031-03-04T05:06:07Z", "mail.acme.example:993|Self-signed|2031-03-04T05:06:07Z"}; !slices.Equal(certs, want) {
+		if want := []string{"acme.example|Example CA R1|2031-03-04T05:06:07Z", "mail.acme.example|Self-signed|2031-03-04T05:06:07Z", "www.acme.example|Example CA R1|2031-03-04T05:06:07Z"}; !slices.Equal(certs, want) {
 			t.Fatalf("certs %v, want %v", certs, want)
+		}
+		allLogged(t, n, log)
+		if want := []string{
+			"http acme.example GET http://acme.example/ true", "http mail.acme.example GET http://mail.acme.example/ false", "http www.acme.example GET http://www.acme.example/ true",
+			"https acme.example GET https://acme.example/ true", "https mail.acme.example GET https://mail.acme.example/ true", "https www.acme.example GET https://www.acme.example/ true",
+			"tcp 203.0.113.10 TCP connect to 98 ports; open: 22, 80, 443 true",
+		}; !slices.Equal(log.requests(), want) {
+			t.Fatalf("probe log %q", log.requests())
 		}
 	})
 }
@@ -248,21 +329,26 @@ func TestIPScan(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		cert := selfSigned(t, "pfsense.localdomain", "")
-		n := &fakeNet{open: map[string]handler{"203.0.113.7:8443": overTLS(cert, serve(htmlPage("pfSense - Login")))}}
-		s := newScanner(t, n, fakeResolver{}, nil)
+		n := &fakeNet{open: map[string]handler{
+			"203.0.113.7:8443": overTLS(cert, serve(htmlPage("pfSense - Login"))),
+			"203.0.113.7:993":  overTLS(cert, silent),
+		}}
+		log := &probeLog{}
+		s := newScanner(t, n, fakeResolver{}, nil, log)
 		got, err := s.IP(t.Context(), netip.MustParseAddr("203.0.113.7"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(got.Hosts) != 0 || len(got.Ports) != 1 || got.Ports[0].Product != "pfSense" || got.Ports[0].Service != "https" {
+		if len(got.Hosts) != 0 || len(got.Ports) != 2 || got.Ports[1].Product != "pfSense" || got.Ports[1].Service != "https" {
 			t.Fatalf("result %+v", got)
 		}
 		if len(got.Admin) != 1 || got.Admin[0].URL != "https://203.0.113.7:8443" || !got.Admin[0].Danger {
 			t.Fatalf("admin %+v", got.Admin)
 		}
-		if len(got.Certs) != 1 || got.Certs[0].Host != "203.0.113.7:8443" || got.Certs[0].Issuer != "Self-signed" {
+		if len(got.Certs) != 2 || got.Certs[0].Host != "203.0.113.7:993" || got.Certs[1].Host != "203.0.113.7:8443" || got.Certs[1].Issuer != "Self-signed" {
 			t.Fatalf("certs %+v", got.Certs)
 		}
+		allLogged(t, n, log)
 		before := len(n.dialed)
 		if _, err := s.IP(t.Context(), netip.MustParseAddr("192.168.1.1")); !errors.Is(err, ErrNotPublic) {
 			t.Fatalf("private IP: %v", err)
@@ -273,45 +359,75 @@ func TestIPScan(t *testing.T) {
 	})
 }
 
-// No answer from CT stops the scan (a snapshot without the subdomains would say they are gone): asked twice, nothing dialed.
-func TestCTDownStopsTheScan(t *testing.T) {
+// Nothing is probed that is not logged: a probe log that cannot be written stops the scan before the first dial.
+func TestNoProbeWithoutTheLog(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		for _, c := range []struct {
-			status int
-			body   string
-		}{{502, "Bad Gateway"}, {200, "<html>busy</html>"}} {
-			n := &fakeNet{open: map[string]handler{}}
-			var asked []string
-			_, err := newScanner(t, n, fakeResolver{"acme.example": addrs("203.0.113.10")}, ctAnswer(c.status, c.body, &asked)).Domain(t.Context(), "acme.example")
-			if !errors.Is(err, ErrCT) || len(asked) != 2 || len(n.dialed) != 0 {
-				t.Fatalf("%d: err %v, asked %d, dialed %d", c.status, err, len(asked), len(n.dialed))
-			}
+		n := &fakeNet{open: map[string]handler{"203.0.113.7:22": silent}}
+		_, err := newScanner(t, n, fakeResolver{}, nil, &probeLog{fail: errors.New("disk full")}).IP(t.Context(), netip.MustParseAddr("203.0.113.7"))
+		if err == nil || len(n.dialed) != 0 {
+			t.Fatalf("err %v, %d dials", err, len(n.dialed))
 		}
 	})
 }
 
-// A redirect to the same page origin is followed; one elsewhere is not (it is matched as its Location), and nothing but the
-// planned address is ever dialed.
-func TestRedirects(t *testing.T) {
+// No answer from CT stops the scan (a snapshot without the subdomains would say they are gone): asked twice, nothing dialed. A
+// redirect from crt.sh is not followed. Too many names stop it too, without a second request.
+func TestCTFailuresStopTheScan(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
+		var many strings.Builder
+		many.WriteString("[")
+		for i := range maxNames {
+			fmt.Fprintf(&many, `{"name_value":"h%d.acme.example"},`, i)
+		}
+		many.WriteString(`{"name_value":"last.acme.example"}]`)
+		for _, c := range []struct {
+			status int
+			body   string
+			want   error
+			asks   int
+		}{{502, "Bad Gateway", ErrCT, 2}, {200, "<html>busy</html>", ErrCT, 2}, {302, "", ErrCT, 2}, {200, many.String(), ErrTooManyNames, 1}} {
+			n := &fakeNet{open: map[string]handler{}}
+			var asked []string
+			_, err := newScanner(t, n, fakeResolver{"acme.example": addrs("203.0.113.10")}, ctAnswer(c.status, c.body, &asked), &probeLog{}).
+				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true })
+			if !errors.Is(err, c.want) || len(asked) != c.asks || len(n.dialed) != 0 {
+				t.Fatalf("%d: err %v, asked %d, dialed %d", c.status, err, len(asked), len(n.dialed))
+			}
+		}
+		s, err := New(Config{Public: testPublic, Probes: &probeLog{}, Log: slog.New(slog.DiscardHandler)})
+		if err != nil || s.ct.CheckRedirect == nil || !errors.Is(s.ct.CheckRedirect(nil, nil), http.ErrUseLastResponse) {
+			t.Fatal("the crt.sh client follows redirects")
+		}
+	})
+}
+
+// A redirect is never followed (one GET of "/"): its Location is matched as a hint, and nothing but the planned address is dialed.
+func TestRedirectsAreNotFollowed(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		var paths []string
 		n := &fakeNet{open: map[string]handler{
 			"203.0.113.7:80": serve(func(r *http.Request) string {
-				if r.URL.Path == "/login" {
-					return htmlPage("RouterOS router configuration page")(r)
-				}
-				return "HTTP/1.1 302 Found\r\nLocation: /login\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				mu.Unlock()
+				return "HTTP/1.1 302 Found\r\nLocation: /webfig/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 			}),
 			"203.0.113.7:10443": overTLS(selfSigned(t, "vpn", ""), serve(func(*http.Request) string {
 				return "HTTP/1.1 302 Found\r\nLocation: https://elsewhere.example/remote/login?lang=en\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 			})),
 		}}
-		got, err := newScanner(t, n, fakeResolver{}, nil).IP(t.Context(), netip.MustParseAddr("203.0.113.7"))
+		got, err := newScanner(t, n, fakeResolver{}, nil, &probeLog{}).IP(t.Context(), netip.MustParseAddr("203.0.113.7"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(got.Admin) != 1 || got.Admin[0].Product != "MikroTik RouterOS" || got.Admin[0].URL != "http://203.0.113.7" {
+		if !slices.Equal(paths, []string{"/"}) {
+			t.Fatalf("paths asked %v", paths)
+		}
+		if len(got.Admin) != 1 || got.Admin[0].Product != "MikroTik RouterOS" || got.Admin[0].URL != "http://203.0.113.7" { //nolint:misspell // RouterOS is the product name
 			t.Fatalf("admin %+v", got.Admin)
 		}
 		if len(got.Ports) != 2 || got.Ports[1].Product != "Fortinet SSL VPN" {
@@ -359,41 +475,50 @@ func TestIdentify(t *testing.T) {
 
 func TestParseCT(t *testing.T) {
 	t.Parallel()
-	if _, err := parseCT(strings.NewReader(`{"error":"busy"}`), "acme.example", maxCTBody); err == nil {
-		t.Fatal("an object was taken for the list")
+	for _, bad := range []string{`{"error":"busy"}`, `[{"name_value":"a.acme.example"}, {"name_value":`, `[{"name_value":"a.acme.example"}`, `[{"name_value":5}]`} {
+		if _, err := parseCT([]byte(bad), "acme.example", maxCTBody); err == nil {
+			t.Fatalf("%s was taken", bad)
+		}
 	}
-	if _, err := parseCT(strings.NewReader(`[{"name_value":"a.acme.example"}, {"name_value":`), "acme.example", maxCTBody); err == nil {
-		t.Fatal("a broken answer was taken")
+	// the same names in another order give the same list: the domain first, then sorted, each once
+	a, err := parseCT([]byte(`[{"name_value":"b.acme.example\na.acme.example"},{"common_name":"acme.example","name_value":"a.acme.example"}]`), "acme.example", maxCTBody)
+	if err != nil || !slices.Equal(a, []string{"acme.example", "a.acme.example", "b.acme.example"}) {
+		t.Fatalf("%v %v", a, err)
 	}
-	// at most maxNames names, the domain first; the rest of a long answer is not read
+	// nothing is cut: over the name cap, over the size limit, or one certificate over maxCTEntry, the answer is refused
 	var b strings.Builder
 	b.WriteString("[")
-	for i := range 500 {
+	for i := range maxNames - 2 { // with "last" and the domain: exactly maxNames
 		fmt.Fprintf(&b, `{"name_value":"h%d.acme.example"},`, i)
 	}
-	b.WriteString(`"not an entry"]`)
-	names, err := parseCT(strings.NewReader(b.String()), "acme.example", maxCTBody)
-	if err != nil || len(names) != maxNames || names[0] != "acme.example" || names[1] != "h0.acme.example" {
-		t.Fatalf("%d names, %v", len(names), err)
+	b.WriteString(`{"name_value":"last.acme.example"}]`)
+	if names, err := parseCT([]byte(b.String()), "acme.example", maxCTBody); err != nil || len(names) != maxNames {
+		t.Fatalf("at the cap: %d names, %v", len(names), err)
 	}
-	// an answer cut at the size limit keeps the whole entries before the cut
-	big := `[{"name_value":"a.acme.example"},{"name_value":"` + strings.Repeat("x", 1000) + `"}]`
-	if names, err := parseCT(strings.NewReader(big), "acme.example", 500); err != nil || !slices.Equal(names, []string{"acme.example", "a.acme.example"}) {
-		t.Fatalf("cut answer: %v %v", names, err)
+	over := strings.Replace(b.String(), `"last.acme.example"`, `"last.acme.example\none-more.acme.example"`, 1)
+	if _, err := parseCT([]byte(over), "acme.example", maxCTBody); !errors.Is(err, ErrTooManyNames) {
+		t.Fatalf("over the cap: %v", err)
+	}
+	if _, err := parseCT([]byte(`[{"name_value":"a.acme.example"}]`), "acme.example", 10); !errors.Is(err, ErrTooManyNames) {
+		t.Fatalf("over the size limit: %v", err)
+	}
+	huge := `[{"name_value":"` + strings.Repeat("a", maxCTEntry) + `"}]`
+	if _, err := parseCT([]byte(huge), "acme.example", maxCTBody); err == nil || errors.Is(err, ErrTooManyNames) {
+		t.Fatalf("an entry over maxCTEntry: %v", err)
 	}
 }
 
-// FuzzParseCT: whatever crt.sh sends, the parser does not panic and keeps only valid names under the domain.
+// FuzzParseCT: whatever crt.sh sends, the parser does not panic and keeps only valid names under the domain, sorted.
 func FuzzParseCT(f *testing.F) {
 	f.Add(`[{"common_name":"a.acme.example","name_value":"b.acme.example\n*.acme.example"}]`)
 	f.Add(`[{"name_value":"\u0000.acme.example"}]`)
 	f.Add(`[`)
 	f.Fuzz(func(t *testing.T, in string) {
-		names, err := parseCT(strings.NewReader(in), "acme.example", maxCTBody)
+		names, err := parseCT([]byte(in), "acme.example", maxCTBody)
 		if err != nil {
 			return
 		}
-		if len(names) == 0 || len(names) > maxNames || names[0] != "acme.example" {
+		if len(names) == 0 || len(names) > maxNames || names[0] != "acme.example" || !slices.IsSorted(names[1:]) {
 			t.Fatalf("names %v", names)
 		}
 		for _, n := range names[1:] {

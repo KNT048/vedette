@@ -123,6 +123,8 @@
         "confidence": "Confidence"
       },
       "lookup": "Look up {{dst}}",
+      "listedAs": "listed as {{name}}",
+      "listedAsHint": "The feed lists this name with all of its subdomains, so the name the device asked for is a bad destination too.",
       "blocked": "Blocked",
       "blockedHint": "The device that sent this log blocked the connection: the line records an attempt. A device that tries to reach a listed address may still be infected.",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",

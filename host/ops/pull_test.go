@@ -100,6 +100,52 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 	}
 }
 
+// D-452: the load of a bundle's layout is one more pull shape: oci:<plain absolute dir>:<the registry ref of a known service at a
+// version>. Nothing else of the oci, oci-archive, docker-archive or dir transports passes.
+func TestPodmanGrammarOfTheBundleLoad(t *testing.T) {
+	t.Parallel()
+	const dir = "/var/lib/vedette-host/bundle/img-123"
+	for _, s := range api.Services {
+		a, err := ociPullArgv(dir, s, "1.4.0-rc.1")
+		if err != nil || validatePodman(a) != nil || !slices.Equal(a, []string{"pull", "-q", "oci:" + dir + ":ghcr.io/knt048/vedette-" + s + ":1.4.0-rc.1"}) {
+			t.Errorf("%s: %q %v", s, a, err)
+		}
+	}
+	good := "ghcr.io/knt048/vedette-core:1.4.0"
+	for name, ref := range map[string]string{
+		"relative dir":       "oci:var/lib/x:" + good,
+		"parent in dir":      "oci:/var/lib/../x:" + good,
+		"dot segment":        "oci:/var/lib/./x:" + good,
+		"hidden segment":     "oci:/var/lib/.x:" + good,
+		"no ref":             "oci:" + dir,
+		"empty ref":          "oci:" + dir + ":",
+		"ref by digest":      "oci:" + dir + ":ghcr.io/knt048/vedette-core@" + dg1,
+		"other registry":     "oci:" + dir + ":docker.io/knt048/vedette-core:1.4.0",
+		"local name":         "oci:" + dir + ":localhost/vedette-core:1.4.0",
+		"unknown service":    "oci:" + dir + ":ghcr.io/knt048/vedette-nope:1.4.0",
+		"latest":             "oci:" + dir + ":ghcr.io/knt048/vedette-core:latest",
+		"build metadata":     "oci:" + dir + ":ghcr.io/knt048/vedette-core:1.4.0+b",
+		"space in dir":       "oci:/var/lib/a b:" + good,
+		"newline":            "oci:" + dir + ":" + good + "\n",
+		"oci-archive":        "oci-archive:" + dir + ".tar:" + good,
+		"docker-archive":     "docker-archive:" + dir + ".tar",
+		"dir transport":      "dir:" + dir,
+		"containers-storage": "containers-storage:" + good,
+		"option":             "--tls-verify=false",
+	} {
+		if err := validatePodman([]string{"pull", "-q", ref}); err == nil {
+			t.Errorf("%s: %q was accepted", name, ref)
+		}
+	}
+	for _, bad := range []struct{ dir, svc, ver string }{
+		{"rel/dir", "core", "1.4.0"}, {dir, "nope", "1.4.0"}, {dir, "core", "latest"}, {dir + "/..", "core", "1.4.0"}, {dir + ":x", "core", "1.4.0"}, {"/", "core", "1.4.0"},
+	} {
+		if a, err := ociPullArgv(bad.dir, bad.svc, bad.ver); err == nil {
+			t.Errorf("ociPullArgv(%q, %q, %q) = %q", bad.dir, bad.svc, bad.ver, a)
+		}
+	}
+}
+
 func TestPodmanBuildersMakeTheFixedShapes(t *testing.T) {
 	t.Parallel()
 	got, err := pullArgv("sensor", dg1)
@@ -184,7 +230,7 @@ func FuzzValidatePodmanPull(f *testing.F) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "pull":
-			if len(args) != 3 || args[1] != "-q" || !isPullRef(args[2]) {
+			if len(args) != 3 || args[1] != "-q" || !isPullRef(args[2]) && !isOCIPullRef(args[2]) {
 				t.Fatalf("accepted %q", args)
 			}
 		case "image":
@@ -374,6 +420,10 @@ func TestValidatePullArgs(t *testing.T) {
 	for name, mutate := range map[string]func(*api.ContainerPullArgs){
 		"bundle without id": func(a *api.ContainerPullArgs) { a.BundleID = "" },
 		"bundle bad id":     func(a *api.ContainerPullArgs) { a.BundleID = "xyz" },
+		"bundle upper id":   func(a *api.ContainerPullArgs) { a.BundleID = strings.Repeat("A", 32) },
+		"bundle path id":    func(a *api.ContainerPullArgs) { a.BundleID = "../../../../etc/passwd" + strings.Repeat("a", 10) },
+		"bundle with index": func(a *api.ContainerPullArgs) { a.Index = b },
+		"bundle with sig":   func(a *api.ContainerPullArgs) { a.ManifestSig = b },
 	} {
 		a := bundle
 		mutate(&a)

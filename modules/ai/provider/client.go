@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -294,7 +295,9 @@ var (
 var (
 	cgnat       = netip.MustParsePrefix("100.64.0.0/10")
 	v4Broadcast = netip.MustParseAddr("255.255.255.255")
-	ec2v6Meta   = netip.MustParseAddr("fd00:ec2::254") // the AWS metadata service over IPv6; it sits inside the unique-local range
+	// cloud metadata services that are not link-local: AWS and Google Cloud over IPv6 (inside the unique-local range), Alibaba
+	// (inside carrier-grade NAT) and Oracle. Same list as feeds, logs and notify.
+	metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("fd20:ce::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
 )
 
 // cloudMayDialPrivate lets the tests of this package dial httptest servers on loopback for profiles that are not internal. It is
@@ -302,11 +305,11 @@ var (
 var cloudMayDialPrivate = false
 
 // Forbidden reports whether ip is an address no profile may reach, whatever it is marked as: the unspecified address, multicast,
-// the limited broadcast, link-local (169.254.0.0/16, fe80::/10, which holds the 169.254.169.254 metadata service) and the IPv6
-// metadata address fd00:ec2::254. IPv4-mapped IPv6 is treated as the IPv4 address.
+// the limited broadcast, link-local (169.254.0.0/16, fe80::/10, which holds the 169.254.169.254 metadata service) and the other
+// cloud metadata addresses (metadataAddrs). IPv4-mapped IPv6 is treated as the IPv4 address.
 func Forbidden(ip netip.Addr) bool {
 	ip = ip.Unmap().WithZone("")
-	return ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip == v4Broadcast || ip == ec2v6Meta || carriesIPv4(ip)
+	return ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip == v4Broadcast || slices.Contains(metadataAddrs, ip) || carriesIPv4(ip)
 }
 
 // IsInternalAddr reports whether ip is a private address a profile inside the network may use: loopback (a local Ollama), RFC 1918,

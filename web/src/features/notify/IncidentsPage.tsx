@@ -70,7 +70,7 @@ function Content() {
                 <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={setFilter} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
               </div>
               {rows.length === 0 ? (
-                <EmptyState title={filter === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyAllTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t('incidents.emptyBody')}</EmptyState>
+                <EmptyState title={filter === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyAllTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
               ) : (
                 <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
                   mobileRow={(r) => (

@@ -29,7 +29,7 @@ import (
 
 // Bins are the binary names of the command runner.
 var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP, "podman", ops.BinIptables, ops.BinConntrack,
-	"systemd-run", "dpkg-deb", "dpkg-query", "busctl"}
+	"systemd-run", "dpkg-deb", "dpkg-query", "busctl", ops.BinAppArmorParser}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"
@@ -353,6 +353,26 @@ func (m *Machine) DockerRules() []string {
 		return nil
 	}
 	return strings.Split(strings.TrimSpace(string(b)), "\n")
+}
+
+// AppArmor makes the machine's kernel have AppArmor enabled (module parameter Y, securityfs, /usr/sbin/apparmor_parser present)
+// with the given profile lines listed (D-458), the packaged profile
+// file in /etc/apparmor.d, and an apparmor_parser that adds "vedette-container (enforce)" to the kernel's list when it is run
+// (unless the marker "aa-noload" is set: it then exits 0 and lists nothing; Rule can make it fail first).
+func (m *Machine) AppArmor(listed ...string) {
+	m.t.Helper()
+	m.WriteRoot("sys/module/apparmor/parameters/enabled", "Y\n")
+	text := ""
+	for _, l := range listed {
+		text += l + "\n"
+	}
+	m.WriteRoot("sys/kernel/security/apparmor/profiles", text)
+	m.WriteRoot("usr/sbin/apparmor_parser", "") // Podman's (and the host's) check wants the file; the fake binary lives in Bin
+	m.WriteRoot("etc/apparmor.d/"+ops.AppArmorProfile, "profile "+ops.AppArmorProfile+" {}\n")
+	m.writeFakeWith(ops.BinAppArmorParser, `[ -e "$REC/mark.aa-noload" ] && exit 0
+echo '`+ops.AppArmorProfile+` (enforce)' >> '`+filepath.Join(m.Root, "sys/kernel/security/apparmor/profiles")+`'
+exit 0
+`)
 }
 
 // BinPaths is the Deps.BinPaths of the fakes.

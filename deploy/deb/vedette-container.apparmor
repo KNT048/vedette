@@ -1,0 +1,58 @@
+# vedette-container: the AppArmor profile of every Vedette container (D-458). The vedette-host package installs it as
+# /etc/apparmor.d/vedette-container; its postinst loads it, and apparmor.service loads it at every boot before any unit
+# starts. Each Vedette Quadlet unit selects it through the containers.conf module /usr/lib/vedette/apparmor-containers.conf
+# (apparmor_profile), which Podman ignores on a machine without AppArmor.
+#
+# Derived from Podman's default container profile (containers-default-<version>): the template in
+# go.podman.io/common pkg/apparmor/apparmor_linux_template.go at github.com/podman-container-tools/container-libs commit 6506a4c7f388
+# (2026-11-06), Copyright The Containers Authors, Apache License 2.0. Changed by Vedette: a fixed name, the version checks
+# dropped (every supported apparmor_parser is >= 2.8.96), and the rules for a peer of this profile also match it stacked
+# with another profile, whatever the order.
+#
+# Why the stacked peer: on Ubuntu 24.04/26.04 and Debian 13 crun runs under its own profile "crun". A confined crun that
+# starts a process with NoNewPrivileges can only stack the container's profile on its own, so every process of the
+# container is "crun//&vedette-container" (the kernel orders the parts of a stack by name). A rule for the peer
+# "vedette-container" alone does not match that label, and the kernel then denied every signal inside a container:
+# podman-init forwarding SIGTERM to the scan worker, init.py stopping its children, and the SIGURG of Go's goroutine
+# preemption. Kernels >= 7.0.0-41 of Ubuntu 26.04 also stack "unconfined" on exec'd processes (Launchpad #2172640).
+
+#include <tunables/global>
+
+profile vedette-container flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  file,
+  umount,
+
+  # Allow signals from privileged profiles and from within the same profile
+  signal (receive) peer=unconfined,
+  # ... a process of this profile, alone or stacked with any other profile in any position (Vedette, D-458)
+  signal (send,receive) peer={,**//&}vedette-container{,//&**},
+  # Allow certain signals from OCI runtimes (podman, runc and crun)
+  signal (receive) peer={/usr/bin/,/usr/sbin/,}runc,
+  signal (receive) peer={/usr/bin/,/usr/sbin/,}crun*,
+  signal (receive) peer={/usr/bin/,/usr/sbin/,}podman,
+
+  deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
+  # deny write to files not in /proc/<number>/** or /proc/sys/**
+  deny @{PROC}/{[^1-9],[^1-9][^0-9],[^1-9s][^0-9y][^0-9s],[^1-9][^0-9][^0-9][^0-9]*}/** w,
+  deny @{PROC}/sys/[^k]** w,  # deny /proc/sys except /proc/sys/k* (effectively /proc/sys/kernel)
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,  # deny everything except shm* in /proc/sys/kernel/
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+
+  deny mount,
+
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # suppress ptrace denials when using 'ps' inside a container (this profile, alone or stacked: Vedette, D-458)
+  ptrace (trace,read) peer={,**//&}vedette-container{,//&**},
+}

@@ -23173,8 +23173,8 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 // handleInventoryGetInstallOsqueryFileRequest handles inventory_get_install_osquery_file operation.
 //
 // The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
-// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
-// other name is 404.
+// osquery--1.linux.x86_64.rpm, osquery_-1.linux_arm64.deb, osquery--1.linux.aarch64.rpm,
+// osquery-.msi), so servers need no Internet; public, no secret, any other name is 404.
 //
 // GET /install/osquery/{file}
 func (s *Server) handleInventoryGetInstallOsqueryFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23207,7 +23207,7 @@ func (s *Server) handleInventoryGetInstallOsqueryFileRequest(args [1]string, arg
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInstallOsqueryFileOperation,
-			OperationSummary: "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
+			OperationSummary: "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery_<v>-1.linux_arm64.deb, osquery-<v>-1.linux.aarch64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
 			OperationID:      "inventory_get_install_osquery_file",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23269,7 +23269,8 @@ func (s *Server) handleInventoryGetInstallOsqueryFileRequest(args [1]string, arg
 
 // handleInventoryGetInstallOsqueryPs1Request handles inventory_get_install_osquery_ps1 operation.
 //
-// Osquery install script for Windows Server, served by the box; public, contains no secrets.
+// Osquery install script for Windows Server, served by the box; public, contains no secrets; 404
+// no_box_address while the box knows no address other machines can reach.
 //
 // GET /install/osquery.ps1
 func (s *Server) handleInventoryGetInstallOsqueryPs1Request(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23288,7 +23289,7 @@ func (s *Server) handleInventoryGetInstallOsqueryPs1Request(args [0]string, args
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInstallOsqueryPs1Operation,
-			OperationSummary: "osquery install script for Windows Server, served by the box; public, contains no secrets",
+			OperationSummary: "osquery install script for Windows Server, served by the box; public, contains no secrets; 404 no_box_address while the box knows no address other machines can reach",
 			OperationID:      "inventory_get_install_osquery_ps1",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23345,8 +23346,9 @@ func (s *Server) handleInventoryGetInstallOsqueryPs1Request(args [0]string, args
 
 // handleInventoryGetInstallOsqueryShRequest handles inventory_get_install_osquery_sh operation.
 //
-// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the
-// box; public, contains no secrets (the token is passed as a parameter).
+// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64),
+// served by the box; public, contains no secrets (the token is passed as a parameter); 404
+// no_box_address while the box knows no address other machines can reach.
 //
 // GET /install/osquery.sh
 func (s *Server) handleInventoryGetInstallOsqueryShRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23365,7 +23367,7 @@ func (s *Server) handleInventoryGetInstallOsqueryShRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInstallOsqueryShOperation,
-			OperationSummary: "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)",
+			OperationSummary: "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64), served by the box; public, contains no secrets (the token is passed as a parameter); 404 no_box_address while the box knows no address other machines can reach",
 			OperationID:      "inventory_get_install_osquery_sh",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27307,6 +27309,10 @@ func (s *Server) handleLogsGetLogsEventsRequest(args [0]string, argsEscaped bool
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
 			},
 			Raw: r,
 		}

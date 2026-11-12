@@ -1116,21 +1116,23 @@ type Handler interface {
 	// InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
 	//
 	// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
-	// osquery--1.linux.x86_64.rpm, osquery-.msi), so servers need no Internet; public, no secret, any
-	// other name is 404.
+	// osquery--1.linux.x86_64.rpm, osquery_-1.linux_arm64.deb, osquery--1.linux.aarch64.rpm,
+	// osquery-.msi), so servers need no Internet; public, no secret, any other name is 404.
 	//
 	// GET /install/osquery/{file}
 	InventoryGetInstallOsqueryFile(ctx context.Context, params InventoryGetInstallOsqueryFileParams) (InventoryGetInstallOsqueryFileOK, error)
 	// InventoryGetInstallOsqueryPs1 implements inventory_get_install_osquery_ps1 operation.
 	//
-	// Osquery install script for Windows Server, served by the box; public, contains no secrets.
+	// Osquery install script for Windows Server, served by the box; public, contains no secrets; 404
+	// no_box_address while the box knows no address other machines can reach.
 	//
 	// GET /install/osquery.ps1
 	InventoryGetInstallOsqueryPs1(ctx context.Context) (InventoryGetInstallOsqueryPs1OK, error)
 	// InventoryGetInstallOsquerySh implements inventory_get_install_osquery_sh operation.
 	//
-	// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the
-	// box; public, contains no secrets (the token is passed as a parameter).
+	// One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64),
+	// served by the box; public, contains no secrets (the token is passed as a parameter); 404
+	// no_box_address while the box knows no address other machines can reach.
 	//
 	// GET /install/osquery.sh
 	InventoryGetInstallOsquerySh(ctx context.Context) (InventoryGetInstallOsqueryShOK, error)

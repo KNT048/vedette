@@ -1208,6 +1208,53 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await raw('GET', '/install/osquery.ps1')).text).toContain('-Uninstall')
   })
 
+  // D-399 (2), walk 4: a box opened as localhost only knows no address a server can reach; a command pinned to <VEDETTE_BOX_IP> would pass its
+  // hash check and then fail, so the box serves no script and the dialog says how to give the box an address instead of showing one.
+  it('no reachable box address: no script is served and the dialog explains instead of showing a command that cannot work', async () => {
+    const { setDataMode } = await import('@/mocks/db')
+    usersStore.get()
+    setDataMode('clean') // clean install with no LAN range: the mock box knows no address
+    try {
+      enableModule('agent-intake', true)
+      asAdmin()
+      expect((await call('GET', '/agents')).json!.server_url).toBe('https://<VEDETTE_BOX_IP>:8443')
+      for (const ext of ['sh', 'ps1']) {
+        const r = await raw('GET', `/install/osquery.${ext}`)
+        expect(r.status, ext).toBe(404)
+        expect(r.json!.error.code).toBe('no_box_address')
+        expect(r.text).not.toContain('BOX=')
+      }
+      const user = userEvent.setup()
+      renderApp('/devices/setup')
+      await clickUntil(user, () => screen.getByRole('button', { name: 'Create agent token' }), () => screen.getByRole('dialog'))
+      const form = await screen.findByRole('dialog', undefined, T)
+      await user.type(within(form).getByLabelText('Token name'), 'osquery lab')
+      await user.click(within(form).getByRole('button', { name: 'Create token' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Token for osquery lab' }, T)
+      expect(await within(dialog).findByText('Servers cannot reach this box at the address you opened it with', undefined, T)).toBeInTheDocument()
+      expect(within(dialog).getByText(/Open Vedette at the box's network address/)).toBeInTheDocument()
+      expect(dialog.textContent).not.toMatch(/VEDETTE_BOX_IP|curl -fsSLk|Get-FileHash/)
+      expect(within(dialog).getByText(/^vdt_osquery_[a-z0-9]{32}$/)).toBeInTheDocument() // the token itself is shown, and stays valid
+      await expectNoA11yViolations()
+    } finally {
+      setDataMode('sample')
+    }
+  })
+
+  it('the token row counts enrolled machines and the Linux command names both architectures (walk 4)', async () => {
+    enableModule('agent-intake', true)
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    expect(within(table).getByRole('columnheader', { name: /Machines enrolled/ })).toBeInTheDocument()
+    expect(within(table).queryByText(/Machines reporting/)).toBeNull()
+    await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    expect(within(dialog).getByText(/Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64/)).toBeInTheDocument()
+    const sums = await (await fetch(`${location.origin}/api/v1/install/osquery/SHA256SUMS`)).text()
+    for (const n of ['linux_amd64.deb', 'linux.x86_64.rpm', 'linux_arm64.deb', 'linux.aarch64.rpm', '.msi']) expect(sums).toContain(n)
+  })
+
   it('status endpoint: token only in the Authorization header; invalid, missing, URL-borne and expired tokens are refused', async () => {
     const { secret } = await newToken()
     sessionStore.set({ userId: null })

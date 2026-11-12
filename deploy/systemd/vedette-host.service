@@ -22,7 +22,7 @@ RestartMaxDelaySec=5min
 # control-group is systemd's default, kept to state the intent: a restart kills the apt/podman client processes still in this cgroup.
 # Containers are not in it: each lives in its own libpod scope and keeps running
 KillMode=control-group
-# bounds the Start steps (D-121): startHP 120 s + startup rollback 180 s + decoy re-apply 120 s + core check 60 s
+# bounds the Start steps (D-121): startHP 120 s (the AppArmor profile load, at most 20 s, D-458, runs beside it and is joined after it: max(120, 20)) + startup rollback 180 s + decoy re-apply 120 s + core check 60 s
 # + interrupted restore 300 s + core stop/start 120 s + half-written unit reset 60 s (D-123) = 960 s = 16 minutes
 TimeoutStartSec=16min
 # Hardening (D-150, DEPLOYMENT.md section 12). NO filesystem-namespace option here, ever (D-121): `ip netns add vedette-hp` bind-mounts on

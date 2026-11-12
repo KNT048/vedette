@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -70,6 +71,7 @@ type Runner struct {
 
 	mu     sync.Mutex
 	eng    *Engine          // the running capture, nil when idle
+	capErr string           // why the capture on the chosen card does not run now (sensorlink.CaptureErrors), "" while it runs or none is wanted
 	totals map[string]int64 // counters of finished Engines and of the Runner itself
 	seq    uint64           // last batch number handed out
 	off    bool             // core said module_off: nothing runs until a config call says the module is on
@@ -139,6 +141,9 @@ var (
 	errModuleOff  = errors.New("capture: module off")
 	errBadFilters = errors.New("capture: filters cannot be read")
 )
+
+// ErrNoInterface is wrapped by an Open that cannot find the card it was asked for; the heartbeat then says no_interface.
+var ErrNoInterface = errors.New("capture: no such network card on this machine")
 
 // Run asks core for the configuration and follows it until ctx ends: it captures on the interface core names, with the filters
 // core sends, and reports what it saw. It returns nil when ctx ends; an unreachable core is not an error (the capture goes
@@ -306,6 +311,7 @@ func backoff(base time.Duration, n int) time.Duration {
 // captureLoop captures on one interface until sctx ends, retrying with a growing pause when the card cannot be opened or the
 // capture fails. pctx is the process context: a session that ends because pctx did writes nothing more.
 func (r *Runner) captureLoop(pctx, sctx context.Context, st Settings) {
+	defer r.setCaptureErr("") // the session is over: a new one (another card, other filters, none) says its own; Run waits for this before it starts one
 	failures := 0
 	for sctx.Err() == nil {
 		got, err := r.session(pctx, sctx, st)
@@ -314,6 +320,7 @@ func (r *Runner) captureLoop(pctx, sctx context.Context, st Settings) {
 			<-sctx.Done()
 		case sctx.Err() != nil:
 		case errors.Is(err, errBadFilters):
+			r.setCaptureErr(sensorlink.CaptureFiltersInvalid)
 			r.count("filters_invalid")
 			r.log.ErrorContext(sctx, "sensor-passive: the filters from core cannot be read, not capturing", "error", err)
 			<-sctx.Done() // nothing to retry: only a new configuration helps
@@ -322,6 +329,7 @@ func (r *Runner) captureLoop(pctx, sctx context.Context, st Settings) {
 				failures = 0
 			}
 			failures++
+			r.setCaptureErr(captureReason(err))
 			r.count("capture_failed")
 			wait := backoff(r.retryEvery, failures)
 			r.log.WarnContext(sctx, "sensor-passive: capture stopped, will retry", "interface", st.Interface, "retry_in", wait.String(), "error", err)
@@ -354,6 +362,7 @@ func (r *Runner) session(pctx, sctx context.Context, st Settings) (received bool
 		return false, err
 	}
 	defer func() { _ = src.Close() }()
+	r.setCaptureErr("") // the card is open: the capture runs
 	r.setEngine(eng)
 	defer func() {
 		r.setEngine(nil)
@@ -381,6 +390,24 @@ func (r *Runner) setEngine(e *Engine) {
 	r.mu.Lock()
 	r.eng = e
 	r.mu.Unlock()
+}
+
+func (r *Runner) setCaptureErr(code string) {
+	r.mu.Lock()
+	r.capErr = code
+	r.mu.Unlock()
+}
+
+// captureReason maps an error that stopped the capture to the reason the heartbeat carries (sensorlink.CaptureErrors): the error's
+// text never leaves the sensor, it is in the sensor's log.
+func captureReason(err error) string {
+	switch {
+	case errors.Is(err, os.ErrPermission): // EPERM, EACCES: no CAP_NET_RAW (a rootless container)
+		return sensorlink.CaptureNoPermission
+	case errors.Is(err, ErrNoInterface):
+		return sensorlink.CaptureNoInterface
+	}
+	return sensorlink.CaptureFailed
 }
 
 // mergeCounters adds the counters of a finished Engine to the totals the heartbeat reports.
@@ -728,6 +755,7 @@ func (r *Runner) heartbeat(ctx context.Context) (*sensorlink.PassiveHeartbeat, e
 	now := r.clock()
 	r.mu.Lock()
 	eng := r.eng
+	hb.CaptureError = r.capErr
 	r.mu.Unlock()
 	if eng != nil {
 		pps, others, last := eng.Stats(now)

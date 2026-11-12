@@ -10,6 +10,7 @@ Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto

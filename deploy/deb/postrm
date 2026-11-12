@@ -17,6 +17,9 @@ remove | purge)
 		deb-systemd-helper unmask "$UNIT" >/dev/null || true
 	fi
 	if [ "$1" = purge ]; then
+		# the compiled cache of the containers' AppArmor profile (D-458), as dh_apparmor's postrm does: dpkg removed the profile
+		# (a conffile) itself; the loaded profile stays in the kernel until the next boot. Never anything else.
+		rm -f /var/cache/apparmor/*/vedette-container /var/cache/apparmor/vedette-container
 		echo "vedette-host: the data was kept (/var/lib/vedette, /var/lib/vedette-host, /var/lib/vedette-honeypot, /etc/vedette, the users). To delete it run: sh install.sh --uninstall --yes (see docs/RUNBOOK.md)." >&2
 	fi
 	;;

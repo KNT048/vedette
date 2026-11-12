@@ -133,8 +133,8 @@ const (
 // A quote still open at the end of the text does not swallow the rows after
 // it: that row is flagged and the text from its start is read again with
 // quotes taken literally, so every physical row is accounted for.
-func parseCSV(text string, delim rune, quotes bool) []csvRow {
-	return parseCSVFrom(text, delim, quotes, 1)
+func parseCSV(text string, delim rune) []csvRow {
+	return parseCSVFrom(text, delim, true, 1)
 }
 
 // parseCSVFrom is parseCSV for a text whose first line is number line0 of the original (the re-read after an open quote).
@@ -206,7 +206,7 @@ func parseCSVFrom(text string, delim rune, quotes bool, line0 int) []csvRow {
 	}
 	if inQuote {
 		rest := parseCSVFrom(text[rowStart:], delim, false, startLine)
-		if len(rest) > 0 {
+		if len(rest) > 0 && rest[0].line == startLine { // not when the row that opened the quote was a comment
 			rest[0].bad = csvOpenQuote
 		}
 		return append(rows, rest...)
@@ -218,7 +218,7 @@ func parseCSVFrom(text string, delim rune, quotes bool, line0 int) []csvRow {
 }
 
 func extractCSV(text string, p Parser, ids []string, delim rune) ([]rawRow, error) {
-	rows := parseCSV(text, delim, true)
+	rows := parseCSV(text, delim)
 	var header []string
 	if p.HasHeader && len(rows) > 0 {
 		if rows[0].bad != "" {

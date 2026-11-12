@@ -58,6 +58,8 @@ type LogDigestBadConn struct {
 	Confidence float64  `json:"confidence"`
 	// Blocked is logs' IocHit.Blocked (D-227): the device that logged the line stopped it, so it was an attempt, not a connection.
 	Blocked bool `json:"blocked"`
+	// AssetID is the inventory id of the device: the box uses it to link an item to the device, it is never sent to the AI.
+	AssetID *string `json:"asset_id"`
 }
 
 func (d LogDigestData) empty() bool {
@@ -70,6 +72,9 @@ type LogDigestItem struct {
 	Title          string   `json:"title"`
 	Evidence       []string `json:"evidence"`
 	Recommendation string   `json:"recommendation"`
+	// AssetID links the item to a device: set by the box when the item names exactly one device of the bad connections it sent, never
+	// by the model (D-428).
+	AssetID string `json:"asset_id,omitempty"`
 }
 
 // LogDigestResult is the answer of GET and POST /ai/logs/digest (LogDigest of contract.ts).
@@ -164,13 +169,18 @@ func digestVerb(x LogDigestBadConn) string {
 	return "not marked blocked (it went through, or the log does not say)"
 }
 
+// digestShown is how many of each list the level sends to the provider.
+func digestShown(tier Tier) int {
+	if tier == TierMin {
+		return digestListMaxMin
+	}
+	return digestListMax
+}
+
 // digestBlock is the data block of the call: signatures, counts and connections, capped. Every text came from a device or a feed, so
 // each goes through clip (control characters removed, cut to length) and then the before-AI hooks, like any data block.
 func digestBlock(d LogDigestData, tier Tier) DataBlock {
-	n := digestListMax
-	if tier == TierMin {
-		n = digestListMaxMin
-	}
+	n := digestShown(tier)
 	var b strings.Builder
 	// counts carry thousands separators: a 9- or 12-digit count must not read as an identity number to the hooks
 	fmt.Fprintf(&b, "Window: the last 24 hours. Lines received: %s. Baseline: %d days.\n", number(d.Lines24h), d.BaselineDays)
@@ -276,6 +286,53 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 	return out, mem, nil
 }
 
+// linkDevices sets the device link of every item that names exactly one device among the bad connections that were sent: its name or its
+// IP address, as a whole word, in the title or the evidence. An item that names none, or two different devices, gets no link: the
+// model's words choose among the box's own ids and never make one up (D-428).
+func linkDevices(items []LogDigestItem, conns []LogDigestBadConn) {
+	for i := range items {
+		it := &items[i]
+		text := it.Title + "\n" + strings.Join(it.Evidence, "\n")
+		found := ""
+		for _, c := range conns {
+			if c.AssetID == nil || *c.AssetID == "" || *c.AssetID == found {
+				continue
+			}
+			named := c.AssetName != nil && hasWord(text, clip(*c.AssetName, digestNameChars))
+			if !named && !hasWord(text, clip(c.SrcIP, 45)) {
+				continue
+			}
+			if found != "" {
+				found = ""
+				break
+			}
+			found = *c.AssetID
+		}
+		it.AssetID = found
+	}
+}
+
+// hasWord is true when word is in text, not as a part of a longer name or address (letters, digits, - _ . around it count as part, and : before it; a : after it is a port, a . after it ends a sentence).
+func hasWord(text, word string) bool {
+	if word == "" {
+		return false
+	}
+	text, word = strings.ToLower(text), strings.ToLower(word)
+	for from := 0; ; {
+		i := strings.Index(text[from:], word)
+		if i < 0 {
+			return false
+		}
+		a, b := from+i, from+i+len(word)
+		if (a == 0 || !wordPart(text[a-1])) && (b == len(text) || text[b] == ':' || !wordPart(text[b]) || (text[b] == '.' && (b+1 == len(text) || !wordPart(text[b+1])))) {
+			return true
+		}
+		from = a + 1
+	}
+}
+
+func wordPart(c byte) bool { return isWordByte(c) || c == '-' || c == '.' || c == ':' || c >= 0x80 }
+
 func (s *Service) digestView(tier Tier, body logDigestBody, model, profile string, tin, tout int, at time.Time) LogDigestResult {
 	v := LogDigestResult{Tier: tier, GeneratedAt: FormatTS(at), Cadence: digestCadence(tier, body.Investigated), Summary: body.Summary, Items: body.Items, ToolCalls: nonNilCalls(body.ToolCalls), Model: model, Profile: profile}
 	v.Tokens.Input, v.Tokens.Output = tin, tout
@@ -319,6 +376,10 @@ func (s *Service) loadDigest(ctx context.Context, tier Tier, hash string) (LogDi
 	return s.digestView(tier, body, model, profile, tin, tout, t), true, nil
 }
 
+func errLogsOff() error {
+	return apiUnavailable("The logs module is off, so there is no log summary to read. Turn it on in Settings, Modules.")
+}
+
 func (s *Service) readLogDigest(ctx context.Context) (LogDigestData, error) {
 	if s.cfg.LogDigest == nil {
 		return LogDigestData{}, apiUnavailable("The box has no logs to summarise. Turn on the logs module in Settings, Modules.")
@@ -328,7 +389,7 @@ func (s *Service) readLogDigest(ctx context.Context) (LogDigestData, error) {
 		return LogDigestData{}, fmt.Errorf("ai: read log digest: %w", err)
 	}
 	if !on {
-		return LogDigestData{}, apiUnavailable("The logs module is off, so there is no log summary to read. Turn it on in Settings, Modules.")
+		return LogDigestData{}, errLogsOff()
 	}
 	return d, nil
 }
@@ -337,11 +398,23 @@ func (s *Service) readLogDigest(ctx context.Context) (LogDigestData, error) {
 // made yet. When the logs hold no events there is nothing to summarise: the answer says so (empty), which needs no AI either. With the
 // logs module off it is 409 like POST, also when a digest was stored before: a stale digest is not served for logs that are off.
 func (s *Service) CachedLogDigest(ctx context.Context) (*LogDigestResult, error) {
+	tier := s.meter.Tier()
+	// With the registry at hand the module state is known without the aggregate of the logs: a stored digest is served as it is.
+	if s.cfg.Modules != nil && s.cfg.LogDigest != nil {
+		if !s.cfg.Modules.Enabled("logs") {
+			return nil, errLogsOff()
+		}
+		if v, ok, err := s.loadDigest(ctx, tier, ""); err != nil || ok {
+			if err != nil {
+				return nil, err
+			}
+			return &v, nil
+		}
+	}
 	d, err := s.readLogDigest(ctx)
 	if err != nil {
 		return nil, err
 	}
-	tier := s.meter.Tier()
 	if v, ok, err := s.loadDigest(ctx, tier, ""); err != nil || ok {
 		if err != nil {
 			return nil, err
@@ -372,10 +445,10 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if d.empty() {
 		return s.digestEmpty(tier, s.cfg.Clock()), nil
 	}
-	job, task, version := JobLogDigest, digestTask, "log-digest-v1"
+	job, task, version := JobLogDigest, digestTask, "log-digest-v2"
 	var ts *toolSession
 	if tier == TierMax && s.Ready(JobLogInvestigate) == nil {
-		job, task, version = JobLogInvestigate, digestTask+digestToolsTask, "log-investigate-v1"
+		job, task, version = JobLogInvestigate, digestTask+digestToolsTask, "log-investigate-v2"
 		ts = s.newToolSession(ctx, job)
 	}
 	suggest, err := suggestOn(ctx, s.cfg.DB.Reader())
@@ -419,6 +492,9 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 		Check: func(text string) error {
 			var perr error
 			body, remember, perr = parseDigest(text, suggest)
+			if perr == nil {
+				linkDevices(body.Items, d.BadConnections[:min(len(d.BadConnections), digestShown(tier))])
+			}
 			return perr
 		},
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
@@ -448,6 +524,13 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	}
 	spec.knowledge = &know
 	hash = HashContent(version + "\n" + string(tier) + "\n" + block.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n") + fmt.Sprintf("\nsuggest:%t", suggest))
+	// One caller at a time from here to the stored result: a second POST with the same inputs waits, then reads the digest the first made.
+	select {
+	case s.digestSlot <- struct{}{}:
+		defer func() { <-s.digestSlot }()
+	case <-ctx.Done():
+		return LogDigestResult{}, fmt.Errorf("ai: log digest: %w", ctx.Err())
+	}
 	if v, ok, err := s.loadDigest(ctx, tier, hash); err != nil || ok {
 		return v, err
 	}

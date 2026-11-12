@@ -33,7 +33,7 @@ type liveSource struct {
 func OpenLive(iface string) (Source, error) {
 	ifc, err := net.InterfaceByName(iface)
 	if err != nil {
-		return nil, fmt.Errorf("capture: interface %q: %w", iface, err)
+		return nil, fmt.Errorf("capture: interface %q: %w: %w", iface, ErrNoInterface, err)
 	}
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, 0) // protocol 0: nothing is queued before bind
 	if err != nil {

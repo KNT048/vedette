@@ -97,7 +97,7 @@ EOT
 		x '
 		getent passwd vedette vedette-sensor; getent group vedette vedette-sensor
 		grep -H "^containers:" /etc/subuid /etc/subgid
-		find /usr/lib/vedette /usr/lib/systemd/system/vedette-host.service /usr/share/doc/vedette-host /etc/vedette /etc/containers/systemd /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot \
+		find /usr/lib/vedette /usr/lib/systemd/system/vedette-host.service /usr/share/doc/vedette-host /etc/vedette /etc/containers/systemd /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /etc/apparmor.d/vedette-container \
 			-printf "%p %y %m %u:%g %s\n" | sort
 		sha256sum /usr/lib/vedette/vedette-host /usr/lib/systemd/system/vedette-host.service
 		echo "is-enabled=$(systemctl is-enabled vedette-host.service 2>&1)"
@@ -158,6 +158,8 @@ EOT
 	want "/usr/lib/vedette/vedette-host 755 root:root" '^/usr/lib/vedette/vedette-host f 755 root:root '
 	want "unit in /usr/lib/systemd/system 644 root:root" '^/usr/lib/systemd/system/vedette-host.service f 644 root:root '
 	want "honeypot containers.conf module 644 root:root (#486)" '^/usr/lib/vedette/honeypot-containers.conf f 644 root:root '
+	want "AppArmor containers.conf module 644 root:root (D-458)" '^/usr/lib/vedette/apparmor-containers.conf f 644 root:root '
+	want "AppArmor profile 644 root:root (D-458)" '^/etc/apparmor.d/vedette-container f 644 root:root '
 	# /usr/share/doc/vedette-host/{NOTICE,third-party-licenses} are not checked here: the container images exclude /usr/share/doc (dpkg path-exclude); deploy/deb/deb_test.go checks them in the package
 	want "/etc/vedette 755 root:root" '^/etc/vedette d 755 root:root '
 	want "/etc/containers/systemd 755 root:root" '^/etc/containers/systemd d 755 root:root '
@@ -232,6 +234,8 @@ EOT
 	# ---- remove and purge --------------------------------------------------------------------------------------------------
 	x 'apt-get remove -y -q vedette-host >/tmp/apt.log 2>&1' || fail "apt-get remove"
 	x 'test ! -e /usr/lib/vedette/vedette-host && test ! -e /usr/lib/systemd/system/vedette-host.service' || fail "remove left the binary or the unit"
+	# the AppArmor profile is a conffile (D-458): remove keeps it, purge deletes it (checked after the purge below)
+	x 'test -e /etc/apparmor.d/vedette-container' || fail "remove deleted the AppArmor profile (a conffile stays until purge)"
 	x 'test ! -e /etc/systemd/system/multi-user.target.wants/vedette-host.service' || fail "remove left the enable link"
 	x 'test "$(cat /var/lib/vedette/marker /etc/vedette/host.conf /var/lib/vedette-honeypot/config/marker | tr -d "\n")" = keepkeepkeep && test -d /var/lib/vedette-host && test -d /var/lib/vedette-honeypot/log' || fail "remove deleted data"
 	x 'getent passwd vedette vedette-sensor >/dev/null && getent group vedette vedette-sensor >/dev/null' || fail "remove deleted a user or group"
@@ -240,6 +244,7 @@ EOT
 	x 'apt-get purge -y -q vedette-host >/tmp/apt.log 2>&1' || fail "apt-get purge"
 	x 'test "$(cat /var/lib/vedette/marker /etc/vedette/host.conf /var/lib/vedette-honeypot/config/marker | tr -d "\n")" = keepkeepkeep && test -d /var/lib/vedette-host' || fail "purge deleted data"
 	x 'getent passwd vedette vedette-sensor >/dev/null && getent group vedette vedette-sensor >/dev/null && grep -q "^containers:" /etc/subuid /etc/subgid' || fail "purge deleted a user, a group or a subid line"
+	x 'test ! -e /etc/apparmor.d/vedette-container' || fail "purge left the AppArmor profile"
 	ok "purge: data (core_data, host.conf, honeypot folders, state), users, groups and subid lines stay"
 
 	install ""

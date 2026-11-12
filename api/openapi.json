@@ -4880,7 +4880,7 @@
                                   },
                                   "detail": {
                                     "type": "string",
-                                    "description": "On failure the box's reason (never the provider's message, the address or the key); empty on success"
+                                    "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
                                   }
                                 },
                                 "required": [
@@ -5100,7 +5100,7 @@
                             },
                             "detail": {
                               "type": "string",
-                              "description": "On failure the box's reason (never the provider's message, the address or the key); empty on success"
+                              "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
                             }
                           },
                           "required": [
@@ -5392,7 +5392,7 @@
                             },
                             "detail": {
                               "type": "string",
-                              "description": "On failure the box's reason (never the provider's message, the address or the key); empty on success"
+                              "description": "On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success"
                             }
                           },
                           "required": [

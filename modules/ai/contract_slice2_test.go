@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -537,6 +538,47 @@ func TestTheLastTestOfASavedProfileIsShown(t *testing.T) {
 	}
 	if lt := lastTest(newAPIOver(a.env)); lt != nil {
 		t.Fatalf("the cleared last test came back after a restart: %v", lt)
+	}
+	sonnet := strings.Replace(saved, "claude-haiku-5-5", "claude-sonnet-5-5", 1)
+	a.want("POST", "/ai/profiles/test", "admin", sonnet, 200, "")
+	a.want("POST", "/ai/profiles/test", "admin", strings.Replace(sonnet, `"name":"Saved",`, `"name":"Renamed","api_key":"`+keyA+`",`, 1), 200, "") // the saved key typed again
+	if lt := lastTest(a); lt == nil || lt["ok"] != true {
+		t.Fatalf("a test of the edited profile as saved = %v", lt)
+	}
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Renamed", keyB), "claude-haiku-5-5", "claude-sonnet-5-5", 1), 200, "")
+	if lt := lastTest(a); lt != nil {
+		t.Fatalf("a new key kept the last test: %v", lt)
+	}
+	a.want("POST", "/ai/profiles/test", "admin", sonnet, 200, "")
+	a.want("DELETE", "/ai/profiles/"+id, "admin", "", 200, "")
+	var stored string
+	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT value FROM ai_setting WHERE key = 'profile_tests'`).Scan(&stored); err != nil || strings.Contains(stored, id) {
+		t.Fatalf("the last test of a removed profile is kept: %q, %v", stored, err)
+	}
+}
+
+// The result of a test is not written onto a profile whose connection was edited while the test ran (withTest checks again).
+func TestAnEditDuringATestDropsItsResult(t *testing.T) {
+	a := newAPI(t)
+	id := a.addProfile(cloudBody("Saved", keyA))["id"].(string)
+	started, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	a.fake.mu.Lock()
+	a.fake.onCall = func() { once.Do(func() { close(started); <-release }) } // the first request of the test waits for the edit
+	a.fake.mu.Unlock()
+	done := make(chan int, 1)
+	go func() {
+		s, _, _ := a.do("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+strings.Replace(cloudBody("Saved", ""), `"api_key":"",`, "", 1)[1:])
+		done <- s
+	}()
+	<-started
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Saved", ""), "claude-haiku-5-5", "claude-sonnet-5-5", 1), 200, "")
+	close(release)
+	if s := <-done; s != 200 {
+		t.Fatalf("test status %d", s)
+	}
+	if lt := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[0].(map[string]any)["last_test"]; lt != nil {
+		t.Fatalf("the test of the old settings was written onto the edited profile: %v", lt)
 	}
 }
 

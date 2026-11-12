@@ -44,7 +44,8 @@ type ProfileView struct {
 }
 
 // LastTest is the last connection test of a saved profile as it is saved (S-AI-1): when, whether it worked, and on failure the
-// box's own reason (probeFailure: never the provider's message, the URL or the key). Saved in ai_setting key `profile_tests`.
+// box's own sentence (probeFailure), which may name the server's host but never the key or the provider's raw text. Saved in
+// ai_setting key `profile_tests`.
 type LastTest struct {
 	At     string `json:"at"`
 	OK     bool   `json:"ok"`
@@ -517,7 +518,7 @@ func (s *Service) withTest(saved Profile, failure error) *snapshot {
 		return nil
 	}
 	lt := &LastTest{At: store.FormatTS(s.cfg.Clock()), OK: failure == nil}
-	if failure != nil {
+	if failure != nil { // the box's own sentence: it may name the host, never the key or the provider's raw text
 		lt.Detail = "The test failed."
 		if ae, ok := apierr.As(failure); ok {
 			lt.Detail = clipRunes(ae.Message, 300)

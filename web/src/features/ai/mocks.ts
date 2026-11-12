@@ -314,7 +314,7 @@ export const handlers = [
     const dropped = AI_JOBS.filter((j) => (a.jobs[j.id].primary === p.id || a.jobs[j.id].fallback === p.id) && !allowed(p, j.id, a.internal_only))
     if (dropped.length) return fail(400, 'privacy_rule', `This profile is assigned to ${dropped.map((j) => JOB_NAME[j.id]).join(', ')}, which send internal data, and the privacy rule only allows internal profiles. Unassign it there first or switch the rule off.`)
     aiProfilesStore.update((l) => l.map((x) => (x.id === p.id ? p : x)))
-    if (ok.key || !sameConnection(cur, p)) setLastTest(p.id, null) // another address, model or key: the old test does not hold
+    if (!sameConnection(cur, p)) setLastTest(p.id, null) // another address, model or key (the mock keeps only its last 4) : the old test does not hold
     syncConfig()
     audit('ai.profile.edit', p.name, `${p.kind}, ${p.location}, model=${p.model}${ok.key ? ', key changed' : ''}`)
     return HttpResponse.json(profileView(p))
@@ -342,8 +342,8 @@ export const handlers = [
     const b = await body<ProfileInput>(request)
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
-    // only a test of the profile exactly as saved is its last test; a draft or a key not saved yet is not
-    const asSaved = cur && !ok.key && sameConnection(cur, toStored({ ...(b as ProfileInput), daily_cap: cur.daily_cap }, ok, cur.id, cur)) ? cur : undefined
+    // only a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a draft or another key is not
+    const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), daily_cap: cur.daily_cap }, ok, cur.id, cur)) ? cur : undefined
     const failed = (code: string, msg: string) => { if (asSaved) setLastTest(asSaved.id, { at: nowIso(), ok: false, detail: msg }); return fail(502, code, msg) }
     if (ok.url.hostname.includes('unreachable')) return failed('unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
     if (ok.key?.startsWith('bad')) return failed('key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')

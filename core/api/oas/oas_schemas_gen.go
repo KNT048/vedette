@@ -3582,7 +3582,8 @@ func (s *AiGetAiProfilesOKItemsItemKind) UnmarshalText(data []byte) error {
 
 type AiGetAiProfilesOKItemsItemLastTest struct {
 	At time.Time `json:"at"`
-	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	// On failure the box's own sentence, which may name the server's host but never the key or the
+	// provider's raw text; empty on success.
 	Detail string `json:"detail"`
 	Ok     bool   `json:"ok"`
 }
@@ -8083,7 +8084,8 @@ func (s *AiPostAiProfilesOKKind) UnmarshalText(data []byte) error {
 
 type AiPostAiProfilesOKLastTest struct {
 	At time.Time `json:"at"`
-	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	// On failure the box's own sentence, which may name the server's host but never the key or the
+	// provider's raw text; empty on success.
 	Detail string `json:"detail"`
 	Ok     bool   `json:"ok"`
 }
@@ -11188,7 +11190,8 @@ func (s *AiPutAiProfilesIDOKKind) UnmarshalText(data []byte) error {
 
 type AiPutAiProfilesIDOKLastTest struct {
 	At time.Time `json:"at"`
-	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	// On failure the box's own sentence, which may name the server's host but never the key or the
+	// provider's raw text; empty on success.
 	Detail string `json:"detail"`
 	Ok     bool   `json:"ok"`
 }

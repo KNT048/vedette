@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
+	"github.com/knt048/vedette/modules/response"
 )
 
 // The logs module on the real wiring: its sources are named after the inventory device with the same IP, lines go to
@@ -120,7 +121,7 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 		t.Fatalf("no HTTPS TLS must give no syslog TLS, got %v", got)
 	}
 	dir := t.TempDir()
-	cfg, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
+	cfg, _, _, renew, err := testTransport(t, options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
 	if err != nil || cfg == nil || renew == nil {
 		t.Fatalf("transport: cfg=%v renew=%v err=%v", cfg, renew, err)
 	}
@@ -145,7 +146,7 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 	if cfg.NextProtos == nil {
 		t.Error("cloning must not change the HTTPS configuration")
 	}
-	lo, _, _, _, err := transport(options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
+	lo, _, _, _, err := testTransport(t, options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
 	if err != nil || syslogTLS(lo) != nil {
 		t.Fatalf("a loopback box has no certificate: %v", err)
 	}
@@ -178,6 +179,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	ctx := t.Context()
 	s.setModule("feeds", true)
 	s.setModule("logs", true)
+	s.setModule("response", true) // #376: the hit is also response's ioc_connection event and an AI's ioc_hit evidence
 	dev, err := s.d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Name: "fw-hq", IP: "192.168.30.1"})
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +241,21 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if err := svc.ExportKnownBad(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"dest":"185.220.101.47"`) || !strings.Contains(out.String(), `"feeds":["`+feedName+`"]`) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
-	// response's evidence port (not wired yet: the adapter is the part that is ours)
+	// #376 (D-335): the same hit is an ioc_connection event of response, through the real bus, with the trigger fields filled
+	if n := s.count(`SELECT count(*) FROM resp_events WHERE id = ? AND trigger = 'ioc_connection' AND asset_id = ? AND fields LIKE '%"dest_ip":"185.220.101.47"%' AND fields LIKE '%"src_ip":"192.168.30.1"%' AND fields LIKE '%"confidence":"0.4"%'`, "ioc:"+h.ID, dev.ID); n != 1 {
+		t.Fatalf("the hit is not a response event (%d)", n)
+	}
+	// #376 (D-337): and it is evidence an AI proposal can cite through the wired port: found, so the gate after evidence answers
+	body := response.ProposeBody{Trigger: "ioc_connection", ActionID: "blocklist_add", Params: map[string]string{"ip": "185.220.101.47"}, Confidence: 0.5,
+		Evidence: []response.ProposedEvidence{{Kind: "ioc_hit", ID: h.ID}}, Why: "A device talked to a listed address."}
+	if res, err := s.d.Response.Propose(ctx, body); err != nil || res.Outcome != response.OutcomeSuggestion {
+		t.Fatalf("a proposal citing the hit: %+v %v", res, err)
+	}
+	s.setModule("logs", false)
+	_, err = s.d.Response.Propose(ctx, body)
+	apiErr(t, err, 422, "evidence_invalid")
+	s.setModule("logs", true)
+	// response's evidence port, the adapter itself
 	ev := logsIocEvidence(svc, func() bool { return true })
 	ref, ok, err := ev(ctx, h.ID)
 	if err != nil || !ok || ref.ID != h.ID || len(ref.Relates) != 2 || ref.Relates[0] != "192.168.30.1" || ref.Relates[1] != "185.220.101.47" || !strings.Contains(ref.Summary, "fw-hq") {

@@ -309,23 +309,34 @@ func TestReadTimeoutSparesTheLongPoll(t *testing.T) {
 		t.Errorf("HTTPServer: idle %v header %v", hs.IdleTimeout, hs.ReadHeaderTimeout)
 	}
 
-	r, addr := serveRig(t, sensorlink.Options{HeaderTimeout: 200 * time.Millisecond, BodyTimeout: 200 * time.Millisecond})
-	r.be.jobs = func(ctx context.Context, _ time.Duration, _ []string) (sensorlink.JobsReply, error) {
+	const header, body = 200 * time.Millisecond, 200 * time.Millisecond
+	r, addr := serveRig(t, sensorlink.Options{HeaderTimeout: header, BodyTimeout: body})
+	r.be.jobs = func(ctx context.Context, wait time.Duration, _ []string) (sensorlink.JobsReply, error) {
+		if wait == 0 { // the request that opens the connection (warmConn)
+			return sensorlink.JobsReply{Instance: instanceID}, nil
+		}
 		select {
-		case <-time.After(1200 * time.Millisecond): // three times the ReadTimeout
+		case <-time.After(3 * (header + body)): // three times the ReadTimeout, counted from after the request was read
 		case <-ctx.Done():
 			return sensorlink.JobsReply{}, ctx.Err()
 		}
 		return sensorlink.JobsReply{Instance: instanceID}, nil
 	}
-	p := r.peer(t, r.ca.leaf(t, leafOpts{serial: 200, uris: []string{"vedette:sensor:active"}}))
-	got, err := p.call(t, "https://"+addr, "GET", "/sensor/v1/jobs?wait=5", nil, nil)
-	if err != nil || got.status != 200 {
-		t.Fatalf("a long poll longer than ReadTimeout: %v %d", err, got.status)
+	poll := warmConn(t, r, addr, r.ca.leaf(t, leafOpts{serial: 200, uris: []string{"vedette:sensor:active"}}), "/sensor/v1/jobs?wait=0")
+	poll.send(t, "GET", "/sensor/v1/jobs?wait=5", []string{sensorlink.ProtoHeader + ": " + sensorlink.ProtoVersion}, false)
+	_ = poll.c.SetReadDeadline(time.Now().Add(time.Minute))
+	res, err := http.ReadResponse(poll.r, nil)
+	if err != nil {
+		t.Fatalf("a long poll longer than ReadTimeout: %v", err)
+	}
+	_, _ = io.Copy(io.Discard, res.Body)
+	_ = res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("a long poll longer than ReadTimeout: %d", res.StatusCode)
 	}
 
 	// a request that drips its body is cut off by the timeouts: the connection closes, the slot comes back
-	slow := dialTo(t, r, addr, r.ca.leaf(t, leafOpts{serial: 100}))
+	slow := warmConn(t, r, addr, r.ca.leaf(t, leafOpts{serial: 100}), "/sensor/v1/config")
 	slow.post(t, "/sensor/v1/heartbeat", 1000, 1)
 	_ = slow.c.SetReadDeadline(time.Now().Add(3 * time.Second))
 	if res, err := http.ReadResponse(slow.r, nil); err == nil {
@@ -336,6 +347,47 @@ func TestReadTimeoutSparesTheLongPoll(t *testing.T) {
 	if _, err := slow.r.ReadByte(); err == nil || isTimeout(err) {
 		t.Errorf("a dripping body kept its connection: %v", err)
 	}
+}
+
+// warmConn opens a connection that the server has taken, by a first quick request (GET path) that it answers; the request under test
+// then goes on the same connection. The TLS handshake has only the server's header timeout (min of ReadHeaderTimeout and ReadTimeout),
+// which a test shortens to a fraction of a second and a starved runner can miss with nothing wrong (the server closes, the client reads
+// EOF): such a dial is tried again, up to 20 times. The handshake is not what the tests that use this are about.
+func warmConn(t *testing.T, r *rig, addr string, cert tls.Certificate, path string) *rawConn {
+	t.Helper()
+	var last error
+	for range 20 {
+		c, err := (&tls.Dialer{Config: &tls.Config{
+			MinVersion: tls.VersionTLS13, RootCAs: r.ca.pool, Certificates: []tls.Certificate{cert}, Time: r.clk.Now, NextProtos: []string{"http/1.1"},
+		}}).DialContext(t.Context(), "tcp", addr)
+		if err != nil {
+			last = err
+			continue
+		}
+		rc := &rawConn{c: c, r: bufio.NewReader(c)}
+		_ = c.SetDeadline(time.Now().Add(30 * time.Second))
+		_, err = fmt.Fprintf(c, "GET %s HTTP/1.1\r\nHost: core\r\n%s: %s\r\n\r\n", path, sensorlink.ProtoHeader, sensorlink.ProtoVersion)
+		var res *http.Response
+		if err == nil {
+			res, err = http.ReadResponse(rc.r, nil)
+		}
+		if err != nil {
+			last = err
+			_ = c.Close()
+			continue
+		}
+		_, _ = io.Copy(io.Discard, res.Body)
+		_ = res.Body.Close()
+		if res.StatusCode != 200 {
+			_ = c.Close()
+			t.Fatalf("GET %s to open the connection: %d", path, res.StatusCode)
+		}
+		_ = c.SetDeadline(time.Time{})
+		t.Cleanup(func() { _ = c.Close() })
+		return rc
+	}
+	t.Fatalf("no connection was taken in 20 tries: %v", last)
+	return nil
 }
 
 func mustServer(t *testing.T) *sensorlink.Server {

@@ -35,8 +35,14 @@ func (s *syncBuf) String() string {
 
 func openLogged(t *testing.T) (*store.DB, *syncBuf) {
 	t.Helper()
+	return openLoggedAt(t, slog.LevelInfo)
+}
+
+// openLoggedAt is openLogged with the log kept from level up.
+func openLoggedAt(t *testing.T, level slog.Level) (*store.DB, *syncBuf) {
+	t.Helper()
 	buf := &syncBuf{}
-	db, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "w.db"), slog.New(slog.NewTextHandler(buf, nil)))
+	db, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "w.db"), slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level})))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,5 +263,59 @@ func TestWriteLogsALongTransaction(t *testing.T) {
 	}
 	if extra := logs.String()[before:]; strings.Contains(extra, "held the database writer") {
 		t.Errorf("a quick write was logged: %s", extra)
+	}
+}
+
+// A rollback that finds the transaction already gone is not an error. SQLite rolls a transaction back by itself when a statement is
+// interrupted (the driver interrupts it when ctx ends, so at every shutdown) and on some I/O errors; the ROLLBACK that Write sends then
+// fails with "no transaction is active", which Write logged as ERROR, and the end-to-end harness fails on any ERROR line (CI, #374).
+// Here fn ends the transaction under database/sql itself, which leaves SQLite in that state on every run. The rollback is still written,
+// at debug.
+func TestWriteWhoseTransactionSQLiteAlreadyEndedLogsNoError(t *testing.T) {
+	db, logs := openLoggedAt(t, slog.LevelDebug)
+	boom := errors.New("boom")
+	err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(t.Context(), "INSERT INTO t VALUES ('gone')"); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), "ROLLBACK"); err != nil {
+			return err
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("Write = %v, want fn's error", err)
+	}
+	if out := logs.String(); strings.Contains(out, "level=ERROR") ||
+		!strings.Contains(out, `level=DEBUG msg="rollback: SQLite had already rolled the transaction back"`) || !strings.Contains(out, "no transaction is active") {
+		t.Errorf("a rollback with no transaction left: want one debug line and no error:\n%s", out)
+	}
+	if err := insert(t.Context(), db, "after"); err != nil || count(t, db, "after") != 1 || count(t, db, "gone") != 0 {
+		t.Errorf("the writer after it: %v, %d rows 'after', %d rows 'gone'", err, count(t, db, "after"), count(t, db, "gone"))
+	}
+}
+
+// The case seen at shutdown: writes interrupted by the end of their context. Whether database/sql's own rollback or Write's reaches the
+// driver first is a race (about one write in 200 sent its ROLLBACK after SQLite had rolled back, on a loaded Mac); in no order is it an
+// ERROR line.
+func TestWritesInterruptedByTheirContextLogNoError(t *testing.T) {
+	db, logs := openLogged(t)
+	for range 50 {
+		ctx, cancel := context.WithCancel(t.Context())
+		err := db.Write(ctx, func(tx *sql.Tx) error {
+			go func() { <-time.After(time.Millisecond); cancel() }() // only a trigger: before the statement or inside it, both are fine
+			_, err := tx.ExecContext(ctx, `WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) INSERT INTO t SELECT x FROM c`)
+			return err
+		})
+		cancel()
+		if err == nil {
+			t.Fatal("an endless insert committed")
+		}
+	}
+	if out := logs.String(); strings.Contains(out, "level=ERROR") {
+		t.Errorf("an interrupted write was logged as an error:\n%s", out)
+	}
+	if err := insert(t.Context(), db, "after"); err != nil {
+		t.Errorf("the writer after the interrupted writes: %v", err)
 	}
 }

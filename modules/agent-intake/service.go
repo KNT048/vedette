@@ -52,7 +52,7 @@ type Config struct {
 	// The install scripts, the certificate and the package mirror (slice 3). All optional: without TrustAnchor, ca.pem and the scripts
 	// answer 404 no_certificate; without MirrorDir the package files answer 404 mirror_missing; without HostAllowed the request's Host is
 	// never used for the box address.
-	TrustAnchor func() ([]byte, error) // the PEM certificates osquery pins (cmd/vedette trustAnchorPEM); ErrNoTrustAnchor when the box has no certificate
+	TrustAnchor func() ([]byte, error) // the PEM certificates osquery pins (cmd/vedette trustAnchor); ErrNoTrustAnchor when the box has no certificate
 	HostAllowed func(host string) bool // the Host allow-list of the server (server.HostMatcher): the only Hosts the scripts may carry
 	BoxURL      string                 // the configured address of the box, https://host[:port], or "" when there is none
 	MirrorDir   string                 // the folder of the image that holds the pinned osquery packages

@@ -53,14 +53,14 @@ func newTestRenewer(t *testing.T, m *fakeMgmt) (*selfSignedRenewer, string) {
 	t.Helper()
 	dir := t.TempDir()
 	crt, key := filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
-	if err := ensureCert(crt, key, []string{"box.acme.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"box.acme.example"}); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadTLS(crt, key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &selfSignedRenewer{certPath: crt, keyPath: key, hosts: []string{"box.acme.example"}, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1), gap: 3 * time.Second} // long enough that a loaded CI runner cannot let the gap pass between two statements of a test
+	r := &selfSignedRenewer{certPath: crt, keyPath: key, hosts: []string{"box.acme.example"}, ca: testCA(t, dir), now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1), gap: 3 * time.Second} // long enough that a loaded CI runner cannot let the gap pass between two statements of a test
 	if m != nil {
 		r.mgmt = m.get
 	}
@@ -356,14 +356,12 @@ func TestReissueDoesNotNeedTheDiskAndFollowsAReplacedPair(t *testing.T) {
 	r2, _ := newTestRenewer(t, nil)
 	other := t.TempDir()
 	oc, ok := filepath.Join(other, "c.crt"), filepath.Join(other, "c.key")
-	if err := ensureCert(oc, ok, []string{"other.example"}); err != nil {
+	// The replacement is a whole pair of the same box (signed by its CA: a leaf that does not chain to the box's own CA is
+	// re-issued under it at the next check, TestBoxCAReplacedCAReissuesTheLeafAtTheNextCheck).
+	if err := ensureCertAt(t.Context(), r2.ca, oc, ok, []string{"other.example"}, time.Now, nil); err != nil {
 		t.Fatal(err)
 	}
-	// The replacement is a whole pair of another box, with its CA (a leaf that does not chain to the box's own
-	// CA is re-issued under it at the next check: TestBoxCAReplacedCAReissuesTheLeafAtTheNextCheck).
-	oCA, oCAKey := boxCAPaths(oc)
-	rCA, rCAKey := boxCAPaths(r2.certPath)
-	for src, dst := range map[string]string{oc: r2.certPath, ok: r2.keyPath, oCA: rCA, oCAKey: rCAKey} {
+	for src, dst := range map[string]string{oc: r2.certPath, ok: r2.keyPath} {
 		b, err := os.ReadFile(src) //nolint:gosec // test paths
 		if err != nil {
 			t.Fatal(err)

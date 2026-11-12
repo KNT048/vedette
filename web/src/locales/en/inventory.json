@@ -357,6 +357,8 @@
   "sensors": {
     "title": "Sensor on this box",
     "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. The port it listens on and SPAN are set in Settings → Box network.",
+    "descriptionNoSpan": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. It listens on the box's management port, set in Settings → Box network.",
+    "descriptionContainerNoSpan": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose the card it listens on here with Configure.",
     "descriptionContainer": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose the card it listens on, and the SPAN card, here with Configure.",
     "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
     "caption": "Sensors on this box",
@@ -384,6 +386,8 @@
     },
     "card": {
       "body": "Choose the card the sensor listens on among the cards it reported, and whether it is a SPAN card that receives mirrored traffic. This machine's network is yours: Vedette does not change the card.",
+      "bodyNoSpan": "Choose the card the sensor listens on among the cards it reported. This machine's network is yours: Vedette does not change the card.",
+      "spanKept": "{{name}} is saved as a SPAN port. This version of Vedette no longer sets SPAN up: you can untick it, not tick it again.",
       "label": "Listen on",
       "hint": "Run ip -br address on this machine to see which card has which address. Choose the card on the network you want to discover.",
       "auto": "Automatic ({{name}})",
@@ -403,6 +407,8 @@
     "configure": "Configure sensor {{name}}",
     "configTitle": "Configure {{name}}",
     "configBody": "The port the sensor listens on and whether mirrored traffic is arriving. Change them in Settings.",
+    "configBodyNoSpan": "The port the sensor listens on: the box's management port, set in Settings.",
+    "networkLink": "Open Settings → Box network",
     "interface": "Network interface",
     "spanStatus": "Mirrored traffic",
     "spanLink": "Configure SPAN in Settings → Box network",

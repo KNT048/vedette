@@ -63,7 +63,7 @@ export function QueryState<T>({ query, children }: { query: { data: T | undefine
 export function ModuleOff({ module, children }: { module: ModuleId; children?: ReactNode }) {
   const { t } = useTranslation()
   // A module this install cannot run (available false: needs vedette-host on a container-only install, D-381) cannot be
-  // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9 G5, D-TBD-g10 (4)).
+  // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9 G5, D-420 (4)).
   const notHere = useModules().data?.modules.find((m) => m.id === module)?.available === false
   if (notHere) {
     return (

@@ -281,7 +281,7 @@ func e2eOffline() func() {
 		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
 			return loop.RoundTrip(r)
 		}
-		if r.URL.Hostname() == e2eLoopbackName { // D-TBD-g10 (1): feeds refuses a loopback address at save, so the specs name the fakes
+		if r.URL.Hostname() == e2eLoopbackName { // D-420 (1): feeds refuses a loopback address at save, so the specs name the fakes
 			lr := r.Clone(r.Context())
 			lr.URL.Host = net.JoinHostPort("127.0.0.1", r.URL.Port())
 			return loop.RoundTrip(lr)
@@ -298,7 +298,7 @@ func e2eOffline() func() {
 }
 
 // e2eLoopbackName is the host name the e2e-real specs give a feed served by a node server on 127.0.0.1 (feeds.spec.ts,
-// findings-seed.ts, logs.global.spec.ts): the save check of feeds refuses loopback addresses (D-TBD-g10 (1)), a `.lan` name may use
+// findings-seed.ts, logs.global.spec.ts): the save check of feeds refuses loopback addresses (D-420 (1)), a `.lan` name may use
 // http (INV-2), and e2eOffline sends it to 127.0.0.1 on the same port.
 const e2eLoopbackName = "e2e-loopback.lan"
 

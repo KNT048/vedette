@@ -43,7 +43,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   const [events, setEvents] = useState<SiemEvent[]>(cfg.events)
   const [error, setError] = useState<string | null>(null)
   const busy = save.isPending || test.isPending
-  // D-TBD-g10 (5): a container-only install has no honeypot (available false, D-381), so it has no touches to forward.
+  // D-420 (5): a container-only install has no honeypot (available false, D-381), so it has no touches to forward.
   const noHoneypot = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
   const shown = (ev: SiemEvent) => !(noHoneypot && ev === 'honeypot')
 

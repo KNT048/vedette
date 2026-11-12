@@ -193,7 +193,7 @@ func note(st Stats) string {
 }
 
 // mostOften is a reason for the status line: its first row with the value shown (quoteVal: at most 40 UTF-16 units,
-// unprintable runes as spaces, quoted), so the admin sees what was rejected (D-TBD-g10 (3)); the masked template when
+// unprintable runes as spaces, quoted), so the admin sees what was rejected (D-420 (3)); the masked template when
 // there is no example ("other").
 func mostOften(r Reason) string {
 	if r.Example != "" {
@@ -458,7 +458,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return src, 0, nil
 	}
 	if perr != nil {
-		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-TBD-g10 (2))
+		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL)}}
 	}
 	p.out.Started, p.out.Finished = started, s.now()

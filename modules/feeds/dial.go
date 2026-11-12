@@ -15,7 +15,7 @@ var ErrBlockedAddress = errors.New("feeds: connection to this address is refused
 
 // ErrOwnAddress is ErrBlockedAddress for an address of the box itself that is not loopback: one of its interfaces,
 // the address vedette-host reports, or the container's default gateway (on a container-only install, the machine
-// Docker runs on). userError says so in plain words (D-TBD-g10 (7)).
+// Docker runs on). userError says so in plain words (D-420 (7)).
 var ErrOwnAddress = fmt.Errorf("%w: it is the machine Vedette runs on", ErrBlockedAddress)
 
 // resolver turns a host name into addresses. Tests replace it.

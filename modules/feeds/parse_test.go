@@ -245,7 +245,7 @@ func TestWalk2_URLHostReasons(t *testing.T) {
 		"http://intranet/":           "%s points at a local or private host",
 		"http://10.1.2.3/":           "%s points at a private, reserved or special-purpose address",
 		"http://[::1]/":              "%s points at a private, reserved or special-purpose address",
-		"https://evil.example.com/x": "%s points at a reserved example or test name", // RFC 2606 §3 (D-TBD-g10 (6))
+		"https://evil.example.com/x": "%s points at a reserved example or test name", // RFC 2606 §3 (D-420 (6))
 		"https://x.example.org/":     "%s points at a reserved example or test name",
 		"http://x.localhost/":        "%s points at a reserved example or test name",
 		"https://evil-site.top/x":    "",
@@ -668,7 +668,7 @@ func TestIndicatorNormalisation(t *testing.T) {
 		{"dead:beef", "", ""},
 		{"::::", "", ""},
 		{"Evil-Site.TOP", "", "domain:evil-site.top"},
-		{"Example.COM", "", ""}, // RFC 2606 §3 (D-TBD-g10 (6))
+		{"Example.COM", "", ""}, // RFC 2606 §3 (D-420 (6))
 		{"bad.test", "", ""},    // a test name, not a local host
 		{"-bad.example.com", "", ""},
 		{"example.com.", "", ""},

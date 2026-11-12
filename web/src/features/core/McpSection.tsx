@@ -41,7 +41,7 @@ function Body({ s }: { s: McpState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const m = useMcpMutations()
-  const container = useInstallKind() === 'container' // D-TBD-g10 (4): the container does not publish the MCP port (S-CORE-9)
+  const container = useInstallKind() === 'container' // D-420 (4): the container does not publish the MCP port (S-CORE-9)
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)

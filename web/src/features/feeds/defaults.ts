@@ -58,7 +58,7 @@ export function checkFeedUrl(raw: string): 'ok' | 'url' | 'https' {
   return u.protocol === 'http:' ? 'https' : 'url'
 }
 
-/** The pull's sentence for an address Vedette never pulls from (modules/feeds blockedText, D-208, D-TBD-g10). */
+/** The pull's sentence for an address Vedette never pulls from (modules/feeds blockedText, D-208, D-420). */
 export const BLOCKED_TEXT = 'Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.'
 
 const v4Blocked = (a: number, b: number, c: number, d: number) =>
@@ -77,7 +77,7 @@ function hextets(h: string): number[] | null {
 }
 
 /**
- * The save-time half of the pull's address rule (modules/feeds CheckDest, D-TBD-g10 (1)): a literal IP that is loopback, link-local,
+ * The save-time half of the pull's address rule (modules/feeds CheckDest, D-420 (1)): a literal IP that is loopback, link-local,
  * cloud metadata, unspecified or multicast (also inside an IPv4-mapped, NAT64, 6to4 or IPv4-compatible IPv6 address) and the names
  * localhost and *.localhost. Other names are not resolved: the box judges what they resolve to at every pull.
  */

@@ -16,7 +16,7 @@ import (
 )
 
 // onlyLoopback lets a test reach its own origin and fails on any other host: no real network in tests. The origin is
-// named originHost in feed addresses (a loopback address is refused when a feed is saved, D-TBD-g10) and reached on 127.0.0.1.
+// named originHost in feed addresses (a loopback address is refused when a feed is saved, D-420) and reached on 127.0.0.1.
 type onlyLoopback struct{ t *testing.T }
 
 const originHost = "origin.lan"
@@ -593,7 +593,7 @@ func TestNote_GroupedCountsAndReason(t *testing.T) {
 	}
 }
 
-// D-TBD-g10 (3): the status line of a pull shows one real rejected value of the most common reason (quoted, cut to 40
+// D-420 (3): the status line of a pull shows one real rejected value of the most common reason (quoted, cut to 40
 // UTF-16 units, unprintable runes as spaces), not an ellipsis; the grouped reasons of the API stay masked.
 func TestNote_ShowsOneRejectedValue(t *testing.T) {
 	in := "8.8.8.8\nbad!" + strings.Repeat("v", 50) + "\nalso!bad\n1.1.1.1\n"

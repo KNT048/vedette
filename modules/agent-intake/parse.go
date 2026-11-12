@@ -129,6 +129,19 @@ func parseStatus(authorization string) (secret string, ok bool) {
 	return t, true
 }
 
+// parseStatusHost reads the optional host_identifier of a status request. named is false when none was sent or it is not clean (empty, too
+// long, control characters): the answer then carries no host field at all, the same for every such input (no oracle on what was wrong).
+func parseStatusHost(req oas.OptInventoryPostIntakeOsqueryStatusReq) (host string, named bool) {
+	if !req.Set || !req.Value.HostIdentifier.Set {
+		return "", false
+	}
+	id, ok := cleanValue(req.Value.HostIdentifier.Value, maxHostID)
+	if !ok || id == "" {
+		return "", false
+	}
+	return id, true
+}
+
 // ---- log ----
 
 // logIn is a parsed log request.

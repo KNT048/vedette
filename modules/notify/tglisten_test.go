@@ -202,12 +202,16 @@ type recDecisions struct {
 	calls []notify.Decision
 	res   notify.DecisionResult
 	err   error
+	each  chan struct{} // when set, gets one value per Decide (buffered by the test): lets a test wait for each decision
 }
 
 func (d *recDecisions) Decide(_ context.Context, c notify.Decision) (notify.DecisionResult, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.calls = append(d.calls, c)
+	if d.each != nil {
+		d.each <- struct{}{}
+	}
 	return d.res, d.err
 }
 

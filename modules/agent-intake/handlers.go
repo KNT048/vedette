@@ -121,7 +121,7 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryLog(ctx context.Context, req 
 }
 
 // InventoryPostIntakeOsqueryStatus implements POST /intake/osquery/status: the token comes in the Authorization header, never the URL.
-func (h *IntakeHandlers) InventoryPostIntakeOsqueryStatus(ctx context.Context) (*oas.InventoryPostIntakeOsqueryStatusOK, error) {
+func (h *IntakeHandlers) InventoryPostIntakeOsqueryStatus(ctx context.Context, req oas.OptInventoryPostIntakeOsqueryStatusReq) (*oas.InventoryPostIntakeOsqueryStatusOK, error) {
 	if h.s == nil {
 		return nil, apierr.NotImplemented()
 	}
@@ -130,9 +130,14 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryStatus(ctx context.Context) (
 		return nil, err
 	}
 	secret, _ := parseStatus(x.R.Header.Get("Authorization")) // "" when it is not a token: counted and refused like a wrong one
-	enrolled, hosts, err := h.s.Status(ctx, src, secret)
+	host, named := parseStatusHost(req)
+	enrolled, hosts, seen, err := h.s.Status(ctx, src, secret, host)
 	if err != nil {
 		return nil, err
 	}
-	return &oas.InventoryPostIntakeOsqueryStatusOK{Enrolled: enrolled, Hosts: hosts}, nil
+	out := &oas.InventoryPostIntakeOsqueryStatusOK{Enrolled: enrolled, Hosts: hosts}
+	if named { // only when a usable name was sent: null = no machine of this token under that name
+		out.HostLastSeen = oas.OptNilString{Set: true, Null: seen == "", Value: seen}
+	}
+	return out, nil
 }

@@ -44,6 +44,11 @@ case "$OS_IDS" in
   *) echo "Unsupported Linux distribution: ${OS_NAME}. Supported: Debian, Ubuntu, RHEL, Rocky, AlmaLinux." >&2; exit 1 ;;
 esac
 
+# The name this machine enrols under is chosen here (--host_identifier=specified), so the status check below asks for exactly that name;
+# osquery's own hostname lookup can be the short or the full name depending on the machine.
+HOSTID=$(uname -n | tr -cd 'A-Za-z0-9._-')
+[ -n "$HOSTID" ] || { echo "Cannot read this machine's host name (uname -n)." >&2; exit 1; }
+
 mkdir -p "$DIR"
 cat > "$CA" <<'VEDETTE_CA'
 @@CA@@
@@ -63,7 +68,8 @@ HOSTPORT=${BOX#https://}
 cat > "$DIR/osquery.flags" <<FLAGS
 --config_plugin=tls
 --logger_plugin=tls
---host_identifier=hostname
+--host_identifier=specified
+--specified_identifier=$HOSTID
 --enroll_secret_path=$DIR/enroll.secret
 --tls_server_certs=$CA
 --tls_hostname=$HOSTPORT
@@ -71,19 +77,20 @@ cat > "$DIR/osquery.flags" <<FLAGS
 --config_tls_endpoint=/api/v1/intake/osquery/config
 --logger_tls_endpoint=/api/v1/intake/osquery/log
 FLAGS
-# status answers {"enrolled":..,"hosts":N}: hosts counts the machines that enrolled with this token. Success = this machine enrolled (hosts
-# grew past what it was before the restart, or the first report is already in); the first report itself comes later and is not waited for.
-vstatus() { curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
-BASE=$(vstatus | sed -n 's/.*"hosts":\([0-9][0-9]*\).*/\1/p'); BASE=${BASE:-0}
+# status answers for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when
+# the box last heard from a machine of this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved
+# since before the restart; the first report itself comes later and is not waited for. Other machines of the token do not count.
+vstatus() { curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"host_identifier\":\"$HOSTID\"}" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
+seen_of() { sed -n 's/.*"host_last_seen":"\([^"]*\)".*/\1/p'; }
+BASE=$(vstatus | seen_of)
 systemctl enable osqueryd
 systemctl restart osqueryd
 
 echo "Waiting for this machine to enrol with Vedette (up to 2 minutes)..."
 i=0
 while [ $i -lt 24 ]; do
-  ST=$(vstatus)
-  NOW=$(printf '%s' "$ST" | sed -n 's/.*"hosts":\([0-9][0-9]*\).*/\1/p'); NOW=${NOW:-0}
-  if systemctl is-active --quiet osqueryd && { [ "$NOW" -gt "$BASE" ] || printf '%s' "$ST" | grep -q '"enrolled":true'; }; then
+  NOW=$(vstatus | seen_of)
+  if [ -n "$HOSTID" ] && [ -n "$NOW" ] && [ "$NOW" != "$BASE" ] && systemctl is-active --quiet osqueryd; then
     echo "Installed and enrolled; the first report arrives within about an hour."; exit 0
   fi
   i=$((i+1)); sleep 5

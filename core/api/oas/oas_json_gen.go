@@ -142330,14 +142330,21 @@ func (s *InventoryPostIntakeOsqueryStatusOK) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Enrolled)
 	}
 	{
+		if s.HostLastSeen.Set {
+			e.FieldStart("host_last_seen")
+			s.HostLastSeen.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("hosts")
 		e.Int(s.Hosts)
 	}
 }
 
-var jsonFieldsNameOfInventoryPostIntakeOsqueryStatusOK = [2]string{
+var jsonFieldsNameOfInventoryPostIntakeOsqueryStatusOK = [3]string{
 	0: "enrolled",
-	1: "hosts",
+	1: "host_last_seen",
+	2: "hosts",
 }
 
 // Decode decodes InventoryPostIntakeOsqueryStatusOK from json.
@@ -142361,8 +142368,18 @@ func (s *InventoryPostIntakeOsqueryStatusOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enrolled\"")
 			}
+		case "host_last_seen":
+			if err := func() error {
+				s.HostLastSeen.Reset()
+				if err := s.HostLastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_last_seen\"")
+			}
 		case "hosts":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.Hosts = int(v)
@@ -142383,7 +142400,7 @@ func (s *InventoryPostIntakeOsqueryStatusOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -142425,6 +142442,69 @@ func (s *InventoryPostIntakeOsqueryStatusOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostIntakeOsqueryStatusOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostIntakeOsqueryStatusReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostIntakeOsqueryStatusReq) encodeFields(e *jx.Encoder) {
+	{
+		if s.HostIdentifier.Set {
+			e.FieldStart("host_identifier")
+			s.HostIdentifier.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfInventoryPostIntakeOsqueryStatusReq = [1]string{
+	0: "host_identifier",
+}
+
+// Decode decodes InventoryPostIntakeOsqueryStatusReq from json.
+func (s *InventoryPostIntakeOsqueryStatusReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostIntakeOsqueryStatusReq to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "host_identifier":
+			if err := func() error {
+				s.HostIdentifier.Reset()
+				if err := s.HostIdentifier.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_identifier\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostIntakeOsqueryStatusReq")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostIntakeOsqueryStatusReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostIntakeOsqueryStatusReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -171850,6 +171930,39 @@ func (s OptInventoryPostIntakeOsqueryEnrollReqHostDetails) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInventoryPostIntakeOsqueryEnrollReqHostDetails) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostIntakeOsqueryStatusReq as json.
+func (o OptInventoryPostIntakeOsqueryStatusReq) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes InventoryPostIntakeOsqueryStatusReq from json.
+func (o *OptInventoryPostIntakeOsqueryStatusReq) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInventoryPostIntakeOsqueryStatusReq to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInventoryPostIntakeOsqueryStatusReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInventoryPostIntakeOsqueryStatusReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

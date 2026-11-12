@@ -1794,11 +1794,11 @@ func (UnimplementedHandler) InventoryPostIntakeOsqueryLog(ctx context.Context, r
 
 // InventoryPostIntakeOsqueryStatus implements inventory_post_intake_osquery_status operation.
 //
-// The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer
-// header, never in the URL.
+// The install script asks "has THIS machine enrolled yet" (body: its host_identifier; empty body =
+// token-wide counts only); token goes in the Authorization: Bearer header, never in the URL.
 //
 // POST /intake/osquery/status
-func (UnimplementedHandler) InventoryPostIntakeOsqueryStatus(ctx context.Context) (r *InventoryPostIntakeOsqueryStatusOK, _ error) {
+func (UnimplementedHandler) InventoryPostIntakeOsqueryStatus(ctx context.Context, req OptInventoryPostIntakeOsqueryStatusReq) (r *InventoryPostIntakeOsqueryStatusOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

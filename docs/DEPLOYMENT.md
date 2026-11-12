@@ -260,6 +260,8 @@ Network=vedette-int.network
 # Không kèm IP (D-105): đổi địa chỉ quản trị bằng net.apply không phải khởi động lại core
 PublishPort=8443:8443
 PublishPort=127.0.0.1:8444:8444
+# MCP chỉ-đọc (D-395): chỉ loopback của host; runtime chuyển tới địa chỉ của container, không tới loopback của nó, nên core (thấy /run/.containerenv) mặc định nghe 0.0.0.0:8765 trong namespace riêng; không truyền -mcp-listen để image cũ vẫn chạy được unit này
+PublishPort=127.0.0.1:8765:8765
 # syslog của module logs (D-167): 514 của hộp -> 5514 trong container (cổng không đặc quyền, không cần capability); UDP và TCP, mọi địa chỉ như 8443
 PublishPort=514:5514/udp
 PublishPort=514:5514/tcp

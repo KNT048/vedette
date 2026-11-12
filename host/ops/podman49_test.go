@@ -125,3 +125,13 @@ func TestUntagArgv(t *testing.T) {
 		t.Error("untag of another arity was accepted")
 	}
 }
+
+// A scan build that lost its tag, as the real Podman 4.9.3 lists it (lab sweep 2026-11-12, ubuntu2404: two builds under one tag,
+// the first left nameless): no Names key at all and the build label, so retention finds it, and nothing named next to it.
+func TestRealPodmanUntaggedScanBuild(t *testing.T) {
+	t.Parallel()
+	imgs, err := parseImageList(labOutput(t, "image-ls-untagged-scan.json"), api.ServiceScan)
+	if err != nil || len(imgs) != 1 || imgs[0].ID != "b2adc56724338127e1f72cde7efd45227c94223ef33e3c2065a69d39af31b93b" || imgs[0].InUse {
+		t.Fatalf("%+v %v", imgs, err)
+	}
+}

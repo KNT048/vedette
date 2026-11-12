@@ -70483,12 +70483,21 @@ func (s *InventoryPostIntakeOsqueryLogReqLogType) UnmarshalText(data []byte) err
 
 type InventoryPostIntakeOsqueryStatusOK struct {
 	Enrolled bool `json:"enrolled"`
-	Hosts    int  `json:"hosts"`
+	// Only when host_identifier was sent: when the box last heard from the machine of this token with that
+	// name (a hostname match ignores case), null when no machine of the token has enrolled under it;
+	// absent when no usable host_identifier was sent. It tells nothing about machines of other tokens.
+	HostLastSeen OptNilString `json:"host_last_seen"`
+	Hosts        int          `json:"hosts"`
 }
 
 // GetEnrolled returns the value of Enrolled.
 func (s *InventoryPostIntakeOsqueryStatusOK) GetEnrolled() bool {
 	return s.Enrolled
+}
+
+// GetHostLastSeen returns the value of HostLastSeen.
+func (s *InventoryPostIntakeOsqueryStatusOK) GetHostLastSeen() OptNilString {
+	return s.HostLastSeen
 }
 
 // GetHosts returns the value of Hosts.
@@ -70501,9 +70510,30 @@ func (s *InventoryPostIntakeOsqueryStatusOK) SetEnrolled(val bool) {
 	s.Enrolled = val
 }
 
+// SetHostLastSeen sets the value of HostLastSeen.
+func (s *InventoryPostIntakeOsqueryStatusOK) SetHostLastSeen(val OptNilString) {
+	s.HostLastSeen = val
+}
+
 // SetHosts sets the value of Hosts.
 func (s *InventoryPostIntakeOsqueryStatusOK) SetHosts(val int) {
 	s.Hosts = val
+}
+
+type InventoryPostIntakeOsqueryStatusReq struct {
+	// The name this machine enrols under (the install script sets osquery host_identifier = specified and
+	// sends the same name here); the install script sends it so the answer is about THIS machine.
+	HostIdentifier OptString `json:"host_identifier"`
+}
+
+// GetHostIdentifier returns the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryStatusReq) GetHostIdentifier() OptString {
+	return s.HostIdentifier
+}
+
+// SetHostIdentifier sets the value of HostIdentifier.
+func (s *InventoryPostIntakeOsqueryStatusReq) SetHostIdentifier(val OptString) {
+	s.HostIdentifier = val
 }
 
 type InventoryPostInventoryAgentsTokensCreated struct {
@@ -92988,6 +93018,52 @@ func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Get() (v InventoryPos
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostIntakeOsqueryEnrollReqHostDetails) Or(d InventoryPostIntakeOsqueryEnrollReqHostDetails) InventoryPostIntakeOsqueryEnrollReqHostDetails {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostIntakeOsqueryStatusReq returns new OptInventoryPostIntakeOsqueryStatusReq with value set to v.
+func NewOptInventoryPostIntakeOsqueryStatusReq(v InventoryPostIntakeOsqueryStatusReq) OptInventoryPostIntakeOsqueryStatusReq {
+	return OptInventoryPostIntakeOsqueryStatusReq{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostIntakeOsqueryStatusReq is optional InventoryPostIntakeOsqueryStatusReq.
+type OptInventoryPostIntakeOsqueryStatusReq struct {
+	Value InventoryPostIntakeOsqueryStatusReq
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostIntakeOsqueryStatusReq was set.
+func (o OptInventoryPostIntakeOsqueryStatusReq) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostIntakeOsqueryStatusReq) Reset() {
+	var v InventoryPostIntakeOsqueryStatusReq
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostIntakeOsqueryStatusReq) SetTo(v InventoryPostIntakeOsqueryStatusReq) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostIntakeOsqueryStatusReq) Get() (v InventoryPostIntakeOsqueryStatusReq, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostIntakeOsqueryStatusReq) Or(d InventoryPostIntakeOsqueryStatusReq) InventoryPostIntakeOsqueryStatusReq {
 	if v, ok := o.Get(); ok {
 		return v
 	}

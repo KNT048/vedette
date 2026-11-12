@@ -1,0 +1,182 @@
+[
+    {
+        "Id": "b2adc56724338127e1f72cde7efd45227c94223ef33e3c2065a69d39af31b93b",
+        "ParentId": "2ee8c3ae9b408e82658dd105010cd6ea97eac46eca6a6b1d97e8d29fd86f9a9c",
+        "RepoTags": null,
+        "RepoDigests": [],
+        "Size": 126310562,
+        "SharedSize": 0,
+        "VirtualSize": 126310562,
+        "Labels": {
+            "io.buildah.version": "1.33.7",
+            "io.vedette.build": "scan",
+            "io.vedette.lab": "1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-core",
+            "org.opencontainers.image.version": "0.0.1-test.12"
+        },
+        "Containers": 0,
+        "Dangling": true,
+        "Digest": "sha256:96d2df220bd3fe999f7ba21d5e206764c90b5cbad262e7e5a49266394173f850",
+        "History": [
+            "localhost/vedette-lab-scratch:1"
+        ],
+        "Created": 1794506236,
+        "CreatedAt": "2026-11-12T17:57:16Z"
+    },
+    {
+        "Id": "1cfc5d870f1a39757ee30025c10c08d29cc16a7fc4fdd2b7fa73ff92ccf9f887",
+        "ParentId": "2ee8c3ae9b408e82658dd105010cd6ea97eac46eca6a6b1d97e8d29fd86f9a9c",
+        "RepoTags": null,
+        "RepoDigests": [
+            "localhost/vedette-lab-scratch@sha256:635152bb22cf3d2e987acf31f9a720b278f8448ac33663e8af4e739665748b47"
+        ],
+        "Size": 126310563,
+        "SharedSize": 0,
+        "VirtualSize": 126310563,
+        "Labels": {
+            "io.buildah.version": "1.33.7",
+            "io.vedette.build": "scan",
+            "io.vedette.lab": "2",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-core",
+            "org.opencontainers.image.version": "0.0.1-test.12"
+        },
+        "Containers": 0,
+        "Names": [
+            "localhost/vedette-lab-scratch:1"
+        ],
+        "Digest": "sha256:635152bb22cf3d2e987acf31f9a720b278f8448ac33663e8af4e739665748b47",
+        "History": [
+            "localhost/vedette-lab-scratch:1"
+        ],
+        "Created": 1794506236,
+        "CreatedAt": "2026-11-12T17:57:16Z"
+    },
+    {
+        "Id": "d6a79612e517cbaef3de2ac95d920fa911fa01164d0255f71214b24259fc83bd",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-core@sha256:5f74aa0951a60bcfd20d58467edbc92b71d1fd22ce5a9b84937edff264a05c96",
+            "localhost/vedette-core@sha256:5f74aa0951a60bcfd20d58467edbc92b71d1fd22ce5a9b84937edff264a05c96"
+        ],
+        "Size": 126310493,
+        "SharedSize": 0,
+        "VirtualSize": 126310493,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-core",
+            "org.opencontainers.image.version": "0.0.1-test.12"
+        },
+        "Containers": 1,
+        "Names": [
+            "localhost/vedette-core:0.0.1-test.12",
+            "ghcr.io/knt048/vedette-core@sha256:5f74aa0951a60bcfd20d58467edbc92b71d1fd22ce5a9b84937edff264a05c96"
+        ],
+        "Digest": "sha256:5f74aa0951a60bcfd20d58467edbc92b71d1fd22ce5a9b84937edff264a05c96",
+        "History": [
+            "ghcr.io/knt048/vedette-core@sha256:5f74aa0951a60bcfd20d58467edbc92b71d1fd22ce5a9b84937edff264a05c96",
+            "localhost/vedette-core:0.0.1-test.12"
+        ],
+        "Created": 1794503694,
+        "CreatedAt": "2026-11-12T17:14:54Z"
+    },
+    {
+        "Id": "a24479a7fbcb45f25521cbc7bf13482b7e246506128d4c558562df6765b90d95",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-sensor@sha256:8614563ab2697bcf400ffe319430be6493c6e094561832a2823cc8ca2c23d691",
+            "localhost/vedette-sensor@sha256:8614563ab2697bcf400ffe319430be6493c6e094561832a2823cc8ca2c23d691"
+        ],
+        "Size": 11456319,
+        "SharedSize": 0,
+        "VirtualSize": 11456319,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-sensor",
+            "org.opencontainers.image.version": "0.0.1-test.12"
+        },
+        "Containers": 1,
+        "Names": [
+            "localhost/vedette-sensor:0.0.1-test.12",
+            "ghcr.io/knt048/vedette-sensor@sha256:8614563ab2697bcf400ffe319430be6493c6e094561832a2823cc8ca2c23d691"
+        ],
+        "Digest": "sha256:8614563ab2697bcf400ffe319430be6493c6e094561832a2823cc8ca2c23d691",
+        "History": [
+            "ghcr.io/knt048/vedette-sensor@sha256:8614563ab2697bcf400ffe319430be6493c6e094561832a2823cc8ca2c23d691",
+            "localhost/vedette-sensor:0.0.1-test.12"
+        ],
+        "Created": 1794503565,
+        "CreatedAt": "2026-11-12T17:12:45Z"
+    },
+    {
+        "Id": "ed67506089be94e281fd515c8cf1d23f3e0c71a84e317e5e921c357798b73c50",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-core@sha256:077987e99f3cb30a8635ea49e0c18c969b8b16bc0034fb960400259cea043460",
+            "localhost/vedette-core@sha256:077987e99f3cb30a8635ea49e0c18c969b8b16bc0034fb960400259cea043460"
+        ],
+        "Size": 126310490,
+        "SharedSize": 0,
+        "VirtualSize": 126310490,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-core",
+            "org.opencontainers.image.version": "0.0.1-test.11"
+        },
+        "Containers": 0,
+        "Names": [
+            "localhost/vedette-core:0.0.1-test.11",
+            "ghcr.io/knt048/vedette-core@sha256:077987e99f3cb30a8635ea49e0c18c969b8b16bc0034fb960400259cea043460"
+        ],
+        "Digest": "sha256:077987e99f3cb30a8635ea49e0c18c969b8b16bc0034fb960400259cea043460",
+        "History": [
+            "ghcr.io/knt048/vedette-core@sha256:077987e99f3cb30a8635ea49e0c18c969b8b16bc0034fb960400259cea043460",
+            "localhost/vedette-core:0.0.1-test.11"
+        ],
+        "Created": 1794503524,
+        "CreatedAt": "2026-11-12T17:12:04Z"
+    },
+    {
+        "Id": "559e6ac33442637e70e3bf619ea40d3123243936b5deba16c86d7ff7cb74b522",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "ghcr.io/knt048/vedette-sensor@sha256:0134e516d1a5013a169d2a9dadf2352af8258b5571916f011a5a9f4c4af5ccc8",
+            "localhost/vedette-sensor@sha256:0134e516d1a5013a169d2a9dadf2352af8258b5571916f011a5a9f4c4af5ccc8"
+        ],
+        "Size": 11456319,
+        "SharedSize": 0,
+        "VirtualSize": 11456319,
+        "Labels": {
+            "io.buildah.version": "1.42.1",
+            "org.opencontainers.image.licenses": "Apache-2.0",
+            "org.opencontainers.image.source": "https://github.com/KNT048/vedette",
+            "org.opencontainers.image.title": "vedette-sensor",
+            "org.opencontainers.image.version": "0.0.1-test.11"
+        },
+        "Containers": 0,
+        "Names": [
+            "localhost/vedette-sensor:0.0.1-test.11",
+            "ghcr.io/knt048/vedette-sensor@sha256:0134e516d1a5013a169d2a9dadf2352af8258b5571916f011a5a9f4c4af5ccc8"
+        ],
+        "Digest": "sha256:0134e516d1a5013a169d2a9dadf2352af8258b5571916f011a5a9f4c4af5ccc8",
+        "History": [
+            "ghcr.io/knt048/vedette-sensor@sha256:0134e516d1a5013a169d2a9dadf2352af8258b5571916f011a5a9f4c4af5ccc8",
+            "localhost/vedette-sensor:0.0.1-test.11"
+        ],
+        "Created": 1794503384,
+        "CreatedAt": "2026-11-12T17:09:44Z"
+    }
+]

@@ -1,6 +1,6 @@
 # MCP-server Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-MCP-1 · Quyết định: D-18, D-39, D-230..D-234 (đối chiếu: đây là MCP **do Vedette phục vụ**; MCP/kết nối **ra ngoài** của AI thuộc `core/conn`, D-93) · Last verified: 2026-11-11
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-MCP-1 · Quyết định: D-18, D-39, D-230..D-234, D-395 (đối chiếu: đây là MCP **do Vedette phục vụ**; MCP/kết nối **ra ngoài** của AI thuộc `core/conn`, D-93) · Last verified: 2026-11-13
 > GUI nằm dưới `core` (`web/src/features/core/{contract,McpSection,mocks}.ts`, mục `/core/mcp`). Backend: `modules/mcp-server` (package `mcpserver`), nối ở `cmd/vedette/mcpserver.go`.
 
 ## Invariants (luôn đúng)
@@ -8,7 +8,7 @@
 - **INV-2** Phạm vi token ∈ {`assets`, `findings`, `feeds`}; tạo token cần ≥ 1 phạm vi hợp lệ (400 `invalid_scopes`). `tools/list` chỉ liệt kê công cụ thuộc phạm vi của token; gọi công cụ ngoài phạm vi → lỗi JSON-RPC `-32602`, không đọc nguồn, không trả một phần. Một phạm vi chỉ trả dữ liệu của module sở hữu nó (token `feeds` không thấy thiết bị khớp một CVE, D-233).
 - **INV-3** Token dạng `vmcp_` + 32 ký tự hex (128 bit); **trả đầy đủ đúng một lần** lúc tạo; sau đó chỉ `last4`; lưu SHA-256 hex (SYS-4, D-231); không log, không export. Bản sao lưu chỉ có bản băm, không dựng lại được token.
 - **INV-4** Thu hồi (xoá dòng) có hiệu lực ở yêu cầu kế tiếp; token bị thu hồi, sai dạng hoặc không có → 401 với `WWW-Authenticate: Bearer`. `last_used` ghi ở mỗi lời gọi công cụ, các yêu cầu khác tối đa mỗi phút một lần.
-- **INV-5** Máy chủ **chỉ nghe loopback**: cờ `-mcp-listen` (mặc định `127.0.0.1:8765`, endpoint `http://127.0.0.1:8765/mcp`); địa chỉ không phải loopback → không khởi động. Mở ra ngoài host là đường hầm/proxy khách tự dựng (D-234).
+- **INV-5** Máy chủ **chỉ tới được từ loopback của máy**: cờ `-mcp-listen` (để trống = `127.0.0.1:8765`, endpoint `http://127.0.0.1:8765/mcp`; trong container để trống = `0.0.0.0:8765`); địa chỉ không phải loopback → không khởi động. Ngoại lệ duy nhất (D-395): **trong container** (`Config.InContainer`, cmd/vedette thấy `/run/.containerenv` hoặc `/.dockerenv`) được nhận **địa chỉ unspecified** `0.0.0.0`/`[::]` — namespace mạng riêng của container, không phải LAN — vì runtime chuyển publish tới địa chỉ của container chứ không tới loopback của nó; đơn vị Quadlet `core` và `compose.yaml` chỉ-container **không truyền cờ** (image cũ hơn từ chối `0.0.0.0` và sẽ không khởi động) và chỉ publish `127.0.0.1:8765:8765` (test golden của host/ops, `deploy/compose/compose_test.go`), và `GET /core/mcp` vẫn báo `127.0.0.1:<port>`. Địa chỉ cụ thể khác (LAN, IP của container) luôn bị từ chối. Mở ra ngoài host là đường hầm/proxy khách tự dựng (D-234).
 - **INV-6** Đầu vào công cụ validate ở biên (SYS-2): chỉ tên đối số trong schema, đúng kiểu, độ dài; CVE theo `CVE-YYYY-NNNN+`, id theo `^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`, IOC là IP hoặc tên miền theo đúng quy tắc `validDomain` của feeds (nhận cả TLD IDN dạng ASCII như `discord.xn--q9jyb4c`, `TestContract_INV7_AnswersFitTheirOutputSchema`). Sai → kết quả `isError: true` với lời giải thích để agent sửa.
 - **INV-7** Dữ liệu trả về chỉ gồm tài sản, phát hiện, tra cứu feed, theo danh sách cho phép từng trường (D-233). **Không** trả: bí mật, khoá API, token, người dùng, audit, nhật ký AI/phản ứng, cấu hình kênh, nội dung log thô, kết nối ngoài, MAC, ghi chú, người đổi trạng thái và ghi chú của họ, tóm tắt/request/response của lần quét (tóm tắt nêu thiết bị: dữ liệu inventory). Trả theo `outputSchema`; trang ≤ 100 mục, câu trả lời ≤ 512 KiB, chuỗi bị cắt (SYS-6, D-232).
 - **INV-8** Thao tác quản trị (tạo/thu hồi token; bật/tắt là của `core` qua `PATCH /modules/mcp-server`) ghi `core_audit` (SYS-3), vai admin. **Mỗi `tools/call` một dòng `core_audit`** `mcp.call` (tên token, công cụ, kết quả, số mục), ghi trước khi trả lời; **không ghi đối số** — đó là điều agent hỏi (D-232).
@@ -21,7 +21,7 @@
 - **PRE-2** Gọi công cụ: module bật, `Authorization: Bearer <token>` hợp lệ có phạm vi của công cụ.
 
 ## Postconditions (sau khi xong)
-- **POST-1** Bật → cổng mở trên loopback; tắt → cổng đóng, kết nối đang mở bị cắt, mọi token không dùng được nhưng **không bị xoá** (S-CORE-1).
+- **POST-1** Bật → cổng mở trên loopback (trong container: listener trong namespace của nó; publish `127.0.0.1:8765` của runtime giữ cổng phía máy suốt lúc container chạy, module tắt thì kết nối tới đó bị từ chối/cắt, D-395); tắt → cổng đóng, kết nối đang mở bị cắt, mọi token không dùng được nhưng **không bị xoá** (S-CORE-1).
 - **POST-2** `POST /core/mcp/tokens` trả `{token, item}` (201); danh sách sau đó chỉ có `item` (có `last4`).
 - **POST-3** `GET /core/mcp` trả trạng thái, `bind`/`port`/`endpoint` của listener đang chạy, token (không bí mật), danh sách công cụ + phạm vi.
 
@@ -29,7 +29,7 @@
 - **FORBID-1** Công cụ ghi, kể cả "tạm thời" hoặc theo token đặc quyền.
 - **FORBID-2** Trả bí mật/khoá/token của người dùng, audit, hoặc dữ liệu ngoài ba phạm vi.
 - **FORBID-3** Lưu token ở dạng đọc được; trả lại token đầy đủ lần thứ hai.
-- **FORBID-4** Nghe ngoài loopback.
+- **FORBID-4** Nghe ngoài loopback, trừ địa chỉ unspecified trong container mà đơn vị chỉ publish trên `127.0.0.1` (INV-5, D-395); không bao giờ publish trên địa chỉ LAN.
 - **FORBID-5** Dùng đường MCP này để AI của chính Vedette gọi (AI dùng công cụ nội bộ, `ai` INV-14); hai thứ tách nhau.
 
 ## Endpoints owned
@@ -56,7 +56,7 @@ Cổng đóng, không route `/core/mcp*` (404), không job. Token giữ nguyên 
 - **DEPENDED ON BY**: không module nào (người dùng ngoài: agent/SIEM). `core` đọc công tắc cho luồng quyền riêng tư 13.
 
 ## Câu hỏi mở
-1. ~~Loopback trong container `core`~~ D-234: tiến trình chỉ nghe loopback; cách đơn vị Quadlet cho máy chủ tới cổng là việc WP-08 (`.ai/deferred/feat-mcp-server.md`). Máy khác: đường hầm SSH/proxy của khách.
+1. ~~Loopback trong container `core`~~ D-395 (thay D-234 (3)): trong container nghe `0.0.0.0:8765`, đơn vị Quadlet và `compose.yaml` publish `127.0.0.1:8765` của máy. Máy khác: đường hầm SSH/proxy của khách.
 2. ~~Giới hạn trang và tốc độ~~ D-232.
 3. ~~Bằng chứng quét trong `get_finding`~~ D-233: chỉ tóm tắt, mẫu và lúc kiểm; request/response thô ở lại hộp.
 4. ~~Tên bảng~~ `mcp_tokens` (WP-06).

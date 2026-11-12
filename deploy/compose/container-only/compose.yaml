@@ -27,6 +27,9 @@ services:
     # -hosts: the names and addresses the box answers to (anything else gets 421) and the names of its self-signed certificate.
     # -sensor-listen stays inside the bridge (8444 is published on 127.0.0.1 only); -host-socket "" says: no vedette-host.
     # -syslog-port 5514: the syslog listener of the logs module (only while that module is on); compose.syslog.yaml publishes it as 514.
+    # 8765: the read-only MCP server (only while the mcp-server module is on). In a container core listens on its own network by
+    # default (no -mcp-listen, so an older image still starts), and the port is published on the machine's 127.0.0.1 only: Docker
+    # and Podman forward a publish to the container's address, never to its loopback (D-395). Another machine: an SSH tunnel.
     command:
       - "-listen=:8443"
       - "-hosts=${VEDETTE_HOSTS:?VEDETTE_HOSTS is empty: the name or address you open in the browser}"
@@ -38,6 +41,7 @@ services:
     ports:
       - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty: the address of this machine the web page is served on, 127.0.0.1 for a trial}:8443:8443"
       - "127.0.0.1:8444:8444"
+      - "127.0.0.1:8765:8765"
     volumes:
       - data:/var/lib/vedette
       - creds-passive:/var/lib/vedette-creds/passive

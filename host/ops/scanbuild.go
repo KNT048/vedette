@@ -69,6 +69,13 @@ USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]
 `
 
+// scanBuildLabel=scanBuildLabelValue is the label the LABEL line of scanContainerfile puts on every build (a test keeps them equal):
+// retention finds a build that lost its name by it (retain.go), as install.sh --uninstall does.
+const (
+	scanBuildLabel      = "io.vedette.build"
+	scanBuildLabelValue = "scan"
+)
+
 // nmapVersionLineRE is the first line of "nmap --version": "Nmap version 7.95 ( https://nmap.org )".
 var nmapVersionLineRE = regexp.MustCompile(`^Nmap version ([0-9]{1,3}\.[0-9]{1,3}(?:\.[0-9]{1,3})?[A-Za-z0-9.+~-]{0,16})( .{0,80})?$`)
 

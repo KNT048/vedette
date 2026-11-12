@@ -422,9 +422,9 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
-	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
-	o.adoptHostPackage(ctx)   // the .deb install.sh kept for the running version becomes current (D-316)
-	o.startSelfUpdate()       // a self-update under way: follow it after READY, or clean or gate an orphan journal
+	o.recoverTransitions(ctx, true) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123); units of an earlier release (D-316 (10))
+	o.adoptHostPackage(ctx)         // the .deb install.sh kept for the running version becomes current (D-316)
+	o.startSelfUpdate()             // a self-update under way: follow it after READY, or clean or gate an orphan journal
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

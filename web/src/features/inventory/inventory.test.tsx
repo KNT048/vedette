@@ -729,6 +729,14 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(s.scope_confirmed_by).toBe('admin@acme.example')
   })
 
+  it('Add range with the box empty says so under the box', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByLabelText('Add a network range', undefined, T)
+    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    expect(await screen.findByText(/Type a range first/, undefined, T)).toBeInTheDocument()
+  })
+
   it('a bare address is rejected with a clear message, never turned into /24; with the prefix it is added and saved as typed', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')

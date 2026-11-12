@@ -52,7 +52,13 @@ export function useToggleModule() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: { id: ModuleId; enabled: boolean; withDependencies?: boolean }) => patchModule(v.id, v.enabled, v.withDependencies === true),
-    onSuccess: (r) => { if (r.kind === 'ok') { void qc.invalidateQueries({ queryKey: ['modules'] }); void qc.invalidateQueries({ queryKey: ['core', 'mcp'] }) } },
+    onSuccess: (r, v) => {
+      if (r.kind !== 'ok') return
+      void qc.invalidateQueries({ queryKey: ['modules'] })
+      // off, every /core/mcp path is 404 (D-230): drop the cached answer instead of refetching it
+      if (v.id === 'mcp-server' && !v.enabled) qc.removeQueries({ queryKey: ['core', 'mcp'] })
+      else void qc.invalidateQueries({ queryKey: ['core', 'mcp'] })
+    },
   })
 }
 

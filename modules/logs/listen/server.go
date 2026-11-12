@@ -139,6 +139,8 @@ type Server struct {
 	lastLog   time.Time
 	lastTLSLg time.Time
 
+	afterHandshake func(net.Conn) // tests only
+
 	st counters
 }
 
@@ -237,7 +239,7 @@ func (s *Server) applyLocked() error {
 	s.closeLocked(!needUDP, !needTCP, !needTLS)
 	for conn, ci := range s.conns { // a sender that is gone or changed protocol
 		if src, ok := s.sources[ci.ip]; !ok || src.Proto != ci.proto {
-			_ = conn.Close()
+			closeNow(conn)
 		}
 	}
 	var errs []error
@@ -314,31 +316,51 @@ func (s *Server) closeLocked(udp, tcp, tlsOff bool) {
 	}
 	if !s.running {
 		for conn := range s.conns {
-			_ = conn.Close()
+			closeNow(conn)
 		}
 	}
 }
 
+// closeNow cuts a connection without ever waiting for its peer. A *tls.Conn's own Close sends close_notify under the output lock, and a
+// sender that never reads while Go answers its TLS 1.3 KeyUpdate (a write inside Read, lock held) keeps that lock for good: Close would
+// then block, and with it SetSources (under s.mu), Status, the shutdown and the module being turned off. The raw socket is closed instead;
+// the connection's own goroutine still ends with the TLS Close (close_notify, RFC 5425 section 4.4), which then fails at once.
+func closeNow(c net.Conn) {
+	if tc, ok := c.(*tls.Conn); ok {
+		_ = tc.NetConn().Close()
+		return
+	}
+	_ = c.Close()
+}
+
 // tlsPorts maps the plain ports to the TLS ones: 514 to 6514 (RFC 5425), another port p to p+1 (the core container listens on 5514 and
-// publishes 6514 to 5515), 0 stays 0.
-func tlsPorts(ports []int) []int {
+// publishes 6514 to 5515). 0 stays 0, which is the kernel's choice of a free port and only tests use it. A port with no successor
+// (65535, or one out of range) is an error: 0 there would bind a random port and publish nothing.
+func tlsPorts(ports []int) ([]int, error) {
 	out := make([]int, len(ports))
 	for i, p := range ports {
 		switch {
 		case p == 514:
 			out[i] = 6514
+		case p == 0:
 		case p > 0 && p < 65535:
 			out[i] = p + 1
+		default:
+			return nil, fmt.Errorf("no TLS port follows the syslog port %d (it must be 1 to 65534)", p)
 		}
 	}
-	return out
+	return out, nil
 }
 
 // bind opens one socket on the port in use, or tries the configured ports in order until one is permitted.
 func (s *Server) bind(proto string) (sock io.Closer, err error) {
 	ports, chosen := s.cfg.Ports, s.port
 	if proto == "tls" {
-		ports, chosen = tlsPorts(s.cfg.Ports), s.tlsPort
+		tp, err := tlsPorts(s.cfg.Ports)
+		if err != nil {
+			return nil, err
+		}
+		ports, chosen = tp, s.tlsPort
 	}
 	if chosen != 0 {
 		ports = []int{chosen}
@@ -580,12 +602,12 @@ func (s *Server) acceptLoop(l net.Listener, proto string) {
 const (
 	regOK        = iota
 	regOverLimit // the total or the per-sender limit is reached
-	regStale     // the sender is no longer a TCP source
+	regStale     // the sender is no longer a source of the protocol this listener serves
 	regGone      // the listener is no longer the one in use
 )
 
 // register counts a connection against the limits, and refuses it (regOK is the only success) when the sources changed while it
-// was being accepted: the sender must still be a TCP source and l still the listener in use, else the connection would outlive both.
+// was being accepted: the sender must still be a source of proto ("tcp" or "tls") and l still the listener in use, else the connection would outlive both.
 func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -627,7 +649,7 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 	go func() { // a shutdown must not wait for a silent sender's deadline
 		select {
 		case <-s.ctx.Done():
-			_ = conn.Close()
+			closeNow(conn)
 		case <-done:
 		}
 	}()
@@ -642,11 +664,14 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 			return
 		}
 	}
+	if s.afterHandshake != nil { // a test seam: the handshake is done, nothing has been read
+		s.afterHandshake(conn)
+	}
 	br := bufio.NewReaderSize(conn, 4096)
 	for {
 		// Wait for the first byte of a frame under the idle deadline, past the line ends that a sender puts between frames (the
 		// LF after an octet-counted frame, a blank line): they are not the start of a frame, so they must not arm the short one.
-		_ = conn.SetReadDeadline(time.Now().Add(s.lim.Idle)) // once per gap: line ends alone do not renew it
+		_ = conn.SetDeadline(time.Now().Add(s.lim.Idle)) // once per gap: line ends alone do not renew it; both directions, so a write blocked inside a TLS Read cannot hold the slot longer
 		for {
 			b, err := br.Peek(1)
 			if err != nil {
@@ -657,7 +682,7 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 			}
 			_, _ = br.Discard(1)
 		}
-		_ = conn.SetReadDeadline(time.Now().Add(s.lim.FrameTimeout)) // absolute: a trickle of single bytes does not extend it
+		_ = conn.SetDeadline(time.Now().Add(s.lim.FrameTimeout)) // absolute: a trickle of single bytes does not extend it
 		frame, trunc, err := ReadFrame(br, s.lim.MaxLine, s.lim.MaxFrame)
 		if err != nil {
 			if errors.Is(err, ErrFrameTooLarge) || errors.Is(err, ErrShortFrame) {

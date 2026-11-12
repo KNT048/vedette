@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/netip"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -286,12 +287,131 @@ func TestTLSAndTCPSourcesAreServedTogether(t *testing.T) {
 
 func TestTLSPortsFollowThePlainOnes(t *testing.T) {
 	t.Parallel()
-	got := tlsPorts([]int{514, 5514, 0, 65535})
-	want := []int{6514, 5515, 0, 0}
+	got, err := tlsPorts([]int{514, 5514, 0, 65534})
+	want := []int{6514, 5515, 0, 65535}
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("tlsPorts: %v, want %v", got, want)
 			break
 		}
 	}
+	for _, bad := range []int{65535, 70000, -1} {
+		if _, err := tlsPorts([]int{bad}); err == nil {
+			t.Errorf("tlsPorts accepted %d: its successor is not a port (0 would bind a random one)", bad)
+		}
+	}
+}
+
+// A plain port with no TLS successor opens no TLS socket and says why, instead of binding a random port.
+func TestNoTLSPortAfterTheLastPort(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
+	srv, err := New(Config{Host: "127.0.0.1", Ports: []int{65535}, Sink: tr.sink, Log: slog.New(slog.DiscardHandler), TLS: &tls.Config{MinVersion: tls.VersionTLS12}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr.srv = srv
+	tr.start()
+	_ = srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "tls"}}) // the refusal is returned or only recorded, depending on whether Run has started
+	waitFor(t, "the reason the TLS socket is not open", func() bool { return srv.Status().TLSErr != "" })
+	if st := srv.Status(); st.TLS || srv.TLSAddr() != nil {
+		t.Errorf("status %+v", st)
+	}
+}
+
+// wedge sets up the frozen sender: a declared TLS 1.3 client completes the handshake, never reads again, and sends a record the server
+// cannot decrypt. The server answers with an alert, a write inside Read that holds the TLS output lock; its socket's send buffer was
+// filled behind its back (afterHandshake), so that write blocks. This is the state a KeyUpdate request flood puts Go in (no TLS client
+// in the standard library can send one), without needing openssl. It returns once the server is blocked.
+func (tr *tlsRig) wedge() {
+	tr.t.Helper()
+	filled := make(chan struct{})
+	var first atomic.Bool
+	tr.srv.afterHandshake = func(c net.Conn) {
+		if !first.CompareAndSwap(false, true) { // only the stuck sender's connection
+			return
+		}
+		raw := c.(*tls.Conn).NetConn()
+		for _, size := range []int{64 << 10, 1} { // until nothing more fits, then until not even one byte does: the alert is a few bytes
+			junk := make([]byte, size)
+			for {
+				_ = raw.SetWriteDeadline(time.Now().Add(50 * time.Millisecond))
+				if _, err := raw.Write(junk); err != nil {
+					break
+				}
+			}
+		}
+		_ = raw.SetWriteDeadline(time.Time{})
+		close(filled)
+	}
+	tr.start()
+	tr.set("tls")
+	d := net.Dialer{Control: func(_, _ string, c syscall.RawConn) error { // a small receive window: the server's buffer fills at once
+		return c.Control(func(fd uintptr) { _ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 1024) })
+	}}
+	raw, err := d.DialContext(context.Background(), "tcp4", tr.tlsAddr())
+	if err != nil {
+		tr.t.Fatal(err)
+	}
+	tr.t.Cleanup(func() { _ = raw.Close() })
+	tc := tls.Client(raw, &tls.Config{RootCAs: tr.pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS13})
+	if err := tc.HandshakeContext(context.Background()); err != nil {
+		tr.t.Fatal(err)
+	}
+	select {
+	case <-filled:
+	case <-time.After(20 * time.Second):
+		tr.t.Fatal("the server's send buffer did not fill")
+	}
+	rec := append([]byte{23, 3, 3, 0, 32}, make([]byte, 32)...) // application data that fails its authentication
+	if _, err := raw.Write(rec); err != nil {
+		tr.t.Fatal(err)
+	}
+	<-time.After(500 * time.Millisecond) // the server reads it in microseconds; there is nothing to poll for while it is blocked in the write
+}
+
+func within(t *testing.T, what string, d time.Duration, f func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { defer close(done); f() }()
+	select {
+	case <-done:
+	case <-time.After(d):
+		t.Fatalf("%s did not return within %v: the listener is frozen", what, d)
+	}
+}
+
+// H1: a declared TLS sender that never reads must not freeze the listener. Dropping its source, reading the status and stopping the
+// server all return, the connection is cut, and its slot is freed.
+func TestAStuckTLSSenderCannotFreezeReconfigurationOrStatus(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
+	tr.wedge()
+	if tr.srv.Status().Conns != 1 {
+		t.Fatalf("status %+v", tr.srv.Status())
+	}
+	within(t, "SetSources(nil)", 5*time.Second, func() { _ = tr.srv.SetSources(nil) })
+	within(t, "Status", 5*time.Second, func() { _ = tr.srv.Status() })
+	waitFor(t, "the slot to be freed", func() bool { return tr.srv.Status().Conns == 0 })
+	tr.set("tls") // and a new TLS connection is accepted again
+	c, err := tr.dial(tr.tlsAddr(), tr.pool)
+	if err != nil {
+		t.Fatalf("a new connection after the stuck one: %v", err)
+	}
+	_ = c.Close()
+}
+
+func TestAStuckTLSSenderCannotHoldTheShutdown(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
+	tr.wedge()
+	within(t, "Run after cancel", 5*time.Second, func() {
+		tr.stop()
+		err := <-tr.done
+		_ = err
+		tr.done <- nil
+	})
 }

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -57,6 +58,10 @@ type OSHandlers struct {
 	state stateCache
 
 	urun updRun // the run side of the software update (updates_run.go)
+
+	restoreMu     sync.Mutex  // one settle of a restore run at a time (restore.go)
+	restoreSynced atomic.Bool // this process has asked the host for the latest restore once
+	started       time.Time   // wall clock at start: snapshots older than this are an earlier process's (removeBefore)
 
 	dlMu   sync.Mutex // one backup download at a time: held from the busy check until backup.create ends
 	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu
@@ -118,7 +123,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout}
+	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now()}
 	if err := h.upd.init(c, c.Clock()); err != nil {
 		return nil, err
 	}
@@ -140,6 +145,8 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			go h.resume()
 		}
 		h.resumeUpdate()
+		h.wg.Add(1)
+		go h.resumeRestore()
 	}
 	return h, nil
 }

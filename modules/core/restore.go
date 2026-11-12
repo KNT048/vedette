@@ -1,0 +1,376 @@
+package core
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"slices"
+	"time"
+
+	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/host/api"
+)
+
+// Restore of a backup the helper keeps on the box (S-CORE-1, D-377; host-api 6.12). Before backup.restore core
+// writes a snapshot of its data WITH the key, which the host keeps as the pre_restore backup and puts back by
+// itself when the restored data does not start (status reverted). A successful restore stops core and swaps its
+// database: whatever core wrote about the run is gone with the old file. So the host's run is the record: core
+// keeps only a copy in core_setting data.restore, and at start-up (and on a read before that) it asks the host
+// for the latest backup.restore and settles it into whichever database it now runs on: one audit row
+// data.restore_done per run, the copy, and the removal of the snapshot.
+const (
+	keyRestore     = "data.restore"
+	restoreTimeout = 35 * time.Minute // backup.restore's own limit is 30 minutes
+	codeConfirmReq = "confirm_required"
+)
+
+// restoreRec is core_setting data.restore. Status is empty while the run is going.
+type restoreRec struct {
+	RunID           string     `json:"run_id"`
+	BackupID        string     `json:"backup_id"`
+	BackupCreatedAt time.Time  `json:"backup_created_at"`
+	User            string     `json:"user"`
+	StartedAt       time.Time  `json:"started_at"`
+	Status          string     `json:"status,omitempty"` // done | reverted | failed
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+	PreRestore      string     `json:"pre_restore,omitempty"`
+	Error           string     `json:"error,omitempty"`
+	Snapshot        string     `json:"snapshot,omitempty"` // backs the run; removed when it is settled
+}
+
+type restoreView struct {
+	ID              string     `json:"id"`
+	BackupID        string     `json:"backup_id"`
+	BackupCreatedAt time.Time  `json:"backup_created_at"`
+	Status          string     `json:"status"`
+	StartedAt       time.Time  `json:"started_at"`
+	FinishedAt      *time.Time `json:"finished_at"`
+	User            string     `json:"user"`
+	PreRestore      *string    `json:"pre_restore_backup_id"`
+	Error           *string    `json:"error"`
+}
+
+func (r *restoreRec) view() restoreView {
+	v := restoreView{ID: r.RunID, BackupID: r.BackupID, BackupCreatedAt: r.BackupCreatedAt, Status: r.Status, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt, User: r.User}
+	if v.Status == "" {
+		v.Status = "running"
+	}
+	if v.BackupCreatedAt.IsZero() { // the host no longer lists the backup: the start of the run is the closest date there is
+		v.BackupCreatedAt = r.StartedAt
+	}
+	if r.PreRestore != "" {
+		v.PreRestore = &r.PreRestore
+	}
+	if r.Error != "" {
+		v.Error = &r.Error
+	}
+	return v
+}
+
+// restoreStatus maps a terminal host status to the API's; "" for a run still going.
+func restoreStatus(s api.Status) string {
+	switch s {
+	case api.StatusSucceeded:
+		return "done"
+	case api.StatusReverted:
+		return "reverted"
+	case api.StatusFailed, api.StatusRefused:
+		return "failed"
+	}
+	return ""
+}
+
+// restoreReason is the plain sentence of a restore run that did not end in done.
+func restoreReason(ctx context.Context, h *OSHandlers, e *api.RunError) string {
+	code := ""
+	if e != nil {
+		code = e.Code
+	}
+	switch code {
+	case api.CodeRestoreHealthFailed, "":
+		return "The restored data did not start correctly, so the box put back the data it had before. Nothing was lost."
+	case "restore_revert_failed":
+		return "The restored data did not start and the box could not put back the data it had before. The copy from before the restore is still in the list of backups; see the RUNBOOK (restore a backup)."
+	}
+	msg := ""
+	if e != nil {
+		msg = e.Message
+	}
+	return mapHostCode(ctx, h.log, code, msg, 0).Message
+}
+
+// ---- GET /core/data/backups ----
+
+// CoreGetCoreDataBackups implements GET /core/data/backups (admin): the backups the helper keeps, newest first.
+// Kinds the API does not name are left out.
+func (h *OSHandlers) CoreGetCoreDataBackups(ctx context.Context) (*oas.CoreGetCoreDataBackupsOK, error) {
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	bl, err := h.host.StateBackups(ctx)
+	if err != nil {
+		return nil, hostErr(ctx, h.log, err)
+	}
+	out := &oas.CoreGetCoreDataBackupsOK{Backups: []oas.CoreGetCoreDataBackupsOKBackupsItem{}}
+	for _, b := range bl.Backups {
+		k := oas.CoreGetCoreDataBackupsOKBackupsItemKind(b.Kind)
+		if !slices.Contains(k.AllValues(), k) {
+			continue
+		}
+		out.Backups = append(out.Backups, oas.CoreGetCoreDataBackupsOKBackupsItem{ID: b.BackupID, Kind: k, CreatedAt: b.CreatedAt, Size: int(b.Size), IncludesKey: b.IncludesSecrets})
+	}
+	slices.SortStableFunc(out.Backups, func(a, b oas.CoreGetCoreDataBackupsOKBackupsItem) int { return b.CreatedAt.Compare(a.CreatedAt) })
+	return out, nil
+}
+
+// ---- POST /core/data/restore ----
+
+// CorePostCoreDataRestore implements POST /core/data/restore (admin, 202). Nothing is asked of the host before
+// confirm_data_loss is true (409 confirm_required) and the backup is in the host's list (404 backup_unknown).
+func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CorePostCoreDataRestoreReq) (*oas.CorePostCoreDataRestoreAccepted, error) {
+	c, err := callerOf(ctx, h.auth)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	if v, ok := req.ConfirmDataLoss.Get(); !ok || !v {
+		return nil, apierr.New(409, codeConfirmReq, "Restoring replaces everything written since the backup. Confirm to go on.")
+	}
+	h.installMu.Lock() // one host write of this kind at a time through this process
+	defer h.installMu.Unlock()
+	if h.busy(ctx) {
+		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then restore.")
+	}
+	if rec, err := h.restoreLatest(ctx); err != nil {
+		return nil, err
+	} else if rec != nil && rec.Status == "" {
+		return nil, apierr.New(409, codeBusy, "A restore is already running. Wait for it to finish.")
+	}
+	bl, err := h.host.StateBackups(ctx)
+	if err != nil {
+		return nil, hostErr(ctx, h.log, err)
+	}
+	i := slices.IndexFunc(bl.Backups, func(b api.Backup) bool { return b.BackupID == req.BackupID })
+	if i < 0 {
+		return nil, mapHostCode(ctx, h.log, api.CodeBackupUnknown, "", 0)
+	}
+	b := bl.Backups[i]
+
+	var snap snapshot
+	var run api.Run
+	keepSnap := false
+	err = h.act(ctx, c, true, "data.restore", b.BackupID, "backup of "+b.CreatedAt.UTC().Format(time.RFC3339), func(id, actor string) error {
+		var err error
+		if snap, err = h.snaps.create(ctx, true); err != nil {
+			return h.snapshotFailure(ctx, err)
+		}
+		if run, err = h.host.BackupRestore(ctx, b.BackupID, snap.ID, id, actor); err != nil {
+			var found, known bool
+			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupRestore, id); found {
+				return nil
+			}
+			keepSnap = !known // the host may be reading it: the start-up sweep removes it later
+			return hostErr(ctx, h.log, err)
+		}
+		return nil
+	})
+	if err != nil {
+		if !keepSnap {
+			snap.remove()
+		}
+		return nil, err
+	}
+	rec := &restoreRec{RunID: run.RunID, BackupID: b.BackupID, BackupCreatedAt: b.CreatedAt, User: c.Email, StartedAt: run.StartedAt, Snapshot: snap.ID}
+	wctx := context.WithoutCancel(ctx)
+	if err := h.db.Write(wctx, func(tx *sql.Tx) error { return h.putSetting(wctx, tx, keyRestore, rec, c.Email) }); err != nil {
+		h.log.ErrorContext(ctx, "core: could not store the restore run", "run", run.RunID, "error", err) // the host holds the record
+	}
+	h.wg.Add(1)
+	go h.followRestore(run)
+	return asOAS[oas.CorePostCoreDataRestoreAccepted](rec.view())
+}
+
+// ---- GET /core/data/restore/run ----
+
+// CoreGetCoreDataRestoreRun implements GET /core/data/restore/run (admin): the latest restore, null before the first.
+func (h *OSHandlers) CoreGetCoreDataRestoreRun(ctx context.Context) (oas.NilCoreGetCoreDataRestoreRunOK, error) {
+	if err := h.needHost(); err != nil {
+		return oas.NilCoreGetCoreDataRestoreRunOK{}, err
+	}
+	rec, err := h.restoreLatest(ctx)
+	if err != nil {
+		return oas.NilCoreGetCoreDataRestoreRunOK{}, err
+	}
+	if rec == nil {
+		return oas.NilCoreGetCoreDataRestoreRunOK{Null: true}, nil
+	}
+	out, err := asOAS[oas.NilCoreGetCoreDataRestoreRunOK](rec.view())
+	if err != nil {
+		return oas.NilCoreGetCoreDataRestoreRunOK{}, err
+	}
+	return *out, nil
+}
+
+// ---- following and settling ----
+
+func (h *OSHandlers) loadRestore(ctx context.Context) (*restoreRec, error) {
+	var rec restoreRec
+	if err := h.loadJSON(ctx, keyRestore, &rec); err != nil {
+		return nil, err
+	}
+	if rec.RunID == "" {
+		return nil, nil
+	}
+	return &rec, nil
+}
+
+// restoreLatest is the latest restore as core should show it. A settled copy answers alone once this process
+// has looked at the host (restoreSynced): a restored database may hold the copy of an older restore. Otherwise
+// it asks the host, settles a run that ended, and describes one still going.
+func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
+	rec, err := h.loadRestore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if rec != nil && rec.Status != "" && h.restoreSynced.Load() {
+		return rec, nil
+	}
+	runs, err := h.host.ListRuns(ctx, listRunsWindow)
+	if err != nil {
+		return nil, hostErr(ctx, h.log, err)
+	}
+	h.restoreSynced.Store(true)
+	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore }) // newest first
+	if i < 0 {
+		return rec, nil
+	}
+	run := runs[i]
+	if run.Status.Terminal() {
+		if err := h.settleRestore(ctx, run); err != nil {
+			return nil, err
+		}
+		return h.loadRestore(ctx)
+	}
+	if rec == nil || rec.RunID != run.RunID {
+		rec = &restoreRec{RunID: run.RunID, User: run.Actor, StartedAt: run.StartedAt}
+	}
+	rec.Status = ""
+	return rec, nil
+}
+
+// followRestore waits for a restore run to end and settles it. Core is stopped by a restore that gets that far:
+// the follower then dies with the process and resumeRestore of the next one does the rest.
+func (h *OSHandlers) followRestore(run api.Run) {
+	defer h.wg.Done()
+	run, err := waitRun(h.ctx, h.log, h.host, run, restoreTimeout)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			h.log.Warn("core: lost track of the restore run; it is settled on the next read", "run", run.RunID, "error", err)
+		}
+		return
+	}
+	if err := h.settleRestore(h.ctx, run); err != nil {
+		h.log.Error("core: could not settle the restore run", "run", run.RunID, "error", err)
+	}
+}
+
+// resumeRestore is the start-up pass: settle the latest restore into this database, or follow it when it is
+// still going. One try: a host that does not answer yet leaves it to the first read.
+func (h *OSHandlers) resumeRestore() {
+	defer h.wg.Done()
+	ctx, cancel := context.WithTimeout(h.ctx, loadTimeout)
+	runs, err := h.host.ListRuns(ctx, listRunsWindow)
+	cancel()
+	if err != nil {
+		return
+	}
+	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore })
+	if i < 0 {
+		h.restoreSynced.Store(true)
+		return
+	}
+	if runs[i].Status.Terminal() {
+		if err := h.settleRestore(h.ctx, runs[i]); err != nil {
+			h.log.Error("core: could not settle the restore run", "run", runs[i].RunID, "error", err)
+			return
+		}
+		h.restoreSynced.Store(true)
+		return
+	}
+	h.wg.Add(1)
+	h.followRestore(runs[i]) // its Done balances the Add just above; ours is deferred
+}
+
+// settleRestore records the end of a restore run once per database: the copy in core_setting and the audit row
+// data.restore_done in one transaction, then removes the snapshot that backed it. A database that does not know
+// that id (the restore swapped it) removes every snapshot written before this process started that no resumed run
+// needs (removeBefore).
+func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
+	h.restoreMu.Lock() // the follower and a read may settle the same run at once: one audit row
+	defer h.restoreMu.Unlock()
+	rec, err := h.loadRestore(ctx)
+	if err != nil {
+		return err
+	}
+	if rec != nil && rec.RunID == run.RunID && rec.Status != "" {
+		return nil
+	}
+	if rec == nil || rec.RunID != run.RunID { // a restored database, or a restore started by an earlier process
+		rec = &restoreRec{RunID: run.RunID, User: run.Actor, StartedAt: run.StartedAt}
+	}
+	var res api.BackupRestoreResult
+	if len(run.Result) > 0 {
+		_ = json.Unmarshal(run.Result, &res) // a result core cannot read only leaves the ids empty
+	}
+	if rec.BackupID == "" {
+		rec.BackupID = res.RestoredBackupID
+	}
+	if rec.BackupCreatedAt.IsZero() && rec.BackupID != "" {
+		if bl, err := h.host.StateBackups(ctx); err == nil {
+			if i := slices.IndexFunc(bl.Backups, func(b api.Backup) bool { return b.BackupID == rec.BackupID }); i >= 0 {
+				rec.BackupCreatedAt = bl.Backups[i].CreatedAt
+			}
+		}
+	}
+	rec.Status, rec.FinishedAt, rec.PreRestore = restoreStatus(run.Status), run.FinishedAt, res.PreRestoreBackupID
+	if rec.Status != "done" {
+		rec.Error = restoreReason(ctx, h, run.Error)
+	}
+	detail := rec.Status
+	if run.Error != nil {
+		detail += " " + run.Error.Code
+	}
+	err = h.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := h.putSetting(ctx, tx, keyRestore, rec, "system"); err != nil {
+			return err
+		}
+		return h.audit.Append(ctx, tx, audit.Entry{User: rec.User, Action: "data.restore_done", Target: rec.BackupID, Detail: cutAtRune(detail, auditMaxDetail)})
+	})
+	if err != nil {
+		return fmt.Errorf("core: settle restore: %w", err)
+	}
+	switch {
+	case h.snaps == nil:
+	case rec.Snapshot != "":
+		if snapshotIDRE.MatchString(rec.Snapshot) {
+			snapshot{ID: rec.Snapshot, dir: filepath.Join(h.snaps.dir, rec.Snapshot)}.remove()
+		}
+	default:
+		var keep []string
+		if m, err := h.loadRunMeta(ctx); err == nil && m.Snapshot != "" {
+			keep = append(keep, m.Snapshot)
+		}
+		if u, err := h.loadUpdateRun(ctx); err == nil && u != nil && u.Snapshot != "" {
+			keep = append(keep, u.Snapshot)
+		}
+		h.snaps.removeBefore(h.started, keep...)
+	}
+	return nil
+}

@@ -72,7 +72,7 @@ type Service struct {
 	wazuhRoots  *x509.CertPool // nil: the system's (tests replace it)
 	wazuhSleep  func(ctx context.Context, d time.Duration) error
 	wazuhPace   time.Duration
-	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
+	wazuhBudget func(ctx context.Context) (context.Context, context.CancelFunc) // one pull's time (wazuhPullBudget; tests end it themselves)
 
 	mirror      chan struct{}   // one slot per running package download, box-wide (install.go)
 	mirrorBy    map[string]bool // the source addresses (srcKey) that hold a slot: one download each
@@ -95,7 +95,10 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}, mirror: make(chan struct{}, maxMirrorDownloads), mirrorBy: map[string]bool{}, chunkWait: mirrorChunkWait, maxDownload: mirrorMaxTime}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
-	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget
+	s.wazuhSleep, s.wazuhPace = sleepCtx, wazuhPace
+	s.wazuhBudget = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return context.WithTimeout(ctx, wazuhPullBudget)
+	}
 	return s, nil
 }
 

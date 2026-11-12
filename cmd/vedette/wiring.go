@@ -361,9 +361,10 @@ func subscribe(d deps) {
 	}))
 }
 
-// privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
-// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), flow 11 when
-// auth-oidc has an issuer. Each answer moves to its module's service when that module gets a backend.
+// privacyFacts answers what the Privacy page asks of other modules: the AI flow is on when a profile is usable, flow 11 when
+// auth-oidc has an issuer, flow 12 while a connection is enabled. NTP (flow 10) is always on: the servers of Box network are added
+// to the distribution's own chrony sources, which the box never removes (D-166, PRIVACY.md), and core cannot see whether the
+// owner removed them by hand. ponytail: "off" needs the host to report chrony's whole source list (`chronyc sources`), a host API change.
 type privacyFacts struct {
 	conns *conn.Service
 	d     *deps // read lazily: the ai service is built after core, which takes this value
@@ -374,7 +375,7 @@ func (p privacyFacts) AIConfigured(context.Context) bool {
 	return p.d != nil && p.d.AI != nil && p.d.AI.Configured()
 }
 
-func (privacyFacts) NTPPublic(context.Context) bool { return true }
+func (privacyFacts) NTPPublic(context.Context) bool { return true } // see privacyFacts
 
 // OIDCConfigured: flow 11 and the SSO button (auth-options) while auth-oidc has an issuer saved; the caller checks that the module is
 // on. A store that cannot be read counts as "yes", like ConnectionsConfigured: the page must not say nothing leaves when it does not know.

@@ -28,6 +28,11 @@ export function useModuleEnabled(id: ModuleId): boolean | undefined {
   return data?.modules.find((m) => m.id === id)?.enabled
 }
 
+/** false when this install cannot run the module (D-381), for example the honeypot on a container-only install; undefined while loading. */
+export function useModuleAvailable(id: ModuleId): boolean | undefined {
+  return useModules().data?.modules.find((m) => m.id === id)?.available
+}
+
 /** The install kind from GET /modules, the one source the GUI reads (D-381); undefined while loading. */
 export function useInstallKind(): InstallKind | undefined {
   return useModules().data?.install

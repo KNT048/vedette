@@ -220,6 +220,8 @@ const TRIGGER_REF = /\{\{\s*trigger\.([a-z_]+)\s*\}\}/g
 export const refsIn = (spec: string) => [...spec.matchAll(TRIGGER_REF)].map((m) => m[1]!)
 /** Replace each reference by the event value (empty when the event has none). Whatever comes out is checked by type afterwards. */
 export const resolveParam = (spec: string, fields: Record<string, string>) => spec.replace(TRIGGER_REF, (_, k: string) => fields[k] ?? '')
+/** A name of a rule or a custom action: the box's catTextRE. */
+export const TEXT_RE = /^[A-Za-z0-9 _.,:'()/-]{1,80}$/
 export const oneLine = (s: string, max = 80) => s.replace(/[\r\n\t]+/g, ' ').slice(0, max)
 
 // ---- Conditions (IF) ----
@@ -228,6 +230,45 @@ export interface Ev { id: string; ts: string; fields: Record<string, string>; de
 /** The counted signature of a log_threshold rule (D-287): pasted from the Logs digest, compared and counted, never filled into an action. */
 export const logSignature = (trigger: string | undefined, c: { op: string; field: string }) => trigger === 'log_threshold' && c.op === 'count_window' && c.field === 'signature'
 const lc = (s: string) => s.trim().toLowerCase()
+const OPS = ['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time']
+const TEXT_VAL = /^[\w .,:/@#-]{0,200}$/
+/** A plain decimal number, the same pattern as the box (D-390): no hex, exponent, Infinity or NaN. */
+const DECIMAL = /^[-+]?(\d+\.?\d*|\.\d+)$/
+/** The spaces Go's strings.TrimSpace removes (unicode.IsSpace), so a pasted signature is trimmed like the box does: not U+FEFF, which JS trim() would. */
+const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g
+export const goTrim = (s: string) => s.replace(GO_SPACE, '')
+export interface CondField { key: string; label: string; type: string; choices: string[]; min: number | null; max: number | null }
+/** Why the value of a condition does not fit its field, or null (D-390): "at least"/"at most" only on a field with a range (number,
+ * port) and inside it; "equals"/"is one of" take numbers inside the range of such a field, or one of the choices of a field that has
+ * them (without case, like evalCondition). The box's condValueProblem says the same words. */
+export function condValueProblem(f: CondField, op: string, value: string): string | null {
+  const ranged = f.min !== null && f.max !== null
+  const inRange = (v: string) => DECIMAL.test(v.trim()) && Number(v) >= f.min! && Number(v) <= f.max!
+  const bounds = () => `${f.min} to ${f.max}`
+  const items = op === 'in' ? value.split(',').map(lc).filter(Boolean) : [value]
+  if (op === 'gte' || op === 'lte') {
+    if (!ranged) return 'At least / at most: only for a number field.'
+    if (!inRange(value)) return `${f.label}: give a number from ${bounds()}.`
+  } else if (op === 'eq' || op === 'in') {
+    if (ranged && (!items.length || !items.every(inRange))) return op === 'in' ? `${f.label}: give numbers from ${bounds()}, separated by commas.` : `${f.label}: give a number from ${bounds()}.`
+    if (!ranged && f.choices.length && (!items.length || !items.every((v) => f.choices.includes(lc(v))))) return `${f.label}: use one of ${f.choices.join(', ')}.`
+  }
+  return null
+}
+/** Why one condition of a rule is refused, or null: the checks of the box's checkRule, in its order. `c.value` is as sent (a signature
+ * is trimmed here first). */
+export function condProblem(trigger: { id: string; fields: CondField[] }, c: Cond, kinds: string[]): string | null {
+  if (!OPS.includes(c.op)) return c.op ? 'Unknown condition test.' : 'Each condition needs a field, a test and a value.'
+  const f = trigger.fields.find((x) => x.key === c.field)
+  if (c.op === 'device_type') { if (!c.value.split(',').every((k) => kinds.includes(k.trim()))) return 'Device type: use device types such as camera, nvr, iot.' } else if (!f) return `The field "${oneLine(c.field, 30)}" does not exist for this trigger.`
+  const value = logSignature(trigger.id, c) ? goTrim(c.value) : c.value
+  if (logSignature(trigger.id, c)) { if (!value || /[\u0000-\u001f\u007f\u0085\u2028\u2029]/.test(value) || [...value].length > 200) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
+  if (c.op === 'in_cidr' && !isCidr(value)) return 'In range: give a CIDR range such as 192.168.10.0/24.'
+  if ((c.op === 'gte' || c.op === 'lte') && !DECIMAL.test(value)) return 'At least / at most: give a number.'
+  if (c.op === 'count_window' && (c.n === null || c.n < 1 || c.n > 1000 || c.window_min === null || c.window_min < 1 || c.window_min > 1440)) return 'Count in window: give how many (1 to 1000) and the minutes (1 to 1440).'
+  if (c.op === 'first_time' && (c.n === null || c.n < 1 || c.n > 720)) return 'First time: give the hours (1 to 720).'
+  return f && c.op !== 'device_type' ? condValueProblem(f, c.op, value) : null
+}
 /** Pure test of one condition. `others` = the other events of the same trigger (for the counting tests). */
 export function evalCondition(c: Cond, ev: Ev, others: Ev[]): boolean {
   const f = ev.fields[c.field] ?? ''

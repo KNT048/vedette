@@ -429,6 +429,9 @@ type TriggerField struct {
 	Type    string   `json:"type"`
 	Example string   `json:"example"`
 	Choices []string `json:"choices"`
+	// Min and Max bound a number or port field (D-390): a condition value outside them is refused when the rule is saved.
+	Min *float64 `json:"min"`
+	Max *float64 `json:"max"`
 }
 
 // TriggerInfo describes a trigger.

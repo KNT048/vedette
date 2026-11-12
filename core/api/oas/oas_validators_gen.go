@@ -54416,6 +54416,42 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Max.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "max",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Min.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "min",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Type.Validate(); err != nil {
 			return err
 		}

@@ -94,11 +94,11 @@ func (g *gatesFake) fn(argv []string) ([]byte, error) {
 	case strings.HasPrefix(a, "make -C repo --no-print-directory host-deb "):
 		out := strings.TrimPrefix(argv[len(argv)-1], "DEB_OUT=")
 		arch := strings.TrimPrefix(argv[6], "ARCH=")
-		b, err := os.ReadFile(g.rebuilt) //nolint:gosec // test file
+		b, err := os.ReadFile(g.rebuilt)
 		if err != nil {
 			return nil, err
 		}
-		return nil, os.WriteFile(filepath.Join(out, "vedette-host_0.2.0_"+arch+".deb"), b, 0o600)
+		return nil, os.WriteFile(filepath.Join(out, "vedette-host_0.2.0_"+arch+".deb"), b, 0o600) //nolint:gosec // test: out is the temporary directory the code under test made
 	}
 	return nil, fmt.Errorf("unexpected %q", a)
 }
@@ -197,7 +197,7 @@ func TestGatesRefuse(t *testing.T) {
 		{"floor not decimal", "plain decimal", func(o *gatesOpts, _ *gatesFake) { o.MinSequence = "07" }, false},
 		{"floor without the published index", "without RELEASE_PREV_INDEX", func(o *gatesOpts, _ *gatesFake) { o.PrevIndex = "" }, false},
 		{"floor not the index's", "has sequence 1", func(o *gatesOpts, _ *gatesFake) { o.MinSequence = "0" }, false},
-		{"index does not verify", "index", func(o *gatesOpts, _ *gatesFake) {
+		{"index does not verify", "published index: ", func(o *gatesOpts, _ *gatesFake) {
 			must(t, os.WriteFile(filepath.Join(o.PrevIndex, indexFile), []byte(`{"sequence":1}`), 0o600))
 		}, false},
 		{"dirty tree", "uncommitted", func(_ *gatesOpts, g *gatesFake) { g.status = " M Makefile" }, false},
@@ -281,7 +281,7 @@ func TestDebMember(t *testing.T) {
 		return p
 	}
 	good := write("good.deb", [2]string{"debian-binary", "2.0\n"}, [2]string{"control.tar.gz", "odd"}, [2]string{"data.tar.gz", string(tgz(t, [][2]string{{"usr/lib/vedette/vedette-host", "BIN"}}))})
-	if b, err := debMember(good, hostBinaryInDeb); err != nil || string(b) != "BIN" {
+	if b, err := debMember(good); err != nil || string(b) != "BIN" {
 		t.Errorf("member without ./: %q %v", b, err)
 	}
 	for name, c := range map[string]struct {
@@ -293,13 +293,13 @@ func TestDebMember(t *testing.T) {
 		"symlink": {write("link.deb", [2]string{"data.tar.gz", string(tgz(t, [][2]string{{"./" + hostBinaryInDeb, "->/bin/sh"}}))}), "not a regular file"},
 		"no data": {write("nodata.deb", [2]string{"debian-binary", "2.0\n"}), "has no data.tar.gz"},
 	} {
-		if _, err := debMember(c.path, hostBinaryInDeb); err == nil || !strings.Contains(err.Error(), c.want) {
+		if _, err := debMember(c.path); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: want %q, got %v", name, c.want, err)
 		}
 	}
 	notAr := filepath.Join(dir, "x.deb")
 	must(t, os.WriteFile(notAr, []byte("PK\x03\x04"), 0o600))
-	if _, err := debMember(notAr, hostBinaryInDeb); err == nil {
+	if _, err := debMember(notAr); err == nil {
 		t.Error("a file that is not an ar archive accepted")
 	}
 }

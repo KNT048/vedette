@@ -98,7 +98,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		if err != nil {
 			return err
 		}
-		bin, err := debMember(deb, hostBinaryInDeb)
+		bin, err := debMember(deb)
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ func sameAsRebuilt(ctx context.Context, run runFunc, o gatesOpts, arch, deb stri
 
 // debRevision is the vcs.revision of the vedette-host inside a package, or "" when it cannot be read (only for the message).
 func debRevision(deb []byte) string {
-	bin, err := readDebMember(bytes.NewReader(deb), hostBinaryInDeb, "package")
+	bin, err := readDebMember(bytes.NewReader(deb), "package")
 	if err != nil {
 		return ""
 	}
@@ -202,18 +202,18 @@ func debRevision(deb []byte) string {
 	return ""
 }
 
-// debMember returns the regular file member (a path without ./) of the data.tar.gz of a .deb: an ar archive whose members are
+// debMember returns vedette-host (hostBinaryInDeb, a regular file) from the data.tar.gz of a .deb: an ar archive whose members are
 // debian-binary, control.tar.* and data.tar.*. nfpm.yaml builds gzip (deb.compression); any other compression is refused.
-func debMember(deb, member string) ([]byte, error) {
+func debMember(deb string) ([]byte, error) {
 	f, err := os.Open(deb) //nolint:gosec // the package the maintainer built, named by make
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
-	return readDebMember(bufio.NewReader(f), member, deb)
+	return readDebMember(bufio.NewReader(f), deb)
 }
 
-func readDebMember(r io.Reader, member, deb string) ([]byte, error) {
+func readDebMember(r io.Reader, deb string) ([]byte, error) {
 	magic := make([]byte, 8)
 	if _, err := io.ReadFull(r, magic); err != nil || string(magic) != "!<arch>\n" {
 		return nil, fmt.Errorf("%s is not a .deb (no ar header)", deb)
@@ -235,7 +235,7 @@ func readDebMember(r io.Reader, member, deb string) ([]byte, error) {
 			if name != "data.tar.gz" {
 				return nil, fmt.Errorf("%s: %s, but deploy/deb/nfpm.yaml builds data.tar.gz (deb.compression: gzip)", deb, name)
 			}
-			return tarMember(io.LimitReader(r, size), member, deb)
+			return tarMember(io.LimitReader(r, size), deb)
 		}
 		if _, err := io.CopyN(io.Discard, r, size+size%2); err != nil {
 			return nil, fmt.Errorf("%s: %w", deb, err)
@@ -243,7 +243,8 @@ func readDebMember(r io.Reader, member, deb string) ([]byte, error) {
 	}
 }
 
-func tarMember(gz io.Reader, member, deb string) ([]byte, error) {
+func tarMember(gz io.Reader, deb string) ([]byte, error) {
+	const member = hostBinaryInDeb
 	zr, err := gzip.NewReader(gz)
 	if err != nil {
 		return nil, fmt.Errorf("%s: data.tar.gz: %w", deb, err)

@@ -410,7 +410,6 @@ func TestHostDebPreflightWiring(t *testing.T) {
 	}
 }
 
-// The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
 // make release-gates (D-401): the floor rule of host-deb before anything runs, then the gates in order, the floor and its index
 // handed to the Go checks (which compare them, since make lets an environment MIN_SEQUENCE win), sbom and vuln kept (RELEASE=1).
 func TestReleaseGatesWiring(t *testing.T) {
@@ -420,7 +419,7 @@ func TestReleaseGatesWiring(t *testing.T) {
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "make", append([]string{"--no-print-directory"}, args...)...) //nolint:gosec // test: fixed argv
 		cmd.Dir = "../.."
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = append(os.Environ(), append([]string{"CONTAINER=podman", "RELEASE_PREV_INDEX=", "MAKEFLAGS=", "MAKELEVEL="}, env...)...) // not the caller's
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
@@ -450,7 +449,7 @@ func TestReleaseGatesWiring(t *testing.T) {
 	}{
 		{"the release floor", []string{"MIN_SEQUENCE="}, []string{"VERSION=1.0.0"}},
 		{"VERSION must be SemVer", nil, []string{"VERSION=v1.0.0", "MIN_SEQUENCE=0"}},
-		{"CONTAINER=docker is not supported", nil, []string{"VERSION=1.0.0", "MIN_SEQUENCE=0", "CONTAINER=docker"}},
+		{"CONTAINER=docker is not supported", []string{"CONTAINER=docker"}, []string{"VERSION=1.0.0", "MIN_SEQUENCE=0"}},
 	} {
 		if out, err := run(c.env, append([]string{"release-gates"}, c.args...)...); err == nil || !strings.Contains(out, c.why) || strings.Contains(out, "trivy") || strings.Contains(out, "go run") {
 			t.Errorf("%v %v: want a refusal with %q before anything runs: %v\n%s", c.env, c.args, c.why, err, out)
@@ -458,6 +457,7 @@ func TestReleaseGatesWiring(t *testing.T) {
 	}
 }
 
+// The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
 func TestToolPinsAreExact(t *testing.T) {
 	t.Parallel()
 	got := map[string]string{}

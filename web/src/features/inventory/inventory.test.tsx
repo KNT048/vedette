@@ -306,7 +306,23 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices')
     expect((await screen.findAllByText('No devices yet', undefined, T)).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: 'Add a device' }).length).toBeGreaterThan(1)
-    expect(screen.getByRole('link', { name: "Set the box's network ranges" })).toHaveAttribute('href', '/devices/setup')
+    expect(await screen.findByText(/Vedette is watching the network ranges you saved/, undefined, T)).toBeInTheDocument() // the mock has ranges saved
+    expect(screen.queryByRole('link', { name: "Set the box's network ranges" })).not.toBeInTheDocument()
+  })
+
+  it('no devices and no range saved: asks for the ranges', async () => {
+    assetsStore.set([])
+    server.use(http.get('*/api/v1/inventory/settings', () => HttpResponse.json({ ...inventorySettingsStore.get(), lan_ranges: [] })))
+    renderApp('/devices')
+    expect(await screen.findByRole('link', { name: "Set the box's network ranges" }, T)).toHaveAttribute('href', '/devices/setup')
+  })
+
+  it('the setup page does not ask for agents while agent-intake is off', async () => {
+    let asked = 0
+    server.use(http.get('*/api/v1/inventory/agents', () => { asked++; return HttpResponse.json({ error: { code: 'module_off', message: 'off' } }, { status: 404 }) }))
+    renderApp('/devices/setup')
+    expect((await screen.findAllByText(/Agent intake is off/, undefined, T)).length).toBeGreaterThan(0)
+    expect(asked).toBe(0)
   })
 })
 

@@ -67,6 +67,8 @@
     "title": "No devices yet",
     "body": "Plug the box into your LAN and Vedette finds devices by itself after about an hour. Or add devices by hand, or import a list from a CSV file.",
     "range": "Set the box's network ranges",
+    "bodyWatching": "Vedette is watching the network ranges you saved. Devices appear here as the sensor hears them, usually within an hour. Or add devices by hand, or import a list from a CSV file.",
+    "bodyBoxOnlyWatching": "Only the Vedette box is on the list so far. Vedette is watching the network ranges you saved, and devices appear as the sensor hears them. You can also add devices by hand or import a CSV.",
     "bodyBoxOnly": "Only the Vedette box is on the list so far. Add the other devices by hand, import a CSV, or give Vedette your network ranges so it finds them."
   },
   "export": "Export CSV",

@@ -8,6 +8,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -67,7 +68,14 @@ func inventoryJobs(d deps) []jobs.Job {
 		if err != nil || host == "" {
 			host = "vedette"
 		}
-		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host}); err != nil {
+		var ip string
+		if d.HostSocket != "" {
+			// Best effort: a host that does not answer leaves the address unknown until the next run.
+			if st, err := hostclient.New(d.HostSocket).StateNet(ctx); err == nil {
+				ip = boxManagementIPv4(st)
+			}
+		}
+		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host, IP: ip}); err != nil {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)

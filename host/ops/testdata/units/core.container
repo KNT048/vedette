@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Container]
 ContainerName=vedette-core
+HostName=vedette
 Image=ghcr.io/knt048/vedette-core@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 Pull=never
 Network=vedette-int.network

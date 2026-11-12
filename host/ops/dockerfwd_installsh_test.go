@@ -44,7 +44,11 @@ func TestInstallSh_ForwardRulesOfTheHost(t *testing.T) {
 	m.DockerAdminRuleFirst("-s 198.51.100.0/24 -j DROP")
 	// the ACCEPT of a bridge that is gone (the host never deletes; --uninstall must)
 	m.DockerAdminRule(accTo("br-old"))
-	rulesAre(t, m, append(append([]string{"-s 198.51.100.0/24 -j DROP", accTo("br-lan")}, fixedRules...), append(admin, accTo("br-old"))...)...)
+	// a rule of ours in the word order the real "iptables -S" prints (-d before -o, the ctstate list reordered): the
+	// fake's -S prints stored words, so this is how remove_forward_rules meets a real chain
+	const realOrder = "-d 172.30.77.0/24 -o vedette0 -m conntrack --ctstate RELATED,ESTABLISHED,DNAT -m comment --comment vedette-int -j ACCEPT"
+	m.DockerAdminRule(realOrder)
+	rulesAre(t, m, append(append([]string{"-s 198.51.100.0/24 -j DROP", accTo("br-lan")}, fixedRules...), append(admin, accTo("br-old"), realOrder)...)...)
 
 	fns := "set -eu\nhave() { command -v \"$1\" >/dev/null 2>&1; }\n" + installShFunc(t, "fwd_rules_present") + installShFunc(t, "remove_forward_rules")
 	run := func(call string) error {
@@ -84,7 +88,7 @@ func TestInstallSh_ForwardRulesOfTheHost(t *testing.T) {
 	for _, r := range fixedRules[:4] {
 		want = append(want, "-w 5 -D DOCKER-USER "+r)
 	}
-	want = append(want, "-w 5 -D DOCKER-USER "+accTo("br-old"), "-w 5 -D DOCKER-USER "+drop)
+	want = append(want, "-w 5 -D DOCKER-USER "+accTo("br-old"), "-w 5 -D DOCKER-USER "+realOrder, "-w 5 -D DOCKER-USER "+drop)
 	if strings.Join(deleted, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("deletes:\n%s\nwant:\n%s", strings.Join(deleted, "\n"), strings.Join(want, "\n"))
 	}

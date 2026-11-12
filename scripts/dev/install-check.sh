@@ -265,6 +265,7 @@ EOT
 		fi
 		# boxBridges in sh: br- + 1-12 of [A-Za-z0-9_.-], not br- + 12 hex (Docker's), with a port that has device, bonding or a lower_* link
 		# (lstat: -e or -L); sorted bytewise like Go's os.ReadDir
+		# shellcheck disable=SC2016 # the $ expand in the container's sh, not here
 		fwd_box=$(x 'export LC_ALL=C; for d in /sys/class/net/br-*; do b=${d##*/}; printf "%s\n" "$b" | grep -Eqx "br-[A-Za-z0-9_.-]{1,12}" || continue; ! printf "%s\n" "$b" | grep -Eqx "br-[0-9a-f]{12}" || continue; for p in "$d"/brif/*; do p=/sys/class/net/${p##*/}; up=; for f in "$p/device" "$p/bonding" "$p"/lower_*; do if [ -e "$f" ] || [ -L "$f" ]; then up=1; fi; done; if [ -n "$up" ]; then echo "$b"; break; fi; done; done | sort' | tr '\n' ' ')
 		case " $fwd_box" in *" br-app "*) fail "D-396: the bridge reader of this check calls br-app (only a veth) an uplink" ;; esac
 		if [ -n "$fwd_uplink" ]; then

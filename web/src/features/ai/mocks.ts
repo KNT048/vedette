@@ -367,7 +367,7 @@ export const handlers = [
     const pre = runHooks(q, 'before_ai', defs)
     const hooks: HookHit[] = [...pre.hits]
     if (pre.outcome === 'blocked' || pre.outcome === 'held') {
-      const refused: AskResult = { id: newId('ask'), question: pre.hits.some((h) => h.id === 'block-pii') ? '[question hidden: contains personal data]' : q, asked_at: nowIso(), answer: [pre.text], table: null, tool_calls: [], citations: [], model: '', profile: '', tokens: { input: 0, output: 0 }, downgraded: null, hooks }
+      const refused: AskResult = { id: newId('ask'), question: pre.hits.some((h) => h.id === 'block-pii') ? '[question hidden: contains personal data]' : q, asked_at: nowIso(), answer: [pre.text], table: null, tool_calls: [], citations: [], model: '', profile: '', tokens: { input: 0, output: 0 }, downgraded: null, hooks, memories_suggested: 0 }
       asks.update((l) => [refused, ...l].slice(0, 10))
       recordActivity({ job: 'ask-my-data', profile: '', model: '', hooks: pre.hits.map((h) => h.name), tools: [], input: q, output: pre.text, summary: `Question not sent: ${pre.text}`, tokens_in: 0, tokens_out: 0, result: 'blocked_by_hook' })
       return HttpResponse.json(refused)
@@ -394,9 +394,13 @@ export const handlers = [
     const words = new Set(sent.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => w.length >= 5))
     memoryStore.update((l) => l.map((m) => (m.enabled && m.text.toLowerCase().split(/[^a-z0-9-]+/).some((w) => words.has(w)) ? { ...m, last_used_at: nowIso() } : m)))
     const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message) === i)
-    const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, downgraded: c.downgraded!, hooks: uniq }
+    const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, downgraded: c.downgraded!, hooks: uniq, memories_suggested: 0 }
     asks.update((l) => [res, ...l].slice(0, 10))
-    return HttpResponse.json(res)
+    // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
+    const fact = 'FW-HQ is the only firewall and the gateway of the office network.'
+    const fresh = !stop && ans.tool_calls.length > 0 && memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
+    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `asked "${sent.slice(0, 190)}"` }])
+    return HttpResponse.json({ ...res, memories_suggested: fresh ? 1 : 0 })
   }),
 
   http.get(`${API}/ai/cve/:id/cached`, ({ params }) => {

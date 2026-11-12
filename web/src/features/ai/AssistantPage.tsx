@@ -111,6 +111,7 @@ function Answer({ r }: { r: AskResult }) {
           {r.answer.map((p, i) => <p key={i}>{p}</p>)}
         </AiBlock>
       )}
+      {r.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: r.memories_suggested })} <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link></p> : null}
       {hooks.length ? (
         <div className="rounded-md border border-rule bg-surface p-3 text-sm">
           <h3 className="mb-1 text-sm font-medium">{t('ask.hooksTitle')}</h3>

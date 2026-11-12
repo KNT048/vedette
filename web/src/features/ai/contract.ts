@@ -68,6 +68,7 @@ export const AskResult = z.object({
   tool_calls: z.array(ToolCall), citations: z.array(Citation), model: z.string(), profile: z.string(), tokens: Tokens,
   downgraded: z.object({ from: AiTier, to: AiTier }).nullable(),
   hooks: z.array(HookHit).describe('Hooks that acted on this question, answer or tool call; empty when none did'),
+  memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)'),
 })
 export const ExplainResult = z.object({
   cve: z.string(), generated_at: iso, cached: z.boolean(), affected: z.enum(['yes', 'no', 'unknown']), why: z.string(),

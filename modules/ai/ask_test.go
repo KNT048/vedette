@@ -1042,3 +1042,32 @@ func TestAskFourCallsPerTurn(t *testing.T) {
 		t.Fatalf("results = %+v, reads = %d", res, a.data.readCount())
 	}
 }
+
+func TestAskSuggestsOneMemoryOnlyWhenAllowed(t *testing.T) {
+	a := newAskAPI(t)
+	answer := "The NAS is busy at 01:00 every night.\n\nremember: The NAS makes a backup every night at 01:00.\nRemember: FW-HQ is the only firewall."
+	a.fake.play(turn{text: answer})
+	got := a.ask("When does the NAS get busy?", 200, "")
+	if req := a.fake.lastRequest(t); strings.Contains(req.System+req.Messages[0].Text, "Remember:") {
+		t.Fatalf("suggestions are off, the task asks for them")
+	}
+	if len(list(got["answer"])) != 2 || got["memories_suggested"] != float64(0) { // off: the line was not asked for, it stays text
+		t.Fatalf("answer = %v", got)
+	}
+	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
+	a.fake.play(turn{text: answer})
+	got = a.ask("When does the NAS get busy?", 200, "")
+	if req := a.fake.lastRequest(t); !strings.Contains(req.System+req.Messages[0].Text, "Remember:") {
+		t.Fatalf("suggestions are on, the task does not ask for them")
+	}
+	if ans := list(got["answer"]); len(ans) != 1 || strings.Contains(ans[0].(string), "emember") || got["memories_suggested"] != float64(1) {
+		t.Fatalf("answer = %v", got)
+	}
+	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
+	if len(sg) != 1 || sg[0].(map[string]any)["text"] != "The NAS makes a backup every night at 01:00." || sg[0].(map[string]any)["evidence"] != `asked "When does the NAS get busy?"` {
+		t.Fatalf("suggestions = %v", sg)
+	}
+	if h := list(a.want("GET", "/ai/asks", "operator", "", 200, "")["items"]); len(h) == 0 || h[0].(map[string]any)["memories_suggested"] != float64(0) {
+		t.Fatalf("history = %v", h)
+	}
+}

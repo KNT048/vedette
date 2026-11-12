@@ -769,6 +769,12 @@
                         "additionalProperties": false
                       },
                       "description": "Hooks that acted on this question, answer or tool call; empty when none did"
+                    },
+                    "memories_suggested": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)"
                     }
                   },
                   "required": [
@@ -783,7 +789,8 @@
                     "profile",
                     "tokens",
                     "downgraded",
-                    "hooks"
+                    "hooks",
+                    "memories_suggested"
                   ],
                   "additionalProperties": false
                 }
@@ -1039,6 +1046,12 @@
                               "additionalProperties": false
                             },
                             "description": "Hooks that acted on this question, answer or tool call; empty when none did"
+                          },
+                          "memories_suggested": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)"
                           }
                         },
                         "required": [
@@ -1053,7 +1066,8 @@
                           "profile",
                           "tokens",
                           "downgraded",
-                          "hooks"
+                          "hooks",
+                          "memories_suggested"
                         ],
                         "additionalProperties": false
                       }

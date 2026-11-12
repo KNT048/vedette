@@ -284,7 +284,7 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	}
 	// the honeypot unit names this file (ContainersConfModule=, #486): same path, and it clears default_sysctls
 	if c := p.files[strings.TrimPrefix(ops.HoneypotConfModule, "/")].data; !bytes.Equal(c, repoFile(t, "deploy/deb/honeypot-containers.conf")) ||
-		!bytes.Contains(c, []byte("\n[containers]\ndefault_sysctls = []\n")) {
+		!bytes.Contains(c, []byte("\n[containers]\ndefault_sysctls = [{append=false}]\n")) {
 		t.Errorf("the package has no %s that clears default_sysctls", ops.HoneypotConfModule)
 	}
 	if c := p.files["usr/share/doc/vedette-host/copyright"].data; !bytes.Contains(c, []byte("Apache License")) || !bytes.Contains(c, []byte("Version 2.0")) {

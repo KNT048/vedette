@@ -414,7 +414,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		MaxHeaderBytes:    64 << 10,
-		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+		ErrorLog:          slog.NewLogLogger(newHandshakeNoise(log.Handler()), slog.LevelWarn),
 	}
 	ln, err := new(net.ListenConfig).Listen(ctx, "tcp", o.listen)
 	if err != nil {

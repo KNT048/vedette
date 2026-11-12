@@ -35,6 +35,11 @@ scripts/dev/lab-vm.sh destroy ubuntu2404     # removes only ~/.cache/vedette-lab
 The console log is `~/.cache/vedette-lab/<vm>/console.log`. To copy files in, run `scp` with the same options that `ssh` uses, or
 pipe through `scripts/dev/lab-vm.sh ssh 'cat > f' < f`.
 
+When you copy a folder in with `tar`, unpack it with `tar --no-same-owner` and `chown -R root:root` it: `install.sh` refuses
+test artifacts that root does not own. To reboot the VM in the middle of an apt run (self-update checks), use
+`sudo systemctl reboot --force`: on Debian 13 APT holds a logind block inhibitor while it installs, so a plain
+`systemctl reboot` is refused ("Access denied").
+
 For the GUI, forward a port with ssh:
 `ssh -i ~/.cache/vedette-lab/id_ed25519 -o UserKnownHostsFile=~/.cache/vedette-lab/<vm>/known_hosts -p <port> -L 8443:127.0.0.1:8443 lab@127.0.0.1`.
 The port is 22404 for ubuntu2404 and 22013 for debian13.

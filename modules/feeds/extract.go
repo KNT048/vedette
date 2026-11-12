@@ -206,7 +206,7 @@ func parseCSVFrom(text string, delim rune, quotes bool, line0 int) []csvRow {
 	}
 	if inQuote {
 		rest := parseCSVFrom(text[rowStart:], delim, false, startLine)
-		if len(rest) > 0 {
+		if len(rest) > 0 && rest[0].line == startLine { // not when the row that opened the quote was a comment
 			rest[0].bad = csvOpenQuote
 		}
 		return append(rows, rest...)

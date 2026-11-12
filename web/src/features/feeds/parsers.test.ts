@@ -60,6 +60,8 @@ describe('feed parsers (S-FEED-5)', () => {
     const r = parseFeed('dst_ip,note\n8.8.8.8,ok\n1.1.1.1,"never closed\n9.9.9.9,y\nnot-an-ip,z\n', 'ioc', p)
     expect(r.accepted).toBe(2) // 8.8.8.8 and 9.9.9.9
     expect(r.rejects).toEqual([{ row: 3, reason: 'a quote is opened on this row and never closed' }, { row: 5, reason: expect.stringContaining('not-an-ip') }])
+    // a comment row that opens a quote flags nothing: the rows after it are read literally and are fine
+    expect(parseFeed('#a,"b\nX,y\n', 'ioc', { ...p, has_header: false }).rejects.map((x) => x.reason)).not.toContain('a quote is opened on this row and never closed')
     // an open quote in the header row is a sample the editor cannot use
     expect(() => parseFeed('"dst_ip,note\n8.8.8.8,ok\n', 'ioc', p)).toThrow(/header row is not usable/)
   })

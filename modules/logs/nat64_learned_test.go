@@ -74,9 +74,10 @@ func TestAddrFormsNAT64LocalLearnedLength(t *testing.T) {
 	if got := addrForms(loop); !slices.Contains(got, netip.MustParseAddr("127.0.0.1")) {
 		t.Errorf("learned /64: 127.0.0.1 is missing from %v", got)
 	}
+	// a /64 starting 0x7f reads as loopback in the /48 layout: loopback is judged in every layout, so it stays refused (known false positive)
 	learned("64:ff9b:1:7f00::/64")
-	if got := addrForms(v7f); slices.ContainsFunc(got, func(a netip.Addr) bool { return a.Is4() && a.IsLoopback() }) {
-		t.Errorf("learned /64 starting 0x7f: still read as loopback: %v", got)
+	if got := addrForms(v7f); !slices.ContainsFunc(got, func(a netip.Addr) bool { return a.Is4() && a.IsLoopback() }) {
+		t.Errorf("learned /64 starting 0x7f: loopback reading dropped: %v", got)
 	}
 	// a learned prefix that does not cover the address changes nothing
 	learned("64:ff9b:1:b00::/64")
@@ -113,5 +114,63 @@ func TestNAT64CacheAsksRarely(t *testing.T) {
 	c.get()
 	if calls != 3 {
 		t.Errorf("%d lookups after the cache time and a failed lookup, want 3", calls)
+	}
+}
+
+// A forged ipv4only.arpa answer teaches a /96 prefix; the address below then reads as 0.0.0.1 in that layout and as the metadata
+// address in the /48 layout. DNS must not switch the guard off: it is refused with the forged answer as without it.
+func TestForgedNAT64AnswerDoesNotOpenTheGuard(t *testing.T) {
+	old := nat64Prefixes
+	t.Cleanup(func() { nat64Prefixes = old })
+	forged := learnNAT64([]netip.Addr{netip.MustParseAddr("64:ff9b:1:a9fe:a9:fe00:c000:aa")})
+	if len(forged) != 1 || forged[0].String() != "64:ff9b:1:a9fe:a9:fe00::/96" {
+		t.Fatalf("the forged answer teaches %v", forged)
+	}
+	nat64Prefixes = func() []netip.Prefix { return forged }
+	for _, s := range []string{"64:ff9b:1:a9fe:a9:fe00:0:1", "64:ff9b:1:a9fe:a9:fe00:808:808"} {
+		a := netip.MustParseAddr(s)
+		if got := addrForms(a); !slices.Contains(got, netip.MustParseAddr("169.254.169.254")) {
+			t.Errorf("%s: the metadata reading is missing from %v", s, got)
+		}
+		if !siemForbidden(a, nil, false) {
+			t.Errorf("%s is allowed after a forged answer", s)
+		}
+	}
+}
+
+// Several learned prefixes covering one address: the layouts of all of them are judged.
+func TestAddrFormsNAT64LocalSeveralLearned(t *testing.T) {
+	old := nat64Prefixes
+	t.Cleanup(func() { nat64Prefixes = old })
+	nat64Prefixes = func() []netip.Prefix {
+		return []netip.Prefix{netip.MustParsePrefix("64:ff9b:1:a00::/64"), netip.MustParsePrefix("64:ff9b:1::/48")}
+	}
+	a := nat64At("64:ff9b:1:a00::", nat64Layouts[2].at, [4]byte{8, 8, 8, 8})
+	got := addrForms(a)
+	for _, want := range []string{"8.8.8.8", "10.0.8.8"} {
+		if !slices.Contains(got, netip.MustParseAddr(want)) {
+			t.Errorf("%s is missing from %v", want, got)
+		}
+	}
+}
+
+// One lookup at a time, and nobody waits for it.
+func TestNAT64CacheDoesNotBlockReaders(t *testing.T) {
+	release, started := make(chan struct{}), make(chan struct{})
+	c := &nat64Cache{now: time.Now, lookup: func(context.Context) ([]netip.Addr, error) {
+		close(started)
+		<-release
+		return []netip.Addr{netip.MustParseAddr("64:ff9b:1::c000:aa")}, nil
+	}}
+	done := make(chan struct{})
+	go func() { c.get(); close(done) }()
+	<-started
+	if got := c.get(); len(got) != 0 { // returns at once, with what is known
+		t.Errorf("a reader got %v while the lookup ran", got)
+	}
+	close(release)
+	<-done
+	if got := c.get(); len(got) != 1 {
+		t.Errorf("after the lookup: %v", got)
 	}
 }

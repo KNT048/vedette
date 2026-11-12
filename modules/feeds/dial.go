@@ -138,31 +138,57 @@ func nat64Embed(b [16]byte, at [4]int) [4]byte {
 	return [4]byte{b[at[0]], b[at[1]], b[at[2]], b[at[3]]}
 }
 
+// nat64Always is what a guard never allows whatever the box's own addresses are (loopback, link-local, multicast, unspecified,
+// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not (D-442 (2)).
+func nat64Always(a netip.Addr) bool {
+	return a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsMulticast() || a.IsUnspecified() || a == netip.AddrFrom4([4]byte{255, 255, 255, 255}) || slices.Contains(metadataAddrs, a)
+}
+
 // nat64Local lists the IPv4 addresses a 64:ff9b:1::/48 (RFC 8215) address can carry. The operator's prefix is a sub-prefix of that /48
-// and its length is not in the address. When the network's own NAT64 prefix was learned (nat64Prefixes, RFC 7050) and covers the
-// address, only that layout is read; otherwise (nothing learned, or the address is outside every learned prefix) the address is read in
-// each layout and every reading is judged, so a forbidden IPv4 address is never missed. A reading inside 0.0.0.0/8 is dropped: a
-// translator never forwards to "this network", and it is what the zero suffix of a shorter prefix looks like in a longer layout.
+// and its length is not in the address. The address is read in each layout and every reading is judged, so a forbidden IPv4 address
+// is never missed. When the network's own NAT64 prefix was learned (nat64Prefixes, RFC 7050) and covers the address, the learned
+// layouts (all that cover it) are read for the checks that depend on the network (private ranges, the box's own addresses), and the
+// other layouts only for nat64Always: DNS can narrow the first group, never switch off the second. A learned reading inside 0.0.0.0/8
+// falls back to every layout. Otherwise a reading inside 0.0.0.0/8 is dropped: a translator never forwards to "this network", and it
+// is what the zero suffix of a shorter prefix looks like in a longer layout. An operator prefix whose first byte after the /32 is
+// 0x7f still reads as loopback in the /48 layout and stays refused (a known false positive).
 func nat64Local(b [16]byte) [][4]byte {
 	addr := netip.AddrFrom16(b)
-	for _, p := range nat64Prefixes() {
-		if !p.Contains(addr) {
-			continue
-		}
-		for _, l := range nat64Layouts {
-			if l.bits == p.Bits() {
-				if v4 := nat64Embed(b, l.at); v4[0] != 0 {
-					return [][4]byte{v4}
-				}
-				return nil
-			}
-		}
-	}
 	var out [][4]byte
-	for _, l := range nat64Layouts {
-		if v4 := nat64Embed(b, l.at); v4[0] != 0 {
+	add := func(v4 [4]byte) {
+		if v4[0] != 0 && !slices.Contains(out, v4) {
 			out = append(out, v4)
 		}
+	}
+	var bits []int
+	for _, p := range nat64Prefixes() {
+		if p.Contains(addr) {
+			bits = append(bits, p.Bits())
+		}
+	}
+	if len(bits) > 0 {
+		learned := true
+		for _, l := range nat64Layouts {
+			if slices.Contains(bits, l.bits) {
+				if v4 := nat64Embed(b, l.at); v4[0] == 0 {
+					learned = false
+				} else {
+					add(v4)
+				}
+			}
+		}
+		if learned {
+			for _, l := range nat64Layouts {
+				if v4 := nat64Embed(b, l.at); nat64Always(netip.AddrFrom4(v4)) {
+					add(v4)
+				}
+			}
+			return out
+		}
+		out = nil
+	}
+	for _, l := range nat64Layouts {
+		add(nat64Embed(b, l.at))
 	}
 	return out
 }
@@ -202,31 +228,37 @@ func learnNAT64(answers []netip.Addr) []netip.Prefix {
 
 // nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
 // answer 6 hours (10 minutes when nothing was learned or the lookup failed, so a missing DNS64 costs one lookup per 10 minutes).
-// The query carries no customer data (D-442).
+// One lookup runs at a time and nobody waits for it: a caller that finds it running (or a fresh cache) gets what is known, which is
+// nothing at first, and nothing means every layout. The query carries no customer data (D-442).
 type nat64Cache struct {
 	mu       sync.Mutex
 	lookup   func(ctx context.Context) ([]netip.Addr, error)
 	now      func() time.Time
 	prefixes []netip.Prefix
 	until    time.Time
+	busy     bool
 }
 
 func (c *nat64Cache) get() []netip.Prefix {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.now().Before(c.until) {
+	if c.busy || c.now().Before(c.until) {
+		defer c.mu.Unlock()
 		return c.prefixes
 	}
+	c.busy = true
+	c.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	answers, err := c.lookup(ctx)
-	c.prefixes = learnNAT64(answers)
+	prefixes := learnNAT64(answers)
 	ttl := 6 * time.Hour
-	if err != nil || len(c.prefixes) == 0 {
+	if err != nil || len(prefixes) == 0 {
 		ttl = 10 * time.Minute
 	}
-	c.until = c.now().Add(ttl)
-	return c.prefixes
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.busy, c.prefixes, c.until = false, prefixes, c.now().Add(ttl)
+	return prefixes
 }
 
 // nat64Prefixes is the learned NAT64 prefixes of this network. Tests replace it.

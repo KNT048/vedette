@@ -82,7 +82,7 @@ function parseCsvLines(text: string, delimiter: string, quotes = true, line0 = 1
   }
   if (q) {
     const rest = parseCsvLines(t.slice(rowStart), delimiter, false, startLine)
-    if (rest.length) rest[0]!.bad = CSV_OPEN_QUOTE
+    if (rest.length && rest[0]!.line === startLine) rest[0]!.bad = CSV_OPEN_QUOTE // not when the row that opened the quote was a comment
     return rows.concat(rest)
   }
   if (cell !== '' || row.length) { row.push(cell); if (!row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }) }

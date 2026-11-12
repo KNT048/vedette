@@ -6,14 +6,27 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
 import { Switch } from '@/components/ui/switch'
+import { useFeedSources, hostOf } from '@/features/feeds/api'
+import { useModuleEnabled } from '@/lib/modules'
 import { usePrivacy, useSavePrivacy } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import type { PrivacyFlow, PrivacyState } from './types'
+
+// Flow 1 names the hosts of the custom feeds on the box, read from the same list as Settings → Feeds → "Where this box connects". Only mounted when the feeds module is on.
+function CustomFeedHosts() {
+  const { t } = useTranslation('core')
+  const { data } = useFeedSources()
+  if (!data) return null
+  const hosts = [...new Set(data.items.filter((f) => !f.builtin && f.enabled).map((f) => hostOf(f.url)))]
+  return <span className="mt-1 block">{hosts.length ? t('privacy.flow.1.custom', { hosts: hosts.join(', ') }) : t('privacy.flow.1.customNone')}</span>
+}
 
 // Mười hai luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
 function Body({ d }: { d: PrivacyState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
+  const feedsOn = useModuleEnabled('feeds')
+  const toCell = (f: PrivacyFlow) => <>{t(`privacy.flow.${f.id}.to`)}{f.id === 1 && feedsOn ? <CustomFeedHosts /> : null}</>
   const save = useSavePrivacy()
   async function set(v: { update_check?: boolean }) {
     try { await save.mutateAsync(v); toast.success(t('common:saved')) } catch (e) { toast.error(errMsg(e, t)) }
@@ -45,7 +58,7 @@ function Body({ d }: { d: PrivacyState }) {
   const columns: ColumnDef<PrivacyFlow>[] = [
     { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
     { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-sm text-[13px]">{t(`privacy.flow.${row.original.id}.what`)}</span> },
-    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{t(`privacy.flow.${row.original.id}.to`)}</span> },
+    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{toCell(row.original)}</span> },
     { id: 'state', header: t('privacy.col.state'), accessorFn: (f) => f.state, cell: ({ row }) => stateChip(row.original) },
     { id: 'control', header: t('privacy.col.control'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => control(row.original) },
   ]
@@ -57,7 +70,7 @@ function Body({ d }: { d: PrivacyState }) {
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
             <p className="text-[13px]">{t(`privacy.flow.${f.id}.what`)}</p>
-            <p className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{t(`privacy.flow.${f.id}.to`)}</p>
+            <p className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{toCell(f)}</p>
             <div className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.control')}: </span>{control(f)}</div>
           </div>
         )} />

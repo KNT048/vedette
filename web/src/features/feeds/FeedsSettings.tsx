@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useFeedSources, useFetchFeed, usePatchFeed } from './api'
+import { hostOf, useFeedSources, useFetchFeed, usePatchFeed } from './api'
 import { BuiltinDialog, CustomDialog, DeleteDialog } from './FeedDialogs'
 import type { Feed } from './types'
 
@@ -24,11 +24,6 @@ export default function FeedsSettings() {
       <QueryState query={sources}>{(d) => <Tables items={d.items} />}</QueryState>
     </div>
   )
-}
-
-/** The host of a feed address, for the list of where the box connects (INV-13, PRIVACY flow 1). Only the host: a path or query can hold a token. */
-function hostOf(url: string): string {
-  try { return new URL(url).hostname } catch { return url }
 }
 
 function Hosts({ items }: { items: Feed[] }) {

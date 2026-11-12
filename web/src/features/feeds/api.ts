@@ -26,6 +26,11 @@ export const useSearch = (q: string) =>
 // ---------- Feed sources and custom parsing (S-FEED-4, S-FEED-5)
 export const useFeedSources = () => useQuery({ queryKey: ['feeds', 'sources'], queryFn: () => api.get<{ items: Feed[] }>('/feeds/sources') })
 
+/** The host of a feed address, for the lists of where the box connects (INV-13, PRIVACY flow 1). Only the host: a path or query can hold a token. */
+export function hostOf(url: string): string {
+  try { return new URL(url).hostname } catch { return url }
+}
+
 function useDone() {
   const qc = useQueryClient()
   return () => { void qc.invalidateQueries({ queryKey: ['feeds', 'sources'] }) }

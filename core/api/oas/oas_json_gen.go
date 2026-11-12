@@ -8993,6 +8993,8 @@ func (s *AiGetAiRunsOKItemsItemStatus) Decode(d *jx.Decoder) error {
 		*s = AiGetAiRunsOKItemsItemStatusSchemaError
 	case AiGetAiRunsOKItemsItemStatusCapped:
 		*s = AiGetAiRunsOKItemsItemStatusCapped
+	case AiGetAiRunsOKItemsItemStatusFailed:
+		*s = AiGetAiRunsOKItemsItemStatusFailed
 	default:
 		*s = AiGetAiRunsOKItemsItemStatus(v)
 	}

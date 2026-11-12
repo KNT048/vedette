@@ -2428,6 +2428,8 @@ func (s AiGetAiRunsOKItemsItemStatus) Validate() error {
 		return nil
 	case "capped":
 		return nil
+	case "failed":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

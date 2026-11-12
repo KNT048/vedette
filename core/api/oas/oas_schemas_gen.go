@@ -3912,6 +3912,7 @@ const (
 	AiGetAiRunsOKItemsItemStatusOk          AiGetAiRunsOKItemsItemStatus = "ok"
 	AiGetAiRunsOKItemsItemStatusSchemaError AiGetAiRunsOKItemsItemStatus = "schema_error"
 	AiGetAiRunsOKItemsItemStatusCapped      AiGetAiRunsOKItemsItemStatus = "capped"
+	AiGetAiRunsOKItemsItemStatusFailed      AiGetAiRunsOKItemsItemStatus = "failed"
 )
 
 // AllValues returns all AiGetAiRunsOKItemsItemStatus values.
@@ -3920,6 +3921,7 @@ func (AiGetAiRunsOKItemsItemStatus) AllValues() []AiGetAiRunsOKItemsItemStatus {
 		AiGetAiRunsOKItemsItemStatusOk,
 		AiGetAiRunsOKItemsItemStatusSchemaError,
 		AiGetAiRunsOKItemsItemStatusCapped,
+		AiGetAiRunsOKItemsItemStatusFailed,
 	}
 }
 
@@ -3931,6 +3933,8 @@ func (s AiGetAiRunsOKItemsItemStatus) MarshalText() ([]byte, error) {
 	case AiGetAiRunsOKItemsItemStatusSchemaError:
 		return []byte(s), nil
 	case AiGetAiRunsOKItemsItemStatusCapped:
+		return []byte(s), nil
+	case AiGetAiRunsOKItemsItemStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -3948,6 +3952,9 @@ func (s *AiGetAiRunsOKItemsItemStatus) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiRunsOKItemsItemStatusCapped:
 		*s = AiGetAiRunsOKItemsItemStatusCapped
+		return nil
+	case AiGetAiRunsOKItemsItemStatusFailed:
+		*s = AiGetAiRunsOKItemsItemStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

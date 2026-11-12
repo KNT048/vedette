@@ -403,6 +403,10 @@ func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
 	}
 }
 
+// capSummary is the activity summary of a call the daily cap stopped; GET /ai/runs tells that call (status capped) from one that
+// failed (status failed) by it.
+const capSummary = "Not sent: today's token cap is used up and the level is already the minimum."
+
 // failed records a call that got no answer and returns the error the person sees.
 func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, err error) error {
 	if ctx.Err() != nil {
@@ -448,7 +452,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		}
 		return apiUnavailable("The AI profile did not accept tool calls, which asking your data needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
 	case errors.Is(err, ErrCapped):
-		entry.Summary = "Not sent: today's token cap is used up and the level is already the minimum."
+		entry.Summary = capSummary
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}

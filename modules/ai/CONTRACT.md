@@ -47,7 +47,7 @@
 - **POST-2** `explain` (S-AI-2): `affected ∈ {yes,no,unknown}`, bước vá đúng phiên bản, vá tạm, dấu hiệu, có nguồn (`citations`) và token đã dùng.
 - **POST-3** Log digest (S-AI-4): không có sự kiện log → `empty=true`, **không gọi AI, không tốn token**.
 - **POST-4** Xoá hồ sơ đang được gán → `DELETE /ai/profiles/{id}` trả `cleared_jobs` liệt kê mọi việc bị đổi và UI nêu việc nào bị đổi. Hồ sơ **chính** bị xoá thì hồ sơ **dự phòng** của việc đó lên làm chính (hồ sơ đó đã được phép cho việc theo INV-3); hồ sơ dự phòng bị xoá thì việc chỉ mất dự phòng. Không bao giờ chọn một hồ sơ khác chưa được gán cho việc đó (theo mock, hợp đồng đã duyệt).
-- **POST-5** Mỗi lần chạy hiện ra trong `GET /ai/runs` (view trên `ai_activity`: `skill, model, tokens, status ∈ {ok, schema_error, capped}`) và một `ActivityEntry` (INV-17).
+- **POST-5** Mỗi lần chạy hiện ra trong `GET /ai/runs` (view trên `ai_activity`: `skill, model, tokens, status ∈ {ok, schema_error, capped, failed}`; `capped` = the daily cap stopped it, `failed` = no tokens spent and no answer, e.g. the provider was unreachable) và một `ActivityEntry` (INV-17).
 
 ## Forbidden (không bao giờ)
 - **FORBID-1** Công cụ ghi trong danh sách công cụ của mô hình (INV-14).

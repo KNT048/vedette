@@ -40,7 +40,7 @@ export const Usage = z.object({
   by_skill: z.array(z.object({ skill: z.string(), runs: z.number(), tokens: z.number() })),
   downgrades: z.array(z.object({ id: z.string(), ts: iso, from: AiTier, to: AiTier, reason: z.string() })),
 })
-export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
+export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped', 'failed']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
 // ---- Activity log (S-AI-8, D-48): guaranteed record of what the AI did, hash-chained
 export const ActivityResult = z.enum(['ok', 'blocked_by_hook', 'fallback_used', 'error'])
 export const ActivityTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), args: z.string().describe('Arguments summarised, never secrets') })

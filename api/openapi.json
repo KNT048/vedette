@@ -5881,7 +5881,8 @@
                             "enum": [
                               "ok",
                               "schema_error",
-                              "capped"
+                              "capped",
+                              "failed"
                             ]
                           },
                           "target": {

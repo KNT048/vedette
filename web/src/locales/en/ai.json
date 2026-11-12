@@ -104,7 +104,8 @@
     "status": {
       "ok": "Succeeded",
       "schema_error": "Bad format",
-      "capped": "Blocked by cap"
+      "capped": "Blocked by cap",
+      "failed": "Failed: no answer from the provider"
     },
     "fallback": "Fallback used"
   },

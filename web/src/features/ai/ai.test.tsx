@@ -30,6 +30,12 @@ function renderUi(ui: React.ReactNode, role: Role = 'admin') {
 const clearProfiles = () => { aiProfilesStore.set([]); aiAssignStore.update((a) => ({ ...a, jobs: Object.fromEntries(Object.keys(a.jobs).map((k) => [k, { primary: null, fallback: null }])) as typeof a.jobs })); aiConfigStore.update((c) => ({ ...c, configured: false })) }
 
 describe('ai: assistant (S-AI-5, S-AI-6)', () => {
+  it('the log of calls says a call the provider did not answer failed, not blocked by the cap (S-AI-4)', async () => {
+    renderApp('/assistant')
+    const table = await screen.findByRole('table', { name: 'Log of AI calls' })
+    expect(await within(table).findByText('Failed: no answer from the provider')).toBeInTheDocument()
+    expect(within(table).queryByText('Blocked by cap')).not.toBeInTheDocument()
+  })
   it('first sentence says how many tokens were used; no a11y violations', async () => {
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 60,000 tokens used today/ })).toBeInTheDocument()

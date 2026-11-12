@@ -33,6 +33,7 @@ const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
   return [
     L(0, 420, 'log-digest', 4800, 900), L(0, 360, 'log-digest', 4600, 880), L(0, 300, 'log-digest', 4900, 910),
     S(0, 250, 'explain-finding', 2300, 1100, 'CVE-2022-27593'),
+    { ...r(1, 900, 'explain-finding', 0, 0, 'CVE-2026-96951', ''), model: 'claude-sonnet-5-5', profile: undefined, status: 'failed' as const }, // the provider did not answer
     r(1, 800, 'weekly-report', 3900, 1500), S(1, 600, 'ask-my-data', 1100, 320, 'Which machines still expose RDP?'),
     r(2, 700, 'cve-news', 3400, 700, 'CVE-2026-119977'), S(3, 900, 'explain-finding', 2500, 1200, 'CVE-2026-96951'),
     L(5, 500, 'log-digest', 21000, 3900), S(9, 480, 'ask-my-data', 1300, 450, 'Which devices are not approved yet?'), S(14, 300, 'pdpl-assessment', 11000, 4200),

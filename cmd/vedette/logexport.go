@@ -12,13 +12,13 @@ import (
 // registerLogSources adds the log sources of the modules to the registry of GET /core/logs/export (core INV-13).
 // Each module owns its rows and writes them (JSON lines, chain fields unchanged); core reads no other module's
 // table. A module that is off keeps its rows, so its source stays registered and its log is still in the file.
-// "audit" is registered by core itself. Not registered, so they export as missing:
-//   - known_bad: the logs module adds it with the IOC matching (WP-24 L4).
+// "audit" is registered by core itself; every other category has a source here (alerts from notify, known_bad from logs).
 func registerLogSources(d *deps) {
 	d.Logs.Register("response", d.Response.ExportLog)
 	d.Logs.Register("alerts", newNotify(d).ExportAlerts)
 	if svc := logsService(*d); svc != nil {
 		d.Logs.Register("device_logs", svc.ExportDeviceLogs)
+		d.Logs.Register("known_bad", svc.ExportKnownBad) // the connections to listed destinations (L4)
 	}
 	d.Logs.Register("ai_activity", d.AI.ExportActivity)
 	d.Logs.Register("honeypot", d.Honeypot.ExportHits)

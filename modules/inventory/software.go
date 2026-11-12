@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -286,32 +287,39 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})
+		id, err := s.deviceFor(ctx, tx, o, ip, mac, source, now)
 		if err != nil {
 			return err
 		}
-		if isNew {
-			notify, err := notifyNew(ctx, tx)
-			if err != nil {
-				return err
-			}
-			if mac != "" {
-				if err := insertObs(ctx, tx, id, "mac", mac, string(source), hintConfidence, now); err != nil {
-					return err
-				}
-				if _, err := s.RecomputeAsset(ctx, tx, id); err != nil {
-					return err
-				}
-			}
-			target := mac
-			if target == "" {
-				target = ip.String()
-			}
-			if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", target, id); err != nil {
-				return err
-			}
-			o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify})
-		}
 		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), now)
 	})
+}
+
+// deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.
+func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip.Addr, mac string, source observe.Source, now string) (string, error) {
+	id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})
+	if err != nil || !isNew {
+		return id, err
+	}
+	notify, err := notifyNew(ctx, tx)
+	if err != nil {
+		return "", err
+	}
+	if mac != "" {
+		if err := insertObs(ctx, tx, id, "mac", mac, string(source), hintConfidence, now); err != nil {
+			return "", err
+		}
+		if _, err := s.RecomputeAsset(ctx, tx, id); err != nil {
+			return "", err
+		}
+	}
+	target := mac
+	if target == "" {
+		target = ip.String()
+	}
+	if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", target, id); err != nil {
+		return "", err
+	}
+	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify})
+	return id, nil
 }

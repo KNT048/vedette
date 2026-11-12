@@ -6,7 +6,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
-import { engineStore, nextRun, scannerStore, timing, zoneStore } from './mocks'
+import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
 import type { ScanConfig, ScanRun } from './types'
 
 const base = () => `${location.origin}/api/v1`
@@ -122,6 +122,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     renderApp('/scans')
     expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getAllByText(/The scan scope commitment is not ticked yet/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Vedette scans no address until you set the scan scope and tick the commitment/)).toBeInTheDocument()
     as('u-admin')
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(400)
@@ -210,6 +211,8 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     renderApp('/scans')
     expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getAllByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/).length).toBeGreaterThan(0)
+    // the commitment is ticked, so the page must not blame it
+    expect(screen.queryByText(/Vedette scans no address until you set the scan scope/)).not.toBeInTheDocument()
     const cfg = await (await fetch(`${base()}/scans/config`)).json()
     expect(cfg.can_scan).toBe(false)
     expect(cfg.block_reason).toMatch(/^The vulnerability scanner is not available/)
@@ -218,6 +221,28 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect(res.status).toBe(503)
     expect((await res.json()).error.code).toBe('scanner_unavailable')
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
+  })
+
+  it('no run history: the title and the schedule note blame the real reason, not always the commitment', async () => {
+    runs.set([])
+    scannerStore.set({ available: false })
+    const view = renderApp('/scans')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Cannot scan: the vulnerability scanner is not available' })).toBeInTheDocument()
+    view.unmount()
+    renderApp('/scans?tab=safety')
+    expect(await screen.findByText(/nothing runs while the vulnerability scanner is not available/)).toBeInTheDocument()
+    expect(screen.queryByText(/until the scan scope commitment is ticked/)).not.toBeInTheDocument()
+  })
+
+  it('no run history and no commitment: the title and the schedule note ask for the commitment', async () => {
+    const { inventorySettingsStore } = await import('@/features/inventory/mocks')
+    inventorySettingsStore.update((s) => ({ ...s, scope_confirmed_at: null, scope_confirmed_by: null }))
+    runs.set([])
+    const view = renderApp('/scans')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Cannot scan yet: confirm the scan scope first' })).toBeInTheDocument()
+    view.unmount()
+    renderApp('/scans?tab=safety')
+    expect(await screen.findByText(/nothing runs until the scan scope commitment is ticked/)).toBeInTheDocument()
   })
 
   it('thiết bị nằm trong loại trừ cũng bị từ chối khi gọi thẳng API', async () => {

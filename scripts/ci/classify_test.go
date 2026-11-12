@@ -8,7 +8,7 @@ import (
 
 func TestDecide(t *testing.T) {
 	t.Parallel()
-	all := Outputs{Go: true, Web: true, Vuln: true}
+	all := Outputs{Go: true, Tests: true, Web: true, Vuln: true}
 	for name, c := range map[string]struct {
 		event   string
 		changed []string
@@ -18,10 +18,10 @@ func TestDecide(t *testing.T) {
 		"docs only":               {"pull_request", []string{"docs/DECISIONS.md", "docs/plans/x.md"}, true, Outputs{}},
 		".ai only":                {"pull_request", []string{".ai/tasks/kien.md", "docs/project-map/lessons.md"}, true, Outputs{}},
 		"root markdown":           {"pull_request", []string{"README.md", "SECURITY.md"}, true, Outputs{}},
-		"notices (notices-check)": {"pull_request", []string{"THIRD_PARTY_NOTICES.md"}, true, Outputs{Go: true, Vuln: true}},
-		"docs a test reads":       {"pull_request", []string{"docs/API_CONVENTIONS.md"}, true, Outputs{Go: true, Vuln: true}},
-		"docs spec a test reads":  {"pull_request", []string{"docs/specs/host-api.md"}, true, Outputs{Go: true, Vuln: true}},
-		"go only":                 {"pull_request", []string{"core/chain/chain.go", "modules/host/x_test.go"}, true, Outputs{Go: true, Vuln: true}},
+		"notices (notices-check)": {"pull_request", []string{"THIRD_PARTY_NOTICES.md"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
+		"docs a test reads":       {"pull_request", []string{"docs/API_CONVENTIONS.md"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
+		"docs spec a test reads":  {"pull_request", []string{"docs/specs/host-api.md"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
+		"go only":                 {"pull_request", []string{"core/chain/chain.go", "modules/host/x_test.go"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"web only":                {"pull_request", []string{"web/src/features/ai/AiSettings.tsx", "web/pnpm-lock.yaml"}, true, Outputs{Web: true}},
 		"web production deps":     {"pull_request", []string{"web/package.json"}, true, all}, // notices-check reads it (go job)
 		"web file go reads":       {"pull_request", []string{"web/src/features/core/testdata/keys/ed25519"}, true, all},
@@ -31,19 +31,19 @@ func TestDecide(t *testing.T) {
 		"Makefile":                {"pull_request", []string{"Makefile"}, true, all},
 		"scripts":                 {"pull_request", []string{"scripts/check.sh"}, true, all},
 		"workflow itself":         {"pull_request", []string{".github/workflows/ci.yml"}, true, all},
-		"go.mod":                  {"pull_request", []string{"go.mod"}, true, Outputs{Go: true, Vuln: true}},
+		"go.mod":                  {"pull_request", []string{"go.mod"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"unknown top-level":       {"pull_request", []string{"newdir/file.txt"}, true, all},
 		"unknown next to docs":    {"pull_request", []string{"docs/x.md", "brand-new-file"}, true, all},
 		// --no-renames turns a rename into delete + add: both ends count.
 		"rename web to docs": {"pull_request", []string{"web/src/a.ts", "docs/a.md"}, true, Outputs{Web: true}},
-		"rename go to web":   {"pull_request", []string{"core/a.go", "web/src/a.ts"}, true, Outputs{Go: true, Web: true, Vuln: true}},
-		"deleted go file":    {"pull_request", []string{"modules/old/old.go"}, true, Outputs{Go: true, Vuln: true}},
+		"rename go to web":   {"pull_request", []string{"core/a.go", "web/src/a.ts"}, true, Outputs{Go: true, Tests: true, Web: true, Vuln: true}},
+		"deleted go file":    {"pull_request", []string{"modules/old/old.go"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"empty diff":         {"pull_request", nil, true, all},
 		"diff failed":        {"pull_request", nil, false, all},
-		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, all},
+		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, Outputs{Tests: true}}, // the queue ran all; push saves the test cache
 		"dispatch":           {"workflow_dispatch", nil, false, all},
 		"merge queue":        {"merge_group", []string{"docs/a.md"}, true, all},
-		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Vuln: true, Audit: true}},
+		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Go: true, Tests: true, Web: true, Vuln: true, Audit: true}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

@@ -509,6 +509,14 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just
 // listed (feeds.vuln.new_kev). A "Multiple products" entry matches every device with software of the vendor.
 func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (int, error) {
+	return s.RematchCVEExcept(ctx, cve, vendor, product, nil)
+}
+
+// RematchCVEExcept is RematchCVE that leaves out the devices known says already match the CVE (D-328: a CVE whose vendor or product
+// changed is announced to the devices of its new product that have no finding for it, so a flag that changed on hundreds of entries does
+// not announce each device once per entry).
+// known returning an error is that error; nil known leaves nobody out.
+func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product string, known func(ctx context.Context, assetID, cve string) (bool, error)) (int, error) {
 	if s.kev == nil {
 		return 0, nil
 	}
@@ -520,8 +528,19 @@ func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (
 	if err != nil {
 		return 0, err
 	}
+	n := 0
 	for _, id := range ids {
+		if known != nil {
+			has, err := known(ctx, id, cve)
+			if err != nil {
+				return n, err
+			}
+			if has {
+				continue
+			}
+		}
 		s.publish(ctx, []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: id, CVE: cve, Basis: "product"}}})
+		n++
 	}
-	return len(ids), nil
+	return n, nil
 }

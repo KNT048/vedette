@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"io"
-	"slices"
 	"strings"
 	"testing"
 
@@ -11,11 +10,11 @@ import (
 )
 
 // The log sources of the binary (core INV-13): audit from core, response, honeypot, scan_probes and ai_activity from their
-// modules; the rest have no source yet and the file says so instead of pretending to be complete.
+// modules, alerts from notify, device_logs and known_bad from logs: no category is missing any more.
 func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	for _, id := range []string{"audit", "response", "honeypot", "scan_probes", "ai_activity", "alerts"} {
+	for _, id := range []string{"audit", "response", "honeypot", "scan_probes", "ai_activity", "alerts", "device_logs", "known_bad"} {
 		if !s.d.Logs.Has(id) {
 			t.Errorf("%s has no log source", id)
 		}
@@ -29,12 +28,11 @@ func TestLogSourcesRegisteredByTheBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"known_bad"}
-	if slices.Compare(e.Missing, want) != 0 {
-		t.Fatalf("missing = %v, want %v (when a module registers its source, move it out of this list)", e.Missing, want)
+	if len(e.Missing) != 0 {
+		t.Fatalf("missing = %v, want none (every category has a source now)", e.Missing)
 	}
-	if !strings.Contains(string(body), `"missing":["known_bad"]`) {
-		t.Fatalf("the file does not say what is missing: %.400s", body)
+	if strings.Contains(string(body), `"missing":["`) {
+		t.Fatalf("the file lists a missing category: %.400s", body)
 	}
 }
 

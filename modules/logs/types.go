@@ -132,15 +132,15 @@ type SpikeItem struct {
 	Sample         string  `json:"sample"`
 }
 
-// Digest is the answer of GET /logs/digest. New and Spikes come from the signature counters (INV-6); BadConnections comes
-// with the IOC slice (CONTRACT INV-7) and is empty until then.
+// Digest is the answer of GET /logs/digest. New and Spikes come from the signature counters (INV-6); BadConnections are the newest
+// hits of the last 24 hours (iochits.go, INV-7), empty while the feeds module is off (PRE-3).
 type Digest struct {
 	GeneratedAt    time.Time   `json:"generated_at"`
 	Lines24h       int         `json:"lines_24h"`
 	BaselineDays   int         `json:"baseline_days"`
 	New            []NewItem   `json:"new"`
 	Spikes         []SpikeItem `json:"spikes"`
-	BadConnections []struct{}  `json:"bad_connections"`
+	BadConnections []IocHit    `json:"bad_connections"`
 }
 
 // Line is one received line handed to Ingest.

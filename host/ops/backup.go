@@ -16,10 +16,12 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// Retention (spec 6.11).
+// Retention (spec 6.11): pre_restore has a group of its own, so restores never push out the backups an update or an
+// OS install made, and those never push out the copy that holds the data a restore replaced.
 const (
-	keepPre    = 3
-	keepManual = 10
+	keepPre        = 3
+	keepPreRestore = 3
+	keepManual     = 10
 )
 
 var hexIDRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -311,8 +313,8 @@ func (o *Ops) referencedBackups() (ref map[string]bool, known bool) {
 }
 
 // retain applies the retention rule to the index and returns the ids to delete: the newest 3
-// pre_* backups, at most 10 manual ones (oldest dropped first). A backup in keep is never dropped and
-// does not count toward the quota; keep is bounded (three ids per service), so the total stays bounded.
+// pre_update/pre_os_update backups, the newest 3 pre_restore ones, at most 10 manual ones (oldest dropped
+// first). A backup in keep is never dropped and does not count toward the quota; keep is bounded (three ids per service), so the total stays bounded.
 // The backup just made (newest) is always kept and does count, even when a clock stepped back makes it
 // look the oldest: it is sorted first, so it is the oldest other backup that ages out (D-157). Refusing
 // it instead would stop backup.restore, the way out of core_data_unrecoverable (D-142).
@@ -332,10 +334,15 @@ func retain(ix *backupIndex, keep map[string]bool, newest string) []string {
 	slices.SortFunc(ix.Backups, byAge) // newest first
 	var kept []backupRecord
 	var dropped []string
-	pre, manual := 0, 0
+	pre, preRestore, manual := 0, 0, 0
 	for _, r := range ix.Backups {
 		switch {
 		case keep[r.ID]:
+		case r.Kind == "pre_restore":
+			if preRestore++; preRestore > keepPreRestore {
+				dropped = append(dropped, r.ID)
+				continue
+			}
 		case isPreKind(r.Kind):
 			if pre++; pre > keepPre {
 				dropped = append(dropped, r.ID)

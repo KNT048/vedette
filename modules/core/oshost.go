@@ -28,6 +28,8 @@ type Host interface {
 	OSRebootCancel(ctx context.Context, requestID, actor string) (api.Run, error)
 	BackupCreate(ctx context.Context, args api.BackupCreateArgs, requestID, actor string) (api.Run, error)
 	DownloadBackup(ctx context.Context, backupID string) (io.ReadCloser, int64, error)
+	StateBackups(ctx context.Context) (api.BackupList, error)
+	BackupRestore(ctx context.Context, backupID, snapshot, requestID, actor string) (api.Run, error)
 	GetRun(ctx context.Context, runID string) (api.Run, error)
 	ListRuns(ctx context.Context, limit int) ([]api.Run, error)
 	Events(ctx context.Context, runID string, after uint64) *client.Stream
@@ -159,6 +161,16 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 		return apierr.New(409, CodeCurrentVersionUnknown, "The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record).")
 	case api.CodeTransitionPending:
 		return apierr.New(409, CodeTransitionPending, "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal).")
+	case api.CodeBackupUnknown: // restore (S-CORE-1, D-377)
+		return apierr.New(404, api.CodeBackupUnknown, "This backup is no longer on the box. Reload the list.")
+	case api.CodeChecksumMismatch:
+		return apierr.New(502, api.CodeChecksumMismatch, "The backup file on the box is damaged: it no longer matches its checksum. Choose another backup.")
+	case api.CodeSchemaNewer:
+		return apierr.New(409, api.CodeSchemaNewer, "This backup was made by a newer Vedette. Update first, then restore.")
+	case api.CodeSecretsMissing:
+		return apierr.New(412, api.CodeSecretsMissing, "This backup has no decryption key and the box has none to use with it. Choose a backup that includes the key.")
+	case api.CodeRestoreFailed:
+		return apierr.New(412, api.CodeRestoreFailed, "The box could not read its list of backups or open this one. Nothing was changed; try again in a minute.")
 	case api.CodeShuttingDown:
 		return apierr.New(503, CodeHostUnreachable, "The operating system helper is restarting. Try again in a minute.")
 	}

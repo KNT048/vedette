@@ -16,7 +16,7 @@ import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, TIMEZONES } from './util'
-import type { AccountSession, AdminUser, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
+import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -865,6 +865,44 @@ const stamp = () => new Date().toISOString().slice(0, 10)
 const PURGE_MAX_TRIES = 5
 const purgeTries = collection<{ n: number }>('core_purge_tries', () => ({ n: 0 }))
 
+// Bản sao lưu trình hỗ trợ giữ trên hộp (host-api §6.11) và lần khôi phục gần nhất (D-377). Mock: khôi phục xong ngay, không khởi động lại.
+const boxBackupsStore = collection<BoxBackup[]>('core_box_backups', () => [
+  { id: 'b3c1a7e0d2f94b5e8a6c0d1e2f3a4b5c', kind: 'pre_os_update', created_at: daysAgo(1), size: 48_300_000, includes_key: true },
+  { id: 'a9e2c4f6b8d0e1f2a3b4c5d6e7f8a9b0', kind: 'pre_update', created_at: daysAgo(6), size: 47_100_000, includes_key: true },
+  { id: '0f1e2d3c4b5a69788796a5b4c3d2e1f0', kind: 'manual', created_at: daysAgo(12), size: 45_900_000, includes_key: false },
+  { id: '1a2b3c4d5e6f708192a3b4c5d6e7f809', kind: 'pre_restore', created_at: daysAgo(20), size: 44_200_000, includes_key: true },
+])
+const restoreRunStore = collection<{ run: RestoreRun | null }>('core_restore_run', () => ({ run: null }))
+
+// D-154 step-up, like the other sensitive routes (D-76, D-98): the current password, counted against a limit, then a fresh
+// two-step code when it is on. Shared by Delete all data and Restore (D-377); null = passed.
+async function stepUp(b: { password?: string; code?: string }, what: string): Promise<Response | null> {
+    const u = currentUser()!
+    if (purgeTries.get().n >= PURGE_MAX_TRIES) return HttpResponse.json({ error: { code: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.', retry_after: 300 } }, { status: 429, headers: { 'Retry-After': '300' } })
+    if (String(b.password ?? '') !== u.password) {
+      purgeTries.update((x) => ({ n: x.n + 1 }))
+      return fail(400, 'wrong_password', `Wrong password. The password is needed to ${what}.`)
+    }
+    if (u.twofa) {
+      const code = String(b.code ?? '').replace(/\s/g, '')
+      if (u.twofa_method === 'email') {
+        if (!code) {
+          const sent = issueCode(u.id, true)
+          if ('error' in sent) return sent.error
+          return HttpResponse.json({ error: { code: 'code_required', message: `Type the 6-digit code we emailed you to ${what}.`, method: 'email', sent_to: maskEmail(u.email), resend_after: sent.resend_after } }, { status: 400 })
+        }
+        const bad = checkCode(u.id, code)
+        if (bad) return bad
+      } else {
+        if (!code) return HttpResponse.json({ error: { code: 'code_required', message: `Type the 6-digit code from your authenticator app to ${what}.`, method: 'app' } }, { status: 400 })
+        if (!/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits from your authenticator app.')
+        if (!(await verifyTotp(totpSecrets.get()[u.id] ?? '', code))) return fail(400, 'wrong_code', 'Wrong code. Check the time on your phone and enter a new code.')
+      }
+    }
+    purgeTries.set({ n: 0 })
+    return null
+}
+
 const dataHandlers = [
   http.get(`${API}/core/data/backup`, () => {
     const denied = guard('admin')
@@ -872,6 +910,34 @@ const dataHandlers = [
     audit('data.backup', 'backup')
     // Không đưa mật khẩu và khoá vào bản sao lưu mock (SYS-4).
     return download(`vedette-backup-${stamp()}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
+  }),
+  http.get(`${API}/core/data/backups`, () => {
+    const denied = guard('admin')
+    if (denied) return denied
+    return HttpResponse.json({ backups: [...boxBackupsStore.get()].sort((x, y) => y.created_at.localeCompare(x.created_at)) })
+  }),
+  http.get(`${API}/core/data/restore/run`, () => {
+    const denied = guard('admin')
+    if (denied) return denied
+    return HttpResponse.json(restoreRunStore.get().run)
+  }),
+  http.post(`${API}/core/data/restore`, async ({ request }) => {
+    const denied = guard('admin')
+    if (denied) return denied
+    const b = await body<{ backup_id?: string; confirm_data_loss?: boolean; password?: string; code?: string }>(request)
+    const src = boxBackupsStore.get().find((x) => x.id === b.backup_id)
+    if (!src) return fail(404, 'backup_unknown', 'This backup is no longer on the box. Reload the list.')
+    if (b.confirm_data_loss !== true) return fail(409, 'confirm_required', 'Restoring replaces everything written since the backup. Confirm to go on.')
+    if (restoreRunStore.get().run?.status === 'running') return fail(409, 'busy', 'A restore is already running. Wait for it to finish.')
+    const stepped = await stepUp(b, 'restore a backup')
+    if (stepped) return stepped
+    const at = nowIso()
+    const pre: BoxBackup = { id: crypto.randomUUID().replace(/-/g, ''), kind: 'pre_restore', created_at: at, size: src.size, includes_key: true }
+    boxBackupsStore.update((l) => [pre, ...l])
+    const run: RestoreRun = { id: newId('restore'), backup_id: src.id, backup_created_at: src.created_at, status: 'done', started_at: at, finished_at: at, user: currentUser()!.email, pre_restore_backup_id: pre.id, error: null }
+    restoreRunStore.set({ run })
+    audit('data.restore', src.created_at)
+    return HttpResponse.json(run, { status: 202 })
   }),
   http.get(`${API}/core/data/export`, () => {
     const denied = guard('admin')
@@ -885,29 +951,8 @@ const dataHandlers = [
     if (denied) return denied
     const b = await body<{ confirm: string; password?: string; code?: string }>(request)
     if (String(b.confirm ?? '') !== orgStore.get().name) return fail(400, 'confirm_mismatch', 'The organization name does not match. Type it exactly to confirm deletion.')
-    // D-154 step-up, like the other sensitive routes (D-76, D-98): the current password, counted against a limit, then a fresh two-step code when it is on.
-    const u = currentUser()!
-    if (purgeTries.get().n >= PURGE_MAX_TRIES) return HttpResponse.json({ error: { code: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.', retry_after: 300 } }, { status: 429, headers: { 'Retry-After': '300' } })
-    if (String(b.password ?? '') !== u.password) {
-      purgeTries.update((x) => ({ n: x.n + 1 }))
-      return fail(400, 'wrong_password', 'Wrong password. The password is needed to delete all data.')
-    }
-    if (u.twofa) {
-      const code = String(b.code ?? '').replace(/\s/g, '')
-      if (u.twofa_method === 'email') {
-        if (!code) {
-          const sent = issueCode(u.id, true)
-          if ('error' in sent) return sent.error
-          return HttpResponse.json({ error: { code: 'code_required', message: 'Type the 6-digit code we emailed you to delete all data.', method: 'email', sent_to: maskEmail(u.email), resend_after: sent.resend_after } }, { status: 400 })
-        }
-        const bad = checkCode(u.id, code)
-        if (bad) return bad
-      } else {
-        if (!code) return HttpResponse.json({ error: { code: 'code_required', message: 'Type the 6-digit code from your authenticator app to delete all data.', method: 'app' } }, { status: 400 })
-        if (!/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits from your authenticator app.')
-        if (!(await verifyTotp(totpSecrets.get()[u.id] ?? '', code))) return fail(400, 'wrong_code', 'Wrong code. Check the time on your phone and enter a new code.')
-      }
-    }
+    const stepped = await stepUp(b, 'delete all data')
+    if (stepped) return stepped
     purgeTries.set({ n: 0 })
     const removed = { assets: assetsStore.get().length, findings: findingsStore.get().length, audit: auditStore.get().length }
     resetMockDb()

@@ -99,6 +99,42 @@ func TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstal
 	}
 }
 
+// pre_restore has a retention group of its own: repeated restores keep the backups an update or an OS install made,
+// and the newest pre_restore (the data the last restore replaced) is never pushed out by them.
+func TestContract_Backup_RestoresHaveTheirOwnRetentionGroup(t *testing.T) {
+	t.Parallel()
+	e := startUpd(t)
+	e.m.InstallUnit(api.ServiceCore, d1, true)
+	e.m.SetRunning(api.ServiceCore, true)
+	e.m.WriteDB("db: good")
+	mk := func(kind string) string {
+		e.clock.Advance(time.Minute)
+		return result[api.BackupResult](t, e.ok(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: kind, Snapshot: e.snap(), IncludeSecrets: true})).BackupID
+	}
+	manual := mk("manual")
+	os1, os2, os3 := mk("pre_os_update"), mk("pre_os_update"), mk("pre_update")
+	var restores []string
+	for range 4 {
+		e.clock.Advance(time.Minute)
+		res := result[api.BackupRestoreResult](t, e.ok(t, api.CmdBackupRestore, api.BackupRestoreArgs{BackupID: manual, Snapshot: e.snap()}))
+		restores = append(restores, res.PreRestoreBackupID)
+	}
+	ids := e.listed(t)
+	for _, id := range append([]string{manual, os1, os2, os3}, restores[1:]...) {
+		if !slices.Contains(ids, id) {
+			t.Fatalf("%s was dropped: %v", id, ids)
+		}
+	}
+	if slices.Contains(ids, restores[0]) || len(ids) != 7 {
+		t.Fatalf("want the oldest pre_restore gone and 7 kept: %v", ids)
+	}
+	// and an OS install never pushes out a pre_restore
+	mk("pre_os_update")
+	if ids := e.listed(t); !slices.Contains(ids, restores[3]) || !slices.Contains(ids, restores[1]) || slices.Contains(ids, os1) {
+		t.Fatalf("after one more pre_os_update: %v", ids)
+	}
+}
+
 // The backup of core's journal is kept too (the revert after a failed or interrupted start). The realistic
 // case: the journal says unrecoverable, the person runs backup.restore (D-142), and the pre_restore backup that
 // restore makes must not push the journal's backup out.
@@ -118,7 +154,7 @@ func TestContract_Backup_RetentionKeepsTheBackupOfCoresJournalWhileBackupRestore
 	mk("pre_os_update", false)
 	e.coreJournal(t, p, true)
 	e.clock.Advance(time.Minute)
-	e.ok(t, api.CmdBackupRestore, api.BackupRestoreArgs{BackupID: manual, Snapshot: e.snap()}) // makes a pre_restore: the fourth pre_*
+	e.ok(t, api.CmdBackupRestore, api.BackupRestoreArgs{BackupID: manual, Snapshot: e.snap()}) // makes a pre_restore (a group of its own)
 	if ids := e.listed(t); !slices.Contains(ids, p) {
 		t.Fatalf("the backup of the journal was evicted by the pre_restore backup: %v", ids)
 	}

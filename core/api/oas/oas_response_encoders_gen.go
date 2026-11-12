@@ -700,6 +700,19 @@ func encodeCoreGetCoreDataBackupResponse(response CoreGetCoreDataBackupOK, w htt
 	return nil
 }
 
+func encodeCoreGetCoreDataBackupsResponse(response *CoreGetCoreDataBackupsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCoreGetCoreDataExportResponse(response CoreGetCoreDataExportOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(200)
@@ -709,6 +722,19 @@ func encodeCoreGetCoreDataExportResponse(response CoreGetCoreDataExportOK, w htt
 		defer closer.Close()
 	}
 	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCoreGetCoreDataRestoreRunResponse(response NilCoreGetCoreDataRestoreRunOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
 		return errors.Wrap(err, "write")
 	}
 
@@ -1183,6 +1209,19 @@ func encodeCorePostCoreConnectionsIDTestResponse(response *CorePostCoreConnectio
 func encodeCorePostCoreDataPurgeResponse(response *CorePostCoreDataPurgeOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostCoreDataRestoreResponse(response *CorePostCoreDataRestoreAccepted, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(202)
 
 	e := new(jx.Encoder)
 	response.Encode(e)

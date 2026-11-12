@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/knt048/vedette/core/modreg"
@@ -48,12 +49,24 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	// does not call its own (Installed=false: missing, or edited) or a state it cannot read ("unknown") goes on to the write, so a
 	// refusal such as unit_unsafe is logged and retried and never taken for done.
 	st, ok := c.state(ctx)
-	if ok && st.Installed && st.Enabled && (st.UnitState == api.UnitActive || st.UnitState == api.UnitOther) {
+	v := c.startVersion(st, ok)
+	if ok && st.Installed && st.Enabled && (st.UnitState == api.UnitActive || st.UnitState == api.UnitOther) &&
+		(v == "" || (st.Version != nil && *st.Version == v)) { // a unit running another version than the one pulled for it is not done
 		return nil // running / coming up with [Install]: systemd's Restart= owns it
 	}
 	// not_pulled (this box has no unit for the service: not installed, or the scan build was skipped) is "nothing to
 	// start": retrying it every few minutes would only fill the log. Any other refusal or unknown outcome is retried.
-	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service, Version: c.startVersion(st, ok)}, api.CodeNotPulled)
+	if v != "" {
+		// The host judges a version more strictly than the current image (not_pulled, current_version_unknown, upgrade_path_required,
+		// a revoked release...). Such a refusal must not leave the module without a container, so it falls back to the image the unit
+		// pins, as before D-342 (2); a busy host or an unknown outcome is not a refusal and is retried.
+		err := c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service, Version: v}, "")
+		var re refusedError
+		if !errors.As(err, &re) {
+			return err
+		}
+	}
+	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled)
 }
 
 // startVersion is the version core asks the host to start (D-342 (2)). An update pulls a service whose module is off but does

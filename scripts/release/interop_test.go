@@ -136,6 +136,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	repo := filepath.Join(work, "repo")
 	must(t, os.MkdirAll(filepath.Join(repo, "modules/a/migrations/sqlite"), 0o750))
 	must(t, os.WriteFile(filepath.Join(repo, "modules/a/migrations/sqlite/0001_a.sql"), up("CREATE TABLE a (id INT);"), 0o600))
+	copyContainerTemplate(t, repo) // D-451: the real compose files and vedette.env, read back from git at the tag
 	// the migrations are read from git: a repository with the release tagged
 	gitT(t, repo, "init", "-q")
 	gitT(t, repo, "add", "-A")
@@ -144,7 +145,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	cdir := filepath.Join(work, "cosign")
 	must(t, os.MkdirAll(cdir, 0o750))
 	var imgs []string
-	for _, s := range []string{"core", "sensor"} {
+	for _, s := range []string{"core", "sensor", "scan"} {
 		d := digestOf(s + "interop")
 		p := releasetest.Payload(release.RegistryPrefix+s, d)
 		_, sig := cos.Sign(t, p)
@@ -165,6 +166,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	}
 	for _, step := range [][]string{
 		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo},
+		{"container-assets", "-in", in, "-out", out, "-repo", repo},
 		{"index", "-out", out, "-manifest", filepath.Join(out, manifestFile)},
 		{"sign", "-dir", out, "-key", pub("active.key"), "-minisign", bin, "-slot", "active"},
 	} {
@@ -192,6 +194,11 @@ func TestInteropMinisignCLI(t *testing.T) {
 		{"index.json", "index.json.minisig", "minisign.pub"},
 		{"release-manifest.json", "release-manifest.json.minisig", "minisign.pub"},
 		{"index.json", "index.json.backup.minisig", "minisign-backup.pub"},
+		// the customer's own command for the container-only files (docs/INSTALL-CONTAINER.md, D-451)
+		{"vedette.env", "vedette.env.minisig", "minisign.pub"},
+		{"compose.yaml", "compose.yaml.minisig", "minisign.pub"},
+		{"compose.sensors.yaml", "compose.sensors.yaml.minisig", "minisign.pub"},
+		{"compose.syslog.yaml", "compose.syslog.yaml.minisig", "minisign.pub"},
 	} {
 		o, err := ms(t, bin, "", "-Vm", filepath.Join(out, c.file), "-x", filepath.Join(out, c.sig), "-p", pub(c.pub))
 		if err != nil || !strings.Contains(o, "Signature and comment signature verified") {
@@ -199,6 +206,14 @@ func TestInteropMinisignCLI(t *testing.T) {
 		}
 		if !strings.Contains(o, "Trusted comment: file:") {
 			t.Errorf("trusted comment missing: %s", o)
+		}
+	}
+	// the customer's check of the container-only files (ContainerOnly.tsx, docs/INSTALL-CONTAINER.md, D-451): `minisign -VQm` prints
+	// exactly the trusted comment, which the page compares with "file:<that file> version:<release>"
+	for _, f := range containerAssets {
+		o, err := ms(t, bin, "", "-VQm", filepath.Join(out, f), "-p", pub("minisign.pub"))
+		if err != nil || o != "file:"+f+" version:0.1.0-beta.1\n" {
+			t.Errorf("minisign -VQm %s: %v %q", f, err, o)
 		}
 	}
 	// the tool refuses a tampered document, and so does the box's verifier

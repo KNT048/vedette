@@ -157,13 +157,43 @@ func TestInstall_VersionsAgree(t *testing.T) {
 		t.Errorf("PINS has %d keys, want the version, three package hashes and three licence hashes", len(pins))
 	}
 	sh := readFile(t, "scripts/osquery.sh")
-	for _, want := range []string{`FILE="osquery_${VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${VERSION}-1.linux.x86_64.rpm"`} {
+	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.x86_64.rpm"`} {
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script does not ask for %s", want)
 		}
 	}
 	if !strings.Contains(readFile(t, "scripts/osquery.ps1"), `$File = "osquery-$Version.msi"`) {
 		t.Error("the Windows script does not ask for osquery-<version>.msi")
+	}
+}
+
+// A real Debian/Ubuntu/RHEL os-release defines VERSION, NAME, ID...: the script read it with `. /etc/os-release` and its own VERSION was
+// overwritten, so osquery_13 (trixie)-1.linux_amd64.deb was asked for on a real Debian 13 (2026-11-12 real run). The file may only be read in
+// a subshell, and no variable of the script may share a name with a key of os-release (os-release(5) lists them). The real effect (the
+// right package name on Debian 13) was checked on a container; os/exec is not allowed in this module's tests (SYS-1).
+func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
+	keys := map[string]bool{"NAME": true, "VERSION": true, "ID": true, "ID_LIKE": true, "PRETTY_NAME": true, "CPE_NAME": true, "VARIANT": true,
+		"VARIANT_ID": true, "VERSION_ID": true, "VERSION_CODENAME": true, "BUILD_ID": true, "IMAGE_ID": true, "IMAGE_VERSION": true,
+		"HOME_URL": true, "DOCUMENTATION_URL": true, "SUPPORT_URL": true, "BUG_REPORT_URL": true, "PRIVACY_POLICY_URL": true, "SUPPORT_END": true,
+		"LOGO": true, "ANSI_COLOR": true, "DEFAULT_HOSTNAME": true, "ARCHITECTURE": true, "SYSEXT_LEVEL": true, "CONFEXT_LEVEL": true}
+	assign := regexp.MustCompile(`^\s*([A-Z][A-Z0-9_]*)=`)
+	reads := 0
+	for _, line := range strings.Split(readFile(t, "scripts/osquery.sh"), "\n") {
+		if m := assign.FindStringSubmatch(line); m != nil && keys[m[1]] {
+			t.Errorf("the Linux script sets %s, which /etc/os-release also sets: %q", m[1], line)
+		}
+		if strings.Contains(line, `. "$OSF"`) {
+			reads++
+			if !strings.Contains(line, "$( . ") {
+				t.Errorf("os-release must be read inside a subshell: %q", line)
+			}
+		}
+		if strings.HasPrefix(strings.TrimSpace(line), ". /etc/os-release") || strings.HasPrefix(strings.TrimSpace(line), "source ") {
+			t.Errorf("the script sources a file into its own shell: %q", line)
+		}
+	}
+	if reads == 0 {
+		t.Error("the script no longer reads os-release")
 	}
 }
 

@@ -125,6 +125,14 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 			return nil, errors.New("a rescue release brings boxes the binary with the new active key: run release manifest first (D-259)")
 		}
 	}
+	var assetTC map[string]string // the container-only assets (D-451), signed like the manifest and never by the backup slot
+	if slot != slotBackup {
+		var assets []string
+		if assets, assetTC, err = containerAssetsToSign(dir); err != nil {
+			return nil, err
+		}
+		docs = append(docs, assets...)
+	}
 	if slot == slotRescue {
 		// The rescue overwrites the .minisig a box downloads: a signature left from another run (the leaked key's, say) next to
 		// the rescue's would make a directory of mixed signers if this run stopped half way.
@@ -139,9 +147,11 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 		if err != nil {
 			return written, err
 		}
-		tc, err := trustedComment(filepath.Base(p), raw)
-		if err != nil {
-			return written, err
+		tc, ok := assetTC[p]
+		if !ok {
+			if tc, err = trustedComment(filepath.Base(p), raw); err != nil {
+				return written, err
+			}
 		}
 		sigPath := p + ".minisig"
 		if slot == slotBackup {
@@ -231,6 +241,9 @@ type Summary struct {
 	BackupSig  bool     // the backup key's index signature was present and verified
 	IndexOnly  bool     // no manifest in the directory: a refresh of the index
 	Rescue     bool     // the backup key signed the index and the manifest, and the index revokes the active key (D-259)
+	// ContainerAssets: the manifest lists install mode container and the four files of the container-only install are here,
+	// signed by the manifest's key, vedette.env naming the manifest's digests (D-451).
+	ContainerAssets bool
 }
 
 // legacyVerifiers check an index.v<N>.json and its signature. A legacy index is a document of a schema this build cannot
@@ -338,6 +351,9 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 			return nil, fmt.Errorf("image %s: %w", im.Service, err)
 		}
 		s.Images = append(s.Images, im.Service+"@"+im.Digest)
+	}
+	if s.ContainerAssets, err = verifyContainerAssets(dir, m, trust); err != nil {
+		return nil, fmt.Errorf("container assets: %w", err)
 	}
 	return s, nil
 }

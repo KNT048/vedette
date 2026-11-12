@@ -5,7 +5,7 @@
 #   sh install.sh [--network-handover] [--uninstall --yes [--keep-data]] [--test-artifacts DIR]
 #
 # What it does, in this order, and stops at the first thing it cannot do (a refusal in step 1 changes nothing):
-#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444, no other Vedette, a sane clock
+#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444 and the syslog ports 514 and 6514, no other Vedette, a sane clock
 #   2. installs the packages Vedette needs that are MISSING (podman, chrony, netplan.io, nftables, ...) with apt, never upgrading
 #      a package that is already there
 #   3. downloads the vedette-host .deb of THIS release, checks its sha256 against the value written into this script by the
@@ -170,6 +170,8 @@ cidr_overlap() {
 }
 
 port_listening() { ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
+# port_listening_any <port>: the same for TCP and UDP (the syslog port 514 is both; rootful podman publishes it for core)
+port_listening_any() { ss -H -ltnu 2>/dev/null | awk '{print $5}' | grep -Eq "[:.]$1\$"; }
 
 installed_pkg() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
 
@@ -272,6 +274,11 @@ preflight() {
 		for p in 8443 8444; do
 			! port_listening "$p" || die "port $p is already in use by another program (ss -ltnp). Vedette needs 8443 (interface) and 8444 (sensor link)."
 		done
+		# syslog: podman reserves 514 (udp+tcp) and 6514 (tcp, TLS) for core; rsyslog's imudp/imtcp usually holds them, and core
+		# (and 8443 with it) would not start
+		for p in 514 6514; do
+			! port_listening_any "$p" || die "port $p is already in use by another program (ss -lntup). Vedette needs 514 (syslog, udp and tcp) and 6514 (syslog over TLS, tcp): stop rsyslog's network input (imudp, imtcp) or the other syslog service and run this again."
+		done
 		if [ -e /etc/vedette/host.conf ] || installed_pkg vedette-host || getent passwd vedette >/dev/null; then
 			die "another Vedette install is here (host.conf, the package or the user vedette) that this script did not make. Remove it first (docs/RUNBOOK.md) or use --uninstall from the script that made it."
 		fi
@@ -304,9 +311,9 @@ preflight() {
 	[ -s "$STATE/owner" ] || printf 'channel=%s\n' "$WANT" >"$STATE/owner"
 	if [ -n "$rerun" ]; then
 		# a re-run does not check the ports: Vedette itself may hold them (the check above is for a fresh box only)
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443 and 8444 not checked)"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443, 8444, 514 and 6514 not checked)"
 	else
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443 and 8444 free"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443, 8444, 514 and 6514 free"
 	fi
 }
 
@@ -790,7 +797,7 @@ do_install() {
 }
 
 # forward_check (D-267): Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
-# without a rule in DOCKER-USER the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. vedette-host keeps two
+# without a rule in DOCKER-USER the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. vedette-host keeps two
 # rules in DOCKER-USER for the container network while that chain exists; here the effect is checked, and a firewall that is not
 # Docker's is only reported, never changed.
 forward_check() {
@@ -809,9 +816,9 @@ forward_check() {
 			sleep 2
 			n=$((n + 1))
 		done
-		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443 or 514 and the containers may not reach the internet (journalctl -u vedette-host)"
+		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet (journalctl -u vedette-host)"
 	elif iptables -w 5 -S FORWARD 2>/dev/null | grep -qx -- '-P FORWARD DROP'; then
-		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
+		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
 	fi
 }
 

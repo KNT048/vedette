@@ -657,13 +657,19 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 			t.Errorf("stop took %v", d)
 		}
 	}
-	pause(t, 100*time.Millisecond)
-	if e.rem != nil { // the link's connections are idle, not leaked: close them before counting
-		e.rem.client.CloseIdleConnections()
-		e.rem.link.Server.CloseClientConnections()
-		pause(t, 200*time.Millisecond)
+	// The goroutines of the last stop and of the closed connections end in their own time, which a starved runner stretches: wait for
+	// the count to come back (the loop ends the moment it does), and call it a leak only when it has not within waitBound. A fixed pause
+	// (100 ms, then 200 ms) could count goroutines that were still on their way out.
+	for deadline := time.Now().Add(waitBound); time.Now().Before(deadline); pause(t, 20*time.Millisecond) {
+		if e.rem != nil { // the link's connections are idle, not leaked: close them before counting (again: a last request may put one back)
+			e.rem.client.CloseIdleConnections()
+			e.rem.link.Server.CloseClientConnections()
+		}
+		runtime.GC()
+		if runtime.NumGoroutine() <= base+1 {
+			break
+		}
 	}
-	runtime.GC()
 	if after := runtime.NumGoroutine(); after > base+1 {
 		buf := make([]byte, 1<<16)
 		t.Errorf("leak: %d -> %d\n%s", base, after, buf[:runtime.Stack(buf, true)])

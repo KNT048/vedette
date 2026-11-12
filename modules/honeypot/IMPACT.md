@@ -34,7 +34,8 @@
 - **inventory** (qua `inventory.Config.BoxOwnedIPs`, nối ở `cmd/vedette/inventory.go`, đọc lúc cần vì honeypot dựng sau kho): quan sát có IP trong danh sách không tạo/cập nhật thiết bị, `ProtectedIPs` (nên `sensor-active`) liệt kê chúng. Đổi ý nghĩa (IP đã giao cho host ở `Apply` gần nhất, đọc từ `hp_config.applied`) → thiết bị ma xuất hiện trong kho (bẫy tự gây `conflict`) hoặc `sensor-active` quét IP bẫy. Rỗng khi host không phải appliance.
 
 ## Modifying: `Service.TrapConflicts()`, `Stats()` — chưa có GUI
-- Lý do IP bị loại (thiết bị, IP hộp, ngoài LAN, host từ chối, quá 32) và bộ đếm (`Implausible`, `Suppressed`, `NotRegular`, `SkippedBytes`) chỉ ở đây và ở log: GUI chưa có trường (đổi GUI là story mới).
+- Lý do IP bị loại (thiết bị, IP hộp, ngoài LAN, host từ chối, quá 32) lên GUI qua `Overview.Problem` (IP phụ) và `Decoy.Reason` (decoy thêm, D-383); danh sách đủ và bộ đếm (`Implausible`, `Suppressed`, `NotRegular`, `SkippedBytes`) chỉ ở đây và ở log (đổi GUI là story mới).
+- `Trap.state`/`Decoy.state` `listening` đọc `hostCache.placed` (T8): đổi nghĩa `placed` (IP host đã xác nhận ở lần `Apply` gần nhất) làm GUI nói "Listening" cho IP host không giữ, hoặc "failed" cho decoy đang nghe.
 
 ## Disabling this module
 - Trang Honeypot, panel bẫy trên trang thiết bị trống ("module đang tắt").

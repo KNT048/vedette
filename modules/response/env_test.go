@@ -258,14 +258,7 @@ func (e *env) ctx() context.Context { return e.t.Context() }
 
 func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 	t.Helper()
-	db := storetest.New(t)
-	ctx := t.Context()
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "response", response.Migrations); err != nil {
-		t.Fatal(err)
-	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "response", FS: response.Migrations})
 	sec, err := secrets.New([]byte("0123456789abcdef0123456789abcdef"))
 	if err != nil {
 		t.Fatal(err)
@@ -300,7 +293,7 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Registered after storetest.New, so it runs first: background sends and detached runs finish before the
+	// Registered after storetest.Migrated, so it runs first: background sends and detached runs finish before the
 	// database closes and t.TempDir is removed ("TempDir RemoveAll cleanup: directory not empty" otherwise).
 	svc := e.svc
 	t.Cleanup(svc.Close)

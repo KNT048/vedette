@@ -13,6 +13,7 @@ import (
 // The ip type refuses what is never a target to block or isolate: 0.0.0.0/8, the reserved 240.0.0.0/4 with the broadcast
 // address, and multicast. Ordinary private addresses stay valid (devices on the LAN are targets).
 func TestIPTypeRefusesNonTargets(t *testing.T) {
+	t.Parallel()
 	for _, v := range []string{"255.255.255.255", "0.1.2.3", "0.0.0.0", "240.0.0.1", "239.1.1.1", "::ffff:255.255.255.255", "::ffff:0.1.2.3"} {
 		if _, ok := CheckValue(PIP, v); ok {
 			t.Errorf("CheckValue(ip, %q) accepted a broadcast, this-network, multicast or reserved address", v)
@@ -33,6 +34,7 @@ func TestIPTypeRefusesNonTargets(t *testing.T) {
 // An interface value lands in an API path: it cannot hold .. or an empty segment (1%2F..%2F..%2Fadmin walks up a path on a
 // server that decodes %2F before routing).
 func TestInterfaceValuesRefuseDotSegments(t *testing.T) {
+	t.Parallel()
 	for _, v := range []string{"1/../../admin", "Gi1/0/48/", "Gi1//48", "a/./b", "Gi1..2", "eth0.."} {
 		if _, ok := CheckValue(PInterface, v); ok {
 			t.Errorf("an interface value %q was accepted", v)
@@ -48,6 +50,7 @@ func TestInterfaceValuesRefuseDotSegments(t *testing.T) {
 // A never-touch domain also protects its parents: blocking corp.example.com blocks login.corp.example.com on a DNS filter. A
 // sibling or an unrelated domain that merely ends the same way is not touched.
 func TestNeverTouchDomainProtectsParentsAndSubdomains(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		entry, value string
 		want         bool
@@ -68,6 +71,7 @@ func TestNeverTouchDomainProtectsParentsAndSubdomains(t *testing.T) {
 
 // MAC addresses and port names are never-touch entries too; a kind only matches its own kind.
 func TestNeverTouchMACAndInterfaceMatching(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		entry, value string
 		want         bool
@@ -93,6 +97,7 @@ func TestNeverTouchMACAndInterfaceMatching(t *testing.T) {
 
 // An API path may not start with "//": a scheme-relative reference would resolve to another host with the connection's credentials.
 func TestAPIPathRefusesSchemeRelative(t *testing.T) {
+	t.Parallel()
 	for _, p := range []string{"//attacker.example/x/{ip}", "///x", "x/y", "/a/../b", "/a?b=1"} {
 		if why := ValidateTpl(Tpl{Method: "POST", Path: p}, "Action"); why == "" {
 			t.Errorf("the path %q was accepted", p)
@@ -105,6 +110,7 @@ func TestAPIPathRefusesSchemeRelative(t *testing.T) {
 
 // publishable: only public addresses are published (blocklist-format 5).
 func TestPublishableAddresses(t *testing.T) {
+	t.Parallel()
 	for v, want := range map[string]bool{
 		"10.0.0.1": false, "172.16.5.5": false, "172.31.255.255": false, "172.32.0.1": true, "192.168.0.1": false, "100.64.0.1": false, "100.127.0.1": false, "100.128.0.1": true,
 		"0.0.0.1": false, "127.0.0.1": false, "169.254.0.1": false, "224.0.0.1": false, "240.0.0.1": false, "255.255.255.255": false,
@@ -121,6 +127,7 @@ func TestPublishableAddresses(t *testing.T) {
 
 // sourceKey: the rate limit key is the address for IPv4 and the /64 for IPv6, with or without a port or a mapped form.
 func TestSourceKey(t *testing.T) {
+	t.Parallel()
 	for from, want := range map[string]string{
 		"192.168.10.5": "192.168.10.5", "192.168.10.5:4431": "192.168.10.5", "::ffff:192.168.10.5": "192.168.10.5",
 		"2001:db8:1:2::7": "2001:db8:1:2::/64", "2001:db8:1:2:ffff:ffff:ffff:ffff": "2001:db8:1:2::/64", "[2001:db8:1:2::7]:443": "2001:db8:1:2::/64", "not an address": "not an address",
@@ -134,6 +141,7 @@ func TestSourceKey(t *testing.T) {
 // The rate limit table is capped: when it is full a source it does not know is refused until old ones age out, and a known
 // source keeps its own count.
 func TestAllowFetchTableIsCapped(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)
 	s := &Service{fetchTimes: map[string][]time.Time{}, cfg: Config{Clock: func() time.Time { return now }}}
 	for i := range maxFetchKeys + 50 {
@@ -157,6 +165,7 @@ func TestAllowFetchTableIsCapped(t *testing.T) {
 // L9: every built-in action that can be undone has a rollback that differs from its run step (a rollback that repeats the run
 // is no undo); an action with no rollback says so by having none, so it cannot be pre-approved.
 func TestBuiltinRollbackDiffersFromRun(t *testing.T) {
+	t.Parallel()
 	s := &Service{}
 	if err := s.loadData(); err != nil {
 		t.Fatal(err)

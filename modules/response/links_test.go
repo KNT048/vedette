@@ -154,6 +154,7 @@ func (l *linkEnv) tokenUsed() int {
 // ---- INV-4 ----
 
 func TestContract_INV4_GetNeverDecides(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -177,6 +178,7 @@ func TestContract_INV4_GetNeverDecides(t *testing.T) {
 }
 
 func TestContract_INV4_ViewOfAnEndedLinkShowsNothing(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -207,6 +209,7 @@ func TestContract_INV4_ViewOfAnEndedLinkShowsNothing(t *testing.T) {
 }
 
 func TestContract_INV4_TokenIsUsedOnce(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -240,6 +243,7 @@ func TestContract_INV4_TokenIsUsedOnce(t *testing.T) {
 }
 
 func TestContract_INV4_ConcurrentPostsHaveOneWinner(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -264,6 +268,7 @@ func TestContract_INV4_ConcurrentPostsHaveOneWinner(t *testing.T) {
 }
 
 func TestContract_INV4_ForgedAndUnknownTokensAreRefused(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -307,6 +312,7 @@ func TestContract_INV4_ForgedAndUnknownTokensAreRefused(t *testing.T) {
 }
 
 func TestContract_INV4_NoLinkTokensMeansEveryLinkIsUnknown(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	_, err := e.svc.DecideByLink(e.ctx(), "v1.aaaa.bbbb", "approve", "192.0.2.1")
 	wantCode(t, err, 404, "unknown")
@@ -318,6 +324,7 @@ func TestContract_INV4_NoLinkTokensMeansEveryLinkIsUnknown(t *testing.T) {
 }
 
 func TestContract_INV4_DecisionMustBeApproveOrReject(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -332,6 +339,7 @@ func TestContract_INV4_DecisionMustBeApproveOrReject(t *testing.T) {
 
 // The approver is checked again when the link is used (D-96 (4)); a refusal does not burn the token.
 func TestContract_INV4_TheApproverIsCheckedAgain(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		arm  func(e *linkEnv)
@@ -378,6 +386,7 @@ func TestContract_INV4_TheApproverIsCheckedAgain(t *testing.T) {
 
 // D-57 (20): a high-risk request is never decided through a link, whichever way the record got there.
 func TestContract_INV4_HighRiskIsNeverDecidedByLink(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.firewall("fgt_policy_disable")
 	e.turnOn()
@@ -403,6 +412,7 @@ func TestContract_INV4_HighRiskIsNeverDecidedByLink(t *testing.T) {
 
 // INV-16: a request the AI marked in-app only is not decided by link either, even when its risk is lower than high.
 func TestContract_INV16_InAppOnlyIsNeverDecidedByLink(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -419,6 +429,7 @@ func TestContract_INV16_InAppOnlyIsNeverDecidedByLink(t *testing.T) {
 
 // A decision a gate refuses does not burn the token; the same link works once the gate opens.
 func TestContract_INV4_RefusalDoesNotBurnTheToken(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -446,6 +457,7 @@ func TestContract_INV4_RefusalDoesNotBurnTheToken(t *testing.T) {
 
 // Reject burns the token (D-96 (4)) and is a decision of its own.
 func TestContract_INV4_RejectBurnsTheToken(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -460,6 +472,7 @@ func TestContract_INV4_RejectBurnsTheToken(t *testing.T) {
 
 // INV-2: one person counts once, across the app and a link; the second approver must be someone else.
 func TestContract_INV2_SamePersonAcrossChannelsCountsOnce(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
 	e.rule("Two blocks", "ioc_connection", twoBlocks(), nil)
@@ -489,6 +502,7 @@ func TestContract_INV2_SamePersonAcrossChannelsCountsOnce(t *testing.T) {
 // ---- the rate limit ----
 
 func TestContract_INV4_RateLimit(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -518,6 +532,7 @@ func TestContract_INV4_RateLimit(t *testing.T) {
 }
 
 func TestContract_INV4_BadTokenLimit(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -545,6 +560,7 @@ func TestContract_INV4_BadTokenLimit(t *testing.T) {
 // ---- FORBID-4 ----
 
 func TestForbid4_NoTokenAnywhereInTheStoredRows(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -612,6 +628,7 @@ func (e *env) dump(q string) string {
 // ---- recording what notify makes ----
 
 func TestRecordLinkChecksWhatItStores(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	exp := e.clock.Now().Add(10 * time.Minute)
@@ -653,6 +670,7 @@ func TestRecordLinkChecksWhatItStores(t *testing.T) {
 }
 
 func TestRecordReplyCodeStoresOnlyTheHash(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	exp := e.clock.Now().Add(10 * time.Minute)
@@ -678,6 +696,7 @@ func TestRecordReplyCodeStoresOnlyTheHash(t *testing.T) {
 }
 
 func TestSweepForgetsOldTokens(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	e.mint(a.ID, "u-op", "it@acme.example")
@@ -695,6 +714,7 @@ func TestSweepForgetsOldTokens(t *testing.T) {
 // ---- POST-5: sending ----
 
 func TestPost5_SentToAndLogLine(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.note.sendSent = []string{"Email"}
 	a := e.pending()
@@ -721,6 +741,7 @@ func TestPost5_SentToAndLogLine(t *testing.T) {
 }
 
 func TestPost5_AnErrorNeverFailsTheRequest(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.note.sendErr = errors.New("smtp: connection refused")
 	e.note.sendSent = nil
@@ -743,6 +764,7 @@ func TestPost5_AnErrorNeverFailsTheRequest(t *testing.T) {
 }
 
 func TestPost5_NobodyIsAskedWithoutAReadyChannel(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(e *linkEnv){
 		"no approval channel in the settings": func(e *linkEnv) {
 			e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{} })
@@ -764,6 +786,7 @@ func TestPost5_NobodyIsAskedWithoutAReadyChannel(t *testing.T) {
 }
 
 func TestPost5_AnotherChannelTypeIsSentToToo(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.note.chs = append(e.note.chs, response.NotifyChannel{Type: "slack", Label: "Slack #sec", Configured: true, Enabled: true, Approvals: true, Approvers: 1},
 		response.NotifyChannel{Type: "telegram", Label: "Telegram", Configured: true, Enabled: true, Approvals: true, Approvers: 1})
@@ -776,6 +799,7 @@ func TestPost5_AnotherChannelTypeIsSentToToo(t *testing.T) {
 }
 
 func TestPost5_APreApprovedRequestAsksNobody(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(1440), func(in *response.RuleInput) { in.PreApproved = true })
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -789,6 +813,7 @@ func TestPost5_APreApprovedRequestAsksNobody(t *testing.T) {
 // Sending happens after the creating transaction committed and holds neither a write transaction nor the service lock: inside the
 // send, the request is already readable, a write goes through, and the request can be approved.
 func TestPost5_SendingIsAfterCommitAndHoldsNoLock(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	var inside struct {
 		visible, wrote, approved bool
@@ -831,6 +856,7 @@ func TestPost5_SendingIsAfterCommitAndHoldsNoLock(t *testing.T) {
 
 // RequestProposal (AI plan) sends too, and its answer already shows where the request went; it does not hold the lock while sending.
 func TestPost5_RequestProposalSends(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
 	e.note.sendSent = []string{"Email"}
@@ -851,6 +877,7 @@ func TestPost5_RequestProposalSends(t *testing.T) {
 
 // A high-risk AI request is sent as "open Vedette" only (INV-16): notify is told InAppOnly.
 func TestPost5_HighRiskAIRequestIsSentInAppOnly(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.allowHigh()
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
@@ -885,6 +912,7 @@ func eventually(t *testing.T, what string, ok func() bool) {
 // A mail server that does not answer holds nothing: the engine goes on creating requests, a person approves in the app and a
 // pre-approved action runs, while two sends wait on the blackhole and the rest wait for a slot.
 func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	release := make(chan struct{})
 	e.note.block = release
@@ -932,10 +960,11 @@ func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
 
 // Close ends the sends that are waiting on a mail server and returns; the request stays open in the app.
 func TestPost5_CloseStopsTheSends(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.note.block = make(chan struct{}) // never released
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
-	e.fire(e.iocEvent("e1", "198.51.100.7"))
+	e.fireNoWait(e.iocEvent("e1", "198.51.100.7")) // fire would wait out the 60 s send budget: Close must end the send, not the budget
 	eventually(t, "the send started", func() bool { return len(e.note.requests()) == 1 })
 	closed := make(chan struct{})
 	go func() { e.svc.Close(); close(closed) }()
@@ -952,6 +981,7 @@ func TestPost5_CloseStopsTheSends(t *testing.T) {
 
 // When the budget runs out with several approvers, the ones mailed so far are kept and the line says the rest were skipped.
 func TestPost5_BudgetRunningOutIsInTheLog(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.svc.SetSendBudgetForTest(50 * time.Millisecond)
 	e.note.block = make(chan struct{})
@@ -967,6 +997,7 @@ func TestPost5_BudgetRunningOutIsInTheLog(t *testing.T) {
 
 // notify could not write its record after the mails went out: the line says some mail may have gone out all the same.
 func TestPost5_UnsureSendIsSaidInTheLog(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.note.sendErr = fmt.Errorf("%w: write the records: disk full", response.ErrSendUnsure)
 	a := e.pending()
@@ -977,6 +1008,7 @@ func TestPost5_UnsureSendIsSaidInTheLog(t *testing.T) {
 
 // A real RequestProposal: the answer is already committed when the send starts, and the lock is free while it runs.
 func TestPost5_RequestProposalHoldsNoLockWhileSending(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
@@ -1004,6 +1036,7 @@ func TestPost5_RequestProposalHoldsNoLockWhileSending(t *testing.T) {
 // ---- M4: the approver is checked again under the lock ----
 
 func TestContract_INV4_ApproverRemovedWhileThePostWaitsForTheLock(t *testing.T) {
+	t.Parallel()
 	for _, decision := range []string{"approve", "reject"} {
 		t.Run(decision, func(t *testing.T) {
 			e := newLinkEnv(t)
@@ -1046,6 +1079,7 @@ func (f *flippingUsers) Lookup(ctx context.Context, id string) (response.User, b
 // A rejection through a link reads the account again inside its transaction, as an approval does (the lookups: the check before, the one
 // under the lock, and the one in the transaction).
 func TestContract_INV4_RejectReadsTheAccountAgain(t *testing.T) {
+	t.Parallel()
 	fl := &fakeLinks{}
 	var fu *flippingUsers
 	e := newEnv(t, func(c *response.Config) {
@@ -1089,6 +1123,7 @@ func (p panickyUsers) Lookup(ctx context.Context, id string) (response.User, boo
 }
 
 func TestApproveAfterAPanicInTheWriteSection(t *testing.T) {
+	t.Parallel()
 	armed := false
 	e := newEnv(t, func(c *response.Config) { c.Users = panickyUsers{fakeUsers: c.Users.(*fakeUsers), armed: &armed} })
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -1112,6 +1147,7 @@ func TestApproveAfterAPanicInTheWriteSection(t *testing.T) {
 // ---- limiter: its own table, the whole address ----
 
 func TestContract_INV4_LinkLimitIsPerWholeIPv6AddressAndNotTheBlocklists(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	bad := "v1." + strings.Repeat("ab", 16) + "." + strings.Repeat("0", 16)
 	fetch0 := e.svc.FetchKeysForTest()
@@ -1140,6 +1176,7 @@ func TestContract_INV4_LinkLimitIsPerWholeIPv6AddressAndNotTheBlocklists(t *test
 // ---- D-124: two people, at most one by link ----
 
 func TestContract_INV2_TwoPersonRuleAllowsOneLink(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) (*linkEnv, response.ActionRequest, string, string) {
 		e := newLinkEnv(t)
 		e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })

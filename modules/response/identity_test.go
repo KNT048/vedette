@@ -64,6 +64,7 @@ func unlinkedChat(t *testing.T) *chatEnv {
 }
 
 func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("telegram", tgOp, a.ID, true)
@@ -122,6 +123,7 @@ func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *te
 }
 
 func TestContract_D191_WrongCodesExpiryAndTheHourlyCap(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("telegram", tgOp, a.ID, true)
@@ -163,6 +165,7 @@ func TestContract_D191_WrongCodesExpiryAndTheHourlyCap(t *testing.T) {
 }
 
 func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("telegram", tgOp, a.ID, true)
@@ -190,6 +193,7 @@ func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 }
 
 func TestContract_D191_UnlinkedWhileThePressWaitsForTheLock(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.svc.SetBeforeLockForTest(func() { c.exec1(`DELETE FROM resp_identity WHERE user_id = 'u-op'`) })
@@ -216,6 +220,7 @@ func emailEnv(t *testing.T) (*linkEnv, *fakeMailer) {
 }
 
 func TestContract_D191_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *testing.T) {
+	t.Parallel()
 	e, m := emailEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -256,6 +261,7 @@ func TestContract_D191_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *te
 }
 
 func TestContract_D191_SendCodeRefusals(t *testing.T) {
+	t.Parallel()
 	e, m := emailEnv(t)
 	if _, err := e.svc.SendLinkCode(e.ctx(), op, "telegram"); !isCode(err, "chat_channel") {
 		t.Fatalf("telegram: %v", err)
@@ -285,6 +291,7 @@ func TestContract_D191_SendCodeRefusals(t *testing.T) {
 }
 
 func TestContract_D191_SettingsShowWhoHasNotLinked(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	c.must(c.svc.LinkForTest(c.ctx(), "u-op", "slack", slackOp))
 	v, err := c.svc.Settings(c.ctx())
@@ -299,6 +306,7 @@ func TestContract_D191_SettingsShowWhoHasNotLinked(t *testing.T) {
 func isCode(err error, code string) bool { _, c := apiCode(err); return c == code }
 
 func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("slack", slackOp, a.ID, true)
@@ -321,6 +329,7 @@ func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
 }
 
 func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("telegram", tgOp, a.ID, true)
@@ -337,6 +346,7 @@ func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
 }
 
 func TestContract_D191_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testing.T) {
+	t.Parallel()
 	e, _ := emailEnv(t)
 	e.must(e.svc.LinkForTest(e.ctx(), "u-op", "email", "it@acme.example"))
 	a := e.pending()
@@ -354,6 +364,7 @@ func TestContract_D191_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testin
 }
 
 func TestContract_D191_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
+	t.Parallel()
 	e, m := emailEnv(t)
 	e.note.approvers["email"] = []response.Approver{{UserID: "u-op", Address: "IT@Acme.example"}}
 	_, err := e.svc.SendLinkCode(e.ctx(), op, "email")
@@ -367,6 +378,7 @@ func TestContract_D191_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
 }
 
 func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
+	t.Parallel()
 	e, _ := emailEnv(t)
 	e.note.chs = append(e.note.chs, response.NotifyChannel{Type: "zalo", Label: "Zalo OA", Configured: true, Enabled: true, Approvals: true, Approvers: 1})
 	e.note.approvers["zalo"] = []response.Approver{{UserID: "u-op", Address: "zoa-1"}}
@@ -383,6 +395,7 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 // Typing it in the app does nothing, the same code from another ID does nothing, and an unlinked reply code gets no code in its answer
 // (the answer would sit in the box account's history).
 func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
+	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")

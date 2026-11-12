@@ -8,6 +8,7 @@ import (
 // INV-17 (L4): the published block list holds public addresses only: every block of the IANA IPv4 and IPv6 Special-Purpose Address
 // Registries that is not globally reachable is refused (see notPublishable), also behind an IPv4-mapped IPv6 address.
 func TestPublishableRefusesTheSpecialPurposeBlocks(t *testing.T) {
+	t.Parallel()
 	for _, s := range []string{
 		// IPv4
 		"10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1", "100.64.0.1", "100.127.255.254", "0.1.2.3", "127.0.0.1", "169.254.1.1",

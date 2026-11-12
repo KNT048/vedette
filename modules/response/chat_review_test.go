@@ -16,6 +16,7 @@ import (
 // ---- M1: the rate table ----
 
 func TestChat_AFullRateTableNeverBlocksAListedApprover(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.svc.SetChatKeysMaxForTest(3)
@@ -51,6 +52,7 @@ func TestChat_AFullRateTableNeverBlocksAListedApprover(t *testing.T) {
 }
 
 func TestChat_AFullTableOfListedApproversStillTakesAListedOne(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.svc.SetChatKeysMaxForTest(1)
@@ -65,6 +67,7 @@ func TestChat_AFullTableOfListedApproversStillTakesAListedOne(t *testing.T) {
 }
 
 func TestChat_ManyIdentitiesDoNotGrowTheTable(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.svc.SetChatKeysMaxForTest(50)
@@ -83,6 +86,7 @@ func TestChat_ManyIdentitiesDoNotGrowTheTable(t *testing.T) {
 // ---- M2: the volume of the log ----
 
 func TestChat_AStrangerWritesOneLinePerWindow(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	auditBefore := c.count(`SELECT COUNT(*) FROM core_audit`)
@@ -105,6 +109,7 @@ func TestChat_AStrangerWritesOneLinePerWindow(t *testing.T) {
 }
 
 func TestChat_AChannelThatIsOffWritesOneLinePerWindowToo(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.note.chs[1].Enabled = false
@@ -118,6 +123,7 @@ func TestChat_AChannelThatIsOffWritesOneLinePerWindowToo(t *testing.T) {
 }
 
 func TestChat_ManyStrangersAreBoundedByTheBudget(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	for i := range 300 {
@@ -131,6 +137,7 @@ func TestChat_ManyStrangersAreBoundedByTheBudget(t *testing.T) {
 // ---- M3: slow approvals ----
 
 func TestChat_ACompletingApprovalReturnsAtOnceAndTheItemsRunInTheBackground(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.highRisk()
 	c.twoPersonMedium(a)
@@ -163,6 +170,7 @@ func TestChat_ACompletingApprovalReturnsAtOnceAndTheItemsRunInTheBackground(t *t
 }
 
 func TestChat_CloseEndsADetachedRun(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.highRisk()
 	c.twoPersonMedium(a)
@@ -187,6 +195,7 @@ func TestChat_CloseEndsADetachedRun(t *testing.T) {
 // ---- L1: the recheck under the lock ----
 
 func TestChat_TheRecheckUnderTheLock(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		arm  func(c *chatEnv)
@@ -226,6 +235,7 @@ func TestChat_TheRecheckUnderTheLock(t *testing.T) {
 // ---- L2: ids that cannot be real ----
 
 func TestChat_AnIdThatCannotBeRealIsLoggedAsAFixedText(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	bad := []string{"U0AAA111\u202e", "U0AAA\u200b111", "U0\u0410\u0410\u0410111", "\uff35\uff10AAA111", "U0AAA111\u2066", "U0AAA\u00a0111"}
@@ -253,6 +263,7 @@ func TestChat_AnIdThatCannotBeRealIsLoggedAsAFixedText(t *testing.T) {
 // ---- L3, L6, L7 ----
 
 func TestChat_RecordReplyCodeRefusesHighRiskAndInAppOnly(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.highRisk()
 	rec := response.ReplyCodeRecord{RequestID: a.ID, UserID: "u-op", Address: zlOp, Approve: true, CodeHash: codeHashOf(a.ID, "u-op", "approve", "A-7KQ2MX"), ExpiresAt: c.clock.Now().Add(10 * time.Minute)}
@@ -272,6 +283,7 @@ func TestChat_RecordReplyCodeRefusesHighRiskAndInAppOnly(t *testing.T) {
 }
 
 func TestChat_ManyUsedCodesDoNotHideTheLiveOne(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -292,6 +304,7 @@ func TestChat_ManyUsedCodesDoNotHideTheLiveOne(t *testing.T) {
 }
 
 func TestChat_OnlyASCIISpaceIsTrimmedFromACode(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -307,6 +320,7 @@ func TestChat_OnlyASCIISpaceIsTrimmedFromACode(t *testing.T) {
 // ---- gaps of the first round ----
 
 func TestChat_ZaloIgnoresARequestIdThatIsSent(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.fire(c.iocEvent("e9", "198.51.100.9"))
@@ -338,6 +352,7 @@ func TestChat_ZaloIgnoresARequestIdThatIsSent(t *testing.T) {
 }
 
 func TestChat_TheSamePersonSendsBothCodesAtOnce(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")

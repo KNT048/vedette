@@ -102,6 +102,7 @@ func banAndBlock() []response.RuleAction {
 // templates, through the same planner as a rule, so text stored in the plan (a command, another host) never runs; the request
 // carries AI data, so the AI gates apply to it (13b-9: a high-risk one needs the code of two people).
 func TestContract_INV14_PlanProposalIsRenderedFromTheCatalog(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS",`+
 		`"change":{"before":"b","after":"a","cli":"config system global; execute factoryreset","rest":{"method":"DELETE","url":"https://attacker.example/api/v2/cmdb/firewall/policy","body":null},"rollback":{"title":"Undo","cli":"u","rest":null},"verify":""}}`)
@@ -138,6 +139,7 @@ func TestContract_INV14_PlanProposalIsRenderedFromTheCatalog(t *testing.T) {
 // INV-14: whatever else a stored proposal holds is refused before a request exists: a proposal in the old shape (a stored
 // command and call, no action), a value of the wrong type, a value that is a reference into an event, a missing value.
 func TestContract_INV14_PlanProposalRefusesStoredText(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	cases := []struct {
 		id, json string
@@ -171,6 +173,7 @@ func TestContract_INV14_PlanProposalRefusesStoredText(t *testing.T) {
 
 // INV-10: the never-touch list applies to a plan proposal: the device the plan is about must stay reachable.
 func TestContract_INV10_PlanProposalNeverTouch(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.21", Label: "NAS"}})
@@ -182,6 +185,7 @@ func TestContract_INV10_PlanProposalNeverTouch(t *testing.T) {
 // INV-9, INV-12: a proposal is requested only when the breaker is closed and no maintenance window is active, and a request that
 // was already approved (not run yet) counts as requested.
 func TestContract_INV12_PlanProposalGates(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	e.saveSettings(func(in *response.SettingsInput) {
@@ -225,6 +229,7 @@ func (c *cancelExec) Execute(ctx context.Context, s response.DeviceStep) (respon
 // INV-19: the approval is committed, so every item runs to the end and is recorded, whether or not the approver is still
 // connected. Nothing is left pending inside an approved request, and no step goes unrecorded.
 func TestContract_INV19_ApproverDisconnectDoesNotStrandTheBundle(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	ce := &cancelExec{cancel: cancel}
@@ -252,6 +257,7 @@ func TestContract_INV19_ApproverDisconnectDoesNotStrandTheBundle(t *testing.T) {
 // INV-19: before a step is sent, the item is marked running and a log line says so, in a committed transaction; the mark is
 // gone when the result is recorded.
 func TestContract_INV19_StepIsRecordedBeforeItIsSent(t *testing.T) {
+	t.Parallel()
 	var e *env
 	var steps []response.DeviceStep
 	e = newEnv(t, func(c *response.Config) {
@@ -279,6 +285,7 @@ func TestContract_INV19_StepIsRecordedBeforeItIsSent(t *testing.T) {
 // INV-19, INV-13: a step that runs out of its own time limit is failed with "state unknown, check the device": it may have been
 // applied, so the box does not claim that nothing changed.
 func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
+	t.Parallel()
 	var steps []response.DeviceStep
 	e := newEnv(t, func(c *response.Config) {
 		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, _ response.DeviceStep) error { <-ctx.Done(); return ctx.Err() }}
@@ -299,6 +306,7 @@ func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
 // INV-19: after a restart an item can be left "running" (a step may have been applied) or never started. The sweep fails them,
 // says so in the log, never re-sends a step, and leaves an item that started a moment ago alone.
 func TestContract_INV19_SweepFailsStuckItems(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -341,6 +349,7 @@ func TestContract_INV19_SweepFailsStuckItems(t *testing.T) {
 // the request needs two humans, becomes a normal pending request, and runs only after two different people approved it. A rule
 // whose request would already need two people cannot be saved as pre-approved.
 func TestContract_INV2_PreApprovalNeverCountsAsOneOfTwoApprovers(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block both ends", "ioc_connection", twoBlocks(), func(in *response.RuleInput) { in.PreApproved = true })
 	e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
@@ -369,6 +378,7 @@ func TestContract_INV2_PreApprovalNeverCountsAsOneOfTwoApprovers(t *testing.T) {
 
 // INV-2: the second approver cannot pass off a repeated id for a different selection.
 func TestContract_INV2_SecondApproverDuplicateIDsDoNotPassTheSelectionCheck(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
 	e.rule("Block both", "ioc_connection", twoBlocks(), nil)
@@ -389,6 +399,7 @@ func TestContract_INV2_SecondApproverDuplicateIDsDoNotPassTheSelectionCheck(t *t
 // Events no rule has seen yet are never trimmed to make room: a burst of events (spoofed MAC addresses, for example) does not
 // hide the real one from the rules.
 func TestEventFloodDoesNotEvictUnprocessedEvents(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.must(e.svc.StoreEvent(e.ctx(), e.iocEvent("e-real", "198.51.100.7")))
@@ -411,6 +422,7 @@ func TestEventFloodDoesNotEvictUnprocessedEvents(t *testing.T) {
 // When the unprocessed events pass the backlog bound the oldest are dropped, and the loss is counted, warned about and written
 // to the response log: never silent.
 func TestEventBacklogOverflowIsCountedAndLogged(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.svc.SetBacklogForTest(5)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -436,6 +448,7 @@ func TestEventBacklogOverflowIsCountedAndLogged(t *testing.T) {
 // INV-8, INV-12: the stop also opens the global breaker, so a pre-approved rule with a box action stops too, until an admin
 // resets the breaker.
 func TestContract_INV8_EmergencyStopOpensTheBreaker(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Pre", "ioc_connection", blockAction(60), func(in *response.RuleInput) { in.PreApproved = true })
 	_, err := e.svc.EmergencyStop(e.ctx(), oper)
@@ -458,6 +471,7 @@ func TestContract_INV8_EmergencyStopOpensTheBreaker(t *testing.T) {
 // INV-8: a bundle that is running when the stop comes: the step in flight finishes, every later item (here a box action) is
 // refused with circuit_open instead of running.
 func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
+	t.Parallel()
 	var e *env
 	var steps []response.DeviceStep
 	e = newEnv(t, func(c *response.Config) {
@@ -487,6 +501,7 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 // INV-10: the subject of the event counts for every trigger, so a port action for an event about the gateway is refused even
 // though the action names only a port.
 func TestContract_INV10_NeverTouchCoversTheEventSubjectOfPortActions(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_port_shut")
 	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.1", Label: "Gateway"}})
@@ -509,6 +524,7 @@ func TestContract_INV10_NeverTouchCoversTheEventSubjectOfPortActions(t *testing.
 // INV-10: an action that names an address acts on that address only. Blocking the bad destination of a connection is not
 // refused because the device that made it is a never-touch router; the router itself still cannot be blocked.
 func TestContract_INV10_AddressActionsAreNotRefusedForTheirSubject(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	_, err := e.svc.SetAllowlist(e.ctx(), admin, []response.AllowEntry{{Value: "192.168.10.1", Label: "Gateway"}})
 	e.must(err)
@@ -531,6 +547,7 @@ func TestContract_INV10_AddressActionsAreNotRefusedForTheirSubject(t *testing.T)
 // INV-10: the list takes MAC addresses and interface names. A listed port is protected whatever device the event is about; a
 // listed MAC is protected as the subject of an event. A typo that is not an address, a MAC or a port name is refused when saved.
 func TestContract_INV10_NeverTouchMACAndInterfaceEntries(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_port_shut")
 	for _, bad := range []string{"192.168.1.300", "10.0.0.0/33", "../x", "Gi1/0/48 ", "a/../b", "1/../2", "x//y"} {
@@ -568,6 +585,7 @@ func TestContract_INV10_NeverTouchMACAndInterfaceEntries(t *testing.T) {
 
 // INV-10: every inventory router and firewall counts as never-touch without being listed, read at planning and again at run.
 func TestContract_INV10_InventoryGatewaysAreNeverTouch(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-gw"] = response.DeviceInfo{ID: "a-gw", Name: "Edge router", IP: "203.0.113.1", Kind: "router"}
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC", IP: "203.0.113.50", Kind: "pc"}
@@ -594,6 +612,7 @@ func TestContract_INV10_InventoryGatewaysAreNeverTouch(t *testing.T) {
 // INV-10: when the box's own addresses (or the inventory) cannot be read the never-touch list cannot be built: the action is
 // refused with a plain reason, at planning and right before it runs, and the block list answers 503 instead of publishing with fewer entries.
 func TestContract_INV10_UnreadableNeverTouchListFailsClosed(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -639,6 +658,7 @@ func TestContract_INV10_UnreadableNeverTouchListFailsClosed(t *testing.T) {
 // multicast and reserved ranges never are, so a poisoned feed cannot lock the customer's own network out. The never-touch list
 // still holds back what it lists.
 func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "192.168.10.1"))
@@ -675,6 +695,7 @@ func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
 
 // INV-17: the public file's comments hold only the name of the list, the time and the count: no device name, event summary or rule.
 func TestContract_INV17_BlocklistNamesNothingInternal(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block the sales PCs", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -696,6 +717,7 @@ func TestContract_INV17_BlocklistNamesNothingInternal(t *testing.T) {
 // INV-17: when the store cannot be read the answer is 503 with Retry-After, never an empty list (a firewall keeps its old list on
 // an error and drops every entry on an empty one).
 func TestContract_INV17_BlocklistUnreadableStoreIs503(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	v, err := e.svc.Blocklist(e.ctx())
 	e.must(err)
@@ -709,6 +731,7 @@ func TestContract_INV17_BlocklistUnreadableStoreIs503(t *testing.T) {
 
 // INV-17: the list holds at most 10 000 entries; at the limit a new entry is refused with a reason, never cut silently.
 func TestContract_INV17_BlocklistEntryLimit(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.exec1(`WITH RECURSIVE c(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM c WHERE n < 9999)
 INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) SELECT '45.0.' || (n / 256) || '.' || (n % 256), 'x', 'y' || n, 's', 'r', '2026-11-09T10:00:00.000Z' FROM c`)
@@ -731,6 +754,7 @@ INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, adde
 // INV-17: the rate limit is per source address and, for IPv6, per /64: one host rotating addresses inside its /64 is limited, a
 // host in another /64 and an IPv4 host are not affected.
 func TestBlocklistRateLimitIsPerIPv6Prefix(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	limited := 0
 	for i := range 40 {
@@ -768,6 +792,7 @@ func mcpEnv(t *testing.T) (*env, response.CatalogAction) {
 // INV-9: an admin who edits a custom MCP action while a request waits cannot make the approval run another write tool: the item
 // carries the tool it was made for, and the catalog must still say the same at approval.
 func TestContract_INV9_ToolChangedAfterTheRequestIsRefused(t *testing.T) {
+	t.Parallel()
 	e, act := mcpEnv(t)
 	a := e.only()
 	// Behind the API (a restore, another writer): ChangeAction would cancel the request (D-88 29), the gate must hold without it.
@@ -790,6 +815,7 @@ func TestContract_INV9_ToolChangedAfterTheRequestIsRefused(t *testing.T) {
 // INV-9, INV-13: the undo tool is checked too: an edit of the rollback tool after the change was made refuses the undo (the
 // change stays, the person is told), and the step that was sent used the tools stored in the item.
 func TestContract_INV13_RollbackToolChangedAfterTheRequestIsRefused(t *testing.T) {
+	t.Parallel()
 	e, act := mcpEnv(t)
 	a := e.only()
 	e.turnOn()
@@ -817,6 +843,7 @@ func TestContract_INV13_RollbackToolChangedAfterTheRequestIsRefused(t *testing.T
 // INV-9: the stored call holds the address of the connection the request was made against. When the connection changed
 // (another address, another version) the approval is refused with connection_changed and nothing is sent; so is an undo.
 func TestContract_INV9_ConnectionChangedAfterTheRequestIsRefused(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -850,6 +877,7 @@ func TestContract_INV9_ConnectionChangedAfterTheRequestIsRefused(t *testing.T) {
 // INV-13: after an admin disables an action, a person can still undo what it did: removing a change is the safe direction.
 // The execution switch still applies to a device undo (INV-7).
 func TestContract_INV13_RollbackAllowedAfterTheActionWasDisabled(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -872,6 +900,7 @@ func TestContract_INV13_RollbackAllowedAfterTheActionWasDisabled(t *testing.T) {
 
 // INV-13: a read (GET /response/actions) never sends a step to a device: the undo of an expired change belongs to the sweep job.
 func TestContract_INV13_ReadsNeverUndoOnlyTheSweepDoes(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -907,6 +936,7 @@ func (e *env) httpAction(headers string) response.CatalogAction {
 // INV-5: editing the templates or the risk of a custom action switches pre-approval off on every rule that uses it, with a
 // log line; an admin confirms the rule again. An edit that changes neither (the description) leaves it on.
 func TestContract_INV5_EditingAnActionSwitchesPreApprovalOff(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	act := e.httpAction("")
 	r := e.rule("Quarantine", "ioc_connection", []response.RuleAction{{ActionID: act.ID, Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, func(in *response.RuleInput) { in.PreApproved = true })
@@ -941,6 +971,7 @@ func TestContract_INV5_EditingAnActionSwitchesPreApprovalOff(t *testing.T) {
 // The evaluator reads the rule, then runs it in a transaction: the stored rule is tested again there, so a rule whose condition
 // was changed in between does not run for an event it no longer matches, and the event is not marked handled for it.
 func TestEvaluatorTestsTheStoredRuleAgain(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	r := e.rule("Block IPsum hits", "ioc_connection", blockAction(60), func(in *response.RuleInput) {
 		in.Conditions = []response.Condition{{Field: "feeds", Op: "eq", Value: "IPsum"}}
@@ -967,6 +998,7 @@ func TestEvaluatorTestsTheStoredRuleAgain(t *testing.T) {
 // GET /response/catalog is open to viewers: the header lines of a template (they can carry an authorisation value) show their
 // names only, except to an admin.
 func TestCatalogHidesHeaderValuesFromNonAdmins(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	act := e.httpAction("X-Trace: abc123secret\nAccept: application/json")
 	find := func(c response.Catalog) response.CatalogAction {

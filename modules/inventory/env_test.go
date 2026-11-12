@@ -86,13 +86,7 @@ func withBox(b inventory.BoxPackages) opt { return func(c *inventory.Config) { c
 
 func newEnv(t *testing.T, opts ...opt) *env {
 	t.Helper()
-	db := storetest.New(t)
-	if err := store.Migrate(t.Context(), db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(t.Context(), db, "inventory", inventory.Migrations); err != nil {
-		t.Fatal(err)
-	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: inventory.Migrations})
 	e := &env{t: t, db: db, ev: &recorder{}, now: time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC), findg: fakeFindings{}}
 	cfg := inventory.Config{DB: db, Audit: audit.New(nil), Events: e.ev, Findings: e.findg, Clock: func() time.Time { return e.now }}
 	for _, o := range opts {

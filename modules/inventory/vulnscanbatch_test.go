@@ -12,6 +12,7 @@ import (
 // Careful is the safe side: true for a fragile device and for one whose kind is still unknown, false otherwise;
 // IP is the address the decision was made for, zero when denied (POST-3c).
 func TestContract_VulnScanPolicy_CarefulAndIP(t *testing.T) {
+	t.Parallel()
 	ip := netip.MustParseAddr("192.168.10.20")
 	for _, c := range []struct {
 		name, kind string
@@ -57,6 +58,7 @@ func TestContract_VulnScanPolicy_CarefulAndIP(t *testing.T) {
 
 // The batch read answers exactly what the per-device read answers, for a mixed set.
 func TestContract_VulnScanPolicies_EqualsPerDevice(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	in := okSettings("192.168.10.0/24")
 	in.Active.Exclusions = []string{"192.168.10.99"}
@@ -100,6 +102,7 @@ func TestContract_VulnScanPolicies_EqualsPerDevice(t *testing.T) {
 func slicesClone(s []string) []string { return append([]string(nil), s...) }
 
 func TestContract_VulnScanPolicies_Cap(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ids := make([]string, inventory.MaxPolicyBatch+1)
 	for i := range ids {

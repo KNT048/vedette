@@ -26,6 +26,7 @@ func codeHashOf(request, user, decision, code string) string {
 }
 
 func TestSpec71VectorMatchesTheFormula(t *testing.T) {
+	t.Parallel()
 	if got := codeHashOf("req-20261109-0001", "u-lan", "approve", "A-7KQ2MX"); got != "1f16413d45bce5c596496fc0a4d169a0c09ade7bb044335507f4020e15060fa0" {
 		t.Fatalf("approve: %s", got)
 	}
@@ -138,6 +139,7 @@ func (c *chatEnv) mustCode(err error, status int, code string) { wantCode(c.t, e
 // ---- INV-3, steps 1 to 3 ----
 
 func TestChat_AnUnlistedExternalIDIsRefusedAndLogged(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	logs := c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused'`)
@@ -164,6 +166,7 @@ func TestChat_AnUnlistedExternalIDIsRefusedAndLogged(t *testing.T) {
 }
 
 func TestChat_TwoListEntriesWithOneAddressAreNobody(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.note.approvers["slack"] = []response.Approver{{UserID: "u-op", Address: slackOp}, {UserID: "u-op2", Address: slackOp}}
@@ -175,6 +178,7 @@ func TestChat_TwoListEntriesWithOneAddressAreNobody(t *testing.T) {
 }
 
 func TestChat_AChannelThatIsNotAnApprovalChannelIsRefused(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		arm  func(c *chatEnv)
@@ -213,6 +217,7 @@ func TestChat_AChannelThatIsNotAnApprovalChannelIsRefused(t *testing.T) {
 }
 
 func TestChat_ADisabledOrDemotedPersonIsRefused(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		arm  func(c *chatEnv)
@@ -259,6 +264,7 @@ func TestChat_ADisabledOrDemotedPersonIsRefused(t *testing.T) {
 // ---- INV-3, step 4: the risk policy ----
 
 func TestChat_NeverApprovesInAppOnly(t *testing.T) {
+	t.Parallel()
 	for _, ch := range []string{"slack", "telegram", "zalo-personal"} {
 		for _, approve := range []bool{true, false} {
 			t.Run(fmt.Sprintf("%s approve=%v", ch, approve), func(t *testing.T) {
@@ -316,6 +322,7 @@ func (c *chatEnv) twoPersonMedium(a response.ActionRequest) {
 
 // D-175: a high-risk request is never decided from chat (no button is attached, and an old button or a forged callback is refused).
 func TestChat_SlackAndTelegramRefuseHighRisk(t *testing.T) {
+	t.Parallel()
 	for _, ch := range [][2]string{{"slack", slackOp}, {"telegram", tgOp}} {
 		c := newChatEnv(t)
 		a := c.highRisk()
@@ -331,6 +338,7 @@ func TestChat_SlackAndTelegramRefuseHighRisk(t *testing.T) {
 
 // D-175: a change too long to read in one message is not decided from chat either, whatever its risk.
 func TestChat_AnOverLengthChangeIsNotDecidedFromChat(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	long := strings.Repeat("x", 3200)
@@ -345,6 +353,7 @@ func TestChat_AnOverLengthChangeIsNotDecidedFromChat(t *testing.T) {
 }
 
 func TestChat_SlackAndTelegramTakeTwoPeopleOnAMediumRequest(t *testing.T) {
+	t.Parallel()
 	for _, pair := range [][4]string{{"slack", slackOp, "slack", slackOp2}, {"telegram", tgOp, "telegram", tgOp2}, {"slack", slackOp, "telegram", tgOp2}} {
 		t.Run(pair[0]+"+"+pair[2], func(t *testing.T) {
 			c := newChatEnv(t)
@@ -372,6 +381,7 @@ func TestChat_SlackAndTelegramTakeTwoPeopleOnAMediumRequest(t *testing.T) {
 }
 
 func TestChat_ZaloTakesLowAndMediumButNotHigh(t *testing.T) {
+	t.Parallel()
 	t.Run("high is refused", func(t *testing.T) {
 		c := newChatEnv(t)
 		a := c.highRisk()
@@ -419,6 +429,7 @@ func TestChat_ZaloTakesLowAndMediumButNotHigh(t *testing.T) {
 // ---- INV-3, step 5: the reply code ----
 
 func TestChat_ACodeWorksOnce(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -446,6 +457,7 @@ func TestChat_ACodeWorksOnce(t *testing.T) {
 }
 
 func TestChat_ACodeWorksOnceWhenSentTwiceAtOnce(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -475,6 +487,7 @@ func TestChat_ACodeWorksOnceWhenSentTwiceAtOnce(t *testing.T) {
 }
 
 func TestChat_ACodeIsBoundToRequestPersonAndDecision(t *testing.T) {
+	t.Parallel()
 	// The record is the only thing that ties a code to a request, a person and a decision: change any of the three and the hash no longer fits.
 	setup := func(t *testing.T) (*chatEnv, response.ActionRequest) {
 		c := newChatEnv(t)
@@ -545,6 +558,7 @@ func TestChat_ACodeIsBoundToRequestPersonAndDecision(t *testing.T) {
 }
 
 func TestChat_AnEndedOrUsedCodeIsRefused(t *testing.T) {
+	t.Parallel()
 	t.Run("expired", func(t *testing.T) {
 		c := newChatEnv(t)
 		a := c.pending()
@@ -598,6 +612,7 @@ func TestChat_AnEndedOrUsedCodeIsRefused(t *testing.T) {
 }
 
 func TestChat_ARefusedDecisionDoesNotBurnTheCode(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.twoPerson()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -617,6 +632,7 @@ func TestChat_ARefusedDecisionDoesNotBurnTheCode(t *testing.T) {
 }
 
 func TestChat_ZaloRejectBurnsTheCodes(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -631,6 +647,7 @@ func TestChat_ZaloRejectBurnsTheCodes(t *testing.T) {
 // ---- INV-2 ----
 
 func TestChat_TheSamePersonByAppAndChatCountsOnce(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.twoPerson()
 	_, err := c.svc.Approve(c.ctx(), oper, a.ID, nil, "") // person A, in the app
@@ -661,6 +678,7 @@ func TestChat_TheSamePersonByAppAndChatCountsOnce(t *testing.T) {
 
 // D-135: a chat approval may be the second approval when the first came by email link (and the other way round); two links are still one too many.
 func TestChat_LinkPlusChatIsTwoPeople(t *testing.T) {
+	t.Parallel()
 	t.Run("link then chat", func(t *testing.T) {
 		c := newChatEnv(t)
 		a := c.twoPerson()
@@ -718,6 +736,7 @@ func TestChat_LinkPlusChatIsTwoPeople(t *testing.T) {
 // ---- the log ----
 
 func TestChat_TheLogNamesThePersonTheChannelAndTheId(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -751,6 +770,7 @@ func TestChat_TheLogNamesThePersonTheChannelAndTheId(t *testing.T) {
 }
 
 func TestChat_ADecisionIsPublishedAfterCommit(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.twoPerson()
 	var mu sync.Mutex
@@ -790,6 +810,7 @@ func TestChat_ADecisionIsPublishedAfterCommit(t *testing.T) {
 // ---- the rate limit ----
 
 func TestChat_RateLimitPerIdentity(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	for range 20 { // twenty tries at a request that is not there: every try counts, whatever came of it
@@ -825,6 +846,7 @@ func TestChat_RateLimitPerIdentity(t *testing.T) {
 }
 
 func TestChat_GuessingCodesIsLimited(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
@@ -843,6 +865,7 @@ func TestChat_GuessingCodesIsLimited(t *testing.T) {
 // ---- FORBID-4 ----
 
 func TestForbid4_NoCodeAnywhere(t *testing.T) {
+	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")

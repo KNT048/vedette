@@ -61,6 +61,7 @@ help:
 	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
+	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job (D-457, D-401), after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
@@ -374,6 +375,24 @@ vuln-scan:
 NOTICES_WEB_LICENSES ?= 1
 notices-check:
 	go run ./scripts/noticescheck -notices THIRD_PARTY_NOTICES.md -cmd ./cmd/vedette -cmd ./cmd/vedette-host -cmd ./cmd/vedette-sensor -web web $(if $(filter 1,$(NOTICES_WEB_LICENSES)),-web-licenses)
+
+# The release gates (WP-08k part B, step 3 of docs/plans/2026-11-12-wp08k-release-job.md; D-457, D-401): after `make images IMAGE_TAG=<v>
+# IMAGE_VERSION=<v>` and `make host-deb VERSION=<v> ARCH=amd64|arm64`, all with the same RELEASE_PREV_INDEX, from a full clone at the clean tag.
+# In order, stopping at the first failure: VERSION and the tree (`release gates -preflight`: SemVer, no -test., HEAD = tag v<v>, clean);
+# vuln-scan (the .trivyignore.yaml dates first) and sbom of the lists tagged <v>, kept in dist/vuln and dist/sbom (RELEASE=1, part C attests
+# the SBOMs); notices-check; then `release gates`: check-binaries -release on the vedette-host inside both .deb, the version label of every
+# platform of the four lists (and core's floor label), and each .deb built again with the floor of RELEASE_PREV_INDEX (MIN_SEQUENCE, the
+# verified sequence of that index; MIN_SEQUENCE=0 for the very first release only) and compared byte for byte (the .deb is reproducible).
+.PHONY: release-gates
+release-gates: check-min-sequence
+	@test "$(CONTAINER)" = podman || { echo "release-gates: reads the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
+	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "release-gates: the release floor is the sequence of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
+	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "release-gates: VERSION must be SemVer without v (VERSION=1.0.0), got '$(VERSION)'" >&2; exit 1; }
+	$(RELEASE_GO) gates -preflight -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)'
+	$(MAKE) --no-print-directory vuln-scan IMAGE_TAG='$(VERSION)' RELEASE=1
+	$(MAKE) --no-print-directory sbom IMAGE_TAG='$(VERSION)' RELEASE=1
+	$(MAKE) --no-print-directory notices-check
+	GOFLAGS= $(RELEASE_GO) gates -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)'
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:

@@ -16,6 +16,7 @@
 //	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release   (D-457: the lists of make images, by digest; writes images.json)
 //	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] -out release.in.json
+//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the .deb rebuilt with the floor)
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
 //
 // push and publish talk to the registry and GitHub (podman's login, gh's token); every other command is offline.
@@ -45,7 +46,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|publish [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|gates|publish [flags]")
 		return 2
 	}
 	var err error
@@ -73,6 +74,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdPush(ctx, args[1:], stdout)
 	case "in":
 		err = cmdInputs(ctx, args[1:], stdout)
+	case "gates":
+		err = cmdGates(ctx, args[1:], stdout)
 	case "publish":
 		err = cmdPublish(ctx, args[1:], stdout)
 	default:

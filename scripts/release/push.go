@@ -110,10 +110,10 @@ type pushOpts struct {
 const versionLabel = "org.opencontainers.image.version"
 
 // localPlatform is one platform of a local manifest list: its manifest digest, its image ID (the config digest), its size and its
-// version label, from `podman images --all --format json`.
+// version and floor labels, from `podman images --all --format json`.
 type localPlatform struct {
-	Platform, Digest, Config, Version string
-	Size                              int64
+	Platform, Digest, Config, Version, MinSequence string
+	Size                                           int64
 }
 
 // localPlatforms reads a local manifest list and the local image of each of its platforms; the platforms must be want.
@@ -148,7 +148,7 @@ func localPlatforms(ctx context.Context, run runFunc, name string, want []string
 		if i < 0 || !serviceDigestRE.MatchString("sha256:"+all[i].ID) || all[i].Size <= 0 {
 			return nil, fmt.Errorf("%s: no local image %s for %s", name, p.Digest, p.Platform)
 		}
-		res = append(res, localPlatform{Platform: p.Platform, Digest: p.Digest, Config: "sha256:" + all[i].ID, Version: all[i].Labels[versionLabel], Size: all[i].Size})
+		res = append(res, localPlatform{Platform: p.Platform, Digest: p.Digest, Config: "sha256:" + all[i].ID, Version: all[i].Labels[versionLabel], MinSequence: all[i].Labels[minSequenceLabel], Size: all[i].Size})
 	}
 	return res, nil
 }

@@ -23,13 +23,16 @@ vuln=dist/vuln
 fail() { echo "supply-chain: FAIL $*" >&2; exit 1; }
 say() { echo "supply-chain: $*"; }
 
+# Each mode replaces and removes only its own output, so `make vuln-scan` after `make sbom` (both RELEASE=1, make release-gates) keeps the SBOMs.
+out=$sbom
+[ "$mode" = scan ] && out=$vuln
 cleanup() {
 	rm -rf "$work"
-	if [ "${RELEASE:-}" != 1 ]; then rm -rf "$sbom" "$vuln"; fi
+	if [ "${RELEASE:-}" != 1 ]; then rm -rf "$out"; fi
 	rmdir dist 2>/dev/null || true
 }
 trap cleanup EXIT
-rm -rf "$work" "$sbom" "$vuln"
+rm -rf "$work" "$out"
 case $TRIVY_CACHE_DIR in /tmp | /tmp/*) fail "TRIVY_CACHE_DIR must be on disk, not under /tmp (tmpfs: the database would fill RAM)" ;; esac
 mkdir -p "$work" "$TRIVY_CACHE_DIR"
 [ "$mode" = sbom ] && mkdir -p "$sbom"

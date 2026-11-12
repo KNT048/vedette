@@ -295,7 +295,8 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 ifeq ($(CONTAINER),docker)
 MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) $(3) .; }
 else
-MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
+# --format oci (D-460): the gates tie the podman image ID to trivy's ImageID, which is the same digest only for an OCI image (a Docker-format build, e.g. BUILDAH_FORMAT=docker, is converted on export).
+MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --format oci --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
 endif
 comma := ,
 images: webui-dist scan-pack check-min-sequence

@@ -339,6 +339,8 @@ type Service struct {
 	hpMu         sync.Mutex   // guards hpHour and hpCount: the honeypot scan hits let through to the rules this clock hour
 	hpHour       time.Time
 	hpCount      int
+	iocHour      time.Time // with iocCount, guarded by hpMu: the known-bad connections let through to the rules this clock hour (D-339)
+	iocCount     int
 	logPolledAt  time.Time // the last PollLogs that asked the Logs module (only the evaluate job calls it)
 }
 

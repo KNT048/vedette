@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -68,7 +71,7 @@ type BreakerEvent struct {
 //	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
-//	logs.ioc_hit.detected                                                    -> trigger ioc_connection (module not built yet)
+//	logs.ioc_hit.detected (logs L4, D-213)                                   -> trigger ioc_connection (D-335)
 //	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold (#332, D-287)
 //	exposure.port.opened                                                     -> trigger new_port (module not built yet)
 const (
@@ -76,6 +79,7 @@ const (
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventHoneypotHit          = "honeypot.hit.created"
+	EventIocHit               = "logs.ioc_hit.detected"
 )
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: this module does not import the
@@ -107,6 +111,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventHoneypotHit, s.honeypotEvent)
+	on(EventIocHit, s.iocEvent)
 	return func() {
 		for _, u := range undo {
 			u()
@@ -321,3 +326,117 @@ func (s *Service) Jobs() []jobs.Job {
 		s.planJob(),
 	}
 }
+
+// maxIocPerHour bounds the known-bad connection hits that reach the rules in one clock hour (D-339). A hit is read from a syslog line,
+// which any LAN host can forge over UDP; logs makes one hit per device and destination per 24 hours, but a forger can vary the
+// destination over every listed address, and each hit a rule sees writes permanent lines to the append-only logs. The first hit over
+// the cap writes one line to the response log; the hits stay on the Logs page. ponytail: a flat cap per hour, as maxScansPerHour.
+const maxIocPerHour = 60
+
+// iocEvent records a logs.ioc_hit.detected (the IocHit of logs, D-213) as an ioc_connection event (D-335). Every field is checked at
+// the edge, as the honeypot hit is: an id, a private source address, a destination of its kind (an address or a domain), a
+// confidence from 0 to 1. Anything else is skipped with a warning; nothing of the line's text reaches a rule.
+func (s *Service) iocEvent(ctx context.Context, data any) error {
+	var e struct {
+		ID         string   `json:"id"`
+		TS         string   `json:"ts"`
+		AssetID    *string  `json:"asset_id"`
+		AssetName  *string  `json:"asset_name"`
+		SrcIP      string   `json:"src_ip"`
+		Dest       string   `json:"dest"`
+		DestKind   string   `json:"dest_kind"`
+		Feeds      []string `json:"feeds"`
+		Confidence float64  `json:"confidence"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	src, srcOK := CheckValue(PIP, e.SrcIP)
+	var dest string
+	destOK := false
+	switch e.DestKind {
+	case "ip":
+		dest, destOK = CheckValue(PIP, e.Dest)
+	case "domain":
+		dest, destOK = CheckValue(PDomain, e.Dest)
+	}
+	switch {
+	case e.ID == "" || len(e.ID) > 64 || cleanLine(e.ID) != e.ID:
+		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: no valid id")
+		return nil
+	case !srcOK || !addrOf(src).IsPrivate():
+		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: the device address is not a private address")
+		return nil
+	case !destOK:
+		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: the destination is not an address or a domain of its kind")
+		return nil
+	case math.IsNaN(e.Confidence) || e.Confidence < 0 || e.Confidence > 1:
+		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: confidence is not between 0 and 1")
+		return nil
+	}
+	if !s.iocRoom(ctx) {
+		return nil
+	}
+	var dev DeviceInfo
+	if e.AssetID != nil && *e.AssetID != "" && s.cfg.Directory != nil {
+		d, ok, err := s.cfg.Directory.Device(ctx, *e.AssetID)
+		switch {
+		case err != nil: // the hit still counts; it only names no device
+			s.cfg.Log.WarnContext(ctx, "response: known-bad connection: the device could not be read", "error", err)
+		case ok && d.IP == src: // the device may have moved since the hit was made
+			dev = d
+		}
+	}
+	name := oneLine(dev.Name, 100)
+	if name == "" && e.AssetName != nil {
+		name = oneLine(*e.AssetName, 100)
+	}
+	who := name
+	if who == "" {
+		who = src
+	}
+	var feeds []string
+	for _, f := range e.Feeds {
+		if f = oneLine(f, 60); f != "" && len(feeds) < 10 {
+			feeds = append(feeds, f)
+		}
+	}
+	fields := map[string]string{"src_ip": src, "device": name, "dest": dest, "dest_kind": e.DestKind, "dest_ip": "", "dest_domain": "",
+		"feeds": strings.Join(feeds, ", "), "confidence": strconv.FormatFloat(e.Confidence, 'f', -1, 64), "switch_port": ""}
+	if e.DestKind == "ip" {
+		fields["dest_ip"] = dest
+	} else {
+		fields["dest_domain"] = dest
+	}
+	ts := s.ts()
+	if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
+		ts = store2(t)
+	}
+	return s.StoreEvent(ctx, Det{ID: "ioc:" + e.ID, Trigger: "ioc_connection", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
+		Summary: oneLine(who+" connected to "+dest+", listed by "+firstNonEmpty(fields["feeds"], "a feed"), 300), Fields: fields})
+}
+
+// iocRoom counts a known-bad connection against this hour's cap and reports whether it may reach the rules.
+func (s *Service) iocRoom(ctx context.Context) bool {
+	hour := s.now().Truncate(time.Hour)
+	s.hpMu.Lock()
+	if !s.iocHour.Equal(hour) {
+		s.iocHour, s.iocCount = hour, 0
+	}
+	s.iocCount++
+	n := s.iocCount
+	s.hpMu.Unlock()
+	if n <= maxIocPerHour {
+		return true
+	}
+	if n == maxIocPerHour+1 {
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "ioc_cap: more than "+itoa(maxIocPerHour)+" known-bad connections this hour; the rest of this hour's hits are on the Logs page but do not run the rules.", "system")
+		}); err != nil {
+			s.cfg.Log.ErrorContext(ctx, "response: log the known-bad connection cap", "error", err)
+		}
+	}
+	return false
+}
+
+func addrOf(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }

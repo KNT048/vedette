@@ -54,6 +54,8 @@ export function kevStatus(): FeedStatus['kev'] {
   if (!s || s.records === null) return { state: 'never_loaded', error: s?.error ?? null }
   return { state: 'loaded', error: null }
 }
+/** Whether the feed with this id is switched on (built-in or custom): what a lookup of an indicator may name (POST-4). */
+export const feedOn = (id: string) => allFeeds(config.get()).some((f) => f.id === id && f.enabled)
 // Like feeds.Store.IOCListed: a switched-on IOC feed has loaded indicators (logs' digest says when nothing can be matched).
 export const iocListed = () => allFeeds(config.get()).some((f) => f.kind === 'ioc' && f.enabled && (f.records ?? 0) > 0)
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]

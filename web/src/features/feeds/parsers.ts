@@ -60,19 +60,23 @@ const scalar = (v: unknown): string | null | Rejection => {
 
 // ---------- CSV (RFC 4180 quotes, CRLF, # comment lines)
 export function parseCsv(text: string, delimiter: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = [], cell = '', q = false
+  return parseCsvLines(text, delimiter).map((r) => r.cells)
+}
+/** parseCsv with, for each record, the 1-based line of the text where it starts (quoted fields can span lines). */
+function parseCsvLines(text: string, delimiter: string): { cells: string[]; line: number }[] {
+  const rows: { cells: string[]; line: number }[] = []
+  let row: string[] = [], cell = '', q = false, line = 1, rowLine = 1
   const t = text.replace(/^﻿/, '')
   for (let i = 0; i < t.length; i++) {
     const c = t[i]!
-    if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++ } else q = false } else cell += c }
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++ } else q = false } else { if (c === '\n' || (c === '\r' && t[i + 1] !== '\n')) line++; cell += c } }
     else if (c === '"' && cell === '') q = true
     else if (c === delimiter) { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); cell = ''; if (!(row.length === 1 && row[0] === '') && !row[0]!.startsWith('#')) rows.push(row); row = [] }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); cell = ''; if (!(row.length === 1 && row[0] === '') && !row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }); row = []; line++; rowLine = line }
     else cell += c
     if (rows.length > ROW_LIMIT + 1) break
   }
-  if (cell !== '' || row.length) { row.push(cell); if (!row[0]!.startsWith('#')) rows.push(row) }
+  if (cell !== '' || row.length) { row.push(cell); if (!row[0]!.startsWith('#')) rows.push({ cells: row, line: rowLine }) }
   return rows
 }
 
@@ -93,10 +97,10 @@ function extractJson(text: string, p: Parser): Raw[] {
   })
 }
 function extractCsv(text: string, p: Parser): Raw[] {
-  const rows = parseCsv(text, p.delimiter || ',')
-  const header = p.has_header ? (rows.shift() ?? []).map((h) => h.trim().toLowerCase()) : []
-  return rows.slice(0, ROW_LIMIT + 1).map((cells) => {
-    const r: Raw = {}
+  const rows = parseCsvLines(text, p.delimiter || ',')
+  const header = p.has_header ? (rows.shift()?.cells ?? []).map((h) => h.trim().toLowerCase()) : []
+  return rows.slice(0, ROW_LIMIT + 1).map(({ cells, line }) => {
+    const r: Raw = { [LINE]: String(line) }
     for (const [k, f] of Object.entries(p.fields)) {
       const s = f.source.trim()
       if (!s) continue

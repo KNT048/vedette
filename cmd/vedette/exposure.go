@@ -20,8 +20,8 @@ var (
 
 // exposureService builds the exposure service once per database, so the handlers and the auto-detect job share it
 // (and its one-detection-at-a-time lock). The box finds its public IP through three public services fixed in code
-// (D-81); events go to deps.Bus. ponytail: no scan module yet: it registers its Runner with SetRunner, so
-// POST …/scan answers 501 after the gate until then.
+// (D-81); events go to deps.Bus. The scan itself is the scan module's runner (scanRunner, D-229): while that module is off,
+// POST …/scan answers 409 module_off after the gate.
 func exposureService(d deps) *exposure.Service {
 	exposureMu.Lock()
 	defer exposureMu.Unlock()
@@ -32,7 +32,7 @@ func exposureService(d deps) *exposure.Service {
 	if err != nil { // the addresses are constants of the package: a programming error, caught at start-up
 		panic("vedette: " + err.Error())
 	}
-	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Log: d.Log, Clock: d.Clock}
+	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Log: d.Log, Clock: d.Clock}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}

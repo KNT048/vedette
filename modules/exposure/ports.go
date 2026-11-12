@@ -44,11 +44,13 @@ type EgressProber interface {
 	Round(ctx context.Context) (netip.Addr, error)
 }
 
-// ScanTarget is what the scan module is told about the target it scans.
+// ScanTarget is what the scan module is told about the target it scans. User is who asked: the actor of the checks the runner
+// makes through ScannableIP.
 type ScanTarget struct {
 	ID    string
 	Kind  Kind
 	Value string
+	User  string
 }
 
 // Runner does the scan itself. It belongs to the scan module (D-55), which registers it with

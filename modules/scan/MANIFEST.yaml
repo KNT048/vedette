@@ -9,5 +9,5 @@ ports: []
 container: scan                      # D-55: nuclei chạy theo việc
 tables_prefix: scan_
 stories: [S-SCAN-1, S-SCAN-2, S-SCAN-3, S-SCAN-4]
-decisions: [D-4, D-26, D-45, D-55]
+decisions: [D-4, D-26, D-45, D-55, D-229]
 milestone: M4

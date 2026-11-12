@@ -107,10 +107,10 @@ func (s *e2eSensors) scanFakes() (*e2eScanFakes, error) {
 	for i, t := range ix.Templates {
 		body := []byte("id: " + t.ID + "\n# a stand-in of the end-to-end run: the fake nuclei never reads it\n")
 		full := filepath.Join(f.templates, filepath.FromSlash(t.Path))
-		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil { //nolint:gosec // G703: a path of the committed index (pack.Parse checked it), under the run's folder
 			return nil, err
 		}
-		if err := os.WriteFile(full, body, 0o600); err != nil {
+		if err := os.WriteFile(full, body, 0o600); err != nil { //nolint:gosec // G703: as above
 			return nil, err
 		}
 		sum := sha256.Sum256(body)
@@ -121,7 +121,7 @@ func (s *e2eSensors) scanFakes() (*e2eScanFakes, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(f.index, raw, 0o600); err != nil {
+	if err := os.WriteFile(f.index, raw, 0o600); err != nil { //nolint:gosec // G703: the run's folder, a fixed name
 		return nil, err
 	}
 	script := strings.NewReplacer("@ARGV@", f.argvLog(), "@MODE@", f.modeFile()).Replace(e2eFakeNuclei)
@@ -186,7 +186,7 @@ func (s *e2eSensors) scanRoutes(mux *http.ServeMux) {
 			err = os.WriteFile(f.modeFile(), []byte(in.Nuclei), 0o600)
 		}
 		if err == nil {
-			err = s.startScan(f)
+			err = s.startScan(f) //nolint:contextcheck // the worker lives as long as the box (s.ctx), not as long as this request
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
@@ -240,7 +240,7 @@ func TestE2EScanFakes(t *testing.T) {
 		t.Fatalf("index %s %s %d, want %s %s %d", got.Version, got.SHA256, len(got.Templates), want.Version, want.SHA256, len(want.Templates))
 	}
 	tpl := got.ForCVE("CVE-2002-1131")[0]
-	body, err := os.ReadFile(filepath.Join(f.templates, filepath.FromSlash(tpl.Path))) //nolint:gosec // a file of the test's temp folder
+	body, err := os.ReadFile(filepath.Join(f.templates, filepath.FromSlash(tpl.Path)))
 	if sum := sha256.Sum256(body); err != nil || hex.EncodeToString(sum[:]) != tpl.SHA256 {
 		t.Fatalf("the file of %s does not match its index entry: %v", tpl.ID, err)
 	}

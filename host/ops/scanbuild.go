@@ -24,9 +24,12 @@ import (
 // image ID (there is no registry digest for a local build), and the effect check of every start compares the container's image ID.
 //
 // The build runs the RUN step as the root of the container, with the network (apt needs it: the host's apt mirror does not apply, the
-// container contacts deb.debian.org; PRIVACY.md flow 6) and with trust in the apt keys of the base image: the base is signed by us, the
-// package index is signed by Debian. It is the one place where the host runs code that a third party's package archive supplies, which is
-// why it is a constant text, a fixed argv, a context made for this run and nothing else, and a check by effect afterwards.
+// container contacts deb.debian.org; PRIVACY.md flow 6), on vedette-int and no other (#467: on a box with Docker the FORWARD policy is
+// DROP and only vedette-int is let through, by the DOCKER-USER rules of D-267; install.sh starts the network before -bootstrap, and the
+// bootstrap puts those rules in place before it builds, since the daemon that keeps them is not running yet), and with trust in the apt
+// keys of the base image: the base is signed by us, the package index is signed by Debian. It is the one place where the host runs code
+// that a third party's package archive supplies, which is why it is a constant text, a fixed argv, a context made for this run and
+// nothing else, and a check by effect afterwards.
 //
 // A failed build, or a built image whose "nmap --version" does not print a version at or above the floor, leaves the previous
 // localhost/vedette-scan-nmap image as it was (the tag is put back on it) and ends the pull as scan_build_failed. The pull of the base

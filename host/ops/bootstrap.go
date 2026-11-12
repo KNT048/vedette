@@ -271,6 +271,19 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 	// 2. Pull every image (nothing that is already pulled and tagged is touched). The scan image is built on the box from its base
 	// (D-147), which needs the Debian package mirror: a box that cannot reach it must still get core, sensor and honeypot, so a failed
 	// build skips scan (no unit, no version, no record) and a later container.pull of scan tries again. Any other failure stops here.
+	// The build runs on vedette-int (#467). On a box with Docker its traffic passes only by the DOCKER-USER rules of D-267, which the
+	// daemon keeps but which are not there yet on a first install (the daemon starts after this): put them in place now, the same sync the
+	// daemon runs (no Docker or no network file: it changes nothing). The daemon is not running (the state lock), so nothing races it.
+	if slices.ContainsFunc(steps, func(s *bsStep) bool { return s.plan.service == api.ServiceScan }) {
+		fctx, cancel := context.WithTimeout(ctx, dockerFwdLimit)
+		switch state, added := o.dockerFwdSync(fctx); {
+		case added > 0:
+			logf(fmt.Sprintf("added %d DOCKER-USER rules for the vedette-int bridge so the scan build can reach the Debian package mirror (D-267)", added))
+		case state == "failed" || state == "iptables_unavailable" || state == "unexpected" || state == "no_bridge":
+			logf("the DOCKER-USER rules for the vedette-int bridge are not in place (" + state + "); on a box with Docker the scan build may not reach the Debian package mirror")
+		}
+		cancel()
+	}
 	var skipped []string
 	var skipErr error
 	kept := steps[:0:0]

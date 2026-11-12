@@ -90,6 +90,7 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **`Host`** dùng `StateContainers`, `ContainerPull`, `ContainerStart`, `ContainerRollback`, `GetRun`, `ListRuns(500)`, `Events`, và (bước `host`, D-316) `Info`, `SelfUpdate`. Đổi mã lỗi của `host/api/containers.go` = sửa `updateReason`; của `host/api/selfupdate.go` = sửa `hostWhy`.
 - **Audit** mới: `update.apply_done`, `update.rollback_done` (nhãn ở `web/src/locales/en/core.json`).
 - **Phía kiểm tra** (`updates_check.go`): `runningFrom` nhận cả `offer` khi phiên bản của nó là bản đang chạy (sau Apply, trước lần kiểm tiếp; lần kiểm đó chuyển nó thành `running`); `restoresData` là một luật cho cả `rollback_restores_data` của trang lẫn `confirm_required`: không biết manifest trên appliance = có khôi phục DB.
+- **Chờ thay vì kết thúc**: `tryLater` (`updates_run.go`) nay gồm `rebooting`, `dpkg_locked`, `install_in_progress`; `followOne` chờ `retry_after_s` của host (tối đa 5 phút) khi có; `rolledBackSince` trả `errTransient` khi có run `container.rollback` còn chạy ở host (không kết thúc run cập nhật sớm làm mất bản ghi rollback). `OSConfig.UpdateRetry` (chỉ test dùng) rút nhịp chờ.
 - **Test**: `updates_run_test.go` (host giả `updHost`, phía kiểm tra thật với `releaseServer` của `updates_check_test.go`); `export_updates_test.go` (`HoldFollowerForTest`, `EndFollowerForTest`, `SetUpdateRetryForTest`, `HostWhyForTest`).
 
 ## Modifying: bước trình trợ giúp của run phần mềm (D-316, INV-35 "The system helper goes first": `modules/core/updates_host.go`)

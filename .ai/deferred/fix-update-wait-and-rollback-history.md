@@ -1,0 +1,2 @@
+- host `retry_after_s` honouring (updates_run.go followOne) has no test (needs the real clock, production-only path since tests set UpdateRetry); consider a synctest if wanted.
+- root cause of the lost rollback is a race inferred from the code (host rollback run still running when core settles); not yet re-run on the lab box: re-run lab ubuntu2404 rollback test.2 -> test.1 to confirm.

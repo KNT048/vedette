@@ -207,6 +207,55 @@ func listenUnix(t *testing.T, path string) net.Listener {
 	return ln
 }
 
+// relayWatching relays a new unix socket to target and closes seen the first time a request the client sends
+// contains marker.
+func relayWatching(t *testing.T, target, marker string) (sock string, seen <-chan struct{}) {
+	t.Helper()
+	sock = filepath.Join(shortDir(t), "relay.sock")
+	ln := listenUnix(t, sock)
+	t.Cleanup(func() { _ = ln.Close() })
+	ch := make(chan struct{})
+	var once sync.Once
+	go func() {
+		for {
+			in, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			out, err := (&net.Dialer{}).DialContext(context.Background(), "unix", target)
+			if err != nil {
+				_ = in.Close()
+				continue
+			}
+			go func() { _, _ = io.Copy(in, out); _ = in.Close() }()
+			go func() {
+				defer func() { _ = out.Close() }()
+				var tail []byte
+				buf := make([]byte, 4096)
+				for {
+					n, err := in.Read(buf)
+					if n > 0 {
+						tail = append(tail, buf[:n]...)
+						if strings.Contains(string(tail), marker) {
+							once.Do(func() { close(ch) })
+						}
+						if len(tail) > len(marker) {
+							tail = tail[len(tail)-len(marker):]
+						}
+						if _, werr := out.Write(buf[:n]); werr != nil {
+							return
+						}
+					}
+					if err != nil {
+						return
+					}
+				}
+			}()
+		}
+	}()
+	return sock, ch
+}
+
 func TestEventLargerThan64KiBIsRefused(t *testing.T) {
 	t.Parallel()
 	sock := filepath.Join(shortDir(t), "f.sock")
@@ -285,19 +334,21 @@ func TestBackupPurge(t *testing.T) {
 	// The ctx must end after the host has accepted the run, so its clock starts when the command
 	// does, not at the call: a fixed budget from the call is overrun by a loaded CI machine while
 	// the POST is still in flight (no run id yet).
-	started := make(chan struct{})
-	h = servertest.Start(t, []server.Command{purge(func() (any, error) { close(started); <-release; return api.BackupPurgeResult{}, nil })})
+	// It ends once the client asks for the run, which proves it holds the run id: a state, not a delay (D-373).
+	h = servertest.Start(t, []server.Command{purge(func() (any, error) { <-release; return api.BackupPurgeResult{}, nil })})
+	sock, polled := relayWatching(t, h.Socket, "GET /v1/runs/")
+	c := client.New(sock)
+	defer c.Close()
 	short, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
-		<-started
-		select { // the POST response is on its way; polling has begun
-		case <-time.After(time.Second):
+		select {
+		case <-polled:
 		case <-short.Done():
 		}
 		cancel()
 	}()
-	if _, id, err := h.Client.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.Canceled) || id == "" {
+	if _, id, err := c.BackupPurge(short, rid, "admin@example.com"); !errors.Is(err, context.Canceled) || id == "" {
 		t.Fatalf("id %q err %v", id, err)
 	}
 	close(release)

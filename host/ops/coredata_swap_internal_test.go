@@ -96,33 +96,37 @@ func TestOpenCoreNeverBlocksOnAFIFOSwappedIntoPlace(t *testing.T) {
 			_ = os.Rename(aside, core)
 		}
 	}()
-	stuck := make(chan struct{})
-	go func() { // the host: one openCore per command
-		for !stop.Load() {
-			done := make(chan struct{})
-			go func() {
-				if tr, err := o.openCore(); err == nil {
-					tr.close()
-				}
-				close(done)
-			}()
-			select {
-			case <-done:
-			case <-time.After(2 * time.Second):
-				close(stuck) // this goroutine stays blocked in open(2) until the test binary exits
-				return
+	// The host opens until 100 of its opens met the entry while it was swapped out (absent, or the FIFO, which the racer
+	// holds across a Gosched; openCore refuses both), so the race was exercised whatever the speed of the machine. One
+	// open that does not return within HangBound is a hang (D-373).
+	const met = 100
+	hung, hits, opens := false, 0, 0
+	end := time.Now().Add(HangBound)
+	for hits < met && !hung && time.Now().Before(end) {
+		done := make(chan error, 1)
+		go func() {
+			tr, err := o.openCore()
+			if err == nil {
+				tr.close()
 			}
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			opens++
+			if err != nil {
+				hits++
+			}
+		case <-time.After(HangBound):
+			hung = true // this goroutine stays blocked in open(2) until the test binary exits
 		}
-	}()
-	hung := false
-	select {
-	case <-stuck:
-		hung = true
-	case <-time.After(20 * time.Second):
 	}
 	stop.Store(true)
 	<-racerDone
+	if !hung && hits < met {
+		t.Fatalf("in %v only %d of %d opens met the swapped entry: the race was not exercised", HangBound, hits, opens)
+	}
 	if hung {
-		t.Errorf("openCore blocked for 2 s on a FIFO swapped in for core_data")
+		t.Errorf("openCore blocked for %v on a FIFO swapped in for core_data", HangBound)
 	}
 }

@@ -212,7 +212,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
     await d.getByLabel('Port').fill('587')
     await d.getByLabel('Send to').fill('it@acme.example, not-an-email')
     await d.getByRole('button', { name: 'Save', exact: true }).click()
-    await expect(d.getByLabel('Send to')).toHaveAccessibleDescription(/A recipient email is not valid/)
+    await expect(d.getByLabel('Send to')).toHaveAccessibleDescription(/not-an-email is not a valid email address/)
     await d.getByLabel('Send to').fill('it@acme.example; director@acme.example')
     await d.getByLabel('SMTP server').fill('smtp.no-such-host.invalid')
     await d.getByRole('button', { name: 'Save and send test' }).click()

@@ -9,7 +9,7 @@ import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
 
@@ -60,6 +60,30 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(await screen.findByText('192.168.10.157 touched the RDP trap on FILESRV-OLD')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Trap touches' }))
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
+  })
+
+  it('a blocked connection (D-227) is said as an attempt in the list and the detail (walk 3)', async () => {
+    const one = { id: 'in-a', kind: 'bad_address', attempt: true, link: '/logs', title: '192.168.1.50 tried to reach 185.220.101.47 (blocked by FW-HQ), which a threat feed lists', devices: [], severity: 'high', what: 'w', action: 'a',
+      first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [] }
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [one] })),
+      http.get('*/api/v1/notify/incidents/in-a', () => HttpResponse.json({ incident: one, previews: [] })))
+    renderApp('/incidents')
+    const table = await screen.findByRole('table', { name: 'Incidents' })
+    expect(within(table).getByText('Attempt to reach a known-bad address')).toBeInTheDocument()
+    expect(within(table).queryByText('Connection to a known-bad address')).toBeNull()
+    await userEvent.click(within(table).getByRole('link', { name: one.title }))
+    expect(await screen.findByRole('heading', { level: 1, name: one.title })).toBeInTheDocument()
+    expect(screen.getByText('Attempt to reach a known-bad address')).toBeInTheDocument()
+  })
+
+  it('container-only: no "Trap touches" filter, since the honeypot cannot run on this install (D-381, walk 3)', async () => {
+    installStore.set({ kind: 'container' })
+    try {
+      renderApp('/incidents')
+      await screen.findByRole('table', { name: 'Incidents' })
+      expect(await screen.findByRole('button', { name: 'Bad addresses' })).toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Trap touches' })).toBeNull())
+    } finally { installStore.set({ kind: 'appliance' }) }
   })
 
   it('detail: what happened, first and last seen, count, who responded; message text per channel; Respond link', async () => {
@@ -204,10 +228,10 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
   })
 
-  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves', async () => {
+  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves, and that the first download is not counted (walk 3)', async () => {
     server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], suppressed: { count: 0, days: 7 } })))
     renderChannels()
-    expect(await screen.findByText('Vedette only alerts for products you own. In the last 7 days no new vulnerability was skipped for matching none of your devices.')).toBeInTheDocument()
+    expect(await screen.findByText('Vedette only alerts for products you own. In the last 7 days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.')).toBeInTheDocument()
     expect(screen.queryByText(/already has a notice/)).toBeNull()
   })
 })
@@ -295,8 +319,19 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.clear(to)
     await userEvent.type(to, 'it@acme.example, not-an-email')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    await waitFor(() => expect(to).toHaveAccessibleDescription(/A recipient email is not valid/))
+    await waitFor(() => expect(to).toHaveAccessibleDescription('not-an-email is not a valid email address. Separate several recipients with commas.'))
     expect(to).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('SMTP email: the server cannot be this machine (in a container 127.0.0.1 is Vedette itself), as for a webhook (walk 3)', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.clear(host)
+    await userEvent.type(host, '127.0.0.1')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(host).toHaveAccessibleDescription(/^The SMTP server cannot be this machine, a link-local or multicast address/))
   })
 
   it('server refusals of the other types show under the field the code names; a code that fits several fields stays at the top (deferred walk 2)', async () => {

@@ -159,6 +159,9 @@ func newManualClock(t time.Time) *manualClock {
 func (c *manualClock) now() time.Time          { return time.Unix(0, c.ns.Load()).UTC() }
 func (c *manualClock) advance(d time.Duration) { c.ns.Add(int64(d)) }
 
+// The fake SMTP servers of these tests and of the e2e box listen on 127.0.0.1, which a production box refuses (walk 3).
+func init() { notifySMTPLoopback = true }
+
 var codeRE = regexp.MustCompile(`sign-in code is (\d{6})`)
 
 // (a) An email two-step account: the sign-in code goes out through notify's code mailer to the SMTP server of the

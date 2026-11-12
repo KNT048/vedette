@@ -1,2 +1,1 @@
-- [ ] #471 / PR #489: after PR #487 (core `ManagementCard`) merges, make `cmd/vedette/boxaddr.go` take the card from `d.Network.ManagementCard` and delete its own copy of the mgmtIface rule (owner: whoever merges #487).
 - [ ] #471 / PR #489: vedette-host should report the OS hostname (host/server sysinfo keeps only the kernel release); core should use it for the box row and the SIEM host, with "vedette" as fallback; then drop `HostName=vedette` reliance (owner: Trưởng, host).

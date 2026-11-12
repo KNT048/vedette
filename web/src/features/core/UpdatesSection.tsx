@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError, download } from '@/lib/api'
-import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
@@ -128,10 +128,15 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     if (file.current) file.current.value = ''
   }
 
+  // A build made from source (0.0.0-dev, no release signature) is not a failure: neutral label, not the red "Unsigned".
+  const sigChip = (c: UpdateComponent) => (c.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip>
+    : c.signature === 'unsigned' && c.version.endsWith('-dev') ? <Chip tone="off">{t('updates.sig.dev')}</Chip>
+    : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>)
+
   const columns: ColumnDef<UpdateComponent>[] = [
     { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.how')}</span> : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
     { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
-    { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => (row.original.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${row.original.signature}`)}</Chip>) },
+    { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => sigChip(row.original) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
       if (row.original.id === 'host') return hostNext ? <span className="font-mono text-[12.5px]">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
       const a = availableOf(row.original.id)
@@ -193,7 +198,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             <p className="text-[13px] text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
           </div>
         </fieldset>
-        <p className="mt-3 text-[13px] text-muted">{t('updates.lastCheck', { time: fmtRelative(s.last_check) })} {s.check_enabled ? '' : t('updates.checkOff')}</p>
+        <p className="mt-3 text-[13px] text-muted">{(isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) }))} {s.check_enabled ? '' : t('updates.checkOff')}</p>
       </Section>
 
       <Section title={t('updates.sources.title')}>
@@ -206,7 +211,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             const a = availableOf(c.id)
             return (
               <div className="grid gap-1.5">
-                <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{c.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>}</div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{sigChip(c)}</div>
                 {c.id === 'host' ? <span className="text-[12px] text-muted">{t('updates.host.how')}</span> : null}
                 <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
                 {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)

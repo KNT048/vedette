@@ -179,7 +179,7 @@ func TestParseMCPListen(t *testing.T) {
 			t.Errorf("%s: %v", ok, err)
 		}
 	}
-	for _, bad := range []string{"0.0.0.0:8765", "[::]:8765", ":8765", "localhost:8765", "192.168.1.5:8765", "127.0.0.1:0", "127.0.0.1", ""} {
+	for _, bad := range []string{"0.0.0.0:8765", "[::]:8765", ":8765", "localhost:8765", "192.168.1.5:8765", "127.0.0.1:0", "127.0.0.1", " "} {
 		if _, err := parseMCPListen(bad, false); err == nil {
 			t.Errorf("%s accepted", bad)
 		}
@@ -193,5 +193,12 @@ func TestParseMCPListen(t *testing.T) {
 		if _, err := parseMCPListen(bad, true); err == nil {
 			t.Errorf("in a container, %s accepted", bad)
 		}
+	}
+	// the default (the flag left empty, as the units leave it): loopback on a machine, the container's own network in a container
+	if a, err := parseMCPListen("", false); err != nil || a.String() != "127.0.0.1:8765" {
+		t.Errorf("default on a machine: %s %v", a, err)
+	}
+	if a, err := parseMCPListen("", true); err != nil || a.String() != "0.0.0.0:8765" {
+		t.Errorf("default in a container: %s %v", a, err)
 	}
 }

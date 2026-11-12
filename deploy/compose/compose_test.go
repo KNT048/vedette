@@ -184,7 +184,7 @@ func TestCoreServiceIsTheOneThingTheCustomerMustSet(t *testing.T) {
 		t.Errorf("core healthcheck must run /vedette healthcheck, got %v", core.Healthcheck)
 	}
 	cmd := strings.Join(core.Command, " ")
-	for _, want := range []string{"-host-socket= ", "-hosts=${VEDETTE_HOSTS:?", "-sensor-listen=:8444", "-syslog-port=5514", "-mcp-listen=0.0.0.0:8765"} {
+	for _, want := range []string{"-host-socket= ", "-hosts=${VEDETTE_HOSTS:?", "-sensor-listen=:8444", "-syslog-port=5514"} {
 		if !strings.Contains(cmd+" ", want) {
 			t.Errorf("core command lacks %q: %s", want, cmd)
 		}

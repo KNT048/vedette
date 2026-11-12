@@ -52,8 +52,15 @@ func mcpHandlers(d deps) *mcpserver.McpHandlers {
 
 // parseMCPListen reads -mcp-listen: an IP literal and a port on loopback (INV-5). In a container (inContainer) the unspecified
 // address 0.0.0.0 or [::] is taken too: the runtime forwards the unit's 127.0.0.1 publish to the container's own address, never to
-// its loopback (D-395).
+// its loopback (D-395). Empty is the default: 0.0.0.0:8765 in a container, else 127.0.0.1:8765. The units rely on that default
+// instead of passing the flag, so a unit of this release still starts an older core image, which refuses 0.0.0.0 (review of D-395).
 func parseMCPListen(s string, inContainer bool) (netip.AddrPort, error) {
+	if s == "" {
+		if inContainer {
+			return netip.AddrPortFrom(netip.IPv4Unspecified(), mcpserver.DefaultListen.Port()), nil
+		}
+		return mcpserver.DefaultListen, nil
+	}
 	a, err := netip.ParseAddrPort(s)
 	if err != nil || a.Port() == 0 || !a.Addr().IsLoopback() && (!inContainer || !a.Addr().IsUnspecified()) {
 		return netip.AddrPort{}, fmt.Errorf("-mcp-listen %q must be a loopback address and port, such as 127.0.0.1:8765 (0.0.0.0:8765 only inside a container)", s)

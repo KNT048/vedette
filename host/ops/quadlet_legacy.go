@@ -24,9 +24,9 @@ import (
 // needs its own migration step. The lists start after D-318; a box with older units needs -bootstrap -force-units (RUNBOOK).
 var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
-		mustTemplate("core-1", coreUnitTextD318), // D-318 (2026-11-12): the honeypot log volume, 514 only
-		mustTemplate("core-2", coreUnitTextD214), // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
-		mustTemplate("core-3", coreUnitTextHostName), // #489 (2026-11-12): HostName=vedette, MCP port not published yet (D-395)
+		mustTemplate("core-1", coreUnitTextD318),     // D-318 (2026-11-12): the honeypot log volume, 514 only
+		mustTemplate("core-2", coreUnitTextD214),     // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
+		mustTemplate("core-3", coreUnitTextHostName), // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
 	},
 	api.ServiceHoneypot: {
 		mustTemplate("honeypot-1", honeypotUnitTextD318), // D-318 (2026-11-12): before ContainersConfModule (#486)

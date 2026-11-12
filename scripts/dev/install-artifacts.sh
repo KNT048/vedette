@@ -57,7 +57,7 @@ cleanup() {
 	if [ -z "$keep" ]; then
 		rm -rf "$work"
 		for t in "${built[@]}"; do drop "$t"; done
-		if [ -n "$fast" ]; then rm -rf "$root/internal/webui/dist" "$root/web/dist"; fi
+		if [ -n "$fast" ]; then rm -rf "$root/internal/webui/dist" "$root/internal/webui/licenses" "$root/web/dist"; fi
 	fi
 	exit "$rc"
 }
@@ -95,6 +95,8 @@ if [ -n "$fast" ]; then
 	services="core sensor"
 	mkdir -p internal/webui/dist
 	printf '<!doctype html><title>Vedette TEST INSTALL placeholder</title><p>install-check placeholder interface</p>\n' >internal/webui/dist/index.html
+	mkdir -p internal/webui/licenses
+	printf 'TEST INSTALL placeholder: the real file is made by make webui-dist\n' >internal/webui/licenses/web-third-party-licenses.txt
 	make --no-print-directory -o webui-dist sensor-image core-image IMAGE_TAG="$version" IMAGE_VERSION="$version" TEST_KEYS_B64="$test_keys_b64" >/dev/null
 	built+=("localhost/vedette-sensor:$version" "localhost/vedette-core:$version")
 else

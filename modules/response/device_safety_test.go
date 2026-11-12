@@ -297,7 +297,7 @@ func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *te
 		e.fire(e.trap("h1", "192.168.10.157"))
 		e.exec.pre = staticAccess
 		got := e.approveOnly()
-		if e.phaseList() != "precheck,verify" || got.Items[0].Status != response.ItemFailed { // only reads went out: the check and the read before (D-356)
+		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed { // not even the read before the run (D-356) goes out
 			t.Errorf("%s: steps %s, item %+v", name, e.phaseList(), got.Items[0])
 		}
 	}

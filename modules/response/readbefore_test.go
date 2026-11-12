@@ -81,20 +81,21 @@ func TestD356_NeverThereAndUnclearRunIsApplied(t *testing.T) {
 	e.noDeviceOutputKept()
 }
 
-// The sweep (resolveUnknown) settles an item the immediate read-back could not, by the same rule; an item with no record of the read before
-// (made before D-356, or a run cut short by a restart) is not counted either.
+// The sweep (resolveUnknown) settles an item the immediate read-back could not, by the same rule. An item with no record of the read before
+// (its run predates D-356) is never disowned: it is in force, undoable here, and not undone unattended.
 func TestD356_SweepSettlesByTheReadBefore(t *testing.T) {
 	for name, tc := range map[string]struct {
 		before   string // output of the read before the run; "" = the address is not listed
-		drop     bool   // remove present_before, as on an older item
+		drop     bool   // remove present_before, as on an item from an older version
 		want     response.ItemStatus
 		contains string
 		inForce  bool
+		ttl      bool // an undo time is set
 	}{
-		"there before":    {banned, false, response.ItemFailed, "already there before this step", false},
-		"not there":       {"", false, response.ItemExecuted, "Confirmed by a read-back", true},
-		"no read before":  {"", true, response.ItemFailed, "the device was not read before this step", false},
-		"there, no check": {banned, true, response.ItemFailed, "the device was not read before this step", false},
+		"there before":    {banned, false, response.ItemFailed, "already there before this step", false, false},
+		"not there":       {"", false, response.ItemExecuted, "Confirmed by a read-back", true, true},
+		"no read before":  {"", true, response.ItemExecuted, "no record of a read before its run", true, false},
+		"there, no check": {banned, true, response.ItemExecuted, "no record of a read before its run", true, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := banRequest(t)
@@ -115,11 +116,84 @@ func TestD356_SweepSettlesByTheReadBefore(t *testing.T) {
 			if in, err := e.svc.ChangesInForce(e.ctx(), "cn-fw"); err != nil || in != tc.inForce {
 				t.Fatalf("in force %v %v, want %v", in, err, tc.inForce)
 			}
-			if (tc.want == response.ItemExecuted) != (it.RemoveAt != nil) {
+			if tc.ttl != (it.RemoveAt != nil) {
 				t.Fatalf("undo time %v for a %s item", it.RemoveAt, it.Status)
 			}
 			e.noDeviceOutputKept()
+			if tc.inForce { // the undo stays open by hand
+				e.exec.after = ""
+				got, err := e.svc.Rollback(e.ctx(), oper, e.only().ID)
+				e.must(err)
+				if got.Items[0].Status != response.ItemRolledBack {
+					t.Fatalf("the undo by hand: %s %q", got.Items[0].Status, resultOf(got.Items[0]))
+				}
+			}
 		})
+	}
+}
+
+// HIGH (review of D-356): present_before is stored before the write goes out, so a restart between the run and its result (the box dies, the
+// sweep finds the item still running) settles it as this step's change: in force, with its undo time.
+func TestD356_RestartBetweenTheRunAndItsResultKeepsTheUndo(t *testing.T) {
+	for name, tc := range map[string]struct {
+		before  string
+		inForce bool
+	}{
+		"not there before": {"", true},
+		"there before":     {banned, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var e *env
+			var snapshot string
+			e = newEnv(t, func(c *response.Config) {
+				c.Executor = &afterExec{inner: c.Executor, after: func(s response.DeviceStep) {
+					if s.Phase == "run" { // what the database holds while the write is on its way: what a crash leaves
+						e.must(e.db.Reader().QueryRowContext(e.ctx(), `SELECT items FROM resp_actions`).Scan(&snapshot))
+					}
+				}}
+			})
+			e.firewall("fgt_ban_ip")
+			e.turnOn()
+			e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(30)}}, nil)
+			e.fire(e.iocEvent("e1", "198.51.100.7"))
+			e.exec.after, e.exec.present = tc.before, banned
+			id := e.approveOnly().ID
+			if !strings.Contains(snapshot, `"present_before":`) || !strings.Contains(snapshot, `"running_at":`) {
+				t.Fatalf("present_before is not stored before the run: %s", snapshot)
+			}
+			e.exec1(`UPDATE resp_actions SET status = 'approved', decided_at = ?, items = ? WHERE id = ?`, e.at(-10*time.Minute), snapshot, id) // the restart
+			e.exec1(`UPDATE resp_actions SET items = json_set(items, '$[0].running_at', ?) WHERE id = ?`, e.at(-5*time.Minute), id)
+			e.must(e.svc.Sweep(e.ctx()))
+			it := e.only().Items[0]
+			in, err := e.svc.ChangesInForce(e.ctx(), "cn-fw")
+			e.must(err)
+			if in != tc.inForce || it.StateUnknown || (it.Status == response.ItemExecuted) != tc.inForce || (it.RemoveAt != nil) != tc.inForce {
+				t.Fatalf("after the restart and the sweep: %s %q (in force %v, remove_at %v)", it.Status, resultOf(it), in, it.RemoveAt)
+			}
+		})
+	}
+}
+
+// MEDIUM (review of D-356): a run that answers clearly over a change that was already there is recorded, but not undone at the end of its
+// undo time (it may be another's); the result says so, and the undo by hand stays open.
+func TestD356_ClearRunOverAChangeAlreadyThereGetsNoUndoTime(t *testing.T) {
+	e := banRequest(t)
+	e.exec.after, e.exec.present = banned, banned
+	it := e.approveOnly().Items[0]
+	if it.Status != response.ItemExecuted || it.RemoveAt != nil || !strings.Contains(resultOf(it), "already there before this step, so it is not undone automatically") {
+		t.Fatalf("item %s %q, remove_at %v", it.Status, resultOf(it), it.RemoveAt)
+	}
+	e.clock.Advance(2 * time.Hour)
+	n := e.exec.count()
+	e.must(e.svc.Sweep(e.ctx()))
+	if e.exec.count() != n || e.only().Items[0].Status != response.ItemExecuted {
+		t.Fatalf("the sweep undid a change that was there before: %v", e.exec.phases()[n:])
+	}
+	e.exec.after = ""
+	got, err := e.svc.Rollback(e.ctx(), oper, e.only().ID)
+	e.must(err)
+	if got.Items[0].Status != response.ItemRolledBack {
+		t.Fatalf("the undo by hand: %s %q", got.Items[0].Status, resultOf(got.Items[0]))
 	}
 }
 

@@ -628,7 +628,7 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 	// so an emergency stop that committed after the reads above still stops this step (INV-9); it also fails when the sweep
 	// or a cancel got to the item first, so a step is never sent for an item the record says did not start (INV-19).
 	leaves := it.ConnectorID != nil || cat.ID == "webhook_call" // a step that leaves the box
-	claimed, refusal2, err := s.claimItem(ctx, reqID, itemID, leaves)
+	claimed, mark, refusal2, err := s.claimItem(ctx, reqID, itemID, leaves)
 	if err != nil {
 		return err
 	}
@@ -638,6 +638,7 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 	if !claimed {
 		return nil
 	}
+	it.RunningAt = mark // the running mark of this claim: the read before the run is stored against it (D-356)
 	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
 	stopAF := context.AfterFunc(s.bg, cancel) //nolint:contextcheck // s.bg is the lifetime of the service, not of the caller; the box shutting down (Close) ends the step; the record of it is still written below
 	xctx, untrack := s.trackStep(xctx)        // registered before the step reads the stop flag, so a stop cannot fall between the two (D-179 (4))
@@ -661,9 +662,9 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 // the item still pending and not running, re-reads the settings and closes on a gate that shut since runItem read it (the
 // execution switch for a device, the breaker, the maintenance window), and, when the step leaves the box, marks the item
 // running with a log line. It returns whether the caller may send; a closed gate comes back as a refusal.
-func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bool) (claimed bool, refusal *apierr.Error, err error) {
+func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bool) (claimed bool, mark string, refusal *apierr.Error, err error) {
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		claimed, refusal = false, nil
+		claimed, mark, refusal = false, "", nil
 		r, ok, err := loadReq(ctx, tx, reqID)
 		if err != nil || !ok {
 			return err
@@ -712,14 +713,15 @@ func (s *Service) claimItem(ctx context.Context, reqID, itemID string, leaves bo
 		if !leaves {
 			return nil
 		}
-		r.recs[k].RunningAt = s.ts()
+		mark = s.ts()
+		r.recs[k].RunningAt = mark
 		r.recs[k].SentAt = store2(s.now())
 		if err := s.step(ctx, tx, "response.run", r.ID, LogApproved, "Running: "+it.Title+": "+callText(it.Change.Rest, it.Change.CLI)+"; the step is being sent now and the result follows", "system"); err != nil {
 			return err
 		}
 		return updateReq(ctx, tx, r)
 	})
-	return claimed && err == nil, refusal, err
+	return claimed && err == nil, mark, refusal, err
 }
 
 // itemOutcome is what happened to an item.
@@ -732,8 +734,6 @@ type itemOutcome struct {
 	// unknown marks a step that was sent and whose outcome is not known (the sweep or the step deadline gave up waiting): the item
 	// is failed but its change may be in force (itemRec.StateUnknown).
 	unknown bool
-	// presentBefore is whether the read-back text was there before the run (D-356), nil when it was not read; stored on the item.
-	presentBefore *bool
 
 	// sweep makes the write a compare-and-set on the running mark the sweep read (ifRunning): an item that was claimed or
 	// finished since is left alone. fromRun marks the result of a step runItem sent: it may replace the "State unknown" the
@@ -845,9 +845,6 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 		}
 		it.RunningAt = ""
 		it.StateUnknown = false
-		if o.presentBefore != nil {
-			it.PresentBefore = o.presentBefore
-		}
 		now := s.now()
 		switch {
 		case o.refusal != nil:
@@ -867,7 +864,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			}
 		default:
 			it.Status, it.ExecutedAt, it.Result, it.Verified = ItemExecuted, strp(store2(now)), strp(o.result), o.verified
-			if it.Reversible && it.TTLMin != nil {
+			if it.Reversible && it.TTLMin != nil && !isTrue(it.PresentBefore) { // D-356: a change that was there before the run is not undone automatically
 				it.RemoveAt = strp(store2(now.Add(time.Duration(*it.TTLMin) * time.Minute)))
 			}
 			if o.block {
@@ -1514,3 +1511,5 @@ func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
 	}
 	return m, nil
 }
+
+func isTrue(b *bool) bool { return b != nil && *b }

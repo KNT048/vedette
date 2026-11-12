@@ -116,9 +116,10 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 // reason (the sweep tries again), and the failure is logged once.
 func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 	e := switchRequest(t)
-	e.exec.pre, e.exec.present, e.exec.after = staticAccess, "Gi1/0/12 disabled", "Gi1/0/12 disabled"
+	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
+	e.exec.after = "Gi1/0/12 disabled" // after the run (not before it: that would be a change already there, D-356)
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
 	e.must(e.svc.Sweep(e.ctx()))

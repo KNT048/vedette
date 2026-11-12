@@ -219,6 +219,9 @@ type cancelExec struct {
 
 func (c *cancelExec) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	c.steps = append(c.steps, s)
+	if s.Phase != "run" { // the approver goes away while the write is in flight, not during the read before it (D-356)
+		return response.DeviceResult{Status: response.StepOK, Detail: "read"}, nil
+	}
 	c.cancel()
 	return response.DeviceResult{Status: response.StepOK, Detail: "done"}, ctx.Err()
 }

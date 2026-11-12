@@ -441,6 +441,27 @@ func TestContract_PRE4_SearchKinds(t *testing.T) {
 	}
 }
 
+// POST-4: a switched-off feed keeps its stale listings in feeds_ioc_source but is never named as listing an indicator.
+func TestContract_POST4_SearchNamesOnlySwitchedOnFeeds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	applyI(t, e.db, e.clock(), "abusech-feodo", []iocInput{{Kind: "ip", Value: "185.220.101.47"}})
+	applyI(t, e.db, e.clock(), "et-open", []iocInput{{Kind: "ip", Value: "185.220.101.47"}, {Kind: "ip", Value: "45.148.10.95"}})
+	if c, b := e.put("abusech-feodo", `{"enabled":false}`); c != 200 {
+		t.Fatalf("switch off: %d %v", c, b)
+	}
+	_, b := e.get("/feeds/search?q=185.220.101.47")
+	if at(b, "hit", "sources", 0) != "ET Open compromised IPs" || at(b, "hit", "sources", 1) != nil || at(b, "hit", "verdict") != "alert" {
+		t.Errorf("one feed on, one off: %v", b)
+	}
+	if c, b := e.put("et-open", `{"enabled":false}`); c != 200 {
+		t.Fatalf("switch off: %d %v", c, b)
+	}
+	if _, b = e.get("/feeds/search?q=45.148.10.95"); at(b, "kind") != "ioc" || b["hit"] != nil {
+		t.Errorf("every listing feed off: %v", b)
+	}
+}
+
 func TestContract_INV14_WeeklyAndIHaveIt(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

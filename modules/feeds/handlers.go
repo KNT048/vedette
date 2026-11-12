@@ -372,11 +372,7 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 	return convert[oas.FeedsGetFeedsCveIDOK](out)
 }
 
-var (
-	cveQueryRE = regexp.MustCompile(`(?i)^cve-\d{4}-\d{4,}$`)
-	// The lookup box's own idea of a domain (the GUI mock's DOMAIN_RE); IOCKey decides whether it can be an IOC.
-	domainQueryRE = regexp.MustCompile(`(?i)^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
-)
+var cveQueryRE = regexp.MustCompile(`(?i)^cve-\d{4}-\d{4,}$`)
 
 // iocCategories is the plain-language category of what a built-in feed lists; a custom feed is "Custom feed".
 var iocCategories = map[string]string{
@@ -387,9 +383,11 @@ var iocCategories = map[string]string{
 	"hagezi-tif":    "Threat-intelligence domain list",
 }
 
-// iocHit turns a stored indicator into the answer of a lookup; nil when no feed lists it now, or when it has no
-// verdict (a whitelisted domain, a value that cannot be an IOC).
+// iocHit turns a stored indicator into the answer of a lookup; nil when no switched-on feed lists it now, or when it has no
+// verdict (a whitelisted domain, a value that cannot be an IOC). A switched-off feed is not named: it is not pulled, so its
+// listings are stale (as logs ignores them).
 func iocHit(rec IOCRecord) map[string]any {
+	rec.Sightings = slices.DeleteFunc(slices.Clone(rec.Sightings), func(g IOCSighting) bool { return !g.Enabled })
 	order := map[string]int{}
 	for i, b := range BuiltinSources() {
 		order[b.ID] = i
@@ -454,7 +452,7 @@ func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.Feeds
 			return zero, err
 		}
 		out = map[string]any{"kind": "cve", "cve": cve, "found": found}
-	case (ipErr == nil && addr.Zone() == "") || (domainQueryRE.MatchString(q) && len(q) <= 253):
+	case (ipErr == nil && addr.Zone() == "") || validDomain(q): // the parser's idea of a domain (the GUI mock's FEED_DOMAIN_RE); IOCKey decides whether it can be an IOC
 		kind, value := "domain", strings.ToLower(q)
 		if ipErr == nil {
 			kind = "ip"

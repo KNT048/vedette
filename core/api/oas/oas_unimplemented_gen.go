@@ -529,12 +529,31 @@ func (UnimplementedHandler) CoreGetCoreDataBackup(ctx context.Context) (r CoreGe
 	return r, ht.ErrNotImplemented
 }
 
+// CoreGetCoreDataBackups implements core_get_core_data_backups operation.
+//
+// Backups the operating system helper keeps on this box (D-377); 409 not_appliance on a container-only
+// install.
+//
+// GET /core/data/backups
+func (UnimplementedHandler) CoreGetCoreDataBackups(ctx context.Context) (r *CoreGetCoreDataBackupsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CoreGetCoreDataExport implements core_get_core_data_export operation.
 //
 // Export my data as JSON (every table except secrets; 409 busy while another export runs).
 //
 // GET /core/data/export
 func (UnimplementedHandler) CoreGetCoreDataExport(ctx context.Context) (r CoreGetCoreDataExportOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CoreGetCoreDataRestoreRun implements core_get_core_data_restore_run operation.
+//
+// The current or latest restore run; null before the first one.
+//
+// GET /core/data/restore/run
+func (UnimplementedHandler) CoreGetCoreDataRestoreRun(ctx context.Context) (r NilCoreGetCoreDataRestoreRunOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -898,6 +917,20 @@ func (UnimplementedHandler) CorePostCoreConnectionsIDTest(ctx context.Context, p
 //
 // POST /core/data/purge
 func (UnimplementedHandler) CorePostCoreDataPurge(ctx context.Context, req *CorePostCoreDataPurgeReq) (r *CorePostCoreDataPurgeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePostCoreDataRestore implements core_post_core_data_restore operation.
+//
+// Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a
+// pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409
+// confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400
+// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+// fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer,
+// not_appliance; 412 secrets_missing; 502 checksum_mismatch.
+//
+// POST /core/data/restore
+func (UnimplementedHandler) CorePostCoreDataRestore(ctx context.Context, req *CorePostCoreDataRestoreReq) (r *CorePostCoreDataRestoreAccepted, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

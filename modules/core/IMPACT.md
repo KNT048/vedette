@@ -62,6 +62,13 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **Bộ nhớ trong tiến trình**: `OSHandlers` giữ bản sao run mới nhất (`runMu`, không bao giờ giữ qua lời gọi host), bộ đệm `state/os` 10 giây (`stateCache`), khoá một lần tải backup (`dlMu`) và mốc lần tải cuối. `flight[T]` là gộp lời gọi (kiểu singleflight, thư viện chuẩn). Khi khởi động, nếu `os.run` chưa chốt (chưa audit hoặc còn bản chụp), một goroutine dựng lại run ngay (thử lại ~2 phút nếu host chưa lên). Mỗi lần tải backup tạo một backup `manual` trên hộp (giữ 10); giới hạn 1 lần/phút/hộp.
 - **GUI**: `web/src/features/core/{contract.ts,osMock.ts,OsUpdates.tsx}` không đổi; thêm mã `not_appliance`, `no_check_yet`, `host_unreachable`… ở backend mà GUI chưa có màn hình riêng (deferred).
 
+## Modifying: khôi phục sao lưu trên hộp (D-377, INV-36: `modules/core/restore.go`, `oshost.go`, `snapshot.go`)
+- **`Host`** gains `StateBackups` and `BackupRestore` (both already on `*host/client.Client`); every fake `Host` in the tests implements them (`hostBase` in `os_resilience_test.go`, `restoreHost` in `restore_test.go`).
+- **`mapHostCode`** maps `backup_unknown` 404, `checksum_mismatch` 502, `schema_newer` 409, `secrets_missing` 412, `restore_failed` 412: the same table answers every command, so another command that returns one of these codes gets these sentences.
+- **`snapshotter.removeBefore`** removes snapshots an earlier process wrote that no resumed run (`os.run`, `core_update_run`) names; it runs only when a restore is settled into a database that does not know the restore's snapshot.
+- **`core_setting` `data.restore`** is read and written only by `restore.go`; a restored database may hold an older copy, so the first read of a process asks the host (`restoreSynced`).
+- **GUI**: `web/src/features/core/{contract.ts,mocks.ts,DataSection.tsx}` (Backups on this box, Restore dialog); audit labels `data.restore`, `data.restore_failed`, `data.restore_done` in `web/src/locales/en/core.json`.
+
 ## Modifying: kiểm tra cập nhật phần mềm (D-340, D-341, INV-34: `modules/core/{updates,updates_check}.go`, `cmd/vedette/wiring.go`)
 - **`OSConfig` thêm `Version`, `ReleaseBase`, `HTTPClient`, `Trust`** (rỗng = `DefaultReleaseBase`, client có timeout chỉ theo chuyển hướng tới host GitHub của PRIVACY luồng 6, `release.Embedded`). `cmd/vedette` chỉ truyền `Version: main.version`. Một bản dựng có `main.version` không phải SemVer phát hành (dev) vẫn kiểm được nhưng không có manifest đang chạy (`rollback_restores_data` = false).
 - **Thao tác**: `CoreGetCoreUpdates`, `CorePatchCoreUpdates`, `CorePostCoreUpdatesCheck` trên `*OSHandlers` (cùng nhúng như các thao tác OS). Apply và rollback ở `updates_run.go`; bundle vẫn 501.

@@ -41,6 +41,9 @@ export type OsPackage = z.infer<typeof C.OsPackage>
 export type OsInfo = z.infer<typeof C.OsInfo>
 export type OsState = z.infer<typeof C.OsState>
 export type OsRun = z.infer<typeof C.OsRun>
+export type BoxBackup = z.infer<typeof C.BoxBackup>
+export type BoxBackups = z.infer<typeof C.BoxBackups>
+export type RestoreRun = z.infer<typeof C.RestoreRun>
 export type OsRebootBody = z.infer<typeof C.OsRebootBody>
 export type UpdatesState = z.infer<typeof C.UpdatesState>
 

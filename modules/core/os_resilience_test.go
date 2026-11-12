@@ -648,3 +648,9 @@ func (b *hostBase) ContainerStart(ctx context.Context, a api.ContainerStartArgs,
 func (b *hostBase) ContainerRollback(ctx context.Context, a api.ContainerRollbackArgs, rid, actor string) (api.Run, error) {
 	return b.h().ContainerRollback(ctx, a, rid, actor)
 }
+func (b *hostBase) StateBackups(ctx context.Context) (api.BackupList, error) {
+	return b.h().StateBackups(ctx)
+}
+func (b *hostBase) BackupRestore(ctx context.Context, id, snap, rid, actor string) (api.Run, error) {
+	return b.h().BackupRestore(ctx, id, snap, rid, actor)
+}

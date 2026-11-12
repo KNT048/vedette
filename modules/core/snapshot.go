@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -197,4 +198,25 @@ func (s *snapshotter) sweep() (removed int, err error) {
 		removed++
 	}
 	return removed, errors.Join(errs...)
+}
+
+// removeBefore removes the snapshot directories (and half-written metadata) of ours written before t, except
+// the ids in keep. A restore that swapped core's database leaves its snapshot behind with no record of its id
+// (the record was in the old database): the next process removes what an earlier one wrote and no run it
+// resumes still needs (D-377).
+func (s *snapshotter) removeBefore(t time.Time, keep ...string) {
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		name := e.Name()
+		id, _ := strings.CutSuffix(name, ".meta")
+		if !ours(name) || slices.Contains(keep, id) {
+			continue
+		}
+		if info, err := e.Info(); err == nil && info.ModTime().Before(t) {
+			_ = os.RemoveAll(filepath.Join(s.dir, name))
+		}
+	}
 }

@@ -15,8 +15,10 @@
 ## Modifying: `MapRole(groups, rows, def)` và `idClaims.groups(claim)`
 - Vai của mọi tài khoản SSO ở lần đăng nhập kế tiếp; đổi quy tắc (cao nhất, khớp đúng tên, bỏ nhóm > 256 ký tự, 200 nhóm đầu) → nâng/hạ quyền hàng loạt và kết thúc phiên của người bị đổi vai.
 
-## Modifying: `newClient` / `discover` (mọi lời gọi tới IdP)
+## Modifying: `newClient` / `discover` / `clientFor` (mọi lời gọi tới IdP)
 - INV-11: https, không chuyển hướng, 1 MiB, 10 s, danh sách thuật toán. Nới bất kỳ điều nào → `TestContract_INV11_Discovery` và rà bảo mật.
+- INV-12 (D-378): `clientFor(ca_pem)` cho discovery, JWKS (provider giữ client) và đổi mã lấy token (`idp.client`). Dùng `s.client` trực tiếp ở chỗ mới → IdP sau CA nội bộ hỏng ở chỗ đó. `parseCA` là cổng duy nhất vào `oidc_config.ca_pem`; nới nó → rà bảo mật.
+- **web/features/core (`OidcCaField.tsx`, mock `caError`)**: thông điệp `invalid_ca` và câu "does not trust" của `publicReason` được GUI nhắc tới tên ô "Identity provider CA certificate".
 
 ## Depends on core (interface)
 - `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers`; `core/secrets` (purpose `oidc_config.client_secret`); `core/audit`; bảng `core_user.sso_issuer/sso_subject` (core sở hữu, migration core 0010).

@@ -102,7 +102,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_channel":         {export: "type configured enabled secret_last4 app_token_last4 bot_token_last4 url_last4 min_severity approvals rev updated_at", jsonURL: "fields", json: "last_test", skip: "secret_id app_token_secret_id bot_token_secret_id url_secret_id"},
 	"notify_incident":        {export: "id kind title link severity what action first_seen last_seen count status handled_by handled_at note dedupe_key"},
 	"notify_incident_device": {export: "incident_id asset_id name"},
-	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},
+	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at ca_pem", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},
 	"oidc_flow":              {skipAll: true, skip: "state_hash binding_hash nonce verifier issuer client_id redirect_uri created_at expires_at"},
 	"notify_kev":             {export: "cve seen_at matched"},
 	"notify_notice":          {export: "id created_at product", json: "cves"},

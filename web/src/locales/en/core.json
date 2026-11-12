@@ -169,6 +169,13 @@
     "scopesHint": "Separated by spaces; must include openid. Add groups if your identity provider needs it to send groups (Okta, Authentik).",
     "claim": "Groups claim",
     "claimHint": "Name of the ID token claim that lists the groups. Usually groups.",
+    "ca": "Identity provider CA certificate (optional)",
+    "caHint": "Only if your identity provider uses a certificate from an internal CA. Paste the CA certificate (PEM, up to 5). The box trusts it for calls to the identity provider only, in addition to the usual public CAs.",
+    "caSavedList": "Saved CA certificates",
+    "caSaved": "Saved: {{subject}}, expires {{date}}",
+    "caExpiring": "Saved: {{subject}}, expires {{date}}. Replace it soon or SSO sign-in stops working.",
+    "caExpired": "Saved: {{subject}}, expired {{date}}. SSO sign-in fails until you paste the new CA certificate.",
+    "caRemove": "Remove CA certificate",
     "endpoints": "Endpoints read from the identity provider",
     "endpoint": {
       "authorization": "Authorization",

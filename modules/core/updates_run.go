@@ -509,20 +509,25 @@ func (h *OSHandlers) followOne() {
 			}
 			h.log.Log(h.ctx, lvl, "core: the software update run waits for vedette-host", "error", err)
 		}
-		if isTryLater(err) {
-			f.refused++
-		} else {
-			f.refused = 0
-		}
-		wait := retry
-		if h.urun.retry <= 0 { // tests set their own pause
-			wait = retryWait(err, retry, f.refused)
+		wait := f.pause(err, retry)
+		if h.urun.retry > 0 { // tests set their own pause
+			wait = retry
 		}
 		select {
 		case <-h.ctx.Done():
 		case <-time.After(wait):
 		}
 	}
+}
+
+// pause counts the try-later answers in a row (another answer resets the count) and returns retryWait's pause.
+func (f *updFollower) pause(err error, base time.Duration) time.Duration {
+	if isTryLater(err) {
+		f.refused++
+	} else {
+		f.refused = 0
+	}
+	return retryWait(err, base, f.refused)
 }
 
 // retryWait is the pause before the next try. refused counts the try-later answers in a row, this one included:
@@ -559,7 +564,7 @@ const (
 	maxRetryAfter = 5 * time.Minute // caps the wait a host's retry_after_s asks for
 	busyTries     = 3               // try-later answers in a row at the follower's normal pause
 	busyWait      = 30 * time.Second
-	busyWaitMax   = time.Minute // ~360 refusals in the 6-hour rule: the host's 500 runs keep the run's own calls
+	busyWaitMax   = time.Minute // ~360 refusals per 6 hours without progress: the host's 500 runs keep the run's own calls
 )
 
 // updFollower carries the stored run forward. sent holds the request ids THIS process sent: only those may be

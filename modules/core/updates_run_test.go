@@ -825,6 +825,19 @@ func TestUpdateRollbackLostToARestoredDatabaseSurvivesFailedHostReads(t *testing
 	}
 }
 
+// The follower's count of try-later answers in a row: it grows on each one and another answer resets it.
+func TestUpdateFollowerPauseCountsTryLaterInARow(t *testing.T) {
+	t.Parallel()
+	busy := &hostclient.Error{Code: api.CodeBusy}
+	other := errors.New("x")
+	got := core.PauseStepsForTest([]error{busy, busy, busy, busy, busy, other, busy, nil, busy}, 5*time.Second)
+	s := 5 * time.Second
+	want := []time.Duration{s, s, s, 30 * time.Second, time.Minute, s, s, s, s}
+	if !slices.Equal(got, want) {
+		t.Errorf("waits = %v, want %v", got, want)
+	}
+}
+
 func TestRetryWait(t *testing.T) {
 	t.Parallel()
 	busy := &hostclient.Error{Code: api.CodeBusy}

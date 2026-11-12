@@ -44,3 +44,13 @@ func HostWhyForTest(code, v, running, release string) string {
 func RetryWaitForTest(err error, base time.Duration, refused int) time.Duration {
 	return retryWait(err, base, refused)
 }
+
+// PauseStepsForTest feeds errs to one follower's pause in order and returns the waits.
+func PauseStepsForTest(errs []error, base time.Duration) []time.Duration {
+	var f updFollower
+	out := make([]time.Duration, 0, len(errs))
+	for _, err := range errs {
+		out = append(out, f.pause(err, base))
+	}
+	return out
+}

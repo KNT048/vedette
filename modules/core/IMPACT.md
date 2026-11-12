@@ -174,7 +174,7 @@ Không thể (tier core). Gỡ `core` = không còn binary.
 - **Kịch bản parity** `web/src/features/core/testdata/connections_matrix.json` là hợp đồng chung của mock GUI và backend: đổi một thông điệp ở `connectionsMock.ts` hay `validate.go` mà không đổi kịch bản làm một trong hai bên đỏ. Khoá thử `web/src/features/core/testdata/keys/*` là khoá vứt đi, chỉ để test.
 - **Bảng** `core_connection`, `core_connection_tool` (migration `0006`); `db_schema` = `core=7` (xem mục `core/pki` dưới đây).
 
-## Modifying: CA riêng của hộp trong `core_secret` (D-351, INV-30; `cmd/vedette/boxca.go`, `tls.go`, `main.go`)
+## Modifying: CA riêng của hộp trong `core_secret` (D-351, INV-33; `cmd/vedette/boxca.go`, `tls.go`, `main.go`)
 - **Thứ tự khởi động** (`serve`): `transport` chạy **sau** `store.Open` + `migrateAll` + `CompactIfPending` (cần bảng `core_secret` và `core_audit`), trước `modreg.New`. Ai dời `transport` lên trước DB làm `newBoxCAStore` không có DB; ai thêm thứ cần TLS trước DB phải đổi lại thứ tự này.
 - **`transport(ctx, o, *boxCAStore)`, `ensureCertAt(ctx, ca, …)`, `renewSelfSigned`/`reissueSelfSigned(ctx, ca, …)`, `selfSignedRenewer.ca`**: mọi đường cấp lá lấy CA qua `boxCAStore.ensure`; test dựng CA bằng `testCA(t, dir)` (`tls_ca_test.go`, DB đã migrate ở thư mục riêng).
 - **`core_secret`**: purpose mới `core_box_ca` (bị `Reserve` + `Restrict`); `core/pki/contract_test.go` và `core/conn/contract_test.go` cho phép `cmd/vedette/boxca.go` gọi `Reserve`/`Restrict`/giữ `Opener`. Đổi khoá chủ hoặc khôi phục không kèm khoá = CA mới, mọi máy osquery phải cài lại (như CA sensor).

@@ -1,3 +1,0 @@
-# Việc để sau — nhánh fix/core-purge-fts (#329)
-
-- [ ] 2026-11-12 — (review r2 LOW) A virtual table the purge cannot empty is refused inside the wipe transaction, i.e. after `backup.purge` (host backups deleted, not undoable) and the `BeforeWipe` hook: the endpoint answers 500 `backups_already_deleted` and the box data stays. Cannot happen today (no such table; `TestRunPurgeBringsBackAFreshBoxAndStops` would fail in CI first). Fix: run the same virtual-table check on the scratch database in `freshRows`, before the host step, and keep the in-transaction check as a second lock — vì sao để sau: D-255 (LOW) — ở đâu: `modules/core/handlers_purge.go` (`freshRows`, `ftsTables`)

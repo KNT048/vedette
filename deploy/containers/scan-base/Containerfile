@@ -21,7 +21,8 @@ COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
-    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette-sensor -name vedette-sensor -out /out/licenses/third-party-licenses
 
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS nuclei
 ARG TARGETARCH
@@ -51,11 +52,14 @@ RUN set -eu; \
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS pack
 ARG SCAN_PACK_VERSION
 COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICENSE.md
+# The same two texts at the standard place of the other images (/usr/share/doc/vedette/, D-155 (10)).
+COPY --from=nuclei /out/LICENSE.md /usr/share/doc/vedette/nuclei-LICENSE.md
 COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
 COPY deploy/containers/scan-base/pack/index.json /usr/local/share/vedette/nuclei-pack/index.json
 COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/local/share/vedette/licenses/nuclei-templates-LICENSE.md
+COPY deploy/containers/scan-base/pack/LICENSE-nuclei-templates.md /usr/share/doc/vedette/nuclei-templates-LICENSE.md
 RUN set -eu; \
-    chmod -R a+rX /usr/share/vedette /usr/local/share/vedette; \
+    chmod -R a+rX /usr/share/vedette /usr/local/share/vedette /usr/share/doc/vedette; \
     [ -n "${SCAN_PACK_VERSION}" ] || exit 1; \
     grep -Fq "\"version\": \"${SCAN_PACK_VERSION}\"" /usr/local/share/vedette/nuclei-pack/index.json || { echo "index.json is not pack version ${SCAN_PACK_VERSION}: a stale pack (make scan-pack)" >&2; exit 1; }
 
@@ -66,5 +70,8 @@ COPY --from=build /out/vedette-sensor /vedette-sensor
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=pack /usr/share/vedette/ /usr/share/vedette/
 COPY --from=pack /usr/local/share/vedette/ /usr/local/share/vedette/
+# Third-party licenses: the Go modules linked into vedette-sensor (scripts/hostlicenses) and the nuclei and template-pack texts.
+COPY --from=build /out/licenses/ /usr/share/doc/vedette/
+COPY --from=pack /usr/share/doc/vedette/ /usr/share/doc/vedette/
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

@@ -20,7 +20,8 @@ RUN set -eu; \
     test -s internal/webui/dist/index.html || { echo "internal/webui/dist/index.html is missing: run make core-image (it runs make webui-dist first)" >&2; exit 1; }; \
     if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
-    go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette
+    go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-core -tags webui -out /out/licenses/third-party-licenses
 RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active
 # The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
 # would make the box refuse the folder), modes set here and not by COPY --chmod (podman applies it to folders too, scan-base).
@@ -48,11 +49,27 @@ RUN set -eu; \
     echo "${OSQUERY_MSI_SHA256}  /out/${msi}" | sha256sum -c -; \
     printf '%s  %s\n' "${OSQUERY_DEB_AMD64_SHA256}" "${deb}" "${OSQUERY_RPM_X86_64_SHA256}" "${rpm}" "${OSQUERY_MSI_SHA256}" "${msi}" > /out/SHA256SUMS; \
     chmod 0644 /out/*
+# The licence texts of osquery (Apache-2.0 section 4(a): a copy of the licence goes with every redistribution; the files are offered under Apache-2.0,
+# the GPL-2.0 text goes with them because the project is dual-licensed). They are the files of the osquery 5.12.1 source tree (LICENSE,
+# LICENSE-Apache-2.0, LICENSE-GPL-2.0), kept in the repository next to PINS; the build checks each against its pinned SHA-256, so an edited text fails it.
+# The packages are not opened at build time (they are not extracted or read; ~80 MB), the texts come from the tag the packages are built from.
+COPY deploy/osquery/LICENSE deploy/osquery/LICENSE-Apache-2.0 deploy/osquery/LICENSE-GPL-2.0 /lic/
+RUN set -eu; \
+    . /pins/osquery.pins; \
+    [ -n "${OSQUERY_LICENSE_SHA256}" ] && [ -n "${OSQUERY_LICENSE_APACHE_SHA256}" ] && [ -n "${OSQUERY_LICENSE_GPL2_SHA256}" ] || { echo "deploy/osquery/PINS lacks the license hashes" >&2; exit 1; }; \
+    echo "${OSQUERY_LICENSE_SHA256}  /lic/LICENSE" | sha256sum -c -; \
+    echo "${OSQUERY_LICENSE_APACHE_SHA256}  /lic/LICENSE-Apache-2.0" | sha256sum -c -; \
+    echo "${OSQUERY_LICENSE_GPL2_SHA256}  /lic/LICENSE-GPL-2.0" | sha256sum -c -; \
+    chmod 0644 /lic/*
 
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
 LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=build /out/vedette /vedette
+# The third-party licenses (D-155 (10)): the Go license and the license file of every Go module linked into /vedette, made by scripts/hostlicenses
+# from the same module graph as the binary (a linked module with no license file fails the build); the osquery license texts sit next to it.
+COPY --from=build /out/licenses/ /usr/share/doc/vedette/
+COPY --from=osquery /lic/ /usr/share/doc/vedette/osquery/
 # The pinned osquery packages: a leaf directory that does not exist yet (the default of -osquery-dir). Root-owned, world-readable; core only reads it.
 COPY --from=osquery /out/ /usr/share/vedette/osquery/
 # The data and credentials directories exist in the image, owned by the user below, so a NEW named volume mounted on one of them

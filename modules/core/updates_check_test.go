@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -207,6 +208,10 @@ func TestUpdateCheckOffersTheNewRelease(t *testing.T) {
 	a, _ := av[0].(map[string]any)
 	if a["component"] != "software" || a["version"] != "1.4.0" || a["channel"] != "stable" || a["size_kb"] != float64(4096) || len([]rune(a["note"].(string))) != 500 {
 		t.Errorf("available[0] = %v", a)
+	}
+	// S-CORE-9 G4: the digests of the verified manifest, for the cosign lines of a container-only install.
+	if im := fmt.Sprint(a["images"]); im != "[map[digest:sha256:"+strings.Repeat("a", 64)+" service:core] map[digest:sha256:"+strings.Repeat("b", 64)+" service:sensor]]" {
+		t.Errorf("available[0].images = %s", im)
 	}
 	comp, _ := getArr(r, "components")[0].(map[string]any)
 	if comp["id"] != "software" || comp["version"] != runningVersion || comp["previous"] != nil || comp["signature"] != "unsigned" || comp["rollback_restores_data"] != true {
@@ -431,6 +436,25 @@ func TestUpdateStateWithAHost(t *testing.T) {
 		t.Errorf("component = %v", comp)
 	}
 	m = e.srv.manifest(t, "1.4.0", nil)
+	e.srv.index(t, 6, m, 100, nil)
+	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
+	if v, err := e.upd.OfferedVersionForTest(t.Context()); err != nil || v != "1.4.0" {
+		t.Errorf("offered() = %q %v", v, err)
+	}
+}
+
+// Without vedette-host (a container-only install, D-381) a release that is not for container installs is not offered
+// (S-CORE-9 G4).
+func TestUpdateCheckContainerOnlyNeedsAContainerRelease(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.manifest(t, runningVersion, nil)
+	m := e.srv.manifest(t, "1.4.0", func(d opstest.Doc) { d["install_modes"] = []string{"appliance"} })
+	e.srv.index(t, 5, m, 100, nil)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	e.wantNothingOffered(t, r)
+	m = e.srv.manifest(t, "1.4.0", func(d opstest.Doc) { d["install_modes"] = []string{"container"} })
 	e.srv.index(t, 6, m, 100, nil)
 	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
 	if v, err := e.upd.OfferedVersionForTest(t.Context()); err != nil || v != "1.4.0" {

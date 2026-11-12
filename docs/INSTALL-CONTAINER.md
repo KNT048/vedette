@@ -79,17 +79,20 @@ Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or 
 
 ## 5. Update, and check what you run
 
-The page will show that a new version exists and the two blocks below (the page part waits for the update check of core and for the release keys, WP-08k). Until then read the release page.
+Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button. Until the first release is published (WP-08k) the page says there is no release information yet.
 
 ```sh
-curl -fLO <the vedette.env asset of the release page>            # keep the old one for the way back
-minisign -Vm vedette.env -p vedette.pub
-cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan
-docker compose --env-file vedette.env pull
+mv -n vedette.env vedette.env.<running version>     # the way back, named after the release it runs
+# download vedette.env and vedette.env.minisig of the new release from its release page into this folder
+minisign -Vm vedette.env -p vedette.pub              # the key you kept from the install, not one from the same page
+cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan; the page fills the digests
+grep -cF -e 'ghcr.io/knt048/vedette-core@sha256:<digest>' -e ... vedette.env         # vedette.env names those same digests: prints 3
+# copy your VEDETTE_BIND_IP and VEDETTE_HOSTS lines from the kept file into vedette.env (a release leaves them empty)
+docker compose --env-file vedette.env pull           # podman compose ... the same
 docker compose --env-file vedette.env up -d
 ```
 
-To go back, put the old `vedette.env` back and run `pull` and `up -d` again. A version that changes the database may not be able to go back: the release notes say so; back up first.
+To go back, put the kept file back as `vedette.env` and run `pull` and `up -d` again. A version that changes the database may not be able to go back: the release notes say so; back up first.
 
 ## 6. Back up, stop, remove
 
@@ -121,13 +124,13 @@ docker compose --env-file vedette.env start core
 
 Vedette knows it is a container-only install from `-host-socket=` in `compose.yaml` (D-381), and the pages follow it:
 
-- Settings → Updates shows the `pull` and `up -d` commands above and says the operating system is yours; there is no spare slot, rollback, channel or package list.
+- Settings → Updates says whether a newer release exists (version and notes) and shows the commands of section 5 for Docker or Podman, with one `cosign verify` line per image of that release; it says the operating system is yours; there is no Apply, spare slot, rollback, channel or package list.
 - Settings → Data shows the backup and restore commands of section 6 instead of Download backup and "Backups on this box". Export, log downloads and Delete all data work as on the appliance.
 - Settings → Box network says the network of the machine is yours to set up.
 - Settings → Modules shows Honeypot (and Credentialed scans) as "Not on this install"; the setup bundles leave them out. A honeypot turned on before this version shows only why it cannot run; turn it off in Settings → Modules.
 - The first-run setup names `docker logs vedette-core` for the setup code.
 
-Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3), and the Updates page does not yet say that a new version exists (S-CORE-2 G4, waits for the release keys, WP-08k).
+Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3).
 
 ## Not tested yet (the lab does)
 

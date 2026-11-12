@@ -681,6 +681,11 @@ function runningRevoked(running: string): UpdatesState['running_revoked'] {
 }
 const staleSince = (): string | null => { const e = updIndex.get().expires_at; return Date.parse(e) < Date.now() ? e : null }
 
+/** The images of a mock release by digest (manifest images[], S-CORE-9 G4): fixed per service and version, like a real manifest. */
+const releaseImages = (version: string) => ['core', 'sensor', 'honeypot', 'scan'].map((service) => ({
+  service, digest: `sha256:${[...`${service}@${version}`].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').padEnd(64, '0').slice(0, 64)}`,
+}))
+
 function updView(): UpdatesState {
   tickRun()
   const s = updStore.get()
@@ -691,12 +696,15 @@ function updView(): UpdatesState {
     const cur = s.components.find((c) => c.id === a.component)
     return !cur || compareVersion(a.version, cur.version) > 0
   })
+  // A container-only install has no system helper: no host row, no host_version (D-381, S-CORE-2 D-316 (g)).
+  const container = installStore.get().kind === 'container'
   // chỉ giữ bản mới nhất cho mỗi thành phần
   const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0)).map((a) => {
-    const host = a.component === 'software' ? hostTarget(a.version) : undefined
-    return host ? { ...a, host_version: host } : a
+    if (a.component !== 'software') return a
+    const host = container ? undefined : hostTarget(a.version)
+    return { ...a, images: releaseImages(a.version), ...(host ? { host_version: host } : {}) }
   })
-  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
+  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: container ? s.components.filter((c) => c.id !== 'host') : s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
 }
 
 function applyOne(component: string, version: string, action: UpdateHistory['action'], user: string) {

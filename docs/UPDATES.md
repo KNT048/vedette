@@ -12,7 +12,7 @@ kien, 2026-11-06: sản phẩm bảo mật phải cập nhật thường xuyên;
 |---|---|---|---|
 | Phần mềm Vedette | image `core`, `sensor`, `honeypot`, `scan` (+ digest của `greenbone`) | `vedette-host` lấy `release.json` (ký minisign, xác minh offline được) liệt kê digest từng image, kênh, % rollout, phiên bản host tối thiểu, `revoked[]`; kéo theo digest; **cosign bắt buộc** (policy trên host, fail-closed); sao lưu DB; thay container theo thứ tự `core` → `sensor`/`scan` → `honeypot` → `greenbone`; health gate | quay về digest/tag trước (giữ 1 đời); migration chỉ expand để bản liền trước chạy được |
 | Hệ điều hành | gói apt, kernel, reboot (D-53, S-CORE-7) | `vedette-host` chạy danh sách lệnh apt cố định, lịch theo cửa sổ bảo trì | sao lưu DB trước, health gate sau; nâng bản phát hành OS chỉ hướng dẫn |
-| `vedette-host` | chính nó | gói/binary ký, cài bởi `vedette-host` cũ hoặc `install.sh`; chi tiết trong `specs/host-api.md` | giữ bản trước (câu hỏi mở) |
+| `vedette-host` | chính nó | gói `.deb` có SHA-256 trong manifest ký, cài bởi `vedette-host` cũ (`host.self_update`, bước đầu của run phần mềm, D-316) hoặc `install.sh`; chi tiết `specs/host-api.md` §6.14 | tự động: giữ gói trước, bản mới không khoẻ thì cài lại nó; không có rollback bằng tay (D-316) |
 
 Cohort, `beta` → `stable` ≥ 7 ngày, danh sách thu hồi, bundle offline: giữ nguyên như §1–§3. Cohort chỉ chặn cập nhật **tự động** (người dùng bấm tay: xem `DEPLOYMENT.md` câu hỏi B6).
 

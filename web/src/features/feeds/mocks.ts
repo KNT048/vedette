@@ -2,11 +2,12 @@
 // Cửa sổ 24h/7 ngày tính theo thời điểm dữ liệu được kéo, để bản mẫu vẫn có nghĩa khi mở vài ngày sau.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
-import { API, audit, body, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
+import { API, audit, body, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, isOn } from '@/mocks/stores'
 import { collection, newId, nowIso } from '@/mocks/db'
 import type { Asset, AssetKind } from '@/lib/types'
 import { kevStatus, sourceHandlers } from './sourcesMock'
+import { FEED_DOMAIN_RE } from './parsers'
 import { displayOf, keyOf, kindOf } from './slug'
 import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, Vuln, WeeklyItem, YouHave } from './types'
 
@@ -140,7 +141,7 @@ export const handlers = [
     if (!q) return fail(400, 'empty_query', 'Enter a CVE, product name, IP or domain.')
     let r: SearchResult
     if (/^cve-\d{4}-\d{4,}$/i.test(q)) r = { kind: 'cve', cve: q.toUpperCase(), found: data.vulns.some((v) => v.cve === q.toUpperCase()) }
-    else if (IPV4_RE.test(q) || DOMAIN_RE.test(q)) r = { kind: 'ioc', value: q.toLowerCase(), type: IPV4_RE.test(q) ? 'ip' : 'domain', hit: IOCS.find((i) => i.value === q.toLowerCase()) ?? null }
+    else if (IPV4_RE.test(q) || FEED_DOMAIN_RE.test(q)) r = { kind: 'ioc', value: q.toLowerCase(), type: IPV4_RE.test(q) ? 'ip' : 'domain', hit: IOCS.find((i) => i.value === q.toLowerCase()) ?? null }
     else {
       const t = q.toLowerCase()
       r = { kind: 'text', q, vulns: data.vulns.filter((v) => `${v.vendor} ${v.product} ${v.name} ${displayOf(v.vendor, v.product)}`.toLowerCase().includes(t)).map((v) => ({ ...v, display: displayOf(v.vendor, v.product) })) }

@@ -2511,7 +2511,8 @@ func (s *AiGetAiHooksOKCustomItemWhen) UnmarshalText(data []byte) error {
 }
 
 type AiGetAiKnowledgeOK struct {
-	// AI profile id that builds the index; null = none chosen.
+	// AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null
+	// = none chosen.
 	IndexProfile NilString                     `json:"index_profile"`
 	Items        []AiGetAiKnowledgeOKItemsItem `json:"items"`
 }
@@ -10223,7 +10224,8 @@ func (s *AiPutAiKnowledgeIDReqJobsItem) UnmarshalText(data []byte) error {
 }
 
 type AiPutAiKnowledgeSettingsOK struct {
-	// AI profile id that builds the index; null = none chosen.
+	// AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null
+	// = none chosen.
 	IndexProfile NilString                             `json:"index_profile"`
 	Items        []AiPutAiKnowledgeSettingsOKItemsItem `json:"items"`
 }

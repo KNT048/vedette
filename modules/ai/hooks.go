@@ -246,7 +246,7 @@ type BuiltinHook struct {
 }
 
 var builtinInfo = []BuiltinHook{
-	{ID: HookBlockPII, Name: "Block personal data", Description: "Masks email addresses, phone numbers and names written next to an account, and refuses text that contains an ID number."},
+	{ID: HookBlockPII, Name: "Block personal data", Description: "Masks email addresses, phone numbers, names written next to an account and device secrets (passwords, password hashes, SNMP communities, pre-shared keys, private keys), and refuses text that contains an ID number."},
 	{ID: HookSecurityOnly, Name: "Security work only", Description: "Refuses tasks that are not about this box's security job, for example writing a poem."},
 	{ID: HookWriteApproval, Name: "Write tools need approval", Description: "A tool that changes something runs only through an action a person approves in the AI response module, never from a chat answer.", Locked: true},
 }
@@ -412,6 +412,7 @@ func piiDef(action HookAction, message string, find func(context.Context, *scanT
 // Blocking first, then masking: an ID number stops the text at once instead of being masked piecemeal.
 var piiDefs = []hookDef{
 	piiDef(ActionBlock, "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", plain(findIDNumbers)),
+	piiDef(ActionMask, "A device secret (a password, hash, SNMP community or key) was masked before the text went to the AI.", plain(findDeviceSecrets)),
 	piiDef(ActionMask, "An email address was masked before the text went to the AI.", plain(findEmails)),
 	piiDef(ActionMask, "A phone number was masked before the text went to the AI.", plain(findPhones)),
 	piiDef(ActionMask, "A person name next to an account was masked before the text went to the AI.", plain(findAccountNames)),

@@ -216,6 +216,7 @@ type pendingRow struct {
 // critical notices go first and at most maxBatchesPerRun messages are sent per run.
 func (s *Service) Flush(ctx context.Context) error {
 	now := s.now()
+	s.sealLegacyURL(ctx)
 	if s.reenabled.CompareAndSwap(true, false) {
 		if err := s.dropStale(ctx, now); err != nil {
 			s.reenabled.Store(true) // try again at the next run

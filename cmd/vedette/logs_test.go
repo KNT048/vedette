@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
+	"errors"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 )
@@ -177,5 +180,136 @@ func TestWiringLogsTLSSourcesFollowDepsSyslogTLS(t *testing.T) {
 	withTLS := logsService(*newStackWith(t, func(d *deps) { d.SyslogTLS = &tls.Config{MinVersion: tls.VersionTLS12} }).d)
 	if src, err := withTLS.AddSource(t.Context(), "admin@acme.example", in); err != nil || src.Proto != "tls" {
 		t.Fatalf("a box with a TLS config must accept proto tls: %+v %v", src, err)
+	}
+}
+
+// L4 on the real wiring: a FortiGate line from an inventory device to an address that a feed lists is a hit with the device named,
+// shown in the digest, announced on the bus, exported as "known_bad" and found by the evidence adapter of response; with the feeds module off
+// the port says so and no hit is made (PRE-3).
+func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.setModule("feeds", true)
+	s.setModule("logs", true)
+	dev, err := s.d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Name: "fw-hq", IP: "192.168.30.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var feedID, feedName string
+	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id, name FROM feeds_source ORDER BY id LIMIT 1`).Scan(&feedID, &feedName); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-t1', 'ip', '185.220.101.47', ?1, ?1), ('ioc-t2', 'domain', 'bad.example.net', ?1, ?1)`, stamp); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('ioc-t1', ?1, ?2, 0.4), ('ioc-t2', ?1, ?2, 0.8)`, feedID, stamp)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var got []logs.BadAddressEvent
+	var ioc []logs.IocHit
+	s.d.Bus.Subscribe(logs.EventBadAddress, func(_ context.Context, e events.Event) error {
+		got = append(got, e.Data.(logs.BadAddressEvent))
+		return nil
+	})
+	s.d.Bus.Subscribe(logs.EventIocHit, func(_ context.Context, e events.Event) error { ioc = append(ioc, e.Data.(logs.IocHit)); return nil })
+
+	svc := logsService(*s.d)
+	src, err := svc.AddSource(ctx, "admin@acme.example", logs.Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "192.168.30.1", Proto: "udp", Port: 514})
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := func(local, dst string) string {
+		return `date=2026-11-09 time=10:20:00 devname="FW-HQ" logid="0000000013" type="traffic" subtype="forward" srcip=` + local + ` dstip=` + dst + ` dstport=443 action="accept"`
+	}
+	in := []logs.Line{
+		{SourceID: src.ID, At: time.Now(), Text: line("192.168.30.1", "185.220.101.47")},
+		{SourceID: src.ID, At: time.Now(), Text: line("192.168.30.1", "185.220.101.48")}, // not listed
+		{SourceID: src.ID, At: time.Now(), Text: line("192.168.30.1", "10.1.1.1")},       // private
+	}
+	if res, err := svc.Ingest(ctx, in); err != nil || res.Stored != 3 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	d, err := svc.Digest(ctx)
+	if err != nil || len(d.BadConnections) != 1 {
+		t.Fatalf("%+v %v", d.BadConnections, err)
+	}
+	h := d.BadConnections[0]
+	if h.Dest != "185.220.101.47" || h.DestKind != "ip" || h.Confidence != 0.4 || len(h.Feeds) != 1 || h.Feeds[0] != feedName || h.AssetID == nil || *h.AssetID != dev.ID || h.SeenVia != "syslog:FW-HQ" {
+		t.Fatalf("hit %+v (feed %s, device %s)", h, feedName, dev.ID)
+	}
+	if len(got) != 1 || len(ioc) != 1 || got[0].ID != h.ID || ioc[0].ID != h.ID || got[0].Target != "ioc:185.220.101.47" {
+		t.Fatalf("events %+v %+v", got, ioc)
+	}
+	// the export source
+	if !s.d.Logs.Has("known_bad") {
+		t.Fatal("known_bad has no log source")
+	}
+	var out strings.Builder
+	if err := svc.ExportKnownBad(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"dest":"185.220.101.47"`) || !strings.Contains(out.String(), `"feeds":["`+feedName+`"]`) {
+		t.Fatalf("%q %v", out.String(), err)
+	}
+	// response's evidence port (not wired yet: the adapter is the part that is ours)
+	ev := logsIocEvidence(svc, func() bool { return true })
+	ref, ok, err := ev(ctx, h.ID)
+	if err != nil || !ok || ref.ID != h.ID || len(ref.Relates) != 2 || ref.Relates[0] != "192.168.30.1" || ref.Relates[1] != "185.220.101.47" || !strings.Contains(ref.Summary, "fw-hq") {
+		t.Fatalf("%+v %v %v", ref, ok, err)
+	}
+	if _, ok, err := ev(ctx, "ih-unknown"); ok || err != nil {
+		t.Fatalf("%v %v", ok, err)
+	}
+	if _, ok, _ := logsIocEvidence(svc, func() bool { return false })(ctx, h.ID); ok {
+		t.Fatal("evidence with the module off")
+	}
+	// the port: a listed domain, a name no feed lists, and the module off
+	f := logsFeeds{s.d}
+	if l, ok, err := f.Lookup(ctx, "domain", "Bad.Example.NET"); err != nil || !ok || l.Confidence != 0.8 {
+		t.Fatalf("%+v %v %v", l, ok, err)
+	}
+	if _, ok, err := f.Lookup(ctx, "domain", "fine.example.org"); ok || err != nil {
+		t.Fatalf("%v %v", ok, err)
+	}
+	if _, ok, err := f.Lookup(ctx, "ip", "10.0.0.1"); ok || err != nil {
+		t.Fatalf("a private address is listed: %v %v", ok, err)
+	}
+	// M3: a feed that was switched off is not pulled and not pruned, so its listings are stale: they are no hit
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_source SET enabled = 0 WHERE id = ?`, feedID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := f.Lookup(ctx, "ip", "185.220.101.47"); ok || err != nil {
+		t.Fatalf("a listing of a disabled feed is a hit: %v %v", ok, err)
+	}
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_source SET enabled = 1 WHERE id = ?`, feedID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := f.Lookup(ctx, "ip", "185.220.101.47"); !ok {
+		t.Fatal("the listing is not found again when the feed is on")
+	}
+	s.setModule("feeds", false)
+	if f.On() {
+		t.Fatal("On with the feeds module off")
+	}
+	if d, err := svc.Digest(ctx); err != nil || len(d.BadConnections) != 0 {
+		t.Fatalf("the digest shows hits with the feeds module off: %v %+v", err, d.BadConnections)
+	}
+	if _, _, err := f.Lookup(ctx, "ip", "185.220.101.47"); !errors.Is(err, logs.ErrFeedsOff) {
+		t.Fatalf("feeds off: %v", err)
+	}
+	before := len(got)
+	if _, err := svc.Ingest(ctx, []logs.Line{{SourceID: src.ID, At: time.Now(), Text: line("192.168.30.9", "185.220.101.47")}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != before {
+		t.Fatal("a hit with the feeds module off")
 	}
 }

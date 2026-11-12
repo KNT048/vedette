@@ -48,6 +48,7 @@ func logsService(d deps) *logs.Service {
 	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS (D-214)
 	cfg.Syslog.TLS = d.SyslogTLS
 	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
+	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())

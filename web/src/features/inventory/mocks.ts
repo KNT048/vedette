@@ -62,7 +62,8 @@ export const containerSensorStore = collection<{ connected: boolean; cards: Repo
 /** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
 function containerSensors() {
   const c = containerSensorStore.get()
-  // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none
+  // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
+  // The backend counts only a global IPv4 (globalIPv4); the fixtures hold no link-local address.
   const withAddress = c.cards.filter((x) => x.link && x.ipv4)
   const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
   const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null

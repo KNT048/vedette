@@ -45,6 +45,7 @@ var exportPolicy = map[string]tablePolicy{
 	"ai_memory":              {export: "id text source created_at last_used_at enabled"},
 	"ai_memory_rejected":     {skipAll: true, skip: "digest rejected_at"}, // the box's own memory of what not to suggest again, not data to take away
 	"ai_memory_suggestion":   {export: "id text created_at evidence"},
+	"ai_read":                {export: "id ts connection_id connection_name tool job"}, // which connection tool the box read and when, never the output (D-311)
 	"ai_skill_state":         {export: "id enabled"},
 	"ai_rule":                {export: "id text enabled created_at updated_at", json: "jobs"},
 	"ai_result":              {export: "id kind key inputs_hash model profile tokens_in tokens_out asked_by activity_id created_at", json: "payload"},

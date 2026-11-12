@@ -75,7 +75,7 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
 | `images[].size` | chỉ để kiểm chỗ trống (`low_disk`: < 2 × `size`); **không** so với số byte đã tải (D-104) |
 | `images[].cosign` | `{ "payload": base64, "signature": base64 }` (D-103): payload Simple Signing của cosign và chữ ký ECDSA P-256 (DER) trên SHA-256 của payload, sinh bằng cosign ghim phiên bản với `sign --key --new-bundle-format=false --use-signing-config=false` (định dạng cũ), cùng chữ ký đó cũng đẩy lên ghcr cho người muốn tự kiểm. Payload phải có `critical.type` = `cosign container image signature`, `critical.image.docker-manifest-digest` bằng `digest` và `critical.identity.docker-reference` **đúng bằng** `ghcr.io/knt048/vedette-<service>` (kho, không tag, không digest; D-108 (7): chữ ký đi trong manifest nên không còn gì khác buộc nó vào một kho, và chữ ký của image `core` không được xác minh cho mục `sensor`). **Cách ký của job phát hành:** `cosign sign --key <khoá> --new-bundle-format=false --use-signing-config=false --upload=false --output-payload payload.json --output-signature sig.b64 ghcr.io/knt048/vedette-<service>@sha256:<digest>` (ký theo `<kho>@<digest>`, không theo tag, không `--sign-container-identity`; đó chính là điều khiến cosign ghi `docker-reference` = kho), rồi `base64` của `payload.json` và nội dung `sig.b64` vào `images[].cosign`; kiểm lại bằng `internal/release` trước khi đăng. Trường lạ và khoá trùng bị từ chối; trường lạ và khoá trùng bị từ chối. Vì manifest đã ký minisign, chữ ký image đi cùng tài liệu đã ký, không cần đọc chữ ký từ registry |
 | `images[].service` | ∈ `core`, `sensor`, `honeypot`, `scan`, `greenbone` (D-55); mọi giá trị khác → từ chối manifest |
-| `min_upgrade_from` | nhảy phiên bản quá xa phải qua bản trung gian |
+| `min_upgrade_from` | nhảy phiên bản quá xa phải qua bản trung gian; bản tăng proto sensor lên N đặt nó không thấp hơn bản đầu tiên có proto N-1 (`core` chỉ nhận N và N-1, D-459) |
 | `db_schema`, `rollback` | hoàn tác an toàn hay cần khôi phục DB (§10) |
 | `host` | gói `vedette-host` của bản phát hành; xem cuối §9. **Bắt buộc, và `host.version` = `version`** (D-316 bổ sung 2026-11-12: `install.sh` luôn cài `vedette-host_<version>_<arch>.deb` của bản phát hành; kênh thử không qua builder). Builder (`scripts/release` `buildHostPart`, D-316) từ chối: thiếu phần `host`; `host.version` khác `version`; `host.version` có `-test.`; tên tệp khác `vedette-host_<host.version>_<amd64\|arm64>.deb` theo quy tắc tên duy nhất `release.ParseHostPackageName` (dạng SemVer, prerelease không có `-` bên trong, không build metadata; `host-api.md` §6.14); một kiến trúc hai tệp; thiếu tệp cho một kiến trúc mà image được dựng |
 | `content[]` | gói nội dung **đóng chung** với bản cập nhật (D-36); chỉ là chỉ mục và băm để hiển thị/xác minh, tệp nằm trong image `core` |
@@ -154,20 +154,21 @@ sequenceDiagram
     H->>H: verify minisign(index, manifest) + revocation + cosign(images[].cosign)
     H->>G: pull ghcr.io/knt048/vedette-<service>@sha256:<digest>
     H-->>C: pulled
-    C->>H: container.start {service, version} (sensor/honeypot/scan trước)
     C->>C: chụp bản (snapshots/<id>)
-    C->>H: container.start {service: core, version, snapshot} (sau cùng)
+    C->>H: container.start {service: core, version, snapshot} (trước tiên, D-459)
     H->>H: backup pre_update, ghi unit, restart, health (≤ 120 s)
     alt khoẻ
         H-->>C: succeeded, bản cũ thành previous (N-1)
+        C->>H: core mới tiếp tục run: container.start {service, version} (sensor/honeypot/scan)
+        H->>H: health của sensor/scan = heartbeat được core mới nhận
         C->>C: ghi lịch sử
     else hỏng
         H->>H: tự đặt lại unit cũ (và DB nếu rollback.safe=false)
-        H-->>C: reverted (unit_failed)
+        H-->>C: reverted (unit_failed), không service nào khác đã đổi
     end
 ```
 
-Quy tắc: A/B theo **tag/digest** (D-55 thay "A/B slot binary" của D-12 bằng tag cũ); `core` luôn bị khởi động lại sau cùng và quá trình tiếp tục khi core lên lại nhờ host giữ trạng thái run (xem `host-api.md` §6 về `run` bền). Chỉ một lần cập nhật tại một thời điểm.
+Quy tắc: A/B theo **tag/digest** (D-55 thay "A/B slot binary" của D-12 bằng tag cũ); `core` được đổi **trước** các service khác (D-459: sensor/worker không bao giờ mới hơn `core`, `core` nhận proto của chúng và bản liền trước, `sensor-protocol.md` §10), quá trình tiếp tục khi `core` mới lên lại nhờ host giữ trạng thái run (xem `host-api.md` §6 về `run` bền) và chính `core` mới đổi các service còn lại. Một service hỏng sau đó tự quay về bản cũ, `core` ở lại bản mới (run `failed`, có lịch sử); Rollback đưa cả hộp về. Rollback đi ngược: service khác trước, `core` sau cùng. Chỉ một lần cập nhật tại một thời điểm.
 
 **Kiểu cài "Chỉ container"** (D-55: Docker/Podman sẵn có của khách, không có `vedette-host`): hộp **không tự cập nhật** image; Settings → Updates hiển thị bản mới, lệnh `pull`/`up` và hướng dẫn xác minh chữ ký (cosign) để khách chạy; không thao tác OS. Hạn chế ghi rõ trên GUI.
 

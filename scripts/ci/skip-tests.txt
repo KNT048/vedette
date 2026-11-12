@@ -23,7 +23,7 @@ slow	TestContract_Container_TheHealthWaitIs120SecondsOfLooks	modules/host	slow: 
 slow	TestUpdateRunEndThatCouldNotBeStoredIsSettledLater	modules/core	slow: 5 s wall time; daily run	2026-11-12
 slow	TestUpdateCoreSwitchRetriesWithANewSnapshot	modules/core	slow: 5 s wall time; daily run	2026-11-12
 slow	TestUpdatePullIsResentWithTheStoredRelease	modules/core	slow: 5 s wall time; daily run	2026-11-12
-slow	TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule	modules/core	slow: 5 s wall time; daily run	2026-11-12
+slow	TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule	modules/core	slow: 10 s wall time (two runs: before and after core's switch, D-459); daily run	2026-11-12
 slow	TestWazuh_AuthForbiddenUnreachable	modules/agent-intake	slow: 5 s wall time; daily run	2026-11-12
 slow	TestContract_INV2_OnlyTheServiceWritesInvTables	modules/inventory	slow: 5 s wall time; daily run	2026-11-12
 slow	TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstalls	modules/host	slow: 5 s wall time; daily run	2026-11-12

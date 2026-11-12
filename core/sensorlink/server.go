@@ -265,8 +265,8 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, NewError(CodeCertRetired))
 		return
 	}
-	// 2. protocol version
-	if r.Header.Get(ProtoHeader) != ProtoVersion {
+	// 2. protocol version: this one or the one before it, never a newer one (D-459)
+	if v := r.Header.Get(ProtoHeader); v != ProtoVersion && v != ProtoPrevious {
 		s.refuse(w, r, NewError(CodeProtoUnsupported))
 		return
 	}

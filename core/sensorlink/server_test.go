@@ -8,6 +8,8 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -116,12 +118,13 @@ func TestForbiddenRouteBeforeTheBody(t *testing.T) {
 	}
 }
 
-// D-109 (3): no X-Vedette-Proto, or another one, is 426; it is checked before the route.
+// D-109 (3), D-459: no X-Vedette-Proto, or one that is neither core's nor the one before it, is 426; it is checked before the
+// route. 5 is a sensor newer than core (never taken), 2 one two protocols behind.
 func TestProtoHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
 	p := r.good(t)
-	for _, v := range []string{"", "0", "1", "2", "3", "5", "1.0", "11"} { // 3: a sensor of before D-399
+	for _, v := range []string{"", "0", "1", "2", "5", "1.0", "11", "03", "4,3"} {
 		hdr := map[string]string{sensorlink.ProtoHeader: v}
 		if v == "" {
 			hdr[sensorlink.ProtoHeader] = "" // removes it
@@ -134,6 +137,48 @@ func TestProtoHeader(t *testing.T) {
 	got := mustCall(t, p, r.url(), "GET", "/sensor/v1/jobs", nil, map[string]string{sensorlink.ProtoHeader: "1"})
 	if got.status != 426 {
 		t.Errorf("a forbidden route with a wrong proto = %d, want 426 first (sensor-protocol section 7 order)", got.status)
+	}
+}
+
+// D-459: a sensor and a scan worker one protocol behind core are served: during an update core switches first, and a sensor
+// whose own switch went back stays one behind. A protocol-3 passive heartbeat has no capture_error (none, D-399).
+func TestProtoPreviousIsServed(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, rigOpt{})
+	pass, act := r.good(t), r.goodActive(t)
+	old := map[string]string{sensorlink.ProtoHeader: sensorlink.ProtoPrevious}
+	for _, c := range []struct {
+		name, method, path, body string
+		peer                     *peer
+		want                     int
+	}{
+		{"config", "GET", "/sensor/v1/config?wait=0", "", pass, 200},
+		{"observations", "POST", "/sensor/v1/observations", obsBody, pass, 200},
+		{"heartbeat passive without capture_error", "POST", "/sensor/v1/heartbeat", hbSpan, pass, 200},
+		{"jobs", "GET", "/sensor/v1/jobs?wait=0&running=", "", act, 200},
+		{"result", "POST", "/sensor/v1/jobs/" + jobID + "/result", resBody, act, 204},
+		{"heartbeat active", "POST", "/sensor/v1/heartbeat", hbActive, act, 200},
+	} {
+		var b []byte
+		if c.body != "" {
+			b = []byte(c.body)
+		}
+		if got := mustCall(t, c.peer, r.url(), c.method, c.path, b, old); got.status != c.want {
+			t.Errorf("%s at proto %s: status %d, want %d (%s)", c.name, sensorlink.ProtoPrevious, got.status, c.want, got.body)
+		}
+	}
+	if calls := r.be.Calls(); !slices.Contains(calls, "heartbeat.passive") || !slices.Contains(calls, "result") {
+		t.Errorf("backend calls = %v", calls)
+	}
+}
+
+// D-459: the protocol core still takes is exactly the one before its own, so a bump that forgets ProtoPrevious fails here.
+func TestProtoPreviousIsOneBelow(t *testing.T) {
+	t.Parallel()
+	cur, err1 := strconv.Atoi(sensorlink.ProtoVersion)
+	prev, err2 := strconv.Atoi(sensorlink.ProtoPrevious)
+	if err1 != nil || err2 != nil || prev != cur-1 || strconv.Itoa(prev) != sensorlink.ProtoPrevious {
+		t.Errorf("ProtoVersion %q, ProtoPrevious %q: want the previous integer", sensorlink.ProtoVersion, sensorlink.ProtoPrevious)
 	}
 }
 

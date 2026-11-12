@@ -174,7 +174,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		return nil, cfgErr("secret_required", "Enter the webhook signing key.")
 	}
 	if len(cfg.SigningKey.Reveal()) < minSigningKey {
-		return nil, cfgErr("bad_secret", "The signing key needs at least 16 characters. Press Generate if you want a random one.")
+		return nil, cfgErr("bad_secret", "The signing key needs at least 16 characters. Press Generate random if you want a random one.")
 	}
 	if !known { // every field is fine, but the target cannot be checked against the box's own addresses yet
 		return nil, ErrBoxAddrsUnknown

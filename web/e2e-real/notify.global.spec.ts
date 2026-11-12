@@ -5,7 +5,7 @@
 // cannot point at loopback (D-86), so the webhook is only saved, turned off. The one real send is an email channel to a closed port on loopback (INV-8 allows an internal SMTP host).
 // What this file cannot prove (a delivered message, a Telegram button press, the delivery of an approval request to a channel) needs a seam: see .ai/deferred/feat-e2e-real-notify.md.
 // Approval DELIVERY is not covered: only the validation of approver lists is (INV-7).
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Request } from '@playwright/test'
 import { ACCOUNTS, api, authFile } from './box'
 import { as, auditHasNo, auditIds, chanRow, closedPort, ERR_UNREACHABLE, getChannels, getHistory, historyMeta, newAudit, ownAddress, quietSummary, refused, TYPES, testedText, watch5xx, type Ch, type ChannelType, type Hist, type Rules } from './notify-shared'
 import { seed, startFeedServer, stopFeedServer, sweep as sweepDevices } from './findings-seed'
@@ -89,14 +89,32 @@ async function saveOk(page: Page, d: ReturnType<typeof dialog>, type: ChannelTyp
   noSecretIn(text, `PUT ${type}`)
   return JSON.parse(text) as Ch
 }
-/** A Save in the open dialog that the box refuses: the dialog stays open and says why at the top. */
-async function saveRefused(page: Page, d: ReturnType<typeof dialog>, type: ChannelType, code: string, message: string) {
+/** The field with this label is marked wrong and its error is read with it (aria-invalid, aria-describedby). */
+const fieldErrorOf = async (d: ReturnType<typeof dialog>, label: string, text: string) => {
+  const f = d.getByLabel(label, { exact: true })
+  await expect(f).toHaveAttribute('aria-invalid', 'true')
+  await expect(f).toHaveAccessibleDescription(text)
+}
+/** A Save in the open dialog that the box refuses: the dialog stays open and says why at the top, or under `field` when the code names one. */
+async function saveRefused(page: Page, d: ReturnType<typeof dialog>, type: ChannelType, code: string, message: string, field?: string) {
   const [res] = await Promise.all([putOf(page, type), saveBtn(d).click()])
   expect(res.status(), `PUT ${type}`).toBe(400)
   const text = await res.text()
   noSecretIn(text, `refused PUT ${type}`)
   expect(JSON.parse(text)).toMatchObject({ error: { code, message } })
-  await alertOf(d, message)
+  if (field) await fieldErrorOf(d, field, message)
+  else await alertOf(d, message)
+}
+/** A Save the form refuses before sending (walk 2): every wrong field shows its error at once and no PUT leaves the page. */
+async function formRefused(page: Page, d: ReturnType<typeof dialog>, type: ChannelType, errors: Record<string, string>) {
+  let puts = 0
+  const count = (r: Request) => { if (r.method() === 'PUT' && r.url().endsWith(`/api/v1/notify/channels/${type}`)) puts++ }
+  page.on('request', count)
+  try {
+    await saveBtn(d).click()
+    for (const [label, text] of Object.entries(errors)) await fieldErrorOf(d, label, text)
+  } finally { page.off('request', count) }
+  expect(puts, `a PUT ${type} was sent`).toBe(0)
 }
 /** Nothing of the secret is shown by the page, the API or the audit log (INV-1, SYS-4): only its last 4 characters. */
 async function noEcho(page: Page, secret: string) {
@@ -304,16 +322,17 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await sw(d).click()
       const url = d.getByLabel('Webhook URL', { exact: true })
       const key = d.getByLabel('Signing key', { exact: true })
+      const SHORT = 'The signing key needs at least 16 characters. Press Generate random if you want a random one.'
       await url.fill('not a url')
-      await saveRefused(page, d, 'webhook', 'bad_url', BAD)
-      await url.fill('http://127.0.0.1:8444/hook')
-      await saveRefused(page, d, 'webhook', 'bad_url', BLOCKED)
+      await formRefused(page, d, 'webhook', { 'Webhook URL': BAD, 'Signing key': 'Enter the webhook signing key.' })
       await url.fill('http://hooks.e2e.invalid/vedette')
-      await saveRefused(page, d, 'webhook', 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
-      await url.fill('https://hooks.e2e.invalid/vedette')
-      await saveRefused(page, d, 'webhook', 'secret_required', 'Enter the webhook signing key.')
       await key.fill('abc')
-      await saveRefused(page, d, 'webhook', 'bad_secret', 'The signing key needs at least 16 characters. Press Generate if you want a random one.')
+      await formRefused(page, d, 'webhook', { 'Webhook URL': 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.', 'Signing key': SHORT })
+      // an address on this machine passes the form's checks: the box refuses it, under the URL field
+      await url.fill('http://127.0.0.1:8444/hook')
+      await key.fill('abcdefghijklmnop')
+      await saveRefused(page, d, 'webhook', 'bad_url', BLOCKED, 'Webhook URL')
+      await url.fill('https://hooks.e2e.invalid/vedette')
       await d.getByRole('button', { name: 'Generate random', exact: true }).click()
       const generated = await key.inputValue()
       generatedKeys.push(generated)
@@ -330,7 +349,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const e = dialog(page)
       await expect(e.getByLabel('Signing key', { exact: true }), 'the saved key is not put back in the form').toHaveValue('')
       await e.getByLabel('Webhook URL', { exact: true }).fill('https://localhost/hook')
-      await saveRefused(page, e, 'webhook', 'bad_url', BLOCKED)
+      await saveRefused(page, e, 'webhook', 'bad_url', BLOCKED, 'Webhook URL')
       expect(await channel('webhook')).toEqual(saved)
       await page.keyboard.press('Escape')
 

@@ -198,7 +198,7 @@
     "url": "Webhook URL",
     "urlHint": "The box sends a POST with a JSON body to this address.",
     "secret": "Signing key (optional)",
-    "secretHint": "Used to sign the body with HMAC-SHA256 in the X-Vedette-Signature header. At least 16 characters.",
+    "secretHint": "Each request then carries X-Vedette-Timestamp (Unix seconds) and X-Vedette-Signature (sha256=<hex>): HMAC-SHA256 with this key over the timestamp, a dot and the raw body. At least 16 characters.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
     "generate": "Generate random",
     "events": "Events to forward",

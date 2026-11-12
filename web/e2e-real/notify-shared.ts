@@ -54,7 +54,7 @@ export function quietSummary(q: Quiet): string | null {
 }
 /** The line over the History table (history.meta*), from the count of vulnerabilities that matched no device. */
 export function historyMeta(s: { count: number; days: number }): string {
-  if (s.count === 0) return `Vedette only alerts for products you own. Every new vulnerability in the last ${s.days} days already has a notice.`
+  if (s.count === 0) return `Vedette only alerts for products you own. In the last ${s.days} days no new vulnerability was skipped for matching none of your devices.`
   if (s.count === 1) return `Vedette only alerts for products you own. 1 new vulnerability in the last ${s.days} days matches none of your devices, so nothing was sent.`
   return `Vedette only alerts for products you own. ${s.count} new vulnerabilities in the last ${s.days} days match none of your devices, so nothing was sent.`
 }

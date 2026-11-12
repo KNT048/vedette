@@ -193,6 +193,13 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').length).toBe(before + 1))
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
   })
+
+  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves', async () => {
+    server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], suppressed: { count: 0, days: 7 } })))
+    renderChannels()
+    expect(await screen.findByText('Vedette only alerts for products you own. In the last 7 days no new vulnerability was skipped for matching none of your devices.')).toBeInTheDocument()
+    expect(screen.queryByText(/already has a notice/)).toBeNull()
+  })
 })
 
 describe('notify: retention is published (D-160, D-215)', () => {
@@ -307,6 +314,52 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect((await screen.findAllByText(/Could not connect to hooks\.khong-co\.invalid/)).length).toBeGreaterThan(0)
     await press('Send test Webhook')
     expect(await screen.findByText(/Tested .*: failed/)).toBeInTheDocument()
+  })
+
+  it('webhook (walk 2): the help names both signed headers; a bad URL and a short key show at once, each under its field, before anything is sent', async () => {
+    let puts = 0
+    server.use(http.put('*/api/v1/notify/channels/webhook', () => { puts++ })) // counts, then falls through to the mock
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    const url = within(dlg).getByLabelText('Webhook URL')
+    const key = within(dlg).getByLabelText('Signing key')
+    expect(key).toHaveAccessibleDescription(/X-Vedette-Timestamp .*X-Vedette-Signature \(sha256=<hex>\)\. The hex is HMAC-SHA256 with this key over the timestamp, a dot and the raw body/)
+    await userEvent.click(url)
+    await userEvent.paste('http://example.com/hook')
+    await userEvent.click(key)
+    await userEvent.paste('short')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(url).toHaveAttribute('aria-invalid', 'true')
+    expect(url).toHaveAccessibleDescription('Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
+    expect(key).toHaveAttribute('aria-invalid', 'true')
+    expect(key).toHaveAccessibleDescription('The signing key needs at least 16 characters. Press Generate random if you want a random one.')
+    expect(within(dlg).queryByRole('alert')).toBeNull()
+    expect(puts).toBe(0)
+    await userEvent.type(url, 's', { initialSelectionStart: 4, initialSelectionEnd: 4 }) // http -> https
+    expect(url).not.toHaveAttribute('aria-invalid')
+    expect(key).toHaveAttribute('aria-invalid', 'true')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    expect(key).not.toHaveAttribute('aria-invalid')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect((await screen.findAllByText('Channel Webhook saved.')).length).toBeGreaterThan(0)
+    expect(puts).toBe(1)
+  })
+
+  it('webhook: a URL the box refuses (bad_url) shows under the URL field, not at the top', async () => {
+    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+    server.use(http.put('*/api/v1/notify/channels/webhook', () => HttpResponse.json({ error: { code: 'bad_url', message: BLOCKED } }, { status: 400 })))
+    renderChannels()
+    await press('Set up Webhook')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    const url = within(dlg).getByLabelText('Webhook URL')
+    await userEvent.click(url)
+    await userEvent.paste('http://127.0.0.1/h')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(url).toHaveAccessibleDescription(BLOCKED))
+    expect(url).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dlg).queryByRole('alert')).toBeNull()
   })
 
   it('webhook URL is a secret (SYS-4): only scheme://host/… and its last 4 characters come back, and an empty URL keeps it', async () => {

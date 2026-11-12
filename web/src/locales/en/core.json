@@ -282,7 +282,9 @@
         "settings": "Change update settings",
         "check": "Check for updates",
         "apply": "Install update",
+        "apply_done": "Software update finished",
         "rollback": "Roll back",
+        "rollback_done": "Roll back finished",
         "bundle_export": "Export bundle",
         "bundle_import": "Import bundle"
       },

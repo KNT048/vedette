@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/modules"
 )
@@ -307,20 +309,120 @@ func TestModuleContainerDoesNotSkipAUnitTheHostDoesNotTrust(t *testing.T) {
 	}
 }
 
-// MED-4: a unit state the host cannot name ("unknown") is never taken for running: the module is on, the container is down,
-// the start goes out.
-func TestModuleContainerStartsWhenTheUnitStateIsUnknown(t *testing.T) {
+// MED-4, and the lab of 2026-11-12: a unit state the host cannot name ("unknown") is never taken for running, and never for
+// down either. ensureOn returns an error (the OnGuard reads again after its backoff) and sends no write: a start of a running
+// container that the host does not see healthy restarts it. Once systemd answers again, the guard acts on what it says.
+func TestModuleContainerRetriesWhenTheUnitStateIsUnknown(t *testing.T) {
 	t.Parallel()
 	e := startHPHost(t, false)
 	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
-	e.m.Rule("systemctl", "is-active vedette-sensor", "weird\n", 3, "weird-state", "")
-	e.m.Mark("weird-state", true)
+	// While the marker is set, is-active prints a word systemd never prints: the host says "unknown".
+	e.m.RuleText("systemctl", "is-active vedette-sensor", "weird\n", 0, "weird-state", "")
 	reg := &flagReg{}
 	reg.on.Store(true)
 	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
-	before := e.writes()
-	_ = f.ensureOn(t.Context()) // the fake keeps printing "weird", so the host may not see it settle; what matters is that it tried
-	if e.writes() == before {
-		t.Fatal("ensureOn sent no write for a unit whose state is unknown")
+	ctx := t.Context()
+	if err := f.ensureOn(ctx); err != nil { // the first start
+		t.Fatal(err)
+	}
+	e.m.SetHealth(api.ServiceSensor, "unhealthy") // as the sensor is while core, which takes its heartbeats, is down
+	e.m.Mark("weird-state", true)
+	restarts, runs := e.systemctl("restart"), e.writes()
+	if err := f.ensureOn(ctx); err == nil || !strings.Contains(err.Error(), "unknown") {
+		t.Fatalf("ensureOn with the unit state unknown: %v, want an error to retry", err)
+	}
+	if e.writes() != runs || e.systemctl("restart") != restarts {
+		t.Fatalf("ensureOn wrote for a unit whose state is unknown: %d writes, %d restarts", e.writes()-runs, e.systemctl("restart")-restarts)
+	}
+	e.m.Mark("weird-state", false) // systemd answers again: active, so nothing to do whatever the health
+	if err := f.ensureOn(ctx); err != nil || e.writes() != runs {
+		t.Fatalf("ensureOn once the unit reads active: %v, %d writes", err, e.writes()-runs)
+	}
+}
+
+// The lab of 2026-11-12 (ubuntu2404): during an update core is restarted by a host run and core's start reads the host
+// heavily; a read of the state that fails must not become a start, since the host restarts a running sensor it does not see
+// healthy. Here the read is refused rate_limited by the host's real budget (60 requests a minute for all of core, on a clock
+// that does not move): ensureOn returns the error for the guard to retry and sends nothing.
+func TestModuleContainerDoesNotStartOnAFailedRead(t *testing.T) {
+	t.Parallel()
+	e := startHPHostWith(t, false, true, 0)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true)
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	ctx := t.Context()
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.m.SetHealth(api.ServiceSensor, "unhealthy")
+	for i := 0; ; i++ { // spend the rest of the minute's budget
+		_, err := e.h.Client.StateContainers(ctx)
+		var he *hostclient.Error
+		if errors.As(err, &he) && he.Code == api.CodeRateLimited {
+			break
+		}
+		if i > 60 {
+			t.Fatalf("the host never limited the reads: %v", err)
+		}
+	}
+	restarts, runs := e.systemctl("restart"), e.writes()
+	err := f.ensureOn(ctx)
+	var he *hostclient.Error
+	if !errors.As(err, &he) || he.Code != api.CodeRateLimited {
+		t.Fatalf("ensureOn on a refused read: %v, want the rate_limited error to retry", err)
+	}
+	if e.writes() != runs || e.systemctl("restart") != restarts {
+		t.Fatalf("ensureOn wrote on a failed read: %d writes, %d restarts", e.writes()-runs, e.systemctl("restart")-restarts)
+	}
+}
+
+// The start goes out only on what the host positively says, and the log says which field called for it: a unit that is
+// down, one without [Install], one the host does not call its own. A unit that runs, healthy or not, is left alone.
+func TestModuleContainerStartsOnlyOnWhatTheHostSays(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
+	reg := &flagReg{}
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	var logs syncBuffer
+	f.h.log = slog.New(slog.NewTextHandler(&logs, nil))
+	ctx := t.Context()
+	logged := func(reason string) bool {
+		return strings.Contains(logs.String(), "level=WARN") && strings.Contains(logs.String(), `reason="`+reason+`"`)
+	}
+
+	reg.on.Store(true)
+	runs := e.writes()
+	if err := f.ensureOn(ctx); err != nil || e.writes() == runs || !logged("unit_state=inactive") {
+		t.Fatalf("inactive: %v, %d writes, log %q", err, e.writes()-runs, logs.String())
+	}
+
+	e.m.SetHealth(api.ServiceSensor, "unhealthy")
+	runs = e.writes()
+	if err := f.ensureOn(ctx); err != nil || e.writes() != runs {
+		t.Fatalf("active and unhealthy: %v, %d writes", err, e.writes()-runs)
+	}
+	e.m.SetHealth(api.ServiceSensor, "healthy")
+
+	reg.on.Store(false)
+	if err := f.ensureOff(ctx); err != nil { // stopped, [Install] dropped
+		t.Fatal(err)
+	}
+	reg.on.Store(true)
+	runs = e.writes()
+	if err := f.ensureOn(ctx); err != nil || e.writes() == runs || !logged("enabled=false") || !e.hasInstall(t, api.ServiceSensor) {
+		t.Fatalf("without [Install]: %v, %d writes, log %q", err, e.writes()-runs, logs.String())
+	}
+
+	text, err := e.m.Unit(api.ServiceSensor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-sensor.container"), []byte(text+"# edited by hand\n"), 0o644); err != nil { //nolint:gosec // a unit file of the fake root, 0644 like the real ones
+		t.Fatal(err)
+	}
+	if err := f.ensureOn(ctx); err == nil || !logged("installed=false") { // sent, refused unit_unsafe: an error to retry
+		t.Fatalf("a unit the host does not trust: %v, log %q", err, logs.String())
 	}
 }

@@ -38,6 +38,9 @@ type IndexParams struct {
 	ValidFor time.Duration // expires_at = generated_at + ValidFor; 0 = 14 days, the maximum
 	Sequence uint64        // 0 = the previous sequence + 1 (1 for the first index)
 	Rollout  int           // percent for the channel of a new manifest; -1 = unset (100)
+	// MinSequence is the floor compiled into the vedette-host of this release (MIN_SEQUENCE, the sequence of the index current at
+	// build time): the new index must be numbered above it, or boxes running that host would refuse it. 0 = none.
+	MinSequence uint64
 
 	Channel         string // channel of the manifest
 	ManifestVersion string // empty: no new manifest
@@ -105,12 +108,18 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	if x.Sequence <= prevSeq {
 		return nil, fmt.Errorf("sequence %d is not above the previous index's %d", x.Sequence, prevSeq)
 	}
+	if x.Sequence <= p.MinSequence {
+		return nil, fmt.Errorf("sequence %d is not above %d, the floor (MIN_SEQUENCE) compiled into this release's vedette-host", x.Sequence, p.MinSequence)
+	}
 	// A box never accepts a lower sequence than it stored, so a typo that jumps ahead strands every box until the next signed index
 	// is numbered above it: a bigger step than a few weeks of refreshes is refused.
 	if x.Sequence > prevSeq+maxSequenceJump {
 		return nil, fmt.Errorf("sequence %d is more than %d above the previous index's %d; a box could never accept a lower one again", x.Sequence, maxSequenceJump, prevSeq)
 	}
 	if p.ManifestVersion != "" {
+		if err := refuseTestVersion(p.ManifestVersion); err != nil {
+			return nil, err
+		}
 		if _, err := release.CompareVersions(p.ManifestVersion, p.ManifestVersion); err != nil {
 			return nil, fmt.Errorf("manifest version %q is not SemVer", p.ManifestVersion)
 		}

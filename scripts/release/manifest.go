@@ -105,6 +105,9 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	if _, err := release.CompareVersions(in.Version, in.Version); err != nil {
 		return res, fmt.Errorf("version %q is not SemVer (no v, no build metadata)", in.Version)
 	}
+	if err := refuseTestVersion(in.Version); err != nil {
+		return res, err
+	}
 	if in.Channel != "stable" && in.Channel != "beta" {
 		return res, fmt.Errorf("channel must be stable or beta, got %q", in.Channel)
 	}
@@ -220,6 +223,16 @@ func (e *GuardError) Error() string {
 		b.WriteString("  - " + f.String() + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// refuseTestVersion refuses a version with a -test. prerelease: that is the version of the test release install.sh --test-artifacts
+// installs (D-166 (11)); a published release must never look like one, and install.sh refuses it on its side too.
+func refuseTestVersion(v string) error {
+	// install.sh's rule (`*-test.*`) so that no version the builder accepts is one install.sh would then refuse; a -test suffix too.
+	if l := strings.ToLower(v); strings.Contains(l, "-test.") || strings.HasSuffix(l, "-test") {
+		return fmt.Errorf("version %q has a -test. prerelease: that is a test version (install.sh --test-artifacts), never a release", v)
+	}
+	return nil
 }
 
 func orEmpty[T any](s []T) []T {

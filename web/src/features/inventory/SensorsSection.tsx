@@ -7,8 +7,9 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { Field, Select } from '@/components/ui/input'
+import { Field, Label, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useSensorCard, useSensors } from './api'
@@ -50,16 +51,21 @@ function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void
   )
 }
 
-/** Container-only install (S-CORE-8 G6, D-387): no host to ask, so the SPAN card is chosen among the cards the sensor reported
- *  in its heartbeat; the customer prepares the card on the machine. No card yet: say how to start the sensor, no Save. */
+/** Container-only install (S-CORE-8 G6, D-387, D-393): no host to ask, so the card is chosen among the cards the sensor reported
+ *  in its heartbeat, with or without an address, and SPAN is a separate tick; the customer prepares the card on the machine.
+ *  "Automatic" is the default card (D-380); `chosen` tells a stored choice from it. No card yet: say how to start the sensor, no Save. */
 function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const save = useSensorCard(sensor.id)
-  const current = sensor.span ? (sensor.interface ?? '') : ''
+  const current = sensor.chosen ? (sensor.interface ?? '') : ''
   const [card, setCard] = useState(current)
+  const [span, setSpan] = useState(sensor.chosen && sensor.span)
   const [error, setError] = useState<string | null>(null)
-  // The saved SPAN card may be missing from the last heartbeat (unplugged, renamed): keep it as an option so it can be changed.
+  // The saved card may be missing from the last heartbeat (unplugged, renamed): keep it as an option so it can be changed.
   const cards = current && !sensor.interfaces.includes(current) ? [current, ...sensor.interfaces] : sensor.interfaces
+  // What "Automatic" gives now: known only while nothing is chosen (then `interface` is the default card, D-380).
+  const autoLabel = sensor.chosen ? t('sensors.card.autoChosen') : sensor.interface ? t('sensors.card.auto', { name: sensor.interface }) : t('sensors.card.autoNone')
+  const unchanged = card === current && (card !== '' && span) === (sensor.chosen && sensor.span)
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}>
@@ -73,20 +79,27 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
           ) : (
             <form className="grid gap-4" noValidate onSubmit={(e) => {
               e.preventDefault(); setError(null)
-              save.mutate({ interface: card || null, span: card !== '' }, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => setError(errMsg(er)) })
+              save.mutate({ interface: card || null, span: card !== '' && span }, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => setError(errMsg(er)) })
             }}>
               {!sensor.interface ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.notListening')}</p> : null}
-              <Field label={t('sensors.card.label')} htmlFor="sensor-span-card" hint={t('sensors.card.hint')} className="max-w-sm">
-                <Select id="sensor-span-card" value={card} onChange={(e) => { setCard(e.target.value); setError(null) }}>
-                  <option value="">{t('sensors.card.noSpan')}</option>
+              <Field label={t('sensors.card.label')} htmlFor="sensor-card" hint={t('sensors.card.hint')} className="max-w-sm">
+                <Select id="sensor-card" value={card} onChange={(e) => { setCard(e.target.value); setSpan(false); setError(null) }}>
+                  <option value="">{autoLabel}</option>
                   {cards.map((n) => <option key={n} value={n}>{sensor.interfaces.includes(n) ? n : t('sensors.card.notReported', { name: n })}</option>)}
                 </Select>
               </Field>
+              <div className="grid gap-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === ''} onCheckedChange={(v) => { setSpan(v === true); setError(null) }} aria-describedby="sensor-span-hint" />
+                  <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
+                </div>
+                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{t('sensors.card.spanHint')}</p>
+              </div>
               <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
               {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-                <Button type="submit" variant="primary" disabled={card === current || save.isPending}>{t('common:save')}</Button>
+                <Button type="submit" variant="primary" disabled={unchanged || save.isPending}>{t('common:save')}</Button>
               </DialogFooter>
             </form>
           )}
@@ -127,7 +140,8 @@ export function SensorsSection() {
         </QueryState>
       </RequireModule>
       {config ? (install === 'container'
-        ? <CardDialog key={config.id} sensor={config} onClose={() => setConfigId(null)} />
+        // Keyed on the stored choice: a change saved elsewhere while the dialog is open starts the form again from it.
+        ? <CardDialog key={`${config.id}:${config.chosen ? config.interface : ''}:${config.span}`} sensor={config} onClose={() => setConfigId(null)} />
         : <StatusDialog key={config.id} sensor={config} onClose={() => setConfigId(null)} />) : null}
     </Section>
   )

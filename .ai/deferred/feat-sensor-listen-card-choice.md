@@ -1,0 +1,3 @@
+# Deferred — feat/sensor-listen-card-choice (M3, D-393)
+
+- [ ] 2026-11-13 — (Opus r2 LOW) A machine whose address sits on a bridge or bond (`br0` of KVM/Proxmox, `bond0`) has its only addressed link classed as virtual by `sensorlink.VirtualIfaceName` (sensor and core): never the default, never listed; the workaround is choosing the physical port under it without SPAN (D-393 (6), CONTRACT INV-9). Exempting `^br[0-9]`/`^bond[0-9]` changes Box network too — vì sao để sau: not a regression, needs a decision for both installs — ở đâu: `core/sensorlink/wire.go` (`virtualRE`), `modules/core/handlers_network.go` (`cardsOf`), `cmd/vedette-sensor/passive.go` (`osInterfaces`)

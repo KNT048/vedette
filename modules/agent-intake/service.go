@@ -64,7 +64,7 @@ type Service struct {
 	wazuhRoots  *x509.CertPool // nil: the system's (tests replace it)
 	wazuhSleep  func(ctx context.Context, d time.Duration) error
 	wazuhPace   time.Duration
-	wazuhBudget time.Duration // one pull's time (wazuhPullBudget; tests shorten it)
+	wazuhBudget func(ctx context.Context) (context.Context, context.CancelFunc) // one pull's time (wazuhPullBudget; tests end it themselves)
 
 	pruneMu   sync.Mutex
 	pruneLast time.Time // the previous node-prune run; a long gap means the module was off (or the box down)
@@ -85,7 +85,10 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{cfg: cfg, db: cfg.DB, lastWarn: map[string]time.Time{}, replaced: map[string]*replaceState{}}
 	s.fail = newFailLimiter(s.now)
 	s.node = newNodeLimiter(s.now)
-	s.wazuhSleep, s.wazuhPace, s.wazuhBudget = sleepCtx, wazuhPace, wazuhPullBudget
+	s.wazuhSleep, s.wazuhPace = sleepCtx, wazuhPace
+	s.wazuhBudget = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return context.WithTimeout(ctx, wazuhPullBudget)
+	}
 	return s, nil
 }
 

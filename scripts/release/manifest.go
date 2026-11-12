@@ -97,7 +97,10 @@ var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 //   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest;
 //   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
 //     migration since that release is add-only (D-183, D-164: the whole span a box may roll back across, not one step);
-//   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file.
+//   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file;
+//   - no host part, or a host part whose version is not the release's, has -test., or a file not named
+//     vedette-host_<host.version>_<amd64|arm64>.deb (no "-" inside the prerelease), or no file for an architecture of the images
+//     (buildHostPart; D-316 and its 2026-11-12 amendment).
 //
 // The result is then signed and checked by the verifier of internal/release (`release sign`, `release verify`).
 func BuildManifest(in Inputs, env Env) (Result, error) {
@@ -184,17 +187,14 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 			Platforms: im.Platforms, Cosign: cos,
 		})
 	}
-	if in.Host != nil {
-		h := &release.HostPart{Version: in.Host.Version, Files: []release.HostFile{}}
-		for _, p := range in.Host.Files {
-			sum, size, err := hashFile(p)
-			if err != nil {
-				return res, fmt.Errorf("host file: %w", err)
-			}
-			h.Files = append(h.Files, release.HostFile{Name: filepath.Base(p), SHA256: sum, Size: size})
-		}
-		m.Host = h
+	if in.Host == nil {
+		return res, errors.New("a release needs its host part: install.sh installs vedette-host_<version>_<arch>.deb of every release (D-316)")
 	}
+	h, err := buildHostPart(*in.Host, in.Version, in.Images)
+	if err != nil {
+		return res, err
+	}
+	m.Host = h
 	if in.SBOM != nil {
 		sum, _, err := hashFile(in.SBOM.File)
 		if err != nil {
@@ -211,6 +211,50 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	}
 	res.Manifest = b
 	return res, nil
+}
+
+// buildHostPart hashes the vedette-host packages (D-316, host-api 6.14). It refuses a version other than the release's (install.sh
+// installs vedette-host_<release version>, so a fresh install and a self-update stay in step), a -test. version, a file whose name is not
+// release.HostPackageName(host.version, amd64|arm64) (the one name rule: SemVer form, no "-" inside the prerelease, no build
+// metadata), a file listed twice, and a missing file for an architecture an image is built for: install.sh downloads and the
+// host keeps exactly that name, so a release that breaks it could not be installed or updated on that box.
+func buildHostPart(in HostIn, version string, images []ImageIn) (*release.HostPart, error) {
+	if in.Version != version {
+		return nil, fmt.Errorf("host.version %q is not the release version %q: install.sh installs vedette-host_%s_<arch>.deb of this release", in.Version, version, version)
+	}
+	if err := refuseTestVersion(in.Version); err != nil {
+		return nil, fmt.Errorf("host: %w", err)
+	}
+	if _, _, ok := release.ParseHostPackageName(release.HostPackageName(in.Version, "amd64")); !ok {
+		return nil, fmt.Errorf("host.version %q cannot name a host package: SemVer with a prerelease of letters, digits and dots only (no \"-\" inside it), no build metadata", in.Version)
+	}
+	h := &release.HostPart{Version: in.Version, Files: []release.HostFile{}}
+	have := map[string]bool{}
+	for _, p := range in.Files {
+		name := filepath.Base(p)
+		v, arch, ok := release.ParseHostPackageName(name)
+		if !ok || v != in.Version {
+			return nil, fmt.Errorf("host file %q: the name must be vedette-host_%s_<amd64|arm64>.deb", name, in.Version)
+		}
+		if have[arch] {
+			return nil, fmt.Errorf("host file for %s is listed twice", arch)
+		}
+		have[arch] = true
+		sum, size, err := hashFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("host file: %w", err)
+		}
+		h.Files = append(h.Files, release.HostFile{Name: name, SHA256: sum, Size: size})
+	}
+	for _, im := range images {
+		for _, pl := range im.Platforms {
+			// linux/<arch>[/<variant>]
+			if parts := strings.Split(pl, "/"); len(parts) >= 2 && !have[parts[1]] {
+				return nil, fmt.Errorf("image %s is built for %s but the host part has no vedette-host_%s_%s.deb", im.Service, pl, in.Version, parts[1])
+			}
+		}
+	}
+	return h, nil
 }
 
 // GuardError is the D-183 refusal: the reasons the migrations are not add-only.

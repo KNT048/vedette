@@ -9,7 +9,8 @@
 #   2. installs the packages Vedette needs that are MISSING (podman, chrony, netplan.io, nftables, ...) with apt, never upgrading
 #      a package that is already there
 #   3. downloads the vedette-host .deb of THIS release, checks its sha256 against the value written into this script by the
-#      release job, and installs it (the package makes the users, folders and the unit)
+#      release job, keeps it as /var/lib/vedette-host/selfupdate/packages/vedette-host_<version>_<arch>.deb (vedette-host goes
+#      back to it when a later self-update fails, D-316) and installs it (the package makes the users, folders and the unit)
 #   4. writes /etc/vedette/host.conf from the users' real ids and the network of the containers (chrony's own configuration is
 #      left as it is)
 #   5. optional, only with --network-handover and only when netplan holds nothing but one DHCP wired card: gives netplan to
@@ -172,6 +173,17 @@ port_listening() { ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\
 
 installed_pkg() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
 
+# host_version_ok <version>: the one name rule of a host package (host-api 6.14, D-316; release.ParseHostPackageName in Go, a test
+# keeps the two the same): SemVer of at most 64 characters, no build metadata, and a prerelease of at most 32 characters made of
+# dot-separated identifiers with no "-" inside, so that the Debian version (its first "-" turned into "~") is exact
+host_version_ok() {
+	case $1 in *[!0-9A-Za-z.-]* | '') return 1 ;; esac
+	[ ${#1} -le 64 ] || return 1
+	_pre=${1#*-}
+	[ "$_pre" = "$1" ] || [ ${#_pre} -le 32 ] || return 1
+	printf '%s\n' "$1" | grep -Eqx '(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z][0-9A-Za-z]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z][0-9A-Za-z]*))*)?'
+}
+
 # needrestart (Ubuntu) must only list, never restart a service behind the administrator's back
 apt_run() {
 	DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1 apt-get -o DPkg::Lock::Timeout=180 -o Dpkg::Options::=--force-confold -y -q "$@"
@@ -208,6 +220,7 @@ prepare_test() {
 	RELEASE=$(kv VERSION "$ART/test-channel.env")
 	SERVICES=$(kv SERVICES "$ART/test-channel.env")
 	case $RELEASE in *-test.*) ;; *) die "the test release '$RELEASE' has no -test. prerelease: refusing (a test release must never look like a real one)" ;; esac
+	host_version_ok "$RELEASE" || die "the test release '$RELEASE' cannot name a host package (SemVer, a prerelease of letters, digits and dots only): refusing"
 	[ "$(kv ARCH "$ART/test-channel.env")" = "$ARCH" ] || die "the artifacts are for $(kv ARCH "$ART/test-channel.env"), this machine is $ARCH"
 	[ -f "$TEST_DIR/vedette-host_${RELEASE}_${ARCH}.deb" ] || die "no vedette-host_${RELEASE}_${ARCH}.deb in $TEST_DIR"
 	cp "$TEST_DIR/vedette-host_${RELEASE}_${ARCH}.deb" "$ART/"
@@ -273,9 +286,18 @@ preflight() {
 	else
 		[ -n "$VEDETTE_VERSION" ] || die "this install.sh is not tied to a release: its version and package checksum are empty. Download install.sh from a Vedette release page (${REPO_URL}/releases). Nothing was changed."
 		case $VEDETTE_VERSION in *-test.*) die "release $VEDETTE_VERSION has a -test. prerelease: that is a test version, never a release" ;; esac
+		host_version_ok "$VEDETTE_VERSION" || die "release '$VEDETTE_VERSION' cannot name a host package (SemVer, a prerelease of letters, digits and dots only). Nothing was changed."
 		case $ARCH in amd64) DEB_SUM=$VEDETTE_DEB_SHA256_AMD64 ;; arm64) DEB_SUM=$VEDETTE_DEB_SHA256_ARM64 ;; esac
 		printf '%s' "$DEB_SUM" | grep -Eq '^[0-9a-f]{64}$' || die "this install.sh has no package checksum for $ARCH. Nothing was changed."
 	fi
+	# a self-update of vedette-host under way (D-316) owns the package until it ends: installing over it would race its applier
+	if [ -e "$HOST_STATE/selfupdate/journal.json" ]; then
+		die "a self-update of vedette-host is under way or stopped half way ($HOST_STATE/selfupdate/journal.json): wait for it to end, or follow docs/RUNBOOK.md if it does not. Nothing was changed."
+	fi
+	case $(systemctl is-active vedette-host-upgrade.service 2>/dev/null || true) in
+	inactive | failed | unknown | '') ;;
+	*) die "a self-update of vedette-host is running (vedette-host-upgrade.service): wait for it to end. Nothing was changed." ;;
+	esac
 	# the last step before the first change: from here on a re-run repairs instead of refusing (H1 of review 1)
 	[ -s "$STATE/owner" ] || printf 'channel=%s\n' "$WANT" >"$STATE/owner"
 	say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443 and 8444 free"
@@ -373,7 +395,8 @@ install_deb() {
 		[ "$got" = "$DEB_SUM" ] || die "the package checksum is $got, this script expects $DEB_SUM: refusing to install it"
 	fi
 	[ -s "$DEB" ] || die "no package at $DEB"
-	# dpkg writes a SemVer prerelease with a tilde (0.1.0-beta.1 is 0.1.0~beta.1); the asset keeps the SemVer name
+	# dpkg writes a SemVer prerelease with a tilde (0.1.0-beta.1 is 0.1.0~beta.1); the asset keeps the SemVer name. Exact, because
+	# host_version_ok (preflight) refused a "-" inside the prerelease.
 	debver=$(printf '%s' "$RELEASE" | sed 's/-/~/')
 	[ "$(dpkg-deb -f "$DEB" Package)" = vedette-host ] && [ "$(dpkg-deb -f "$DEB" Version)" = "$debver" ] || die "$DEB is not vedette-host $RELEASE"
 	# the package adds one containers: line to /etc/subuid and /etc/subgid when there is none: note whether it was ours (M5)
@@ -389,12 +412,57 @@ install_deb() {
 	installed_pkg vedette-host || add_line "$STATE/asked-packages" vedette-host
 	record_new_packages install --no-install-recommends "$DEB"
 	snapshot_accounts
+	before=$(host_pkg_state)
+	keep_package
 	say "installing vedette-host $RELEASE"
-	apt_run install --no-install-recommends "$DEB" >/dev/null || die "installing the package failed (its message is above)"
+	if ! apt_run install --no-install-recommends "$DEB" >/dev/null; then
+		# a kept file of a version that is not installed is no way back: take it out again when this run put it there
+		if [ -n "$KEPT_WROTE" ] && [ "$(host_pkg_state)" != "$debver|installed" ]; then rm -f "$KEPT"; fi
+		die "installing the package failed (its message is above)"
+	fi
 	record_accounts
 	[ -x "$HOST_BIN" ] || die "$HOST_BIN is missing after the install"
 	[ "$("$HOST_BIN" -version)" = "$RELEASE" ] || die "vedette-host reports $("$HOST_BIN" -version), expected $RELEASE"
 	for u in vedette vedette-sensor; do getent passwd "$u" >/dev/null || die "the package did not make the user $u"; done
+	kept_ok || die "$KEPT is not the package just installed (0600 root, same sha256) after the install"
+	# the same version was installed already, so apt changed nothing and postinst restarted nobody: a running host that has not
+	# recorded this package (versions.json gone or naming another one) adopts it only at a start, so it gets one now. A host that
+	# is not running starts later (start_and_wait) and adopts it then.
+	if [ "$before" = "$debver|installed" ] && ! grep -qs "$DEB_GOT" "$HOST_STATE/selfupdate/versions.json"; then
+		systemctl try-restart vedette-host.service || die "vedette-host did not restart (journalctl -u vedette-host)"
+	fi
+}
+
+# host_pkg_state: <Debian version>|<status> of vedette-host, empty when dpkg does not know it
+host_pkg_state() { dpkg-query -W -f='${Version}|${db:Status-Status}' vedette-host 2>/dev/null || true; }
+
+# keep_package (D-316, host-api 6.14 "Nhận bản đầu"): the verified .deb is kept as
+# selfupdate/packages/vedette-host_<SemVer>_<arch>.deb, the name of the release asset and of host.files[].name (never Debian's "~"),
+# so that vedette-host can go back to this version when a later self-update fails. It goes there BEFORE apt installs it: on an
+# upgrade the package's postinst restarts vedette-host inside that apt run, and the host adopts the file when it starts (a first
+# install starts it later, in start_and_wait). Every install, repair and upgrade puts it there again when it is not already right.
+keep_package() {
+	KEPT=$HOST_STATE/selfupdate/packages/vedette-host_${RELEASE}_${ARCH}.deb
+	KEPT_WROTE=
+	DEB_GOT=$(sha256sum "$DEB" | awk '{print $1}')
+	kept_ok && return 0
+	install -d -m 0700 -o root -g root "$HOST_STATE" "$HOST_STATE/selfupdate" "$HOST_STATE/selfupdate/packages"
+	# a temporary name, on disk before the rename, and the rename on disk too (spec 6.14): a power cut leaves the old file or the
+	# whole new one, never a short one under the kept name
+	rm -f "$KEPT.new"
+	if ! { install -m 0600 -o root -g root "$DEB" "$KEPT.new" && sync -- "$KEPT.new"; }; then
+		rm -f "$KEPT.new"
+		die "could not copy the package to $KEPT (disk full?)"
+	fi
+	mv -fT "$KEPT.new" "$KEPT"
+	sync -- "$(dirname "$KEPT")"
+	KEPT_WROTE=1
+	kept_ok || die "could not keep the package at $KEPT"
+}
+
+# kept_ok: the kept package is a plain file, 0600 root, with the sha256 of the package being installed
+kept_ok() {
+	[ -f "$KEPT" ] && [ ! -L "$KEPT" ] && [ "$(stat -c '%a %u' "$KEPT")" = "600 0" ] && [ "$(sha256sum "$KEPT" | awk '{print $1}')" = "$DEB_GOT" ]
 }
 
 # ---- 4. host.conf, chrony, the container network ---------------------------------------------------------------------

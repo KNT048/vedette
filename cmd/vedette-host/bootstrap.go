@@ -76,7 +76,7 @@ func exitForIn(cmd string, err error) *exitError {
 		return newExit(exitUsage, code, msg)
 	case ops.BootstrapFailed, "unit_unwritable": // the host could not do what was asked: a failure, not a refusal
 		return newExit(exitFailed, code, msg)
-	case ops.RecoverNotUnrecoverable, ops.RecoverJournalInvalid, ops.RecoverCoreRunning, ops.RecoverNoCopy, ops.RecoverVersions:
+	case ops.RecoverNotUnrecoverable, ops.RecoverJournalInvalid, ops.RecoverCoreRunning, ops.RecoverNoCopy, ops.RecoverVersions, ops.RecoverUnitMismatch, ops.RecoverDBCopyMissing, ops.RecoverInProgress:
 		return newExit(exitRefused, code, msg)
 	case api.CodeCoreDataInvalid, ops.BootstrapMixedVersions: // refused by a check of the machine or of the release
 		return newExit(exitRefused, code, msg)

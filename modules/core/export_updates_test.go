@@ -41,4 +41,6 @@ func HostWhyForTest(code, v, running, release string) string {
 }
 
 // RetryWaitForTest is retryWait.
-func RetryWaitForTest(err error, base time.Duration) time.Duration { return retryWait(err, base) }
+func RetryWaitForTest(err error, base time.Duration, refused int) time.Duration {
+	return retryWait(err, base, refused)
+}

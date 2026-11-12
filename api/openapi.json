@@ -8889,6 +8889,92 @@
         }
       }
     },
+    "/core/data/backups": {
+      "get": {
+        "operationId": "core_get_core_data_backups",
+        "summary": "Backups the operating system helper keeps on this box (D-377); 409 not_appliance on a container-only install",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "backups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "pre_os_update",
+                              "pre_update",
+                              "pre_restore"
+                            ],
+                            "description": "manual = Download backup or a backup by hand; pre_os_update / pre_update / pre_restore = taken by the box before an operating system install, a Vedette update or a restore"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Bytes"
+                          },
+                          "includes_key": {
+                            "type": "boolean",
+                            "description": "Holds the decryption key, so it restores on this box without the key file"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "created_at",
+                          "size",
+                          "includes_key"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Newest first"
+                    }
+                  },
+                  "required": [
+                    "backups"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/data/export": {
       "get": {
         "operationId": "core_get_core_data_export",
@@ -9001,6 +9087,244 @@
                     "kept"
                   ],
                   "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/data/restore": {
+      "post": {
+        "operationId": "core_post_core_data_restore",
+        "summary": "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "backup_id": {
+                    "type": "string"
+                  },
+                  "confirm_data_loss": {
+                    "description": "Required (true): everything written since the backup is replaced",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "backup_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "backup_id": {
+                      "type": "string"
+                    },
+                    "backup_created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "reverted",
+                        "failed"
+                      ],
+                      "description": "reverted = the restored data did not start, so the box put back the data from before the restore"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "user": {
+                      "type": "string"
+                    },
+                    "pre_restore_backup_id": {
+                      "description": "The copy of the data from before the restore, kept in the list as pre_restore",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "error": {
+                      "description": "Only when not done: why, in words",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "backup_id",
+                    "backup_created_at",
+                    "status",
+                    "started_at",
+                    "finished_at",
+                    "user",
+                    "pre_restore_backup_id",
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/data/restore/run": {
+      "get": {
+        "operationId": "core_get_core_data_restore_run",
+        "summary": "The current or latest restore run; null before the first one",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "backup_id": {
+                          "type": "string"
+                        },
+                        "backup_created_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "running",
+                            "done",
+                            "reverted",
+                            "failed"
+                          ],
+                          "description": "reverted = the restored data did not start, so the box put back the data from before the restore"
+                        },
+                        "started_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "user": {
+                          "type": "string"
+                        },
+                        "pre_restore_backup_id": {
+                          "description": "The copy of the data from before the restore, kept in the list as pre_restore",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "error": {
+                          "description": "Only when not done: why, in words",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "backup_id",
+                        "backup_created_at",
+                        "status",
+                        "started_at",
+                        "finished_at",
+                        "user",
+                        "pre_restore_backup_id",
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }

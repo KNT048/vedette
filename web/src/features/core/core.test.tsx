@@ -361,6 +361,33 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
 })
 
 describe('core: dữ liệu', () => {
+  it('khôi phục bản sao lưu trên hộp: cần "I understand", bản dữ liệu hiện tại được giữ thành Before restore (D-377)', async () => {
+    const u = user()
+    renderApp('/settings/data')
+    const before = await screen.findAllByRole('button', { name: 'Restore' })
+    expect(screen.queryByText('Before restore')).toBeNull()
+    await u.click(before[0])
+    const dlg = await screen.findByRole('dialog', { name: /Restore the backup from/ })
+    within(dlg).getByText(/Everything written since then is replaced/)
+    within(dlg).getByText(/keeps a copy of the data it has now/)
+    const confirm = within(dlg).getByRole('button', { name: 'Restore' })
+    expect(confirm).toBeDisabled()
+    await u.click(within(dlg).getByLabelText(/I understand/))
+    await u.click(confirm)
+    await screen.findByText(/The data from before the restore is kept as a backup/)
+    await screen.findByText('Before restore')
+    expect(await screen.findAllByRole('button', { name: 'Restore' })).toHaveLength(before.length + 1)
+  })
+
+  it('khôi phục không có confirm_data_loss: 409 confirm_required, không gì đổi (D-377)', async () => {
+    renderApp('/settings/data')
+    await screen.findAllByRole('button', { name: 'Restore' })
+    const r = await fetch(`${location.origin}/api/v1/core/data/backups`).then((x) => x.json()) as { backups: { id: string }[] }
+    const res = await fetch(`${location.origin}/api/v1/core/data/restore`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup_id: r.backups[0].id }) })
+    expect(res.status).toBe(409)
+    expect((await res.json() as { error: { code: string } }).error.code).toBe('confirm_required')
+  })
+
   it('xoá toàn bộ dữ liệu: gõ đúng tên, hộp về trạng thái chưa cài đặt', async () => {
     const u = user()
     const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})

@@ -13317,6 +13317,140 @@ func (s CoreGetCoreDataBackupOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+type CoreGetCoreDataBackupsOK struct {
+	// Newest first.
+	Backups []CoreGetCoreDataBackupsOKBackupsItem `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *CoreGetCoreDataBackupsOK) GetBackups() []CoreGetCoreDataBackupsOKBackupsItem {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *CoreGetCoreDataBackupsOK) SetBackups(val []CoreGetCoreDataBackupsOKBackupsItem) {
+	s.Backups = val
+}
+
+type CoreGetCoreDataBackupsOKBackupsItem struct {
+	CreatedAt time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	// Holds the decryption key, so it restores on this box without the key file.
+	IncludesKey bool `json:"includes_key"`
+	// Manual = Download backup or a backup by hand; pre_os_update / pre_update / pre_restore = taken by
+	// the box before an operating system install, a Vedette update or a restore.
+	Kind CoreGetCoreDataBackupsOKBackupsItemKind `json:"kind"`
+	// Bytes.
+	Size int `json:"size"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) GetID() string {
+	return s.ID
+}
+
+// GetIncludesKey returns the value of IncludesKey.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) GetIncludesKey() bool {
+	return s.IncludesKey
+}
+
+// GetKind returns the value of Kind.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) GetKind() CoreGetCoreDataBackupsOKBackupsItemKind {
+	return s.Kind
+}
+
+// GetSize returns the value of Size.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) GetSize() int {
+	return s.Size
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIncludesKey sets the value of IncludesKey.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) SetIncludesKey(val bool) {
+	s.IncludesKey = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) SetKind(val CoreGetCoreDataBackupsOKBackupsItemKind) {
+	s.Kind = val
+}
+
+// SetSize sets the value of Size.
+func (s *CoreGetCoreDataBackupsOKBackupsItem) SetSize(val int) {
+	s.Size = val
+}
+
+// Manual = Download backup or a backup by hand; pre_os_update / pre_update / pre_restore = taken by
+// the box before an operating system install, a Vedette update or a restore.
+type CoreGetCoreDataBackupsOKBackupsItemKind string
+
+const (
+	CoreGetCoreDataBackupsOKBackupsItemKindManual      CoreGetCoreDataBackupsOKBackupsItemKind = "manual"
+	CoreGetCoreDataBackupsOKBackupsItemKindPreOsUpdate CoreGetCoreDataBackupsOKBackupsItemKind = "pre_os_update"
+	CoreGetCoreDataBackupsOKBackupsItemKindPreUpdate   CoreGetCoreDataBackupsOKBackupsItemKind = "pre_update"
+	CoreGetCoreDataBackupsOKBackupsItemKindPreRestore  CoreGetCoreDataBackupsOKBackupsItemKind = "pre_restore"
+)
+
+// AllValues returns all CoreGetCoreDataBackupsOKBackupsItemKind values.
+func (CoreGetCoreDataBackupsOKBackupsItemKind) AllValues() []CoreGetCoreDataBackupsOKBackupsItemKind {
+	return []CoreGetCoreDataBackupsOKBackupsItemKind{
+		CoreGetCoreDataBackupsOKBackupsItemKindManual,
+		CoreGetCoreDataBackupsOKBackupsItemKindPreOsUpdate,
+		CoreGetCoreDataBackupsOKBackupsItemKindPreUpdate,
+		CoreGetCoreDataBackupsOKBackupsItemKindPreRestore,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreDataBackupsOKBackupsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreDataBackupsOKBackupsItemKindManual:
+		return []byte(s), nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreOsUpdate:
+		return []byte(s), nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreUpdate:
+		return []byte(s), nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreRestore:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreDataBackupsOKBackupsItemKind) UnmarshalText(data []byte) error {
+	switch CoreGetCoreDataBackupsOKBackupsItemKind(data) {
+	case CoreGetCoreDataBackupsOKBackupsItemKindManual:
+		*s = CoreGetCoreDataBackupsOKBackupsItemKindManual
+		return nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreOsUpdate:
+		*s = CoreGetCoreDataBackupsOKBackupsItemKindPreOsUpdate
+		return nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreUpdate:
+		*s = CoreGetCoreDataBackupsOKBackupsItemKindPreUpdate
+		return nil
+	case CoreGetCoreDataBackupsOKBackupsItemKindPreRestore:
+		*s = CoreGetCoreDataBackupsOKBackupsItemKindPreRestore
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreDataExportOK struct {
 	Data io.Reader
 }
@@ -13329,6 +13463,167 @@ func (s CoreGetCoreDataExportOK) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
+}
+
+type CoreGetCoreDataRestoreRunOK struct {
+	BackupCreatedAt time.Time `json:"backup_created_at"`
+	BackupID        string    `json:"backup_id"`
+	// Only when not done: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	ID         string      `json:"id"`
+	// The copy of the data from before the restore, kept in the list as pre_restore.
+	PreRestoreBackupID NilString `json:"pre_restore_backup_id"`
+	StartedAt          time.Time `json:"started_at"`
+	// Reverted = the restored data did not start, so the box put back the data from before the restore.
+	Status CoreGetCoreDataRestoreRunOKStatus `json:"status"`
+	User   string                            `json:"user"`
+}
+
+// GetBackupCreatedAt returns the value of BackupCreatedAt.
+func (s *CoreGetCoreDataRestoreRunOK) GetBackupCreatedAt() time.Time {
+	return s.BackupCreatedAt
+}
+
+// GetBackupID returns the value of BackupID.
+func (s *CoreGetCoreDataRestoreRunOK) GetBackupID() string {
+	return s.BackupID
+}
+
+// GetError returns the value of Error.
+func (s *CoreGetCoreDataRestoreRunOK) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CoreGetCoreDataRestoreRunOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *CoreGetCoreDataRestoreRunOK) GetID() string {
+	return s.ID
+}
+
+// GetPreRestoreBackupID returns the value of PreRestoreBackupID.
+func (s *CoreGetCoreDataRestoreRunOK) GetPreRestoreBackupID() NilString {
+	return s.PreRestoreBackupID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CoreGetCoreDataRestoreRunOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CoreGetCoreDataRestoreRunOK) GetStatus() CoreGetCoreDataRestoreRunOKStatus {
+	return s.Status
+}
+
+// GetUser returns the value of User.
+func (s *CoreGetCoreDataRestoreRunOK) GetUser() string {
+	return s.User
+}
+
+// SetBackupCreatedAt sets the value of BackupCreatedAt.
+func (s *CoreGetCoreDataRestoreRunOK) SetBackupCreatedAt(val time.Time) {
+	s.BackupCreatedAt = val
+}
+
+// SetBackupID sets the value of BackupID.
+func (s *CoreGetCoreDataRestoreRunOK) SetBackupID(val string) {
+	s.BackupID = val
+}
+
+// SetError sets the value of Error.
+func (s *CoreGetCoreDataRestoreRunOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CoreGetCoreDataRestoreRunOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CoreGetCoreDataRestoreRunOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetPreRestoreBackupID sets the value of PreRestoreBackupID.
+func (s *CoreGetCoreDataRestoreRunOK) SetPreRestoreBackupID(val NilString) {
+	s.PreRestoreBackupID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CoreGetCoreDataRestoreRunOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CoreGetCoreDataRestoreRunOK) SetStatus(val CoreGetCoreDataRestoreRunOKStatus) {
+	s.Status = val
+}
+
+// SetUser sets the value of User.
+func (s *CoreGetCoreDataRestoreRunOK) SetUser(val string) {
+	s.User = val
+}
+
+// Reverted = the restored data did not start, so the box put back the data from before the restore.
+type CoreGetCoreDataRestoreRunOKStatus string
+
+const (
+	CoreGetCoreDataRestoreRunOKStatusRunning  CoreGetCoreDataRestoreRunOKStatus = "running"
+	CoreGetCoreDataRestoreRunOKStatusDone     CoreGetCoreDataRestoreRunOKStatus = "done"
+	CoreGetCoreDataRestoreRunOKStatusReverted CoreGetCoreDataRestoreRunOKStatus = "reverted"
+	CoreGetCoreDataRestoreRunOKStatusFailed   CoreGetCoreDataRestoreRunOKStatus = "failed"
+)
+
+// AllValues returns all CoreGetCoreDataRestoreRunOKStatus values.
+func (CoreGetCoreDataRestoreRunOKStatus) AllValues() []CoreGetCoreDataRestoreRunOKStatus {
+	return []CoreGetCoreDataRestoreRunOKStatus{
+		CoreGetCoreDataRestoreRunOKStatusRunning,
+		CoreGetCoreDataRestoreRunOKStatusDone,
+		CoreGetCoreDataRestoreRunOKStatusReverted,
+		CoreGetCoreDataRestoreRunOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreDataRestoreRunOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreDataRestoreRunOKStatusRunning:
+		return []byte(s), nil
+	case CoreGetCoreDataRestoreRunOKStatusDone:
+		return []byte(s), nil
+	case CoreGetCoreDataRestoreRunOKStatusReverted:
+		return []byte(s), nil
+	case CoreGetCoreDataRestoreRunOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreDataRestoreRunOKStatus) UnmarshalText(data []byte) error {
+	switch CoreGetCoreDataRestoreRunOKStatus(data) {
+	case CoreGetCoreDataRestoreRunOKStatusRunning:
+		*s = CoreGetCoreDataRestoreRunOKStatusRunning
+		return nil
+	case CoreGetCoreDataRestoreRunOKStatusDone:
+		*s = CoreGetCoreDataRestoreRunOKStatusDone
+		return nil
+	case CoreGetCoreDataRestoreRunOKStatusReverted:
+		*s = CoreGetCoreDataRestoreRunOKStatusReverted
+		return nil
+	case CoreGetCoreDataRestoreRunOKStatusFailed:
+		*s = CoreGetCoreDataRestoreRunOKStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CoreGetCoreGeneralOK struct {
@@ -23336,6 +23631,193 @@ func (s *CorePostCoreDataPurgeReq) SetConfirm(val string) {
 // SetPassword sets the value of Password.
 func (s *CorePostCoreDataPurgeReq) SetPassword(val string) {
 	s.Password = val
+}
+
+type CorePostCoreDataRestoreAccepted struct {
+	BackupCreatedAt time.Time `json:"backup_created_at"`
+	BackupID        string    `json:"backup_id"`
+	// Only when not done: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	ID         string      `json:"id"`
+	// The copy of the data from before the restore, kept in the list as pre_restore.
+	PreRestoreBackupID NilString `json:"pre_restore_backup_id"`
+	StartedAt          time.Time `json:"started_at"`
+	// Reverted = the restored data did not start, so the box put back the data from before the restore.
+	Status CorePostCoreDataRestoreAcceptedStatus `json:"status"`
+	User   string                                `json:"user"`
+}
+
+// GetBackupCreatedAt returns the value of BackupCreatedAt.
+func (s *CorePostCoreDataRestoreAccepted) GetBackupCreatedAt() time.Time {
+	return s.BackupCreatedAt
+}
+
+// GetBackupID returns the value of BackupID.
+func (s *CorePostCoreDataRestoreAccepted) GetBackupID() string {
+	return s.BackupID
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreDataRestoreAccepted) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreDataRestoreAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreDataRestoreAccepted) GetID() string {
+	return s.ID
+}
+
+// GetPreRestoreBackupID returns the value of PreRestoreBackupID.
+func (s *CorePostCoreDataRestoreAccepted) GetPreRestoreBackupID() NilString {
+	return s.PreRestoreBackupID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreDataRestoreAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreDataRestoreAccepted) GetStatus() CorePostCoreDataRestoreAcceptedStatus {
+	return s.Status
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreDataRestoreAccepted) GetUser() string {
+	return s.User
+}
+
+// SetBackupCreatedAt sets the value of BackupCreatedAt.
+func (s *CorePostCoreDataRestoreAccepted) SetBackupCreatedAt(val time.Time) {
+	s.BackupCreatedAt = val
+}
+
+// SetBackupID sets the value of BackupID.
+func (s *CorePostCoreDataRestoreAccepted) SetBackupID(val string) {
+	s.BackupID = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreDataRestoreAccepted) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreDataRestoreAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreDataRestoreAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetPreRestoreBackupID sets the value of PreRestoreBackupID.
+func (s *CorePostCoreDataRestoreAccepted) SetPreRestoreBackupID(val NilString) {
+	s.PreRestoreBackupID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreDataRestoreAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreDataRestoreAccepted) SetStatus(val CorePostCoreDataRestoreAcceptedStatus) {
+	s.Status = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreDataRestoreAccepted) SetUser(val string) {
+	s.User = val
+}
+
+// Reverted = the restored data did not start, so the box put back the data from before the restore.
+type CorePostCoreDataRestoreAcceptedStatus string
+
+const (
+	CorePostCoreDataRestoreAcceptedStatusRunning  CorePostCoreDataRestoreAcceptedStatus = "running"
+	CorePostCoreDataRestoreAcceptedStatusDone     CorePostCoreDataRestoreAcceptedStatus = "done"
+	CorePostCoreDataRestoreAcceptedStatusReverted CorePostCoreDataRestoreAcceptedStatus = "reverted"
+	CorePostCoreDataRestoreAcceptedStatusFailed   CorePostCoreDataRestoreAcceptedStatus = "failed"
+)
+
+// AllValues returns all CorePostCoreDataRestoreAcceptedStatus values.
+func (CorePostCoreDataRestoreAcceptedStatus) AllValues() []CorePostCoreDataRestoreAcceptedStatus {
+	return []CorePostCoreDataRestoreAcceptedStatus{
+		CorePostCoreDataRestoreAcceptedStatusRunning,
+		CorePostCoreDataRestoreAcceptedStatusDone,
+		CorePostCoreDataRestoreAcceptedStatusReverted,
+		CorePostCoreDataRestoreAcceptedStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreDataRestoreAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreDataRestoreAcceptedStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreAcceptedStatusDone:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreAcceptedStatusReverted:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreAcceptedStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreDataRestoreAcceptedStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreDataRestoreAcceptedStatus(data) {
+	case CorePostCoreDataRestoreAcceptedStatusRunning:
+		*s = CorePostCoreDataRestoreAcceptedStatusRunning
+		return nil
+	case CorePostCoreDataRestoreAcceptedStatusDone:
+		*s = CorePostCoreDataRestoreAcceptedStatusDone
+		return nil
+	case CorePostCoreDataRestoreAcceptedStatusReverted:
+		*s = CorePostCoreDataRestoreAcceptedStatusReverted
+		return nil
+	case CorePostCoreDataRestoreAcceptedStatusFailed:
+		*s = CorePostCoreDataRestoreAcceptedStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreDataRestoreReq struct {
+	BackupID string `json:"backup_id"`
+	// Required (true): everything written since the backup is replaced.
+	ConfirmDataLoss OptBool `json:"confirm_data_loss"`
+}
+
+// GetBackupID returns the value of BackupID.
+func (s *CorePostCoreDataRestoreReq) GetBackupID() string {
+	return s.BackupID
+}
+
+// GetConfirmDataLoss returns the value of ConfirmDataLoss.
+func (s *CorePostCoreDataRestoreReq) GetConfirmDataLoss() OptBool {
+	return s.ConfirmDataLoss
+}
+
+// SetBackupID sets the value of BackupID.
+func (s *CorePostCoreDataRestoreReq) SetBackupID(val string) {
+	s.BackupID = val
+}
+
+// SetConfirmDataLoss sets the value of ConfirmDataLoss.
+func (s *CorePostCoreDataRestoreReq) SetConfirmDataLoss(val OptBool) {
+	s.ConfirmDataLoss = val
 }
 
 type CorePostCoreMcpTokensCreated struct {
@@ -73395,6 +73877,51 @@ func (o NilCoreGetCoreConnectionsOKItemsItemPin) Get() (v CoreGetCoreConnections
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetCoreConnectionsOKItemsItemPin) Or(d CoreGetCoreConnectionsOKItemsItemPin) CoreGetCoreConnectionsOKItemsItemPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCoreGetCoreDataRestoreRunOK returns new NilCoreGetCoreDataRestoreRunOK with value set to v.
+func NewNilCoreGetCoreDataRestoreRunOK(v CoreGetCoreDataRestoreRunOK) NilCoreGetCoreDataRestoreRunOK {
+	return NilCoreGetCoreDataRestoreRunOK{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreDataRestoreRunOK is nullable CoreGetCoreDataRestoreRunOK.
+type NilCoreGetCoreDataRestoreRunOK struct {
+	Value CoreGetCoreDataRestoreRunOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreDataRestoreRunOK) SetTo(v CoreGetCoreDataRestoreRunOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreDataRestoreRunOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreDataRestoreRunOK) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreDataRestoreRunOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreDataRestoreRunOK) Get() (v CoreGetCoreDataRestoreRunOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreDataRestoreRunOK) Or(d CoreGetCoreDataRestoreRunOK) CoreGetCoreDataRestoreRunOK {
 	if v, ok := o.Get(); ok {
 		return v
 	}

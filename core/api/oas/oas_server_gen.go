@@ -353,12 +353,25 @@ type Handler interface {
 	//
 	// GET /core/data/backup
 	CoreGetCoreDataBackup(ctx context.Context) (CoreGetCoreDataBackupOK, error)
+	// CoreGetCoreDataBackups implements core_get_core_data_backups operation.
+	//
+	// Backups the operating system helper keeps on this box (D-377); 409 not_appliance on a container-only
+	// install.
+	//
+	// GET /core/data/backups
+	CoreGetCoreDataBackups(ctx context.Context) (*CoreGetCoreDataBackupsOK, error)
 	// CoreGetCoreDataExport implements core_get_core_data_export operation.
 	//
 	// Export my data as JSON (every table except secrets; 409 busy while another export runs).
 	//
 	// GET /core/data/export
 	CoreGetCoreDataExport(ctx context.Context) (CoreGetCoreDataExportOK, error)
+	// CoreGetCoreDataRestoreRun implements core_get_core_data_restore_run operation.
+	//
+	// The current or latest restore run; null before the first one.
+	//
+	// GET /core/data/restore/run
+	CoreGetCoreDataRestoreRun(ctx context.Context) (NilCoreGetCoreDataRestoreRunOK, error)
 	// CoreGetCoreGeneral implements core_get_core_general operation.
 	//
 	// Organization name and time zone.
@@ -611,6 +624,15 @@ type Handler interface {
 	//
 	// POST /core/data/purge
 	CorePostCoreDataPurge(ctx context.Context, req *CorePostCoreDataPurgeReq) (*CorePostCoreDataPurgeOK, error)
+	// CorePostCoreDataRestore implements core_post_core_data_restore operation.
+	//
+	// Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a
+	// pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409
+	// confirm_required without confirm_data_loss: true; 404 backup_unknown; 409 busy, low_disk,
+	// schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch.
+	//
+	// POST /core/data/restore
+	CorePostCoreDataRestore(ctx context.Context, req *CorePostCoreDataRestoreReq) (*CorePostCoreDataRestoreAccepted, error)
 	// CorePostCoreMcpTokens implements core_post_core_mcp_tokens operation.
 	//
 	// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).

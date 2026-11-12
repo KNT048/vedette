@@ -13,7 +13,9 @@ import { resetMockDb } from '@/mocks/db'
 /** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePurge } from './api'
+import { useBoxBackups, usePurge, useRestore, useRestoreRun } from './api'
+import type { BoxBackup } from './types'
+import { fmtDateTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
 import { nav } from './util'
 import { LOG_CATEGORIES, logsExportQuery, type LogCategory } from './logCategories'
@@ -67,6 +69,9 @@ export default function DataSection() {
       <PageHeader title={t('data.title')} meta={t('data.meta')} stories={['S-CORE-1']} />
       <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
+      </Section>
+      <Section title={t('data.restore.title')} description={t('data.restore.desc')}>
+        <BoxBackups disabled={gate.disabled} title={gate.title} />
       </Section>
       <Section title={t('data.export.title')} description={t('data.export.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
@@ -139,5 +144,67 @@ export default function DataSection() {
         </Dialog>
       ) : null}
     </>
+  )
+}
+
+/** Backups the helper keeps on the box and Restore (S-CORE-1, D-377): the dialog says what is replaced and that a copy of the current data is kept first. */
+function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) {
+  const { t } = useTranslation('core')
+  const list = useBoxBackups()
+  const run = useRestoreRun().data
+  const restore = useRestore()
+  const [pick, setPick] = useState<BoxBackup | null>(null)
+  const [sure, setSure] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const running = run?.status === 'running'
+
+  async function doRestore() {
+    if (!pick) return
+    setErr(null)
+    try { await restore.mutateAsync({ backup_id: pick.id, confirm_data_loss: true }); setPick(null) } catch (e) { setErr(errMsg(e, t)) }
+  }
+
+  if (list.isError) return <p role="alert" className="text-sm text-danger">{errMsg(list.error, t)}</p>
+  const rows = list.data?.backups ?? []
+  const when = run ? fmtDateTime(run.backup_created_at) : ''
+  return (
+    <div className="grid gap-3">
+      {run ? (
+        <p role="status" className={run.status === 'done' || run.status === 'running' ? 'text-sm' : 'text-sm text-danger'}>
+          {run.status === 'failed' ? t('data.restore.failed', { error: run.error ?? '' }) : t(`data.restore.${run.status}`, { when })}
+        </p>
+      ) : null}
+      {list.isSuccess && rows.length === 0 ? <p className="text-sm text-muted">{t('data.restore.empty')}</p> : null}
+      {rows.length > 0 ? (
+        <table className="w-full max-w-3xl text-sm">
+          <thead><tr className="text-left text-muted"><th className="py-1 font-medium">{t('data.restore.col.when')}</th><th className="font-medium">{t('data.restore.col.kind')}</th><th className="font-medium">{t('data.restore.col.size')}</th><th className="font-medium">{t('data.restore.col.key')}</th><th /></tr></thead>
+          <tbody>
+            {rows.map((b) => (
+              <tr key={b.id} className="border-t border-border">
+                <td className="py-1.5">{fmtDateTime(b.created_at)}</td>
+                <td>{t(`data.restore.kind.${b.kind}`)}</td>
+                <td>{(b.size / 1e6).toFixed(1)} MB</td>
+                <td>{b.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')}</td>
+                <td className="text-right"><Button disabled={disabled || running} title={title} onClick={() => { setErr(null); setSure(false); setPick(b) }}>{t('data.restore.button')}</Button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      <Dialog open={pick !== null} onOpenChange={(o) => { if (!o) setPick(null) }}>
+        <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')}>
+          <ul className="list-disc pl-5 text-sm"><li>{t('data.restore.ask.kept')}</li><li>{t('data.restore.ask.restart')}</li></ul>
+          <div className="flex items-center gap-2">
+            <Checkbox id="restore-sure" checked={sure} onCheckedChange={(on) => setSure(on === true)} />
+            <Label htmlFor="restore-sure">{t('data.restore.ask.understand')}</Label>
+          </div>
+          {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
+          <DialogFooter>
+            <Button onClick={() => setPick(null)}>{t('common:cancel')}</Button>
+            <Button variant="danger" disabled={!sure || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

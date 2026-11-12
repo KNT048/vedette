@@ -5,6 +5,7 @@ import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
+  BoxBackups, RestoreRun,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
 
@@ -178,6 +179,17 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
 export const saveNotifyChannel = (type: string, fields: Record<string, string>, secret: string) =>
   api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
+// ---- khôi phục sao lưu trên hộp (S-CORE-1, D-377) ----
+export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })
+/** Polled while a restore runs: Vedette restarts during it, so a failed poll is retried, not shown. */
+export const useRestoreRun = () => useQuery({ queryKey: ['core', 'restore-run'], queryFn: () => api.get<RestoreRun | null>('/core/data/restore/run'), refetchInterval: (q) => (q.state.data?.status === 'running' ? 3000 : false) })
+export const useRestore = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { backup_id: string; confirm_data_loss: true }) => api.post<RestoreRun>('/core/data/restore', v),
+    onSuccess: (r) => { qc.setQueryData(['core', 'restore-run'], r); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) },
+  })
+}
 export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
 // ---- mạng của hộp (D-56) ----

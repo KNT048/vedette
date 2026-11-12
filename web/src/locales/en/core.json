@@ -1000,6 +1000,28 @@
       "desc": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. No AI keys or tokens. Keep the file as safe as the box: the hashes could be attacked offline.",
       "button": "Download backup"
     },
+    "restore": {
+      "title": "Backups on this box",
+      "desc": "Copies the operating system helper keeps on the box: the ones you made and the ones the box takes by itself before an operating system install, a Vedette update or a restore. Restoring one puts the box's data back to that moment.",
+      "empty": "No backups on this box yet.",
+      "col": { "when": "Taken", "kind": "Kind", "size": "Size", "key": "Decryption key" },
+      "kind": { "manual": "Manual", "pre_os_update": "Before operating system update", "pre_update": "Before Vedette update", "pre_restore": "Before restore" },
+      "withKey": "Included",
+      "withoutKey": "Not included",
+      "button": "Restore",
+      "ask": {
+        "title": "Restore the backup from {{when}}?",
+        "lost": "Everything written since then is replaced: devices, findings, alerts, logs, users and settings.",
+        "kept": "Before it restores, the box keeps a copy of the data it has now, listed here as Before restore, so you can go back.",
+        "restart": "Vedette restarts during the restore; this page reconnects by itself.",
+        "understand": "I understand that data written since this backup is replaced",
+        "confirm": "Restore"
+      },
+      "running": "Restoring the backup from {{when}}. Vedette is restarting; this page reconnects by itself.",
+      "done": "Restored the backup from {{when}}. The data from before the restore is kept as a backup.",
+      "reverted": "The restored data did not start correctly, so the box put back the data it had before. Nothing was lost.",
+      "failed": "The restore failed: {{error}}"
+    },
     "export": {
       "title": "Export data",
       "desc": "Every table of the box as JSON, to take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host).",

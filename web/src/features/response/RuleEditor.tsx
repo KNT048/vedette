@@ -12,7 +12,7 @@ import { useCan } from '@/lib/session'
 import { errText, useCatalog, useSaveRule, useSimulate, useTriggers } from './api'
 import { ActionDialog } from './CatalogEditor'
 import { ChangeView, RiskChip } from './parts'
-import { refsIn, type ParamType } from './logic'
+import { logSignature, refsIn, type ParamType } from './logic'
 import type { Catalog, CatalogAction, Condition, Op, Rule, RuleAction, RuleInput, Simulation, TriggerInfo } from './types'
 
 const OPS: Op[] = ['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time']
@@ -134,8 +134,8 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   const eligible = preApprovedReason(r.actions, cat.items) === null && r.actions.length > 0
   const changeTrigger = (id: RuleInput['trigger']) => {
     const nt = triggers.find((x) => x.id === id)
-    const keep = (a: RuleAction) => ({ ...a, params: Object.fromEntries(Object.entries(a.params).map(([k, v]) => [k, refsIn(v).every((x) => nt?.fields.some((f) => f.key === x)) ? v : ''])) })
-    set({ trigger: id, conditions: [], actions: r.actions.map(keep), schedule_min: id === 'schedule' ? 10080 : null })
+    const keep = (a: RuleAction) => { const d = defaultParams(cat.items.find((c) => c.id === a.action_id) ?? { params: [] } as unknown as CatalogAction, nt); return { ...a, params: Object.fromEntries(Object.entries(a.params).map(([k, v]) => [k, refsIn(v).every((x) => nt?.fields.some((f) => f.key === x)) ? v : d[k] ?? ''])) } }
+    set({ trigger: id, match: id === 'log_threshold' ? 'all' : r.match, conditions: [], actions: r.actions.map(keep), schedule_min: id === 'schedule' ? 10080 : null })
   }
   const cond = (i: number, p: Partial<Condition>) => set({ conditions: r.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) })
   return (
@@ -162,7 +162,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">{t('editor.if')}</h3>
                 <div className="flex items-center gap-2 text-sm"><label htmlFor="rule-match">{t('editor.match')}</label>
-                  <Select id="rule-match" className="w-auto" value={r.match} onChange={(e) => set({ match: e.target.value as 'all' | 'any' })}><option value="all">{t('editor.all')}</option><option value="any">{t('editor.any')}</option></Select></div>
+                  <Select id="rule-match" className="w-auto" disabled={r.trigger === 'log_threshold'} value={r.match} onChange={(e) => set({ match: e.target.value as 'all' | 'any' })}><option value="all">{t('editor.all')}</option><option value="any">{t('editor.any')}</option></Select></div>
               </div>
               {!r.conditions.length ? <p className="text-[13px] text-muted">{t('editor.noConditions')}</p> : null}
               {r.conditions.map((c, i) => (
@@ -172,7 +172,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                   )}
                   <Select aria-label={t('editor.test')} value={c.op} onChange={(e) => { const op = e.target.value as Op; cond(i, { op, value: '', n: op === 'count_window' ? 3 : op === 'first_time' ? 24 : null, window_min: op === 'count_window' ? 10 : null, field: op === 'device_type' ? '' : c.field || (trig?.fields[0]?.key ?? '') }) }}>{OPS.map((o) => <option key={o} value={o}>{t(`editor.ops.${o}`)}</option>)}</Select>
                   {c.op === 'count_window' ? (
-                    <div className="flex items-center gap-1.5 text-sm"><Input aria-label={t('editor.atLeast')} type="number" min={1} value={c.n ?? 3} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span className="whitespace-nowrap">{t('editor.within')}</span><Input aria-label={t('editor.minutes')} type="number" min={1} value={c.window_min ?? 10} onChange={(e) => cond(i, { window_min: Number(e.target.value) })} /><span>min</span></div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-sm">{logSignature(r.trigger, c) ? <Input aria-label={t('editor.signature')} className="w-full" value={c.value} spellCheck={false} placeholder="Failed password for <name> from <ip> port <n> ssh<n>" onChange={(e) => cond(i, { value: e.target.value })} /> : null}<Input aria-label={t('editor.atLeast')} type="number" min={1} value={c.n ?? 3} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span className="whitespace-nowrap">{t('editor.within')}</span><Input aria-label={t('editor.minutes')} type="number" min={1} value={c.window_min ?? 10} onChange={(e) => cond(i, { window_min: Number(e.target.value) })} /><span>min</span></div>
                   ) : c.op === 'first_time' ? (
                     <div className="flex items-center gap-1.5 text-sm"><span className="whitespace-nowrap">{t('editor.inLast')}</span><Input aria-label={t('editor.hours')} type="number" min={1} value={c.n ?? 24} onChange={(e) => cond(i, { n: Number(e.target.value) })} /><span>h</span></div>
                   ) : (

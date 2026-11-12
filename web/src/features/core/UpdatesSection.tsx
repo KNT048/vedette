@@ -16,6 +16,7 @@ import { fmtDate, fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
 import { ContainerUpdates, InstallPending } from './ContainerOnly'
+import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
@@ -180,6 +181,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
         <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} />
       {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
+      <UpdateNotices s={s} />
       {affected.length ? (
         <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('updates.advisoryBanner', { count: affected.length })}</p>
@@ -278,10 +280,17 @@ export default function UpdatesSection() {
   if (install === 'container') return (
     <>
       <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} stories={['S-CORE-2', 'S-CORE-9']} />
+      <ContainerNotices />
       <ContainerUpdates />
     </>
   )
   return install ? <ApplianceUpdates /> : <><PageHeader title={t('settings.updates')} stories={['S-CORE-2', 'S-CORE-9']} /><InstallPending /></>
+}
+
+/** D-386 on a container-only install: the same notices, from the same read; nothing while it fails. */
+function ContainerNotices() {
+  const { data } = useUpdates()
+  return data ? <UpdateNotices s={data} /> : null
 }
 
 function ApplianceUpdates() {

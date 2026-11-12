@@ -14046,6 +14046,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14058,7 +14113,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -14500,6 +14557,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14512,7 +14624,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -14948,6 +15062,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -14960,7 +15129,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }
@@ -15449,6 +15620,61 @@
                             "additionalProperties": false
                           },
                           "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                        },
+                        "running_revoked": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "description": "The running release"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "description": "Short English reason signed by the Vedette project"
+                                },
+                                "since": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "block_install",
+                                    "block_install_and_warn",
+                                    "rollback_if_possible"
+                                  ],
+                                  "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "reason",
+                                "since",
+                                "action"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                        },
+                        "stale_since": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                         }
                       },
                       "required": [
@@ -15461,7 +15687,9 @@
                         "history",
                         "advisories",
                         "run",
-                        "managed"
+                        "managed",
+                        "running_revoked",
+                        "stale_since"
                       ],
                       "additionalProperties": false
                     }
@@ -15886,6 +16114,61 @@
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
                     },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
                     "applied": {
                       "type": "number",
                       "description": "Items installed automatically in automatic mode"
@@ -15902,6 +16185,8 @@
                     "advisories",
                     "run",
                     "managed",
+                    "running_revoked",
+                    "stale_since",
                     "applied"
                   ],
                   "additionalProperties": false
@@ -17973,6 +18258,61 @@
                         "additionalProperties": false
                       },
                       "description": "Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)"
+                    },
+                    "running_revoked": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The running release"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "description": "Short English reason signed by the Vedette project"
+                            },
+                            "since": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "block_install",
+                                "block_install_and_warn",
+                                "rollback_if_possible"
+                              ],
+                              "description": "block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "since",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise"
+                    },
+                    "stale_since": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     }
                   },
                   "required": [
@@ -17985,7 +18325,9 @@
                     "history",
                     "advisories",
                     "run",
-                    "managed"
+                    "managed",
+                    "running_revoked",
+                    "stale_since"
                   ],
                   "additionalProperties": false
                 }

@@ -664,6 +664,20 @@ function startRun(action: UpdateRun['action'], component: string, from: string, 
   updStore.update((s) => ({ ...s, run }))
 }
 
+/**
+ * The stored index as far as D-386 needs it: its revocations and its expires_at. The mock check stores a fresh index
+ * (expires in 14 days), like the box; tests put a revocation of the running release or an expired index here.
+ */
+export const updIndex = collection<{ expires_at: string; revoked: { kind: 'release' | 'image_digest' | 'key' | 'advisory_only'; id: string; reason: string; since: string; action: NonNullable<UpdatesState['running_revoked']>['action'] }[] }>('core_updates_index', () => ({ expires_at: new Date(Date.now() + 7 * 864e5).toISOString(), revoked: [] }))
+const WARNS = new Set(['block_install_and_warn', 'rollback_if_possible'])
+/** D-386: a release revocation of the running version (the mock has no image digests); one with a warning action first. */
+function runningRevoked(running: string): UpdatesState['running_revoked'] {
+  const hits = updIndex.get().revoked.filter((r) => r.kind === 'release' && r.id === running)
+  const r = hits.find((x) => WARNS.has(x.action)) ?? hits[0]
+  return r ? { version: running, reason: r.reason, since: r.since, action: r.action } : null
+}
+const staleSince = (): string | null => { const e = updIndex.get().expires_at; return Date.parse(e) < Date.now() ? e : null }
+
 function updView(): UpdatesState {
   tickRun()
   const s = updStore.get()
@@ -679,7 +693,7 @@ function updView(): UpdatesState {
     const host = a.component === 'software' ? hostTarget(a.version) : undefined
     return host ? { ...a, host_version: host } : a
   })
-  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
+  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
 }
 
 function applyOne(component: string, version: string, action: UpdateHistory['action'], user: string) {
@@ -740,6 +754,7 @@ const updatesHandlers = [
     if (denied) return denied
     if (!privacyStore.get().update_check) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on or import an offline bundle.')
     updStore.update((s) => ({ ...s, last_check: nowIso() }))
+    updIndex.update((x) => ({ ...x, expires_at: new Date(Date.now() + 14 * 864e5).toISOString() })) // a fresh signed index
     let applied = 0
     if (updStore.get().mode === 'auto') {
       for (const a of updView().available) {

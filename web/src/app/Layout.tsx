@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bug, LogOut, Menu, Settings, UserCog, UserRound } from 'lucide-react'
 import { BugReportDialog } from '@/features/core/BugReportDialog'
+import { RevokedBanner } from '@/features/core/UpdateSignals'
 import { navItems, type NavGroup } from './feature'
 import { useModules } from '@/lib/modules'
 import { useMe } from '@/lib/session'
@@ -140,6 +141,7 @@ export function Layout() {
         </DialogContent>
       </Dialog>
       <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-8">
+        <RevokedBanner />
         <Outlet />
       </main>
       <ScrollRestoration />

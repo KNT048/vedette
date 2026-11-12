@@ -442,22 +442,22 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestions are kept even if the person has gone
 	defer cancel()
 	v := s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now)
-	v.MemoriesSuggested = s.suggestFromDigest(sctx, remember, now)
+	v.MemoriesSuggested = s.suggestFrom(sctx, remember, "log summary of "+now.UTC().Format("2 Jan 2006"), "the log digest")
 	return v, nil
 }
 
-// suggestFromDigest hands the memories the AI suggested to SuggestMemory, which keeps them for an administrator (INV-8), and says how
-// many were kept. A suggestion that is not kept (suggestions just turned off, too many waiting, a text the hooks stop, one already
-// remembered or waiting) is not an error of the digest.
-func (s *Service) suggestFromDigest(ctx context.Context, remember []string, at time.Time) int {
+// suggestFrom hands the memories the AI suggested (by names where: the log digest or a question) to SuggestMemory, which keeps them for an
+// administrator (INV-8), and says how many were kept. A suggestion that is not kept (suggestions just turned off, too many waiting, a
+// text the hooks stop, one already remembered or waiting) is not an error of the digest or the question.
+func (s *Service) suggestFrom(ctx context.Context, remember []string, evidence, by string) int {
 	kept := 0
 	for _, text := range remember {
-		stored, err := s.suggestMemory(ctx, text, "log summary of "+at.UTC().Format("2 Jan 2006"))
+		stored, err := s.suggestMemory(ctx, text, evidence)
 		if stored {
 			kept++
 		}
 		if err != nil && !errors.Is(err, ErrSuggestionsOff) && !errors.Is(err, ErrTooManySuggestions) && !errors.Is(err, ErrInvalidPromptInput) {
-			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggested by the log digest", "error", err)
+			s.cfg.Log.WarnContext(ctx, "ai: could not keep a memory suggestion", "by", by, "error", err)
 		}
 	}
 	return kept

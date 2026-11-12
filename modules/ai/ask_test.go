@@ -1042,3 +1042,39 @@ func TestAskFourCallsPerTurn(t *testing.T) {
 		t.Fatalf("results = %+v, reads = %d", res, a.data.readCount())
 	}
 }
+
+func TestAskSuggestsOneMemoryOnlyWhenAllowed(t *testing.T) {
+	a := newAskAPI(t)
+	rdp := turn{calls: []provider.ToolCall{call("search_assets", `{"port":3389}`)}}
+	answer := "Remember: patch SRV-AD first.\n\nSRV-AD and WS-07 have RDP open.\n**Remember:** SRV-AD is the only domain controller.\n"
+	a.fake.play(rdp, turn{text: answer})
+	got := a.ask("Which machines still expose RDP?", 200, "")
+	if req := a.fake.lastRequest(t); strings.Contains(req.System+req.Messages[0].Text, "Remember:") {
+		t.Fatalf("suggestions are off, the task asks for them")
+	}
+	if len(list(got["answer"])) != 2 || got["memories_suggested"] != float64(0) { // off: the line was not asked for, it stays text
+		t.Fatalf("answer = %v", got)
+	}
+	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
+	a.fake.play(rdp, turn{text: answer})
+	got = a.ask("Which machines still expose RDP?\u200b", 200, "")
+	if req := a.fake.lastRequest(t); !strings.Contains(req.System+req.Messages[0].Text, "Remember:") {
+		t.Fatalf("suggestions are on, the task does not ask for them")
+	}
+	// only the last line is the suggestion; the advice line stays in the answer
+	if ans := list(got["answer"]); len(ans) != 2 || ans[0] != "Remember: patch SRV-AD first." || strings.Contains(ans[1].(string), "domain controller") || got["memories_suggested"] != float64(1) {
+		t.Fatalf("answer = %v", got)
+	}
+	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
+	if len(sg) != 1 || sg[0].(map[string]any)["text"] != "SRV-AD is the only domain controller." || sg[0].(map[string]any)["evidence"] != `asked "Which machines still expose RDP?" and read search_assets` {
+		t.Fatalf("suggestions = %v", sg)
+	}
+	if h := list(a.want("GET", "/ai/asks", "operator", "", 200, "")["items"]); len(h) == 0 || h[0].(map[string]any)["memories_suggested"] != float64(0) {
+		t.Fatalf("history = %v", h)
+	}
+	// no tool was read: the fact would be the model's or the asker's word, so nothing is suggested; an answer that is only the line keeps it as text
+	a.fake.play(turn{text: "Remember: the NAS makes a backup every night."})
+	if got = a.ask("The NAS makes a backup every night", 200, ""); got["memories_suggested"] != float64(0) || fmt.Sprint(got["answer"]) != "[the NAS makes a backup every night.]" {
+		t.Fatalf("answer = %v", got)
+	}
+}

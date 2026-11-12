@@ -42,7 +42,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 | `translate-advisory` | S-FEED-2 | advisory tiếng Anh | tiếng Việt, giữ số/phiên bản | lô |
 | `weekly-report` | S-REP-1 | số liệu tuần (phát hiện mới/đã xử lý/còn, honeypot, log bất thường) | markdown 1 trang | 1/tuần |
 | `pdpl-assessment` | S-REP-2 | kiểm kê + scan + cấu hình | báo cáo theo mục luật (template cố định, AI chỉ điền) | theo yêu cầu |
-| `ask-my-data` | S-AI-5 | câu hỏi + tool chỉ-đọc | trả lời + bảng | theo yêu cầu |
+| `ask-my-data` | S-AI-5 | câu hỏi + tool chỉ-đọc | trả lời + bảng; khi bật đề xuất memory, tối đa một dòng `Remember:` hộp gỡ ra làm đề xuất (D-225) | theo yêu cầu |
 
 `mitigation-config` chạy ở hai nơi (D-21): **trung tâm**, bằng key của dự án, soạn nháp gói giảm thiểu cho người duy trì xác nhận qua PR (S-MIT-4, `DATA_PIPELINE.md` §5b); **hộp**, bằng key của khách, chỉ khi CVE chưa có gói đã xác nhận (S-MIT-1). Kết quả trên hộp không bao giờ hiện như khuyến nghị đã xác nhận.
 

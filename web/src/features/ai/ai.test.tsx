@@ -67,6 +67,9 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     const run = aiRunsStore.get().filter((r) => r.skill === 'ask-my-data')
     expect(run).toHaveLength(1)
     expect(run[0]).toMatchObject({ profile: 'Claude Sonnet', model: 'claude-sonnet-5-5' })
+    // suggestions are on in the demo data: the answer names the one it suggested, with the way to review it (S-AI-7, D-225)
+    expect(screen.getByText(/The AI suggested 1 memory about this network/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Review in Settings, AI assistant, Memory' })).toHaveAttribute('href', '/settings/ai?tab=memory')
     await expectNoA11yViolations()
   })
 

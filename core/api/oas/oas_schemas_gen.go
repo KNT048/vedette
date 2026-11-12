@@ -708,14 +708,17 @@ type AiGetAiAsksOKItemsItem struct {
 	Citations  []AiGetAiAsksOKItemsItemCitationsItem `json:"citations"`
 	Downgraded NilAiGetAiAsksOKItemsItemDowngraded   `json:"downgraded"`
 	// Hooks that acted on this question, answer or tool call; empty when none did.
-	Hooks     []AiGetAiAsksOKItemsItemHooksItem     `json:"hooks"`
-	ID        string                                `json:"id"`
-	Model     string                                `json:"model"`
-	Profile   string                                `json:"profile"`
-	Question  string                                `json:"question"`
-	Table     NilAiGetAiAsksOKItemsItemTable        `json:"table"`
-	Tokens    AiGetAiAsksOKItemsItemTokens          `json:"tokens"`
-	ToolCalls []AiGetAiAsksOKItemsItemToolCallsItem `json:"tool_calls"`
+	Hooks []AiGetAiAsksOKItemsItemHooksItem `json:"hooks"`
+	ID    string                            `json:"id"`
+	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
+	// (S-AI-7, D-225).
+	MemoriesSuggested int                                   `json:"memories_suggested"`
+	Model             string                                `json:"model"`
+	Profile           string                                `json:"profile"`
+	Question          string                                `json:"question"`
+	Table             NilAiGetAiAsksOKItemsItemTable        `json:"table"`
+	Tokens            AiGetAiAsksOKItemsItemTokens          `json:"tokens"`
+	ToolCalls         []AiGetAiAsksOKItemsItemToolCallsItem `json:"tool_calls"`
 }
 
 // GetAnswer returns the value of Answer.
@@ -746,6 +749,11 @@ func (s *AiGetAiAsksOKItemsItem) GetHooks() []AiGetAiAsksOKItemsItemHooksItem {
 // GetID returns the value of ID.
 func (s *AiGetAiAsksOKItemsItem) GetID() string {
 	return s.ID
+}
+
+// GetMemoriesSuggested returns the value of MemoriesSuggested.
+func (s *AiGetAiAsksOKItemsItem) GetMemoriesSuggested() int {
+	return s.MemoriesSuggested
 }
 
 // GetModel returns the value of Model.
@@ -806,6 +814,11 @@ func (s *AiGetAiAsksOKItemsItem) SetHooks(val []AiGetAiAsksOKItemsItemHooksItem)
 // SetID sets the value of ID.
 func (s *AiGetAiAsksOKItemsItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetMemoriesSuggested sets the value of MemoriesSuggested.
+func (s *AiGetAiAsksOKItemsItem) SetMemoriesSuggested(val int) {
+	s.MemoriesSuggested = val
 }
 
 // SetModel sets the value of Model.
@@ -4529,14 +4542,17 @@ type AiPostAiAskOK struct {
 	Citations  []AiPostAiAskOKCitationsItem `json:"citations"`
 	Downgraded NilAiPostAiAskOKDowngraded   `json:"downgraded"`
 	// Hooks that acted on this question, answer or tool call; empty when none did.
-	Hooks     []AiPostAiAskOKHooksItem     `json:"hooks"`
-	ID        string                       `json:"id"`
-	Model     string                       `json:"model"`
-	Profile   string                       `json:"profile"`
-	Question  string                       `json:"question"`
-	Table     NilAiPostAiAskOKTable        `json:"table"`
-	Tokens    AiPostAiAskOKTokens          `json:"tokens"`
-	ToolCalls []AiPostAiAskOKToolCallsItem `json:"tool_calls"`
+	Hooks []AiPostAiAskOKHooksItem `json:"hooks"`
+	ID    string                   `json:"id"`
+	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
+	// (S-AI-7, D-225).
+	MemoriesSuggested int                          `json:"memories_suggested"`
+	Model             string                       `json:"model"`
+	Profile           string                       `json:"profile"`
+	Question          string                       `json:"question"`
+	Table             NilAiPostAiAskOKTable        `json:"table"`
+	Tokens            AiPostAiAskOKTokens          `json:"tokens"`
+	ToolCalls         []AiPostAiAskOKToolCallsItem `json:"tool_calls"`
 }
 
 // GetAnswer returns the value of Answer.
@@ -4567,6 +4583,11 @@ func (s *AiPostAiAskOK) GetHooks() []AiPostAiAskOKHooksItem {
 // GetID returns the value of ID.
 func (s *AiPostAiAskOK) GetID() string {
 	return s.ID
+}
+
+// GetMemoriesSuggested returns the value of MemoriesSuggested.
+func (s *AiPostAiAskOK) GetMemoriesSuggested() int {
+	return s.MemoriesSuggested
 }
 
 // GetModel returns the value of Model.
@@ -4627,6 +4648,11 @@ func (s *AiPostAiAskOK) SetHooks(val []AiPostAiAskOKHooksItem) {
 // SetID sets the value of ID.
 func (s *AiPostAiAskOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetMemoriesSuggested sets the value of MemoriesSuggested.
+func (s *AiPostAiAskOK) SetMemoriesSuggested(val int) {
+	s.MemoriesSuggested = val
 }
 
 // SetModel sets the value of Model.

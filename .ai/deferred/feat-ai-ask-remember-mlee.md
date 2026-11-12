@@ -1,0 +1,4 @@
+# Deferred — feat/ai-ask-remember-mlee (D-225)
+
+- [ ] 2026-11-12 — An answer cut at `askMaxTokens` (no stop-reason check anywhere in `modules/ai` or `core/provider`) can end in a half `Remember:` line, which becomes a half-sentence suggestion — vì sao để sau: the administrator reviews every suggestion (INV-8) and edits or rejects it; a stop-reason field touches every provider adapter — ở đâu: modules/ai/ask.go takeRemember, core/provider — owner: ai
+- [ ] 2026-11-12 — The question copied into a suggestion's evidence outlives the ask history (`askKeep` 100) while the suggestion waits (at most 50, removed on accept/reject) — vì sao để sau: same box, same admin, already masked by the before_ai hooks; consider dropping the question text on accept — ở đâu: modules/ai/ask.go askEvidence, ai_memory_suggestion — owner: ai

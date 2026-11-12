@@ -95,7 +95,7 @@ type Handler interface {
 	AiGetAiHooks(ctx context.Context) (*AiGetAiHooksOK, error)
 	// AiGetAiKnowledge implements ai_get_ai_knowledge operation.
 	//
-	// Knowledge base documents with indexing status, and the profile that builds the index.
+	// Knowledge base documents with indexing status, and the AI profile chosen for the index.
 	//
 	// GET /ai/knowledge
 	AiGetAiKnowledge(ctx context.Context) (*AiGetAiKnowledgeOK, error)
@@ -258,7 +258,7 @@ type Handler interface {
 	AiPutAiKnowledgeID(ctx context.Context, req *AiPutAiKnowledgeIDReq, params AiPutAiKnowledgeIDParams) (*AiPutAiKnowledgeIDOK, error)
 	// AiPutAiKnowledgeSettings implements ai_put_ai_knowledge_settings operation.
 	//
-	// Choose the AI profile that builds the index.
+	// Choose the AI profile for the index (required; the index is built on the box).
 	//
 	// PUT /ai/knowledge/settings
 	AiPutAiKnowledgeSettings(ctx context.Context, req *AiPutAiKnowledgeSettingsReq) (*AiPutAiKnowledgeSettingsOK, error)

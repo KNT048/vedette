@@ -369,7 +369,7 @@ func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut,
 	for _, f := range hit[:shown] {
 		t.Rows = append(t.Rows, AskRow{Href: "/findings/" + clip(f.ID, 96), Cells: []string{clip(f.Asset, 80), clip(f.CVE, 24), clip(f.Status, 20), clip(f.Severity, 12)}})
 	}
-	out := toolOut{Text: text, Summary: plural(total, "finding", "findings"), Cite: "Findings: " + plural(len(all), "record", "records")}
+	out := toolOut{Text: text, Summary: plural(total, "finding", "findings"), Cite: "Findings: " + plural(len(all), "record", "records") + " searched"}
 	if len(t.Rows) > 0 {
 		out.Table = t
 	}

@@ -317,28 +317,39 @@ func (o *Ops) coreFreeForRestore() error {
 // does. A unit that is not ours, or a release the host knows nothing about while another is recorded as
 // current, is not reconciled. With no current recorded there is nothing to contradict.
 func (o *Ops) reconcileCoreVersion() bool {
+	save, ok := o.coreVersionPlan()
+	if save == nil {
+		return ok
+	}
+	return o.saveVersions(*save) == nil
+}
+
+// coreVersionPlan is reconcileCoreVersion without the write: ok says the versions agree with the unit or can be
+// made to, and save, when not nil, is the record that makes them agree. It changes nothing (the recovery command
+// asks it before it moves a file).
+func (o *Ops) coreVersionPlan() (save *versionState, ok bool) {
 	text, st := o.readUnit(api.ServiceCore)
 	if st != fileOK {
-		return false
+		return nil, false
 	}
 	digest, _, err := o.ourUnit(api.ServiceCore, text)
 	if err != nil {
-		return false
+		return nil, false
 	}
 	vs := o.loadVersions(api.ServiceCore)
 	switch {
 	case vs.Current != nil && vs.Current.Digest == digest:
-		return true
+		return nil, true
 	case vs.Current != nil && vs.Previous != nil && vs.Previous.Digest == digest:
 		now := *vs.Previous
 		now.BackupID = "" // the backup of another point in time is not carried over (D-138 H1)
-		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}) == nil
+		return &versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}, true
 	}
 	if rec, ok := o.loadPulled(api.ServiceCore); ok && rec.Digest == digest {
 		// The release that was recorded as current stays as previous, so a rollback has somewhere to go.
-		return o.saveVersions(versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}, Previous: vs.Current}) == nil
+		return &versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}, Previous: vs.Current}, true
 	}
-	return vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
+	return nil, vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
 }
 
 // coreUnrecoverable says core's journal is valid and marked unrecoverable.

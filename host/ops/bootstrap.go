@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -239,6 +240,25 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			if _, st := o.readNoFollowIn(unitsRel, volumeFileName(role), maxUnitSize); st == fileBroken {
 				return bsErr(api.CodeUnitUnsafe, volumeFileName(role)+" is not a regular file the host can trust")
 			}
+		}
+	}
+	// The honeypot log volume unit is written with the first unit of core or honeypot (D-318): same refusal.
+	if slices.ContainsFunc(steps, func(s *bsStep) bool {
+		return s.plan.service == api.ServiceCore || s.plan.service == api.ServiceHoneypot
+	}) {
+		if _, st := o.readNoFollowIn(unitsRel, hpLogVolumeFileName, maxUnitSize); st == fileBroken {
+			return bsErr(api.CodeUnitUnsafe, hpLogVolumeFileName+" is not a regular file the host can trust")
+		}
+	}
+	// core and honeypot share the log volume (D-318): one on the new template and the other on the old bind would make core read an
+	// empty tmpfs while the honeypot writes to disk, and every hit would be lost without an error. So when one of them is written, the
+	// other must be written too or already mount the volume.
+	for _, pair := range [][2]string{{api.ServiceCore, api.ServiceHoneypot}, {api.ServiceHoneypot, api.ServiceCore}} {
+		if !slices.Contains(svcs, pair[0]) || slices.Contains(svcs, pair[1]) {
+			continue
+		}
+		if b, st := o.readNoFollowIn(unitsRel, unitFileName(pair[1]), maxUnitSize); st == fileOK && !bytes.Contains(b, []byte(hpLogVolumeFileName+":")) {
+			return bsErr(BootstrapBadArgs, "the unit of "+pair[1]+" still binds the old log directory and would no longer see the honeypot log: pass core and honeypot together")
 		}
 	}
 	if err := o.bootstrapSpace(ctx, steps); err != nil {

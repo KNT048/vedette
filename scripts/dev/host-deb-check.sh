@@ -18,7 +18,7 @@ set -a; . deploy/containers/pins.env; . deploy/deb/check-pins.env; set +a
 targets="debian13=$DEBIAN_IMAGE ubuntu2404=$UBUNTU_2404_IMAGE"
 work=$(mktemp -d)
 out=$work/out
-deb=$out/vedette-host_${ver}_${arch}.deb
+deb=$out/vedette-host_${ver/-/\~}_${arch}.deb # nfpm writes a prerelease with a tilde
 bin=$out/host-deb/$arch/vedette-host
 pulled=""
 name=setup

@@ -49,7 +49,7 @@ func CheckBinary(path string, rules BinaryRules) error {
 		return nil
 	}
 	if set["vcs.revision"] == "" {
-		return fmt.Errorf("%s has no vcs.revision: build the release from a git checkout", path)
+		return fmt.Errorf("%s has no vcs.revision: build the release from a full git clone (in a git worktree .git is a file and Go records no VCS information)", path)
 	}
 	if set["vcs.modified"] != "false" {
 		return fmt.Errorf("%s was built from a tree with uncommitted changes (vcs.modified=%q): commit first, a release is its commit", path, set["vcs.modified"])

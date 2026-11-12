@@ -83,12 +83,21 @@ function DevicesTable({ items, filter }: { items: DeviceRow[]; filter: Filter })
   )
 }
 
+/** The empty state. When a range is saved it says Vedette is watching it instead of asking for one again (S-INV-1); the settings are read only here, and only by an admin. */
+function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd, onImport }: { boxOnly: boolean; canOp: boolean; canAdmin: boolean; needRole: string | undefined; onAdd: () => void; onImport: () => void }) {
+  const { t } = useTranslation('inventory')
+  const hasRanges = (useSettings(canAdmin).data?.lan_ranges.length ?? 0) > 0
+  const body = boxOnly ? (hasRanges ? 'empty.bodyBoxOnlyWatching' : 'empty.bodyBoxOnly') : hasRanges ? 'empty.bodyWatching' : 'empty.body'
+  return (
+    <EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{canAdmin && !hasRanges ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
+  )
+}
+
 function Body() {
   const { t } = useTranslation('inventory')
   const q = useDevices()
   const canOp = useCan('operator')
   const canAdmin = useCan('admin')
-  const hasRanges = (useSettings().data?.lan_ranges.length ?? 0) > 0 // a range is saved: the empty state must not ask for one again
   const [filter, setFilter] = useState<Filter>('all')
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -110,11 +119,11 @@ function Body() {
         } />
       <QueryState query={q}>
         {(d) => d.counts.all === 0 ? (
-          <EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdding(true)}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={() => setImporting(true)}>{t('import.open')}</Button>{canAdmin && !hasRanges ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(hasRanges ? 'empty.bodyWatching' : 'empty.body')}</EmptyState>
+          <NoDevices boxOnly={false} canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={() => setAdding(true)} onImport={() => setImporting(true)} />
         ) : (
           <>
             {d.items.length === 1 && d.items[0]?.is_box ? (
-              <div className="mb-6"><EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdding(true)}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={() => setImporting(true)}>{t('import.open')}</Button>{canAdmin && !hasRanges ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(hasRanges ? 'empty.bodyBoxOnlyWatching' : 'empty.bodyBoxOnly')}</EmptyState></div>
+              <div className="mb-6"><NoDevices boxOnly canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={() => setAdding(true)} onImport={() => setImporting(true)} /></div>
             ) : null}
             <PendingPanel data={d} />
             <section aria-labelledby="all-title">

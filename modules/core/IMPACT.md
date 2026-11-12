@@ -69,6 +69,10 @@ Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây
 - **`core_setting` `data.restore`** is read and written only by `restore.go`; a restored database may hold an older copy, so the first read of a process asks the host (`restoreSynced`).
 - **GUI**: `web/src/features/core/{contract.ts,mocks.ts,DataSection.tsx}` (Backups on this box, Restore dialog); audit labels `data.restore`, `data.restore_failed`, `data.restore_done` in `web/src/locales/en/core.json`.
 
+## Modifying: test-channel release source (#469, D-TBD, INV-34a: `modules/core/updates_check.go`, `updates_host.go`, `deploy/containers/core/Containerfile`, `scripts/testchannel`, `scripts/dev/install-artifacts.sh`)
+- Every use of `upd.base` (index, manifest URL, host package URL) now goes through `OSHandlers.releaseBase()`; with a release version, or a configured `ReleaseBase`, it returns exactly what it returned before. `updCheck` gains `dataDir`. No API, DB, route or contract.ts change; nothing for customers.
+- Build side: `TEST_KEYS_B64` (Makefile `core-image`/`images`, Containerfile) replaces `internal/release/keys_prod.go` inside the core image build for `-test.` versions only; `vedette-testchannel serve -releases DIR` serves the signed documents and host package under `/release/`.
+
 ## Modifying: kiểm tra cập nhật phần mềm (D-340, D-341, INV-34: `modules/core/{updates,updates_check}.go`, `cmd/vedette/wiring.go`)
 - **`OSConfig` thêm `Version`, `ReleaseBase`, `HTTPClient`, `Trust`** (rỗng = `DefaultReleaseBase`, client có timeout chỉ theo chuyển hướng tới host GitHub của PRIVACY luồng 6, `release.Embedded`). `cmd/vedette` chỉ truyền `Version: main.version`. Một bản dựng có `main.version` không phải SemVer phát hành (dev) vẫn kiểm được nhưng không có manifest đang chạy (`rollback_restores_data` = false).
 - **Thao tác**: `CoreGetCoreUpdates`, `CorePatchCoreUpdates`, `CorePostCoreUpdatesCheck` trên `*OSHandlers` (cùng nhúng như các thao tác OS). Apply và rollback ở `updates_run.go`; bundle vẫn 501.

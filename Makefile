@@ -9,6 +9,8 @@ GO_TOOL := go tool -modfile=tools/go.mod
 include deploy/containers/pins.env
 CONTAINER ?= podman
 IMAGE_VERSION ?= 0.0.0-dev
+# test channel only (scripts/dev/install-artifacts.sh, #469): the public throwaway keys compiled into core; the Containerfile refuses it unless VERSION has -test.
+TEST_KEYS_B64 ?=
 IMAGE_TAG ?= dev
 PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_ZIP_SHA256_AMD64 NUCLEI_ZIP_SHA256_ARM64 NUCLEI_BIN_SHA256_AMD64 NUCLEI_BIN_SHA256_ARM64 NMAP_MIN_VERSION SCAN_PACK_VERSION OPENCANARY_VERSION SAMBA_MIN_VERSION,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
 PACK_DIR := deploy/containers/scan-base/pack
@@ -267,7 +269,7 @@ webui-csp-check: webui-dist
 
 # The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
 core-image: webui-dist check-min-sequence
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
@@ -290,7 +292,7 @@ MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&
 endif
 comma := ,
 images: webui-dist scan-pack check-min-sequence
-	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
+	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The honeypot image (WP-08e, D-162): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.

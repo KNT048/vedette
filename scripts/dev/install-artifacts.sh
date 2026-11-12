@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # make install-artifacts (WP-08h, D-166): build the TEST release that `install.sh --test-artifacts DIR` installs, into dist/install/.
 # The real release keys and the published images do not exist yet, so this makes everything locally and signs it with throwaway keys:
-#   1. throwaway keys + a Go build overlay (scripts/testchannel keys): the private halves live in a work folder that is deleted at the end
-#   2. the vedette-host .deb, built with that overlay so that this one build trusts exactly those keys (the source tree is untouched)
+#   1. throwaway keys + a Go build overlay (scripts/testchannel keys): the private halves live in a work folder that is deleted at the end (or in KEYS=<dir>, kept)
+#   2. the vedette-host .deb, built with that overlay so that this one build trusts exactly those keys (the source tree is untouched); the core image gets
+#      the same public keys (build arg TEST_KEYS_B64, -test. versions only) so that its update check verifies the test channel
 #   3. the images (make images, one platform; FAST=1: core with a placeholder interface and sensor only, for install-check)
 #   4. each image exported to an OCI layout; its digest is the digest of what a registry serves; the blobs are merged
 #   5. index.json, release-manifest.json and their minisign signatures, checked back with internal/release (scripts/testchannel sign)
 #   6. dist/install/: the package, the four signed documents, registry/ (the blobs), vedette-testchannel (the registry, static),
 #      test-channel.env, SHA256SUMS and install.sh
 # Variables: VERSION (SemVer without v, default 0.0.1-test.1), ARCH (amd64|arm64, default this machine), OUT (default dist/install),
+# KEYS=<dir> (#469): keep the throwaway keys in <dir> and reuse them: a folder that has keys keeps them, an empty or missing one gets new keys that stay
+# there, so a second build (VERSION=0.0.1-test.2 KEYS=<dir>) is trusted by a box installed from the first. The private halves are 0600 and TEST-ONLY; <dir> must
+# not be under the output folder and, inside the repository, must be git-ignored. Without KEYS the keys are deleted at the end, as before.
 # FAST=1, RELEASE=1 (keep the work folder and the local images; default: remove them, the build-artifacts rule). Uses podman.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -44,10 +48,19 @@ cleanup() {
 trap cleanup EXIT
 
 say "1/6 throwaway keys"
-go run ./scripts/testchannel keys -out "$work/keys" -repo "$root"
+keys=$work/keys
+if [ -n "${KEYS:-}" ]; then
+	case $KEYS in /*) keys=$KEYS ;; *) keys=$PWD/$KEYS ;; esac
+	case $keys/ in "$out"/*) fail "KEYS must not be inside the output folder $out (the private keys would ship)" ;; esac
+	case $keys/ in "$root"/*) git check-ignore -q "$keys" || fail "KEYS=$keys is inside the repository and not git-ignored: use a folder outside it (the private keys must never be committed)" ;; esac
+	mkdir -p "$keys" && chmod 0700 "$keys"
+	if [ -e "$keys/minisign-active.seed" ]; then say "reusing the test keys in $keys"; else say "making test keys in $keys (kept; TEST-ONLY, never use them for a release)"; fi
+fi
+go run ./scripts/testchannel keys -out "$keys" -repo "$root"
+test_keys_b64=$(base64 <"$keys/keys_prod.go" | tr -d '\n')
 
 say "2/6 vedette-host $version ($arch), built with the test keys"
-GOFLAGS="${GOFLAGS:+$GOFLAGS }-overlay=$work/keys/overlay.json" DEB_OUT="$work/deb" make --no-print-directory host-deb VERSION="$version" ARCH="$arch" MIN_SEQUENCE=0 >/dev/null
+GOFLAGS="${GOFLAGS:+$GOFLAGS }-overlay=$keys/overlay.json" DEB_OUT="$work/deb" make --no-print-directory host-deb VERSION="$version" ARCH="$arch" MIN_SEQUENCE=0 >/dev/null
 # nfpm (dpkg) writes a SemVer prerelease with a tilde in the file name; the asset and install.sh use the SemVer spelling
 nfpm_deb=$work/deb/vedette-host_${version/-/\~}_${arch}.deb
 deb=$work/deb/vedette-host_${version}_${arch}.deb
@@ -62,11 +75,11 @@ if [ -n "$fast" ]; then
 	services="core sensor"
 	mkdir -p internal/webui/dist
 	printf '<!doctype html><title>Vedette TEST INSTALL placeholder</title><p>install-check placeholder interface</p>\n' >internal/webui/dist/index.html
-	make --no-print-directory -o webui-dist sensor-image core-image IMAGE_TAG="$version" IMAGE_VERSION="$version" >/dev/null
+	make --no-print-directory -o webui-dist sensor-image core-image IMAGE_TAG="$version" IMAGE_VERSION="$version" TEST_KEYS_B64="$test_keys_b64" >/dev/null
 	built+=("localhost/vedette-sensor:$version" "localhost/vedette-core:$version")
 else
 	services="core sensor scan"
-	make --no-print-directory images PLATFORMS="linux/$arch" IMAGE_TAG="$version" IMAGE_VERSION="$version" >/dev/null
+	make --no-print-directory images PLATFORMS="linux/$arch" IMAGE_TAG="$version" IMAGE_VERSION="$version" TEST_KEYS_B64="$test_keys_b64" >/dev/null
 	built+=("localhost/vedette-sensor:$version" "localhost/vedette-scan-base:$version" "localhost/vedette-core:$version")
 fi
 # the honeypot image belongs to WP-08e: used when it was built with the same tag, else the install has no honeypot
@@ -96,7 +109,7 @@ done
 
 say "5/6 signing the index and the manifest"
 mkdir -p "$work/docs"
-go run ./scripts/testchannel sign -keys "$work/keys" -out "$work/docs" -version "$version" -platform "linux/$arch" -blobs "$work/blobs" -deb "$deb" "${images[@]}"
+go run ./scripts/testchannel sign -keys "$keys" -out "$work/docs" -version "$version" -platform "linux/$arch" -blobs "$work/blobs" -deb "$deb" "${images[@]}"
 
 say "6/6 assembling $out"
 rm -rf "$out"

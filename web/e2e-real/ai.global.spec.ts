@@ -5,8 +5,7 @@
 // paths use a stand-in model on loopback (fake-ai.ts) that answers by what the box asks for: explain with its cache and a fallback profile, Ask your data with
 // read-only tools and the hooks, the log digest, memory suggestions and the knowledge base (S-AI-2, S-AI-4, S-AI-5, S-AI-7).
 // Hooks, rules, the token level, retention and the profile forms are real and need no provider. Global project: all of it is box-wide, and every test puts it back.
-// CVE news fetches NVD, GitHub and blogs from the Internet and the e2e box has no seam for them: the refusals that fetch nothing are tested, the fetch-and-summarise
-// path stays test.fixme under D-171 (2), recorded in D-426 (the Go contract tests carry it with a fake transport).
+// CVE news fetches NVD, GitHub and blogs: the e2e box answers them from a fake internet on loopback (D-426), so the refusals and the fetch-and-summarise path are both tested.
 import { createSocket } from 'node:dgram'
 import { createServer, type Server } from 'node:net'
 import { crc32 } from 'node:zlib'
@@ -474,6 +473,18 @@ async function rule(c: APIRequestContext, jobs: string[]): Promise<string> {
   expect((await api(c, 'POST', '/ai/rules', { text, jobs, enabled: true })).status).toBe(200)
   return text
 }
+/** A one-page PDF whose only content is `text` (no parentheses or backslashes in it): the box reads it in its limited child process (INV-10, D-264). */
+function pdf(text: string): Buffer {
+  const content = `BT /F1 12 Tf 72 700 Td (${text}) Tj ET`
+  const bodies = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
+  let out = '%PDF-1.4\n'
+  const offs = bodies.map((b, i) => { const at = out.length; out += `${i + 1} 0 obj\n${b}\nendobj\n`; return at })
+  const xref = out.length
+  out += `xref\n0 6\n0000000000 65535 f \n${offs.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return Buffer.from(out, 'latin1')
+}
 /** A .docx is a zip holding word/document.xml, the one part the box reads (INV-10): one stored entry. */
 function docx(text: string): Buffer {
   const name = Buffer.from('word/document.xml')
@@ -644,14 +655,35 @@ test('CVE news: a CVE the box has no entry for, a malformed ID and a switched-of
     try { expect((await api<Err>(viewer, 'POST', `/ai/cve/${CVE}/news`)).status).toBe(403) } finally { await viewer.dispose() }
   } finally { await c.dispose() }
 })
-// The box fetches NVD, GitHub, the vendor page and six blogs from the Internet: the e2e box has no seam to serve them on loopback, and this run must send
-// nothing out. D-426 accepts it under D-171 (2); TestContract_S_AI_3_TheBoxFetchesAndTheAISummarises carries the flow with a fake transport.
-test.fixme('CVE news: the box fetches the sources, the AI only summarises them, the second press spends no tokens (S-AI-3, INV-6; needs a news-source seam in the e2e box, D-426)', async () => {
+// The box fetches NVD, GitHub, the vendor page and six blogs: in this run they are answered by a fake internet on loopback inside the box's process
+// (cmd/vedette/e2enews_test.go, ready.json news_pages). The fetcher keeps every check of the real one; only the name lookup and the connect are replaced.
+test('CVE news: the box fetches the sources, the AI only summarises them, the second press spends no tokens (S-AI-3, INV-6)', async () => {
   const c = await as('admin')
-  const r = await api<{ lines: unknown[]; sources: unknown[] }>(c, 'POST', `/ai/cve/${CVE}/news`)
-  expect(r.status).toBe(200)
-  expect((await api<{ news: unknown }>(c, 'GET', `/ai/cve/${CVE}/cached`)).body.news).not.toBeNull()
-  await c.dispose()
+  try {
+    const f = await fake()
+    await api<Profile>(c, 'POST', '/ai/profiles', { ...body(uniq('ai'), 0), base_url: f.base })
+    const pages = box().news_pages ?? []
+    expect(pages, 'the box serves the fake internet').toContain('services.nvd.nist.gov/rest/json/cves/2.0')
+    const before = (await activity(c)).total
+    const first = await api<{ cve: string; lines: string[]; sources: { kind: string; title: string; status: string }[]; citations: { url?: string }[] }>(c, 'POST', `/ai/cve/${CVE}/news`)
+    expect(first.status, JSON.stringify(first.body)).toBe(200)
+    expect(first.body.cve).toBe(CVE)
+    expect(first.body.lines.length, 'the AI summarised: one line per field').toBeGreaterThan(0)
+    // the box fetched: every page of the fake internet was read (NVD, the vendor page it names, GitHub, six blogs), none failed
+    expect(first.body.sources.map((x) => x.status), JSON.stringify(first.body.sources)).toEqual(Array(pages.length).fill('ok'))
+    expect(first.body.sources.map((x) => x.kind).sort()).toEqual(['advisory', 'advisory', 'github', 'rss', 'rss', 'rss', 'rss', 'rss', 'rss'])
+    // the AI only summarised: one call, whose text carries the fetched page and never a device of the box
+    expect(f.calls.length).toBe(1)
+    expect(f.calls[0]!.text).toContain('Upgrade E2E Product to 2.0')
+    expect((await activity(c)).total).toBe(before + 1)
+    expect((await api<{ news: { cve: string } | null }>(c, 'GET', `/ai/cve/${CVE}/cached`)).body.news?.cve).toBe(CVE)
+    // the second press reads the same inputs: no new call to the model, no new row
+    const second = await api<{ lines: string[] }>(c, 'POST', `/ai/cve/${CVE}/news`)
+    expect(second.status).toBe(200)
+    expect(second.body.lines).toEqual(first.body.lines)
+    expect(f.calls.length, 'no tokens spent the second time').toBe(1)
+    expect((await activity(c)).total).toBe(before + 1)
+  } finally { await c.dispose() }
 })
 
 test('memory, skills and the knowledge base: a memory is added, edited, switched and deleted; a suggestion reaches no prompt until it is accepted; a document is indexed and its passage goes with the call (S-AI-7, INV-8..10, INV-22b)', async ({ page }) => {
@@ -714,7 +746,7 @@ test('memory, skills and the knowledge base: a memory is added, edited, switched
     expect((await skills(c)).map((s) => s.id)).toEqual(['explain-finding', 'cve-news', 'log-digest', 'log-investigate', 'mitigation-config', 'fingerprint-fallback', 'translate-advisory', 'weekly-report', 'pdpl-assessment', 'ask-my-data', 'response-plan'])
     expect((await api<Err>(c, 'PUT', '/ai/skills/no-such-skill', { enabled: false })).status).toBe(404)
 
-    // knowledge: a profile for the index first; a Markdown file and a Word file are indexed on the box; the passage that matches goes with the call
+    // knowledge: a profile for the index first; a Markdown file, a Word file and a PDF are indexed on the box; the passage that matches goes with the call
     const md = Buffer.from(`# Backups\n\nThe nightly backup of the office runs on ${tag} at two in the morning.\n`)
     const add = (name: string, bytes: Buffer, jobs?: string[]) => api<Doc & Err>(c, 'POST', '/ai/knowledge', { name, size: bytes.length, content: bytes.toString('base64'), ...(jobs ? { jobs } : {}) })
     const refused = await add('runbook.md', md)
@@ -726,12 +758,16 @@ test('memory, skills and the knowledge base: a memory is added, edited, switched
     expect(a.body).toMatchObject({ name: 'runbook.md', size: md.length, jobs: ['explain-finding', 'ask-my-data'] })
     const w = await add('cameras.docx', docx(`The camera recorder ${tag}-nvr keeps thirty days of video.`), ['ask-my-data'])
     expect(w.status, JSON.stringify(w.body)).toBe(200)
-    await expect.poll(async () => (await docs(c)).items.map((d) => [d.name, d.status, (d.chunks ?? 0) > 0]).sort(), { message: 'both are indexed', timeout: 30_000 })
-      .toEqual([['cameras.docx', 'ready', true], ['runbook.md', 'ready', true]])
+    const pf = await add('network.pdf', pdf(`The core switch ${tag}-sw sits in the basement rack.`), ['ask-my-data'])
+    expect(pf.status, JSON.stringify(pf.body)).toBe(200)
+    await expect.poll(async () => (await docs(c)).items.map((d) => [d.name, d.status, (d.chunks ?? 0) > 0]).sort(), { message: 'all three are indexed (the PDF is read in the box child process)', timeout: 30_000 })
+      .toEqual([['cameras.docx', 'ready', true], ['network.pdf', 'ready', true], ['runbook.md', 'ready', true]])
     await ask('Where does the nightly backup of the office run?')
     expect(sentLast(), 'the passage of the runbook went with the call').toContain(`The nightly backup of the office runs on ${tag}`)
     await ask('How many days of video does the camera recorder keep?')
     expect(sentLast(), 'the text of the Word file went with the call').toContain(`${tag}-nvr keeps thirty days of video`)
+    await ask('Where does the core switch sit?')
+    expect(sentLast(), 'the text of the PDF went with the call').toContain(`${tag}-sw sits in the basement rack`)
     expect((await api(c, 'PUT', `/ai/knowledge/${a.body.id}`, { jobs: ['explain-finding'] })).body).toMatchObject({ jobs: ['explain-finding'] })
     await ask('Where does the nightly backup of the office run?')
     expect(sentLast(), 'a document not assigned to the job stays out').not.toContain(`runs on ${tag}`)

@@ -13,10 +13,10 @@ import type { Digest, IocHit, EventWindow, LogEvent, LogSource, NewItem, Proto, 
 type Stored = Omit<LogSource, 'asset_id' | 'asset_name' | 'state'>
 
 const sources = collection<Stored[]>('logs_sources', () => [
-  { id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.10.1', proto: 'udp', port: 514, last_received: new Date(Date.now() - 20e3).toISOString(), lines_per_hour: 1840, created_at: daysAgo(30) },
-  { id: 'ls-2', kind: 'mikrotik', name: 'RT-BACKUP', sender_ip: '192.168.10.2', proto: 'udp', port: 514, last_received: new Date(Date.now() - 120e3).toISOString(), lines_per_hour: 310, created_at: daysAgo(30) },
-  { id: 'ls-3', kind: 'windows', name: 'SRV-AD', sender_ip: '192.168.10.10', proto: 'udp', port: 514, last_received: new Date(Date.now() - 240e3).toISOString(), lines_per_hour: 95, created_at: daysAgo(20) },
-  { id: 'ls-4', kind: 'windows', name: 'SRV-FILE', sender_ip: '192.168.10.11', proto: 'udp', port: 514, last_received: daysAgo(3), lines_per_hour: 0, created_at: daysAgo(20) },
+  { id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.10.1', proto: 'udp', port: 514, last_received: new Date(Date.now() - 20e3).toISOString(), lines_per_hour: 1840, created_at: daysAgo(30), client_cert_sha256: null },
+  { id: 'ls-2', kind: 'mikrotik', name: 'RT-BACKUP', sender_ip: '192.168.10.2', proto: 'udp', port: 514, last_received: new Date(Date.now() - 120e3).toISOString(), lines_per_hour: 310, created_at: daysAgo(30), client_cert_sha256: null },
+  { id: 'ls-3', kind: 'windows', name: 'SRV-AD', sender_ip: '192.168.10.10', proto: 'udp', port: 514, last_received: new Date(Date.now() - 240e3).toISOString(), lines_per_hour: 95, created_at: daysAgo(20), client_cert_sha256: null },
+  { id: 'ls-4', kind: 'windows', name: 'SRV-FILE', sender_ip: '192.168.10.11', proto: 'udp', port: 514, last_received: daysAgo(3), lines_per_hour: 0, created_at: daysAgo(20), client_cert_sha256: null },
 ], () => [])
 // IOC detections (S-LOG-2, S-LOG-4, D-43): metadata from a SPAN port (DNS query, TLS SNI, HTTP host, flow) or syslog matched against the feeds.
 // Stored shape is read by the response module with peek('logs_ioc_hits'); like the box (INV-7) it does not hold the device: asset_id and
@@ -37,6 +37,14 @@ const retention = collection<{ days: number }>('logs_retention', () => ({ days: 
 const siem = collection<Omit<SiemConfig, 'secret_last4'> & { secret: string }>('logs_siem', () => ({
   enabled: false, format: 'syslog', host: '', port: 514, proto: 'udp', url: '', secret: '', events: ['findings', 'alerts'], last_test: null,
 }))
+
+// What a device must trust for the box's syslog TLS port (D-434): on a default box the box's own CA (the 8443 leaf is signed by it and re-issued
+// on renewal), so the sample is that.
+const BOX_TLS = {
+  kind: 'box_ca' as const, issuer: 'CN=Vedette box CA', port: 6514,
+  fingerprint_sha256: 'c3a1f0e29d4b7a86510e3fb2c8d94a7e61b05f3d2a98c47e0b1d6f5a3c2e8d91', subject: 'CN=Vedette box CA', not_after: daysAgo(-7000),
+  pem: '-----BEGIN CERTIFICATE-----\nU2FtcGxlIGNlcnRpZmljYXRlIGZvciB0aGUgbW9jayBib3gu\n-----END CERTIFICATE-----\n',
+}
 
 const toSource = (s: Stored): LogSource => {
   const a = assetsStore.get().find((x) => x.ip === s.sender_ip)
@@ -112,6 +120,10 @@ function validateSource(b: Partial<SourceInput>, selfId?: string) {
   if (!IPV4_RE.test(String(b.sender_ip ?? ''))) return fail(400, 'bad_ip', 'The IP address of the sending device is not valid. Enter it like 192.168.10.1.')
   if (!CATALOG[b.kind as SourceKind].protos.includes(b.proto as Proto)) return fail(400, 'bad_proto', 'This device type cannot send logs with the chosen protocol. Pick another protocol from the list.')
   if (!Number.isInteger(b.port) || b.port! < 1 || b.port! > 65535) return fail(400, 'bad_port', 'The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS).')
+  if (b.client_cert_sha256) {
+    if (b.proto !== 'tls') return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
+    if (!/^[0-9a-f]{64}$/.test(b.client_cert_sha256)) return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
+  }
   if (sources.get().some((s) => s.id !== selfId && s.sender_ip === b.sender_ip)) return fail(409, 'duplicate', 'There is already a log source with this IP address. Edit that one instead of adding a new one.')
   return null
 }
@@ -169,14 +181,14 @@ const publicSiem = (c: ReturnType<typeof siem.get>): SiemConfig => { const { sec
 export const handlers = [
   http.get(`${API}/logs/sources`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ box: boxInfo(), sources: sources.get().map(toSource), retention_days: retention.get().days })
+    return HttpResponse.json({ box: { ...boxInfo(), tls: BOX_TLS }, sources: sources.get().map(toSource), retention_days: retention.get().days })
   }),
 
   http.post(`${API}/logs/sources`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<SourceInput>(request)
     const bad = validateSource(b); if (bad) return bad
-    const s: Stored = { id: newId('ls'), kind: b.kind!, name: b.name!.trim(), sender_ip: b.sender_ip!, proto: b.proto!, port: b.port!, last_received: null, lines_per_hour: 0, created_at: nowIso() }
+    const s: Stored = { id: newId('ls'), kind: b.kind!, name: b.name!.trim(), sender_ip: b.sender_ip!, proto: b.proto!, port: b.port!, last_received: null, lines_per_hour: 0, created_at: nowIso(), client_cert_sha256: b.client_cert_sha256 || null }
     sources.update((l) => [...l, s])
     audit('logs.source_add', s.name, `${s.kind} ${s.sender_ip} ${s.proto}/${s.port}`)
     return HttpResponse.json(toSource(s), { status: 201 })
@@ -189,7 +201,7 @@ export const handlers = [
     const b = await body<SourceInput>(request)
     const bad = validateSource(b, id); if (bad) return bad
     let out: Stored | undefined
-    sources.update((l) => l.map((s) => (s.id === id ? (out = { ...s, kind: b.kind!, name: b.name!.trim(), sender_ip: b.sender_ip!, proto: b.proto!, port: b.port! }) : s)))
+    sources.update((l) => l.map((s) => (s.id === id ? (out = { ...s, kind: b.kind!, name: b.name!.trim(), sender_ip: b.sender_ip!, proto: b.proto!, port: b.port!, client_cert_sha256: b.client_cert_sha256 || null }) : s)))
     audit('logs.source_edit', out!.name)
     return HttpResponse.json(toSource(out!))
   }),

@@ -12979,7 +12979,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = InventoryGetInstallOsqueryPs1Operation
-									r.summary = "osquery install script for Windows Server, served by the box; public, contains no secrets"
+									r.summary = "osquery install script for Windows Server, served by the box; public, contains no secrets; 404 no_box_address while the box knows no address other machines can reach"
 									r.operationID = "inventory_get_install_osquery_ps1"
 									r.operationGroup = ""
 									r.pathPattern = "/install/osquery.ps1"
@@ -13004,7 +13004,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = InventoryGetInstallOsqueryShOperation
-									r.summary = "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)"
+									r.summary = "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64), served by the box; public, contains no secrets (the token is passed as a parameter); 404 no_box_address while the box knows no address other machines can reach"
 									r.operationID = "inventory_get_install_osquery_sh"
 									r.operationGroup = ""
 									r.pathPattern = "/install/osquery.sh"
@@ -13040,7 +13040,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = InventoryGetInstallOsqueryFileOperation
-								r.summary = "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404"
+								r.summary = "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery_<v>-1.linux_arm64.deb, osquery-<v>-1.linux.aarch64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404"
 								r.operationID = "inventory_get_install_osquery_file"
 								r.operationGroup = ""
 								r.pathPattern = "/install/osquery/{file}"

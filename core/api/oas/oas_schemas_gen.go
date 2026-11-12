@@ -68935,6 +68935,11 @@ func (s *InventoryGetInventorySensorsOK) SetSensors(val []InventoryGetInventoryS
 }
 
 type InventoryGetInventorySensorsOKSensorsItem struct {
+	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
+	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
+	// while it captures, has no card, or is not online.
+	CaptureError NilInventoryGetInventorySensorsOKSensorsItemCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
 	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
 	// (D-393).
@@ -68956,6 +68961,11 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
+}
+
+// GetCaptureError returns the value of CaptureError.
+func (s *InventoryGetInventorySensorsOKSensorsItem) GetCaptureError() NilInventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return s.CaptureError
 }
 
 // GetChosen returns the value of Chosen.
@@ -69013,6 +69023,11 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) GetVersion() NilString {
 	return s.Version
 }
 
+// SetCaptureError sets the value of CaptureError.
+func (s *InventoryGetInventorySensorsOKSensorsItem) SetCaptureError(val NilInventoryGetInventorySensorsOKSensorsItemCaptureError) {
+	s.CaptureError = val
+}
+
 // SetChosen sets the value of Chosen.
 func (s *InventoryGetInventorySensorsOKSensorsItem) SetChosen(val bool) {
 	s.Chosen = val
@@ -69066,6 +69081,61 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) SetStatus(val InventoryGetIn
 // SetVersion sets the value of Version.
 func (s *InventoryGetInventorySensorsOKSensorsItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+type InventoryGetInventorySensorsOKSensorsItemCaptureError string
+
+const (
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission   InventoryGetInventorySensorsOKSensorsItemCaptureError = "no_permission"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface    InventoryGetInventorySensorsOKSensorsItemCaptureError = "no_interface"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid InventoryGetInventorySensorsOKSensorsItemCaptureError = "filters_invalid"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed  InventoryGetInventorySensorsOKSensorsItemCaptureError = "capture_failed"
+)
+
+// AllValues returns all InventoryGetInventorySensorsOKSensorsItemCaptureError values.
+func (InventoryGetInventorySensorsOKSensorsItemCaptureError) AllValues() []InventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return []InventoryGetInventorySensorsOKSensorsItemCaptureError{
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySensorsOKSensorsItemCaptureError) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySensorsOKSensorsItemCaptureError) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySensorsOKSensorsItemCaptureError(data) {
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Live mirrored-traffic health, the same as Settings → Box network.
@@ -69830,6 +69900,11 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 }
 
 type InventoryPatchInventorySensorsIDOK struct {
+	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
+	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
+	// while it captures, has no card, or is not online.
+	CaptureError NilInventoryPatchInventorySensorsIDOKCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
 	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
 	// (D-393).
@@ -69851,6 +69926,11 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
+}
+
+// GetCaptureError returns the value of CaptureError.
+func (s *InventoryPatchInventorySensorsIDOK) GetCaptureError() NilInventoryPatchInventorySensorsIDOKCaptureError {
+	return s.CaptureError
 }
 
 // GetChosen returns the value of Chosen.
@@ -69908,6 +69988,11 @@ func (s *InventoryPatchInventorySensorsIDOK) GetVersion() NilString {
 	return s.Version
 }
 
+// SetCaptureError sets the value of CaptureError.
+func (s *InventoryPatchInventorySensorsIDOK) SetCaptureError(val NilInventoryPatchInventorySensorsIDOKCaptureError) {
+	s.CaptureError = val
+}
+
 // SetChosen sets the value of Chosen.
 func (s *InventoryPatchInventorySensorsIDOK) SetChosen(val bool) {
 	s.Chosen = val
@@ -69961,6 +70046,61 @@ func (s *InventoryPatchInventorySensorsIDOK) SetStatus(val InventoryPatchInvento
 // SetVersion sets the value of Version.
 func (s *InventoryPatchInventorySensorsIDOK) SetVersion(val NilString) {
 	s.Version = val
+}
+
+type InventoryPatchInventorySensorsIDOKCaptureError string
+
+const (
+	InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission   InventoryPatchInventorySensorsIDOKCaptureError = "no_permission"
+	InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface    InventoryPatchInventorySensorsIDOKCaptureError = "no_interface"
+	InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid InventoryPatchInventorySensorsIDOKCaptureError = "filters_invalid"
+	InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed  InventoryPatchInventorySensorsIDOKCaptureError = "capture_failed"
+)
+
+// AllValues returns all InventoryPatchInventorySensorsIDOKCaptureError values.
+func (InventoryPatchInventorySensorsIDOKCaptureError) AllValues() []InventoryPatchInventorySensorsIDOKCaptureError {
+	return []InventoryPatchInventorySensorsIDOKCaptureError{
+		InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission,
+		InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface,
+		InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid,
+		InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPatchInventorySensorsIDOKCaptureError) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPatchInventorySensorsIDOKCaptureError) UnmarshalText(data []byte) error {
+	switch InventoryPatchInventorySensorsIDOKCaptureError(data) {
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Live mirrored-traffic health, the same as Settings → Box network.
@@ -73205,6 +73345,8 @@ type LogsGetLogsSourcesOKBox struct {
 	// container cannot see the host's LAN address).
 	IP  NilString `json:"ip"`
 	Lan NilString `json:"lan"`
+	// The certificate of the syslog TLS port; null or absent when this box serves no TLS (plain HTTP).
+	TLS OptNilLogsGetLogsSourcesOKBoxTLS `json:"tls"`
 }
 
 // GetHostname returns the value of Hostname.
@@ -73227,6 +73369,11 @@ func (s *LogsGetLogsSourcesOKBox) GetLan() NilString {
 	return s.Lan
 }
 
+// GetTLS returns the value of TLS.
+func (s *LogsGetLogsSourcesOKBox) GetTLS() OptNilLogsGetLogsSourcesOKBoxTLS {
+	return s.TLS
+}
+
 // SetHostname sets the value of Hostname.
 func (s *LogsGetLogsSourcesOKBox) SetHostname(val string) {
 	s.Hostname = val
@@ -73247,20 +73394,170 @@ func (s *LogsGetLogsSourcesOKBox) SetLan(val NilString) {
 	s.Lan = val
 }
 
+// SetTLS sets the value of TLS.
+func (s *LogsGetLogsSourcesOKBox) SetTLS(val OptNilLogsGetLogsSourcesOKBoxTLS) {
+	s.TLS = val
+}
+
+type LogsGetLogsSourcesOKBoxTLS struct {
+	// SHA-256 of the first certificate in `pem`, 64 lowercase hex characters.
+	FingerprintSHA256 string `json:"fingerprint_sha256"`
+	// Issuer of the certificate the box presents on the syslog TLS port.
+	Issuer string `json:"issuer"`
+	// Which certificate `pem` holds: box_ca = the box's own certificate authority, which signs the box
+	// certificate (a device that trusts it keeps trusting the box through every renewal); self_signed =
+	// the box certificate itself; issued = the certificates the owner gave the box, because another
+	// authority issued it.
+	Kind LogsGetLogsSourcesOKBoxTLSKind `json:"kind"`
+	// Expiry of the first certificate in `pem`.
+	NotAfter time.Time `json:"not_after"`
+	// What a device must import as trusted, as PEM (public data), for the download.
+	Pem string `json:"pem"`
+	// The port a device sends syslog over TLS to.
+	Port int `json:"port"`
+	// Subject of the first certificate in `pem`.
+	Subject string `json:"subject"`
+}
+
+// GetFingerprintSHA256 returns the value of FingerprintSHA256.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetFingerprintSHA256() string {
+	return s.FingerprintSHA256
+}
+
+// GetIssuer returns the value of Issuer.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetIssuer() string {
+	return s.Issuer
+}
+
+// GetKind returns the value of Kind.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetKind() LogsGetLogsSourcesOKBoxTLSKind {
+	return s.Kind
+}
+
+// GetNotAfter returns the value of NotAfter.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetNotAfter() time.Time {
+	return s.NotAfter
+}
+
+// GetPem returns the value of Pem.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetPem() string {
+	return s.Pem
+}
+
+// GetPort returns the value of Port.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetPort() int {
+	return s.Port
+}
+
+// GetSubject returns the value of Subject.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetSubject() string {
+	return s.Subject
+}
+
+// SetFingerprintSHA256 sets the value of FingerprintSHA256.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetFingerprintSHA256(val string) {
+	s.FingerprintSHA256 = val
+}
+
+// SetIssuer sets the value of Issuer.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetIssuer(val string) {
+	s.Issuer = val
+}
+
+// SetKind sets the value of Kind.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetKind(val LogsGetLogsSourcesOKBoxTLSKind) {
+	s.Kind = val
+}
+
+// SetNotAfter sets the value of NotAfter.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetNotAfter(val time.Time) {
+	s.NotAfter = val
+}
+
+// SetPem sets the value of Pem.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetPem(val string) {
+	s.Pem = val
+}
+
+// SetPort sets the value of Port.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetPort(val int) {
+	s.Port = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetSubject(val string) {
+	s.Subject = val
+}
+
+// Which certificate `pem` holds: box_ca = the box's own certificate authority, which signs the box
+// certificate (a device that trusts it keeps trusting the box through every renewal); self_signed =
+// the box certificate itself; issued = the certificates the owner gave the box, because another
+// authority issued it.
+type LogsGetLogsSourcesOKBoxTLSKind string
+
+const (
+	LogsGetLogsSourcesOKBoxTLSKindBoxCa      LogsGetLogsSourcesOKBoxTLSKind = "box_ca"
+	LogsGetLogsSourcesOKBoxTLSKindSelfSigned LogsGetLogsSourcesOKBoxTLSKind = "self_signed"
+	LogsGetLogsSourcesOKBoxTLSKindIssued     LogsGetLogsSourcesOKBoxTLSKind = "issued"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKBoxTLSKind values.
+func (LogsGetLogsSourcesOKBoxTLSKind) AllValues() []LogsGetLogsSourcesOKBoxTLSKind {
+	return []LogsGetLogsSourcesOKBoxTLSKind{
+		LogsGetLogsSourcesOKBoxTLSKindBoxCa,
+		LogsGetLogsSourcesOKBoxTLSKindSelfSigned,
+		LogsGetLogsSourcesOKBoxTLSKindIssued,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKBoxTLSKind) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKBoxTLSKindBoxCa:
+		return []byte(s), nil
+	case LogsGetLogsSourcesOKBoxTLSKindSelfSigned:
+		return []byte(s), nil
+	case LogsGetLogsSourcesOKBoxTLSKindIssued:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKBoxTLSKind(data) {
+	case LogsGetLogsSourcesOKBoxTLSKindBoxCa:
+		*s = LogsGetLogsSourcesOKBoxTLSKindBoxCa
+		return nil
+	case LogsGetLogsSourcesOKBoxTLSKindSelfSigned:
+		*s = LogsGetLogsSourcesOKBoxTLSKindSelfSigned
+		return nil
+	case LogsGetLogsSourcesOKBoxTLSKindIssued:
+		*s = LogsGetLogsSourcesOKBoxTLSKindIssued
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type LogsGetLogsSourcesOKSourcesItem struct {
 	// Inventory device with the same IP; null when none.
-	AssetID      NilString                            `json:"asset_id"`
-	AssetName    NilString                            `json:"asset_name"`
-	CreatedAt    time.Time                            `json:"created_at"`
-	ID           string                               `json:"id"`
-	Kind         LogsGetLogsSourcesOKSourcesItemKind  `json:"kind"`
-	LastReceived NilDateTime                          `json:"last_received"`
-	LinesPerHour int                                  `json:"lines_per_hour"`
-	Name         string                               `json:"name"`
-	Port         int                                  `json:"port"`
-	Proto        LogsGetLogsSourcesOKSourcesItemProto `json:"proto"`
-	SenderIP     string                               `json:"sender_ip"`
-	State        LogsGetLogsSourcesOKSourcesItemState `json:"state"`
+	AssetID   NilString `json:"asset_id"`
+	AssetName NilString `json:"asset_name"`
+	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
+	// characters); null = the sender is known by its IP address alone.
+	ClientCertSHA256 NilString                            `json:"client_cert_sha256"`
+	CreatedAt        time.Time                            `json:"created_at"`
+	ID               string                               `json:"id"`
+	Kind             LogsGetLogsSourcesOKSourcesItemKind  `json:"kind"`
+	LastReceived     NilDateTime                          `json:"last_received"`
+	LinesPerHour     int                                  `json:"lines_per_hour"`
+	Name             string                               `json:"name"`
+	Port             int                                  `json:"port"`
+	Proto            LogsGetLogsSourcesOKSourcesItemProto `json:"proto"`
+	SenderIP         string                               `json:"sender_ip"`
+	State            LogsGetLogsSourcesOKSourcesItemState `json:"state"`
 }
 
 // GetAssetID returns the value of AssetID.
@@ -73271,6 +73568,11 @@ func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetID() NilString {
 // GetAssetName returns the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetClientCertSHA256 returns the value of ClientCertSHA256.
+func (s *LogsGetLogsSourcesOKSourcesItem) GetClientCertSHA256() NilString {
+	return s.ClientCertSHA256
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -73331,6 +73633,11 @@ func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetID(val NilString) {
 // SetAssetName sets the value of AssetName.
 func (s *LogsGetLogsSourcesOKSourcesItem) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetClientCertSHA256 sets the value of ClientCertSHA256.
+func (s *LogsGetLogsSourcesOKSourcesItem) SetClientCertSHA256(val NilString) {
+	s.ClientCertSHA256 = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -73993,18 +74300,21 @@ func (s *LogsPostLogsSiemTestOK) SetOk(val bool) {
 
 type LogsPostLogsSourcesCreated struct {
 	// Inventory device with the same IP; null when none.
-	AssetID      NilString                       `json:"asset_id"`
-	AssetName    NilString                       `json:"asset_name"`
-	CreatedAt    time.Time                       `json:"created_at"`
-	ID           string                          `json:"id"`
-	Kind         LogsPostLogsSourcesCreatedKind  `json:"kind"`
-	LastReceived NilDateTime                     `json:"last_received"`
-	LinesPerHour int                             `json:"lines_per_hour"`
-	Name         string                          `json:"name"`
-	Port         int                             `json:"port"`
-	Proto        LogsPostLogsSourcesCreatedProto `json:"proto"`
-	SenderIP     string                          `json:"sender_ip"`
-	State        LogsPostLogsSourcesCreatedState `json:"state"`
+	AssetID   NilString `json:"asset_id"`
+	AssetName NilString `json:"asset_name"`
+	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
+	// characters); null = the sender is known by its IP address alone.
+	ClientCertSHA256 NilString                       `json:"client_cert_sha256"`
+	CreatedAt        time.Time                       `json:"created_at"`
+	ID               string                          `json:"id"`
+	Kind             LogsPostLogsSourcesCreatedKind  `json:"kind"`
+	LastReceived     NilDateTime                     `json:"last_received"`
+	LinesPerHour     int                             `json:"lines_per_hour"`
+	Name             string                          `json:"name"`
+	Port             int                             `json:"port"`
+	Proto            LogsPostLogsSourcesCreatedProto `json:"proto"`
+	SenderIP         string                          `json:"sender_ip"`
+	State            LogsPostLogsSourcesCreatedState `json:"state"`
 }
 
 // GetAssetID returns the value of AssetID.
@@ -74015,6 +74325,11 @@ func (s *LogsPostLogsSourcesCreated) GetAssetID() NilString {
 // GetAssetName returns the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetClientCertSHA256 returns the value of ClientCertSHA256.
+func (s *LogsPostLogsSourcesCreated) GetClientCertSHA256() NilString {
+	return s.ClientCertSHA256
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -74075,6 +74390,11 @@ func (s *LogsPostLogsSourcesCreated) SetAssetID(val NilString) {
 // SetAssetName sets the value of AssetName.
 func (s *LogsPostLogsSourcesCreated) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetClientCertSHA256 sets the value of ClientCertSHA256.
+func (s *LogsPostLogsSourcesCreated) SetClientCertSHA256(val NilString) {
+	s.ClientCertSHA256 = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -74587,11 +74907,18 @@ func (s *LogsPostLogsSourcesCreatedState) UnmarshalText(data []byte) error {
 }
 
 type LogsPostLogsSourcesReq struct {
-	Kind     LogsPostLogsSourcesReqKind  `json:"kind"`
-	Name     string                      `json:"name"`
-	Port     int                         `json:"port"`
-	Proto    LogsPostLogsSourcesReqProto `json:"proto"`
-	SenderIP string                      `json:"sender_ip"`
+	// TLS sources only: pin the device's client certificate by its SHA-256; absent or null = no pin.
+	ClientCertSHA256 OptNilString                `json:"client_cert_sha256"`
+	Kind             LogsPostLogsSourcesReqKind  `json:"kind"`
+	Name             string                      `json:"name"`
+	Port             int                         `json:"port"`
+	Proto            LogsPostLogsSourcesReqProto `json:"proto"`
+	SenderIP         string                      `json:"sender_ip"`
+}
+
+// GetClientCertSHA256 returns the value of ClientCertSHA256.
+func (s *LogsPostLogsSourcesReq) GetClientCertSHA256() OptNilString {
+	return s.ClientCertSHA256
 }
 
 // GetKind returns the value of Kind.
@@ -74617,6 +74944,11 @@ func (s *LogsPostLogsSourcesReq) GetProto() LogsPostLogsSourcesReqProto {
 // GetSenderIP returns the value of SenderIP.
 func (s *LogsPostLogsSourcesReq) GetSenderIP() string {
 	return s.SenderIP
+}
+
+// SetClientCertSHA256 sets the value of ClientCertSHA256.
+func (s *LogsPostLogsSourcesReq) SetClientCertSHA256(val OptNilString) {
+	s.ClientCertSHA256 = val
 }
 
 // SetKind sets the value of Kind.
@@ -75637,18 +75969,21 @@ func (s *LogsPutLogsSiemReqProto) UnmarshalText(data []byte) error {
 
 type LogsPutLogsSourcesIDOK struct {
 	// Inventory device with the same IP; null when none.
-	AssetID      NilString                   `json:"asset_id"`
-	AssetName    NilString                   `json:"asset_name"`
-	CreatedAt    time.Time                   `json:"created_at"`
-	ID           string                      `json:"id"`
-	Kind         LogsPutLogsSourcesIDOKKind  `json:"kind"`
-	LastReceived NilDateTime                 `json:"last_received"`
-	LinesPerHour int                         `json:"lines_per_hour"`
-	Name         string                      `json:"name"`
-	Port         int                         `json:"port"`
-	Proto        LogsPutLogsSourcesIDOKProto `json:"proto"`
-	SenderIP     string                      `json:"sender_ip"`
-	State        LogsPutLogsSourcesIDOKState `json:"state"`
+	AssetID   NilString `json:"asset_id"`
+	AssetName NilString `json:"asset_name"`
+	// TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex
+	// characters); null = the sender is known by its IP address alone.
+	ClientCertSHA256 NilString                   `json:"client_cert_sha256"`
+	CreatedAt        time.Time                   `json:"created_at"`
+	ID               string                      `json:"id"`
+	Kind             LogsPutLogsSourcesIDOKKind  `json:"kind"`
+	LastReceived     NilDateTime                 `json:"last_received"`
+	LinesPerHour     int                         `json:"lines_per_hour"`
+	Name             string                      `json:"name"`
+	Port             int                         `json:"port"`
+	Proto            LogsPutLogsSourcesIDOKProto `json:"proto"`
+	SenderIP         string                      `json:"sender_ip"`
+	State            LogsPutLogsSourcesIDOKState `json:"state"`
 }
 
 // GetAssetID returns the value of AssetID.
@@ -75659,6 +75994,11 @@ func (s *LogsPutLogsSourcesIDOK) GetAssetID() NilString {
 // GetAssetName returns the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) GetAssetName() NilString {
 	return s.AssetName
+}
+
+// GetClientCertSHA256 returns the value of ClientCertSHA256.
+func (s *LogsPutLogsSourcesIDOK) GetClientCertSHA256() NilString {
+	return s.ClientCertSHA256
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -75719,6 +76059,11 @@ func (s *LogsPutLogsSourcesIDOK) SetAssetID(val NilString) {
 // SetAssetName sets the value of AssetName.
 func (s *LogsPutLogsSourcesIDOK) SetAssetName(val NilString) {
 	s.AssetName = val
+}
+
+// SetClientCertSHA256 sets the value of ClientCertSHA256.
+func (s *LogsPutLogsSourcesIDOK) SetClientCertSHA256(val NilString) {
+	s.ClientCertSHA256 = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -76231,11 +76576,18 @@ func (s *LogsPutLogsSourcesIDOKState) UnmarshalText(data []byte) error {
 }
 
 type LogsPutLogsSourcesIDReq struct {
-	Kind     LogsPutLogsSourcesIDReqKind  `json:"kind"`
-	Name     string                       `json:"name"`
-	Port     int                          `json:"port"`
-	Proto    LogsPutLogsSourcesIDReqProto `json:"proto"`
-	SenderIP string                       `json:"sender_ip"`
+	// TLS sources only: pin the device's client certificate by its SHA-256; absent or null = no pin.
+	ClientCertSHA256 OptNilString                 `json:"client_cert_sha256"`
+	Kind             LogsPutLogsSourcesIDReqKind  `json:"kind"`
+	Name             string                       `json:"name"`
+	Port             int                          `json:"port"`
+	Proto            LogsPutLogsSourcesIDReqProto `json:"proto"`
+	SenderIP         string                       `json:"sender_ip"`
+}
+
+// GetClientCertSHA256 returns the value of ClientCertSHA256.
+func (s *LogsPutLogsSourcesIDReq) GetClientCertSHA256() OptNilString {
+	return s.ClientCertSHA256
 }
 
 // GetKind returns the value of Kind.
@@ -76261,6 +76613,11 @@ func (s *LogsPutLogsSourcesIDReq) GetProto() LogsPutLogsSourcesIDReqProto {
 // GetSenderIP returns the value of SenderIP.
 func (s *LogsPutLogsSourcesIDReq) GetSenderIP() string {
 	return s.SenderIP
+}
+
+// SetClientCertSHA256 sets the value of ClientCertSHA256.
+func (s *LogsPutLogsSourcesIDReq) SetClientCertSHA256(val OptNilString) {
+	s.ClientCertSHA256 = val
 }
 
 // SetKind sets the value of Kind.
@@ -84028,6 +84385,96 @@ func (o NilInventoryGetInventoryDevicesOKItemsItemVendor) Get() (v InventoryGetI
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesOKItemsItemVendor) Or(d InventoryGetInventoryDevicesOKItemsItemVendor) InventoryGetInventoryDevicesOKItemsItemVendor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventorySensorsOKSensorsItemCaptureError returns new NilInventoryGetInventorySensorsOKSensorsItemCaptureError with value set to v.
+func NewNilInventoryGetInventorySensorsOKSensorsItemCaptureError(v InventoryGetInventorySensorsOKSensorsItemCaptureError) NilInventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return NilInventoryGetInventorySensorsOKSensorsItemCaptureError{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySensorsOKSensorsItemCaptureError is nullable InventoryGetInventorySensorsOKSensorsItemCaptureError.
+type NilInventoryGetInventorySensorsOKSensorsItemCaptureError struct {
+	Value InventoryGetInventorySensorsOKSensorsItemCaptureError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySensorsOKSensorsItemCaptureError) SetTo(v InventoryGetInventorySensorsOKSensorsItemCaptureError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySensorsOKSensorsItemCaptureError) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySensorsOKSensorsItemCaptureError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Get() (v InventoryGetInventorySensorsOKSensorsItemCaptureError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Or(d InventoryGetInventorySensorsOKSensorsItemCaptureError) InventoryGetInventorySensorsOKSensorsItemCaptureError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPatchInventorySensorsIDOKCaptureError returns new NilInventoryPatchInventorySensorsIDOKCaptureError with value set to v.
+func NewNilInventoryPatchInventorySensorsIDOKCaptureError(v InventoryPatchInventorySensorsIDOKCaptureError) NilInventoryPatchInventorySensorsIDOKCaptureError {
+	return NilInventoryPatchInventorySensorsIDOKCaptureError{
+		Value: v,
+	}
+}
+
+// NilInventoryPatchInventorySensorsIDOKCaptureError is nullable InventoryPatchInventorySensorsIDOKCaptureError.
+type NilInventoryPatchInventorySensorsIDOKCaptureError struct {
+	Value InventoryPatchInventorySensorsIDOKCaptureError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPatchInventorySensorsIDOKCaptureError) SetTo(v InventoryPatchInventorySensorsIDOKCaptureError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPatchInventorySensorsIDOKCaptureError) SetToNull() {
+	o.Null = true
+	var v InventoryPatchInventorySensorsIDOKCaptureError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Get() (v InventoryPatchInventorySensorsIDOKCaptureError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Or(d InventoryPatchInventorySensorsIDOKCaptureError) InventoryPatchInventorySensorsIDOKCaptureError {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -93110,6 +93557,74 @@ func (o OptInventoryPostInventoryAgentsTokensReqKind) Get() (v InventoryPostInve
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventoryAgentsTokensReqKind) Or(d InventoryPostInventoryAgentsTokensReqKind) InventoryPostInventoryAgentsTokensReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilLogsGetLogsSourcesOKBoxTLS returns new OptNilLogsGetLogsSourcesOKBoxTLS with value set to v.
+func NewOptNilLogsGetLogsSourcesOKBoxTLS(v LogsGetLogsSourcesOKBoxTLS) OptNilLogsGetLogsSourcesOKBoxTLS {
+	return OptNilLogsGetLogsSourcesOKBoxTLS{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilLogsGetLogsSourcesOKBoxTLS is optional nullable LogsGetLogsSourcesOKBoxTLS.
+type OptNilLogsGetLogsSourcesOKBoxTLS struct {
+	Value LogsGetLogsSourcesOKBoxTLS
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilLogsGetLogsSourcesOKBoxTLS was set.
+func (o OptNilLogsGetLogsSourcesOKBoxTLS) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilLogsGetLogsSourcesOKBoxTLS) Reset() {
+	var v LogsGetLogsSourcesOKBoxTLS
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilLogsGetLogsSourcesOKBoxTLS) SetTo(v LogsGetLogsSourcesOKBoxTLS) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilLogsGetLogsSourcesOKBoxTLS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilLogsGetLogsSourcesOKBoxTLS) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v LogsGetLogsSourcesOKBoxTLS
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilLogsGetLogsSourcesOKBoxTLS) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilLogsGetLogsSourcesOKBoxTLS) Get() (v LogsGetLogsSourcesOKBoxTLS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilLogsGetLogsSourcesOKBoxTLS) Or(d LogsGetLogsSourcesOKBoxTLS) LogsGetLogsSourcesOKBoxTLS {
 	if v, ok := o.Get(); ok {
 		return v
 	}

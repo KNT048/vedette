@@ -51,6 +51,7 @@ func logsService(d deps) *logs.Service {
 	cfg.Syslog.Host = syslogHost
 	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS (D-214)
 	cfg.Syslog.TLS = d.SyslogTLS
+	cfg.TrustAnchor = d.TrustAnchor // what a device must trust for the box certificate (the box CA, or the owner's chain), shown on the Sources page (D-434)
 	if cfg.Syslog.TLS == nil {
 		cfg.Syslog.TLS = syslogTestTLS
 	}

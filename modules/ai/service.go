@@ -94,6 +94,9 @@ type Config struct {
 	// destinations, never a line; D-223): the events_around tool of log investigation. The bool is false while the logs module is off.
 	// nil = the tool is not offered.
 	LogAround func(ctx context.Context, ip netip.Addr, from, to time.Time) (LogAroundData, bool, error)
+	// Alert raises an incident notice (notify: every enabled channel whose minimum severity it meets). The daily verify of the
+	// activity log calls it when the chain is broken (S-AI-8, D-430); nil = no verify job is offered. The adapter is in cmd/vedette.
+	Alert func(ctx context.Context, id, title, text string) error
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
 	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
@@ -159,20 +162,22 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
-	cfg       Config
-	router    *Router
-	meter     *Meter
-	loc       *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
-	harness   atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
-	skillsOff atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
-	degraded  string                          // why the saved settings could not be loaded; "" = loaded
-	mu        sync.Mutex                      // serialises changes
-	testSlot  chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
-	indexSlot chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
-	queued    atomic.Int64                    // uploads that hold their bytes in memory until they are read
-	indexing  sync.WaitGroup                  // the readers in flight: a test waits for them
-	snap      atomic.Pointer[snapshot]
-	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
+	cfg        Config
+	router     *Router
+	meter      *Meter
+	loc        *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
+	harness    atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
+	skillsOff  atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
+	degraded   string                          // why the saved settings could not be loaded; "" = loaded
+	mu         sync.Mutex                      // serialises changes
+	testSlot   chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
+	indexSlot  chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
+	digestSlot chan struct{}                   // one place: a log digest is made by one caller at a time, the next one finds it stored (no tokens twice)
+	queued     atomic.Int64                    // uploads that hold their bytes in memory until they are read
+	indexing   sync.WaitGroup                  // the readers in flight: a test waits for them
+	snap       atomic.Pointer[snapshot]
+	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
+	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -203,7 +208,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), digestSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)

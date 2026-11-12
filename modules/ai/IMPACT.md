@@ -26,6 +26,7 @@
 
 ## Modifying: `Activity.Append(entry)` / `Activity.Verify()` (D-48)
 - **core/logs export** (`ai_activity`), **GUI Activity panel**: đổi công thức hash → chuỗi cũ không kiểm lại được; phải có bước di trú (ghi `version` vào entry).
+- **`activity-verify`** (D-430): gọi `Activity.Verify` mỗi 24 giờ và `Config.Alert` → `notify.Publish` (kind incident) khi hỏng; đổi `VerifyResult` hay chữ ký `Alert` thì sửa `cmd/vedette/ai.go` và `verify_alert_test.go`.
 
 ## Modifying: `Hooks.Run(when, text)`
 - Mọi `RunJob`, `Ask`. Đổi thứ tự (block trước mask) hoặc thêm hook dựng sẵn → thay đổi dữ liệu rời hộp (PRIVACY luồng 3).
@@ -117,6 +118,6 @@
 
 
 ## Modifying: `Config.LogDigest`, `Service.CachedLogDigest`, `Service.LogDigest` (D-221)
-- **logs** (`Service.Digest`, adapter `cmd/vedette/ailogdigest.go`): thêm trường vào `LogDigestData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3, `privacy.flow.3.*`); không bao giờ thêm `sample` hay dòng gốc (INV-11 của logs). Đổi tên trường JSON của `GET /logs/digest` → adapter chép qua JSON sẽ mất trường đó (test `TestAILogDigestReadsKindsAndCountsNotLines`).
+- **logs** (`Service.Digest`, adapter `cmd/vedette/ailogdigest.go`): thêm trường vào `LogDigestData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3, `privacy.flow.3.*`); không bao giờ thêm `sample` hay dòng gốc (INV-11 của logs). Đổi tên trường JSON của `GET /logs/digest` → adapter chép qua JSON sẽ mất trường đó (test `TestAILogDigestReadsKindsAndCountsNotLines`). `LogDigestBadConn.asset_id` (D-428) chỉ để hộp liên kết mục với thiết bị, không bao giờ vào khối dữ liệu gửi đi (`TestAILogDigestCarriesABadConnectionWithItsDevice`); đổi tên `asset_id` của `logs.IocHit` làm mất liên kết "View device".
 - **GUI** (`web/src/features/ai/LogsPanel.tsx`, slot `logs.panels`): `GET` có thể trả `digest: null`; `LogDigest` của `contract.ts` là hợp đồng của kết quả.
 - **D-223** `Config.LogAround` (`events_around` của `log-investigate`): adapter `aiLogAround` chép từng trường của `logs.Around`; thêm trường vào `LogAroundData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3); không bao giờ dòng gốc. Đổi `productTool`/`Jobs` của `search_assets`, `lookup_ioc`, `lookup_cve` đổi công cụ của cả Ask lẫn Log investigation. Bỏ `Schema` trong `converse` áp dụng mọi việc có công cụ (hiện chỉ Ask, không có lược đồ, và log-investigate). `remember` trong lược đồ digest gọi `SuggestMemory` (INV-8): đổi luật đề xuất ảnh hưởng hàng chờ Memory.

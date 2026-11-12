@@ -374,6 +374,14 @@
       "never_connected": "Not connected yet"
     },
     "startHint": "Start it with compose.sensors.yaml on this machine.",
+    "capture": {
+      "label": "Capture",
+      "notCapturing": "Reporting, not capturing",
+      "no_permission": "It cannot open the network card: capturing needs root and CAP_NET_RAW, which a rootless Docker or Podman does not give. Start the sensor as root.",
+      "no_interface": "The card it should listen on is not on that machine. Choose another card.",
+      "filters_invalid": "The capture filters cannot be read, so it captures nothing until they change.",
+      "capture_failed": "The capture keeps failing and is retried; the sensor's log says why."
+    },
     "card": {
       "body": "Choose the card the sensor listens on among the cards it reported, and whether it is a SPAN card that receives mirrored traffic. This machine's network is yours: Vedette does not change the card.",
       "label": "Listen on",
@@ -383,6 +391,7 @@
       "autoChosen": "Automatic (the one card of this machine with an address)",
       "span": "SPAN port: this card receives the switch's mirrored traffic",
       "spanHint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
+      "spanNeedsCard": "Choose a card under Listen on first: SPAN is set on one named card, not on Automatic.",
       "notListening": "The sensor is not listening on any card: by itself it only takes the one card of this machine that has an address, and there is not exactly one. Choose the card below.",
       "notReported": "{{name}} (not reported now)",
       "none": "No card reported yet: start the sensor with compose.sensors.yaml.",
@@ -424,7 +433,7 @@
       "token": "Token",
       "expires": "Expires",
       "received": "Last data received",
-      "hosts": "Machines reporting",
+      "hosts": "Machines enrolled",
       "actions": "Actions"
     },
     "tokenMask": "••••{{last4}}",
@@ -465,6 +474,12 @@
     "tokenLabel": "Token",
     "tokenOnce": "The token is shown once. After you close this dialog Vedette keeps only the last 4 characters. Copy it somewhere safe first.",
     "done": "I copied the token",
+    "noAddress": {
+      "title": "Servers cannot reach this box at the address you opened it with",
+      "container": "You opened Vedette as localhost, and the box knows no other address, so no install command can work yet. Agents need an address of this machine that other machines can reach: in vedette.env put this machine's LAN address in VEDETTE_BIND_IP and that address (or a name that points to it) in VEDETTE_HOSTS, run docker compose --env-file vedette.env up -d again, and open Vedette at that address. The command appears here then.",
+      "appliance": "You opened Vedette as localhost, so this page does not know an address that other machines can reach and no install command can work yet. Open Vedette at the box's network address (Settings → Box network shows it); the command appears here then.",
+      "token": "The token stays valid: keep it, and use it with the command once it appears."
+    },
     "platform": {
       "label": "Operating system",
       "linux": "Linux",
@@ -472,7 +487,7 @@
     },
     "install": {
       "title": "Install with one command",
-      "linuxHow": "Run as root, or with sudo, on the server (Debian, Ubuntu, RHEL, Rocky, AlmaLinux).",
+      "linuxHow": "Run as root, or with sudo, on the server (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64).",
       "windowsHow": "Run in PowerShell as Administrator on the server (Windows PowerShell 5.1 or later). Not yet tested on a real Windows Server.",
       "linuxLabel": "Linux shell",
       "windowsLabel": "PowerShell (Administrator)",

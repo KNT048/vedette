@@ -55,6 +55,8 @@ func TestRolesReachTheirRoutes(t *testing.T) {
 		{"config", "GET", "/sensor/v1/config?wait=0", "", pass, 200},
 		{"observations", "POST", "/sensor/v1/observations", obsBody, pass, 200},
 		{"heartbeat passive", "POST", "/sensor/v1/heartbeat", hbSpan, pass, 200},
+		{"heartbeat passive, capture error", "POST", "/sensor/v1/heartbeat", strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"no_permission"`, 1), pass, 200},
+		{"heartbeat passive, a newer sensor's reason", "POST", "/sensor/v1/heartbeat", strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"link_flapping"`, 1), pass, 200}, // core shows it as capture_failed
 		{"jobs", "GET", "/sensor/v1/jobs?wait=0&running=", "", act, 200},
 		{"result", "POST", "/sensor/v1/jobs/" + jobID + "/result", resBody, act, 204},
 		{"heartbeat active", "POST", "/sensor/v1/heartbeat", hbActive, act, 200},
@@ -119,7 +121,7 @@ func TestProtoHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
 	p := r.good(t)
-	for _, v := range []string{"", "0", "1", "2", "4", "1.0", "11"} {
+	for _, v := range []string{"", "0", "1", "2", "3", "5", "1.0", "11"} { // 3: a sensor of before D-399
 		hdr := map[string]string{sensorlink.ProtoHeader: v}
 		if v == "" {
 			hdr[sensorlink.ProtoHeader] = "" // removes it
@@ -216,6 +218,9 @@ func TestStrictDecodingAnd400(t *testing.T) {
 		{"drops key with a space", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `malformed_dhcp`, `malformed dhcp`, 1), nil},
 		{"two cards of one name", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"interfaces":[{"name":"enp1s0","mac":"aa:bb:cc:00:00:01","link":true,"ipv4":["192.168.10.5/24"]}]`, `"interfaces":[{"name":"enp1s0","mac":"aa:bb:cc:00:00:01","link":true,"ipv4":[]},{"name":"enp1s0","mac":"aa:bb:cc:00:00:02","link":true,"ipv4":[]}]`, 1), nil},
 		{"drops value that is not a counter", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"malformed_dhcp":2`, `"malformed_dhcp":-2`, 1), nil},
+		{"capture_error that is text, not a reason", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"open capture socket: operation not permitted"`, 1), nil},
+		{"capture_error over 48 bytes", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":"`+strings.Repeat("a", 49)+`"`, 1), nil},
+		{"capture_error not a string", "/sensor/v1/heartbeat", pass, strings.Replace(hbSpan, `"devices_seen":214`, `"devices_seen":214,"capture_error":1`, 1), nil},
 		{"result with an unknown status", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `"done"`, `"great"`, 1), nil},
 		{"result xml on a failed job", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `"done"`, `"failed"`, 1), nil},
 		{"result with bad base64", "/sensor/v1/jobs/" + jobID + "/result", act, strings.Replace(resBody, `PHhtbC8+`, `!!!`, 1), nil},

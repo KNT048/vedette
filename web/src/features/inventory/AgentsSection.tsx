@@ -12,8 +12,9 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import { useModuleEnabled } from '@/lib/modules'
+import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, windowsOneLiner, wazuhReaderSteps, type Platform } from './agentConfig'
+import { NO_BOX_ADDRESS } from './installScripts'
 import { useAgentActions, useAgents, useWazuhActions } from './api'
 import { errMsg } from './kinds'
 import type { AgentToken, AgentsResponse, CreateTokenResult, WazuhConnection } from './types'
@@ -35,11 +36,26 @@ function Steps({ items, ns }: { items: { key: string; file: string; code: string
   )
 }
 
+/** D-399 (2): the box knows no address other machines can reach (opened as localhost, no other name configured). A command pinned to
+ *  <VEDETTE_BOX_IP> passes its hash check and then fails on every server, so none is shown: say how to give the box an address. */
+function NoBoxAddress() {
+  const { t } = useTranslation('inventory')
+  const install = useInstallKind()
+  return (
+    <div role="status" className="grid gap-1.5 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">
+      <p className="font-medium">{t('agents.noAddress.title')}</p>
+      <p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p>
+      <p className="text-[13px] text-muted">{t('agents.noAddress.token')}</p>
+    </div>
+  )
+}
+
 /** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, và cài tay ở mục "Advanced". */
 function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
   const { t } = useTranslation('inventory')
   const [platform, setPlatform] = useState<Platform>('linux')
   const box = data.server_url
+  if (box.includes(NO_BOX_ADDRESS)) return <NoBoxAddress />
   const inst = data.install[platform]
   const one = platform === 'linux' ? linuxOneLiner : windowsOneLiner
   return (

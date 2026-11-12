@@ -64,6 +64,7 @@ help:
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
+	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps (WP-08k, D-457): images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last; order in docs/plans/2026-11-12-wp08k-release-job.md"
 	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (D-345; MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
@@ -411,7 +412,7 @@ install-check:
 	scripts/dev/install-check.sh
 # ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
 # Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
-# build and push the images (08k); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
+# build the images and push them by digest (release-push, then release-in writes release.in.json; D-457); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
 # index's sequence becomes the host's floor; MIN_SEQUENCE=0 only for the very first release) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
 # from the clock is refused; "install_modes": ["appliance", "container"], D-451) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
 # (release-manifest.json + index.json, unsigned) -> release-container-assets (the four container-only files, D-451) -> release-sign (active key; again with RELEASE_SLOT=backup for the offline key, indexes only; RELEASE_SLOT=rescue after a leak of the active key, docs/RELEASE_KEYS.md) ->
@@ -462,6 +463,35 @@ release-sign:
 release-verify:
 	$(RELEASE_GO) verify -dir $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG)
 	@if [ "$(RELEASE)" != 1 ]; then rm -rf $(RELEASE_OUT); rmdir dist 2>/dev/null || true; fi
+
+# The release job's network steps (WP-08k, D-457; order and owners in docs/plans/2026-11-12-wp08k-release-job.md). Each refuses rather than guesses.
+#   release-push      the four podman manifest lists of `make images IMAGE_TAG=<VERSION> IMAGE_VERSION=<VERSION>` to REGISTRY by digest (read back
+#                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
+#                     dist/release/images.json. Each platform image must carry the version label VERSION. The real registry needs a clean tree at
+#                     kien's tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; Linux only:
+#                     podman machine on macOS cannot reach the Mac's 127.0.0.1).
+#   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
+#                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand
+#   release-publish   verifies dist/release again (install.sh too) and prints the gh release commands; PUBLISH=1 runs them (needs RELEASE_PREV_INDEX
+#                     equal to the live index, or FIRST_RELEASE=1 before any index exists; signers must be the compiled-in production keys): draft
+#                     v<version>, every asset, read back, anonymous pull of every image, publish, then index.json + .minisig to the release "index" LAST
+.PHONY: release-push release-in release-publish
+REGISTRY ?= ghcr.io/knt048
+RELEASE_CHANNEL ?=
+RELEASE_ROLLBACK_SAFE ?=
+RELEASE_ROLLBACK_MIN ?=
+RELEASE_MIN_UPGRADE_FROM ?=
+PUBLISH ?=
+FIRST_RELEASE ?=
+release-push:
+	@test "$(CONTAINER)" = podman || { echo "release-push: pushes the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
+	$(RELEASE_GO) push -version '$(VERSION)' -registry '$(REGISTRY)' -platforms '$(PLATFORMS)' -out $(RELEASE_OUT)
+
+release-in:
+	$(RELEASE_GO) in -images $(RELEASE_OUT)/images.json -out $(RELEASE_IN) -deb-dir $(DEB_OUT) -channel '$(RELEASE_CHANNEL)' -rollback-safe '$(RELEASE_ROLLBACK_SAFE)' -rollback-min-version '$(RELEASE_ROLLBACK_MIN)' -min-upgrade-from '$(RELEASE_MIN_UPGRADE_FROM)'
+
+release-publish:
+	$(RELEASE_GO) publish -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG) $(if $(filter 1,$(FIRST_RELEASE)),-first-release) $(if $(filter 1,$(PUBLISH)),-run)
 
 # The confirmed mitigation packs that ship in the core image (D-345): signed before the image is built, on the maintainer's machine.
 # PACKS_VERSION: dotted numbers newer than content/mitigation/packs/VERSION. The result (VERSION, packs.list, packs.minisig) is committed.

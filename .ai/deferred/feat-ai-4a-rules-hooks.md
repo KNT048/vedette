@@ -1,5 +1,0 @@
-# Deferred: feat/ai-4a-rules-hooks (WP-25 slice 4a)
-
-- [ ] 2026-11-11 — A JSON body with a repeated key (`{"text":"a","text":"b"}`) is accepted by the generated decoder (last one wins); only unknown fields, wrong types and trailing data are refused — vì sao để sau: the decoding is core/server's (ogen), not the module's; `internal/jsonstrict` is not wired into it — ở đâu: core/server (Kiên)
-- [ ] 2026-11-11 — The mock keeps `aiConfigStore.redact_pii` and `builtinHookState` (block-pii) as two separate values; the backend couples them (one switch, INV-12), so the Settings page and the Hooks tab can disagree in the mock only — vì sao để sau: web/src/mocks and the GUI mock are not part of this slice; mock-only gap — ở đâu: web/src/mocks/stores.ts, web/src/features/ai/harness.ts
-- [ ] 2026-11-11 — The mock checks a custom regex with JavaScript `RegExp` (`buildMatch`), so it accepts lookahead and other patterns the backend refuses with `invalid_match` — vì sao để sau: GUI-first, the mock is the contract; making it RE2-like is a GUI story — ở đâu: web/src/features/ai/harness.ts buildMatch

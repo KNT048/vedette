@@ -5,6 +5,7 @@ import (
 	"net"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -89,6 +90,20 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 		if strings.HasSuffix(p, ":"+sport) && !strings.HasPrefix(p, "127.0.0.1:") {
 			t.Errorf("the sensor port is published beyond loopback: %q", p)
 		}
+	}
+	// #266: the syslog listener. The box publishes 514 (udp and tcp) onto the unprivileged port the process binds (-syslog-port), so the
+	// container needs no capability; both protocols are published for that same container port, on every address like 8443.
+	if o.syslogPort < 1024 || o.syslogPort > 65535 {
+		t.Errorf("-syslog-port %d must be an unprivileged port: the unit drops every capability", o.syslogPort)
+	}
+	for _, proto := range []string{"udp", "tcp"} {
+		want := "514:" + strconv.Itoa(o.syslogPort) + "/" + proto
+		if !slices.Contains(publish, want) {
+			t.Errorf("-syslog-port %d has no PublishPort %q in %v", o.syslogPort, want, publish)
+		}
+	}
+	if strings.Contains(string(text), "AddCapability") || strings.Contains(string(text), "ip_unprivileged_port_start") {
+		t.Errorf("core's unit needs no capability or sysctl for the syslog port:\n%s", text)
 	}
 	for _, role := range []string{"passive", "active"} {
 		if v, ok := targets[path.Join(o.sensorCreds, role)]; !ok || !strings.HasPrefix(v, "vedette-creds-"+role+".volume:") || strings.HasSuffix(v, ":ro") {

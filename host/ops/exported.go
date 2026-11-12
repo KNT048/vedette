@@ -60,6 +60,15 @@ func ParseARP(b []byte) (op uint16, senderMAC [6]byte, senderIP [4]byte, err err
 // BinIP is the name of ip in the command runner (the literal is spelled once, here).
 const BinIP = binIP
 
+// BinConntrack is the name of conntrack in the command runner.
+const BinConntrack = binConntrack
+
+// ValidateConntrack is the validator of the conntrack binary: the one fixed delete of the stale syslog flows (D-268).
+func ValidateConntrack(args []string) error { return validateConntrack(args) }
+
+// ConntrackArgs is the one argv conntrack may be given.
+func ConntrackArgs() []string { return append([]string(nil), argsConntrackSyslog...) }
+
 // ReapplyDecoys is the re-apply hook with no configuration hint, for the contract tests.
 func (o *Ops) ReapplyDecoys(ctx context.Context) error { return o.reapplyDecoys(ctx, nil) }
 
@@ -74,3 +83,9 @@ func ValidatePodman(args []string) error { return validatePodman(args) }
 func (o *Ops) RunStart(ctx context.Context, a api.ContainerStartArgs) (any, error) {
 	return o.runContainerStart(ctx, nil, a)
 }
+
+// BinIptables is the name of iptables in the command runner (the Docker forward rules, D-267).
+const BinIptables = binIptables
+
+// ValidateIptables is the validator of the iptables binary: the only argv shapes it may ever be given.
+func ValidateIptables(args []string) error { return validateIptables(args) }

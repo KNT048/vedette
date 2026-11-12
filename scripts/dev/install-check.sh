@@ -56,9 +56,11 @@ for n in $targets; do
 	"$c" image exists "$image" || pulled="$pulled $image"
 
 	mkdir -p "$work/$n"
+	# dbus: every real box has the system bus, and Podman's systemd cgroup manager needs it ("cannot open sd-bus" in crun otherwise), which
+	# the on-box scan build (podman build ... RUN, run by vedette-host from a unit) depends on
 	cat >"$work/$n/Containerfile" <<EOT
 FROM $image
-RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv ca-certificates iproute2 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends systemd systemd-sysv dbus ca-certificates iproute2 && rm -rf /var/lib/apt/lists/*
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
 EOT
@@ -86,6 +88,8 @@ EOT
 	# the state a box can be compared by: accounts, unit files, listening sockets, links, packages, files (volatile paths left out).
 	# Left out on purpose: the account _chrony and UDP 323. chronyd cannot be signalled inside a rootless container ("Permission denied"
 	# from kill, even for root), so it outlives its own purge here; on a real box --uninstall stops it first (install.sh, "a purge does not stop a daemon").
+	# Also left out: the run records of vedette-host (/var/lib/vedette-host/runs/): core makes them on its own, e.g. a "busy" refusal when its
+	# module reconcile at start meets the host's own AfterReady, so the second run of the installer is not what creates them
 	state() {
 		x '
 		echo "## passwd"; getent passwd | grep -v "^_chrony:" | sort; echo "## group"; getent group | grep -v "^_chrony:" | sort
@@ -97,7 +101,7 @@ EOT
 		echo "## netns"; ls /run/netns 2>/dev/null | sort
 		echo "## packages"; dpkg-query -W -f="\${binary:Package} \${Version}\n" | sort
 		echo "## files"; find /etc /opt /srv /usr/lib/vedette /var/lib /var/log /root /run/vedette /run/containers -xdev -printf "%p %y %m %u:%g\n" 2>/dev/null \
-			| grep -Ev "^(/var/lib/(apt|dpkg|systemd|ucf|pam|private|containers/)|/etc/(ssl|ld.so.cache|alternatives|machine-id|\.pwd.lock)|/root/(art|\.cache|\.local)|/var/log/(apt|dpkg|alternatives|journal|README|lastlog|wtmp|btmp|faillog|bootstrap)|/etc/(passwd|group|shadow|gshadow)[-]? )" | sort
+			| grep -Ev "^(/var/lib/(apt|dpkg|systemd|ucf|pam|private|containers/|vedette-host/runs/)|/etc/(ssl|ld.so.cache|alternatives|machine-id|\.pwd.lock)|/root/(art|\.cache|\.local)|/var/log/(apt|dpkg|alternatives|journal|README|lastlog|wtmp|btmp|faillog|bootstrap)|/etc/(passwd|group|shadow|gshadow)[-]? )" | sort
 		'
 	}
 	snap_files() { state >"$1"; }
@@ -162,6 +166,8 @@ EOT
 	x 'grep -qx "Subnet=172.30.77.0/24" /etc/containers/systemd/vedette-int.network' || fail "vedette-int.network has no subnet"
 	[ "$(x 'podman network inspect vedette-int --format "{{range .Subnets}}{{.Subnet}}{{end}}"')" = 172.30.77.0/24 ] || fail "podman's vedette-int is not on the subnet of the file"
 	ok "vedette-int on 172.30.77.0/24 (no clash on this box); the file and podman agree"
+	x '/usr/sbin/conntrack --version >/dev/null 2>&1' || fail "conntrack does not run at /usr/sbin/conntrack (vedette-host clears stale syslog UDP flows with it, D-268)"
+	ok "conntrack runs at /usr/sbin/conntrack"
 	[ "$(conf_sum)" != none ] || fail "no chrony.conf after the install"
 	if [ -n "$prechrony" ]; then
 		[ "$(conf_sum)" = "$chrony_conf_before" ] || fail "the administrator's chrony.conf was changed (M1)"
@@ -186,6 +192,9 @@ EOT
 	done
 	ok "Quadlet units written for: $services"
 	[ "$(x 'systemctl cat vedette-host.service | grep -c "^ExecStart=/usr/lib/vedette/vedette-host$"')" = 1 ] || fail "vedette-host.service is not the packaged unit"
+	# core starts the sensor and scan containers by itself a little after the install (its module reconcile), so the box is only compared once
+	# the containers have stopped coming: the same set of containers, none still "starting", on three looks 10 s apart
+	x 'prev=; same=0; i=0; while [ $i -lt 40 ] && [ $same -lt 3 ]; do cur=$(podman ps -a --format "{{.ID}} {{.Status}}" | sort | tr "\n" ";"); case $cur in *starting*) same=0 ;; *) if [ "$cur" = "$prev" ]; then same=$((same + 1)); else same=0; fi ;; esac; prev=$cur; sleep 10; i=$((i + 1)); done; [ $same -ge 3 ]' || fail "the containers did not settle within 400 s of the install"
 	snap_files "$work/$n.installed"
 	core_id=$(x 'podman inspect --format "{{.Id}} {{.State.StartedAt}}" vedette-core')
 
@@ -212,12 +221,68 @@ EOT
 	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
 	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
+	# the bridge of vedette-int has the fixed name vedette0 on this Podman (PodmanArgs=--interface-name; D-267): by effect, in the kernel
+	x 'ip link show vedette0 >/dev/null 2>&1' || { x 'cat /etc/containers/systemd/vedette-int.network; podman network inspect vedette-int; ip -br link' >&2; fail "D-267: there is no bridge vedette0 (the network file's PodmanArgs=--interface-name=vedette0 did not take effect on this Podman: $(x 'podman --version'))"; }
+	[ "$(x "podman network inspect vedette-int --format '{{.NetworkInterface}}'")" = vedette0 ] || fail "D-267: podman does not report vedette0 as the interface of vedette-int"
+	ok "D-267: the bridge of vedette-int is named vedette0 by $(x 'podman --version') (PodmanArgs=--interface-name; the link exists in the kernel)"
+	# ---- images: --uninstall removes every image of Vedette's (registry names, the localhost/vedette-<service> tags bootstrap makes, the
+	# unnamed leftover of the on-box scan build, found by its label) and nothing else. The storage goes with podman afterwards, so a
+	# podman wrapper records what --uninstall asks it to remove, and the images are looked up by ID in that record.
+	x 'set -e; d=$(mktemp -d); cd "$d"
+	   mk() { printf "FROM scratch\nLABEL %s\n" "$2" >Containerfile; podman build -q -t "$1" . >"/root/img.$3"; }
+	   mk localhost/vedette-core:0.0.1 a=core core; mk ghcr.io/knt048/vedette-sensor:0.0.1 a=sensor ghcrimg
+	   mk localhost/other-app:1 a=other other
+	   mk localhost/vic-tmp:1 io.vedette.build=scan scanleft; podman untag localhost/vic-tmp:1
+	   mk localhost/vic-tmp:2 a=foreign foreignleft; podman untag localhost/vic-tmp:2
+	   printf "#!/bin/sh\ncase \"\$1\" in rmi) echo \"\$*\" >>/root/rmi.log ;; esac\nexec /usr/bin/podman \"\$@\"\n" >/usr/local/bin/podman; chmod 0755 /usr/local/bin/podman
+	   rm -f /root/rmi.log; cd /; rm -rf "$d"' >/dev/null 2>&1 || fail "cannot make the test images of the image case"
+	x 'podman images -a --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -q "localhost/vedette-core:0.0.1"' || fail "the image case did not make its images"
+	ok "image case: five test images made (a localhost/vedette-core tag, a ghcr.io/knt048/vedette- tag, an unrelated tag, a dangling image with the scan label, a dangling one without)"
+	# ---- D-267: a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its two rules in, --uninstall takes them out
+	if x 'command -v iptables >/dev/null 2>&1'; then
+		fwd_subnet=$(x "sed -n 's/^Subnet=//p' /etc/containers/systemd/vedette-int.network")
+		x 'iptables -N DOCKER-USER && iptables -P FORWARD DROP' || fail "D-267: cannot make a fake DOCKER-USER chain in the check container (needs NET_ADMIN)"
+		# the host looks every 30 s
+		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its two rules in DOCKER-USER within 80 s"; }
+		[ "$(x 'iptables -S DOCKER-USER | grep -- "--comment vedette-int" | sed "s/.* -j //" | tr "\n" " "')" = "RETURN RETURN ACCEPT ACCEPT " ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold the four rules of Vedette in the order RETURN RETURN ACCEPT ACCEPT"; }
+		# one more look of the host (30 s): nothing is added, so -C finds the rules as the host writes them
+		sleep 35
+		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 4 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold exactly four rules of Vedette after another look"; }
+		# an unrelated rule of the administrator in the same chain must survive the uninstall
+		x 'iptables -A DOCKER-USER -s 192.0.2.0/24 -j RETURN'
+		ok "D-267: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly four vedette-int rules (RETURN RETURN ACCEPT ACCEPT) for vedette0 and $fwd_subnet"
+		fwd_checked=1
+	fi
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un2.log" 2>&1 || { tail -40 "$work/un2.log" >&2; fail "--uninstall --yes failed in the H2 cycle"; }
+	for i in core ghcrimg scanleft; do
+		x "grep -q \"\$(cut -c1-12 /root/img.$i)\" /root/rmi.log" || { x 'cat /root/rmi.log' >&2; fail "image case: --uninstall did not remove the image '$i' (a Vedette name, or the dangling image with the scan label)"; }
+	done
+	for i in other foreignleft; do
+		! x "grep -q \"\$(cut -c1-12 /root/img.$i)\" /root/rmi.log" || fail "image case: --uninstall removed the image '$i', which is not Vedette's"
+	done
+	x 'rm -f /usr/local/bin/podman /root/rmi.log /root/img.*'
+	ok "image case: --uninstall removed the localhost/vedette-*, the ghcr.io/knt048/vedette-* and the dangling scan-labelled image, and left the unrelated tag and the dangling image without the label"
+	if [ -n "${fwd_checked:-}" ]; then
+		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: --uninstall left a vedette-int rule in DOCKER-USER"; }
+		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"
+		ok "D-267: --uninstall removed the four vedette-int rules and left the administrator's own rule"
+		# the fake Docker goes again, so that the checks below see the box as it was
+		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; true'
+		fwd_checked=
+		# the chain was made by this case, so the uninstall rightly kept the nft table "ip filter" (warning: left the nft table); it goes
+		# once nft is there to remove it (below)
+		fwd_table=1
+	fi
 	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
 	x '! dpkg -s podman >/dev/null 2>&1 && ! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left podman or vedette-host"
 	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables and removed podman and vedette-host"
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends nftables >/dev/null 2>&1' || fail "cannot install nftables to look at the tables"
+	if [ -n "${fwd_table:-}" ]; then
+		grep -q "left the nft table ip filter" "$work/un2.log" || fail "D-267: the uninstall did not say it left the table of the fake Docker chain"
+		x 'nft delete table ip filter' || fail "cannot remove the nft table of the fake Docker chain"
+		fwd_table=
+	fi
 	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
 	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
 	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot

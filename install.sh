@@ -48,7 +48,8 @@ REGISTRY_UNIT=vedette-testregistry
 REGISTRY_ADDR=127.0.0.1:5077
 CLOUD_FILE=/etc/cloud/cloud.cfg.d/99-vedette-network.cfg
 # iptables: netavark 1.4 (Ubuntu 24.04) programs the firewall through it and fails with "No such file" without it (found by install-check)
-PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd"
+# conntrack: vedette-host deletes the stale UDP conntrack entries of the published syslog port after core restarts (D-268)
+PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd conntrack"
 OPTIONAL_PACKAGES="netavark aardvark-dns catatonit"
 MIN_FREE_KB=6291456 # 6 GiB under /var/lib and /var/tmp: the images are about 1 GB, the data grows
 CLOCK_FLOOR=1793491200 # 2026-11-01: a clock before this is not set
@@ -338,6 +339,8 @@ install_packages() {
 	podman_ver=$(podman --version | awk '{print $3}')
 	[ "$(printf '4.4\n%s\n' "${podman_ver%%-*}" | sort -V | head -n 1)" = 4.4 ] || die "podman $podman_ver is older than 4.4 (no Quadlet)"
 	say "podman $podman_ver"
+	# effect, not exit code of apt: the tool vedette-host runs after core restarts (D-268) answers
+	/usr/sbin/conntrack --version >/dev/null 2>&1 || die "conntrack is not usable at /usr/sbin/conntrack after the install"
 }
 
 # save_runtime_state: what netavark changes on the host when the first container network comes up, written down before it does
@@ -494,6 +497,9 @@ pick_subnet() {
 NetworkName=vedette-int
 Subnet=$SUBNET
 Gateway=$GATEWAY
+# The bridge has a fixed name so that vedette-host can bind its DOCKER-USER rules to it (D-267). PodmanArgs= is the key every supported Podman
+# knows (4.9 on Ubuntu 24.04, 5.x on 26.04 and Debian 13); InterfaceName= is only in Podman 5.7 and newer.
+PodmanArgs=--interface-name=vedette0
 # Picked by install.sh so that it clashes with no route or container network of this box (docs/DEPLOYMENT.md 6.1)
 EOF
 	install -m 0644 -o root -g root "$TMP/network" "$NETWORK_FILE"
@@ -698,7 +704,53 @@ do_install() {
 	start_registry
 	bootstrap
 	start_and_wait
+	forward_check
 	summary
+}
+
+# forward_check (D-267): Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
+# without a rule in DOCKER-USER the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. vedette-host keeps two
+# rules in DOCKER-USER for the container network while that chain exists; here the effect is checked, and a firewall that is not
+# Docker's is only reported, never changed.
+forward_check() {
+	have iptables || return 0
+	fw_net=$(sed -n 's/^Subnet=//p' "$NETWORK_FILE" | head -n 1)
+	printf '%s' "$fw_net" | grep -Eq '^172\.30\.[0-9]{1,3}\.0/24$' || return 0
+	if iptables -w 5 -S DOCKER-USER >/dev/null 2>&1; then
+		if ! grep -qx 'PodmanArgs=--interface-name=vedette0' "$NETWORK_FILE"; then
+			warn "$NETWORK_FILE is from an install that did not name the bridge vedette0, so vedette-host puts no rules in DOCKER-USER (D-267): run --uninstall --yes and install again"
+			return 0
+		fi
+		say "Docker is on this box: vedette-host keeps four rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net (comment vedette-int; --uninstall removes them; D-267)"
+		n=0
+		while [ "$n" -lt 15 ]; do
+			fwd_rules_present "$fw_net" && return 0
+			sleep 2
+			n=$((n + 1))
+		done
+		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443 or 514 and the containers may not reach the internet (journalctl -u vedette-host)"
+	elif iptables -w 5 -S FORWARD 2>/dev/null | grep -qx -- '-P FORWARD DROP'; then
+		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
+	fi
+}
+
+# fwd_rules_present <subnet>: the four rules of D-267 are in DOCKER-USER (same words as host/ops/dockerfwd.go)
+fwd_rules_present() {
+	iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN >/dev/null 2>&1 &&
+		iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN >/dev/null 2>&1 &&
+		iptables -w 5 -C DOCKER-USER -o vedette0 -d "$1" -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT >/dev/null 2>&1 &&
+		iptables -w 5 -C DOCKER-USER -i vedette0 -s "$1" -m comment --comment vedette-int -j ACCEPT >/dev/null 2>&1
+}
+
+# remove_forward_rules: the rules vedette-host put in DOCKER-USER (D-267): the lines bound to the bridge vedette0 that carry the comment
+# vedette-int and end in ACCEPT or RETURN; nothing else (iptables prints -i and -o after -s and -d, so they are not at a fixed place)
+remove_forward_rules() {
+	have iptables || return 0
+	iptables -w 5 -S DOCKER-USER >"$TMP/du.rules" 2>/dev/null || return 0
+	grep -E '^-A DOCKER-USER .*-[io] vedette0 .*--comment vedette-int -j (ACCEPT|RETURN)$' "$TMP/du.rules" | sed 's/^-A /-D /' | while IFS= read -r l; do
+		# shellcheck disable=SC2086 # the words of one rule iptables printed, none holds a space or a glob
+		iptables -w 5 $l >/dev/null 2>&1 || true
+	done
 }
 
 # ---- uninstall -------------------------------------------------------------------------------------------------------
@@ -859,10 +911,16 @@ do_uninstall() {
 	rm -f /etc/containers/systemd/vedette-* "$MIRROR_FILE"
 	systemctl daemon-reload >/dev/null 2>&1 || true
 	systemctl reset-failed >/dev/null 2>&1 || true
+	remove_forward_rules
 	if have podman; then
 		podman network rm -f vedette-int >/dev/null 2>&1 || true
 		podman volume rm -f vedette-creds-passive vedette-creds-active >/dev/null 2>&1 || true
-		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-scan-nmap)/ {print $1}' | sort -u | while read -r id; do
+		# every image Vedette made or pulled: the registry names, and the local names bootstrap gives them (localhost/vedette-<service>:<version>,
+		# localhost/vedette-scan-nmap); then what the on-box scan build left without a name (<none>), found only by its label, never by prune
+		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-)/ {print $1}' | sort -u | while read -r id; do
+			podman rmi -f "$id" >/dev/null 2>&1 || true
+		done
+		podman images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
 			podman rmi -f "$id" >/dev/null 2>&1 || true
 		done
 	fi

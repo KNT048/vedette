@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -105,6 +107,45 @@ func dialCtx(network, addr string) (net.Conn, error) {
 func listenPacket(network, addr string) (net.PacketConn, error) {
 	var lc net.ListenConfig
 	return lc.ListenPacket(context.Background(), network, addr)
+}
+
+// #266 item 2: the TLS seam. On a box that serves TLS, deps.SyslogTLS is the HTTPS listener's own certificate source (a renewal is picked
+// up: it is the same GetCertificate), without the HTTPS-only ALPN, TLS 1.2 or later, no client certificate; on a loopback box it is nil.
+func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
+	t.Parallel()
+	if got := syslogTLS(nil); got != nil {
+		t.Fatalf("no HTTPS TLS must give no syslog TLS, got %v", got)
+	}
+	dir := t.TempDir()
+	cfg, _, _, renew, err := transport(options{db: filepath.Join(dir, "v.db"), listen: "0.0.0.0:8443", hosts: "box.example"})
+	if err != nil || cfg == nil || renew == nil {
+		t.Fatalf("transport: cfg=%v renew=%v err=%v", cfg, renew, err)
+	}
+	got := syslogTLS(cfg)
+	if got == nil || got == cfg {
+		t.Fatalf("syslogTLS = %p, want a clone of %p", got, cfg)
+	}
+	if got.GetCertificate == nil || len(got.Certificates) != 0 {
+		t.Fatal("the box-made pair must be served through GetCertificate, so a renewal needs no restart")
+	}
+	c1, err := got.GetCertificate(&tls.ClientHelloInfo{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c2, err := cfg.GetCertificate(&tls.ClientHelloInfo{})
+	if err != nil || c1 != c2 {
+		t.Fatalf("the syslog listener and HTTPS serve different certificates (%p, %p, %v)", c1, c2, err)
+	}
+	if got.NextProtos != nil || got.MinVersion < tls.VersionTLS12 || got.ClientAuth != tls.NoClientCert {
+		t.Errorf("NextProtos=%v MinVersion=%x ClientAuth=%v", got.NextProtos, got.MinVersion, got.ClientAuth)
+	}
+	if cfg.NextProtos == nil {
+		t.Error("cloning must not change the HTTPS configuration")
+	}
+	lo, _, _, _, err := transport(options{db: filepath.Join(dir, "w.db"), listen: "127.0.0.1:8443"})
+	if err != nil || syslogTLS(lo) != nil {
+		t.Fatalf("a loopback box has no certificate: %v", err)
+	}
 }
 
 // D-210: logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses

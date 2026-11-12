@@ -523,6 +523,7 @@ func TestNothingButABusyStoreSplitsOrBlames(t *testing.T) {
 		"429":              &sensorlink.Error{Status: 429, Code: sensorlink.CodeRateLimited, RetryAfter: time.Second},
 		"426":              sensorlink.NewError(sensorlink.CodeProtoUnsupported),
 		"cert_retired":     sensorlink.NewError(sensorlink.CodeCertRetired),
+		"503 not_ready":    &sensorlink.Error{Status: 503, Code: sensorlink.CodeNotReady, RetryAfter: 5 * time.Second}, // D-385
 		"no answer at all": errors.New("connection refused"),
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -119,6 +119,14 @@ func TestDeviceSecretPatternsLeaveOrdinaryTextAlone(t *testing.T) {
 		"route-map Z permit 30\n set community 4200000000:1:2",
 		"The password is encrypted at rest.",
 		"auth md5 is weak, use sha",
+		// D-428: the new patterns need their marker
+		"ntp server 10.0.0.1 key 1 prefer\nntp peer 10.0.0.2 key 2 source Lo0",
+		"line vty 0 4\n exec-timeout 5 0\n login local\nline aux 0\n no exec",
+		"Password: required for the portal.\nthe line vty has no password set",
+		"password_policy:\n  min_length: 12\npassword: ${DB_PASSWORD}\npassword: null\nsecret: |\n  text",
+		"snmp-server host 10.1.1.1 version 3 auth ops\nsnmp-server host inside 10.1.1.1 version 3",
+		"config system snmp community\n    edit 1\n        set status enable\n    next\nend\nconfig system global\n    set name FW-HQ\nend",
+		"Private-Lines: 2\nPrivate-MAC: 00ff",
 	} {
 		if res := run(t, r, BeforeAI, in); res.Outcome != OutcomePass || res.Text != in {
 			t.Errorf("%q -> %+v", in, res)
@@ -164,6 +172,21 @@ func TestDeviceSecretFindersAreLinear(t *testing.T) {
 		"every pattern runs": "password secret key md5 community psk shared private enc $ -key -server snmp-server encrypted pbkdf2 enable " +
 			"username neighbor ospf isakmp key-string private key\n" + strings.Repeat("The firewall log shows a blocked probe. ", top/40-4),
 		"asa no suffix": strings.Repeat("password 8Ry2Yj ", top/16),
+		// D-428: block walks and the line-anchored patterns
+		"vty headers":    strings.Repeat("line vty 0 4\n x\n", top/17),
+		"vty indented":   "line vty 0 4\n" + strings.Repeat(" exec-timeout 5 0\n", top/18-2),
+		"yaml keys":      strings.Repeat("password:\n", top/10),
+		"putty lines":    "Private-Lines: 9\n" + strings.Repeat("AAAAAAAAAAAAAAAA\n", top/17-2),
+		"snmp host many": strings.Repeat("snmp-server host x vrf y traps\n", top/31),
+		"forti headers":  strings.Repeat("config system snmp community\n  edit 1\n", top/38),
+		"forti staircase": func() string {
+			var b strings.Builder
+			for i := 0; b.Len() < top-2000; i++ {
+				b.WriteString(strings.Repeat(" ", i))
+				b.WriteString("config system snmp community\n")
+			}
+			return b.String()
+		}(),
 	} {
 		d := timeOf(in)
 		t.Logf("%-18s %8d bytes %v (plain text %v)", name, len(in), d, base)
@@ -277,6 +300,20 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		{"asa tunnel-group psk", "tunnel-group 1.2.3.4 ipsec-attributes\n ikev1 pre-shared-key " + plainPW, "ikev1 pre-shared-key ", []string{plainPW}},
 		{"psk colon", "PSK: " + plainPW, "PSK: ", []string{plainPW}},
 		{"username type 6", "username bob password 6 " + plainPW, "username bob password 6 ", []string{plainPW}},
+		// D-428: secrets that sit where the vendor's syntax puts them
+		{"line vty cleartext", "line con 0\n login\nline vty 0 4\n exec-timeout 5 0\n password " + plainPW + "\n login\n", " password ", []string{plainPW}},
+		{"line vty crlf", "line vty 0 4\r\n password " + plainPW + "\r\n login\r\n", " password ", []string{plainPW}},
+		{"two vty blocks", "line vty 0 4\n password " + plainPW + "\nline vty 5 15\n password " + two + "\n", " password ", []string{plainPW, two}},
+		{"yaml password", "db:\n  host: x\n  password: " + plainPW + "\n", "password: ", []string{plainPW}},
+		{"yaml list item quoted", "users:\n  - db_password: \"" + plainPW + "\"\n", "db_password: ", []string{plainPW}},
+		{"yaml snmp community", "snmp_community: " + plainPW, "snmp_community: ", []string{plainPW}},
+		{"yaml secret", "client-secret: " + plainPW, "client-secret: ", []string{plainPW}},
+		{"putty key body", "PuTTY-User-Key-File-2: ssh-rsa\nEncryption: none\nComment: k\nPublic-Lines: 1\nAAAAB3NzaC1yc2EAAAA\nPrivate-Lines: 2\n" + wg + "\n" + two + "xyz==\nPrivate-MAC: 00ff\n", "Private-MAC: 00ff", []string{wg, two}},
+		{"snmp host version", "snmp-server host 10.1.1.1 version 2c " + plainPW + " udp-port 162", "version 2c ", []string{plainPW}},
+		{"snmp host vrf traps", "snmp-server host 10.1.1.1 vrf MGMT traps version 1 " + plainPW, "version 1 ", []string{plainPW}},
+		{"snmp host traps", "snmp-server host 10.1.1.1 traps " + plainPW + " config", "traps ", []string{plainPW}},
+		{"snmp host bare", "snmp-server host 10.1.1.1 " + plainPW, "snmp-server host 10.1.1.1 ", []string{plainPW}},
+		{"forti snmp name", "config system snmp community\n    edit 1\n        set name \"" + plainPW + "\"\n        set status enable\n    next\n    edit 2\n        set name " + two + "\n    next\nend\n", "set name ", []string{plainPW, two}},
 	}
 	for _, c := range cases {
 		res := run(t, r, BeforeAI, c.in)

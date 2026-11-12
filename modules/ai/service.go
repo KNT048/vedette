@@ -159,20 +159,21 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
-	cfg       Config
-	router    *Router
-	meter     *Meter
-	loc       *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
-	harness   atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
-	skillsOff atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
-	degraded  string                          // why the saved settings could not be loaded; "" = loaded
-	mu        sync.Mutex                      // serialises changes
-	testSlot  chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
-	indexSlot chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
-	queued    atomic.Int64                    // uploads that hold their bytes in memory until they are read
-	indexing  sync.WaitGroup                  // the readers in flight: a test waits for them
-	snap      atomic.Pointer[snapshot]
-	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
+	cfg        Config
+	router     *Router
+	meter      *Meter
+	loc        *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
+	harness    atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
+	skillsOff  atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
+	degraded   string                          // why the saved settings could not be loaded; "" = loaded
+	mu         sync.Mutex                      // serialises changes
+	testSlot   chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
+	indexSlot  chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
+	digestSlot chan struct{}                   // one place: a log digest is made by one caller at a time, the next one finds it stored (no tokens twice)
+	queued     atomic.Int64                    // uploads that hold their bytes in memory until they are read
+	indexing   sync.WaitGroup                  // the readers in flight: a test waits for them
+	snap       atomic.Pointer[snapshot]
+	news       *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -203,7 +204,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), digestSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)

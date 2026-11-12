@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"context"
 	"regexp"
 	"slices"
 	"sort"
@@ -19,8 +20,11 @@ import (
 // A pattern needs a marker prose does not have: a keyword followed by a value of the shape of a secret (hex after type 7, a crypt hash),
 // an algorithm word (md5, sha1), `=`, a JSON field, a hash prefix, ENC, or a configuration line (cfgLine: a lower-case command at the
 // start of the line, such as `username`, `enable`, `set`). "Change your password 3 times" and "the psk is weak" are left alone.
-// ponytail: only secrets that carry such a marker; a cleartext ` password x` under `line vty` and a FortiGate `set name "x"` inside an
-// SNMP community block are not recognised; upgrade path: a config-aware parser per vendor, if a customer needs it.
+// ponytail: only secrets that carry such a marker or sit where the vendor's syntax puts them (` password x` under `line vty|con|aux`,
+// a YAML key, the body of a PuTTY key file, a FortiGate `set name` inside `config system snmp community`, an IOS `snmp-server host`
+// with a version); other vendors' blocks are not recognised; upgrade path: a config-aware parser per vendor, if a customer needs it.
+// Over-masking costs one word and is kept (D-428): `password 3 times` at the start of a lower-case line, `The password authentication
+// encrypted`; the value shape is all a pattern can tell, and a secret that leaks costs more.
 const secretValue = `("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\S+)` //nolint:gosec // a regexp fragment, not a credential
 
 // secretKeyStart: the keyword begins at the start of a line or after a character that cannot be part of a word.
@@ -36,11 +40,12 @@ const (
 )
 
 // secretPattern is a pattern, the words one of which the text must hold (lower case) for the pattern to be run at all, and the values
-// it must leave alone (nil: none). The words keep the cost of text without secrets (most text) to one lower-casing and a few searches.
+// it must leave alone (nil: none); leaveWhole is the same for the whole match (nil: none). The words keep the cost of text without secrets (most text) to one lower-casing and a few searches.
 type secretPattern struct {
-	re    *regexp.Regexp
-	needs []string
-	leave *regexp.Regexp
+	re         *regexp.Regexp
+	needs      []string
+	leave      *regexp.Regexp
+	leaveWhole *regexp.Regexp
 }
 
 func secretRE(expr string, needs ...string) secretPattern {
@@ -62,7 +67,9 @@ var deviceSecretPatterns = []secretPattern{
 	// A key number and an algorithm before the value (ntp authentication-key 1 md5 <key> [7], ip ospf message-digest-key 1 md5 7 <key>).
 	secretRE(secretKeyStart+`(?:authentication-key|message-digest-key|auth-key)[ \t]+[0-9]+[ \t]+(?:md5|sha1|sha256|sha512|hmac-sha\S*)[ \t]+(?:[0-9][ \t]+)?`+secretValue, "-key"),
 	// Any type number on a configuration line (username bob secret 0 <x>, enable secret 5 <hash>, pre-shared-key ... key 6 <x>).
-	secretRE(cfgLine+`(?:(?:username|enable|line|ntp|tacacs-server|radius-server|crypto|pre-shared-key|ip|ipv6|neighbor|set|server|ikev1|ikev2|ppp|aaa|standby|vrrp|area)[ \t](?:[^\n]*?[ \t])?)?`+typeKeyword+`[ \t]+[0-9][ \t]+`+typeAlgo+secretValue, needTyped...),
+	{needs: needTyped, re: regexp.MustCompile(cfgLine + `(?:(?:username|enable|line|ntp|tacacs-server|radius-server|crypto|pre-shared-key|ip|ipv6|neighbor|set|server|ikev1|ikev2|ppp|aaa|standby|vrrp|area)[ \t](?:[^\n]*?[ \t])?)?` + typeKeyword + `[ \t]+[0-9][ \t]+` + typeAlgo + secretValue),
+		// `ntp server <ip> key 1 prefer`: 1 is the id of an authentication-key, not a type, and no secret follows it
+		leaveWhole: regexp.MustCompile(`(?i)^[ \t]*ntp[ \t]+(?:server|peer)[ \t]`)},
 	// Cleartext on a few configuration lines whose command says what follows (enable password <x>, username a [privilege 15] password <x>,
 	// neighbor <ip> password <x>, ip ospf authentication-key <x>).
 	secretRE(cfgLine+`(?:enable[ \t]+(?:password|secret)(?:[ \t]+level[ \t]+[0-9]+)?|username[ \t]+\S+(?:[ \t]+privilege[ \t]+[0-9]+)?[ \t]+(?:password|secret)|neighbor[ \t]+\S+[ \t]+password|ip[ \t]+ospf[ \t]+authentication-key)[ \t]+(?:[0-9][ \t]+)?`+secretValue, "enable", "username", "neighbor", "ospf"),
@@ -105,6 +112,25 @@ var deviceSecretPatterns = []secretPattern{
 	secretRE(cfgLine+`set[ \t]+(?:[a-z0-9]+-)*(?:password|passwd|passphrase|secret|psksecret|private-key|pre-shared-key)[ \t]+(?:ENC[ \t]+)?`+secretValue, needNamed...),
 	// FortiGate: an encrypted secret is ENC followed by base64 (set password ENC SH2..., set psksecret ENC ...).
 	secretRE(`(?:^|[^A-Za-z0-9_])ENC[ \t]+([A-Za-z0-9+/=]{16,})`, "enc"),
+	// Cleartext password in a console or terminal line block (line vty 0 4 / ` password x` / ` login`): the indented lines of the block
+	// are walked lazily, so the match ends at the first password line of the block that has no marker of its own.
+	secretRE(`(?m:^)line[ \t]+(?:con|console|aux|vty|tty)[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+password[ \t]+`+secretValue, "line", "password"),
+	// IOS SNMP trap host with the community after the version, or after traps|informs, or bare after an IPv4 address:
+	// snmp-server host 10.1.1.1 [vrf V] [traps|informs] version 2c <community> [udp-port 162], snmp-server host 10.1.1.1 <community>.
+	{
+		needs: []string{"snmp-server"},
+		re:    regexp.MustCompile(cfgLine + `snmp-server[ \t]+host[ \t]+(?:\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:(?:traps|informs)[ \t]+)?version[ \t]+(?:1|2c)[ \t]+|\S+[ \t]+(?:vrf[ \t]+\S+[ \t]+)?(?:traps|informs)[ \t]+|[0-9]{1,3}(?:\.[0-9]{1,3}){3}[ \t]+)` + secretValue),
+		leave: regexp.MustCompile(`(?i)^(?:version|community|udp-port|vrf|traps|informs|[0-9]+|[0-9a-f:.]+)$`),
+	},
+	// YAML keys: password: <x>, db_password: <x>, - secret: <x>, snmp_community: <x>. A lower-case key at the start of a line (a sentence
+	// starts with a capital); a block scalar, null, a flag and a ${placeholder} are not values.
+	{
+		needs: append([]string{"community"}, needNamed...),
+		re:    regexp.MustCompile(`(?m:^)[ \t]*(?:-[ \t]+)?[a-z0-9_-]*(?:password|passwd|passphrase|secret|psk|private[-_]?key|snmp[-_]?community)[a-z0-9_-]*[ \t]*:[ \t]+` + secretValue),
+		leave: regexp.MustCompile(`(?i)^(?:null|~|true|false|yes|no|none|required|[|>][-+]?|\[\]|\{\}|""|''|!vault|\$\{.*)$`),
+	},
+	// PuTTY key file (.ppk): the lines of the Private-Lines section, up to the Private-MAC line.
+	secretRE(`(?m:^)Private-Lines:[ \t]*[0-9]+[ \t]*\r?\n((?:[A-Za-z0-9+/=]+\r?\n)*[A-Za-z0-9+/=]+)(?:\r?\n|\z)`, "private-lines"),
 	// A private key block, whole; without an end line (the text was cut) to the end of the text. The first group is the match itself.
 	secretRE(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----.*?-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----|-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----.*)`, "private key"),
 }
@@ -112,19 +138,35 @@ var deviceSecretPatterns = []secretPattern{
 // findDeviceSecrets finds the values of device secrets in norm (the normalised text): every capture group of every pattern, in order,
 // overlapping ones merged (maskSpans wants them in order and writes one mask per span).
 func findDeviceSecrets(norm string) []span {
+	out, _ := scanDeviceSecrets(context.Background(), norm) // a background context never ends
+	return out
+}
+
+// scanDeviceSecrets is findDeviceSecrets that looks at the context between the patterns: one pattern on the biggest text is linear
+// and short, but the deadline of the hook holds in the whole run.
+func scanDeviceSecrets(ctx context.Context, norm string) ([]span, error) {
 	var out []span
 	lower := strings.ReplaceAll(strings.ToLower(norm), "ſ", "s") // (?i) folds U+017F to s; ToLower does not
 	for _, p := range deviceSecretPatterns {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !slices.ContainsFunc(p.needs, func(w string) bool { return strings.Contains(lower, w) }) {
 			continue
 		}
 		for _, m := range p.re.FindAllStringSubmatchIndex(norm, -1) {
+			if p.leaveWhole != nil && p.leaveWhole.MatchString(norm[m[0]:m[1]]) {
+				continue
+			}
 			for g := 2; g+1 < len(m); g += 2 {
 				if a, b := m[g], m[g+1]; a >= 0 && b > a && (p.leave == nil || !p.leave.MatchString(norm[a:b])) {
 					out = append(out, span{a, b})
 				}
 			}
 		}
+	}
+	if strings.Contains(lower, "snmp") && strings.Contains(lower, "community") {
+		out = append(out, fortiCommunityNames(norm)...)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
 	merged := out[:0]
@@ -135,5 +177,40 @@ func findDeviceSecrets(norm string) []span {
 		}
 		merged = append(merged, sp)
 	}
-	return merged
+	return merged, nil
+}
+
+var (
+	fortiSNMPBlock = regexp.MustCompile(`(?m:^)([ \t]*)config[ \t]+system[ \t]+snmp[ \t]+community[ \t]*\r?\n`)
+	fortiSetName   = regexp.MustCompile(`^[ \t]+set[ \t]+name[ \t]+` + secretValue)
+)
+
+// fortiCommunityNames finds the values of `set name "<community>"` inside `config system snmp community`: the community is a name, with
+// no keyword of its own. The block is the lines after the header that are indented deeper than it (the `end` closes it).
+func fortiCommunityNames(norm string) []span {
+	var out []span
+	done := 0 // a header inside a block already read is read again by no one: every line is visited once (linear)
+	for _, h := range fortiSNMPBlock.FindAllStringSubmatchIndex(norm, -1) {
+		if h[0] < done {
+			continue
+		}
+		indent := h[3] - h[2]
+		pos := h[1]
+		for pos < len(norm) {
+			end := len(norm)
+			if i := strings.IndexByte(norm[pos:], '\n'); i >= 0 {
+				end = pos + i + 1
+			}
+			line := norm[pos:end]
+			if len(line)-len(strings.TrimLeft(line, " \t")) <= indent {
+				break
+			}
+			if m := fortiSetName.FindStringSubmatchIndex(line); m != nil && m[3] > m[2] {
+				out = append(out, span{pos + m[2], pos + m[3]})
+			}
+			pos = end
+		}
+		done = pos
+	}
+	return out
 }

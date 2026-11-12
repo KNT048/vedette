@@ -114,7 +114,8 @@ const askRememberTask = ` If the tool results show a lasting fact about this net
 var rememberLine = regexp.MustCompile(`(?i)^[\s*•-]*remember\s*:[\s*]*(.+?)[\s*]*$`)
 
 // takeRemember takes the last line of the answer out when it is a "Remember:" line and returns its fact (D-225). A "Remember:" line
-// elsewhere is advice, and stays. An answer that is only that line keeps the fact as its text.
+// elsewhere is advice, and stays. An answer that is only that line keeps the fact as its text. A fact that does not end like a
+// sentence is an answer cut at the token limit: the line is taken out and no memory is suggested from half a sentence.
 func takeRemember(text string) (string, []string) {
 	lines := strings.Split(strings.TrimRight(text, " \t\r\n"), "\n")
 	m := rememberLine.FindStringSubmatch(lines[len(lines)-1])
@@ -125,7 +126,16 @@ func takeRemember(text string) (string, []string) {
 	if strings.TrimSpace(rest) == "" {
 		rest = m[1]
 	}
+	if !endsSentence(m[1]) {
+		return rest, nil
+	}
 	return rest, []string{m[1]}
+}
+
+// endsSentence is true when the text ends with a full stop, a mark or a closing bracket or quote after one.
+func endsSentence(t string) bool {
+	t = strings.TrimRight(t, `)]"'* `)
+	return t != "" && strings.ContainsRune(".!?", rune(t[len(t)-1]))
 }
 
 // askEvidence names the question and the tools the fact came from (`From the question "…"; tools read: a, b`), at most evidenceMax

@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -428,3 +431,93 @@ func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
 		t.Fatalf("a suggestion became memory without an accept: %v", items)
 	}
 }
+
+// An item that names exactly one device of the bad connections sent gets the box's id of that device; the model never makes one (D-428).
+func TestLogDigestLinksItemsToDevicesFromTheBoxOwnIds(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	d := someDigest()
+	id, other, name2 := "a-pc03", "a-srv", "SRV-FILE"
+	d.BadConnections[0].AssetID = &id
+	d.BadConnections = append(d.BadConnections, ai.LogDigestBadConn{TS: "2026-11-10T02:05:00Z", AssetName: &name2, SrcIP: "192.168.10.50", Dest: "185.220.101.48", DestKind: "ip", SeenVia: "span_flow", Feeds: []string{"tor-exit"}, AssetID: &other})
+	a.logs.set(d)
+	a.fake.setAnswer(`{"summary":"Look first.","items":[` +
+		`{"severity":"high","title":"PC-ACCOUNTS-03 connects to a listed address","evidence":[],"recommendation":"Isolate it."},` +
+		`{"severity":"high","title":"Two devices","evidence":["PC-ACCOUNTS-03 and 192.168.10.50 talk to listed addresses"],"recommendation":"Isolate them."},` +
+		`{"severity":"medium","title":"Unknown device PC-ACCOUNTS-030","evidence":[],"recommendation":"Look."},` +
+		`{"severity":"info","title":"By address","evidence":["192.168.10.50 sent 3 packets"],"recommendation":"Look."}]}`)
+	items := digestOf(t, a.digest("POST", "operator", 200, ""))["items"].([]any)
+	want := []any{"a-pc03", nil, nil, "a-srv"}
+	for i, w := range want {
+		if got := items[i].(map[string]any)["asset_id"]; got != w {
+			t.Errorf("item %d asset_id = %v, want %v", i, got, w)
+		}
+	}
+	if raw, _ := json.Marshal(a.fake.lastRequest(t)); strings.Contains(string(raw), "a-pc03") {
+		t.Fatalf("a device id went to the provider: %s", raw)
+	}
+}
+
+// Two POSTs with the same inputs at once call the AI once: the second waits for the first and reads what it stored.
+func TestLogDigestTwoAtOnceAskTheAIOnce(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	a.logs.set(someDigest())
+	a.fake.setAnswer(goodDigest)
+	in, release := make(chan struct{}, 1), make(chan struct{})
+	a.fake.setOnCall(func() {
+		select {
+		case in <- struct{}{}:
+			<-release // the first call is held inside the provider
+		default:
+		}
+	})
+	codes := make(chan int, 2)
+	post := func() {
+		code, _, _ := a.do("POST", "/ai/logs/digest", "operator", "")
+		codes <- code
+	}
+	go post()
+	<-in
+	go post()
+	for range 2000 { // let the second reach the slot (it must not reach the provider)
+		runtime.Gosched()
+	}
+	close(release)
+	for range 2 {
+		if code := <-codes; code != 200 {
+			t.Fatalf("POST = %d", code)
+		}
+	}
+	if n := a.fake.total(); n != 1 {
+		t.Fatalf("the provider was called %d times, want 1", n)
+	}
+}
+
+// With the module registry at hand, a stored digest is served without the aggregate of the logs; a module that is off is still 409.
+func TestLogDigestGetServesAStoredDigestWithoutReadingTheLogs(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	a.fake.setAnswer(goodDigest)
+	a.logs.set(someDigest())
+	a.digest("POST", "operator", 200, "")
+	reg := &fakeRegistry{on: true}
+	reads := 0
+	svc, err := ai.New(a.ctx(), ai.Config{DB: a.db, Secrets: a.sec, Audit: audit.New(a.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: a.clock.Now, Factory: a.fake.factory, Modules: reg,
+		LogDigest: func(ctx context.Context) (ai.LogDigestData, bool, error) { reads++; return a.logs.read(ctx) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.CachedLogDigest(a.ctx())
+	if err != nil || got == nil || got.Summary != "Look at PC-ACCOUNTS-03 first." || reads != 0 {
+		t.Fatalf("got %+v err %v, logs read %d times", got, err, reads)
+	}
+	reg.on = false
+	if _, err := svc.CachedLogDigest(a.ctx()); err == nil || reads != 0 {
+		t.Fatalf("logs off: err %v, logs read %d times", err, reads)
+	}
+}
+
+type fakeRegistry struct{ on bool }
+
+func (r *fakeRegistry) Enabled(string) bool { return r.on }

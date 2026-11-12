@@ -190,7 +190,8 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const [ack, setAck] = useState(false)
   const [errs, setErrs] = useState<Errs>({})
   const cloudOnly = kind !== 'openai-compatible' && kind !== 'custom'
-  const host = hostOf(baseUrl)
+  // The consent names the host only for an address that is one; a half-typed or wrong address reads as a neutral phrase (walk 3 G13).
+  const host = (() => { try { const u = new URL(baseUrl.trim()); return /^https?:$/.test(u.protocol) && u.host ? u.host : null } catch { return null } })()
   const needAck = location === 'cloud' && (!profile || key !== '' || baseUrl !== profile.base_url || profile.location !== 'cloud')
   const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
   const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(testErr) === k ? (testErr as Error).message : undefined)
@@ -207,8 +208,13 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     const d = defaultsOf(k)
     // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
-    // A key belongs to one provider: never carry it to another one.
-    setKind(k); setStyle(d.api_style); setBaseUrl(d.base_url); setModel(d.model); setLocation(d.location); setKey(''); setAck(false)
+    // A key belongs to one provider: never carry it to another one. An address or model the person typed stays; one that is still
+    // the previous type's default (or empty) takes the new type's default (walk 3 G13).
+    const prev = defaultsOf(kind)
+    const typed = (v: string, dflt: string) => v.trim() !== '' && v !== dflt
+    setKind(k); setStyle(d.api_style); setLocation(d.location); setKey(''); setAck(false)
+    if (!typed(baseUrl, prev.base_url)) setBaseUrl(d.base_url)
+    if (!typed(model, prev.model)) setModel(d.model)
   }
   // A new profile moved off the network keeps no trace of the local defaults: not the name "Local model", not the http://localhost address.
   function clearLocalDefaults(loc: 'internal' | 'cloud') {
@@ -294,16 +300,17 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
           {needAck ? (
             <div className="flex items-start gap-3">
               <Checkbox id="pf-ack" checked={ack} onCheckedChange={(v) => setAck(v === true)} className="mt-0.5" />
-              <Label htmlFor="pf-ack" className="font-normal">{t('profiles.f.ack', { host })}</Label>
+              <Label htmlFor="pf-ack" className="font-normal">{host ? t('profiles.f.ack', { host }) : t('profiles.f.ackNoHost')}</Label>
             </div>
           ) : null}
+          {needAck && !ack ? <p id="pf-ack-why" className="text-[13px] text-muted">{t('profiles.f.ackNeeded', { button: profile ? t('common:save') : t('profiles.addConfirm') })}</p> : null}
           {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
           {testErr && !serverField(testErr) ? <ActionError error={testErr} /> : null}
           {save.error && !serverField(save.error) ? <ActionError error={save.error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
             <Button type="button" onClick={runTest} disabled={test.isPending || save.isPending}>{test.isPending ? t('profiles.testing') : t('profiles.test')}</Button>
-            <Button type="submit" variant="primary" disabled={save.isPending || (needAck && !ack)}>{save.isPending ? t('profiles.saving') : profile ? t('common:save') : t('profiles.addConfirm')}</Button>
+            <Button type="submit" variant="primary" disabled={save.isPending || (needAck && !ack)} aria-describedby={needAck && !ack ? 'pf-ack-why' : undefined}>{save.isPending ? t('profiles.saving') : profile ? t('common:save') : t('profiles.addConfirm')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

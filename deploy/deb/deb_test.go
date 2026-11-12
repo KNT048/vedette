@@ -241,6 +241,8 @@ func TestPackage_Files(t *testing.T) {
 		"usr/lib/vedette/vedette-host":                    0o755,
 		"usr/lib/systemd/system/vedette-host.service":     0o644,
 		"usr/lib/vedette/honeypot-containers.conf":        0o644,
+		"usr/lib/vedette/apparmor-containers.conf":        0o644,
+		"etc/apparmor.d/vedette-container":                0o644,
 		"usr/share/doc/vedette-host/copyright":            0o644,
 		"usr/share/doc/vedette-host/NOTICE":               0o644,
 		"usr/share/doc/vedette-host/third-party-licenses": 0o644,
@@ -250,8 +252,12 @@ func TestPackage_Files(t *testing.T) {
 			if f.mode != 0o755 || f.uid != 0 || f.gid != 0 {
 				t.Errorf("directory %s: mode %o owner %d:%d, want 755 0:0", path, f.mode, f.uid, f.gid)
 			}
-			// the package owns no directory of the data it must keep
+			// the package owns no directory of the data it must keep; /etc and /etc/apparmor.d are shared system directories
+			// (the AppArmor profile, D-458), which dpkg never removes while another package or a file is in them
 			for _, kept := range []string{"var", "etc"} {
+				if path == "etc" || path == "etc/apparmor.d" {
+					continue
+				}
 				if path == kept || strings.HasPrefix(path, kept+"/") {
 					t.Errorf("the package owns %s: data and configuration directories are made by the postinst and kept on purge", path)
 				}
@@ -271,9 +277,10 @@ func TestPackage_Files(t *testing.T) {
 	for path := range want {
 		t.Errorf("missing file %s", path)
 	}
-	// no conffiles: host.conf is the installer's, not shipped; nothing here is meant to be edited by an administrator
-	if got := strings.TrimSpace(string(p.scripts["conffiles"].data)); got != "" {
-		t.Errorf("the package lists conffiles: %q", got)
+	// one conffile, the AppArmor profile (D-458: every profile under /etc/apparmor.d is one, as dh_apparmor ships them; apt runs
+	// with --force-confold, so an administrator's edit is kept without a prompt). host.conf is the installer's, not shipped.
+	if got := strings.TrimSpace(string(p.scripts["conffiles"].data)); got != "/etc/apparmor.d/vedette-container" {
+		t.Errorf("the package lists conffiles %q, want only /etc/apparmor.d/vedette-container", got)
 	}
 }
 
@@ -286,6 +293,14 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	if c := p.files[strings.TrimPrefix(ops.HoneypotConfModule, "/")].data; !bytes.Equal(c, repoFile(t, "deploy/deb/honeypot-containers.conf")) ||
 		!bytes.Contains(c, []byte("\n[containers]\ndefault_sysctls = [{append=false}]\n")) {
 		t.Errorf("the package has no %s that clears default_sysctls", ops.HoneypotConfModule)
+	}
+	// every unit names this module (D-458): same path, the profile the package installs, by its name
+	if c := p.files[strings.TrimPrefix(ops.AppArmorConfModule, "/")].data; !bytes.Equal(c, repoFile(t, "deploy/deb/apparmor-containers.conf")) ||
+		!bytes.Contains(c, []byte("\n[containers]\napparmor_profile = \""+ops.AppArmorProfile+"\"\n")) {
+		t.Errorf("the package has no %s that selects the AppArmor profile %s", ops.AppArmorConfModule, ops.AppArmorProfile)
+	}
+	if c := p.files["etc/apparmor.d/"+ops.AppArmorProfile].data; !bytes.Equal(c, repoFile(t, "deploy/deb/vedette-container.apparmor")) {
+		t.Errorf("/etc/apparmor.d/%s differs from deploy/deb/vedette-container.apparmor", ops.AppArmorProfile)
 	}
 	if c := p.files["usr/share/doc/vedette-host/copyright"].data; !bytes.Contains(c, []byte("Apache License")) || !bytes.Contains(c, []byte("Version 2.0")) {
 		t.Error("the copyright file is not the Apache License 2.0 text")

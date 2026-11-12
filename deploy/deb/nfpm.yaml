@@ -64,6 +64,22 @@ contents:
       mode: 0644
       owner: root
       group: root
+  # the AppArmor profile of every Vedette container and the containers.conf module that names it in each unit (D-458). The profile is
+  # under /etc/apparmor.d because that is the only directory apparmor.service loads at boot; a conffile, like every profile Debian
+  # ships (dh_apparmor). The postinst loads it into the kernel.
+  - src: deploy/deb/vedette-container.apparmor
+    dst: /etc/apparmor.d/vedette-container
+    type: config
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  - src: deploy/deb/apparmor-containers.conf
+    dst: /usr/lib/vedette/apparmor-containers.conf
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
   - src: LICENSE
     dst: /usr/share/doc/vedette-host/copyright
     file_info:

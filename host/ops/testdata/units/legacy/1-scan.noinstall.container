@@ -1,0 +1,28 @@
+[Unit]
+Description=Vedette scan (active scanning)
+After=vedette-core.service
+Wants=vedette-core.service
+
+[Container]
+ContainerName=vedette-scan
+Image=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Pull=never
+Network=host
+User=10003:10004
+DropCapability=ALL
+AddCapability=NET_RAW
+NoNewPrivileges=true
+RunInit=true
+ReadOnly=true
+Tmpfs=/tmp
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
+LogDriver=journald
+PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128
+HealthCmd=["/vedette-sensor","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem
+
+[Service]
+Restart=always

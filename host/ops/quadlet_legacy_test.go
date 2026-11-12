@@ -17,10 +17,10 @@ import (
 func TestUnitTemplatesArePinned(t *testing.T) {
 	t.Parallel()
 	pins := map[string]string{
-		api.ServiceCore:     "6c7da8195abcdf6f2b416b191f56cbac2d8ab04264691f9b6dc7570b8a6fbf8c",
-		api.ServiceSensor:   "9ccbe814284990c74a6f719aaec34804b6f62c32b288ea4979390d14c4b54aad",
-		api.ServiceHoneypot: "0798bd35bf60e40c56529e03b1a41cc472ef87863012282e00e761ed1814d59a",
-		api.ServiceScan:     "4aac18dfd69ee1220ca8b1210d9de23ef66c896147b507731ad03227324ce7e2",
+		api.ServiceCore:     "3c31737ee0e5a833853b6d5afe4477c8ac4fe11bc72918e9f6ad8093e6103287",
+		api.ServiceSensor:   "f5d4534fbbb920e1e832df910410e6bee23c74e49e58d291fd675fa17db18d35",
+		api.ServiceHoneypot: "706dfc118a9d8553eadc8813afb7d4c0ad3457bd646fdb7cd6f9c1c23c35e486",
+		api.ServiceScan:     "6fa3b00fb71cc9d6648fd4e55b37802cb9638e9a044e582351722dfdd0ddc5dc",
 	}
 	texts := map[string]string{api.ServiceCore: coreUnitText, api.ServiceSensor: sensorUnitText, api.ServiceHoneypot: honeypotUnitText, api.ServiceScan: scanUnitText}
 	for svc, text := range texts {
@@ -126,10 +126,24 @@ func TestOurUnitAcceptsAnEarlierTemplateOnlyByteForByte(t *testing.T) {
 	if _, _, _, err := o.ourUnitAge(api.ServiceHoneypot, []byte(old)); !errors.Is(err, errUnitNotOurs) {
 		t.Errorf("a pre-D-318 honeypot unit: %v", err)
 	}
-	// sensor and scan have no earlier template: only the current bytes are theirs.
+	// sensor and scan have one earlier template (before D-458's AppArmor module): those bytes are theirs and stale, one more byte is not.
 	for _, svc := range []string{api.ServiceSensor, api.ServiceScan} {
-		if l := legacyTemplates[svc]; len(l) != 0 {
-			t.Errorf("%s: %d legacy templates, and this test expects none", svc, len(l))
+		if l := legacyTemplates[svc]; len(l) != 1 {
+			t.Fatalf("%s: %d legacy templates, and this test expects one", svc, len(l))
+		}
+		f := goldFill(true)
+		old, err := services[svc].render(legacyTemplates[svc][0], f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(old, []byte(AppArmorConfModule)) || !bytes.Contains(mustRender(t, svc, f), []byte("\nContainersConfModule="+AppArmorConfModule+"\n")) {
+			t.Fatalf("%s: the earlier template must be the one without the AppArmor module, the current one with it", svc)
+		}
+		if d, inst, stale, err := o.ourUnitAge(svc, old); err != nil || !stale || d != f.Digest || !inst {
+			t.Errorf("%s legacy: %s %t %t %v", svc, d, inst, stale, err)
+		}
+		if _, _, _, err := o.ourUnitAge(svc, append(bytes.Clone(old), '\n')); !errors.Is(err, errUnitNotOurs) {
+			t.Errorf("%s legacy with a trailing byte: %v", svc, err)
 		}
 	}
 }

@@ -154,12 +154,13 @@ Bất biến (kiểm bằng test hợp đồng ở `modules/core/`):
 
 | | |
 |---|---|
-| **Cài** | `/usr/lib/vedette/vedette-host` (binary tĩnh, 0755), `/usr/lib/vedette/honeypot-containers.conf` (0644, module containers.conf của unit honeypot, nguyên văn `deploy/deb/honeypot-containers.conf`; #486), unit `vedette-host.service` vào `/usr/lib/systemd/system/` (nguyên văn `deploy/systemd/vedette-host.service`), `/usr/share/doc/vedette-host/{copyright,NOTICE,third-party-licenses}` (file cuối do `scripts/hostlicenses` sinh lúc dựng). Không conffile. |
+| **Cài** | `/usr/lib/vedette/vedette-host` (binary tĩnh, 0755), `/usr/lib/vedette/honeypot-containers.conf` (0644, module containers.conf của unit honeypot, nguyên văn `deploy/deb/honeypot-containers.conf`; #486), `/usr/lib/vedette/apparmor-containers.conf` (0644, module của mọi unit, `apparmor_profile = "vedette-container"`; D-458), `/etc/apparmor.d/vedette-container` (0644, hồ sơ AppArmor của mọi container, nguyên văn `deploy/deb/vedette-container.apparmor`; conffile duy nhất, như mọi hồ sơ Debian ship; D-458), unit `vedette-host.service` vào `/usr/lib/systemd/system/` (nguyên văn `deploy/systemd/vedette-host.service`), `/usr/share/doc/vedette-host/{copyright,NOTICE,third-party-licenses}` (file cuối do `scripts/hostlicenses` sinh lúc dựng). |
+| **Nạp hồ sơ AppArmor** (postinst, D-458) | chỉ khi `aa-enabled --quiet` (như `dh_apparmor`; AppArmor tắt hay không quản được, ví dụ trong container, thì bỏ qua và Podman cũng bỏ qua tên hồ sơ): bước 1 dịch thử `apparmor_parser --skip-kernel-load --skip-cache` (lỗi → từ chối trước khi tạo gì), rồi `apparmor_parser --replace --skip-cache` và kiểm hiệu ứng `vedette-container (enforce)` trong `/sys/kernel/security/apparmor/profiles`; lỗi thì gói dừng. Lúc khởi động máy `apparmor.service` nạp nó từ `/etc/apparmor.d` trước mọi unit. `remove` giữ tệp (conffile), `purge` xoá; hồ sơ đã nạp ở lại trong kernel tới lần khởi động sau. |
 | **Từ chối** (postinst, trước khi tạo gì; D-155 (11)-(13)) | tài khoản `vedette`/`vedette-sensor` có sẵn mà không phải tài khoản hệ thống (id ngoài dải `login.defs`, nhóm có thành viên, shell đăng nhập, nhóm chính khác); thư mục là liên kết tượng trưng; `core_data` hay `log/` có sẵn mà sai chủ/quyền; dải `/etc/subuid` của chủ khác chồng lên dải của podman |
 | **Depends** (tối thiểu) | `podman (>= 4.8)` (Quadlet từ 4.4, `ContainersConfModule=` của unit honeypot từ 4.8; #486), `systemd (>= 254)`, `nftables`, `iproute2`, `procps`, `chrony`, `netplan.io`, `unattended-upgrades`, `passwd` (lý do từng gói: D-155 (3)) |
 | **Tạo** (postinst, chạy lại không đổi gì) | nhóm+người dùng hệ thống `vedette` (`core_uid`, `core_gid` = `socket_gid`) và `vedette-sensor` (`sensor_uid`/`sensor_gid`), id do hệ thống cấp; `/etc/vedette` 0755 root; `/var/lib/vedette-host` 0700 root; `/etc/containers/systemd` 0755 root; `/var/lib/vedette` (`core_data`) 0700 `vedette`; `/var/lib/vedette-honeypot` 0755 root với `config/` 0755 và `log/` 0750 của `vedette`; một dòng `containers:2147483647:2147483648` trong `/etc/subuid` và `/etc/subgid` nếu chưa có dòng `containers:` (cho `UserNS=auto` của honeypot) |
 | **Bật, không khởi động** | `deb-systemd-helper enable` (lần cài đầu; nâng cấp giữ việc quản trị viên đã tắt) và `daemon-reload`; unit chưa chạy cho tới khi installer ghi `/etc/vedette/host.conf` (từ `getent`, gói không ghi nó) và khởi động; `ConditionPathExists=/etc/vedette/host.conf` làm unit bị bỏ qua lúc khởi động máy khi chưa có tệp (không vòng lặp sập). Nâng cấp gói (`$2` khác rỗng) chạy `deb-systemd-invoke try-restart vedette-host.service` sau `daemon-reload`: host đang chạy được khởi động lại (cùng `vedette-honeypot`, `Requires=`), host đang dừng vẫn dừng (D-260). |
-| **Gỡ** | `remove`: dừng và tắt unit, xoá binary, unit và module containers.conf của honeypot. `purge`: thêm quên trạng thái bật. **Cả hai giữ dữ liệu**: `/var/lib/vedette` (CSDL, khoá chủ), bản sao lưu, `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/etc/vedette`, unit Quadlet, người dùng/nhóm, dòng subuid/subgid. Cách xoá hẳn: `RUNBOOK.md` §1.3. |
+| **Gỡ** | `remove`: dừng và tắt unit, xoá binary, unit và hai module containers.conf (giữ hồ sơ AppArmor, conffile). `purge`: thêm quên trạng thái bật và xoá `/etc/apparmor.d/vedette-container`. **Cả hai giữ dữ liệu**: `/var/lib/vedette` (CSDL, khoá chủ), bản sao lưu, `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/etc/vedette`, unit Quadlet, người dùng/nhóm, dòng subuid/subgid. Cách xoá hẳn: `RUNBOOK.md` §1.3. |
 
 Kiểm: test Go `deploy/deb` (trong `make check`) đọc lại gói đã dựng; `make host-deb-check` (tuỳ chọn, kéo image) cài hai lần trong container systemd Debian 13 và Ubuntu 24.04 và so trạng thái. Việc còn mở: chủ của `log/` honeypot dưới `UserNS=auto` (D-155 (5)); tự nâng cấp phải chạy dpkg qua `systemd-run` (D-155 (8)).
 
@@ -280,6 +281,8 @@ ReadOnly=true
 # tmpfs có cận 64 MiB (D-150): tệp tạm chạy lạc không ăn hết 2 GiB bộ nhớ của container
 Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
+# apparmor_profile = "vedette-container" (D-458): hồ sơ AppArmor của gói .deb thay containers-default của Podman, để tiến trình trong container gửi được tín hiệu cho nhau khi crun xếp chồng nhãn (NoNewPrivileges); mọi unit đều có dòng này
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 DropCapability=ALL
 # core_uid:core_gid của /etc/vedette/host.conf; KHÔNG UserNS=auto (uid của peer phải cố định, D-105)
 User=<core_uid>:<core_gid>
@@ -322,6 +325,7 @@ DropCapability=ALL
 # Podman đặt capability thêm vào tập ambient cho uid không root (kiểm ở lab; đường lùi UID 0 + NET_RAW)
 AddCapability=NET_RAW
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
@@ -361,6 +365,7 @@ Network=ns:/run/netns/vedette-hp
 # ip_unprivileged_port_start=0 trong namespace: không cần NET_BIND_SERVICE
 DropCapability=ALL
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
@@ -399,7 +404,7 @@ Options=size=64m,nr_inodes=1024,nosuid,nodev,noexec
 
 `log/` của honeypot **không còn là thư mục trên đĩa của hộp**: là volume tmpfs tối đa 64 MiB và 1024 tệp (OpenCanary xoay 10 MiB × 3 bản, khoảng 40 MiB, nên đủ chỗ), nên kẻ chiếm container không làm đầy hệ tệp của `vedette.db` bằng cách ghi tệp khác vào `log/` (chạm trần thì `ENOSPC` trong container; không ảnh hưởng gì ngoài nó). `vedette-host` ghi tệp `.volume` từ văn bản hằng, bằng bộ ghi an toàn của unit, ngay trước khi ghi unit `core` hoặc `honeypot` (như hai volume khoá, §6.1); không khoá nào khác, không `User=`/`Group=` (`:U` của honeypot đặt chủ). `noexec` nằm cả trong `Options=` lẫn trên dòng `Volume=` của hai unit: phép bind của Podman vào container có cờ riêng và không mang `noexec` của tmpfs sang (`make honeypot-check` bắt được), nên chỉ dòng `Volume=` mới có hiệu lực trong container. Podman gắn tmpfs khi container đầu tiên dùng volume khởi động; `core` luôn chạy nên volume sống qua việc khởi động lại honeypot. **Log mất khi hộp khởi động lại** (tmpfs): chấp nhận được vì `core` đọc từng dòng vào CSDL và bộ đọc tự bắt đầu lại khi tệp bị thay hay cắt (INV-16). Dòng `core` chưa đọc mất khi `core` và `honeypot` cùng dừng (reboot, hoặc honeypot khởi động lại lúc `core` đang dừng); khi `core` chạy bình thường chỉ mất dòng chưa kịp đọc (một chu kỳ poll). **Hai unit `core` và `honeypot` dùng chung volume này nên phải đổi cùng một lượt**: một unit còn bind thư mục cũ thì `core` đọc tmpfs rỗng trong khi honeypot ghi ra đĩa, và mọi hit mất mà không có lỗi. Bản cài trước D-318 không tự chuyển (unit cũ "không phải của host", INV-17): chạy `vedette-host -bootstrap -force-units` cho **core và honeypot cùng nhau**; bootstrap từ chối (`invalid_args`, trước khi ghi gì) khi chỉ một trong hai được ghi mà unit kia còn bind cũ. Đường ra đĩa còn lại của container bị chiếm là stdout/stderr vào journald (`LogDriver=journald`): bị chặn bởi `SystemMaxUse` của journald (mặc định 10% hệ tệp, tối đa 4 GiB), không phải bởi 64 MiB này. Cả 64 MiB là RAM tính vào cgroup 256 MiB của honeypot (`--memory-swap` bằng `--memory`, không đẩy ra swap được). Đổi trần cần `podman volume rm vedette-hp-log` sau khi dừng `core` và `honeypot`: `podman volume create --ignore` của Quadlet không đổi tuỳ chọn của volume đã có. Thư mục cũ `/var/lib/vedette-honeypot/log` (bản cài trước D-318) không còn được dùng và không bị xoá.
 
-`/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ReadOnly`, tmpfs), nhưng `RunInit=true` và `Image=<ID 64 hex>` của image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); ghim theo ID, D-147), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
+`/etc/containers/systemd/vedette-scan.container`: như `sensor` (cùng `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL`, `AddCapability=NET_RAW`, `NoNewPrivileges`, `ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf`, `ReadOnly`, tmpfs), nhưng `RunInit=true` và `Image=<ID 64 hex>` của image dựng trên hộp `localhost/vedette-scan-nmap:<version>` (D-113 (7); ghim theo ID, D-147), `Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro`, `PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128`, `Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem`.
 
 `/usr/lib/systemd/system/vedette-host.service` (tệp `deploy/systemd/vedette-host.service` của kho, `.deb`/installer cài nguyên văn; đường dẫn theo Debian Policy §9.3 cho unit do gói cài, D-150; đoạn dưới là bản sao, `deploy/systemd/unit_test.go` so từng ký tự; thông số hardening ở §12)
 
@@ -649,7 +654,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 - SSH quản trị host nằm ngoài Vedette; khuyến nghị chỉ cho phép từ dải quản trị.
 
 **Container.**
-- `cap_drop=ALL` + capability tối thiểu (§2); `no-new-privileges`; rootfs chỉ đọc + tmpfs; seccomp/AppArmor mặc định của Podman; giới hạn tài nguyên (§2.5).
+- `cap_drop=ALL` + capability tối thiểu (§2); `no-new-privileges`; rootfs chỉ đọc + tmpfs; seccomp mặc định của Podman; AppArmor: hồ sơ `vedette-container` (bản của containers-default của Podman cộng luật tín hiệu/ptrace cho nhãn xếp chồng, D-458) trên hộp appliance, mặc định của runtime ở bản container-only; giới hạn tài nguyên (§2.5).
 - Secret qua file mount ro, không qua biến môi trường.
 - Non-root ở mọi container; `core` chạy `User=<core_uid>:<core_gid>` cố định, **không** `UserNS=auto` (kiểm peer của socket host và kiểm chủ sở hữu của D-87 cần uid ổn định); `sensor`/`scan` chạy `User=<sensor_uid>:<sensor_gid>` cố định, **không** `UserNS` (capability của user namespace con không phủ namespace mạng của host; D-114 sửa D-105 (5)); các container khác `UserNS=auto` (D-105). Unit là unit hệ thống, Podman rootful (đóng câu hỏi hệ thống/người dùng).
 - Image: ghim digest, SBOM CycloneDX, quét `trivy`/`govulncheck` trong CI, cosign.

@@ -104,6 +104,35 @@ once() { # once <mode as stat -c %a prints it, without a leading 0> <user> <path
 	fi
 }
 
+# ---- the AppArmor profile of the containers (D-458) --------------------------------------------------------------------
+
+# The units select vedette-container (/usr/lib/vedette/apparmor-containers.conf); Podman refuses to start a container whose profile
+# is not loaded. apparmor.service loads /etc/apparmor.d at every boot; this loads it now, so a container restarted before the next
+# boot finds it, and replaces an older text in place (running containers get the new rules at once). Debian's dh_apparmor snippet
+# does the same, gated on aa-enabled: where AppArmor is off (or cannot be managed, as in a container) Podman ignores the name too.
+# Unlike dh_apparmor a failure stops the package: a profile that does not load would stop every Vedette container at its next start.
+AA_PROFILE=/etc/apparmor.d/vedette-container
+
+aa_on() {
+	command -v aa-enabled >/dev/null 2>&1 && aa-enabled --quiet 2>/dev/null
+}
+
+# check_profile: compiled without loading, before anything is created
+check_profile() {
+	aa_on || return 0
+	command -v apparmor_parser >/dev/null 2>&1 || fail "AppArmor is enabled but apparmor_parser is missing; install the apparmor package"
+	apparmor_parser --skip-kernel-load --skip-cache "$AA_PROFILE" || fail "$AA_PROFILE does not compile (apparmor_parser)"
+}
+
+load_profile() {
+	aa_on || return 0
+	# no cache written: nothing of ours outside the package's files (the boot-time load caches it like any profile of /etc/apparmor.d)
+	apparmor_parser --replace --skip-cache "$AA_PROFILE" || fail "could not load $AA_PROFILE into the kernel (apparmor_parser)"
+	# the effect, not the exit code: the kernel lists the profile
+	grep -q '^vedette-container (enforce)$' /sys/kernel/security/apparmor/profiles ||
+		fail "the kernel does not list the AppArmor profile vedette-container after loading $AA_PROFILE"
+}
+
 # ---- the unit ------------------------------------------------------------------------------------------------------------
 
 enable_unit() {
@@ -146,6 +175,7 @@ configure)
 	check_dirs
 	check_subid /etc/subuid
 	check_subid /etc/subgid
+	check_profile
 
 	# 2. accounts
 	group "$CORE"
@@ -173,6 +203,8 @@ configure)
 
 	subid /etc/subuid
 	subid /etc/subgid
+
+	load_profile
 
 	enable_unit
 	# the unit is new or changed. On an upgrade a running instance is restarted (after the reload). A dpkg that the helper itself

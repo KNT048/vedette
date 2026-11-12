@@ -39,6 +39,8 @@
     "testNever": "Not tested",
     "testOk": "Tested {{time}}: success",
     "testFail": "Tested {{time}}: failed",
+    "testing": "Sending test…",
+    "onButFailed": "The channel is on, but its last test failed: alerts sent through it may not arrive. Fix the settings and send a test again.",
     "configure": "Set up",
     "edit": "Edit",
     "test": "Send test",
@@ -60,6 +62,7 @@
     "err": {
       "badUrl": "The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.",
       "insecureUrl": "Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.",
+      "blockedUrl": "The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.",
       "noKey": "Enter the webhook signing key.",
       "shortKey": "The signing key needs at least 16 characters. Press Generate random if you want a random one."
     },
@@ -355,6 +358,7 @@
     "history": "All sent messages"
   },
   "history": {
+    "via": "{{channel}} to {{to}}",
     "title": "History",
     "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
     "retention": "History and resolved incidents are kept for 1 year.",

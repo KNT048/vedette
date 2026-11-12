@@ -1613,6 +1613,54 @@
    }
   },
   {
+   "name": "an SSH allow-list entry with a shell separator",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Shell",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "basic",
+    "username": "vedette",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "show version; reload"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid_allow",
+    "field": "allow",
+    "message": "A command in the allow-list cannot contain the characters ; | & $ ` < > ( ) \\ ! ~ ^ (a command is sent as one plain line, never to a shell)."
+   }
+  },
+  {
+   "name": "a user name with spaces and a separator",
+   "role": "admin",
+   "method": "POST",
+   "path": "/core/connections",
+   "body": {
+    "name": "Space user",
+    "kind": "ssh",
+    "target": "192.168.10.61:22",
+    "auth_type": "basic",
+    "username": "a b;rm -rf /",
+    "secret": "par-0123456789-cdef",
+    "allow": [
+     "show version"
+    ],
+    "enabled": true
+   },
+   "status": 400,
+   "error": {
+    "code": "invalid",
+    "field": "username",
+    "message": "The user name is 1 to 64 characters, with no spaces, colons or control characters."
+   }
+  },
+  {
    "name": "a name of 41 code points",
    "role": "admin",
    "method": "POST",

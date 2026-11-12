@@ -29,8 +29,9 @@ import (
 
 var epochRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-// currentConfig is what the sensor is told now: the card the admin chose, SPAN mode, and for SPAN the switches and filters.
-// When the filters cannot be read it says "do not capture" (D-80 (3): ignoring a rule would read traffic the admin excluded).
+// currentConfig is what the sensor is told now: the card the admin chose (else the default card, D-380), SPAN mode, and for
+// SPAN the switches and filters. When the filters cannot be read it says "do not capture" (D-80 (3): ignoring a rule would
+// read traffic the admin excluded).
 func (s *Service) currentConfig(ctx context.Context) (sensorlink.Config, error) {
 	if err := s.ensureSensor(ctx); err != nil {
 		return sensorlink.Config{}, err
@@ -39,7 +40,7 @@ func (s *Service) currentConfig(ctx context.Context) (sensorlink.Config, error) 
 	if err != nil {
 		return sensorlink.Config{}, err
 	}
-	cfg := sensorlink.Config{Interface: r.iface.String, Span: r.span, Filters: []sensorlink.Filter{}}
+	cfg := sensorlink.Config{Interface: s.listenOn(ctx, r), Span: r.span, Filters: []sensorlink.Filter{}}
 	if cfg.Interface == "" || !cfg.Span {
 		return cfg, nil
 	}

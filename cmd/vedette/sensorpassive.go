@@ -69,6 +69,9 @@ func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, erro
 	return capInterfaces(cards), true, nil
 }
 
+// ManagementCard is where the sensor listens while no SPAN port is chosen (D-380); ok is false only without a host.
+func (n netHost) ManagementCard(ctx context.Context) (string, bool) { return n.box.ManagementCard(ctx) }
+
 func capInterfaces(cards []core.Card) []capture.Interface {
 	out := make([]capture.Interface, 0, len(cards))
 	for _, c := range cards {

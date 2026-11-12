@@ -38,10 +38,14 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
 - `server.Parked{Deadline, Result}`: a value `Run` returns for a command that declares `Spec.Parks`, modelled on
   `server.Awaiting` (`enterAwaiting`). The run is stored `running` with `parked_deadline`, keeps the write lock, gets one
   `parked` audit line and a `log` event, and its goroutine returns, so `Spec.Timeout` no longer applies to it.
-- `Shutdown` leaves a parked run as it is on disk, as it does an awaiting run. `recover()` offers every non-terminal run
-  to `Options.Resume` (not only `awaiting_confirm`) and keeps a parked one, with its lock, when the answer is yes.
-- `Settle` ends a parked run exactly once (compare-and-swap). The order is: run file, audit line, final event, lock
-  release, as for an awaiting run. Events go on from the stored ones (`seq` continues; `Last-Event-ID` still works).
+- `Shutdown` leaves a parked run as it is on disk, as it does an awaiting run. `recover()` offers `awaiting_confirm`
+  runs **and parked runs** (`running` with `parked_deadline`) to `Options.Resume` and keeps a parked one, with its lock,
+  when the answer is yes. Built: other non-terminal runs are not offered, because `(*Ops).Resume`
+  (`host/ops/netpending.go`) would mark a `net.apply` cut short mid-run as kept and skip `recoverOrphan`.
+- `SettleParked` (a name of its own: `Settle` of awaiting runs already exists) ends a parked run exactly once
+  (compare-and-swap; the loser gets `ErrNotParked`). The order is the one of an awaiting run (`liveRun.finish`): audit
+  line, then the run file together with the lock release, then the final event. Events go on from the stored ones
+  (`seq` continues; `Last-Event-ID` still works).
 - Files: `host/server/{server,awaiting,handlers,registry}.go` (or a new `parked.go`), `host/server/*_test.go`, and
   `modules/host/contract_test.go` for the INV-3 rows.
 - Tests (a test-only parking command): **SIGTERM lands while the run is parked** (`Shutdown` with the run on disk), then

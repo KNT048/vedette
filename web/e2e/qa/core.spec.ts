@@ -482,7 +482,7 @@ test.describe('updates: system helper (D-316)', () => {
     await expect(helperRow(page).getByRole('button')).toHaveCount(0)
     await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
     await expect(page.getByText('Step 1 of 4: update the system helper')).toBeVisible()
-    await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.')).toBeVisible()
+    await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Back to .*Vedette software/ })).toBeDisabled()
   }
 

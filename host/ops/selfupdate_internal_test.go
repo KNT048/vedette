@@ -2,6 +2,7 @@ package ops
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -366,8 +367,12 @@ func FuzzParseSUStarted(f *testing.F) {
 func TestSelfUpdateSimulation(t *testing.T) {
 	t.Parallel()
 	ok := "Inst conntrack (1:1.4.8-1 Ubuntu:24.04/noble [amd64])\nInst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\nConf vedette-host (1.4.0 local-deb [amd64])\n"
-	if !SelfUpdateSimOK([]byte(ok)) {
-		t.Fatal("a plain install was refused")
+	added, accepted := SelfUpdateSim([]byte(ok + "Inst libnetfilter-cttimeout1 (1.0.1-1 Ubuntu:24.04/noble [amd64])\n"))
+	if !accepted || !slices.Equal(added, []string{"conntrack", "libnetfilter-cttimeout1"}) {
+		t.Fatalf("a plain install with two new dependencies: %v %v", added, accepted)
+	}
+	if added, accepted := SelfUpdateSim([]byte("Inst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\n")); !accepted || len(added) != 0 {
+		t.Fatalf("an install with no new dependency: %v %v", added, accepted)
 	}
 	for name, out := range map[string]string{
 		"removal":         ok + "Remv podman [4.9.3]\n",
@@ -377,20 +382,71 @@ func TestSelfUpdateSimulation(t *testing.T) {
 		"line too long":   ok + strings.Repeat("x", maxSimLine+1) + "\n",
 		"empty":           "",
 		"host named late": strings.Replace(ok, "Inst vedette-host", "Inst vedette-hostx", 1),
+		"not a name":      ok + "Inst ../../etc/passwd (1.0 x [amd64])\n",
+		"foreign arch":    ok + "Inst libfoo1:i386 (1.0 Ubuntu:24.04/noble [i386])\n", // install.sh's list filter would never purge it
 	} {
-		if SelfUpdateSimOK([]byte(out)) {
-			t.Errorf("%s: accepted", name)
+		if added, accepted := SelfUpdateSim([]byte(out)); accepted || added != nil {
+			t.Errorf("%s: accepted (%v)", name, added)
 		}
 	}
 }
 
-func FuzzSelfUpdateSimOK(f *testing.F) {
+func FuzzSelfUpdateSim(f *testing.F) {
 	f.Add([]byte("Inst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\n"))
+	f.Add([]byte("Inst conntrack (1:1.4.8-1 Ubuntu:24.04/noble [amd64])\nInst vedette-host [1.3.0] (1.4.0 local-deb [amd64])\n"))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if SelfUpdateSimOK(b) && (strings.Contains(string(b), "\nRemv ") || strings.HasPrefix(string(b), "Remv ")) {
+		added, ok := SelfUpdateSim(b)
+		if ok && (strings.Contains(string(b), "\nRemv ") || strings.HasPrefix(string(b), "Remv ")) {
 			t.Fatal("a removal was accepted")
 		}
+		for _, n := range added {
+			if !ok || !addedPkgName(n) || strings.Contains(n, ":") || isHostPkg(n) {
+				t.Fatalf("added %q (ok %v)", n, ok)
+			}
+		}
 	})
+}
+
+// D-316 (9): the packages a self-update adds are merged into selfupdate/installed-by-us (sorted, unique, 0600)
+// before anything is installed; nothing new writes nothing; a link in its place stops the run.
+func TestRecordAddedPackages(t *testing.T) {
+	t.Parallel()
+	o := &Ops{cfg: Config{StateDir: t.TempDir()}}
+	if err := os.MkdirAll(suDir(o.cfg.StateDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(suDir(o.cfg.StateDir), suAddedName)
+	if err := o.recordAddedPackages(nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(p); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("no new package wrote the file: %v", err)
+	}
+	if err := o.recordAddedPackages([]string{"conntrack", "libnetfilter-cttimeout1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := o.recordAddedPackages([]string{"zstd", "conntrack"}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(p) //nolint:gosec // the test's own temp state directory
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "conntrack\nlibnetfilter-cttimeout1\nzstd\n" {
+		t.Fatalf("installed-by-us is %q", b)
+	}
+	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o600 {
+		t.Fatalf("mode %v", fi.Mode().Perm())
+	}
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/etc/passwd", p); err != nil {
+		t.Fatal(err)
+	}
+	if err := o.recordAddedPackages([]string{"conntrack"}); err == nil {
+		t.Fatal("a link in place of installed-by-us was written through")
+	}
 }
 
 // checkSelfUpdateLimits is the host.self_update part of TestTimeLimitsAreConsistent (spec 6.14 "Thời hạn").

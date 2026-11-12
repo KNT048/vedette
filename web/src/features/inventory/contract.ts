@@ -64,7 +64,7 @@ export const AddDeviceInput = z.object({
 })
 export const AddDeviceResult = z.object({ id: z.string(), display: z.string(), kev_cves: z.number().int() })
 export const ImportInput = z.object({ filename: z.string(), size: z.number().int(), sha256: z.string(), text: z.string().describe('UTF-8 CSV content, at most 200 KB and 500 rows') })
-export const ImportResult = z.object({ created: z.number().int(), skipped: z.number().int(), errors: z.array(z.object({ line: z.number().int(), message: z.string() })) })
+export const ImportResult = z.object({ created: z.number().int(), skipped: z.number().int(), errors: z.array(z.object({ line: z.number().int(), message: z.string() })), notes: z.array(z.object({ line: z.number().int(), message: z.string() })).describe('Rows that were added but need a word: a public IP, or an IP outside the saved network ranges') })
 
 export const ActiveWindow = z.object({
   enabled: z.boolean(), days: z.array(z.number().int().min(1).max(7)).describe('1 = Monday … 7 = Sunday'),
